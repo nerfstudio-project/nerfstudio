@@ -365,7 +365,16 @@ def compute_scale_and_shift(prediction: TensorType[1, ...], target: TensorType[1
     return scale, shift
 
 
-def reduction(loss, M, reduction_type: str):
+def reduction(loss: TensorType[0], M: TensorType[0], reduction_type: str):
+    """
+    Whether to consolidate the loss across the batch or across the image
+    Args:
+        loss: loss tensor
+        M: mask tensor
+        reduction_type: either "batch" or "image"
+    Returns:
+        loss: reduced loss
+    """
     if reduction_type == "batch":
         # avoid division by 0 (if sum(M) = sum(sum(mask)) = 0: sum(image_loss) = 0)
         divisor = torch.sum(M)
@@ -384,7 +393,7 @@ class MiDaSMSELoss(nn.Module):
     data term from MiDaS paper
     """
 
-    def __init__(self, reduction_type="batch"):
+    def __init__(self, reduction_type: str = "batch"):
         super().__init__()
 
         assert reduction_type in ["batch", "image"], "reduction must be either batch or image"
@@ -392,7 +401,9 @@ class MiDaSMSELoss(nn.Module):
         # reduction here is different from the image/batch-based reduction. This is either "mean" or "sum"
         self.mse_loss = MSELoss(reduction="none")
 
-    def forward(self, prediction: torch.Tensor, target: torch.Tensor, mask: torch.Tensor):
+    def forward(
+        self, prediction: TensorType[1, ...], target: TensorType[1, ...], mask: TensorType[1, ...]
+    ) -> TensorType[0]:
         """
         Args:
             prediction: predicted depth map
@@ -403,7 +414,6 @@ class MiDaSMSELoss(nn.Module):
         """
         M = torch.sum(mask, (1, 2))
         image_loss = torch.sum(self.mse_loss(prediction, target) * mask, (1, 2))
-
         image_loss = reduction(image_loss, M, self.reduction_type)
 
         return image_loss
@@ -417,14 +427,21 @@ class GradientLoss(nn.Module):
     More info here https://arxiv.org/pdf/1907.01341.pdf Equation 11
     """
 
-    def __init__(self, scales=4, reduction_type="batch"):
+    def __init__(self, scales: int = 4, reduction_type: str = "batch"):
+        """
+        Args:
+            scales: number of scales to use
+            reduction_type: either "batch" or "image"
+        """
         super().__init__()
 
         assert reduction_type in ["batch", "image"], "reduction must be either batch or image"
         self.reduction_type = reduction_type
         self.__scales = scales
 
-    def forward(self, prediction, target, mask):
+    def forward(
+        self, prediction: TensorType[1, ...], target: TensorType[1, ...], mask: TensorType[1, ...]
+    ) -> TensorType[0]:
         """
         Args:
             prediction: predicted depth map
@@ -447,7 +464,9 @@ class GradientLoss(nn.Module):
 
         return total
 
-    def gradient_loss(self, prediction: torch.Tensor, target: torch.Tensor, mask: torch.Tensor):
+    def gradient_loss(
+        self, prediction: TensorType[1, ...], target: TensorType[1, ...], mask: TensorType[1, ...]
+    ) -> TensorType[0]:
         """
         multiscale, scale-invariant gradient matching term to the disparity space.
         This term biases discontinuities to be sharp and to coincide with discontinuities in the ground truth
@@ -484,7 +503,13 @@ class ScaleAndShiftInvariantLoss(nn.Module):
     https://arxiv.org/pdf/1907.01341.pdf
     """
 
-    def __init__(self, alpha=0.5, scales=4, reduction_type="batch"):
+    def __init__(self, alpha: float = 0.5, scales: int = 4, reduction_type: str = "batch"):
+        """
+        Args:
+            alpha: weight of the regularization term
+            scales: number of scales to use
+            reduction_type: either "batch" or "image"
+        """
         super().__init__()
         assert reduction_type in ["batch", "image"], "reduction must be either batch or image"
 
@@ -494,7 +519,9 @@ class ScaleAndShiftInvariantLoss(nn.Module):
 
         self.__prediction_ssi = None
 
-    def forward(self, prediction, target, mask):
+    def forward(
+            self, prediction: TensorType[1, ...], target: TensorType[1, ...], mask: TensorType[1, ...]
+    ) -> TensorType[0]:
         """
         Args:
             prediction: predicted depth map (unnormalized)
