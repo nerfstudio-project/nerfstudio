@@ -79,7 +79,7 @@ class KPlanesDensityField(Field):
             self.sigma_net(features).to(pts)
             # features.to(pts)
         ).view(n_rays, n_samples, 1)
-        return density
+        return density, features
 
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None) -> TensorType:
         return torch.zeros(ray_samples.shape)

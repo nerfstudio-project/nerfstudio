@@ -64,7 +64,7 @@ class LowrankModelConfig(ModelConfig):
                 "grid_dimensions": 2,
                 "input_coordinate_dim": 4,
                 "output_coordinate_dim": 16,
-                "resolution": (64, 64, 64, 150),
+                "resolution": [64, 64, 64, 150],
             },
         ]
     )
@@ -82,8 +82,8 @@ class LowrankModelConfig(ModelConfig):
     use_same_proposal_network: bool = False
     proposal_net_args_list: List[Dict] = field(
         default_factory=lambda: [
-            {"num_input_coords": 4, "num_output_coords": 8, "resolution": (128, 128, 128, 150)},
-            {"num_input_coords": 4, "num_output_coords": 8, "resolution": (256, 256, 256, 150)},
+            {"num_input_coords": 4, "num_output_coords": 8, "resolution": [128, 128, 128, 150]},
+            {"num_input_coords": 4, "num_output_coords": 8, "resolution": [256, 256, 256, 150]},
         ]
     )
     num_proposal_samples: Optional[Tuple[int, int]] = (256, 128)
@@ -166,7 +166,7 @@ class KPlanesModel(Model):
                 **prop_net_args,
             )
             self.proposal_networks.append(network)
-            self.density_fns.extend([network.get_density for _ in range(self.num_proposal_iterations)])
+            self.density_fns.extend([network.density_fn for _ in range(self.num_proposal_iterations)])
         else:
             for i in range(self.num_proposal_iterations):
                 prop_net_args = self.proposal_net_args_list[min(i, len(self.proposal_net_args_list) - 1)]
@@ -178,7 +178,7 @@ class KPlanesModel(Model):
                     **prop_net_args,
                 )
                 self.proposal_networks.append(network)
-            self.density_fns.extend([network.get_density for network in self.proposal_networks])
+            self.density_fns.extend([network.density_fn for network in self.proposal_networks])
 
         update_schedule = lambda step: np.clip(
             np.interp(step, [0, self.proposal_warmup], [0, self.proposal_update_every]),
@@ -214,38 +214,32 @@ class KPlanesModel(Model):
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
-        def step_before_iter(
-            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
-        ):
-            if self.use_proposal_weight_anneal:
-                # anneal the weights of the proposal network before doing PDF sampling
-                N = self.proposal_weights_anneal_max_num_iters
+        callbacks = []
+        if self.config.use_proposal_weight_anneal:
+            # anneal the weights of the proposal network before doing PDF sampling
+            N = self.config.proposal_weights_anneal_max_num_iters
+
+            def set_anneal(step):
                 # https://arxiv.org/pdf/2111.12077.pdf eq. 18
                 train_frac = np.clip(step / N, 0, 1)
                 bias = lambda x, b: (b * x) / ((b - 1) * x + 1)
-                anneal = bias(train_frac, self.proposal_weights_anneal_slope)
+                anneal = bias(train_frac, self.config.proposal_weights_anneal_slope)
                 self.proposal_sampler.set_anneal(anneal)
 
-        def step_after_iter(
-            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
-        ):
-            if self.use_proposal_weight_anneal:
-                self.proposal_sampler.step_cb(step)
-
-        callbacks = [
-            TrainingCallback(
-                where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
-                update_every_num_iters=1,
-                func=step_before_iter,
-                args=[self, training_callback_attributes],
-            ),
-            TrainingCallback(
-                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-                update_every_num_iters=1,
-                func=step_after_iter,
-                args=[self, training_callback_attributes],
-            ),
-        ]
+            callbacks.append(
+                TrainingCallback(
+                    where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
+                    update_every_num_iters=1,
+                    func=set_anneal,
+                )
+            )
+            callbacks.append(
+                TrainingCallback(
+                    where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                    update_every_num_iters=1,
+                    func=self.proposal_sampler.step_cb,
+                )
+            )
         return callbacks
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
