@@ -73,6 +73,8 @@ class DreamFusionModelConfig(ModelConfig):
     """Initial strength of center density"""
     sphere_collider: bool = True
     """Use spherical collider instead of box"""
+    random_background: bool = True
+    """Randomly choose between using background mlp and random color for background"""
     target_transmittance_start: float = 0.4
     """target transmittance for opacity penalty. This is the percent of the scene that is
     background when rendered at the start of training"""
@@ -133,6 +135,7 @@ class DreamFusionModel(Model):
         self.initialize_density = config.initialize_density
         self.train_normals = False
         self.train_shaded = False
+        self.random_background = config.random_background
         self.density_strength = 1.0
         self.target_transmittance = config.target_transmittance_start
         super().__init__(config=config, **kwargs)
@@ -336,7 +339,7 @@ class DreamFusionModel(Model):
             shading_weight = 0.0
 
         shaded, shaded_albedo = self.shader_lambertian(
-            rgb=rgb, normals=pred_normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=False
+            rgb=rgb, normals=pred_normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=True
         )
 
         outputs["normals"] = self.shader_normals(normals, weights=accum_mask)
@@ -347,8 +350,16 @@ class DreamFusionModel(Model):
         outputs["rgb"] = accum_mask * rgb + background
 
         if shading_weight > 0:
-            if np.random.random_sample() > 0.5 and not self.training:
+            samp = np.random.random_sample()
+            if samp > 0.5 and not self.training:
                 outputs["train_output"] = outputs["shaded"]
+            elif samp < 0.2 and self.random_background:
+                rand_bg = torch.zeros(background.shape)
+                rand_bg.index_fill_(1, torch.tensor([0]), np.random.random_sample())
+                rand_bg.index_fill_(1, torch.tensor([1]), np.random.random_sample())
+                rand_bg.index_fill_(1, torch.tensor([2]), np.random.random_sample())
+                rand_bg = rand_bg.to(self.device) 
+                outputs["train_output"] = accum_mask * shaded_albedo + rand_bg * accum_mask_inv
             else:
                 outputs["train_output"] = accum_mask * shaded_albedo + background
         else:
