@@ -62,10 +62,14 @@ class HashMLPDensityField(Field):
         features_per_level=2,
     ) -> None:
         super().__init__()
-        self.aabb = Parameter(aabb, requires_grad=False)
+        self.register_buffer('aabb', aabb)
         self.spatial_distortion = spatial_distortion
         self.use_linear = use_linear
         growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
+
+        self.register_buffer('max_res', torch.tensor(max_res))
+        self.register_buffer('num_levels', torch.tensor(num_levels))
+        self.register_buffer('log2_hashmap_size', torch.tensor(log2_hashmap_size))
 
         config = {
             "encoding": {
