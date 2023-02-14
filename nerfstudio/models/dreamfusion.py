@@ -116,6 +116,16 @@ class DreamFusionModelConfig(ModelConfig):
     """Start training normals after this many iterations"""
     start_lambertian_training: int = 1000
     """start training with lambertian shading after this many iterations"""
+    alphas_penalty: bool = True
+    """enables penalty to encourage sparse weights (penalizing for uniform density along ray)"""
+    alphas_loss_mult: float = 1
+    """scale for alphas penalty"""
+    opacity_penalty: bool = True
+    """enables penalty to encourage transparent scenes, as in "dreamfields" paper"""
+    opacity_loss_mult: float = 1
+    """scale for opacity penalty"""
+    max_res: int = 256
+    """Maximum resolution of the density field."""
 
 
 class DreamFusionModel(Model):
@@ -145,7 +155,7 @@ class DreamFusionModel(Model):
         super().populate_modules()
 
         # setting up fields
-        self.field = DreamFusionField(self.scene_box.aabb)
+        self.field = DreamFusionField(self.scene_box.aabb, max_res=self.config.max_res)
 
         # samplers
         self.density_fns = []
@@ -339,7 +349,7 @@ class DreamFusionModel(Model):
             shading_weight = 0.0
 
         shaded, shaded_albedo = self.shader_lambertian(
-            rgb=rgb, normals=pred_normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=True
+            rgb=rgb, normals=normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=False
         )
 
         outputs["normals"] = self.shader_normals(normals, weights=accum_mask)
@@ -354,11 +364,7 @@ class DreamFusionModel(Model):
             if samp > 0.5 and not self.training:
                 outputs["train_output"] = outputs["shaded"]
             elif samp < 0.2 and self.random_background:
-                rand_bg = torch.zeros(background.shape)
-                rand_bg.index_fill_(1, torch.tensor([0]), np.random.random_sample())
-                rand_bg.index_fill_(1, torch.tensor([1]), np.random.random_sample())
-                rand_bg.index_fill_(1, torch.tensor([2]), np.random.random_sample())
-                rand_bg = rand_bg.to(self.device) 
+                rand_bg = torch.ones_like(background) * torch.rand(3, device=self.device)
                 outputs["train_output"] = accum_mask * shaded_albedo + rand_bg * accum_mask_inv
             else:
                 outputs["train_output"] = accum_mask * shaded_albedo + background
@@ -377,7 +383,10 @@ class DreamFusionModel(Model):
             )
 
             assert weights.shape[-1] == 1
-            outputs["alphas_loss"] = torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01)
+            if self.config.alphas_penalty:
+                outputs["alphas_loss"] = (
+                    torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01) * self.config.alphas_loss_mult
+                )
 
         return outputs
 
@@ -399,11 +408,12 @@ class DreamFusionModel(Model):
             loss_dict["orientation_loss"] = 0
             loss_dict["pred_normal_loss"] = 0
 
-        loss_dict["alphas_loss"] = outputs["alphas_loss"].mean()
+        if self.config.alphas_penalty:
+            loss_dict["alphas_loss"] = self.config.alphas_loss_mult * outputs["alphas_loss"].mean()
 
-        loss_dict["opacity_loss"] = -torch.minimum(
-            (1 - outputs["accumulation"]).mean(), torch.tensor(self.target_transmittance)
-        )
+        if self.config.opacity_penalty:
+            opacity_loss = -torch.minimum((1 - outputs["accumulation"]).mean(), torch.tensor(self.target_transmittance))
+            loss_dict["opacity_loss"] = self.config.opacity_loss_mult * opacity_loss
         if self.training:
             loss_dict["distortion_loss"] = self.config.distortion_loss_mult * distortion_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]

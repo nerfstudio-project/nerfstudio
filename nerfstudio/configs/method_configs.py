@@ -352,7 +352,9 @@ method_configs["dreamfusion"] = TrainerConfig(
         ),
         model=DreamFusionModelConfig(
             eval_num_rays_per_chunk=1 << 15,
-            distortion_loss_mult=10,
+            distortion_loss_mult=10.0,
+            orientation_loss_mult=0.0001,
+            max_res=256,
             sphere_collider=True,
             initialize_density=False,
             random_background=True,
@@ -363,8 +365,7 @@ method_configs["dreamfusion"] = TrainerConfig(
             start_lambertian_training=1000,
             start_normals_training=500,
         ),
-        alphas_loss_mult=1.0,
-        opacity_loss_mult=1.0,
+        interpolated_prompting=False,
         guidance_scale=100,
     ),
     optimizers={
