@@ -92,6 +92,7 @@ class Nerfstudio(DataParser):
         image_filenames = []
         mask_filenames = []
         depth_filenames = []
+        hs_filenames = []
         poses = []
         num_skipped_image_filenames = 0
 
@@ -167,6 +168,11 @@ class Nerfstudio(DataParser):
                 depth_fname = self._get_fname(depth_filepath, data_dir, downsample_folder_prefix="depths_")
                 depth_filenames.append(depth_fname)
 
+            if "hyperspectral_file_path" in frame:
+                hs_filepath = PurePath(frame["hyperspectral_file_path"])
+                hs_fname = self._get_fname(hs_filepath, data_dir, downsample_folder_prefix="hss_")
+                hs_filenames.append(hs_fname)
+
         if num_skipped_image_filenames >= 0:
             CONSOLE.log(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
         assert (
@@ -186,6 +192,12 @@ class Nerfstudio(DataParser):
         ), """
         Different number of image and depth filenames.
         You should check that depth_file_path is specified for every frame (or zero frames) in transforms.json.
+        """
+        assert len(hs_filenames) == 0 or (
+            len(hs_filenames) == len(image_filenames)
+        ), """
+        Different number of image and hyperspectral filenames.
+        You should check that hs_file_path is specified for every frame (or zero frames) in transforms.json.
         """
 
         # filter image_filenames and poses based on train/eval split percentage
@@ -237,6 +249,7 @@ class Nerfstudio(DataParser):
         image_filenames = [image_filenames[i] for i in indices]
         mask_filenames = [mask_filenames[i] for i in indices] if len(mask_filenames) > 0 else []
         depth_filenames = [depth_filenames[i] for i in indices] if len(depth_filenames) > 0 else []
+        hs_filenames = [hs_filenames[i] for i in indices] if len(hs_filenames) > 0 else []
         poses = poses[indices]
 
         # in x,y,z order
@@ -297,6 +310,7 @@ class Nerfstudio(DataParser):
             metadata={
                 "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
+                "hs_filenames": hs_filenames if len(hs_filenames) > 0 else None,
             },
         )
         return dataparser_outputs
