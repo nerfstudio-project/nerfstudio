@@ -48,5 +48,6 @@ class HyperspectralDataset(InputDataset):
 
         hs_image = torch.load(filepath)
         assert hs_image.shape == (height, width, 128), "HS image has incorrect shape"
+        assert hs_image.dtype == torch.uint8, "HS image has incorrect dtype"
 
-        return {"hs_image": hs_image}
+        return {"hs_image": hs_image.type(torch.float32) / 255.0}

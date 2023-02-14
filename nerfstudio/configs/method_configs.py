@@ -121,8 +121,8 @@ method_configs["hs-nerfacto"] = TrainerConfig(
             camera_optimizer=CameraOptimizerConfig(mode="SO3xR3",
                                                    optimizer=AdamOptimizerConfig(
                                                        lr=6e-4, eps=1e-8, weight_decay=1e-2)),
-            train_num_images_to_sample_from=20,  # This is needed to not run out of GPU memory
-            train_num_times_to_repeat_images=250,
+            # train_num_images_to_sample_from=32,  # This might be needed to not run out of GPU memory
+            # train_num_times_to_repeat_images=250,
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
     ),
