@@ -33,6 +33,7 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 from torch import nn
+from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
 from typing_extensions import Literal
@@ -216,7 +217,7 @@ class VanillaPipeline(Pipeline):
         test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
-        grad_scaler = None
+        grad_scaler: Optional[GradScaler] = None,
     ):
         super().__init__()
         self.config = config
