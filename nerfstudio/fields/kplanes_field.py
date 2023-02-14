@@ -281,7 +281,6 @@ class KPlanesField(Field):
         pts: torch.Tensor = ray_samples.frustums.get_positions()
         n_rays, n_samples = pts.shape[:2]
 
-        camera_indices = None
         if ray_samples.camera_indices is not None:
             camera_indices = ray_samples.camera_indices.squeeze()
         directions: torch.Tensor = get_normalized_directions(ray_samples.frustums.directions)

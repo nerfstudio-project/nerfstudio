@@ -72,7 +72,7 @@ class LowrankModelConfig(ModelConfig):
 
     density_activation: str = "trunc_exp"
     concat_features_across_scales: bool = True
-    linear_decoder: bool = True
+    linear_decoder: bool = False
     linear_decoder_layers: Optional[int] = 1
     # Spatial distortion
     global_translation: Optional[torch.Tensor] = None
@@ -267,6 +267,9 @@ class KPlanesModel(Model):
         field_out = self.field(ray_samples)
         rgb, density = field_out[FieldHeadNames.RGB], field_out[FieldHeadNames.DENSITY]
 
+        # print("rgb 0", rgb.isnan().any())
+        # print("density 0", density.isnan().any())
+
         weights = ray_samples.get_weights(density)
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
@@ -275,6 +278,9 @@ class KPlanesModel(Model):
             rgb=rgb,
             weights=weights,
         )
+
+        # print("rgb 1", rgb.isnan().any())
+        # print("weights 1", weights.isnan().any())
 
         accumulation = self.renderer_accumulation(weights)
         depth = self.renderer_depth(weights, ray_samples)
@@ -301,6 +307,8 @@ class KPlanesModel(Model):
 
         rgb_loss = self.rgb_loss(image, outputs["rgb"])
 
+        # print("rgb_loss", rgb_loss.isnan().any())
+
         loss_dict = {"rgb_loss": rgb_loss}
 
         if self.training:
@@ -308,10 +316,13 @@ class KPlanesModel(Model):
             loss_dict["distortion_loss"] = self.config.distortion_loss_mult * distortion_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
             )
+            # print("dist_loss", loss_dict["distortion_loss"].isnan().any())
 
             loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
             )
+
+            # print("interlevel_loss", loss_dict["interlevel_loss"].isnan().any())
 
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         return loss_dict
