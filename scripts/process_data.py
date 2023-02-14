@@ -83,7 +83,7 @@ class ProcessImages:
     """
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
-    images_per_equirect: Literal[8, 12, 22] = 12
+    images_per_equirect: Literal[8, 16, 22] = 16
     """Number of samples per image to take from each equirectangular image. Used only when camera-type is equirectangular."""
     gpu: bool = True
     """If True, use GPU."""

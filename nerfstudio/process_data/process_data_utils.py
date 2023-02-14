@@ -491,7 +491,7 @@ def generate_planar_projections_from_equirectangular(
 
     device = torch.device("cuda")
 
-    fov = 77
+    fov = 80
     yaw_pitch_pairs = []
     if samples_per_im == 8:
         fov = 105
@@ -501,13 +501,13 @@ def generate_planar_projections_from_equirectangular(
             yaw_pitch_pairs.append((i, 80))
         for i in np.arange(-180, 180, 180):
             yaw_pitch_pairs.append((i, -80))
-    elif samples_per_im == 12:
+    elif samples_per_im == 16:
         for i in np.arange(-180, 180, 60):
             yaw_pitch_pairs.append((i, 0))
-        for i in np.arange(-180, 180, 120):
-            yaw_pitch_pairs.append((i, 68))
-        for i in np.arange(-180, 180, 120):
-            yaw_pitch_pairs.append((i, -68))
+        for i in np.arange(-180, 180, 72):
+            yaw_pitch_pairs.append((i, 50))
+        for i in np.arange(-180, 180, 72):
+            yaw_pitch_pairs.append((i, -50))
     elif samples_per_im == 22:
         fov = 63
         for i in np.arange(-180, 180, 51.429):
