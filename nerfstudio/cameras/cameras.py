@@ -17,19 +17,23 @@ Camera Models
 """
 import base64
 import math
+import os
 from dataclasses import dataclass
+from distutils.util import strtobool
 from enum import Enum, auto
 from typing import Dict, List, Optional, Tuple, Union
 
 import cv2
 import torch
 import torchvision
-from torch.nn.functional import normalize
+from torch.nn import Parameter
 from torchtyping import TensorType
 
+import nerfstudio.utils.math
 import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
+from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
 
@@ -142,6 +146,8 @@ class Cameras(TensorDataclass):
 
         self.__post_init__()  # This will do the dataclass post_init and broadcast all the tensors
 
+        self._use_nerfacc = strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "TRUE"))
+
     def _init_get_fc_xy(self, fc_xy, name):
         """
         Parses the input focal length / principle point x or y and returns a tensor of the correct shape
@@ -224,7 +230,7 @@ class Cameras(TensorDataclass):
             c_x_y: cx or cy for when h_w == None
         """
         if isinstance(h_w, int):
-            h_w = torch.Tensor([h_w]).to(torch.int64).to(self.device)
+            h_w = torch.as_tensor([h_w]).to(torch.int64).to(self.device)
         elif isinstance(h_w, torch.Tensor):
             assert not torch.is_floating_point(h_w), f"height and width tensor must be of type int, not: {h_w.dtype}"
             h_w = h_w.to(torch.int64).to(self.device)
@@ -232,7 +238,7 @@ class Cameras(TensorDataclass):
                 h_w = h_w.unsqueeze(-1)
         # assert torch.all(h_w == h_w.view(-1)[0]), "Batched cameras of different h, w will be allowed in the future."
         elif h_w is None:
-            h_w = torch.Tensor((c_x_y * 2).to(torch.int64).to(self.device))
+            h_w = torch.as_tensor((c_x_y * 2)).to(torch.int64).to(self.device)
         else:
             raise ValueError("Height must be an int, tensor, or None, received: " + str(type(h_w)))
         return h_w
@@ -309,6 +315,7 @@ class Cameras(TensorDataclass):
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
         keep_shape: Optional[bool] = None,
         disable_distortion: bool = False,
+        aabb_box: Optional[SceneBox] = None,
     ) -> RayBundle:
         """Generates rays for the given camera indices.
 
@@ -339,7 +346,7 @@ class Cameras(TensorDataclass):
         When coords == None (ie: when we render out the whole image associated with this camera), we run into problems
         since there's no way to stack each coordinate map as all coordinate maps are all different shapes. In this case,
         we will need to flatten each individual coordinate map and concatenate them, giving us only one batch dimension,
-        regaurdless of the number of prepended extra batch dimensions in the camera_indices tensor.
+        regardless of the number of prepended extra batch dimensions in the camera_indices tensor.
 
 
         Args:
@@ -351,6 +358,7 @@ class Cameras(TensorDataclass):
                 keeping dimensions. If False, we flatten at the end. If True, then we keep the shape of the
                 camera_indices and coords tensors (if we can).
             disable_distortion: If True, disables distortion.
+            aabb_box: if not None will calculate nears and fars of the ray according to aabb box intesection
 
         Returns:
             Rays for the given camera indices and coords.
@@ -449,6 +457,27 @@ class Cameras(TensorDataclass):
         # If we have mandated that we don't keep the shape, then we flatten
         if keep_shape is False:
             raybundle = raybundle.flatten()
+
+        if aabb_box:
+            with torch.no_grad():
+                tensor_aabb = Parameter(aabb_box.aabb.flatten(), requires_grad=False)
+
+                rays_o = raybundle.origins.contiguous()
+                rays_d = raybundle.directions.contiguous()
+
+                tensor_aabb = tensor_aabb.to(rays_o.device)
+                shape = rays_o.shape
+
+                rays_o = rays_o.reshape((-1, 3))
+                rays_d = rays_d.reshape((-1, 3))
+
+                t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
+
+                t_min = t_min.reshape([shape[0], shape[1], 1])
+                t_max = t_max.reshape([shape[0], shape[1], 1])
+
+                raybundle.nears = t_min
+                raybundle.fars = t_max
 
         # TODO: We should have to squeeze the last dimension here if we started with zero batch dims, but never have to,
         # so there might be a rogue squeeze happening somewhere, and this may cause some unintended behaviour
@@ -666,7 +695,7 @@ class Cameras(TensorDataclass):
         directions_stack = torch.sum(
             directions_stack[..., None, :] * rotation, dim=-1
         )  # (..., 1, 3) * (..., 3, 3) -> (..., 3)
-        directions_stack = normalize(directions_stack, dim=-1)
+        directions_stack, directions_norm = camera_utils.normalize_with_norm(directions_stack, -1)
         assert directions_stack.shape == (3,) + num_rays_shape + (3,)
 
         origins = c2w[..., :3, 3]  # (..., 3)
@@ -691,6 +720,7 @@ class Cameras(TensorDataclass):
             pixel_area=pixel_area,
             camera_indices=camera_indices,
             times=times,
+            metadata={"directions_norm": directions_norm[0].detach()},
         )
 
     def to_json(

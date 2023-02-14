@@ -44,7 +44,7 @@ def metashape_to_json(  # pylint: disable=too-many-statements
 
     Args:
         image_filename_map: Mapping of original image filenames to their saved locations.
-        xml_filename: Path to the metashap cameras xml file.
+        xml_filename: Path to the metashape cameras xml file.
         output_dir: Path to the output directory.
         verbose: Whether to print verbose output.
 
@@ -58,10 +58,14 @@ def metashape_to_json(  # pylint: disable=too-many-statements
     sensors = chunk.find("sensors")
 
     # TODO Add support for per-frame intrinsics
-    if sensors is None or len(sensors) != 1:
+    if sensors is None:
+        raise ValueError("No sensors found")
+
+    calibrated_sensors = [sensor for sensor in sensors if sensor.find("calibration")]
+    if len(calibrated_sensors) != 1:
         raise ValueError("Only one sensor is supported for now")
 
-    sensor = sensors.find("sensor")
+    sensor = calibrated_sensors[0]
 
     data = {}
 
@@ -98,6 +102,14 @@ def metashape_to_json(  # pylint: disable=too-many-statements
         if camera_label not in image_filename_map:
             continue
         frame["file_path"] = image_filename_map[camera_label].as_posix()
+
+        if camera.get("sensor_id") != sensor.get("id"):
+            # this should only happen when we have a sensor that doesn't have calibration
+            if verbose:
+                CONSOLE.print(f"Missing sensor calibration for {camera.get('label')}, Skipping")
+            num_skipped += 1
+            continue
+
         if camera.find("transform") is None:
             if verbose:
                 CONSOLE.print(f"Missing transforms data for {camera.get('label')}, Skipping")

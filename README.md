@@ -81,7 +81,7 @@ For more complex changes (e.g., running with your own data/setting up a new NeRF
 
 ### Prerequisites
 
-CUDA must be installed on the system. This library has been tested with version 11.3. You can find more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html)
+You must have an NVIDIA video card with CUDA installed on the system. This library has been tested with version 11.3 of CUDA. You can find more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html)
 
 ### Create environment
 
@@ -95,12 +95,24 @@ python -m pip install --upgrade pip
 
 ### Dependencies
 
-Install pytorch with CUDA (this repo has been tested with CUDA 11.3) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+Install pytorch with CUDA (this repo has been tested with CUDA 11.3 and CUDA 11.7) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+
+For CUDA 11.3:
 
 ```bash
 pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
+
+For CUDA 11.7:
+
+```bash
+pip install torch torchvision functorch --extra-index-url https://download.pytorch.org/whl/cu117
+pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+```
+
+See [Dependencies](https://github.com/nerfstudio-project/nerfstudio/blob/main/docs/quickstart/installation.md#dependencies)
+in the Installation documentation for more.
 
 ### Installing nerfstudio
 
@@ -162,9 +174,9 @@ Once you have a NeRF model you can either render out a video or export a point c
 
 ### Render Video
 
-First we must create a path for the camera to follow. This can be done in the viewer under the "RENDER" tab. Orient your 3D view to the location where you wish the video to start, then press "ADD CAMERA". This will set the first camera key frame. Continue to new viewpoints adding additional cameras to create the camera path. We provide other parameters to further refine your camera path. Once satisfied, press "RENDER" which will display a modal that contains the command needed to render the video. Kill the training job (or create a new terminal if you have lots of compute) and the command to generate the video.
+First we must create a path for the camera to follow. This can be done in the viewer under the "RENDER" tab. Orient your 3D view to the location where you wish the video to start, then press "ADD CAMERA". This will set the first camera key frame. Continue to new viewpoints adding additional cameras to create the camera path. We provide other parameters to further refine your camera path. Once satisfied, press "RENDER" which will display a modal that contains the command needed to render the video. Kill the training job (or create a new terminal if you have lots of compute) and run the command to generate the video.
 
-Other video export options are available, learn more by running,
+Other video export options are available, learn more by running
 
 ```bash
 ns-render --help
@@ -174,7 +186,7 @@ ns-render --help
 
 While NeRF models are not designed to generate point clouds, it is still possible. Navigate to the "EXPORT" tab in the 3D viewer and select "POINT CLOUD". If the crop option is selected, everything in the yellow square will be exported into a point cloud. Modify the settings as desired then run the command at the bottom of the panel in your command line.
 
-Alternatively you can use the CLI without the viewer. Learn about the export options by running,
+Alternatively you can use the CLI without the viewer. Learn about the export options by running
 
 ```bash
 ns-export pointcloud --help
@@ -198,7 +210,7 @@ Using an existing dataset is great, but likely you want to use your own data! We
 
 ### Training models other than nerfacto
 
-We provide other models than nerfacto, for example if you want to train the original nerf model, use the following command,
+We provide other models than nerfacto, for example if you want to train the original nerf model, use the following command
 
 ```bash
 ns-train vanilla-nerf --data DATA_PATH
@@ -245,7 +257,7 @@ If you're interested in learning more on how to create your own pipelines, devel
 
 # Supported Features
 
-We provide the following support structures to make life easier for getting started with NeRFs. For a full description, please refer to our [features page](#).
+We provide the following support structures to make life easier for getting started with NeRFs.
 
 **If you are looking for a feature that is not currently supported, please do not hesitate to contact the Nerfstudio Team on [Discord](https://discord.gg/uMbNqcraFc)!**
 
@@ -293,13 +305,13 @@ We provide the following support structures to make life easier for getting star
 If you use this library or find the documentation useful for your research, please consider citing:
 
 ```
-@misc{nerfstudio,
-      title={Nerfstudio: A Framework for Neural Radiance Field Development},
-      author={Matthew Tancik*, Ethan Weber*, Evonne Ng*, Ruilong Li, Brent Yi,
-              Terrance Wang, Alexander Kristoffersen, Jake Austin, Kamyar Salahi,
-              Abhik Ahuja, David McAllister, Angjoo Kanazawa},
-      year={2022},
-      url={https://github.com/nerfstudio-project/nerfstudio},
+@article{nerfstudio,
+    author = {Tancik, Matthew and Weber, Ethan and Ng, Evonne and Li, Ruilong and Yi,
+            Brent and Kerr, Justin and Wang, Terrance and Kristoffersen, Alexander and Austin,
+            Jake and Salahi, Kamyar and Ahuja, Abhik and McAllister, David and Kanazawa, Angjoo},
+    title = {Nerfstudio: A Modular Framework for Neural Radiance Field Development},
+    journal = {arXiv preprint arXiv:2302.04264},
+    year = {2023},
 }
 ```
 

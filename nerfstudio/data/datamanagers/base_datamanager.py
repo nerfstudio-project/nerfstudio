@@ -38,6 +38,7 @@ from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
+from nerfstudio.data.dataparsers.dycheck_dataparser import DycheckDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
 from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
     InstantNGPDataParserConfig,
@@ -48,6 +49,7 @@ from nerfstudio.data.dataparsers.nuscenes_dataparser import NuScenesDataParserCo
 from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
+from nerfstudio.data.dataparsers.sdfstudio_dataparser import SDFStudioDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import EquirectangularPixelSampler, PixelSampler
 from nerfstudio.data.utils.dataloaders import (
@@ -73,6 +75,8 @@ AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of
             "nuscenes-data": NuScenesDataParserConfig(),
             "dnerf-data": DNeRFDataParserConfig(),
             "phototourism-data": PhototourismDataParserConfig(),
+            "dycheck-data": DycheckDataParserConfig(),
+            "sdfstudio-data": SDFStudioDataParserConfig(),
         },
         prefix_names=False,  # Omit prefixes in subcommands themselves.
     )
@@ -94,7 +98,7 @@ class DataManager(nn.Module):
     This data manager's next_train and next_eval methods will return 2 things:
         1. A Raybundle: This will contain the rays we are sampling, with latents and
             conditionals attached (everything needed at inference)
-        2. A "batch" of auxilury information: This will contain the mask, the ground truth
+        2. A "batch" of auxiliary information: This will contain the mask, the ground truth
             pixels, etc needed to actually train, score, etc the model
 
     Rationale:
@@ -172,7 +176,7 @@ class DataManager(nn.Module):
 
     def get_train_iterable(self, length=-1) -> IterableWrapper:
         """Gets a trivial pythonic iterator that will use the iter_train and next_train functions
-        as __iter__ and __next__ methods respectivley.
+        as __iter__ and __next__ methods respectively.
 
         This basically is just a little utility if you want to do something like:
         |    for ray_bundle, batch in datamanager.get_train_iterable():
@@ -184,7 +188,7 @@ class DataManager(nn.Module):
 
     def get_eval_iterable(self, length=-1) -> IterableWrapper:
         """Gets a trivial pythonic iterator that will use the iter_eval and next_eval functions
-        as __iter__ and __next__ methods respectivley.
+        as __iter__ and __next__ methods respectively.
 
         This basically is just a little utility if you want to do something like:
         |    for ray_bundle, batch in datamanager.get_eval_iterable():

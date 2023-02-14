@@ -28,7 +28,7 @@ from aiortc.rtcrtpsender import RTCRtpSender
 def get_chunks(
     lst: List[float], num_chunks: Optional[int] = None, size_of_chunk: Optional[int] = None
 ) -> List[List[float]]:
-    """Returns list of n elements, constaining a sublist.
+    """Returns list of n elements, containing a sublist.
 
     Args:
         lst: List to be chunked up
@@ -63,7 +63,7 @@ def three_js_perspective_camera_focal_length(fov: float, image_height: int):
 
 
 def get_intrinsics_matrix_and_camera_to_world_h(
-    camera_object: Dict[str, Any], image_height: int
+    camera_object: Dict[str, Any], image_height: int, image_width: Optional[int] = None
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Returns the camera intrinsics matrix and the camera to world homogeneous matrix.
 
@@ -74,7 +74,8 @@ def get_intrinsics_matrix_and_camera_to_world_h(
     # intrinsics
     fov = camera_object["fov"]
     aspect = camera_object["aspect"]
-    image_width = aspect * image_height
+    if image_width is None:
+        image_width = aspect * image_height
     pp_w = image_width / 2.0
     pp_h = image_height / 2.0
     if (camera_object["camera_type"] == "perspective") | (camera_object["camera_type"] == "fisheye"):
@@ -129,7 +130,7 @@ def find_available_port(func: Callable, default_port: int, max_attempts: int = 1
 
 
 def force_codec(pc: RTCPeerConnection, sender: RTCRtpSender, forced_codec: str) -> None:
-    """Sets the codec preferences on a connection between sender and reciever
+    """Sets the codec preferences on a connection between sender and receiver
 
     Args:
         pc: peer connection point

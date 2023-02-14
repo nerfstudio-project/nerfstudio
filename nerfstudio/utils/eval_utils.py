@@ -59,7 +59,7 @@ def eval_load_checkpoint(config: TrainerConfig, pipeline: Pipeline) -> Path:
     load_path = config.load_dir / f"step-{load_step:09d}.ckpt"
     assert load_path.exists(), f"Checkpoint {load_path} does not exist"
     loaded_state = torch.load(load_path, map_location="cpu")
-    pipeline.load_pipeline(loaded_state["pipeline"])
+    pipeline.load_pipeline(loaded_state["pipeline"], loaded_state["step"])
     CONSOLE.print(f":white_check_mark: Done loading checkpoint from {load_path}")
     return load_path
 
@@ -76,7 +76,7 @@ def eval_setup(
         eval_num_rays_per_chunk: Number of rays per forward pass
         test_mode:
             'val': loads train/val datasets into memory
-            'test': loads train/test datset into memory
+            'test': loads train/test dataset into memory
             'inference': does not load any dataset into memory
 
 

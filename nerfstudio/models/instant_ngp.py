@@ -66,7 +66,7 @@ class InstantNGPModelConfig(ModelConfig):
     grid_resolution: int = 128
     """Resolution of the grid used for the field."""
     contraction_type: ContractionType = ContractionType.UN_BOUNDED_SPHERE
-    """Resolution of the grid used for the field."""
+    """Contraction type used for spatial deformation of the field."""
     cone_angle: float = 0.004
     """Should be set to 0.0 for blender scenes but 1./256 for real scenes."""
     render_step_size: float = 0.01
@@ -137,7 +137,7 @@ class NGPModel(Model):
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
-        self.lpips = LearnedPerceptualImagePatchSimilarity()
+        self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes

@@ -54,7 +54,7 @@ def get_spiral_path(
     zrate: float = 0.5,
 ) -> Cameras:
     """
-    Returns a list of camera in a sprial trajectory.
+    Returns a list of camera in a spiral trajectory.
 
     Args:
         camera: The camera to start the spiral from.
@@ -100,12 +100,16 @@ def get_spiral_path(
         new_c2ws.append(c2wh[:3, :4])
     new_c2ws = torch.stack(new_c2ws, dim=0)
 
+    times = None
+    if camera.times is not None:
+        times = torch.linspace(0, 1, steps)[:, None]
     return Cameras(
         fx=camera.fx[0],
         fy=camera.fy[0],
         cx=camera.cx[0],
         cy=camera.cy[0],
         camera_to_worlds=new_c2ws,
+        times=times,
     )
 
 
@@ -152,6 +156,12 @@ def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
             fxs.append(focal_length)
             fys.append(focal_length)
 
+    # Iff ALL cameras in the path have a "time" value, construct Cameras with times
+    if all("render_time" in camera for camera in camera_path["camera_path"]):
+        times = torch.tensor([camera["render_time"] for camera in camera_path["camera_path"]])
+    else:
+        times = None
+
     camera_to_worlds = torch.stack(c2ws, dim=0)
     fx = torch.tensor(fxs)
     fy = torch.tensor(fys)
@@ -162,4 +172,5 @@ def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
         cy=image_height / 2,
         camera_to_worlds=camera_to_worlds,
         camera_type=camera_type,
+        times=times,
     )

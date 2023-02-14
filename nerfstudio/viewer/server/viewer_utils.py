@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import enum
 import os
+import re
 import sys
 import threading
 import time
@@ -41,11 +42,12 @@ from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
+from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.model_components import renderers
 from nerfstudio.models.base_model import Model
 from nerfstudio.utils import colormaps, profiler, writer
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
-from nerfstudio.utils.misc import get_dict_to_torch
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
 from nerfstudio.viewer.server.utils import (
@@ -68,19 +70,19 @@ def get_viewer_version() -> str:
 
 
 @check_main_thread
-def setup_viewer(config: cfg.ViewerConfig, log_filename: Path):
+def setup_viewer(config: cfg.ViewerConfig, log_filename: Path, datapath: str):
     """Sets up the viewer if enabled
 
     Args:
         config: the configuration to instantiate viewer
     """
-    viewer_state = ViewerState(config, log_filename=log_filename)
+    viewer_state = ViewerState(config, log_filename=log_filename, datapath=datapath)
     banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
     return viewer_state, banner_messages
 
 
 class OutputTypes(str, enum.Enum):
-    """Noncomprehsnive list of output render types"""
+    """Noncomprehensive list of output render types"""
 
     INIT = "init"
     RGB = "rgb"
@@ -90,14 +92,14 @@ class OutputTypes(str, enum.Enum):
 
 
 class ColormapTypes(str, enum.Enum):
-    """Noncomprehsnive list of colormap render types"""
+    """List of colormap render types"""
 
-    INIT = "init"
     DEFAULT = "default"
     TURBO = "turbo"
-    DEPTH = "depth"
-    SEMANTIC = "semantic"
-    BOOLEAN = "boolean"
+    VIRIDIS = "viridis"
+    MAGMA = "magma"
+    INFERNO = "inferno"
+    CIVIDIS = "cividis"
 
 
 class IOChangeException(Exception):
@@ -143,13 +145,23 @@ class RenderThread(threading.Thread):
         outputs = None
         try:
             with SetTrace(self.state.check_interrupt):
-                with torch.no_grad():
-                    outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
+                if self.state.prev_crop_enabled:
+                    color = self.state.prev_crop_bg_color
+                    if color is None:
+                        background_color = torch.tensor([0.0, 0.0, 0.0], device=self.graph.device)
+                    else:
+                        background_color = torch.tensor(
+                            [color["r"] / 255.0, color["g"] / 255.0, color["b"] / 255.0], device=self.graph.device
+                        )
+                    with renderers.background_color_override_context(background_color), torch.no_grad():
+                        outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
+                else:
+                    with torch.no_grad():
+                        outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
         except Exception as e:  # pylint: disable=broad-except
             self.exc = e
 
         if outputs:
-            outputs = get_dict_to_torch(outputs)
             self.vis_outputs = outputs
 
         self.state.check_done_render = True
@@ -182,11 +194,16 @@ class CheckThread(threading.Thread):
         while not self.state.check_done_render:
             # check camera
             data = self.state.vis["renderingState/camera"].read()
+            render_time = self.state.vis["renderingState/render_time"].read()
             if data is not None:
                 camera_object = data["object"]
-                if self.state.prev_camera_matrix is None or (
-                    not np.allclose(camera_object["matrix"], self.state.prev_camera_matrix)
-                    and not self.state.prev_moving
+                if (
+                    self.state.prev_camera_matrix is None
+                    or (
+                        not np.allclose(camera_object["matrix"], self.state.prev_camera_matrix)
+                        and not self.state.prev_moving
+                    )
+                    or (render_time is not None and render_time != self.state.prev_render_time)
                 ):
                     self.state.check_interrupt_vis = True
                     self.state.prev_moving = True
@@ -203,9 +220,12 @@ class CheckThread(threading.Thread):
 
             # check colormap type
             colormap_type = self.state.vis["renderingState/colormap_choice"].read()
-            if colormap_type is None:
-                colormap_type = ColormapTypes.INIT
             if self.state.prev_colormap_type != colormap_type:
+                self.state.check_interrupt_vis = True
+                return
+
+            colormap_range = self.state.vis["renderingState/colormap_range"].read()
+            if self.state.prev_colormap_range != colormap_range:
                 self.state.check_interrupt_vis = True
                 return
 
@@ -213,6 +233,13 @@ class CheckThread(threading.Thread):
             max_resolution = self.state.vis["renderingState/maxResolution"].read()
             if max_resolution is not None:
                 if self.state.max_resolution != max_resolution:
+                    self.state.check_interrupt_vis = True
+                    return
+
+            # check crop changes
+            crop_enabled = self.state.vis["renderingState/crop_enabled"].read()
+            if crop_enabled is not None:
+                if self.state.prev_crop_enabled != crop_enabled:
                     self.state.check_interrupt_vis = True
                     return
 
@@ -225,11 +252,12 @@ class ViewerState:
         config: viewer setup configuration
     """
 
-    def __init__(self, config: cfg.ViewerConfig, log_filename: Path):
+    def __init__(self, config: cfg.ViewerConfig, log_filename: Path, datapath: str):
         self.config = config
         self.vis = None
         self.viewer_url = None
         self.log_filename = log_filename
+        self.datapath = datapath
         if self.config.launch_bridge_server:
             # start the viewer bridge server
             assert self.config.websocket_port is not None
@@ -258,8 +286,12 @@ class ViewerState:
 
         # viewer specific variables
         self.prev_camera_matrix = None
+        self.prev_render_time = 0
         self.prev_output_type = OutputTypes.INIT
-        self.prev_colormap_type = ColormapTypes.INIT
+        self.prev_colormap_type = None
+        self.prev_colormap_invert = False
+        self.prev_colormap_normalize = False
+        self.prev_colormap_range = [0, 1]
         self.prev_moving = False
         self.output_type_changed = True
         self.max_resolution = 1000
@@ -270,6 +302,10 @@ class ViewerState:
         self.moving_fps = 24
         self.camera_moving = False
         self.prev_camera_timestamp = 0
+        self.prev_crop_enabled = False
+        self.prev_crop_bg_color = None
+        self.prev_crop_scale = None
+        self.prev_crop_center = None
 
         self.output_list = None
 
@@ -306,6 +342,14 @@ class ViewerState:
         # set the config base dir
         self.vis["renderingState/config_base_dir"].write(str(self.log_filename.parents[0]))
 
+        # set the data base dir
+        self.vis["renderingState/data_base_dir"].write(str(self.datapath))
+
+        # get the timestamp of the train run to set default export path name
+        timestamp_reg = re.compile("[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}")
+        timestamp_match = timestamp_reg.findall(str(self.log_filename.parents[0]))
+        self.vis["renderingState/export_path"].write(timestamp_match[-1])
+
         # clear the current scene
         self.vis["sceneState/sceneBox"].delete()
         self.vis["sceneState/cameras"].delete()
@@ -325,6 +369,9 @@ class ViewerState:
         # set the initial state whether to train or not
         self.vis["renderingState/isTraining"].write(start_train)
 
+        max_scene_box = torch.max(dataset.scene_box.aabb[1] - dataset.scene_box.aabb[0]).item()
+        self.vis["renderingState/max_box_size"].write(max_scene_box)
+
         # self.vis["renderingState/render_time"].write(str(0))
 
         # set the properties of the camera
@@ -341,11 +388,31 @@ class ViewerState:
         if camera_path_payload:
             # save a model checkpoint
             trainer.save_checkpoint(step)
-            # write to json file
-            camera_path_filename = camera_path_payload["camera_path_filename"]
+            # write to json file in datapath directory
+            camera_path_filename = camera_path_payload["camera_path_filename"] + ".json"
             camera_path = camera_path_payload["camera_path"]
-            write_to_json(Path(camera_path_filename), camera_path)
+            camera_paths_directory = os.path.join(self.datapath, "camera_paths")
+            if not os.path.exists(camera_paths_directory):
+                os.mkdir(camera_paths_directory)
+
+            write_to_json(Path(os.path.join(camera_paths_directory, camera_path_filename)), camera_path)
             self.vis["camera_path_payload"].delete()
+
+    def _check_populate_paths_payload(self, trainer, step: int):
+        populate_paths_payload = self.vis["populate_paths_payload"].read()
+        if populate_paths_payload:
+            # save a model checkpoint
+            trainer.save_checkpoint(step)
+            # get all camera paths
+            camera_path_dir = os.path.join(self.datapath, "camera_paths")
+            if os.path.exists(camera_path_dir):
+                camera_path_files = os.listdir(camera_path_dir)
+                all_path_dict = {}
+                for i in camera_path_files:
+                    if i[-4:] == "json":
+                        all_path_dict[i[:-5]] = load_from_json(Path(os.path.join(camera_path_dir, i)))
+                self.vis["renderingState/all_camera_paths"].write(all_path_dict)
+                self.vis["populate_paths_payload"].delete()
 
     def _check_webrtc_offer(self):
         """Check if there is a webrtc offer to respond to."""
@@ -367,6 +434,54 @@ class ViewerState:
             # remove the offer from the state tree
             self.vis["webrtc/offer"].delete()
 
+    def _update_render_aabb(self, graph):
+        """
+        update the render aabb box for the viewer:
+
+        :param graph:
+        :return:
+        """
+
+        crop_enabled = self.vis["renderingState/crop_enabled"].read()
+        if crop_enabled != self.prev_crop_enabled:
+            self.camera_moving = True
+            self.prev_crop_enabled = crop_enabled
+            self.prev_crop_bg_color = None
+            self.prev_crop_scale = None
+            self.prev_crop_center = None
+
+        if crop_enabled:
+            crop_scale = self.vis["renderingState/crop_scale"].read()
+            crop_center = self.vis["renderingState/crop_center"].read()
+            crop_bg_color = self.vis["renderingState/crop_bg_color"].read()
+
+            if crop_bg_color != self.prev_crop_bg_color:
+                self.camera_moving = True
+                self.prev_crop_bg_color = crop_bg_color
+
+            if crop_scale != self.prev_crop_scale or crop_center != self.prev_crop_center:
+                self.camera_moving = True
+                self.prev_crop_scale = crop_scale
+                self.prev_crop_center = crop_center
+
+                crop_scale = torch.tensor(crop_scale)
+                crop_center = torch.tensor(crop_center)
+
+                box_min = crop_center - crop_scale / 2.0
+                box_max = crop_center + crop_scale / 2.0
+
+                if isinstance(graph.render_aabb, SceneBox):
+                    graph.render_aabb.aabb[0] = box_min
+                    graph.render_aabb.aabb[1] = box_max
+                else:
+                    graph.render_aabb = SceneBox(aabb=torch.stack([box_min, box_max], dim=0))
+
+                # maybe should update only if true change ?
+                json_ = graph.render_aabb.to_json()
+                self.vis["sceneState/sceneBox"].write(json_)
+        else:
+            graph.render_aabb = None
+
     def update_scene(self, trainer, step: int, graph: Model, num_rays_per_batch: int) -> None:
         """updates the scene based on the graph weights
 
@@ -374,7 +489,6 @@ class ViewerState:
             step: iteration step of training
             graph: the current checkpoint of the model
         """
-
         has_temporal_distortion = getattr(graph, "temporal_distortion", None) is not None
         self.vis["model/has_temporal_distortion"].write(str(has_temporal_distortion).lower())
 
@@ -382,6 +496,7 @@ class ViewerState:
         self.step = step
 
         self._check_camera_path_payload(trainer, step)
+        self._check_populate_paths_payload(trainer, step)
         self._check_webrtc_offer()
 
         camera_object = self._get_camera_object()
@@ -426,6 +541,7 @@ class ViewerState:
                     self._render_image_in_viewer(camera_object, graph, is_training)
                     camera_object = self._get_camera_object()
                 is_training = self.vis["renderingState/isTraining"].read()
+                self._check_populate_paths_payload(trainer, step)
                 self._check_camera_path_payload(trainer, step)
                 self._check_webrtc_offer()
                 run_loop = not is_training
@@ -448,12 +564,23 @@ class ViewerState:
             return None
 
         camera_object = data["object"]
+        render_time = self.vis["renderingState/render_time"].read()
 
-        if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
-            self.camera_moving = False
+        if render_time is not None:
+            if (
+                self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix)
+            ) and (self.prev_render_time == render_time):
+                self.camera_moving = False
+            else:
+                self.prev_camera_matrix = camera_object["matrix"]
+                self.prev_render_time = render_time
+                self.camera_moving = True
         else:
-            self.prev_camera_matrix = camera_object["matrix"]
-            self.camera_moving = True
+            if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
+                self.camera_moving = False
+            else:
+                self.prev_camera_matrix = camera_object["matrix"]
+                self.camera_moving = True
 
         output_type = self.vis["renderingState/output_choice"].read()
         if output_type is None:
@@ -462,10 +589,35 @@ class ViewerState:
             self.camera_moving = True
 
         colormap_type = self.vis["renderingState/colormap_choice"].read()
-        if colormap_type is None:
-            colormap_type = ColormapTypes.INIT
         if self.prev_colormap_type != colormap_type:
             self.camera_moving = True
+
+        colormap_range = self.vis["renderingState/colormap_range"].read()
+        if self.prev_colormap_range != colormap_range:
+            self.camera_moving = True
+
+        colormap_invert = self.vis["renderingState/colormap_invert"].read()
+        if self.prev_colormap_invert != colormap_invert:
+            self.camera_moving = True
+
+        colormap_normalize = self.vis["renderingState/colormap_normalize"].read()
+        if self.prev_colormap_normalize != colormap_normalize:
+            self.camera_moving = True
+
+        crop_bg_color = self.vis["renderingState/crop_bg_color"].read()
+        if self.prev_crop_enabled:
+            if self.prev_crop_bg_color != crop_bg_color:
+                self.camera_moving = True
+
+        crop_scale = self.vis["renderingState/crop_scale"].read()
+        if self.prev_crop_enabled:
+            if self.prev_crop_scale != crop_scale:
+                self.camera_moving = True
+
+        crop_center = self.vis["renderingState/crop_center"].read()
+        if self.prev_crop_enabled:
+            if self.prev_crop_center != crop_center:
+                self.camera_moving = True
 
         return camera_object
 
@@ -485,37 +637,28 @@ class ViewerState:
             return outputs[reformatted_output]
 
         # rendering depth outputs
-        if self.prev_colormap_type == ColormapTypes.DEPTH or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT
-            and outputs[reformatted_output].dtype == torch.float
-            and (torch.max(outputs[reformatted_output]) - 1.0) > eps  # handle floating point arithmetic
-        ):
-            accumulation_str = (
-                OutputTypes.ACCUMULATION
-                if OutputTypes.ACCUMULATION in self.output_list
-                else OutputTypes.ACCUMULATION_FINE
-            )
-            return colormaps.apply_depth_colormap(outputs[reformatted_output], accumulation=outputs[accumulation_str])
-
-        # rendering accumulation outputs
-        if self.prev_colormap_type == ColormapTypes.TURBO or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.float
-        ):
-            return colormaps.apply_colormap(outputs[reformatted_output])
+        if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
+            output = outputs[reformatted_output]
+            if self.prev_colormap_normalize:
+                output = output - torch.min(output)
+                output = output / (torch.max(output) + eps)
+            output = output * (self.prev_colormap_range[1] - self.prev_colormap_range[0]) + self.prev_colormap_range[0]
+            output = torch.clip(output, 0, 1)
+            if self.prev_colormap_invert:
+                output = 1 - output
+            if self.prev_colormap_type == ColormapTypes.DEFAULT:
+                return colormaps.apply_colormap(output, cmap=ColormapTypes.TURBO.value)
+            return colormaps.apply_colormap(output, cmap=self.prev_colormap_type)
 
         # rendering semantic outputs
-        if self.prev_colormap_type == ColormapTypes.SEMANTIC or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.int
-        ):
+        if outputs[reformatted_output].dtype == torch.int:
             logits = outputs[reformatted_output]
             labels = torch.argmax(torch.nn.functional.softmax(logits, dim=-1), dim=-1)  # type: ignore
             assert colors is not None
             return colors[labels]
 
         # rendering boolean outputs
-        if self.prev_colormap_type == ColormapTypes.BOOLEAN or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.bool
-        ):
+        if outputs[reformatted_output].dtype == torch.bool:
             return colormaps.apply_boolean_colormap(outputs[reformatted_output])
 
         raise NotImplementedError
@@ -526,34 +669,38 @@ class ViewerState:
         # returns the description to for WebRTC to the specific websocket connection
         offer = RTCSessionDescription(data["sdp"], data["type"])
 
-        if self.config.skip_openrelay:
-            ice_servers = [
-                RTCIceServer(urls="stun:stun.l.google.com:19302"),
-            ]
+        if self.config.local:
+            pc = RTCPeerConnection()
         else:
-            ice_servers = [
-                RTCIceServer(urls="stun:stun.l.google.com:19302"),
-                RTCIceServer(urls="stun:openrelay.metered.ca:80"),
-                RTCIceServer(
-                    urls="turn:openrelay.metered.ca:80", username="openrelayproject", credential="openrelayproject"
-                ),
-                RTCIceServer(
-                    urls="turn:openrelay.metered.ca:443", username="openrelayproject", credential="openrelayproject"
-                ),
-                RTCIceServer(
-                    urls="turn:openrelay.metered.ca:443?transport=tcp",
-                    username="openrelayproject",
-                    credential="openrelayproject",
-                ),
-            ]
+            if self.config.skip_openrelay:
+                ice_servers = [
+                    RTCIceServer(urls="stun:stun.l.google.com:19302"),
+                ]
+            else:
+                ice_servers = [
+                    RTCIceServer(urls="stun:stun.l.google.com:19302"),
+                    RTCIceServer(urls="stun:openrelay.metered.ca:80"),
+                    RTCIceServer(
+                        urls="turn:openrelay.metered.ca:80", username="openrelayproject", credential="openrelayproject"
+                    ),
+                    RTCIceServer(
+                        urls="turn:openrelay.metered.ca:443", username="openrelayproject", credential="openrelayproject"
+                    ),
+                    RTCIceServer(
+                        urls="turn:openrelay.metered.ca:443?transport=tcp",
+                        username="openrelayproject",
+                        credential="openrelayproject",
+                    ),
+                ]
 
-        pc = RTCPeerConnection(configuration=RTCConfiguration(iceServers=ice_servers))
+            pc = RTCPeerConnection(configuration=RTCConfiguration(iceServers=ice_servers))
         self.pcs.add(pc)
 
         video = SingleFrameStreamTrack()
         self.video_tracks.add(video)
         video_sender = pc.addTrack(video)
-        force_codec(pc, video_sender, "video/VP8")
+        print(f"viewer using video/{self.config.codec}")
+        force_codec(pc, video_sender, f"video/{self.config.codec}")
 
         await pc.setRemoteDescription(offer)
         answer = await pc.createAnswer()
@@ -576,13 +723,12 @@ class ViewerState:
         for video_track in self.video_tracks:
             video_track.put_frame(image)
 
-    def _send_output_to_viewer(self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6):
+    def _send_output_to_viewer(self, outputs: Dict[str, Any], colors: torch.Tensor = None):
         """Chooses the correct output and sends it to the viewer
 
         Args:
             outputs: the dictionary of outputs to choose from, from the graph
             colors: is only set if colormap is for semantics. Defaults to None.
-            eps: epsilon to handle floating point comparisons
         """
         if self.output_list is None:
             self.output_list = list(outputs.keys())
@@ -595,16 +741,13 @@ class ViewerState:
 
         reformatted_output = self._process_invalid_output(self.prev_output_type)
         # re-register colormaps and send to viewer
-        if self.output_type_changed or self.prev_colormap_type == ColormapTypes.INIT:
+        if self.output_type_changed or self.prev_colormap_type is None:
             self.prev_colormap_type = ColormapTypes.DEFAULT
-            colormap_options = [ColormapTypes.DEFAULT]
-            if (
-                outputs[reformatted_output].shape[-1] != 3
-                and outputs[reformatted_output].dtype == torch.float
-                and (torch.max(outputs[reformatted_output]) - 1.0) <= eps  # handle floating point arithmetic
-            ):
-                # accumulation can also include depth
-                colormap_options.extend(["depth"])
+            colormap_options = []
+            if outputs[reformatted_output].shape[-1] == 3:
+                colormap_options = [ColormapTypes.DEFAULT]
+            if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
+                colormap_options = list(ColormapTypes)
             self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             self.vis["renderingState/colormap_options"].write(colormap_options)
@@ -690,11 +833,16 @@ class ViewerState:
         else:
             image_height = (num_vis_rays / aspect_ratio) ** 0.5
             image_height = int(round(image_height, -1))
-            image_height = min(self.max_resolution, image_height)
+            image_height = max(min(self.max_resolution, image_height), 30)
         image_width = int(image_height * aspect_ratio)
         if image_width > self.max_resolution:
             image_width = self.max_resolution
             image_height = int(image_width / aspect_ratio)
+        if self.config.codec != "VP8":
+            # force even values to allow hardware encoder usage
+            quantize = 2
+            image_width = int(image_width / quantize) * quantize
+            image_height = int(image_height / quantize) * quantize
         return image_height, image_width
 
     def _process_invalid_output(self, output_type: str) -> str:
@@ -743,8 +891,25 @@ class ViewerState:
 
         # check and perform colormap type updates
         colormap_type = self.vis["renderingState/colormap_choice"].read()
-        colormap_type = ColormapTypes.INIT if colormap_type is None else colormap_type
         self.prev_colormap_type = colormap_type
+
+        colormap_invert = self.vis["renderingState/colormap_invert"].read()
+        self.prev_colormap_invert = colormap_invert
+
+        colormap_normalize = self.vis["renderingState/colormap_normalize"].read()
+        self.prev_colormap_normalize = colormap_normalize
+
+        colormap_range = self.vis["renderingState/colormap_range"].read()
+        self.prev_colormap_range = colormap_range
+
+        # update render aabb
+        try:
+            self._update_render_aabb(graph)
+        except RuntimeError as e:
+            self.vis["renderingState/log_errors"].write("Got an Error while trying to update aabb crop")
+            print(f"Error: {e}")
+
+            time.sleep(0.5)  # sleep to allow buffer to reset
 
         # Calculate camera pose and intrinsics
         try:
@@ -759,7 +924,7 @@ class ViewerState:
             return
 
         intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
-            camera_object, image_height=image_height
+            camera_object, image_height=image_height, image_width=image_width
         )
 
         camera_to_world = camera_to_world_h[:3, :]
@@ -771,10 +936,6 @@ class ViewerState:
             ],
             dim=0,
         )
-
-        times = self.vis["renderingState/render_time"].read()
-        if times is not None:
-            times = torch.tensor([float(times)])
 
         camera_type_msg = camera_object["camera_type"]
         if camera_type_msg == "perspective":
@@ -793,11 +954,11 @@ class ViewerState:
             cy=intrinsics_matrix[1, 2],
             camera_type=camera_type,
             camera_to_worlds=camera_to_world[None, ...],
-            times=times,
+            times=torch.tensor([float(self.prev_render_time)]),
         )
         camera = camera.to(graph.device)
 
-        camera_ray_bundle = camera.generate_rays(camera_indices=0)
+        camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=graph.render_aabb)
 
         graph.eval()
 

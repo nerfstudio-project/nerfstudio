@@ -77,6 +77,9 @@ class TrainerConfig(ExperimentConfig):
     load_step: Optional[int] = None
     """Optionally specify model step to load from; if none, will find most recent model in load_dir."""
     load_config: Optional[Path] = None
+    """Path to config YAML file."""
+    log_gradients: bool = False
+    """Optionally log gradients during training"""
 
 
 class Trainer:
@@ -122,7 +125,9 @@ class Trainer:
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
         self.viewer_state, banner_messages = None, None
         if self.config.is_viewer_enabled() and local_rank == 0:
-            self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
+            self.viewer_state, banner_messages = viewer_utils.setup_viewer(
+                config.viewer, log_filename=viewer_log_path, datapath=config.pipeline.datamanager.dataparser.data
+            )
         self._check_viewer_warnings()
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / config.logging.relative_log_dir
@@ -137,7 +142,7 @@ class Trainer:
         Args:
             test_mode:
                 'val': loads train/val datasets into memory
-                'test': loads train/test datset into memory
+                'test': loads train/test datasets into memory
                 'inference': does not load any dataset into memory
         """
         self.pipeline = self.config.pipeline.setup(
@@ -186,7 +191,6 @@ class Trainer:
             step = 0
             for step in range(self._start_step, self._start_step + num_iterations):
                 with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
-
                     self.pipeline.train()
 
                     # training callbacks before the training iteration
@@ -225,14 +229,18 @@ class Trainer:
                     self.save_checkpoint(step)
 
                 writer.write_out_storage()
-            # save checkpoint at the end of training
-            self.save_checkpoint(step)
 
-            CONSOLE.rule()
-            CONSOLE.print("[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:", justify="center")
-            if not self.config.viewer.quit_on_train_completion:
-                CONSOLE.print("Use ctrl+c to quit", justify="center")
-                self._always_render(step)
+        # save checkpoint at the end of training
+        self.save_checkpoint(step)
+
+        # write out any remaining events (e.g., total train time)
+        writer.write_out_storage()
+
+        CONSOLE.rule()
+        CONSOLE.print("[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:", justify="center")
+        if not self.config.viewer.quit_on_train_completion:
+            CONSOLE.print("Use ctrl+c to quit", justify="center")
+            self._always_render(step)
 
     @check_main_thread
     def _always_render(self, step):
@@ -284,7 +292,7 @@ class Trainer:
 
     @check_viewer_enabled
     def _update_viewer_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int):
-        """Performs update on rays/sec calclation for training
+        """Performs update on rays/sec calculation for training
 
         Args:
             train_t: timer object carrying time to execute total training iteration
@@ -313,7 +321,7 @@ class Trainer:
             loaded_state = torch.load(load_path, map_location="cpu")
             self._start_step = loaded_state["step"] + 1
             # load the checkpoints for pipeline, optimizers, and gradient scalar
-            self.pipeline.load_pipeline(loaded_state["pipeline"])
+            self.pipeline.load_pipeline(loaded_state["pipeline"], loaded_state["step"])
             self.optimizers.load_optimizers(loaded_state["optimizers"])
             self.grad_scaler.load_state_dict(loaded_state["scalers"])
             CONSOLE.print(f"done loading checkpoint from {load_path}")
@@ -364,6 +372,18 @@ class Trainer:
             loss = functools.reduce(torch.add, loss_dict.values())
         self.grad_scaler.scale(loss).backward()  # type: ignore
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
+
+        if self.config.log_gradients:
+            total_grad = 0
+            for tag, value in self.pipeline.model.named_parameters():
+                assert tag != "Total"
+                if value.grad is not None:
+                    grad = value.grad.norm()
+                    metrics_dict[f"Gradients/{tag}"] = grad
+                    total_grad += grad
+
+            metrics_dict["Gradients/Total"] = total_grad
+
         self.grad_scaler.update()
         self.optimizers.scheduler_step_all(step)
 

@@ -230,6 +230,21 @@ def normalize(x) -> TensorType[...]:
     return x / torch.linalg.norm(x)
 
 
+def normalize_with_norm(x: torch.Tensor, dim: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Normalize tensor along axis and return normalized value with norms.
+
+    Args:
+        x: tensor to normalize.
+        dim: axis along which to normalize.
+
+    Returns:
+        Tuple of normalized tensor and corresponding norm.
+    """
+
+    norm = torch.maximum(torch.linalg.vector_norm(x, dim=dim, keepdims=True), torch.tensor([_EPS]).to(x))
+    return x / norm, norm
+
+
 def viewmatrix(lookat, up, pos) -> TensorType[...]:
     """Returns a camera transformation matrix.
 
@@ -346,7 +361,7 @@ def radial_and_tangential_undistort(
     max_iterations: int = 10,
 ) -> torch.Tensor:
     """Computes undistorted coords given opencv distortion parameters.
-    Addapted from MultiNeRF
+    Adapted from MultiNeRF
     https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L477-L509
 
     Args:
