@@ -129,6 +129,28 @@ def _exclamation() -> str:
     return random.choice(["Cool", "Nice", "Neat", "Great", "Exciting", "Excellent", "Ok"]) + "!"
 
 
+def _get_deactivate_script(commands: List[str], shell: Optional[ShellType], add_header=True) -> str:
+    if shell is None:
+        # Install the universal script
+        result_script = []
+        for shell_type in typing_get_args(ShellType):
+            result_script.append(f'if [ -n "${shell_type.upper()}_VERSION" ]; then')
+            result_script.append(_get_deactivate_script(commands, shell_type, add_header=False))
+            result_script.append("fi")
+        source_lines = "\n".join(result_script)
+
+    elif shell == "zsh":
+        source_lines = "\n".join([f"unset '_comps[{command}]' &> /dev/null" for command in commands])
+    elif shell == "bash":
+        source_lines = "\n".join([f"complete -r {command} &> /dev/null" for command in commands])
+    else:
+        assert_never(shell)
+
+    if add_header:
+        source_lines = f"\n{HEADER_LINE}\n{source_lines}"
+    return source_lines
+
+
 def _get_source_script(completions_dir: pathlib.Path, shell: Optional[ShellType], add_header=True) -> str:
     if shell is None:
         # Install the universal script
@@ -203,6 +225,7 @@ def _update_rc(
 
 
 def _update_conda_scripts(
+    commands: List[str],
     completions_dir: pathlib.Path,
     mode: ConfigureMode,
 ) -> None:
@@ -214,20 +237,25 @@ def _update_conda_scripts(
     """
 
     # Install or uninstall `source_line`.
-    source_lines = _get_source_script(completions_dir, None)
+    activate_source_lines = _get_source_script(completions_dir, None)
+    deactivate_source_lines = _get_deactivate_script(commands, None)
 
     conda_path = pathlib.Path(os.environ["CONDA_PREFIX"])
-    activate_path = conda_path / "etc/conda/activate.d/nerfstudio-activate.sh"
+    activate_path = conda_path / "etc/conda/activate.d/nerfstudio_activate.sh"
+    deactivate_path = conda_path / "etc/conda/deactivate.d/nerfstudio_deactivate.sh"
     if mode == "uninstall":
         if activate_path.exists():
             os.remove(activate_path)
+        if deactivate_path.exists():
+            os.remove(deactivate_path)
         CONSOLE.log(f":broom: Existing completions uninstalled from {conda_path}.")
     elif mode == "install":
         # Install completions.
         activate_path.parent.mkdir(exist_ok=True, parents=True)
         with activate_path.open("w+", encoding="utf8") as f:
-            f.write(source_lines)
-        # TODO: Handle also the deactivate case.
+            f.write(activate_source_lines)
+        with deactivate_path.open("w+", encoding="utf8") as f:
+            f.write(deactivate_source_lines)
         CONSOLE.log(
             f":person_gesturing_ok: Completions installed to {conda_path}. {_exclamation()} Reactivate the environment"
             " to try them out."
@@ -352,7 +380,8 @@ def main(mode: ConfigureMode = "install") -> None:
 
     if conda_path is not None:
         # In conda environment we add the completitions activation scripts.
-        _update_conda_scripts(completions_dir, mode)
+        commands = _get_all_entry_points()
+        _update_conda_scripts(commands, completions_dir, mode)
     else:
         # Install or uninstall from bashrc/zshrc.
         for shell in shells_found:
