@@ -65,7 +65,7 @@ class _SDSGradient(torch.autograd.Function):  # pylint: disable=abstract-method
 
     @staticmethod
     @custom_fwd
-    def forward(ctx, input_tensor, gt_grad): # pylint: disable=arguments-differ
+    def forward(ctx, input_tensor, gt_grad):  # pylint: disable=arguments-differ
         del input_tensor
         ctx.save_for_backward(gt_grad)
         # Return magniture of gradient, not the actual loss.
@@ -73,7 +73,7 @@ class _SDSGradient(torch.autograd.Function):  # pylint: disable=abstract-method
 
     @staticmethod
     @custom_bwd
-    def backward(ctx, grad): # pylint: disable=arguments-differ
+    def backward(ctx, grad):  # pylint: disable=arguments-differ
         del grad
         (gt_grad,) = ctx.saved_tensors
         batch_size = len(gt_grad)
@@ -210,7 +210,7 @@ class StableDiffusion(nn.Module):
 
         # perform guidance
         noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-        noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
+        noise_pred = noise_pred_text + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
         # w(t), sigma_t^2
         w = 1 - self.alphas[t]
@@ -266,7 +266,7 @@ class StableDiffusion(nn.Module):
 
                 # perform guidance
                 noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
+                noise_pred = noise_pred_text + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents)["prev_sample"]  # type: ignore
