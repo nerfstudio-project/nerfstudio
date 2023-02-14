@@ -2,11 +2,15 @@
 
 ## Prerequisites
 
-CUDA must be installed on the system. This library has been tested with version 11.3. You can find more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html)
+Git comes pre-installed on many systems, but if you do not have it, download and install it [here](https://git-scm.com/downloads).
+
+If using Windows, install Visual Studio. This must be done before installing CUDA. For CUDA 11.3, install Visual Studio 2019 ver 16.9 (the latest, 16.11, may cause errors when installing tiny-cuda-nn). The necessary components are included in the `Desktop Development with C++` workflow (also called `C++ Build Tools` in the BuildTools edition). You can find older versions of Visual Studio 2019 [here](https://learn.microsoft.com/en-us/visualstudio/releases/2019/history#release-dates-and-build-numbers).
+
+Install CUDA. This library has been tested with version 11.3. You can find CUDA download links [here](https://developer.nvidia.com/cuda-toolkit-archive) and more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html).
 
 ## Create environment
 
-Nerfstudio requires `python >= 3.7`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before preceding.
+Nerfstudio requires `python >= 3.7`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 ```bash
 conda create --name nerfstudio -y python=3.8
@@ -76,7 +80,7 @@ or be built from the repository using
 docker build --tag nerfstudio -f Dockerfile .
 ```
 ### Using an interactive container
-The docker container can be launched with an interactive terminal where nerfstudio commands can be entered as usual. Some parameters are required and some are strongly reocmmended for usage as following:
+The docker container can be launched with an interactive terminal where nerfstudio commands can be entered as usual. Some parameters are required and some are strongly recommended for usage as following:
 ```bash
 docker run --gpus all \                                         # Give the container access to nvidia GPU (required).
             -v /folder/of/your/data:/workspace/ \               # Mount a folder from the local machine into the container to be able to process them (required).
@@ -122,6 +126,47 @@ While installing tiny-cuda, you run into: `The detected CUDA version mismatches 
 ```
 pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 ```
+
+ <br />
+
+(tiny-cuda-error)=
+
+**(Windows) TinyCUDA installation errors out with no CUDA toolset found**
+
+While installing tiny-cuda on Windows, you run into: `No CUDA toolset found.`
+
+**Solution**:
+
+Confirm that you have Visual Studio installed (CUDA 11.3 is only compatible up to 2019 ver 16.9, not 2022).
+
+Make sure CUDA Visual Studio integration is enabled. This should be done automatically by the CUDA installer if it is run after Visual Studio is installed. To manually enable integration for Visual Studio, copy all 4 files from
+
+```
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.3\extras\visual_studio_integration\MSBuildExtensions
+```
+
+to
+
+```
+C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Microsoft\VC\v160\BuildCustomizations
+```
+
+The presence of multiple versions of CUDA and Visual Studio may cause problems. Solutions not yet found, short of uninstalling all other versions.
+
+ <br />
+
+ 
+(tiny-cuda-error)=
+
+**(Windows) TinyCUDA installation errors out with syntax errors**
+
+While installing tiny-cuda on Windows, you run into: `Expected a "("`
+
+**Solution**:
+
+If you are using CUDA 11.3 with Visual Studio 2019, confirm that Visual Studio is on version 16.9 and not 16.11.
+
+If you are using a different version of CUDA and Visual Studio, try switching to CUDA 11.3 with Visual Studio 2019 ver 16.9.
 
  <br />
 
