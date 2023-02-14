@@ -4,9 +4,9 @@
 
 Git comes pre-installed on many systems, but if you do not have it, download and install it [here](https://git-scm.com/downloads).
 
-If using Windows, install Visual Studio. This must be done before installing CUDA. For CUDA 11.3, install Visual Studio 2019 ver 16.9 (the latest, 16.11, may cause errors when installing tiny-cuda-nn). The necessary components are included in the `Desktop Development with C++` workflow (also called `C++ Build Tools` in the BuildTools edition). You can find older versions of Visual Studio 2019 [here](https://learn.microsoft.com/en-us/visualstudio/releases/2019/history#release-dates-and-build-numbers).
+If using Windows, install Visual Studio. This must be done before installing CUDA. For CUDA 11.3, install Visual Studio 2019 ver 16.9 (the latest, 16.11, may cause errors when installing tiny-cuda-nn). For CUDA 11.6 or higher, install Visual Studio 2022. Windows installation has only been tested with CUDA 11.3. The necessary components are included in the `Desktop Development with C++` workflow (also called `C++ Build Tools` in the BuildTools edition). You can find older versions of Visual Studio 2019 [here](https://learn.microsoft.com/en-us/visualstudio/releases/2019/history#release-dates-and-build-numbers).
 
-Install CUDA. This library has been tested with version 11.3. You can find CUDA download links [here](https://developer.nvidia.com/cuda-toolkit-archive) and more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html).
+Install CUDA. This library has been tested with version 11.3 and 11.7.1. You can find CUDA download links [here](https://developer.nvidia.com/cuda-toolkit-archive) and more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html).
 
 ## Create environment
 
@@ -41,7 +41,7 @@ it should be uninstalled first to avoid upgrade issues (e.g. with functorch)
 pip uninstall torch torchvision functorch
 ```
 
-Install pytorch 1.13.1 with CUDA (this repo has been tested with CUDA 11.7.1) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+Install pytorch 1.13.1 with CUDA and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
 
 ```bash
 pip install torch torchvision functorch --extra-index-url https://download.pytorch.org/whl/cu117
@@ -177,7 +177,7 @@ While installing tiny-cuda on Windows, you run into: `No CUDA toolset found.`
 
 **Solution**:
 
-Confirm that you have Visual Studio installed (CUDA 11.3 is only compatible up to 2019 ver 16.9, not 2022).
+Confirm that you have Visual Studio installed (CUDA 11.3 is only compatible up to 2019 ver 16.9, not 16.11 or 2022).
 
 Make sure CUDA Visual Studio integration is enabled. This should be done automatically by the CUDA installer if it is run after Visual Studio is installed. To manually enable integration for Visual Studio, copy all 4 files from
 
@@ -191,11 +191,8 @@ to
 C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Microsoft\VC\v160\BuildCustomizations
 ```
 
-The presence of multiple versions of CUDA and Visual Studio may cause problems. Solutions not yet found, short of uninstalling all other versions.
-
  <br />
 
- 
 (tiny-cuda-error)=
 
 **(Windows) TinyCUDA installation errors out with syntax errors**
