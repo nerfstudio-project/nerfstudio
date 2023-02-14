@@ -19,6 +19,7 @@ from typing import Tuple
 
 import torch
 from torchtyping import TensorType
+from typing_extensions import Literal
 
 _USE_NERFACC = True
 
@@ -285,3 +286,26 @@ def safe_normalize(
         Normalized vectors.
     """
     return vectors / (torch.norm(vectors, dim=-1, keepdim=True) + eps)
+
+
+def masked_reduction(loss: TensorType[0], M: TensorType[0], reduction_type: Literal["image", "batch"]):
+    """
+    Whether to consolidate the loss across the batch or across the image
+    Args:
+        loss: loss tensor
+        M: mask tensor
+        reduction_type: either "batch" or "image"
+    Returns:
+        loss: reduced loss
+    """
+    if reduction_type == "batch":
+        # avoid division by 0 (if sum(M) = sum(sum(mask)) = 0: sum(image_loss) = 0)
+        divisor = torch.sum(M)
+        loss = 0 if divisor == 0 else torch.sum(loss) / divisor
+    elif reduction_type == "image":
+        # avoid division by 0 (if M = sum(mask) = 0: image_loss = 0)
+        valid = M.nonzero()
+
+        loss[valid] = loss[valid] / M[valid]
+        loss = torch.mean(loss)
+    return loss
