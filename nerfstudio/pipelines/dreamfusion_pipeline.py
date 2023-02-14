@@ -17,10 +17,7 @@
 from dataclasses import dataclass, field
 from typing import Optional, Type
 
-import matplotlib.pyplot as plt
-import numpy as np
 import torch
-from torch.cuda.amp import custom_bwd, custom_fwd
 from torch.cuda.amp.grad_scaler import GradScaler
 from typing_extensions import Literal
 
@@ -29,21 +26,6 @@ from nerfstudio.data.datamanagers.dreamfusion_datamanager import (
 )
 from nerfstudio.generative.stable_diffusion import StableDiffusion
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline, VanillaPipelineConfig
-
-
-class SpecifyGradient(torch.autograd.Function):
-    @staticmethod
-    @custom_fwd
-    def forward(ctx, input_tensor, gt_grad):
-        ctx.save_for_backward(gt_grad)
-        return torch.zeros([], device=input_tensor.device, dtype=input_tensor.dtype)
-
-    @staticmethod
-    @custom_bwd
-    def backward(ctx, grad):
-        (gt_grad,) = ctx.saved_tensors
-        batch_size = len(gt_grad)
-        return gt_grad / batch_size, None
 
 
 @dataclass
