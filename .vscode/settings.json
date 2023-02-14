@@ -29,9 +29,9 @@
       "source.organizeImports": true
     }
   },
-  "editor.formatOnSave": true,
+  "editor.formatOnSave": false,
   "python.envFile": "${workspaceFolder}/.env",
-  "python.formatting.provider": "black",
+  "python.formatting.provider": "yapf",
   "python.formatting.blackArgs": ["--line-length=120"],
   "python.linting.pylintEnabled": true,
   "python.linting.flake8Enabled": false,
