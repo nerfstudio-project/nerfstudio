@@ -216,6 +216,7 @@ class VanillaPipeline(Pipeline):
         test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
+        grad_scaler = None
     ):
         super().__init__()
         self.config = config
