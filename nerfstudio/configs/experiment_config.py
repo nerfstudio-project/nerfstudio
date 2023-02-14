@@ -78,11 +78,11 @@ class ExperimentConfig(InstantiateConfig):
 
     def is_viewer_enabled(self) -> bool:
         """Checks if a viewer is enabled."""
-        return "viewer" == self.vis
+        return "viewer" == self.vis or "viewer" in self.vis
 
     def is_wandb_enabled(self) -> bool:
         """Checks if wandb is enabled."""
-        return "wandb" == self.vis
+        return "wandb" == self.vis or "wandb" in self.vis
 
     def is_tensorboard_enabled(self) -> bool:
         """Checks if tensorboard is enabled."""
