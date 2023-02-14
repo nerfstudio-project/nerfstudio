@@ -168,7 +168,7 @@ class NerfplayerNerfactoModel(NerfactoModel):
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
-        self.lpips = LearnedPerceptualImagePatchSimilarity()
+        self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
         self.temporal_distortion = True  # for viewer
 
     def get_outputs(self, ray_bundle: RayBundle):
