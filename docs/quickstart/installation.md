@@ -17,6 +17,7 @@ python -m pip install --upgrade pip
 
 ## Dependencies
 
+(pytorch)=
 ### pytorch
 
 Either pytorch 1.12.1 (with CUDA up to 11.3) or 1.13.1 (with CUDA 11.6/7/8) can be used.
@@ -160,7 +161,7 @@ While installing tiny-cuda, you run into: `The detected CUDA version mismatches 
 **Solution**:
 
 Reinstall pytorch with the correct CUDA version.
-See [pytorch](#pytorch) under Dependencies, above.
+See [pytorch](pytorch) under Dependencies, above.
 
  <br />
 
