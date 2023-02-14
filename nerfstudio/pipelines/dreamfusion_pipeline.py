@@ -20,6 +20,8 @@ from typing import Optional, Type
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from torch.cuda.amp import custom_bwd, custom_fwd
+from torch.cuda.amp.grad_scaler import GradScaler
 from typing_extensions import Literal
 
 from nerfstudio.data.datamanagers.dreamfusion_datamanager import (
@@ -28,6 +30,20 @@ from nerfstudio.data.datamanagers.dreamfusion_datamanager import (
 from nerfstudio.generative.stable_diffusion import StableDiffusion
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline, VanillaPipelineConfig
 
+
+class SpecifyGradient(torch.autograd.Function):
+    @staticmethod
+    @custom_fwd
+    def forward(ctx, input_tensor, gt_grad):
+        ctx.save_for_backward(gt_grad)
+        return torch.zeros([], device=input_tensor.device, dtype=input_tensor.dtype)
+
+    @staticmethod
+    @custom_bwd
+    def backward(ctx, grad):
+        gt_grad, = ctx.saved_tensors
+        batch_size = len(gt_grad)
+        return gt_grad / batch_size, None
 
 @dataclass
 class DreamfusionPipelineConfig(VanillaPipelineConfig):
@@ -78,9 +94,11 @@ class DreamfusionPipeline(VanillaPipeline):
         test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
+        grad_scaler: Optional[GradScaler] = None,
     ):
-        super().__init__(config, device, test_mode, world_size, local_rank)
+        super().__init__(config, device, test_mode, world_size, local_rank, grad_scaler)
         self.generative = True
+        self.grad_scaler = grad_scaler
         self.sd_device = (
             torch.device(device)
             if self.config.stablediffusion_device is None
@@ -162,7 +180,8 @@ class DreamfusionPipeline(VanillaPipeline):
         if self.config.opacity_penalty:
             accum_mean = torch.mean(1.0 - model_outputs["accumulation"])
             sds_loss *= torch.clamp(accum_mean, min=0.5)
-        loss_dict["sds_loss"] = sds_loss.to(self.device)
+        metrics_dict["sds_loss"] = sds_loss.to(self.device)
+        loss_dict["latent_loss"] = SpecifyGradient.apply(self.grad_scaler.scale(latents), grad)
 
         model_outputs["latents"] = latents
         model_outputs["grad"] = grad
