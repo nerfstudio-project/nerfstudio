@@ -95,12 +95,24 @@ python -m pip install --upgrade pip
 
 ### Dependencies
 
-Install pytorch with CUDA (this repo has been tested with CUDA 11.3) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+Install pytorch with CUDA (this repo has been tested with CUDA 11.3 and CUDA 11.7) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+
+For CUDA 11.3:
 
 ```bash
 pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
+
+For CUDA 11.7:
+
+```bash
+pip install torch torchvision functorch --extra-index-url https://download.pytorch.org/whl/cu117
+pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+```
+
+See [Dependencies](https://github.com/nerfstudio-project/nerfstudio/blob/main/docs/quickstart/installation.md#dependencies)
+in the Installation documentation for more.
 
 ### Installing nerfstudio
 
@@ -293,13 +305,13 @@ We provide the following support structures to make life easier for getting star
 If you use this library or find the documentation useful for your research, please consider citing:
 
 ```
-@misc{nerfstudio,
-      title={Nerfstudio: A Framework for Neural Radiance Field Development},
-      author={Matthew Tancik*, Ethan Weber*, Evonne Ng*, Ruilong Li, Brent Yi,
-              Terrance Wang, Alexander Kristoffersen, Jake Austin, Kamyar Salahi,
-              Abhik Ahuja, David McAllister, Angjoo Kanazawa},
-      year={2022},
-      url={https://github.com/nerfstudio-project/nerfstudio},
+@article{nerfstudio,
+    author = {Tancik, Matthew and Weber, Ethan and Ng, Evonne and Li, Ruilong and Yi,
+            Brent and Kerr, Justin and Wang, Terrance and Kristoffersen, Alexander and Austin,
+            Jake and Salahi, Kamyar and Ahuja, Abhik and McAllister, David and Kanazawa, Angjoo},
+    title = {Nerfstudio: A Modular Framework for Neural Radiance Field Development},
+    journal = {arXiv preprint arXiv:2302.04264},
+    year = {2023},
 }
 ```
 

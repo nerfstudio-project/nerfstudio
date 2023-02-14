@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "0.1.16"
+version = "0.1.17"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -22,7 +22,7 @@ dependencies = [
     "tyro>=0.3.31",
     "gdown>=4.6.0",
     "ninja>=1.10",
-    "functorch==0.2.1",
+    "functorch>=0.2.1",
     "h5py>=2.9.0",
     "imageio>=2.21.1",
     'importlib-metadata>=6.0.0; python_version < "3.10"',
@@ -32,7 +32,7 @@ dependencies = [
     "mediapy>=1.1.0",
     "msgpack>=1.0.4",
     "msgpack_numpy>=0.4.8",
-    "nerfacc==0.3.4",
+    "nerfacc==0.3.3",
     "open3d>=0.16.0",
     "opencv-python==4.6.0.66",
     "Pillow>=9.3.0",
@@ -45,7 +45,7 @@ dependencies = [
     "rich>=12.5.1",
     "scikit-image>=0.19.3",
     "tensorboard==2.9.0",
-    "torch==1.12.1",
+    "torch>=1.12.1",
     "torchmetrics[image]>=0.9.3",
     "torchtyping>=0.1.4",
     "torchvision>=0.13.0",
@@ -100,6 +100,7 @@ ns-install-cli = "scripts.completions.install:entrypoint"
 ns-process-data = "scripts.process_data:entrypoint"
 ns-download-data = "scripts.downloads.download_data:entrypoint"
 ns-train = "scripts.train:entrypoint"
+ns-viewer = "scripts.viewer.run_viewer:entrypoint"
 ns-eval = "scripts.eval:entrypoint"
 ns-render = "scripts.render:entrypoint"
 ns-export = "scripts.exporter:entrypoint"
