@@ -41,9 +41,10 @@ class SpecifyGradient(torch.autograd.Function):
     @staticmethod
     @custom_bwd
     def backward(ctx, grad):
-        gt_grad, = ctx.saved_tensors
+        (gt_grad,) = ctx.saved_tensors
         batch_size = len(gt_grad)
         return gt_grad / batch_size, None
+
 
 @dataclass
 class DreamfusionPipelineConfig(VanillaPipelineConfig):
@@ -169,22 +170,14 @@ class DreamfusionPipeline(VanillaPipeline):
             text_embedding = self.base_text_embedding
 
         with torch.autocast(device_type="cuda", dtype=torch.float16):
-            sds_loss, latents, grad = self.sd.sds_loss(
+            sds_loss = self.sd.sds_loss(
                 text_embedding.to(self.sd_device),
                 train_output.to(self.sd_device),
                 guidance_scale=int(self.config.guidance_scale),
+                grad_scaler=self.grad_scaler,
             )
-            sds_loss = sds_loss.to(self.device)
 
-        # TODO: opacity penalty using transmittance, not accumultation
-        if self.config.opacity_penalty:
-            accum_mean = torch.mean(1.0 - model_outputs["accumulation"])
-            sds_loss *= torch.clamp(accum_mean, min=0.5)
-        metrics_dict["sds_loss"] = sds_loss.to(self.device)
-        loss_dict["latent_loss"] = SpecifyGradient.apply(self.grad_scaler.scale(latents), grad)
-
-        model_outputs["latents"] = latents
-        model_outputs["grad"] = grad
+        loss_dict["sds_loss"] = sds_loss.to(self.device)
 
         return model_outputs, loss_dict, metrics_dict
 
