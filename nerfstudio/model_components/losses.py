@@ -310,7 +310,9 @@ def depth_loss(
     raise NotImplementedError("Provided depth loss type not implemented.")
 
 
-def monosdf_normal_loss(normal_pred: TensorType[..., 3], normal_gt: TensorType[..., 3]) -> TensorType[0]:
+def monosdf_normal_loss(
+    normal_pred: TensorType["num_samples", 3], normal_gt: TensorType["num_samples", 3]
+) -> TensorType[0]:
     """
     Normal consistency loss proposed in monosdf - https://niujinshuchong.github.io/monosdf/
     Enforces consistency between the volume rendered normal and the predicted monocular normal.
@@ -363,7 +365,7 @@ class MiDaSMSELoss(nn.Module):
         self.mse_loss = MSELoss(reduction="none")
 
     def forward(
-        self, prediction: TensorType[1, ...], target: TensorType[1, ...], mask: TensorType[1, ...]
+        self, prediction: TensorType[1, 32, 32], target: TensorType[1, 32, 32], mask: TensorType[1, 32, 32]
     ) -> TensorType[0]:
         """
         Args:
@@ -401,7 +403,7 @@ class GradientLoss(nn.Module):
         self.__scales = scales
 
     def forward(
-        self, prediction: TensorType[1, ...], target: TensorType[1, ...], mask: TensorType[1, ...]
+        self, prediction: TensorType[1, 32, 32], target: TensorType[1, 32, 32], mask: TensorType[1, 32, 32]
     ) -> TensorType[0]:
         """
         Args:
@@ -426,7 +428,7 @@ class GradientLoss(nn.Module):
         return total
 
     def gradient_loss(
-        self, prediction: TensorType[1, ...], target: TensorType[1, ...], mask: TensorType[1, ...]
+        self, prediction: TensorType[1, 32, 32], target: TensorType[1, 32, 32], mask: TensorType[1, 32, 32]
     ) -> TensorType[0]:
         """
         multiscale, scale-invariant gradient matching term to the disparity space.
@@ -457,7 +459,9 @@ class GradientLoss(nn.Module):
         return image_loss
 
 
-def compute_scale_and_shift(prediction: TensorType[1, ...], target: TensorType[1, ...], mask: TensorType[1, ...]):
+def compute_scale_and_shift(
+    prediction: TensorType[1, 32, 32], target: TensorType[1, 32, 32], mask: TensorType[1, 32, 32]
+):
     """
     More info here: https://arxiv.org/pdf/2206.00665.pdf supplementary section A2 Depth Consistency Loss
     This function computes scale/shift required to normalizes predicted depth map,
@@ -520,7 +524,7 @@ class ScaleAndShiftInvariantLoss(nn.Module):
         self.__prediction_ssi = None
 
     def forward(
-        self, prediction: TensorType[1, ...], target: TensorType[1, ...], mask: TensorType[1, ...]
+        self, prediction: TensorType[1, 32, 32], target: TensorType[1, 32, 32], mask: TensorType[1, 32, 32]
     ) -> TensorType[0]:
         """
         Args:
