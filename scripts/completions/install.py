@@ -252,6 +252,7 @@ def _update_conda_scripts(
     elif mode == "install":
         # Install completions.
         activate_path.parent.mkdir(exist_ok=True, parents=True)
+        deactivate_path.parent.mkdir(exist_ok=True, parents=True)
         with activate_path.open("w+", encoding="utf8") as f:
             f.write(activate_source_lines)
         with deactivate_path.open("w+", encoding="utf8") as f:
