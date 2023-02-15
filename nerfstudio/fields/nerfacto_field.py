@@ -89,6 +89,7 @@ class TCNNNerfactoField(Field):
         use_average_appearance_embedding: whether to use average appearance embedding or zeros for inference
         spatial_distortion: spatial distortion to apply to the scene
         num_output_color_channels: Number of output channels for the network to predict for color
+        num_output_density_channels: Number of output channels for the network to predict for density
     """
 
     def __init__(
@@ -114,6 +115,7 @@ class TCNNNerfactoField(Field):
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
         num_output_color_channels: int = 3,
+        num_output_density_channels: int = 1,
     ) -> None:
         super().__init__()
 
@@ -128,6 +130,7 @@ class TCNNNerfactoField(Field):
         self.use_transient_embedding = use_transient_embedding
         self.use_semantics = use_semantics
         self.use_pred_normals = use_pred_normals
+        self.num_output_density_channels = num_output_density_channels
 
         base_res = 16
         features_per_level = 2
@@ -148,7 +151,7 @@ class TCNNNerfactoField(Field):
 
         self.mlp_base = tcnn.NetworkWithInputEncoding(
             n_input_dims=3,
-            n_output_dims=1 + self.geo_feat_dim,
+            n_output_dims=num_output_density_channels + self.geo_feat_dim,
             encoding_config={
                 "otype": "HashGrid",
                 "n_levels": num_levels,
@@ -242,7 +245,8 @@ class TCNNNerfactoField(Field):
             self._sample_locations.requires_grad = True
         positions_flat = positions.view(-1, 3)
         h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
-        density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
+        density_before_activation, base_mlp_out = torch.split(
+            h, [self.num_output_density_channels, self.geo_feat_dim], dim=-1)
         self._density_before_activation = density_before_activation
 
         # Rectifying the density with an exponential is much more stable than a ReLU or

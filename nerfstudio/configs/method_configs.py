@@ -63,6 +63,7 @@ method_configs: Dict[str, TrainerConfig] = {}
 descriptions = {
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
     "hs-nerfacto": "Hyperspectral NeRF.",
+    "rgb-alpha-nerfacto": "Multiple alpha channels (one for each color).",
     "depth-nerfacto": "Nerfacto with depth supervision.",
     "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for unbounded scenes.",
     "instant-ngp-bounded": "Implementation of Instant-NGP. Recommended for bounded real and synthetic scenes",
@@ -107,11 +108,12 @@ method_configs["nerfacto"] = TrainerConfig(
     vis="viewer wandb",
 )
 
-method_configs["hs-nerfacto"] = TrainerConfig(
-    method_name="hs-nerfacto",
+method_configs["hs-nerfacto1"] = TrainerConfig(
+    method_name="hs-nerfacto1",
     steps_per_eval_batch=500,
     steps_per_save=2000,
-    max_num_iterations=10001,
+    save_only_latest_checkpoint=False,
+    max_num_iterations=30001,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=HyperspectralDataManagerConfig(
@@ -138,7 +140,46 @@ method_configs["hs-nerfacto"] = TrainerConfig(
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
-    vis="viewer",  # wandb
+    # vis="viewer",  # wandb
+    vis="viewer wandb",
+)
+
+
+method_configs["rgb-alpha-nerfacto"] = TrainerConfig(
+    method_name="rgb-alpha-nerfacto",
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    save_only_latest_checkpoint=False,
+    max_num_iterations=10001,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            dataparser=NerfstudioDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+            camera_optimizer=CameraOptimizerConfig(mode="SO3xR3",
+                                                   optimizer=AdamOptimizerConfig(
+                                                       lr=6e-4, eps=1e-8, weight_decay=1e-2)),
+            # train_num_images_to_sample_from=32,  # This might be needed to not run out of GPU memory
+            # train_num_times_to_repeat_images=250,
+        ),
+        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15,
+                                  num_output_color_channels=3,
+                                  num_density_channels=3),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-6),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-6),
+            "scheduler": None,
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    # vis="viewer",
+    vis="viewer wandb",
 )
 
 method_configs["depth-nerfacto"] = TrainerConfig(

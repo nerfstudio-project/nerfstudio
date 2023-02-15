@@ -118,6 +118,8 @@ class NerfactoModelConfig(ModelConfig):
     """For Hyperspectral, we may want to have a different number of output channels (RGB is 3)."""
     rgb_output_channels: Tuple[int, int, int] = (49, 36, 26)  # in nanometers: [620, 555, 503]
     """For Hyperspectral, we want to generate an RGB preview using these channels."""
+    num_density_channels: int = 1
+    """For wavelength-dependent transparency, we might want to have more density channels."""
 
 
 class NerfactoModel(Model):
@@ -146,12 +148,14 @@ class NerfactoModel(Model):
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
             num_output_color_channels=self.config.num_output_color_channels,
+            num_output_density_channels=self.config.num_density_channels,
         )
 
         self.density_fns = []
         num_prop_nets = self.config.num_proposal_iterations
         # Build the proposal network(s)
         self.proposal_networks = torch.nn.ModuleList()
+        # TODO(gerry): should the proposal networks also have multiple density channels?
         if self.config.use_same_proposal_network:
             assert len(self.config.proposal_net_args_list) == 1, "Only one proposal network is allowed."
             prop_net_args = self.config.proposal_net_args_list[0]
@@ -290,9 +294,10 @@ class NerfactoModel(Model):
         metrics_dict = {}
         if self.config.num_output_color_channels == 3:
             image = batch["image"].to(self.device)
+            metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
         else:
             image = batch["hs_image"].to(self.device)
-        metrics_dict["psnr"] = self.psnr(outputs["image"], image)
+            metrics_dict["psnr"] = self.psnr(outputs["image"], image)
         if self.training:
             metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
         return metrics_dict
@@ -301,9 +306,10 @@ class NerfactoModel(Model):
         loss_dict = {}
         if self.config.num_output_color_channels == 3:
             image = batch["image"].to(self.device)
+            loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
         else:
             image = batch["hs_image"].to(self.device)
-        loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["image"])
+            loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["image"])
         if self.training:
             loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
