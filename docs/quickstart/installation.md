@@ -150,13 +150,15 @@ K80 | 37
 
 ## Installation FAQ
 
-- [TinyCUDA installation errors out with cuda mismatch](tiny-cuda-error)
+- [TinyCUDA installation errors out with cuda mismatch](tiny-cuda-mismatch-error)
+- [TinyCUDA installation errors out with no CUDA toolset found](tiny-cuda-integration-error)
+- [TinyCUDA installation errors out with syntax errors](tiny-cuda-syntax-error)
 - [Installation errors, File "setup.py" not found](pip-install-error)
 - [Runtime errors, "len(sources) > 0".](cuda-sources-error)
 
  <br />
 
-(tiny-cuda-error)=
+(tiny-cuda-mismatch-error)=
 
 **TinyCUDA installation errors out with cuda mismatch**
 
@@ -169,7 +171,7 @@ See [pytorch](pytorch) under Dependencies, above.
 
  <br />
 
-(tiny-cuda-error)=
+(tiny-cuda-integration-error)=
 
 **(Windows) TinyCUDA installation errors out with no CUDA toolset found**
 
@@ -193,7 +195,7 @@ C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Microsoft
 
  <br />
 
-(tiny-cuda-error)=
+(tiny-cuda-syntax-error)=
 
 **(Windows) TinyCUDA installation errors out with syntax errors**
 
