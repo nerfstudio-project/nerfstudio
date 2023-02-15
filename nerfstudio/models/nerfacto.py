@@ -347,6 +347,8 @@ class NerfactoModel(Model):
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         rgb_gt = torch.moveaxis(rgb_gt, -1, 0)[None, ...]
         rgb = torch.moveaxis(rgb, -1, 0)[None, ...]
+        image_gt = torch.moveaxis(image_gt, -1, 0)[None, ...]
+        image = torch.moveaxis(image, -1, 0)[None, ...]
 
         psnr = self.psnr(image_gt, image)
         ssim = self.ssim(image_gt, image)
