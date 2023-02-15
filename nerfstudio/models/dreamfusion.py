@@ -41,7 +41,10 @@ from nerfstudio.model_components.losses import (
     orientation_loss,
     pred_normal_loss,
 )
-from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler
+from nerfstudio.model_components.ray_samplers import (
+    ProposalNetworkSampler,
+    UniformSampler,
+)
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
@@ -116,12 +119,8 @@ class DreamFusionModelConfig(ModelConfig):
     """Start training normals after this many iterations"""
     start_lambertian_training: int = 1000
     """start training with lambertian shading after this many iterations"""
-    alphas_penalty: bool = True
-    """enables penalty to encourage sparse weights (penalizing for uniform density along ray)"""
-    alphas_loss_mult: float = 1
-    """scale for alphas penalty"""
     opacity_penalty: bool = True
-    """enables penalty to encourage transparent scenes, as in "dreamfields" paper"""
+    """enables penalty to encourage sparse weights (penalizing for uniform density along ray)"""
     opacity_loss_mult: float = 1
     """scale for opacity penalty"""
     max_res: int = 256
@@ -183,9 +182,8 @@ class DreamFusionModel(Model):
             num_proposal_network_iterations=self.config.num_proposal_iterations,
             single_jitter=self.config.use_single_jitter,
             update_sched=update_schedule,
+            initial_sampler=UniformSampler(single_jitter=self.config.use_single_jitter),
         )
-
-        # self.sampler_uniform = UniformSampler(num_samples=self.num_samples, single_jitter=True)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -373,7 +371,7 @@ class DreamFusionModel(Model):
 
         if self.training or True:
             outputs["rendered_orientation_loss"] = orientation_loss(
-                weights, field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
+                weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
             )
 
             outputs["rendered_pred_normal_loss"] = pred_normal_loss(
@@ -383,9 +381,9 @@ class DreamFusionModel(Model):
             )
 
             assert weights.shape[-1] == 1
-            if self.config.alphas_penalty:
-                outputs["alphas_loss"] = (
-                    torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01) * self.config.alphas_loss_mult
+            if self.config.opacity_penalty:
+                outputs["opacity_loss"] = (
+                    torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01) * self.config.opacity_loss_mult
                 )
 
         return outputs
@@ -408,12 +406,9 @@ class DreamFusionModel(Model):
             loss_dict["orientation_loss"] = 0
             loss_dict["pred_normal_loss"] = 0
 
-        if self.config.alphas_penalty:
-            loss_dict["alphas_loss"] = self.config.alphas_loss_mult * outputs["alphas_loss"].mean()
-
         if self.config.opacity_penalty:
-            opacity_loss = -torch.minimum((1 - outputs["accumulation"]).mean(), torch.tensor(self.target_transmittance))
-            loss_dict["opacity_loss"] = self.config.opacity_loss_mult * opacity_loss
+            loss_dict["opacity_loss"] = self.config.opacity_loss_mult * outputs["opacity_loss"].mean()
+
         if self.training:
             loss_dict["distortion_loss"] = self.config.distortion_loss_mult * distortion_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
