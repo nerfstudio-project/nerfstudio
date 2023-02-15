@@ -19,7 +19,7 @@
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 import appdirs
 import mediapy
@@ -29,6 +29,8 @@ import torch.nn.functional as F
 import tyro
 from rich.console import Console
 from torch import nn
+from torch.cuda.amp import custom_bwd, custom_fwd
+from torch.cuda.amp.grad_scaler import GradScaler
 from torchtyping import TensorType
 
 CONSOLE = Console(width=120)
@@ -56,6 +58,26 @@ class UNet2DConditionOutput:
     """Class to hold traced model"""
 
     sample: torch.FloatTensor
+
+
+class _SDSGradient(torch.autograd.Function):  # pylint: disable=abstract-method
+    """Custom gradient function for SDS loss. Since it is already computed, we can just return it."""
+
+    @staticmethod
+    @custom_fwd
+    def forward(ctx, input_tensor, gt_grad):  # pylint: disable=arguments-differ
+        del input_tensor
+        ctx.save_for_backward(gt_grad)
+        # Return magniture of gradient, not the actual loss.
+        return torch.mean(gt_grad**2) ** 0.5
+
+    @staticmethod
+    @custom_bwd
+    def backward(ctx, grad):  # pylint: disable=arguments-differ
+        del grad
+        (gt_grad,) = ctx.saved_tensors
+        batch_size = len(gt_grad)
+        return gt_grad / batch_size, None
 
 
 class StableDiffusion(nn.Module):
@@ -162,14 +184,16 @@ class StableDiffusion(nn.Module):
         text_embeddings: TensorType["N", "max_length", "embed_dim"],
         image: TensorType["BS", 3, "H", "W"],
         guidance_scale: float = 100.0,
-    ) -> Tuple[torch.Tensor, TensorType["BS", 4, "H", "W"], TensorType["BS", 4, "H", "W"]]:
+        grad_scaler: Optional[GradScaler] = None,
+    ) -> torch.Tensor:
         """Score Distilation Sampling loss proposed in DreamFusion paper (https://dreamfusion3d.github.io/)
         Args:
             text_embeddings: Text embeddings
             image: Rendered image
             guidance_scale: How much to weigh the guidance
+            grad_scaler: Grad scaler
         Returns:
-            A tuple of Loss, latent, and gradient
+            The loss
         """
         image = F.interpolate(image, (IMG_DIM, IMG_DIM), mode="bilinear")
         t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
@@ -186,7 +210,7 @@ class StableDiffusion(nn.Module):
 
         # perform guidance
         noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-        noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
+        noise_pred = noise_pred_text + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
         # w(t), sigma_t^2
         w = 1 - self.alphas[t]
@@ -194,9 +218,11 @@ class StableDiffusion(nn.Module):
         grad = w * (noise_pred - noise)
         grad = torch.nan_to_num(grad)
 
-        sds_mse = torch.mean(torch.nan_to_num(torch.square(noise_pred - noise)))
+        if grad_scaler is not None:
+            latents = grad_scaler.scale(latents)
+        loss = _SDSGradient.apply(latents, grad)
 
-        return sds_mse, latents, grad
+        return loss
 
     def produce_latents(
         self,
@@ -240,7 +266,7 @@ class StableDiffusion(nn.Module):
 
                 # perform guidance
                 noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
+                noise_pred = noise_pred_text + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents)["prev_sample"]  # type: ignore
