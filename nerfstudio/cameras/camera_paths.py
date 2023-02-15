@@ -157,6 +157,29 @@ def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
         times = torch.tensor([camera["render_time"] for camera in camera_path["camera_path"]])
     else:
         times = None
+    if any("color_channel" in camera for camera in camera_path["camera_path"]):
+        # Interpolate color channels
+        # First put color channels in a more useable format
+        i_channel = []
+        for i, camera in enumerate(camera_path["camera_path"]):
+            if "color_channel" in camera:
+                i_channel.append((i, camera["color_channel"]))
+        if i_channel[0][0] != 0:
+            i_channel.insert(0, (0, i_channel[0][1]))
+        if i_channel[-1][0] != len(camera_path["camera_path"]) - 1:
+            i_channel.append((len(camera_path["camera_path"]) - 1, i_channel[-1][1]))
+        # Now interpolate
+        all_channels = []
+        for j in range(len(i_channel) - 1):
+            si, ei = i_channel[j][0], i_channel[j + 1][0]
+            s, e = i_channel[j][1], i_channel[j + 1][1]
+            channels = torch.linspace(s, e, ei - si + 1).type(torch.int16)[:-1]
+            all_channels += channels.tolist()
+        all_channels.append(i_channel[-1][1])
+        # Finally, export
+        channels = torch.tensor(all_channels)
+    else:
+        channels = None
 
     camera_to_worlds = torch.stack(c2ws, dim=0)
     fx = torch.tensor(fxs)
@@ -169,4 +192,5 @@ def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
         camera_to_worlds=camera_to_worlds,
         camera_type=camera_type,
         times=times,
+        color_channels=channels,
     )

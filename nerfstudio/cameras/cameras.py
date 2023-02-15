@@ -89,6 +89,7 @@ class Cameras(TensorDataclass):
     distortion_params: Optional[TensorType["num_cameras":..., 6]]
     camera_type: TensorType["num_cameras":..., 1]
     times: Optional[TensorType["num_cameras", 1]]
+    color_channels: Optional[TensorType["num_cameras", 1]]
 
     def __init__(
         self,
@@ -109,6 +110,7 @@ class Cameras(TensorDataclass):
             ]
         ] = CameraType.PERSPECTIVE,
         times: Optional[TensorType["num_cameras"]] = None,
+        color_channels: Optional[TensorType["num_cameras", 1]] = None,
     ):
         """Initializes the Cameras object.
 
@@ -143,6 +145,7 @@ class Cameras(TensorDataclass):
         self.width = self._init_get_height_width(width, self.cx)
         self.camera_type = self._init_get_camera_type(camera_type)
         self.times = self._init_get_times(times)
+        self.color_channels = self._init_get_times(color_channels)  # "init times" close enough
 
         self.__post_init__()  # This will do the dataclass post_init and broadcast all the tensors
 

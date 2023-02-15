@@ -120,7 +120,14 @@ def _render_trajectory_video(
                             f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center"
                         )
                         sys.exit(1)
-                    output_image = outputs[rendered_output_name].cpu().numpy()
+                    if cameras.color_channels is not None:
+                        channel = cameras.color_channels[camera_idx].item()
+                        channel = int(channel)
+                        output_image = outputs['image'].cpu().numpy()
+                        print(f'The channel is: {channel = }, {output_image.shape = }')
+                        output_image = output_image[..., [channel, channel, channel]]
+                    else:
+                        output_image = outputs[rendered_output_name].cpu().numpy()
                     if output_image.shape[-1] == 1:
                         output_image = np.concatenate((output_image,) * 3, axis=-1)
                     render_image.append(output_image)
