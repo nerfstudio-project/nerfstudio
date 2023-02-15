@@ -124,7 +124,8 @@ method_configs["hs-nerfacto"] = TrainerConfig(
             # train_num_images_to_sample_from=32,  # This might be needed to not run out of GPU memory
             # train_num_times_to_repeat_images=250,
         ),
-        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
+        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15,
+                                  num_output_color_channels=128),
     ),
     optimizers={
         "proposal_networks": {

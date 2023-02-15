@@ -88,6 +88,7 @@ class TCNNNerfactoField(Field):
         use_pred_normals: whether to use predicted normals
         use_average_appearance_embedding: whether to use average appearance embedding or zeros for inference
         spatial_distortion: spatial distortion to apply to the scene
+        num_output_color_channels: Number of output channels for the network to predict for color
     """
 
     def __init__(
@@ -112,6 +113,7 @@ class TCNNNerfactoField(Field):
         use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
+        num_output_color_channels: int = 3,
     ) -> None:
         super().__init__()
 
@@ -217,7 +219,7 @@ class TCNNNerfactoField(Field):
 
         self.mlp_head = tcnn.Network(
             n_input_dims=self.direction_encoding.n_output_dims + self.geo_feat_dim + self.appearance_embedding_dim,
-            n_output_dims=3,
+            n_output_dims=num_output_color_channels,
             network_config={
                 "otype": "FullyFusedMLP",
                 "activation": "ReLU",

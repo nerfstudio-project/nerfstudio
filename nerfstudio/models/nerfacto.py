@@ -114,6 +114,10 @@ class NerfactoModelConfig(ModelConfig):
     """Whether use single jitter or not for the proposal networks."""
     predict_normals: bool = False
     """Whether to predict normals or not."""
+    num_output_color_channels: int = 3
+    """For Hyperspectral, we may want to have a different number of output channels (RGB is 3)."""
+    rgb_output_channels: Tuple[int, int, int] = (49, 36, 26)  # in nanometers: [620, 555, 503]
+    """For Hyperspectral, we want to generate an RGB preview using these channels."""
 
 
 class NerfactoModel(Model):
@@ -141,6 +145,7 @@ class NerfactoModel(Model):
             num_images=self.num_train_data,
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
+            num_output_color_channels=self.config.num_output_color_channels,
         )
 
         self.density_fns = []
@@ -241,15 +246,20 @@ class NerfactoModel(Model):
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
 
-        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+        # when num_output_color_channels is not 3, then image will also not be 3.
+        image = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 
         outputs = {
-            "rgb": rgb,
+            "rgb": image,
             "accumulation": accumulation,
             "depth": depth,
         }
+
+        if self.config.num_output_color_channels != 3:
+            outputs["rgb"] = image[:, self.config.rgb_output_channels]  # [rays, 3]
+            outputs["image"] = image  # [rays, num_output_color_channels]
 
         if self.config.predict_normals:
             outputs["normals"] = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
@@ -278,16 +288,22 @@ class NerfactoModel(Model):
 
     def get_metrics_dict(self, outputs, batch):
         metrics_dict = {}
-        image = batch["image"].to(self.device)
-        metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
+        if self.config.num_output_color_channels == 3:
+            image = batch["image"].to(self.device)
+        else:
+            image = batch["hs_image"].to(self.device)
+        metrics_dict["psnr"] = self.psnr(outputs["image"], image)
         if self.training:
             metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
         return metrics_dict
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = {}
-        image = batch["image"].to(self.device)
-        loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
+        if self.config.num_output_color_channels == 3:
+            image = batch["image"].to(self.device)
+        else:
+            image = batch["hs_image"].to(self.device)
+        loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["image"])
         if self.training:
             loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
@@ -310,25 +326,31 @@ class NerfactoModel(Model):
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
 
-        image = batch["image"].to(self.device)
+        rgb_gt = batch["image"].to(self.device)
         rgb = outputs["rgb"]
+        if self.config.num_output_color_channels != 3:
+            image_gt = batch["hs_image"].to(self.device)
+            image = outputs["image"]
+        else:
+            image_gt = rgb_gt
+            image = rgb
         acc = colormaps.apply_colormap(outputs["accumulation"])
         depth = colormaps.apply_depth_colormap(
             outputs["depth"],
             accumulation=outputs["accumulation"],
         )
 
-        combined_rgb = torch.cat([image, rgb], dim=1)
+        combined_rgb = torch.cat([rgb_gt, rgb], dim=1)
         combined_acc = torch.cat([acc], dim=1)
         combined_depth = torch.cat([depth], dim=1)
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
-        image = torch.moveaxis(image, -1, 0)[None, ...]
+        rgb_gt = torch.moveaxis(rgb_gt, -1, 0)[None, ...]
         rgb = torch.moveaxis(rgb, -1, 0)[None, ...]
 
-        psnr = self.psnr(image, rgb)
-        ssim = self.ssim(image, rgb)
-        lpips = self.lpips(image, rgb)
+        psnr = self.psnr(image_gt, image)
+        ssim = self.ssim(image_gt, image)
+        lpips = self.lpips(rgb_gt, rgb)
 
         # all of these metrics will be logged as scalars
         metrics_dict = {"psnr": float(psnr.item()), "ssim": float(ssim)}  # type: ignore
