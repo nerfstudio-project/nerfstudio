@@ -90,6 +90,7 @@ class TCNNNerfactoField(Field):
         spatial_distortion: spatial distortion to apply to the scene
         num_output_color_channels: Number of output channels for the network to predict for color
         num_output_density_channels: Number of output channels for the network to predict for density
+        use_input_wavelength_like_position: If True, use the wavelength of the input rays as an input feature like position
     """
 
     def __init__(
@@ -116,6 +117,7 @@ class TCNNNerfactoField(Field):
         spatial_distortion: Optional[SpatialDistortion] = None,
         num_output_color_channels: int = 3,
         num_output_density_channels: int = 1,
+        use_input_wavelength_like_position: bool = False,
     ) -> None:
         super().__init__()
 
@@ -131,6 +133,7 @@ class TCNNNerfactoField(Field):
         self.use_semantics = use_semantics
         self.use_pred_normals = use_pred_normals
         self.num_output_density_channels = num_output_density_channels
+        self.use_input_wavelength_like_position = use_input_wavelength_like_position
 
         base_res = 16
         features_per_level = 2
@@ -150,7 +153,7 @@ class TCNNNerfactoField(Field):
         )
 
         self.mlp_base = tcnn.NetworkWithInputEncoding(
-            n_input_dims=3,
+            n_input_dims=3 + (1 if use_input_wavelength_like_position else 0),
             n_output_dims=num_output_density_channels + self.geo_feat_dim,
             encoding_config={
                 "otype": "HashGrid",
@@ -244,6 +247,22 @@ class TCNNNerfactoField(Field):
         if not self._sample_locations.requires_grad:
             self._sample_locations.requires_grad = True
         positions_flat = positions.view(-1, 3)
+        if self.use_input_wavelength_like_position:
+            assert 'wavelengths' in ray_samples.metadata, "Wavelengths are not provided."
+            wavelengths = ray_samples.metadata["wavelengths"].view(-1, 1)
+            positions_flat = torch.cat([positions_flat, wavelengths], dim=-1)
+            # assert 'set_of_wavelengths' in ray_samples.metadata, "Wavelengths are not provided."
+            # wavelengths = ray_samples.metadata["set_of_wavelengths"]
+            # n_wavelengths = wavelengths.shape[0]
+            # wavelengths = (torch.ones(1, positions_flat.shape[0]).to(wavelengths) * wavelengths.view(-1, 1))
+            # positions_flat = torch.cat([positions_flat.repeat(n_wavelengths, 1), wavelengths.view(-1, 1)], dim=-1)
+        # if self.use_input_wavelength_like_position:
+        #     h = self.mlp_base(positions_flat)
+        #     print(f"{h.shape = }, {positions_flat.shape = }, {ray_samples.frustums.shape = }")
+        #     raise Exception()
+        #     # .view(*ray_samples.frustums.shape, -1)
+        #     # h = h.view(n_wavelengths, *density.shape)
+        # else:
         h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         density_before_activation, base_mlp_out = torch.split(
             h, [self.num_output_density_channels, self.geo_feat_dim], dim=-1)

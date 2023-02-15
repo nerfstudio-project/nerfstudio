@@ -120,6 +120,8 @@ class NerfactoModelConfig(ModelConfig):
     """For Hyperspectral, we want to generate an RGB preview using these channels."""
     num_density_channels: int = 1
     """For wavelength-dependent transparency, we might want to have more density channels."""
+    use_input_wavelength_like_position: bool = False
+    """If True, use the wavelength of the input rays as an input feature like position"""
 
 
 class NerfactoModel(Model):
@@ -147,8 +149,9 @@ class NerfactoModel(Model):
             num_images=self.num_train_data,
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
-            num_output_color_channels=self.config.num_output_color_channels,
+            num_output_color_channels=self.config.num_output_color_channels if not self.config.use_input_wavelength_like_position else 1,
             num_output_density_channels=self.config.num_density_channels,
+            use_input_wavelength_like_position=self.config.use_input_wavelength_like_position,
         )
 
         self.density_fns = []
@@ -243,14 +246,40 @@ class NerfactoModel(Model):
             )
         return callbacks
 
+    def run_network_for_every_wavelength(self, ray_samples):
+        # stack ray_samples with different wavelengths into a single batch
+        wavelengths = list(range(self.config.num_output_color_channels))
+        all_density = []
+        all_rgb = []
+        # TODO: batch this?  previously, I ran out of gpu vram, but that happens even with this version too.
+        for wavelength in wavelengths:
+            ray_samples.metadata['wavelengths'] = torch.ones(
+                (*ray_samples.frustums.origins.shape[:-1], 1), dtype=torch.float32).to(
+                    self.device).view(-1, 1) * wavelength
+            field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
+            all_density.append(field_outputs[FieldHeadNames.DENSITY])
+            all_rgb.append(field_outputs[FieldHeadNames.RGB])
+        all_density = torch.stack(all_density, dim=2).view(*all_density[0].shape[:2], -1)
+        all_rgb = torch.stack(all_rgb, dim=2).view(*all_rgb[0].shape[:2], -1)
+        return {FieldHeadNames.DENSITY: all_density, FieldHeadNames.RGB: all_rgb}
+
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)  # these do NOT use num_density_channels
-        field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
+        if self.config.use_input_wavelength_like_position:
+            field_outputs = self.run_network_for_every_wavelength(ray_samples)
+            # ray_samples.metadata["set_of_wavelengths"] = torch.arange(self.config.num_output_color_channels // 2, dtype=torch.float32).to(self.device)
+            # ray_samples.metadata["set_of_wavelengths"].requires_grad = False
+            # print(ray_samples.metadata["set_of_wavelengths"].shape, ray_samples.metadata["set_of_wavelengths"].dtype)
+        else:
+            field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
 
-        assert weights.shape[-1] == self.config.num_density_channels, "weights should have num_density_channels channels."
+        if not self.config.use_input_wavelength_like_position:
+            assert weights.shape[-1] == self.config.num_density_channels, f"weights should have num_density_channels channels: {weights.shape = }"
+        else:
+            assert weights.shape[-1] == self.config.num_output_color_channels, f"weights should have num_output_color channels: {weights.shape = }"
 
         # when num_output_color_channels is not 3, then image will also not be 3.
         image = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
