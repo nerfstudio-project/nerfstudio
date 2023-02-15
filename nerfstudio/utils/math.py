@@ -289,7 +289,7 @@ def safe_normalize(
 
 
 def masked_reduction(
-    input_tensor: TensorType[1, 32, "mult"], mask: TensorType[0], reduction_type: Literal["image", "batch"]
+    input_tensor: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"], reduction_type: Literal["image", "batch"]
 ):
     """
     Whether to consolidate the input_tensor across the batch or across the image
