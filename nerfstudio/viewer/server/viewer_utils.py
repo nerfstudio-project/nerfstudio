@@ -100,6 +100,7 @@ class ColormapTypes(str, enum.Enum):
     DEPTH = "depth"
     SEMANTIC = "semantic"
     BOOLEAN = "boolean"
+    HYPERSPECTRAL = "hyperspectral"
 
 
 class IOChangeException(Exception):
@@ -620,6 +621,16 @@ class ViewerState:
         if self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].shape[-1] == 3:
             return outputs[reformatted_output]
 
+        # hyperspectral
+        if self.prev_colormap_type == ColormapTypes.HYPERSPECTRAL and outputs[reformatted_output].shape[-1] != 3:
+            channel = self.vis["renderingState/color_channel"].read()
+            if channel == -1:
+                assert outputs[reformatted_output].shape[-1] == 128
+                channel = [49, 36, 26]  # this roughly corresponds with RGB wavelengths
+            else:
+                channel = [channel, channel, channel]
+            return outputs[reformatted_output][..., channel]
+
         # rendering depth outputs
         if self.prev_colormap_type == ColormapTypes.DEPTH or (
             self.prev_colormap_type == ColormapTypes.DEFAULT
@@ -741,6 +752,7 @@ class ViewerState:
             ):
                 # accumulation can also include depth
                 colormap_options.extend(["depth"])
+                colormap_options.extend(["hyperspectral"])
             self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             self.vis["renderingState/colormap_options"].write(colormap_options)

@@ -37,6 +37,9 @@ export function RenderControls() {
   const colormapChoice = useSelector(
     (state) => state.renderingState.colormap_choice,
   );
+  const colorChannel = useSelector(
+    (state) => state.renderingState.color_channel,
+  );
   const max_resolution = useSelector(
     (state) => state.renderingState.maxResolution,
   );
@@ -114,6 +117,23 @@ export function RenderControls() {
           );
         },
         disabled: colormapOptions.length === 1,
+      },
+      // color channel
+      color_channel: {
+        label: 'Color Channel',
+        value: colorChannel,
+        min: -1,
+        max: 127,
+        step: 1,
+        hint: 'Which color channel to render, -1 for pseudo-RGB',
+        onChange: (v) => {
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/color_channel',
+            v,
+          );
+        },
       },
       // Dynamic Resolution
       target_train_util: {
