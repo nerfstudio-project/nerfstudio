@@ -17,12 +17,38 @@ python -m pip install --upgrade pip
 
 ## Dependencies
 
-Install pytorch with CUDA (this repo has been tested with CUDA 11.3) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+(pytorch)=
+### pytorch
+
+Either pytorch 1.12.1 (with CUDA up to 11.3) or 1.13.1 (with CUDA 11.6/7/8) can be used.
+
+- To install 1.12.1 with CUDA 11.3:
 
 ```bash
 pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
-pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+```
 
+- To install 1.13.1 with CUDA 11.7:
+
+Note that if a pytorch version prior to 1.13 is installed, 
+it should be uninstalled first to avoid upgrade issues (e.g. with functorch)
+
+```bash
+pip uninstall torch torchvision functorch
+```
+
+Install pytorch 1.13.1 with CUDA (this repo has been tested with CUDA 11.7.1) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+
+```bash
+pip install torch torchvision functorch --extra-index-url https://download.pytorch.org/whl/cu117
+```
+
+### tinycudann
+
+After pytorch, install the torch bindings for tinycudann:
+
+```bash
+pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
 ## Installing nerfstudio
@@ -134,9 +160,8 @@ While installing tiny-cuda, you run into: `The detected CUDA version mismatches 
 
 **Solution**:
 
-```
-pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
-```
+Reinstall pytorch with the correct CUDA version.
+See [pytorch](pytorch) under Dependencies, above.
 
  <br />
 

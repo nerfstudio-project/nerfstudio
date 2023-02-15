@@ -737,7 +737,7 @@ class ProcessRealityCapture:
     """Process RealityCapture data into a nerfstudio dataset.
 
     This script assumes that cameras have been aligned using RealityCapture. After alignment, it is necessary to
-    export the camera poses as a `.csv` file.
+    export the camera poses as a `.csv` file using the `Internal/External camera parameters` option.
 
     This script does the following:
 
