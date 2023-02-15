@@ -288,15 +288,15 @@ def safe_normalize(
     return vectors / (torch.norm(vectors, dim=-1, keepdim=True) + eps)
 
 
-def masked_reduction(input_tensor: TensorType[0], mask: TensorType[0], reduction_type: Literal["image", "batch"]):
+def masked_reduction(input_tensor: TensorType[1, 32, "mult"], mask: TensorType[0], reduction_type: Literal["image", "batch"]):
     """
-    Whether to consolidate the loss across the batch or across the image
+    Whether to consolidate the input_tensor across the batch or across the image
     Args:
-        input_tensor: loss tensor
+        input_tensor: input tensor
         mask: mask tensor
         reduction_type: either "batch" or "image"
     Returns:
-        loss: reduced loss
+        input_tensor: reduced input_tensor
     """
     if reduction_type == "batch":
         # avoid division by 0 (if sum(M) = sum(sum(mask)) = 0: sum(image_loss) = 0)
