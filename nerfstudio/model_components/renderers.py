@@ -221,6 +221,7 @@ class AccumulationRenderer(nn.Module):
             accumulation = nerfacc.accumulate_along_rays(weights, ray_indices, None, num_rays)
         else:
             accumulation = torch.sum(weights, dim=-2)
+            accumulation = torch.mean(accumulation, dim=-1)
         return accumulation
 
 
@@ -263,6 +264,7 @@ class DepthRenderer(nn.Module):
 
             if ray_indices is not None and num_rays is not None:
                 raise NotImplementedError("Median depth calculation is not implemented for packed samples.")
+            # TODO(gerry): instead of using 0th channel of weights, maybe use max or something
             cumulative_weights = torch.cumsum(weights[..., 0], dim=-1)  # [..., num_samples]
             split = torch.ones((*weights.shape[:-2], 1), device=weights.device) * 0.5  # [..., 1]
             median_index = torch.searchsorted(cumulative_weights, split, side="left")  # [..., 1]

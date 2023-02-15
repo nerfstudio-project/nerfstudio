@@ -244,11 +244,13 @@ class NerfactoModel(Model):
         return callbacks
 
     def get_outputs(self, ray_bundle: RayBundle):
-        ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
+        ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)  # these do NOT use num_density_channels
         field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
+
+        assert weights.shape[-1] == self.config.num_density_channels, "weights should have num_density_channels channels."
 
         # when num_output_color_channels is not 3, then image will also not be 3.
         image = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
