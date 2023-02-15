@@ -353,9 +353,9 @@ class MiDaSMSELoss(nn.Module):
         Returns:
             mse loss based on reduction function
         """
-        M = torch.sum(mask, (1, 2))
+        summed_mask = torch.sum(mask, (1, 2))
         image_loss = torch.sum(self.mse_loss(prediction, target) * mask, (1, 2))
-        image_loss = masked_reduction(image_loss, M, self.reduction_type)
+        image_loss = masked_reduction(image_loss, summed_mask, self.reduction_type)
 
         return image_loss
 
@@ -417,7 +417,7 @@ class GradientLoss(nn.Module):
         Returns:
             gradient loss based on reduction function
         """
-        M = torch.sum(mask, (1, 2))
+        summed_mask = torch.sum(mask, (1, 2))
         diff = prediction - target
         diff = torch.mul(mask, diff)
 
@@ -430,7 +430,7 @@ class GradientLoss(nn.Module):
         grad_y = torch.mul(mask_y, grad_y)
 
         image_loss = torch.sum(grad_x, (1, 2)) + torch.sum(grad_y, (1, 2))
-        image_loss = masked_reduction(image_loss, M, self.reduction_type)
+        image_loss = masked_reduction(image_loss, summed_mask, self.reduction_type)
 
         return image_loss
 
