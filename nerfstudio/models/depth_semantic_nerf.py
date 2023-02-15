@@ -173,6 +173,13 @@ class DepthSemanticNerfModel(Model):
                     func=set_anneal,
                 )
             )
+            callbacks.append(
+                TrainingCallback(
+                    where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                    update_every_num_iters=1,
+                    func=self.proposal_sampler.step_cb,
+                )
+            )
         return callbacks
 
     def get_outputs(self, ray_bundle: RayBundle):
@@ -210,6 +217,7 @@ class DepthSemanticNerfModel(Model):
         # semantics colormaps
         semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics"], dim=-1), dim=-1)
         outputs["semantics_colormap"] = self.semantics.colors[semantic_labels]
+        outputs["directions_norm"] = ray_bundle.metadata["directions_norm"]
 
         return outputs
 
@@ -249,6 +257,7 @@ class DepthSemanticNerfModel(Model):
         loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
         loss_dict["semantics_loss"] = self.cross_entropy_loss(outputs["semantics"], batch["semantics"][..., 0].long())
         loss_dict["depth_loss"] = self.config.depth_loss_mult * metrics_dict["depth_loss"]
+        return loss_dict
 
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
