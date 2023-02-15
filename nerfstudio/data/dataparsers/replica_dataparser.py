@@ -34,7 +34,7 @@ class ReplicaDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: Replica)
     """target class to instantiate"""
-    data: Path = Path("data/nerfstudio/replica_semantic")
+    data: Path = Path("data/nerfstudio/replica_depth_semantic")
     """Directory or explicit json file path specifying location of data."""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
@@ -51,6 +51,9 @@ class ReplicaDataParserConfig(DataParserConfig):
     train_split_percentage: float = 0.9
     """The percent of images to use for training. The remaining images are for eval."""
     include_semantics: bool = True
+
+    depth_unit_scale_factor: float = 1e-3
+    """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
 
 
 @dataclass
@@ -276,7 +279,11 @@ class Replica(DataParser):
             mask_filenames=mask_filenames if len(mask_filenames) > 0 else None,
             dataparser_scale=scale_factor,
             dataparser_transform=transform_matrix,
-            metadata={"semantics": semantics} if self.config.include_semantics else {},
+            metadata={
+                "semantics": semantics if self.config.include_semantics else {},
+                "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
+                "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
+            },
         )
 
         return dataparser_outputs
