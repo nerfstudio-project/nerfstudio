@@ -155,6 +155,8 @@ We'll be constantly growing this list! So make sure to check back in to see our 
 
 ## Citation
 
+You can find a paper writeup of the framework on [arXiv](https://arxiv.org/abs/2302.04264).
+
 If you use this library or find the documentation useful for your research, please consider citing:
 
 ```none
