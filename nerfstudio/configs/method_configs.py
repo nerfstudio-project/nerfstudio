@@ -226,6 +226,49 @@ method_configs["hs-nerfacto3"] = TrainerConfig(
     vis="wandb",
 )
 
+method_configs["hs-nerfacto3-rgb"] = TrainerConfig(
+    method_name="hs-nerfacto3-rgb",
+    steps_per_eval_batch=50,
+    steps_per_eval_image=500,
+    steps_per_save=2000,
+    save_only_latest_checkpoint=False,
+    max_num_iterations=30001,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            dataparser=NerfstudioDataParserConfig(),
+            # train_num_rays_per_batch=4096 // 64,
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+            # IMPORTANT - to resume a run, use CLI arg --pipeline.datamanager.camera-optimizer.lr "5e-6"
+            camera_optimizer=CameraOptimizerConfig(mode="SO3xR3",
+                                                   optimizer=AdamOptimizerConfig(
+                                                       lr=6e-4, eps=1e-8, weight_decay=1e-2)),
+            # train_num_images_to_sample_from=32,  # This might be needed to not run out of GPU memory
+            # train_num_times_to_repeat_images=250,
+            # eval_num_images_to_sample_from=1,
+        ),
+        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15,
+                                  num_output_color_channels=3,
+                                  num_density_channels=1,
+                                  use_input_wavelength_like_position=True),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-6),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-6),
+            "scheduler": None,
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 14),
+    # vis="viewer",  # wandb
+    # vis="viewer wandb",
+    vis="wandb",
+)
+
 method_configs["rgb-alpha-nerfacto"] = TrainerConfig(
     method_name="rgb-alpha-nerfacto",
     steps_per_eval_batch=500,
