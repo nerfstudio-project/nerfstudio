@@ -192,7 +192,7 @@ class DreamFusionModel(Model):
         """Set the fields and modules"""
         super().populate_modules()
 
-        self.sd = StableDiffusion(self.sd_device)
+        self.sd = StableDiffusion(self.sd_device, version=config.sd_version)
         self.text_embeddings = {
             "top_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.top_prompt}", ""),
             "front_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.front_prompt}", ""),

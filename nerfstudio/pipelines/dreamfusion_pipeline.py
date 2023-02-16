@@ -53,6 +53,8 @@ class DreamfusionPipelineConfig(VanillaPipelineConfig):
     """appended to prompt for back view"""
     guidance_scale: float = 100
     """guidance scale for sds loss"""
+    sd_version: str = "1-5"
+    """Stable Diffusion version for dreamfusion"""
 
     stablediffusion_device: Optional[str] = None
 
@@ -85,8 +87,13 @@ class DreamfusionPipeline(VanillaPipeline):
         self.side_prompt = config.side_prompt
         self.back_prompt = config.back_prompt 
         self.front_prompt = config.front_prompt
+<<<<<<< HEAD
         self.sd = StableDiffusion(self.sd_device)
 
+=======
+        self.sd = StableDiffusion(self.sd_device, version=config.sd_version)
+        
+>>>>>>> c81e24bd5ad0240bd94c9f1d98af55348cb2f27c
         if config.location_based_prompting:
             self.top_text_embedding = self.sd.get_text_embeds(f"{self.cur_prompt}{self.top_prompt}", "")
             self.front_text_embedding = self.sd.get_text_embeds(f"{self.cur_prompt}{self.front_prompt}", "")
