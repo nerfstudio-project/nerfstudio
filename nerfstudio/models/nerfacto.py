@@ -266,7 +266,7 @@ class NerfactoModel(Model):
     def run_network_for_every_wavelength_batch(self, ray_samples):
         # First create the batched "wavelengths" metadata
         n_wavelengths = self.config.num_output_color_channels
-        wavelengths = torch.arange(n_wavelengths, dtype=torch.float32, device=self.device)
+        wavelengths = torch.arange(n_wavelengths, dtype=torch.float32, device=self.device) / 128.0
         ray_samples.metadata['wavelengths'] = torch.ones(
             (*ray_samples.frustums.shape, 1), dtype=torch.float32,
             device=self.device) * wavelengths.view(1, 1, -1)
