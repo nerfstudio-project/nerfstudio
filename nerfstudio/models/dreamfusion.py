@@ -60,6 +60,8 @@ class DreamFusionModelConfig(ModelConfig):
 
     _target: Type = field(default_factory=lambda: DreamFusionModel)
     """target class to instantiate"""
+    prompt: str = "A high-quality photo of a tree frog on a stump"
+    """prompt for stable dreamfusion"""
 
     orientation_loss_mult: float = 0.0001
     """Orientation loss multipier on computed normals."""
@@ -132,6 +134,7 @@ class DreamFusionModel(Model):
         config: DreamFusionModelConfig,
         **kwargs,
     ) -> None:
+        self.prompt = config.prompt
         self.initialize_density = config.initialize_density
         self.train_normals = False
         self.train_shaded = False
@@ -339,7 +342,7 @@ class DreamFusionModel(Model):
             shading_weight = 0.0
 
         shaded, shaded_albedo = self.shader_lambertian(
-            rgb=rgb, normals=pred_normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=True
+            rgb=rgb, normals=normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=True
         )
 
         outputs["normals"] = self.shader_normals(normals, weights=accum_mask)

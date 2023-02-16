@@ -36,8 +36,8 @@ class DreamfusionPipelineConfig(VanillaPipelineConfig):
     """target class to instantiate"""
     datamanager: DreamFusionDataManagerConfig = DreamFusionDataManagerConfig()
     """specifies the datamanager config"""
-    prompt: str = "A high-quality photo of a tree frog on a stump"
-    """prompt for stable dreamfusion"""
+    # prompt: str = "A high-quality photo of a tree frog on a stump"
+    # """prompt for stable dreamfusion"""
 
     location_based_prompting: bool = True
     """enables location based prompting"""
@@ -81,26 +81,43 @@ class DreamfusionPipeline(VanillaPipeline):
     ):
         super().__init__(config, device, test_mode, world_size, local_rank, grad_scaler)
         self.generative = True
+        self.cur_prompt = self.model.prompt
         self.grad_scaler = grad_scaler
         self.sd_device = (
             torch.device(device)
             if self.config.stablediffusion_device is None
             else torch.device(self.config.stablediffusion_device)
         )
+        self.location_based_prompting = config.location_based_prompting
+        self.top_prompt = config.top_prompt
+        self.side_prompt = config.side_prompt
+        self.back_prompt = config.back_prompt 
+        self.front_prompt = config.front_prompt
         self.sd = StableDiffusion(self.sd_device)
+        
         if config.location_based_prompting:
-            self.top_text_embedding = self.sd.get_text_embeds(f"{config.prompt}{config.top_prompt}", "")
-            self.front_text_embedding = self.sd.get_text_embeds(f"{config.prompt}{config.front_prompt}", "")
-            self.side_text_embedding = self.sd.get_text_embeds(f"{config.prompt}{config.side_prompt}", "")
-            self.back_text_embedding = self.sd.get_text_embeds(f"{config.prompt}{config.back_prompt}", "")
+            self.top_text_embedding = self.sd.get_text_embeds(f"{self.cur_prompt}{self.top_prompt}", "")
+            self.front_text_embedding = self.sd.get_text_embeds(f"{self.cur_prompt}{self.front_prompt}", "")
+            self.side_text_embedding = self.sd.get_text_embeds(f"{self.cur_prompt}{self.side_prompt}", "")
+            self.back_text_embedding = self.sd.get_text_embeds(f"{self.cur_prompt}{self.back_prompt}", "")
         else:
-            self.base_text_embedding = self.sd.get_text_embeds(config.prompt, "")
+            self.base_text_embedding = self.sd.get_text_embeds(self.cur_prompt, "")
 
     def get_train_loss_dict(self, step: int):
 
         if self.world_size > 1 and step:
             assert self.datamanager.train_sampler is not None
             self.datamanager.train_sampler.set_epoch(step)
+
+        if self.model.prompt != self.cur_prompt:
+            self.cur_prompt = self.model.prompt
+            if self.location_based_prompting:
+                self.top_text_embedding = self.sd.get_text_embeds(f"{self.cur_prompt}{self.top_prompt}", "")
+                self.front_text_embedding = self.sd.get_text_embeds(f"{self.cur_prompt}{self.front_prompt}", "")
+                self.side_text_embedding = self.sd.get_text_embeds(f"{self.cur_prompt}{self.side_prompt}", "")
+                self.back_text_embedding = self.sd.get_text_embeds(f"{self.cur_prompt}{self.back_prompt}", "")
+            else:
+                self.base_text_embedding = self.sd.get_text_embeds(self.cur_prompt, "")
 
         ray_bundle, batch = self.datamanager.next_train(step)
         model_outputs = self.model(ray_bundle)

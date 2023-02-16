@@ -492,6 +492,21 @@ class ViewerState:
         has_temporal_distortion = getattr(graph, "temporal_distortion", None) is not None
         self.vis["model/has_temporal_distortion"].write(str(has_temporal_distortion).lower())
 
+        prompt = getattr(graph, "prompt", None)
+        is_generative = prompt is not None
+        
+        if is_generative:
+            self.vis["model/is_generative"].write(str(is_generative).lower())
+
+            orig_prompt_written = self.vis["renderingState/cur_prompt"].read() is not None
+            if not orig_prompt_written:
+                self.vis["renderingState/cur_prompt"].write(str(prompt))
+                self.vis["renderingState/new_prompt"].write(str(prompt))
+
+            new_prompt = self.vis["renderingState/new_prompt"].read()
+            if new_prompt != prompt:
+                setattr(graph, "prompt", str(new_prompt))
+
         is_training = self.vis["renderingState/isTraining"].read()
         self.step = step
 

@@ -62,9 +62,21 @@ export function RenderControls() {
 
   const crop_center = useSelector((state) => state.renderingState.crop_center);
 
+  const generative_prompt = useSelector((state) => state.renderingState.cur_prompt);
+
   const dispatch = useDispatch();
 
   const [display_render_time, set_display_render_time] = useState(false);
+  const [display_generative_prompt, set_display_generative_prompt] = useState(false);
+
+  const receive_generative_prompt = (e) => {
+    const msg = msgpack.decode(new Uint8Array(e.data));
+    if (msg.path === '/model/is_generative') {
+      set_display_generative_prompt(msg.data === 'true');
+      websocket.removeEventListener('message', receive_generative_prompt);
+    }
+  };
+  websocket.addEventListener('message', receive_generative_prompt);
 
   const receive_temporal_dist = (e) => {
     const msg = msgpack.decode(new Uint8Array(e.data));
@@ -265,25 +277,44 @@ export function RenderControls() {
           );
         },
       },
+      // Dreamfusion prompt editing
+      ...(display_generative_prompt
+        ? {
+          generative_prompt: {
+            label: 'Dreamfusion Prompt',
+            // value: "test string",
+            value: generative_prompt,
+            hint: 'Prompt used to guide Dreamfusion training',
+            onChange: (value) => {
+              dispatch_and_send(
+                websocket,
+                dispatch,
+                'renderingState/new_prompt',
+                value,
+              );
+            },
+          },
+        }
+        : {}),
       // Dynamic NeRF rendering time
       ...(display_render_time
         ? {
-            render_time: {
-              label: 'Render Timestep',
-              value: render_time,
-              min: 0,
-              max: 1,
-              step: 0.01,
-              onChange: (v) => {
-                dispatch_and_send(
-                  websocket,
-                  dispatch,
-                  'renderingState/render_time',
-                  v,
-                );
-              },
+          render_time: {
+            label: 'Render Timestep',
+            value: render_time,
+            min: 0,
+            max: 1,
+            step: 0.01,
+            onChange: (v) => {
+              dispatch_and_send(
+                websocket,
+                dispatch,
+                'renderingState/render_time',
+                v,
+              );
             },
-          }
+          },
+        }
         : {}),
     }),
     [
@@ -294,6 +325,8 @@ export function RenderControls() {
       max_resolution,
       crop_enabled,
       target_train_util,
+      display_generative_prompt,
+      generative_prompt,
       render_time,
       display_render_time,
       websocket, // need to re-render when websocket changes to use the new websocket
@@ -321,6 +354,7 @@ export function RenderControls() {
     crop_bg_color,
     crop_scale,
     crop_center,
+    display_generative_prompt,
     display_render_time,
   ]);
 
