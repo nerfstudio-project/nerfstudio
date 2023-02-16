@@ -27,6 +27,7 @@ from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
 from nerfstudio.data.datamanagers.depth_datamanager import DepthDataManagerConfig
+from nerfstudio.data.datamanagers.sdf_datamanager import SDFDataManagerConfig
 from nerfstudio.data.datamanagers.semantic_datamanager import SemanticDataManagerConfig
 from nerfstudio.data.datamanagers.variable_res_datamanager import (
     VariableResDataManagerConfig,
@@ -42,6 +43,7 @@ from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataPars
 from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
+from nerfstudio.data.dataparsers.sdfstudio_dataparser import SDFStudioDataParserConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.engine.trainer import TrainerConfig
@@ -73,6 +75,7 @@ descriptions = {
     "phototourism": "Uses the Phototourism data.",
     "nerfplayer-nerfacto": "NeRFPlayer with nerfacto backbone.",
     "nerfplayer-ngp": "NeRFPlayer with InstantNGP backbone.",
+    "neus": "Implementation of NeuS. (slow)",
 }
 
 method_configs["nerfacto"] = TrainerConfig(
@@ -385,6 +388,39 @@ method_configs["nerfplayer-ngp"] = TrainerConfig(
         }
     },
     viewer=ViewerConfig(num_rays_per_chunk=64000),
+    vis="viewer",
+)
+
+method_configs["neus"] = TrainerConfig(
+    method_name="neus",
+    steps_per_eval_image=500,
+    steps_per_eval_batch=5000,
+    steps_per_save=20000,
+    steps_per_eval_all_images=1000000,  # set to a very large model so we don't eval with all images
+    max_num_iterations=100000,
+    mixed_precision=False,
+    pipeline=VanillaPipelineConfig(
+        datamanager=SDFDataManagerConfig(
+            dataparser=SDFStudioDataParserConfig(),
+            train_num_rays_per_batch=1024,
+            eval_num_rays_per_batch=1024,
+            camera_optimizer=CameraOptimizerConfig(
+                mode="off", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+            ),
+        ),
+        model=NeuSModelConfig(eval_num_rays_per_chunk=1024),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=5e-4, eps=1e-15),
+            "scheduler": NeuSSchedulerConfig(warm_up_end=5000, learning_rate_alpha=0.05, max_steps=300000),
+        },
+        "field_background": {
+            "optimizer": AdamOptimizerConfig(lr=5e-4, eps=1e-15),
+            "scheduler": NeuSSchedulerConfig(warm_up_end=5000, learning_rate_alpha=0.05, max_steps=300000),
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",
 )
 
