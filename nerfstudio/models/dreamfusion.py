@@ -148,6 +148,8 @@ class DreamFusionModelConfig(ModelConfig):
     guidance_scale: float = 100
     """guidance scale for sds loss"""
     stablediffusion_device: Optional[str] = None
+    """device for stable diffusion"""
+    sd_version: str = '1-5' 
 
 class DreamFusionModel(Model):
     """DreamFusionModel Model
@@ -165,6 +167,7 @@ class DreamFusionModel(Model):
     ) -> None:
         self.prompt = config.prompt
         self.cur_prompt = config.prompt
+        self.sd_version = config.sd_version
         self.initialize_density = config.initialize_density
         self.train_normals = False
         self.train_shaded = False
@@ -192,7 +195,7 @@ class DreamFusionModel(Model):
         """Set the fields and modules"""
         super().populate_modules()
 
-        self.sd = StableDiffusion(self.sd_device, version=config.sd_version)
+        self.sd = StableDiffusion(self.sd_device, version=self.sd_version)
         self.text_embeddings = {
             "top_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.top_prompt}", ""),
             "front_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.front_prompt}", ""),
