@@ -72,6 +72,28 @@ class ExponentialDecaySchedule(lr_scheduler.LambdaLR):
 
         super().__init__(optimizer, lr_lambda=func)
 
+class WarmupScheduler(lr_scheduler.LambdaLR):
+    """Exponential learning rate decay function.
+    See https://github.com/google-research/google-research/blob/
+    fd2cea8cdd86b3ed2c640cbe5561707639e682f3/jaxnerf/nerf/utils.py#L360
+    for details.
+
+    Args:
+    
+    """
+
+    config: SchedulerConfig
+
+    def __init__(self, optimizer, lr_init, lr_max, lr_final, warmup_steps, max_steps ) -> None:
+        def func(step):
+            if step<warmup_steps:
+                lr = np.interp(step,[0,warmup_steps],[lr_init,lr_max])
+            else:
+                t = np.clip((step-warmup_steps)/max_steps,0,1)
+                lr = np.exp(np.log(lr_init) * (1 - t) + np.log(lr_final) * t)
+            print("Lr",lr)
+            return lr/lr_init#divide by lr_init to make the lr set to "lr"
+        super().__init__(optimizer, lr_lambda=func)
 
 class DelayerScheduler(lr_scheduler.LambdaLR):
     """Starts with a flat lr schedule until it reaches N epochs then applies a given scheduler"""

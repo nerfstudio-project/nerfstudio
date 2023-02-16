@@ -263,7 +263,7 @@ class PDFSampler(Sampler):
         train_stratified: bool = True,
         single_jitter: bool = False,
         include_original: bool = True,
-        histogram_padding: float = 0.01,
+        histogram_padding: float = 0.00,
     ) -> None:
         super().__init__(num_samples=num_samples)
         self.train_stratified = train_stratified

@@ -46,7 +46,7 @@ from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
-from nerfstudio.engine.schedulers import SchedulerConfig
+from nerfstudio.engine.schedulers import SchedulerConfig,WarmupScheduler
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
@@ -376,7 +376,7 @@ method_configs["dreamfusion"] = TrainerConfig(
         },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=5e-3, eps=1e-15),
-            "scheduler": None,
+            "scheduler": WarmupScheduler(lr_init=1e-9,lr_max=1e-4,lr_final=1e-6,warmup_steps=3000,max_steps=10000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
