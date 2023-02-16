@@ -191,6 +191,8 @@ class VanillaPipelineConfig(cfg.InstantiateConfig):
     """specifies the datamanager config"""
     model: ModelConfig = ModelConfig()
     """specifies the model config"""
+    generative: bool = False
+    """specifies whether the pipeline is for generative models"""
 
 
 class VanillaPipeline(Pipeline):
@@ -225,7 +227,7 @@ class VanillaPipeline(Pipeline):
         self.datamanager: VanillaDataManager = config.datamanager.setup(
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
-        self.generative = False
+        self.generative = config.generative
         self.datamanager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_dataset is not None, "Missing input dataset"
@@ -235,6 +237,7 @@ class VanillaPipeline(Pipeline):
             num_train_data=len(self.datamanager.train_dataset),
             metadata=self.datamanager.train_dataset.metadata,
             device=device,
+            grad_scaler=grad_scaler
         )
         self.model.to(device)
 

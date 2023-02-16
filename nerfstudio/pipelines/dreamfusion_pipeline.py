@@ -86,7 +86,7 @@ class DreamfusionPipeline(VanillaPipeline):
         self.back_prompt = config.back_prompt 
         self.front_prompt = config.front_prompt
         self.sd = StableDiffusion(self.sd_device)
-        
+
         if config.location_based_prompting:
             self.top_text_embedding = self.sd.get_text_embeds(f"{self.cur_prompt}{self.top_prompt}", "")
             self.front_text_embedding = self.sd.get_text_embeds(f"{self.cur_prompt}{self.front_prompt}", "")
@@ -116,59 +116,59 @@ class DreamfusionPipeline(VanillaPipeline):
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
 
-        train_output = (
-            model_outputs["train_output"]
-            .view(1, self.config.datamanager.train_resolution, self.config.datamanager.train_resolution, 3)
-            .permute(0, 3, 1, 2)
-        )
+        # train_output = (
+        #     model_outputs["train_output"]
+        #     .view(1, self.config.datamanager.train_resolution, self.config.datamanager.train_resolution, 3)
+        #     .permute(0, 3, 1, 2)
+        # )
 
-        if self.config.location_based_prompting:
-            if self.config.interpolated_prompting:
-                horiz = batch["central"].to(self.sd_device)
-                vert = max(batch["vertical"].to(self.sd_device), 0)
+        # if self.config.location_based_prompting:
+        #     if self.config.interpolated_prompting:
+        #         horiz = batch["central"].to(self.sd_device)
+        #         vert = max(batch["vertical"].to(self.sd_device), 0)
 
-                if batch["central"] > 0 or batch["central"] <= 90:
-                    text_embedding = (
-                        (horiz) * self.side_text_embedding + (90 - horiz) * self.front_text_embedding
-                    ) / 90.0
-                elif batch["central"] > 90 and batch["central"] <= 180:
-                    text_embedding = (
-                        (horiz - 90) * self.back_text_embedding + (180 - horiz) * self.side_text_embedding
-                    ) / 90.0
-                elif batch["central"] > 180 and batch["central"] <= 270:
-                    text_embedding = (
-                        (horiz - 180) * self.side_text_embedding + (270 - horiz) * self.back_text_embedding
-                    ) / 90.0
-                else:  # batch["central"] > 270 and batch["central"] <= 360:
-                    text_embedding = (
-                        (horiz - 270) * self.front_text_embedding + (360 - horiz) * self.side_text_embedding
-                    ) / 90.0
+        #         if batch["central"] > 0 or batch["central"] <= 90:
+        #             text_embedding = (
+        #                 (horiz) * self.side_text_embedding + (90 - horiz) * self.front_text_embedding
+        #             ) / 90.0
+        #         elif batch["central"] > 90 and batch["central"] <= 180:
+        #             text_embedding = (
+        #                 (horiz - 90) * self.back_text_embedding + (180 - horiz) * self.side_text_embedding
+        #             ) / 90.0
+        #         elif batch["central"] > 180 and batch["central"] <= 270:
+        #             text_embedding = (
+        #                 (horiz - 180) * self.side_text_embedding + (270 - horiz) * self.back_text_embedding
+        #             ) / 90.0
+        #         else:  # batch["central"] > 270 and batch["central"] <= 360:
+        #             text_embedding = (
+        #                 (horiz - 270) * self.front_text_embedding + (360 - horiz) * self.side_text_embedding
+        #             ) / 90.0
 
-                text_embedding = (vert * text_embedding + (90 - vert) * self.top_text_embedding) / 90.0
+        #         text_embedding = (vert * text_embedding + (90 - vert) * self.top_text_embedding) / 90.0
 
-            else:
-                if batch["vertical"] < 40:
-                    text_embedding = self.top_text_embedding
-                elif batch["central"] > 315 or batch["central"] <= 45:
-                    text_embedding = self.front_text_embedding
-                elif batch["central"] > 45 and batch["central"] <= 135:
-                    text_embedding = self.side_text_embedding
-                elif batch["central"] > 135 and batch["central"] <= 225:
-                    text_embedding = self.back_text_embedding
-                else:  # batch["central"] > 225 and batch["central"] <= 315:
-                    text_embedding = self.side_text_embedding
-        else:
-            text_embedding = self.base_text_embedding
+        #     else:
+        #         if batch["vertical"] < 40:
+        #             text_embedding = self.top_text_embedding
+        #         elif batch["central"] > 315 or batch["central"] <= 45:
+        #             text_embedding = self.front_text_embedding
+        #         elif batch["central"] > 45 and batch["central"] <= 135:
+        #             text_embedding = self.side_text_embedding
+        #         elif batch["central"] > 135 and batch["central"] <= 225:
+        #             text_embedding = self.back_text_embedding
+        #         else:  # batch["central"] > 225 and batch["central"] <= 315:
+        #             text_embedding = self.side_text_embedding
+        # else:
+        #     text_embedding = self.base_text_embedding
 
-        with torch.autocast(device_type="cuda", dtype=torch.float16):
-            sds_loss = self.sd.sds_loss(
-                text_embedding.to(self.sd_device),
-                train_output.to(self.sd_device),
-                guidance_scale=int(self.config.guidance_scale),
-                grad_scaler=self.grad_scaler,
-            )
-
-        loss_dict["sds_loss"] = sds_loss.to(self.device)
+        # with torch.autocast(device_type="cuda", dtype=torch.float16):
+        #     sds_loss = self.sd.sds_loss(
+        #         text_embedding.to(self.sd_device),
+        #         train_output.to(self.sd_device),
+        #         guidance_scale=int(self.config.guidance_scale),
+        #         grad_scaler=self.grad_scaler,
+        #     )
+            
+        # loss_dict["sds_loss"] = sds_loss.to(self.device)
 
         return model_outputs, loss_dict, metrics_dict
 

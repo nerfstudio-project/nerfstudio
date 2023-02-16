@@ -344,7 +344,8 @@ method_configs["dreamfusion"] = TrainerConfig(
     steps_per_save=200,
     max_num_iterations=30000,
     mixed_precision=True,
-    pipeline=DreamfusionPipelineConfig(
+    pipeline=VanillaPipelineConfig(
+        generative=True,
         datamanager=DreamFusionDataManagerConfig(
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=4096,
@@ -365,9 +366,9 @@ method_configs["dreamfusion"] = TrainerConfig(
             start_lambertian_training=1000,
             start_normals_training=500,
             opacity_loss_mult=0.001,
+            prompting_type="location_based",
+            guidance_scale=100,
         ),
-        interpolated_prompting=False,
-        guidance_scale=100,
     ),
     optimizers={
         "proposal_networks": {
