@@ -510,7 +510,7 @@ class VolumetricSampler(Sampler):
 
 class ProposalNetworkSampler(Sampler):
     """Sampler that uses a proposal network to generate samples.
-    
+
     Args:
         num_proposal_samples_per_ray: Number of samples to generate per ray for each proposal step.
         num_nerf_samples_per_ray: Number of samples to generate per ray for the NERF model.
@@ -518,6 +518,7 @@ class ProposalNetworkSampler(Sampler):
         single_jitter: Use a same random jitter for all samples along a ray.
         update_sched: A function that takes the iteration number of steps between updates.
         initial_sampler: Sampler to use for the first iteration. Uses UniformLinDispPiecewise if not set.
+        pdf_histogram_padding: Padding to add to the histogram of the pdf.
     """
 
     def __init__(
@@ -528,6 +529,7 @@ class ProposalNetworkSampler(Sampler):
         single_jitter: bool = False,
         update_sched: Callable = lambda x: 1,
         initial_sampler: Optional[Sampler] = None,
+        pdf_histogram_padding: float = 0.01,
     ) -> None:
         super().__init__()
         self.num_proposal_samples_per_ray = num_proposal_samples_per_ray
@@ -542,7 +544,9 @@ class ProposalNetworkSampler(Sampler):
             self.initial_sampler = UniformLinDispPiecewiseSampler(single_jitter=single_jitter)
         else:
             self.initial_sampler = initial_sampler
-        self.pdf_sampler = PDFSampler(include_original=False, single_jitter=single_jitter)
+        self.pdf_sampler = PDFSampler(
+            include_original=False, single_jitter=single_jitter, histogram_padding=pdf_histogram_padding
+        )
 
         self._anneal = 1.0
         self._steps_since_update = 0
