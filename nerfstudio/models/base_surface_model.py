@@ -42,7 +42,6 @@ from nerfstudio.model_components.losses import (
     L1Loss,
     MSELoss,
     ScaleAndShiftInvariantLoss,
-    compute_scale_and_shift,
     monosdf_normal_loss,
 )
 from nerfstudio.model_components.ray_samplers import LinearDisparitySampler
@@ -59,6 +58,7 @@ from nerfstudio.model_components.scene_colliders import (  # SphereCollider,
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
 from nerfstudio.utils.colors import get_color
+from nerfstudio.utils.math import compute_scale_and_shift
 
 
 @dataclass
