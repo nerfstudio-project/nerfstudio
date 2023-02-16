@@ -92,6 +92,19 @@
       "program": "scripts/train.py",
       "console": "integratedTerminal",
       "args": ["semantic_nerf"]
-    }
+    },
+    {
+      "name": "Python: train NeuS on Replica",
+      "type": "python",
+      "request": "launch",
+      "program": "scripts/train.py",
+      "console": "integratedTerminal",
+      "args": [
+        "neus",
+        "sdfstudio-data",
+        "--data=data/sdfstudio-demo-data/replica-room0",
+        "--include-mono-prior=True"
+      ]
+    },
   ]
 }

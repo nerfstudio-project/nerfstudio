@@ -42,7 +42,7 @@ class SDFDataset(InputDataset):
         self.normal_filenames = self.metadata["normal_filenames"]
         self.camera_to_worlds = self.metadata["camera_to_worlds"]
         # can be none if auto orient not enabled in dataparser
-        self.transform = self.metadata["normal_filenames"]
+        self.transform = self.metadata["transform"]
         self.include_mono_prior = self.metadata["include_mono_prior"]
 
     def get_metadata(self, data: Dict) -> Dict:
