@@ -41,7 +41,10 @@ from nerfstudio.model_components.losses import (
     orientation_loss,
     pred_normal_loss,
 )
-from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler
+from nerfstudio.model_components.ray_samplers import (
+    ProposalNetworkSampler,
+    UniformSampler,
+)
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
@@ -118,6 +121,12 @@ class DreamFusionModelConfig(ModelConfig):
     """Start training normals after this many iterations"""
     start_lambertian_training: int = 1000
     """start training with lambertian shading after this many iterations"""
+    opacity_penalty: bool = True
+    """enables penalty to encourage sparse weights (penalizing for uniform density along ray)"""
+    opacity_loss_mult: float = 1
+    """scale for opacity penalty"""
+    max_res: int = 256
+    """Maximum resolution of the density field."""
 
 
 class DreamFusionModel(Model):
@@ -148,7 +157,7 @@ class DreamFusionModel(Model):
         super().populate_modules()
 
         # setting up fields
-        self.field = DreamFusionField(self.scene_box.aabb)
+        self.field = DreamFusionField(self.scene_box.aabb, max_res=self.config.max_res)
 
         # samplers
         self.density_fns = []
@@ -176,9 +185,8 @@ class DreamFusionModel(Model):
             num_proposal_network_iterations=self.config.num_proposal_iterations,
             single_jitter=self.config.use_single_jitter,
             update_sched=update_schedule,
+            initial_sampler=UniformSampler(single_jitter=self.config.use_single_jitter),
         )
-
-        # self.sampler_uniform = UniformSampler(num_samples=self.num_samples, single_jitter=True)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -357,11 +365,7 @@ class DreamFusionModel(Model):
             if samp > 0.5 and not self.training:
                 outputs["train_output"] = outputs["shaded"]
             elif samp < 0.2 and self.random_background:
-                rand_bg = torch.zeros(background.shape)
-                rand_bg.index_fill_(1, torch.tensor([0]), np.random.random_sample())
-                rand_bg.index_fill_(1, torch.tensor([1]), np.random.random_sample())
-                rand_bg.index_fill_(1, torch.tensor([2]), np.random.random_sample())
-                rand_bg = rand_bg.to(self.device) 
+                rand_bg = torch.ones_like(background) * torch.rand(3, device=self.device)
                 outputs["train_output"] = accum_mask * shaded_albedo + rand_bg * accum_mask_inv
             else:
                 outputs["train_output"] = accum_mask * shaded_albedo + background
@@ -370,7 +374,7 @@ class DreamFusionModel(Model):
 
         if self.training or True:
             outputs["rendered_orientation_loss"] = orientation_loss(
-                weights, field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
+                weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
             )
 
             outputs["rendered_pred_normal_loss"] = pred_normal_loss(
@@ -380,7 +384,10 @@ class DreamFusionModel(Model):
             )
 
             assert weights.shape[-1] == 1
-            outputs["alphas_loss"] = torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01)
+            if self.config.opacity_penalty:
+                outputs["opacity_loss"] = (
+                    torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01) * self.config.opacity_loss_mult
+                )
 
         return outputs
 
@@ -402,11 +409,9 @@ class DreamFusionModel(Model):
             loss_dict["orientation_loss"] = 0
             loss_dict["pred_normal_loss"] = 0
 
-        loss_dict["alphas_loss"] = outputs["alphas_loss"].mean()
+        if self.config.opacity_penalty:
+            loss_dict["opacity_loss"] = self.config.opacity_loss_mult * outputs["opacity_loss"].mean()
 
-        loss_dict["opacity_loss"] = -torch.minimum(
-            (1 - outputs["accumulation"]).mean(), torch.tensor(self.target_transmittance)
-        )
         if self.training:
             loss_dict["distortion_loss"] = self.config.distortion_loss_mult * distortion_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]

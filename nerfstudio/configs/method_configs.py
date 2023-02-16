@@ -341,7 +341,7 @@ method_configs["dreamfusion"] = TrainerConfig(
     method_name="dreamfusion",
     steps_per_eval_batch=50,
     steps_per_eval_image=50,
-    steps_per_save=2000,
+    steps_per_save=200,
     max_num_iterations=30000,
     mixed_precision=True,
     pipeline=DreamfusionPipelineConfig(
@@ -352,7 +352,9 @@ method_configs["dreamfusion"] = TrainerConfig(
         ),
         model=DreamFusionModelConfig(
             eval_num_rays_per_chunk=1 << 15,
-            distortion_loss_mult=10,
+            distortion_loss_mult=10.0,
+            orientation_loss_mult=0.1,
+            max_res=256,
             sphere_collider=True,
             initialize_density=False,
             random_background=True,
@@ -362,9 +364,9 @@ method_configs["dreamfusion"] = TrainerConfig(
             proposal_weights_anneal_max_num_iters=100,
             start_lambertian_training=1000,
             start_normals_training=500,
+            opacity_loss_mult=0.001,
         ),
-        alphas_loss_mult=1.0,
-        opacity_loss_mult=1.0,
+        interpolated_prompting=False,
         guidance_scale=100,
     ),
     optimizers={

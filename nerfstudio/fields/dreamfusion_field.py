@@ -65,6 +65,9 @@ class DreamFusionField(Field):
         num_layers: int = 2,
         hidden_dim: int = 64,
         geo_feat_dim: int = 15,
+        num_levels: int = 16,
+        max_res: int = 256,
+        log2_hashmap_size: int = 19,
         num_layers_color: int = 3,
         hidden_dim_color: int = 64,
         hidden_dim_normal: int = 32,
@@ -74,10 +77,7 @@ class DreamFusionField(Field):
         self.aabb = Parameter(aabb, requires_grad=False)
         self.geo_feat_dim = geo_feat_dim
 
-        num_levels = 16
-        max_res = 1024
         base_res = 16
-        log2_hashmap_size = 19
         features_per_level = 2
         growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
