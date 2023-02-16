@@ -263,13 +263,33 @@ class NerfactoModel(Model):
         all_rgb = torch.stack(all_rgb, dim=2).view(*all_rgb[0].shape[:2], -1)
         return {FieldHeadNames.DENSITY: all_density, FieldHeadNames.RGB: all_rgb}
 
+    def run_network_for_every_wavelength_batch(self, ray_samples):
+        # First create the batched "wavelengths" metadata
+        n_wavelengths = self.config.num_output_color_channels
+        wavelengths = torch.arange(n_wavelengths, dtype=torch.float32, device=self.device)
+        ray_samples.metadata['wavelengths'] = torch.ones(
+            (*ray_samples.frustums.shape, 1), dtype=torch.float32,
+            device=self.device) * wavelengths.view(1, 1, -1)
+        # broadcast the frustums and camera indices to repeat the wavelength batch dimension
+        ray_samples.frustums = ray_samples.frustums[:, :, None].broadcast_to((-1, -1, n_wavelengths))
+        ray_samples.camera_indices = ray_samples.camera_indices.broadcast_to((-1, -1, n_wavelengths))
+        # execute forward pass and squeeze outputs
+        field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
+        field_outputs[FieldHeadNames.DENSITY] = field_outputs[FieldHeadNames.DENSITY].view(ray_samples.metadata['wavelengths'].shape)
+        field_outputs[FieldHeadNames.RGB] = field_outputs[FieldHeadNames.RGB].view(ray_samples.metadata['wavelengths'].shape)
+        # un-broadcast the frustums and camera indices
+        ray_samples.frustums = ray_samples.frustums[:, :, 0]
+        ray_samples.camera_indices = ray_samples.camera_indices[:, :, 0]
+        return field_outputs
+
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)  # these do NOT use num_density_channels
         if self.config.use_input_wavelength_like_position:
-            field_outputs = self.run_network_for_every_wavelength(ray_samples)
-            # ray_samples.metadata["set_of_wavelengths"] = torch.arange(self.config.num_output_color_channels // 2, dtype=torch.float32).to(self.device)
+            field_outputs = self.run_network_for_every_wavelength_batch(ray_samples)
+            # ray_samples.metadata["set_of_wavelengths"] = torch.arange(self.config.num_output_color_channels, dtype=torch.float32).to(self.device)
             # ray_samples.metadata["set_of_wavelengths"].requires_grad = False
             # print(ray_samples.metadata["set_of_wavelengths"].shape, ray_samples.metadata["set_of_wavelengths"].dtype)
+            # field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
         else:
             field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])

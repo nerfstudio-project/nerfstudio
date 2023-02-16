@@ -197,7 +197,7 @@ method_configs["hs-nerfacto3"] = TrainerConfig(
             # train_num_rays_per_batch=4096 // 64,
             train_num_rays_per_batch=4096 // 32,
             eval_num_rays_per_batch=4096 // 32,
-            # IMPORTANT - to resume a run, use CLI arg --pipeline.datamanager.camera-optimizer.lr "5e-6"
+            # IMPORTANT - to resume a run, use CLI arg --pipeline.datamanager.camera-optimizer.optimizer.lr "5e-6"
             camera_optimizer=CameraOptimizerConfig(mode="SO3xR3",
                                                    optimizer=AdamOptimizerConfig(
                                                        lr=6e-4, eps=1e-8, weight_decay=1e-2)),
@@ -205,7 +205,7 @@ method_configs["hs-nerfacto3"] = TrainerConfig(
             # train_num_times_to_repeat_images=250,
             # eval_num_images_to_sample_from=1,
         ),
-        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 14,
+        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 9,
                                   num_output_color_channels=128,
                                   num_density_channels=1,
                                   use_input_wavelength_like_position=True),
@@ -222,8 +222,8 @@ method_configs["hs-nerfacto3"] = TrainerConfig(
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 14),
     # vis="viewer",  # wandb
-    # vis="viewer wandb",
-    vis="wandb",
+    vis="viewer wandb",
+    # vis="wandb",
 )
 
 method_configs["hs-nerfacto3-rgb"] = TrainerConfig(
