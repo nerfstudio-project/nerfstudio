@@ -94,16 +94,22 @@
       "args": ["semantic_nerf"]
     },
     {
-      "name": "Python: train NeuS on Replica",
+      "name": "Python: NeuS on Replica",
       "type": "python",
       "request": "launch",
       "program": "scripts/train.py",
       "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {"CUDA_VISIBLE_DEVICES":"0"},
       "args": [
         "neus",
+        "--pipeline.model.sdf-field.inside-outside=True",
+        "--pipeline.model.mono-depth-loss-mult=0.1",
+        "--pipeline.model.mono-normal-loss-mult=0.05",
+        "--vis=wandb",
         "sdfstudio-data",
         "--data=data/sdfstudio-demo-data/replica-room0",
-        "--include-mono-prior=True"
+        "--include_mono_prior=True"
       ]
     },
   ]
