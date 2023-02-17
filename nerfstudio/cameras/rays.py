@@ -151,7 +151,8 @@ class RaySamples(TensorDataclass):
 
         return weights
 
-    def get_weights_from_alphas(self, alphas: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples", 1]:
+    @staticmethod
+    def get_weights_from_alphas(alphas: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples", 1]:
         """Return weights based on predicted alphas
         Args:
             alphas: Predicted alphas (maybe from sdf) for samples along ray
@@ -161,14 +162,15 @@ class RaySamples(TensorDataclass):
 
         transmittance = torch.cumprod(
             torch.cat([torch.ones((*alphas.shape[:1], 1, 1), device=alphas.device), 1.0 - alphas + 1e-7], 1), 1
-        )  # [..., "num_samples"]
+        )
 
-        weights = alphas * transmittance[:, :-1, :]  # [..., "num_samples"]
+        weights = alphas * transmittance[:, :-1, :]
 
         return weights
 
+    @staticmethod
     def get_weights_and_transmittance_from_alphas(
-        self, alphas: TensorType[..., "num_samples", 1]
+        alphas: TensorType[..., "num_samples", 1]
     ) -> TensorType[..., "num_samples", 1]:
         """Return weights based on predicted alphas
         Args:
@@ -179,9 +181,9 @@ class RaySamples(TensorDataclass):
 
         transmittance = torch.cumprod(
             torch.cat([torch.ones((*alphas.shape[:1], 1, 1), device=alphas.device), 1.0 - alphas + 1e-7], 1), 1
-        )  # [..., "num_samples"]
+        )
 
-        weights = alphas * transmittance[:, :-1, :]  # [..., "num_samples"]
+        weights = alphas * transmittance[:, :-1, :]
 
         return weights, transmittance
 
