@@ -84,7 +84,9 @@ class ProcessImages:
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
     images_per_equirect: Literal[8, 14] = 8
-    """Number of samples per image to take from each equirectangular image. Used only when camera-type is equirectangular."""
+    """Number of samples per image to take from each equirectangular image.
+       Used only when camera-type is equirectangular.
+    """
     gpu: bool = True
     """If True, use GPU."""
     verbose: bool = False
@@ -249,7 +251,9 @@ class ProcessVideo:
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
     images_per_equirect: Literal[8, 14] = 8
-    """Number of samples per image to take from each equirectangular image. Used only when camera-type is equirectangular."""
+    """Number of samples per image to take from each equirectangular image.
+       Used only when camera-type is equirectangular.
+    """
     percent_radius_crop: float = 1.0
     """Create circle crop mask. The radius is the percent of the image diagonal."""
     percent_crop: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
