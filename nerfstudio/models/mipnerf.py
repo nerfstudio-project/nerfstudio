@@ -86,7 +86,7 @@ class MipNerfModel(Model):
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
-        self.lpips = LearnedPerceptualImagePatchSimilarity()
+        self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
@@ -173,8 +173,8 @@ class MipNerfModel(Model):
         image = torch.moveaxis(image, -1, 0)[None, ...]
         rgb_coarse = torch.moveaxis(rgb_coarse, -1, 0)[None, ...]
         rgb_fine = torch.moveaxis(rgb_fine, -1, 0)[None, ...]
-        rgb_coarse = torch.clip(rgb_coarse, min=-1, max=1)
-        rgb_fine = torch.clip(rgb_fine, min=-1, max=1)
+        rgb_coarse = torch.clip(rgb_coarse, min=0, max=1)
+        rgb_fine = torch.clip(rgb_fine, min=0, max=1)
 
         coarse_psnr = self.psnr(image, rgb_coarse)
         fine_psnr = self.psnr(image, rgb_fine)

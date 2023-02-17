@@ -1,0 +1,13 @@
+{
+    "name": "NerfStudio Dev Container",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "nerfstudio",
+    "workspaceFolder": "/workspace",
+    "shutdownAction": "stopCompose",
+    "extensions": [
+        "mutantdino.resourcemonitor",
+        "ms-azuretools.vscode-docker",
+        "nvidia.nsight-vscode-edition",
+        "ms-python.python"
+    ]
+}
