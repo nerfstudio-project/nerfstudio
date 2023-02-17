@@ -125,7 +125,7 @@ class NeuSSchedulerConfig(InstantiateConfig):
     learning_rate_alpha: float = 0.05
     max_steps: int = 300000
 
-    def setup(self, optimizer=None, lr_init=None, **kwargs) -> Any:
+    def setup(self, optimizer: Optional[Optimizer] = None, **kwargs) -> Any:
         """Returns the instantiated object using the config."""
         return self._target(
             optimizer,
