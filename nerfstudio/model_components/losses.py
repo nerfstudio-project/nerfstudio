@@ -355,7 +355,8 @@ class MiDaSMSELoss(nn.Module):
         """
         summed_mask = torch.sum(mask, (1, 2))
         image_loss = torch.sum(self.mse_loss(prediction, target) * mask, (1, 2))
-        image_loss = masked_reduction(image_loss, summed_mask, self.reduction_type)
+        # multiply by 2 magic number?
+        image_loss = masked_reduction(image_loss, 2 * summed_mask, self.reduction_type)
 
         return image_loss
 
