@@ -85,6 +85,8 @@ class ProcessImages:
     """How to call the COLMAP executable."""
     gpu: bool = True
     """If True, use GPU."""
+    use_sfm_depth: bool = False
+    """If True, export and use depth maps induced from SfM points."""
     verbose: bool = False
     """If True, print extra logging."""
 
@@ -154,6 +156,10 @@ class ProcessImages:
             sys.exit(1)
         else:
             CONSOLE.log("[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json")
+
+        # todo
+        if self.use_sfm_depth:
+            summary_log.append(f"status")
 
         CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
 

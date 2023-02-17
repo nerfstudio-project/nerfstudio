@@ -27,6 +27,7 @@ RUN apt-get update && \
     libboost-test-dev \
     libcgal-dev \
     libeigen3-dev \
+    libflann-dev \
     libfreeimage-dev \
     libgflags-dev \
     libglew-dev \
@@ -34,6 +35,7 @@ RUN apt-get update && \
     libmetis-dev \
     libprotobuf-dev \
     libqt5opengl5-dev \
+    libsqlite3-dev \
     libsuitesparse-dev \
     nano \
     protobuf-compiler \
@@ -49,7 +51,7 @@ RUN git clone --branch v0.6.0 https://github.com/google/glog.git --single-branch
     mkdir build && \
     cd build && \
     cmake .. && \
-    make -j && \
+    make -j `nproc` && \
     make install && \
     cd ../.. && \
     rm -rf glog
@@ -63,23 +65,31 @@ RUN git clone --branch 2.1.0 https://ceres-solver.googlesource.com/ceres-solver.
     mkdir build && \
     cd build && \
     cmake .. -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF && \
-    make -j && \
+    make -j `nproc` && \
     make install && \
     cd ../.. && \
     rm -rf ceres-solver
 
 # Install colmap.
-RUN git clone --branch 3.7 https://github.com/colmap/colmap.git --single-branch && \
+RUN git clone --branch 3.8 https://github.com/colmap/colmap.git --single-branch && \
     cd colmap && \
     mkdir build && \
     cd build && \
     cmake .. -DCUDA_ENABLED=ON \
-        	 -DCUDA_NVCC_FLAGS="--std c++14" && \
-    make -j && \
+        	 -DCUDA_NVCC_FLAGS="--std c++14" \
+           -DCMAKE_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES && \
+    make -j `nproc` && \
     make install && \
     cd ../.. && \
-    rm -rf colmap
-    
+    rm -rf colmap && \
+
+# Install pycolmap. TODO(https://github.com/colmap/pycolmap/issues/111) use wheel when available for Python 3.10
+RUN git clone --branch v0.3.0 --recursive https://github.com/colmap/pycolmap.git --single-branch && \
+    cd pycolmap && \
+    pip install -v . && \
+    cd .. && \
+    rm -rf pycolmap
+
 # Create non root user and setup environment.
 RUN useradd -m -d /home/user -u 1000 user
 
@@ -98,6 +108,8 @@ RUN python3.10 -m pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 torc
 # Install tynyCUDNN.
 RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git#subdirectory=bindings/torch
 
+# python3.10 -m pip install git+https://github.com/colmap/pycolmap
+
 # Copy nerfstudio folder and give ownership to user.
 ADD . /home/user/nerfstudio
 USER root
@@ -106,7 +118,7 @@ USER 1000:1000
 
 # Install nerfstudio dependencies.
 RUN cd nerfstudio && \
-    python3.10 -m pip install -e . && \
+    python3.10 -m pip install -v -e . && \
     cd ..
 
 # Change working directory
