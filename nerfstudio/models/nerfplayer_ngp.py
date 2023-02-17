@@ -42,7 +42,6 @@ from nerfstudio.model_components.renderers import (
 )
 from nerfstudio.models.base_model import Model
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig, NGPModel
-from nerfstudio.utils import colors
 
 
 @dataclass
