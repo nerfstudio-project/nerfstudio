@@ -83,7 +83,7 @@ class ProcessImages:
     """
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
-    images_per_equirect: Literal[8, 16, 22] = 16
+    images_per_equirect: Literal[8, 14] = 8
     """Number of samples per image to take from each equirectangular image. Used only when camera-type is equirectangular."""
     gpu: bool = True
     """If True, use GPU."""
@@ -248,6 +248,8 @@ class ProcessVideo:
     """If True, skips COLMAP and generates transforms.json if possible."""
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
+    images_per_equirect: Literal[8, 14] = 8
+    """Number of samples per image to take from each equirectangular image. Used only when camera-type is equirectangular."""
     percent_radius_crop: float = 1.0
     """Create circle crop mask. The radius is the percent of the image diagonal."""
     percent_crop: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
@@ -272,10 +274,10 @@ class ProcessVideo:
             self.data, image_dir=image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
         )
 
-        # Generate planar projections
+        # Generate planar projections if equirectangular
         if self.camera_type == "equirectangular":
-            image_dir = process_data_utils.generate_planar_projections_from_equirectangular(
-                image_dir, (1920, 1080), 60, 45, 113
+            self.data = process_data_utils.generate_planar_projections_from_equirectangular(
+                self.data, (1200, 1200), self.images_per_equirect
             )
 
         # Create mask
