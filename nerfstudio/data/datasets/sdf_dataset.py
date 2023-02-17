@@ -57,8 +57,8 @@ class SDFDataset(InputDataset):
             depth_image, normal_image = self.get_depths_and_normals(
                 depth_filepath=depth_filepath, normal_filename=normal_filepath, camtoworld=camtoworld
             )
-            metadata["depth_image"] = depth_image
-            metadata["normal_image"] = normal_image
+            metadata["depth"] = depth_image
+            metadata["normal"] = normal_image
 
         return metadata
 

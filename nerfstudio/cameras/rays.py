@@ -53,6 +53,19 @@ class Frustums(TensorDataclass):
         if self.offsets is not None:
             pos = pos + self.offsets
         return pos
+    
+    def get_start_positions(self) -> TensorType[..., 3]:
+        """Calulates "start" position of frustum. We use start positions for MonoSDF
+        because when we use error bounded sampling, we need to upsample many times.
+        It's hard to merge two set of ray samples while keeping the mid points fixed.
+        Every time we up sample the points the mid points will change and
+        therefore we need to evaluate all points again which is 3 times slower.
+        But we can skip the evaluation of sdf value if we use start position instead of mid position
+        because after we merge the points, the starting point is the same and only the delta is changed.
+        Returns:
+            xyz positions.
+        """
+        return self.origins + self.directions * self.starts
 
     def set_offsets(self, offsets):
         """Sets offsets for this frustum for computing positions"""
@@ -137,6 +150,40 @@ class RaySamples(TensorDataclass):
         weights = torch.nan_to_num(weights)
 
         return weights
+    
+    def get_weights_from_alphas(self, alphas: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples", 1]:
+        """Return weights based on predicted alphas
+        Args:
+            alphas: Predicted alphas (maybe from sdf) for samples along ray
+        Returns:
+            Weights for each sample
+        """
+
+        transmittance = torch.cumprod(
+            torch.cat([torch.ones((*alphas.shape[:1], 1, 1), device=alphas.device), 1.0 - alphas + 1e-7], 1), 1
+        )  # [..., "num_samples"]
+
+        weights = alphas * transmittance[:, :-1, :]  # [..., "num_samples"]
+
+        return weights
+
+    def get_weights_and_transmittance_from_alphas(
+        self, alphas: TensorType[..., "num_samples", 1]
+    ) -> TensorType[..., "num_samples", 1]:
+        """Return weights based on predicted alphas
+        Args:
+            alphas: Predicted alphas (maybe from sdf) for samples along ray
+        Returns:
+            Weights for each sample
+        """
+
+        transmittance = torch.cumprod(
+            torch.cat([torch.ones((*alphas.shape[:1], 1, 1), device=alphas.device), 1.0 - alphas + 1e-7], 1), 1
+        )  # [..., "num_samples"]
+
+        weights = alphas * transmittance[:, :-1, :]  # [..., "num_samples"]
+
+        return weights, transmittance
 
 
 @dataclass
@@ -150,6 +197,8 @@ class RayBundle(TensorDataclass):
     """Unit ray direction vector"""
     pixel_area: TensorType[..., 1]
     """Projected area of pixel a distance 1 away from origin"""
+    directions_norm: Optional[TensorType[..., 1]] = None
+    """Norm of ray direction vector before normalization"""
     camera_indices: Optional[TensorType[..., 1]] = None
     """Camera indices"""
     nears: Optional[TensorType[..., 1]] = None

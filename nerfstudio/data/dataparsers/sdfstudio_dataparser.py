@@ -107,6 +107,7 @@ class SDFStudio(DataParser):
         fy = torch.stack(fy)
         cx = torch.stack(cx)
         cy = torch.stack(cy)
+        c2w_colmap = torch.stack(camera_to_worlds)
         camera_to_worlds = torch.stack(camera_to_worlds)
 
         # Convert from COLMAP's/OPENCV's camera coordinate system to nerfstudio
@@ -151,7 +152,8 @@ class SDFStudio(DataParser):
                 "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "normal_filenames": normal_filenames if len(normal_filenames) > 0 else None,
                 "transform": transform,
-                "camera_to_worlds": camera_to_worlds if len(camera_to_worlds) > 0 else None,
+                # required for normal maps, these are in colmap format so they require c2w before conversion
+                "camera_to_worlds": c2w_colmap if len(c2w_colmap) > 0 else None,
                 "include_mono_prior": self.config.include_mono_prior,
             },
         )

@@ -66,6 +66,7 @@ class SurfaceModelConfig(ModelConfig):
     """Nerfacto Model Config"""
 
     _target: Type = field(default_factory=lambda: SurfaceModel)
+    # changed from 0.05|4 ->0.1|6
     near_plane: float = 0.05
     """How far along the ray to start sampling."""
     far_plane: float = 4.0
@@ -141,15 +142,8 @@ class SurfaceModel(Model):
         )
 
         # Collider
-        if self.scene_box.collider_type == "near_far":
-            self.collider = NearFarCollider(near_plane=self.scene_box.near, far_plane=self.scene_box.far)
-        elif self.scene_box.collider_type == "box":
-            self.collider = AABBBoxCollider(self.scene_box, near_plane=self.scene_box.near)
-        # elif self.scene_box.collider_type == "sphere":
-        #     # TODO do we also use near if the ray don't intersect with the sphere
-        #     self.collider = SphereCollider(radius=self.scene_box.radius, soft_intersection=True)
-        else:
-            raise NotImplementedError
+        # TODO add NearFarCollidar and make it configurable
+        self.collider = AABBBoxCollider(self.scene_box, near_plane=0.05)
 
         # command line near and far has highest priority
         if self.config.overwrite_near_far_plane:
@@ -237,7 +231,7 @@ class SurfaceModel(Model):
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         # the rendered depth is point-to-point distance and we should convert to depth
-        depth = depth / ray_bundle.directions_norm
+        depth = depth / ray_bundle.metadata["directions_norm"]
 
         # remove the rays that don't intersect with the surface
         # hit = (field_outputs[FieldHeadNames.SDF] > 0.0).any(dim=1) & (field_outputs[FieldHeadNames.SDF] < 0).any(dim=1)
@@ -356,7 +350,6 @@ class SurfaceModel(Model):
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
-
         image = batch["image"].to(self.device)
         rgb = outputs["rgb"]
         acc = colormaps.apply_colormap(outputs["accumulation"])
