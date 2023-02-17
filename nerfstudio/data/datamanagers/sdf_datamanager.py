@@ -25,13 +25,13 @@ from nerfstudio.data.datasets.sdf_dataset import SDFDataset
 
 @dataclass
 class SDFDataManagerConfig(base_datamanager.VanillaDataManagerConfig):
-    """A depth datamanager - required to use with .setup()"""
+    """A sdf datamanager - required to use with .setup()"""
 
     _target: Type = field(default_factory=lambda: SDFDataManager)
 
 
 class SDFDataManager(base_datamanager.VanillaDataManager):  # pylint: disable=abstract-method
-    """Data manager implementation for data that also requires processing depth data.
+    """Data manager implementation for data that also requires processing sdf data.
     Args:
         config: the DataManagerConfig used to instantiate class
     """
