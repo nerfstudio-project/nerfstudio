@@ -290,15 +290,6 @@ class SDFField(Field):
         )[0]
         return gradients
 
-    # def get_density(self, ray_samples: RaySamples):
-    #     """Computes and returns the densities."""
-    #     positions = ray_samples.frustums.get_start_positions()
-    #     positions_flat = positions.view(-1, 3)
-    #     h = self.forward_geonetwork(positions_flat).view(*ray_samples.frustums.shape, -1)
-    #     sdf, geo_feature = torch.split(h, [1, self.config.geo_feat_dim], dim=-1)
-    #     density = self.laplace_density(sdf)
-    #     return density, geo_feature
-
     def get_alpha(self, ray_samples: RaySamples, sdf=None, gradients=None):
         """compute alpha from sdf as in NeuS"""
         if sdf is None or gradients is None:

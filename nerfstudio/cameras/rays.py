@@ -53,7 +53,7 @@ class Frustums(TensorDataclass):
         if self.offsets is not None:
             pos = pos + self.offsets
         return pos
-    
+
     def get_start_positions(self) -> TensorType[..., 3]:
         """Calulates "start" position of frustum. We use start positions for MonoSDF
         because when we use error bounded sampling, we need to upsample many times.
@@ -150,7 +150,7 @@ class RaySamples(TensorDataclass):
         weights = torch.nan_to_num(weights)
 
         return weights
-    
+
     def get_weights_from_alphas(self, alphas: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples", 1]:
         """Return weights based on predicted alphas
         Args:

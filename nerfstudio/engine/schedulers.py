@@ -115,6 +115,7 @@ class DelayedExponentialScheduler(DelayerScheduler):
         )
         super().__init__(optimizer, lr_init, lr_final, max_steps, delay_epochs, after_scheduler=after_scheduler)
 
+
 @dataclass
 class NeuSSchedulerConfig(InstantiateConfig):
     """Basic scheduler config with self-defined exponential decay schedule"""
