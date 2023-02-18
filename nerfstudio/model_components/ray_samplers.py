@@ -680,7 +680,8 @@ class NeuSSampler(Sampler):
 
         return ray_samples
 
-    def rendering_sdf_with_fixed_inv_s(self, ray_samples: RaySamples, sdf: torch.Tensor, inv_s):
+    @staticmethod
+    def rendering_sdf_with_fixed_inv_s(ray_samples: RaySamples, sdf: torch.Tensor, inv_s):
         """rendering given a fixed inv_s as NeuS"""
         batch_size = ray_samples.shape[0]
         prev_sdf, next_sdf = sdf[:, :-1], sdf[:, 1:]
@@ -717,7 +718,8 @@ class NeuSSampler(Sampler):
 
         return alpha
 
-    def merge_ray_samples(self, ray_bundle: RayBundle, ray_samples_1: RaySamples, ray_samples_2: RaySamples):
+    @staticmethod
+    def merge_ray_samples(ray_bundle: RayBundle, ray_samples_1: RaySamples, ray_samples_2: RaySamples):
         """Merge two set of ray samples and return sorted index which can be used to merge sdf values
         Args:
             ray_samples_1 : ray_samples to merge

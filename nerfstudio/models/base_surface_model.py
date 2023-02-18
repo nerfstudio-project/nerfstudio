@@ -28,7 +28,6 @@ from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-from torchtyping import TensorType
 from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
@@ -96,7 +95,8 @@ class SurfaceModelConfig(ModelConfig):
     topk: int = 4
     """Number of minimal patch consistency selected for training"""
     sensor_depth_truncation: float = 0.015
-    """Sensor depth trunction, default value is 0.015 which means 5cm with a rough scale value 0.3 (0.015 = 0.05 * 0.3)"""
+    """Sensor depth trunction,
+    default value is 0.015 which means 5cm with a rough scale value 0.3 (0.015 = 0.05 * 0.3)"""
     sensor_depth_l1_loss_mult: float = 0.0
     """Sensor depth L1 loss multiplier."""
     sensor_depth_freespace_loss_mult: float = 0.0
@@ -233,11 +233,7 @@ class SurfaceModel(Model):
         # the rendered depth is point-to-point distance and we should convert to depth
         depth = depth / ray_bundle.metadata["directions_norm"]
 
-        # remove the rays that don't intersect with the surface
-        # hit = (field_outputs[FieldHeadNames.SDF] > 0.0).any(dim=1) & (field_outputs[FieldHeadNames.SDF] < 0).any(dim=1)
-        # depth[~hit] = 10000.0
-
-        normal = self.renderer_normal(semantics=field_outputs[FieldHeadNames.NORMAL], weights=weights)
+        normal = self.renderer_normal(semantics=field_outputs[FieldHeadNames.NORMALS], weights=weights)
         accumulation = self.renderer_accumulation(weights=weights)
 
         # background model

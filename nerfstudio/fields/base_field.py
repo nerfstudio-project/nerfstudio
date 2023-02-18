@@ -29,7 +29,7 @@ from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.field_components.field_heads import FieldHeadNames
 
 
-# Field related configs for NeuS
+# Field related configs for NeuS to allow modification from CLI
 @dataclass
 class FieldConfig(InstantiateConfig):
     """Configuration for model instantiation"""

@@ -17,7 +17,7 @@ Field for compound nerf model, adds scene contraction and image embeddings to in
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, Type, Union
+from typing import Optional, Type
 
 import numpy as np
 import torch
@@ -49,14 +49,14 @@ class SingleVarianceNetwork(nn.Module):
     """
 
     def __init__(self, init_val):
-        super(SingleVarianceNetwork, self).__init__()
+        super().__init__()
         self.register_parameter("variance", nn.Parameter(init_val * torch.ones(1), requires_grad=True))
 
-    def forward(self, x):
+    def forward(self, x: TensorType[1]) -> TensorType[1]:
         """Returns current variance value"""
         return torch.ones([len(x), 1], device=x.device) * torch.exp(self.variance * 10.0)
 
-    def get_variance(self):
+    def get_variance(self) -> TensorType[1]:
         """return current variance value"""
         return torch.exp(self.variance * 10.0).clip(1e-6, 1e6)
 
@@ -98,10 +98,15 @@ class SDFFieldConfig(FieldConfig):
 
 
 class SDFField(Field):
-    """_summary_
+    """
+    A field for Signed Distance Functions (SDF).
 
     Args:
-        Field (_type_): _description_
+        config: The configuration for the SDF field.
+        aabb: An axis-aligned bounding box for the SDF field.
+        num_images: The number of images for embedding appearance.
+        use_average_appearance_embedding: Whether to use average appearance embedding. Defaults to False.
+        spatial_distortion: The spatial distortion. Defaults to None.
     """
 
     config: SDFFieldConfig
@@ -109,7 +114,7 @@ class SDFField(Field):
     def __init__(
         self,
         config: SDFFieldConfig,
-        aabb,
+        aabb: TensorType[2, 3],
         num_images: int,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
@@ -240,7 +245,7 @@ class SDFField(Field):
         """Set the anneal value for the proposal network."""
         self._cos_anneal_ratio = anneal
 
-    def forward_geonetwork(self, inputs):
+    def forward_geonetwork(self, inputs: TensorType[..., 3]) -> TensorType[..., "geo-features+1"]:
         """forward the geonetwork"""
         if self.use_grid_feature:
             # TODO check how we should normalize the points
@@ -258,46 +263,42 @@ class SDFField(Field):
 
         inputs = torch.cat((inputs, pe, feature), dim=-1)
 
-        x = inputs
+        # Pass through layers
+        outputs = inputs
 
         for l in range(0, self.num_layers - 1):
             lin = getattr(self, "glin" + str(l))
 
             if l in self.skip_in:
-                x = torch.cat([x, inputs], 1) / np.sqrt(2)
+                outputs = torch.cat([outputs, inputs], 1) / np.sqrt(2)
 
-            x = lin(x)
+            outputs = lin(outputs)
 
             if l < self.num_layers - 2:
-                x = self.softplus(x)
-        return x
+                outputs = self.softplus(outputs)
+        return outputs
 
-    def get_sdf(self, ray_samples: RaySamples):
+    def get_sdf(self, ray_samples: RaySamples) -> TensorType["num_samples", 64, 1]:
         """predict the sdf value for ray samples"""
         positions = ray_samples.frustums.get_start_positions()
         positions_flat = positions.view(-1, 3)
-        h = self.forward_geonetwork(positions_flat).view(*ray_samples.frustums.shape, -1)
-        sdf, _ = torch.split(h, [1, self.config.geo_feat_dim], dim=-1)
+        hidden_output = self.forward_geonetwork(positions_flat).view(*ray_samples.frustums.shape, -1)
+        sdf, _ = torch.split(hidden_output, [1, self.config.geo_feat_dim], dim=-1)
         return sdf
 
-    def gradient(self, x):
-        """compute the gradient of the ray"""
-        x.requires_grad_(True)
-        y = self.forward_geonetwork(x)[:, :1]
-        d_output = torch.ones_like(y, requires_grad=False, device=y.device)
-        gradients = torch.autograd.grad(
-            outputs=y, inputs=x, grad_outputs=d_output, create_graph=True, retain_graph=True, only_inputs=True
-        )[0]
-        return gradients
-
-    def get_alpha(self, ray_samples: RaySamples, sdf=None, gradients=None):
+    def get_alpha(
+        self,
+        ray_samples: RaySamples,
+        sdf: Optional[TensorType["num_samples":..., 1]] = None,
+        gradients: Optional[TensorType["num_samples":..., 1]] = None,
+    ) -> TensorType["num_samples":..., 1]:
         """compute alpha from sdf as in NeuS"""
         if sdf is None or gradients is None:
             inputs = ray_samples.frustums.get_start_positions()
             inputs.requires_grad_(True)
             with torch.enable_grad():
-                h = self.forward_geonetwork(inputs)
-                sdf, _ = torch.split(h, [1, self.config.geo_feat_dim], dim=-1)
+                hidden_output = self.forward_geonetwork(inputs)
+                sdf, _ = torch.split(hidden_output, [1, self.config.geo_feat_dim], dim=-1)
             d_output = torch.ones_like(sdf, requires_grad=False, device=sdf.device)
             gradients = torch.autograd.grad(
                 outputs=sdf,
@@ -333,20 +334,16 @@ class SDFField(Field):
 
         alpha = ((p + 1e-5) / (c + 1e-5)).clip(0.0, 1.0)
 
-        # HF-NeuS
-        # # sigma
-        # cdf = torch.sigmoid(sdf * inv_s)
-        # e = inv_s * (1 - cdf) * (-iter_cos) * ray_samples.deltas
-        # alpha = (1 - torch.exp(-e)).clip(0.0, 1.0)
-
         return alpha
 
-    def get_occupancy(self, sdf):
-        """compute occupancy as in UniSurf"""
-        occupancy = self.sigmoid(-10.0 * sdf)
-        return occupancy
-
-    def get_colors(self, points, directions, normals, geo_features, camera_indices):
+    def get_colors(
+        self,
+        points: TensorType[..., 3],
+        directions: TensorType[..., 3],
+        normals: TensorType[..., 3],
+        geo_features: TensorType[..., "geo-feat-dim"],
+        camera_indices: TensorType,
+    ) -> TensorType[..., 3]:
         """compute colors"""
         d = self.direction_encoding(directions)
 
@@ -366,7 +363,7 @@ class SDFField(Field):
                     (*directions.shape[:-1], self.config.appearance_embedding_dim), device=directions.device
                 )
 
-        h = torch.cat(
+        hidden_input = torch.cat(
             [
                 points,
                 d,
@@ -377,22 +374,23 @@ class SDFField(Field):
             dim=-1,
         )
 
-        for l in range(0, self.num_layers_color - 1):
-            lin = getattr(self, "clin" + str(l))
+        for layer in range(0, self.num_layers_color - 1):
+            lin = getattr(self, "clin" + str(layer))
 
-            h = lin(h)
+            hidden_input = lin(hidden_input)
 
-            if l < self.num_layers_color - 2:
-                h = self.relu(h)
+            if layer < self.num_layers_color - 2:
+                hidden_input = self.relu(hidden_input)
 
-        rgb = self.sigmoid(h)
-
-        # unisurf
-        # rgb = self.tanh(h) * 0.5 + 0.5
+        rgb = self.sigmoid(hidden_input)
 
         return rgb
 
-    def get_outputs(self, ray_samples: RaySamples, return_alphas=False, return_occupancy=False):
+    def get_outputs(
+        self,
+        ray_samples: RaySamples,
+        return_alphas: bool = False,
+    ) -> dict:
         """compute output of ray samples"""
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
@@ -409,16 +407,14 @@ class SDFField(Field):
 
         inputs.requires_grad_(True)
         with torch.enable_grad():
-            h = self.forward_geonetwork(inputs)
-            sdf, geo_feature = torch.split(h, [1, self.config.geo_feat_dim], dim=-1)
+            hidden_output = self.forward_geonetwork(inputs)
+            sdf, geo_feature = torch.split(hidden_output, [1, self.config.geo_feat_dim], dim=-1)
         d_output = torch.ones_like(sdf, requires_grad=False, device=sdf.device)
         gradients = torch.autograd.grad(
             outputs=sdf, inputs=inputs, grad_outputs=d_output, create_graph=True, retain_graph=True, only_inputs=True
         )[0]
 
         rgb = self.get_colors(inputs, directions_flat, gradients, geo_feature, camera_indices)
-
-        # density = self.laplace_density(sdf)
 
         rgb = rgb.view(*ray_samples.frustums.directions.shape[:-1], -1)
         sdf = sdf.view(*ray_samples.frustums.directions.shape[:-1], -1)
@@ -429,9 +425,9 @@ class SDFField(Field):
         outputs.update(
             {
                 FieldHeadNames.RGB: rgb,
-                # FieldHeadNames.DENSITY: density,
                 FieldHeadNames.SDF: sdf,
-                FieldHeadNames.NORMAL: normals,
+                # Normal vs Normals?
+                FieldHeadNames.NORMALS: normals,
                 FieldHeadNames.GRADIENT: gradients,
             }
         )
@@ -441,17 +437,13 @@ class SDFField(Field):
             alphas = self.get_alpha(ray_samples, sdf, gradients)
             outputs.update({FieldHeadNames.ALPHA: alphas})
 
-        if return_occupancy:
-            occupancy = self.get_occupancy(sdf)
-            outputs.update({FieldHeadNames.OCCUPANCY: occupancy})
-
         return outputs
 
-    def forward(self, ray_samples: RaySamples, return_alphas=False, return_occupancy=False):
+    def forward(self, ray_samples: RaySamples, return_alphas=False) -> dict:
         """Evaluates the field at points along the ray.
 
         Args:
             ray_samples: Samples to evaluate field on.
         """
-        field_outputs = self.get_outputs(ray_samples, return_alphas=return_alphas, return_occupancy=return_occupancy)
+        field_outputs = self.get_outputs(ray_samples, return_alphas=return_alphas)
         return field_outputs
