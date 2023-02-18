@@ -115,7 +115,7 @@ RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git#sub
 # Copy nerfstudio folder and give ownership to user.
 ADD . /home/user/nerfstudio
 USER root
-RUN chown -R user:user /home/user/nerfstudio
+RUN chown -R user /home/user/nerfstudio
 USER 1000:1000
 
 # Install nerfstudio dependencies.

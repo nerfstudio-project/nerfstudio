@@ -111,7 +111,7 @@ docker run --gpus all \                                         # Give the conta
             --rm \                                              # Remove container after it is closed (recommended).
             -it \                                               # Start container in interactive mode.
             dromni/nerfstudio:<tag>                             # Docker image name if you pulled from docker hub.
-            --- OR ---
+            <--- OR --->
             nerfstudio                                          # Docker image tag if you built the image from the Dockerfile by yourself using the command from above. 
 ```
 ### Call nerfstudio commands directly
