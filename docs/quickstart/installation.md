@@ -112,7 +112,7 @@ docker run --gpus all \                                         # Give the conta
             -it \                                               # Start container in interactive mode.
             dromni/nerfstudio:<tag>                             # Docker image name if you pulled from docker hub.
             --- OR ---
-            <your_tag>                                          # Docker image tag if you built the image from the Dockerfile by yourself. 
+            nerfstudio                                          # Docker image tag if you built the image from the Dockerfile by yourself using the command from above. 
 ```
 ### Call nerfstudio commands directly
 Besides, the container can also directly be used by adding the nerfstudio command to the end.
