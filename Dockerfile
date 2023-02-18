@@ -97,7 +97,7 @@ RUN echo "user:user" | chpasswd
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # Switch to new uer and workdir.
-USER 1000:1000
+USER 1000
 WORKDIR /home/user
 
 # Add local user binary folder to PATH variable.
@@ -107,7 +107,7 @@ SHELL ["/bin/bash", "-c"]
 # Upgrade pip and install packages.
 RUN python3.10 -m pip install --upgrade pip setuptools pathtools promise
 # Install pytorch and submodules (Currently, we still use cu116 which is the latest version for toch 1.12.1 and is compatible with CUDA 11.8).
-RUN python3.10 -m pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu116
+RUN python3.10 -m pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
 # Install tynyCUDNN (we need to set the target architectures as environment variable first).
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
 RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git#subdirectory=bindings/torch
@@ -116,7 +116,7 @@ RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git#sub
 ADD . /home/user/nerfstudio
 USER root
 RUN chown -R user /home/user/nerfstudio
-USER 1000:1000
+USER 1000
 
 # Install nerfstudio dependencies.
 RUN cd nerfstudio && \
