@@ -63,7 +63,7 @@ class NerfplayerNerfactoModelConfig(NerfactoModelConfig):
     """How far along the ray to start sampling."""
     far_plane: float = 1000.0
     """How far along the ray to stop sampling."""
-    background_color: Literal["random", "last_sample"] = "random"
+    background_color: Literal["random", "last_sample", "black", "white"] = "random"
     """Whether to randomize the background color. (Random is reported to be better on DyCheck.)"""
     num_levels: int = 16
     """Hashing grid parameter."""
