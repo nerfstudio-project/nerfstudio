@@ -616,9 +616,6 @@ class NeuSSampler(Sampler):
             histogram_padding=1e-5,
         )
         self.outside_sampler = LinearDisparitySampler()
-        # TODO make it outside
-        # for merge samples
-        # self.error_bounded_sampler = ErrorBoundedSampler()
 
     def generate_ray_samples(
         self,
@@ -669,14 +666,6 @@ class NeuSSampler(Sampler):
             ray_samples, sorted_index = self.merge_ray_samples(ray_bundle, ray_samples, new_samples)
 
             total_iters += 1
-
-        # save_points("p.ply", ray_samples.frustums.get_start_positions().detach().cpu().numpy().reshape(-1, 3))
-        # exit(-1)
-        # TODO
-        # sample more points outside surface
-        # if self.num_samples_outside > 0:
-        #   ray_samples_uniform = self.outside_sampler(ray_bundle, num_samples=self.num_samples_outside)
-        #     ray_samples, _ = self.merge_ray_samples(ray_bundle, ray_samples, ray_samples_uniform)
 
         return ray_samples
 
