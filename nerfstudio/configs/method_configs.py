@@ -60,7 +60,6 @@ from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
 from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
-from nerfstudio.pipelines.dreamfusion_pipeline import DreamfusionPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 from nerfstudio.plugins.registry import discover_methods
 
@@ -344,7 +343,8 @@ method_configs["dreamfusion"] = TrainerConfig(
     steps_per_save=200,
     max_num_iterations=30000,
     mixed_precision=True,
-    pipeline=DreamfusionPipelineConfig(
+    pipeline=VanillaPipelineConfig(
+        generative=True,
         datamanager=DreamFusionDataManagerConfig(
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=4096,
@@ -352,22 +352,22 @@ method_configs["dreamfusion"] = TrainerConfig(
         ),
         model=DreamFusionModelConfig(
             eval_num_rays_per_chunk=1 << 15,
-            distortion_loss_mult=10.0,
+            distortion_loss_mult=0.02,
+            interlevel_loss_mult=1.0,
             orientation_loss_mult=0.1,
             max_res=256,
             sphere_collider=True,
             initialize_density=False,
             random_background=True,
-            interlevel_loss_mult=1.0,
-            proposal_warmup=500,
-            proposal_update_every=5,
+            proposal_warmup=1000,
+            proposal_update_every=2,
             proposal_weights_anneal_max_num_iters=100,
             start_lambertian_training=1000,
             start_normals_training=500,
             opacity_loss_mult=0.001,
+            prompting_type="location_based",
+            guidance_scale=100,
         ),
-        interpolated_prompting=False,
-        guidance_scale=100,
     ),
     optimizers={
         "proposal_networks": {

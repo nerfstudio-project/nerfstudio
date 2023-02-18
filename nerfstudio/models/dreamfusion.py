@@ -19,11 +19,12 @@ DreamFusion implementation.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Tuple, Type, Optional
 
 import numpy as np
 import torch
 from torch.nn import Parameter
+from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.engine.callbacks import (
@@ -31,6 +32,8 @@ from nerfstudio.engine.callbacks import (
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
+from nerfstudio.generative.stable_diffusion import StableDiffusion
+from nerfstudio.generative.stable_diffusion_utils import get_text_embedding
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.dreamfusion_field import DreamFusionField
@@ -128,6 +131,25 @@ class DreamFusionModelConfig(ModelConfig):
     max_res: int = 256
     """Maximum resolution of the density field."""
 
+    location_based_prompting: bool = True
+    """enables location based prompting"""
+    interpolated_prompting: bool = False
+    """enables interpolated location prompting"""
+    prompting_type: str = "location_based"
+    """choose between location_based, interpolated, base"""
+    top_prompt: str = ", overhead view"
+    """appended to prompt for overhead view"""
+    side_prompt: str = ", side view"
+    """appended to prompt for side view"""
+    front_prompt: str = ", front view"
+    """appended to prompt for front view"""
+    back_prompt: str = ", back view"
+    """appended to prompt for back view"""
+    guidance_scale: float = 100
+    """guidance scale for sds loss"""
+    stablediffusion_device: Optional[str] = None
+    """device for stable diffusion"""
+    sd_version: str = '1-5' 
 
 class DreamFusionModel(Model):
     """DreamFusionModel Model
@@ -144,17 +166,43 @@ class DreamFusionModel(Model):
         **kwargs,
     ) -> None:
         self.prompt = config.prompt
+        self.cur_prompt = config.prompt
+        self.sd_version = config.sd_version
         self.initialize_density = config.initialize_density
         self.train_normals = False
         self.train_shaded = False
         self.random_background = config.random_background
         self.density_strength = 1.0
         self.target_transmittance = config.target_transmittance_start
+        self.grad_scaler = kwargs['grad_scaler']
+
+        self.prompting_type = config.prompting_type
+        self.guidance_scale = config.guidance_scale
+        self.top_prompt = config.top_prompt
+        self.side_prompt = config.side_prompt
+        self.back_prompt = config.back_prompt 
+        self.front_prompt = config.front_prompt
+
+        self.sd_device = (
+            torch.device(kwargs['device'])
+            if config.stablediffusion_device is None
+            else torch.device(config.stablediffusion_device)
+        )
+
         super().__init__(config=config, **kwargs)
 
     def populate_modules(self):
         """Set the fields and modules"""
         super().populate_modules()
+
+        self.sd = StableDiffusion(self.sd_device, version=self.sd_version)
+        self.text_embeddings = {
+            "top_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.top_prompt}", ""),
+            "front_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.front_prompt}", ""),
+            "side_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.side_prompt}", ""),
+            "back_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.back_prompt}", ""),
+            "base_text_embedding": self.sd.get_text_embeds(self.cur_prompt, "")
+        }
 
         # setting up fields
         self.field = DreamFusionField(self.scene_box.aabb, max_res=self.config.max_res)
@@ -186,6 +234,7 @@ class DreamFusionModel(Model):
             single_jitter=self.config.use_single_jitter,
             update_sched=update_schedule,
             initial_sampler=UniformSampler(single_jitter=self.config.use_single_jitter),
+            pdf_histogram_padding=0.001,
         )
 
         # renderers
@@ -350,7 +399,7 @@ class DreamFusionModel(Model):
             shading_weight = 0.0
 
         shaded, shaded_albedo = self.shader_lambertian(
-            rgb=rgb, normals=normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=True
+            rgb=rgb, normals=normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=False
         )
 
         outputs["normals"] = self.shader_normals(normals, weights=accum_mask)
@@ -411,6 +460,33 @@ class DreamFusionModel(Model):
 
         if self.config.opacity_penalty:
             loss_dict["opacity_loss"] = self.config.opacity_loss_mult * outputs["opacity_loss"].mean()
+
+        if self.prompt != self.cur_prompt:
+            self.cur_prompt = self.prompt
+            self.text_embeddings = {
+                "top_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.top_prompt}", ""),
+                "front_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.front_prompt}", ""),
+                "side_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.side_prompt}", ""),
+                "back_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.back_prompt}", ""),
+                "base_text_embedding": self.sd.get_text_embeds(self.cur_prompt, "")
+            }
+        
+        text_embedding = get_text_embedding(batch, self.prompting_type, self.text_embeddings, self.sd_device)
+            
+        train_output = (
+            outputs["train_output"].view(1, int(outputs["train_output"].shape[0] ** 0.5), int(outputs["train_output"].shape[0] ** 0.5), 3)
+            .permute(0, 3, 1, 2)
+        )
+
+        with torch.autocast(device_type="cuda", dtype=torch.float16):
+            sds_loss = self.sd.sds_loss(
+                text_embedding.to(self.sd_device),
+                train_output.to(self.sd_device),
+                guidance_scale=int(self.guidance_scale),
+                grad_scaler=self.grad_scaler,
+            )
+
+        loss_dict["sds_loss"] = sds_loss.to(self.device)
 
         if self.training:
             loss_dict["distortion_loss"] = self.config.distortion_loss_mult * distortion_loss(
