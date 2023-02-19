@@ -199,8 +199,6 @@ class RayBundle(TensorDataclass):
     """Unit ray direction vector"""
     pixel_area: TensorType[..., 1]
     """Projected area of pixel a distance 1 away from origin"""
-    directions_norm: Optional[TensorType[..., 1]] = None
-    """Norm of ray direction vector before normalization"""
     camera_indices: Optional[TensorType[..., 1]] = None
     """Camera indices"""
     nears: Optional[TensorType[..., 1]] = None
