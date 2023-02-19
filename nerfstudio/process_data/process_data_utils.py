@@ -533,7 +533,7 @@ def generate_planar_projections_from_equirectangular(
     curr_im = 0
     with progress:
         for i in progress.track(os.listdir(frame_dir), description="", total=num_ims):
-            if i.endswith(".jpg") or i.endswith(".png") or i.endswith(".jpeg") or i.endswith(".JPG"):
+            if i.lower().endswith((".jpg", ".png", ".jpeg")):
                 im = np.array(cv2.imread(os.path.join(frame_dir, i)))
                 im = torch.tensor(im, dtype=torch.float32, device=device)
                 im = torch.permute(im, (2, 0, 1)) / 255.0
