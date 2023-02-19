@@ -50,6 +50,7 @@ from nerfstudio.model_components.renderers import (
     RGBRenderer,
 )
 from nerfstudio.model_components.scene_colliders import NearFarCollider
+from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model
 from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig
 
@@ -162,6 +163,9 @@ class NerfplayerNerfactoModel(NerfactoModel):
         self.renderer_depth = DepthRenderer(method="expected")  # for depth loss
         self.renderer_normals = NormalsRenderer()
 
+        # shaders
+        self.normals_shader = NormalsShader()
+
         # losses
         self.rgb_loss = MSELoss()
 
@@ -192,8 +196,12 @@ class NerfplayerNerfactoModel(NerfactoModel):
         }
 
         if self.config.predict_normals:
-            outputs["normals"] = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
-            outputs["pred_normals"] = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
+            outputs["normals"] = self.normals_shader(
+                self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
+            )
+            outputs["pred_normals"] = self.normals_shader(
+                self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
+            )
 
         # These use a lot of GPU memory, so we avoid storing them for eval.
         if self.training:
