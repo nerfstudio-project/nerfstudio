@@ -100,3 +100,20 @@ def generate_planar_projections_from_equirectangular(
             curr_im += 1
 
     return output_dir
+
+
+def compute_resolution_from_equirect(image_dir: Path, num_images: int) -> Tuple[int, int]:
+    """Compute the resolution of the persepctive projections of equirectangular images
+       from the heuristic: num_image * res**2 = orig_height * orig_width.
+
+    Args:
+        image_dir: The directory containing the equirectangular images.
+    returns:
+        The target resolution of the perspective projections.
+    """
+
+    for i in os.listdir(image_dir):
+        if i.lower().endswith((".jpg", ".png", ".jpeg")):
+            im = np.array(cv2.imread(os.path.join(image_dir, i)))
+            res_squared = (im.shape[0] * im.shape[1]) / num_images
+            return (int(np.sqrt(res_squared)), int(np.sqrt(res_squared)))
