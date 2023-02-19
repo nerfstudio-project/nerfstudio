@@ -1,14 +1,16 @@
 # Define base image.
-FROM nvidia/cuda:11.7.1-devel-ubuntu22.04
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
+
+# Variables used at build time.
+## CUDA architectures, required by Colmap and tiny-cuda-nn.
+## NOTE: All commonly used GPU architectures are included and supported here. To speedup the image build process remove all architectures but the one of your explicit GPU. Find details here: https://developer.nvidia.com/cuda-gpus (8.6 translates to 86 in the line below) or in the docs.
+ARG CUDA_ARCHITECTURES=90;89;86;80;75;70;61;52;37
 
 # Set environment variables.
 ## Set non-interactive to prevent asking for user inputs blocking image creation.
 ENV DEBIAN_FRONTEND=noninteractive
 ## Set timezone as it is required by some packages.
 ENV TZ=Europe/Berlin
-## CUDA architectures, required by tiny-cuda-nn.
-## NOTE: All commonly used GPU architectures are included and supported here. To speedup the image build process remove all architectures but the one of your explicit GPU. Find details here: https://developer.nvidia.com/cuda-gpus (8.6 translates to 86 in the line below) or in the docs.
-ENV TCNN_CUDA_ARCHITECTURES=90;89;86;80;75;70;61;52;37
 ## CUDA Home, required to find CUDA in some packages.
 ENV CUDA_HOME="/usr/local/cuda"
 
@@ -17,6 +19,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
+    curl \
     ffmpeg \
     git \
     libatlas-base-dev \
@@ -27,6 +30,7 @@ RUN apt-get update && \
     libboost-test-dev \
     libcgal-dev \
     libeigen3-dev \
+    libflann-dev \
     libfreeimage-dev \
     libgflags-dev \
     libglew-dev \
@@ -34,14 +38,17 @@ RUN apt-get update && \
     libmetis-dev \
     libprotobuf-dev \
     libqt5opengl5-dev \
+    libsqlite3-dev \
     libsuitesparse-dev \
     nano \
     protobuf-compiler \
     python3.10-dev \
     python3-pip \
     qtbase5-dev \
+    sudo \
     wget && \
     rm -rf /var/lib/apt/lists/*
+
 
 # Install GLOG (required by ceres).
 RUN git clone --branch v0.6.0 https://github.com/google/glog.git --single-branch && \
@@ -69,22 +76,28 @@ RUN git clone --branch 2.1.0 https://ceres-solver.googlesource.com/ceres-solver.
     rm -rf ceres-solver
 
 # Install colmap.
-RUN git clone --branch 3.7 https://github.com/colmap/colmap.git --single-branch && \
+RUN git clone --branch 3.8 https://github.com/colmap/colmap.git --single-branch && \
     cd colmap && \
     mkdir build && \
     cd build && \
     cmake .. -DCUDA_ENABLED=ON \
-        	 -DCUDA_NVCC_FLAGS="--std c++14" && \
+             -DCUDA_NVCC_FLAGS="--std c++14" \
+             -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} && \
     make -j && \
     make install && \
     cd ../.. && \
     rm -rf colmap
     
 # Create non root user and setup environment.
-RUN useradd -m -d /home/user -u 1000 user
+RUN useradd -m -d /home/user -g root -G sudo -u 1000 user
+RUN usermod -aG sudo user
+# Set user password
+RUN echo "user:user" | chpasswd
+# Ensure sudo group users are not asked for a password when using sudo command by ammending sudoers file
+RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # Switch to new uer and workdir.
-USER 1000:1000
+USER 1000
 WORKDIR /home/user
 
 # Add local user binary folder to PATH variable.
@@ -93,16 +106,17 @@ SHELL ["/bin/bash", "-c"]
 
 # Upgrade pip and install packages.
 RUN python3.10 -m pip install --upgrade pip setuptools pathtools promise
-# Install pytorch and submodules.
-RUN python3.10 -m pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu116
-# Install tynyCUDNN.
+# Install pytorch and submodules (Currently, we still use cu116 which is the latest version for toch 1.12.1 and is compatible with CUDA 11.8).
+RUN python3.10 -m pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
+# Install tynyCUDNN (we need to set the target architectures as environment variable first).
+ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
 RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git#subdirectory=bindings/torch
 
 # Copy nerfstudio folder and give ownership to user.
 ADD . /home/user/nerfstudio
 USER root
-RUN chown -R user:user /home/user/nerfstudio
-USER 1000:1000
+RUN chown -R user /home/user/nerfstudio
+USER 1000
 
 # Install nerfstudio dependencies.
 RUN cd nerfstudio && \
