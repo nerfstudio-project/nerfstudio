@@ -215,6 +215,7 @@ def process_depth_maps(
         summary_log.append(f"Started with {num_processed_depth_maps} images")
 
     # Downscale depth maps
+    # TODO(reviewer): should this be nearest neighbor???
     summary_log.append(
         process_data_utils.downscale_images(depth_dir, num_downscales, folder_name="depth", verbose=verbose)
     )

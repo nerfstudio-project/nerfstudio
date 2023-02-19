@@ -674,19 +674,28 @@ def create_sfm_depth(
     max_repoj_err: float = 2.5,
     min_n_visible: int = 2,
 ) -> Dict[int, Path]:
-    """Converts COLMAP's points3d.bin to sparse depth map images encoded as 16-bit PNGs.
+    """Converts COLMAP's points3d.bin to sparse depth map images encoded as
+    16-bit "millimeter depth" PNGs.
 
     Notes:
-     * This facility does NOT use COLMAP dense reconstruction.  We create depth maps from sparse SfM points here.
-     * COLMAP does *not* reconstruct metric depth unless you give it calibrated, metric intrinsics as input.
-        Therefore, "depth" in this function has potentially ambiguous units.  For data format simplicity, we
-        attempt to encode the depth data similar to 16-bit millimeter depth images used in Realsense and
-        iPhone Lidar / Polycam / Record3D datasets.
+     * This facility does NOT use COLMAP dense reconstruction; it creates depth
+        maps from sparse SfM points here.
+     * COLMAP does *not* reconstruct metric depth unless you give it calibrated
+        (metric) intrinsics as input. Therefore, "depth" in this function has
+        potentially ambiguous units.
 
     Args:
         recon_dir: Path to the reconstruction directory, e.g. "sparse/0"
         output_dir: Path to the output directory.
-
+        verbose: If True, logs progress of depth image creation.
+        depth_scale_factor: Use this parameter to tune the conversion of raw
+          depth measurements to integer "millimeter" depth.
+        min_depth: Discard points closer than this to the camera.
+        max_depth: Discard points farther than this from the camera.
+        max_repoj_err: Discard points with reprojection error greater than this
+          amount (in pixels).
+        min_n_visible: Discard 3D points that have been triangulated with fewer
+          than this many frames.
     Returns:
         Depth file paths indexed by COLMAP image id
     """
