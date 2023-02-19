@@ -16,6 +16,7 @@ from typing_extensions import Annotated, Literal
 
 from nerfstudio.process_data import (
     colmap_utils,
+    equirect_utils,
     hloc_utils,
     insta360_utils,
     metashape_utils,
@@ -116,7 +117,7 @@ class ProcessImages:
 
         # Generate planar projections if equirectangular
         if self.camera_type == "equirectangular":
-            self.data = process_data_utils.generate_planar_projections_from_equirectangular(
+            self.data = equirect_utils.generate_planar_projections_from_equirectangular(
                 self.data, (1200, 1200), self.images_per_equirect
             )
 
@@ -280,7 +281,7 @@ class ProcessVideo:
 
         # Generate planar projections if equirectangular
         if self.camera_type == "equirectangular":
-            image_dir = process_data_utils.generate_planar_projections_from_equirectangular(
+            image_dir = equirect_utils.generate_planar_projections_from_equirectangular(
                 image_dir, (1200, 1200), self.images_per_equirect
             )
 
