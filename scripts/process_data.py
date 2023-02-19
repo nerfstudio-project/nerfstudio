@@ -287,8 +287,11 @@ class ProcessVideo:
 
         # Generate planar projections if equirectangular
         if self.camera_type == "equirectangular":
+            perspective_image_size = equirect_utils.compute_resolution_from_equirect(
+                image_dir, self.images_per_equirect
+            )
             image_dir = equirect_utils.generate_planar_projections_from_equirectangular(
-                image_dir, (1200, 1200), self.images_per_equirect
+                image_dir, perspective_image_size, self.images_per_equirect
             )
 
         # Create mask
