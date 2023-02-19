@@ -120,9 +120,8 @@ class ProcessImages:
             perspective_image_size = equirect_utils.compute_resolution_from_equirect(
                 self.data, self.images_per_equirect
             )
-            CONSOLE.log(
-                f"Generating {self.images_per_equirect} {perspective_image_size[0]}x{perspective_image_size[1]} sized images per equirectangular image"
-            )
+            pers_size = f"{perspective_image_size[0]}x{perspective_image_size[1]}"
+            CONSOLE.log(f"Generating {self.images_per_equirect} {pers_size} sized images per equirectangular image")
             self.data = equirect_utils.generate_planar_projections_from_equirectangular(
                 self.data, perspective_image_size, self.images_per_equirect
             )
