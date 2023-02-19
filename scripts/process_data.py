@@ -117,13 +117,10 @@ class ProcessImages:
 
         # Generate planar projections if equirectangular
         if self.camera_type == "equirectangular":
-            perspective_image_size = equirect_utils.compute_resolution_from_equirect(
-                self.data, self.images_per_equirect
-            )
-            pers_size = f"{perspective_image_size[0]}x{perspective_image_size[1]}"
+            pers_size = equirect_utils.compute_resolution_from_equirect(self.data, self.images_per_equirect)
             CONSOLE.log(f"Generating {self.images_per_equirect} {pers_size} sized images per equirectangular image")
             self.data = equirect_utils.generate_planar_projections_from_equirectangular(
-                self.data, perspective_image_size, self.images_per_equirect
+                self.data, pers_size, self.images_per_equirect
             )
 
         summary_log = []
