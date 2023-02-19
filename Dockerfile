@@ -84,7 +84,7 @@ RUN git clone --branch 3.8 https://github.com/colmap/colmap.git --single-branch 
     make -j `nproc` && \
     make install && \
     cd ../.. && \
-    rm -rf colmap && \
+    rm -rf colmap
 
 # Install pycolmap. TODO(https://github.com/colmap/pycolmap/issues/111) use wheel when available for Python 3.10
 RUN git clone --branch v0.3.0 --recursive https://github.com/colmap/pycolmap.git --single-branch && \
@@ -109,13 +109,7 @@ RUN python3.10 -m pip install --upgrade pip setuptools pathtools promise
 # Install pytorch and submodules.
 RUN python3.10 -m pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu116
 # Install tynyCUDNN.
-RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch
-
-# RUN git clone --branch v1.6 --recursive https://github.com/NVlabs/tiny-cuda-nn.git --single-branch && \
-#     cd tiny-cuda-nn/bindings/torch && \
-#     python3.10 -m pip install . && \
-#     cd .. && \
-#     rm -rf tiny-cuda-nn
+RUN python3.10 -m pip install -v git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch
 
 
 # Copy nerfstudio folder and give ownership to user.

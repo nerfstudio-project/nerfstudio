@@ -42,6 +42,7 @@ dependencies = [
     "pymeshlab>=2022.2.post2",
     "pyngrok>=5.1.0",
     "python-socketio>=5.7.1",
+    "pyquaternion>=0.9.9",
     "requests",
     "rich>=12.5.1",
     "scikit-image>=0.19.3",
