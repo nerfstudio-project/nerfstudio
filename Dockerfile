@@ -7,8 +7,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 ## Set timezone as it is required by some packages.
 ENV TZ=Europe/Berlin
 ## CUDA architectures, required by tiny-cuda-nn.
-## NOTE: All commonly used GPU architectures are included and supported here. To speedup the image build process remove all architectures but the one of your explicit GPU. Find details here: https://developer.nvidia.com/cuda-gpus (8.6 translates to 86 in the line below) or in the docs.
-ENV TCNN_CUDA_ARCHITECTURES=90;89;86;80;75;70;61;52;37
+## NOTE: All commonly used GPU architectures are included and supported here. To speedup the image build process 
+# remove all architectures but the one of your explicit GPU. Find details here: https://developer.nvidia.com/cuda-gpus 
+# (e.g 8.6 translates to 86 in the line below) or in the docs.
+ARG CUDA_ARCHITECTURES="90;89;86;80;75;70;61;52;37"
+ENV TCNN_CUDA_ARCHITECTURES=$CUDA_ARCHITECTURES
 ## CUDA Home, required to find CUDA in some packages.
 ENV CUDA_HOME="/usr/local/cuda"
 
@@ -77,7 +80,7 @@ RUN git clone --branch 3.8 https://github.com/colmap/colmap.git --single-branch 
     cd build && \
     cmake .. -DCUDA_ENABLED=ON \
         	 -DCUDA_NVCC_FLAGS="--std c++14" \
-           -DCMAKE_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES && \
+           -DCMAKE_CUDA_ARCHITECTURES=$CUDA_ARCHITECTURES && \
     make -j `nproc` && \
     make install && \
     cd ../.. && \
@@ -106,9 +109,14 @@ RUN python3.10 -m pip install --upgrade pip setuptools pathtools promise
 # Install pytorch and submodules.
 RUN python3.10 -m pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu116
 # Install tynyCUDNN.
-RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git#subdirectory=bindings/torch
+RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch
 
-# python3.10 -m pip install git+https://github.com/colmap/pycolmap
+# RUN git clone --branch v1.6 --recursive https://github.com/NVlabs/tiny-cuda-nn.git --single-branch && \
+#     cd tiny-cuda-nn/bindings/torch && \
+#     python3.10 -m pip install . && \
+#     cd .. && \
+#     rm -rf tiny-cuda-nn
+
 
 # Copy nerfstudio folder and give ownership to user.
 ADD . /home/user/nerfstudio

@@ -20,9 +20,10 @@ import os
 # from dataclasses import dataclass
 # from io import BufferedReader
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 
 import appdirs
+import cv2
 import numpy as np
 import pycolmap
 import requests
@@ -563,11 +564,10 @@ def run_colmap(
 
 def colmap_to_json(
     recon_dir: Path,
-    # cameras_path: Path,
-    # images_path: Path,
     output_dir: Path,
     camera_model: CameraModel,
     camera_mask_path: Optional[Path] = None,
+    image_id_to_depth_path: Optional[Dict[int, Path]] = None,
 ) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
 
@@ -582,25 +582,27 @@ def colmap_to_json(
     """
 
     recon = pycolmap.Reconstruction(recon_dir)
-    cameras = recon.cameras
-    images = recon.images
+    cam_id_to_camera = recon.cameras
+    im_id_to_image = recon.images
 
+    ## Try to generate depth file names that match up with input image filenames
     # Images were renamed to frame_{i:05d}.{ext} and
     # the filenames needs to be replaced in the transforms.json as well
-    original_filenames = [x.name for x in images.values()]
+    original_filenames = [x.name for x in im_id_to_image.values()]
     # Sort was used in nerfstudio.process_data.process_data_utils:get_image_filenames
     original_filenames.sort()
     # Build the map to the new filenames
     filename_map = {name: f"frame_{i+1:05d}{os.path.splitext(name)[-1]}" for i, name in enumerate(original_filenames)}
 
-    # Only supports one camera
-    breakpoint()
-    len(cameras)
-    camera_params = cameras[1].params
+    # Only support first camera
+    CAMERA_ID = 1
+    camera_params = cam_id_to_camera[CAMERA_ID].params
 
     frames = []
-    for _, im_data in images.items():
-        rotation = qvec2rotmat(im_data.qvec)
+    for im_id, im_data in im_id_to_image.items():
+        # NB: COLMAP uses scalar-first quaternions (https://colmap.github.io/format.html); the `rotation_matrix()`
+        # handles that format for us.
+        rotation = im_data.rotation_matrix()
         translation = im_data.tvec.reshape(3, 1)
         w2c = np.concatenate([rotation, translation], 1)
         w2c = np.concatenate([w2c, np.array([[0, 0, 0, 1]])], 0)
@@ -616,10 +618,13 @@ def colmap_to_json(
         frame = {
             "file_path": name.as_posix(),
             "transform_matrix": c2w.tolist(),
-            "colmap_im_name": str(im_data.name),
+            "colmap_im_id": im_id,
         }
         if camera_mask_path is not None:
             frame["mask_path"] = camera_mask_path.relative_to(camera_mask_path.parent.parent).as_posix()
+        if image_id_to_depth_path is not None:
+            depth_path = image_id_to_depth_path[im_id]
+            frame["depth_file_path"] = str(depth_path)
         frames.append(frame)
 
     out = {
@@ -627,8 +632,8 @@ def colmap_to_json(
         "fl_y": float(camera_params[1]),
         "cx": float(camera_params[2]),
         "cy": float(camera_params[3]),
-        "w": cameras[1].width,
-        "h": cameras[1].height,
+        "w": cam_id_to_camera[CAMERA_ID].width,
+        "h": cam_id_to_camera[CAMERA_ID].height,
         "camera_model": camera_model.value,
     }
 
@@ -659,6 +664,106 @@ def colmap_to_json(
     return len(frames)
 
 
+def create_sfm_depth(
+    recon_dir: Path,
+    output_dir: Path,
+    verbose: bool = True,
+    depth_scale_factor: float = 1000.0,
+    min_depth: float = 0.001,
+    max_depth: float = 10000,
+    max_repoj_err: float = 2.5,
+    min_n_visible: int = 2,
+) -> Dict[int, Path]:
+    """Converts COLMAP's points3d.bin to sparse depth map images encoded as 16-bit PNGs.
+
+    Notes:
+     * This facility does NOT use COLMAP dense reconstruction.  We create depth maps from sparse SfM points here.
+     * COLMAP does *not* reconstruct metric depth unless you give it calibrated, metric intrinsics as input.
+        Therefore, "depth" in this function has potentially ambiguous units.  For data format simplicity, we
+        attempt to encode the depth data similar to 16-bit millimeter depth images used in Realsense and
+        iPhone Lidar / Polycam / Record3D datasets.
+
+    Args:
+        recon_dir: Path to the reconstruction directory, e.g. "sparse/0"
+        output_dir: Path to the output directory.
+
+    Returns:
+        Depth file paths indexed by COLMAP image id
+    """
+
+    recon = pycolmap.Reconstruction(recon_dir)
+    ptid_to_info = recon.points3D
+    im_id_to_image = recon.images
+    cam_id_to_camera = recon.cameras
+
+    # Only support first camera
+    CAMERA_ID = 1
+    w = cam_id_to_camera[CAMERA_ID].width
+    h = cam_id_to_camera[CAMERA_ID].height
+
+    # Images were renamed to frame_{i:05d}.{ext} and
+    # the filenames needs to be replaced in the transforms.json as well
+    original_filenames = [x.name for x in im_id_to_image.values()]
+    # Sort was used in nerfstudio.process_data.process_data_utils:get_image_filenames
+    original_filenames.sort()
+    # Build the map to the new filenames
+    filename_map = {name: f"frame_{i+1:05d}{os.path.splitext(name)[-1]}" for i, name in enumerate(original_filenames)}
+
+    if verbose:
+        iter_images = track(
+            im_id_to_image.items(), total=len(im_id_to_image.items()), description="Creating depth maps ..."
+        )
+    else:
+        iter_images = iter(im_id_to_image.items())
+
+    image_id_to_depth_path = {}
+    for im_id, im_data in iter_images:
+        # Get only keypoints that have corresponding triangulated 3D points
+        p2ds = im_data.get_valid_points2D()
+
+        xyz_world = np.array([ptid_to_info[p2d.point3D_id].xyz for p2d in p2ds])
+
+        # COLMAP OpenCV convention: z is always positive
+        z = (im_data.rotation_matrix() @ xyz_world.T)[-1] + im_data.tvec[-1]
+
+        # Mean reprojection error in image space
+        errors = np.array([ptid_to_info[p2d.point3D_id].error for p2d in p2ds])
+
+        # Number of frames in which each frame is visible
+        n_visible = np.array([ptid_to_info[p2d.point3D_id].track.length() for p2d in p2ds])
+
+        # Note: these are *unrectified* pixel coordinates that should match the original input
+        # no matter the camera model
+        uv = np.array([p2d.xy for p2d in p2ds])
+        idx = np.where(
+            (z >= min_depth)
+            & (z <= max_depth)
+            & (errors <= max_repoj_err)
+            & (n_visible >= min_n_visible)
+            & (uv[:, 0] >= 0)
+            & (uv[:, 0] < w)
+            & (uv[:, 1] >= 0)
+            & (uv[:, 1] < h)
+        )
+        z = z[idx]
+        uv = uv[idx]
+
+        uu, vv = uv[:, 0].astype(int), uv[:, 1].astype(int)
+        depth = np.zeros((h, w), dtype=np.float32)
+        depth[vv, uu] = z
+
+        # E.g. if `depth` is metric and in units of meters, and `depth_scale_factor`
+        # is 1000, then `depth_img` will be
+        depth_img = (depth_scale_factor * depth).astype(np.uint16)
+
+        out_name = filename_map[im_data.name]
+        depth_path = output_dir / out_name
+        cv2.imwrite(str(depth_path), depth_img)
+
+        image_id_to_depth_path[im_id] = depth_path
+    return image_id_to_depth_path
+
+
 def get_matching_summary(num_intial_frames: int, num_matched_frames: int) -> str:
     """Returns a summary of the matching results.
 
@@ -684,199 +789,3 @@ def get_matching_summary(num_intial_frames: int, num_matched_frames: int) -> str
         result += " or large exposure changes."
         return result
     return f"[bold green]COLMAP found poses for {num_matched_frames / num_intial_frames * 100:.2f}% of the images."
-
-
-# def create_sfm_depth(
-#     recon_dir: Path,
-#     transforms_json_path: Path,
-#     output_dir: Path,
-#     camera_model: CameraModel,
-#     camera_mask_path: Optional[Path] = None,
-# ) -> int:
-#     """Converts COLMAP's points3d.bin to depth map images.
-
-#     Args:
-#         recon_dir: Path to the reconstruction directory, e.g. "sparse/0"
-#         output_dir: Path to the output directory.
-#         camera_mask_path: Path to the camera mask.
-#         camera_model: Camera model used.
-
-#     Returns:
-#         The number of registered images.
-#     """
-
-
-# def create_sfm_depth(
-#     cameras_path: Path,
-#     images_path: Path,
-#     point3d_path: Path,
-#     output_dir: Path,
-#     camera_model: CameraModel,
-#     camera_mask_path: Optional[Path] = None,
-# ) -> int:
-#     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
-
-#     Args:
-#         cameras_path: Path to the cameras.bin file.
-#         images_path: Path to the images.bin file.
-#         output_dir: Path to the output directory.
-#         camera_mask_path: Path to the camera mask.
-#         camera_model: Camera model used.
-
-#     Returns:
-#         The number of registered images.
-#     """
-
-#     # Find the image record
-#     iinfo = None
-#     iid = -1
-#     for ciid, cinfo in recon.images.items():
-#         if cinfo.name == image_name:
-#             iinfo = cinfo
-#             iid = ciid
-#     assert iinfo is not None, f"Could not find {image_name} in {recon_dir}"
-
-#     cameras = recon.cameras
-#     camera = cameras[iinfo.camera_id]
-#     if len(camera.params) < 4:
-#         # Probably SIMPLE_PINHOLE
-#         # FMI https://github.com/colmap/colmap/blob/9f3a75ae9c72188244f2403eb085e51ecf4397a8/scripts/python/visualize_model.py#L88
-#         fx, cx, cy = camera.params[:4]
-#         fy = fx
-#     else:
-#         fx, fy, cx, cy = camera.params[:4]
-
-#     K = np.array(
-#         [
-#             [fx, 0, cx],
-#             [0, fy, cy],
-#             [0, 0, 1],
-#         ]
-#     )
-#     h = camera.height
-#     w = camera.width
-
-#     R = iinfo.rotation_matrix()
-#     T = iinfo.tvec
-#     ego_to_sensor = datum.Transform(src_frame="ego", dest_frame=sensor_name)
-#     ego_pose = datum.Transform(rotation=R, translation=T, src_frame="world", dest_frame="ego")
-#     # COLMAP provides world-to-camera transforms
-
-#     if create_depth_image:
-#         ptid_to_info = recon.points3D
-#         p2ds = iinfo.get_valid_points2D()
-#         xyz_world = np.array([ptid_to_info[p2d.point3D_id].xyz for p2d in p2ds])
-#         z = (iinfo.rotation_matrix() @ xyz_world.T)[-1] + iinfo.tvec[-1]
-#         uv = np.array([p2d.xy for p2d in p2ds])
-#         errors = np.array([ptid_to_info[p2d.point3D_id].error for p2d in p2ds])
-#         n_visible = np.array([ptid_to_info[p2d.point3D_id].track.length() for p2d in p2ds])
-
-#         dev = np.zeros((h, w, 3), dtype=np.float32)
-#         channel_names = ["depth", "colmap_err", "num_views_visible"]
-#         uu, vv = uv[:, 0].astype(int), uv[:, 1].astype(int)
-#         # TODO: bilinear interpolation ?
-#         # the triangulation is already pretty noisy tho
-
-#         dev[vv, uu, 0] = z
-#         dev[vv, uu, 1] = errors
-#         dev[vv, uu, 2] = n_visible
-
-#         image_factory = lambda: dev
-
-#         uri = copy.deepcopy(uri)
-#         if uri:
-#             uri.topic = uri.topic + "|depth"
-#         dci = datum.CameraImage(
-#             sensor_name=sensor_name,
-#             image_factory=image_factory,
-#             channel_names=channel_names,
-#             height=h,
-#             width=w,
-#             timestamp=timestamp,
-#             ego_pose=ego_pose,
-#             ego_to_sensor=ego_to_sensor,
-#             K=K,
-#             extra=extra,
-#         )
-#         return dci
-
-#     cameras = read_cameras_binary(cameras_path)
-#     images = read_images_binary(images_path)
-#     ptid_to_info = read_points3d_binary(point3d_path)
-
-#     xyzrgbErrViz = np.zeros((len(ptid_to_info), 8), dtype="float")
-#     for i, (ptid, info) in enumerate(sorted(ptid_to_info.items())):
-#         xyzrgbErrViz[i, :3] = info.xyz
-#         xyzrgbErrViz[i, 3:6] = info.rgb
-#         xyzrgbErrViz[i, 6] = info.error
-#         xyzrgbErrViz[i, 7] = info.track.length()
-
-#     # Images were renamed to frame_{i:05d}.{ext} and
-#     # the filenames needs to be replaced in the transforms.json as well
-#     original_filenames = [x.name for x in images.values()]
-#     # Sort was used in nerfstudio.process_data.process_data_utils:get_image_filenames
-#     original_filenames.sort()
-#     # Build the map to the new filenames
-#     filename_map = {name: f"frame_{i+1:05d}{os.path.splitext(name)[-1]}" for i, name in enumerate(original_filenames)}
-
-#     # Only supports one camera
-#     camera_params = cameras[1].params
-
-#     frames = []
-#     for _, im_data in images.items():
-#         rotation = qvec2rotmat(im_data.qvec)
-#         translation = im_data.tvec.reshape(3, 1)
-#         w2c = np.concatenate([rotation, translation], 1)
-#         w2c = np.concatenate([w2c, np.array([[0, 0, 0, 1]])], 0)
-#         c2w = np.linalg.inv(w2c)
-#         # Convert from COLMAP's camera coordinate system (OpenCV) to ours (OpenGL)
-#         c2w[0:3, 1:3] *= -1
-#         c2w = c2w[np.array([1, 0, 2, 3]), :]
-#         c2w[2, :] *= -1
-
-#         name = filename_map[im_data.name]
-#         name = Path(f"./images/{name}")
-
-#         frame = {
-#             "file_path": name.as_posix(),
-#             "transform_matrix": c2w.tolist(),
-#         }
-#         if camera_mask_path is not None:
-#             frame["mask_path"] = camera_mask_path.relative_to(camera_mask_path.parent.parent).as_posix()
-#         frames.append(frame)
-
-#     out = {
-#         "fl_x": float(camera_params[0]),
-#         "fl_y": float(camera_params[1]),
-#         "cx": float(camera_params[2]),
-#         "cy": float(camera_params[3]),
-#         "w": cameras[1].width,
-#         "h": cameras[1].height,
-#         "camera_model": camera_model.value,
-#     }
-
-#     if camera_model == CameraModel.OPENCV:
-#         out.update(
-#             {
-#                 "k1": float(camera_params[4]),
-#                 "k2": float(camera_params[5]),
-#                 "p1": float(camera_params[6]),
-#                 "p2": float(camera_params[7]),
-#             }
-#         )
-#     if camera_model == CameraModel.OPENCV_FISHEYE:
-#         out.update(
-#             {
-#                 "k1": float(camera_params[4]),
-#                 "k2": float(camera_params[5]),
-#                 "k3": float(camera_params[6]),
-#                 "k4": float(camera_params[7]),
-#             }
-#         )
-
-#     out["frames"] = frames
-
-#     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
-#         json.dump(out, f, indent=4)
-
-#     return len(frames)
