@@ -49,58 +49,6 @@ def rotation_translation_to_pose(r_quat, t_vec):
     return pose
 
 
-# TODO include in PR
-
-# !pip3 install pyquaternion
-# def qvec2rotmat(qvec) -> np.ndarray:
-#     """Convert quaternion to rotation matrix.
-
-#     Args:
-#         qvec: Quaternion vector of shape (4,).
-#     Returns:
-#         Rotation matrix of shape (3, 3).
-#     """
-#     return np.array(
-#         [
-#             [
-#                 1 - 2 * qvec[2] ** 2 - 2 * qvec[3] ** 2,
-#                 2 * qvec[1] * qvec[2] - 2 * qvec[0] * qvec[3],
-#                 2 * qvec[3] * qvec[1] + 2 * qvec[0] * qvec[2],
-#             ],
-#             [
-#                 2 * qvec[1] * qvec[2] + 2 * qvec[0] * qvec[3],
-#                 1 - 2 * qvec[1] ** 2 - 2 * qvec[3] ** 2,
-#                 2 * qvec[2] * qvec[3] - 2 * qvec[0] * qvec[1],
-#             ],
-#             [
-#                 2 * qvec[3] * qvec[1] - 2 * qvec[0] * qvec[2],
-#                 2 * qvec[2] * qvec[3] + 2 * qvec[0] * qvec[1],
-#                 1 - 2 * qvec[1] ** 2 - 2 * qvec[2] ** 2,
-#             ],
-#         ]
-#     )
-
-# import numpy as np
-# print('qvec2rotmat', qvec2rotmat(np.array([0.017518, 0.0245252, 0.0315323, 0.9990482])))
-
-# from scipy.spatial.transform import Rotation
-# print('scipy', Rotation.from_quat( np.array( [0.017518, 0.0245252, 0.0315323, 0.9990482]  )   ).as_matrix()  )
-
-# from pyquaternion import Quaternion
-# print('pyquaternion', Quaternion( np.array([0.017518, 0.0245252, 0.0315323, 0.9990482])  ).rotation_matrix   )
-
-
-# qvec2rotmat [[-0.99818318 -0.03345598  0.05010848]
-#  [ 0.03654932 -0.99739758  0.06214531]
-#  [ 0.04789895  0.06386384  0.99680846]]
-# scipy [[ 0.99680846 -0.06214531  0.05010848]
-#  [ 0.06386384  0.99739767 -0.03345598]
-#  [-0.04789895  0.03654933  0.99818327]]
-# pyquaternion [[-0.99818327 -0.03345598  0.05010848]
-#  [ 0.03654933 -0.99739767  0.06214531]
-#  [ 0.04789895  0.06386384  0.99680846]]
-
-
 @dataclass
 class NuScenesDataParserConfig(DataParserConfig):
     """NuScenes dataset config.
