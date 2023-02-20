@@ -50,6 +50,7 @@ from nerfstudio.model_components.renderers import (
     RGBRenderer,
 )
 from nerfstudio.model_components.scene_colliders import NearFarCollider
+from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model
 from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig
 
@@ -63,7 +64,7 @@ class NerfplayerNerfactoModelConfig(NerfactoModelConfig):
     """How far along the ray to start sampling."""
     far_plane: float = 1000.0
     """How far along the ray to stop sampling."""
-    background_color: Literal["random", "last_sample"] = "random"
+    background_color: Literal["random", "last_sample", "black", "white"] = "random"
     """Whether to randomize the background color. (Random is reported to be better on DyCheck.)"""
     num_levels: int = 16
     """Hashing grid parameter."""
@@ -162,6 +163,9 @@ class NerfplayerNerfactoModel(NerfactoModel):
         self.renderer_depth = DepthRenderer(method="expected")  # for depth loss
         self.renderer_normals = NormalsRenderer()
 
+        # shaders
+        self.normals_shader = NormalsShader()
+
         # losses
         self.rgb_loss = MSELoss()
 
@@ -192,8 +196,12 @@ class NerfplayerNerfactoModel(NerfactoModel):
         }
 
         if self.config.predict_normals:
-            outputs["normals"] = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
-            outputs["pred_normals"] = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
+            outputs["normals"] = self.normals_shader(
+                self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
+            )
+            outputs["pred_normals"] = self.normals_shader(
+                self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
+            )
 
         # These use a lot of GPU memory, so we avoid storing them for eval.
         if self.training:

@@ -92,8 +92,8 @@ pip install -e .[docs]
 ## Use docker image
 Instead of installing and compiling prerequisites, setting up the environment and installing dependencies, a ready to use docker image is provided.
 ### Prerequisites
-Docker ([get docker](https://docs.docker.com/get-docker/)) and nvidia GPU drivers ([get nvidia drivers](https://www.nvidia.de/Download/index.aspx?lang=de)), capable of working with CUDA 11.7, must be installed.
-The docker image can then either be pulled from [here](https://hub.docker.com/r/dromni/nerfstudio/tags) (replace <version> with the actual version, e.g. 0.1.10)
+Docker ([get docker](https://docs.docker.com/get-docker/)) and nvidia GPU drivers ([get nvidia drivers](https://www.nvidia.de/Download/index.aspx?lang=de)), capable of working with CUDA 11.8, must be installed.
+The docker image can then either be pulled from [here](https://hub.docker.com/r/dromni/nerfstudio/tags) (replace <version> with the actual version, e.g. 0.1.17)
 ```bash
 docker pull dromni/nerfstudio:<version>
 ```
@@ -110,13 +110,15 @@ docker run --gpus all \                                         # Give the conta
             -p 7007:7007 \                                      # Map port from local machine to docker container (required to access the web interface/UI).
             --rm \                                              # Remove container after it is closed (recommended).
             -it \                                               # Start container in interactive mode.
-            nerfstudio                                          # Docker image name
+            dromni/nerfstudio:<tag>                             # Docker image name if you pulled from docker hub.
+            <--- OR --->
+            nerfstudio                                          # Docker image tag if you built the image from the Dockerfile by yourself using the command from above. 
 ```
 ### Call nerfstudio commands directly
 Besides, the container can also directly be used by adding the nerfstudio command to the end.
 ```bash
 docker run --gpus all -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ -p 7007:7007 --rm -it # Parameters.
-            nerfstudio \                                        # Docker image name
+            dromni/nerfstudio:<tag> \                           # Docker image name
             ns-process-data video --data /workspace/video.mp4   # Smaple command of nerfstudio.
 ```
 ### Note
@@ -125,10 +127,10 @@ docker run --gpus all -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.
 - Always use full paths, relative paths are known to create issues when being used in mounts into docker.
 - Everything inside the container, what is not in a mounted folder (workspace in the above example), will be permanently removed after destroying the container. Always do all your tasks and output folder in workdir!
 - The user inside the container is called 'user' and is mapped to the local user with ID 1000 (usually the first non-root user on Linux systems).
-- The container currently is based on nvidia/cuda:11.7.1-devel-ubuntu22.04, consequently it comes with CUDA 11.7 which must be supported by the nvidia driver. No local CUDA installation is required or will be affected by using the docker image.
+- The container currently is based on nvidia/cuda:11.8.0-devel-ubuntu22.04, consequently it comes with CUDA 11.8 which must be supported by the nvidia driver. No local CUDA installation is required or will be affected by using the docker image.
 - The docker image (respectively Ubuntu 22.04) comes with Python3.10, no older version of Python is installed.
 - If you call the container with commands directly, you still might want to add the interactive terminal ('-it') flag to get live log outputs of the nerfstudio scripts. In case the container is used in an automated environment the flag should be discarded.
-- The current version of docker is built for multi-architecture (CUDA architectures) use. The target architecture must be defined at build time for tinyCUDNN to be able to compile properly. If your GPU architecture is not covered by the following table you need to replace the number in the line ```ENV TCNN_CUDA_ARCHITECTURES=90;89;86;80;75;70;61;52;37``` to you specific architecture. It also is a good idea to remove all architectures but yours (e.g. ```ENV TCNN_CUDA_ARCHITECTURES=86```) to speedup the docker build a lot.
+- The current version of docker is built for multi-architecture (CUDA architectures) use. The target architecture(s) must be defined at build time for Colmap and tinyCUDNN to be able to compile properly. If your GPU architecture is not covered by the following table you need to replace the number in the line ```ARG CUDA_ARCHITECTURES=90;89;86;80;75;70;61;52;37``` to your specific architecture. It also is a good idea to remove all architectures but yours (e.g. ```ARG CUDA_ARCHITECTURES=86```) to speedup the docker build process a lot.
 
 **Currently supported CUDA architectures in the docker image**
 
