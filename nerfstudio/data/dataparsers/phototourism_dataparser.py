@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Type
 
 import numpy as np
+import pycolmap
 import torch
 from rich.progress import Console
 from typing_extensions import Literal
@@ -33,7 +34,6 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataparserOutputs,
 )
 from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.data.utils.colmap_utils import read_cameras_binary, read_images_binary
 
 CONSOLE = Console(width=120)
 
@@ -76,13 +76,13 @@ class Phototourism(DataParser):
 
     # pylint: disable=too-many-statements
     def _generate_dataparser_outputs(self, split="train"):
-
         image_filenames = []
         poses = []
 
         with CONSOLE.status(f"[bold green]Reading phototourism images and poses for {split} split...") as _:
-            cams = read_cameras_binary(self.data / "dense/sparse/cameras.bin")
-            imgs = read_images_binary(self.data / "dense/sparse/images.bin")
+            recon = pycolmap.Reconstruction(self.data / "dense" / "sparse")
+            cams = recon.cameras
+            imgs = recon.images
 
         poses = []
         fxs = []
