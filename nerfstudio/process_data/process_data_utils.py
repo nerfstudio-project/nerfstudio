@@ -249,7 +249,7 @@ def copy_images(data: Path, image_dir: Path, verbose) -> OrderedDict[Path, Path]
         image_dir: Path to the output directory.
         verbose: If True, print extra logging.
     Returns:
-        The number of images copied.
+        The mapping from the original filenames to the new ones.
     """
     with status(msg="[bold yellow]Copying images...", spinner="bouncingBall", verbose=verbose):
         image_paths = list_images(data)
