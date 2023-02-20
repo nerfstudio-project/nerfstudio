@@ -117,4 +117,4 @@ def compute_resolution_from_equirect(image_dir: Path, num_images: int) -> Tuple[
             im = np.array(cv2.imread(os.path.join(image_dir, i)))
             res_squared = (im.shape[0] * im.shape[1]) / num_images
             return (int(np.sqrt(res_squared)), int(np.sqrt(res_squared)))
-    return (1200, 1200)
+    raise ValueError("No images found in the directory.")
