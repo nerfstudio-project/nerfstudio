@@ -237,7 +237,7 @@ class VanillaPipeline(Pipeline):
             num_train_data=len(self.datamanager.train_dataset),
             metadata=self.datamanager.train_dataset.metadata,
             device=device,
-            grad_scaler=grad_scaler
+            grad_scaler=grad_scaler,
         )
         self.model.to(device)
 

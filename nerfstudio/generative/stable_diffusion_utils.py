@@ -16,6 +16,7 @@
 Stable diffusion utils
 """
 
+
 def get_text_embedding(batch, prompting_type, text_embeddings, sd_device):
     """"""
 
@@ -51,7 +52,7 @@ def get_text_embedding(batch, prompting_type, text_embeddings, sd_device):
             text_embedding = (horiz - 180) * side + (270 - horiz) * back
         else:  # batch["central"] > 270 and batch["central"] <= 360:
             text_embedding = (horiz - 270) * front + (360 - horiz) * side
-            
+
         text_embedding = text_embedding / 90.0
         text_embedding = (vert * text_embedding + (90 - vert) * top) / 90.0
 

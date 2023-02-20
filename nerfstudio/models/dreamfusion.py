@@ -19,12 +19,12 @@ DreamFusion implementation.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Type, Optional
+from typing import Dict, List, Optional, Tuple, Type
 
 import numpy as np
 import torch
-from torch.nn import Parameter
 from torch.cuda.amp.grad_scaler import GradScaler
+from torch.nn import Parameter
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.engine.callbacks import (
@@ -32,11 +32,11 @@ from nerfstudio.engine.callbacks import (
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
-from nerfstudio.generative.stable_diffusion import StableDiffusion
-from nerfstudio.generative.stable_diffusion_utils import get_text_embedding
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.dreamfusion_field import DreamFusionField
+from nerfstudio.generative.stable_diffusion import StableDiffusion
+from nerfstudio.generative.stable_diffusion_utils import get_text_embedding
 from nerfstudio.model_components.losses import (
     MSELoss,
     distortion_loss,
@@ -149,7 +149,8 @@ class DreamFusionModelConfig(ModelConfig):
     """guidance scale for sds loss"""
     stablediffusion_device: Optional[str] = None
     """device for stable diffusion"""
-    sd_version: str = '1-5' 
+    sd_version: str = "1-5"
+
 
 class DreamFusionModel(Model):
     """DreamFusionModel Model
@@ -174,17 +175,17 @@ class DreamFusionModel(Model):
         self.random_background = config.random_background
         self.density_strength = 1.0
         self.target_transmittance = config.target_transmittance_start
-        self.grad_scaler = kwargs['grad_scaler']
+        self.grad_scaler = kwargs["grad_scaler"]
 
         self.prompting_type = config.prompting_type
         self.guidance_scale = config.guidance_scale
         self.top_prompt = config.top_prompt
         self.side_prompt = config.side_prompt
-        self.back_prompt = config.back_prompt 
+        self.back_prompt = config.back_prompt
         self.front_prompt = config.front_prompt
 
         self.sd_device = (
-            torch.device(kwargs['device'])
+            torch.device(kwargs["device"])
             if config.stablediffusion_device is None
             else torch.device(config.stablediffusion_device)
         )
@@ -201,7 +202,7 @@ class DreamFusionModel(Model):
             "front_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.front_prompt}", ""),
             "side_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.side_prompt}", ""),
             "back_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.back_prompt}", ""),
-            "base_text_embedding": self.sd.get_text_embeds(self.cur_prompt, "")
+            "base_text_embedding": self.sd.get_text_embeds(self.cur_prompt, ""),
         }
 
         # setting up fields
@@ -468,13 +469,14 @@ class DreamFusionModel(Model):
                 "front_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.front_prompt}", ""),
                 "side_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.side_prompt}", ""),
                 "back_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.back_prompt}", ""),
-                "base_text_embedding": self.sd.get_text_embeds(self.cur_prompt, "")
+                "base_text_embedding": self.sd.get_text_embeds(self.cur_prompt, ""),
             }
-        
+
         text_embedding = get_text_embedding(batch, self.prompting_type, self.text_embeddings, self.sd_device)
-            
+
         train_output = (
-            outputs["train_output"].view(1, int(outputs["train_output"].shape[0] ** 0.5), int(outputs["train_output"].shape[0] ** 0.5), 3)
+            outputs["train_output"]
+            .view(1, int(outputs["train_output"].shape[0] ** 0.5), int(outputs["train_output"].shape[0] ** 0.5), 3)
             .permute(0, 3, 1, 2)
         )
 

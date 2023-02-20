@@ -49,10 +49,11 @@ logging.set_verbosity_error()
 IMG_DIM = 512
 CONST_SCALE = 0.18215
 SD_IDENTIFIERS = {
-    '1-5':'runwayml/stable-diffusion-v1-5',
-    '2-0':'stabilityai/stable-diffusion-2-base',
-    '2-1':'stabilityai/stable-diffusion-2-1-base'
+    "1-5": "runwayml/stable-diffusion-v1-5",
+    "2-0": "stabilityai/stable-diffusion-2-base",
+    "2-1": "stabilityai/stable-diffusion-2-1-base",
 }
+
 
 @dataclass
 class UNet2DConditionOutput:
@@ -88,7 +89,7 @@ class StableDiffusion(nn.Module):
         num_train_timesteps: number of training timesteps
     """
 
-    def __init__(self, device: Union[torch.device, str], num_train_timesteps: int = 1000, version='1-5') -> None:
+    def __init__(self, device: Union[torch.device, str], num_train_timesteps: int = 1000, version="1-5") -> None:
         super().__init__()
 
         self.device = device
@@ -113,8 +114,8 @@ class StableDiffusion(nn.Module):
         pipe.enable_attention_slicing()
 
         # use jitted unet
-        filename_sd_id = sd_id.split('/')[-1]
-        unet_traced_filename = Path(appdirs.user_data_dir("nerfstudio")) / f'{filename_sd_id}_unet_traced.pt'
+        filename_sd_id = sd_id.split("/")[-1]
+        unet_traced_filename = Path(appdirs.user_data_dir("nerfstudio")) / f"{filename_sd_id}_unet_traced.pt"
         if unet_traced_filename.exists():
             CONSOLE.print("Loading traced UNet.")
             unet_traced = torch.jit.load(unet_traced_filename)
