@@ -194,15 +194,6 @@ def colmap_to_json(
     cam_id_to_camera = recon.cameras
     im_id_to_image = recon.images
 
-    ## Try to generate depth file names that match up with input image filenames
-    # Images were renamed to frame_{i:05d}.{ext} and
-    # the filenames needs to be replaced in the transforms.json as well
-    original_filenames = [x.name for x in im_id_to_image.values()]
-    # Sort was used in nerfstudio.process_data.process_data_utils:get_image_filenames
-    original_filenames.sort()
-    # Build the map to the new filenames
-    filename_map = {name: f"frame_{i+1:05d}{os.path.splitext(name)[-1]}" for i, name in enumerate(original_filenames)}
-
     # Only support first camera
     CAMERA_ID = 1
     camera_params = cam_id_to_camera[CAMERA_ID].params
@@ -223,8 +214,7 @@ def colmap_to_json(
         c2w = c2w[np.array([1, 0, 2, 3]), :]
         c2w[2, :] *= -1
 
-        name = filename_map[im_data.name]
-        name = Path(f"./images/{name}")
+        name = Path(f"./images/{im_data.name}")
 
         frame = {
             "file_path": name.as_posix(),
@@ -322,16 +312,8 @@ def create_sfm_depth(
 
     # Only support first camera
     CAMERA_ID = 1
-    w = cam_id_to_camera[CAMERA_ID].width
-    h = cam_id_to_camera[CAMERA_ID].height
-
-    # Images were renamed to frame_{i:05d}.{ext} and
-    # the filenames needs to be replaced in the transforms.json as well
-    original_filenames = [x.name for x in im_id_to_image.values()]
-    # Sort was used in nerfstudio.process_data.process_data_utils:get_image_filenames
-    original_filenames.sort()
-    # Build the map to the new filenames
-    filename_map = {name: f"frame_{i+1:05d}{os.path.splitext(name)[-1]}" for i, name in enumerate(original_filenames)}
+    W = cam_id_to_camera[CAMERA_ID].width
+    H = cam_id_to_camera[CAMERA_ID].height
 
     if verbose:
         iter_images = track(
@@ -365,22 +347,22 @@ def create_sfm_depth(
             & (errors <= max_repoj_err)
             & (n_visible >= min_n_visible)
             & (uv[:, 0] >= 0)
-            & (uv[:, 0] < w)
+            & (uv[:, 0] < W)
             & (uv[:, 1] >= 0)
-            & (uv[:, 1] < h)
+            & (uv[:, 1] < H)
         )
         z = z[idx]
         uv = uv[idx]
 
         uu, vv = uv[:, 0].astype(int), uv[:, 1].astype(int)
-        depth = np.zeros((h, w), dtype=np.float32)
+        depth = np.zeros((H, W), dtype=np.float32)
         depth[vv, uu] = z
 
         # E.g. if `depth` is metric and in units of meters, and `depth_scale_to_integer_factor`
         # is 1000, then `depth_img` will be integer millimeters.
         depth_img = (depth_scale_to_integer_factor * depth).astype(np.uint16)
 
-        out_name = filename_map[im_data.name]
+        out_name = str(im_data.name)
         depth_path = output_dir / out_name
         cv2.imwrite(str(depth_path), depth_img)
 
