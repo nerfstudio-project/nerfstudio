@@ -70,7 +70,8 @@ class DepthNerfactoModel(NerfactoModel):
 
     def get_outputs(self, ray_bundle: RayBundle):
         outputs = super().get_outputs(ray_bundle)
-        outputs["directions_norm"] = ray_bundle.metadata["directions_norm"]
+        if ray_bundle.metadata is not None and "directions_norm" in ray_bundle.metadata:
+            outputs["directions_norm"] = ray_bundle.metadata["directions_norm"]
         return outputs
 
     def get_metrics_dict(self, outputs, batch):
