@@ -24,7 +24,7 @@ from typing import List, Optional, Tuple
 import cv2
 import numpy as np
 from rich.console import Console
-from typing_extensions import Literal
+from typing_extensions import Literal, OrderedDict
 
 from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command
@@ -241,7 +241,7 @@ def copy_and_upscale_polycam_depth_maps_list(
     return copied_depth_map_paths
 
 
-def copy_images(data: Path, image_dir: Path, verbose) -> int:
+def copy_images(data: Path, image_dir: Path, verbose) -> OrderedDict[Path, Path]:
     """Copy images from a directory to a new directory.
 
     Args:
@@ -258,9 +258,8 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
             CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
             sys.exit(1)
 
-        num_frames = len(copy_images_list(image_paths, image_dir, verbose))
-
-    return num_frames
+        copied_images = copy_images_list(image_paths, image_dir, verbose)
+        return OrderedDict((original_path, new_path) for original_path, new_path in zip(image_paths, copied_images))
 
 
 def downscale_images(image_dir: Path, num_downscales: int, folder_name: str = "images", verbose: bool = False) -> str:
