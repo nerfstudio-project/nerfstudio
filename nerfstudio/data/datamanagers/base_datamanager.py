@@ -287,11 +287,8 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """The scale factor for scaling spatial data such as images, mask, semantics
     along with relevant information about camera intrinsics
     """
-    pixel_sampling: Literal["uniform", "patch"] = "uniform"
-    """How pixels are sampling in space. If uniform, pixels are evenly sampled between pixels
-    """
-    pixel_patch_size: int = -1
-    """Size of patch to sample from. Only used if using patch-based pixel sampling."""
+    patch_size: int = 1
+    """Size of patch to sample from. If >1, patch-based sampling will be used."""
 
 
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
@@ -355,19 +352,16 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self, dataset: InputDataset, *args: Any, **kwargs: Any
     ) -> PixelSampler:
         """Infer pixel sampler to use."""
-        if self.config.pixel_sampling == "uniform":
-            # If all images are equirectangular, use equirectangular pixel sampler
-            is_equirectangular = dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
-            if is_equirectangular.all():
-                return EquirectangularPixelSampler(*args, **kwargs)
-            # Otherwise, use the default pixel sampler
-            if is_equirectangular.any():
-                CONSOLE.print(
-                    "[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler."
-                )
-            return PixelSampler(*args, **kwargs)
-        if self.config.pixel_sampling == "patch":
-            return PatchPixelSampler(*args, **kwargs, patch_size=self.config.pixel_patch_size)
+        if self.config.patch_size > 1:
+            return PatchPixelSampler(*args, **kwargs, patch_size=self.config.patch_size)
+
+        # If all images are equirectangular, use equirectangular pixel sampler
+        is_equirectangular = dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
+        if is_equirectangular.all():
+            return EquirectangularPixelSampler(*args, **kwargs)
+        # Otherwise, use the default pixel sampler
+        if is_equirectangular.any():
+            CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
         return PixelSampler(*args, **kwargs)
 
     def setup_train(self):
