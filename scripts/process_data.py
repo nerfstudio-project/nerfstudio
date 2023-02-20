@@ -3,6 +3,7 @@
 
 
 import json
+import shutil
 import sys
 import zipfile
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ from typing_extensions import Annotated, Literal
 
 from nerfstudio.process_data import (
     colmap_utils,
+    equirect_utils,
     hloc_utils,
     insta360_utils,
     metashape_utils,
@@ -45,7 +47,7 @@ class ProcessImages:
     """Path the data, either a video file or a directory of images."""
     output_dir: Path
     """Path to the output directory."""
-    camera_type: Literal["perspective", "fisheye"] = "perspective"
+    camera_type: Literal["perspective", "fisheye", "equirectangular"] = "perspective"
     """Camera model to use."""
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and
@@ -83,6 +85,10 @@ class ProcessImages:
     """
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
+    images_per_equirect: Literal[8, 14] = 8
+    """Number of samples per image to take from each equirectangular image.
+       Used only when camera-type is equirectangular.
+    """
     gpu: bool = True
     """If True, use GPU."""
     verbose: bool = False
@@ -109,6 +115,14 @@ class ProcessImages:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate planar projections if equirectangular
+        if self.camera_type == "equirectangular":
+            pers_size = equirect_utils.compute_resolution_from_equirect(self.data, self.images_per_equirect)
+            CONSOLE.log(f"Generating {self.images_per_equirect} {pers_size} sized images per equirectangular image")
+            self.data = equirect_utils.generate_planar_projections_from_equirectangular(
+                self.data, pers_size, self.images_per_equirect
+            )
 
         summary_log = []
 
@@ -208,7 +222,7 @@ class ProcessVideo:
     """Path to the output directory."""
     num_frames_target: int = 300
     """Target number of frames to use for the dataset, results may not be exact."""
-    camera_type: Literal["perspective", "fisheye"] = "perspective"
+    camera_type: Literal["perspective", "fisheye", "equirectangular"] = "perspective"
     """Camera model to use."""
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and
@@ -240,6 +254,10 @@ class ProcessVideo:
     """If True, skips COLMAP and generates transforms.json if possible."""
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
+    images_per_equirect: Literal[8, 14] = 8
+    """Number of samples per image to take from each equirectangular image.
+       Used only when camera-type is equirectangular.
+    """
     percent_radius_crop: float = 1.0
     """Create circle crop mask. The radius is the percent of the image diagonal."""
     percent_crop: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
@@ -260,9 +278,37 @@ class ProcessVideo:
 
         summary_log = []
         # Convert video to images
-        summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
-            self.data, image_dir=image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
-        )
+        if self.camera_type == "equirectangular":
+            # create temp images folder to store the equirect and perspective images
+            temp_image_dir = self.output_dir / "temp_images"
+            temp_image_dir.mkdir(parents=True, exist_ok=True)
+            summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
+                self.data, image_dir=temp_image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
+            )
+        else:
+            summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
+                self.data, image_dir=image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
+            )
+
+        # Generate planar projections if equirectangular
+        if self.camera_type == "equirectangular":
+            perspective_image_size = equirect_utils.compute_resolution_from_equirect(
+                self.output_dir / "temp_images", self.images_per_equirect
+            )
+            image_dir = equirect_utils.generate_planar_projections_from_equirectangular(
+                self.output_dir / "temp_images", perspective_image_size, self.images_per_equirect
+            )
+
+            # copy the perspective images to the image directory
+            process_data_utils.copy_images(
+                self.output_dir / "temp_images" / "planar_projections",
+                image_dir=self.output_dir / "images",
+                verbose=False,
+            )
+            image_dir = self.output_dir / "images"
+
+            # remove the temp_images folder
+            shutil.rmtree(self.output_dir / "temp_images", ignore_errors=True)
 
         # Create mask
         mask_path = process_data_utils.save_mask(
