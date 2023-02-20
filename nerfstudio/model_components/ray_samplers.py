@@ -393,7 +393,6 @@ class VolumetricSampler(Sampler):
         self.occupancy_grid = occupancy_grid
         if self.scene_aabb is not None:
             self.scene_aabb = self.scene_aabb.to("cuda").flatten()
-        print(self.scene_aabb)
 
     def get_sigma_fn(self, origins, directions) -> Optional[Callable]:
         """Returns a function that returns the density of a point.
