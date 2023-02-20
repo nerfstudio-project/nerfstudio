@@ -3,6 +3,7 @@
 
 
 import json
+import shutil
 import sys
 import zipfile
 from dataclasses import dataclass
@@ -277,18 +278,37 @@ class ProcessVideo:
 
         summary_log = []
         # Convert video to images
-        summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
-            self.data, image_dir=image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
-        )
+        if self.camera_type == "equirectangular":
+            # create temp images folder to store the equirect and perspective images
+            temp_image_dir = self.output_dir / "temp_images"
+            temp_image_dir.mkdir(parents=True, exist_ok=True)
+            summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
+                self.data, image_dir=temp_image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
+            )
+        else:
+            summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
+                self.data, image_dir=image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
+            )
 
         # Generate planar projections if equirectangular
         if self.camera_type == "equirectangular":
             perspective_image_size = equirect_utils.compute_resolution_from_equirect(
-                image_dir, self.images_per_equirect
+                self.output_dir / "temp_images", self.images_per_equirect
             )
             image_dir = equirect_utils.generate_planar_projections_from_equirectangular(
-                image_dir, perspective_image_size, self.images_per_equirect
+                self.output_dir / "temp_images", perspective_image_size, self.images_per_equirect
             )
+
+            # copy the perspective images to the image directory
+            process_data_utils.copy_images(
+                self.output_dir / "temp_images" / "planar_projections",
+                image_dir=self.output_dir / "images",
+                verbose=False,
+            )
+            image_dir = self.output_dir / "images"
+
+            # remove the temp_images folder
+            shutil.rmtree(self.output_dir / "temp_images", ignore_errors=True)
 
         # Create mask
         mask_path = process_data_utils.save_mask(
