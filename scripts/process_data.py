@@ -96,6 +96,7 @@ class ProcessImages:
 
     def main(self) -> None:
         """Process images into a nerfstudio dataset."""
+        # pylint: disable=too-many-statements
         require_cameras_exist = False
         colmap_model_path = self.output_dir / Path(self.colmap_model_path)
         if self.colmap_model_path != DEFAULT_COLMAP_PATH:
