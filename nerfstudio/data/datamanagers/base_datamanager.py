@@ -287,7 +287,7 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """The scale factor for scaling spatial data such as images, mask, semantics
     along with relevant information about camera intrinsics
     """
-    pixel_sampling: str = "uniform"
+    pixel_sampling: Literal["uniform", "patch"] = "uniform"
     """How pixels are sampling in space. If uniform, pixels are evenly sampled between pixels
     """
     pixel_patch_size: int = -1
