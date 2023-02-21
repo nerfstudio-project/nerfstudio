@@ -216,7 +216,7 @@ method_configs["semantic-nerfw"] = TrainerConfig(
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=SemanticDataManagerConfig(
-            dataparser=ReplicaDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
+            dataparser=FriendsDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
         ),
         model=SemanticNerfWModelConfig(eval_num_rays_per_chunk=1 << 15),
     ),
