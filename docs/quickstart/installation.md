@@ -1,12 +1,35 @@
 # Installation
 
 ## Prerequisites
+::::::{tab-set}
+:::::{tab-item} Linux
 
-Git comes pre-installed on many systems, but if you do not have it, download and install it [here](https://git-scm.com/downloads).
+Install CUDA. This library has been tested with version 11.3. You can find CUDA download links [here](https://developer.nvidia.com/cuda-toolkit-archive) and more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html).
 
-If using Windows, install Visual Studio. This must be done before installing CUDA. For CUDA 11.3, install Visual Studio 2019 ver 16.9 (the latest, 16.11, may cause errors when installing tiny-cuda-nn). For CUDA 11.6 or higher, install Visual Studio 2022. Windows installation has only been tested with CUDA 11.3. The necessary components are included in the `Desktop Development with C++` workflow (also called `C++ Build Tools` in the BuildTools edition). You can find older versions of Visual Studio 2019 [here](https://learn.microsoft.com/en-us/visualstudio/releases/2019/history#release-dates-and-build-numbers).
+:::::
+:::::{tab-item} Windows
+Install [Git](https://git-scm.com/downloads).
 
-Install CUDA. This library has been tested with version 11.3 and 11.7.1. You can find CUDA download links [here](https://developer.nvidia.com/cuda-toolkit-archive) and more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html).
+Install CUDA. This library and the Windows installation process has been tested with version 11.3.
+
+::::{tab-set}
+:::{tab-item} 11.3 with Visual Studio 2019 v16.9
+
+Install Visual Studio 2019 ver 16.9. This must be done before installing CUDA. The necessary components are included in the `Desktop Development with C++` workflow (also called `C++ Build Tools` in the BuildTools edition). You can find older versions of Visual Studio 2019 [here](https://learn.microsoft.com/en-us/visualstudio/releases/2019/history#release-dates-and-build-numbers). The latest version, 16.11, may cause errors when installing tiny-cuda-nn.
+
+Install CUDA 11.3. You can find CUDA download links [here](https://developer.nvidia.com/cuda-toolkit-archive) and more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html).
+
+:::
+:::{tab-item} 11.7 with Visual Studio 2022
+
+Install Visual Studio 2022. This must be done before installing CUDA. The necessary components are included in the `Desktop Development with C++` workflow (also called `C++ Build Tools` in the BuildTools edition).
+
+Install CUDA 11.7. You can find CUDA download links [here](https://developer.nvidia.com/cuda-toolkit-archive) and more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html).
+
+:::
+::::
+:::::
+::::::
 
 ## Create environment
 
@@ -24,13 +47,17 @@ python -m pip install --upgrade pip
 (pytorch)=
 ### pytorch
 
-Either pytorch 1.12.1 (with CUDA up to 11.3) or 1.13.1 (with CUDA 11.6/7/8) can be used.
+::::{tab-set}
+:::{tab-item} Torch 1.12.1 with CUDA 11.3
 
 - To install 1.12.1 with CUDA 11.3:
 
 ```bash
 pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 ```
+
+:::
+:::{tab-item} Torch 1.13.1 with CUDA 11.7
 
 - To install 1.13.1 with CUDA 11.7:
 
@@ -46,6 +73,9 @@ Install pytorch 1.13.1 with CUDA and [tiny-cuda-nn](https://github.com/NVlabs/ti
 ```bash
 pip install torch torchvision functorch --extra-index-url https://download.pytorch.org/whl/cu117
 ```
+
+:::
+::::
 
 ### tinycudann
 
@@ -181,7 +211,12 @@ While installing tiny-cuda on Windows, you run into: `No CUDA toolset found.`
 
 Confirm that you have Visual Studio installed (CUDA 11.3 is only compatible up to 2019 ver 16.9, not 16.11 or 2022).
 
-Make sure CUDA Visual Studio integration is enabled. This should be done automatically by the CUDA installer if it is run after Visual Studio is installed. To manually enable integration for Visual Studio, copy all 4 files from
+Make sure CUDA Visual Studio integration is enabled. This should be done automatically by the CUDA installer if it is run after Visual Studio is installed. You can also manually enable integration.
+
+::::{tab-set}
+:::{tab-item} Visual Studio 2019
+
+To manually enable integration for Visual Studio 2019, copy all 4 files from
 
 ```
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.3\extras\visual_studio_integration\MSBuildExtensions
@@ -192,6 +227,24 @@ to
 ```
 C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Microsoft\VC\v160\BuildCustomizations
 ```
+
+:::
+:::{tab-item} Visual Studio 2022
+
+To manually enable integration for Visual Studio 2022, copy all 4 files from
+
+```
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.7\extras\visual_studio_integration\MSBuildExtensions
+```
+
+to
+
+```
+C:\Program Files\Microsoft Visual Studio\2022\[Community, Professional, Enterprise, or BuildTools]\MSBuild\Microsoft\VC\v160\BuildCustomizations
+```
+
+:::
+::::
 
  <br />
 
