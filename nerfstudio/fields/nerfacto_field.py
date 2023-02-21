@@ -24,7 +24,6 @@ import torch
 from torch import nn
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
-from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox

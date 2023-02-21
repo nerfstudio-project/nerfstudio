@@ -19,7 +19,7 @@ Semantic NeRF-W implementation which should be fast enough to view in the viewer
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Dict, List, Tuple, Type
 
 import numpy as np
 import torch
