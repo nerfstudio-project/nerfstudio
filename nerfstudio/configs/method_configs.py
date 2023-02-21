@@ -243,7 +243,7 @@ method_configs["depth-semantic-nerf"] = TrainerConfig(
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=SemanticDataManagerConfig(
-            dataparser=ReplicaDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
+            dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
         ),
         model=DepthSemanticNerfModelConfig(eval_num_rays_per_chunk=1 << 15),
     ),

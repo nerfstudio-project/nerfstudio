@@ -32,6 +32,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
     DataParserConfig,
     DataparserOutputs,
+    Semantics,
 )
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
@@ -64,6 +65,7 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The percent of images to use for training. The remaining images are for eval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
+    include_semantics: bool = True
 
 
 @dataclass
@@ -86,6 +88,7 @@ class Nerfstudio(DataParser):
         image_filenames = []
         mask_filenames = []
         depth_filenames = []
+        semantic_filenames = []
         poses = []
         num_skipped_image_filenames = 0
 
@@ -161,6 +164,11 @@ class Nerfstudio(DataParser):
                 depth_fname = self._get_fname(depth_filepath, data_dir, downsample_folder_prefix="depths_")
                 depth_filenames.append(depth_fname)
 
+            if "semantic_file_path" in frame:
+                semantic_filepath = PurePath(frame["semantic_file_path"])
+                semantic_fname = self._get_fname(semantic_filepath, data_dir, downsample_folder_prefix="depths_")
+                semantic_filenames.append(semantic_fname)
+
         if num_skipped_image_filenames >= 0:
             CONSOLE.log(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
         assert (
@@ -224,6 +232,7 @@ class Nerfstudio(DataParser):
         image_filenames = [image_filenames[i] for i in indices]
         mask_filenames = [mask_filenames[i] for i in indices] if len(mask_filenames) > 0 else []
         depth_filenames = [depth_filenames[i] for i in indices] if len(depth_filenames) > 0 else []
+        semantic_filenames = [semantic_filenames[i] for i in indices] if len(depth_filenames) > 0 else []
         poses = poses[indices]
 
         # in x,y,z order
@@ -274,6 +283,12 @@ class Nerfstudio(DataParser):
         assert self.downscale_factor is not None
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
 
+        if self.config.include_semantics:
+            panoptic_classes = load_from_json(self.config.data / "panoptic_classes.json")
+            classes = panoptic_classes["thing"]
+            colors = torch.tensor(panoptic_classes["thing_colors"], dtype=torch.float32) / 255.0
+            semantics = Semantics(filenames=semantic_filenames, classes=classes, colors=colors, mask_classes=["void"])
+
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
@@ -282,6 +297,7 @@ class Nerfstudio(DataParser):
             dataparser_scale=scale_factor,
             dataparser_transform=transform_matrix,
             metadata={
+                "semantics": semantics if self.config.include_semantics else {},
                 "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
             },

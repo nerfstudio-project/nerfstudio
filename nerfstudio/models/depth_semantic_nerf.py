@@ -51,7 +51,7 @@ class DepthSemanticNerfModelConfig(NerfactoModelConfig):
     """Nerfacto Model Config"""
 
     _target: Type = field(default_factory=lambda: DepthSemanticNerfModel)
-    depth_loss_mult: float = 1e-3
+    depth_loss_mult: float = 0.1
     """Lambda of the depth loss."""
     is_euclidean_depth: bool = False
     """Whether input depth maps are Euclidean distances (or z-distances)."""
@@ -247,16 +247,19 @@ class DepthSemanticNerfModel(Model):
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = {}
         image = batch["image"].to(self.device)
-
-        loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
-            outputs["weights_list"], outputs["ray_samples_list"]
-        )
-        assert metrics_dict is not None and "distortion" in metrics_dict
-        loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
-
         loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
         loss_dict["semantics_loss"] = self.cross_entropy_loss(outputs["semantics"], batch["semantics"][..., 0].long())
-        loss_dict["depth_loss"] = self.config.depth_loss_mult * metrics_dict["depth_loss"]
+
+        if self.training:
+            loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
+                outputs["weights_list"], outputs["ray_samples_list"]
+            )
+            assert metrics_dict is not None and "distortion" in metrics_dict
+            loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
+            loss_dict["semantics_loss"] = self.cross_entropy_loss(
+                outputs["semantics"], batch["semantics"][..., 0].long()
+            )
+            loss_dict["depth_loss"] = self.config.depth_loss_mult * metrics_dict["depth_loss"]
         return loss_dict
 
     def get_image_metrics_and_images(
