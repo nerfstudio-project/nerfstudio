@@ -19,7 +19,7 @@ Semantic NeRF-W implementation which should be fast enough to view in the viewer
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Tuple, Type, Optional
 
 import numpy as np
 import torch
@@ -60,6 +60,8 @@ class SemanticNerfWModelConfig(NerfactoModelConfig):
 
     _target: Type = field(default_factory=lambda: SemanticNerfWModel)
     use_transient_embedding: bool = False
+    semantic_loss_weight: float = 0.01
+    pass_semantic_gradients: bool = True
     """Whether to use transient embedding."""
 
 
@@ -99,6 +101,7 @@ class SemanticNerfWModel(Model):
             use_transient_embedding=self.config.use_transient_embedding,
             use_semantics=True,
             num_semantic_classes=len(self.semantics.classes),
+            pass_semantic_gradients=self.config.pass_semantic_gradients,
         )
 
         # Build the proposal network(s)
@@ -208,8 +211,11 @@ class SemanticNerfWModel(Model):
             outputs["density_transient"] = field_outputs[FieldHeadNames.TRANSIENT_DENSITY]
 
         # semantics
+        semantic_weights = weights_static
+        if not self.config.pass_semantic_gradients:
+            semantic_weights = semantic_weights.detach()
         outputs["semantics"] = self.renderer_semantics(
-            field_outputs[FieldHeadNames.SEMANTICS], weights=weights_static.detach()
+            field_outputs[FieldHeadNames.SEMANTICS], weights=semantic_weights
         )
 
         # semantics colormaps
@@ -244,7 +250,7 @@ class SemanticNerfWModel(Model):
             loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
 
         # semantic loss
-        loss_dict["semantics_loss"] = self.cross_entropy_loss(outputs["semantics"], batch["semantics"][..., 0].long())
+        loss_dict["semantics_loss"] = self.config.semantic_loss_weight * self.cross_entropy_loss(outputs["semantics"], batch["semantics"][..., 0].long())
         return loss_dict
 
     def get_image_metrics_and_images(
