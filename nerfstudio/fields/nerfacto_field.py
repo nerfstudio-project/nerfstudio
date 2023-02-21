@@ -18,13 +18,13 @@ Field for compound nerf model, adds scene contraction and image embeddings to in
 
 
 from typing import Dict, Optional, Tuple
-from typing_extensions import Literal
 
 import numpy as np
 import torch
 from torch import nn
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
+from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
@@ -297,7 +297,7 @@ class TCNNNerfactoField(Field):
             semantics_input = density_embedding.view(-1, self.geo_feat_dim)
             if not self.pass_semantic_gradients:
                 semantics_input = semantics_input.detach()
-            
+
             x = self.mlp_semantics(semantics_input).view(*outputs_shape, -1).to(directions)
             outputs[FieldHeadNames.SEMANTICS] = self.field_head_semantics(x)
 

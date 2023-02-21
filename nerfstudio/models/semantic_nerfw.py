@@ -19,7 +19,7 @@ Semantic NeRF-W implementation which should be fast enough to view in the viewer
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Type, Optional
+from typing import Dict, List, Optional, Tuple, Type
 
 import numpy as np
 import torch
@@ -250,7 +250,9 @@ class SemanticNerfWModel(Model):
             loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
 
         # semantic loss
-        loss_dict["semantics_loss"] = self.config.semantic_loss_weight * self.cross_entropy_loss(outputs["semantics"], batch["semantics"][..., 0].long())
+        loss_dict["semantics_loss"] = self.config.semantic_loss_weight * self.cross_entropy_loss(
+            outputs["semantics"], batch["semantics"][..., 0].long()
+        )
         return loss_dict
 
     def get_image_metrics_and_images(
