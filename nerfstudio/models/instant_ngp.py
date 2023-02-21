@@ -46,7 +46,7 @@ from nerfstudio.model_components.renderers import (
     RGBRenderer,
 )
 from nerfstudio.models.base_model import Model, ModelConfig
-from nerfstudio.utils import colormaps, colors
+from nerfstudio.utils import colormaps
 
 
 @dataclass
@@ -123,11 +123,7 @@ class NGPModel(Model):
         )
 
         # renderers
-        background_color = "random"
-        if self.config.background_color in ["white", "black"]:
-            background_color = colors.COLORS_DICT[self.config.background_color]
-
-        self.renderer_rgb = RGBRenderer(background_color=background_color)
+        self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer(method="expected")
 

@@ -509,7 +509,16 @@ class VolumetricSampler(Sampler):
 
 
 class ProposalNetworkSampler(Sampler):
-    """Sampler that uses a proposal network to generate samples."""
+    """Sampler that uses a proposal network to generate samples.
+
+    Args:
+        num_proposal_samples_per_ray: Number of samples to generate per ray for each proposal step.
+        num_nerf_samples_per_ray: Number of samples to generate per ray for the NERF model.
+        num_proposal_network_iterations: Number of proposal network iterations to run.
+        single_jitter: Use a same random jitter for all samples along a ray.
+        update_sched: A function that takes the iteration number of steps between updates.
+        initial_sampler: Sampler to use for the first iteration. Uses UniformLinDispPiecewise if not set.
+    """
 
     def __init__(
         self,
@@ -518,6 +527,7 @@ class ProposalNetworkSampler(Sampler):
         num_proposal_network_iterations: int = 2,
         single_jitter: bool = False,
         update_sched: Callable = lambda x: 1,
+        initial_sampler: Optional[Sampler] = None,
     ) -> None:
         super().__init__()
         self.num_proposal_samples_per_ray = num_proposal_samples_per_ray
@@ -528,7 +538,10 @@ class ProposalNetworkSampler(Sampler):
             raise ValueError("num_proposal_network_iterations must be >= 1")
 
         # samplers
-        self.initial_sampler = UniformLinDispPiecewiseSampler(single_jitter=single_jitter)
+        if initial_sampler is None:
+            self.initial_sampler = UniformLinDispPiecewiseSampler(single_jitter=single_jitter)
+        else:
+            self.initial_sampler = initial_sampler
         self.pdf_sampler = PDFSampler(include_original=False, single_jitter=single_jitter)
 
         self._anneal = 1.0

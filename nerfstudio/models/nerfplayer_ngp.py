@@ -42,7 +42,6 @@ from nerfstudio.model_components.renderers import (
 )
 from nerfstudio.models.base_model import Model
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig, NGPModel
-from nerfstudio.utils import colors
 
 
 @dataclass
@@ -128,13 +127,6 @@ class NerfplayerNGPModel(NGPModel):
         )  # need to update the density_fn later during forward (for input time)
 
         # renderers
-        self.train_background_color = self.config.train_background_color
-        self.eval_background_color = self.config.eval_background_color
-        if self.config.train_background_color in ["white", "black"]:
-            self.train_background_color = colors.COLORS_DICT[self.config.train_background_color]
-        if self.config.eval_background_color in ["white", "black"]:
-            self.eval_background_color = colors.COLORS_DICT[self.config.eval_background_color]
-
         self.renderer_rgb = RGBRenderer()  # will update bgcolor later during forward
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer(method="expected")
@@ -175,9 +167,9 @@ class NerfplayerNGPModel(NGPModel):
 
         # update bgcolor in the renderer; usually random color for training and fixed color for inference
         if self.training:
-            self.renderer_rgb.background_color = self.train_background_color
+            self.renderer_rgb.background_color = self.config.train_background_color
         else:
-            self.renderer_rgb.background_color = self.eval_background_color
+            self.renderer_rgb.background_color = self.config.eval_background_color
         rgb = self.renderer_rgb(
             rgb=field_outputs[FieldHeadNames.RGB],
             weights=weights,
