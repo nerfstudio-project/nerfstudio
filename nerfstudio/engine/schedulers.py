@@ -72,6 +72,22 @@ class ExponentialDecaySchedule(lr_scheduler.LambdaLR):
 
         super().__init__(optimizer, lr_lambda=func)
 
+@dataclass
+class WarmupSchedulerConfig(InstantiateConfig):
+    """Basic scheduler config with self-defined warmup decay schedule"""
+
+    _target: Type = field(default_factory=lambda: WarmupScheduler)
+    lr_init:float=1e-8
+    lr_max:float=1e-3
+    lr_final:float=1e-5
+    warmup_steps:int = 1000
+    max_steps:int=10000
+    # TODO: somehow make this more generic. i dont like the idea of overriding the setup function
+    # but also not sure how to go about passing things into predefined torch objects.
+    def setup(self, optimizer=None, **kwargs) -> Any:
+        """Returns the instantiated object using the config."""
+        return self._target(optimizer,self.lr_init, self.lr_max, self.lr_final, self.warmup_steps, self.max_steps)
+
 class WarmupScheduler(lr_scheduler.LambdaLR):
     """Exponential learning rate decay function.
     See https://github.com/google-research/google-research/blob/
@@ -90,8 +106,7 @@ class WarmupScheduler(lr_scheduler.LambdaLR):
                 lr = np.interp(step,[0,warmup_steps],[lr_init,lr_max])
             else:
                 t = np.clip((step-warmup_steps)/max_steps,0,1)
-                lr = np.exp(np.log(lr_init) * (1 - t) + np.log(lr_final) * t)
-            print("Lr",lr)
+                lr = np.exp(np.log(lr_max) * (1 - t) + np.log(lr_final) * t)
             return lr/lr_init#divide by lr_init to make the lr set to "lr"
         super().__init__(optimizer, lr_lambda=func)
 

@@ -17,7 +17,7 @@ Data manager for dreamfusion
 """
 
 from __future__ import annotations
-
+import numpy as np
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Type, Union
 
@@ -167,9 +167,9 @@ class DreamFusionDataManagerConfig(VanillaDataManagerConfig):
     """Mean radius of camera orbit"""
     radius_std: float = 0.1
     """Std of radius of camera orbit"""
-    focal_range: Tuple[float, float] = (0.6, 1.2)
+    focal_range: Tuple[float, float] = (0.6, .1.2)
     """Range of focal length"""
-    vertical_rotation_range: Tuple[float, float] = (-80, 30)
+    vertical_rotation_range: Tuple[float, float] = (-90, 0)
     """Range of vertical rotation"""
     jitter_std: float = 0.05
     """Std of camera direction jitter, so we don't just point the cameras towards the center every time"""
@@ -245,6 +245,7 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
         #     return ray_bundle, {"initialization": False}
 
         # TODO below
+        ang_range = np.interp(step,[0,4000],[0,180])
         cameras, vertical_rotation, central_rotation = random_train_pose(
             self.config.train_images_per_batch,
             self.config.train_resolution,
@@ -255,6 +256,8 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
             vertical_rotation_range=self.config.vertical_rotation_range,
             jitter_std=self.config.jitter_std,
             center=self.config.center,
+            central_rotation_range = (-ang_range,ang_range)
+            
         )
         ray_bundle = cameras.generate_rays(torch.tensor(list(range(self.config.train_images_per_batch)))).flatten()
 

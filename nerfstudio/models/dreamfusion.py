@@ -114,7 +114,7 @@ class DreamFusionModelConfig(ModelConfig):
     """Slope of the annealing function for the proposal weights."""
     proposal_weights_anneal_max_num_iters: int = 500
     """Max num iterations for the annealing function."""
-    use_single_jitter: bool = True
+    use_single_jitter: bool = False
     """Whether use single jitter or not for the proposal networks."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
@@ -126,7 +126,7 @@ class DreamFusionModelConfig(ModelConfig):
     """start training with lambertian shading after this many iterations"""
     opacity_penalty: bool = True
     """enables penalty to encourage sparse weights (penalizing for uniform density along ray)"""
-    opacity_loss_mult: float = 1
+    opacity_loss_mult: float = 1e-3
     """scale for opacity penalty"""
     max_res: int = 256
     """Maximum resolution of the density field."""
@@ -341,8 +341,8 @@ class DreamFusionModel(Model):
 
     def get_outputs(self, ray_bundle: RayBundle):
         # uniform sampling
-        background_rgb = self.field.get_background_rgb(ray_bundle)
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
+        background_rgb = self.field.get_background_rgb(ray_bundle)
         field_outputs = self.field(ray_samples, compute_normals=True)
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
         weights_list.append(weights)
@@ -435,7 +435,7 @@ class DreamFusionModel(Model):
             assert weights.shape[-1] == 1
             if self.config.opacity_penalty:
                 outputs["opacity_loss"] = (
-                    torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01) * self.config.opacity_loss_mult
+                    torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01)
                 )
 
         return outputs
