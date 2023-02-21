@@ -77,8 +77,10 @@ class DreamFusionModelConfig(ModelConfig):
     """Randomizes light source per output."""
     initialize_density: bool = True
     """Initialize density in center of scene."""
-    init_density_strength: float = 0.1
-    """Initial strength of center density"""
+    taper_range: Tuple[int,int] = (0,1000)
+    '''Range of step values for the density tapering'''
+    taper_strength:Tuple[float,float] = (1.0,0.0)
+    """Strength schedule of center density"""
     sphere_collider: bool = True
     """Use spherical collider instead of box"""
     random_background: bool = True
@@ -114,7 +116,7 @@ class DreamFusionModelConfig(ModelConfig):
     """Slope of the annealing function for the proposal weights."""
     proposal_weights_anneal_max_num_iters: int = 500
     """Max num iterations for the annealing function."""
-    use_single_jitter: bool = False
+    use_single_jitter: bool = True
     """Whether use single jitter or not for the proposal networks."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
@@ -234,7 +236,7 @@ class DreamFusionModel(Model):
             single_jitter=self.config.use_single_jitter,
             update_sched=update_schedule,
             initial_sampler=UniformSampler(single_jitter=self.config.use_single_jitter),
-            pdf_histogram_padding=0.001,
+            pdf_histogram_padding=0.005,
         )
 
         # renderers
@@ -264,7 +266,7 @@ class DreamFusionModel(Model):
         def taper_density(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
         ):
-            self.density_strength -= 0.25
+            self.density_strength = np.interp(step,self.config.taper_range,self.config.taper_strength)
 
         def start_training_normals(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
@@ -298,8 +300,8 @@ class DreamFusionModel(Model):
         callbacks = [
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-                iters=(150, 300, 450, 600),
                 func=taper_density,
+                update_every_num_iters=1,
                 args=[self, training_callback_attributes],
             ),
             TrainingCallback(
@@ -352,11 +354,10 @@ class DreamFusionModel(Model):
         if self.initialize_density and self.training:
             pos = ray_samples.frustums.get_positions()
             density_blob = (
-                self.config.init_density_strength
-                * self.density_strength
+                self.density_strength
                 * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
             )
-            density += density_blob
+            density = density + density_blob
 
         accumulation = self.renderer_accumulation(weights)
         depth = self.renderer_depth(weights, ray_samples)

@@ -353,7 +353,7 @@ method_configs["dreamfusion"] = TrainerConfig(
         model=DreamFusionModelConfig(
             eval_num_rays_per_chunk=1 << 15,
             distortion_loss_mult=0.02,
-            interlevel_loss_mult=100,
+            interlevel_loss_mult=100.0,
             orientation_loss_mult=0.1,
             max_res=256,
             sphere_collider=True,
@@ -371,12 +371,12 @@ method_configs["dreamfusion"] = TrainerConfig(
     ),
     optimizers={
         "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=1e-8, eps=1e-15),
-            "scheduler": WarmupSchedulerConfig(lr_init=1e-8,lr_max=1e-3,lr_final=1e-6,warmup_steps=2000,max_steps=10000),
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None#WarmupSchedulerConfig(lr_init=1e-8,lr_max=1e-3,lr_final=1e-6,warmup_steps=2000,max_steps=20000),
         },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-8, eps=1e-15),
-            "scheduler": WarmupSchedulerConfig(lr_init=1e-8,lr_max=1e-3,lr_final=1e-6,warmup_steps=2000,max_steps=10000),
+            "scheduler": WarmupSchedulerConfig(lr_init=1e-8,lr_max=1e-3,lr_final=1e-6,warmup_steps=2000,max_steps=20000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
