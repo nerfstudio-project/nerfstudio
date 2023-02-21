@@ -367,7 +367,7 @@ method_configs["dreamfusion"] = TrainerConfig(
             start_lambertian_training=1000,
             start_normals_training=500,
             opacity_loss_mult=0.001,
-            prompting_type="location_based",
+            positional_prompting="discrete",
             guidance_scale=100,
         ),
     ),

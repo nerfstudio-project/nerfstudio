@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=too-many-lines
+
 """Code to interface with the `vis/` (the JS viewer).
 """
 from __future__ import annotations
@@ -494,7 +496,7 @@ class ViewerState:
 
         prompt = getattr(graph, "prompt", None)
         is_generative = prompt is not None
-        
+
         if is_generative:
             self.vis["model/is_generative"].write(str(is_generative).lower())
 

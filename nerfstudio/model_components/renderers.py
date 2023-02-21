@@ -37,6 +37,7 @@ from torchtyping import TensorType
 from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
+from nerfstudio.utils import colors
 from nerfstudio.utils.math import components_from_spherical_harmonics, safe_normalize
 
 BACKGROUND_COLOR_OVERRIDE: Optional[TensorType[3]] = None
@@ -70,7 +71,7 @@ class RGBRenderer(nn.Module):
         cls,
         rgb: TensorType["bs":..., "num_samples", 3],
         weights: TensorType["bs":..., "num_samples", 1],
-        background_color: Union[Literal["random", "black", "last_sample"], TensorType[3]] = "random",
+        background_color: Union[Literal["random", "white", "black", "last_sample"], TensorType[3]] = "random",
         ray_indices: Optional[TensorType["num_samples"]] = None,
         num_rays: Optional[int] = None,
     ) -> TensorType["bs":..., 3]:
@@ -102,8 +103,8 @@ class RGBRenderer(nn.Module):
             background_color = rgb[..., -1, :]
         if background_color == "random":
             background_color = torch.rand_like(comp_rgb).to(rgb.device)
-        if background_color == "black":
-            background_color = torch.zeros_like(comp_rgb).to(rgb.device)
+        if isinstance(background_color, str) and background_color in colors.COLORS_DICT:
+            background_color = colors.COLORS_DICT[background_color].to(rgb.device)
 
         assert isinstance(background_color, torch.Tensor)
         comp_rgb = comp_rgb + background_color.to(weights.device) * (1.0 - accumulated_weight)
