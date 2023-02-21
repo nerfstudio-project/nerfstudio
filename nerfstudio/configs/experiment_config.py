@@ -69,7 +69,7 @@ class ExperimentConfig(InstantiateConfig):
         }
     )
     """Dictionary of optimizer groups and their schedulers"""
-    vis: Literal["viewer", "wandb", "tensorboard"] = "wandb"
+    vis: Literal["viewer", "wandb", "tensorboard", "wandb+viewer"] = "wandb"
     """Which visualizer to use."""
     data: Optional[Path] = None
     """Alias for --pipeline.datamanager.dataparser.data"""
@@ -78,11 +78,11 @@ class ExperimentConfig(InstantiateConfig):
 
     def is_viewer_enabled(self) -> bool:
         """Checks if a viewer is enabled."""
-        return "viewer" == self.vis
+        return ("viewer" == self.vis) | ("wandb+viewer" == self.vis)
 
     def is_wandb_enabled(self) -> bool:
         """Checks if wandb is enabled."""
-        return "wandb" == self.vis
+        return ("wandb" == self.vis) | ("wandb+viewer" == self.vis)
 
     def is_tensorboard_enabled(self) -> bool:
         """Checks if tensorboard is enabled."""
