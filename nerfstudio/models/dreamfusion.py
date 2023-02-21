@@ -23,8 +23,8 @@ from typing import Dict, List, Optional, Tuple, Type
 
 import numpy as np
 import torch
-from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn import Parameter
+from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.engine.callbacks import (
@@ -36,7 +36,7 @@ from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.dreamfusion_field import DreamFusionField
 from nerfstudio.generative.stable_diffusion import StableDiffusion
-from nerfstudio.generative.stable_diffusion_utils import get_text_embedding
+from nerfstudio.generative.stable_diffusion_utils import PositionalTextEmbeddings
 from nerfstudio.model_components.losses import (
     MSELoss,
     distortion_loss,
@@ -77,7 +77,7 @@ class DreamFusionModelConfig(ModelConfig):
     """Randomizes light source per output."""
     initialize_density: bool = True
     """Initialize density in center of scene."""
-    init_density_strength: float = 0.1
+    init_density_strength: float = 10
     """Initial strength of center density"""
     sphere_collider: bool = True
     """Use spherical collider instead of box"""
@@ -135,8 +135,8 @@ class DreamFusionModelConfig(ModelConfig):
     """enables location based prompting"""
     interpolated_prompting: bool = False
     """enables interpolated location prompting"""
-    prompting_type: str = "location_based"
-    """choose between location_based, interpolated, base"""
+    positional_prompting: Literal["discrete", "interpolated", "base"] = "discrete"
+    """ how to incorporate position into prompt"""
     top_prompt: str = ", overhead view"
     """appended to prompt for overhead view"""
     side_prompt: str = ", side view"
@@ -177,7 +177,7 @@ class DreamFusionModel(Model):
         self.target_transmittance = config.target_transmittance_start
         self.grad_scaler = kwargs["grad_scaler"]
 
-        self.prompting_type = config.prompting_type
+        self.positional_prompting = config.positional_prompting
         self.guidance_scale = config.guidance_scale
         self.top_prompt = config.top_prompt
         self.side_prompt = config.side_prompt
@@ -197,13 +197,15 @@ class DreamFusionModel(Model):
         super().populate_modules()
 
         self.sd = StableDiffusion(self.sd_device, version=self.sd_version)
-        self.text_embeddings = {
-            "top_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.top_prompt}", ""),
-            "front_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.front_prompt}", ""),
-            "side_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.side_prompt}", ""),
-            "back_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.back_prompt}", ""),
-            "base_text_embedding": self.sd.get_text_embeds(self.cur_prompt, ""),
-        }
+        self.text_embeddings = PositionalTextEmbeddings(
+            base_prompt=self.cur_prompt,
+            top_prompt=self.cur_prompt + self.top_prompt,
+            side_prompt=self.cur_prompt + self.side_prompt,
+            back_prompt=self.cur_prompt + self.back_prompt,
+            front_prompt=self.cur_prompt + self.front_prompt,
+            stable_diffusion=self.sd,
+            positional_prompting=self.positional_prompting,
+        )
 
         # setting up fields
         self.field = DreamFusionField(self.scene_box.aabb, max_res=self.config.max_res)
@@ -340,24 +342,25 @@ class DreamFusionModel(Model):
         param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
-    def get_outputs(self, ray_bundle: RayBundle):
+    def get_outputs(self, ray_bundle: RayBundle):  # pylint: disable=too-many-statements
         # uniform sampling
         background_rgb = self.field.get_background_rgb(ray_bundle)
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         field_outputs = self.field(ray_samples, compute_normals=True)
-        weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
-        weights_list.append(weights)
-        ray_samples_list.append(ray_samples)
         density = field_outputs[FieldHeadNames.DENSITY]
 
-        if self.initialize_density and self.training:
+        if self.initialize_density:
             pos = ray_samples.frustums.get_positions()
             density_blob = (
                 self.config.init_density_strength
                 * self.density_strength
-                * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
+                * torch.exp(-torch.norm(pos, dim=-1) * 10)[..., None]
             )
             density += density_blob
+
+        weights = ray_samples.get_weights(density)
+        weights_list.append(weights)
+        ray_samples_list.append(ray_samples)
 
         accumulation = self.renderer_accumulation(weights)
         depth = self.renderer_depth(weights, ray_samples)
@@ -422,7 +425,7 @@ class DreamFusionModel(Model):
         else:
             outputs["train_output"] = outputs["rgb"]
 
-        if self.training or True:
+        if self.training:
             outputs["rendered_orientation_loss"] = orientation_loss(
                 weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
             )
@@ -464,15 +467,17 @@ class DreamFusionModel(Model):
 
         if self.prompt != self.cur_prompt:
             self.cur_prompt = self.prompt
-            self.text_embeddings = {
-                "top_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.top_prompt}", ""),
-                "front_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.front_prompt}", ""),
-                "side_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.side_prompt}", ""),
-                "back_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.back_prompt}", ""),
-                "base_text_embedding": self.sd.get_text_embeds(self.cur_prompt, ""),
-            }
+            self.text_embeddings.update_prompt(
+                base_prompt=self.cur_prompt,
+                top_prompt=self.cur_prompt + self.top_prompt,
+                side_prompt=self.cur_prompt + self.side_prompt,
+                back_prompt=self.cur_prompt + self.back_prompt,
+                front_prompt=self.cur_prompt + self.front_prompt,
+            )
 
-        text_embedding = get_text_embedding(batch, self.prompting_type, self.text_embeddings, self.sd_device)
+        text_embedding = self.text_embeddings.get_text_embedding(
+            vertical_angle=batch["vertical"], horizonal_angle=batch["central"]
+        )
 
         train_output = (
             outputs["train_output"]
@@ -480,13 +485,12 @@ class DreamFusionModel(Model):
             .permute(0, 3, 1, 2)
         )
 
-        with torch.autocast(device_type="cuda", dtype=torch.float16):
-            sds_loss = self.sd.sds_loss(
-                text_embedding.to(self.sd_device),
-                train_output.to(self.sd_device),
-                guidance_scale=int(self.guidance_scale),
-                grad_scaler=self.grad_scaler,
-            )
+        sds_loss = self.sd.sds_loss(
+            text_embedding.to(self.sd_device),
+            train_output.to(self.sd_device),
+            guidance_scale=int(self.guidance_scale),
+            grad_scaler=self.grad_scaler,
+        )
 
         loss_dict["sds_loss"] = sds_loss.to(self.device)
 

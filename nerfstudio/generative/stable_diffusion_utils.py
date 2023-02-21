@@ -16,47 +16,95 @@
 Stable diffusion utils
 """
 
+from torchtyping import TensorType
+from typing_extensions import Literal
 
-def get_text_embedding(batch, prompting_type, text_embeddings, sd_device):
-    """"""
+from nerfstudio.generative.stable_diffusion import StableDiffusion
 
-    base = text_embeddings["base_text_embedding"]
-    front = text_embeddings["front_text_embedding"]
-    side = text_embeddings["side_text_embedding"]
-    top = text_embeddings["top_text_embedding"]
-    back = text_embeddings["back_text_embedding"]
 
-    assert prompting_type in ("location_based", "interpolated", "base")
+class PositionalTextEmbeddings:
+    """Postional Prompts. Currently the following location based text embeddings are supported:
+        - discrete: Choose the embedding closest to the camera position
+        - interpolated: Interpolate between the embeddings based on the camera position
+        - off: Don't modify the text embedding based on the camera position
 
-    if prompting_type == "location_based":
-        if batch["vertical"] < 40:
-            text_embedding = top
-        elif batch["central"] > 315 or batch["central"] <= 45:
-            text_embedding = front
-        elif batch["central"] > 45 and batch["central"] <= 135:
-            text_embedding = side
-        elif batch["central"] > 135 and batch["central"] <= 225:
-            text_embedding = back
-        else:  # batch["central"] > 225 and batch["central"] <= 315:
-            text_embedding = side
+    Args:
+        base_prompt: Prompt for base view
+        top_prompt: Prompt for top view
+        side_prompt: Prompt for side view
+        back_prompt: Prompt for back view
+        front_prompt: Prompt for front view
+        stable_diffusion: Instance of StableDiffusion
+        positional_prompting: how to incorporate position into prompt.
+    """
 
-    elif prompting_type == "interpolated":
-        horiz = batch["central"].to(sd_device)
-        vert = max(batch["vertical"].to(sd_device), 0)
+    def __init__(
+        self,
+        base_prompt: str,
+        top_prompt: str,
+        side_prompt: str,
+        back_prompt: str,
+        front_prompt: str,
+        stable_diffusion: StableDiffusion,
+        positional_prompting: Literal["discrete", "interpolated", "off"] = "discrete",
+    ):
+        self.positional_prompting = positional_prompting
+        self.sd_device = stable_diffusion.device
+        self.sd = stable_diffusion
+        self.update_prompt(base_prompt, top_prompt, side_prompt, back_prompt, front_prompt)
 
-        if batch["central"] > 0 or batch["central"] <= 90:
-            text_embedding = (horiz) * side + (90 - horiz) * front
-        elif batch["central"] > 90 and batch["central"] <= 180:
-            text_embedding = (horiz - 90) * back + (180 - horiz) * side
-        elif batch["central"] > 180 and batch["central"] <= 270:
-            text_embedding = (horiz - 180) * side + (270 - horiz) * back
-        else:  # batch["central"] > 270 and batch["central"] <= 360:
-            text_embedding = (horiz - 270) * front + (360 - horiz) * side
+    def update_prompt(self, base_prompt: str, top_prompt: str, side_prompt: str, back_prompt: str, front_prompt: str):
+        """Update the text embeddings based on the new prompts.
 
-        text_embedding = text_embedding / 90.0
-        text_embedding = (vert * text_embedding + (90 - vert) * top) / 90.0
+        Args:
+            base_prompt: Prompt for base view
+            top_prompt: Prompt for top view
+            side_prompt: Prompt for side view
+            back_prompt: Prompt for back view
+            front_prompt: Prompt for front view
+        """
+        self.base_embed = self.sd.get_text_embeds(base_prompt, "")
+        self.top_embed = self.sd.get_text_embeds(top_prompt, "")
+        self.side_embed = self.sd.get_text_embeds(side_prompt, "")
+        self.back_embed = self.sd.get_text_embeds(back_prompt, "")
+        self.front_embed = self.sd.get_text_embeds(front_prompt, "")
 
-    elif prompting_type == "base":
-        text_embedding = base
+    def get_text_embedding(self, vertical_angle: TensorType[1], horizonal_angle: TensorType[1]):
+        """Get text embedding based on the position of the camera relative to the scene.
+        This trick is used in Dreamfusion (https://dreamfusion3d.github.io/).
 
-    return text_embedding
+        Args:
+            vertical_angle: vertical angle of the camera
+            horizonal_angle: horizonal angle of the camera
+        """
+
+        if self.positional_prompting == "discrete":
+            if vertical_angle < 40:
+                text_embedding = self.top_embed
+            elif 315 < horizonal_angle <= 45:
+                text_embedding = self.front_embed
+            elif 45 < horizonal_angle <= 135:
+                text_embedding = self.side_embed
+            elif 135 < horizonal_angle <= 225:
+                text_embedding = self.back_embed
+            else:  # horizonal_angle > 225 and horizonal_angle <= 315:
+                text_embedding = self.side_embed
+        elif self.positional_prompting == "interpolated":
+            horiz = horizonal_angle.to(self.sd_device)
+            vert = max(vertical_angle.to(self.sd_device), 0)
+
+            if 0 < horizonal_angle <= 90:
+                text_embedding = (horiz) * self.side_embed + (90 - horiz) * self.front_embed
+            elif 90 < horizonal_angle <= 180:
+                text_embedding = (horiz - 90) * self.back_embed + (180 - horiz) * self.side_embed
+            elif 180 < horizonal_angle <= 270:
+                text_embedding = (horiz - 180) * self.side_embed + (270 - horiz) * self.back_embed
+            else:  # 270 < horizonal_angle <= 360:
+                text_embedding = (horiz - 270) * self.front_embed + (360 - horiz) * self.side_embed
+
+            text_embedding = text_embedding / 90.0
+            text_embedding = (vert * text_embedding + (90 - vert) * self.top_embed) / 90.0
+        else:
+            text_embedding = self.base_embed
+
+        return text_embedding
