@@ -113,7 +113,7 @@ class DreamFusionPlusDataManagerConfig(DreamFusionDataManagerConfig):
     """Mean radius of the camera sphere"""
     use_input_transient: bool = False
     """Whether to allow the input image to mask out parts of the image that give poor rgb loss"""
-    input_distance: float = 1.5
+    input_distance: float = 1.0
     """Scalar multiple of radius_mean dictating how close we think this image was taken to the object in question.
     Large values mean this image was taken relatively far away, small values mean this was taken from relatively
     close to the object"""
@@ -269,8 +269,11 @@ class DreamFusionPlusDataManager(DreamFusionDataManager):  # pylint: disable=abs
         self.train_count += 1
 
         # randomly choose a random camera view or the input view here
-        if np.random.random_sample() < 0.1:
-            return self.next_input(step)
+        # 0.1 - 0.5, steps 0 - 2000
+        # cutoff = min(0.5, step * 0.00025)
+        # cutoff = 0.1
+        # if np.random.random_sample() < cutoff:
+        #     return self.next_input(step)
 
         # # TODO Reimplement when cameras are fully working
         # if step > 2000:

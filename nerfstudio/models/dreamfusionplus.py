@@ -19,7 +19,7 @@ DreamFusion implementation.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Type, Optional
+from typing import Dict, List, Tuple, Type, Optional, Literal
 
 import numpy as np
 import torch
@@ -33,7 +33,7 @@ from nerfstudio.engine.callbacks import (
     TrainingCallbackLocation,
 )
 from nerfstudio.generative.stable_diffusion import StableDiffusion
-from nerfstudio.generative.stable_diffusion_utils import get_text_embedding
+from nerfstudio.generative.stable_diffusion_utils import PositionalTextEmbeddings
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.dreamfusion_field import DreamFusionField
@@ -78,7 +78,7 @@ class DreamFusionPlusModelConfig(DreamFusionModelConfig):
     """Randomizes light source per output."""
     initialize_density: bool = True
     """Initialize density in center of scene."""
-    init_density_strength: float = 0.1
+    init_density_strength: float = 10
     """Initial strength of center density"""
     sphere_collider: bool = True
     """Use spherical collider instead of box"""
@@ -132,8 +132,12 @@ class DreamFusionPlusModelConfig(DreamFusionModelConfig):
     max_res: int = 256
     """Maximum resolution of the density field."""
 
-    prompting_type: str = "location_based"
-    """choose between location_based, interpolated, base"""
+    location_based_prompting: bool = True
+    """enables location based prompting"""
+    interpolated_prompting: bool = False
+    """enables interpolated location prompting"""
+    positional_prompting: Literal["discrete", "interpolated", "base"] = "discrete"
+    """ how to incorporate position into prompt"""
     top_prompt: str = ", overhead view"
     """appended to prompt for overhead view"""
     side_prompt: str = ", side view"
@@ -146,7 +150,7 @@ class DreamFusionPlusModelConfig(DreamFusionModelConfig):
     """guidance scale for sds loss"""
     stablediffusion_device: Optional[str] = None
     """device for stable diffusion"""
-    sd_version: str = '1-5' 
+    sd_version: str = "1-5"
 
 
 class DreamFusionPlusModel(DreamFusionModel):
@@ -189,19 +193,21 @@ class DreamFusionPlusModel(DreamFusionModel):
 
         if self.prompt != self.cur_prompt:
             self.cur_prompt = self.prompt
-            self.text_embeddings = {
-                "top_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.top_prompt}", ""),
-                "front_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.front_prompt}", ""),
-                "side_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.side_prompt}", ""),
-                "back_text_embedding": self.sd.get_text_embeds(f"{self.cur_prompt}{self.back_prompt}", ""),
-                "base_text_embedding": self.sd.get_text_embeds(self.cur_prompt, "")
-            }
+            self.text_embeddings.update_prompt(
+                base_prompt=self.cur_prompt,
+                top_prompt=self.cur_prompt + self.top_prompt,
+                side_prompt=self.cur_prompt + self.side_prompt,
+                back_prompt=self.cur_prompt + self.back_prompt,
+                front_prompt=self.cur_prompt + self.front_prompt,
+            )
 
-        if batch["input_image"]:
+        if batch["input_image"] == True:
             loss_dict["rgb_loss"] = self.rgb_loss(batch["image"].to(self.device), outputs["rgb"])
+            loss_dict['sds_loss'] = 0
         else:
-            text_embedding = get_text_embedding(batch, self.prompting_type, self.text_embeddings, self.sd_device)
-                
+            text_embedding = self.text_embeddings.get_text_embedding(
+                vertical_angle=batch["vertical"], horizonal_angle=batch["central"]
+            )                
             train_output = (
                 outputs["train_output"].view(1, int(outputs["train_output"].shape[0] ** 0.5), int(outputs["train_output"].shape[0] ** 0.5), 3)
                 .permute(0, 3, 1, 2)
@@ -216,12 +222,13 @@ class DreamFusionPlusModel(DreamFusionModel):
                 )
 
             loss_dict["sds_loss"] = sds_loss.to(self.device)
+            loss_dict["rgb_loss"] = 0
 
-            if self.training:
-                loss_dict["distortion_loss"] = self.config.distortion_loss_mult * distortion_loss(
-                    outputs["weights_list"], outputs["ray_samples_list"]
-                )
-                loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
-                    outputs["weights_list"], outputs["ray_samples_list"]
-                )
+        if self.training:
+            loss_dict["distortion_loss"] = self.config.distortion_loss_mult * distortion_loss(
+                outputs["weights_list"], outputs["ray_samples_list"]
+            )
+            loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
+                outputs["weights_list"], outputs["ray_samples_list"]
+            )
         return loss_dict
