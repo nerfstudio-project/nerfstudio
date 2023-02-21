@@ -1,8 +1,35 @@
 # Installation
 
 ## Prerequisites
+::::::{tab-set}
+:::::{tab-item} Linux
 
-CUDA must be installed on the system. This library has been tested with version 11.3. You can find more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html)
+Install CUDA. This library has been tested with version 11.3. You can find CUDA download links [here](https://developer.nvidia.com/cuda-toolkit-archive) and more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html).
+
+:::::
+:::::{tab-item} Windows
+Install [Git](https://git-scm.com/downloads).
+
+Install CUDA. This library and the Windows installation process has been tested with version 11.3.
+
+::::{tab-set}
+:::{tab-item} 11.3 with Visual Studio 2019 v16.9
+
+Install Visual Studio 2019 ver 16.9. This must be done before installing CUDA. The necessary components are included in the `Desktop Development with C++` workflow (also called `C++ Build Tools` in the BuildTools edition). You can find older versions of Visual Studio 2019 [here](https://learn.microsoft.com/en-us/visualstudio/releases/2019/history#release-dates-and-build-numbers). The latest version, 16.11, may cause errors when installing tiny-cuda-nn.
+
+Install CUDA 11.3. You can find CUDA download links [here](https://developer.nvidia.com/cuda-toolkit-archive) and more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html).
+
+:::
+:::{tab-item} 11.7 with Visual Studio 2022
+
+Install Visual Studio 2022. This must be done before installing CUDA. The necessary components are included in the `Desktop Development with C++` workflow (also called `C++ Build Tools` in the BuildTools edition).
+
+Install CUDA 11.7. You can find CUDA download links [here](https://developer.nvidia.com/cuda-toolkit-archive) and more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html).
+
+:::
+::::
+:::::
+::::::
 
 ## Create environment
 
@@ -20,13 +47,17 @@ python -m pip install --upgrade pip
 (pytorch)=
 ### pytorch
 
-Either pytorch 1.12.1 (with CUDA up to 11.3) or 1.13.1 (with CUDA 11.6/7/8) can be used.
+::::{tab-set}
+:::{tab-item} Torch 1.12.1 with CUDA 11.3
 
 - To install 1.12.1 with CUDA 11.3:
 
 ```bash
 pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 ```
+
+:::
+:::{tab-item} Torch 1.13.1 with CUDA 11.7
 
 - To install 1.13.1 with CUDA 11.7:
 
@@ -37,11 +68,14 @@ it should be uninstalled first to avoid upgrade issues (e.g. with functorch)
 pip uninstall torch torchvision functorch
 ```
 
-Install pytorch 1.13.1 with CUDA (this repo has been tested with CUDA 11.7.1) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+Install pytorch 1.13.1 with CUDA and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
 
 ```bash
 pip install torch torchvision functorch --extra-index-url https://download.pytorch.org/whl/cu117
 ```
+
+:::
+::::
 
 ### tinycudann
 
@@ -92,8 +126,8 @@ pip install -e .[docs]
 ## Use docker image
 Instead of installing and compiling prerequisites, setting up the environment and installing dependencies, a ready to use docker image is provided.
 ### Prerequisites
-Docker ([get docker](https://docs.docker.com/get-docker/)) and nvidia GPU drivers ([get nvidia drivers](https://www.nvidia.de/Download/index.aspx?lang=de)), capable of working with CUDA 11.7, must be installed.
-The docker image can then either be pulled from [here](https://hub.docker.com/r/dromni/nerfstudio/tags) (replace <version> with the actual version, e.g. 0.1.10)
+Docker ([get docker](https://docs.docker.com/get-docker/)) and nvidia GPU drivers ([get nvidia drivers](https://www.nvidia.de/Download/index.aspx?lang=de)), capable of working with CUDA 11.8, must be installed.
+The docker image can then either be pulled from [here](https://hub.docker.com/r/dromni/nerfstudio/tags) (replace <version> with the actual version, e.g. 0.1.17)
 ```bash
 docker pull dromni/nerfstudio:<version>
 ```
@@ -102,7 +136,7 @@ or be built from the repository using
 docker build --tag nerfstudio -f Dockerfile .
 ```
 ### Using an interactive container
-The docker container can be launched with an interactive terminal where nerfstudio commands can be entered as usual. Some parameters are required and some are strongly reocmmended for usage as following:
+The docker container can be launched with an interactive terminal where nerfstudio commands can be entered as usual. Some parameters are required and some are strongly recommended for usage as following:
 ```bash
 docker run --gpus all \                                         # Give the container access to nvidia GPU (required).
             -v /folder/of/your/data:/workspace/ \               # Mount a folder from the local machine into the container to be able to process them (required).
@@ -110,13 +144,15 @@ docker run --gpus all \                                         # Give the conta
             -p 7007:7007 \                                      # Map port from local machine to docker container (required to access the web interface/UI).
             --rm \                                              # Remove container after it is closed (recommended).
             -it \                                               # Start container in interactive mode.
-            nerfstudio                                          # Docker image name
+            dromni/nerfstudio:<tag>                             # Docker image name if you pulled from docker hub.
+            <--- OR --->
+            nerfstudio                                          # Docker image tag if you built the image from the Dockerfile by yourself using the command from above. 
 ```
 ### Call nerfstudio commands directly
 Besides, the container can also directly be used by adding the nerfstudio command to the end.
 ```bash
 docker run --gpus all -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ -p 7007:7007 --rm -it # Parameters.
-            nerfstudio \                                        # Docker image name
+            dromni/nerfstudio:<tag> \                           # Docker image name
             ns-process-data video --data /workspace/video.mp4   # Smaple command of nerfstudio.
 ```
 ### Note
@@ -125,10 +161,10 @@ docker run --gpus all -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.
 - Always use full paths, relative paths are known to create issues when being used in mounts into docker.
 - Everything inside the container, what is not in a mounted folder (workspace in the above example), will be permanently removed after destroying the container. Always do all your tasks and output folder in workdir!
 - The user inside the container is called 'user' and is mapped to the local user with ID 1000 (usually the first non-root user on Linux systems).
-- The container currently is based on nvidia/cuda:11.7.1-devel-ubuntu22.04, consequently it comes with CUDA 11.7 which must be supported by the nvidia driver. No local CUDA installation is required or will be affected by using the docker image.
+- The container currently is based on nvidia/cuda:11.8.0-devel-ubuntu22.04, consequently it comes with CUDA 11.8 which must be supported by the nvidia driver. No local CUDA installation is required or will be affected by using the docker image.
 - The docker image (respectively Ubuntu 22.04) comes with Python3.10, no older version of Python is installed.
 - If you call the container with commands directly, you still might want to add the interactive terminal ('-it') flag to get live log outputs of the nerfstudio scripts. In case the container is used in an automated environment the flag should be discarded.
-- The current version of docker is built for multi-architecture (CUDA architectures) use. The target architecture must be defined at build time for tinyCUDNN to be able to compile properly. If your GPU architecture is not covered by the following table you need to replace the number in the line ```ENV TCNN_CUDA_ARCHITECTURES=90;89;86;80;75;70;61;52;37``` to you specific architecture. It also is a good idea to remove all architectures but yours (e.g. ```ENV TCNN_CUDA_ARCHITECTURES=86```) to speedup the docker build a lot.
+- The current version of docker is built for multi-architecture (CUDA architectures) use. The target architecture(s) must be defined at build time for Colmap and tinyCUDNN to be able to compile properly. If your GPU architecture is not covered by the following table you need to replace the number in the line ```ARG CUDA_ARCHITECTURES=90;89;86;80;75;70;61;52;37``` to your specific architecture. It also is a good idea to remove all architectures but yours (e.g. ```ARG CUDA_ARCHITECTURES=86```) to speedup the docker build process a lot.
 
 **Currently supported CUDA architectures in the docker image**
 
@@ -146,13 +182,15 @@ K80 | 37
 
 ## Installation FAQ
 
-- [TinyCUDA installation errors out with cuda mismatch](tiny-cuda-error)
+- [TinyCUDA installation errors out with cuda mismatch](tiny-cuda-mismatch-error)
+- [TinyCUDA installation errors out with no CUDA toolset found](tiny-cuda-integration-error)
+- [TinyCUDA installation errors out with syntax errors](tiny-cuda-syntax-error)
 - [Installation errors, File "setup.py" not found](pip-install-error)
 - [Runtime errors, "len(sources) > 0".](cuda-sources-error)
 
  <br />
 
-(tiny-cuda-error)=
+(tiny-cuda-mismatch-error)=
 
 **TinyCUDA installation errors out with cuda mismatch**
 
@@ -162,6 +200,67 @@ While installing tiny-cuda, you run into: `The detected CUDA version mismatches 
 
 Reinstall pytorch with the correct CUDA version.
 See [pytorch](pytorch) under Dependencies, above.
+
+ <br />
+
+(tiny-cuda-integration-error)=
+
+**(Windows) TinyCUDA installation errors out with no CUDA toolset found**
+
+While installing tiny-cuda on Windows, you run into: `No CUDA toolset found.`
+
+**Solution**:
+
+Confirm that you have Visual Studio installed (CUDA 11.3 is only compatible up to 2019 ver 16.9, not 16.11 or 2022).
+
+Make sure CUDA Visual Studio integration is enabled. This should be done automatically by the CUDA installer if it is run after Visual Studio is installed. You can also manually enable integration.
+
+::::{tab-set}
+:::{tab-item} Visual Studio 2019
+
+To manually enable integration for Visual Studio 2019, copy all 4 files from
+
+```
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.3\extras\visual_studio_integration\MSBuildExtensions
+```
+
+to
+
+```
+C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Microsoft\VC\v160\BuildCustomizations
+```
+
+:::
+:::{tab-item} Visual Studio 2022
+
+To manually enable integration for Visual Studio 2022, copy all 4 files from
+
+```
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.7\extras\visual_studio_integration\MSBuildExtensions
+```
+
+to
+
+```
+C:\Program Files\Microsoft Visual Studio\2022\[Community, Professional, Enterprise, or BuildTools]\MSBuild\Microsoft\VC\v160\BuildCustomizations
+```
+
+:::
+::::
+
+ <br />
+
+(tiny-cuda-syntax-error)=
+
+**(Windows) TinyCUDA installation errors out with syntax errors**
+
+While installing tiny-cuda on Windows, you run into: `Expected a "("`
+
+**Solution**:
+
+If you are using CUDA 11.3 with Visual Studio 2019, confirm that Visual Studio is on version 16.9 and not 16.11.
+
+If you are using a different version of CUDA and Visual Studio, try switching to CUDA 11.3 with Visual Studio 2019 ver 16.9.
 
  <br />
 

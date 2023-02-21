@@ -48,9 +48,11 @@ except ImportError:
 logging.set_verbosity_error()
 IMG_DIM = 512
 CONST_SCALE = 0.18215
-
-SD_SOURCE = "runwayml/stable-diffusion-v1-5"
-CLIP_SOURCE = "openai/clip-vit-large-patch14"
+SD_IDENTIFIERS = {
+    "1-5": "runwayml/stable-diffusion-v1-5",
+    "2-0": "stabilityai/stable-diffusion-2-base",
+    "2-1": "stabilityai/stable-diffusion-2-1-base",
+}
 
 
 @dataclass
@@ -87,7 +89,7 @@ class StableDiffusion(nn.Module):
         num_train_timesteps: number of training timesteps
     """
 
-    def __init__(self, device: Union[torch.device, str], num_train_timesteps: int = 1000) -> None:
+    def __init__(self, device: Union[torch.device, str], num_train_timesteps: int = 1000, version="1-5") -> None:
         super().__init__()
 
         self.device = device
@@ -104,14 +106,16 @@ class StableDiffusion(nn.Module):
         )
         self.alphas = self.scheduler.alphas_cumprod.to(self.device)  # type: ignore
 
-        pipe = StableDiffusionPipeline.from_pretrained(SD_SOURCE, torch_dtype=torch.float16)
+        sd_id = SD_IDENTIFIERS[version]
+        pipe = StableDiffusionPipeline.from_pretrained(sd_id, torch_dtype=torch.float16)
         assert pipe is not None
         pipe = pipe.to(self.device)
 
         pipe.enable_attention_slicing()
 
         # use jitted unet
-        unet_traced_filename = Path(appdirs.user_data_dir("nerfstudio")) / "sd_unet_traced.pt"
+        filename_sd_id = sd_id.split("/")[-1]
+        unet_traced_filename = Path(appdirs.user_data_dir("nerfstudio")) / f"{filename_sd_id}_unet_traced.pt"
         if unet_traced_filename.exists():
             CONSOLE.print("Loading traced UNet.")
             unet_traced = torch.jit.load(unet_traced_filename)
@@ -133,7 +137,7 @@ class StableDiffusion(nn.Module):
             del pipe.unet
         else:
             CONSOLE.print("[bold yellow] Warning: Loading UNet without JIT acceleration.")
-            CONSOLE.print(r"Run [yellow]python scripts/generative/trace_stable_diffusion.py[/yellow] for a speedup!")
+            CONSOLE.print(f"Run [yellow]ns-trace-sd --sd-version {version} [/yellow] for a speedup!")
             self.unet = pipe.unet
             self.unet.to(memory_format=torch.channels_last)
 
