@@ -32,7 +32,7 @@ class SchedulerConfig(InstantiateConfig):
     """_target: target class to instantiate"""
 
 
-class Scheduler:
+class Scheduler:  # pylint: disable=too-few-public-methods
     """Exponential learning rate decay function."""
 
     config: SchedulerConfig
@@ -68,7 +68,7 @@ class ExponentialDecaySchedulerConfig(SchedulerConfig):
     """The multiplier for the learning rate after the delay."""
 
 
-class ExponentialDecayScheduler(Scheduler):
+class ExponentialDecayScheduler(Scheduler):  # pylint: disable=too-few-public-methods
     """Exponential learning rate decay function.
     See https://github.com/google-research/google-research/blob/
     fd2cea8cdd86b3ed2c640cbe5561707639e682f3/jaxnerf/nerf/utils.py#L360
