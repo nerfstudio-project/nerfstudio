@@ -43,10 +43,28 @@ class CameraModel(Enum):
 CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
+    "equirectangular": CameraModel.OPENCV,
 }
 
 
-def get_image_filenames(directory: Path, max_num_images: int = -1) -> Tuple[List[Path], int]:
+def list_images(data: Path) -> List[Path]:
+    """Lists all supported images in a directory
+
+    Args:
+        data: Path to the directory of images.
+    Returns:
+        Paths to images contained in the directory
+    """
+    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
+    image_paths = sorted(
+        [p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts]
+    )
+    return image_paths
+
+
+def get_image_filenames(
+    directory: Path, max_num_images: int = -1
+) -> Tuple[List[Path], int]:
     """Returns a list of image filenames in a directory.
 
     Args:
@@ -55,8 +73,7 @@ def get_image_filenames(directory: Path, max_num_images: int = -1) -> Tuple[List
     Returns:
         A tuple of A list of image filenames, number of original image paths.
     """
-    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
-    image_paths = sorted([p for p in directory.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+    image_paths = list_images(directory)
     num_orig_images = len(image_paths)
 
     if max_num_images != -1 and num_orig_images > max_num_images:
@@ -78,8 +95,8 @@ def get_num_frames_in_video(video: Path) -> int:
     Returns:
         The number of frames in a video.
     """
-    cmd = f"ffprobe -v error -select_streams v:0 -count_packets \
-            -show_entries stream=nb_read_packets -of csv=p=0 {video}"
+    cmd = f'ffprobe -v error -select_streams v:0 -count_packets \
+            -show_entries stream=nb_read_packets -of csv=p=0 "{video}"'
     output = run_command(cmd)
     assert output is not None
     output = output.strip(" ,\t\n\r")
@@ -116,13 +133,15 @@ def convert_video_to_images(
         print("Number of frames in video:", num_frames)
 
         out_filename = image_dir / "frame_%05d.png"
-        ffmpeg_cmd = f"ffmpeg -i {video_path}"
+        ffmpeg_cmd = f'ffmpeg -i "{video_path}"'
         spacing = num_frames // num_frames_target
 
         if spacing > 1:
             ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB -r 1"
         else:
-            CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
+            CONSOLE.print(
+                "[bold red]Can't satisfy requested number of frames. Extracting all frames."
+            )
             ffmpeg_cmd += " -pix_fmt bgr8"
 
         ffmpeg_cmd += f" {out_filename}"
@@ -173,7 +192,7 @@ def copy_images_list(
         file_type = image_paths[0].suffix
         filename = f"frame_%05d{file_type}"
         crop = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}"
-        ffmpeg_cmd = f"ffmpeg -y -noautorotate -i {image_dir / filename} -q:v 2 -vf {crop} {image_dir / filename}"
+        ffmpeg_cmd = f'ffmpeg -y -noautorotate -i "{image_dir / filename}" -q:v 2 -vf {crop} "{image_dir / filename}"'
         run_command(ffmpeg_cmd, verbose=verbose)
 
     num_frames = len(image_paths)
@@ -206,7 +225,11 @@ def copy_and_upscale_polycam_depth_maps_list(
     depth_dir.mkdir(parents=True, exist_ok=True)
 
     # copy and upscale them to new directory
-    with status(msg="[bold yellow] Upscaling depth maps...", spinner="growVertical", verbose=verbose):
+    with status(
+        msg="[bold yellow] Upscaling depth maps...",
+        spinner="growVertical",
+        verbose=verbose,
+    ):
         upscale_factor = 2**POLYCAM_UPSCALING_TIMES
         assert upscale_factor > 1
         assert isinstance(upscale_factor, int)
@@ -215,9 +238,9 @@ def copy_and_upscale_polycam_depth_maps_list(
         for idx, depth_map in enumerate(polycam_depth_image_filenames):
             destination = depth_dir / f"frame_{idx + 1:05d}{depth_map.suffix}"
             ffmpeg_cmd = [
-                f"ffmpeg -y -i {depth_map} ",
+                f'ffmpeg -y -i "{depth_map}" ',
                 f"-q:v 2 -vf scale=iw*{upscale_factor}:ih*{upscale_factor}:flags=neighbor ",
-                f"{destination}",
+                f'"{destination}"',
             ]
             ffmpeg_cmd = " ".join(ffmpeg_cmd)
             run_command(ffmpeg_cmd, verbose=verbose)
@@ -227,7 +250,7 @@ def copy_and_upscale_polycam_depth_maps_list(
         file_type = depth_dir.glob("frame_*").__next__().suffix
         filename = f"frame_%05d{file_type}"
         crop = f"crop=iw-{crop_border_pixels * 2}:ih-{crop_border_pixels * 2}"
-        ffmpeg_cmd = f"ffmpeg -y -i {depth_dir / filename} -q:v 2 -vf {crop} {depth_dir / filename}"
+        ffmpeg_cmd = f'ffmpeg -y -i "{depth_dir / filename}" -q:v 2 -vf {crop} "{depth_dir / filename}"'
         run_command(ffmpeg_cmd, verbose=verbose)
 
     CONSOLE.log("[bold green]:tada: Done upscaling depth maps.")
@@ -247,10 +270,7 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
     with status(
         msg="[bold yellow]Copying images...", spinner="bouncingBall", verbose=verbose
     ):
-        allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
-        image_paths = sorted(
-            [p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts]
-        )
+        image_paths = list_images(data)
 
         if len(image_paths) == 0:
             CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
@@ -261,7 +281,12 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
     return num_frames
 
 
-def downscale_images(image_dir: Path, num_downscales: int, folder_name: str = "images", verbose: bool = False) -> str:
+def downscale_images(
+    image_dir: Path,
+    num_downscales: int,
+    folder_name: str = "images",
+    verbose: bool = False,
+) -> str:
     """Downscales the images in the directory. Uses FFMPEG.
 
     Assumes images are named frame_00001.png, frame_00002.png, etc.
@@ -295,9 +320,9 @@ def downscale_images(image_dir: Path, num_downscales: int, folder_name: str = "i
             for f in files:
                 filename = f.name
                 ffmpeg_cmd = [
-                    f"ffmpeg -y -noautorotate -i {image_dir / filename} ",
+                    f'ffmpeg -y -noautorotate -i "{image_dir / filename}" ',
                     f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
-                    f"{downscale_dir / filename}",
+                    f'"{downscale_dir / filename}"',
                 ]
                 ffmpeg_cmd = " ".join(ffmpeg_cmd)
                 run_command(ffmpeg_cmd, verbose=verbose)
@@ -370,7 +395,9 @@ def find_tool_feature_matcher_combination(
     return (None, None, None)
 
 
-def generate_circle_mask(height: int, width: int, percent_radius) -> Optional[np.ndarray]:
+def generate_circle_mask(
+    height: int, width: int, percent_radius
+) -> Optional[np.ndarray]:
     """generate a circle mask of the given size.
 
     Args:
@@ -422,7 +449,10 @@ def generate_crop_mask(
 
 
 def generate_mask(
-    height: int, width: int, percent_crop: Tuple[float, float, float, float], percent_radius: float
+    height: int,
+    width: int,
+    percent_crop: Tuple[float, float, float, float],
+    percent_radius: float,
 ) -> Optional[np.ndarray]:
     """generate a mask of the given size.
 
@@ -476,7 +506,11 @@ def save_mask(
         mask_path_i = image_dir.parent / f"masks_{downscale}"
         mask_path_i.mkdir(exist_ok=True)
         mask_path_i = mask_path_i / "mask.png"
-        mask_i = cv2.resize(mask, (width // downscale, height // downscale), interpolation=cv2.INTER_NEAREST)
+        mask_i = cv2.resize(
+            mask,
+            (width // downscale, height // downscale),
+            interpolation=cv2.INTER_NEAREST,
+        )
         cv2.imwrite(str(mask_path_i), mask_i)
     CONSOLE.log(":tada: Generated and saved masks.")
     return mask_path / "mask.png"

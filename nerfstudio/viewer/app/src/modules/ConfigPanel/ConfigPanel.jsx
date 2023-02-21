@@ -37,6 +37,12 @@ export function RenderControls() {
   const colormapChoice = useSelector(
     (state) => state.renderingState.colormap_choice,
   );
+  const colormapInvert = useSelector(
+    (state) => state.renderingState.colormap_invert,
+  );
+  const colormapNormalize = useSelector(
+    (state) => state.renderingState.colormap_normalize,
+  );
   const max_resolution = useSelector(
     (state) => state.renderingState.maxResolution,
   );
@@ -48,7 +54,9 @@ export function RenderControls() {
     (state) => state.renderingState.crop_enabled,
   );
 
-  const crop_bg_color = useSelector((state) => state.renderingState.crop_bg_color);
+  const crop_bg_color = useSelector(
+    (state) => state.renderingState.crop_bg_color,
+  );
 
   const crop_scale = useSelector((state) => state.renderingState.crop_scale);
 
@@ -113,6 +121,51 @@ export function RenderControls() {
         },
         disabled: colormapOptions.length === 1,
       },
+      colormap_invert: {
+        label: '| Invert',
+        value: colormapInvert,
+        hint: 'Invert the colormap',
+        onChange: (v) => {
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/colormap_invert',
+            v,
+          );
+        },
+        render: (get) => get('colormap_options') !== 'default',
+      },
+      colormap_normalize: {
+        label: '| Normalize',
+        value: colormapNormalize,
+        hint: 'Whether to normalize output between 0 and 1',
+        onChange: (v) => {
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/colormap_normalize',
+            v,
+          );
+        },
+        render: (get) => get('colormap_options') !== 'default',
+      },
+      colormap_range: {
+        label: '| Range',
+        value: [0, 1],
+        step: 0.01,
+        min: -2,
+        max: 5,
+        hint: 'Min and max values of the colormap',
+        onChange: (v) => {
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/colormap_range',
+            v,
+          );
+        },
+        render: (get) => get('colormap_options') !== 'default',
+      },
       // Dynamic Resolution
       target_train_util: {
         label: 'Train Util.',
@@ -154,7 +207,7 @@ export function RenderControls() {
         '2048px': () => setControls({ max_resolution: 2048 }),
       }),
       // Enable Crop
-      crop_options: {
+      crop_enabled: {
         label: 'Crop Viewport',
         value: crop_enabled,
         hint: 'Crop the viewport to the selected box',
@@ -170,7 +223,7 @@ export function RenderControls() {
       crop_bg_color: {
         label: '| Background Color',
         value: crop_bg_color,
-        render: (get) => get('crop_options'),
+        render: (get) => get('crop_enabled'),
         onChange: (v) => {
           dispatch_and_send(
             websocket,
@@ -186,7 +239,7 @@ export function RenderControls() {
         min: 0,
         max: 10,
         step: 0.05,
-        render: (get) => get('crop_options'),
+        render: (get) => get('crop_enabled'),
         onChange: (v) => {
           dispatch_and_send(
             websocket,
@@ -202,7 +255,7 @@ export function RenderControls() {
         min: -10,
         max: 10,
         step: 0.05,
-        render: (get) => get('crop_options'),
+        render: (get) => get('crop_enabled'),
         onChange: (v) => {
           dispatch_and_send(
             websocket,
@@ -251,6 +304,10 @@ export function RenderControls() {
     setControls({ max_resolution });
     setControls({ output_options: outputChoice });
     setControls({ colormap_options: colormapChoice });
+    setControls({ crop_enabled });
+    setControls({ crop_bg_color });
+    setControls({ crop_scale });
+    setControls({ crop_center });
   }, [
     setControls,
     outputOptions,
@@ -260,6 +317,10 @@ export function RenderControls() {
     max_resolution,
     target_train_util,
     render_time,
+    crop_enabled,
+    crop_bg_color,
+    crop_scale,
+    crop_center,
     display_render_time,
   ]);
 

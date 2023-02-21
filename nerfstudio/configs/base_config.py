@@ -23,6 +23,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, Type
 
+from typing_extensions import Literal
+
 # model instances
 from nerfstudio.utils import writer
 
@@ -149,3 +151,7 @@ class ViewerConfig(PrintableConfig):
     skip_openrelay: bool = False
     """Avoid using openrelay to communicate with the viewer. Try disabling if you have trouble
     connecting to the viewer"""
+    codec: Literal["H264", "VP8"] = "VP8"
+    """Video codec that viewer will use."""
+    local: bool = False
+    """If running local server instance, avoid using relays to communicate with the viewer."""

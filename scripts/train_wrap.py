@@ -1,19 +1,21 @@
 from __future__ import annotations
+
 import os
 
 from nerfstudio.nerfstudio.utils.checkpoint_loader import find_latest_checkpoint
 
 os.environ["TERM"] = "dumb"
-from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
+import argparse
+import glob
+import json
+from copy import deepcopy
+from pathlib import Path
+
 import scripts.train as train
 import tyro
-from pathlib import Path
 from scripts.my_utils import *
-import tyro
-from copy import deepcopy
-import argparse
-import json
-import glob
+
+from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
 
 SEGMENTATION_DIRECTORY_DELIMITER = ":"
 
@@ -31,13 +33,16 @@ def parse_args():
     args = argparse.ArgumentParser()
     args.add_argument("--models", nargs="+")
     args.add_argument("--datasets", nargs="+")
+    args.add_argument("--finetune-datasets", type=str, required=False)
     args.add_argument("--seg-iter", type=int, required=False)
     args.add_argument("--seg-auto", type=bool, default=False)
 
     return args.parse_known_args()
 
 
-def split_to_model_and_data(nerfstudio_args, num_models, num_datasets, dataset_at_index) -> tuple[list[str], list[str]]:
+def split_to_model_and_data(
+    nerfstudio_args, num_models, num_datasets, dataset_at_index
+) -> tuple[list[str], list[str]]:
     left = dataset_at_index - 1 - 1 - num_models
     right = left + num_datasets - 1
 
@@ -72,7 +77,9 @@ def main():
     for model in script_args.models:
         for dataset_and_segmentations in script_args.datasets:
 
-            dataset_and_segmentations = dataset_and_segmentations.split(SEGMENTATION_DIRECTORY_DELIMITER)
+            dataset_and_segmentations = dataset_and_segmentations.split(
+                SEGMENTATION_DIRECTORY_DELIMITER
+            )
             dataset_path = dataset_and_segmentations[0]
             segmentation_sequences = dataset_and_segmentations[1:]
 
@@ -92,7 +99,9 @@ def main():
                 deepcopy(AnnotatedBaseConfigUnion),
                 args=prepare_args,
             )
-            config.experiment_name = f"{experiment_name}-{data_name}-{config.method_name}"
+            config.experiment_name = (
+                f"{experiment_name}-{data_name}-{config.method_name}"
+            )
             config.relative_model_dir = Path(".")  # don't save to nerfstudio_models
 
             # Log to file

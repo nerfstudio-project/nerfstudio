@@ -131,6 +131,10 @@ class InstantNGP(DataParser):
 
         w, h = meta["w"], meta["h"]
 
+        camera_type = CameraType.PERSPECTIVE
+        if meta.get("is_fisheye", False):
+            camera_type = CameraType.FISHEYE
+
         cameras = Cameras(
             fx=float(fl_x),
             fy=float(fl_y),
@@ -140,7 +144,7 @@ class InstantNGP(DataParser):
             height=int(h),
             width=int(w),
             camera_to_worlds=camera_to_world,
-            camera_type=CameraType.PERSPECTIVE,
+            camera_type=camera_type,
         )
 
         # TODO(ethan): add alpha background color

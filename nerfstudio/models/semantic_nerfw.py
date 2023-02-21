@@ -137,7 +137,7 @@ class SemanticNerfWModel(Model):
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
-        self.lpips = LearnedPerceptualImagePatchSimilarity()
+        self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}

@@ -54,6 +54,7 @@ from nerfstudio.model_components.renderers import (
     RGBRenderer,
 )
 from nerfstudio.model_components.scene_colliders import NearFarCollider
+from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
 
@@ -67,7 +68,7 @@ class NerfactoModelConfig(ModelConfig):
     """How far along the ray to start sampling."""
     far_plane: float = 1000.0
     """How far along the ray to stop sampling."""
-    background_color: Literal["random", "last_sample"] = "last_sample"
+    background_color: Literal["random", "last_sample", "black", "white"] = "last_sample"
     """Whether to randomize the background color."""
     num_levels: int = 16
     """Number of levels of the hashmap for the base mlp."""
@@ -203,13 +204,16 @@ class NerfactoModel(Model):
         self.renderer_depth = DepthRenderer()
         self.renderer_normals = NormalsRenderer()
 
+        # shaders
+        self.normals_shader = NormalsShader()
+
         # losses
         self.rgb_loss = MSELoss()
 
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
-        self.lpips = LearnedPerceptualImagePatchSimilarity()
+        self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
@@ -270,13 +274,10 @@ class NerfactoModel(Model):
         }
 
         if self.config.predict_normals:
-            outputs["normals"] = self.renderer_normals(
-                normals=field_outputs[FieldHeadNames.NORMALS], weights=weights
-            )
-            outputs["pred_normals"] = self.renderer_normals(
-                field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights
-            )
-
+            normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
+            pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
+            outputs["normals"] = self.normals_shader(normals)
+            outputs["pred_normals"] = self.normals_shader(pred_normals)
         # These use a lot of GPU memory, so we avoid storing them for eval.
         if self.training:
             outputs["weights_list"] = weights_list
@@ -375,12 +376,6 @@ class NerfactoModel(Model):
             "accumulation": combined_acc,
             "depth": combined_depth,
         }
-
-        # normals to RGB for visualization. TODO: use a colormap
-        if "normals" in outputs:
-            images_dict["normals"] = (outputs["normals"] + 1.0) / 2.0
-        if "pred_normals" in outputs:
-            images_dict["pred_normals"] = (outputs["pred_normals"] + 1.0) / 2.0
 
         for i in range(self.config.num_proposal_iterations):
             key = f"prop_depth_{i}"

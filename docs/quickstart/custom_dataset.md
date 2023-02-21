@@ -32,6 +32,12 @@ To assist running on custom data we have a script that will process a video or f
 - COLMAP can be finicky. Try your best to capture overlapping, non-blurry images.
   :::
 
+:::{admonition} Note
+:class: warning
+
+- If COLMAP opens in a new window, simply close it to resume processing.
+  :::
+
 ### Processing Data
 
 ```bash

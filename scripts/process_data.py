@@ -3,6 +3,7 @@
 
 
 import json
+import shutil
 import sys
 import zipfile
 from dataclasses import dataclass, field
@@ -16,6 +17,7 @@ from typing_extensions import Annotated, Literal
 
 from nerfstudio.process_data import (
     colmap_utils,
+    equirect_utils,
     hloc_utils,
     insta360_utils,
     metashape_utils,
@@ -28,6 +30,7 @@ from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils import install_checks
 
 CONSOLE = Console(width=120, no_color=True)
+DEFAULT_COLMAP_PATH = Path("colmap/sparse/0")
 
 
 @dataclass
@@ -44,7 +47,7 @@ class ProcessImages:
     """Path the data, either a video file or a directory of images."""
     output_dir: Path
     """Path to the output directory."""
-    camera_type: Literal["perspective", "fisheye"] = "perspective"
+    camera_type: Literal["perspective", "fisheye", "equirectangular"] = "perspective"
     """Camera model to use."""
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and
@@ -81,8 +84,18 @@ class ProcessImages:
         will downscale the images by 2x, 4x, and 8x."""
     skip_colmap: bool = False
     """If True, skips COLMAP and generates transforms.json if possible."""
+    skip_image_processing: bool = False
+    """If True, skips copying and downscaling of images and only runs COLMAP if possible and enabled"""
+    colmap_model_path: Path = DEFAULT_COLMAP_PATH
+    """Optionally sets the path of the colmap model. Used only when --skip-colmap is set to True.
+       The path is relative to the output directory.
+    """
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
+    images_per_equirect: Literal[8, 14] = 8
+    """Number of samples per image to take from each equirectangular image.
+       Used only when camera-type is equirectangular.
+    """
     gpu: bool = True
     """If True, use GPU."""
     verbose: bool = False
@@ -93,6 +106,21 @@ class ProcessImages:
 
     def main(self) -> None:
         """Process images into a nerfstudio dataset."""
+        require_cameras_exist = False
+        colmap_model_path = self.output_dir / Path(self.colmap_model_path)
+        if self.colmap_model_path != DEFAULT_COLMAP_PATH:
+            if not self.skip_colmap:
+                CONSOLE.log(
+                    "[bold red]The --colmap-model-path can only be used when --skip-colmap is not set."
+                )
+                sys.exit(1)
+            elif not (self.output_dir / self.colmap_model_path).exists():
+                CONSOLE.log(
+                    f"[bold red]The colmap-model-path {self.output_dir / self.colmap_model_path} does not exist."
+                )
+                sys.exit(1)
+            require_cameras_exist = True
+
         install_checks.check_ffmpeg_installed()
         install_checks.check_colmap_installed()
 
@@ -100,12 +128,40 @@ class ProcessImages:
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
 
+        # Generate planar projections if equirectangular
+        if self.camera_type == "equirectangular":
+            pers_size = equirect_utils.compute_resolution_from_equirect(
+                self.data, self.images_per_equirect
+            )
+            CONSOLE.log(
+                f"Generating {self.images_per_equirect} {pers_size} sized images per equirectangular image"
+            )
+            self.data = equirect_utils.generate_planar_projections_from_equirectangular(
+                self.data, pers_size, self.images_per_equirect
+            )
+
         summary_log = []
 
-        # Copy images to output directory
-        num_frames = process_data_utils.copy_images(
-            self.data, image_dir=image_dir, verbose=self.verbose
-        )
+        # Copy and downscale images
+        if not self.skip_image_processing:
+            # Copy images to output directory
+            num_frames = process_data_utils.copy_images(
+                self.data, image_dir=image_dir, verbose=self.verbose
+            )
+            summary_log.append(f"Starting with {num_frames} images")
+
+            # Downscale images
+            summary_log.append(
+                process_data_utils.downscale_images(
+                    image_dir, self.num_downscales, verbose=self.verbose
+                )
+            )
+        else:
+            num_frames = len(process_data_utils.list_images(self.data))
+            if num_frames == 0:
+                CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
+                sys.exit(1)
+            summary_log.append(f"Starting with {num_frames} images")
 
         # Copy images segmentation masks
         seg_new_dirs = []
@@ -119,72 +175,35 @@ class ProcessImages:
                 seg_source_sequence, image_dir=seg_image_dir, verbose=self.verbose
             )
 
-        summary_log.append(f"Starting with {num_frames} images")
-
-        # Downscale images
-        summary_log.append(
-            process_data_utils.downscale_images(
-                image_dir, self.num_downscales, verbose=self.verbose
-            )
-        )
-
         # Run COLMAP
         colmap_dir = self.output_dir / "colmap"
         if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
+            colmap_model_path = colmap_dir / "sparse" / "0"
+            require_cameras_exist = True
 
-            (
-                sfm_tool,
-                feature_type,
-                matcher_type,
-            ) = process_data_utils.find_tool_feature_matcher_combination(
-                self.sfm_tool, self.feature_type, self.matcher_type
-            )
-
-            if sfm_tool == "colmap":
-                colmap_utils.run_colmap(
-                    image_dir=image_dir,
-                    colmap_dir=colmap_dir,
-                    camera_model=CAMERA_MODELS[self.camera_type],
-                    gpu=self.gpu,
-                    verbose=self.verbose,
-                    matching_method=self.matching_method,
-                    colmap_cmd=self.colmap_cmd,
-                    feature_extractor_kwargs=self.colmap_feature_extractor_kwargs,
-                )
-            elif sfm_tool == "hloc":
-                hloc_utils.run_hloc(
-                    image_dir=image_dir,
-                    colmap_dir=colmap_dir,
-                    camera_model=CAMERA_MODELS[self.camera_type],
-                    verbose=self.verbose,
-                    matching_method=self.matching_method,
-                    feature_type=feature_type,
-                    matcher_type=matcher_type,
-                )
-            else:
-                CONSOLE.log(
-                    "[bold red]Invalid combination of sfm_tool, feature_type, and matcher_type, exiting"
-                )
-                sys.exit(1)
+            self._run_colmap(image_dir, colmap_dir)
 
         # Save transforms.json
-
-        save_transforms_to = [self.output_dir, *seg_new_dirs]
-        if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
+        if (colmap_model_path / "cameras.bin").exists():
             with CONSOLE.status(
                 "[bold yellow]Saving results to transforms.json", spinner="balloon"
             ):
                 num_matched_frames = colmap_utils.colmap_to_json(
-                    cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
-                    images_path=colmap_dir / "sparse" / "0" / "images.bin",
-                    output_dir=save_transforms_to,
+                    cameras_path=colmap_model_path / "cameras.bin",
+                    images_path=colmap_model_path / "images.bin",
+                    output_dir=self.output_dir,
                     camera_model=CAMERA_MODELS[self.camera_type],
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
             summary_log.append(
                 colmap_utils.get_matching_summary(num_frames, num_matched_frames)
             )
+        elif require_cameras_exist:
+            CONSOLE.log(
+                f"[bold red]Could not find existing COLMAP results ({colmap_model_path / 'cameras.bin'})."
+            )
+            sys.exit(1)
         else:
             CONSOLE.log(
                 "[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json"
@@ -195,6 +214,41 @@ class ProcessImages:
         for summary in summary_log:
             CONSOLE.print(summary, justify="center")
         CONSOLE.rule()
+
+    def _run_colmap(self, image_dir, colmap_dir):
+        (
+            sfm_tool,
+            feature_type,
+            matcher_type,
+        ) = process_data_utils.find_tool_feature_matcher_combination(
+            self.sfm_tool, self.feature_type, self.matcher_type
+        )
+
+        if sfm_tool == "colmap":
+            colmap_utils.run_colmap(
+                image_dir=image_dir,
+                colmap_dir=colmap_dir,
+                camera_model=CAMERA_MODELS[self.camera_type],
+                gpu=self.gpu,
+                verbose=self.verbose,
+                matching_method=self.matching_method,
+                colmap_cmd=self.colmap_cmd,
+            )
+        elif sfm_tool == "hloc":
+            hloc_utils.run_hloc(
+                image_dir=image_dir,
+                colmap_dir=colmap_dir,
+                camera_model=CAMERA_MODELS[self.camera_type],
+                verbose=self.verbose,
+                matching_method=self.matching_method,
+                feature_type=feature_type,
+                matcher_type=matcher_type,
+            )
+        else:
+            CONSOLE.log(
+                "[bold red]Invalid combination of sfm_tool, feature_type, and matcher_type, exiting"
+            )
+            sys.exit(1)
 
 
 @dataclass
@@ -214,7 +268,7 @@ class ProcessVideo:
     """Path to the output directory."""
     num_frames_target: int = 300
     """Target number of frames to use for the dataset, results may not be exact."""
-    camera_type: Literal["perspective", "fisheye"] = "perspective"
+    camera_type: Literal["perspective", "fisheye", "equirectangular"] = "perspective"
     """Camera model to use."""
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and
@@ -253,6 +307,10 @@ class ProcessVideo:
     """If True, skips COLMAP and generates transforms.json if possible."""
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
+    images_per_equirect: Literal[8, 14] = 8
+    """Number of samples per image to take from each equirectangular image.
+       Used only when camera-type is equirectangular.
+    """
     percent_radius_crop: float = 1.0
     """Create circle crop mask. The radius is the percent of the image diagonal."""
     percent_crop: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
@@ -274,12 +332,51 @@ class ProcessVideo:
 
         summary_log = []
         # Convert video to images
-        summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
-            self.data,
-            image_dir=image_dir,
-            num_frames_target=self.num_frames_target,
-            verbose=self.verbose,
-        )
+        if self.camera_type == "equirectangular":
+            # create temp images folder to store the equirect and perspective images
+            temp_image_dir = self.output_dir / "temp_images"
+            temp_image_dir.mkdir(parents=True, exist_ok=True)
+            (
+                summary_log,
+                num_extracted_frames,
+            ) = process_data_utils.convert_video_to_images(
+                self.data,
+                image_dir=temp_image_dir,
+                num_frames_target=self.num_frames_target,
+                verbose=self.verbose,
+            )
+        else:
+            (
+                summary_log,
+                num_extracted_frames,
+            ) = process_data_utils.convert_video_to_images(
+                self.data,
+                image_dir=image_dir,
+                num_frames_target=self.num_frames_target,
+                verbose=self.verbose,
+            )
+
+        # Generate planar projections if equirectangular
+        if self.camera_type == "equirectangular":
+            perspective_image_size = equirect_utils.compute_resolution_from_equirect(
+                self.output_dir / "temp_images", self.images_per_equirect
+            )
+            image_dir = equirect_utils.generate_planar_projections_from_equirectangular(
+                self.output_dir / "temp_images",
+                perspective_image_size,
+                self.images_per_equirect,
+            )
+
+            # copy the perspective images to the image directory
+            process_data_utils.copy_images(
+                self.output_dir / "temp_images" / "planar_projections",
+                image_dir=self.output_dir / "images",
+                verbose=False,
+            )
+            image_dir = self.output_dir / "images"
+
+            # remove the temp_images folder
+            shutil.rmtree(self.output_dir / "temp_images", ignore_errors=True)
 
         # Create mask
         mask_path = process_data_utils.save_mask(
@@ -292,7 +389,11 @@ class ProcessVideo:
             summary_log.append(f"Saved mask to {mask_path}")
 
         # # Downscale images
-        summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
+        summary_log.append(
+            process_data_utils.downscale_images(
+                image_dir, self.num_downscales, verbose=self.verbose
+            )
+        )
 
         # Run Colmap
         colmap_dir = self.output_dir / "colmap"
@@ -420,7 +521,7 @@ class ProcessInsta360:
         if not filename_back.exists():
             raise FileNotFoundError(f"Could not find {filename_back}")
 
-        ffprobe_cmd = f"ffprobe -v quiet -print_format json -show_streams -select_streams v:0 {filename_back}"
+        ffprobe_cmd = f'ffprobe -v quiet -print_format json -show_streams -select_streams v:0 "{filename_back}"'
 
         ffprobe_output = process_data_utils.run_command(ffprobe_cmd)
 
@@ -688,7 +789,10 @@ class ProcessPolycam:
             polycam_depth_image_dir = self.data / "keyframes" / "depth"
             depth_dir = self.output_dir / "depth"
             depth_dir.mkdir(parents=True, exist_ok=True)
-            (depth_processing_log, polycam_depth_filenames) = polycam_utils.process_depth_maps(
+            (
+                depth_processing_log,
+                polycam_depth_filenames,
+            ) = polycam_utils.process_depth_maps(
                 polycam_depth_image_dir,
                 depth_dir,
                 num_processed_images=len(polycam_image_filenames),
@@ -760,7 +864,9 @@ class ProcessMetashape:
         summary_log = []
 
         # Copy images to output directory
-        image_filenames, num_orig_images = process_data_utils.get_image_filenames(self.data, self.max_dataset_size)
+        image_filenames, num_orig_images = process_data_utils.get_image_filenames(
+            self.data, self.max_dataset_size
+        )
         copied_image_paths = process_data_utils.copy_images_list(
             image_filenames,
             image_dir=image_dir,
@@ -776,7 +882,9 @@ class ProcessMetashape:
         image_filename_map = dict(zip(original_names, copied_image_paths))
 
         if self.max_dataset_size > 0 and num_frames != num_orig_images:
-            summary_log.append(f"Started with {num_frames} images out of {num_orig_images} total")
+            summary_log.append(
+                f"Started with {num_frames} images out of {num_orig_images} total"
+            )
             summary_log.append(
                 "To change the size of the dataset add the argument [yellow]--max_dataset_size[/yellow] to "
                 f"larger than the current value ({self.max_dataset_size}), or -1 to use all images."
@@ -816,7 +924,7 @@ class ProcessRealityCapture:
     """Process RealityCapture data into a nerfstudio dataset.
 
     This script assumes that cameras have been aligned using RealityCapture. After alignment, it is necessary to
-    export the camera poses as a `.csv` file.
+    export the camera poses as a `.csv` file using the `Internal/External camera parameters` option.
 
     This script does the following:
 
@@ -854,7 +962,9 @@ class ProcessRealityCapture:
         summary_log = []
 
         # Copy images to output directory
-        image_filenames, num_orig_images = process_data_utils.get_image_filenames(self.data, self.max_dataset_size)
+        image_filenames, num_orig_images = process_data_utils.get_image_filenames(
+            self.data, self.max_dataset_size
+        )
         copied_image_paths = process_data_utils.copy_images_list(
             image_filenames,
             image_dir=image_dir,
@@ -862,12 +972,17 @@ class ProcessRealityCapture:
         )
         num_frames = len(copied_image_paths)
 
-        copied_image_paths = [Path("images/" + copied_image_path.name) for copied_image_path in copied_image_paths]
+        copied_image_paths = [
+            Path("images/" + copied_image_path.name)
+            for copied_image_path in copied_image_paths
+        ]
         original_names = [image_path.stem for image_path in image_filenames]
         image_filename_map = dict(zip(original_names, copied_image_paths))
 
         if self.max_dataset_size > 0 and num_frames != num_orig_images:
-            summary_log.append(f"Started with {num_frames} images out of {num_orig_images} total")
+            summary_log.append(
+                f"Started with {num_frames} images out of {num_orig_images} total"
+            )
             summary_log.append(
                 "To change the size of the dataset add the argument [yellow]--max_dataset_size[/yellow] to "
                 f"larger than the current value ({self.max_dataset_size}), or -1 to use all images."
@@ -876,7 +991,11 @@ class ProcessRealityCapture:
             summary_log.append(f"Started with {num_frames} images")
 
         # Downscale images
-        summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
+        summary_log.append(
+            process_data_utils.downscale_images(
+                image_dir, self.num_downscales, verbose=self.verbose
+            )
+        )
 
         # Save json
         if num_frames == 0:

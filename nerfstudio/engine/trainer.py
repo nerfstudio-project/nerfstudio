@@ -76,6 +76,9 @@ class TrainerConfig(ExperimentConfig):
     load_ckpt: Optional[Path] = None
     """Continue training from a model checkpoint"""
     load_config: Optional[Path] = None
+    """Path to config YAML file."""
+    log_gradients: bool = False
+    """Optionally log gradients during training"""
 
 
 class Trainer:
@@ -199,10 +202,7 @@ class Trainer:
             num_iterations = self.config.max_num_iterations
             step = 0
             for step in range(self._start_step, self._start_step + num_iterations):
-                with TimeWriter(
-                    writer, EventName.ITER_TRAIN_TIME, step=step
-                ) as train_t:
-
+                with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
                     self.pipeline.train()
 
                     # training callbacks before the training iteration
@@ -318,10 +318,8 @@ class Trainer:
                 )
 
     @check_viewer_enabled
-    def _update_viewer_rays_per_sec(
-        self, train_t: TimeWriter, vis_t: TimeWriter, step: int
-    ):
-        """Performs update on rays/sec calclation for training
+    def _update_viewer_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int):
+        """Performs update on rays/sec calculation for training
 
         Args:
             train_t: timer object carrying time to execute total training iteration
@@ -400,6 +398,18 @@ class Trainer:
             loss = functools.reduce(torch.add, loss_dict.values())
         self.grad_scaler.scale(loss).backward()  # type: ignore
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
+
+        if self.config.log_gradients:
+            total_grad = 0
+            for tag, value in self.pipeline.model.named_parameters():
+                assert tag != "Total"
+                if value.grad is not None:
+                    grad = value.grad.norm()
+                    metrics_dict[f"Gradients/{tag}"] = grad
+                    total_grad += grad
+
+            metrics_dict["Gradients/Total"] = total_grad
+
         self.grad_scaler.update()
         self.optimizers.scheduler_step_all(step)
 
