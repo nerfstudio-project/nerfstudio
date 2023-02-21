@@ -60,8 +60,8 @@ class SemanticNerfWModelConfig(NerfactoModelConfig):
 
     _target: Type = field(default_factory=lambda: SemanticNerfWModel)
     use_transient_embedding: bool = False
-    semantic_loss_weight: float = 0.01
-    pass_semantic_gradients: bool = True
+    semantic_loss_weight: float = 1.0
+    pass_semantic_gradients: bool = False
     """Whether to use transient embedding."""
 
 
