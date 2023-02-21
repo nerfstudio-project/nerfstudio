@@ -100,8 +100,6 @@ class NerfactoModelConfig(ModelConfig):
     """Arguments for the proposal density fields."""
     proposal_initial_sampler: Literal["piecewise", "uniform"] = "piecewise"
     """Initial sampler for the proposal network. Piecewise is preferred for unbounded scenes."""
-    proposal_unif_num_samples: int = 128
-    """If using a uniform initial sampler, how many samples to use."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
     distortion_loss_mult: float = 0.002
@@ -182,8 +180,8 @@ class NerfactoModel(Model):
         # Change proposal network initial sampler if uniform
         initial_sampler = None  # None is for piecewise as default (see ProposalNetworkSampler)
         if self.config.proposal_initial_sampler == "uniform":
-            initial_sampler = UniformSampler(self.config.proposal_unif_num_samples, single_jitter=self.config.use_single_jitter)
-        
+            initial_sampler = UniformSampler(single_jitter=self.config.use_single_jitter)
+
         self.proposal_sampler = ProposalNetworkSampler(
             num_nerf_samples_per_ray=self.config.num_nerf_samples_per_ray,
             num_proposal_samples_per_ray=self.config.num_proposal_samples_per_ray,
