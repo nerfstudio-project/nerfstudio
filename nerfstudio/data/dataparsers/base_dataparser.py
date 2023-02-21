@@ -39,7 +39,7 @@ class Semantics:
     """filenames to load semantic data"""
     classes: List[str]
     """class labels for data"""
-    colors: List[str]
+    colors: List[List[int]]
     """color mapping for classes"""
     mask_classes: List[str] = field(default_factory=lambda: [])
     """classes to mask out from training for all modalities"""
