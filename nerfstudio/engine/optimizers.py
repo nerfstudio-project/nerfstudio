@@ -86,8 +86,10 @@ class Optimizers:
             self.optimizers[param_group_name] = config[param_group_name]["optimizer"].setup(params=params)
             self.parameters[param_group_name] = params
             if config[param_group_name]["scheduler"]:
-                self.schedulers[param_group_name] = config[param_group_name]["scheduler"].setup(
-                    optimizer=self.optimizers[param_group_name], lr_init=lr_init
+                self.schedulers[param_group_name] = (
+                    config[param_group_name]["scheduler"]
+                    .setup()
+                    .get_scheduler(optimizer=self.optimizers[param_group_name], lr_init=lr_init)
                 )
 
     def optimizer_step(self, param_group_name: str) -> None:
