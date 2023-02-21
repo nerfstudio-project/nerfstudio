@@ -33,19 +33,16 @@ from torch.cuda.amp import custom_bwd, custom_fwd
 from torch.cuda.amp.grad_scaler import GradScaler
 from torchtyping import TensorType
 
-CONSOLE = Console(width=120)
-
 try:
     from diffusers import PNDMScheduler, StableDiffusionPipeline
     from transformers import logging
 
-except ImportError:
-    CONSOLE.print("[bold red]Missing Stable Diffusion packages.")
-    CONSOLE.print(r"Install using [yellow]pip install nerfstudio\[gen][/yellow]")
-    CONSOLE.print(r"or [yellow]pip install -e .\[gen][/yellow] if installing from source.")
-    sys.exit(1)
+    SD_AVAILABLE = True
 
-logging.set_verbosity_error()
+except ImportError:
+    SD_AVAILABLE = False
+
+CONSOLE = Console(width=120)
 IMG_DIM = 512
 CONST_SCALE = 0.18215
 SD_IDENTIFIERS = {
@@ -91,6 +88,14 @@ class StableDiffusion(nn.Module):
 
     def __init__(self, device: Union[torch.device, str], num_train_timesteps: int = 1000, version="1-5") -> None:
         super().__init__()
+
+        if not SD_AVAILABLE:
+            CONSOLE.print("[bold red]Missing Stable Diffusion packages.")
+            CONSOLE.print(r"Install using [yellow]pip install nerfstudio\[gen][/yellow]")
+            CONSOLE.print(r"or [yellow]pip install -e .\[gen][/yellow] if installing from source.")
+            sys.exit(1)
+
+        logging.set_verbosity_error()
 
         self.device = device
         self.num_train_timesteps = num_train_timesteps
