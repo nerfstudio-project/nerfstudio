@@ -76,6 +76,7 @@ class SemanticNerfWModel(Model):
         assert "semantics" in metadata.keys() and isinstance(metadata["semantics"], Semantics)
         self.semantics = metadata["semantics"]
         super().__init__(config=config, **kwargs)
+        self.colormap = torch.tensor(self.semantics.colors).to(self.device)
 
     def populate_modules(self):
         """Set the fields and modules."""
@@ -213,7 +214,7 @@ class SemanticNerfWModel(Model):
 
         # semantics colormaps
         semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics"], dim=-1), dim=-1)
-        outputs["semantics_colormap"] = self.semantics.colors[semantic_labels]
+        outputs["semantics_colormap"] = self.colormap[semantic_labels]
 
         return outputs
 
@@ -287,7 +288,7 @@ class SemanticNerfWModel(Model):
 
         # semantics
         semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics"], dim=-1), dim=-1)
-        images_dict["semantics_colormap"] = self.semantics.colors[semantic_labels]
+        images_dict["semantics_colormap"] = self.colormap[semantic_labels]
 
         # valid mask
         images_dict["mask"] = batch["mask"].repeat(1, 1, 3)
