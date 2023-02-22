@@ -144,7 +144,7 @@ docker run --gpus all \                                         # Give the conta
             -p 7007:7007 \                                      # Map port from local machine to docker container (required to access the web interface/UI).
             --rm \                                              # Remove container after it is closed (recommended).
             -it \                                               # Start container in interactive mode.
-            --shm-size=12gb \                                   # Increase memory assigned to container to avoid memory limitations (default is 64 MB).
+            --shm-size=12gb \                                   # Increase memory assigned to container to avoid memory limitations, default is 64 MB (recommended).
             dromni/nerfstudio:<tag>                             # Docker image name if you pulled from docker hub.
             <--- OR --->
             nerfstudio                                          # Docker image tag if you built the image from the Dockerfile by yourself using the command from above. 
