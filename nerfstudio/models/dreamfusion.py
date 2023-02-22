@@ -77,8 +77,10 @@ class DreamFusionModelConfig(ModelConfig):
     """Randomizes light source per output."""
     initialize_density: bool = True
     """Initialize density in center of scene."""
-    init_density_strength: float = 10
-    """Initial strength of center density"""
+    taper_range: Tuple[int, int] = (0, 1000)
+    """Range of step values for the density tapering"""
+    taper_strength: Tuple[float, float] = (1.0, 0.0)
+    """Strength schedule of center density"""
     sphere_collider: bool = True
     """Use spherical collider instead of box"""
     random_background: bool = True
@@ -126,7 +128,7 @@ class DreamFusionModelConfig(ModelConfig):
     """start training with lambertian shading after this many iterations"""
     opacity_penalty: bool = True
     """enables penalty to encourage sparse weights (penalizing for uniform density along ray)"""
-    opacity_loss_mult: float = 1
+    opacity_loss_mult: float = 1e-3
     """scale for opacity penalty"""
     max_res: int = 256
     """Maximum resolution of the density field."""
@@ -135,7 +137,7 @@ class DreamFusionModelConfig(ModelConfig):
     """enables location based prompting"""
     interpolated_prompting: bool = False
     """enables interpolated location prompting"""
-    positional_prompting: Literal["discrete", "interpolated", "base"] = "discrete"
+    positional_prompting: Literal["discrete", "interpolated", "off"] = "discrete"
     """ how to incorporate position into prompt"""
     top_prompt: str = ", overhead view"
     """appended to prompt for overhead view"""
@@ -237,7 +239,7 @@ class DreamFusionModel(Model):
             single_jitter=self.config.use_single_jitter,
             update_sched=update_schedule,
             initial_sampler=UniformSampler(single_jitter=self.config.use_single_jitter),
-            pdf_histogram_padding=0.001,
+            pdf_histogram_padding=0.005,
         )
 
         # renderers
@@ -267,7 +269,7 @@ class DreamFusionModel(Model):
         def taper_density(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
         ):
-            self.density_strength -= 0.25
+            self.density_strength = np.interp(step, self.config.taper_range, self.config.taper_strength)
 
         def start_training_normals(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
@@ -303,6 +305,7 @@ class DreamFusionModel(Model):
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                 iters=(150, 300, 450, 600),
                 func=taper_density,
+                update_every_num_iters=1,
                 args=[self, training_callback_attributes],
             ),
             TrainingCallback(
@@ -352,11 +355,9 @@ class DreamFusionModel(Model):
         if self.initialize_density:
             pos = ray_samples.frustums.get_positions()
             density_blob = (
-                self.config.init_density_strength
-                * self.density_strength
-                * torch.exp(-torch.norm(pos, dim=-1) * 10)[..., None]
+                self.density_strength * self.density_strength * torch.exp(-torch.norm(pos, dim=-1) * 10)[..., None]
             )
-            density += density_blob
+            density = density + density_blob
 
         weights = ray_samples.get_weights(density)
         weights_list.append(weights)

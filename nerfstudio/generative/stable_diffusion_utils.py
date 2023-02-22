@@ -46,7 +46,7 @@ class PositionalTextEmbeddings:
         back_prompt: str,
         front_prompt: str,
         stable_diffusion: StableDiffusion,
-        positional_prompting: Literal["discrete", "interpolated", "off"] = "discrete",
+        positional_prompting: Literal["discrete", "interpolated", "off"] = "discrete"
     ):
         self.positional_prompting = positional_prompting
         self.sd_device = stable_diffusion.device
