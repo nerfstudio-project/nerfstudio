@@ -256,9 +256,6 @@ class DepthSemanticNerfModel(Model):
             )
             assert metrics_dict is not None and "distortion" in metrics_dict
             loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
-            loss_dict["semantics_loss"] = self.cross_entropy_loss(
-                outputs["semantics"], batch["semantics"][..., 0].long()
-            )
             loss_dict["depth_loss"] = self.config.depth_loss_mult * metrics_dict["depth_loss"]
         return loss_dict
 
