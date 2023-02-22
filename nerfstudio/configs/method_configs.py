@@ -361,7 +361,7 @@ method_configs["dreamfusion"] = TrainerConfig(
             initialize_density=False,
             random_background=True,
             proposal_warmup=500,
-            proposal_update_every=2,
+            proposal_update_every=0,
             proposal_weights_anneal_max_num_iters=100,
             start_lambertian_training=500,
             start_normals_training=1000,
@@ -372,7 +372,7 @@ method_configs["dreamfusion"] = TrainerConfig(
     ),
     optimizers={
         "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=5e-2, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
         },
         "fields": {

@@ -128,7 +128,7 @@ class DreamFusionModelConfig(ModelConfig):
     """start training with lambertian shading after this many iterations"""
     opacity_penalty: bool = True
     """enables penalty to encourage sparse weights (penalizing for uniform density along ray)"""
-    opacity_loss_mult: float = 1e-3
+    opacity_loss_mult: float = 1
     """scale for opacity penalty"""
     max_res: int = 256
     """Maximum resolution of the density field."""
@@ -303,7 +303,6 @@ class DreamFusionModel(Model):
         callbacks = [
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-                iters=(150, 300, 450, 600),
                 func=taper_density,
                 update_every_num_iters=1,
                 args=[self, training_callback_attributes],
@@ -354,9 +353,7 @@ class DreamFusionModel(Model):
 
         if self.initialize_density:
             pos = ray_samples.frustums.get_positions()
-            density_blob = (
-                self.density_strength * self.density_strength * torch.exp(-torch.norm(pos, dim=-1) * 10)[..., None]
-            )
+            density_blob = self.density_strength * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
             density = density + density_blob
 
         weights = ray_samples.get_weights(density)
@@ -426,22 +423,19 @@ class DreamFusionModel(Model):
         else:
             outputs["train_output"] = outputs["rgb"]
 
-        if self.training:
-            outputs["rendered_orientation_loss"] = orientation_loss(
-                weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
-            )
+        outputs["rendered_orientation_loss"] = orientation_loss(
+            weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
+        )
 
-            outputs["rendered_pred_normal_loss"] = pred_normal_loss(
-                weights.detach(),
-                field_outputs[FieldHeadNames.NORMALS].detach(),
-                field_outputs[FieldHeadNames.PRED_NORMALS],
-            )
+        outputs["rendered_pred_normal_loss"] = pred_normal_loss(
+            weights.detach(),
+            field_outputs[FieldHeadNames.NORMALS].detach(),
+            field_outputs[FieldHeadNames.PRED_NORMALS],
+        )
 
-            assert weights.shape[-1] == 1
-            if self.config.opacity_penalty:
-                outputs["opacity_loss"] = (
-                    torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01) * self.config.opacity_loss_mult
-                )
+        assert weights.shape[-1] == 1
+        if self.config.opacity_penalty:
+            outputs["opacity_loss"] = torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01) * self.config.opacity_loss_mult
 
         return outputs
 
