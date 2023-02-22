@@ -302,8 +302,13 @@ class DepthSemanticNerfModel(Model):
             images_dict[key] = prop_depth_i
 
         # semantics
-        semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics"], dim=-1), dim=-1)
-        images_dict["semantics_colormap"] = self.semantics.colors[semantic_labels]
+        ground_truth_semantic_labels = torch.squeeze(batch["semantics"])
+        predicted_semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics"], dim=-1), dim=-1)
+        ground_truth_semantic_colormap = self.semantics.colors[ground_truth_semantic_labels]
+        predicted_semantic_colormap = self.semantics.colors[predicted_semantic_labels]
+        images_dict["semantics_colormap"] = torch.cat(
+            [ground_truth_semantic_colormap, predicted_semantic_colormap], dim=1
+        )
 
         # valid mask
         images_dict["mask"] = batch["mask"].repeat(1, 1, 3)

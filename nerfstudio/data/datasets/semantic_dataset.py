@@ -71,5 +71,4 @@ class SemanticDataset(InputDataset):
             )
             return {"mask": mask, "semantics": semantic_label, "depth_image": depth_image}
 
-        else:
-            return {"mask": mask, "semantics": semantic_label}
+        return {"mask": mask, "semantics": semantic_label}
