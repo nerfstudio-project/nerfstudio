@@ -191,6 +191,7 @@ class VolingaModelConfig(ModelConfig):
     predict_normals: bool = False
     """Whether to predict normals or not."""
 
+
 class NerfactoModel(Model):
     """Nerfacto model
 
