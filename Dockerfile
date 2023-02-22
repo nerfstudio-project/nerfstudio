@@ -112,6 +112,18 @@ RUN python3.10 -m pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 --ex
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
 RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git#subdirectory=bindings/torch
 
+# Install pycolmap 0.3.0, required by hloc.
+RUN git clone --branch v0.3.0 --recursive https://github.com/colmap/pycolmap.git && \
+    cd pycolmap && \
+    python3.10 -m pip install . && \
+    cd ..
+
+# Install hloc master (last release (1.3) is too old) as alternative feature detector and matcher option for nerfstudio.
+RUN git clone --branch master --recursive https://github.com/cvg/Hierarchical-Localization && \
+    cd Hierarchical-Localization && \
+    python3.10 -m pip install -e . && \
+    cd ..
+
 # Copy nerfstudio folder and give ownership to user.
 ADD . /home/user/nerfstudio
 USER root

@@ -3,7 +3,7 @@ version: "3.8"
 services:
   nerfstudio:
     shm_size: '12gb'
-    image: dromni/nerfstudio:0.1.17
+    image: dromni/nerfstudio:0.1.18
     # build:
     #   context: ..
     #   dockerfile: ./Dockerfile
