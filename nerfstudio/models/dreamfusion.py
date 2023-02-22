@@ -477,7 +477,7 @@ class DreamFusionModel(Model):
             )
 
         text_embedding = self.text_embeddings.get_text_embedding(
-            vertical_angle=batch["vertical"], horizonal_angle=batch["central"]
+            vertical_angle=batch["vertical"], horizontal_angle=batch["central"]
         )
 
         train_output = (

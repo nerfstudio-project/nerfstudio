@@ -69,7 +69,7 @@ class PositionalTextEmbeddings:
         self.back_embed = self.sd.get_text_embeds(back_prompt, "")
         self.front_embed = self.sd.get_text_embeds(front_prompt, "")
 
-    def get_text_embedding(self, vertical_angle: TensorType[1], horizonal_angle: TensorType[1]):
+    def get_text_embedding(self, vertical_angle: TensorType[1], horizontal_angle: TensorType[1]):
         """Get text embedding based on the position of the camera relative to the scene.
         This trick is used in Dreamfusion (https://dreamfusion3d.github.io/).
 
@@ -81,30 +81,31 @@ class PositionalTextEmbeddings:
         if self.positional_prompting == "discrete":
             if vertical_angle < 40:
                 text_embedding = self.top_embed
-            elif 315 < horizonal_angle <= 45:
+            elif 315 < horizontal_angle or horizontal_angle <= 45:
                 text_embedding = self.front_embed
-            elif 45 < horizonal_angle <= 135:
+            elif 45 < horizontal_angle <= 135:
                 text_embedding = self.side_embed
-            elif 135 < horizonal_angle <= 225:
+            elif 135 < horizontal_angle <= 225:
                 text_embedding = self.back_embed
-            else:  # horizonal_angle > 225 and horizonal_angle <= 315:
+            else:  # horizontal_angle > 225 and horizontal_angle <= 315:
                 text_embedding = self.side_embed
         elif self.positional_prompting == "interpolated":
-            horiz = horizonal_angle.to(self.sd_device)
+            horiz = horizontal_angle.to(self.sd_device)
             vert = max(vertical_angle.to(self.sd_device), 0)
 
-            if 0 < horizonal_angle <= 90:
+            if 0 < horizontal_angle <= 90:
                 text_embedding = (horiz) * self.side_embed + (90 - horiz) * self.front_embed
-            elif 90 < horizonal_angle <= 180:
+            elif 90 < horizontal_angle <= 180:
                 text_embedding = (horiz - 90) * self.back_embed + (180 - horiz) * self.side_embed
-            elif 180 < horizonal_angle <= 270:
+            elif 180 < horizontal_angle <= 270:
                 text_embedding = (horiz - 180) * self.side_embed + (270 - horiz) * self.back_embed
-            else:  # 270 < horizonal_angle <= 360:
+            else:  # 270 < horizontal_angle <= 360:
                 text_embedding = (horiz - 270) * self.front_embed + (360 - horiz) * self.side_embed
 
             text_embedding = text_embedding / 90.0
             text_embedding = (vert * text_embedding + (90 - vert) * self.top_embed) / 90.0
         else:
+            print('here')
             text_embedding = self.base_embed
 
         return text_embedding
