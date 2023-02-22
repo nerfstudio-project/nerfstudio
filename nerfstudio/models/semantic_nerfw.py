@@ -60,9 +60,9 @@ class SemanticNerfWModelConfig(NerfactoModelConfig):
 
     _target: Type = field(default_factory=lambda: SemanticNerfWModel)
     use_transient_embedding: bool = False
+    """Whether to use transient embedding."""
     semantic_loss_weight: float = 1.0
     pass_semantic_gradients: bool = False
-    """Whether to use transient embedding."""
 
 
 class SemanticNerfWModel(Model):
@@ -78,7 +78,7 @@ class SemanticNerfWModel(Model):
         assert "semantics" in metadata.keys() and isinstance(metadata["semantics"], Semantics)
         self.semantics = metadata["semantics"]
         super().__init__(config=config, **kwargs)
-        self.colormap = torch.tensor(self.semantics.colors).to(self.device)
+        self.colormap = self.semantics.colors.clone().detach().to(self.device)
 
     def populate_modules(self):
         """Set the fields and modules."""
@@ -220,7 +220,7 @@ class SemanticNerfWModel(Model):
 
         # semantics colormaps
         semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics"], dim=-1), dim=-1)
-        outputs["semantics_colormap"] = self.colormap[semantic_labels]
+        outputs["semantics_colormap"] = self.colormap.to(self.device)[semantic_labels]
 
         return outputs
 
@@ -296,7 +296,7 @@ class SemanticNerfWModel(Model):
 
         # semantics
         semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics"], dim=-1), dim=-1)
-        images_dict["semantics_colormap"] = self.colormap[semantic_labels]
+        images_dict["semantics_colormap"] = self.colormap.to(self.device)[semantic_labels]
 
         # valid mask
         images_dict["mask"] = batch["mask"].repeat(1, 1, 3)
