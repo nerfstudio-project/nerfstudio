@@ -50,6 +50,10 @@ yarn install
 yarn start
 ```
 
+The local webserver runs on port 4000 by default, 
+so when `ns-train` is running, you can connect to the viewer locally at
+[http://localhost:4000/?websocket_url=ws://localhost:7007](http://localhost:4000/?websocket_url=ws://localhost:7007)
+
 #### Running the Bridge Server Manually
 
 The viewer bridge server runs on the same machine that you use for training. The training code will connect to this server with a lightweight TCP connection using ZMQ. The training job will launch the viewer bridge server is you specify `--viewer.launch-bridge-server` in the terminal. Otherwise, you can launch the bridge server manually with the following script.

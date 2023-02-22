@@ -37,7 +37,8 @@ from torchtyping import TensorType
 from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
-from nerfstudio.utils.math import components_from_spherical_harmonics
+from nerfstudio.utils import colors
+from nerfstudio.utils.math import components_from_spherical_harmonics, safe_normalize
 
 BACKGROUND_COLOR_OVERRIDE: Optional[TensorType[3]] = None
 
@@ -55,7 +56,7 @@ def background_color_override_context(mode: TensorType[3]) -> Generator[None, No
 
 
 class RGBRenderer(nn.Module):
-    """Standard volumetic rendering.
+    """Standard volumetric rendering.
 
     Args:
         background_color: Background color as RGB. Uses random colors if None.
@@ -70,7 +71,7 @@ class RGBRenderer(nn.Module):
         cls,
         rgb: TensorType["bs":..., "num_samples", 3],
         weights: TensorType["bs":..., "num_samples", 1],
-        background_color: Union[Literal["random", "black", "last_sample"], TensorType[3]] = "random",
+        background_color: Union[Literal["random", "white", "black", "last_sample"], TensorType[3]] = "random",
         ray_indices: Optional[TensorType["num_samples"]] = None,
         num_rays: Optional[int] = None,
     ) -> TensorType["bs":..., 3]:
@@ -102,8 +103,8 @@ class RGBRenderer(nn.Module):
             background_color = rgb[..., -1, :]
         if background_color == "random":
             background_color = torch.rand_like(comp_rgb).to(rgb.device)
-        if background_color == "black":
-            background_color = torch.zeros_like(comp_rgb).to(rgb.device)
+        if isinstance(background_color, str) and background_color in colors.COLORS_DICT:
+            background_color = colors.COLORS_DICT[background_color].to(rgb.device)
 
         assert isinstance(background_color, torch.Tensor)
         comp_rgb = comp_rgb + background_color.to(weights.device) * (1.0 - accumulated_weight)
@@ -165,7 +166,7 @@ class SHRenderer(nn.Module):
         """Composite samples along ray and render color image
 
         Args:
-            sh: Spherical hamonics coefficients for each sample
+            sh: Spherical harmonics coefficients for each sample
             directions: Sample direction
             weights: Weights for each sample
 
@@ -328,7 +329,16 @@ class NormalsRenderer(nn.Module):
         cls,
         normals: TensorType["bs":..., "num_samples", 3],
         weights: TensorType["bs":..., "num_samples", 1],
+        normalize: bool = True,
     ) -> TensorType["bs":..., 3]:
-        """Calculate normals along the ray."""
+        """Calculate normals along the ray.
+
+        Args:
+            normals: Normals for each sample.
+            weights: Weights of each sample.
+            normalize: Normalize normals.
+        """
         n = torch.sum(weights * normals, dim=-2)
+        if normalize:
+            n = safe_normalize(n)
         return n

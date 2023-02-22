@@ -58,7 +58,7 @@ class TCNNInstantNGPField(Field):
         num_layers_color: number of hidden layers for color network
         hidden_dim_color: dimension of hidden layers for color network
         use_appearance_embedding: whether to use appearance embedding
-        num_images: number of images, requried if use_appearance_embedding is True
+        num_images: number of images, required if use_appearance_embedding is True
         appearance_embedding_dim: dimension of appearance embedding
         contraction_type: type of contraction
         num_levels: number of levels of the hashmap for the base mlp
