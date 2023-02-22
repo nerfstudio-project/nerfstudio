@@ -39,7 +39,7 @@ class Semantics:
     """filenames to load semantic data"""
     classes: List[str]
     """class labels for data"""
-    colors: List[List[int]]
+    colors: torch.tensor
     """color mapping for classes"""
     mask_classes: List[str] = field(default_factory=lambda: [])
     """classes to mask out from training for all modalities"""
