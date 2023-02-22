@@ -47,7 +47,7 @@ from nerfstudio.engine.schedulers import ExponentialDecaySchedulerConfig
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
-from nerfstudio.models.depth_semantic_nerf import DepthSemanticNerfModelConfig
+from nerfstudio.models.depth_semantic_nerfacto import DepthSemanticNerfModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.nerfacto import NerfactoModelConfig
@@ -74,7 +74,7 @@ descriptions = {
     "phototourism": "Uses the Phototourism data.",
     "nerfplayer-nerfacto": "NeRFPlayer with nerfacto backbone.",
     "nerfplayer-ngp": "NeRFPlayer with InstantNGP backbone.",
-    "depth-semantic-nerf": "depth supervised semantic nerf",
+    "depth-semantic-nerfacto": "depth supervised semantic nerf",
 }
 
 method_configs["nerfacto"] = TrainerConfig(
@@ -234,8 +234,8 @@ method_configs["semantic-nerfw"] = TrainerConfig(
     vis="viewer",
 )
 
-method_configs["depth-semantic-nerf"] = TrainerConfig(
-    method_name="depth-semantic-nerf",
+method_configs["depth-semantic-nerfacto"] = TrainerConfig(
+    method_name="depth-semantic-nerfacto",
     steps_per_eval_batch=500,
     steps_per_save=2000,
     max_num_iterations=30000,

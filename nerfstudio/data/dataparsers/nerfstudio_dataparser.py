@@ -65,7 +65,6 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The percent of images to use for training. The remaining images are for eval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
-    include_semantics: bool = True
 
 
 @dataclass
@@ -283,7 +282,7 @@ class Nerfstudio(DataParser):
         assert self.downscale_factor is not None
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
 
-        if self.config.include_semantics:
+        if len(semantic_filenames) > 0:
             panoptic_classes = load_from_json(self.config.data / "panoptic_classes.json")
             classes = panoptic_classes["thing"]
             colors = torch.tensor(panoptic_classes["thing_colors"], dtype=torch.float32) / 255.0
@@ -297,7 +296,7 @@ class Nerfstudio(DataParser):
             dataparser_scale=scale_factor,
             dataparser_transform=transform_matrix,
             metadata={
-                "semantics": semantics if self.config.include_semantics else {},
+                "semantics": semantics if len(semantic_filenames) > 0 else None,
                 "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
             },
