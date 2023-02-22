@@ -105,7 +105,7 @@ ENV PATH="${PATH}:/home/user/.local/bin"
 SHELL ["/bin/bash", "-c"]
 
 # Upgrade pip and install packages.
-RUN python3.10 -m pip install --upgrade pip setuptools pathtools promise
+RUN python3.10 -m pip install --upgrade pip setuptools pathtools promise pybind11
 # Install pytorch and submodules (Currently, we still use cu116 which is the latest version for toch 1.12.1 and is compatible with CUDA 11.8).
 RUN python3.10 -m pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
 # Install tynyCUDNN (we need to set the target architectures as environment variable first).
