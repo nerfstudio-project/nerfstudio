@@ -33,10 +33,54 @@ from rich.progress import (
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
 
 
+def crop_bottom(bound_arr: list, fov: int, percent_crop: float) -> list:
+    """Returns a list of bounds with the bottom cropped.
+
+    Args:
+        bound_arr (list): List of vertical bounds in ascending order.
+        fov (int): Field of view of the camera.
+        percent_crop (float): Percent of the image to crop from the bottom.
+
+    Returns:
+        list: A new list of bounds with the bottom cropped.
+    """
+    degrees_chopped = 180 * percent_crop
+    new_bottom_start = 90 - degrees_chopped - fov / 2
+    for i, el in reversed(list(enumerate(bound_arr))):
+        if el > new_bottom_start + fov / 5:
+            bound_arr[i] = None
+        elif el > new_bottom_start:
+            diff = el - new_bottom_start
+            bound_arr[i] = new_bottom_start
+            for j in range(i - 1, -1, -1):
+                bound_arr[j] -= diff / (2 ** (i - j))
+            break
+
+    return bound_arr
+
+
+# def crop_top(bound_arr, fov, percent_crop):
+#     degrees_chopped = 180 * percent_crop
+#     new_top_start = -90 + degrees_chopped + fov / 2
+#     for i, el in enumerate(bound_arr):
+#         print(i, el)
+#         if el < new_top_start - fov / 5:
+#             bound_arr[i] = None
+#         elif el < new_top_start:
+#             diff = new_top_start - el
+#             bound_arr[i] = new_top_start
+#             for j in range(i + 1, len(bound_arr)):
+#                 bound_arr[j] += diff / (2 ** (j - i))
+#             break
+
+#     return bound_arr
+
+
 def generate_planar_projections_from_equirectangular(
     image_dir: Path,
     planar_image_size: Tuple[int, int],
     samples_per_im: int,
+    percent_crop: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
 ) -> Path:
     """Generate planar projections from an equirectangular image.
 
@@ -54,12 +98,18 @@ def generate_planar_projections_from_equirectangular(
     yaw_pitch_pairs = []
     if samples_per_im == 8:
         fov = 120
+    bound_arr = [-45, 0, 45]
+    bound_arr = crop_bottom(bound_arr, fov, 0.2)
+    print(bound_arr)
+    if bound_arr[1] is not None:
         for i in np.arange(-180, 180, 90):
-            yaw_pitch_pairs.append((i, 0))
+            yaw_pitch_pairs.append((i, bound_arr[1]))
+    if bound_arr[2] is not None:
         for i in np.arange(-180, 180, 180):
-            yaw_pitch_pairs.append((i, 45))
+            yaw_pitch_pairs.append((i, bound_arr[2]))
+    if bound_arr[0] is not None:
         for i in np.arange(-180, 180, 180):
-            yaw_pitch_pairs.append((i, -45))
+            yaw_pitch_pairs.append((i, bound_arr[0]))
     elif samples_per_im == 14:
         fov = 110
         for i in np.arange(-180, 180, 60):

@@ -296,7 +296,10 @@ class ProcessVideo:
                 self.output_dir / "temp_images", self.images_per_equirect
             )
             image_dir = equirect_utils.generate_planar_projections_from_equirectangular(
-                self.output_dir / "temp_images", perspective_image_size, self.images_per_equirect
+                self.output_dir / "temp_images",
+                perspective_image_size,
+                self.images_per_equirect,
+                percent_crop=self.percent_crop,
             )
 
             # copy the perspective images to the image directory
@@ -310,15 +313,15 @@ class ProcessVideo:
             # remove the temp_images folder
             shutil.rmtree(self.output_dir / "temp_images", ignore_errors=True)
 
-        # Create mask
-        mask_path = process_data_utils.save_mask(
-            image_dir=image_dir,
-            num_downscales=self.num_downscales,
-            percent_crop=self.percent_crop,
-            percent_radius=self.percent_radius_crop,
-        )
-        if mask_path is not None:
-            summary_log.append(f"Saved mask to {mask_path}")
+        # # Create mask
+        # mask_path = process_data_utils.save_mask(
+        #     image_dir=image_dir,
+        #     num_downscales=self.num_downscales,
+        #     percent_crop=self.percent_crop,
+        #     percent_radius=self.percent_radius_crop,
+        # )
+        # if mask_path is not None:
+        #     summary_log.append(f"Saved mask to {mask_path}")
 
         # # Downscale images
         summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
