@@ -469,7 +469,6 @@ class TensorVMEncoding(Encoding):
         )
         line_coef = F.interpolate(self.line_coef.data, size=(resolution, 1), mode="bilinear", align_corners=True)
 
-        # TODO(ethan): are these torch.nn.Parameters needed?
         self.plane_coef, self.line_coef = torch.nn.Parameter(plane_coef), torch.nn.Parameter(line_coef)
         self.resolution = resolution
 
@@ -506,14 +505,14 @@ class TriplaneEncoding(Encoding):
         resolution: int = 32,
         num_components: int = 64,
         init_scale: float = 0.1,
-        product: bool = False,
+        reduce: Literal["sum", "product"] = "sum",
     ) -> None:
         super().__init__(in_dim=3)
 
         self.resolution = resolution
         self.num_components = num_components
         self.init_scale = init_scale
-        self.product = product
+        self.reduce = reduce
 
         self.plane_coef = nn.Parameter(
             self.init_scale * torch.randn((3, self.num_components, self.resolution, self.resolution))
@@ -536,7 +535,7 @@ class TriplaneEncoding(Encoding):
             self.plane_coef, plane_coord, align_corners=True
         )  # [3, num_components, flattened_bs, 1]
 
-        if self.product:
+        if self.reduce == "product":
             plane_features = plane_features.prod(0).squeeze(-1).T  # [flattened_bs, num_components]
         else:
             plane_features = plane_features.sum(0).squeeze(-1).T
@@ -554,7 +553,6 @@ class TriplaneEncoding(Encoding):
             self.plane_coef.data, size=(resolution, resolution), mode="bilinear", align_corners=True
         )
 
-        # TODO(ethan): are these torch.nn.Parameters needed?
         self.plane_coef = torch.nn.Parameter(plane_coef)
         self.resolution = resolution
 
