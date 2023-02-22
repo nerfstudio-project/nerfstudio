@@ -130,9 +130,13 @@ class TensoRFModel(Model):
                 "optimizer"
             ].setup(params=enc)
             if optimizers_config["encodings"]["scheduler"]:
-                training_callback_attributes.optimizers.schedulers["encodings"] = optimizers_config["encodings"][
-                    "scheduler"
-                ].setup(optimizer=training_callback_attributes.optimizers.optimizers["encodings"], lr_init=lr_init)
+                training_callback_attributes.optimizers.schedulers["encodings"] = (
+                    optimizers_config["encodings"]["scheduler"]
+                    .setup()
+                    .get_scheduler(
+                        optimizer=training_callback_attributes.optimizers.optimizers["encodings"], lr_init=lr_init
+                    )
+                )
 
         callbacks = [
             TrainingCallback(
