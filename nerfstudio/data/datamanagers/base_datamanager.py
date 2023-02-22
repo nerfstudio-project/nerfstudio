@@ -49,7 +49,6 @@ from nerfstudio.data.dataparsers.nuscenes_dataparser import NuScenesDataParserCo
 from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
-from nerfstudio.data.dataparsers.sdfstudio_dataparser import SDFStudioDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import EquirectangularPixelSampler, PixelSampler
 from nerfstudio.data.utils.dataloaders import (
@@ -76,7 +75,6 @@ AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of
             "dnerf-data": DNeRFDataParserConfig(),
             "phototourism-data": PhototourismDataParserConfig(),
             "dycheck-data": DycheckDataParserConfig(),
-            "sdfstudio-data": SDFStudioDataParserConfig(),
         },
         prefix_names=False,  # Omit prefixes in subcommands themselves.
     )
@@ -393,9 +391,12 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
+        self.eval_camera_optimizer = self.config.camera_optimizer.setup(
+            num_cameras=self.eval_dataset.cameras.size, device=self.device
+        )
         self.eval_ray_generator = RayGenerator(
             self.eval_dataset.cameras.to(self.device),
-            self.train_camera_optimizer,  # should be shared between train and eval.
+            self.eval_camera_optimizer,
         )
         # for loading full images
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
