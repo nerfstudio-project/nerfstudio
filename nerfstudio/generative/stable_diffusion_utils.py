@@ -46,7 +46,7 @@ class PositionalTextEmbeddings:
         back_prompt: str,
         front_prompt: str,
         stable_diffusion: StableDiffusion,
-        positional_prompting: Literal["discrete", "interpolated", "off"] = "discrete"
+        positional_prompting: Literal["discrete", "interpolated", "off"] = "discrete",
     ):
         self.positional_prompting = positional_prompting
         self.sd_device = stable_diffusion.device
@@ -105,7 +105,7 @@ class PositionalTextEmbeddings:
             text_embedding = text_embedding / 90.0
             text_embedding = (vert * text_embedding + (90 - vert) * self.top_embed) / 90.0
         else:
-            print('here')
+            print("here")
             text_embedding = self.base_embed
 
         return text_embedding

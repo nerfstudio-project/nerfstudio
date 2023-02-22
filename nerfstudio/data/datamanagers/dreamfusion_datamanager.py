@@ -248,7 +248,7 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
         #     return ray_bundle, {"initialization": False}
 
         horizontal_range = min((step / self.config.horizontal_rotation_warmup), 1) * 180
-        
+
         cameras, vertical_rotation, central_rotation = random_train_pose(
             self.config.train_images_per_batch,
             self.config.train_resolution,
