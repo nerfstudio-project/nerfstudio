@@ -66,7 +66,7 @@ def random_train_pose(
     radius_mean: float = 1.0,
     radius_std: float = 0.1,
     central_rotation_range: Tuple[float, float] = (0, 360),
-    vertical_rotation_range: Tuple[float, float] = (-80, 20),
+    vertical_rotation_range: Tuple[float, float] = (-90, 0),
     focal_range: Tuple[float, float] = (0.75, 1.35),
     jitter_std: float = 0.01,
     center: Tuple[float, float, float] = (0, 0, 0),
@@ -169,11 +169,14 @@ class DreamFusionDataManagerConfig(VanillaDataManagerConfig):
     """Std of radius of camera orbit"""
     focal_range: Tuple[float, float] = (0.6, 1.2)
     """Range of focal length"""
-    vertical_rotation_range: Tuple[float, float] = (-80, 30)
+    vertical_rotation_range: Tuple[float, float] = (-90, 0)
     """Range of vertical rotation"""
     jitter_std: float = 0.05
     """Std of camera direction jitter, so we don't just point the cameras towards the center every time"""
     center: Tuple[float, float, float] = (0, 0, 0)
+    """Center coordinate of the camera sphere"""
+    horizontal_rotation_warmup: int = 0
+    """How many steps until the full horizontal rotation range is used"""
 
 
 class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-method
@@ -244,7 +247,8 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
         #     ).flatten()
         #     return ray_bundle, {"initialization": False}
 
-        # TODO below
+        horizontal_range = min((step / self.config.horizontal_rotation_warmup), 1) * 180
+
         cameras, vertical_rotation, central_rotation = random_train_pose(
             self.config.train_images_per_batch,
             self.config.train_resolution,
@@ -255,6 +259,7 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
             vertical_rotation_range=self.config.vertical_rotation_range,
             jitter_std=self.config.jitter_std,
             center=self.config.center,
+            central_rotation_range=(-horizontal_range, horizontal_range),
         )
         ray_bundle = cameras.generate_rays(torch.tensor(list(range(self.config.train_images_per_batch)))).flatten()
 

@@ -47,7 +47,7 @@ from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
-from nerfstudio.engine.schedulers import SchedulerConfig
+from nerfstudio.engine.schedulers import ExponentialDecaySchedulerConfig
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
@@ -274,11 +274,11 @@ method_configs["tensorf"] = TrainerConfig(
     optimizers={
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=0.001),
-            "scheduler": SchedulerConfig(lr_final=0.0001, max_steps=30000),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=30000),
         },
         "encodings": {
             "optimizer": AdamOptimizerConfig(lr=0.02),
-            "scheduler": SchedulerConfig(lr_final=0.002, max_steps=30000),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.002, max_steps=30000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
@@ -351,21 +351,22 @@ method_configs["dreamfusion"] = TrainerConfig(
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
+            horizontal_rotation_warmup=4000,
         ),
         model=DreamFusionModelConfig(
             eval_num_rays_per_chunk=1 << 15,
             distortion_loss_mult=0.02,
-            interlevel_loss_mult=1.0,
+            interlevel_loss_mult=100.0,
             orientation_loss_mult=0.1,
             max_res=256,
             sphere_collider=True,
             initialize_density=False,
             random_background=True,
-            proposal_warmup=1000,
-            proposal_update_every=2,
+            proposal_warmup=500,
+            proposal_update_every=0,
             proposal_weights_anneal_max_num_iters=100,
-            start_lambertian_training=1000,
-            start_normals_training=500,
+            start_lambertian_training=500,
+            start_normals_training=1000,
             opacity_loss_mult=0.001,
             positional_prompting="discrete",
             guidance_scale=100,
@@ -373,12 +374,14 @@ method_configs["dreamfusion"] = TrainerConfig(
     ),
     optimizers={
         "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=5e-2, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
         },
         "fields": {
-            "optimizer": AdamOptimizerConfig(lr=5e-3, eps=1e-15),
-            "scheduler": None,
+            "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                warmup_steps=2000, lr_final=1e-6, max_steps=20000, ramp="linear"
+            ),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),

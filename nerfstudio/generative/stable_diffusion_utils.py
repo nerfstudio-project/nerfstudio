@@ -106,7 +106,7 @@ class PositionalTextEmbeddings:
             text_embedding = text_embedding / 90.0
             text_embedding = (vert * text_embedding + (90 - vert) * self.top_embed) / 90.0
         else:
-            print('here')
+            print("here")
             text_embedding = self.base_embed
 
         return text_embedding
