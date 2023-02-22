@@ -430,6 +430,7 @@ class VolumetricSampler(Sampler):
         near_plane: float = 0.0,
         far_plane: Optional[float] = None,
         cone_angle: float = 0.0,
+        alpha_thre: float = 1e-2,
     ) -> Tuple[RaySamples, TensorType["total_samples",]]:
         """Generate ray samples in a bounding box.
 
@@ -439,6 +440,7 @@ class VolumetricSampler(Sampler):
             near_plane: Near plane for raymarching
             far_plane: Far plane for raymarching
             cone_angle: Cone angle for raymarching, set to 0 for uniform marching.
+            alpha_thre: Alpha threshold for skipping empty space.
 
         Returns:
             a tuple of (ray_samples, packed_info, ray_indices)
@@ -469,14 +471,13 @@ class VolumetricSampler(Sampler):
             t_max=t_max,
             scene_aabb=self.scene_aabb,
             grid=self.occupancy_grid,
-            # this is a workaround - using density causes crash and damage quality. should be fixed
-            sigma_fn=None,  # self.get_sigma_fn(rays_o, rays_d),
+            sigma_fn=self.get_sigma_fn(rays_o, rays_d),
             render_step_size=render_step_size,
             near_plane=near_plane,
             far_plane=far_plane,
             stratified=self.training,
             cone_angle=cone_angle,
-            alpha_thre=1e-2,
+            alpha_thre=alpha_thre,
         )
         num_samples = starts.shape[0]
         if num_samples == 0:

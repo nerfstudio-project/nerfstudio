@@ -73,6 +73,8 @@ class InstantNGPModelConfig(ModelConfig):
     """Contraction type used for spatial deformation of the field."""
     cone_angle: float = 0.004
     """Should be set to 0.0 for blender scenes but 1./256 for real scenes."""
+    alpha_thre: float = 1e-2
+    """Alpha threshold for skipping empty space. Should be set to 0 for blender scenes."""
     render_step_size: float = 0.01
     """Minimum step size for rendering."""
     near_plane: float = 0.05
@@ -178,6 +180,7 @@ class NGPModel(Model):
                 far_plane=self.config.far_plane,
                 render_step_size=self.config.render_step_size,
                 cone_angle=self.config.cone_angle,
+                alpha_thre=self.config.alpha_thre,
             )
 
         field_outputs = self.field(ray_samples)
