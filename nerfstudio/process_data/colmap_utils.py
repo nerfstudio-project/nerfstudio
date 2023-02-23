@@ -22,6 +22,7 @@ import appdirs
 import cv2
 import numpy as np
 import requests
+import torch
 from rich.console import Console
 from rich.progress import track
 from typing_extensions import Literal
@@ -29,11 +30,13 @@ from typing_extensions import Literal
 # TODO(1480) use pycolmap instead of colmap_utils_3p
 # import pycolmap
 from nerfstudio.data.utils.colmap_utils_3p import (
+    qvec2rotmat,
     read_cameras_binary,
     read_images_binary,
     read_points3d_binary,
 )
 from nerfstudio.process_data.process_data_utils import CameraModel
+from nerfstudio.utils import colormaps
 from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command
 
@@ -213,8 +216,11 @@ def colmap_to_json(
         # * https://colmap.github.io/format.html
         # * https://github.com/colmap/colmap/blob/bf3e19140f491c3042bfd85b7192ef7d249808ec/src/base/pose.cc#L75
         # the `rotation_matrix()` handles that format for us.
-        breakpoint()
-        rotation = im_data.rotation_matrix()
+
+        # TODO(1480) BEGIN use pycolmap API
+        # rotation = im_data.rotation_matrix()
+        rotation = qvec2rotmat(im_data.qvec)
+
         translation = im_data.tvec.reshape(3, 1)
         w2c = np.concatenate([rotation, translation], 1)
         w2c = np.concatenate([w2c, np.array([[0, 0, 0, 1]])], 0)
@@ -284,6 +290,8 @@ def create_sfm_depth(
     max_depth: float = 10000,
     max_repoj_err: float = 2.5,
     min_n_visible: int = 2,
+    include_depth_debug: bool = False,
+    input_images_dir: Optional[Path] = None,
 ) -> Dict[int, Path]:
     """Converts COLMAP's points3d.bin to sparse depth map images encoded as
     16-bit "millimeter depth" PNGs.
@@ -311,6 +319,8 @@ def create_sfm_depth(
           amount (in pixels).
         min_n_visible: Discard 3D points that have been triangulated with fewer
           than this many frames.
+        include_depth_debug: Also include debug images showing depth overlaid
+          upon RGB.
     Returns:
         Depth file paths indexed by COLMAP image id
     """
@@ -338,23 +348,38 @@ def create_sfm_depth(
 
     image_id_to_depth_path = {}
     for im_id, im_data in iter_images:
-        # Get only keypoints that have corresponding triangulated 3D points
-        p2ds = im_data.get_valid_points2D()
+        # TODO(1480) BEGIN delete when abandoning colmap_utils_3p
+        pids = [pid for pid in im_data.point3D_ids if pid != -1]
+        xyz_world = np.array([ptid_to_info[pid].xyz for pid in pids])
+        rotation = qvec2rotmat(im_data.qvec)
+        z = (rotation @ xyz_world.T)[-1] + im_data.tvec[-1]
+        errors = np.array([ptid_to_info[pid].error for pid in pids])
+        n_visible = np.array([len(ptid_to_info[pid].image_ids) for pid in pids])
+        uv = np.array([im_data.xys[i] for i in range(len(im_data.xys)) if im_data.point3D_ids[i] != -1])
+        # TODO(1480) END delete when abandoning colmap_utils_3p
 
-        xyz_world = np.array([ptid_to_info[p2d.point3D_id].xyz for p2d in p2ds])
+        # TODO(1480) BEGIN use pycolmap API
 
-        # COLMAP OpenCV convention: z is always positive
-        z = (im_data.rotation_matrix() @ xyz_world.T)[-1] + im_data.tvec[-1]
+        # # Get only keypoints that have corresponding triangulated 3D points
+        # p2ds = im_data.get_valid_points2D()
 
-        # Mean reprojection error in image space
-        errors = np.array([ptid_to_info[p2d.point3D_id].error for p2d in p2ds])
+        # xyz_world = np.array([ptid_to_info[p2d.point3D_id].xyz for p2d in p2ds])
 
-        # Number of frames in which each frame is visible
-        n_visible = np.array([ptid_to_info[p2d.point3D_id].track.length() for p2d in p2ds])
+        # # COLMAP OpenCV convention: z is always positive
+        # z = (im_data.rotation_matrix() @ xyz_world.T)[-1] + im_data.tvec[-1]
+
+        # # Mean reprojection error in image space
+        # errors = np.array([ptid_to_info[p2d.point3D_id].error for p2d in p2ds])
+
+        # # Number of frames in which each frame is visible
+        # n_visible = np.array([ptid_to_info[p2d.point3D_id].track.length() for p2d in p2ds])
 
         # Note: these are *unrectified* pixel coordinates that should match the original input
         # no matter the camera model
-        uv = np.array([p2d.xy for p2d in p2ds])
+        # uv = np.array([p2d.xy for p2d in p2ds])
+
+        # TODO(1480) END use pycolmap API
+
         idx = np.where(
             (z >= min_depth)
             & (z <= max_depth)
@@ -381,6 +406,23 @@ def create_sfm_depth(
         cv2.imwrite(str(depth_path), depth_img)
 
         image_id_to_depth_path[im_id] = depth_path
+
+        if include_depth_debug:
+            assert input_images_dir is not None, "Need explicit input_images_dir for debug images"
+            assert input_images_dir.exists(), input_images_dir
+
+            depth_flat = depth.flatten()[:, None]
+            overlay = 255.0 * colormaps.apply_depth_colormap(torch.from_numpy(depth_flat)).numpy()
+            overlay = overlay.reshape([H, W, 3])
+            input_image_path = input_images_dir / im_data.name
+            input_image = cv2.imread(str(input_image_path))
+            debug = 0.3 * input_image + 0.7 + overlay
+
+            out_name = out_name + ".debug.jpg"
+            output_path = output_dir / "debug_depth" / out_name
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            cv2.imwrite(str(output_path), debug.astype(np.uint8))
+
     return image_id_to_depth_path
 
 

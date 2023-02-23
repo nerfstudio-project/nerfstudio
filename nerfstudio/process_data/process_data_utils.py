@@ -299,6 +299,8 @@ def downscale_images(
             # Using %05d ffmpeg commands appears to be unreliable (skips images), so use scandir.
             files = os.scandir(image_dir)
             for f in files:
+                if f.is_dir():
+                    continue
                 filename = f.name
                 nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
                 ffmpeg_cmd = [
