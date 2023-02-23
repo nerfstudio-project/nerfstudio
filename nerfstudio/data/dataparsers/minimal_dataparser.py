@@ -62,7 +62,7 @@ class MinimalDataParser(DataParser):
                 "semantics": Semantics(
                     filenames=semantics["filenames"].tolist(),
                     classes=semantics["classes"].tolist(),
-                    colors=semantics["colors"].tolist(),
+                    colors=torch.from_numpy(semantics["colors"]),
                     mask_classes=semantics["mask_classes"].tolist(),
                 )
             }

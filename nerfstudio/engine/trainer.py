@@ -252,10 +252,14 @@ class Trainer:
     @check_main_thread
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
-        if self.config.is_viewer_enabled():
+        if (
+            self.config.is_viewer_enabled()
+            and not self.config.is_tensorboard_enabled()
+            and not self.config.is_wandb_enabled()
+        ):
             string = (
-                "[NOTE] Not running eval iterations since only viewer is enabled."
-                " Use [yellow]--vis wandb[/yellow] or [yellow]--vis tensorboard[/yellow] to run with eval instead."
+                "[NOTE] Not running eval iterations since only viewer is enabled.\n"
+                "Use [yellow]--vis {wandb, tensorboard, viewer+wandb, viewer+tensorboard}[/yellow] to run with eval."
             )
             CONSOLE.print(f"{string}")
 
