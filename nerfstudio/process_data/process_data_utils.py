@@ -259,7 +259,7 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
             CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
             sys.exit(1)
 
-        num_frames = len(copy_images_list(image_paths, image_dir, verbose))
+        num_frames = len(copy_images_list(image_paths=image_paths, image_dir=image_dir, verbose=verbose))
 
     return num_frames
 
