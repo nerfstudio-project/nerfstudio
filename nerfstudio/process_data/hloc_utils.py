@@ -22,13 +22,14 @@ Requires hloc module from : https://github.com/cvg/Hierarchical-Localization
 import sys
 from pathlib import Path
 
-import pycolmap
 from rich.console import Console
 from typing_extensions import Literal
 
 from nerfstudio.process_data.process_data_utils import CameraModel
 
 try:
+    # TODO(1480) un-hide pycolmap import
+    import pycolmap
     from hloc import (
         extract_features,
         match_features,

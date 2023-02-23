@@ -3,9 +3,12 @@ Test misc data utils
 """
 
 import numpy as np
-import pycolmap
 from pyquaternion import Quaternion
 from scipy.spatial.transform import Rotation
+
+# TODO(1480) use pycolmap instead of colmap_utils_3p
+# import pycolmap
+from nerfstudio.data.utils.colmap_utils_3p import qvec2rotmat
 
 
 def test_scalar_first_scalar_last_quaternions():
@@ -54,5 +57,7 @@ def test_scalar_first_scalar_last_quaternions():
     assert np.allclose(R, R_expected)
 
     # COLMAP
-    R = pycolmap.qvec_to_rotmat(wxyz)
+    # TODO(1480) use pycolmap
+    # R = pycolmap.qvec_to_rotmat(wxyz)
+    R = qvec2rotmat(wxyz)
     assert np.allclose(R, R_expected)

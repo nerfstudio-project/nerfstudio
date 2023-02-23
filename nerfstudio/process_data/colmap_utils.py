@@ -21,12 +21,18 @@ from typing import Dict, Optional
 import appdirs
 import cv2
 import numpy as np
-import pycolmap
 import requests
 from rich.console import Console
 from rich.progress import track
 from typing_extensions import Literal
 
+# TODO(1480) use pycolmap instead of colmap_utils_3p
+# import pycolmap
+from nerfstudio.data.utils.colmap_utils_3p import (
+    read_cameras_binary,
+    read_images_binary,
+    read_points3d_binary,
+)
 from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command
@@ -190,9 +196,12 @@ def colmap_to_json(
         The number of registered images.
     """
 
-    recon = pycolmap.Reconstruction(recon_dir)
-    cam_id_to_camera = recon.cameras
-    im_id_to_image = recon.images
+    # TODO(1480) use pycolmap
+    # recon = pycolmap.Reconstruction(recon_dir)
+    # cam_id_to_camera = recon.cameras
+    # im_id_to_image = recon.images
+    cam_id_to_camera = read_cameras_binary(recon_dir / "cameras.bin")
+    im_id_to_image = read_images_binary(recon_dir / "images.bin")
 
     # Only support first camera
     CAMERA_ID = 1
@@ -204,6 +213,7 @@ def colmap_to_json(
         # * https://colmap.github.io/format.html
         # * https://github.com/colmap/colmap/blob/bf3e19140f491c3042bfd85b7192ef7d249808ec/src/base/pose.cc#L75
         # the `rotation_matrix()` handles that format for us.
+        breakpoint()
         rotation = im_data.rotation_matrix()
         translation = im_data.tvec.reshape(3, 1)
         w2c = np.concatenate([rotation, translation], 1)
@@ -305,10 +315,14 @@ def create_sfm_depth(
         Depth file paths indexed by COLMAP image id
     """
 
-    recon = pycolmap.Reconstruction(recon_dir)
-    ptid_to_info = recon.points3D
-    im_id_to_image = recon.images
-    cam_id_to_camera = recon.cameras
+    # TODO(1480) use pycolmap
+    # recon = pycolmap.Reconstruction(recon_dir)
+    # ptid_to_info = recon.points3D
+    # cam_id_to_camera = recon.cameras
+    # im_id_to_image = recon.images
+    ptid_to_info = read_points3d_binary(recon_dir / "points3D.bin")
+    cam_id_to_camera = read_cameras_binary(recon_dir / "cameras.bin")
+    im_id_to_image = read_images_binary(recon_dir / "images.bin")
 
     # Only support first camera
     CAMERA_ID = 1
