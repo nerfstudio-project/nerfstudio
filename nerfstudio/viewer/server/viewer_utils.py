@@ -737,6 +737,9 @@ class ViewerState:
             if OutputTypes.RGB_FINE in self.output_list:
                 viewer_output_list.remove(OutputTypes.RGB_FINE)
             viewer_output_list.insert(0, OutputTypes.RGB)
+            # remove semantics, which crashes viewer; semantics_colormap is OK
+            if "semantics" in self.output_list:
+                viewer_output_list.remove("semantics")
             self.vis["renderingState/output_options"].write(viewer_output_list)
 
         reformatted_output = self._process_invalid_output(self.prev_output_type)

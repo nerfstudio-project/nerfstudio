@@ -11,7 +11,7 @@ This Blender add-on allows for compositing with a Nerfstudio render as a backgro
 
 ## Prerequisites
 
-[Blender](https://www.blender.org/) on Mac or Windows. The python file add-on can be downloaded from the main repo in the `scripts/blender` folder. Before starting, export the mesh or point cloud representation of the NeRF from Nerfstudio, which will be used as reference for the actual NeRF in the Blender scene. Mesh export at a good quality is preferred, however, if the export is not clear or the NeRF is very large, a detailed point cloud export will also work.
+First install [Blender](https://www.blender.org/). The python file add-on can be downloaded from the main repo in the `scripts/blender` folder. Before starting, export the mesh or point cloud representation of the NeRF from Nerfstudio, which will be used as reference for the actual NeRF in the Blender scene. Mesh export at a good quality is preferred, however, if the export is not clear or the NeRF is very large, a detailed point cloud export will also work.
 
 ## Add-on Setup Instructions
 
