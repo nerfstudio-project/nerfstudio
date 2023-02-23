@@ -1,3 +1,6 @@
+"""Tools supporting the execution of COLMAP and preparation of COLMAP-based datasets for nerstudio training.
+"""
+
 # Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +17,6 @@
 
 
 import json
-import os
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -207,7 +209,7 @@ def colmap_to_json(
     im_id_to_image = read_images_binary(recon_dir / "images.bin")
 
     # Only support first camera
-    CAMERA_ID = 1
+    CAMERA_ID = 1  # pylint: disable=invalid-name
     camera_params = cam_id_to_camera[CAMERA_ID].params
 
     frames = []
@@ -335,7 +337,7 @@ def create_sfm_depth(
     im_id_to_image = read_images_binary(recon_dir / "images.bin")
 
     # Only support first camera
-    CAMERA_ID = 1
+    CAMERA_ID = 1  # pylint: disable=invalid-name
     W = cam_id_to_camera[CAMERA_ID].width
     H = cam_id_to_camera[CAMERA_ID].height
 

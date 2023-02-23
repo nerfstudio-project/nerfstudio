@@ -98,7 +98,7 @@ class ProcessImages:
     verbose: bool = False
     """If True, print extra logging."""
 
-    def main(self) -> None:
+    def main(self) -> None:  # pylint: disable=R0915
         """Process images into a nerfstudio dataset."""
         require_cameras_exist = False
         colmap_model_path = self.output_dir / Path(self.colmap_model_path)
@@ -294,7 +294,7 @@ class ProcessVideo:
     verbose: bool = False
     """If True, print extra logging."""
 
-    def main(self) -> None:
+    def main(self) -> None:  # pylint: disable=R0915
         """Process video into a nerfstudio dataset."""
         install_checks.check_ffmpeg_installed()
         install_checks.check_colmap_installed()
