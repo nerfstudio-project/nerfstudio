@@ -287,6 +287,8 @@ class ProcessVideo:
     """Percent of the image to crop. (top, bottom, left, right)"""
     use_sfm_depth: bool = False
     """If True, export and use depth maps induced from SfM points."""
+    include_depth_debug: bool = False
+    """If --use-sfm-depth and this flag is True, also export debug images showing SfM overlaid upon input images."""
     gpu: bool = True
     """If True, use GPU."""
     verbose: bool = False
@@ -392,7 +394,11 @@ class ProcessVideo:
             depth_dir = self.output_dir / "depth"
             depth_dir.mkdir(parents=True, exist_ok=True)
             image_id_to_depth_path = colmap_utils.create_sfm_depth(
-                recon_dir=colmap_dir / "sparse" / "0", output_dir=depth_dir, verbose=self.verbose
+                recon_dir=colmap_dir / "sparse" / "0",
+                output_dir=depth_dir,
+                include_depth_debug=self.include_depth_debug,
+                input_images_dir=image_dir,
+                verbose=self.verbose,
             )
             summary_log.append(
                 process_data_utils.downscale_images(
@@ -456,6 +462,8 @@ class ProcessInsta360:
     """How to call the COLMAP executable."""
     use_sfm_depth: bool = False
     """If True, export and use depth maps induced from SfM points."""
+    include_depth_debug: bool = False
+    """If --use-sfm-depth and this flag is True, also export debug images showing SfM overlaid upon input images."""
     gpu: bool = True
     """If True, use GPU."""
     verbose: bool = False
@@ -528,7 +536,11 @@ class ProcessInsta360:
             depth_dir = self.output_dir / "depth"
             depth_dir.mkdir(parents=True, exist_ok=True)
             image_id_to_depth_path = colmap_utils.create_sfm_depth(
-                recon_dir=colmap_dir / "sparse" / "0", output_dir=depth_dir, verbose=self.verbose
+                recon_dir=colmap_dir / "sparse" / "0",
+                output_dir=depth_dir,
+                include_depth_debug=self.include_depth_debug,
+                input_images_dir=image_dir,
+                verbose=self.verbose,
             )
             summary_log.append(
                 process_data_utils.downscale_images(
