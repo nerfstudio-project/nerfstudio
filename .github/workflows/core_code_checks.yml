@@ -28,7 +28,7 @@ jobs:
           pip install --upgrade --upgrade-strategy eager -e .[dev]
       - name: Run license checks
         run: |
-          # ../scripts/licensing/license_headers.sh --check
+          # ./scripts/licensing/license_headers.sh --check
       - name: Check notebook cell metadata
         run: |
           python ./scripts/docs/add_nb_tags.py --check
