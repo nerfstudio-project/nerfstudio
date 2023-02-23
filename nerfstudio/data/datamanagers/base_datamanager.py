@@ -409,6 +409,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             self.eval_dataset.cameras.to(self.device),
             self.eval_camera_optimizer,
         )
+        # for loading full images
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
             input_dataset=self.eval_dataset,
             device=self.device,
