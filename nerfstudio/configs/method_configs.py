@@ -22,7 +22,6 @@ from typing import Dict
 
 import tyro
 from nerfacc import ContractionType
-from dataclasses import field
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import ViewerConfig
@@ -154,7 +153,7 @@ method_configs["volinga"] = TrainerConfig(
                 mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),
         ),
-        model = NerfactoModelConfig(
+        model=NerfactoModelConfig(
             eval_num_rays_per_chunk=1 << 15,
             hidden_dim=32,
             hidden_dim_color=32,
