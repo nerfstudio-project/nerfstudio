@@ -127,7 +127,7 @@ pip install -e .[docs]
 Instead of installing and compiling prerequisites, setting up the environment and installing dependencies, a ready to use docker image is provided.
 ### Prerequisites
 Docker ([get docker](https://docs.docker.com/get-docker/)) and nvidia GPU drivers ([get nvidia drivers](https://www.nvidia.de/Download/index.aspx?lang=de)), capable of working with CUDA 11.8, must be installed.
-The docker image can then either be pulled from [here](https://hub.docker.com/r/dromni/nerfstudio/tags) (replace <version> with the actual version, e.g. 0.1.17)
+The docker image can then either be pulled from [here](https://hub.docker.com/r/dromni/nerfstudio/tags) (replace <version> with the actual version, e.g. 0.1.18)
 ```bash
 docker pull dromni/nerfstudio:<version>
 ```
@@ -144,6 +144,7 @@ docker run --gpus all \                                         # Give the conta
             -p 7007:7007 \                                      # Map port from local machine to docker container (required to access the web interface/UI).
             --rm \                                              # Remove container after it is closed (recommended).
             -it \                                               # Start container in interactive mode.
+            --shm-size=12gb \                                   # Increase memory assigned to container to avoid memory limitations, default is 64 MB (recommended).
             dromni/nerfstudio:<tag>                             # Docker image name if you pulled from docker hub.
             <--- OR --->
             nerfstudio                                          # Docker image tag if you built the image from the Dockerfile by yourself using the command from above. 
@@ -151,7 +152,7 @@ docker run --gpus all \                                         # Give the conta
 ### Call nerfstudio commands directly
 Besides, the container can also directly be used by adding the nerfstudio command to the end.
 ```bash
-docker run --gpus all -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ -p 7007:7007 --rm -it # Parameters.
+docker run --gpus all -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ -p 7007:7007 --rm -it --shm-size=12gb  # Parameters.
             dromni/nerfstudio:<tag> \                           # Docker image name
             ns-process-data video --data /workspace/video.mp4   # Smaple command of nerfstudio.
 ```
@@ -165,6 +166,7 @@ docker run --gpus all -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.
 - The docker image (respectively Ubuntu 22.04) comes with Python3.10, no older version of Python is installed.
 - If you call the container with commands directly, you still might want to add the interactive terminal ('-it') flag to get live log outputs of the nerfstudio scripts. In case the container is used in an automated environment the flag should be discarded.
 - The current version of docker is built for multi-architecture (CUDA architectures) use. The target architecture(s) must be defined at build time for Colmap and tinyCUDNN to be able to compile properly. If your GPU architecture is not covered by the following table you need to replace the number in the line ```ARG CUDA_ARCHITECTURES=90;89;86;80;75;70;61;52;37``` to your specific architecture. It also is a good idea to remove all architectures but yours (e.g. ```ARG CUDA_ARCHITECTURES=86```) to speedup the docker build process a lot.
+- To avoid memory issues or limitations during processing, it is recommended to use either ```--shm-size=12gb``` or ```--ipc=host``` to increase the memory available to the docker container. 12gb as in the example is only a suggestion and may be replaced by other values depending on your hardware and requirements. 
 
 **Currently supported CUDA architectures in the docker image**
 
