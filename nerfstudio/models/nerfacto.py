@@ -73,11 +73,11 @@ class NerfactoModelConfig(ModelConfig):
     """How far along the ray to stop sampling."""
     background_color: Literal["random", "last_sample", "black", "white"] = "last_sample"
     """Whether to randomize the background color."""
-    hidden_dim = 64
+    hidden_dim: int = 64
     """Dimension of hidden layers"""
-    hidden_dim_color = 64
+    hidden_dim_color: int = 64
     """Dimension of hidden layers for color network"""
-    hidden_dim_transient = 64
+    hidden_dim_transient: int = 64
     """Dimension of hidden layers for transient network"""
     num_levels: int = 16
     """Number of levels of the hashmap for the base mlp."""

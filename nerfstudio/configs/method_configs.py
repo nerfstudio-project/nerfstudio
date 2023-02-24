@@ -154,17 +154,17 @@ method_configs["volinga"] = TrainerConfig(
                 mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),
         ),
-        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15,
-                                 hidden_dim=32,
-                                 hidden_dim_color=32,
-                                 hidden_dim_transient=32,
-                                 num_nerf_samples_per_ray=24,
-                                 proposal_net_args_list= field(
-                                        default_factory=lambda: [
-                                            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 128, "use_linear": True},
-                                            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 256, "use_linear": True},
-                                        ])
-                                ),
+        model = NerfactoModelConfig(
+            eval_num_rays_per_chunk=1 << 15,
+            hidden_dim=32,
+            hidden_dim_color=32,
+            hidden_dim_transient=32,
+            num_nerf_samples_per_ray=24,
+            proposal_net_args_list=[
+                {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 128, "use_linear": True},
+                {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 256, "use_linear": True},
+            ],
+        ),
     ),
     optimizers={
         "proposal_networks": {
