@@ -42,6 +42,7 @@ RUN apt-get update && \
     libsuitesparse-dev \
     nano \
     protobuf-compiler \
+    python-is-python3 \
     python3.10-dev \
     python3-pip \
     qtbase5-dev \
