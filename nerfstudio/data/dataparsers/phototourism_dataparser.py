@@ -34,9 +34,9 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 )
 from nerfstudio.data.scene_box import SceneBox
 
-# TODO(1480) use pycolmap instead of colmap_utils_3p
+# TODO(1480) use pycolmap instead of colmap_parsing_utils
 # import pycolmap
-from nerfstudio.data.utils.colmap_utils_3p import (
+from nerfstudio.data.utils.colmap_parsing_utils import (
     read_cameras_binary,
     read_images_binary,
 )

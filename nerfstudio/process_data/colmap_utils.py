@@ -29,9 +29,9 @@ from rich.console import Console
 from rich.progress import track
 from typing_extensions import Literal
 
-# TODO(1480) use pycolmap instead of colmap_utils_3p
+# TODO(1480) use pycolmap instead of colmap_parsing_utils
 # import pycolmap
-from nerfstudio.data.utils.colmap_utils_3p import (
+from nerfstudio.data.utils.colmap_parsing_utils import (
     qvec2rotmat,
     read_cameras_binary,
     read_images_binary,
@@ -350,7 +350,7 @@ def create_sfm_depth(
 
     image_id_to_depth_path = {}
     for im_id, im_data in iter_images:
-        # TODO(1480) BEGIN delete when abandoning colmap_utils_3p
+        # TODO(1480) BEGIN delete when abandoning colmap_parsing_utils
         pids = [pid for pid in im_data.point3D_ids if pid != -1]
         xyz_world = np.array([ptid_to_info[pid].xyz for pid in pids])
         rotation = qvec2rotmat(im_data.qvec)
@@ -358,7 +358,7 @@ def create_sfm_depth(
         errors = np.array([ptid_to_info[pid].error for pid in pids])
         n_visible = np.array([len(ptid_to_info[pid].image_ids) for pid in pids])
         uv = np.array([im_data.xys[i] for i in range(len(im_data.xys)) if im_data.point3D_ids[i] != -1])
-        # TODO(1480) END delete when abandoning colmap_utils_3p
+        # TODO(1480) END delete when abandoning colmap_parsing_utils
 
         # TODO(1480) BEGIN use pycolmap API
 

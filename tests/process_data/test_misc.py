@@ -6,9 +6,9 @@ import numpy as np
 from pyquaternion import Quaternion
 from scipy.spatial.transform import Rotation
 
-# TODO(1480) use pycolmap instead of colmap_utils_3p
+# TODO(1480) use pycolmap instead of colmap_parsing_utils
 # import pycolmap
-from nerfstudio.data.utils.colmap_utils_3p import qvec2rotmat
+from nerfstudio.data.utils.colmap_parsing_utils import qvec2rotmat
 
 
 def test_scalar_first_scalar_last_quaternions():

@@ -111,19 +111,19 @@ RUN python3.10 -m pip install --upgrade pip setuptools pathtools promise pybind1
 RUN python3.10 -m pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
 # Install tynyCUDNN (we need to set the target architectures as environment variable first).
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
-RUN python3.10 -m pip install -v git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch
+RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch
 
 # Install pycolmap 0.3.0, required by hloc.
 # TODO(https://github.com/colmap/pycolmap/issues/111) use wheel when available for Python 3.10
 RUN git clone --branch v0.3.0 --recursive https://github.com/colmap/pycolmap.git && \
     cd pycolmap && \
-    python3.10 -m pip install -v . && \
+    python3.10 -m pip install . && \
     cd ..
 
 # Install hloc master (last release (1.3) is too old) as alternative feature detector and matcher option for nerfstudio.
 RUN git clone --branch master --recursive https://github.com/cvg/Hierarchical-Localization && \
     cd Hierarchical-Localization && \
-    python3.10 -m pip install -v -e . && \
+    python3.10 -m pip install -e . && \
     cd ..
 
 # Copy nerfstudio folder and give ownership to user.
@@ -134,7 +134,7 @@ USER 1000
 
 # Install nerfstudio dependencies.
 RUN cd nerfstudio && \
-    python3.10 -m pip install -v -e . && \
+    python3.10 -m pip install -e . && \
     cd ..
 
 # Change working directory
