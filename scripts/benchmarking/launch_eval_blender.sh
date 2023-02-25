@@ -58,7 +58,7 @@ if [ -z "${GPU_IDX[0]+x}" ]; then
 fi
 echo "available gpus... ${GPU_IDX[*]}"
 
-DATASETS=("lego")
+DATASETS=("mic" "ficus" "chair" "hotdog" "materials" "drums" "ship" "lego")
 idx=0
 len=${#GPU_IDX[@]}
 GPU_PID=()
