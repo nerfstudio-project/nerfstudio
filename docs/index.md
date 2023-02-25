@@ -52,8 +52,14 @@ quickstart/custom_dataset
 quickstart/viewer_quickstart
 quickstart/export_geometry
 quickstart/data_conventions
-quickstart/blender_addon
 Contributing<reference/contributing>
+```
+
+```{toctree}
+:hidden:
+:caption: Extensions
+
+extensions/blender_addon
 ```
 
 ```{toctree}
