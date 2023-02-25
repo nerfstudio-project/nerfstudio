@@ -14,7 +14,7 @@
 
 """Data parser for sitcoms3D dataset.
 
-The dataset is from the paper ["The One Where They Reconstructed 3D Humans and 
+The dataset is from the paper ["The One Where They Reconstructed 3D Humans and
 Environments in TV Shows"](https://ethanweber.me/sitcoms3D/)
 """
 
