@@ -21,7 +21,7 @@ import typing
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from time import time
-from typing import Any, Dict, List, Optional, Type, Union, cast
+from typing import Any, Dict, List, Mapping, Optional, Type, Union, cast
 
 import torch
 import torch.distributed as dist
@@ -104,6 +104,16 @@ class Pipeline(nn.Module):
     def device(self):
         """Returns the device that the model is on."""
         return self.model.device
+
+    def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
+        if "model" in state_dict:
+            tmp_state_dict = dict(state_dict)
+            model_state = tmp_state_dict.pop("model")
+            self.model.load_state_dict(model_state, strict=strict)
+
+            # Model will be missing from the dict; therefore strict=False here.
+            strict = False
+        super().load_state_dict(state_dict, strict=strict)
 
     @profiler.time_function
     def get_train_loss_dict(self, step: int):
@@ -362,7 +372,10 @@ class VanillaPipeline(Pipeline):
         """
         state = {key.replace("module.", ""): value for key, value in loaded_state.items()}
         self._model.update_to_step(step)
+        model_state = state.pop("model", {})
+        self.model.load_state_dict(model_state, strict=True)
         self.load_state_dict(state, strict=False)
+        state["model"] = model_state
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
