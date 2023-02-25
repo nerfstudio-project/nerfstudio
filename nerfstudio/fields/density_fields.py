@@ -102,6 +102,9 @@ class HashMLPDensityField(Field):
             positions = (positions + 2.0) / 4.0
         else:
             positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        # Make sure the tcnn gets inputs between 0 and 1.
+        selector = ((positions > 0.0) & (positions < 1.0)).all(dim=-1)
+        positions = positions * selector[..., None]
         positions_flat = positions.view(-1, 3)
         if not self.use_linear:
             density_before_activation = (
@@ -115,6 +118,7 @@ class HashMLPDensityField(Field):
         # softplus, because it enables high post-activation (float32) density outputs
         # from smaller internal (float16) parameters.
         density = trunc_exp(density_before_activation)
+        density = density * selector[..., None]
         return density, None
 
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):

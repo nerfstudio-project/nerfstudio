@@ -120,6 +120,8 @@ class NerfactoModelConfig(ModelConfig):
     """Whether use single jitter or not for the proposal networks."""
     predict_normals: bool = False
     """Whether to predict normals or not."""
+    disable_scene_contraction: bool = False
+    """Whether to disable scene contraction or not."""
 
 
 class NerfactoModel(Model):
@@ -134,8 +136,11 @@ class NerfactoModel(Model):
     def populate_modules(self):
         """Set the fields and modules."""
         super().populate_modules()
-
-        scene_contraction = SceneContraction(order=float("inf"))
+        
+        if self.config.disable_scene_contraction:
+            scene_contraction = None
+        else:
+            scene_contraction = SceneContraction(order=float("inf"))
 
         # Fields
         self.field = TCNNNerfactoField(
