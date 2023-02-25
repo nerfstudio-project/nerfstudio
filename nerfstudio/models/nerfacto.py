@@ -136,7 +136,7 @@ class NerfactoModel(Model):
     def populate_modules(self):
         """Set the fields and modules."""
         super().populate_modules()
-        
+
         if self.config.disable_scene_contraction:
             scene_contraction = None
         else:
