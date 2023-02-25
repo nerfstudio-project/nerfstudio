@@ -587,6 +587,7 @@ def colmap_to_json(
     output_dir: Path,
     camera_model: CameraModel,
     camera_mask_path: Optional[Path] = None,
+    image_rename_map: Optional[Dict[str, str]] = None,
 ) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
 
@@ -619,7 +620,10 @@ def colmap_to_json(
         c2w = c2w[np.array([1, 0, 2, 3]), :]
         c2w[2, :] *= -1
 
-        name = Path(f"./images/{im_data.name}")
+        name = im_data.name
+        if image_rename_map is not None:
+            name = image_rename_map[name]
+        name = Path(f"./images/{name}")
 
         frame = {
             "file_path": name.as_posix(),

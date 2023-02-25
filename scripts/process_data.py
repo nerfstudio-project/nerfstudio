@@ -8,7 +8,7 @@ import sys
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 import tyro
@@ -96,6 +96,7 @@ class ProcessImages:
 
     def main(self) -> None:
         """Process images into a nerfstudio dataset."""
+        # pylint: disable=too-many-statements
         require_cameras_exist = False
         colmap_model_path = self.output_dir / Path(self.colmap_model_path)
         if self.colmap_model_path != DEFAULT_COLMAP_PATH:
@@ -112,6 +113,7 @@ class ProcessImages:
         install_checks.check_ffmpeg_installed()
         install_checks.check_colmap_installed()
 
+        image_rename_map: Optional[Dict[str, str]] = None
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
@@ -129,7 +131,11 @@ class ProcessImages:
         # Copy and downscale images
         if not self.skip_image_processing:
             # Copy images to output directory
-            num_frames = process_data_utils.copy_images(self.data, image_dir=image_dir, verbose=self.verbose)
+            image_rename_map_paths = process_data_utils.copy_images(
+                self.data, image_dir=image_dir, verbose=self.verbose
+            )
+            image_rename_map = dict((a.name, b.name) for a, b in image_rename_map_paths.items())
+            num_frames = len(image_rename_map)
             summary_log.append(f"Starting with {num_frames} images")
 
             # Downscale images
@@ -152,6 +158,9 @@ class ProcessImages:
 
             self._run_colmap(image_dir, colmap_dir)
 
+            # Colmap uses renamed images
+            image_rename_map = None
+
         # Save transforms.json
         if (colmap_model_path / "cameras.bin").exists():
             with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
@@ -160,6 +169,7 @@ class ProcessImages:
                     images_path=colmap_model_path / "images.bin",
                     output_dir=self.output_dir,
                     camera_model=CAMERA_MODELS[self.camera_type],
+                    image_rename_map=image_rename_map,
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
             summary_log.append(colmap_utils.get_matching_summary(num_frames, num_matched_frames))
@@ -371,6 +381,7 @@ class ProcessVideo:
                     output_dir=self.output_dir,
                     camera_model=CAMERA_MODELS[self.camera_type],
                     camera_mask_path=mask_path,
+                    image_rename_map=None,
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
             summary_log.append(colmap_utils.get_matching_summary(num_extracted_frames, num_matched_frames))
@@ -490,6 +501,7 @@ class ProcessInsta360:
                     images_path=colmap_dir / "sparse" / "0" / "images.bin",
                     output_dir=self.output_dir,
                     camera_model=CAMERA_MODELS["fisheye"],
+                    image_rename_map=None,
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
             summary_log.append(colmap_utils.get_matching_summary(num_extracted_frames, num_matched_frames))
