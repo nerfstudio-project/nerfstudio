@@ -188,14 +188,17 @@ def colmap_to_json(
     camera_model: CameraModel,
     camera_mask_path: Optional[Path] = None,
     image_id_to_depth_path: Optional[Dict[int, Path]] = None,
+    image_rename_map: Optional[Dict[str, str]] = None,
 ) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
 
     Args:
         recon_dir: Path to the reconstruction directory, e.g. "sparse/0"
         output_dir: Path to the output directory.
-        camera_mask_path: Path to the camera mask.
         camera_model: Camera model used.
+        camera_mask_path: Path to the camera mask.
+        image_id_to_depth_path: When including sfm-based depth, embed these depth file paths in the exported json
+        image_rename_map: Use these image names instead of the names embedded in the COLMAP db
 
     Returns:
         The number of registered images.
@@ -232,7 +235,10 @@ def colmap_to_json(
         c2w = c2w[np.array([1, 0, 2, 3]), :]
         c2w[2, :] *= -1
 
-        name = Path(f"./images/{im_data.name}")
+        name = im_data.name
+        if image_rename_map is not None:
+            name = image_rename_map[name]
+        name = Path(f"./images/{name}")
 
         frame = {
             "file_path": name.as_posix(),
