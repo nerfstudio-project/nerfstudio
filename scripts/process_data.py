@@ -159,7 +159,6 @@ class ProcessImages:
                     cameras_path=colmap_model_path / "cameras.bin",
                     images_path=colmap_model_path / "images.bin",
                     output_dir=self.output_dir,
-                    camera_model=CAMERA_MODELS[self.camera_type],
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
             summary_log.append(colmap_utils.get_matching_summary(num_frames, num_matched_frames))
@@ -369,7 +368,6 @@ class ProcessVideo:
                     cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
                     images_path=colmap_dir / "sparse" / "0" / "images.bin",
                     output_dir=self.output_dir,
-                    camera_model=CAMERA_MODELS[self.camera_type],
                     camera_mask_path=mask_path,
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
@@ -489,7 +487,6 @@ class ProcessInsta360:
                     cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
                     images_path=colmap_dir / "sparse" / "0" / "images.bin",
                     output_dir=self.output_dir,
-                    camera_model=CAMERA_MODELS["fisheye"],
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
             summary_log.append(colmap_utils.get_matching_summary(num_extracted_frames, num_matched_frames))
