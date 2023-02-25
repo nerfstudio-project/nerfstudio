@@ -78,6 +78,9 @@ class Sitcoms3DDownload(DatasetDownload):
         with zipfile.ZipFile(download_path, "r") as zip_ref:
             zip_ref.extractall(str(save_dir))
         os.remove(download_path)
+        # The folder name of the downloaded dataset is the previously using 'friends/'
+        if os.path.exists(str(save_dir / "friends/")):
+            os.rename(str(save_dir / "friends/"), str(save_dir / "sitcoms3d/"))
 
 
 def grab_file_id(zip_url: str) -> str:
