@@ -66,7 +66,7 @@ class NuScenesDataParserConfig(DataParserConfig):
     mask_dir: Optional[Path] = None
     """Path to masks of dynamic objects."""
 
-    train_split_percentage: float = 0.9
+    train_split_fraction: float = 0.9
     """The percent of images to use for training. The remaining images are for eval."""
 
     verbose: bool = False
@@ -160,7 +160,7 @@ class NuScenes(DataParser):
 
         # filter image_filenames and poses based on train/eval split percentage
         num_snapshots = len(samples)
-        num_train_snapshots = math.ceil(num_snapshots * self.config.train_split_percentage)
+        num_train_snapshots = math.ceil(num_snapshots * self.config.train_split_fraction)
         num_eval_snapshots = num_snapshots - num_train_snapshots
         i_all = np.arange(num_snapshots)
         i_train = np.linspace(

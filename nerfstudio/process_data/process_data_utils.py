@@ -259,7 +259,7 @@ def copy_images(data: Path, image_dir: Path, verbose) -> OrderedDict[Path, Path]
             CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
             sys.exit(1)
 
-        copied_images = copy_images_list(image_paths, image_dir, verbose)
+        copied_images = copy_images_list(image_paths=image_paths, image_dir=image_dir, verbose=verbose)
         return OrderedDict((original_path, new_path) for original_path, new_path in zip(image_paths, copied_images))
 
 

@@ -69,8 +69,8 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """How much to scale the region of interest by."""
     orientation_method: Literal["pca", "up"] = "up"
     """The method to use for orientation."""
-    train_split_percentage: float = 0.9
-    """The percent of images to use for training. The remaining images are for eval."""
+    train_split_fraction: float = 0.9
+    """The fraction of images to use for training. The remaining images are for eval."""
 
 @dataclass
 class Nerfstudio(DataParser):
