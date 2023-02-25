@@ -8,12 +8,12 @@ import sys
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 import tyro
 from rich.console import Console
-from typing_extensions import Annotated, Literal, OrderedDict
+from typing_extensions import Annotated, Literal
 
 from nerfstudio.process_data import (
     colmap_utils,
@@ -113,7 +113,7 @@ class ProcessImages:
         install_checks.check_ffmpeg_installed()
         install_checks.check_colmap_installed()
 
-        image_rename_map: Optional[OrderedDict[str, str]] = None
+        image_rename_map: Optional[Dict[str, str]] = None
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
@@ -134,7 +134,7 @@ class ProcessImages:
             image_rename_map_paths = process_data_utils.copy_images(
                 self.data, image_dir=image_dir, verbose=self.verbose
             )
-            image_rename_map = OrderedDict((a.name, b.name) for a, b in image_rename_map_paths.items())
+            image_rename_map = dict((a.name, b.name) for a, b in image_rename_map_paths.items())
             num_frames = len(image_rename_map)
             summary_log.append(f"Starting with {num_frames} images")
 

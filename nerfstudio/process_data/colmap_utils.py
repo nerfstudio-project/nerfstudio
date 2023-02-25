@@ -48,7 +48,7 @@ import numpy as np
 import requests
 from rich.console import Console
 from rich.progress import track
-from typing_extensions import Literal, OrderedDict
+from typing_extensions import Literal
 
 from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils.rich_utils import status
@@ -587,7 +587,7 @@ def colmap_to_json(
     output_dir: Path,
     camera_model: CameraModel,
     camera_mask_path: Optional[Path] = None,
-    image_rename_map: Optional[OrderedDict[str, str]] = None,
+    image_rename_map: Optional[Dict[str, str]] = None,
 ) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
 
