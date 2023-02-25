@@ -28,7 +28,11 @@ from rich.progress import (
 from torchtyping import TensorType
 from typing_extensions import Literal, assert_never
 
-from nerfstudio.cameras.camera_paths import get_path_from_json, get_spiral_path
+from nerfstudio.cameras.camera_paths import (
+    get_interpolated_camera_path,
+    get_path_from_json,
+    get_spiral_path,
+)
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components import renderers
@@ -255,7 +259,7 @@ class RenderTrajectory:
     """Path to config YAML file."""
     rendered_output_names: List[str] = field(default_factory=lambda: ["rgb"])
     """Name of the renderer outputs to use. rgb, depth, etc. concatenates them along y axis"""
-    traj: Literal["spiral", "filename"] = "spiral"
+    traj: Literal["spiral", "filename", "loop"] = "spiral"
     """Trajectory to render."""
     downscale_factor: int = 1
     """Scaling factor to apply to the camera image resolution."""
@@ -267,6 +271,8 @@ class RenderTrajectory:
     """How long the video should be."""
     output_format: Literal["images", "video"] = "video"
     """How to save output data."""
+    loop_interpolation_steps: int = 10
+    """Number of interpolation steps between loop points."""
     eval_num_rays_per_chunk: Optional[int] = None
     """Specifies number of rays per chunk during eval."""
 
@@ -275,7 +281,7 @@ class RenderTrajectory:
         _, pipeline, _ = eval_setup(
             self.load_config,
             eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
-            test_mode="test" if self.traj == "spiral" else "inference",
+            test_mode="test" if self.traj in ["spiral", "loop"] else "inference",
         )
 
         install_checks.check_ffmpeg_installed()
@@ -303,6 +309,9 @@ class RenderTrajectory:
                 camera_type = CameraType.PERSPECTIVE
             crop_data = get_crop_from_json(camera_path)
             camera_path = get_path_from_json(camera_path)
+        elif self.traj == "loop":
+            camera_type = CameraType.PERSPECTIVE
+            camera_path = get_interpolated_camera_path(cameras=pipeline.datamanager.eval_dataloader.cameras, steps=self.loop_interpolation_steps)
         else:
             assert_never(self.traj)
 
