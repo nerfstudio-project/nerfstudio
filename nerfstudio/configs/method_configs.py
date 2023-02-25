@@ -63,6 +63,7 @@ method_configs: Dict[str, TrainerConfig] = {}
 descriptions = {
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
     "depth-nerfacto": "Nerfacto with depth supervision.",
+    "volinga": "Real-time rendering model from Volinga. Directly exportable to NVOL format at https://volinga.ai/",
     "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for unbounded scenes.",
     "instant-ngp-bounded": "Implementation of Instant-NGP. Recommended for bounded real and synthetic scenes",
     "mipnerf": "High quality model for bounded scenes. (slow)",
@@ -122,6 +123,47 @@ method_configs["depth-nerfacto"] = TrainerConfig(
             ),
         ),
         model=DepthNerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    vis="viewer",
+)
+
+method_configs["volinga"] = TrainerConfig(
+    method_name="volinga",
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    max_num_iterations=30000,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            dataparser=NerfstudioDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+            camera_optimizer=CameraOptimizerConfig(
+                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+            ),
+        ),
+        model=NerfactoModelConfig(
+            eval_num_rays_per_chunk=1 << 15,
+            hidden_dim=32,
+            hidden_dim_color=32,
+            hidden_dim_transient=32,
+            num_nerf_samples_per_ray=24,
+            proposal_net_args_list=[
+                {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 128, "use_linear": True},
+                {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 256, "use_linear": True},
+            ],
+        ),
     ),
     optimizers={
         "proposal_networks": {

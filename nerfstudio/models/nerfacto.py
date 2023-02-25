@@ -73,6 +73,12 @@ class NerfactoModelConfig(ModelConfig):
     """How far along the ray to stop sampling."""
     background_color: Literal["random", "last_sample", "black", "white"] = "last_sample"
     """Whether to randomize the background color."""
+    hidden_dim: int = 64
+    """Dimension of hidden layers"""
+    hidden_dim_color: int = 64
+    """Dimension of hidden layers for color network"""
+    hidden_dim_transient: int = 64
+    """Dimension of hidden layers for transient network"""
     num_levels: int = 16
     """Number of levels of the hashmap for the base mlp."""
     max_res: int = 2048
@@ -93,8 +99,8 @@ class NerfactoModelConfig(ModelConfig):
     """Use the same proposal network. Otherwise use different ones."""
     proposal_net_args_list: List[Dict] = field(
         default_factory=lambda: [
-            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 128},
-            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 256},
+            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 128, "use_linear": False},
+            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 256, "use_linear": False},
         ]
     )
     """Arguments for the proposal density fields."""
@@ -145,9 +151,12 @@ class NerfactoModel(Model):
         # Fields
         self.field = TCNNNerfactoField(
             self.scene_box.aabb,
+            hidden_dim=self.config.hidden_dim,
             num_levels=self.config.num_levels,
             max_res=self.config.max_res,
             log2_hashmap_size=self.config.log2_hashmap_size,
+            hidden_dim_color=self.config.hidden_dim_color,
+            hidden_dim_transient=self.config.hidden_dim_transient,
             spatial_distortion=scene_contraction,
             num_images=self.num_train_data,
             use_pred_normals=self.config.predict_normals,

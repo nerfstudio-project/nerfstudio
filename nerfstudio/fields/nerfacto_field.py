@@ -116,8 +116,12 @@ class TCNNNerfactoField(Field):
     ) -> None:
         super().__init__()
 
-        self.aabb = Parameter(aabb, requires_grad=False)
+        self.register_buffer("aabb", aabb)
         self.geo_feat_dim = geo_feat_dim
+
+        self.register_buffer("max_res", torch.tensor(max_res))
+        self.register_buffer("num_levels", torch.tensor(num_levels))
+        self.register_buffer("log2_hashmap_size", torch.tensor(log2_hashmap_size))
 
         self.spatial_distortion = spatial_distortion
         self.num_images = num_images
