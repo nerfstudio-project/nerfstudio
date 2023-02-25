@@ -140,3 +140,4 @@ WORKDIR /workspace
 
 # Install nerfstudio cli auto completion and enter shell if no command was provided.
 CMD ns-install-cli --mode install && /bin/bash
+
