@@ -9,6 +9,7 @@ from pathlib import Path
 # pylint: disable=unused-argument
 # pylint: disable=abstract-method
 import torch
+from torch import nn
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.datasets.base_dataset import DataparserOutputs, InputDataset
@@ -53,11 +54,16 @@ def test_load_state_dict():
     class MockedModel(Model):  #
         """Mocked model"""
 
-        def load_state_dict(self, *args, strict=True):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.register_parameter("param", nn.Parameter(torch.ones((3,))))
+
+        def load_state_dict(self, state_dict, strict=True):
             """Mocked load_state_dict"""
             nonlocal was_called
             was_called = True
             assert strict
+            assert "param" in state_dict
 
     config = VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -67,5 +73,7 @@ def test_load_state_dict():
     )
     pipeline = VanillaPipeline(config, "cpu")
     state_dict = pipeline.state_dict()
+    state_dict["_model.param"].mul_(2)  # pylint: disable=unsubscriptable-object
     pipeline.load_pipeline(state_dict, 0)
     assert was_called
+    assert pipeline.model.param[0].item() == 2
