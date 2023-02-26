@@ -1,143 +1,48 @@
-"""
-Here we have modified code taken from COLMAP for parsing data in the COLMAP format.
-Original file at:
-https://github.com/colmap/colmap/blob/1a4d0bad2e90aa65ce997c9d1779518eaed998d5/scripts/python/read_write_model.py.
-"""
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-# Copyright (c) 2022, ETH Zurich and UNC Chapel Hill.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-#     * Redistributions of source code must retain the above copyright
-#       notice, this list of conditions and the following disclaimer.
-#
-#     * Redistributions in binary form must reproduce the above copyright
-#       notice, this list of conditions and the following disclaimer in the
-#       documentation and/or other materials provided with the distribution.
-#
-#     * Neither the name of ETH Zurich and UNC Chapel Hill nor the names of
-#       its contributors may be used to endorse or promote products derived
-#       from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
-# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-#
-# Author: Johannes L. Schoenberger (jsch-at-demuc-dot-de)
+"""
+Tools supporting the execution of COLMAP and preparation of COLMAP-based datasets for nerstudio training.
+"""
 
 import json
-import os
-import struct
-from dataclasses import dataclass
-from io import BufferedReader
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 
 import appdirs
+import cv2
 import numpy as np
 import requests
+import torch
 from rich.console import Console
 from rich.progress import track
 from typing_extensions import Literal
 
+# TODO(1480) use pycolmap instead of colmap_parsing_utils
+# import pycolmap
+from nerfstudio.data.utils.colmap_parsing_utils import (
+    qvec2rotmat,
+    read_cameras_binary,
+    read_images_binary,
+    read_points3d_binary,
+)
 from nerfstudio.process_data.process_data_utils import CameraModel
+from nerfstudio.utils import colormaps
 from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command
 
 CONSOLE = Console(width=120)
-
-
-@dataclass
-class ColmapCameraModel:
-    """Camera model"""
-
-    model_id: int
-    """Model identifier"""
-    model_name: str
-    """Model name"""
-    num_params: int
-    """Number of parameters"""
-
-
-@dataclass
-class Camera:
-    """Camera"""
-
-    id: int
-    """Camera identifier"""
-    model: str
-    """Camera model"""
-    width: int
-    """Image width"""
-    height: int
-    """Image height"""
-    params: np.ndarray
-    """Camera parameters"""
-
-
-@dataclass
-class Image:
-    """Data the corresponds to a single image"""
-
-    id: int
-    """Image identifier"""
-    qvec: np.ndarray
-    """Quaternion vector"""
-    tvec: np.ndarray
-    """Translation vector"""
-    camera_id: int
-    """Camera identifier"""
-    name: str
-    """Image name"""
-    xys: np.ndarray
-    """2D points"""
-    point3d_ids: np.ndarray
-    """Point3D identifiers"""
-
-
-@dataclass
-class Point3D:
-    """Data that corresponds to a single 3D point"""
-
-    id: int
-    """Point3D identifier"""
-    xyz: np.ndarray
-    """3D point"""
-    rgb: np.ndarray
-    """Color"""
-    error: float
-    """Reconstruction error"""
-    image_ids: np.ndarray
-    """Image identifiers"""
-    point2d_idxs: np.ndarray
-    """Point2D indices"""
-
-
-COLMAP_CAMERA_MODELS = [
-    ColmapCameraModel(model_id=0, model_name="SIMPLE_PINHOLE", num_params=3),
-    ColmapCameraModel(model_id=1, model_name="PINHOLE", num_params=4),
-    ColmapCameraModel(model_id=2, model_name="SIMPLE_RADIAL", num_params=4),
-    ColmapCameraModel(model_id=3, model_name="RADIAL", num_params=5),
-    ColmapCameraModel(model_id=4, model_name="OPENCV", num_params=8),
-    ColmapCameraModel(model_id=5, model_name="OPENCV_FISHEYE", num_params=8),
-    ColmapCameraModel(model_id=6, model_name="FULL_OPENCV", num_params=12),
-    ColmapCameraModel(model_id=7, model_name="FOV", num_params=5),
-    ColmapCameraModel(model_id=8, model_name="SIMPLE_RADIAL_FISHEYE", num_params=4),
-    ColmapCameraModel(model_id=9, model_name="RADIAL_FISHEYE", num_params=5),
-    ColmapCameraModel(model_id=10, model_name="THIN_PRISM_FISHEYE", num_params=12),
-]
-COLMAP_CAMERA_MODEL_IDS = {camera_model.model_id: camera_model for camera_model in COLMAP_CAMERA_MODELS}
-COLMAP_CAMERA_MODEL_NAMES = {camera_model.model_name: camera_model for camera_model in COLMAP_CAMERA_MODELS}
 
 
 def get_colmap_version(colmap_cmd: str, default_version=3.8) -> float:
@@ -157,310 +62,6 @@ def get_colmap_version(colmap_cmd: str, default_version=3.8) -> float:
             return float(line.split(" ")[1])
     CONSOLE.print(f"[bold red]Could not find COLMAP version. Using default {default_version}")
     return default_version
-
-
-def read_next_bytes(fid: BufferedReader, num_bytes: int, format_char_sequence, endian_character: str = "<"):
-    """Read and unpack the next bytes from a binary file.
-
-    Args:
-        fid: Open file
-        num_bytes: Sum of combination of {2, 4, 8}, e.g. 2, 6, 16, 30, etc.
-        format_char_sequence: List of {c, e, f, d, h, H, i, I, l, L, q, Q}.
-        endian_character: Any of {@, =, <, >, !}
-        Tuple of read and unpacked values.
-    """
-    data = fid.read(num_bytes)
-    return struct.unpack(endian_character + format_char_sequence, data)
-
-
-def read_cameras_text(path: Path) -> Dict[int, Camera]:
-    """Parse COLMAP cameras.txt file into a dictionary of Camera objects.
-
-    Args:
-        path: Path to cameras.txt file.
-    Returns:
-        Dictionary of Camera objects.
-    """
-    cameras = {}
-    with open(path, encoding="utf-8") as fid:
-        while True:
-            line = fid.readline()
-            if not line:
-                break
-            line = line.strip()
-            if len(line) > 0 and line[0] != "#":
-                elems = line.split()
-                camera_id = int(elems[0])
-                model = elems[1]
-                width = int(elems[2])
-                height = int(elems[3])
-                params = np.array(tuple(map(float, elems[4:])))
-                cameras[camera_id] = Camera(id=camera_id, model=model, width=width, height=height, params=params)
-    return cameras
-
-
-def read_cameras_binary(path_to_model_file: Path) -> Dict[int, Camera]:
-    """Parse COLMAP cameras.bin file into a dictionary of Camera objects.
-
-    Args:
-        path_to_model_file: Path to cameras.bin file.
-    Returns:
-        Dictionary of Camera objects.
-    """
-    cameras = {}
-    with open(path_to_model_file, "rb") as fid:
-        num_cameras = read_next_bytes(fid, 8, "Q")[0]
-        for _ in range(num_cameras):
-            camera_properties = read_next_bytes(fid, num_bytes=24, format_char_sequence="iiQQ")
-            camera_id = camera_properties[0]
-            model_id = camera_properties[1]
-            model_name = COLMAP_CAMERA_MODEL_IDS[camera_properties[1]].model_name
-            width = camera_properties[2]
-            height = camera_properties[3]
-            num_params = COLMAP_CAMERA_MODEL_IDS[model_id].num_params
-            params = read_next_bytes(fid, num_bytes=8 * num_params, format_char_sequence="d" * num_params)
-            cameras[camera_id] = Camera(
-                id=camera_id, model=model_name, width=width, height=height, params=np.array(params)
-            )
-        assert len(cameras) == num_cameras
-    return cameras
-
-
-def read_images_text(path: Path) -> Dict[int, Image]:
-    """Parse COLMAP images.txt file into a dictionary of Image objects.
-
-    Args:
-        path: Path to images.txt file.
-    Returns:
-        Dictionary of Image objects.
-    """
-    images = {}
-    with open(path, encoding="utf-8") as fid:
-        while True:
-            line = fid.readline()
-            if not line:
-                break
-            line = line.strip()
-            if len(line) > 0 and line[0] != "#":
-                elems = line.split()
-                image_id = int(elems[0])
-                qvec = np.array(tuple(map(float, elems[1:5])))
-                tvec = np.array(tuple(map(float, elems[5:8])))
-                camera_id = int(elems[8])
-                image_name = elems[9]
-                elems = fid.readline().split()
-                xys = np.column_stack([tuple(map(float, elems[0::3])), tuple(map(float, elems[1::3]))])
-                point3d_ids = np.array(tuple(map(int, elems[2::3])))
-                images[image_id] = Image(
-                    id=image_id,
-                    qvec=qvec,
-                    tvec=tvec,
-                    camera_id=camera_id,
-                    name=image_name,
-                    xys=xys,
-                    point3d_ids=point3d_ids,
-                )
-    return images
-
-
-def read_images_binary(path_to_model_file: Path) -> Dict[int, Image]:
-    """Parse COLMAP images.bin file into a dictionary of Image objects.
-
-    Args:
-        path_to_model_file: Path to images.bin file.
-    Returns:
-        Dictionary of Image objects.
-    """
-    images = {}
-    with open(path_to_model_file, "rb") as fid:
-        num_reg_images = read_next_bytes(fid, 8, "Q")[0]
-        for _ in range(num_reg_images):
-            binary_image_properties = read_next_bytes(fid, num_bytes=64, format_char_sequence="idddddddi")
-            image_id = binary_image_properties[0]
-            qvec = np.array(binary_image_properties[1:5])
-            tvec = np.array(binary_image_properties[5:8])
-            camera_id = binary_image_properties[8]
-            image_name = ""
-            current_char = read_next_bytes(fid, 1, "c")[0]
-            while current_char != b"\x00":  # look for the ASCII 0 entry
-                image_name += current_char.decode("utf-8")
-                current_char = read_next_bytes(fid, 1, "c")[0]
-            num_points2d = read_next_bytes(fid, num_bytes=8, format_char_sequence="Q")[0]
-            x_y_id_s = read_next_bytes(fid, num_bytes=24 * num_points2d, format_char_sequence="ddq" * num_points2d)
-            xys = np.column_stack([tuple(map(float, x_y_id_s[0::3])), tuple(map(float, x_y_id_s[1::3]))])
-            point3d_ids = np.array(tuple(map(int, x_y_id_s[2::3])))
-            images[image_id] = Image(
-                id=image_id,
-                qvec=qvec,
-                tvec=tvec,
-                camera_id=camera_id,
-                name=image_name,
-                xys=xys,
-                point3d_ids=point3d_ids,
-            )
-    return images
-
-
-def read_points3d_text(path) -> Dict[int, Point3D]:
-    """Parse COLMAP points3D.txt file into a dictionary of Point3D objects.
-
-    Args:
-        path: Path to points3D.txt file.
-    Returns:
-        Dictionary of Point3D objects.
-    """
-    points3d = {}
-    with open(path, encoding="utf-8") as fid:
-        while True:
-            line = fid.readline()
-            if not line:
-                break
-            line = line.strip()
-            if len(line) > 0 and line[0] != "#":
-                elems = line.split()
-                point3d_id = int(elems[0])
-                xyz = np.array(tuple(map(float, elems[1:4])))
-                rgb = np.array(tuple(map(int, elems[4:7])))
-                error = float(elems[7])
-                image_ids = np.array(tuple(map(int, elems[8::2])))
-                point2d_idxs = np.array(tuple(map(int, elems[9::2])))
-                points3d[point3d_id] = Point3D(
-                    id=point3d_id, xyz=xyz, rgb=rgb, error=error, image_ids=image_ids, point2d_idxs=point2d_idxs
-                )
-    return points3d
-
-
-def read_points3d_binary(path_to_model_file: Path) -> Dict[int, Point3D]:
-    """Parse COLMAP points3D.bin file into a dictionary of Point3D objects.
-
-    Args:
-        path_to_model_file: Path to points3D.bin file.
-    Returns:
-        Dictionary of Point3D objects.
-    """
-    points3d = {}
-    with open(path_to_model_file, "rb") as fid:
-        num_points = read_next_bytes(fid, 8, "Q")[0]
-        for _ in range(num_points):
-            binary_point_line_properties = read_next_bytes(fid, num_bytes=43, format_char_sequence="QdddBBBd")
-            point3d_id = binary_point_line_properties[0]
-            xyz = np.array(binary_point_line_properties[1:4])
-            rgb = np.array(binary_point_line_properties[4:7])
-            error = np.array(binary_point_line_properties[7])
-            track_length = read_next_bytes(fid, num_bytes=8, format_char_sequence="Q")[0]
-            track_elems = read_next_bytes(fid, num_bytes=8 * track_length, format_char_sequence="ii" * track_length)
-            image_ids = np.array(tuple(map(int, track_elems[0::2])))
-            point2d_idxs = np.array(tuple(map(int, track_elems[1::2])))
-            points3d[point3d_id] = Point3D(
-                id=point3d_id, xyz=xyz, rgb=rgb, error=float(error), image_ids=image_ids, point2d_idxs=point2d_idxs
-            )
-    return points3d
-
-
-def detect_model_format(path: Path, ext: str) -> bool:
-    """Detect the format of the model file.
-
-    Args:
-        path: Path to the model file.
-        ext: Extension to test.
-    Returns:
-        True if the model file is the tested extension, False otherwise.
-    """
-
-    if (
-        os.path.isfile(path / f"cameras{ext}")
-        and os.path.isfile(path / f"images{ext}")
-        and os.path.isfile(path / f"points3D{ext}")
-    ):
-        print("Detected model format: '" + ext + "'")
-        return True
-
-    return False
-
-
-def read_model(path: Path, ext: Optional[str] = None) -> Tuple[Dict[int, Camera], Dict[int, Image], Dict[int, Point3D]]:
-    """Read a COLMAP model from a directory.
-
-    Args:
-        path: Path to the model directory.
-        ext: Extension of the model files. If None, the function will try to detect the format.
-    Returns:
-        Tuple of dictionaries of Camera, Image, and Point3D objects.
-    """
-    # try to detect the extension automatically
-    if ext is None:
-        if detect_model_format(path, ".bin"):
-            ext = ".bin"
-        elif detect_model_format(path, ".txt"):
-            ext = ".txt"
-        else:
-            raise ValueError("Provide model format: '.bin' or '.txt'")
-
-    if ext == ".txt":
-        cameras = read_cameras_text(path / f"cameras{ext}")
-        images = read_images_text(path / f"images{ext}")
-        points3d = read_points3d_text(path / f"points3D{ext}")
-    else:
-        cameras = read_cameras_binary(path / f"cameras{ext}")
-        images = read_images_binary(path / f"images{ext}")
-        points3d = read_points3d_binary(path / f"points3D{ext}")
-    return cameras, images, points3d
-
-
-def qvec2rotmat(qvec) -> np.ndarray:
-    """Convert quaternion to rotation matrix.
-
-    Args:
-        qvec: Quaternion vector of shape (4,).
-    Returns:
-        Rotation matrix of shape (3, 3).
-    """
-    return np.array(
-        [
-            [
-                1 - 2 * qvec[2] ** 2 - 2 * qvec[3] ** 2,
-                2 * qvec[1] * qvec[2] - 2 * qvec[0] * qvec[3],
-                2 * qvec[3] * qvec[1] + 2 * qvec[0] * qvec[2],
-            ],
-            [
-                2 * qvec[1] * qvec[2] + 2 * qvec[0] * qvec[3],
-                1 - 2 * qvec[1] ** 2 - 2 * qvec[3] ** 2,
-                2 * qvec[2] * qvec[3] - 2 * qvec[0] * qvec[1],
-            ],
-            [
-                2 * qvec[3] * qvec[1] - 2 * qvec[0] * qvec[2],
-                2 * qvec[2] * qvec[3] + 2 * qvec[0] * qvec[1],
-                1 - 2 * qvec[1] ** 2 - 2 * qvec[2] ** 2,
-            ],
-        ]
-    )
-
-
-def rotmat2qvec(R):
-    """Convert rotation matrix to quaternion.
-
-    Args:
-        R: Rotation matrix of shape (3, 3).
-    Returns:
-        Quaternion vector of shape (4,).
-    """
-    rxx, ryx, rzx, rxy, ryy, rzy, rxz, ryz, rzz = R.flat
-    K = (
-        np.array(
-            [
-                [rxx - ryy - rzz, 0, 0, 0],
-                [ryx + rxy, ryy - rxx - rzz, 0, 0],
-                [rzx + rxz, rzy + ryz, rzz - rxx - ryy, 0],
-                [ryz - rzy, rzx - rxz, rxy - ryx, rxx + ryy + rzz],
-            ]
-        )
-        / 3.0
-    )
-    eigvals, eigvecs = np.linalg.eigh(K)
-    qvec = eigvecs[np.array([3, 0, 1, 2]), np.argmax(eigvals)]
-    if qvec[0] < 0:
-        qvec *= -1
-    return qvec
 
 
 def get_vocab_tree() -> Path:
@@ -582,40 +183,54 @@ def run_colmap(
 
 
 def colmap_to_json(
-    cameras_path: Path,
-    images_path: Path,
+    recon_dir: Path,
     output_dir: Path,
     camera_model: CameraModel,
     camera_mask_path: Optional[Path] = None,
+    image_id_to_depth_path: Optional[Dict[int, Path]] = None,
     image_rename_map: Optional[Dict[str, str]] = None,
 ) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
 
     Args:
-        cameras_path: Path to the cameras.bin file.
-        images_path: Path to the images.bin file.
+        recon_dir: Path to the reconstruction directory, e.g. "sparse/0"
         output_dir: Path to the output directory.
-        camera_mask_path: Path to the camera mask.
         camera_model: Camera model used.
+        camera_mask_path: Path to the camera mask.
+        image_id_to_depth_path: When including sfm-based depth, embed these depth file paths in the exported json
+        image_rename_map: Use these image names instead of the names embedded in the COLMAP db
 
     Returns:
         The number of registered images.
     """
 
-    cameras = read_cameras_binary(cameras_path)
-    images = read_images_binary(images_path)
+    # TODO(1480) use pycolmap
+    # recon = pycolmap.Reconstruction(recon_dir)
+    # cam_id_to_camera = recon.cameras
+    # im_id_to_image = recon.images
+    cam_id_to_camera = read_cameras_binary(recon_dir / "cameras.bin")
+    im_id_to_image = read_images_binary(recon_dir / "images.bin")
 
-    # Only supports one camera
-    camera_params = cameras[1].params
+    # Only support first camera
+    CAMERA_ID = 1  # pylint: disable=invalid-name
+    camera_params = cam_id_to_camera[CAMERA_ID].params
 
     frames = []
-    for _, im_data in images.items():
+    for im_id, im_data in im_id_to_image.items():
+        # NB: COLMAP uses Eigen / scalar-first quaternions
+        # * https://colmap.github.io/format.html
+        # * https://github.com/colmap/colmap/blob/bf3e19140f491c3042bfd85b7192ef7d249808ec/src/base/pose.cc#L75
+        # the `rotation_matrix()` handles that format for us.
+
+        # TODO(1480) BEGIN use pycolmap API
+        # rotation = im_data.rotation_matrix()
         rotation = qvec2rotmat(im_data.qvec)
+
         translation = im_data.tvec.reshape(3, 1)
         w2c = np.concatenate([rotation, translation], 1)
         w2c = np.concatenate([w2c, np.array([[0, 0, 0, 1]])], 0)
         c2w = np.linalg.inv(w2c)
-        # Convert from COLMAP's camera coordinate system to ours
+        # Convert from COLMAP's camera coordinate system (OpenCV) to ours (OpenGL)
         c2w[0:3, 1:3] *= -1
         c2w = c2w[np.array([1, 0, 2, 3]), :]
         c2w[2, :] *= -1
@@ -628,9 +243,13 @@ def colmap_to_json(
         frame = {
             "file_path": name.as_posix(),
             "transform_matrix": c2w.tolist(),
+            "colmap_im_id": im_id,
         }
         if camera_mask_path is not None:
             frame["mask_path"] = camera_mask_path.relative_to(camera_mask_path.parent.parent).as_posix()
+        if image_id_to_depth_path is not None:
+            depth_path = image_id_to_depth_path[im_id]
+            frame["depth_file_path"] = str(depth_path)
         frames.append(frame)
 
     out = {
@@ -638,8 +257,8 @@ def colmap_to_json(
         "fl_y": float(camera_params[1]),
         "cx": float(camera_params[2]),
         "cy": float(camera_params[3]),
-        "w": cameras[1].width,
-        "h": cameras[1].height,
+        "w": cam_id_to_camera[CAMERA_ID].width,
+        "h": cam_id_to_camera[CAMERA_ID].height,
         "camera_model": camera_model.value,
     }
 
@@ -668,6 +287,151 @@ def colmap_to_json(
         json.dump(out, f, indent=4)
 
     return len(frames)
+
+
+def create_sfm_depth(
+    recon_dir: Path,
+    output_dir: Path,
+    verbose: bool = True,
+    depth_scale_to_integer_factor: float = 1000.0,
+    min_depth: float = 0.001,
+    max_depth: float = 10000,
+    max_repoj_err: float = 2.5,
+    min_n_visible: int = 2,
+    include_depth_debug: bool = False,
+    input_images_dir: Optional[Path] = None,
+) -> Dict[int, Path]:
+    """Converts COLMAP's points3d.bin to sparse depth map images encoded as
+    16-bit "millimeter depth" PNGs.
+
+    Notes:
+     * This facility does NOT use COLMAP dense reconstruction; it creates depth
+        maps from sparse SfM points here.
+     * COLMAP does *not* reconstruct metric depth unless you give it calibrated
+        (metric) intrinsics as input. Therefore, "depth" in this function has
+        potentially ambiguous units.
+
+    Args:
+        recon_dir: Path to the reconstruction directory, e.g. "sparse/0"
+        output_dir: Path to the output directory.
+        verbose: If True, logs progress of depth image creation.
+        depth_scale_to_integer_factor: Use this parameter to tune the conversion of
+          raw depth measurements to integer depth values.  This value should
+          be equal to 1. / `depth_unit_scale_factor`, where
+          `depth_unit_scale_factor` is the value you provide at training time.
+          E.g. for millimeter depth, leave `depth_unit_scale_factor` at 1e-3
+          and depth_scale_to_integer_factor at 1000.
+        min_depth: Discard points closer than this to the camera.
+        max_depth: Discard points farther than this from the camera.
+        max_repoj_err: Discard points with reprojection error greater than this
+          amount (in pixels).
+        min_n_visible: Discard 3D points that have been triangulated with fewer
+          than this many frames.
+        include_depth_debug: Also include debug images showing depth overlaid
+          upon RGB.
+    Returns:
+        Depth file paths indexed by COLMAP image id
+    """
+
+    # TODO(1480) use pycolmap
+    # recon = pycolmap.Reconstruction(recon_dir)
+    # ptid_to_info = recon.points3D
+    # cam_id_to_camera = recon.cameras
+    # im_id_to_image = recon.images
+    ptid_to_info = read_points3d_binary(recon_dir / "points3D.bin")
+    cam_id_to_camera = read_cameras_binary(recon_dir / "cameras.bin")
+    im_id_to_image = read_images_binary(recon_dir / "images.bin")
+
+    # Only support first camera
+    CAMERA_ID = 1  # pylint: disable=invalid-name
+    W = cam_id_to_camera[CAMERA_ID].width
+    H = cam_id_to_camera[CAMERA_ID].height
+
+    if verbose:
+        iter_images = track(
+            im_id_to_image.items(), total=len(im_id_to_image.items()), description="Creating depth maps ..."
+        )
+    else:
+        iter_images = iter(im_id_to_image.items())
+
+    image_id_to_depth_path = {}
+    for im_id, im_data in iter_images:
+        # TODO(1480) BEGIN delete when abandoning colmap_parsing_utils
+        pids = [pid for pid in im_data.point3D_ids if pid != -1]
+        xyz_world = np.array([ptid_to_info[pid].xyz for pid in pids])
+        rotation = qvec2rotmat(im_data.qvec)
+        z = (rotation @ xyz_world.T)[-1] + im_data.tvec[-1]
+        errors = np.array([ptid_to_info[pid].error for pid in pids])
+        n_visible = np.array([len(ptid_to_info[pid].image_ids) for pid in pids])
+        uv = np.array([im_data.xys[i] for i in range(len(im_data.xys)) if im_data.point3D_ids[i] != -1])
+        # TODO(1480) END delete when abandoning colmap_parsing_utils
+
+        # TODO(1480) BEGIN use pycolmap API
+
+        # # Get only keypoints that have corresponding triangulated 3D points
+        # p2ds = im_data.get_valid_points2D()
+
+        # xyz_world = np.array([ptid_to_info[p2d.point3D_id].xyz for p2d in p2ds])
+
+        # # COLMAP OpenCV convention: z is always positive
+        # z = (im_data.rotation_matrix() @ xyz_world.T)[-1] + im_data.tvec[-1]
+
+        # # Mean reprojection error in image space
+        # errors = np.array([ptid_to_info[p2d.point3D_id].error for p2d in p2ds])
+
+        # # Number of frames in which each frame is visible
+        # n_visible = np.array([ptid_to_info[p2d.point3D_id].track.length() for p2d in p2ds])
+
+        # Note: these are *unrectified* pixel coordinates that should match the original input
+        # no matter the camera model
+        # uv = np.array([p2d.xy for p2d in p2ds])
+
+        # TODO(1480) END use pycolmap API
+
+        idx = np.where(
+            (z >= min_depth)
+            & (z <= max_depth)
+            & (errors <= max_repoj_err)
+            & (n_visible >= min_n_visible)
+            & (uv[:, 0] >= 0)
+            & (uv[:, 0] < W)
+            & (uv[:, 1] >= 0)
+            & (uv[:, 1] < H)
+        )
+        z = z[idx]
+        uv = uv[idx]
+
+        uu, vv = uv[:, 0].astype(int), uv[:, 1].astype(int)
+        depth = np.zeros((H, W), dtype=np.float32)
+        depth[vv, uu] = z
+
+        # E.g. if `depth` is metric and in units of meters, and `depth_scale_to_integer_factor`
+        # is 1000, then `depth_img` will be integer millimeters.
+        depth_img = (depth_scale_to_integer_factor * depth).astype(np.uint16)
+
+        out_name = str(im_data.name)
+        depth_path = output_dir / out_name
+        cv2.imwrite(str(depth_path), depth_img)
+
+        image_id_to_depth_path[im_id] = depth_path
+
+        if include_depth_debug:
+            assert input_images_dir is not None, "Need explicit input_images_dir for debug images"
+            assert input_images_dir.exists(), input_images_dir
+
+            depth_flat = depth.flatten()[:, None]
+            overlay = 255.0 * colormaps.apply_depth_colormap(torch.from_numpy(depth_flat)).numpy()
+            overlay = overlay.reshape([H, W, 3])
+            input_image_path = input_images_dir / im_data.name
+            input_image = cv2.imread(str(input_image_path))
+            debug = 0.3 * input_image + 0.7 + overlay
+
+            out_name = out_name + ".debug.jpg"
+            output_path = output_dir / "debug_depth" / out_name
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            cv2.imwrite(str(output_path), debug.astype(np.uint8))
+
+    return image_id_to_depth_path
 
 
 def get_matching_summary(num_intial_frames: int, num_matched_frames: int) -> str:

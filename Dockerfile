@@ -48,10 +48,12 @@ RUN apt-get update && \
     libsuitesparse-dev \
     nano \
     protobuf-compiler \
+    python-is-python3 \
     python3.10-dev \
     python3-pip \
     qtbase5-dev \
     sudo \
+    vim-tiny \
     wget && \
     rm -rf /var/lib/apt/lists/*
 
@@ -62,7 +64,7 @@ RUN git clone --branch v0.6.0 https://github.com/google/glog.git --single-branch
     mkdir build && \
     cd build && \
     cmake .. && \
-    make -j && \
+    make -j `nproc` && \
     make install && \
     cd ../.. && \
     rm -rf glog
@@ -76,7 +78,7 @@ RUN git clone --branch 2.1.0 https://ceres-solver.googlesource.com/ceres-solver.
     mkdir build && \
     cd build && \
     cmake .. -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF && \
-    make -j && \
+    make -j `nproc` && \
     make install && \
     cd ../.. && \
     rm -rf ceres-solver
@@ -87,13 +89,12 @@ RUN git clone --branch 3.8 https://github.com/colmap/colmap.git --single-branch 
     mkdir build && \
     cd build && \
     cmake .. -DCUDA_ENABLED=ON \
-             -DCUDA_NVCC_FLAGS="--std c++14" \
              -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} && \
-    make -j && \
+    make -j `nproc` && \
     make install && \
     cd ../.. && \
     rm -rf colmap
-    
+
 # Create non root user and setup environment.
 RUN useradd -m -d /home/user -g root -G sudo -u 1000 user
 RUN usermod -aG sudo user
@@ -112,13 +113,14 @@ SHELL ["/bin/bash", "-c"]
 
 # Upgrade pip and install packages.
 RUN python3.10 -m pip install --upgrade pip setuptools pathtools promise pybind11
-# Install pytorch and submodules (Currently, we still use cu116 which is the latest version for toch 1.12.1 and is compatible with CUDA 11.8).
+# Install pytorch and submodules (Currently, we still use cu116 which is the latest version for torch 1.12.1 and is compatible with CUDA 11.8).
 RUN python3.10 -m pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
 # Install tynyCUDNN (we need to set the target architectures as environment variable first).
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
-RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git#subdirectory=bindings/torch
+RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch
 
 # Install pycolmap 0.3.0, required by hloc.
+# TODO(https://github.com/colmap/pycolmap/issues/111) use wheel when available for Python 3.10
 RUN git clone --branch v0.3.0 --recursive https://github.com/colmap/pycolmap.git && \
     cd pycolmap && \
     python3.10 -m pip install . && \

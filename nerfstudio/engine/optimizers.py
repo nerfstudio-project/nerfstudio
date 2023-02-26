@@ -44,7 +44,7 @@ class OptimizerConfig(base_config.PrintableConfig):
 
     # TODO: somehow make this more generic. i dont like the idea of overriding the setup function
     # but also not sure how to go about passing things into predefined torch objects.
-    def setup(self, params) -> Any:
+    def setup(self, params) -> torch.optim.Optimizer:
         """Returns the instantiated object using the config."""
         kwargs = vars(self).copy()
         kwargs.pop("_target")
@@ -76,7 +76,7 @@ class Optimizers:
         param_groups: A dictionary of parameter groups to optimize.
     """
 
-    def __init__(self, config: Dict[str, Any], param_groups: Dict[str, List[Parameter]]):
+    def __init__(self, config: Dict[str, Any], param_groups: Dict[str, List[Parameter]]) -> None:
         self.config = config
         self.optimizers = {}
         self.schedulers = {}
@@ -127,7 +127,7 @@ class Optimizers:
                 torch.nn.utils.clip_grad_norm_(self.parameters[param_group], max_norm)
             grad_scaler.step(optimizer)
 
-    def optimizer_step_all(self):
+    def optimizer_step_all(self) -> None:
         """Run step for all optimizers."""
         for param_group, optimizer in self.optimizers.items():
             # note that they key is the parameter name
