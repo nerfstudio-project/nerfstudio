@@ -670,8 +670,17 @@ class NeuSSampler(Sampler):
         return ray_samples
 
     @staticmethod
-    def rendering_sdf_with_fixed_inv_s(ray_samples: RaySamples, sdf: torch.Tensor, inv_s):
-        """rendering given a fixed inv_s as NeuS"""
+    def rendering_sdf_with_fixed_inv_s(ray_samples: RaySamples, sdf: TensorType["num_samples", -1], inv_s: int)-> TensorType["num_samples", -1]:
+        """
+        rendering given a fixed inv_s as NeuS
+        
+        Args:
+            ray_samples: samples along ray
+            sdf: sdf values along ray
+            inv_s: fixed variance value
+        Returns:
+            alpha value
+        """
         batch_size = ray_samples.shape[0]
         prev_sdf, next_sdf = sdf[:, :-1], sdf[:, 1:]
         deltas = ray_samples.deltas[:, :-1, 0]

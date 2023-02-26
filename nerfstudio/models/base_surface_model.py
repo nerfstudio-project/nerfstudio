@@ -57,12 +57,12 @@ from nerfstudio.model_components.scene_colliders import (  # SphereCollider,
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
 from nerfstudio.utils.colors import get_color
-from nerfstudio.utils.math import compute_scale_and_shift
+from nerfstudio.utils.math import normalized_depth_scale_and_shift
 
 
 @dataclass
 class SurfaceModelConfig(ModelConfig):
-    """Nerfacto Model Config"""
+    """Surface Model Config"""
 
     _target: Type = field(default_factory=lambda: SurfaceModel)
     # changed from 0.05|4 ->0.1|6
@@ -270,7 +270,7 @@ class SurfaceModel(Model):
             "depth": depth,
             "normal": normal,
             "weights": weights,
-            "directions_norm": ray_bundle.directions_norm,  # used to scale z_vals for free space and sdf loss
+            "directions_norm": ray_bundle.metadata['directions_norm'],  # used to scale z_vals for free space and sdf loss
         }
         outputs.update(bg_outputs)
 
@@ -362,7 +362,7 @@ class SurfaceModel(Model):
             depth_pred = outputs["depth"]
 
             # align to predicted depth and normalize
-            scale, shift = compute_scale_and_shift(
+            scale, shift = normalized_depth_scale_and_shift(
                 depth_pred[None, ..., 0], depth_gt[None, ...], depth_gt[None, ...] > 0.0
             )
             depth_pred = depth_pred * scale + shift

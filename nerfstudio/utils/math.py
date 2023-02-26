@@ -313,7 +313,7 @@ def masked_reduction(
     return input_tensor
 
 
-def compute_scale_and_shift(
+def normalized_depth_scale_and_shift(
     prediction: TensorType[1, 32, "mult"], target: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"]
 ):
     """

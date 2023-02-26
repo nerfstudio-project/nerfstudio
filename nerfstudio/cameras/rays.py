@@ -17,7 +17,7 @@ Some ray datastructures.
 """
 import random
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Optional, Tuple
 
 import torch
 from torchtyping import TensorType
@@ -55,13 +55,8 @@ class Frustums(TensorDataclass):
         return pos
 
     def get_start_positions(self) -> TensorType[..., 3]:
-        """Calulates "start" position of frustum. We use start positions for MonoSDF
-        because when we use error bounded sampling, we need to upsample many times.
-        It's hard to merge two set of ray samples while keeping the mid points fixed.
-        Every time we up sample the points the mid points will change and
-        therefore we need to evaluate all points again which is 3 times slower.
-        But we can skip the evaluation of sdf value if we use start position instead of mid position
-        because after we merge the points, the starting point is the same and only the delta is changed.
+        """Calulates "start" position of frustum.
+        
         Returns:
             xyz positions.
         """
@@ -171,12 +166,12 @@ class RaySamples(TensorDataclass):
     @staticmethod
     def get_weights_and_transmittance_from_alphas(
         alphas: TensorType[..., "num_samples", 1]
-    ) -> TensorType[..., "num_samples", 1]:
+    ) -> Tuple[TensorType[..., "num_samples", 1], TensorType[..., "num_samples", 1]]:
         """Return weights based on predicted alphas
         Args:
             alphas: Predicted alphas (maybe from sdf) for samples along ray
         Returns:
-            Weights for each sample
+            Tuple of weights and transmittance for each sample
         """
 
         transmittance = torch.cumprod(

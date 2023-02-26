@@ -23,7 +23,7 @@ from torchtyping import TensorType
 from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
-from nerfstudio.utils.math import compute_scale_and_shift, masked_reduction
+from nerfstudio.utils.math import masked_reduction, normalized_depth_scale_and_shift
 
 L1Loss = nn.L1Loss
 MSELoss = nn.MSELoss
@@ -468,7 +468,7 @@ class ScaleAndShiftInvariantLoss(nn.Module):
         Returns:
             scale and shift invariant loss
         """
-        scale, shift = compute_scale_and_shift(prediction, target, mask)
+        scale, shift = normalized_depth_scale_and_shift(prediction, target, mask)
         self.__prediction_ssi = scale.view(-1, 1, 1) * prediction + shift.view(-1, 1, 1)
 
         total = self.__data_loss(self.__prediction_ssi, target, mask)
