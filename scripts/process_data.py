@@ -91,10 +91,14 @@ class ProcessImages:
     """
     gpu: bool = True
     """If True, use GPU."""
+    use_sfm_depth: bool = False
+    """If True, export and use depth maps induced from SfM points."""
+    include_depth_debug: bool = False
+    """If --use-sfm-depth and this flag is True, also export debug images showing SfM overlaid upon input images."""
     verbose: bool = False
     """If True, print extra logging."""
 
-    def main(self) -> None:
+    def main(self) -> None:  # pylint: disable=R0915
         """Process images into a nerfstudio dataset."""
         # pylint: disable=too-many-statements
         require_cameras_exist = False
@@ -161,14 +165,33 @@ class ProcessImages:
             # Colmap uses renamed images
             image_rename_map = None
 
+        # Export depth maps
+        if self.use_sfm_depth:
+            depth_dir = self.output_dir / "depth"
+            depth_dir.mkdir(parents=True, exist_ok=True)
+            image_id_to_depth_path = colmap_utils.create_sfm_depth(
+                recon_dir=colmap_dir / "sparse" / "0",
+                output_dir=depth_dir,
+                include_depth_debug=self.include_depth_debug,
+                input_images_dir=image_dir,
+                verbose=self.verbose,
+            )
+            summary_log.append(
+                process_data_utils.downscale_images(
+                    depth_dir, self.num_downscales, folder_name="depths", nearest_neighbor=True, verbose=self.verbose
+                )
+            )
+        else:
+            image_id_to_depth_path = {}
+
         # Save transforms.json
         if (colmap_model_path / "cameras.bin").exists():
             with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
                 num_matched_frames = colmap_utils.colmap_to_json(
-                    cameras_path=colmap_model_path / "cameras.bin",
-                    images_path=colmap_model_path / "images.bin",
+                    recon_dir=colmap_dir / "sparse" / "0",
                     output_dir=self.output_dir,
                     camera_model=CAMERA_MODELS[self.camera_type],
+                    image_id_to_depth_path=image_id_to_depth_path,
                     image_rename_map=image_rename_map,
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
@@ -272,12 +295,16 @@ class ProcessVideo:
     """Create circle crop mask. The radius is the percent of the image diagonal."""
     percent_crop: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
     """Percent of the image to crop. (top, bottom, left, right)"""
+    use_sfm_depth: bool = False
+    """If True, export and use depth maps induced from SfM points."""
+    include_depth_debug: bool = False
+    """If --use-sfm-depth and this flag is True, also export debug images showing SfM overlaid upon input images."""
     gpu: bool = True
     """If True, use GPU."""
     verbose: bool = False
     """If True, print extra logging."""
 
-    def main(self) -> None:
+    def main(self) -> None:  # pylint: disable=R0915
         """Process video into a nerfstudio dataset."""
         install_checks.check_ffmpeg_installed()
         install_checks.check_colmap_installed()
@@ -372,14 +399,33 @@ class ProcessVideo:
                 CONSOLE.log("[bold red]Invalid combination of sfm_tool, feature_type, and matcher_type, exiting")
                 sys.exit(1)
 
+        # Export depth maps
+        if self.use_sfm_depth:
+            depth_dir = self.output_dir / "depth"
+            depth_dir.mkdir(parents=True, exist_ok=True)
+            image_id_to_depth_path = colmap_utils.create_sfm_depth(
+                recon_dir=colmap_dir / "sparse" / "0",
+                output_dir=depth_dir,
+                include_depth_debug=self.include_depth_debug,
+                input_images_dir=image_dir,
+                verbose=self.verbose,
+            )
+            summary_log.append(
+                process_data_utils.downscale_images(
+                    depth_dir, self.num_downscales, folder_name="depths", nearest_neighbor=True, verbose=self.verbose
+                )
+            )
+        else:
+            image_id_to_depth_path = {}
+
         # Save transforms.json
         if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
             with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
                 num_matched_frames = colmap_utils.colmap_to_json(
-                    cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
-                    images_path=colmap_dir / "sparse" / "0" / "images.bin",
+                    recon_dir=colmap_dir / "sparse" / "0",
                     output_dir=self.output_dir,
                     camera_model=CAMERA_MODELS[self.camera_type],
+                    image_id_to_depth_path=image_id_to_depth_path,
                     camera_mask_path=mask_path,
                     image_rename_map=None,
                 )
@@ -426,6 +472,10 @@ class ProcessInsta360:
     """If True, skips COLMAP and generates transforms.json if possible."""
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
+    use_sfm_depth: bool = False
+    """If True, export and use depth maps induced from SfM points."""
+    include_depth_debug: bool = False
+    """If --use-sfm-depth and this flag is True, also export debug images showing SfM overlaid upon input images."""
     gpu: bool = True
     """If True, use GPU."""
     verbose: bool = False
@@ -493,14 +543,33 @@ class ProcessInsta360:
                 colmap_cmd=self.colmap_cmd,
             )
 
+        # Export depth maps
+        if self.use_sfm_depth:
+            depth_dir = self.output_dir / "depth"
+            depth_dir.mkdir(parents=True, exist_ok=True)
+            image_id_to_depth_path = colmap_utils.create_sfm_depth(
+                recon_dir=colmap_dir / "sparse" / "0",
+                output_dir=depth_dir,
+                include_depth_debug=self.include_depth_debug,
+                input_images_dir=image_dir,
+                verbose=self.verbose,
+            )
+            summary_log.append(
+                process_data_utils.downscale_images(
+                    depth_dir, self.num_downscales, folder_name="depths", nearest_neighbor=True, verbose=self.verbose
+                )
+            )
+        else:
+            image_id_to_depth_path = {}
+
         # Save transforms.json
         if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
             with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
                 num_matched_frames = colmap_utils.colmap_to_json(
-                    cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
-                    images_path=colmap_dir / "sparse" / "0" / "images.bin",
+                    recon_dir=colmap_dir / "sparse" / "0",
                     output_dir=self.output_dir,
                     camera_model=CAMERA_MODELS["fisheye"],
+                    image_id_to_depth_path=image_id_to_depth_path,
                     image_rename_map=None,
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")

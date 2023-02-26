@@ -135,6 +135,14 @@ or be built from the repository using
 ```bash
 docker build --tag nerfstudio -f Dockerfile .
 ```
+
+To restrict to only CUDA architectures that you have available locally, use the `CUDA_ARCHITECTURES`
+build arg and look up [the compute capability for your GPU](https://developer.nvidia.com/cuda-gpus).
+For example, here's how to build with support for GeForce 30xx series GPUs:
+```bash
+docker build --build-arg CUDA_ARCHITECTURES=86 -tag nerfstudio-86 .
+```
+
 ### Using an interactive container
 The docker container can be launched with an interactive terminal where nerfstudio commands can be entered as usual. Some parameters are required and some are strongly recommended for usage as following:
 ```bash
