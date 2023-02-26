@@ -21,13 +21,14 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
+from numpy.typing import ArrayLike
 from torchtyping import TensorType
 from typing_extensions import Literal
 
 _EPS = np.finfo(float).eps * 4.0
 
 
-def unit_vector(data: np.ArrayLike, axis: Optional[int] = None) -> np.ndarray:
+def unit_vector(data: ArrayLike, axis: Optional[int] = None) -> np.ndarray:
     """Return ndarray normalized by length, i.e. Euclidean norm, along axis.
 
     Args:
@@ -46,7 +47,7 @@ def unit_vector(data: np.ArrayLike, axis: Optional[int] = None) -> np.ndarray:
     return data
 
 
-def quaternion_from_matrix(matrix: np.ArrayLike, isprecise: bool = False) -> np.ndarray:
+def quaternion_from_matrix(matrix: ArrayLike, isprecise: bool = False) -> np.ndarray:
     """Return quaternion from rotation matrix.
 
     Args:
@@ -103,7 +104,7 @@ def quaternion_from_matrix(matrix: np.ArrayLike, isprecise: bool = False) -> np.
 
 
 def quaternion_slerp(
-    quat0: np.ArrayLike, quat1: np.ArrayLike, fraction: float, spin: int = 0, shortestpath: bool = True
+    quat0: ArrayLike, quat1: ArrayLike, fraction: float, spin: int = 0, shortestpath: bool = True
 ) -> np.ndarray:
     """Return spherical linear interpolation between two quaternions.
     Args:
@@ -138,7 +139,7 @@ def quaternion_slerp(
     return q0
 
 
-def quaternion_matrix(quaternion: np.ArrayLike) -> np.ndarray:
+def quaternion_matrix(quaternion: ArrayLike) -> np.ndarray:
     """Return homogeneous rotation matrix from quaternion.
 
     Args:
@@ -160,7 +161,7 @@ def quaternion_matrix(quaternion: np.ArrayLike) -> np.ndarray:
     )
 
 
-def get_interpolated_poses(pose_a: np.ArrayLike, pose_b: np.ArrayLike, steps: int = 10) -> List[float]:
+def get_interpolated_poses(pose_a: ArrayLike, pose_b: ArrayLike, steps: int = 10) -> List[float]:
     """Return interpolation of poses with specified number of steps.
     Args:
         poseA: first pose
