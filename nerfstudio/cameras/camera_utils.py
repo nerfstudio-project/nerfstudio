@@ -178,7 +178,7 @@ def get_interpolated_poses(pose_a, pose_b, steps: int = 10) -> List[float]:
         pose = np.identity(4)
         pose[:3, :3] = quaternion_matrix(quat)[:3, :3]
         pose[:3, 3] = tran
-        poses_ab.append(pose)
+        poses_ab.append(pose[:3])
     return poses_ab
 
 
@@ -215,14 +215,18 @@ def get_interpolated_poses_many(
         tuple of new poses and intrinsics
     """
     traj = []
-    Ks = []
+    k_interp = []
     for idx in range(poses.shape[0] - 1):
         pose_a = poses[idx]
         pose_b = poses[idx + 1]
         poses_ab = get_interpolated_poses(pose_a, pose_b, steps=steps_per_transition)
         traj += poses_ab
-        Ks += get_interpolated_k(Ks[idx], Ks[idx + 1], steps_per_transition)
-    return torch.stack(traj, dim=0), torch.stack(Ks, dim=0)
+        k_interp += get_interpolated_k(Ks[idx], Ks[idx + 1], steps=steps_per_transition)
+
+    traj = np.stack(traj, axis=0)
+    k_interp = np.stack(k_interp, axis=0)
+
+    return torch.tensor(traj), torch.tensor(k_interp)
 
 
 def normalize(x) -> TensorType[...]:
