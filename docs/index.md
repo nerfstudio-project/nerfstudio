@@ -58,8 +58,8 @@ Contributing<reference/contributing>
 ```{toctree}
 :hidden:
 :caption: Extensions
-
 extensions/blender_addon
+extensions/unreal_engine
 ```
 
 ```{toctree}

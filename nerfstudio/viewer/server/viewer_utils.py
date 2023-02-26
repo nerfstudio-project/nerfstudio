@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=too-many-lines
+
 """Code to interface with the `vis/` (the JS viewer).
 """
 from __future__ import annotations
@@ -70,11 +72,13 @@ def get_viewer_version() -> str:
 
 
 @check_main_thread
-def setup_viewer(config: cfg.ViewerConfig, log_filename: Path, datapath: str):
+def setup_viewer(config: cfg.ViewerConfig, log_filename: Path, datapath: Path):
     """Sets up the viewer if enabled
 
     Args:
         config: the configuration to instantiate viewer
+        log_filename: the log filename to write to
+        datapath: the path to the dataset
     """
     viewer_state = ViewerState(config, log_filename=log_filename, datapath=datapath)
     banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
@@ -250,14 +254,16 @@ class ViewerState:
 
     Args:
         config: viewer setup configuration
+        log_filename: filename to log viewer output to
+        datapath: path to data
     """
 
-    def __init__(self, config: cfg.ViewerConfig, log_filename: Path, datapath: str):
+    def __init__(self, config: cfg.ViewerConfig, log_filename: Path, datapath: Path):
         self.config = config
         self.vis = None
         self.viewer_url = None
         self.log_filename = log_filename
-        self.datapath = datapath
+        self.datapath = datapath.parent if datapath.is_file() else datapath
         if self.config.launch_bridge_server:
             # start the viewer bridge server
             assert self.config.websocket_port is not None

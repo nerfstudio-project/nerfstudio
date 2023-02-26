@@ -106,14 +106,12 @@ class Pipeline(nn.Module):
         return self.model.device
 
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
-        if "model" in state_dict:
-            tmp_state_dict = dict(state_dict)
-            model_state = tmp_state_dict.pop("model")
-            self.model.load_state_dict(model_state, strict=strict)
-
-            # Model will be missing from the dict; therefore strict=False here.
-            strict = False
-        super().load_state_dict(state_dict, strict=strict)
+        model_state = {
+            key.replace("_model.", ""): value for key, value in state_dict.items() if key.startswith("_model.")
+        }
+        pipeline_state = {key: value for key, value in state_dict.items() if not key.startswith("_model.")}
+        self._model.load_state_dict(model_state, strict=strict)
+        super().load_state_dict(pipeline_state, strict=False)
 
     @profiler.time_function
     def get_train_loss_dict(self, step: int):
@@ -372,10 +370,7 @@ class VanillaPipeline(Pipeline):
         """
         state = {key.replace("module.", ""): value for key, value in loaded_state.items()}
         self._model.update_to_step(step)
-        model_state = state.pop("model", {})
-        self.model.load_state_dict(model_state, strict=True)
-        self.load_state_dict(state, strict=False)
-        state["model"] = model_state
+        self.load_state_dict(state, strict=True)
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes

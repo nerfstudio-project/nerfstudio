@@ -1,6 +1,12 @@
 # Define base image.
 FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
+# metainformation
+LABEL org.opencontainers.image.version = "0.1.18"
+LABEL org.opencontainers.image.source = "https://github.com/nerfstudio-project/nerfstudio"
+LABEL org.opencontainers.image.licenses = "Apache License 2.0"
+LABEL org.opencontainers.image.base.name="docker.io/library/nvidia/cuda:11.8.0-devel-ubuntu22.04"
+
 # Variables used at build time.
 ## CUDA architectures, required by Colmap and tiny-cuda-nn.
 ## NOTE: All commonly used GPU architectures are included and supported here. To speedup the image build process remove all architectures but the one of your explicit GPU. Find details here: https://developer.nvidia.com/cuda-gpus (8.6 translates to 86 in the line below) or in the docs.
