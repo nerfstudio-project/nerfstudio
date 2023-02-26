@@ -182,15 +182,14 @@ class ProcessImages:
                 )
             )
         else:
-            image_id_to_depth_path = {}
+            image_id_to_depth_path = None
 
         # Save transforms.json
         if (colmap_model_path / "cameras.bin").exists():
             with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
                 num_matched_frames = colmap_utils.colmap_to_json(
-                    recon_dir=colmap_dir / "sparse" / "0",
+                    recon_dir=colmap_model_path,
                     output_dir=self.output_dir,
-                    camera_model=CAMERA_MODELS[self.camera_type],
                     image_id_to_depth_path=image_id_to_depth_path,
                     image_rename_map=image_rename_map,
                 )
@@ -424,7 +423,6 @@ class ProcessVideo:
                 num_matched_frames = colmap_utils.colmap_to_json(
                     recon_dir=colmap_dir / "sparse" / "0",
                     output_dir=self.output_dir,
-                    camera_model=CAMERA_MODELS[self.camera_type],
                     image_id_to_depth_path=image_id_to_depth_path,
                     camera_mask_path=mask_path,
                     image_rename_map=None,
@@ -568,7 +566,6 @@ class ProcessInsta360:
                 num_matched_frames = colmap_utils.colmap_to_json(
                     recon_dir=colmap_dir / "sparse" / "0",
                     output_dir=self.output_dir,
-                    camera_model=CAMERA_MODELS["fisheye"],
                     image_id_to_depth_path=image_id_to_depth_path,
                     image_rename_map=None,
                 )
