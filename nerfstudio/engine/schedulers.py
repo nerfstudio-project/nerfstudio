@@ -40,7 +40,7 @@ class Scheduler:
 
     config: SchedulerConfig
 
-    def __init__(self, config: SchedulerConfig):
+    def __init__(self, config: SchedulerConfig) -> None:
         super().__init__()
         self.config = config
 
