@@ -18,7 +18,7 @@ Tools supporting the execution of COLMAP and preparation of COLMAP-based dataset
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 import appdirs
 import cv2
@@ -182,7 +182,7 @@ def run_colmap(
     CONSOLE.log("[bold green]:tada: Done refining intrinsics.")
 
 
-def parse_colmap_camera_params(camera: Camera) -> Dict[str, Any]:  # pylint: disable=too-many-statements
+def parse_colmap_camera_params(camera) -> Dict[str, Any]:  # pylint: disable=too-many-statements
     """
     Parses all currently supported COLMAP cameras into the transforms.json metadata
 
@@ -449,7 +449,7 @@ def colmap_to_json(
             depth_path = image_id_to_depth_path[im_id]
             frame["depth_file_path"] = str(depth_path)
         frames.append(frame)
-        
+
     if set(cam_id_to_camera.keys()) != {1}:
         raise RuntimeError("Only single camera shared for all images is supported.")
     out = parse_colmap_camera_params(cam_id_to_camera[1])
@@ -459,6 +459,7 @@ def colmap_to_json(
         json.dump(out, f, indent=4)
 
     return len(frames)
+
 
 def create_sfm_depth(
     recon_dir: Path,

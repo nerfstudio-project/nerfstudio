@@ -182,13 +182,13 @@ class ProcessImages:
                 )
             )
         else:
-            image_id_to_depth_path = {}
+            image_id_to_depth_path = None
 
         # Save transforms.json
         if (colmap_model_path / "cameras.bin").exists():
             with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
                 num_matched_frames = colmap_utils.colmap_to_json(
-                    recon_dir=colmap_dir / "sparse" / "0",
+                    recon_dir=colmap_model_path,
                     output_dir=self.output_dir,
                     image_id_to_depth_path=image_id_to_depth_path,
                     image_rename_map=image_rename_map,
