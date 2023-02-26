@@ -113,6 +113,13 @@ def convert_video_to_images(
         A tuple containing summary of the conversion and the number of extracted frames.
     """
 
+    if video_path.is_dir():
+        CONSOLE.print(f"[bold red]Error: Video path is a directory, not a path: {video_path}")
+        sys.exit(1)
+    if video_path.exists() is False:
+        CONSOLE.print(f"[bold red]Error: Video does not exist: {video_path}")
+        sys.exit(1)
+
     with status(msg="Converting video to images...", spinner="bouncingBall", verbose=verbose):
         # delete existing images in folder
         for img in image_dir.glob("*.png"):
@@ -263,7 +270,13 @@ def copy_images(data: Path, image_dir: Path, verbose) -> OrderedDict[Path, Path]
         return OrderedDict((original_path, new_path) for original_path, new_path in zip(image_paths, copied_images))
 
 
-def downscale_images(image_dir: Path, num_downscales: int, folder_name: str = "images", verbose: bool = False) -> str:
+def downscale_images(
+    image_dir: Path,
+    num_downscales: int,
+    folder_name: str = "images",
+    nearest_neighbor: bool = False,
+    verbose: bool = False,
+) -> str:
     """Downscales the images in the directory. Uses FFMPEG.
 
     Assumes images are named frame_00001.png, frame_00002.png, etc.
@@ -272,6 +285,7 @@ def downscale_images(image_dir: Path, num_downscales: int, folder_name: str = "i
         image_dir: Path to the directory containing the images.
         num_downscales: Number of times to downscale the images. Downscales by 2 each time.
         folder_name: Name of the output folder
+        nearest_neighbor: Use nearest neighbor sampling (useful for depth images)
         verbose: If True, logs the output of the command.
 
     Returns:
@@ -291,10 +305,13 @@ def downscale_images(image_dir: Path, num_downscales: int, folder_name: str = "i
             # Using %05d ffmpeg commands appears to be unreliable (skips images), so use scandir.
             files = os.scandir(image_dir)
             for f in files:
+                if f.is_dir():
+                    continue
                 filename = f.name
+                nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
                 ffmpeg_cmd = [
                     f'ffmpeg -y -noautorotate -i "{image_dir / filename}" ',
-                    f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
+                    f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor}{nn_flag} ",
                     f'"{downscale_dir / filename}"',
                 ]
                 ffmpeg_cmd = " ".join(ffmpeg_cmd)

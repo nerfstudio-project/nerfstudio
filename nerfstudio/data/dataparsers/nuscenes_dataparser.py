@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Optional, Tuple, Type
 
 import numpy as np
+import pyquaternion
 import torch
 from nuscenes.nuscenes import NuScenes as NuScenesDatabase
 from typing_extensions import Literal
@@ -31,14 +32,19 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataparserOutputs,
 )
 from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.process_data.colmap_utils import qvec2rotmat
 
 
-def rotation_translation_to_pose(r_vec, t_vec):
+def rotation_translation_to_pose(r_quat, t_vec):
     """Convert quaternion rotation and translation vectors to 4x4 matrix"""
 
     pose = np.eye(4)
-    pose[:3, :3] = qvec2rotmat(r_vec)
+
+    # NB: Nuscenes recommends pyquaternion, which uses scalar-first format (w x y z)
+    # https://github.com/nutonomy/nuscenes-devkit/issues/545#issuecomment-766509242
+    # https://github.com/KieranWynn/pyquaternion/blob/99025c17bab1c55265d61add13375433b35251af/pyquaternion/quaternion.py#L299
+    # https://fzheng.me/2017/11/12/quaternion_conventions_en/
+    pose[:3, :3] = pyquaternion.Quaternion(r_quat).rotation_matrix
+
     pose[:3, 3] = t_vec
     return pose
 

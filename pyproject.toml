@@ -38,10 +38,13 @@ dependencies = [
     "Pillow>=9.3.0",
     "plotly>=5.7.0",
     "protobuf<=3.20.3,!=3.20.0",
+    # TODO(1480) enable when pycolmap windows wheels are available
+    # "pycolmap==0.3.0",
     "pyequilib>=0.5.6",
     "pymeshlab>=2022.2.post2",
     "pyngrok>=5.1.0",
     "python-socketio>=5.7.1",
+    "pyquaternion>=0.9.9",
     "requests",
     "rich>=12.5.1",
     "scikit-image>=0.19.3",
