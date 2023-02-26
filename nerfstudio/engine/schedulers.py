@@ -109,35 +109,33 @@ class ExponentialDecayScheduler(Scheduler):
         return scheduler
     
 @dataclass
-class NeuSSchedulerConfig(InstantiateConfig):
+class NeuSSchedulerConfig(SchedulerConfig):
     """Basic scheduler config with self-defined exponential decay schedule"""
 
     _target: Type = field(default_factory=lambda: NeuSScheduler)
+    """target class to instantiate"""
     warm_up_end: int = 5000
+    """Iteration number where warmp ends"""
     learning_rate_alpha: float = 0.05
+    """Learning rate alpha value"""
     max_steps: int = 300000
-
-    def setup(self, optimizer: Optional[Optimizer] = None, **kwargs) -> Any:
-        """Returns the instantiated object using the config."""
-        return self._target(
-            optimizer,
-            self.warm_up_end,
-            self.learning_rate_alpha,
-            self.max_steps,
-        )
+    """The maximum number of steps."""
 
 
-class NeuSScheduler(lr_scheduler.LambdaLR):
+class NeuSScheduler(Scheduler):
     """Starts with a flat lr schedule until it reaches N epochs then applies a given scheduler"""
 
-    def __init__(self, optimizer, warm_up_end, learning_rate_alpha, max_steps) -> None:
+    config: NeuSSchedulerConfig
+
+    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> lr_scheduler._LRScheduler:
         def func(step):
-            if step < warm_up_end:
-                learning_factor = step / warm_up_end
+            if step < self.config.warm_up_end:
+                learning_factor = step / self.config.warm_up_end
             else:
-                alpha = learning_rate_alpha
-                progress = (step - warm_up_end) / (max_steps - warm_up_end)
+                alpha = self.config.learning_rate_alpha
+                progress = (step - self.config.warm_up_end) / (self.config.max_steps - self.config.warm_up_end)
                 learning_factor = (np.cos(np.pi * progress) + 1.0) * 0.5 * (1 - alpha) + alpha
             return learning_factor
 
-        super().__init__(optimizer, lr_lambda=func)
+        scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=func)
+        return scheduler
