@@ -23,7 +23,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 import torch
 from rich.console import Console
@@ -53,6 +53,7 @@ CONSOLE = Console(width=120)
 TRAIN_INTERATION_OUTPUT = Tuple[  # pylint: disable=invalid-name
     torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]
 ]
+TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 
 
 @dataclass
@@ -112,7 +113,7 @@ class Trainer:
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size
-        self.device: str = "cpu" if world_size == 0 else f"cuda:{local_rank}"
+        self.device: TORCH_DEVICE = "cpu" if world_size == 0 else f"cuda:{local_rank}"
         self.mixed_precision: bool = self.config.mixed_precision
         if self.device == "cpu":
             self.mixed_precision = False
