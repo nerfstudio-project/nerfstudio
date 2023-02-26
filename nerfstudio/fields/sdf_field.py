@@ -45,7 +45,7 @@ class SingleVarianceNetwork(nn.Module):
     """Variance network in NeuS
 
     Args:
-        nn (_type_): init value in NeuS variance network
+        init_val: initial value in NeuS variance network
     """
 
     def __init__(self, init_val):
@@ -63,7 +63,7 @@ class SingleVarianceNetwork(nn.Module):
 
 @dataclass
 class SDFFieldConfig(FieldConfig):
-    """Nerfacto Model Config"""
+    """SDF Field Config"""
 
     _target: Type = field(default_factory=lambda: SDFField)
     num_layers: int = 8
@@ -87,7 +87,7 @@ class SDFFieldConfig(FieldConfig):
     inside_outside: bool = True
     """whether to revert signed distance value, set to True for indoor scene"""
     weight_norm: bool = True
-    """Whether to use weight norm for linear laer"""
+    """Whether to use weight norm for linear layer"""
     use_grid_feature: bool = False
     """Whether to use multi-resolution feature grids"""
     divide_factor: float = 2.0
