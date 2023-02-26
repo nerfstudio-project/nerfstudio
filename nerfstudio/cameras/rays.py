@@ -79,7 +79,7 @@ class Frustums(TensorDataclass):
         )
 
     @classmethod
-    def get_mock_frustum(cls, device: TORCH_DEVICE) -> "Frustums":
+    def get_mock_frustum(cls, device: Optional[TORCH_DEVICE] = "cpu") -> "Frustums":
         """Helper function to generate a placeholder frustum.
 
         Returns:
