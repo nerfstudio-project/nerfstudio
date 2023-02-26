@@ -32,7 +32,7 @@ from nerfstudio.data.scene_box import SceneBox
 
 
 # Taken from https://github.com/apple/ARKitScenes/blob/main/threedod/benchmark_scripts/utils/tenFpsDataLoader.py
-def traj_strin_to_matrix(traj_string: str):
+def traj_string_to_matrix(traj_string: str):
     """convert traj_string into translation and rotation matrices
     Args:
         traj_string: A space-delimited file where each line represents a camera position at a particular timestamp.
@@ -106,7 +106,7 @@ class ARKitScenes(DataParser):
 
         for line in traj:
             poses_from_traj[f"{round(float(line.split(' ')[0]), 3):.3f}"] = np.array(
-                traj_strin_to_matrix(line)[1].tolist()
+                traj_string_to_matrix(line)[1].tolist()
             )
 
         image_filenames, depth_filenames, intrinsics, poses = [], [], [], []
