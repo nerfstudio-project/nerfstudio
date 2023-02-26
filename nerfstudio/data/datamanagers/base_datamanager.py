@@ -39,7 +39,6 @@ from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
 from nerfstudio.data.dataparsers.dycheck_dataparser import DycheckDataParserConfig
-from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
 from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
     InstantNGPDataParserConfig,
 )
@@ -50,8 +49,13 @@ from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
 from nerfstudio.data.dataparsers.sdfstudio_dataparser import SDFStudioDataParserConfig
+from nerfstudio.data.dataparsers.sitcoms3d_dataparser import Sitcoms3DDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.pixel_samplers import EquirectangularPixelSampler, PixelSampler
+from nerfstudio.data.pixel_samplers import (
+    EquirectangularPixelSampler,
+    PatchPixelSampler,
+    PixelSampler,
+)
 from nerfstudio.data.utils.dataloaders import (
     CacheDataloader,
     FixedIndicesEvalDataloader,
@@ -70,13 +74,13 @@ AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of
             "nerfstudio-data": NerfstudioDataParserConfig(),
             "minimal-parser": MinimalDataParserConfig(),
             "blender-data": BlenderDataParserConfig(),
-            "friends-data": FriendsDataParserConfig(),
             "instant-ngp-data": InstantNGPDataParserConfig(),
             "nuscenes-data": NuScenesDataParserConfig(),
             "dnerf-data": DNeRFDataParserConfig(),
             "phototourism-data": PhototourismDataParserConfig(),
             "dycheck-data": DycheckDataParserConfig(),
             "sdfstudio-data": SDFStudioDataParserConfig(),
+            "sitcoms3d-data": Sitcoms3DDataParserConfig(),
         },
         prefix_names=False,  # Omit prefixes in subcommands themselves.
     )
@@ -283,6 +287,8 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """The scale factor for scaling spatial data such as images, mask, semantics
     along with relevant information about camera intrinsics
     """
+    patch_size: int = 1
+    """Size of patch to sample from. If >1, patch-based sampling will be used."""
 
 
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
@@ -346,6 +352,9 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self, dataset: InputDataset, *args: Any, **kwargs: Any
     ) -> PixelSampler:
         """Infer pixel sampler to use."""
+        if self.config.patch_size > 1:
+            return PatchPixelSampler(*args, **kwargs, patch_size=self.config.patch_size)
+
         # If all images are equirectangular, use equirectangular pixel sampler
         is_equirectangular = dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
         if is_equirectangular.all():
@@ -393,9 +402,12 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
+        self.eval_camera_optimizer = self.config.camera_optimizer.setup(
+            num_cameras=self.eval_dataset.cameras.size, device=self.device
+        )
         self.eval_ray_generator = RayGenerator(
             self.eval_dataset.cameras.to(self.device),
-            self.train_camera_optimizer,  # should be shared between train and eval.
+            self.eval_camera_optimizer,
         )
         # for loading full images
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(

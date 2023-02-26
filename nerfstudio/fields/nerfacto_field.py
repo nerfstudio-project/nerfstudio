@@ -109,14 +109,19 @@ class TCNNNerfactoField(Field):
         use_transient_embedding: bool = False,
         use_semantics: bool = False,
         num_semantic_classes: int = 100,
+        pass_semantic_gradients: bool = False,
         use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
         super().__init__()
 
-        self.aabb = Parameter(aabb, requires_grad=False)
+        self.register_buffer("aabb", aabb)
         self.geo_feat_dim = geo_feat_dim
+
+        self.register_buffer("max_res", torch.tensor(max_res))
+        self.register_buffer("num_levels", torch.tensor(num_levels))
+        self.register_buffer("log2_hashmap_size", torch.tensor(log2_hashmap_size))
 
         self.spatial_distortion = spatial_distortion
         self.num_images = num_images
@@ -126,6 +131,7 @@ class TCNNNerfactoField(Field):
         self.use_transient_embedding = use_transient_embedding
         self.use_semantics = use_semantics
         self.use_pred_normals = use_pred_normals
+        self.pass_semantic_gradients = pass_semantic_gradients
 
         base_res = 16
         features_per_level = 2
@@ -235,6 +241,9 @@ class TCNNNerfactoField(Field):
             positions = (positions + 2.0) / 4.0
         else:
             positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        # Make sure the tcnn gets inputs between 0 and 1.
+        selector = ((positions > 0.0) & (positions < 1.0)).all(dim=-1)
+        positions = positions * selector[..., None]
         self._sample_locations = positions
         if not self._sample_locations.requires_grad:
             self._sample_locations.requires_grad = True
@@ -247,6 +256,7 @@ class TCNNNerfactoField(Field):
         # softplus, because it enables high post-activation (float32) density outputs
         # from smaller internal (float16) parameters.
         density = trunc_exp(density_before_activation.to(positions))
+        density = density * selector[..., None]
         return density, base_mlp_out
 
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
@@ -291,13 +301,10 @@ class TCNNNerfactoField(Field):
 
         # semantics
         if self.use_semantics:
-            density_embedding_copy = density_embedding.clone().detach()
-            semantics_input = torch.cat(
-                [
-                    density_embedding_copy.view(-1, self.geo_feat_dim),
-                ],
-                dim=-1,
-            )
+            semantics_input = density_embedding.view(-1, self.geo_feat_dim)
+            if not self.pass_semantic_gradients:
+                semantics_input = semantics_input.detach()
+
             x = self.mlp_semantics(semantics_input).view(*outputs_shape, -1).to(directions)
             outputs[FieldHeadNames.SEMANTICS] = self.field_head_semantics(x)
 

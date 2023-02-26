@@ -31,7 +31,7 @@ def apply_colormap(image: TensorType["bs":..., 1], cmap="viridis") -> TensorType
         cmap: Colormap for image.
 
     Returns:
-        TensorType: Colored image
+        TensorType: Colored image with colors in [0, 1]
     """
 
     colormap = cm.get_cmap(cmap)
@@ -62,7 +62,7 @@ def apply_depth_colormap(
         cmap: Colormap to apply.
 
     Returns:
-        Colored depth image
+        Colored depth image with colors in [0, 1]
     """
 
     near_plane = near_plane or float(torch.min(depth))
