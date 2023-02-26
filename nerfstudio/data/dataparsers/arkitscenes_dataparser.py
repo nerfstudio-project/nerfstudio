@@ -114,7 +114,7 @@ class ARKitScenes(DataParser):
         intrinsics = []
         poses = []
 
-        w, h, _ = np.loadtxt(list(sorted(intrinsics_dir.iterdir()))[0])  # Get image size from first intrinsic
+        w, h, _, _, _, _ = np.loadtxt(list(sorted(intrinsics_dir.iterdir()))[0])  # Get image size from first intrinsic
 
         for frame_id in frame_ids:
             intrinsic_fn = intrinsics_dir / f"{video_id}_{frame_id}.pincam"
@@ -190,8 +190,8 @@ class ARKitScenes(DataParser):
             fy=intrinsics[:, 1, 1],
             cx=intrinsics[:, 0, 2],
             cy=intrinsics[:, 1, 2],
-            height=h,
-            width=w,
+            height=int(h),
+            width=int(w),
             camera_to_worlds=poses[:, :3, :4],
             camera_type=CameraType.PERSPECTIVE,
         )
