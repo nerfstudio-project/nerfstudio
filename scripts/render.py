@@ -265,7 +265,7 @@ class RenderTrajectory:
     """Name of the renderer outputs to use. rgb, depth, etc. concatenates them along y axis"""
     traj: Literal["spiral", "filename", "interpolate"] = "spiral"
     """Trajectory type to render. Select between spiral-shaped trajectory, trajectory loaded from
-    a viewer-generated file and camera paths from the dataset interpolated and rendered in a loop."""
+    a viewer-generated file and interpolated camera paths from the eval dataset."""
     downscale_factor: int = 1
     """Scaling factor to apply to the camera image resolution."""
     camera_path_filename: Path = Path("camera_path.json")
@@ -276,8 +276,8 @@ class RenderTrajectory:
     """How long the video should be."""
     output_format: Literal["images", "video"] = "video"
     """How to save output data."""
-    loop_interpolation_steps: int = 10
-    """Number of interpolation steps between loop points."""
+    interpolation_steps: int = 10
+    """Number of interpolation steps between eval dataset cameras."""
     eval_num_rays_per_chunk: Optional[int] = None
     """Specifies number of rays per chunk during eval."""
 
@@ -317,7 +317,7 @@ class RenderTrajectory:
         elif self.traj == "interpolate":
             camera_type = CameraType.PERSPECTIVE
             camera_path = get_interpolated_camera_path(
-                cameras=pipeline.datamanager.eval_dataloader.cameras, steps=self.loop_interpolation_steps
+                cameras=pipeline.datamanager.eval_dataloader.cameras, steps=self.interpolation_steps
             )
         else:
             assert_never(self.traj)
