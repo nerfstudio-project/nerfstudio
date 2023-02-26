@@ -270,7 +270,9 @@ class SurfaceModel(Model):
             "depth": depth,
             "normal": normal,
             "weights": weights,
-            "directions_norm": ray_bundle.metadata['directions_norm'],  # used to scale z_vals for free space and sdf loss
+            "directions_norm": ray_bundle.metadata[
+                "directions_norm"
+            ],  # used to scale z_vals for free space and sdf loss
         }
         outputs.update(bg_outputs)
 

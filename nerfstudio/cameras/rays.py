@@ -56,7 +56,7 @@ class Frustums(TensorDataclass):
 
     def get_start_positions(self) -> TensorType[..., 3]:
         """Calulates "start" position of frustum.
-        
+
         Returns:
             xyz positions.
         """

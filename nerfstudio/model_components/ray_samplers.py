@@ -682,10 +682,12 @@ class NeuSSampler(Sampler):
         return ray_samples
 
     @staticmethod
-    def rendering_sdf_with_fixed_inv_s(ray_samples: RaySamples, sdf: TensorType["num_samples", -1], inv_s: int)-> TensorType["num_samples", -1]:
+    def rendering_sdf_with_fixed_inv_s(
+        ray_samples: RaySamples, sdf: TensorType["num_samples", -1], inv_s: int
+    ) -> TensorType["num_samples", -1]:
         """
         rendering given a fixed inv_s as NeuS
-        
+
         Args:
             ray_samples: samples along ray
             sdf: sdf values along ray
