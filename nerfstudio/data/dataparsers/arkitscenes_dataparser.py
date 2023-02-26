@@ -33,9 +33,9 @@ from nerfstudio.data.scene_box import SceneBox
 
 # Taken from https://github.com/apple/ARKitScenes/blob/main/threedod/benchmark_scripts/utils/tenFpsDataLoader.py
 def traj_strin_to_matrix(traj_string: str):
-    """convert traj_str into translation and rotation matrices
+    """convert traj_string into translation and rotation matrices
     Args:
-        traj_str: A space-delimited file where each line represents a camera position at a particular timestamp.
+        traj_string: A space-delimited file where each line represents a camera position at a particular timestamp.
         The file has seven columns:
         * Column 1: timestamp
         * Columns 2-4: rotation (axis-angle representation in radians)
