@@ -113,6 +113,13 @@ def convert_video_to_images(
         A tuple containing summary of the conversion and the number of extracted frames.
     """
 
+    if video_path.is_dir():
+        CONSOLE.print(f"[bold red]Error: Video path is a directory, not a path: {video_path}")
+        sys.exit(1)
+    if video_path.exists() is False:
+        CONSOLE.print(f"[bold red]Error: Video does not exist: {video_path}")
+        sys.exit(1)
+
     with status(msg="Converting video to images...", spinner="bouncingBall", verbose=verbose):
         # delete existing images in folder
         for img in image_dir.glob("*.png"):
