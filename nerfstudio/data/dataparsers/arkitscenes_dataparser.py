@@ -32,7 +32,7 @@ from nerfstudio.data.scene_box import SceneBox
 
 
 # Taken from https://github.com/apple/ARKitScenes/blob/main/threedod/benchmark_scripts/utils/tenFpsDataLoader.py
-def traj_strin_to_matrix(traj_str: str):
+def traj_strin_to_matrix(traj_string: str):
     """convert traj_str into translation and rotation matrices
     Args:
         traj_str: A space-delimited file where each line represents a camera position at a particular timestamp.
@@ -44,7 +44,7 @@ def traj_strin_to_matrix(traj_str: str):
         ts: translation matrix
         Rt: rotation matrix
     """
-    tokens = traj_str.split()
+    tokens = traj_string.split()
     assert len(tokens) == 7
     ts = tokens[0]
     # Rotation in angle axis
@@ -90,12 +90,11 @@ class ARKitScenes(DataParser):
 
     def _generate_dataparser_outputs(self, split="train"):
         video_id = self.config.data.name
-        frames_dir = self.config.data / f"{video_id}_frames"
 
-        image_dir = frames_dir / "lowres_wide"
-        depth_dir = frames_dir / "lowres_depth"
-        intrinsics_dir = frames_dir / "lowres_wide_intrinsics"
-        pose_file = frames_dir / "lowres_wide.traj"
+        image_dir = self.config.data / f"{video_id}_frames" / "lowres_wide"
+        depth_dir = self.config.data / f"{video_id}_frames" / "lowres_depth"
+        intrinsics_dir = self.config.data / f"{video_id}_frames" / "lowres_wide_intrinsics"
+        pose_file = self.config.data / f"{video_id}_frames" / "lowres_wide.traj"
 
         frame_ids = [x.name for x in sorted(depth_dir.iterdir())]
         frame_ids = [x.split(".png")[0].split("_")[1] for x in frame_ids]
@@ -106,42 +105,20 @@ class ARKitScenes(DataParser):
             traj = f.readlines()
 
         for line in traj:
-            traj_timestamp = line.split(" ")[0]
-            poses_from_traj[f"{round(float(traj_timestamp), 3):.3f}"] = np.array(traj_strin_to_matrix(line)[1].tolist())
+            poses_from_traj[f"{round(float(line.split(' ')[0]), 3):.3f}"] = np.array(
+                traj_strin_to_matrix(line)[1].tolist()
+            )
 
-        image_filenames = []
-        depth_filenames = []
-        intrinsics = []
-        poses = []
-
+        image_filenames, depth_filenames, intrinsics, poses = [], [], [], []
         w, h, _, _, _, _ = np.loadtxt(list(sorted(intrinsics_dir.iterdir()))[0])  # Get image size from first intrinsic
 
         for frame_id in frame_ids:
-            intrinsic_fn = intrinsics_dir / f"{video_id}_{frame_id}.pincam"
-
-            if not intrinsic_fn.exists():
-                intrinsic_fn = intrinsics_dir / f"{video_id}_{float(frame_id) - 0.001:.3f}.pincam"
-
-            if not intrinsic_fn.exists():
-                intrinsic_fn = intrinsics_dir / f"{video_id}_{float(frame_id) + 0.001:.3f}.pincam"
-
-            _, _, fx, fy, hw, hh = np.loadtxt(intrinsic_fn)
-            intrinsic = np.asarray([[fx, 0, hw], [0, fy, hh], [0, 0, 1]])
-
-            if str(frame_id) in poses_from_traj:
-                frame_pose = np.array(poses_from_traj[str(frame_id)])
-            else:
-                for my_key in poses_from_traj:
-                    if abs(float(frame_id) - float(my_key)) < 0.005:
-                        frame_pose = np.array(poses_from_traj[str(my_key)])
-
-            frame_pose[0:3, 1:3] *= -1
-            rgb_frame = image_dir / f"{video_id}_{frame_id}.png"
-            depth_frame = depth_dir / f"{video_id}_{frame_id}.png"
+            intrinsic = self._get_intrinsic(intrinsics_dir, frame_id, video_id)
+            frame_pose = self._get_pose(frame_id, poses_from_traj)
 
             intrinsics.append(intrinsic)
-            image_filenames.append(rgb_frame)
-            depth_filenames.append(depth_frame)
+            image_filenames.append(image_dir / f"{video_id}_{frame_id}.png")
+            depth_filenames.append(depth_dir / f"{video_id}_{frame_id}.png")
             poses.append(frame_pose)
 
         # filter image_filenames and poses based on train/eval split percentage
@@ -206,3 +183,29 @@ class ARKitScenes(DataParser):
             },
         )
         return dataparser_outputs
+
+    @staticmethod
+    def _get_intrinsic(intrinsics_dir: Path, frame_id: str, video_id: str):
+        intrinsic_fn = intrinsics_dir / f"{video_id}_{frame_id}.pincam"
+
+        if not intrinsic_fn.exists():
+            intrinsic_fn = intrinsics_dir / f"{video_id}_{float(frame_id) - 0.001:.3f}.pincam"
+
+        if not intrinsic_fn.exists():
+            intrinsic_fn = intrinsics_dir / f"{video_id}_{float(frame_id) + 0.001:.3f}.pincam"
+
+        _, _, fx, fy, hw, hh = np.loadtxt(intrinsic_fn)
+        intrinsic = np.asarray([[fx, 0, hw], [0, fy, hh], [0, 0, 1]])
+        return intrinsic
+
+    @staticmethod
+    def _get_pose(frame_id: str, poses_from_traj: dict):
+        if str(frame_id) in poses_from_traj:
+            frame_pose = np.array(poses_from_traj[str(frame_id)])
+        else:
+            for my_key in poses_from_traj:
+                if abs(float(frame_id) - float(my_key)) < 0.005:
+                    frame_pose = np.array(poses_from_traj[str(my_key)])
+
+        frame_pose[0:3, 1:3] *= -1
+        return frame_pose
