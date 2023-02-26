@@ -44,7 +44,7 @@ class OptimizerConfig(base_config.PrintableConfig):
 
     # TODO: somehow make this more generic. i dont like the idea of overriding the setup function
     # but also not sure how to go about passing things into predefined torch objects.
-    def setup(self, params) -> Type[torch.optim.Optimizer]:
+    def setup(self, params) -> torch.optim.Optimizer:
         """Returns the instantiated object using the config."""
         kwargs = vars(self).copy()
         kwargs.pop("_target")
