@@ -665,7 +665,7 @@ class NeuSSampler(Sampler):
                 ray_samples, sdf.reshape(ray_samples.shape), inv_s=base_variance * 2**total_iters
             )
 
-            weights = ray_samples.get_weights_from_alphas(alphas[..., None])
+            weights = ray_samples.get_weights_and_transmittance_from_alphas(alphas[..., None], weights_only=True)
             weights = torch.cat((weights, torch.zeros_like(weights[:, :1])), dim=1)
 
             new_samples = self.pdf_sampler(
