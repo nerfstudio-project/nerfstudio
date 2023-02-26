@@ -98,7 +98,6 @@ def _render_trajectory_video(
 
         with progress:
             for camera_idx in progress.track(range(cameras.size), description=""):
-
                 aabb_box = None
                 if crop_data is not None:
                     bounding_box_min = crop_data.center - crop_data.scale / 2.0
@@ -260,7 +259,8 @@ class RenderTrajectory:
     rendered_output_names: List[str] = field(default_factory=lambda: ["rgb"])
     """Name of the renderer outputs to use. rgb, depth, etc. concatenates them along y axis"""
     traj: Literal["spiral", "filename", "loop"] = "spiral"
-    """Trajectory to render."""
+    """Trajectory type to render. Select between spiral-shaped trajectory, trajectory loaded from
+    a viewer-generated file and camera paths from the dataset interpolated and rendered in a loop."""
     downscale_factor: int = 1
     """Scaling factor to apply to the camera image resolution."""
     camera_path_filename: Path = Path("camera_path.json")
@@ -311,7 +311,9 @@ class RenderTrajectory:
             camera_path = get_path_from_json(camera_path)
         elif self.traj == "loop":
             camera_type = CameraType.PERSPECTIVE
-            camera_path = get_interpolated_camera_path(cameras=pipeline.datamanager.eval_dataloader.cameras, steps=self.loop_interpolation_steps)
+            camera_path = get_interpolated_camera_path(
+                cameras=pipeline.datamanager.eval_dataloader.cameras, steps=self.loop_interpolation_steps
+            )
         else:
             assert_never(self.traj)
 
