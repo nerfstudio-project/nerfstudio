@@ -18,7 +18,7 @@ a signed distance function (SDF) for surface representation is used to help with
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, Type
+from typing import Dict, Optional, Type
 
 import numpy as np
 import torch
@@ -198,7 +198,6 @@ class SDFField(Field):
 
             if self.config.weight_norm:
                 lin = nn.utils.weight_norm(lin)
-            # print("=======", lin.weight.shape)
             setattr(self, "clin" + str(l), lin)
 
         self.softplus = nn.Softplus(beta=100)
@@ -341,6 +340,9 @@ class SDFField(Field):
 
         return alpha
 
+    def get_density(self, ray_samples: RaySamples):
+        raise NotImplementedError
+
     def get_colors(
         self,
         points: TensorType[..., 3],
@@ -394,8 +396,9 @@ class SDFField(Field):
     def get_outputs(
         self,
         ray_samples: RaySamples,
+        density_embedding: Optional[TensorType] = None,
         return_alphas: bool = False,
-    ) -> dict:
+    ) -> Dict[FieldHeadNames, TensorType]:
         """compute output of ray samples"""
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
@@ -441,7 +444,7 @@ class SDFField(Field):
 
         return outputs
 
-    def forward(self, ray_samples: RaySamples, return_alphas=False) -> dict:
+    def forward(self, ray_samples: RaySamples, compute_normals: bool = False, return_alphas: bool = False) -> dict:
         """Evaluates the field at points along the ray.
 
         Args:
