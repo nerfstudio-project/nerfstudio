@@ -17,7 +17,7 @@ Field implementations for NeRFPlayer (https://arxiv.org/abs/2210.15947) implemen
 """
 
 
-from typing import Optional
+from typing import Optional, Dict, Tuple
 
 import numpy as np
 import torch
