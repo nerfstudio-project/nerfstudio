@@ -99,7 +99,7 @@ class SDFFieldConfig(FieldConfig):
     num_levels = 16
     """Number of encoding levels"""
     max_res = 2048
-    """Maximum resolution of the octree"""
+    """Maximum resolution of the encoding"""
     base_res = 16
     """Base resolution of the encoding"""
     log2_hashmap_size = 19
@@ -282,7 +282,7 @@ class SDFField(Field):
                 outputs = self.softplus(outputs)
         return outputs
 
-    def get_sdf(self, ray_samples: RaySamples) -> TensorType["num_samples", 64, 1]:
+    def get_sdf(self, ray_samples: RaySamples) -> TensorType["num_samples", -1, 1]:
         """predict the sdf value for ray samples"""
         positions = ray_samples.frustums.get_start_positions()
         positions_flat = positions.view(-1, 3)
@@ -293,9 +293,9 @@ class SDFField(Field):
     def get_alpha(
         self,
         ray_samples: RaySamples,
-        sdf: Optional[TensorType["num_samples":..., 1]] = None,
-        gradients: Optional[TensorType["num_samples":..., 1]] = None,
-    ) -> TensorType["num_samples":..., 1]:
+        sdf: Optional[TensorType["num_samples", -1, 1]] = None,
+        gradients: Optional[TensorType["num_samples", -1, 1]] = None,
+    ) -> TensorType["num_samples", -1, 1]:
         """compute alpha from sdf as in NeuS"""
         if sdf is None or gradients is None:
             inputs = ray_samples.frustums.get_start_positions()
@@ -444,7 +444,9 @@ class SDFField(Field):
 
         return outputs
 
-    def forward(self, ray_samples: RaySamples, compute_normals: bool = False, return_alphas: bool = False) -> dict:
+    def forward(
+        self, ray_samples: RaySamples, compute_normals: bool = False, return_alphas: bool = False
+    ) -> Dict[FieldHeadNames, TensorType]:
         """Evaluates the field at points along the ray.
 
         Args:

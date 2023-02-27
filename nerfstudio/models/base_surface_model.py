@@ -50,10 +50,7 @@ from nerfstudio.model_components.renderers import (
     RGBRenderer,
     SemanticRenderer,
 )
-from nerfstudio.model_components.scene_colliders import (  # SphereCollider,
-    AABBBoxCollider,
-    NearFarCollider,
-)
+from nerfstudio.model_components.scene_colliders import AABBBoxCollider, NearFarCollider
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
 from nerfstudio.utils.colors import get_color
@@ -65,7 +62,6 @@ class SurfaceModelConfig(ModelConfig):
     """Surface Model Config"""
 
     _target: Type = field(default_factory=lambda: SurfaceModel)
-    # changed from 0.05|4 ->0.1|6
     near_plane: float = 0.05
     """How far along the ray to start sampling."""
     far_plane: float = 4.0
@@ -255,9 +251,8 @@ class SurfaceModel(Model):
             "depth": depth,
             "normal": normal,
             "weights": weights,
-            "directions_norm": ray_bundle.metadata[
-                "directions_norm"
-            ],  # used to scale z_vals for free space and sdf loss
+            # used to scale z_vals for free space and sdf loss
+            "directions_norm": ray_bundle.metadata["directions_norm"],
         }
         outputs.update(bg_outputs)
 
