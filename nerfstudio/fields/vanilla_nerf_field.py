@@ -51,15 +51,15 @@ class NeRFField(Field):
 
     def __init__(
         self,
-        position_encoding: Encoding = Identity(in_dim=3),
-        direction_encoding: Encoding = Identity(in_dim=3),
-        base_mlp_num_layers: int = 8,
-        base_mlp_layer_width: int = 256,
-        head_mlp_num_layers: int = 2,
-        head_mlp_layer_width: int = 128,
-        skip_connections: Tuple[int] = (4,),
-        field_heads: Tuple[FieldHead] = (RGBFieldHead(),),
-        use_integrated_encoding: bool = False,
+        position_encoding: Optional[Encoding] = Identity(in_dim=3),
+        direction_encoding: Optional[Encoding] = Identity(in_dim=3),
+        base_mlp_num_layers: Optional[int] = 8,
+        base_mlp_layer_width: Optional[int] = 256,
+        head_mlp_num_layers: Optional[int] = 2,
+        head_mlp_layer_width: Optional[int] = 128,
+        skip_connections: Optional[Tuple[int]] = (4,),
+        field_heads: Optional[Tuple[FieldHead]] = (RGBFieldHead(),),
+        use_integrated_encoding: Optional[bool] = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
         super().__init__()
@@ -88,7 +88,7 @@ class NeRFField(Field):
         for field_head in self.field_heads:
             field_head.set_in_dim(self.mlp_head.get_out_dim())  # type: ignore
 
-    def get_density(self, ray_samples: RaySamples):
+    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
         if self.use_integrated_encoding:
             gaussian_samples = ray_samples.frustums.get_gaussian_blob()
             if self.spatial_distortion is not None:
