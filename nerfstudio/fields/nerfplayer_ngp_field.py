@@ -17,7 +17,7 @@ NeRFPlayer (https://arxiv.org/abs/2210.15947) field implementations with Instant
 """
 
 
-from typing import Optional
+from typing import Dict, Optional, Tuple
 
 import torch
 from nerfacc import ContractionType, contract
@@ -68,22 +68,22 @@ class NerfplayerNGPField(Field):
 
     def __init__(
         self,
-        aabb,
-        temporal_dim: int = 16,
-        num_levels: int = 16,
-        features_per_level: int = 2,
-        log2_hashmap_size: int = 19,
-        base_resolution: int = 16,
-        num_layers: int = 2,
-        hidden_dim: int = 64,
-        geo_feat_dim: int = 15,
-        num_layers_color: int = 3,
-        hidden_dim_color: int = 64,
-        use_appearance_embedding: bool = False,
-        disable_viewing_dependent: bool = False,
+        aabb: TensorType,
+        temporal_dim: Optional[int] = 16,
+        num_levels: Optional[int] = 16,
+        features_per_level: Optional[int] = 2,
+        log2_hashmap_size: Optional[int] = 19,
+        base_resolution: Optional[int] = 16,
+        num_layers: Optional[int] = 2,
+        hidden_dim: Optional[int] = 64,
+        geo_feat_dim: Optional[int] = 15,
+        num_layers_color: Optional[int] = 3,
+        hidden_dim_color: Optional[int] = 64,
+        use_appearance_embedding: Optional[bool] = False,
+        disable_viewing_dependent: Optional[bool] = False,
         num_images: Optional[int] = None,
-        appearance_embedding_dim: int = 32,
-        contraction_type: ContractionType = ContractionType.UN_BOUNDED_SPHERE,
+        appearance_embedding_dim: Optional[int] = 32,
+        contraction_type: Optional[ContractionType] = ContractionType.UN_BOUNDED_SPHERE,
     ) -> None:
         super().__init__()
 
@@ -144,7 +144,7 @@ class NerfplayerNGPField(Field):
             },
         )
 
-    def get_density(self, ray_samples: RaySamples):
+    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
         positions = ray_samples.frustums.get_positions()
         positions_flat = positions.view(-1, 3)
         positions_flat = contract(x=positions_flat, roi=self.aabb, type=self.contraction_type)
@@ -161,7 +161,9 @@ class NerfplayerNGPField(Field):
         density = trunc_exp(density_before_activation.to(positions))
         return density, base_mlp_out
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
+    def get_outputs(
+        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
+    ) -> Dict[str, TensorType]:
         directions = get_normalized_directions(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
 
