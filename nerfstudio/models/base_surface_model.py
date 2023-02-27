@@ -84,27 +84,6 @@ class SurfaceModelConfig(ModelConfig):
     """Monocular normal consistency loss multiplier."""
     mono_depth_loss_mult: float = 0.0
     """Monocular depth consistency loss multiplier."""
-    patch_warp_loss_mult: float = 0.0
-    """Multi-view consistency warping loss multiplier."""
-    patch_size: int = 11
-    """Multi-view consistency warping loss patch size."""
-    patch_warp_angle_thres: float = 0.3
-    """Threshold for valid homograph of multi-view consistency warping loss"""
-    min_patch_variance: float = 0.01
-    """Threshold for minimal patch variance"""
-    topk: int = 4
-    """Number of minimal patch consistency selected for training"""
-    sensor_depth_truncation: float = 0.015
-    """Sensor depth trunction,
-    default value is 0.015 which means 5cm with a rough scale value 0.3 (0.015 = 0.05 * 0.3)"""
-    sensor_depth_l1_loss_mult: float = 0.0
-    """Sensor depth L1 loss multiplier."""
-    sensor_depth_freespace_loss_mult: float = 0.0
-    """Sensor depth free space loss multiplier."""
-    sensor_depth_sdf_loss_mult: float = 0.0
-    """Sensor depth sdf loss multiplier."""
-    sparse_points_sdf_loss_mult: float = 0.0
-    """sparse point sdf loss multiplier"""
     sdf_field: SDFFieldConfig = SDFFieldConfig()
     """Config for SDF Field"""
     background_model: Literal["grid", "mlp", "none"] = "mlp"
@@ -142,7 +121,6 @@ class SurfaceModel(Model):
         )
 
         # Collider
-        # TODO add NearFarCollidar and make it configurable
         self.collider = AABBBoxCollider(self.scene_box, near_plane=0.05)
 
         # command line near and far has highest priority
@@ -208,21 +186,20 @@ class SurfaceModel(Model):
 
     @abstractmethod
     def sample_and_forward_field(self, ray_bundle: RayBundle) -> Dict:
-        """_summary_
+        """Takes in a Ray Bundle and returns a dictionary of samples and field output.
 
         Args:
-            ray_bundle (RayBundle): _description_
-            return_samples (bool, optional): _description_. Defaults to False.
+            ray_bundle: Input bundle of rays. This raybundle should have all the
+            needed information to compute the outputs.
+
+        Returns:
+            Outputs of model. (ie. rendered colors)
         """
 
     def get_outputs(self, ray_bundle: RayBundle) -> Dict:
-        # TODO make this configurable
-        # compute near and far from from sphere with radius 1.0
-        # ray_bundle = self.sphere_collider(ray_bundle)
-
         samples_and_field_outputs = self.sample_and_forward_field(ray_bundle=ray_bundle)
 
-        # Shotscuts
+        # shortcuts
         field_outputs = samples_and_field_outputs["field_outputs"]
         ray_samples = samples_and_field_outputs["ray_samples"]
         weights = samples_and_field_outputs["weights"]
@@ -238,7 +215,6 @@ class SurfaceModel(Model):
 
         # background model
         if self.config.background_model != "none":
-            # TODO remove hard-coded far value
             # sample inversely from far to 1000 and points and forward the bg model
             ray_bundle.nears = ray_bundle.fars
             ray_bundle.fars = torch.ones_like(ray_bundle.fars) * self.config.far_plane_bg
@@ -279,14 +255,8 @@ class SurfaceModel(Model):
         if self.training:
             grad_points = field_outputs[FieldHeadNames.GRADIENT]
             outputs.update({"eik_grad": grad_points})
-
-            # TODO volsdf use different point set for eikonal loss
-            # grad_points = self.field.gradient(eik_points)
-            # outputs.update({"eik_grad": grad_points})
-
             outputs.update(samples_and_field_outputs)
 
-        # TODO how can we move it to neus_facto without out of memory
         if "weights_list" in samples_and_field_outputs:
             weights_list = samples_and_field_outputs["weights_list"]
             ray_samples_list = samples_and_field_outputs["ray_samples_list"]
@@ -326,8 +296,6 @@ class SurfaceModel(Model):
 
             # monocular depth loss
             if "depth" in batch and self.config.mono_depth_loss_mult > 0.0:
-                # TODO check it's true that's we sample from only a single image
-                # TODO only supervised pixel that hit the surface and remove hard-coded scaling for depth
                 depth_gt = batch["depth"].to(self.device)[..., None]
                 depth_pred = outputs["depth"]
 
@@ -353,8 +321,6 @@ class SurfaceModel(Model):
         acc = colormaps.apply_colormap(outputs["accumulation"])
 
         normal = outputs["normal"]
-        # don't need to normalize here
-        # normal = torch.nn.functional.normalize(normal, p=2, dim=-1)
         normal = (normal + 1.0) / 2.0
 
         combined_rgb = torch.cat([image, rgb], dim=1)

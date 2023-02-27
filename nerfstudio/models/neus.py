@@ -95,7 +95,6 @@ class NeuSModel(SurfaceModel):
 
     def sample_and_forward_field(self, ray_bundle: RayBundle) -> Dict:
         ray_samples = self.sampler(ray_bundle, sdf_fn=self.field.get_sdf)
-        # save_points("a.ply", ray_samples.frustums.get_start_positions().reshape(-1, 3).detach().cpu().numpy())
         field_outputs = self.field(ray_samples, return_alphas=True)
         weights, transmittance = ray_samples.get_weights_and_transmittance_from_alphas(
             field_outputs[FieldHeadNames.ALPHA]

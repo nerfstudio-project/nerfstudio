@@ -13,7 +13,8 @@
 # limitations under the License.
 
 """
-Field for compound nerf model, adds scene contraction and image embeddings to instant ngp
+Field for SDF based model, rather then estimating density to generate a surface,
+a signed distance function (SDF) for surface representation is used to help with extracting high fidelity surfaces
 """
 
 from dataclasses import dataclass, field
@@ -41,7 +42,7 @@ except ImportError:
     pass
 
 
-class SingleVarianceNetwork(nn.Module):
+class LearnedVariance(nn.Module):
     """Variance network in NeuS
 
     Args:
@@ -95,6 +96,20 @@ class SDFFieldConfig(FieldConfig):
     beta_init: float = 0.1
     """Init learnable beta value for transformation of sdf to density"""
     encoding_type: Literal["hash", "periodic", "tensorf_vm"] = "hash"
+    num_levels = 16
+    """Number of encoding levels"""
+    max_res = 2048
+    """Maximum resolution of the octree"""
+    base_res = 16
+    """Base resolution of the encoding"""
+    log2_hashmap_size = 19
+    """Size of the hash map"""
+    features_per_level = 2
+    """Number of features per encoding level"""
+    use_hash = True
+    """Whether to use hash encoding"""
+    smoothstep = True
+    """Whether to use the smoothstep function"""
 
 
 class SDFField(Field):
@@ -122,7 +137,6 @@ class SDFField(Field):
         super().__init__()
         self.config = config
 
-        # TODO do we need aabb here?
         self.aabb = Parameter(aabb, requires_grad=False)
 
         self.spatial_distortion = spatial_distortion
@@ -133,31 +147,23 @@ class SDFField(Field):
         self.use_grid_feature = self.config.use_grid_feature
         self.divide_factor = self.config.divide_factor
 
-        num_levels = 16
-        max_res = 2048
-        base_res = 16
-        log2_hashmap_size = 19
-        features_per_level = 2
-        use_hash = True
-        smoothstep = True
-        growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
+        growth_factor = np.exp((np.log(config.max_res) - np.log(config.base_res)) / (config.num_levels - 1))
 
         if self.config.encoding_type == "hash":
             # feature encoding
             self.encoding = tcnn.Encoding(
                 n_input_dims=3,
                 encoding_config={
-                    "otype": "HashGrid" if use_hash else "DenseGrid",
-                    "n_levels": num_levels,
-                    "n_features_per_level": features_per_level,
-                    "log2_hashmap_size": log2_hashmap_size,
-                    "base_resolution": base_res,
+                    "otype": "HashGrid" if config.use_hash else "DenseGrid",
+                    "n_levels": config.num_levels,
+                    "n_features_per_level": config.features_per_level,
+                    "log2_hashmap_size": config.log2_hashmap_size,
+                    "base_resolution": config.base_res,
                     "per_level_scale": growth_factor,
-                    "interpolation": "Smoothstep" if smoothstep else "Linear",
+                    "interpolation": "Smoothstep" if config.smoothstep else "Linear",
                 },
             )
 
-        # TODO make this configurable
         # we concat inputs position ourselves
         self.position_encoding = NeRFEncoding(
             in_dim=3, num_frequencies=6, min_freq_exp=0.0, max_freq_exp=5.0, include_input=False
@@ -167,13 +173,49 @@ class SDFField(Field):
             in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=3.0, include_input=True
         )
 
-        # TODO move it to field components
+        # initialize geometric network
+        self.initialize_geo_layers()
+
+        # deviation_network to compute alpha from sdf from NeuS
+        self.deviation_network = LearnedVariance(init_val=self.config.beta_init)
+
+        # color network
+        dims = [self.config.hidden_dim_color for _ in range(self.config.num_layers_color)]
+        # point, view_direction, normal, feature, embedding
+        in_dim = (
+            3
+            + self.direction_encoding.get_out_dim()
+            + 3
+            + self.config.geo_feat_dim
+            + self.embedding_appearance.get_out_dim()
+        )
+        dims = [in_dim] + dims + [3]
+        self.num_layers_color = len(dims)
+
+        for l in range(0, self.num_layers_color - 1):
+            out_dim = dims[l + 1]
+            lin = nn.Linear(dims[l], out_dim)
+
+            if self.config.weight_norm:
+                lin = nn.utils.weight_norm(lin)
+            # print("=======", lin.weight.shape)
+            setattr(self, "clin" + str(l), lin)
+
+        self.softplus = nn.Softplus(beta=100)
+        self.relu = nn.ReLU()
+        self.sigmoid = torch.nn.Sigmoid()
+
+        self._cos_anneal_ratio = 1.0
+
+    def initialize_geo_layers(self) -> None:
+        """
+        Initialize layers for geometric network (sdf)
+        """
         # MLP with geometric initialization
         dims = [self.config.hidden_dim for _ in range(self.config.num_layers)]
         in_dim = 3 + self.position_encoding.get_out_dim() + self.encoding.n_output_dims
         dims = [in_dim] + dims + [1 + self.config.geo_feat_dim]
         self.num_layers = len(dims)
-        # TODO check how to merge skip_in to config
         self.skip_in = [4]
 
         for l in range(0, self.num_layers - 1):
@@ -206,40 +248,7 @@ class SDFField(Field):
 
             if self.config.weight_norm:
                 lin = nn.utils.weight_norm(lin)
-                # print("=======", lin.weight.shape)
             setattr(self, "glin" + str(l), lin)
-
-        # TODO use different name for beta_init for config
-        # deviation_network to compute alpha from sdf from NeuS
-        self.deviation_network = SingleVarianceNetwork(init_val=self.config.beta_init)
-
-        # color network
-        dims = [self.config.hidden_dim_color for _ in range(self.config.num_layers_color)]
-        # point, view_direction, normal, feature, embedding
-        in_dim = (
-            3
-            + self.direction_encoding.get_out_dim()
-            + 3
-            + self.config.geo_feat_dim
-            + self.embedding_appearance.get_out_dim()
-        )
-        dims = [in_dim] + dims + [3]
-        self.num_layers_color = len(dims)
-
-        for l in range(0, self.num_layers_color - 1):
-            out_dim = dims[l + 1]
-            lin = nn.Linear(dims[l], out_dim)
-
-            if self.config.weight_norm:
-                lin = nn.utils.weight_norm(lin)
-            # print("=======", lin.weight.shape)
-            setattr(self, "clin" + str(l), lin)
-
-        self.softplus = nn.Softplus(beta=100)
-        self.relu = nn.ReLU()
-        self.sigmoid = torch.nn.Sigmoid()
-
-        self._cos_anneal_ratio = 1.0
 
     def set_cos_anneal_ratio(self, anneal: float) -> None:
         """Set the anneal value for the proposal network."""
@@ -248,14 +257,10 @@ class SDFField(Field):
     def forward_geonetwork(self, inputs: TensorType[..., 3]) -> TensorType[..., "geo-features+1"]:
         """forward the geonetwork"""
         if self.use_grid_feature:
-            # TODO check how we should normalize the points
-            # normalize point range as encoding assume points are in [-1, 1]
-            # positions = inputs / self.divide_factor
             positions = self.spatial_distortion(inputs)
 
             positions = (positions + 1.0) / 2.0
             feature = self.encoding(positions)
-            # raise NotImplementedError
         else:
             feature = torch.zeros_like(inputs[:, :1].repeat(1, self.encoding.n_output_dims))
 
@@ -418,7 +423,6 @@ class SDFField(Field):
 
         rgb = rgb.view(*ray_samples.frustums.directions.shape[:-1], -1)
         sdf = sdf.view(*ray_samples.frustums.directions.shape[:-1], -1)
-        # density = density.view(*ray_samples.frustums.directions.shape[:-1], -1)
         gradients = gradients.view(*ray_samples.frustums.directions.shape[:-1], -1)
         normals = torch.nn.functional.normalize(gradients, p=2, dim=-1)
 
@@ -426,14 +430,12 @@ class SDFField(Field):
             {
                 FieldHeadNames.RGB: rgb,
                 FieldHeadNames.SDF: sdf,
-                # Normal vs Normals?
                 FieldHeadNames.NORMALS: normals,
                 FieldHeadNames.GRADIENT: gradients,
             }
         )
 
         if return_alphas:
-            # TODO use mid point sdf for NeuS
             alphas = self.get_alpha(ray_samples, sdf, gradients)
             outputs.update({FieldHeadNames.ALPHA: alphas})
 
