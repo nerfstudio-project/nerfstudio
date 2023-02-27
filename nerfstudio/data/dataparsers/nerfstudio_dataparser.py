@@ -231,7 +231,7 @@ class Nerfstudio(DataParser):
         image_filenames = [image_filenames[i] for i in indices]
         mask_filenames = [mask_filenames[i] for i in indices] if len(mask_filenames) > 0 else []
         depth_filenames = [depth_filenames[i] for i in indices] if len(depth_filenames) > 0 else []
-        semantic_filenames = [semantic_filenames[i] for i in indices] if len(depth_filenames) > 0 else []
+        semantic_filenames = [semantic_filenames[i] for i in indices] if len(semantic_filenames) > 0 else []
         poses = poses[indices]
 
         # in x,y,z order
