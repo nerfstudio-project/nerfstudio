@@ -185,7 +185,7 @@ class SurfaceModel(Model):
         return param_groups
 
     @abstractmethod
-    def sample_and_forward_field(self, ray_bundle: RayBundle) -> Dict:
+    def sample_and_forward_field(self, ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
         """Takes in a Ray Bundle and returns a dictionary of samples and field output.
 
         Args:
@@ -196,7 +196,16 @@ class SurfaceModel(Model):
             Outputs of model. (ie. rendered colors)
         """
 
-    def get_outputs(self, ray_bundle: RayBundle) -> Dict:
+    def get_outputs(self, ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
+        """Takes in a Ray Bundle and returns a dictionary of outputs.
+
+        Args:
+            ray_bundle: Input bundle of rays. This raybundle should have all the
+            needed information to compute the outputs.
+
+        Returns:
+            Outputs of model. (ie. rendered colors)
+        """
         samples_and_field_outputs = self.sample_and_forward_field(ray_bundle=ray_bundle)
 
         # shortcuts
@@ -269,7 +278,14 @@ class SurfaceModel(Model):
         outputs["normal_vis"] = (outputs["normal"] + 1.0) / 2.0
         return outputs
 
-    def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict:
+    def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
+        """Computes and returns the losses dict.
+
+        Args:
+            outputs: the output to compute loss dict to
+            batch: ground truth batch corresponding to outputs
+            metrics_dict: dictionary of metrics, some of which we can use for loss
+        """
         loss_dict = {}
         image = batch["image"].to(self.device)
         loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
@@ -307,7 +323,13 @@ class SurfaceModel(Model):
 
         return loss_dict
 
-    def get_metrics_dict(self, outputs, batch) -> Dict:
+    def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
+        """Compute and returns metrics.
+
+        Args:
+            outputs: the output to compute loss dict to
+            batch: ground truth batch corresponding to outputs
+        """
         metrics_dict = {}
         image = batch["image"].to(self.device)
         metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
@@ -316,6 +338,14 @@ class SurfaceModel(Model):
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
+        """Writes the test image outputs.
+        Args:
+            outputs: Outputs of the model.
+            batch: Batch of data.
+
+        Returns:
+            A dictionary of metrics.
+        """
         image = batch["image"].to(self.device)
         rgb = outputs["rgb"]
         acc = colormaps.apply_colormap(outputs["accumulation"])
@@ -356,14 +386,6 @@ class SurfaceModel(Model):
             "depth": combined_depth,
             "normal": combined_normal,
         }
-
-        if "sensor_depth" in batch:
-            sensor_depth = batch["sensor_depth"]
-            depth_pred = outputs["depth"]
-
-            combined_sensor_depth = torch.cat([sensor_depth[..., None], depth_pred], dim=1)
-            combined_sensor_depth = colormaps.apply_depth_colormap(combined_sensor_depth)
-            images_dict["sensor_depth"] = combined_sensor_depth
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]
