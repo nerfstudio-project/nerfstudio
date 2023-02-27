@@ -72,7 +72,9 @@ class ExperimentConfig(InstantiateConfig):
     vis: Literal["viewer", "wandb", "tensorboard", "viewer+wandb", "viewer+tensorboard"] = "wandb"
     """Which visualizer to use."""
     data: Optional[Path] = None
-    """Alias for --pipeline.datamanager.dataparser.data"""
+    """Alias for --pipeline.datamanager.data"""
+    prompt: Optional[str] = None
+    """Alias for --pipeline.model.prompt"""
     relative_model_dir: Path = Path("nerfstudio_models/")
     """Relative path to save all checkpoints."""
 
@@ -96,7 +98,7 @@ class ExperimentConfig(InstantiateConfig):
     def set_experiment_name(self) -> None:
         """Dynamically set the experiment name"""
         if self.experiment_name is None:
-            self.experiment_name = str(self.pipeline.datamanager.dataparser.data).replace("../", "").replace("/", "-")
+            self.experiment_name = str(self.pipeline.datamanager.data).replace("../", "").replace("/", "-")
 
     def get_base_dir(self) -> Path:
         """Retrieve the base directory to set relative paths"""
