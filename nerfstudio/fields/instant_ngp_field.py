@@ -154,7 +154,7 @@ class TCNNInstantNGPField(Field):
 
     def get_outputs(
         self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
-    ) -> Dict[str, TensorType]:
+    ) -> Dict[FieldHeadNames, TensorType]:
         directions = get_normalized_directions(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
 

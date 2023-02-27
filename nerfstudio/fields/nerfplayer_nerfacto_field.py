@@ -341,7 +341,7 @@ class NerfplayerNerfactoField(Field):
 
     def get_outputs(
         self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
-    ) -> Dict[str, TensorType]:
+    ) -> Dict[FieldHeadNames, TensorType]:
         assert density_embedding is not None
         outputs = {}
         if ray_samples.camera_indices is None:

@@ -118,7 +118,7 @@ class TensoRFField(Field):
         compute_normals: bool = False,
         mask: Optional[TensorType] = None,
         bg_color: Optional[TensorType] = None,
-    ) -> Dict[str, TensorType]:
+    ) -> Dict[FieldHeadNames, TensorType]:
         if compute_normals is True:
             raise ValueError("Surface normals are not currently supported with TensoRF")
         if mask is not None and bg_color is not None:
