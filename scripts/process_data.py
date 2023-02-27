@@ -313,6 +313,7 @@ class ProcessVideo:
             # remove the temp_images folder
             shutil.rmtree(self.output_dir / "temp_images", ignore_errors=True)
 
+        mask_path = None
         # # Create mask
         # mask_path = process_data_utils.save_mask(
         #     image_dir=image_dir,

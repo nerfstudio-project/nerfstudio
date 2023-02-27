@@ -34,7 +34,7 @@ from nerfstudio.utils.rich_utils import ItersPerSecColumn
 
 
 def crop_bottom(bound_arr: list, fov: int, percent_crop: float) -> list:
-    """Returns a list of bounds with the bottom cropped.
+    """Returns a list of vertical bounds with the bottom cropped.
 
     Args:
         bound_arr (list): List of vertical bounds in ascending order.
@@ -47,7 +47,7 @@ def crop_bottom(bound_arr: list, fov: int, percent_crop: float) -> list:
     degrees_chopped = 180 * percent_crop
     new_bottom_start = 90 - degrees_chopped - fov / 2
     for i, el in reversed(list(enumerate(bound_arr))):
-        if el > new_bottom_start + fov / 5:
+        if el > new_bottom_start + fov / 2:
             bound_arr[i] = None
         elif el > new_bottom_start:
             diff = el - new_bottom_start
@@ -59,21 +59,31 @@ def crop_bottom(bound_arr: list, fov: int, percent_crop: float) -> list:
     return bound_arr
 
 
-# def crop_top(bound_arr, fov, percent_crop):
-#     degrees_chopped = 180 * percent_crop
-#     new_top_start = -90 + degrees_chopped + fov / 2
-#     for i, el in enumerate(bound_arr):
-#         print(i, el)
-#         if el < new_top_start - fov / 5:
-#             bound_arr[i] = None
-#         elif el < new_top_start:
-#             diff = new_top_start - el
-#             bound_arr[i] = new_top_start
-#             for j in range(i + 1, len(bound_arr)):
-#                 bound_arr[j] += diff / (2 ** (j - i))
-#             break
+def crop_top(bound_arr: list, fov: int, percent_crop: float) -> list:
+    """Returns a list of vertical bounds with the top cropped.
 
-#     return bound_arr
+    Args:
+        bound_arr (list): List of vertical bounds in ascending order.
+        fov (int): Field of view of the camera.
+        percent_crop (float): Percent of the image to crop from the top.
+
+    Returns:
+        list: A new list of bounds with the top cropped.
+    """
+    degrees_chopped = 180 * percent_crop
+    new_top_start = -90 + degrees_chopped + fov / 2
+    for i, el in enumerate(bound_arr):
+        print(i, el)
+        if el < new_top_start - fov / 2:
+            bound_arr[i] = None
+        elif el < new_top_start:
+            diff = new_top_start - el
+            bound_arr[i] = new_top_start
+            for j in range(i + 1, len(bound_arr)):
+                bound_arr[j] += diff / (2 ** (j - i))
+            break
+
+    return bound_arr
 
 
 def generate_planar_projections_from_equirectangular(
@@ -88,6 +98,7 @@ def generate_planar_projections_from_equirectangular(
         image_dir: The directory containing the equirectangular image.
         planar_image_size: The size of the planar projections [width, height].
         samples_per_im: The number of samples to take per image.
+        percent_crop: The percent of the image to crop from the (top, bottom, left, and right).
     returns:
         The path to the planar projections directory.
     """
@@ -99,8 +110,8 @@ def generate_planar_projections_from_equirectangular(
     if samples_per_im == 8:
         fov = 120
     bound_arr = [-45, 0, 45]
-    bound_arr = crop_bottom(bound_arr, fov, 0.2)
-    print(bound_arr)
+    if percent_crop[1] > 0:
+        bound_arr = crop_bottom(bound_arr, fov, percent_crop[1])
     if bound_arr[1] is not None:
         for i in np.arange(-180, 180, 90):
             yaw_pitch_pairs.append((i, bound_arr[1]))
