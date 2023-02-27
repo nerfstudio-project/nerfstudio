@@ -451,6 +451,8 @@ class SDFField(Field):
 
         Args:
             ray_samples: Samples to evaluate field on.
+            compute normals: not currently used in this implementation.
+            return_alphas: Whether to return alpha values
         """
         field_outputs = self.get_outputs(ray_samples, return_alphas=return_alphas)
         return field_outputs
