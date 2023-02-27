@@ -68,17 +68,17 @@ class TCNNInstantNGPField(Field):
     def __init__(
         self,
         aabb: TensorType,
-        num_layers: Optional[int] = 2,
-        hidden_dim: Optional[int] = 64,
-        geo_feat_dim: Optional[int] = 15,
-        num_layers_color: Optional[int] = 3,
-        hidden_dim_color: Optional[int] = 64,
+        num_layers: int = 2,
+        hidden_dim: int = 64,
+        geo_feat_dim: int = 15,
+        num_layers_color: int = 3,
+        hidden_dim_color: int = 64,
         use_appearance_embedding: Optional[bool] = False,
         num_images: Optional[int] = None,
-        appearance_embedding_dim: Optional[int] = 32,
-        contraction_type: Optional[ContractionType] = ContractionType.UN_BOUNDED_SPHERE,
-        num_levels: Optional[int] = 16,
-        log2_hashmap_size: Optional[int] = 19,
+        appearance_embedding_dim: int = 32,
+        contraction_type: ContractionType = ContractionType.UN_BOUNDED_SPHERE,
+        num_levels: int = 16,
+        log2_hashmap_size: int = 19,
     ) -> None:
         super().__init__()
 

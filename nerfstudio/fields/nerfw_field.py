@@ -53,16 +53,16 @@ class VanillaNerfWField(Field):
 
     def __init__(
         self,
-        num_images: Optional[int],
-        position_encoding: Optional[Encoding] = Identity(in_dim=3),
-        direction_encoding: Optional[Encoding] = Identity(in_dim=3),
-        base_mlp_num_layers: Optional[int] = 8,
-        base_mlp_layer_width: Optional[int] = 256,
-        head_mlp_num_layers: Optional[int] = 2,
-        head_mlp_layer_width: Optional[int] = 128,
-        appearance_embedding_dim: Optional[int] = 48,
-        transient_embedding_dim: Optional[int] = 16,
-        skip_connections: Optional[Tuple[int]] = (4,),
+        num_images: int,
+        position_encoding: Encoding = Identity(in_dim=3),
+        direction_encoding: Encoding = Identity(in_dim=3),
+        base_mlp_num_layers: int = 8,
+        base_mlp_layer_width: int = 256,
+        head_mlp_num_layers: int = 2,
+        head_mlp_layer_width: int = 128,
+        appearance_embedding_dim: int = 48,
+        transient_embedding_dim: int = 16,
+        skip_connections: Tuple[int] = (4,),
     ) -> None:
         super().__init__()
         self.num_images = num_images

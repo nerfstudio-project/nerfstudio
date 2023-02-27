@@ -50,15 +50,15 @@ class HashMLPDensityField(Field):
     def __init__(
         self,
         aabb: TensorType,
-        num_layers: Optional[int] = 2,
-        hidden_dim: Optional[int] = 64,
+        num_layers: int = 2,
+        hidden_dim: int = 64,
         spatial_distortion: Optional[SpatialDistortion] = None,
-        use_linear: Optional[bool] = False,
-        num_levels: Optional[int] = 8,
-        max_res: Optional[int] = 1024,
-        base_res: Optional[int] = 16,
-        log2_hashmap_size: Optional[int] = 18,
-        features_per_level: Optional[int] = 2,
+        use_linear: bool = False,
+        num_levels: int = 8,
+        max_res: int = 1024,
+        base_res: int = 16,
+        log2_hashmap_size: int = 18,
+        features_per_level: int = 2,
     ) -> None:
         super().__init__()
         self.register_buffer("aabb", aabb)
