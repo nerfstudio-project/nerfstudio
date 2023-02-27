@@ -15,7 +15,7 @@
 """TensoRF Field"""
 
 
-from typing import Optional
+from typing import Dict, Optional
 
 import torch
 from torch import nn
@@ -35,7 +35,7 @@ class TensoRFField(Field):
 
     def __init__(
         self,
-        aabb,
+        aabb: TensorType,
         # the aabb bounding box of the dataset
         feature_encoding: Encoding = Identity(in_dim=3),
         # the encoding method used for appearance encoding outputs
@@ -83,7 +83,7 @@ class TensoRFField(Field):
 
         self.field_output_rgb = RGBFieldHead(in_dim=self.mlp_head.get_out_dim(), activation=nn.Sigmoid())
 
-    def get_density(self, ray_samples: RaySamples):
+    def get_density(self, ray_samples: RaySamples) -> TensorType:
         positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions = positions * 2 - 1
         density = self.density_encoding(positions)
@@ -118,7 +118,7 @@ class TensoRFField(Field):
         compute_normals: bool = False,
         mask: Optional[TensorType] = None,
         bg_color: Optional[TensorType] = None,
-    ):
+    ) -> Dict[FieldHeadNames, TensorType]:
         if compute_normals is True:
             raise ValueError("Surface normals are not currently supported with TensoRF")
         if mask is not None and bg_color is not None:
