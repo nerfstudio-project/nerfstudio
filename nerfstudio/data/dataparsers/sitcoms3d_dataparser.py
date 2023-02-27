@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Data parser for friends dataset"""
+"""Data parser for sitcoms3D dataset.
+
+The dataset is from the paper ["The One Where They Reconstructed 3D Humans and
+Environments in TV Shows"](https://ethanweber.me/sitcoms3D/)
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -36,12 +41,12 @@ CONSOLE = Console()
 
 
 @dataclass
-class FriendsDataParserConfig(DataParserConfig):
-    """Friends dataset parser config"""
+class Sitcoms3DDataParserConfig(DataParserConfig):
+    """sitcoms3D dataset parser config"""
 
-    _target: Type = field(default_factory=lambda: Friends)
+    _target: Type = field(default_factory=lambda: Sitcoms3D)
     """target class to instantiate"""
-    data: Path = Path("data/friends/TBBT-big_living_room")
+    data: Path = Path("data/sitcoms3d/TBBT-big_living_room")
     """Directory specifying location of data."""
     include_semantics: bool = True
     """whether or not to include loading of semantics data"""
@@ -49,15 +54,15 @@ class FriendsDataParserConfig(DataParserConfig):
     scene_scale: float = 2.0
     """
     Sets the bounding cube to have edge length of this size.
-    The longest dimension of the Friends axis-aligned bbox will be scaled to this value.
+    The longest dimension of the Sitcoms3D axis-aligned bbox will be scaled to this value.
     """
 
 
 @dataclass
-class Friends(DataParser):
-    """Friends Dataset"""
+class Sitcoms3D(DataParser):
+    """Sitcoms3D Dataset"""
 
-    config: FriendsDataParserConfig
+    config: Sitcoms3DDataParserConfig
 
     def _generate_dataparser_outputs(self, split="train"):  # pylint: disable=unused-argument,too-many-statements
 
