@@ -17,7 +17,7 @@ Instant-NGP field implementations using tiny-cuda-nn, torch, ....
 """
 
 
-from typing import Optional
+from typing import Dict, Optional, Tuple
 
 import torch
 from nerfacc import ContractionType, contract
@@ -38,7 +38,7 @@ except ImportError:
     pass
 
 
-def get_normalized_directions(directions: TensorType["bs":..., 3]):
+def get_normalized_directions(directions: TensorType["bs":..., 3]) -> TensorType["bs":..., 3]:
     """SH encoding must be in the range [0, 1]
 
     Args:
@@ -67,18 +67,18 @@ class TCNNInstantNGPField(Field):
 
     def __init__(
         self,
-        aabb,
-        num_layers: int = 2,
-        hidden_dim: int = 64,
-        geo_feat_dim: int = 15,
-        num_layers_color: int = 3,
-        hidden_dim_color: int = 64,
-        use_appearance_embedding: bool = False,
+        aabb: TensorType,
+        num_layers: Optional[int] = 2,
+        hidden_dim: Optional[int] = 64,
+        geo_feat_dim: Optional[int] = 15,
+        num_layers_color: Optional[int] = 3,
+        hidden_dim_color: Optional[int] = 64,
+        use_appearance_embedding: Optional[bool] = False,
         num_images: Optional[int] = None,
-        appearance_embedding_dim: int = 32,
-        contraction_type: ContractionType = ContractionType.UN_BOUNDED_SPHERE,
-        num_levels: int = 16,
-        log2_hashmap_size: int = 19,
+        appearance_embedding_dim: Optional[int] = 32,
+        contraction_type: Optional[ContractionType] = ContractionType.UN_BOUNDED_SPHERE,
+        num_levels: Optional[int] = 16,
+        log2_hashmap_size: Optional[int] = 19,
     ) -> None:
         super().__init__()
 
@@ -138,7 +138,7 @@ class TCNNInstantNGPField(Field):
             },
         )
 
-    def get_density(self, ray_samples: RaySamples):
+    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
         positions = ray_samples.frustums.get_positions()
         positions_flat = positions.view(-1, 3)
         positions_flat = contract(x=positions_flat, roi=self.aabb, type=self.contraction_type)
@@ -152,7 +152,9 @@ class TCNNInstantNGPField(Field):
         density = trunc_exp(density_before_activation.to(positions))
         return density, base_mlp_out
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
+    def get_outputs(
+        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
+    ) -> Dict[str, TensorType]:
         directions = get_normalized_directions(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
 
