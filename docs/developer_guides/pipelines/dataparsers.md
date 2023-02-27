@@ -73,10 +73,8 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The fraction of images to use for training. The remaining images are for eval."""
 
 @dataclass
-class Nerfstudio(DataParser):
+class Nerfstudio(DataParser[NerfstudioDataParserConfig]):
     """Nerfstudio DatasetParser"""
-
-    config: NerfstudioDataParserConfig
 
     def _generate_dataparser_outputs(self, split="train"):
         meta = load_from_json(self.config.data / "transforms.json")

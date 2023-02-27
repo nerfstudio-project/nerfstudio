@@ -20,9 +20,12 @@ Miscellaneous helper code.
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import torch
+from typing_extensions import TypeVar
+
+T = TypeVar("T")
 
 
-def get_dict_to_torch(stuff: Any, device: Union[torch.device, str] = "cpu", exclude: Optional[List[str]] = None):
+def get_dict_to_torch(stuff: T, device: Union[torch.device, str] = "cpu", exclude: Optional[List[str]] = None) -> T:
     """Set everything in the dict to the specified torch device.
 
     Args:

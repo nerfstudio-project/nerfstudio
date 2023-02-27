@@ -67,10 +67,9 @@ class NerfstudioDataParserConfig(DataParserConfig):
 
 
 @dataclass
-class Nerfstudio(DataParser):
+class Nerfstudio(DataParser[NerfstudioDataParserConfig]):
     """Nerfstudio DatasetParser"""
 
-    config: NerfstudioDataParserConfig
     downscale_factor: Optional[int] = None
 
     def _generate_dataparser_outputs(self, split="train"):

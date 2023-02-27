@@ -69,12 +69,10 @@ class PhototourismDataParserConfig(DataParserConfig):
 
 
 @dataclass
-class Phototourism(DataParser):
+class Phototourism(DataParser[PhototourismDataParserConfig]):
     """Phototourism dataset. This is based on https://github.com/kwea123/nerf_pl/blob/nerfw/datasets/phototourism.py
     and uses colmap's utils file to read the poses.
     """
-
-    config: PhototourismDataParserConfig
 
     def __init__(self, config: PhototourismDataParserConfig):
         super().__init__(config=config)

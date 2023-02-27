@@ -43,10 +43,8 @@ class MinimalDataParserConfig(DataParserConfig):
 
 
 @dataclass
-class MinimalDataParser(DataParser):
+class MinimalDataParser(DataParser[MinimalDataParserConfig]):
     """Minimal DatasetParser"""
-
-    config: MinimalDataParserConfig
 
     def _generate_dataparser_outputs(self, split="train"):
         filepath = self.config.data / f"{split}.npz"

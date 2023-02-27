@@ -61,7 +61,7 @@ from nerfstudio.data.utils.dataloaders import (
     FixedIndicesEvalDataloader,
     RandIndicesEvalDataloader,
 )
-from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
+from nerfstudio.data.utils.nerfstudio_collate import CollateFunction, nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
@@ -281,7 +281,7 @@ class VanillaDataManagerConfig(InstantiateConfig):
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
     Record3D."""
-    collate_fn = staticmethod(nerfstudio_collate)
+    collate_fn: CollateFunction = field(default_factory=lambda: nerfstudio_collate)
     """Specifies the collate function to use for the train and eval dataloaders."""
     camera_res_scale_factor: float = 1.0
     """The scale factor for scaling spatial data such as images, mask, semantics

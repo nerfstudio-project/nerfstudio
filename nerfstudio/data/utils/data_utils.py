@@ -45,7 +45,7 @@ def get_semantics_and_mask_tensors_from_path(
     If no mask is required - use mask_indices = []
     """
     if isinstance(mask_indices, List):
-        mask_indices = torch.tensor(mask_indices, dtype="int64").view(1, 1, -1)
+        mask_indices = torch.tensor(mask_indices, dtype=torch.int64).view(1, 1, -1)
     pil_image = Image.open(filepath)
     if scale_factor != 1.0:
         width, height = pil_image.size

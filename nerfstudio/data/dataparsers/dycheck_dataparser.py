@@ -198,10 +198,8 @@ class DycheckDataParserConfig(DataParserConfig):
 
 
 @dataclass
-class Dycheck(DataParser):
+class Dycheck(DataParser[DycheckDataParserConfig]):
     """Dycheck (https://arxiv.org/abs/2210.13445) Dataset `iphone` subset"""
-
-    config: DycheckDataParserConfig
 
     def __init__(self, config: DycheckDataParserConfig):
         super().__init__(config=config)

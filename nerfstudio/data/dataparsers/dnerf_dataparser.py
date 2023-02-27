@@ -49,10 +49,8 @@ class DNeRFDataParserConfig(DataParserConfig):
 
 
 @dataclass
-class DNeRF(DataParser):
+class DNeRF(DataParser[DNeRFDataParserConfig]):
     """DNeRF Dataset"""
-
-    config: DNeRFDataParserConfig
 
     def __init__(self, config: DNeRFDataParserConfig):
         super().__init__(config=config)

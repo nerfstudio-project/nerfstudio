@@ -130,14 +130,12 @@ class NerfactoModelConfig(ModelConfig):
     """Whether to disable scene contraction or not."""
 
 
-class NerfactoModel(Model):
+class NerfactoModel(Model[NerfactoModelConfig]):
     """Nerfacto model
 
     Args:
         config: Nerfacto configuration to instantiate model
     """
-
-    config: NerfactoModelConfig
 
     def populate_modules(self):
         """Set the fields and modules."""

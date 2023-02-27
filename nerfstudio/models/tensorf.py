@@ -81,7 +81,7 @@ class TensoRFModelConfig(ModelConfig):
     tensorf_encoding: Literal["triplane", "vm", "cp"] = "vm"
 
 
-class TensoRFModel(Model):
+class TensoRFModel(Model[TensoRFModelConfig]):
     """TensoRF Model
 
     Args:

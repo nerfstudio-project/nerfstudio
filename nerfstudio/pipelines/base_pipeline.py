@@ -21,7 +21,7 @@ import typing
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from time import time
-from typing import Any, Dict, List, Mapping, Optional, Type, Union, cast
+from typing import Any, Dict, Generic, List, Mapping, Optional, Type, Union, cast
 
 import torch
 import torch.distributed as dist
@@ -35,7 +35,7 @@ from rich.progress import (
 from torch import nn
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
-from typing_extensions import Literal
+from typing_extensions import Literal, TypeVar
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datamanagers.base_datamanager import (
@@ -174,11 +174,13 @@ class Pipeline(nn.Module):
             step: training step of the loaded checkpoint
         """
 
+    @abstractmethod
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
         """Returns the training callbacks from both the Dataloader and the Model."""
 
+    @abstractmethod
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Get the param groups for the pipeline.
 
@@ -199,7 +201,10 @@ class VanillaPipelineConfig(cfg.InstantiateConfig):
     """specifies the model config"""
 
 
-class VanillaPipeline(Pipeline):
+TPipelineConfig = TypeVar("TPipelineConfig", bound=VanillaPipelineConfig, default=VanillaPipelineConfig)
+
+
+class VanillaPipeline(Pipeline, Generic[TPipelineConfig]):
     """The pipeline class for the vanilla nerf setup of multiple cameras for one or a few scenes.
 
         config: configuration to instantiate pipeline
@@ -216,9 +221,11 @@ class VanillaPipeline(Pipeline):
         model: The model that will be used
     """
 
+    config: TPipelineConfig
+
     def __init__(
         self,
-        config: VanillaPipelineConfig,
+        config: TPipelineConfig,
         device: str,
         test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,

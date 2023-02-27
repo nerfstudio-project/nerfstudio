@@ -16,22 +16,22 @@
 Code for sampling images from a dataset of images.
 """
 
-# for multithreading
 import concurrent.futures
 import multiprocessing
 import random
+
+# for multithreading
 from abc import abstractmethod
-from typing import Dict, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 from rich.progress import Console, track
-from torch.utils.data import Dataset
-from torch.utils.data.dataloader import DataLoader
+from torch.utils.data.dataloader import DataLoader, Dataset
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
+from nerfstudio.data.utils.nerfstudio_collate import CollateFunction, nerfstudio_collate
 from nerfstudio.utils.misc import get_dict_to_torch
 
 CONSOLE = Console(width=120)
@@ -55,7 +55,7 @@ class CacheDataloader(DataLoader):
         num_images_to_sample_from: int = -1,
         num_times_to_repeat_images: int = -1,
         device: Union[torch.device, str] = "cpu",
-        collate_fn=nerfstudio_collate,
+        collate_fn: CollateFunction = nerfstudio_collate,
         **kwargs,
     ):
         self.dataset = dataset
@@ -91,7 +91,7 @@ class CacheDataloader(DataLoader):
     def __getitem__(self, idx):
         return self.dataset.__getitem__(idx)
 
-    def _get_batch_list(self):
+    def _get_batch_list(self) -> List[Dict[str, Any]]:
         """Returns a list of batches from the dataset attribute."""
 
         indices = random.sample(range(len(self.dataset)), k=self.num_images_to_sample_from)
@@ -123,6 +123,7 @@ class CacheDataloader(DataLoader):
         while True:
             if self.cache_all_images:
                 collated_batch = self.cached_collated_batch
+                assert collated_batch is not None
             elif self.first_time or (
                 self.num_times_to_repeat_images != -1 and self.num_repeated >= self.num_times_to_repeat_images
             ):
@@ -134,6 +135,7 @@ class CacheDataloader(DataLoader):
                 self.first_time = False
             else:
                 collated_batch = self.cached_collated_batch
+                assert collated_batch is not None
                 self.num_repeated += 1
             yield collated_batch
 

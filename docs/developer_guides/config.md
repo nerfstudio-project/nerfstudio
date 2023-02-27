@@ -31,14 +31,8 @@ class NerfactoModelConfig(ModelConfig):
     _target: Type = field(default_factory=lambda: NerfactoModel)
     ...
 
-class NerfactoModel(Model):
-     """Nerfacto model
-
-    Args:
-        config: Nerfacto configuration to instantiate model
-    """
-
-    config: NerfactoModelConfig
+class NerfactoModel(Model[NerfactoModelConfig]):
+     """Nerfacto model"""
     ...
 ```
 

@@ -59,10 +59,8 @@ class SDFStudioDataParserConfig(DataParserConfig):
 
 
 @dataclass
-class SDFStudio(DataParser):
+class SDFStudio(DataParser[SDFStudioDataParserConfig]):
     """SDFStudio Dataset"""
-
-    config: SDFStudioDataParserConfig
 
     def _generate_dataparser_outputs(self, split="train"):  # pylint: disable=unused-argument,too-many-statements
         # load meta data

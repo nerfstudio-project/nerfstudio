@@ -37,12 +37,11 @@ class DynamicBatchPipelineConfig(VanillaPipelineConfig):
     """The maximum number of samples to be placed along a ray."""
 
 
-class DynamicBatchPipeline(VanillaPipeline):
+class DynamicBatchPipeline(VanillaPipeline[DynamicBatchPipelineConfig]):
     """Pipeline with logic for changing the number of rays per batch."""
 
     # pylint: disable=abstract-method
 
-    config: DynamicBatchPipelineConfig
     datamanager: VanillaDataManager
     dynamic_num_rays_per_batch: int
 
@@ -90,6 +89,7 @@ class DynamicBatchPipeline(VanillaPipeline):
 
         # add the number of rays
         assert "num_rays_per_batch" not in metrics_dict
+        assert self.datamanager.train_pixel_sampler is not None
         metrics_dict["num_rays_per_batch"] = torch.tensor(self.datamanager.train_pixel_sampler.num_rays_per_batch)
 
         return model_outputs, loss_dict, metrics_dict
@@ -99,6 +99,7 @@ class DynamicBatchPipeline(VanillaPipeline):
 
         # add the number of rays
         assert "num_rays_per_batch" not in metrics_dict
+        assert self.datamanager.eval_pixel_sampler is not None
         metrics_dict["num_rays_per_batch"] = torch.tensor(self.datamanager.eval_pixel_sampler.num_rays_per_batch)
 
         return model_outputs, loss_dict, metrics_dict

@@ -51,10 +51,8 @@ class InstantNGPDataParserConfig(DataParserConfig):
 
 
 @dataclass
-class InstantNGP(DataParser):
+class InstantNGP(DataParser[InstantNGPDataParserConfig]):
     """Instant NGP Dataset"""
-
-    config: InstantNGPDataParserConfig
 
     def _generate_dataparser_outputs(self, split="train"):
         if self.config.data.suffix == ".json":

@@ -19,11 +19,12 @@ Custom collate function that includes cases for nerfstudio types.
 import collections
 import collections.abc
 import re
-from typing import Callable, Dict, Union
+from typing import Callable, Dict, List, Union
 
 import torch
 import torch.utils.data
 from torch._six import string_classes
+from typing_extensions import Protocol, TypeVar
 
 from nerfstudio.cameras.cameras import Cameras
 
@@ -34,9 +35,17 @@ NERFSTUDIO_COLLATE_ERR_MSG_FORMAT = (
 np_str_obj_array_pattern = re.compile(r"[SaUO]")
 
 
-def nerfstudio_collate(
-    batch, extra_mappings: Union[Dict[type, Callable], None] = None
-):  # pylint: disable=too-many-return-statements
+T = TypeVar("T")
+
+
+class CollateFunction(Protocol):  # pylint: disable=too-few-public-methods,missing-class-docstring
+    def __call__(self, batch: List[T], extra_mappings: Union[Dict[type, Callable], None] = None) -> T:
+        raise NotImplementedError()
+
+
+def nerfstudio_collate(  # pylint: disable=too-many-return-statements
+    batch: List[T], extra_mappings: Union[Dict[type, Callable], None] = None
+) -> T:
     r"""
     This is the default pytorch collate function, but with support for nerfstudio types. All documentation
     below is copied straight over from pytorch's default_collate function, python version 3.8.13,

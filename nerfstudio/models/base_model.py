@@ -21,7 +21,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, Generic, List, Optional, Tuple, Type, TypeVar
 
 import torch
 from torch import nn
@@ -52,7 +52,10 @@ class ModelConfig(InstantiateConfig):
     """specifies number of rays per chunk during eval"""
 
 
-class Model(nn.Module):
+TConfig = TypeVar("TConfig", bound=ModelConfig)
+
+
+class Model(nn.Module, Generic[TConfig]):
     """Model class
     Where everything (Fields, Optimizers, Samplers, Visualization, etc) is linked together. This should be
     subclassed for custom NeRF model.
@@ -62,11 +65,11 @@ class Model(nn.Module):
         scene_box: dataset scene box
     """
 
-    config: ModelConfig
+    config: TConfig
 
     def __init__(
         self,
-        config: ModelConfig,
+        config: TConfig,
         scene_box: SceneBox,
         num_train_data: int,
         **kwargs,
@@ -101,6 +104,7 @@ class Model(nn.Module):
         # NOTE: call `super().populate_modules()` in subclasses
 
         if self.config.enable_collider:
+            assert self.config.collider_params is not None
             self.collider = NearFarCollider(
                 near_plane=self.config.collider_params["near_plane"], far_plane=self.config.collider_params["far_plane"]
             )

@@ -60,26 +60,12 @@ class VanillaModelConfig(ModelConfig):
     """Parameters to instantiate temporal distortion with"""
 
 
-class NeRFModel(Model):
+class NeRFModel(Model[VanillaModelConfig]):
     """Vanilla NeRF model
 
     Args:
         config: Basic NeRF configuration to instantiate model
     """
-
-    def __init__(
-        self,
-        config: VanillaModelConfig,
-        **kwargs,
-    ) -> None:
-        self.field_coarse = None
-        self.field_fine = None
-        self.temporal_distortion = None
-
-        super().__init__(
-            config=config,
-            **kwargs,
-        )
 
     def populate_modules(self):
         """Set the fields and modules"""
@@ -120,6 +106,7 @@ class NeRFModel(Model):
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
 
+        self.temporal_distortion = None
         if getattr(self.config, "enable_temporal_distortion", False):
             params = self.config.temporal_distortion_params
             kind = params.pop("kind")

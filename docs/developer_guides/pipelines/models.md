@@ -111,14 +111,8 @@ There are a lot of options! Thankfully, our config system makes this easy to han
 Furthermore, you have Python autocomplete and static checking working in your favor. At the top of every Model, we specify the config and then can easily pull of values throughout the implementation. Let's take a look at the beginning of the NerfactoModel implementation.
 
 ```python
-class NerfactoModel(Model):
-    """Nerfacto model
-
-    Args:
-        config: Nerfacto configuration to instantiate model
-    """
-
-    config: NerfactoModelConfig
+class NerfactoModel(Model[NerfactoModelConfig]):
+    """Nerfacto model"""
 
     def populate_modules(self):
         """Set the fields and modules."""

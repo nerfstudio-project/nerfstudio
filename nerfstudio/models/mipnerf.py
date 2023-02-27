@@ -36,24 +36,17 @@ from nerfstudio.model_components.renderers import (
     DepthRenderer,
     RGBRenderer,
 )
-from nerfstudio.models.base_model import Model, ModelConfig
+from nerfstudio.models.base_model import Model
+from nerfstudio.models.vanilla_nerf import VanillaModelConfig
 from nerfstudio.utils import colormaps, colors, misc
 
 
-class MipNerfModel(Model):
+class MipNerfModel(Model[VanillaModelConfig]):
     """mip-NeRF model
 
     Args:
         config: MipNerf configuration to instantiate model
     """
-
-    def __init__(
-        self,
-        config: ModelConfig,
-        **kwargs,
-    ) -> None:
-        self.field = None
-        super().__init__(config=config, **kwargs)
 
     def populate_modules(self):
         """Set the fields and modules"""

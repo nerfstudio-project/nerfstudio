@@ -49,12 +49,10 @@ class BlenderDataParserConfig(DataParserConfig):
 
 
 @dataclass
-class Blender(DataParser):
+class Blender(DataParser[BlenderDataParserConfig]):
     """Blender Dataset
     Some of this code comes from https://github.com/yenchenlin/nerf-pytorch/blob/master/load_blender.py#L37.
     """
-
-    config: BlenderDataParserConfig
 
     def __init__(self, config: BlenderDataParserConfig):
         super().__init__(config=config)

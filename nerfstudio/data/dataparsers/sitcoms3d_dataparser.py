@@ -59,10 +59,8 @@ class Sitcoms3DDataParserConfig(DataParserConfig):
 
 
 @dataclass
-class Sitcoms3D(DataParser):
+class Sitcoms3D(DataParser[Sitcoms3DDataParserConfig]):
     """Sitcoms3D Dataset"""
-
-    config: Sitcoms3DDataParserConfig
 
     def _generate_dataparser_outputs(self, split="train"):  # pylint: disable=unused-argument,too-many-statements
 

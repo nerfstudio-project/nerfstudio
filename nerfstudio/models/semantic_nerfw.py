@@ -65,14 +65,12 @@ class SemanticNerfWModelConfig(NerfactoModelConfig):
     pass_semantic_gradients: bool = False
 
 
-class SemanticNerfWModel(Model):
+class SemanticNerfWModel(Model[SemanticNerfWModelConfig]):
     """Nerfacto model
 
     Args:
         config: Nerfacto configuration to instantiate model
     """
-
-    config: SemanticNerfWModelConfig
 
     def __init__(self, config: SemanticNerfWModelConfig, metadata: Dict, **kwargs) -> None:
         assert "semantics" in metadata.keys() and isinstance(metadata["semantics"], Semantics)

@@ -20,7 +20,7 @@ import json
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 
 import torch
 from torchtyping import TensorType
@@ -94,23 +94,26 @@ class DataparserOutputs:
 class DataParserConfig(cfg.InstantiateConfig):
     """Basic dataset config"""
 
-    _target: Type = field(default_factory=lambda: DataParser)
+    _target: Type = field(default_factory=lambda: DataParser[DataParserConfig])
     """_target: target class to instantiate"""
     data: Path = Path()
     """Directory specifying location of data."""
 
 
+TDataParserConfig = TypeVar("TDataParserConfig", bound=DataParserConfig)
+
+
 @dataclass
-class DataParser:
+class DataParser(Generic[TDataParserConfig]):
     """A dataset.
 
     Args:
         config: datasetparser config containing all information needed to instantiate dataset
     """
 
-    config: DataParserConfig
+    config: TDataParserConfig
 
-    def __init__(self, config: DataParserConfig):
+    def __init__(self, config: TDataParserConfig):
         super().__init__()
         self.config = config
 

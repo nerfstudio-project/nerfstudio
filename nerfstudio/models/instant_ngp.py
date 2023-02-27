@@ -81,18 +81,14 @@ class InstantNGPModelConfig(ModelConfig):
     """The color that is given to untrained areas."""
 
 
-class NGPModel(Model):
+class NGPModel(Model[InstantNGPModelConfig]):
     """Instant NGP model
 
     Args:
         config: instant NGP configuration to instantiate model
     """
 
-    config: InstantNGPModelConfig
     field: TCNNInstantNGPField
-
-    def __init__(self, config: InstantNGPModelConfig, **kwargs) -> None:
-        super().__init__(config=config, **kwargs)
 
     def populate_modules(self):
         """Set the fields and modules."""
