@@ -229,7 +229,7 @@ def get_interpolated_poses_many(
     traj = np.stack(traj, axis=0)
     k_interp = np.stack(k_interp, axis=0)
 
-    return torch.tensor(traj), torch.tensor(k_interp)
+    return torch.tensor(traj, dtype=torch.float32), torch.tensor(k_interp, dtype=torch.float32)
 
 
 def normalize(x: torch.Tensor) -> TensorType[...]:
