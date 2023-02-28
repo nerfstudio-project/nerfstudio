@@ -126,20 +126,8 @@ class Trainer:
         # directory to save checkpoints
         self.checkpoint_dir: Path = config.get_checkpoint_dir()
         CONSOLE.log(f"Saving checkpoints to: {self.checkpoint_dir}")
-        # set up viewer if enabled
-        viewer_log_path: Path = self.base_dir / config.viewer.relative_log_filename
-        self.viewer_state, banner_messages = None, None
-        if self.config.is_viewer_enabled() and local_rank == 0:
-            self.viewer_state, banner_messages = viewer_utils.setup_viewer(
-                config.viewer, log_filename=viewer_log_path, datapath=config.pipeline.datamanager.dataparser.data
-            )
-        self._check_viewer_warnings()
-        # set up writers/profilers if enabled
-        writer_log_path: Path = self.base_dir / config.logging.relative_log_dir
-        writer.setup_event_writer(config.is_wandb_enabled(), config.is_tensorboard_enabled(), log_dir=writer_log_path)
-        writer.setup_local_writer(config.logging, max_iter=config.max_num_iterations, banner_messages=banner_messages)
-        writer.put_config(name="config", config_dict=dataclasses.asdict(config), step=0)
-        profiler.setup_profiler(config.logging)
+
+        self.viewer_state = None
 
     def setup(self, test_mode: Literal["test", "val", "inference"] = "val") -> None:
         """Setup the Trainer by calling other setup functions.
@@ -165,6 +153,28 @@ class Trainer:
             )
         )
 
+        # set up viewer if enabled
+        viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
+        self.viewer_state, banner_messages = None, None
+        if self.config.is_viewer_enabled() and self.local_rank == 0:
+            datapath = self.pipeline.datamanager.get_datapath()
+            if datapath is None:
+                datapath = self.base_dir
+            self.viewer_state, banner_messages = viewer_utils.setup_viewer(
+                self.config.viewer, log_filename=viewer_log_path, datapath=datapath
+            )
+        self._check_viewer_warnings()
+        # set up writers/profilers if enabled
+        writer_log_path = self.base_dir / self.config.logging.relative_log_dir
+        writer.setup_event_writer(
+            self.config.is_wandb_enabled(), self.config.is_tensorboard_enabled(), log_dir=writer_log_path
+        )
+        writer.setup_local_writer(
+            self.config.logging, max_iter=self.config.max_num_iterations, banner_messages=banner_messages
+        )
+        writer.put_config(name="config", config_dict=dataclasses.asdict(self.config), step=0)
+        profiler.setup_profiler(self.config.logging)
+
     def setup_optimizers(self) -> Optimizers:
         """Helper to set up the optimizers
 
@@ -172,9 +182,9 @@ class Trainer:
             The optimizers object given the trainer config.
         """
         optimizer_config = self.config.optimizers.copy()
-        camera_optimizer_config = self.config.pipeline.datamanager.camera_optimizer
         param_groups = self.pipeline.get_param_groups()
-        if camera_optimizer_config.mode != "off":
+        camera_optimizer_config = self.config.pipeline.datamanager.camera_optimizer
+        if camera_optimizer_config is not None and camera_optimizer_config.mode != "off":
             assert camera_optimizer_config.param_group not in optimizer_config
             optimizer_config[camera_optimizer_config.param_group] = {
                 "optimizer": camera_optimizer_config.optimizer,
@@ -215,7 +225,7 @@ class Trainer:
                 if step > 1:
                     writer.put_time(
                         name=EventName.TRAIN_RAYS_PER_SEC,
-                        duration=self.config.pipeline.datamanager.train_num_rays_per_batch / train_t.duration,
+                        duration=self.pipeline.datamanager.get_train_rays_per_batch() / train_t.duration,
                         step=step,
                         avg_over_steps=True,
                     )
@@ -249,7 +259,7 @@ class Trainer:
 
     @check_main_thread
     def _always_render(self, step: int) -> None:
-        if self.config.is_viewer_enabled():
+        if self.viewer_state is not None:
             while True:
                 self.viewer_state.vis["renderingState/isTraining"].write(False)
                 self._update_viewer_state(step)
@@ -289,7 +299,7 @@ class Trainer:
         """
         assert self.viewer_state is not None
         with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
-            num_rays_per_batch: int = self.config.pipeline.datamanager.train_num_rays_per_batch
+            num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
             try:
                 self.viewer_state.update_scene(self, step, self.pipeline.model, num_rays_per_batch)
             except RuntimeError:
@@ -308,7 +318,7 @@ class Trainer:
             vis_t: timer object carrying time to execute visualization step
             step: current step
         """
-        train_num_rays_per_batch: int = self.config.pipeline.datamanager.train_num_rays_per_batch
+        train_num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
         writer.put_time(
             name=EventName.TRAIN_RAYS_PER_SEC,
             duration=train_num_rays_per_batch / (train_t.duration - vis_t.duration),
