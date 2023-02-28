@@ -415,7 +415,7 @@ class ProcessVideo:
                 )
             )
         else:
-            image_id_to_depth_path = {}
+            image_id_to_depth_path = None
 
         # Save transforms.json
         if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
@@ -558,7 +558,7 @@ class ProcessInsta360:
                 )
             )
         else:
-            image_id_to_depth_path = {}
+            image_id_to_depth_path = None
 
         # Save transforms.json
         if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
