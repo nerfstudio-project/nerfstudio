@@ -37,6 +37,8 @@ from nerfstudio.pipelines.base_pipeline import Pipeline
 
 CONSOLE = Console(width=120)
 
+TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
+
 
 @dataclass
 class TSDF:
@@ -59,7 +61,7 @@ class TSDF:
     truncation_margin: float = 5.0
     """Margin for truncation."""
 
-    def to(self, device: str):
+    def to(self, device: TORCH_DEVICE):
         """Move the tensors to the specified device.
 
         Args:
@@ -74,12 +76,12 @@ class TSDF:
         return self
 
     @property
-    def device(self):
+    def device(self) -> TORCH_DEVICE:
         """Returns the device that voxel_coords is on."""
         return self.voxel_coords.device
 
     @property
-    def truncation(self):
+    def truncation(self) -> float:
         """Returns the truncation distance."""
         # TODO: clean this up
         truncation = self.voxel_size[0] * self.truncation_margin
@@ -136,7 +138,7 @@ class TSDF:
         return Mesh(vertices=vertices, faces=faces, normals=normals, colors=colors)
 
     @classmethod
-    def export_mesh(cls, mesh: Mesh, filename: str):
+    def export_mesh(cls, mesh: Mesh, filename: str) -> None:
         """Exports the mesh to a file.
         We use pymeshlab to export the mesh as a PLY file.
 
@@ -172,7 +174,7 @@ class TSDF:
         depth_images: TensorType["batch", 1, "height", "width"],
         color_images: Optional[TensorType["batch", 3, "height", "width"]] = None,
         mask_images: Optional[TensorType["batch", 1, "height", "width"]] = None,
-    ):
+    ) -> None:
         """Integrates a batch of depth images into the TSDF.
 
         Args:
@@ -242,7 +244,6 @@ class TSDF:
         # Sequentially update the TSDF...
 
         for i in range(batch_size):
-
             valid_points_i = valid_points[i]
             valid_points_i_shape = valid_points_i.view(*shape)  # [xdim, ydim, zdim]
 
@@ -281,7 +282,7 @@ def export_tsdf_mesh(
     use_bounding_box: bool = True,
     bounding_box_min: Tuple[float, float, float] = (-1.0, -1.0, -1.0),
     bounding_box_max: Tuple[float, float, float] = (1.0, 1.0, 1.0),
-):
+) -> None:
     """Export a TSDF mesh from a pipeline.
 
     Args:

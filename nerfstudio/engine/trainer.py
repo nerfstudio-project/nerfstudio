@@ -23,7 +23,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 import torch
 from rich.console import Console
@@ -49,6 +49,11 @@ from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
 
 CONSOLE = Console(width=120)
+
+TRAIN_INTERATION_OUTPUT = Tuple[  # pylint: disable=invalid-name
+    torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]
+]
+TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 
 
 @dataclass
@@ -104,27 +109,27 @@ class Trainer:
     optimizers: Optimizers
     callbacks: List[TrainingCallback]
 
-    def __init__(self, config: TrainerConfig, local_rank: int = 0, world_size: int = 1):
+    def __init__(self, config: TrainerConfig, local_rank: int = 0, world_size: int = 1) -> None:
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size
-        self.device = "cpu" if world_size == 0 else f"cuda:{local_rank}"
-        self.mixed_precision = self.config.mixed_precision
+        self.device: TORCH_DEVICE = "cpu" if world_size == 0 else f"cuda:{local_rank}"
+        self.mixed_precision: bool = self.config.mixed_precision
         if self.device == "cpu":
             self.mixed_precision = False
             CONSOLE.print("Mixed precision is disabled for CPU training.")
-        self._start_step = 0
+        self._start_step: int = 0
         # optimizers
         self.grad_scaler = GradScaler(enabled=self.mixed_precision)
 
-        self.viewer_state = None
-
-        self.base_dir = config.get_base_dir()
+        self.base_dir: Path = config.get_base_dir()
         # directory to save checkpoints
-        self.checkpoint_dir = config.get_checkpoint_dir()
+        self.checkpoint_dir: Path = config.get_checkpoint_dir()
         CONSOLE.log(f"Saving checkpoints to: {self.checkpoint_dir}")
 
-    def setup(self, test_mode: Literal["test", "val", "inference"] = "val"):
+        self.viewer_state = None
+
+    def setup(self, test_mode: Literal["test", "val", "inference"] = "val") -> None:
         """Setup the Trainer by calling other setup functions.
 
         Args:
@@ -258,7 +263,7 @@ class Trainer:
             self._always_render(step)
 
     @check_main_thread
-    def _always_render(self, step):
+    def _always_render(self, step: int) -> None:
         if self.viewer_state is not None:
             while True:
                 self.viewer_state.vis["renderingState/isTraining"].write(False)
@@ -272,7 +277,7 @@ class Trainer:
             and not self.config.is_tensorboard_enabled()
             and not self.config.is_wandb_enabled()
         ):
-            string = (
+            string: str = (
                 "[NOTE] Not running eval iterations since only viewer is enabled.\n"
                 "Use [yellow]--vis {wandb, tensorboard, viewer+wandb, viewer+tensorboard}[/yellow] to run with eval."
             )
@@ -290,7 +295,7 @@ class Trainer:
             self._always_render(self._start_step)
 
     @check_viewer_enabled
-    def _update_viewer_state(self, step: int):
+    def _update_viewer_state(self, step: int) -> None:
         """Updates the viewer state by rendering out scene with current pipeline
         Returns the time taken to render scene.
 
@@ -299,7 +304,7 @@ class Trainer:
         """
         assert self.viewer_state is not None
         with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
-            num_rays_per_batch = self.pipeline.datamanager.get_train_rays_per_batch()
+            num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
             try:
                 self.viewer_state.update_scene(self, step, self.pipeline.model, num_rays_per_batch)
             except RuntimeError:
@@ -310,7 +315,7 @@ class Trainer:
                 )
 
     @check_viewer_enabled
-    def _update_viewer_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int):
+    def _update_viewer_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int) -> None:
         """Performs update on rays/sec calculation for training
 
         Args:
@@ -318,7 +323,7 @@ class Trainer:
             vis_t: timer object carrying time to execute visualization step
             step: current step
         """
-        train_num_rays_per_batch = self.pipeline.datamanager.get_train_rays_per_batch()
+        train_num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
         writer.put_time(
             name=EventName.TRAIN_RAYS_PER_SEC,
             duration=train_num_rays_per_batch / (train_t.duration - vis_t.duration),
@@ -328,14 +333,14 @@ class Trainer:
 
     def _load_checkpoint(self) -> None:
         """Helper function to load pipeline and optimizer from prespecified checkpoint"""
-        load_dir = self.config.load_dir
+        load_dir: Path = self.config.load_dir
         if load_dir is not None:
             load_step = self.config.load_step
             if load_step is None:
                 print("Loading latest checkpoint from load_dir")
                 # NOTE: this is specific to the checkpoint name format
                 load_step = sorted(int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(load_dir))[-1]
-            load_path = load_dir / f"step-{load_step:09d}.ckpt"
+            load_path: Path = load_dir / f"step-{load_step:09d}.ckpt"
             assert load_path.exists(), f"Checkpoint {load_path} does not exist"
             loaded_state = torch.load(load_path, map_location="cpu")
             self._start_step = loaded_state["step"] + 1
@@ -358,7 +363,7 @@ class Trainer:
         if not self.checkpoint_dir.exists():
             self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         # save the checkpoint
-        ckpt_path = self.checkpoint_dir / f"step-{step:09d}.ckpt"
+        ckpt_path: Path = self.checkpoint_dir / f"step-{step:09d}.ckpt"
         torch.save(
             {
                 "step": step,
@@ -378,14 +383,14 @@ class Trainer:
                     f.unlink()
 
     @profiler.time_function
-    def train_iteration(self, step: int) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
+    def train_iteration(self, step: int) -> TRAIN_INTERATION_OUTPUT:
         """Run one iteration with a batch of inputs. Returns dictionary of model losses.
 
         Args:
             step: Current training step.
         """
         self.optimizers.zero_grad_all()
-        cpu_or_cuda_str = self.device.split(":")[0]
+        cpu_or_cuda_str: str = self.device.split(":")[0]
         with torch.autocast(device_type=cpu_or_cuda_str, enabled=self.mixed_precision):
             _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
             loss = functools.reduce(torch.add, loss_dict.values())
@@ -411,7 +416,7 @@ class Trainer:
 
     @check_eval_enabled
     @profiler.time_function
-    def eval_iteration(self, step):
+    def eval_iteration(self, step: int) -> None:
         """Run one iteration with different batch/image/all image evaluations depending on step size.
 
         Args:

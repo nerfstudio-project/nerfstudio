@@ -58,11 +58,11 @@ class RunViewer:
 
         self._start_viewer(config, pipeline)
 
-    def _start_viewer(self, config: TrainerConfig, pipeline):
+    def _start_viewer(self, config: TrainerConfig, pipeline: Pipeline):
         base_dir = config.get_base_dir()
         viewer_log_path = base_dir / config.viewer.relative_log_filename
         viewer_state, banner_messages = viewer_utils.setup_viewer(
-            config.viewer, log_filename=viewer_log_path, datapath=config.pipeline.datamanager.dataparser.data
+            config.viewer, log_filename=viewer_log_path, datapath=pipeline.datamanager.get_datapath()
         )
 
         # We don't need logging, but writer.GLOBAL_BUFFER needs to be populated

@@ -98,7 +98,12 @@ class ExperimentConfig(InstantiateConfig):
     def set_experiment_name(self) -> None:
         """Dynamically set the experiment name"""
         if self.experiment_name is None:
-            self.experiment_name = str(self.pipeline.datamanager.data).replace("../", "").replace("/", "-")
+            datapath = self.pipeline.datamanager.data
+            if datapath is not None:
+                datapath = datapath.parent if datapath.is_file() else datapath
+                self.experiment_name = str(datapath.stem)
+            else:
+                self.experiment_name = "unnamed"
 
     def get_base_dir(self) -> Path:
         """Retrieve the base directory to set relative paths"""
