@@ -18,6 +18,7 @@ Put all the method implementations in one location.
 
 from __future__ import annotations
 
+import dataclasses
 from typing import Dict
 
 import tyro
@@ -61,7 +62,6 @@ from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
-import dataclasses
 from nerfstudio.plugins.registry import discover_methods
 
 
@@ -456,7 +456,8 @@ method_configs["nerfplayer-nerfacto"] = TrainerConfig(
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+                mode="SO3xR3",
+                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
             ),
         ),
         model=NerfplayerNerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
@@ -482,7 +483,9 @@ method_configs["nerfplayer-ngp"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=True,
     pipeline=DynamicBatchPipelineConfig(
-        datamanager=DepthDataManagerConfig(dataparser=DycheckDataParserConfig(), train_num_rays_per_batch=8192),
+        datamanager=DepthDataManagerConfig(
+            dataparser=DycheckDataParserConfig(), train_num_rays_per_batch=8192
+        ),
         model=NerfplayerNGPModelConfig(
             eval_num_rays_per_chunk=8192,
             contraction_type=ContractionType.AABB,
@@ -505,11 +508,16 @@ external_methods, external_descriptions = discover_methods()
 method_configs.update(external_methods)
 descriptions.update(external_descriptions)
 
-AnnotatedBaseConfigUnion = tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
-    tyro.conf.FlagConversionOff[
-        tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
+AnnotatedBaseConfigUnion = (
+    tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
+        tyro.conf.FlagConversionOff[
+            tyro.extras.subcommand_type_from_defaults(
+                defaults=method_configs, descriptions=descriptions
+            )
+        ]
     ]
 )
+
 """Union[] type over config types, annotated with default instances for use with
 tyro.cli(). Allows the user to pick between one of several base configurations, and
 then override values in it."""

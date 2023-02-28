@@ -33,7 +33,7 @@ from torch.cuda.amp import custom_bwd, custom_fwd
 from torch.cuda.amp.grad_scaler import GradScaler
 from torchtyping import TensorType
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 try:
     from diffusers import PNDMScheduler, StableDiffusionPipeline

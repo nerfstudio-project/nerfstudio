@@ -21,12 +21,14 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Type
 
 import torch
+from rich.console import Console
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn.parameter import Parameter
 
 from nerfstudio.configs import base_config
 from nerfstudio.utils import writer
 
+CONSOLE = Console(width=120, no_color=True)
 
 # Optimizer related configs
 @dataclass
@@ -153,4 +155,7 @@ class Optimizers:
             loaded_state: the state from the previous checkpoint
         """
         for k, v in loaded_state.items():
+            if k not in self.optimizers:
+                CONSOLE.log(f"Skipping loading optimizer key {k}")
+                continue
             self.optimizers[k].load_state_dict(v)

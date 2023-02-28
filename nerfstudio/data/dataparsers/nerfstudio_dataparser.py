@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path, PurePath
 from typing import Optional, Type
 
@@ -24,8 +25,9 @@ import numpy as np
 import torch
 from PIL import Image
 from rich.console import Console
-from typing_extensions import Literal
+from typing_extensions import Literal, assert_never
 
+import nerfstudio.defaults as defaults
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (
@@ -41,6 +43,10 @@ CONSOLE = Console(width=120, no_color=True)
 MAX_AUTO_RESOLUTION = 1600
 
 
+class SplitMode(Enum):
+    RANDOM="random"
+    INDICES_FILE="indices file"
+    
 @dataclass
 class NerfstudioDataParserConfig(DataParserConfig):
     """Nerfstudio dataset config"""
@@ -61,11 +67,11 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """Whether to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
-    train_split_percentage: float = 0.9
+    train_split_percentage: float = 0.5  # TODO: this was 0.9
     """The percent of images to use for training. The remaining images are for eval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
-
+    split_mode: SplitMode = SplitMode.INDICES_FILE
 
 @dataclass
 class Nerfstudio(DataParser):
@@ -74,7 +80,7 @@ class Nerfstudio(DataParser):
     config: NerfstudioDataParserConfig
     downscale_factor: Optional[int] = None
 
-    def _generate_dataparser_outputs(self, split="train"):
+    def _generate_dataparser_outputs(self, split="train", indices_file: Path = defaults.SPLIT_INDICES_PATH):
         # pylint: disable=too-many-statements
 
         if self.config.data.suffix == ".json":
@@ -186,24 +192,55 @@ class Nerfstudio(DataParser):
         Different number of image and depth filenames.
         You should check that depth_file_path is specified for every frame (or zero frames) in transforms.json.
         """
+        
 
+        
+        if self.config.split_mode == SplitMode.INDICES_FILE:
+            indices_file_path = Path(data_dir, indices_file)
+            if indices_file_path.is_file():
+                
+                if split in ["val", "test"]:
+                    split_strategy = ["val", "test"]
+                elif split in ["train"]:
+                    split_strategy = ["train"]
+                else:
+                    ValueError(f"Split can't be '{split}'")
+                    
+                indices_json: dict[str, str] = load_from_json(indices_file_path)
+                assert len(indices_json) == len(image_filenames), "Indices file and number of image files in the directory should be equal."
+                
+                _indices = []
+                for image_path, image_split in indices_json.items():
+                    if image_split in split_strategy:
+                        i = image_filenames.index(Path(data_dir, image_path))
+                        _indices.append(i)
+                indices = np.array(sorted(_indices), dtype=np.int64)
+            else:
+                raise FileNotFoundError(f"File {str(indices_file_path)} is not found.")
+
+        elif self.config.split_mode == SplitMode.RANDOM:
         # filter image_filenames and poses based on train/eval split percentage
-        num_images = len(image_filenames)
-        num_train_images = math.ceil(num_images * self.config.train_split_percentage)
-        num_eval_images = num_images - num_train_images
-        i_all = np.arange(num_images)
-        i_train = np.linspace(
-            0, num_images - 1, num_train_images, dtype=int
-        )  # equally spaced training images starting and ending at 0 and num_images-1
-        i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
-        assert len(i_eval) == num_eval_images
-        if split == "train":
-            indices = i_train
-        elif split in ["val", "test"]:
-            indices = i_eval
+            num_images = len(image_filenames)
+            num_train_images = math.ceil(num_images * self.config.train_split_percentage)
+            num_eval_images = num_images - num_train_images
+            i_all = np.arange(num_images)
+            i_train = np.linspace(
+                0, num_images - 1, num_train_images, dtype=int
+            )  # equally spaced training images starting and ending at 0 and num_images-1
+            
+            i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
+            assert len(i_eval) == num_eval_images
+            if split == "train":
+                indices = i_train
+            elif split in ["val", "test"]:
+                indices = i_eval
+            else:
+                raise ValueError(f"Unknown dataparser split {split}")
         else:
-            raise ValueError(f"Unknown dataparser split {split}")
-
+            assert_never(f"Invalid split type {self.config.split_mode}")
+            
+        assert len(indices), "Indices array is empty"
+            
         if "orientation_override" in meta:
             orientation_method = meta["orientation_override"]
             CONSOLE.log(

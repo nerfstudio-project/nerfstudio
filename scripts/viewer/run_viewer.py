@@ -7,6 +7,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field, fields
 from pathlib import Path
+from typing import Optional
 
 import tyro
 from rich.console import Console
@@ -14,12 +15,13 @@ from rich.console import Console
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
+from nerfstudio.scripts.my_utils import get_step_from_ckpt_path
 from nerfstudio.utils import writer
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 @dataclass
@@ -40,6 +42,8 @@ class RunViewer:
 
     load_config: Path
     """Path to config YAML file."""
+    load_ckpt: Optional[Path] = None
+    """Model checkpoint"""
     viewer: ViewerConfigWithoutNumRays = field(default_factory=ViewerConfigWithoutNumRays)
     """Viewer configuration"""
 
@@ -49,7 +53,9 @@ class RunViewer:
             self.load_config,
             eval_num_rays_per_chunk=None,
             test_mode="test",
+            load_ckpt=self.load_ckpt,
         )
+        
         num_rays_per_chunk = config.viewer.num_rays_per_chunk
         assert self.viewer.num_rays_per_chunk == -1
         config.vis = "viewer"
@@ -68,7 +74,10 @@ class RunViewer:
         # We don't need logging, but writer.GLOBAL_BUFFER needs to be populated
         config.logging.local_writer.enable = False
         writer.setup_local_writer(config.logging, max_iter=config.max_num_iterations, banner_messages=banner_messages)
-
+        
+        viewer_state.vis["renderingState/config_base_dir"].write(str(config.relative_model_dir))
+        viewer_state.vis["renderingState/export_path"].write(f"export-{config.data.stem}_step_{get_step_from_ckpt_path(config.load_ckpt)}")
+        
         assert viewer_state and pipeline.datamanager.train_dataset
         viewer_state.init_scene(
             dataset=pipeline.datamanager.train_dataset,

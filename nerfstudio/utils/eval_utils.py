@@ -28,7 +28,6 @@ from rich.console import Console
 from typing_extensions import Literal
 
 from nerfstudio.engine.trainer import TrainerConfig
-from nerfstudio.nerfstudio.utils.checkpoint_loader import find_checkpoint
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.scripts.my_utils import get_step_from_ckpt_path
 
@@ -44,12 +43,8 @@ def eval_load_checkpoint(config: TrainerConfig, pipeline: Pipeline) -> Path:
         pipeline (Pipeline): Pipeline instance of which to load weights
     """
 
-    checkpoint_path = find_checkpoint(config.load_ckpt)
+    checkpoint_path = Path(config.load_ckpt)
 
-    if "step" not in loaded_state or not loaded_state["step"]:
-        step = get_step_from_ckpt_path(checkpoint_path)
-    else:
-        step = loaded_state["step"]
 
     if checkpoint_path is None:
         CONSOLE.rule("Error", style="red")
@@ -60,6 +55,11 @@ def eval_load_checkpoint(config: TrainerConfig, pipeline: Pipeline) -> Path:
         sys.exit(1)
 
     loaded_state = torch.load(checkpoint_path, map_location="cpu")
+    
+    if "step" not in loaded_state or not loaded_state["step"]:
+        step = get_step_from_ckpt_path(checkpoint_path)
+    else:
+        step = loaded_state["step"]
 
     pipeline.load_pipeline(loaded_state["pipeline"], step)
     CONSOLE.print(

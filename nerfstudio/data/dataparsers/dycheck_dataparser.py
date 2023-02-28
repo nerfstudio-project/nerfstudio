@@ -35,7 +35,7 @@ from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.io import load_from_json
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 def downscale(img, scale: int) -> np.ndarray:

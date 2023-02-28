@@ -33,9 +33,9 @@ def parse_args():
     args = argparse.ArgumentParser()
     args.add_argument("--models", nargs="+")
     args.add_argument("--datasets", nargs="+")
-    args.add_argument("--finetune-datasets", type=str, required=False)
     args.add_argument("--seg-iter", type=int, required=False)
     args.add_argument("--seg-auto", type=bool, default=False)
+    args.add_argument("--train-test-split", type=float, default=0.5)
 
     return args.parse_known_args()
 
@@ -67,6 +67,8 @@ def main():
 
     script_args, nerfstudio_args = parse_args()
 
+    train_test_split = script_args.train_test_split
+    # TODO: split
     model_args, data_args = split_to_model_and_data(
         nerfstudio_args,
         len(script_args.models),
@@ -99,6 +101,7 @@ def main():
                 deepcopy(AnnotatedBaseConfigUnion),
                 args=prepare_args,
             )
+                        
             config.experiment_name = (
                 f"{experiment_name}-{data_name}-{config.method_name}"
             )

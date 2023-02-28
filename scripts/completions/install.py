@@ -26,7 +26,7 @@ else:
 ConfigureMode = Literal["install", "uninstall"]
 ShellType = Literal["zsh", "bash"]
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 HEADER_LINE = "# Source nerfstudio autocompletions."
 
 

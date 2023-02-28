@@ -688,7 +688,7 @@ def colmap_to_json(
         c2w = c2w[np.array([1, 0, 2, 3]), :]
         c2w[2, :] *= -1
 
-        name = Path(f"./images/{im_data.name}")
+        name = Path("images", im_data.name)
 
         frame = {
             "file_path": name.as_posix(),

@@ -17,7 +17,7 @@ from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.viewer.server import viewer_utils
 
 DEFAULT_TIMEOUT = timedelta(minutes=30)
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 # speedup for when input size to model doesn't change (much)
 torch.backends.cudnn.benchmark = True  # type: ignore

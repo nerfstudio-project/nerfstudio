@@ -349,18 +349,9 @@ class ViewerState:
             start_train: whether to start train when viewer init;
                 if False, only displays dataset until resume train is toggled
         """
-        # set the config base dir
-        self.vis["renderingState/config_base_dir"].write(
-            str(self.log_filename.parents[0])
-        )
-
+        
         # set the data base dir
         self.vis["renderingState/data_base_dir"].write(str(self.datapath))
-
-        # get the timestamp of the train run to set default export path name
-        timestamp_reg = re.compile("[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}")
-        timestamp_match = timestamp_reg.findall(str(self.log_filename.parents[0]))
-        self.vis["renderingState/export_path"].write(timestamp_match[-1])
 
         # clear the current scene
         self.vis["sceneState/sceneBox"].delete()

@@ -98,6 +98,7 @@ class CacheDataloader(DataLoader):
     def _get_batch_list(self):
         """Returns a list of batches from the dataset attribute."""
 
+        # TODO: matej fix this so it only includes indices from new dataset
         indices = random.sample(
             range(len(self.dataset)), k=self.num_images_to_sample_from
         )

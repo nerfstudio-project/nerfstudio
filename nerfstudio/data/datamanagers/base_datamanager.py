@@ -292,7 +292,8 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If >1, patch-based sampling will be used."""
-
+    train_size_initial: Optional[int] = None
+    """Size of the initial training dataset"""
 
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     """Basic stored data manager implementation.
@@ -392,9 +393,14 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.train_pixel_sampler = self._get_pixel_sampler(
             self.train_dataset, self.config.train_num_rays_per_batch
         )
+        # TODO matej changed
+        # self.train_camera_optimizer = self.config.camera_optimizer.setup(
+        #     num_cameras=self.train_dataset.cameras.size, device=self.device
+        # )
         self.train_camera_optimizer = self.config.camera_optimizer.setup(
-            num_cameras=self.train_dataset.cameras.size, device=self.device
+            num_cameras=self.config.train_size_initial, device=self.device
         )
+
         self.train_ray_generator = RayGenerator(
             self.train_dataset.cameras.to(self.device),
             self.train_camera_optimizer,
@@ -425,11 +431,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
             input_dataset=self.eval_dataset,
             device=self.device,
+            image_indices=self.config.eval_image_indices,
             num_workers=self.world_size * 4,
         )
         self.eval_dataloader = RandIndicesEvalDataloader(
             input_dataset=self.eval_dataset,
-            image_indices=self.config.eval_image_indices,
             device=self.device,
             num_workers=self.world_size * 4,
         )

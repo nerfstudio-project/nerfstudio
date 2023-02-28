@@ -12,7 +12,7 @@ from rich.console import Console
 
 from nerfstudio.generative.stable_diffusion import SD_IDENTIFIERS
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 try:
     from diffusers import StableDiffusionPipeline

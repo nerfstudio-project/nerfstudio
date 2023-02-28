@@ -27,7 +27,7 @@ if sys.version_info < (3, 10):
     from importlib_metadata import entry_points
 else:
     from importlib.metadata import entry_points
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 def discover_methods():

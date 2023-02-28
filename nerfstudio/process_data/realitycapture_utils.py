@@ -25,7 +25,7 @@ from rich.console import Console
 
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 def realitycapture_to_json(

@@ -34,6 +34,7 @@ from nerfstudio.configs.base_config import (
 from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.engine.optimizers import OptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
+from nerfstudio.nerfstudio.configs.experiment_details import InferredExperimentDetails
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 
 CONSOLE = Console(width=120, no_color=True)
@@ -50,6 +51,8 @@ class ExperimentConfig(InstantiateConfig):
     """Method name. Required to set in python or via cli"""
     experiment_name: Optional[str] = None
     """Experiment name. If None, will automatically be set to dataset name"""
+    inferred_details: InferredExperimentDetails = InferredExperimentDetails()
+    """Inferred experiment details which are dynamically created"""
     timestamp: str = "{timestamp}"
     """Experiment timestamp."""
     machine: MachineConfig = MachineConfig()
@@ -73,8 +76,6 @@ class ExperimentConfig(InstantiateConfig):
     """Which visualizer to use."""
     data: Optional[Path] = None
     """Alias for --pipeline.datamanager.dataparser.data"""
-    # CHANGED:
-    # relative_model_dir: Path = Path("nerfstudio_models/")
     relative_model_dir: Path = Path(".")
     """Relative path to save all checkpoints."""
 

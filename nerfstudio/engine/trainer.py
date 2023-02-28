@@ -37,7 +37,6 @@ from nerfstudio.engine.callbacks import (
     TrainingCallbackLocation,
 )
 from nerfstudio.engine.optimizers import Optimizers
-from nerfstudio.nerfstudio.utils.checkpoint_loader import find_checkpoint
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline
 from nerfstudio.utils import profiler, writer
 from nerfstudio.utils.decorators import (
@@ -64,7 +63,7 @@ class TrainerConfig(ExperimentConfig):
     """Number of steps between randomly sampled batches of rays."""
     steps_per_eval_image: int = 500
     """Number of steps between single eval images."""
-    steps_per_eval_all_images: int = 25000
+    steps_per_eval_all_images: int = 3000
     """Number of steps between eval all images."""
     max_num_iterations: int = 40_000
     """Maximum number of iterations to run."""
@@ -151,7 +150,13 @@ class Trainer:
                 'val': loads train/val datasets into memory
                 'test': loads train/test datasets into memory
                 'inference': does not load any dataset into memory
-        """
+        """       
+        if self.config.load_ckpt is not None and not self.config.pipeline.datamanager.train_size_initial :
+            loaded_state = self._get_checkpoint_state(self.config.load_ckpt)
+            num_of_initial_train_images = loaded_state['pipeline']['_model.field.embedding_appearance.embedding.weight'].shape[0]
+            self.config.pipeline.datamanager.train_size_initial = num_of_initial_train_images
+        
+        
         self.pipeline = self.config.pipeline.setup(
             device=self.device,
             test_mode=test_mode,
@@ -336,17 +341,21 @@ class Trainer:
             avg_over_steps=True,
         )
 
+    def _get_checkpoint_state(self, load_ckpt: str | Path) -> torch.Tensor:
+        checkpoint_path = Path(load_ckpt)
+        return torch.load(checkpoint_path, map_location="cpu")
+            
     def _load_checkpoint(self) -> None:
         """Helper function to load pipeline and optimizer from prespecified checkpoint"""
-        checkpoint_path = find_checkpoint(self.config.load_ckpt)
-        if checkpoint_path is not None:
-            loaded_state = torch.load(checkpoint_path, map_location="cpu")
+        if self.config.load_ckpt is not None:
+            checkpoint_path = Path(self.config.load_ckpt)
+            loaded_state = self._get_checkpoint_state(checkpoint_path)
             self._start_step = loaded_state["step"] + 1
             # load the checkpoints for pipeline, optimizers, and gradient scalar
             self.pipeline.load_pipeline(loaded_state["pipeline"], loaded_state["step"])
             self.optimizers.load_optimizers(loaded_state["optimizers"])
             self.grad_scaler.load_state_dict(loaded_state["scalers"])
-            CONSOLE.print(f"done loading checkpoint from {checkpoint_path}")
+            CONSOLE.print(f"done loading checkpoint from {str(checkpoint_path)}")
         else:
             CONSOLE.print("No checkpoints to load, training from scratch")
 
