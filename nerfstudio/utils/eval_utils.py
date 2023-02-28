@@ -28,6 +28,8 @@ from rich.console import Console
 from typing_extensions import Literal
 
 from nerfstudio.engine.trainer import TrainerConfig
+from nerfstudio.models.nerfacto import NerfactoModel
+from nerfstudio.nerfstudio.engine.trainer import Trainer
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.scripts.my_utils import get_step_from_ckpt_path
 
@@ -91,7 +93,12 @@ def eval_setup(
     # load save config
     config = yaml.load(config_path.read_text(), Loader=yaml.Loader)
     assert isinstance(config, TrainerConfig)
-
+    
+    if load_ckpt is not None and config.pipeline.datamanager.train_size_initial is None:
+        state = Trainer.get_checkpoint_state(load_ckpt)
+        train_size_initial = NerfactoModel.get_train_size_from_checkpoint(state)
+        config.pipeline.datamanager.train_size_initial = train_size_initial
+        
     if eval_num_rays_per_chunk:
         config.pipeline.model.eval_num_rays_per_chunk = eval_num_rays_per_chunk
 

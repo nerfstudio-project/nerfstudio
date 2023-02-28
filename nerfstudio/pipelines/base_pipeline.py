@@ -217,7 +217,10 @@ class VanillaPipeline(Pipeline):
         local_rank: int = 0,
     ):
         super().__init__()
+
         self.config = config
+        assert self.config.datamanager.train_size_initial, "Train size initial has to be set"
+        
         self.test_mode = test_mode
         self.datamanager: VanillaDataManager = config.datamanager.setup(
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank

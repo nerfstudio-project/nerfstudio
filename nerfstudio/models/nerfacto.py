@@ -386,3 +386,8 @@ class NerfactoModel(Model):
             images_dict[key] = prop_depth_i
 
         return metrics_dict, images_dict
+    
+    @staticmethod
+    def get_train_size_from_checkpoint(state):
+        num_of_initial_train_images = state['pipeline']['_model.field.embedding_appearance.embedding.weight'].shape[0]
+        return num_of_initial_train_images

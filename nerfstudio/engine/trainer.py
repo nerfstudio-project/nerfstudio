@@ -152,7 +152,7 @@ class Trainer:
                 'inference': does not load any dataset into memory
         """       
         if self.config.load_ckpt is not None and not self.config.pipeline.datamanager.train_size_initial :
-            loaded_state = self._get_checkpoint_state(self.config.load_ckpt)
+            loaded_state = Trainer.get_checkpoint_state(self.config.load_ckpt)
             num_of_initial_train_images = loaded_state['pipeline']['_model.field.embedding_appearance.embedding.weight'].shape[0]
             self.config.pipeline.datamanager.train_size_initial = num_of_initial_train_images
         
@@ -340,8 +340,9 @@ class Trainer:
             step=step,
             avg_over_steps=True,
         )
-
-    def _get_checkpoint_state(self, load_ckpt: str | Path) -> torch.Tensor:
+        
+    @staticmethod
+    def get_checkpoint_state(load_ckpt: str | Path) -> torch.Tensor:
         checkpoint_path = Path(load_ckpt)
         return torch.load(checkpoint_path, map_location="cpu")
             
@@ -349,7 +350,7 @@ class Trainer:
         """Helper function to load pipeline and optimizer from prespecified checkpoint"""
         if self.config.load_ckpt is not None:
             checkpoint_path = Path(self.config.load_ckpt)
-            loaded_state = self._get_checkpoint_state(checkpoint_path)
+            loaded_state = self.get_checkpoint_state(checkpoint_path)
             self._start_step = loaded_state["step"] + 1
             # load the checkpoints for pipeline, optimizers, and gradient scalar
             self.pipeline.load_pipeline(loaded_state["pipeline"], loaded_state["step"])

@@ -19,6 +19,7 @@ Some utility code for configs.
 from __future__ import annotations
 
 from dataclasses import field
+from pathlib import Path
 from typing import Any, Dict
 
 from rich.console import Console
