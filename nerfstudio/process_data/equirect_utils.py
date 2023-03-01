@@ -86,6 +86,26 @@ def crop_top(bound_arr: list, fov: int, percent_crop: float) -> list:
     return bound_arr
 
 
+def crop_bound_arr(
+    bound_arr: list, fov: int, percent_crop: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+) -> list:
+    """Returns a list of vertical bounds adjusted for cropping.
+
+    Args:
+        bound_arr (list): Original list of vertical bounds in ascending order.
+        fov (int): Field of view of the camera.
+        percent_crop (Tuple[float, float, float, float]): Crop arr (top, bottom, left, right).
+
+    Returns:
+        list: _description_
+    """
+    if percent_crop[1] > 0:
+        bound_arr = crop_bottom(bound_arr, fov, percent_crop[1])
+    if percent_crop[0] > 0:
+        bound_arr = crop_top(bound_arr, fov, percent_crop[0])
+    return bound_arr
+
+
 def generate_planar_projections_from_equirectangular(
     image_dir: Path,
     planar_image_size: Tuple[int, int],
@@ -109,26 +129,32 @@ def generate_planar_projections_from_equirectangular(
     yaw_pitch_pairs = []
     if samples_per_im == 8:
         fov = 120
-    bound_arr = [-45, 0, 45]
-    if percent_crop[1] > 0:
-        bound_arr = crop_bottom(bound_arr, fov, percent_crop[1])
-    if bound_arr[1] is not None:
-        for i in np.arange(-180, 180, 90):
-            yaw_pitch_pairs.append((i, bound_arr[1]))
-    if bound_arr[2] is not None:
-        for i in np.arange(-180, 180, 180):
-            yaw_pitch_pairs.append((i, bound_arr[2]))
-    if bound_arr[0] is not None:
-        for i in np.arange(-180, 180, 180):
-            yaw_pitch_pairs.append((i, bound_arr[0]))
+        bound_arr = [-45, 0, 45]
+        if percent_crop != (0.0, 0.0, 0.0, 0.0):
+            bound_arr = crop_bound_arr(bound_arr, fov, percent_crop)
+        if bound_arr[1] is not None:
+            for i in np.arange(-180, 180, 90):
+                yaw_pitch_pairs.append((i, bound_arr[1]))
+        if bound_arr[2] is not None:
+            for i in np.arange(-180, 180, 180):
+                yaw_pitch_pairs.append((i, bound_arr[2]))
+        if bound_arr[0] is not None:
+            for i in np.arange(-180, 180, 180):
+                yaw_pitch_pairs.append((i, bound_arr[0]))
     elif samples_per_im == 14:
         fov = 110
-        for i in np.arange(-180, 180, 60):
-            yaw_pitch_pairs.append((i, 0))
-        for i in np.arange(-180, 180, 90):
-            yaw_pitch_pairs.append((i, 45))
-        for i in np.arange(-180, 180, 90):
-            yaw_pitch_pairs.append((i, -45))
+        bound_arr = [-45, 0, 45]
+        if percent_crop != (0.0, 0.0, 0.0, 0.0):
+            bound_arr = crop_bound_arr(bound_arr, fov, percent_crop)
+        if bound_arr[1] is not None:
+            for i in np.arange(-180, 180, 60):
+                yaw_pitch_pairs.append((i, bound_arr[1]))
+        if bound_arr[2] is not None:
+            for i in np.arange(-180, 180, 90):
+                yaw_pitch_pairs.append((i, bound_arr[2]))
+        if bound_arr[0] is not None:
+            for i in np.arange(-180, 180, 90):
+                yaw_pitch_pairs.append((i, bound_arr[0]))
 
     equi2pers = Equi2Pers(height=planar_image_size[1], width=planar_image_size[0], fov_x=fov, mode="bilinear")
     frame_dir = image_dir

@@ -313,16 +313,15 @@ class ProcessVideo:
             # remove the temp_images folder
             shutil.rmtree(self.output_dir / "temp_images", ignore_errors=True)
 
-        mask_path = None
         # # Create mask
-        # mask_path = process_data_utils.save_mask(
-        #     image_dir=image_dir,
-        #     num_downscales=self.num_downscales,
-        #     percent_crop=self.percent_crop,
-        #     percent_radius=self.percent_radius_crop,
-        # )
-        # if mask_path is not None:
-        #     summary_log.append(f"Saved mask to {mask_path}")
+        mask_path = process_data_utils.save_mask(
+            image_dir=image_dir,
+            num_downscales=self.num_downscales,
+            percent_crop=(0.0, 0.0, 0.0, 0.0),
+            percent_radius=self.percent_radius_crop,
+        )
+        if mask_path is not None:
+            summary_log.append(f"Saved mask to {mask_path}")
 
         # # Downscale images
         summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
