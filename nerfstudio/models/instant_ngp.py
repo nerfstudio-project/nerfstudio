@@ -50,7 +50,7 @@ from nerfstudio.utils import colormaps
 
 
 @dataclass
-class InstantNGPModelConfig(ModelConfig):
+class InstantNGPModelConfig(ModelConfig["NGPModel"]):
     """Instant NGP Model Config"""
 
     _target: Type = field(

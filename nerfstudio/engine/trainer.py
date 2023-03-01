@@ -57,11 +57,9 @@ TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 
 
 @dataclass
-class TrainerConfig(ExperimentConfig):
+class TrainerConfig(ExperimentConfig["Trainer"]):
     """Configuration for training regimen"""
 
-    _target: Type = field(default_factory=lambda: Trainer)
-    """target class to instantiate"""
     steps_per_save: int = 1000
     """Number of steps between saves."""
     steps_per_eval_batch: int = 500

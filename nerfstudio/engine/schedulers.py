@@ -28,7 +28,7 @@ from nerfstudio.configs.base_config import InstantiateConfig
 
 
 @dataclass
-class SchedulerConfig(InstantiateConfig):
+class SchedulerConfig(InstantiateConfig["Scheduler"]):
     """Basic scheduler config"""
 
     _target: Type = field(default_factory=lambda: Scheduler)

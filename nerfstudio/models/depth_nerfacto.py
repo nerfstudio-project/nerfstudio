@@ -18,6 +18,7 @@ Nerfacto augmented with depth supervision.
 
 from __future__ import annotations
 
+import typing
 from dataclasses import dataclass, field
 from typing import Dict, Tuple, Type
 
@@ -49,6 +50,9 @@ class DepthNerfactoModelConfig(NerfactoModelConfig):
     depth_loss_type: DepthLossType = DepthLossType.DS_NERF
     """Depth loss type."""
 
+    def setup(self, **kwargs) -> DepthNerfactoModel:
+        return typing.cast(DepthNerfactoModel, super().setup(**kwargs))
+
 
 class DepthNerfactoModel(NerfactoModel):
     """Depth loss augmented nerfacto model.
@@ -58,6 +62,9 @@ class DepthNerfactoModel(NerfactoModel):
     """
 
     config: DepthNerfactoModelConfig
+
+    def __init__(self, config: DepthNerfactoModelConfig, scene_box: SceneBox, num_train_data: int, **kwargs) -> None:
+        super().__init__(config, scene_box, num_train_data, **kwargs)
 
     def populate_modules(self):
         """Set the fields and modules."""

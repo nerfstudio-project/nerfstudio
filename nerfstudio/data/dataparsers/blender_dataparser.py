@@ -24,6 +24,7 @@ import numpy as np
 import torch
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
     DataParserConfig,
@@ -35,7 +36,7 @@ from nerfstudio.utils.io import load_from_json
 
 
 @dataclass
-class BlenderDataParserConfig(DataParserConfig):
+class BlenderDataParserConfig(DataParserConfig, InstantiateConfig["Blender"]):
     """Blender dataset parser config"""
 
     _target: Type = field(default_factory=lambda: Blender)

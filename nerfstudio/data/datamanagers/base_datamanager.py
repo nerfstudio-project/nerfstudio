@@ -258,14 +258,12 @@ class DataManager(nn.Module):
 
 
 @dataclass
-class VanillaDataManagerConfig(InstantiateConfig):
+class VanillaDataManagerConfig(InstantiateConfig["VanillaDataManager"]):
     """Configuration for data manager instantiation; DataManager is in charge of keeping the train/eval dataparsers;
     After instantiation, data manager holds both train/eval datasets and is in charge of returning unpacked
     train/eval data at each iteration
     """
 
-    _target: Type = field(default_factory=lambda: VanillaDataManager)
-    """Target class to instantiate."""
     dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
     """Specifies the dataparser used to unpack the data."""
     train_num_rays_per_batch: int = 1024

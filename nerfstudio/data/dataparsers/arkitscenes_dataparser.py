@@ -23,6 +23,7 @@ import numpy as np
 import torch
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
     DataParserConfig,
@@ -60,14 +61,12 @@ def traj_string_to_matrix(traj_string: str):
 
 
 @dataclass
-class ARKitScenesDataParserConfig(DataParserConfig):
+class ARKitScenesDataParserConfig(DataParserConfig, InstantiateConfig["ARKitScenes"]):
     """ARKitScenes dataset config.
     ARKitScenes dataset (http://github.com/apple/ARKitScenes) is a large-scale 3D dataset of indoor scenes.
     This dataparser uses 3D deteciton subset of the ARKitScenes dataset.
     """
 
-    _target: Type = field(default_factory=lambda: ARKitScenes)
-    """target class to instantiate"""
     data: Path = Path("data/ARKitScenes/3dod/Validation/41069021")
     """Path to ARKitScenes folder with densely extracted scenes."""
     scene_scale: float = 1.0

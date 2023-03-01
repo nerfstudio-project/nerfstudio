@@ -45,10 +45,9 @@ from nerfstudio.utils import colormaps, colors, misc
 
 
 @dataclass
-class VanillaModelConfig(ModelConfig):
+class VanillaModelConfig(ModelConfig["NeRFModel"]):
     """Vanilla Model Config"""
 
-    _target: Type = field(default_factory=lambda: NeRFModel)
     num_coarse_samples: int = 64
     """Number of samples in coarse field evaluation"""
     num_importance_samples: int = 128

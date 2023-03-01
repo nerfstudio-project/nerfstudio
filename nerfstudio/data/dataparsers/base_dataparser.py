@@ -91,11 +91,9 @@ class DataparserOutputs:
 
 
 @dataclass
-class DataParserConfig(cfg.InstantiateConfig):
+class DataParserConfig:
     """Basic dataset config"""
 
-    _target: Type = field(default_factory=lambda: DataParser[DataParserConfig])
-    """_target: target class to instantiate"""
     data: Path = Path()
     """Directory specifying location of data."""
 

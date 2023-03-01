@@ -23,7 +23,7 @@ from typing import Any, Dict, Optional
 
 import yaml
 from rich.console import Console
-from typing_extensions import Literal
+from typing_extensions import Literal, TypeVar
 
 from nerfstudio.configs.base_config import (
     InstantiateConfig,
@@ -37,10 +37,11 @@ from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 
 CONSOLE = Console(width=120)
+T = TypeVar("T")
 
 
 @dataclass
-class ExperimentConfig(InstantiateConfig):
+class ExperimentConfig(InstantiateConfig[T]):
     """Full config contents for running an experiment. Any experiment types (like training) will be
     subclassed from this, and must have their _target field defined accordingly."""
 

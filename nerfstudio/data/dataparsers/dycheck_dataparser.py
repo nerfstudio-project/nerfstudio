@@ -26,6 +26,7 @@ import torch
 from rich.progress import Console
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
     DataParserConfig,
@@ -180,11 +181,9 @@ def _rescale_depth(depth_raw: np.ndarray, cam: Dict) -> np.ndarray:
 
 
 @dataclass
-class DycheckDataParserConfig(DataParserConfig):
+class DycheckDataParserConfig(DataParserConfig, InstantiateConfig["Dycheck"]):
     """Dycheck (https://arxiv.org/abs/2210.13445) dataset parser config"""
 
-    _target: Type = field(default_factory=lambda: Dycheck)
-    """target class to instantiate"""
     data: Path = Path("data/iphone/mochi-high-five")
     """Directory specifying location of data."""
     scale_factor: float = 5.0

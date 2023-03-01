@@ -16,12 +16,16 @@
 A pipeline that dynamically chooses the number of rays to sample.
 """
 
+from __future__ import annotations
+
+import typing
 from dataclasses import dataclass, field
 from typing import Type
 
 import torch
-from typing_extensions import Literal
+from typing_extensions import Literal, TypeVar
 
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline, VanillaPipelineConfig
 
@@ -31,17 +35,22 @@ class DynamicBatchPipelineConfig(VanillaPipelineConfig):
     """Dynamic Batch Pipeline Config"""
 
     _target: Type = field(default_factory=lambda: DynamicBatchPipeline)
+
     target_num_samples: int = 262144  # 1 << 18
     """The target number of samples to use for an entire batch of rays."""
     max_num_samples_per_ray: int = 1024  # 1 << 10
     """The maximum number of samples to be placed along a ray."""
 
+    def setup(self, **kwargs) -> DynamicBatchPipeline:
+        return typing.cast(DynamicBatchPipeline, super().setup(**kwargs))
 
-class DynamicBatchPipeline(VanillaPipeline[DynamicBatchPipelineConfig]):
+
+class DynamicBatchPipeline(VanillaPipeline):
     """Pipeline with logic for changing the number of rays per batch."""
 
     # pylint: disable=abstract-method
 
+    config: DynamicBatchPipelineConfig
     datamanager: VanillaDataManager
     dynamic_num_rays_per_batch: int
 

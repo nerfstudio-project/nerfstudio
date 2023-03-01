@@ -39,10 +39,8 @@ from nerfstudio.utils import poses as pose_utils
 
 
 @dataclass
-class CameraOptimizerConfig(InstantiateConfig):
+class CameraOptimizerConfig(InstantiateConfig["CameraOptimizer"]):
     """Configuration of optimization for camera poses."""
-
-    _target: Type = field(default_factory=lambda: CameraOptimizer)
 
     mode: Literal["off", "SO3xR3", "SE3"] = "off"
     """Pose optimization strategy to use. If enabled, we recommend SO3xR3."""

@@ -26,6 +26,7 @@ from nuscenes.nuscenes import NuScenes as NuScenesDatabase
 from typing_extensions import Literal
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
     DataParserConfig,
@@ -50,7 +51,7 @@ def rotation_translation_to_pose(r_quat, t_vec):
 
 
 @dataclass
-class NuScenesDataParserConfig(DataParserConfig):
+class NuScenesDataParserConfig(DataParserConfig, InstantiateConfig["NuScenes"]):
     """NuScenes dataset config.
     NuScenes (https://www.nuscenes.org/nuscenes) is an autonomous driving dataset containing 1000 20s clips.
     Each clip was recorded with a suite of sensors including 6 surround cameras.
@@ -59,8 +60,6 @@ class NuScenesDataParserConfig(DataParserConfig):
     To create these masks use scripts/datasets/process_nuscenes_masks.py.
     """
 
-    _target: Type = field(default_factory=lambda: NuScenes)
-    """target class to instantiate"""
     data: Path = Path("scene-0103")  # TODO: rename to scene but keep checkpoint saving name?
     """Name of the scene."""
     data_dir: Path = Path("/mnt/local/NuScenes")

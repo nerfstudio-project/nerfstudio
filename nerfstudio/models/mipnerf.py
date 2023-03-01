@@ -17,7 +17,8 @@ Implementation of mip-NeRF.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
+import dataclasses
+from typing import Dict, List, Tuple, Type
 
 import torch
 from torch.nn import Parameter
@@ -36,12 +37,19 @@ from nerfstudio.model_components.renderers import (
     DepthRenderer,
     RGBRenderer,
 )
-from nerfstudio.models.base_model import Model
+from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.models.vanilla_nerf import VanillaModelConfig
 from nerfstudio.utils import colormaps, colors, misc
 
 
-class MipNerfModel(Model[VanillaModelConfig]):
+class MipNerfModelConfig(VanillaModelConfig):
+    _target: Type = dataclasses.field(default_factory=lambda: MipNerfModel)
+
+    def setup(self, **kwargs) -> MipNerfModel:
+        return typing.cast(MipNerfModel, super().setup(**kwargs))
+
+
+class MipNerfModel(Model[MipNerfModelConfig]):
     """mip-NeRF model
 
     Args:

@@ -27,6 +27,7 @@ from typing_extensions import Literal
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
     DataParserConfig,
@@ -45,11 +46,9 @@ CONSOLE = Console(width=120)
 
 
 @dataclass
-class PhototourismDataParserConfig(DataParserConfig):
+class PhototourismDataParserConfig(DataParserConfig, InstantiateConfig["Phototourism"]):
     """Phototourism dataset parser config"""
 
-    _target: Type = field(default_factory=lambda: Phototourism)
-    """target class to instantiate"""
     data: Path = Path("data/phototourism/brandenburg-gate")
     """Directory specifying location of data."""
     scale_factor: float = 3.0

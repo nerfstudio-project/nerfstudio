@@ -28,6 +28,7 @@ from typing_extensions import Literal
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
     DataParserConfig,
@@ -41,11 +42,9 @@ MAX_AUTO_RESOLUTION = 1600
 
 
 @dataclass
-class NerfstudioDataParserConfig(DataParserConfig):
+class NerfstudioDataParserConfig(DataParserConfig, InstantiateConfig["Nerfstudio"]):
     """Nerfstudio dataset config"""
 
-    _target: Type = field(default_factory=lambda: Nerfstudio)
-    """target class to instantiate"""
     data: Path = Path("data/nerfstudio/poster")
     """Directory or explicit json file path specifying location of data."""
     scale_factor: float = 1.0

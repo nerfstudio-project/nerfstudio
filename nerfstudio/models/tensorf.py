@@ -57,11 +57,9 @@ from nerfstudio.utils import colormaps, colors, misc
 
 
 @dataclass
-class TensoRFModelConfig(ModelConfig):
+class TensoRFModelConfig(ModelConfig["TensoRFModel"]):
     """TensoRF model config"""
 
-    _target: Type = field(default_factory=lambda: TensoRFModel)
-    """target class to instantiate"""
     init_resolution: int = 128
     """initial render resolution"""
     final_resolution: int = 300

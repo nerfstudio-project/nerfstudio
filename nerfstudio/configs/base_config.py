@@ -19,11 +19,11 @@
 from __future__ import annotations
 
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Type
+from typing import Any, ForwardRef, Generic, List, Optional, Tuple, Type
 
-from typing_extensions import Literal
+from typing_extensions import Literal, TypeVar
 
 # model instances
 from nerfstudio.utils import writer
@@ -47,15 +47,37 @@ class PrintableConfig:  # pylint: disable=too-few-public-methods
         return "\n    ".join(lines)
 
 
+T = TypeVar("T")
+
 # Base instantiate configs
 @dataclass
-class InstantiateConfig(PrintableConfig):  # pylint: disable=too-few-public-methods
+class InstantiateConfig(PrintableConfig, Generic[T]):  # pylint: disable=too-few-public-methods
     """Config class for instantiating an the class specified in the _target attribute."""
 
-    _target: Type
+    _target: Optional[Type] = field(repr=False, default=None)
 
-    def setup(self, **kwargs) -> Any:
+    def __post_init__(self):
+        if self._target is None:
+            for base in getattr(self, "__orig_bases__", []):
+                if hasattr(base, "__origin__") and issubclass(base.__origin__, InstantiateConfig):
+                    value = base.__args__[0]
+                    if isinstance(value, ForwardRef):
+                        if value.__forward_evaluated__:
+                            value = value.__forward_value__
+                        elif value.__forward_module__ is None:
+                            value.__forward_module__ = type(self).__module__
+                            value = getattr(value, "_evaluate")(None, None, set())
+                    self._target = value
+                    break
+            else:
+                raise RuntimeError(
+                    f"Could not find correct type to instantiate for {type(self)}. "
+                    "Make sure to inherit InstantiateConfig[T], where T is the type to instantiate."
+                )
+
+    def setup(self, **kwargs) -> T:
         """Returns the instantiated object using the config."""
+        assert self._target is not None
         return self._target(self, **kwargs)
 
 
@@ -77,11 +99,9 @@ class MachineConfig(PrintableConfig):
 
 
 @dataclass
-class LocalWriterConfig(InstantiateConfig):
+class LocalWriterConfig(InstantiateConfig[writer.LocalWriter]):
     """Local Writer config"""
 
-    _target: Type = writer.LocalWriter
-    """target class to instantiate"""
     enable: bool = False
     """if True enables local logging, else disables"""
     stats_to_track: Tuple[writer.EventName, ...] = (
@@ -102,6 +122,7 @@ class LocalWriterConfig(InstantiateConfig):
         Args:
             banner_messages: List of strings that always print at the bottom of screen.
         """
+        assert self._target is not None
         return self._target(self, banner_messages=banner_messages, **kwargs)
 
 

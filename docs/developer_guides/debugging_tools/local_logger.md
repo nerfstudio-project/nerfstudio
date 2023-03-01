@@ -8,10 +8,9 @@ A skeleton of the local writer config is defined below.
 """nerfstudio/configs/base_config.py""""
 
 @dataclass
-class LocalWriterConfig(InstantiateConfig):
+class LocalWriterConfig(InstantiateConfig[writer.LocalWriter]):
     """Local Writer config"""
 
-    _target: Type = writer.LocalWriter
     enable: bool = False
     stats_to_track: Tuple[writer.EventName, ...] = (
         writer.EventName.ITER_TRAIN_TIME,

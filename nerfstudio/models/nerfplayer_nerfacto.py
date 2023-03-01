@@ -19,6 +19,7 @@ NeRFPlayer (https://arxiv.org/abs/2210.15947) implementation with nerfacto backb
 from __future__ import annotations
 
 import functools
+import typing
 from dataclasses import dataclass, field
 from typing import Dict, List, Type
 
@@ -60,6 +61,7 @@ class NerfplayerNerfactoModelConfig(NerfactoModelConfig):
     """Nerfplayer Model Config with Nerfacto backbone"""
 
     _target: Type = field(default_factory=lambda: NerfplayerNerfactoModel)
+
     near_plane: float = 0.05
     """How far along the ray to start sampling."""
     far_plane: float = 1000.0
@@ -87,6 +89,9 @@ class NerfplayerNerfactoModelConfig(NerfactoModelConfig):
     """Temporal TV balancing weight for feature channels."""
     depth_weight: float = 1e-1
     """depth loss balancing weight for feature channels."""
+
+    def setup(self, **kwargs) -> NerfplayerNerfactoModel:
+        return typing.cast(NerfplayerNerfactoModel, super().setup(**kwargs))
 
 
 class NerfplayerNerfactoModel(NerfactoModel):

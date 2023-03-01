@@ -27,6 +27,7 @@ from rich.console import Console
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
     DataParserConfig,
@@ -39,11 +40,9 @@ CONSOLE = Console(width=120)
 
 
 @dataclass
-class InstantNGPDataParserConfig(DataParserConfig):
+class InstantNGPDataParserConfig(DataParserConfig, InstantiateConfig["InstantNGP"]):
     """Instant-NGP dataset parser config"""
 
-    _target: Type = field(default_factory=lambda: InstantNGP)
-    """target class to instantiate"""
     data: Path = Path("data/ours/posterv2")
     """Directory or explicit json file path specifying location of data."""
     scene_scale: float = 0.3333

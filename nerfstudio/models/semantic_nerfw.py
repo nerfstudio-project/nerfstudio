@@ -18,6 +18,7 @@ Semantic NeRF-W implementation which should be fast enough to view in the viewer
 
 from __future__ import annotations
 
+import typing
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Type
 
@@ -63,6 +64,9 @@ class SemanticNerfWModelConfig(NerfactoModelConfig):
     """Whether to use transient embedding."""
     semantic_loss_weight: float = 1.0
     pass_semantic_gradients: bool = False
+
+    def setup(self, **kwargs) -> SemanticNerfWModel:
+        return typing.cast(SemanticNerfWModel, super().setup(**kwargs))
 
 
 class SemanticNerfWModel(Model[SemanticNerfWModelConfig]):

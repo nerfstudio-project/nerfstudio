@@ -24,6 +24,7 @@ import numpy as np
 import torch
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
     DataParserConfig,
@@ -35,11 +36,9 @@ from nerfstudio.utils.io import load_from_json
 
 
 @dataclass
-class DNeRFDataParserConfig(DataParserConfig):
+class DNeRFDataParserConfig(DataParserConfig, InstantiateConfig["DNeRF"]):
     """D-NeRF dataset parser config"""
 
-    _target: Type = field(default_factory=lambda: DNeRF)
-    """target class to instantiate"""
     data: Path = Path("data/dnerf/lego")
     """Directory specifying location of data."""
     scale_factor: float = 1.0

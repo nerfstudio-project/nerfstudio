@@ -23,6 +23,7 @@ import numpy as np
 import torch
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
     DataParserConfig,
@@ -32,7 +33,7 @@ from nerfstudio.data.scene_box import SceneBox
 
 
 @dataclass
-class ScanNetDataParserConfig(DataParserConfig):
+class ScanNetDataParserConfig(DataParserConfig, InstantiateConfig["ScanNet"]):
     """ScanNet dataset config.
     ScanNet dataset (https://www.scan-net.org/) is a large-scale 3D dataset of indoor scenes.
     This dataparser assumes that the dense stream was extracted from .sens files.
@@ -43,8 +44,6 @@ class ScanNetDataParserConfig(DataParserConfig):
      - pose/
     """
 
-    _target: Type = field(default_factory=lambda: ScanNet)
-    """target class to instantiate"""
     data: Path = Path("data/scannet/scene0423_02")
     """Path to ScanNet folder with densely extracted scenes."""
     scene_scale: float = 1.0

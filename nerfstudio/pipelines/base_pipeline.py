@@ -189,22 +189,20 @@ class Pipeline(nn.Module):
         """
 
 
+TModelConfig = TypeVar("TModelConfig", bound=ModelConfig)
+
+
 @dataclass
-class VanillaPipelineConfig(cfg.InstantiateConfig):
+class VanillaPipelineConfig(cfg.InstantiateConfig["VanillaPipeline"]):
     """Configuration for pipeline instantiation"""
 
-    _target: Type = field(default_factory=lambda: VanillaPipeline)
-    """target class to instantiate"""
     datamanager: VanillaDataManagerConfig = VanillaDataManagerConfig()
     """specifies the datamanager config"""
-    model: ModelConfig = ModelConfig()
+    model: ModelConfig = field(default_factory=ModelConfig[Model])
     """specifies the model config"""
 
 
-TPipelineConfig = TypeVar("TPipelineConfig", bound=VanillaPipelineConfig, default=VanillaPipelineConfig)
-
-
-class VanillaPipeline(Pipeline, Generic[TPipelineConfig]):
+class VanillaPipeline(Pipeline):
     """The pipeline class for the vanilla nerf setup of multiple cameras for one or a few scenes.
 
         config: configuration to instantiate pipeline
@@ -221,11 +219,11 @@ class VanillaPipeline(Pipeline, Generic[TPipelineConfig]):
         model: The model that will be used
     """
 
-    config: TPipelineConfig
+    config: VanillaPipelineConfig
 
     def __init__(
         self,
-        config: TPipelineConfig,
+        config: VanillaPipelineConfig,
         device: str,
         test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,

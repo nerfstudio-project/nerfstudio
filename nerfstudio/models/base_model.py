@@ -34,14 +34,13 @@ from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.scene_colliders import NearFarCollider
 
+TModel = TypeVar("TModel", bound="Model")
 
 # Model related configs
 @dataclass
-class ModelConfig(InstantiateConfig):
+class ModelConfig(InstantiateConfig[TModel]):
     """Configuration for model instantiation"""
 
-    _target: Type = field(default_factory=lambda: Model)
-    """target class to instantiate"""
     enable_collider: bool = True
     """Whether to create a scene collider to filter rays."""
     collider_params: Optional[Dict[str, float]] = to_immutable_dict({"near_plane": 2.0, "far_plane": 6.0})
