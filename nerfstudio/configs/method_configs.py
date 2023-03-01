@@ -308,6 +308,8 @@ method_configs["tensorf"] = TrainerConfig(
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             dataparser=BlenderDataParserConfig(),
+            train_num_rays_per_batch=2048,
+            eval_num_rays_per_batch=2048,
         ),
         model=TensoRFModelConfig(),
     ),
