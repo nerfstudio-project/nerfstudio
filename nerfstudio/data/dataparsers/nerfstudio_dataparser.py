@@ -182,22 +182,30 @@ class Nerfstudio(DataParser):
         You should check that depth_file_path is specified for every frame (or zero frames) in transforms.json.
         """
 
-        # filter image_filenames and poses based on train/eval split percentage
-        num_images = len(image_filenames)
-        num_train_images = math.ceil(num_images * self.config.train_split_fraction)
-        num_eval_images = num_images - num_train_images
-        i_all = np.arange(num_images)
-        i_train = np.linspace(
-            0, num_images - 1, num_train_images, dtype=int
-        )  # equally spaced training images starting and ending at 0 and num_images-1
-        i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
-        assert len(i_eval) == num_eval_images
-        if split == "train":
-            indices = i_train
-        elif split in ["val", "test"]:
-            indices = i_eval
+        if f"{split}_indices" in meta:
+            # Datasets sets the train/test indices
+            indices = meta[f"{split}_indices"]
+            CONSOLE.log(f"[yellow] Dataset is overriding {split}_indices to {indices}")
+            indices = np.array(indices, dtype=np.int32)
+            if indices.max() >= len(poses):
+                raise RuntimeError(f"Invalid dataset indices: index {indices.max()} > {len(poses)} dataset images.")
         else:
-            raise ValueError(f"Unknown dataparser split {split}")
+            # filter image_filenames and poses based on train/eval split percentage
+            num_images = len(image_filenames)
+            num_train_images = math.ceil(num_images * self.config.train_split_fraction)
+            num_eval_images = num_images - num_train_images
+            i_all = np.arange(num_images)
+            i_train = np.linspace(
+                0, num_images - 1, num_train_images, dtype=int
+            )  # equally spaced training images starting and ending at 0 and num_images-1
+            i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
+            assert len(i_eval) == num_eval_images
+            if split == "train":
+                indices = i_train
+            elif split in ["val", "test"]:
+                indices = i_eval
+            else:
+                raise ValueError(f"Unknown dataparser split {split}")
 
         if "orientation_override" in meta:
             orientation_method = meta["orientation_override"]
@@ -273,6 +281,15 @@ class Nerfstudio(DataParser):
 
         assert self.downscale_factor is not None
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
+
+        if "applied_transform" in meta:
+            applied_transform = np.array(meta["applied_transform"], dtype=np.float32)
+            transform_matrix = transform_matrix @ np.concatenate(
+                (applied_transform, np.array([0, 0, 0, 1], dtype=np.float32)), 0
+            )
+        if "applied_scale" in meta:
+            applied_scale = float(meta["applied_scale"])
+            scale_factor *= applied_scale
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
