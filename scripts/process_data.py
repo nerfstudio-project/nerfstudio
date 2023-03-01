@@ -283,11 +283,19 @@ class ProcessVideo:
             temp_image_dir = self.output_dir / "temp_images"
             temp_image_dir.mkdir(parents=True, exist_ok=True)
             summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
-                self.data, image_dir=temp_image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
+                self.data,
+                image_dir=temp_image_dir,
+                num_frames_target=self.num_frames_target,
+                percent_crop=(0.0, 0.0, 0.0, 0.0),
+                verbose=self.verbose,
             )
         else:
             summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
-                self.data, image_dir=image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
+                self.data,
+                image_dir=image_dir,
+                num_frames_target=self.num_frames_target,
+                percent_crop=self.percent_crop,
+                verbose=self.verbose,
             )
 
         # Generate planar projections if equirectangular
