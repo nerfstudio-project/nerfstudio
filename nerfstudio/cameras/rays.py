@@ -17,13 +17,15 @@ Some ray datastructures.
 """
 import random
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Optional, Union
 
 import torch
 from torchtyping import TensorType
 
 from nerfstudio.utils.math import Gaussians, conical_frustum_to_gaussian
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
+
+TORCH_DEVICE = Union[str, torch.device]  # pylint: disable=invalid-name
 
 
 @dataclass
@@ -77,7 +79,7 @@ class Frustums(TensorDataclass):
         )
 
     @classmethod
-    def get_mock_frustum(cls, device="cpu") -> "Frustums":
+    def get_mock_frustum(cls, device: Optional[TORCH_DEVICE] = "cpu") -> "Frustums":
         """Helper function to generate a placeholder frustum.
 
         Returns:
@@ -169,7 +171,7 @@ class RayBundle(TensorDataclass):
         """
         self.camera_indices = torch.ones_like(self.origins[..., 0:1]).long() * camera_index
 
-    def __len__(self):
+    def __len__(self) -> int:
         num_rays = torch.numel(self.origins) // self.origins.shape[-1]
         return num_rays
 

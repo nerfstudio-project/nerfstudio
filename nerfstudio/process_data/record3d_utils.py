@@ -46,6 +46,8 @@ def record3d_to_json(images_paths: List[Path], metadata_path: Path, output_dir: 
     metadata_dict = io.load_from_json(metadata_path)
 
     poses_data = np.array(metadata_dict["poses"])  # (N, 3, 4)
+    # NB: Record3D / scipy use "scalar-last" format quaternions (x y z w)
+    # https://fzheng.me/2017/11/12/quaternion_conventions_en/
     camera_to_worlds = np.concatenate(
         [Rotation.from_quat(poses_data[:, :4]).as_matrix(), poses_data[:, 4:, None]],
         axis=-1,

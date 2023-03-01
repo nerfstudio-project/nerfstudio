@@ -69,24 +69,24 @@ class ExperimentConfig(InstantiateConfig):
         }
     )
     """Dictionary of optimizer groups and their schedulers"""
-    vis: Literal["viewer", "wandb", "tensorboard"] = "wandb"
+    vis: Literal["viewer", "wandb", "tensorboard", "viewer+wandb", "viewer+tensorboard"] = "wandb"
     """Which visualizer to use."""
     data: Optional[Path] = None
-    """Alias for --pipeline.datamanager.dataparser.data"""
+    """Alias for --pipeline.datamanager.data"""
     relative_model_dir: Path = Path("nerfstudio_models/")
     """Relative path to save all checkpoints."""
 
     def is_viewer_enabled(self) -> bool:
         """Checks if a viewer is enabled."""
-        return "viewer" == self.vis
+        return ("viewer" == self.vis) | ("viewer+wandb" == self.vis) | ("viewer+tensorboard" == self.vis)
 
     def is_wandb_enabled(self) -> bool:
         """Checks if wandb is enabled."""
-        return "wandb" == self.vis
+        return ("wandb" == self.vis) | ("viewer+wandb" == self.vis)
 
     def is_tensorboard_enabled(self) -> bool:
         """Checks if tensorboard is enabled."""
-        return "tensorboard" == self.vis
+        return ("tensorboard" == self.vis) | ("viewer+tensorboard" == self.vis)
 
     def set_timestamp(self) -> None:
         """Dynamically set the experiment timestamp"""
@@ -96,7 +96,12 @@ class ExperimentConfig(InstantiateConfig):
     def set_experiment_name(self) -> None:
         """Dynamically set the experiment name"""
         if self.experiment_name is None:
-            self.experiment_name = str(self.pipeline.datamanager.dataparser.data).replace("../", "").replace("/", "-")
+            datapath = self.pipeline.datamanager.data
+            if datapath is not None:
+                datapath = datapath.parent if datapath.is_file() else datapath
+                self.experiment_name = str(datapath.stem)
+            else:
+                self.experiment_name = "unnamed"
 
     def get_base_dir(self) -> Path:
         """Retrieve the base directory to set relative paths"""

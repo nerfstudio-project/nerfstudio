@@ -62,22 +62,25 @@ class BlenderDownload(DatasetDownload):
 
 
 @dataclass
-class FriendsDownload(DatasetDownload):
-    """Download the friends dataset."""
+class Sitcoms3DDownload(DatasetDownload):
+    """Download the sitcoms3D dataset."""
 
     def download(self, save_dir: Path):
-        """Download the friends dataset."""
+        """Download the sitcoms3D dataset."""
 
         # https://drive.google.com/file/d/1sgKr0ZO7BQC0FYinAnRSxobIWNucAST5/view?usp=sharing
-        friends_file_id = "1sgKr0ZO7BQC0FYinAnRSxobIWNucAST5"
+        sitcoms3d_file_id = "1sgKr0ZO7BQC0FYinAnRSxobIWNucAST5"
 
         # Download the files
-        url = f"https://drive.google.com/uc?id={friends_file_id}"
-        download_path = str(save_dir / "friends.zip")
+        url = f"https://drive.google.com/uc?id={sitcoms3d_file_id}"
+        download_path = str(save_dir / "sitcoms3d.zip")
         gdown.download(url, output=download_path)
         with zipfile.ZipFile(download_path, "r") as zip_ref:
             zip_ref.extractall(str(save_dir))
         os.remove(download_path)
+        # The folder name of the downloaded dataset is the previously using 'friends/'
+        if os.path.exists(str(save_dir / "friends/")):
+            os.rename(str(save_dir / "friends/"), str(save_dir / "sitcoms3d/"))
 
 
 def grab_file_id(zip_url: str) -> str:
@@ -358,7 +361,7 @@ class SDFstudioDemoDownload(DatasetDownload):
 
 Commands = Union[
     Annotated[BlenderDownload, tyro.conf.subcommand(name="blender")],
-    Annotated[FriendsDownload, tyro.conf.subcommand(name="friends")],
+    Annotated[Sitcoms3DDownload, tyro.conf.subcommand(name="sitcoms3d")],
     Annotated[NerfstudioDownload, tyro.conf.subcommand(name="nerfstudio")],
     Annotated[Record3dDownload, tyro.conf.subcommand(name="record3d")],
     Annotated[DNerfDownload, tyro.conf.subcommand(name="dnerf")],
@@ -375,7 +378,7 @@ def main(
     - nerfstudio: Growing collection of real-world scenes. Use the `capture_name` argument to specify
         which capture to download.
     - blender: Blender synthetic scenes realeased with NeRF.
-    - friends: Friends TV show scenes.
+    - sitcoms3d: Friends TV show scenes.
     - record3d: Record3d dataset.
     - dnerf: D-NeRF dataset.
     - phototourism: PhotoTourism dataset. Use the `capture_name` argument to specify which capture to download.

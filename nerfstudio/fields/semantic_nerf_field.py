@@ -88,7 +88,7 @@ class SemanticNerfField(Field):
             in_dim=self.mlp_semantic.get_out_dim(), num_classes=self.num_semantic_classes
         )
 
-    def get_density(self, ray_samples: RaySamples):
+    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
         encoded_xyz = self.position_encoding(ray_samples.frustums.get_positions())
         base_mlp_out = self.mlp_base(encoded_xyz)
         density = self.field_head_density(base_mlp_out)

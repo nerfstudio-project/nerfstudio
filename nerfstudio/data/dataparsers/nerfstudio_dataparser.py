@@ -60,8 +60,8 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """Whether to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
-    train_split_percentage: float = 0.9
-    """The percent of images to use for training. The remaining images are for eval."""
+    train_split_fraction: float = 0.9
+    """The fraction of images to use for training. The remaining images are for eval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
 
@@ -184,7 +184,7 @@ class Nerfstudio(DataParser):
 
         # filter image_filenames and poses based on train/eval split percentage
         num_images = len(image_filenames)
-        num_train_images = math.ceil(num_images * self.config.train_split_percentage)
+        num_train_images = math.ceil(num_images * self.config.train_split_fraction)
         num_eval_images = num_images - num_train_images
         i_all = np.arange(num_images)
         i_train = np.linspace(

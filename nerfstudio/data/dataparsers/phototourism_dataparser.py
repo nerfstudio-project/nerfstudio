@@ -33,7 +33,13 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataparserOutputs,
 )
 from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.data.utils.colmap_utils import read_cameras_binary, read_images_binary
+
+# TODO(1480) use pycolmap instead of colmap_parsing_utils
+# import pycolmap
+from nerfstudio.data.utils.colmap_parsing_utils import (
+    read_cameras_binary,
+    read_images_binary,
+)
 
 CONSOLE = Console(width=120)
 
@@ -50,8 +56,8 @@ class PhototourismDataParserConfig(DataParserConfig):
     """How much to scale the camera origins by."""
     alpha_color: str = "white"
     """alpha color of background"""
-    train_split_percentage: float = 0.9
-    """The percent of images to use for training. The remaining images are for eval."""
+    train_split_fraction: float = 0.9
+    """The fraction of images to use for training. The remaining images are for eval."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
     orientation_method: Literal["pca", "up", "none"] = "up"
@@ -76,11 +82,14 @@ class Phototourism(DataParser):
 
     # pylint: disable=too-many-statements
     def _generate_dataparser_outputs(self, split="train"):
-
         image_filenames = []
         poses = []
 
         with CONSOLE.status(f"[bold green]Reading phototourism images and poses for {split} split...") as _:
+            # TODO(1480) use pycolmap
+            # recon = pycolmap.Reconstruction(self.data / "dense" / "sparse")
+            # cams = recon.cameras
+            # imgs = recon.images
             cams = read_cameras_binary(self.data / "dense/sparse/cameras.bin")
             imgs = read_images_binary(self.data / "dense/sparse/images.bin")
 
@@ -119,7 +128,7 @@ class Phototourism(DataParser):
 
         # filter image_filenames and poses based on train/eval split percentage
         num_images = len(image_filenames)
-        num_train_images = math.ceil(num_images * self.config.train_split_percentage)
+        num_train_images = math.ceil(num_images * self.config.train_split_fraction)
         num_eval_images = num_images - num_train_images
         i_all = np.arange(num_images)
         i_train = np.linspace(

@@ -28,6 +28,7 @@ from typing_extensions import Literal
 from nerfstudio.process_data.process_data_utils import CameraModel
 
 try:
+    # TODO(1480) un-hide pycolmap import
     import pycolmap
     from hloc import (
         extract_features,
@@ -95,14 +96,16 @@ def run_hloc(
         pairs_from_retrieval.main(retrieval_path, sfm_pairs, num_matched=num_matched)
     match_features.main(matcher_conf, sfm_pairs, features=features, matches=matches)
 
-    image_options = pycolmap.ImageReaderOptions(camera_model=camera_model.value)
+    image_options = pycolmap.ImageReaderOptions(  # pylint: disable=c-extension-no-member
+        camera_model=camera_model.value
+    )
     reconstruction.main(
         sfm_dir,
         image_dir,
         sfm_pairs,
         features,
         matches,
-        camera_mode=pycolmap.CameraMode.SINGLE,
+        camera_mode=pycolmap.CameraMode.SINGLE,  # pylint: disable=c-extension-no-member
         image_options=image_options,
         verbose=verbose,
     )
