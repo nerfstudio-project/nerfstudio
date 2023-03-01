@@ -66,7 +66,8 @@ class DreamFusionModelConfig(ModelConfig):
 
     _target: Type = field(default_factory=lambda: DreamFusionModel)
     """target class to instantiate"""
-    prompt: str = "A high-quality photo of a tree frog on a stump"
+    prompt: str = "A high quality photo of a <nicechair2>"
+    # prompt: str = "a high quality photo of a frog"
     """prompt for stable dreamfusion"""
 
     orientation_loss_mult: float = 0.0001
@@ -77,7 +78,7 @@ class DreamFusionModelConfig(ModelConfig):
     """Randomizes light source per output."""
     initialize_density: bool = True
     """Initialize density in center of scene."""
-    taper_range: Tuple[int, int] = (0, 1000)
+    taper_range: Tuple[int, int] = (0, 500)
     """Range of step values for the density tapering"""
     taper_strength: Tuple[float, float] = (1.0, 0.0)
     """Strength schedule of center density"""
@@ -353,7 +354,7 @@ class DreamFusionModel(Model):
 
         if self.initialize_density:
             pos = ray_samples.frustums.get_positions()
-            density_blob = self.density_strength * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
+            density_blob = self.density_strength * torch.exp(-torch.norm(pos, dim=-1) * 100)[..., None]
             density = density + density_blob
 
         weights = ray_samples.get_weights(density)

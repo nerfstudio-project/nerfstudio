@@ -68,6 +68,7 @@ class _SDSGradient(torch.autograd.Function):  # pylint: disable=abstract-method
         del input_tensor
         ctx.save_for_backward(gt_grad)
         # Return magniture of gradient, not the actual loss.
+        return torch.mean(torch.abs(gt_grad))
         return torch.mean(gt_grad**2) ** 0.5
 
     @staticmethod
@@ -112,7 +113,11 @@ class StableDiffusion(nn.Module):
         self.alphas = self.scheduler.alphas_cumprod.to(self.device)  # type: ignore
 
         sd_id = SD_IDENTIFIERS[version]
-        pipe = StableDiffusionPipeline.from_pretrained(sd_id, torch_dtype=torch.float16)
+        # pipe = StableDiffusionPipeline.from_pretrained(sd_id, torch_dtype=torch.float16)
+
+        sd_model_path = 'nerfstudio/generative/concepts/nicechair2-concept'
+        pipe = StableDiffusionPipeline.from_pretrained(sd_model_path, torch_dtype=torch.float16)
+
         assert pipe is not None
         pipe = pipe.to(self.device)
 
@@ -226,7 +231,7 @@ class StableDiffusion(nn.Module):
             # w(t), sigma_t^2
             w = 1 - self.alphas[t]
 
-            grad = w * (noise_pred - noise)
+            grad = w * (noise_pred - noise) * 0.001
             grad = torch.nan_to_num(grad)
 
             if grad_scaler is not None:

@@ -67,90 +67,9 @@ class DreamFusionPlusModelConfig(DreamFusionModelConfig):
 
     _target: Type = field(default_factory=lambda: DreamFusionPlusModel)
     """target class to instantiate"""
-    prompt: str = "A high-quality photo of a tree frog on a stump"
-    """prompt for stable dreamfusion"""
-
-    orientation_loss_mult: float = 0.0001
-    """Orientation loss multipier on computed normals."""
-    pred_normal_loss_mult: float = 0.001
-    """Predicted normal loss multiplier."""
-    random_light_source: bool = True
-    """Randomizes light source per output."""
-    initialize_density: bool = True
-    """Initialize density in center of scene."""
-    init_density_strength: float = 10
-    """Initial strength of center density"""
-    sphere_collider: bool = True
-    """Use spherical collider instead of box"""
-    random_background: bool = True
-    """Randomly choose between using background mlp and random color for background"""
-    target_transmittance_start: float = 0.4
-    """target transmittance for opacity penalty. This is the percent of the scene that is
-    background when rendered at the start of training"""
-    target_transmittance_end: float = 0.7
-    """target transmittance for opacity penalty. This is the percent of the scene that is
-    background when rendered at the end of training"""
-    transmittance_end_schedule: int = 1500
-    """number of iterations to reach target_transmittance_end"""
-    num_proposal_samples_per_ray: Tuple[int, ...] = (256, 96)
-    """Number of samples per ray for each proposal network."""
-    num_nerf_samples_per_ray: int = 48
-    """Number of samples per ray for the nerf network."""
-    proposal_update_every: int = 5
-    """Sample every n steps after the warmup"""
-    proposal_warmup: int = 5000
-    """Scales n from 1 to proposal_update_every over this many steps"""
-    num_proposal_iterations: int = 2
-    """Number of proposal network iterations."""
-    use_same_proposal_network: bool = False
-    """Use the same proposal network. Otherwise use different ones."""
-    proposal_net_args_list: List[Dict] = field(
-        default_factory=lambda: [
-            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 128},
-            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 256},
-        ]
-    )
-    """Arguments for the proposal density fields."""
-    proposal_weights_anneal_slope: float = 10.0
-    """Slope of the annealing function for the proposal weights."""
-    proposal_weights_anneal_max_num_iters: int = 500
-    """Max num iterations for the annealing function."""
-    use_single_jitter: bool = True
-    """Whether use single jitter or not for the proposal networks."""
-    interlevel_loss_mult: float = 1.0
-    """Proposal loss multiplier."""
-    distortion_loss_mult: float = 1.0
-    """Distortion loss multiplier."""
-    start_normals_training: int = 1000
-    """Start training normals after this many iterations"""
-    start_lambertian_training: int = 1000
-    """start training with lambertian shading after this many iterations"""
-    opacity_penalty: bool = True
-    """enables penalty to encourage sparse weights (penalizing for uniform density along ray)"""
-    opacity_loss_mult: float = 1
-    """scale for opacity penalty"""
-    max_res: int = 256
-    """Maximum resolution of the density field."""
-
-    location_based_prompting: bool = True
-    """enables location based prompting"""
-    interpolated_prompting: bool = False
-    """enables interpolated location prompting"""
-    positional_prompting: Literal["discrete", "interpolated", "base"] = "discrete"
-    """ how to incorporate position into prompt"""
-    top_prompt: str = ", overhead view"
-    """appended to prompt for overhead view"""
-    side_prompt: str = ", side view"
-    """appended to prompt for side view"""
-    front_prompt: str = ", front view"
-    """appended to prompt for front view"""
-    back_prompt: str = ", back view"
-    """appended to prompt for back view"""
-    guidance_scale: float = 100
-    """guidance scale for sds loss"""
-    stablediffusion_device: Optional[str] = None
-    """device for stable diffusion"""
-    sd_version: str = "1-5"
+    # prompt: str = "A high-quality photo of a tree frog on a stump"
+    prompt: str = "A high quality photo of a <nicechair2>"
+    # """prompt for stable dreamfusion"""
 
 
 class DreamFusionPlusModel(DreamFusionModel):
@@ -205,8 +124,10 @@ class DreamFusionPlusModel(DreamFusionModel):
             loss_dict["rgb_loss"] = self.rgb_loss(batch["image"].to(self.device), outputs["rgb"])
             loss_dict['sds_loss'] = 0
         else:
+            
+            # raise Exception
             text_embedding = self.text_embeddings.get_text_embedding(
-                vertical_angle=batch["vertical"], horizonal_angle=batch["central"]
+                vertical_angle=batch["vertical"], horizontal_angle=batch["central"]
             )                
             train_output = (
                 outputs["train_output"].view(1, int(outputs["train_output"].shape[0] ** 0.5), int(outputs["train_output"].shape[0] ** 0.5), 3)
@@ -223,6 +144,7 @@ class DreamFusionPlusModel(DreamFusionModel):
 
             loss_dict["sds_loss"] = sds_loss.to(self.device)
             loss_dict["rgb_loss"] = 0
+
 
         if self.training:
             loss_dict["distortion_loss"] = self.config.distortion_loss_mult * distortion_loss(

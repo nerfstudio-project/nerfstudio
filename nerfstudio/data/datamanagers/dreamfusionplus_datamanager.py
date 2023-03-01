@@ -109,6 +109,8 @@ class DreamFusionPlusDataManagerConfig(DreamFusionDataManagerConfig):
     """Directory specifying location of input image."""
     input_image_mask_path: Optional[Path] = None
     """Directory specifying location of input image mask, if one exists"""
+    num_eval_angles: int = 256
+    """Number of evaluation angles"""
     radius_mean: float = 2.2
     """Mean radius of the camera sphere"""
     use_input_transient: bool = False
@@ -270,10 +272,10 @@ class DreamFusionPlusDataManager(DreamFusionDataManager):  # pylint: disable=abs
 
         # randomly choose a random camera view or the input view here
         # 0.1 - 0.5, steps 0 - 2000
-        # cutoff = min(0.5, step * 0.00025)
-        # cutoff = 0.1
-        # if np.random.random_sample() < cutoff:
-        #     return self.next_input(step)
+        cutoff = min(0.5, step * 0.00025)
+        cutoff = 0.5
+        if np.random.random_sample() < cutoff:
+            return self.next_input(step)
 
         # # TODO Reimplement when cameras are fully working
         # if step > 2000:
