@@ -86,7 +86,7 @@ def crop_top(bound_arr: list, fov: int, percent_crop: float) -> list:
     return bound_arr
 
 
-def crop_bound_arr(
+def crop_bound_arr_vertical(
     bound_arr: list, fov: int, percent_crop: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
 ) -> list:
     """Returns a list of vertical bounds adjusted for cropping.
@@ -130,30 +130,42 @@ def generate_planar_projections_from_equirectangular(
     if samples_per_im == 8:
         fov = 120
         bound_arr = [-45, 0, 45]
+        left_bound = -180
+        right_bound = 180
         if percent_crop != (0.0, 0.0, 0.0, 0.0):
-            bound_arr = crop_bound_arr(bound_arr, fov, percent_crop)
+            bound_arr = crop_bound_arr_vertical(bound_arr, fov, percent_crop)
+            if percent_crop[3] > 0:
+                left_bound = -180 + 360 * percent_crop[3]
+            if percent_crop[2] > 0:
+                right_bound = 180 - 360 * percent_crop[2]
         if bound_arr[1] is not None:
-            for i in np.arange(-180, 180, 90):
+            for i in np.arange(left_bound, right_bound, 90):
                 yaw_pitch_pairs.append((i, bound_arr[1]))
         if bound_arr[2] is not None:
-            for i in np.arange(-180, 180, 180):
+            for i in np.arange(left_bound, right_bound, 180):
                 yaw_pitch_pairs.append((i, bound_arr[2]))
         if bound_arr[0] is not None:
-            for i in np.arange(-180, 180, 180):
+            for i in np.arange(left_bound, right_bound, 180):
                 yaw_pitch_pairs.append((i, bound_arr[0]))
     elif samples_per_im == 14:
         fov = 110
         bound_arr = [-45, 0, 45]
+        left_bound = -180
+        right_bound = 180
         if percent_crop != (0.0, 0.0, 0.0, 0.0):
-            bound_arr = crop_bound_arr(bound_arr, fov, percent_crop)
+            bound_arr = crop_bound_arr_vertical(bound_arr, fov, percent_crop)
+            if percent_crop[3] > 0:
+                left_bound = -180 + 360 * percent_crop[3]
+            if percent_crop[2] > 0:
+                right_bound = 180 - 360 * percent_crop[2]
         if bound_arr[1] is not None:
-            for i in np.arange(-180, 180, 60):
+            for i in np.arange(left_bound, right_bound, 60):
                 yaw_pitch_pairs.append((i, bound_arr[1]))
         if bound_arr[2] is not None:
-            for i in np.arange(-180, 180, 90):
+            for i in np.arange(left_bound, right_bound, 90):
                 yaw_pitch_pairs.append((i, bound_arr[2]))
         if bound_arr[0] is not None:
-            for i in np.arange(-180, 180, 90):
+            for i in np.arange(left_bound, right_bound, 90):
                 yaw_pitch_pairs.append((i, bound_arr[0]))
 
     equi2pers = Equi2Pers(height=planar_image_size[1], width=planar_image_size[0], fov_x=fov, mode="bilinear")
