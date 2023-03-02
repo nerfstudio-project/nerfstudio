@@ -283,7 +283,7 @@ class WandbWriter(Writer):
     """WandDB Writer Class"""
 
     def __init__(self, log_dir: Path):
-        wandb.init(project="nerfstudio-project", dir=str(log_dir), reinit=True)
+        wandb.init(project="dream-embed", dir=str(log_dir), reinit=True)
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         image = torch.permute(image, (2, 0, 1))

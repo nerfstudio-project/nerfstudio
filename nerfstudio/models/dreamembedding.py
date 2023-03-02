@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Type
 
+import mediapy
 import numpy as np
 import torch
 from torch.nn import Parameter
@@ -32,15 +33,15 @@ from nerfstudio.model_components.ray_samplers import (
     UniformSampler,
 )
 from nerfstudio.model_components.renderers import FeatureRenderer
-
 from nerfstudio.model_components.scene_colliders import AABBBoxCollider, SphereCollider
 from nerfstudio.model_components.shaders import LambertianShader, NormalsShader
-
 from nerfstudio.models.base_model import Model, ModelConfig
+from nerfstudio.models.dreamfusion import DreamFusionModel, DreamFusionModelConfig
 from nerfstudio.utils import colormaps, colors, math, misc
 
+
 @dataclass
-class DreamEmbeddingModelConfig(ModelConfig):
+class DreamEmbeddingModelConfig(DreamFusionModelConfig):
     """DreamFusion model config"""
 
     _target: Type = field(default_factory=lambda: DreamEmbeddingModel)
@@ -133,7 +134,7 @@ class DreamEmbeddingModelConfig(ModelConfig):
     sd_version: str = "1-5"
 
 
-class DreamEmbeddingModel(Model):
+class DreamEmbeddingModel(DreamFusionModel):
     """DreamEmbeddingModel Model
 
     Args:
@@ -157,18 +158,14 @@ class DreamEmbeddingModel(Model):
         # setting up fields
         self.field = DreamEmbeddingField(self.scene_box.aabb, max_res=self.config.max_res)
 
-        self.feature_renderer = FeatureRenderer()
-
+        self.renderer_feature = FeatureRenderer()
 
     def get_outputs(self, ray_bundle: RayBundle):  # pylint: disable=too-many-statements
         # uniform sampling
-        background_rgb = self.field.get_background_feature(ray_bundle)
+        background_feature = self.field.get_background_feature(ray_bundle)
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         field_outputs = self.field(ray_samples, compute_normals=True)
         density = field_outputs[FieldHeadNames.DENSITY]
-
-
-        # KEEP CHANIGNNG FROM HERE
 
         if self.initialize_density:
             pos = ray_samples.frustums.get_positions()
@@ -181,20 +178,31 @@ class DreamEmbeddingModel(Model):
 
         accumulation = self.renderer_accumulation(weights)
         depth = self.renderer_depth(weights, ray_samples)
-        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+        features = self.renderer_feature(features=field_outputs[FieldHeadNames.FEATURE], weights=weights)
+        # rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
 
         accum_mask = torch.clamp((torch.nan_to_num(accumulation, nan=0.0)), min=0.0, max=1.0)
         accum_mask_inv = 1.0 - accum_mask
 
-        background = accum_mask_inv * background_rgb
+        background = accum_mask_inv * background_feature
 
         outputs = {
-            "rgb_only": rgb,
-            "background_rgb": background_rgb,
+            "feature_only": features,
+            "background_feature": background_feature,
             "background": background,
             "accumulation": accum_mask,
             "depth": depth,
         }
+
+        latents = accum_mask * features + background
+        outputs["latents"] = latents
+
+        latents_input = latents.view(1, int(latents.shape[0] ** 0.5), int(latents.shape[0] ** 0.5), 4).half()
+        latents_input = latents_input.permute(0, 3, 1, 2)
+        rgb = self.sd.latents_to_img(latents_input).permute(0, 2, 3, 1)
+        rgb = rgb.view(512 * 512, 3)
+        rgb = rgb.to(torch.float32)
+        outputs["rgb"] = rgb
 
         # These use a lot of GPU memory, so we avoid storing them for eval.
         if self.training:
@@ -205,51 +213,10 @@ class DreamEmbeddingModel(Model):
             outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
 
         normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
-        pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
-
-        # lambertian shading
-        if self.config.random_light_source:  # and self.training:
-            light_d = ray_bundle.origins[0] + torch.randn(3, dtype=torch.float).to(normals)
-        else:
-            light_d = ray_bundle.origins[0]
-        light_d = math.safe_normalize(light_d)
-
-        if (self.train_shaded and np.random.random_sample() > 0.75) or not self.training:
-            shading_weight = 0.9
-        else:
-            shading_weight = 0.0
-
-        shaded, shaded_albedo = self.shader_lambertian(
-            rgb=rgb, normals=normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=False
-        )
-
         outputs["normals"] = self.shader_normals(normals, weights=accum_mask)
-        outputs["pred_normals"] = self.shader_normals(pred_normals, weights=accum_mask)
-        outputs["shaded"] = accum_mask * shaded
-        outputs["other_train_output"] = accum_mask * shaded_albedo + background
-        outputs["shaded_albedo"] = accum_mask * shaded_albedo
-        outputs["rgb"] = accum_mask * rgb + background
-
-        if shading_weight > 0:
-            samp = np.random.random_sample()
-            if samp > 0.5 and not self.training:
-                outputs["train_output"] = outputs["shaded"]
-            elif samp < 0.2 and self.random_background:
-                rand_bg = torch.ones_like(background) * torch.rand(3, device=self.device)
-                outputs["train_output"] = accum_mask * shaded_albedo + rand_bg * accum_mask_inv
-            else:
-                outputs["train_output"] = accum_mask * shaded_albedo + background
-        else:
-            outputs["train_output"] = outputs["rgb"]
 
         outputs["rendered_orientation_loss"] = orientation_loss(
             weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
-        )
-
-        outputs["rendered_pred_normal_loss"] = pred_normal_loss(
-            weights.detach(),
-            field_outputs[FieldHeadNames.NORMALS].detach(),
-            field_outputs[FieldHeadNames.PRED_NORMALS],
         )
 
         assert weights.shape[-1] == 1
@@ -257,3 +224,98 @@ class DreamEmbeddingModel(Model):
             outputs["opacity_loss"] = torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01) * self.config.opacity_loss_mult
 
         return outputs
+
+    def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
+        # Scaling metrics by coefficients to create the losses.
+
+        loss_dict = {}
+        loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
+        if self.train_normals:
+            # orientation loss for computed normals
+            loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
+                outputs["rendered_orientation_loss"]
+            )
+        else:
+            loss_dict["orientation_loss"] = 0
+
+        if self.config.opacity_penalty:
+            loss_dict["opacity_loss"] = self.config.opacity_loss_mult * outputs["opacity_loss"].mean()
+
+        if self.prompt != self.cur_prompt:
+            self.cur_prompt = self.prompt
+            self.text_embeddings.update_prompt(
+                base_prompt=self.cur_prompt,
+                top_prompt=self.cur_prompt + self.top_prompt,
+                side_prompt=self.cur_prompt + self.side_prompt,
+                back_prompt=self.cur_prompt + self.back_prompt,
+                front_prompt=self.cur_prompt + self.front_prompt,
+            )
+
+        text_embedding = self.text_embeddings.get_text_embedding(
+            vertical_angle=batch["vertical"], horizontal_angle=batch["central"]
+        )
+
+        latents = (
+            outputs["latents"]
+            .view(1, int(outputs["latents"].shape[0] ** 0.5), int(outputs["latents"].shape[0] ** 0.5), 4)
+            .permute(0, 3, 1, 2)
+        )
+
+        # train_output = (
+        #     outputs["train_output"]
+        #     .view(1, int(outputs["train_output"].shape[0] ** 0.5), int(outputs["train_output"].shape[0] ** 0.5), 3)
+        #     .permute(0, 3, 1, 2)
+        # )
+
+        # sds_loss = self.sd.sds_loss(
+        #     text_embedding.to(self.sd_device),
+        #     train_output.to(self.sd_device),
+        #     guidance_scale=int(self.guidance_scale),
+        #     grad_scaler=self.grad_scaler,
+        # )
+
+        sds_loss = self.sd.sds_loss_latent(
+            text_embedding.to(self.sd_device),
+            latents.to(self.sd_device),
+            guidance_scale=int(self.guidance_scale),
+            grad_scaler=self.grad_scaler,
+        )
+
+        loss_dict["sds_loss"] = sds_loss.to(self.device)
+
+        if self.training:
+            loss_dict["distortion_loss"] = self.config.distortion_loss_mult * distortion_loss(
+                outputs["weights_list"], outputs["ray_samples_list"]
+            )
+            loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
+                outputs["weights_list"], outputs["ray_samples_list"]
+            )
+        return loss_dict
+
+    def get_image_metrics_and_images(
+        self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
+    ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
+        acc = colormaps.apply_colormap(outputs["accumulation"])
+        depth = colormaps.apply_depth_colormap(
+            outputs["depth"],
+            accumulation=outputs["accumulation"],
+        )
+        prop_depth_0 = colormaps.apply_depth_colormap(
+            outputs["prop_depth_0"],
+            accumulation=outputs["accumulation"],
+        )
+        prop_depth_1 = colormaps.apply_depth_colormap(
+            outputs["prop_depth_1"],
+            accumulation=outputs["accumulation"],
+        )
+
+        metrics_dict = {}
+        images_dict = {
+            "img": outputs["rgb"].reshape(512, 512, 3), # this is a bit weird
+            "accumulation": acc,
+            "depth": depth,
+            "prop_depth_0": prop_depth_0,
+            "prop_depth_1": prop_depth_1,
+            "normals": outputs["normals"],
+        }
+        return metrics_dict, images_dict

@@ -83,7 +83,7 @@ def random_train_pose(
         poses: [size, 4, 4]
     """
 
-    vertical_rotation_range = [vertical_rotation_range[0] + 90, vertical_rotation_range[1] + 90]
+    vertical_rotation_range = (vertical_rotation_range[0] + 90, vertical_rotation_range[1] + 90)
     # This is the uniform sample on the part of the sphere we care about where 0 = 0 degrees and 1 = 360 degrees
     sampled_uniform = (
         torch.rand(size) * (vertical_rotation_range[1] - vertical_rotation_range[0]) + vertical_rotation_range[0]
@@ -157,7 +157,7 @@ class DreamFusionDataManagerConfig(DataManagerConfig):
     """Number of images per batch for training"""
     eval_images_per_batch: int = 1
     """Number of images per batch for evaluation"""
-    radius_mean: float = 2.2
+    radius_mean: float = 3.0
     """Mean radius of camera orbit"""
     radius_std: float = 0.1
     """Std of radius of camera orbit"""
@@ -289,6 +289,23 @@ class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
         ).flatten()
 
         return ray_bundle, {"vertical": vertical_rotation, "central": central_rotation}
+    
+    def next_eval_image(self, step:int) -> Tuple[int, RayBundle, Dict]:
+        cameras, vertical_rotation, central_rotation = random_train_pose(
+            self.config.eval_images_per_batch,
+            self.config.eval_resolution,
+            device=self.device,
+            radius_mean=self.config.radius_mean,
+            radius_std=self.config.radius_std,
+            focal_range=self.config.focal_range,
+            vertical_rotation_range=self.config.vertical_rotation_range,
+            jitter_std=self.config.jitter_std,
+            center=self.config.center,
+        )
+        ray_bundle = cameras.generate_rays(
+            torch.tensor([[i] for i in range(self.config.train_images_per_batch)])
+        )
+        return 0, ray_bundle, {"vertical": vertical_rotation, "central": central_rotation}
 
     def get_train_rays_per_batch(self) -> int:
         return self.config.train_resolution**2
