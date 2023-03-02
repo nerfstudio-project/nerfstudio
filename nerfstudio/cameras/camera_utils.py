@@ -444,7 +444,8 @@ def auto_orient_and_center_poses(
     There are two centering methods:
     poses: The poses are centered around the origin.
     focus: The origin is set to the focus of attention of all cameras (the
-        closest point to cameras optical axes).
+        closest point to cameras optical axes). Recommended for inward-looking
+        camera configurations.
 
     Args:
         poses: The poses to orient.
@@ -465,7 +466,7 @@ def auto_orient_and_center_poses(
     elif center_method == "focus":
         # https://github.com/google-research/multinerf/blob/1c8b1c552133cdb2de1c1f3c871b2813f6662265/internal/camera_utils.py#L145
         # https://github.com/bmild/nerf/blob/18b8aebda6700ed659cb27a0c348b737a5f6ab60/load_llff.py#L197
-        active_directions = poses[:, :3, 2:3]
+        active_directions = -poses[:, :3, 2:3]
         active_origins = poses[:, :3, 3:4]
         # initial value for testing if the focus_pt is in front or behind
         focus_pt = mean_origin
