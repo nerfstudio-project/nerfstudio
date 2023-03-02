@@ -77,15 +77,14 @@ class ScanNet(DataParser):
         first_img = cv2.imread(img_dir_sorted[0].as_posix())
         h, w, _ = first_img.shape
 
-        image_filenames = []
-        depth_filenames = []
-        intrinsics = []
-        poses = []
+        image_filenames, depth_filenames, intrinsics, poses = [], [], [], []
 
         K = np.loadtxt(self.config.data / "intrinsic" / "intrinsic_color.txt")
         for img, depth, pose in zip(img_dir_sorted, depth_dir_sorted, pose_dir_sorted):
             pose = np.loadtxt(pose)
-            pose[0:3, 1:3] *= -1
+            frame_pose[0:3, 1:3] *= -1
+            frame_pose = frame_pose[np.array([1, 0, 2, 3]), :]
+            frame_pose[2, :] *= -1
 
             # We cannot accept files directly, as some of the poses are invalid
             if np.isinf(pose).any():
