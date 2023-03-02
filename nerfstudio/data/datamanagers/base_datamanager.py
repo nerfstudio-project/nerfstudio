@@ -235,24 +235,39 @@ class DataManager(nn.Module):
         """Sets up the data manager for evaluation"""
 
     @abstractmethod
-    def next_train(self, step: int) -> Tuple:
+    def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train data manager.
 
-        This will be a tuple of all the information that this data manager outputs.
+        Args:
+            step: the step number of the eval image to retrieve
+        Returns:
+            A tuple of the ray bundle for the image, and a dictionary of additional batch information
+            such as the groudtruth image.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def next_eval(self, step: int) -> Tuple:
+    def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the eval data manager.
 
-        This will be a tuple of all the information that this data manager outputs.
+        Args:
+            step: the step number of the eval image to retrieve
+        Returns:
+            A tuple of the ray bundle for the image, and a dictionary of additional batch information
+            such as the groudtruth image.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def next_eval_image(self, step: int) -> Tuple:
-        """Returns the next eval image."""
+    def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
+        """Retreive the next eval image.
+
+        Args:
+            step: the step number of the eval image to retrieve
+        Returns:
+            A tuple of the step number, the ray bundle for the image, and a dictionary of
+            additional batch information such as the groudtruth image.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -358,12 +373,12 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.sampler = None
         self.test_mode = test_mode
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
-        self.dataparser = self.config.dataparser
+        self.dataparser_config = self.config.dataparser
         if self.config.data is not None:
             self.config.dataparser.data = Path(self.config.data)
         else:
             self.config.data = self.config.dataparser.data
-        self.dataparser = self.dataparser.setup()
+        self.dataparser = self.dataparser_config.setup()
         self.train_dataparser_outputs = self.dataparser.get_dataparser_outputs(split="train")
 
         self.train_dataset = self.create_train_dataset()
@@ -453,7 +468,6 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
         self.eval_dataloader = RandIndicesEvalDataloader(
             input_dataset=self.eval_dataset,
-            image_indices=self.config.eval_image_indices,
             device=self.device,
             num_workers=self.world_size * 4,
         )
