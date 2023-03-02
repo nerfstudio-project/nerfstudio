@@ -110,10 +110,10 @@ class ExponentialDecayScheduler(Scheduler):
 
 
 @dataclass
-class NeuSSchedulerConfig(SchedulerConfig):
+class DelayedSchedulerConfig(SchedulerConfig):
     """Basic scheduler config with self-defined exponential decay schedule"""
 
-    _target: Type = field(default_factory=lambda: NeuSScheduler)
+    _target: Type = field(default_factory=lambda: DelayedScheduler)
     """target class to instantiate"""
     warm_up_end: int = 5000
     """Iteration number where warmp ends"""
@@ -123,10 +123,10 @@ class NeuSSchedulerConfig(SchedulerConfig):
     """The maximum number of steps."""
 
 
-class NeuSScheduler(Scheduler):
+class DelayedScheduler(Scheduler):
     """Starts with a flat lr schedule until it reaches N epochs then applies a given scheduler"""
 
-    config: NeuSSchedulerConfig
+    config: DelayedSchedulerConfig
 
     def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> lr_scheduler._LRScheduler:
         def func(step):
