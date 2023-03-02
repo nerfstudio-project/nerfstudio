@@ -430,7 +430,9 @@ def rotation_matrix(a: TensorType[3], b: TensorType[3]) -> TensorType[3, 3]:
 
 
 def auto_orient_and_center_poses(
-    poses: TensorType["num_poses":..., 4, 4], method: Literal["pca", "up", "none"] = "up", center_poses: bool = True
+    poses: TensorType["num_poses":..., 4, 4],
+    method: Literal["pca", "up", "vertical", "none"] = "up",
+    center_method: Literal["poses", "focus", "none"] = "poses",
 ) -> Tuple[TensorType["num_poses":..., 3, 4], TensorType[4, 4]]:
     """Orients and centers the poses. We provide two methods for orientation: pca and up.
 
@@ -439,25 +441,54 @@ def auto_orient_and_center_poses(
     up: Orient the poses so that the average up vector is aligned with the z axis.
         This method works well when images are not at arbitrary angles.
 
+    There are two centering methods:
+    poses: The poses are centered around the origin.
+    focus: The origin is set to the focus of attention of all cameras (the
+        closest point to cameras optical axes).
 
     Args:
         poses: The poses to orient.
         method: The method to use for orientation.
-        center_poses: If True, the poses are centered around the origin.
+        center_method: The method to use to center the poses.
 
     Returns:
         Tuple of the oriented poses and the transform matrix.
     """
 
-    translation = poses[..., :3, 3]
+    origins = poses[..., :3, 3]
 
-    mean_translation = torch.mean(translation, dim=0)
-    translation_diff = translation - mean_translation
+    mean_origin = torch.mean(origins, dim=0)
+    translation_diff = origins - mean_origin
 
-    if center_poses:
-        translation = mean_translation
+    if center_method == "poses":
+        translation = mean_origin
+    elif center_method == "focus":
+        # https://github.com/google-research/multinerf/blob/1c8b1c552133cdb2de1c1f3c871b2813f6662265/internal/camera_utils.py#L145
+        # https://github.com/bmild/nerf/blob/18b8aebda6700ed659cb27a0c348b737a5f6ab60/load_llff.py#L197
+        active_directions = poses[:, :3, 2:3]
+        active_origins = poses[:, :3, 3:4]
+        # initial value for testing if the focus_pt is in front or behind
+        focus_pt = mean_origin
+        # Prune cameras which have the current have the focus_pt behind them.
+        active = torch.sum(active_directions.squeeze(-1) * (focus_pt - active_origins.squeeze(-1)), dim=-1) > 0
+        done = False
+        # We need at least two active cameras, else fallback on the previous solution.
+        # This may be the "poses" solution if no cameras are active on first iteration, e.g.
+        # they are in an outward-looking configuration.
+        while torch.sum(active.int()) > 1 and not done:
+            active_directions = active_directions[active]
+            active_origins = active_origins[active]
+            # https://en.wikipedia.org/wiki/Line–line_intersection#In_more_than_two_dimensions
+            m = torch.eye(3) - active_directions * torch.transpose(active_directions, -2, -1)
+            mt_m = torch.transpose(m, -2, -1) @ m
+            focus_pt = torch.linalg.inv(mt_m.mean(0)) @ (mt_m @ active_origins).mean(0)[:, 0]
+            active = torch.sum(active_directions.squeeze(-1) * (focus_pt - active_origins.squeeze(-1)), dim=-1) > 0
+            if active.all():
+                # the set of active cameras did not change, so we're done.
+                done = True
+        translation = focus_pt
     else:
-        translation = torch.zeros_like(mean_translation)
+        translation = torch.zeros_like(mean_origin)
 
     if method == "pca":
         _, eigvec = torch.linalg.eigh(translation_diff.T @ translation_diff)
@@ -471,9 +502,19 @@ def auto_orient_and_center_poses(
 
         if oriented_poses.mean(axis=0)[2, 1] < 0:
             oriented_poses[:, 1:3] = -1 * oriented_poses[:, 1:3]
-    elif method == "up":
+    elif method in ("up", "vertical"):
         up = torch.mean(poses[:, :3, 1], dim=0)
         up = up / torch.linalg.norm(up)
+        if method == "vertical":
+            # If cameras are not all parallel (e.g. not in an LLFF configuration),
+            # we can find the 3D direction that most projects vertically in all
+            # cameras by minimizing ||Xu|| s.t. ||u||=1. This total least squares
+            # problem is solved by SVD.
+            x_axis_matrix = poses[:, :3, 0]
+            _, _, Vh = torch.linalg.svd(x_axis_matrix, full_matrices=False)
+            up_vertical = Vh[2, :]
+            # It may be pointing up or down. Use "up" to disambiguate the sign.
+            up = up_vertical if torch.dot(up_vertical, up) > 0 else -up_vertical
 
         rotation = rotation_matrix(up, torch.Tensor([0, 0, 1]))
         transform = torch.cat([rotation, rotation @ -translation[..., None]], dim=-1)
