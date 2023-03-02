@@ -127,17 +127,16 @@ def generate_planar_projections_from_equirectangular(
 
     fov = 120
     yaw_pitch_pairs = []
+    left_bound, right_bound = -180, 180
+    if percent_crop[3] > 0:
+        left_bound = -180 + 360 * percent_crop[3]
+    if percent_crop[2] > 0:
+        right_bound = 180 - 360 * percent_crop[2]
+
     if samples_per_im == 8:
         fov = 120
         bound_arr = [-45, 0, 45]
-        left_bound = -180
-        right_bound = 180
-        if percent_crop != (0.0, 0.0, 0.0, 0.0):
-            bound_arr = crop_bound_arr_vertical(bound_arr, fov, percent_crop)
-            if percent_crop[3] > 0:
-                left_bound = -180 + 360 * percent_crop[3]
-            if percent_crop[2] > 0:
-                right_bound = 180 - 360 * percent_crop[2]
+        bound_arr = crop_bound_arr_vertical(bound_arr, fov, percent_crop)
         if bound_arr[1] is not None:
             for i in np.arange(left_bound, right_bound, 90):
                 yaw_pitch_pairs.append((i, bound_arr[1]))
@@ -150,14 +149,7 @@ def generate_planar_projections_from_equirectangular(
     elif samples_per_im == 14:
         fov = 110
         bound_arr = [-45, 0, 45]
-        left_bound = -180
-        right_bound = 180
-        if percent_crop != (0.0, 0.0, 0.0, 0.0):
-            bound_arr = crop_bound_arr_vertical(bound_arr, fov, percent_crop)
-            if percent_crop[3] > 0:
-                left_bound = -180 + 360 * percent_crop[3]
-            if percent_crop[2] > 0:
-                right_bound = 180 - 360 * percent_crop[2]
+        bound_arr = crop_bound_arr_vertical(bound_arr, fov, percent_crop)
         if bound_arr[1] is not None:
             for i in np.arange(left_bound, right_bound, 60):
                 yaw_pitch_pairs.append((i, bound_arr[1]))
