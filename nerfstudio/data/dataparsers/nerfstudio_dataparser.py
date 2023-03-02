@@ -56,7 +56,7 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """How much to scale the region of interest by."""
     orientation_method: Literal["pca", "up", "vertical", "none"] = "up"
     """The method to use for orientation."""
-    center_method: Literal["poses", "focus", "none"] = "poses" = True
+    center_method: Literal["poses", "focus", "none"] = "poses"
     """The method to use to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
@@ -209,7 +209,7 @@ class Nerfstudio(DataParser):
         poses, transform_matrix = camera_utils.auto_orient_and_center_poses(
             poses,
             method=orientation_method,
-            center_poses=self.config.center_poses,
+            center_method=self.config.center_method,
         )
 
         # Scale poses
