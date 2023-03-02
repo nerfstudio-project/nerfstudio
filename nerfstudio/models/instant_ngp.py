@@ -64,11 +64,11 @@ class InstantNGPModelConfig(ModelConfig):
     max_num_samples_per_ray: int = 24
     """Number of samples in field evaluation."""
     grid_resolution: int = 128
+    """Resolution of the grid used for the field."""
     max_res: int = 2048
     """Maximum resolution of the hashmap for the base mlp."""
     log2_hashmap_size: int = 19
     """Size of the hashmap for the base mlp"""
-    """Resolution of the grid used for the field."""
     contraction_type: ContractionType = ContractionType.UN_BOUNDED_SPHERE
     """Contraction type used for spatial deformation of the field."""
     cone_angle: float = 0.004
