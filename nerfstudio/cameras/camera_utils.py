@@ -440,6 +440,9 @@ def auto_orient_and_center_poses(
         This method works well when all of the cameras are in the same plane.
     up: Orient the poses so that the average up vector is aligned with the z axis.
         This method works well when images are not at arbitrary angles.
+    vertical: Orient the poses so that the Z 3D direction projects close to the
+        y axis in images. This method works better if cameras are not all
+        looking in the same 3D direction.
 
     There are two centering methods:
     poses: The poses are centered around the origin.

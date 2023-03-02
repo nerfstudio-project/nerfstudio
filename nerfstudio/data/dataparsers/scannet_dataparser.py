@@ -23,6 +23,7 @@ import numpy as np
 import torch
 from typing_extensions import Literal
 
+from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
@@ -162,6 +163,8 @@ class ScanNet(DataParser):
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
+            dataparser_scale=scale_factor,
+            dataparser_transform=transform_matrix,
             metadata={
                 "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,

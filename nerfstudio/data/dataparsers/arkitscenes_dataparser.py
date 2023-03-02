@@ -23,6 +23,7 @@ import numpy as np
 import torch
 from typing_extensions import Literal
 
+from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
