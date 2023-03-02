@@ -64,6 +64,10 @@ class InstantNGPModelConfig(ModelConfig):
     max_num_samples_per_ray: int = 24
     """Number of samples in field evaluation."""
     grid_resolution: int = 128
+    max_res: int = 2048
+    """Maximum resolution of the hashmap for the base mlp."""
+    log2_hashmap_size: int = 19
+    """Size of the hashmap for the base mlp"""
     """Resolution of the grid used for the field."""
     contraction_type: ContractionType = ContractionType.UN_BOUNDED_SPHERE
     """Contraction type used for spatial deformation of the field."""
@@ -103,6 +107,8 @@ class NGPModel(Model):
             contraction_type=self.config.contraction_type,
             use_appearance_embedding=self.config.use_appearance_embedding,
             num_images=self.num_train_data,
+            log2_hashmap_size=self.config.log2_hashmap_size,
+            max_res=self.config.max_res,
         )
 
         self.scene_aabb = Parameter(self.scene_box.aabb.flatten(), requires_grad=False)
