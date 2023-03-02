@@ -21,6 +21,7 @@ from typing import Type
 import cv2
 import numpy as np
 import torch
+from typing_extensions import Literal
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (
