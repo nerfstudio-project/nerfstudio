@@ -33,6 +33,7 @@ from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.data.utils.dataloaders import RandIndicesEvalDataloader
 
 CONSOLE = Console(width=120)
 
@@ -225,6 +226,12 @@ class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
         self.train_dataset = TrivialDataset(cameras)
         self.eval_dataset = TrivialDataset(cameras)
 
+        self.eval_dataloader = RandIndicesEvalDataloader(
+            input_dataset=self.eval_dataset,
+            device=self.device,
+            num_workers=self.world_size * 4,
+        )
+
         # pylint: disable=non-parent-init-called
         DataManager.__init__(self)
 
@@ -306,6 +313,13 @@ class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
             torch.tensor([[i] for i in range(self.config.train_images_per_batch)])
         )
         return 0, ray_bundle, {"vertical": vertical_rotation, "central": central_rotation}
+
+    def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
+        for camera_ray_bundle, batch in self.eval_dataloader:
+            assert camera_ray_bundle.camera_indices is not None
+            image_idx = int(camera_ray_bundle.camera_indices[0, 0, 0])
+            return image_idx, camera_ray_bundle, batch
+        raise ValueError("No more eval images")
 
     def get_train_rays_per_batch(self) -> int:
         return self.config.train_resolution**2
