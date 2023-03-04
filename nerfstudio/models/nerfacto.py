@@ -200,6 +200,9 @@ class NerfactoModel(Model):
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
         self.renderer_normals = NormalsRenderer()
+        self.config.rgb_output_channels = tuple(wavelength *
+                                                self.config.num_output_color_channels // 128
+                                                for wavelength in self.config.rgb_output_channels)
 
         # losses
         self.rgb_loss = MSELoss()
@@ -266,10 +269,10 @@ class NerfactoModel(Model):
     def run_network_for_every_wavelength_batch(self, ray_samples):
         # First create the batched "wavelengths" metadata
         n_wavelengths = self.config.num_output_color_channels
-        wavelengths = torch.arange(n_wavelengths, dtype=torch.float32, device=self.device) / 128.0
+        wavelengths = torch.arange(n_wavelengths, dtype=torch.float32, device=self.device, requires_grad=False) / n_wavelengths
         ray_samples.metadata['wavelengths'] = torch.ones(
             (*ray_samples.frustums.shape, 1), dtype=torch.float32,
-            device=self.device) * wavelengths.view(1, 1, -1)
+            device=self.device, requires_grad=False) * wavelengths.view(1, 1, -1)
         # broadcast the frustums and camera indices to repeat the wavelength batch dimension
         ray_samples.frustums = ray_samples.frustums[:, :, None].broadcast_to((-1, -1, n_wavelengths))
         ray_samples.camera_indices = ray_samples.camera_indices.broadcast_to((-1, -1, n_wavelengths))

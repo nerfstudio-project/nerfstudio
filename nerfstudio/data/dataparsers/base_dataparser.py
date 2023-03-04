@@ -68,6 +68,8 @@ class DataparserOutputs:
     """Transform applied by the dataparser."""
     dataparser_scale: float = 1.0
     """Scale applied by the dataparser."""
+    num_hyperspectral_channels: int = -1
+    """Number of hyperspectral channels to use. Defaults is -1 which means use them all."""
 
     def as_dict(self) -> dict:
         """Returns the dataclass as a dictionary."""

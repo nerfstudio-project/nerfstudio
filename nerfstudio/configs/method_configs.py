@@ -193,10 +193,20 @@ method_configs["hs-nerfacto3"] = TrainerConfig(
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=HyperspectralDataManagerConfig(
-            dataparser=NerfstudioDataParserConfig(),
+            # 2 GPUs:
+            #  16 channels - 17GB
+            #  22 channels - 21GB
+            #  25 channels - 23GB <- better use 24 channels to be safe, in case batches overflow
+            # 1 GPU:
+            #  25 channels - 21GB
+            dataparser=NerfstudioDataParserConfig(
+                # num_images_to_use=36,
+                num_hyperspectral_channels=128 // 8,
+                # num_hyperspectral_channels=24,
+            ),
             # train_num_rays_per_batch=4096 // 64,
-            train_num_rays_per_batch=4096 // 32,
-            eval_num_rays_per_batch=4096 // 32,
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
             # IMPORTANT - to resume a run, use CLI arg --pipeline.datamanager.camera-optimizer.optimizer.lr "5e-6"
             camera_optimizer=CameraOptimizerConfig(mode="SO3xR3",
                                                    optimizer=AdamOptimizerConfig(
@@ -206,7 +216,8 @@ method_configs["hs-nerfacto3"] = TrainerConfig(
             # eval_num_images_to_sample_from=1,
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 9,
-                                  num_output_color_channels=128,
+                                  num_output_color_channels=128 // 8,
+                                #   num_output_color_channels=24,
                                   num_density_channels=1,
                                   use_input_wavelength_like_position=True),
     ),
@@ -269,7 +280,7 @@ method_configs["hs-nerfacto3-rgb"] = TrainerConfig(
     vis="wandb",
 )
 
-method_configs["rgb-alpha-nerfacto"] = TrainerConfig(
+method_configs["rgb-alpha-nerfacto"] = TrainerConfig(  # Approach 2, for RGB : hs-nerfacto2-rgb
     method_name="rgb-alpha-nerfacto",
     steps_per_eval_batch=500,
     steps_per_save=2000,

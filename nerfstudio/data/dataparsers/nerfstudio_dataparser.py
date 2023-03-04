@@ -70,6 +70,10 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The percent of images to use for training. The remaining images are for eval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
+    num_images_to_use: int = -1
+    """Number of images to use. Defaults is -1 which means use them all."""
+    num_hyperspectral_channels: int = -1
+    """Number of hyperspectral channels to use. Defaults is -1 which means use them all."""
 
 
 @dataclass
@@ -202,6 +206,8 @@ class Nerfstudio(DataParser):
 
         # filter image_filenames and poses based on train/eval split percentage
         num_images = len(image_filenames)
+        if self.config.num_images_to_use > 0:
+            num_images = min(num_images, self.config.num_images_to_use)
         num_train_images = math.ceil(num_images * self.config.train_split_percentage)
         num_eval_images = num_images - num_train_images
         i_all = np.arange(num_images)
@@ -312,6 +318,7 @@ class Nerfstudio(DataParser):
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
                 "hs_filenames": hs_filenames if len(hs_filenames) > 0 else None,
             },
+            num_hyperspectral_channels=self.config.num_hyperspectral_channels,
         )
         return dataparser_outputs
 
