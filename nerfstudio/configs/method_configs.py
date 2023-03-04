@@ -46,8 +46,8 @@ from nerfstudio.data.dataparsers.sdfstudio_dataparser import SDFStudioDataParser
 from nerfstudio.data.dataparsers.sitcoms3d_dataparser import Sitcoms3DDataParserConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
 from nerfstudio.engine.schedulers import (
+    CosineDecaySchedulerConfig,
     ExponentialDecaySchedulerConfig,
-    DelayedSchedulerConfig,
 )
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
@@ -459,11 +459,11 @@ method_configs["neus"] = TrainerConfig(
     optimizers={
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=5e-4, eps=1e-15),
-            "scheduler": DelayedSchedulerConfig(warm_up_end=5000, learning_rate_alpha=0.05, max_steps=300000),
+            "scheduler": CosineDecaySchedulerConfig(warm_up_end=5000, learning_rate_alpha=0.05, max_steps=300000),
         },
         "field_background": {
             "optimizer": AdamOptimizerConfig(lr=5e-4, eps=1e-15),
-            "scheduler": DelayedSchedulerConfig(warm_up_end=5000, learning_rate_alpha=0.05, max_steps=300000),
+            "scheduler": CosineDecaySchedulerConfig(warm_up_end=5000, learning_rate_alpha=0.05, max_steps=300000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
