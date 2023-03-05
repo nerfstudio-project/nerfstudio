@@ -310,13 +310,13 @@ class TCNNNerfactoField(Field):
         else:
             h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         if self.wavelength_style == InputWavelengthStyle.AFTER_BASE:
-            base_mlp_out = h
             x = h[:, :, None, :].broadcast_to((-1, -1, len(ray_samples.wavelengths), -1))
-            ray_samples.wavelength_encodings = self.wavelength_encoding(ray_samples.wavelengths.view(-1, 1))
-            y = ray_samples.wavelength_encodings[None, None, :, :].broadcast_to(
+            wavelength_encodings = self.wavelength_encoding(ray_samples.wavelengths.view(-1, 1))
+            y = wavelength_encodings[None, None, :, :].broadcast_to(
                 (*x.shape[:-1], self.wavelength_encoding.n_output_dims))
             x = torch.cat([x, y], dim=-1)
-            density_before_activation = self.density_head(x.view(-1, x.shape[-1]))
+            base_mlp_out = x.view(-1, x.shape[-1])
+            density_before_activation = self.density_head(base_mlp_out)
         else:
             density_before_activation, base_mlp_out = torch.split(
                 h, [self.num_output_density_channels, self.geo_feat_dim], dim=-1)
@@ -355,6 +355,7 @@ class TCNNNerfactoField(Field):
 
         # transients
         if self.use_transient_embedding and self.training:
+            # Note: if this errors-out, it's probably because density_embedding has got wavelength appended
             embedded_transient = self.embedding_transient(camera_indices)
             transient_input = torch.cat(
                 [
@@ -390,19 +391,22 @@ class TCNNNerfactoField(Field):
             x = self.mlp_pred_normals(pred_normals_inp).view(*outputs_shape, -1).to(directions)
             outputs[FieldHeadNames.PRED_NORMALS] = self.field_head_pred_normals(x)
 
-        h = torch.cat(
-            [
-                d,
-                density_embedding.view(-1, self.geo_feat_dim),
-                embedded_appearance.view(-1, self.appearance_embedding_dim),
-            ],
-            dim=-1,
-        )
         if self.wavelength_style == InputWavelengthStyle.AFTER_BASE:
-            n_wavelengths = ray_samples.wavelength_encodings.shape[0]
-            h = h[:, None, :].expand((h.shape[0], n_wavelengths, h.shape[-1]))
-            h = torch.cat([h, ray_samples.wavelength_encodings.expand(h.shape[0], n_wavelengths, self.wavelength_encoding.n_output_dims)], dim=-1)
-            h = h.view(-1, h.shape[-1])
+            d = d[:, None, :].expand((d.shape[0], len(ray_samples.wavelengths), d.shape[-1]))
+            density_embedding = density_embedding.view(-1, len(ray_samples.wavelengths), density_embedding.shape[-1])
+            embedded_appearance = embedded_appearance.view(-1, self.appearance_embedding_dim)
+            embedded_appearance = embedded_appearance[:, None, :].expand((embedded_appearance.shape[0], len(ray_samples.wavelengths), embedded_appearance.shape[-1]))
+            h = torch.cat([d, density_embedding, embedded_appearance], dim=-1).view(-1, self.mlp_head.n_input_dims)
+
+        else:
+            h = torch.cat(
+                [
+                    d,
+                    density_embedding.view(-1, self.geo_feat_dim + (self.wavelength_encoding.n_output_dims if self.wavelength_style == InputWavelengthStyle.AFTER_BASE else 0)),
+                    embedded_appearance.view(-1, self.appearance_embedding_dim),
+                ],
+                dim=-1,
+            )
         rgb = self.mlp_head(h).view(*outputs_shape, -1).to(directions)
         outputs.update({FieldHeadNames.RGB: rgb})
 
