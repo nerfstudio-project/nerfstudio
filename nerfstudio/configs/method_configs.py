@@ -48,7 +48,7 @@ from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
-from nerfstudio.models.kplanes import LowrankModelConfig
+from nerfstudio.models.kplanes import KPlanesModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.nerfacto import NerfactoModelConfig
 from nerfstudio.models.nerfplayer_nerfacto import NerfplayerNerfactoModelConfig
@@ -405,7 +405,7 @@ method_configs["k-planes"] = TrainerConfig(
                 mode="off", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),
         ),
-        model=LowrankModelConfig(eval_num_rays_per_chunk=1 << 15),
+        model=KPlanesModelConfig(eval_num_rays_per_chunk=1 << 15),
     ),
     optimizers={
         "fields": {

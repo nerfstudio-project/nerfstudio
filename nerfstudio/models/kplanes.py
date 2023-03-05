@@ -53,7 +53,7 @@ from nerfstudio.utils import colormaps, colors, misc
 
 
 @dataclass
-class LowrankModelConfig(ModelConfig):
+class KPlanesModelConfig(ModelConfig):
     """K-Planes model config"""
 
     _target: Type = field(default_factory=lambda: KPlanesModel)
@@ -117,7 +117,7 @@ class KPlanesModel(Model):
         config: K-Planes configuration to instantiate model
     """
 
-    config: LowrankModelConfig
+    config: KPlanesModelConfig
 
     def populate_modules(self):
         """Set the fields and modules"""
