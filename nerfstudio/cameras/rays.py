@@ -124,7 +124,10 @@ class RaySamples(TensorDataclass):
             Weights for each sample
         """
 
-        delta_density = self.deltas * densities
+        if len(self.shape) == 3:
+            delta_density = self.deltas.view(self.deltas.shape[:-1]) * densities
+        else:
+            delta_density = self.deltas * densities
         alphas = 1 - torch.exp(-delta_density)
 
         transmittance = torch.cumsum(delta_density[..., :-1, :], dim=-2)

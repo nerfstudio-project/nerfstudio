@@ -245,6 +245,25 @@ class TensorDataclass:
             lambda x: x.broadcast_to((*shape, x.shape[-1])), custom_tensor_dims_fn=custom_tensor_dims_fn
         )
 
+    def permute(self: TensorDataclassT, *dims) -> TensorDataclassT:
+        """Returns a new TensorDataclass with the same data but with permuted dimensions.
+
+        Args:
+            *dims: The new dimensions of the tensor dataclass.
+
+        Returns:
+            A new TensorDataclass with the same data but with permuted dimensions.
+        """
+        return self._apply_fn_to_fields(lambda x: x.permute(*dims))
+
+    def contiguous(self: TensorDataclassT) -> TensorDataclassT:
+        """Returns a new TensorDataclass with the same data but with contiguous memory layout.
+
+        Returns:
+            A new TensorDataclass with the same data but with contiguous memory layout.
+        """
+        return self._apply_fn_to_fields(lambda x: x.contiguous())
+
     def to(self: TensorDataclassT, device) -> TensorDataclassT:
         """Returns a new TensorDataclass with the same data but on the specified device.
 

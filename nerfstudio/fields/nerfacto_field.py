@@ -310,13 +310,18 @@ class TCNNNerfactoField(Field):
         else:
             h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         if self.wavelength_style == InputWavelengthStyle.AFTER_BASE:
-            x = h[:, :, None, :].broadcast_to((-1, -1, len(ray_samples.wavelengths), -1))
-            wavelength_encodings = self.wavelength_encoding(ray_samples.wavelengths.view(-1, 1))
-            y = wavelength_encodings[None, None, :, :].broadcast_to(
-                (*x.shape[:-1], self.wavelength_encoding.n_output_dims))
-            x = torch.cat([x, y], dim=-1)
-            base_mlp_out = x.view(-1, x.shape[-1])
-            density_before_activation = self.density_head(base_mlp_out)
+            if "wavelengths" in ray_samples.metadata:
+                wavelength_encodings = self.wavelength_encoding(ray_samples.metadata["wavelengths"].reshape(-1, 1))
+                base_mlp_out = torch.cat([h.view(-1, h.shape[-1]), wavelength_encodings], dim=-1)
+                density_before_activation = self.density_head(base_mlp_out)
+            else:
+                x = h[:, :, None, :].broadcast_to((-1, -1, len(ray_samples.wavelengths), -1))
+                wavelength_encodings = self.wavelength_encoding(ray_samples.wavelengths.view(-1, 1))
+                y = wavelength_encodings[None, None, :, :].broadcast_to(
+                    (*x.shape[:-1], self.wavelength_encoding.n_output_dims))
+                x = torch.cat([x, y], dim=-1)
+                base_mlp_out = x.view(-1, x.shape[-1])
+                density_before_activation = self.density_head(base_mlp_out)
         else:
             density_before_activation, base_mlp_out = torch.split(
                 h, [self.num_output_density_channels, self.geo_feat_dim], dim=-1)
@@ -391,7 +396,7 @@ class TCNNNerfactoField(Field):
             x = self.mlp_pred_normals(pred_normals_inp).view(*outputs_shape, -1).to(directions)
             outputs[FieldHeadNames.PRED_NORMALS] = self.field_head_pred_normals(x)
 
-        if self.wavelength_style == InputWavelengthStyle.AFTER_BASE:
+        if self.wavelength_style == InputWavelengthStyle.AFTER_BASE and ("wavelengths" not in ray_samples.metadata):
             d = d[:, None, :].expand((d.shape[0], len(ray_samples.wavelengths), d.shape[-1]))
             density_embedding = density_embedding.view(-1, len(ray_samples.wavelengths), density_embedding.shape[-1])
             embedded_appearance = embedded_appearance.view(-1, self.appearance_embedding_dim)

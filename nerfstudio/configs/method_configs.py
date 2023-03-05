@@ -221,7 +221,7 @@ method_configs["hs-nerfacto3"] = TrainerConfig(
                                 #   num_output_color_channels=24,
                                   num_density_channels=1,
                                   num_wavelength_samples_per_batch=16,
-                                  wavelength_style=InputWavelengthStyle.BEFORE_BASE,
+                                  wavelength_style=InputWavelengthStyle.AFTER_BASE,
                                   num_wavelength_encoding_freqs=8),
     ),
     optimizers={
