@@ -42,6 +42,13 @@ except ImportError:
 else:
     _HAS_HLOC = True
 
+try:
+    from pixsfm.refine_hloc import PixSfM
+except ImportError:
+    _HAS_PIXSFM = False
+else:
+    _HAS_PIXSFM = True
+
 CONSOLE = Console(width=120)
 
 
@@ -58,6 +65,7 @@ def run_hloc(
         "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
     ] = "superglue",
     num_matched: int = 50,
+    refine_pixsfm: bool = False,
 ) -> None:
     """Runs hloc on the images.
 
@@ -73,6 +81,10 @@ def run_hloc(
             f"[bold red]Error: To use this set of parameters ({feature_type}/{matcher_type}/hloc), "
             "you must install hloc toolbox!!"
         )
+        sys.exit(1)
+
+    if refine_pixsfm and not _HAS_PIXSFM:
+        CONSOLE.print("[bold red]Error: use refine_pixsfm, you must install pixel-perfect-sfm toolbox!!")
         sys.exit(1)
 
     outputs = colmap_dir
@@ -99,13 +111,29 @@ def run_hloc(
     image_options = pycolmap.ImageReaderOptions(  # pylint: disable=c-extension-no-member
         camera_model=camera_model.value
     )
-    reconstruction.main(
-        sfm_dir,
-        image_dir,
-        sfm_pairs,
-        features,
-        matches,
-        camera_mode=pycolmap.CameraMode.SINGLE,  # pylint: disable=c-extension-no-member
-        image_options=image_options,
-        verbose=verbose,
-    )
+    if refine_pixsfm:
+        sfm = PixSfM({"dense_features": {"max_edge": 1024}})
+        refined, _ = sfm.reconstruction(
+            sfm_dir,
+            image_dir,
+            sfm_pairs,
+            features,
+            matches,
+            image_list=references,
+            camera_mode=pycolmap.CameraMode.SINGLE,  # pylint: disable=c-extension-no-member
+            image_options=image_options,
+            verbose=verbose,
+        )
+        print("Refined", refined.summary())
+
+    else:
+        reconstruction.main(
+            sfm_dir,
+            image_dir,
+            sfm_pairs,
+            features,
+            matches,
+            camera_mode=pycolmap.CameraMode.SINGLE,  # pylint: disable=c-extension-no-member
+            image_options=image_options,
+            verbose=verbose,
+        )
