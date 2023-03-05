@@ -122,6 +122,8 @@ class NerfactoModelConfig(ModelConfig):
     """For wavelength-dependent transparency, we might want to have more density channels."""
     wavelength_style: InputWavelengthStyle = InputWavelengthStyle.NONE
     """Sets how to use the input wavelength."""
+    num_wavelength_encoding_freqs: int = 2
+    """Number of frequencies to use for the wavelength encoding."""
     num_wavelength_samples_per_batch: int = -1
     """When wavelength_style is not NONE, this determines how many wavelengths to sample per batch"""
 
@@ -154,6 +156,7 @@ class NerfactoModel(Model):
             num_output_color_channels=self.config.num_output_color_channels,
             num_output_density_channels=self.config.num_density_channels,
             wavelength_style=self.config.wavelength_style,
+            num_wavelength_encoding_freqs=self.config.num_wavelength_encoding_freqs,
         )
 
         self.density_fns = []
