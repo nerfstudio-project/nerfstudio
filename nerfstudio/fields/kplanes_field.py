@@ -124,6 +124,7 @@ class KPlanesField(Field):
         linear_decoder: bool = True,
         linear_decoder_layers: Optional[int] = None,
         use_appearance_embedding: bool = False,
+        disable_viewing_dependent: bool = False,
     ) -> None:
         super().__init__()
         self.aabb = Parameter(aabb, requires_grad=False)
@@ -172,14 +173,18 @@ class KPlanesField(Field):
         else:
             self.appearance_embedding_dim = 0
 
-        # Init direction encoder
-        self.direction_encoder = tcnn.Encoding(
-            n_input_dims=3,
-            encoding_config={
-                "otype": "SphericalHarmonics",
-                "degree": 4,
-            },
-        )
+        # Lambertian effects
+        self.disable_viewing_dependent = disable_viewing_dependent
+
+        if not disable_viewing_dependent:
+            # Init direction encoder
+            self.direction_encoder = tcnn.Encoding(
+                n_input_dims=3,
+                encoding_config={
+                    "otype": "SphericalHarmonics",
+                    "degree": 4,
+                },
+            )
 
         # Init decoder network
         if self.linear_decoder:
@@ -224,7 +229,9 @@ class KPlanesField(Field):
                     "n_hidden_layers": 1,
                 },
             )
-            self.in_dim_color = self.direction_encoder.n_output_dims + self.geo_feat_dim + self.appearance_embedding_dim
+            self.in_dim_color = self.geo_feat_dim + self.appearance_embedding_dim
+            if not disable_viewing_dependent:
+                self.in_dim_color += self.direction_encoder.n_output_dims
             self.color_net = tcnn.Network(
                 n_input_dims=self.in_dim_color,
                 n_output_dims=3,
@@ -286,7 +293,7 @@ class KPlanesField(Field):
         directions: torch.Tensor = get_normalized_directions(ray_samples.frustums.directions)
         # directions = directions.view(-1, 1, 3).expand(pts.shape).reshape(-1, 3)
         directions = directions.reshape(-1, 3)
-        if not self.linear_decoder:
+        if not self.linear_decoder and not self.disable_viewing_dependent:
             directions = get_normalized_directions(directions)
             encoded_directions = self.direction_encoder(directions)
             color_features = [encoded_directions, density_embedding.view(-1, self.geo_feat_dim)]
@@ -320,10 +327,13 @@ class KPlanesField(Field):
 
     def get_params(self):
         field_params = {k: v for k, v in self.grids.named_parameters(prefix="grids")}
-        nn_params = [
-            self.sigma_net.named_parameters(prefix="sigma_net"),
-            self.direction_encoder.named_parameters(prefix="direction_encoder"),
-        ]
+        if self.disable_viewing_dependent:
+            nn_params = [self.sigma_net.named_parameters(prefix="sigma_net")]
+        else:
+            nn_params = [
+                self.sigma_net.named_parameters(prefix="sigma_net"),
+                self.direction_encoder.named_parameters(prefix="direction_encoder"),
+            ]
         if self.linear_decoder:
             nn_params.append(self.color_basis.named_parameters(prefix="color_basis"))
         else:

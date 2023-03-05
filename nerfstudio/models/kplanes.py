@@ -97,6 +97,8 @@ class KPlanesModelConfig(ModelConfig):
     # appearance embedding (phototourism)
     use_appearance_embedding: bool = False
     appearance_embedding_dim: int = 0
+    disable_viewing_dependent: bool = False 
+    """If true, color is independent of viewing direction. (Neural Decoder Only)"""
     num_images: Optional[int] = None
     num_proposal_samples_per_ray: Tuple[int, ...] = (256, 96)
     """Number of samples per ray for each proposal network."""
@@ -147,6 +149,7 @@ class KPlanesModel(Model):
             linear_decoder=self.linear_decoder,
             linear_decoder_layers=self.linear_decoder_layers,
             num_images=self.num_train_data,
+            disable_viewing_dependent=self.config.disable_viewing_dependent,
         )
 
         self.density_fns = []
