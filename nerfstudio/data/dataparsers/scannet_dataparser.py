@@ -82,9 +82,9 @@ class ScanNet(DataParser):
         K = np.loadtxt(self.config.data / "intrinsic" / "intrinsic_color.txt")
         for img, depth, pose in zip(img_dir_sorted, depth_dir_sorted, pose_dir_sorted):
             pose = np.loadtxt(pose)
-            frame_pose[0:3, 1:3] *= -1
-            frame_pose = frame_pose[np.array([1, 0, 2, 3]), :]
-            frame_pose[2, :] *= -1
+            pose[0:3, 1:3] *= -1
+            pose = pose[np.array([1, 0, 2, 3]), :]
+            pose[2, :] *= -1
 
             # We cannot accept files directly, as some of the poses are invalid
             if np.isinf(pose).any():
