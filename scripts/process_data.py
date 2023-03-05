@@ -319,11 +319,19 @@ class ProcessVideo:
             temp_image_dir = self.output_dir / "temp_images"
             temp_image_dir.mkdir(parents=True, exist_ok=True)
             summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
-                self.data, image_dir=temp_image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
+                self.data,
+                image_dir=temp_image_dir,
+                num_frames_target=self.num_frames_target,
+                percent_crop=(0.0, 0.0, 0.0, 0.0),
+                verbose=self.verbose,
             )
         else:
             summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
-                self.data, image_dir=image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
+                self.data,
+                image_dir=image_dir,
+                num_frames_target=self.num_frames_target,
+                percent_crop=self.percent_crop,
+                verbose=self.verbose,
             )
 
         # Generate planar projections if equirectangular
@@ -332,7 +340,10 @@ class ProcessVideo:
                 self.output_dir / "temp_images", self.images_per_equirect
             )
             image_dir = equirect_utils.generate_planar_projections_from_equirectangular(
-                self.output_dir / "temp_images", perspective_image_size, self.images_per_equirect
+                self.output_dir / "temp_images",
+                perspective_image_size,
+                self.images_per_equirect,
+                percent_crop=self.percent_crop,
             )
 
             # copy the perspective images to the image directory
@@ -346,11 +357,11 @@ class ProcessVideo:
             # remove the temp_images folder
             shutil.rmtree(self.output_dir / "temp_images", ignore_errors=True)
 
-        # Create mask
+        # # Create mask
         mask_path = process_data_utils.save_mask(
             image_dir=image_dir,
             num_downscales=self.num_downscales,
-            percent_crop=self.percent_crop,
+            percent_crop=(0.0, 0.0, 0.0, 0.0),
             percent_radius=self.percent_radius_crop,
         )
         if mask_path is not None:

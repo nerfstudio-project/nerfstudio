@@ -100,7 +100,11 @@ def get_num_frames_in_video(video: Path) -> int:
 
 
 def convert_video_to_images(
-    video_path: Path, image_dir: Path, num_frames_target: int, verbose: bool = False
+    video_path: Path,
+    image_dir: Path,
+    num_frames_target: int,
+    percent_crop: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    verbose: bool = False,
 ) -> Tuple[List[str], int]:
     """Converts a video into a sequence of images.
 
@@ -108,6 +112,7 @@ def convert_video_to_images(
         video_path: Path to the video.
         output_dir: Path to the output directory.
         num_frames_target: Number of frames to extract.
+        percent_crop: Percent of the image to crop. (top, bottom, left, right)
         verbose: If True, logs the output of the command.
     Returns:
         A tuple containing summary of the conversion and the number of extracted frames.
@@ -135,16 +140,23 @@ def convert_video_to_images(
 
         out_filename = image_dir / "frame_%05d.png"
         ffmpeg_cmd = f'ffmpeg -i "{video_path}"'
-        spacing = num_frames // num_frames_target
 
+        crop_cmd = ""
+        if percent_crop != (0.0, 0.0, 0.0, 0.0):
+            height = 1 - percent_crop[0] - percent_crop[1]
+            width = 1 - percent_crop[2] - percent_crop[3]
+            start_x = percent_crop[2]
+            start_y = percent_crop[0]
+            crop_cmd = f',"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}"'
+
+        spacing = num_frames // num_frames_target
         if spacing > 1:
-            ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB -r 1"
+            ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB{crop_cmd} -r 1"
         else:
             CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
             ffmpeg_cmd += " -pix_fmt bgr8"
 
         ffmpeg_cmd += f" {out_filename}"
-
         run_command(ffmpeg_cmd, verbose=verbose)
 
     num_final_frames = len(list(image_dir.glob("*.png")))
