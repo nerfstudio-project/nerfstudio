@@ -102,14 +102,18 @@ def _render_trajectory_video(
                     aabb_box = SceneBox(torch.stack([bounding_box_min, bounding_box_max]).to(pipeline.device))
                 camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx, aabb_box=aabb_box)
 
+                color_override = 'rgb'
+                if cameras.color_channels is not None:
+                    channel = cameras.color_channels[camera_idx].item()
+                    color_override = [int(channel)]
                 if crop_data is not None:
                     with renderers.background_color_override_context(
                         crop_data.background_color.to(pipeline.device)
                     ), torch.no_grad():
-                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle, override_wavelengths=color_override)
                 else:
                     with torch.no_grad():
-                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle, override_wavelengths=color_override)
 
                 render_image = []
                 for rendered_output_name in rendered_output_names:
@@ -121,11 +125,12 @@ def _render_trajectory_video(
                         )
                         sys.exit(1)
                     if cameras.color_channels is not None:
-                        channel = cameras.color_channels[camera_idx].item()
-                        channel = int(channel)
-                        output_image = outputs['image'].cpu().numpy()
-                        print(f'The channel is: {channel = }, {output_image.shape = }')
-                        output_image = output_image[..., [channel, channel, channel]]
+                        # channel = cameras.color_channels[camera_idx].item()
+                        # channel = int(channel)
+                        # output_image = outputs['image'].cpu().numpy()
+                        # print(f'The channel is: {channel = }, {output_image.shape = }')
+                        # output_image = output_image[..., [channel, channel, channel]]
+                        output_image = outputs['image'].expand((-1, -1, 3)).cpu().numpy()
                     else:
                         output_image = outputs[rendered_output_name].cpu().numpy()
                     if output_image.shape[-1] == 1:
