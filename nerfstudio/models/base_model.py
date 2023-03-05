@@ -167,6 +167,8 @@ class Model(nn.Module):
             camera_ray_bundle: ray bundle to calculate outputs over
         """
         num_rays_per_chunk = self.config.eval_num_rays_per_chunk
+        if len(camera_ray_bundle.wavelengths) > 3:
+            num_rays_per_chunk //= 16
         image_height, image_width = camera_ray_bundle.origins.shape[:2]
         num_rays = len(camera_ray_bundle)
         outputs_lists = defaultdict(list)
@@ -181,6 +183,9 @@ class Model(nn.Module):
         for output_name, outputs_list in outputs_lists.items():
             if not torch.is_tensor(outputs_list[0]):
                 # TODO: handle lists of tensors as well
+                continue
+            if output_name == "wavelengths":
+                outputs[output_name] = outputs_list[0]
                 continue
             outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)  # type: ignore
         return outputs

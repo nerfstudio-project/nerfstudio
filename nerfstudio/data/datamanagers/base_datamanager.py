@@ -69,7 +69,7 @@ AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of
             "nerfstudio-data": NerfstudioDataParserConfig(),
             "nerfstudio-data1": NerfstudioDataParserConfig(
                 # num_images_to_use=36,
-                num_hyperspectral_channels=128 // 8,
+                num_hyperspectral_channels=128,
                 # num_hyperspectral_channels=24,
                 ),
             "minimal-parser": MinimalDataParserConfig(),

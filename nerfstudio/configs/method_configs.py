@@ -202,7 +202,7 @@ method_configs["hs-nerfacto3"] = TrainerConfig(
             #  25 channels - 21GB
             dataparser=NerfstudioDataParserConfig(
                 # num_images_to_use=36,
-                num_hyperspectral_channels=128 // 8,
+                num_hyperspectral_channels=128,
                 # num_hyperspectral_channels=24,
             ),
             # train_num_rays_per_batch=4096 // 64,
@@ -217,9 +217,10 @@ method_configs["hs-nerfacto3"] = TrainerConfig(
             # eval_num_images_to_sample_from=1,
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 9,
-                                  num_output_color_channels=128 // 8,
+                                  num_output_color_channels=128,
                                 #   num_output_color_channels=24,
                                   num_density_channels=1,
+                                  num_wavelength_samples_per_batch=16,
                                   wavelength_style=InputWavelengthStyle.BEFORE_BASE),
     ),
     optimizers={

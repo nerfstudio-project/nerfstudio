@@ -122,6 +122,8 @@ class NerfactoModelConfig(ModelConfig):
     """For wavelength-dependent transparency, we might want to have more density channels."""
     wavelength_style: InputWavelengthStyle = InputWavelengthStyle.NONE
     """Sets how to use the input wavelength."""
+    num_wavelength_samples_per_batch: int = -1
+    """When wavelength_style is not NONE, this determines how many wavelengths to sample per batch"""
 
 
 class NerfactoModel(Model):
@@ -270,6 +272,10 @@ class NerfactoModel(Model):
         # First create the batched "wavelengths" metadata
         n_wavelengths = self.config.num_output_color_channels
         wavelengths = torch.arange(n_wavelengths, dtype=torch.float32, device=self.device, requires_grad=False) / n_wavelengths
+        # # TODO(gerry): use different wavelengths for every sample
+        # wavelengths = torch.randperm(
+        #     n_wavelengths, dtype=torch.float32,
+        #     device=self.device)[:self.config.num_wavelength_samples_per_batch] / 128.0
         ray_samples.metadata['wavelengths'] = torch.ones(
             (*ray_samples.frustums.shape, 1), dtype=torch.float32,
             device=self.device, requires_grad=False) * wavelengths.view(1, 1, -1)
@@ -285,19 +291,24 @@ class NerfactoModel(Model):
         ray_samples.camera_indices = ray_samples.camera_indices[:, :, 0]
         return field_outputs
 
-    def run_network_for_every_wavelength_batch_partial(self, ray_samples):
+    def run_network_for_every_wavelength_batch_partial(self, ray_samples, override_wavelengths=None):
         # First create the batched "wavelengths" metadata
         n_wavelengths = self.config.num_output_color_channels
-        wavelengths = torch.arange(n_wavelengths, dtype=torch.float32, device=self.device, requires_grad=False) / n_wavelengths
-        # # TODO(gerry): use different wavelengths for every sample
-        # wavelengths = torch.randperm(
-        #     n_wavelengths, dtype=torch.float32,
-        #     device=self.device)[:self.config.num_wavelength_samples_per_batch] / 128.0
+        if override_wavelengths is not None:
+            wavelengths = torch.tensor(override_wavelengths, dtype=torch.float32, device=self.device, requires_grad=False) / n_wavelengths
+        elif self.config.num_wavelength_samples_per_batch < 0:
+            wavelengths = torch.arange(n_wavelengths, dtype=torch.float32, device=self.device, requires_grad=False) / n_wavelengths
+        else:
+            # TODO(gerry): use different wavelengths for every sample?
+            wavelengths = torch.randperm(
+                n_wavelengths, dtype=torch.float32,
+                device=self.device)[:self.config.num_wavelength_samples_per_batch] / n_wavelengths
         ray_samples.wavelengths = wavelengths
         # execute forward pass and squeeze outputs
         field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
-        field_outputs[FieldHeadNames.DENSITY] = field_outputs[FieldHeadNames.DENSITY].view(*ray_samples.frustums.shape, n_wavelengths)
-        field_outputs[FieldHeadNames.RGB] = field_outputs[FieldHeadNames.RGB].view(*ray_samples.frustums.shape, n_wavelengths)
+        n_ch = len(wavelengths)
+        field_outputs[FieldHeadNames.DENSITY] = field_outputs[FieldHeadNames.DENSITY].view(*ray_samples.frustums.shape, n_ch)
+        field_outputs[FieldHeadNames.RGB] = field_outputs[FieldHeadNames.RGB].view(*ray_samples.frustums.shape, n_ch)
         return field_outputs
 
     def get_outputs(self, ray_bundle: RayBundle):
@@ -309,7 +320,7 @@ class NerfactoModel(Model):
             # print(ray_samples.metadata["set_of_wavelengths"].shape, ray_samples.metadata["set_of_wavelengths"].dtype)
             # field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
         elif self.config.wavelength_style == InputWavelengthStyle.AFTER_BASE:
-            field_outputs = self.run_network_for_every_wavelength_batch_partial(ray_samples)
+            field_outputs = self.run_network_for_every_wavelength_batch_partial(ray_samples, override_wavelengths=ray_bundle.wavelengths)
         else:
             field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
@@ -319,7 +330,7 @@ class NerfactoModel(Model):
         if not self.config.wavelength_style != InputWavelengthStyle.NONE:
             assert weights.shape[-1] == self.config.num_density_channels, f"weights should have num_density_channels channels: {weights.shape = }"
         else:
-            assert weights.shape[-1] == self.config.num_output_color_channels, f"weights should have num_output_color channels: {weights.shape = }"
+            assert weights.shape[-1] == len(ray_samples.wavelengths), f"weights should have {len(ray_samples.wavelengths)=} channels: {weights.shape = }"
 
         # when num_output_color_channels is not 3, then image will also not be 3.
         image = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
@@ -333,7 +344,20 @@ class NerfactoModel(Model):
         }
 
         if self.config.num_output_color_channels != 3:
-            outputs["rgb"] = image[:, self.config.rgb_output_channels]  # [rays, 3]
+            outputs["wavelengths"] = (ray_samples.wavelengths *
+                                      self.config.num_output_color_channels).long()
+            if self.config.num_wavelength_samples_per_batch < 0:
+                # if all wavelengths are used, then we can just use the rgb_output_channels
+                rgb_indices = self.config.rgb_output_channels
+            else:
+                # find the indices in wavelengths that are closest to rgb_output_channels
+                rgb_indices = torch.argmin(torch.abs(outputs["wavelengths"][:, None] -
+                                                     torch.tensor(self.config.rgb_output_channels,
+                                                                  dtype=torch.float32,
+                                                                  device=self.device,
+                                                                  requires_grad=False)[None, :]),
+                                           dim=0)
+            outputs["rgb"] = image[:, rgb_indices]  # [rays, 3]
             outputs["image"] = image  # [rays, num_output_color_channels]
 
         if self.config.predict_normals:
@@ -367,7 +391,7 @@ class NerfactoModel(Model):
             image = batch["image"].to(self.device)
             metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
         else:
-            image = batch["hs_image"].to(self.device)
+            image = batch["hs_image"][..., outputs["wavelengths"]].to(self.device)
             metrics_dict["psnr"] = self.psnr(outputs["image"], image)
         if self.training:
             metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
@@ -379,7 +403,7 @@ class NerfactoModel(Model):
             image = batch["image"].to(self.device)
             loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
         else:
-            image = batch["hs_image"].to(self.device)
+            image = batch["hs_image"][..., outputs["wavelengths"]].to(self.device)
             loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["image"])
         if self.training:
             loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
@@ -404,9 +428,9 @@ class NerfactoModel(Model):
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
 
         rgb_gt = batch["image"].to(self.device)
-        rgb = outputs["rgb"]
+        rgb = outputs["rgb"] * 1.0
         if self.config.num_output_color_channels != 3:
-            image_gt = batch["hs_image"].to(self.device)
+            image_gt = batch["hs_image"][..., outputs["wavelengths"]].to(self.device)
             image = outputs["image"]
         else:
             image_gt = rgb_gt
@@ -452,3 +476,20 @@ class NerfactoModel(Model):
             images_dict[key] = prop_depth_i
 
         return metrics_dict, images_dict
+
+    @torch.no_grad()
+    def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle, override_wavelengths=None) -> Dict[str, torch.Tensor]:
+        """Takes in camera parameters and computes the output of the model.
+
+        Args:
+            camera_ray_bundle: ray bundle to calculate outputs over
+        """
+        if self.config.num_output_color_channels != 3:
+            if override_wavelengths is None:
+                camera_ray_bundle.wavelengths = list(range(128))
+            elif override_wavelengths == 'rgb':
+                camera_ray_bundle.wavelengths = self.config.rgb_output_channels
+            else:
+                camera_ray_bundle.wavelengths = override_wavelengths
+        with torch.no_grad():
+            return super().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
