@@ -167,8 +167,6 @@ class Model(nn.Module):
             camera_ray_bundle: ray bundle to calculate outputs over
         """
         num_rays_per_chunk = self.config.eval_num_rays_per_chunk
-        if len(camera_ray_bundle.wavelengths) > 3:
-            num_rays_per_chunk //= 16
         image_height, image_width = camera_ray_bundle.origins.shape[:2]
         num_rays = len(camera_ray_bundle)
         outputs_lists = defaultdict(list)

@@ -207,7 +207,7 @@ method_configs["hs-nerfacto3"] = TrainerConfig(
             ),
             # train_num_rays_per_batch=4096 // 64,
             train_num_rays_per_batch=4096,
-            eval_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096 // 32,
             # IMPORTANT - to resume a run, use CLI arg --pipeline.datamanager.camera-optimizer.optimizer.lr "5e-6"
             camera_optimizer=CameraOptimizerConfig(mode="SO3xR3",
                                                    optimizer=AdamOptimizerConfig(
