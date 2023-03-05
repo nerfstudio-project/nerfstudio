@@ -18,6 +18,7 @@ Field for compound nerf model, adds scene contraction and image embeddings to in
 
 
 from typing import Dict, Optional, Tuple
+from enum import Enum
 
 import numpy as np
 import torch
@@ -63,6 +64,11 @@ def get_normalized_directions(directions: TensorType["bs":..., 3]):
     """
     return (directions + 1.0) / 2.0
 
+class InputWavelengthStyle(Enum):
+    NONE = 0
+    BEFORE_BASE = 1
+    INSIDE_BASE = 2
+    AFTER_BASE = 3
 
 class TCNNNerfactoField(Field):
     """Compound Field that uses TCNN
@@ -103,8 +109,10 @@ class TCNNNerfactoField(Field):
         num_levels: int = 16,
         max_res: int = 2048,
         log2_hashmap_size: int = 19,
+        num_layers_density: int = 3,
         num_layers_color: int = 3,
         num_layers_transient: int = 2,
+        hidden_dim_density: int = 64,
         hidden_dim_color: int = 64,
         hidden_dim_transient: int = 64,
         appearance_embedding_dim: int = 32,
@@ -117,7 +125,8 @@ class TCNNNerfactoField(Field):
         spatial_distortion: Optional[SpatialDistortion] = None,
         num_output_color_channels: int = 3,
         num_output_density_channels: int = 1,
-        use_input_wavelength_like_position: bool = False,
+        wavelength_style: InputWavelengthStyle = InputWavelengthStyle.NONE,
+        num_wavelength_encoding_freqs: int = 2,
     ) -> None:
         super().__init__()
 
@@ -133,7 +142,7 @@ class TCNNNerfactoField(Field):
         self.use_semantics = use_semantics
         self.use_pred_normals = use_pred_normals
         self.num_output_density_channels = num_output_density_channels
-        self.use_input_wavelength_like_position = use_input_wavelength_like_position
+        self.wavelength_style = wavelength_style
 
         base_res = 16
         features_per_level = 2
@@ -152,9 +161,20 @@ class TCNNNerfactoField(Field):
             encoding_config={"otype": "Frequency", "n_frequencies": 2},
         )
 
+        self.wavelength_encoding = tcnn.Encoding(
+            n_input_dims=1,
+            encoding_config={"otype": "Frequency", "n_frequencies": num_wavelength_encoding_freqs},
+        )
+
+
+        if wavelength_style == InputWavelengthStyle.INSIDE_BASE:
+            raise NotImplementedError("Wavelength style not implemented")
+        in_dims = 4 if (wavelength_style == InputWavelengthStyle.BEFORE_BASE) else 3
+        out_dims = self.geo_feat_dim + (0 if wavelength_style == InputWavelengthStyle.AFTER_BASE
+                                        else num_output_density_channels)
         self.mlp_base = tcnn.NetworkWithInputEncoding(
-            n_input_dims=3 + (1 if use_input_wavelength_like_position else 0),
-            n_output_dims=num_output_density_channels + self.geo_feat_dim,
+            n_input_dims=in_dims,
+            n_output_dims=out_dims,
             encoding_config={
                 "otype": "HashGrid",
                 "n_levels": num_levels,
@@ -223,9 +243,24 @@ class TCNNNerfactoField(Field):
             )
             self.field_head_pred_normals = PredNormalsFieldHead(in_dim=self.mlp_pred_normals.n_output_dims)
 
+        self.density_head = tcnn.Network(
+            n_input_dims=self.geo_feat_dim + self.wavelength_encoding.n_output_dims,
+            n_output_dims=num_output_density_channels,
+            network_config={
+                "otype": "FullyFusedMLP",
+                "activation": "ReLU",
+                "output_activation": "None",
+                "n_neurons": hidden_dim_density,
+                "n_hidden_layers": num_layers_density - 1,
+            }
+        )
+
+        # nout = (num_output_color_channels if wavelength_style == InputWavelengthStyle.NONE else 1) + \
+        #        (num_output_density_channels if wavelength_style == InputWavelengthStyle.AFTER_BASE else 0)
+        nout = (num_output_color_channels if wavelength_style == InputWavelengthStyle.NONE else 1)
         self.mlp_head = tcnn.Network(
-            n_input_dims=self.direction_encoding.n_output_dims + self.geo_feat_dim + self.appearance_embedding_dim,
-            n_output_dims=num_output_color_channels,
+            n_input_dims=self.direction_encoding.n_output_dims + self.geo_feat_dim + self.appearance_embedding_dim + (self.wavelength_encoding.n_output_dims if wavelength_style == InputWavelengthStyle.AFTER_BASE else 0),
+            n_output_dims=nout,
             network_config={
                 "otype": "FullyFusedMLP",
                 "activation": "ReLU",
@@ -247,7 +282,8 @@ class TCNNNerfactoField(Field):
         if not self._sample_locations.requires_grad:
             self._sample_locations.requires_grad = True
         positions_flat = positions.view(-1, 3)
-        if self.use_input_wavelength_like_position:
+        # if self.wavelength_style != InputWavelengthStyle.NONE:
+        if self.wavelength_style == InputWavelengthStyle.BEFORE_BASE:
             if "wavelengths" in ray_samples.metadata:
                 wavelengths = ray_samples.metadata["wavelengths"].view(-1, 1)
                 positions_flat = torch.cat([positions_flat, wavelengths], dim=-1)
@@ -264,9 +300,8 @@ class TCNNNerfactoField(Field):
                                            dim=-1).view(-1, 4)
             else:
                 raise RuntimeError("Wavelengths are not provided.")
-        if self.use_input_wavelength_like_position and "set_of_wavelengths" in ray_samples.metadata:
+        if self.wavelength_style == InputWavelengthStyle.BEFORE_BASE and "set_of_wavelengths" in ray_samples.metadata:
             h = self.mlp_base(positions_flat)
-            print(f"{h.shape = }, {positions_flat.shape = }, {ray_samples.frustums.shape = }")
             h = h.view(*ray_samples.frustums.shape, -1)
             # h should have shape ((# ray samples) * (# wavelengths), 1 + geo_feat_dim)
             raise Exception()
@@ -274,8 +309,17 @@ class TCNNNerfactoField(Field):
             # h = h.view(n_wavelengths, *density.shape)
         else:
             h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
-        density_before_activation, base_mlp_out = torch.split(
-            h, [self.num_output_density_channels, self.geo_feat_dim], dim=-1)
+        if self.wavelength_style == InputWavelengthStyle.AFTER_BASE:
+            base_mlp_out = h
+            x = h[:, :, None, :].broadcast_to((-1, -1, len(ray_samples.wavelengths), -1))
+            ray_samples.wavelength_encodings = self.wavelength_encoding(ray_samples.wavelengths.view(-1, 1))
+            y = ray_samples.wavelength_encodings[None, None, :, :].broadcast_to(
+                (*x.shape[:-1], self.wavelength_encoding.n_output_dims))
+            x = torch.cat([x, y], dim=-1)
+            density_before_activation = self.density_head(x.view(-1, x.shape[-1]))
+        else:
+            density_before_activation, base_mlp_out = torch.split(
+                h, [self.num_output_density_channels, self.geo_feat_dim], dim=-1)
         self._density_before_activation = density_before_activation
 
         # Rectifying the density with an exponential is much more stable than a ReLU or
@@ -354,6 +398,11 @@ class TCNNNerfactoField(Field):
             ],
             dim=-1,
         )
+        if self.wavelength_style == InputWavelengthStyle.AFTER_BASE:
+            n_wavelengths = ray_samples.wavelength_encodings.shape[0]
+            h = h[:, None, :].expand((h.shape[0], n_wavelengths, h.shape[-1]))
+            h = torch.cat([h, ray_samples.wavelength_encodings.expand(h.shape[0], n_wavelengths, self.wavelength_encoding.n_output_dims)], dim=-1)
+            h = h.view(-1, h.shape[-1])
         rgb = self.mlp_head(h).view(*outputs_shape, -1).to(directions)
         outputs.update({FieldHeadNames.RGB: rgb})
 

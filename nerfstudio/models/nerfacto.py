@@ -38,7 +38,7 @@ from nerfstudio.engine.callbacks import (
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
-from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
+from nerfstudio.fields.nerfacto_field import TCNNNerfactoField, InputWavelengthStyle
 from nerfstudio.model_components.losses import (
     MSELoss,
     distortion_loss,
@@ -120,8 +120,8 @@ class NerfactoModelConfig(ModelConfig):
     """For Hyperspectral, we want to generate an RGB preview using these channels."""
     num_density_channels: int = 1
     """For wavelength-dependent transparency, we might want to have more density channels."""
-    use_input_wavelength_like_position: bool = False
-    """If True, use the wavelength of the input rays as an input feature like position"""
+    wavelength_style: InputWavelengthStyle = InputWavelengthStyle.NONE
+    """Sets how to use the input wavelength."""
 
 
 class NerfactoModel(Model):
@@ -149,9 +149,9 @@ class NerfactoModel(Model):
             num_images=self.num_train_data,
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
-            num_output_color_channels=self.config.num_output_color_channels if not self.config.use_input_wavelength_like_position else 1,
+            num_output_color_channels=self.config.num_output_color_channels,
             num_output_density_channels=self.config.num_density_channels,
-            use_input_wavelength_like_position=self.config.use_input_wavelength_like_position,
+            wavelength_style=self.config.wavelength_style,
         )
 
         self.density_fns = []
@@ -285,21 +285,38 @@ class NerfactoModel(Model):
         ray_samples.camera_indices = ray_samples.camera_indices[:, :, 0]
         return field_outputs
 
+    def run_network_for_every_wavelength_batch_partial(self, ray_samples):
+        # First create the batched "wavelengths" metadata
+        n_wavelengths = self.config.num_output_color_channels
+        wavelengths = torch.arange(n_wavelengths, dtype=torch.float32, device=self.device, requires_grad=False) / n_wavelengths
+        # # TODO(gerry): use different wavelengths for every sample
+        # wavelengths = torch.randperm(
+        #     n_wavelengths, dtype=torch.float32,
+        #     device=self.device)[:self.config.num_wavelength_samples_per_batch] / 128.0
+        ray_samples.wavelengths = wavelengths
+        # execute forward pass and squeeze outputs
+        field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
+        field_outputs[FieldHeadNames.DENSITY] = field_outputs[FieldHeadNames.DENSITY].view(*ray_samples.frustums.shape, n_wavelengths)
+        field_outputs[FieldHeadNames.RGB] = field_outputs[FieldHeadNames.RGB].view(*ray_samples.frustums.shape, n_wavelengths)
+        return field_outputs
+
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)  # these do NOT use num_density_channels
-        if self.config.use_input_wavelength_like_position:
+        if self.config.wavelength_style == InputWavelengthStyle.BEFORE_BASE:
             field_outputs = self.run_network_for_every_wavelength_batch(ray_samples)
             # ray_samples.metadata["set_of_wavelengths"] = torch.arange(self.config.num_output_color_channels, dtype=torch.float32).to(self.device)
             # ray_samples.metadata["set_of_wavelengths"].requires_grad = False
             # print(ray_samples.metadata["set_of_wavelengths"].shape, ray_samples.metadata["set_of_wavelengths"].dtype)
             # field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
+        elif self.config.wavelength_style == InputWavelengthStyle.AFTER_BASE:
+            field_outputs = self.run_network_for_every_wavelength_batch_partial(ray_samples)
         else:
             field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
 
-        if not self.config.use_input_wavelength_like_position:
+        if not self.config.wavelength_style != InputWavelengthStyle.NONE:
             assert weights.shape[-1] == self.config.num_density_channels, f"weights should have num_density_channels channels: {weights.shape = }"
         else:
             assert weights.shape[-1] == self.config.num_output_color_channels, f"weights should have num_output_color channels: {weights.shape = }"

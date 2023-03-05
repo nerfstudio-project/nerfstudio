@@ -47,6 +47,7 @@ from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConf
 from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
+from nerfstudio.fields.nerfacto_field import InputWavelengthStyle
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
@@ -219,7 +220,7 @@ method_configs["hs-nerfacto3"] = TrainerConfig(
                                   num_output_color_channels=128 // 8,
                                 #   num_output_color_channels=24,
                                   num_density_channels=1,
-                                  use_input_wavelength_like_position=True),
+                                  wavelength_style=InputWavelengthStyle.BEFORE_BASE),
     ),
     optimizers={
         "proposal_networks": {
@@ -262,7 +263,7 @@ method_configs["hs-nerfacto3-rgb"] = TrainerConfig(
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15,
                                   num_output_color_channels=3,
                                   num_density_channels=1,
-                                  use_input_wavelength_like_position=True),
+                                  wavelength_style=InputWavelengthStyle.BEFORE_BASE),
     ),
     optimizers={
         "proposal_networks": {
