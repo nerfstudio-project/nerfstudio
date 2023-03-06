@@ -98,7 +98,7 @@ class DreamEmbeddingField(Field):
             network_config={
                 "otype": "FullyFusedMLP",
                 "activation": "ReLU",
-                "output_activation": "Sigmoid",
+                "output_activation": "None",
                 "n_neurons": 32,
                 "n_hidden_layers": 1,
             },
@@ -110,7 +110,7 @@ class DreamEmbeddingField(Field):
             network_config={
                 "otype": "FullyFusedMLP",
                 "activation": "ReLU",
-                "output_activation": "Sigmoid",
+                "output_activation": "None",
                 "n_neurons": hidden_dim_feature,
                 "n_hidden_layers": num_layers_feature - 1,
             },
