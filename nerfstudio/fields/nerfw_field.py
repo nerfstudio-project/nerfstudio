@@ -109,7 +109,7 @@ class VanillaNerfWField(Field):
         self.field_head_transient_rgb = TransientRGBFieldHead(in_dim=self.mlp_transient.get_out_dim())
         self.field_head_transient_density = TransientDensityFieldHead(in_dim=self.mlp_transient.get_out_dim())
 
-    def get_density(self, ray_samples: RaySamples):
+    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
         """Computes and returns the densities."""
         encoded_xyz = self.position_encoding(ray_samples.frustums.get_positions())
         encoded_xyz = self.position_encoding(ray_samples.frustums.get_positions())

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import torch
@@ -93,6 +94,21 @@ AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of
 ]
 """Union over possible dataparser types, annotated with metadata for tyro. This is the
 same as the vanilla union, but results in shorter subcommand names."""
+
+
+@dataclass
+class DataManagerConfig(InstantiateConfig):
+    """Configuration for data manager instantiation; DataManager is in charge of keeping the train/eval dataparsers;
+    After instantiation, data manager holds both train/eval datasets and is in charge of returning unpacked
+    train/eval data at each iteration
+    """
+
+    _target: Type = field(default_factory=lambda: DataManager)
+    """Target class to instantiate."""
+    data: Optional[Path] = None
+    """Source of data, may not be used by all models."""
+    camera_optimizer: Optional[CameraOptimizerConfig] = None
+    """Specifies the camera pose optimizer used during training. Helpful if poses are noisy."""
 
 
 class DataManager(nn.Module):
@@ -213,33 +229,60 @@ class DataManager(nn.Module):
         """Sets up the data manager for training.
 
         Here you will define any subclass specific object attributes from the attribute"""
-        raise NotImplementedError
 
     @abstractmethod
     def setup_eval(self):
         """Sets up the data manager for evaluation"""
-        raise NotImplementedError
 
     @abstractmethod
-    def next_train(self, step: int) -> Tuple:
+    def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train data manager.
 
-        This will be a tuple of all the information that this data manager outputs.
+        Args:
+            step: the step number of the eval image to retrieve
+        Returns:
+            A tuple of the ray bundle for the image, and a dictionary of additional batch information
+            such as the groudtruth image.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def next_eval(self, step: int) -> Tuple:
+    def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the eval data manager.
 
-        This will be a tuple of all the information that this data manager outputs.
+        Args:
+            step: the step number of the eval image to retrieve
+        Returns:
+            A tuple of the ray bundle for the image, and a dictionary of additional batch information
+            such as the groudtruth image.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def next_eval_image(self, step: int) -> Tuple:
-        """Returns the next eval image."""
+    def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
+        """Retreive the next eval image.
+
+        Args:
+            step: the step number of the eval image to retrieve
+        Returns:
+            A tuple of the step number, the ray bundle for the image, and a dictionary of
+            additional batch information such as the groudtruth image.
+        """
         raise NotImplementedError
+
+    @abstractmethod
+    def get_train_rays_per_batch(self) -> int:
+        """Returns the number of rays per batch for training."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_eval_rays_per_batch(self) -> int:
+        """Returns the number of rays per batch for evaluation."""
+        raise NotImplementedError
+
+    def get_datapath(self) -> Optional[Path]:  # pylint:disable=no-self-use
+        """Returns the path to the data. This is used to determine where to save camera paths."""
+        return None
 
     def get_training_callbacks(  # pylint:disable=no-self-use
         self, training_callback_attributes: TrainingCallbackAttributes  # pylint: disable=unused-argument
@@ -258,11 +301,8 @@ class DataManager(nn.Module):
 
 
 @dataclass
-class VanillaDataManagerConfig(InstantiateConfig):
-    """Configuration for data manager instantiation; DataManager is in charge of keeping the train/eval dataparsers;
-    After instantiation, data manager holds both train/eval datasets and is in charge of returning unpacked
-    train/eval data at each iteration
-    """
+class VanillaDataManagerConfig(DataManagerConfig):
+    """A basic data manager"""
 
     _target: Type = field(default_factory=lambda: VanillaDataManager)
     """Target class to instantiate."""
@@ -333,7 +373,12 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.sampler = None
         self.test_mode = test_mode
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
-        self.dataparser = self.config.dataparser.setup()
+        self.dataparser_config = self.config.dataparser
+        if self.config.data is not None:
+            self.config.dataparser.data = Path(self.config.data)
+        else:
+            self.config.data = self.config.dataparser.data
+        self.dataparser = self.dataparser_config.setup()
         self.train_dataparser_outputs = self.dataparser.get_dataparser_outputs(split="train")
 
         self.train_dataset = self.create_train_dataset()
@@ -423,7 +468,6 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
         self.eval_dataloader = RandIndicesEvalDataloader(
             input_dataset=self.eval_dataset,
-            image_indices=self.config.eval_image_indices,
             device=self.device,
             num_workers=self.world_size * 4,
         )
@@ -454,6 +498,15 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             image_idx = int(camera_ray_bundle.camera_indices[0, 0, 0])
             return image_idx, camera_ray_bundle, batch
         raise ValueError("No more eval images")
+
+    def get_train_rays_per_batch(self) -> int:
+        return self.config.train_num_rays_per_batch
+
+    def get_eval_rays_per_batch(self) -> int:
+        return self.config.eval_num_rays_per_batch
+
+    def get_datapath(self) -> Path:
+        return self.config.dataparser.data
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
         """Get the param groups for the data manager.

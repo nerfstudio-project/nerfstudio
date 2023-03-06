@@ -40,6 +40,7 @@ from typing_extensions import Literal
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datamanagers.base_datamanager import (
     DataManager,
+    DataManagerConfig,
     VanillaDataManager,
     VanillaDataManagerConfig,
 )
@@ -193,7 +194,7 @@ class VanillaPipelineConfig(cfg.InstantiateConfig):
 
     _target: Type = field(default_factory=lambda: VanillaPipeline)
     """target class to instantiate"""
-    datamanager: VanillaDataManagerConfig = VanillaDataManagerConfig()
+    datamanager: DataManagerConfig = VanillaDataManagerConfig()
     """specifies the datamanager config"""
     model: ModelConfig = ModelConfig()
     """specifies the model config"""
@@ -264,15 +265,16 @@ class VanillaPipeline(Pipeline):
         model_outputs = self.model(ray_bundle)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
 
-        camera_opt_param_group = self.config.datamanager.camera_optimizer.param_group
-        if camera_opt_param_group in self.datamanager.get_param_groups():
-            # Report the camera optimization metrics
-            metrics_dict["camera_opt_translation"] = (
-                self.datamanager.get_param_groups()[camera_opt_param_group][0].data[:, :3].norm()
-            )
-            metrics_dict["camera_opt_rotation"] = (
-                self.datamanager.get_param_groups()[camera_opt_param_group][0].data[:, 3:].norm()
-            )
+        if self.config.datamanager.camera_optimizer is not None:
+            camera_opt_param_group = self.config.datamanager.camera_optimizer.param_group
+            if camera_opt_param_group in self.datamanager.get_param_groups():
+                # Report the camera optimization metrics
+                metrics_dict["camera_opt_translation"] = (
+                    self.datamanager.get_param_groups()[camera_opt_param_group][0].data[:, :3].norm()
+                )
+                metrics_dict["camera_opt_rotation"] = (
+                    self.datamanager.get_param_groups()[camera_opt_param_group][0].data[:, 3:].norm()
+                )
 
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
 
