@@ -1,3 +1,11 @@
+"""
+This file copied with small modifications from:
+ * https://github.com/colmap/colmap/blob/1a4d0bad2e90aa65ce997c9d1779518eaed998d5/scripts/python/read_write_model.py
+
+TODO(1480) Delete this file when moving to pycolmap.
+
+"""
+
 # Copyright (c) 2018, ETH Zurich and UNC Chapel Hill.
 # All rights reserved.
 #

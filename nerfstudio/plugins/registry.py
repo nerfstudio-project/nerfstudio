@@ -21,6 +21,7 @@ import typing as t
 
 from rich.progress import Console
 
+from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.plugins.types import MethodSpecification
 
 if sys.version_info < (3, 10):
@@ -30,7 +31,7 @@ else:
 CONSOLE = Console(width=120)
 
 
-def discover_methods():
+def discover_methods() -> t.Tuple[t.Dict[str, TrainerConfig], t.Dict[str, str]]:
     """
     Discovers all methods registered using the `nerfstudio.method_configs` entrypoint.
     """

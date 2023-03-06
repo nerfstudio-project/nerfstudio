@@ -19,7 +19,6 @@ import base64
 import math
 import os
 from dataclasses import dataclass
-from distutils.util import strtobool
 from enum import Enum, auto
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -34,7 +33,10 @@ import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.utils.misc import strtobool
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
+
+TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 
 
 class CameraType(Enum):
@@ -109,7 +111,7 @@ class Cameras(TensorDataclass):
             ]
         ] = CameraType.PERSPECTIVE,
         times: Optional[TensorType["num_cameras"]] = None,
-    ):
+    ) -> None:
         """Initializes the Cameras object.
 
         Note on Input Tensor Dimensions: All of these tensors have items of dimensions TensorType[3, 4]
@@ -148,7 +150,7 @@ class Cameras(TensorDataclass):
 
         self._use_nerfacc = strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "TRUE"))
 
-    def _init_get_fc_xy(self, fc_xy, name):
+    def _init_get_fc_xy(self, fc_xy: Union[float, torch.Tensor], name: str) -> torch.Tensor:
         """
         Parses the input focal length / principle point x or y and returns a tensor of the correct shape
 
@@ -243,7 +245,7 @@ class Cameras(TensorDataclass):
             raise ValueError("Height must be an int, tensor, or None, received: " + str(type(h_w)))
         return h_w
 
-    def _init_get_times(self, times):
+    def _init_get_times(self, times: Union[None, torch.Tensor]) -> Union[None, torch.Tensor]:
         if times is None:
             times = None
         elif isinstance(times, torch.Tensor):
@@ -255,7 +257,7 @@ class Cameras(TensorDataclass):
         return times
 
     @property
-    def device(self):
+    def device(self) -> TORCH_DEVICE:
         """Returns the device that the camera is on."""
         return self.camera_to_worlds.device
 
@@ -270,7 +272,7 @@ class Cameras(TensorDataclass):
         return self.width
 
     @property
-    def is_jagged(self):
+    def is_jagged(self) -> bool:
         """
         Returns whether or not the cameras are "jagged" (i.e. the height and widths are different, meaning that
         you cannot concatenate the image coordinate maps together)

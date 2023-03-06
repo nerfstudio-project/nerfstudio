@@ -18,6 +18,7 @@ Data manager for dreamfusion
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Type, Union
 
@@ -29,13 +30,10 @@ from typing_extensions import Literal
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.config_utils import to_immutable_dict
-from nerfstudio.data.datamanagers.base_datamanager import (
-    DataManager,
-    VanillaDataManager,
-    VanillaDataManagerConfig,
-)
+from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.data.utils.dataloaders import RandIndicesEvalDataloader
 
 CONSOLE = Console(width=120)
 
@@ -146,11 +144,8 @@ def random_train_pose(
 
 
 @dataclass
-class DreamFusionDataManagerConfig(VanillaDataManagerConfig):
-    """Configuration for data manager instantiation; DataManager is in charge of keeping the train/eval dataparsers;
-    After instantiation, data manager holds both train/eval datasets and is in charge of returning unpacked
-    train/eval data at each iteration
-    """
+class DreamFusionDataManagerConfig(DataManagerConfig):
+    """Configuration for data manager that does not load from a dataset. Instead, it generates random poses."""
 
     _target: Type = field(default_factory=lambda: DreamFusionDataManager)
     train_resolution: int = 64
@@ -179,7 +174,7 @@ class DreamFusionDataManagerConfig(VanillaDataManagerConfig):
     """How many steps until the full horizontal rotation range is used"""
 
 
-class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-method
+class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
     """Basic stored data manager implementation.
 
     This is pretty much a port over from our old dataloading utilities, and is a little jank
@@ -211,7 +206,10 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
         self.sampler = None
         self.test_mode = test_mode
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
-        self.dataparser = self.config.dataparser.setup()
+
+        if self.config.data is not None:
+            CONSOLE.print("[red] --data should not be used with the DreamFusionDataManager[/red]")
+            sys.exit(1)
 
         cameras, _, _ = random_train_pose(
             self.config.num_eval_angles,
@@ -227,6 +225,12 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
 
         self.train_dataset = TrivialDataset(cameras)
         self.eval_dataset = TrivialDataset(cameras)
+
+        self.eval_dataloader = RandIndicesEvalDataloader(
+            input_dataset=self.eval_dataset,
+            device=self.device,
+            num_workers=self.world_size * 4,
+        )
 
         # pylint: disable=non-parent-init-called
         DataManager.__init__(self)
@@ -266,7 +270,11 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
         # camera_idx = torch.randint(0, self.eval_cameras.shape[0], [1], dtype=torch.long, device=self.device)
         # ray_bundle = self.eval_cameras.generate_rays(camera_idx).flatten()
 
-        return ray_bundle, {"vertical": vertical_rotation, "central": central_rotation, "initialization": True}
+        return ray_bundle, {
+            "vertical": vertical_rotation,
+            "central": central_rotation,
+            "initialization": True,
+        }
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the eval dataloader."""
@@ -288,6 +296,19 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
         ).flatten()
 
         return ray_bundle, {"vertical": vertical_rotation, "central": central_rotation}
+
+    def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
+        for camera_ray_bundle, batch in self.eval_dataloader:
+            assert camera_ray_bundle.camera_indices is not None
+            image_idx = int(camera_ray_bundle.camera_indices[0, 0, 0])
+            return image_idx, camera_ray_bundle, batch
+        raise ValueError("No more eval images")
+
+    def get_train_rays_per_batch(self) -> int:
+        return self.config.train_resolution**2
+
+    def get_eval_rays_per_batch(self) -> int:
+        return self.config.eval_resolution**2
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
         """Get the param groups for the data manager.

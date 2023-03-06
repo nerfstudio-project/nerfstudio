@@ -5,11 +5,11 @@ import importlib
 import math
 import os
 import random
-from distutils.util import strtobool
 
 import torch
 
 from nerfstudio.utils.math import intersect_aabb
+from nerfstudio.utils.misc import strtobool
 
 test_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

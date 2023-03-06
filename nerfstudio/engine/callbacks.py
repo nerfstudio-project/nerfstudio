@@ -79,7 +79,7 @@ class TrainingCallback:
         self.args = args if args is not None else []
         self.kwargs = kwargs if kwargs is not None else {}
 
-    def run_callback(self, step: int):
+    def run_callback(self, step: int) -> None:
         """Callback to run after training step
 
         Args:
@@ -92,7 +92,7 @@ class TrainingCallback:
             if step in self.iters:
                 self.func(*self.args, **self.kwargs, step=step)
 
-    def run_callback_at_location(self, step: int, location: TrainingCallbackLocation):
+    def run_callback_at_location(self, step: int, location: TrainingCallbackLocation) -> None:
         """Runs the callback if it's supposed to be run at the given location.
 
         Args:

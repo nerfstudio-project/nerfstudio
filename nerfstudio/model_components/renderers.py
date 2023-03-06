@@ -183,7 +183,7 @@ class SHRenderer(nn.Module):
         rgb = torch.sum(sh, dim=-1) + 0.5  # [..., num_samples, 3]
 
         if self.activation is not None:
-            self.activation(rgb)
+            rgb = self.activation(rgb)
 
         if not self.training:
             rgb = torch.nan_to_num(rgb)
