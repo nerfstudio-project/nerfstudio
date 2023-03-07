@@ -164,7 +164,7 @@ class HashMLPDensityField(Field):
                 ends=torch.zeros_like(positions[..., :1]),
                 pixel_area=torch.ones_like(positions[..., :1]),
             ),
-            metadata=metadata
+            metadata=metadata if self.wavelength_embedding is not None else None,
         )
         density, _ = self.get_density(ray_samples)
         return density

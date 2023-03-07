@@ -136,6 +136,7 @@ class NerfactoModelConfig(ModelConfig):
     proposal_wavelength_num_layers: int = 2
     num_wavelength_samples_per_batch: int = -1
     """When wavelength_style is not NONE, this determines how many wavelengths to sample per batch"""
+    train_wavelengths_every_nth: int = 1
 
 
 class NerfactoModel(Model):
@@ -163,7 +164,7 @@ class NerfactoModel(Model):
             num_images=self.num_train_data,
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
-            num_output_color_channels=self.config.num_output_color_channels,
+            num_output_color_channels=self.config.num_output_color_channels if not self.config.proposal_wavelength_use else 1,
             num_output_density_channels=self.config.num_density_channels,
             wavelength_style=self.config.wavelength_style,
             num_wavelength_encoding_freqs=self.config.num_wavelength_encoding_freqs,
@@ -284,13 +285,30 @@ class NerfactoModel(Model):
         n_wavelengths = self.config.num_output_color_channels
         if override_wavelengths is not None:
             wavelengths = torch.tensor(override_wavelengths, dtype=torch.float32, device=self.device, requires_grad=False) / n_wavelengths
+        elif not self.training:
+            wavelengths = torch.arange(
+                n_wavelengths,
+                dtype=torch.float32,
+                device=self.device,
+                requires_grad=False,
+            ) / n_wavelengths
         elif self.config.num_wavelength_samples_per_batch < 0:
-            wavelengths = torch.arange(n_wavelengths, dtype=torch.float32, device=self.device, requires_grad=False) / n_wavelengths
+            wavelengths = torch.arange(
+                start=0,
+                end=n_wavelengths,
+                step=self.config.train_wavelengths_every_nth * 1.0,
+                dtype=torch.float32,
+                device=self.device,
+                requires_grad=False,
+            ) / n_wavelengths
         else:
             # TODO(gerry): use different wavelengths for every sample?
-            wavelengths = torch.randperm(
-                n_wavelengths, dtype=torch.float32, device=self.device,
-                requires_grad=False)[:self.config.num_wavelength_samples_per_batch] / n_wavelengths
+            wavelengths = (
+                torch.randperm(n_wavelengths // self.config.train_wavelengths_every_nth,
+                               dtype=torch.float32,
+                               device=self.device,
+                               requires_grad=False)[:self.config.num_wavelength_samples_per_batch] *
+                self.config.train_wavelengths_every_nth) / n_wavelengths
         return len(wavelengths), wavelengths
 
     def run_network_for_every_wavelength_batch(self, ray_samples, override_wavelengths=None):
@@ -309,6 +327,7 @@ class NerfactoModel(Model):
         # un-broadcast the frustums and camera indices
         ray_samples.frustums = ray_samples.frustums[:, :, 0]
         ray_samples.camera_indices = ray_samples.camera_indices[:, :, 0]
+        ray_samples.wavelengths = wavelengths
         return field_outputs
 
     def run_network_for_every_wavelength_batch_partial(self, ray_samples, override_wavelengths=None):
@@ -372,7 +391,7 @@ class NerfactoModel(Model):
             weights_list.append(weights)
             ray_samples_list.append(ray_samples[..., 0])
 
-        if not self.config.wavelength_style != InputWavelengthStyle.NONE:
+        if not self.config.wavelength_style != InputWavelengthStyle.NONE and not self.config.proposal_wavelength_use:
             assert weights.shape[-1] == self.config.num_density_channels, f"weights should have num_density_channels channels: {weights.shape = }"
         else:
             assert weights.shape[-1] == len(ray_samples.wavelengths), f"weights should have {len(ray_samples.wavelengths)=} channels: {weights.shape = }"
@@ -389,19 +408,24 @@ class NerfactoModel(Model):
         }
 
         if self.config.num_output_color_channels != 3:
-            outputs["wavelengths"] = (ray_samples.wavelengths *
-                                      self.config.num_output_color_channels).long()
-            if self.config.num_wavelength_samples_per_batch < 0:
-                # if all wavelengths are used, then we can just use the rgb_output_channels
+            if self.config.wavelength_style == InputWavelengthStyle.NONE and not self.config.proposal_wavelength_use:
                 rgb_indices = self.config.rgb_output_channels
+                outputs["wavelengths"] = torch.arange(self.config.num_output_color_channels,
+                                                      device=self.device, requires_grad=False).long()
             else:
-                # find the indices in wavelengths that are closest to rgb_output_channels
-                rgb_indices = torch.argmin(torch.abs(outputs["wavelengths"][:, None] -
-                                                     torch.tensor(self.config.rgb_output_channels,
-                                                                  dtype=torch.float32,
-                                                                  device=self.device,
-                                                                  requires_grad=False)[None, :]),
-                                           dim=0)
+                outputs["wavelengths"] = (ray_samples.wavelengths *
+                                        self.config.num_output_color_channels).long()
+                if self.config.num_wavelength_samples_per_batch < 0:
+                    # if all wavelengths are used, then we can just use the rgb_output_channels
+                    rgb_indices = self.config.rgb_output_channels
+                else:
+                    # find the indices in wavelengths that are closest to rgb_output_channels
+                    rgb_indices = torch.argmin(torch.abs(outputs["wavelengths"][:, None] -
+                                                        torch.tensor(self.config.rgb_output_channels,
+                                                                    dtype=torch.float32,
+                                                                    device=self.device,
+                                                                    requires_grad=False)[None, :]),
+                                            dim=0)
             outputs["rgb"] = image[:, rgb_indices]  # [rays, 3]
             outputs["image"] = image  # [rays, num_output_color_channels]
 
@@ -496,6 +520,15 @@ class NerfactoModel(Model):
         image_gt = torch.moveaxis(image_gt, -1, 0)[None, ...]
         image = torch.moveaxis(image, -1, 0)[None, ...]
 
+
+        n_wavelengths = self.config.num_output_color_channels
+        eval_ch_inds = torch.arange(
+            n_wavelengths,
+            device=self.device,
+            requires_grad=False,
+        ).long()
+        eval_ch_inds = eval_ch_inds[eval_ch_inds % self.config.train_wavelengths_every_nth != 0]
+
         psnr = self.psnr(image_gt, image)
         ssim = self.ssim(image_gt, image)
         lpips = self.lpips(rgb_gt, rgb)
@@ -503,6 +536,12 @@ class NerfactoModel(Model):
         # all of these metrics will be logged as scalars
         metrics_dict = {"psnr": float(psnr.item()), "ssim": float(ssim)}  # type: ignore
         metrics_dict["lpips"] = float(lpips)
+
+        if self.config.train_wavelengths_every_nth > 1:
+            psnr_wavelengths = self.psnr(image_gt[:, eval_ch_inds, :, :], image[:, eval_ch_inds, :, :])
+            ssim_wavelengths = self.ssim(image_gt[:, eval_ch_inds, :, :], image[:, eval_ch_inds, :, :])
+            metrics_dict["psnr_eval_wavelengths"] = float(psnr_wavelengths.item())
+            metrics_dict["ssim_eval_wavelengths"] = float(ssim_wavelengths)
 
         images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
 
@@ -531,6 +570,7 @@ class NerfactoModel(Model):
         """
         if self.config.num_output_color_channels != 3:
             if override_wavelengths is None:
+                # camera_ray_bundle.wavelengths = torch.arange(128, device=self.device, requires_grad=False).long()
                 camera_ray_bundle.wavelengths = list(range(128))
             elif override_wavelengths == 'rgb':
                 camera_ray_bundle.wavelengths = self.config.rgb_output_channels

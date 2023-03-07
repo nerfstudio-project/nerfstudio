@@ -409,6 +409,7 @@ class Trainer:
         if step_check(step, self.config.steps_per_eval_image):
             with TimeWriter(writer, EventName.TEST_RAYS_PER_SEC, write=False) as test_t:
                 metrics_dict, images_dict = self.pipeline.get_eval_image_metrics_and_images(step=step)
+            torch.cuda.empty_cache()
             writer.put_time(
                 name=EventName.TEST_RAYS_PER_SEC,
                 duration=metrics_dict["num_rays"] / test_t.duration,
@@ -424,3 +425,5 @@ class Trainer:
         if step_check(step, self.config.steps_per_eval_all_images):
             metrics_dict = self.pipeline.get_average_eval_image_metrics(step=step)
             writer.put_dict(name="Eval Images Metrics Dict (all images)", scalar_dict=metrics_dict, step=step)
+            metrics_dict2 = self.pipeline.get_average_train_image_metrics(step=step)
+            writer.put_dict(name="Eval Images Metrics Dict (all train images)", scalar_dict=metrics_dict2, step=step)

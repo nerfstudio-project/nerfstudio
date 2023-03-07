@@ -81,9 +81,13 @@ descriptions = {
 
 method_configs["nerfacto"] = TrainerConfig(
     method_name="nerfacto",
-    steps_per_eval_batch=500,
-    steps_per_save=2000,
-    max_num_iterations=10001,
+    steps_per_eval_batch=50,
+    steps_per_eval_image=500,
+    steps_per_eval_all_images=500,
+    # steps_per_eval_all_images=1000,
+    steps_per_save=2500,
+    save_only_latest_checkpoint=False,
+    max_num_iterations=25001,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -188,9 +192,11 @@ method_configs["hs-nerfacto3"] = TrainerConfig(
     method_name="hs-nerfacto3",
     steps_per_eval_batch=50,
     steps_per_eval_image=500,
-    steps_per_save=2000,
+    steps_per_eval_all_images=500,
+    # steps_per_eval_all_images=1000,
+    steps_per_save=2500,
     save_only_latest_checkpoint=False,
-    max_num_iterations=30001,
+    max_num_iterations=25001,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=HyperspectralDataManagerConfig(
@@ -226,11 +232,11 @@ method_configs["hs-nerfacto3"] = TrainerConfig(
     ),
     optimizers={
         "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-6),
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
         },
         "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-6),
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
         },
     },
@@ -244,15 +250,17 @@ method_configs["hs-nerfacto3-rgb"] = TrainerConfig(
     method_name="hs-nerfacto3-rgb",
     steps_per_eval_batch=50,
     steps_per_eval_image=500,
-    steps_per_save=2000,
+    steps_per_eval_all_images=500,
+    # steps_per_eval_all_images=1000,
+    steps_per_save=2500,
     save_only_latest_checkpoint=False,
-    max_num_iterations=30001,
+    max_num_iterations=25001,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             dataparser=NerfstudioDataParserConfig(),
             # train_num_rays_per_batch=4096 // 64,
-            train_num_rays_per_batch=4096,
+            train_num_rays_per_batch=4096 * 4,
             eval_num_rays_per_batch=4096,
             # IMPORTANT - to resume a run, use CLI arg --pipeline.datamanager.camera-optimizer.lr "5e-6"
             camera_optimizer=CameraOptimizerConfig(mode="SO3xR3",
@@ -307,6 +315,45 @@ method_configs["rgb-alpha-nerfacto"] = TrainerConfig(  # Approach 2, for RGB : h
     ),
     optimizers={
         "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    # vis="viewer",
+    vis="viewer wandb",
+)
+
+
+method_configs["iccv-1"] = TrainerConfig(
+    method_name="iccv-1",
+    steps_per_eval_batch=50,
+    steps_per_eval_image=500,
+    steps_per_eval_all_images=3125,
+    steps_per_save=5000,
+    save_only_latest_checkpoint=False,
+    max_num_iterations=25001,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=HyperspectralDataManagerConfig(
+            dataparser=NerfstudioDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+            camera_optimizer=CameraOptimizerConfig(mode="SO3xR3",
+                                                   optimizer=AdamOptimizerConfig(
+                                                       lr=6e-4, eps=1e-8, weight_decay=1e-2)),
+            # train_num_images_to_sample_from=32,  # This might be needed to not run out of GPU memory
+            # train_num_times_to_repeat_images=250,
+        ),
+        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15,
+                                  num_output_color_channels=128),
+    ),
+    optimizers={
+        "proposal_networks": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-6),
             "scheduler": None,
         },
@@ -316,9 +363,221 @@ method_configs["rgb-alpha-nerfacto"] = TrainerConfig(  # Approach 2, for RGB : h
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
-    # vis="viewer",
+    # vis="viewer",  # wandb
     vis="viewer wandb",
 )
+
+method_configs["iccv-2"] = TrainerConfig(
+    method_name="iccv-2",
+    steps_per_eval_batch=50,
+    steps_per_eval_image=500,
+    steps_per_eval_all_images=3125,
+    steps_per_save=5000,
+    save_only_latest_checkpoint=False,
+    max_num_iterations=25001,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=HyperspectralDataManagerConfig(
+            dataparser=NerfstudioDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+            camera_optimizer=CameraOptimizerConfig(mode="SO3xR3",
+                                                   optimizer=AdamOptimizerConfig(
+                                                       lr=6e-4, eps=1e-8, weight_decay=1e-2)),
+            # train_num_images_to_sample_from=32,  # This might be needed to not run out of GPU memory
+            # train_num_times_to_repeat_images=250,
+            # eval_num_images_to_sample_from=1,
+        ),
+        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15,
+                                  num_output_color_channels=128,
+                                  num_density_channels=128),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-6),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-6),
+            "scheduler": None,
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    # vis="viewer",  # wandb
+    vis="viewer wandb",
+)
+
+
+method_configs["iccv-3"] = TrainerConfig(
+    method_name="iccv-3",
+    steps_per_eval_batch=50,
+    steps_per_eval_image=500,
+    steps_per_eval_all_images=25000,
+    # steps_per_eval_all_images=1000,
+    steps_per_save=2500,
+    save_only_latest_checkpoint=False,
+    max_num_iterations=25001,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=HyperspectralDataManagerConfig(
+            # 2 GPUs:
+            #  16 channels - 17GB
+            #  22 channels - 21GB
+            #  25 channels - 23GB <- better use 24 channels to be safe, in case batches overflow
+            # 1 GPU:
+            #  25 channels - 21GB
+            dataparser=NerfstudioDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096 // 32,
+            # IMPORTANT - to resume a run, use CLI arg --pipeline.datamanager.camera-optimizer.optimizer.lr "5e-6"
+            camera_optimizer=CameraOptimizerConfig(mode="SO3xR3",
+                                                   optimizer=AdamOptimizerConfig(
+                                                       lr=6e-4, eps=1e-8, weight_decay=1e-2)),
+            # train_num_images_to_sample_from=10,  # This might be needed to not run out of GPU memory
+            # train_num_times_to_repeat_images=250,
+            # eval_num_images_to_sample_from=1,
+        ),
+        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 9,
+                                  num_output_color_channels=128,
+                                #   num_output_color_channels=24,
+                                  num_density_channels=1,
+                                  num_wavelength_samples_per_batch=8,
+                                  wavelength_style=InputWavelengthStyle.BEFORE_BASE,
+                                  num_wavelength_encoding_freqs=8,
+                                  train_wavelengths_every_nth=1),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 14),
+    # vis="viewer",  # wandb
+    vis="viewer wandb",
+    # vis="wandb",
+)
+
+method_configs["iccv-4"] = TrainerConfig(
+    method_name="iccv-4",
+    steps_per_eval_batch=499,
+    steps_per_eval_image=500,
+    steps_per_eval_all_images=25000,
+    # steps_per_eval_all_images=1000,
+    steps_per_save=2500,
+    save_only_latest_checkpoint=False,
+    max_num_iterations=25001,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=HyperspectralDataManagerConfig(
+            # 2 GPUs:
+            #  16 channels - 17GB
+            #  22 channels - 21GB
+            #  25 channels - 23GB <- better use 24 channels to be safe, in case batches overflow
+            # 1 GPU:
+            #  25 channels - 21GB
+            dataparser=NerfstudioDataParserConfig(num_hyperspectral_channels=128),
+            # train_num_rays_per_batch=4096 // 64,
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096 // 32,
+            # IMPORTANT - to resume a run, use CLI arg --pipeline.datamanager.camera-optimizer.optimizer.lr "5e-6"
+            camera_optimizer=CameraOptimizerConfig(mode="SO3xR3",
+                                                   optimizer=AdamOptimizerConfig(
+                                                       lr=6e-4, eps=1e-8, weight_decay=1e-2)),
+            # train_num_images_to_sample_from=24,  # This might be needed to not run out of GPU memory
+            # train_num_times_to_repeat_images=250,
+            # eval_num_images_to_sample_from=1,
+        ),
+        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 9,
+                                  num_output_color_channels=128,
+                                  proposal_wavelength_use=False,
+                                #   num_output_color_channels=24,
+                                  num_density_channels=1,
+                                  num_wavelength_samples_per_batch=16,
+                                  wavelength_style=InputWavelengthStyle.AFTER_BASE,
+                                  num_wavelength_encoding_freqs=8,
+                                  train_wavelengths_every_nth=2),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 14),
+    # vis="viewer",  # wandb
+    vis="viewer wandb",
+    # vis="wandb",
+)
+
+method_configs["iccv-5"] = TrainerConfig(
+    method_name="iccv-5",
+    steps_per_eval_batch=50,
+    steps_per_eval_image=500,
+    steps_per_eval_all_images=25000,
+    # steps_per_eval_all_images=1000,
+    steps_per_save=2500,
+    save_only_latest_checkpoint=False,
+    max_num_iterations=25001,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=HyperspectralDataManagerConfig(
+            # 2 GPUs:
+            #  16 channels - 17GB
+            #  22 channels - 21GB
+            #  25 channels - 23GB <- better use 24 channels to be safe, in case batches overflow
+            # 1 GPU:
+            #  25 channels - 21GB
+            dataparser=NerfstudioDataParserConfig(
+                # num_images_to_use=36,
+                num_hyperspectral_channels=128,
+                # num_hyperspectral_channels=24,
+            ),
+            # train_num_rays_per_batch=4096 // 64,
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096 // 32,
+            # IMPORTANT - to resume a run, use CLI arg --pipeline.datamanager.camera-optimizer.optimizer.lr "5e-6"
+            camera_optimizer=CameraOptimizerConfig(mode="SO3xR3",
+                                                   optimizer=AdamOptimizerConfig(
+                                                       lr=6e-4, eps=1e-8, weight_decay=1e-2)),
+            train_num_images_to_sample_from=10,  # This might be needed to not run out of GPU memory
+            train_num_times_to_repeat_images=250,
+            # eval_num_images_to_sample_from=1,
+        ),
+        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 9,
+                                  num_output_color_channels=128,
+                                  proposal_wavelength_use=True,
+                                #   num_output_color_channels=24,
+                                  num_density_channels=1,
+                                  num_wavelength_samples_per_batch=6,
+                                  wavelength_style=InputWavelengthStyle.NONE,
+                                  num_wavelength_encoding_freqs=8,
+                                  train_wavelengths_every_nth=2),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 14),
+    # vis="viewer",  # wandb
+    vis="viewer wandb",
+    # vis="wandb",
+)
+
 
 method_configs["depth-nerfacto"] = TrainerConfig(
     method_name="depth-nerfacto",

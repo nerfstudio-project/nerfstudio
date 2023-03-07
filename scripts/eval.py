@@ -24,6 +24,8 @@ class ComputePSNR:
     load_config: Path
     # Name of the output file.
     output_path: Path = Path("output.json")
+    # Whether to run train metrics or not.
+    run_train_metrics: bool = False
 
     def main(self) -> None:
         """Main function."""
@@ -38,6 +40,9 @@ class ComputePSNR:
             "checkpoint": str(checkpoint_path),
             "results": metrics_dict,
         }
+        if self.run_train_metrics:
+            metrics_dict2 = pipeline.get_average_train_image_metrics()
+            benchmark_info["results_train"] = metrics_dict2
         # Save output to output file
         self.output_path.write_text(json.dumps(benchmark_info, indent=2), "utf8")
         CONSOLE.print(f"Saved results to: {self.output_path}")

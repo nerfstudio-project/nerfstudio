@@ -311,8 +311,10 @@ class TCNNNerfactoField(Field):
             h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         if self.wavelength_style == InputWavelengthStyle.AFTER_BASE:
             if "wavelengths" in ray_samples.metadata:
+                raise Exception("not right")
                 wavelength_encodings = self.wavelength_encoding(ray_samples.metadata["wavelengths"].reshape(-1, 1))
                 base_mlp_out = torch.cat([h.view(-1, h.shape[-1]), wavelength_encodings], dim=-1)
+                base_mlp_out = torch.sigmoid(base_mlp_out)
                 density_before_activation = self.density_head(base_mlp_out)
             else:
                 x = h[:, :, None, :].broadcast_to((-1, -1, len(ray_samples.wavelengths), -1))
@@ -321,10 +323,12 @@ class TCNNNerfactoField(Field):
                     (*x.shape[:-1], self.wavelength_encoding.n_output_dims))
                 x = torch.cat([x, y], dim=-1)
                 base_mlp_out = x.view(-1, x.shape[-1])
+                base_mlp_out = torch.sigmoid(base_mlp_out)
                 density_before_activation = self.density_head(base_mlp_out)
         else:
             density_before_activation, base_mlp_out = torch.split(
                 h, [self.num_output_density_channels, self.geo_feat_dim], dim=-1)
+            base_mlp_out = torch.sigmoid(base_mlp_out)
         self._density_before_activation = density_before_activation
 
         # Rectifying the density with an exponential is much more stable than a ReLU or
