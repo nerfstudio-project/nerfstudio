@@ -71,9 +71,6 @@ const initialState = {
 };
 
 function setData(newState, state, path, data) {
-  if (path === 'colormap_options') {
-    newState.colormap_choice = 'default'; // eslint-disable-line no-param-reassign
-  }
   if (path.length === 1) {
     newState[path[0]] = data; // eslint-disable-line no-param-reassign
   } else {

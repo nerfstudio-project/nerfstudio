@@ -753,10 +753,12 @@ class ViewerState:
         if self.output_type_changed or self.prev_colormap_type is None:
             self.prev_colormap_type = ColormapTypes.DEFAULT
             colormap_options = []
+            self.vis["renderingState/colormap_options"].write(list(ColormapTypes))
             if outputs[reformatted_output].shape[-1] == 3:
                 colormap_options = [ColormapTypes.DEFAULT]
             if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
-                colormap_options = list(ColormapTypes)
+                self.prev_colormap_type = ColormapTypes.TURBO
+                colormap_options = list(ColormapTypes)[1:]
             self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             self.vis["renderingState/colormap_options"].write(colormap_options)
