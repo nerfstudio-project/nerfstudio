@@ -305,7 +305,7 @@ ns-process-data images --camera-type equirectangular --images-per-equirect {8, o
 The images-per-equirect argument is the number of images that will be sampled from each equirectangular image. We have found that 8 images per equirectangular image is sufficient for most use cases so it defaults to that. However, if you find that there isn't enough detail in the nerf or that colmap is having trouble aligning the images, you can try increasing the number of images per equirectangular image to 14.
 
 ### Videos
-For videos we reccomend taking a video with the camera held on top of your head. This will result in any unwanted campurer to just be in the bottom of each frame image and therefore can be cropped out.
+For videos we reccomend taking a video with the camera held on top of your head. This will result in any unwanted capturer to just be in the bottom of each frame image and therefore can be cropped out.
 
 For a video, process the data using the following command:
 
@@ -314,7 +314,7 @@ ns-process-data video --camera-type equirectangular --images-per-equirect {8, or
 ```
 See the equirectangular images section above for a description of the `--images-per-equirect` argument.
 
-The `num-frames-target` argument is optional but it is recomended to set it to 3*(seconds of video) frames. For example, if you have a 30 second video, you would use `--num-frames-target 90` (3*30=90).
+The `num-frames-target` argument is optional but it is recomended to set it to 3*(seconds of video) frames. For example, if you have a 30 second video, you would use `--num-frames-target 90` (3*30=90). This number was chosen from a bit of experimentation and seems to work well for most videos. It is by no means a hard rule and you can experiment with different values.
 
 The `percent-crop` argument is optional but often very helpful. This is because equirectangular videos taken by 360 cameras tend to have a portion of the bottom of the image that is the person who was holding the camera over their head.
 
