@@ -1,14 +1,12 @@
-
 from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Type
 
-import mediapy
-import numpy as np
+
 import torch
-from torch.nn import Parameter
+
 from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
@@ -27,14 +25,9 @@ from nerfstudio.model_components.losses import (
     distortion_loss,
     interlevel_loss,
     orientation_loss,
-    pred_normal_loss,
 )
-from nerfstudio.model_components.ray_samplers import (
-    ProposalNetworkSampler,
-    UniformSampler,
-)
+
 from nerfstudio.model_components.renderers import FeatureRenderer
-from nerfstudio.model_components.scene_colliders import AABBBoxCollider, SphereCollider
 from nerfstudio.models.dreamfusion import DreamFusionModel, DreamFusionModelConfig
 from nerfstudio.utils import colormaps, colors, math, misc
 
@@ -45,7 +38,7 @@ class DreamEmbeddingModelConfig(DreamFusionModelConfig):
 
     _target: Type = field(default_factory=lambda: DreamEmbeddingModel)
     """target class to instantiate"""
-    prompt: str = "A high quality photo of a frog"
+    prompt: str = "A high quality photo of a tiger wearing a lab coat"
     """prompt for stable dreamfusion"""
 
     orientation_loss_mult: float = 0.0001
@@ -86,8 +79,18 @@ class DreamEmbeddingModelConfig(DreamFusionModelConfig):
     """Use the same proposal network. Otherwise use different ones."""
     proposal_net_args_list: List[Dict] = field(
         default_factory=lambda: [
-            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 128},
-            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 256},
+            {
+                "hidden_dim": 16,
+                "log2_hashmap_size": 17,
+                "num_levels": 5,
+                "max_res": 128,
+            },
+            {
+                "hidden_dim": 16,
+                "log2_hashmap_size": 17,
+                "num_levels": 5,
+                "max_res": 256,
+            },
         ]
     )
     """Arguments for the proposal density fields."""
@@ -149,26 +152,43 @@ class DreamEmbeddingModel(DreamFusionModel):
     ) -> None:
         super().__init__(config=config, **kwargs)
 
-
     def populate_modules(self):
         """Set the fields and modules"""
         super().populate_modules()
 
         # setting up fields
-        self.field = DreamEmbeddingField(self.scene_box.aabb, max_res=self.config.max_res)
+        self.field = DreamEmbeddingField(
+            self.scene_box.aabb, max_res=self.config.max_res
+        )
+
+        self.sd = StableDiffusion(self.sd_device, version=self.sd_version)
+        self.text_embeddings = PositionalTextEmbeddings(
+            base_prompt=self.cur_prompt,
+            top_prompt=self.cur_prompt + self.top_prompt,
+            side_prompt=self.cur_prompt + self.side_prompt,
+            back_prompt=self.cur_prompt + self.back_prompt,
+            front_prompt=self.cur_prompt + self.front_prompt,
+            stable_diffusion=self.sd,
+            positional_prompting=self.positional_prompting,
+        )
 
         self.renderer_feature = FeatureRenderer()
 
-    def get_outputs(self, ray_bundle: RayBundle, ray_dims: Tuple): 
+    def get_outputs(self, ray_bundle: RayBundle, ray_dims: Tuple):
         # uniform sampling
         background_feature = self.field.get_background_feature(ray_bundle)
-        ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
+        ray_samples, weights_list, ray_samples_list = self.proposal_sampler(
+            ray_bundle, density_fns=self.density_fns
+        )
         field_outputs = self.field(ray_samples, compute_normals=True)
         density = field_outputs[FieldHeadNames.DENSITY]
 
         if self.initialize_density:
             pos = ray_samples.frustums.get_positions()
-            density_blob = self.density_strength * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
+            density_blob = (
+                self.density_strength
+                * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
+            )
             density = density + density_blob
 
         weights = ray_samples.get_weights(density)
@@ -177,9 +197,13 @@ class DreamEmbeddingModel(DreamFusionModel):
 
         accumulation = self.renderer_accumulation(weights)
         depth = self.renderer_depth(weights, ray_samples)
-        features = self.renderer_feature(features=field_outputs[FieldHeadNames.FEATURE], weights=weights)
+        features = self.renderer_feature(
+            features=field_outputs[FieldHeadNames.FEATURE], weights=weights
+        )
 
-        accum_mask = torch.clamp((torch.nan_to_num(accumulation, nan=0.0)), min=0.0, max=1.0)
+        accum_mask = torch.clamp(
+            (torch.nan_to_num(accumulation, nan=0.0)), min=0.0, max=1.0
+        )
         accum_mask_inv = 1.0 - accum_mask
 
         background = accum_mask_inv * background_feature
@@ -198,25 +222,37 @@ class DreamEmbeddingModel(DreamFusionModel):
         if ray_dims:
             height = ray_dims[0]
             width = ray_dims[1]
-        else:
-            height = int(latents.shape[0] ** 0.5)
-            width = int(latents.shape[0] ** 0.5)
-        # latents_input = latents.view(1, height, width, 4).half()
-        latents_input = features.view(1, height, width, 4).half()
-        latents_input = latents_input.permute(0, 3, 1, 2)
-        # latents_input = torch.nn.functional.interpolate(latents_input, size=(latents_input.shape[2] // 8, latents_input.shape[3] // 8), mode='bilinear')
-        rgb = self.sd.latents_to_img(latents_input) #.permute(0, 2, 3, 1)[0]
-        if ray_dims:
-            rgb = torch.nn.functional.interpolate(rgb, size=(ray_dims[0], ray_dims[1]), mode='bilinear')
+            # print(height, width)
 
-        # ADD WHITE BG TO RGB
+            latents_input = latents.view(1, height, width, 4).half()
+            # latents_input = features.view(1, height, width, 4).half()
+            latents_input = latents_input.permute(0, 3, 1, 2)
+            # latents_input = torch.nn.functional.interpolate(latents_input, size=(latents_input.shape[2] // 8, latents_input.shape[3] // 8), mode='bilinear')
+            rgb = self.sd.latents_to_img(latents_input)  # .permute(0, 2, 3, 1)[0]
+            # rgb = torch.nn.functional.interpolate(
+            #     rgb, size=(height, width), mode="bilinear"
+            # )
 
-        rgb = rgb.permute(0, 2, 3, 1)[0]
-        rgb = torch.flatten(rgb, end_dim=-2)
-        rgb = rgb.to(torch.float32)
-        # if ray_dims:
-        #     print(rgb.shape)
-        outputs["rgb"] = rgb
+            # ADD WHITE BG TO RGB
+            white_bg = torch.tensor([1.0, 1.0, 1.0], device=self.device)
+
+            a_mask = accum_mask.reshape(1, 1, height, width)
+
+            a_mask = torch.nn.functional.interpolate(
+                a_mask, size=(height * 8, width * 8), mode="bilinear"
+            )
+
+            a_mask = torch.flatten(a_mask.permute(0, 2, 3, 1), end_dim=-2)
+            a_mask_inv = 1 - a_mask
+
+            rgb = rgb.permute(0, 2, 3, 1)[0]
+            rgb = torch.flatten(rgb, end_dim=-2)
+            rgb = a_mask * rgb + (a_mask_inv * white_bg)
+            rgb = rgb.to(torch.float32)
+            # print("rgb", rgb)
+            # print(rgb.shape)
+
+            outputs["rgb"] = rgb
 
         # These use a lot of GPU memory, so we avoid storing them for eval.
         if self.training:
@@ -224,36 +260,51 @@ class DreamEmbeddingModel(DreamFusionModel):
             outputs["ray_samples_list"] = ray_samples_list
 
         for i in range(self.config.num_proposal_iterations):
-            outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
+            outputs[f"prop_depth_{i}"] = self.renderer_depth(
+                weights=weights_list[i], ray_samples=ray_samples_list[i]
+            )
 
-        normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
+        normals = self.renderer_normals(
+            normals=field_outputs[FieldHeadNames.NORMALS], weights=weights
+        )
         outputs["normals"] = self.shader_normals(normals, weights=accum_mask)
 
         outputs["rendered_orientation_loss"] = orientation_loss(
-            weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
+            weights.detach(),
+            field_outputs[FieldHeadNames.NORMALS],
+            ray_bundle.directions,
         )
 
         assert weights.shape[-1] == 1
         if self.config.opacity_penalty:
-            outputs["opacity_loss"] = torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01) * self.config.opacity_loss_mult
+            outputs["opacity_loss"] = (
+                torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01)
+                * self.config.opacity_loss_mult
+            )
 
         return outputs
 
-    def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
+    def get_loss_dict(
+        self, outputs, batch, metrics_dict=None
+    ) -> Dict[str, torch.Tensor]:
         # Scaling metrics by coefficients to create the losses.
 
         loss_dict = {}
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         if self.train_normals:
             # orientation loss for computed normals
-            loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
+            loss_dict[
+                "orientation_loss"
+            ] = self.config.orientation_loss_mult * torch.mean(
                 outputs["rendered_orientation_loss"]
             )
         else:
             loss_dict["orientation_loss"] = 0
 
         if self.config.opacity_penalty:
-            loss_dict["opacity_loss"] = self.config.opacity_loss_mult * outputs["opacity_loss"].mean()
+            loss_dict["opacity_loss"] = (
+                self.config.opacity_loss_mult * outputs["opacity_loss"].mean()
+            )
 
         if self.prompt != self.cur_prompt:
             self.cur_prompt = self.prompt
@@ -271,7 +322,12 @@ class DreamEmbeddingModel(DreamFusionModel):
 
         latents = (
             outputs["latents"]
-            .view(1, int(outputs["latents"].shape[0] ** 0.5), int(outputs["latents"].shape[0] ** 0.5), 4)
+            .view(
+                1,
+                int(outputs["latents"].shape[0] ** 0.5),
+                int(outputs["latents"].shape[0] ** 0.5),
+                4,
+            )
             .permute(0, 3, 1, 2)
         )
 
@@ -285,15 +341,21 @@ class DreamEmbeddingModel(DreamFusionModel):
         loss_dict["sds_loss"] = sds_loss.to(self.device)
 
         if self.training:
-            loss_dict["distortion_loss"] = self.config.distortion_loss_mult * distortion_loss(
+            loss_dict[
+                "distortion_loss"
+            ] = self.config.distortion_loss_mult * distortion_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
             )
-            loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
+            loss_dict[
+                "interlevel_loss"
+            ] = self.config.interlevel_loss_mult * interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
             )
         return loss_dict
-    
-    def forward(self, ray_bundle: RayBundle, ray_dims: Tuple=()) -> Dict[str, torch.Tensor]:
+
+    def forward(
+        self, ray_bundle: RayBundle, ray_dims: Tuple = ()
+    ) -> Dict[str, torch.Tensor]:
         """Run forward starting with a ray bundle. This outputs different things depending on the configuration
         of the model and whether or not the batch is provided (whether or not we are training basically)
 
@@ -305,9 +367,11 @@ class DreamEmbeddingModel(DreamFusionModel):
             ray_bundle = self.collider(ray_bundle)
 
         return self.get_outputs(ray_bundle, ray_dims)
-    
+
     @torch.no_grad()
-    def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
+    def get_outputs_for_camera_ray_bundle(
+        self, camera_ray_bundle: RayBundle
+    ) -> Dict[str, torch.Tensor]:
         """Takes in camera parameters and computes the output of the model.
 
         Args:
@@ -320,8 +384,12 @@ class DreamEmbeddingModel(DreamFusionModel):
         for i in range(0, num_rays, num_rays_per_chunk):
             start_idx = i
             end_idx = i + num_rays_per_chunk
-            ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
-            outputs = self.forward(ray_bundle=ray_bundle, ray_dims=(image_height, image_width))
+            ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(
+                start_idx, end_idx
+            )
+            outputs = self.forward(
+                ray_bundle=ray_bundle, ray_dims=(image_height, image_width)
+            )
             for output_name, output in outputs.items():  # type: ignore
                 outputs_lists[output_name].append(output)
         outputs = {}
@@ -329,11 +397,11 @@ class DreamEmbeddingModel(DreamFusionModel):
             if not torch.is_tensor(outputs_list[0]):
                 # TODO: handle lists of tensors as well
                 continue
-            # if output_name == "rgb":
-            #     outputs[output_name] = torch.cat(outputs_list).view(image_height * 8, image_width * 8, -1)  # type: ignore
-            # else:
-            #     outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)  # type: ignore
-            outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)  # type: ignore
+            if output_name == "rgb":
+                outputs[output_name] = torch.cat(outputs_list).view(image_height * 8, image_width * 8, -1)  # type: ignore
+            else:
+                outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)  # type: ignore
+            # outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)  # type: ignore
             # print(output_name, outputs[output_name].shape)
 
         return outputs
@@ -355,9 +423,16 @@ class DreamEmbeddingModel(DreamFusionModel):
             accumulation=outputs["accumulation"],
         )
 
+        size = outputs["latents"].shape[0]
+
+        latents_input = outputs["latents"].view(1, size, size, 4).half()
+        latents_input = latents_input.permute(0, 3, 1, 2)
+        rgb = self.sd.latents_to_img(latents_input)
+        rgb = rgb.permute(0, 2, 3, 1)[0].reshape(512, 512, 3).cpu().to(torch.float32)
+
         metrics_dict = {}
         images_dict = {
-            "img": outputs["rgb"].reshape(512, 512, 3), # this is a bit weird
+            "img": rgb,
             "accumulation": acc,
             "depth": depth,
             "prop_depth_0": prop_depth_0,

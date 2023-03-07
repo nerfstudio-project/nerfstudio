@@ -44,9 +44,13 @@ class ModelConfig(InstantiateConfig):
     """target class to instantiate"""
     enable_collider: bool = True
     """Whether to create a scene collider to filter rays."""
-    collider_params: Optional[Dict[str, float]] = to_immutable_dict({"near_plane": 2.0, "far_plane": 6.0})
+    collider_params: Optional[Dict[str, float]] = to_immutable_dict(
+        {"near_plane": 2.0, "far_plane": 6.0}
+    )
     """parameters to instantiate scene collider with"""
-    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
+    loss_coefficients: Dict[str, float] = to_immutable_dict(
+        {"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0}
+    )
     """parameters to instantiate density field with"""
     eval_num_rays_per_chunk: int = 4096
     """specifies number of rays per chunk during eval"""
@@ -76,7 +80,9 @@ class Model(nn.Module):
         super().__init__()
         self.config = config
         self.scene_box = scene_box
-        self.render_aabb = None  # the box that we want to render - should be a subset of scene_box
+        self.render_aabb = (
+            None  # the box that we want to render - should be a subset of scene_box
+        )
         self.num_train_data = num_train_data
         self.kwargs = kwargs
         self.collider = None
@@ -92,7 +98,8 @@ class Model(nn.Module):
         return self.device_indicator_param.device
 
     def get_training_callbacks(  # pylint:disable=no-self-use
-        self, training_callback_attributes: TrainingCallbackAttributes  # pylint: disable=unused-argument
+        self,
+        training_callback_attributes: TrainingCallbackAttributes,  # pylint: disable=unused-argument
     ) -> List[TrainingCallback]:
         """Returns a list of callbacks that run functions at the specified training iterations."""
         return []
@@ -104,7 +111,8 @@ class Model(nn.Module):
 
         if self.config.enable_collider:
             self.collider = NearFarCollider(
-                near_plane=self.config.collider_params["near_plane"], far_plane=self.config.collider_params["far_plane"]
+                near_plane=self.config.collider_params["near_plane"],
+                far_plane=self.config.collider_params["far_plane"],
             )
 
     @abstractmethod
@@ -152,7 +160,9 @@ class Model(nn.Module):
         return {}
 
     @abstractmethod
-    def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
+    def get_loss_dict(
+        self, outputs, batch, metrics_dict=None
+    ) -> Dict[str, torch.Tensor]:
         """Computes and returns the losses dict.
 
         Args:
@@ -162,7 +172,9 @@ class Model(nn.Module):
         """
 
     @torch.no_grad()
-    def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
+    def get_outputs_for_camera_ray_bundle(
+        self, camera_ray_bundle: RayBundle
+    ) -> Dict[str, torch.Tensor]:
         """Takes in camera parameters and computes the output of the model.
 
         Args:
@@ -175,7 +187,9 @@ class Model(nn.Module):
         for i in range(0, num_rays, num_rays_per_chunk):
             start_idx = i
             end_idx = i + num_rays_per_chunk
-            ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
+            ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(
+                start_idx, end_idx
+            )
             outputs = self.forward(ray_bundle=ray_bundle)
             for output_name, output in outputs.items():  # type: ignore
                 outputs_lists[output_name].append(output)
@@ -210,7 +224,10 @@ class Model(nn.Module):
         Args:
             loaded_state: dictionary of pre-trained model states
         """
-        state = {key.replace("module.", ""): value for key, value in loaded_state["model"].items()}
+        state = {
+            key.replace("module.", ""): value
+            for key, value in loaded_state["model"].items()
+        }
         self.load_state_dict(state)  # type: ignore
 
     def update_to_step(self, step: int) -> None:
