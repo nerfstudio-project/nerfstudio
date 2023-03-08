@@ -370,7 +370,7 @@ class VanillaPipeline(Pipeline):
             loaded_state: pre-trained model state dict
             step: training step of the loaded checkpoint
         """
-        state = {key.replace("module.", ""): value for key, value in loaded_state.items()}
+        state = {key[len("module."):]: value for key, value in loaded_state.items()}
         self._model.update_to_step(step)
         self.load_state_dict(state, strict=True)
 
