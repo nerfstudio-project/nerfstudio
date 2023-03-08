@@ -429,6 +429,44 @@ def rotation_matrix(a: TensorType[3], b: TensorType[3]) -> TensorType[3, 3]:
     return torch.eye(3) + skew_sym_mat + skew_sym_mat @ skew_sym_mat * ((1 - c) / (s**2 + 1e-8))
 
 
+def focus_of_attention(poses: TensorType["num_poses":..., 4, 4], initial_focus: TensorType[3]) -> TensorType[3]:
+    """Compute the focus of attention of a set of cameras. Only cameras
+    that have the focus of attention in front of them are considered.
+
+     Args:
+        poses: The poses to orient.
+        initial_focus: The 3D point views to decide which cameras are initially activated.
+
+    Returns:
+        The 3D position of the focus of attention.
+    """
+    # References to the same method in third-party code:
+    # https://github.com/google-research/multinerf/blob/1c8b1c552133cdb2de1c1f3c871b2813f6662265/internal/camera_utils.py#L145
+    # https://github.com/bmild/nerf/blob/18b8aebda6700ed659cb27a0c348b737a5f6ab60/load_llff.py#L197
+    active_directions = -poses[:, :3, 2:3]
+    active_origins = poses[:, :3, 3:4]
+    # initial value for testing if the focus_pt is in front or behind
+    focus_pt = initial_focus
+    # Prune cameras which have the current have the focus_pt behind them.
+    active = torch.sum(active_directions.squeeze(-1) * (focus_pt - active_origins.squeeze(-1)), dim=-1) > 0
+    done = False
+    # We need at least two active cameras, else fallback on the previous solution.
+    # This may be the "poses" solution if no cameras are active on first iteration, e.g.
+    # they are in an outward-looking configuration.
+    while torch.sum(active.int()) > 1 and not done:
+        active_directions = active_directions[active]
+        active_origins = active_origins[active]
+        # https://en.wikipedia.org/wiki/Line–line_intersection#In_more_than_two_dimensions
+        m = torch.eye(3) - active_directions * torch.transpose(active_directions, -2, -1)
+        mt_m = torch.transpose(m, -2, -1) @ m
+        focus_pt = torch.linalg.inv(mt_m.mean(0)) @ (mt_m @ active_origins).mean(0)[:, 0]
+        active = torch.sum(active_directions.squeeze(-1) * (focus_pt - active_origins.squeeze(-1)), dim=-1) > 0
+        if active.all():
+            # the set of active cameras did not change, so we're done.
+            done = True
+    return focus_pt
+
+
 def auto_orient_and_center_poses(
     poses: TensorType["num_poses":..., 4, 4],
     method: Literal["pca", "up", "vertical", "none"] = "up",
@@ -469,32 +507,11 @@ def auto_orient_and_center_poses(
     if center_method == "poses":
         translation = mean_origin
     elif center_method == "focus":
-        # https://github.com/google-research/multinerf/blob/1c8b1c552133cdb2de1c1f3c871b2813f6662265/internal/camera_utils.py#L145
-        # https://github.com/bmild/nerf/blob/18b8aebda6700ed659cb27a0c348b737a5f6ab60/load_llff.py#L197
-        active_directions = -poses[:, :3, 2:3]
-        active_origins = poses[:, :3, 3:4]
-        # initial value for testing if the focus_pt is in front or behind
-        focus_pt = mean_origin
-        # Prune cameras which have the current have the focus_pt behind them.
-        active = torch.sum(active_directions.squeeze(-1) * (focus_pt - active_origins.squeeze(-1)), dim=-1) > 0
-        done = False
-        # We need at least two active cameras, else fallback on the previous solution.
-        # This may be the "poses" solution if no cameras are active on first iteration, e.g.
-        # they are in an outward-looking configuration.
-        while torch.sum(active.int()) > 1 and not done:
-            active_directions = active_directions[active]
-            active_origins = active_origins[active]
-            # https://en.wikipedia.org/wiki/Line–line_intersection#In_more_than_two_dimensions
-            m = torch.eye(3) - active_directions * torch.transpose(active_directions, -2, -1)
-            mt_m = torch.transpose(m, -2, -1) @ m
-            focus_pt = torch.linalg.inv(mt_m.mean(0)) @ (mt_m @ active_origins).mean(0)[:, 0]
-            active = torch.sum(active_directions.squeeze(-1) * (focus_pt - active_origins.squeeze(-1)), dim=-1) > 0
-            if active.all():
-                # the set of active cameras did not change, so we're done.
-                done = True
-        translation = focus_pt
-    else:
+        translation = focus_of_attention(poses, mean_origin)
+    elif center_method == "none":
         translation = torch.zeros_like(mean_origin)
+    else:
+        raise ValueError(f"Unknown value for center_method: {center_method}")
 
     if method == "pca":
         _, eigvec = torch.linalg.eigh(translation_diff.T @ translation_diff)
@@ -552,5 +569,7 @@ def auto_orient_and_center_poses(
         transform[:3, 3] = -translation
         transform = transform[:3, :]
         oriented_poses = transform @ poses
+    else:
+        raise ValueError(f"Unknown value for method: {method}")
 
     return oriented_poses, transform
