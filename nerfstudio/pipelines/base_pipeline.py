@@ -108,7 +108,7 @@ class Pipeline(nn.Module):
 
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
         model_state = {
-            key.replace("_model.", "", 1): value for key, value in state_dict.items() if key.startswith("_model.")
+            key[len("_model."):]: value for key, value in state_dict.items() if key.startswith("_model.")
         }
         pipeline_state = {key: value for key, value in state_dict.items() if not key.startswith("_model.")}
         self._model.load_state_dict(model_state, strict=strict)
