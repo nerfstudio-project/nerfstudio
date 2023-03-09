@@ -121,7 +121,8 @@ def generate_planar_projections_from_equirectangular(
         image_dir: The directory containing the equirectangular image.
         planar_image_size: The size of the planar projections [width, height].
         samples_per_im: The number of samples to take per image.
-        crop_factor: The portion of the image to crop from the (top, bottom, left, and right). Values should be in [0, 1].
+        crop_factor: The portion of the image to crop from the (top, bottom, left, and right).
+                    Values should be in [0, 1].
     returns:
         The path to the planar projections directory.
     """
@@ -181,22 +182,18 @@ def generate_planar_projections_from_equirectangular(
         TimeRemainingColumn(elapsed_when_finished=True, compact=True),
     )
 
-    curr_im = 0
     with progress:
         for i in progress.track(os.listdir(frame_dir), description="", total=num_ims):
             if i.lower().endswith((".jpg", ".png", ".jpeg")):
                 im = np.array(cv2.imread(os.path.join(frame_dir, i)))
                 im = torch.tensor(im, dtype=torch.float32, device=device)
                 im = torch.permute(im, (2, 0, 1)) / 255.0
-                count = 0
                 for u_deg, v_deg in yaw_pitch_pairs:
                     v_rad = torch.pi * v_deg / 180.0
                     u_rad = torch.pi * u_deg / 180.0
                     pers_image = equi2pers(im, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad}) * 255.0
                     pers_image = (pers_image.permute(1, 2, 0)).type(torch.uint8).to("cpu").numpy()
                     cv2.imwrite(f"{output_dir}/{i[:-4]}_{count}.jpg", pers_image)
-                    count += 1
-            curr_im += 1
 
     return output_dir
 
