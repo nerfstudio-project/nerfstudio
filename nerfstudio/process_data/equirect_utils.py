@@ -15,6 +15,7 @@
 """Helper utils for processing equirectangular data."""
 
 import os
+import sys
 from pathlib import Path
 from typing import List, Tuple
 
@@ -33,7 +34,7 @@ from rich.progress import (
 
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
 
-CONSOLE = console(width=120)
+CONSOLE = Console(width=120)
 
 
 def _crop_bottom(bound_arr: list, fov: int, crop_factor: float) -> List[float]:
