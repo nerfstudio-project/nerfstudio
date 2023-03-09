@@ -182,13 +182,19 @@ class Nerfstudio(DataParser):
         You should check that depth_file_path is specified for every frame (or zero frames) in transforms.json.
         """
 
-        if f"{split}_indices" in meta:
-            # Datasets sets the train/test indices
-            indices = meta[f"{split}_indices"]
+        has_split_files_spec = any(f"{split}_filenames" in meta for split in ("train", "val", "test"))
+        if f"{split}_filenames" in meta:
+            # Validate split first
+            split_filenames = set(self._get_fname(PurePath(x), data_dir) for x in meta[f"{split}_filenames"])
+            unmatched_filenames = split_filenames.difference(image_filenames)
+            if unmatched_filenames:
+                raise RuntimeError(f"Some filenames for split {split} were not found: {unmatched_filenames}.")
+
+            indices = [i for i, path in enumerate(image_filenames) if path in split_filenames]
             CONSOLE.log(f"[yellow] Dataset is overriding {split}_indices to {indices}")
             indices = np.array(indices, dtype=np.int32)
-            if indices.max() >= len(poses):
-                raise RuntimeError(f"Invalid dataset indices: index {indices.max()} > {len(poses)} dataset images.")
+        elif has_split_files_spec:
+            raise RuntimeError(f"The dataset's list of filenames for split {split} is missing.")
         else:
             # filter image_filenames and poses based on train/eval split percentage
             num_images = len(image_filenames)

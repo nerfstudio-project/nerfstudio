@@ -431,7 +431,7 @@ def rotation_matrix(a: TensorType[3], b: TensorType[3]) -> TensorType[3, 3]:
 
 def auto_orient_and_center_poses(
     poses: TensorType["num_poses":..., 4, 4], method: Literal["pca", "up", "none"] = "up", center_poses: bool = True
-) -> Tuple[TensorType["num_poses":..., 3, 4], TensorType[4, 4]]:
+) -> Tuple[TensorType["num_poses":..., 3, 4], TensorType[3, 4]]:
     """Orients and centers the poses. We provide two methods for orientation: pca and up.
 
     pca: Orient the poses so that the principal component of the points is aligned with the axes.
