@@ -310,15 +310,15 @@ For videos we reccomend taking a video with the camera held on top of your head.
 For a video, process the data using the following command:
 
 ```bash
-ns-process-data video --camera-type equirectangular --images-per-equirect {8, or 14} --num-frames-target {num equirectangular frames to sample from} --percent-crop {top bottom left right} --data {data directory} --output-dir {output directory}
+ns-process-data video --camera-type equirectangular --images-per-equirect {8, or 14} --num-frames-target {num equirectangular frames to sample from} --crop-factor {top bottom left right} --data {data directory} --output-dir {output directory}
 ```
 See the equirectangular images section above for a description of the `--images-per-equirect` argument.
 
 The `num-frames-target` argument is optional but it is recomended to set it to 3*(seconds of video) frames. For example, if you have a 30 second video, you would use `--num-frames-target 90` (3*30=90). This number was chosen from a bit of experimentation and seems to work well for most videos. It is by no means a hard rule and you can experiment with different values.
 
-The `percent-crop` argument is optional but often very helpful. This is because equirectangular videos taken by 360 cameras tend to have a portion of the bottom of the image that is the person who was holding the camera over their head.
+The `crop-factor` argument is optional but often very helpful. This is because equirectangular videos taken by 360 cameras tend to have a portion of the bottom of the image that is the person who was holding the camera over their head.
 
   <img src="imgs/equirect_crop.jpg">
 
-This obscene mesh of human is obviously not helpful in training a nerf so we can remove it by cropping the bottom 20% of the image. This can be done by using the `--percent-crop 0 0.2 0 0` argument.
+This obscene mesh of human is obviously not helpful in training a nerf so we can remove it by cropping the bottom 20% of the image. This can be done by using the `--crop-factor 0 0.2 0 0` argument.
 
