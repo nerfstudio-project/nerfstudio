@@ -320,5 +320,5 @@ The `percent-crop` argument is optional but often very helpful. This is because 
 
   <img src="imgs/equirect_crop.jpg">
 
-This obscene mesh of human is obviously not helpful in training a nerf so we can remove it by cropping the bottom 20% of the image. This can be done by using the `--percent-crop 0 20 0 0` argument.
+This obscene mesh of human is obviously not helpful in training a nerf so we can remove it by cropping the bottom 20% of the image. This can be done by using the `--percent-crop 0 0.2 0 0` argument.
 
