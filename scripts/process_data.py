@@ -312,6 +312,10 @@ class ProcessVideo:
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
 
+        for i in self.crop_factor:
+            if i < 0 or i > 1:
+                raise ValueError("crop-factor values must be between 0 and 1")
+
         summary_log = []
         # Convert video to images
         if self.camera_type == "equirectangular":
