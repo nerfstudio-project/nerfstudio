@@ -293,7 +293,7 @@ class ProcessVideo:
     percent_radius_crop: float = 1.0
     """Create circle crop mask. The radius is the percent of the image diagonal."""
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
-    """Portion of the image to crop. (top, bottom, left, right)"""
+    """Portion of the image to crop. All values should be in [0,1]. (top, bottom, left, right)"""
     use_sfm_depth: bool = False
     """If True, export and use depth maps induced from SfM points."""
     include_depth_debug: bool = False
@@ -311,10 +311,6 @@ class ProcessVideo:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
-
-        for i in self.crop_factor:
-            if i < 0 or i > 1:
-                raise ValueError("crop-factor values must be between 0 and 1")
 
         summary_log = []
         # Convert video to images

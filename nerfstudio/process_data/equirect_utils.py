@@ -22,6 +22,7 @@ import cv2
 import numpy as np
 import torch
 from equilib import Equi2Pers
+from rich.console import Console
 from rich.progress import (
     BarColumn,
     Progress,
@@ -31,6 +32,8 @@ from rich.progress import (
 )
 
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
+
+CONSOLE = console(width=120)
 
 
 def _crop_bottom(bound_arr: list, fov: int, crop_factor: float) -> List[float]:
@@ -117,10 +120,15 @@ def generate_planar_projections_from_equirectangular(
         image_dir: The directory containing the equirectangular image.
         planar_image_size: The size of the planar projections [width, height].
         samples_per_im: The number of samples to take per image.
-        crop_factor: The portion of the image to crop from the (top, bottom, left, and right).
+        crop_factor: The portion of the image to crop from the (top, bottom, left, and right). Values should be in [0, 1].
     returns:
         The path to the planar projections directory.
     """
+
+    for i in crop_factor:
+        if i < 0 or i > 1:
+            CONSOLE.print("[bold red] Invalid crop factor. All values must be in [0,1].")
+            sys.exit(1)
 
     device = torch.device("cuda")
 

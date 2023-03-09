@@ -112,11 +112,16 @@ def convert_video_to_images(
         video_path: Path to the video.
         output_dir: Path to the output directory.
         num_frames_target: Number of frames to extract.
-        crop_factor: Portion of the image to crop. (top, bottom, left, right)
+        crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
         verbose: If True, logs the output of the command.
     Returns:
         A tuple containing summary of the conversion and the number of extracted frames.
     """
+
+    for i in crop_factor:
+        if i < 0 or i > 1:
+            CONSOLE.print("[bold red]Error: Invalid crop factor. All crops must be in [0,1].")
+            sys.exit(1)
 
     if video_path.is_dir():
         CONSOLE.print(f"[bold red]Error: Video path is a directory, not a path: {video_path}")
