@@ -208,4 +208,6 @@ class ARKitScenes(DataParser):
                     frame_pose = np.array(poses_from_traj[str(my_key)])
 
         frame_pose[0:3, 1:3] *= -1
+        frame_pose = frame_pose[np.array([1, 0, 2, 3]), :]
+        frame_pose[2, :] *= -1
         return frame_pose
