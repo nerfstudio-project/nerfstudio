@@ -261,6 +261,14 @@ class PatchPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
         num_rays = (num_rays_per_batch // (self.patch_size**2)) * (self.patch_size**2)
         super().__init__(num_rays, keep_full_image, **kwargs)
 
+    def set_num_rays_per_batch(self, num_rays_per_batch: int):
+        """Set the number of rays to sample per batch. Overrided to deal with patch-based sampling.
+
+        Args:
+            num_rays_per_batch: number of rays to sample per batch
+        """
+        self.num_rays_per_batch = (num_rays_per_batch // (self.patch_size**2)) * (self.patch_size**2)
+
     # overrides base method
     def sample_method(  # pylint: disable=no-self-use
         self,
