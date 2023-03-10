@@ -4,7 +4,15 @@
 
 The viewer is built using [ThreeJS](https://threejs.org/) and packaged into a [ReactJS](https://reactjs.org/) application. This client viewer application will connect via a websocket to a server running on your machine. The following figure helps to illustrate how our viewer framework works:
 
-![visualize_dataset](imgs/viewer_figure.png)
+```{image} imgs/viewer_light.png
+:align: center
+:class: only-light
+```
+
+```{image} imgs/viewer_dark.png
+:align: center
+:class: only-dark
+```
 
 ## System design
 
