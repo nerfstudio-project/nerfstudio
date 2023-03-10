@@ -21,8 +21,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 import zmq
-from aiortc import RTCPeerConnection
-from aiortc.rtcrtpsender import RTCRtpSender
 
 
 def get_chunks(
@@ -127,17 +125,3 @@ def find_available_port(func: Callable, default_port: int, max_attempts: int = 1
     raise (
         Exception(f"Could not find an available port in the range: [{default_port:d}, {max_attempts + default_port:d})")
     )
-
-
-def force_codec(pc: RTCPeerConnection, sender: RTCRtpSender, forced_codec: str) -> None:
-    """Sets the codec preferences on a connection between sender and receiver
-
-    Args:
-        pc: peer connection point
-        sender: sender that will send to connection point
-        forced_codec: codec to set
-    """
-    kind = forced_codec.split("/")[0]
-    codecs = RTCRtpSender.getCapabilities(kind).codecs
-    transceiver = next(t for t in pc.getTransceivers() if t.sender == sender)
-    transceiver.setCodecPreferences([codec for codec in codecs if codec.mimeType == forced_codec])

@@ -11,8 +11,8 @@ import PublicSharpIcon from '@mui/icons-material/PublicSharp';
 import SyncOutlinedIcon from '@mui/icons-material/SyncOutlined';
 import ThreeDRotationIcon from '@mui/icons-material/ThreeDRotation';
 import VideoCameraBackIcon from '@mui/icons-material/VideoCameraBackOutlined';
-import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
 import { WebSocketContext } from '../WebSocket/WebSocket';
+import RenderWindow from '../RenderWindow/RenderWindow';
 
 const msgpack = require('msgpack-lite');
 
@@ -274,8 +274,7 @@ export default function ViewerWindow(props) {
 
   return (
     <>
-      {/* the webrtc viewer needs to know the camera pose */}
-      <WebRtcWindow />
+      <RenderWindow />
       <div className="canvas-container-main" ref={myRef}>
         <div className="ViewerWindow-camera-toggle">
           <CameraToggle />

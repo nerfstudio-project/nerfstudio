@@ -14,8 +14,6 @@ classifiers = [
     "Programming Language :: Python",
 ]
 dependencies = [
-    "aiohttp>=3.8.1",
-    "aiortc>=1.3.2",
     "appdirs>=1.4",
     "av>=9.2.0",
     "cryptography>=38,<39",

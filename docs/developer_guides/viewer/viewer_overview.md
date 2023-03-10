@@ -14,11 +14,9 @@ In the center, we have the Bridge Server, which facilitates the connection betwe
 
 #### Connection between the Bridge Server and the Client App
 
-The connection between the Bridge Server and the Client App works with WebSockets and WebRTC.
+The connection between the Bridge Server and the Client App works with WebSockets.
 
 - **WebSocket connection** - The WebSocket is used by the Bridge Server to dispatch commands coming from the nerfstudio TCP connection. Commands can be used for drawing primitives, for setting the transform of objects, for the setting various properties, and more.
-
-- **WebRTC connection** - We use WebRTC to stream images being rendered from nerfstudio. The websocket connection if first used to establish the WebRTC connection. Then, the Client App constantly publishes camera pose information to the Bridge Server and stores the camera information (intrinsics and extrinsics). This information is then queried from the nerfstudio code, used to render an image with some Graph, and then the image is send over the TCP connection and dispatched via WebRTC to render the stream of images.
 
 ## Installing and running locally
 
@@ -50,7 +48,7 @@ yarn install
 yarn start
 ```
 
-The local webserver runs on port 4000 by default, 
+The local webserver runs on port 4000 by default,
 so when `ns-train` is running, you can connect to the viewer locally at
 [http://localhost:4000/?websocket_url=ws://localhost:7007](http://localhost:4000/?websocket_url=ws://localhost:7007)
 
@@ -70,7 +68,6 @@ We thank the authors and contributors to the following repos, which we've starte
 - [meshcat](https://github.com/rdeits/meshcat) - made by [Robin Deits](https://github.com/rdeits)
 - [ThreeJS](https://threejs.org/)
 - [ReactJS](https://reactjs.org/)
-- [WebRTC](https://webrtc.org/) - WebRTC is a framework for real-time communication that allows two peers to send video, audio, or general data to and from each other with low latency. We've adopted WebRTC to stream rendered images to our viewer.
 
 ## FAQ
 
