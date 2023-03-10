@@ -19,6 +19,7 @@ Instant-NGP field implementations using tiny-cuda-nn, torch, ....
 
 from typing import Dict, Optional, Tuple
 
+import numpy as np
 import torch
 from nerfacc import ContractionType, contract
 from torch.nn.parameter import Parameter
@@ -63,6 +64,7 @@ class TCNNInstantNGPField(Field):
         contraction_type: type of contraction
         num_levels: number of levels of the hashmap for the base mlp
         log2_hashmap_size: size of the hashmap for the base mlp
+        max_res: maximum resolution of the hashmap for the base mlp
     """
 
     def __init__(
@@ -79,6 +81,7 @@ class TCNNInstantNGPField(Field):
         contraction_type: ContractionType = ContractionType.UN_BOUNDED_SPHERE,
         num_levels: int = 16,
         log2_hashmap_size: int = 19,
+        max_res: int = 2048,
     ) -> None:
         super().__init__()
 
@@ -93,7 +96,8 @@ class TCNNInstantNGPField(Field):
             self.appearance_embedding = Embedding(num_images, appearance_embedding_dim)
 
         # TODO: set this properly based on the aabb
-        per_level_scale = 1.4472692012786865
+        base_res: int = 16
+        per_level_scale = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
         self.direction_encoding = tcnn.Encoding(
             n_input_dims=3,
@@ -111,7 +115,7 @@ class TCNNInstantNGPField(Field):
                 "n_levels": num_levels,
                 "n_features_per_level": 2,
                 "log2_hashmap_size": log2_hashmap_size,
-                "base_resolution": 16,
+                "base_resolution": base_res,
                 "per_level_scale": per_level_scale,
             },
             network_config={
