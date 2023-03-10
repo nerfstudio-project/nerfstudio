@@ -52,17 +52,15 @@ class MinimalDataParser(DataParser):
         filepath = self.config.data / f"{split}.npz"
         data = np.load(filepath, allow_pickle=True)
 
-        image_filenames = [filepath.parent / path for path in data["image_filenames"].tolist()]
-        mask_filenames = None
-        if "mask_filenames" in data.keys():
-            mask_filenames = [filepath.parent / path for path in data["mask_filenames"].tolist()]
+        image_filenames = data["image_filenames"].tolist()
+        mask_filenames = data["mask_filenames"].tolist() if "mask_filenames" in data.keys() else None
 
         metadata = None
         if "semantics" in data.keys():
             semantics = data["semantics"].item()
             metadata = {
                 "semantics": Semantics(
-                    filenames=[filepath.parent / path for path in semantics["filenames"].tolist()],
+                    filenames=semantics["filenames"].tolist(),
                     classes=semantics["classes"].tolist(),
                     colors=torch.from_numpy(semantics["colors"]),
                     mask_classes=semantics["mask_classes"].tolist(),
@@ -89,21 +87,11 @@ class MinimalDataParser(DataParser):
             times=torch.from_numpy(camera_np["times"]) if "times" in camera_np.keys() else None,
         )
 
-        applied_scale = 1.0
-        applied_transform = np.eye(4, dtype=np.float32)[:3, :]
-        if "applied_scale" in data.keys():
-            applied_scale = float(data["applied_scale"])
-        if "applied_transform" in data.keys():
-            applied_transform = data["applied_transform"].astype(np.float32)
-            assert applied_transform.shape == (3, 4)
-
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
             mask_filenames=mask_filenames,
-            dataparser_transform=applied_transform,
-            dataparser_scale=applied_scale,
             metadata=metadata,
         )
         return dataparser_outputs
