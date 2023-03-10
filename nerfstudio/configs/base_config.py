@@ -23,8 +23,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, Type
 
-from typing_extensions import Literal
-
 # model instances
 from nerfstudio.utils import writer
 
