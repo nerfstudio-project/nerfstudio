@@ -116,7 +116,7 @@ class SDFStudio(DataParser):
             camera_to_worlds, transform = camera_utils.auto_orient_and_center_poses(
                 camera_to_worlds,
                 method="up",
-                center_poses=False,
+                center_method="none",
             )
 
         # scene box from meta data
