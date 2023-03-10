@@ -456,7 +456,7 @@ def colmap_to_json(
     out["frames"] = frames
 
     applied_transform = np.eye(4)[:3, :]
-    applied_transform = applied_transform[np.array([1, 0, 2, 3]), :]
+    applied_transform = applied_transform[np.array([1, 0, 2]), :]
     applied_transform[2, :] *= -1
     out["applied_transform"] = applied_transform
 
