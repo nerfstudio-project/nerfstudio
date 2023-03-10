@@ -100,7 +100,7 @@ function TransformIcons(props) {
   );
 }
 
-// manages a camera and the web rtc stream...
+// manages a camera
 export default function ViewerWindow(props) {
   const sceneTree = props.sceneTree;
   const scene = sceneTree.object;
