@@ -292,8 +292,8 @@ class ProcessVideo:
     """
     percent_radius_crop: float = 1.0
     """Create circle crop mask. The radius is the percent of the image diagonal."""
-    percent_crop: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
-    """Percent of the image to crop. (top, bottom, left, right)"""
+    crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+    """Portion of the image to crop. All values should be in [0,1]. (top, bottom, left, right)"""
     use_sfm_depth: bool = False
     """If True, export and use depth maps induced from SfM points."""
     include_depth_debug: bool = False
@@ -319,11 +319,19 @@ class ProcessVideo:
             temp_image_dir = self.output_dir / "temp_images"
             temp_image_dir.mkdir(parents=True, exist_ok=True)
             summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
-                self.data, image_dir=temp_image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
+                self.data,
+                image_dir=temp_image_dir,
+                num_frames_target=self.num_frames_target,
+                crop_factor=(0.0, 0.0, 0.0, 0.0),
+                verbose=self.verbose,
             )
         else:
             summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
-                self.data, image_dir=image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
+                self.data,
+                image_dir=image_dir,
+                num_frames_target=self.num_frames_target,
+                crop_factor=self.crop_factor,
+                verbose=self.verbose,
             )
 
         # Generate planar projections if equirectangular
@@ -332,7 +340,10 @@ class ProcessVideo:
                 self.output_dir / "temp_images", self.images_per_equirect
             )
             image_dir = equirect_utils.generate_planar_projections_from_equirectangular(
-                self.output_dir / "temp_images", perspective_image_size, self.images_per_equirect
+                self.output_dir / "temp_images",
+                perspective_image_size,
+                self.images_per_equirect,
+                crop_factor=self.crop_factor,
             )
 
             # copy the perspective images to the image directory
@@ -346,11 +357,11 @@ class ProcessVideo:
             # remove the temp_images folder
             shutil.rmtree(self.output_dir / "temp_images", ignore_errors=True)
 
-        # Create mask
+        # # Create mask
         mask_path = process_data_utils.save_mask(
             image_dir=image_dir,
             num_downscales=self.num_downscales,
-            percent_crop=self.percent_crop,
+            crop_factor=(0.0, 0.0, 0.0, 0.0),
             percent_radius=self.percent_radius_crop,
         )
         if mask_path is not None:

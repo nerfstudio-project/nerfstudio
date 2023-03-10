@@ -21,7 +21,6 @@ from __future__ import annotations
 import asyncio
 import enum
 import os
-import re
 import sys
 import threading
 import time
@@ -351,10 +350,8 @@ class ViewerState:
         # set the data base dir
         self.vis["renderingState/data_base_dir"].write(str(self.datapath))
 
-        # get the timestamp of the train run to set default export path name
-        timestamp_reg = re.compile("[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}")
-        timestamp_match = timestamp_reg.findall(str(self.log_filename.parents[0]))
-        self.vis["renderingState/export_path"].write(timestamp_match[-1])
+        # set default export path name
+        self.vis["renderingState/export_path"].write(self.log_filename.parent.stem)
 
         # clear the current scene
         self.vis["sceneState/sceneBox"].delete()
@@ -768,10 +765,12 @@ class ViewerState:
         if self.output_type_changed or self.prev_colormap_type is None:
             self.prev_colormap_type = ColormapTypes.DEFAULT
             colormap_options = []
+            self.vis["renderingState/colormap_options"].write(list(ColormapTypes))
             if outputs[reformatted_output].shape[-1] == 3:
                 colormap_options = [ColormapTypes.DEFAULT]
             if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
-                colormap_options = list(ColormapTypes)
+                self.prev_colormap_type = ColormapTypes.TURBO
+                colormap_options = list(ColormapTypes)[1:]
             self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             self.vis["renderingState/colormap_options"].write(colormap_options)
