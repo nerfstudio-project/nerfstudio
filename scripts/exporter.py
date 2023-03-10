@@ -2,6 +2,8 @@
 Script for exporting NeRF into other formats.
 """
 
+# pylint: disable=no-member
+
 from __future__ import annotations
 
 import json
