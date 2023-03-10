@@ -132,8 +132,8 @@ $sidebar-width: 100% !default;
   padding: 10px;
 }
 
-.StatusPanel .StatusPanel-button-group {
-  margin: 10px;
+.StatusPanel .StatusPanel-button {
+  margin-bottom: 4px;
 }
 
 .StatusPanel .StatusPanel-hide-scene-button {
@@ -348,7 +348,7 @@ $sidebar-width: 100% !default;
 // Viewer Window
 
 .canvas-container-main,
-.WebRTCVideo,
+.RenderWindow,
 .ViewerWindow-render-crop-container {
   position: absolute;
   top: 0px;
@@ -358,7 +358,7 @@ $sidebar-width: 100% !default;
   border: $custom-border;
 }
 
-.WebRTCVideo {
+.RenderWindow {
   z-index: 1;
 }
 
@@ -371,12 +371,6 @@ $sidebar-width: 100% !default;
 
 .canvas-container-main {
   z-index: 3;
-}
-
-.WebRTCVideo-video {
-  width: 100%;
-  height: 100%;
-  object-fit: fill;
 }
 
 .ViewerWindow-render-crop {

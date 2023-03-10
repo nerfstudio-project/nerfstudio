@@ -18,7 +18,7 @@
 """
 from __future__ import annotations
 
-import asyncio
+import base64
 import enum
 import os
 import sys
@@ -28,14 +28,9 @@ import warnings
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
+import cv2
 import numpy as np
 import torch
-from aiortc import (
-    RTCConfiguration,
-    RTCIceServer,
-    RTCPeerConnection,
-    RTCSessionDescription,
-)
 from cryptography.utils import CryptographyDeprecationWarning
 from rich.console import Console
 
@@ -51,11 +46,7 @@ from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
-from nerfstudio.viewer.server.utils import (
-    force_codec,
-    get_intrinsics_matrix_and_camera_to_world_h,
-)
-from nerfstudio.viewer.server.video_stream import SingleFrameStreamTrack
+from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfstudio.viewer.server.visualizer import Viewer
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
@@ -283,11 +274,9 @@ class ViewerState:
             CONSOLE.rule(characters="=")
             CONSOLE.line()
             self.vis = Viewer(zmq_port=zmq_port, ip_address=self.config.ip_address)
-            self.vis_webrtc_thread = Viewer(zmq_port=zmq_port, ip_address=self.config.ip_address)
         else:
             assert self.config.zmq_port is not None
             self.vis = Viewer(zmq_port=self.config.zmq_port, ip_address=self.config.ip_address)
-            self.vis_webrtc_thread = Viewer(zmq_port=self.config.zmq_port, ip_address=self.config.ip_address)
 
         # viewer specific variables
         self.prev_camera_matrix = None
@@ -313,12 +302,6 @@ class ViewerState:
         self.prev_crop_center = None
 
         self.output_list = None
-
-        # webrtc
-        self.pcs = set()
-        self.video_tracks = set()
-        self.webrtc_thread = None
-        self.kill_webrtc_signal = False
 
     def _pick_drawn_image_idxs(self, total_num: int) -> list[int]:
         """Determine indicies of images to display in viewer.
@@ -417,26 +400,6 @@ class ViewerState:
                 self.vis["renderingState/all_camera_paths"].write(all_path_dict)
                 self.vis["populate_paths_payload"].delete()
 
-    def _check_webrtc_offer(self):
-        """Check if there is a webrtc offer to respond to."""
-        data = self.vis["webrtc/offer"].read()
-        if data:
-            if self.webrtc_thread and self.webrtc_thread.is_alive():
-                # kill the previous thread if the webpage refreshes
-                self.kill_webrtc_signal = True
-                return
-
-            def loop_in_thread(loop):
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(self.send_webrtc_answer(data))
-
-            loop = asyncio.get_event_loop()
-            self.webrtc_thread = threading.Thread(target=loop_in_thread, args=(loop,))
-            self.webrtc_thread.daemon = True
-            self.webrtc_thread.start()
-            # remove the offer from the state tree
-            self.vis["webrtc/offer"].delete()
-
     def _update_render_aabb(self, graph):
         """
         update the render aabb box for the viewer:
@@ -500,7 +463,6 @@ class ViewerState:
 
         self._check_camera_path_payload(trainer, step)
         self._check_populate_paths_payload(trainer, step)
-        self._check_webrtc_offer()
 
         camera_object = self._get_camera_object()
         if camera_object is None:
@@ -546,7 +508,6 @@ class ViewerState:
                 is_training = self.vis["renderingState/isTraining"].read()
                 self._check_populate_paths_payload(trainer, step)
                 self._check_camera_path_payload(trainer, step)
-                self._check_webrtc_offer()
                 run_loop = not is_training
                 local_step += 1
 
@@ -666,66 +627,6 @@ class ViewerState:
 
         raise NotImplementedError
 
-    async def send_webrtc_answer(self, data):
-        """Setup the webrtc connection."""
-
-        # returns the description to for WebRTC to the specific websocket connection
-        offer = RTCSessionDescription(data["sdp"], data["type"])
-
-        if self.config.local:
-            pc = RTCPeerConnection()
-        else:
-            if self.config.skip_openrelay:
-                ice_servers = [
-                    RTCIceServer(urls="stun:stun.l.google.com:19302"),
-                ]
-            else:
-                ice_servers = [
-                    RTCIceServer(urls="stun:stun.l.google.com:19302"),
-                    RTCIceServer(urls="stun:openrelay.metered.ca:80"),
-                    RTCIceServer(
-                        urls="turn:openrelay.metered.ca:80", username="openrelayproject", credential="openrelayproject"
-                    ),
-                    RTCIceServer(
-                        urls="turn:openrelay.metered.ca:443", username="openrelayproject", credential="openrelayproject"
-                    ),
-                    RTCIceServer(
-                        urls="turn:openrelay.metered.ca:443?transport=tcp",
-                        username="openrelayproject",
-                        credential="openrelayproject",
-                    ),
-                ]
-
-            pc = RTCPeerConnection(configuration=RTCConfiguration(iceServers=ice_servers))
-        self.pcs.add(pc)
-
-        video = SingleFrameStreamTrack()
-        self.video_tracks.add(video)
-        video_sender = pc.addTrack(video)
-        print(f"viewer using video/{self.config.codec}")
-        force_codec(pc, video_sender, f"video/{self.config.codec}")
-
-        await pc.setRemoteDescription(offer)
-        answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
-
-        self.vis_webrtc_thread["webrtc/answer"].write(
-            {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
-        )
-        self.vis_webrtc_thread["webrtc/answer"].delete()
-
-        # continually exchange media
-        while True:
-            await asyncio.sleep(1)
-            if self.kill_webrtc_signal:
-                self.kill_webrtc_signal = False
-                return
-
-    def set_image(self, image):
-        """Write the image over webrtc."""
-        for video_track in self.video_tracks:
-            video_track.put_frame(image)
-
     def _send_output_to_viewer(self, outputs: Dict[str, Any], colors: torch.Tensor = None):
         """Chooses the correct output and sends it to the viewer
 
@@ -760,8 +661,12 @@ class ViewerState:
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             self.vis["renderingState/colormap_options"].write(colormap_options)
         selected_output = (self._apply_colormap(outputs, colors) * 255).type(torch.uint8)
-        image = selected_output.cpu().numpy()
-        self.set_image(image)
+
+        image = selected_output[..., [2, 1, 0]].cpu().numpy()
+
+        data = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 75])[1].tobytes()
+        data = str("data:image/jpeg;base64," + base64.b64encode(data).decode("ascii"))
+        self.vis["render_img"].write(data)
 
     def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int, image_width: int) -> None:
         """Function that calculates and populates all the rendering statistics accordingly
@@ -846,11 +751,6 @@ class ViewerState:
         if image_width > self.max_resolution:
             image_width = self.max_resolution
             image_height = int(image_width / aspect_ratio)
-        if self.config.codec != "VP8":
-            # force even values to allow hardware encoder usage
-            quantize = 2
-            image_width = int(image_width / quantize) * quantize
-            image_height = int(image_height / quantize) * quantize
         return image_height, image_width
 
     def _process_invalid_output(self, output_type: str) -> str:
@@ -880,7 +780,7 @@ class ViewerState:
         # pylint: disable=too-many-statements
         """
         Draw an image using the current camera pose from the viewer.
-        The image is sent of a TCP connection and then uses WebRTC to send it to the viewer.
+        The image is sent over a TCP connection.
 
         Args:
             graph: current checkpoint of model
