@@ -455,6 +455,11 @@ def colmap_to_json(
     out = parse_colmap_camera_params(cam_id_to_camera[1])
     out["frames"] = frames
 
+    applied_transform = np.eye(4)[:3, :]
+    applied_transform = applied_transform[np.array([1, 0, 2]), :]
+    applied_transform[2, :] *= -1
+    out["applied_transform"] = applied_transform
+
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
         json.dump(out, f, indent=4)
 
