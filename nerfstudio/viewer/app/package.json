@@ -1,7 +1,7 @@
 {
   "name": "viewer",
   "homepage": ".",
-  "version": "23-02-3-0",
+  "version": "23-03-9-0",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.10.4",

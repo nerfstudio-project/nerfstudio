@@ -60,12 +60,12 @@ class PhototourismDataParserConfig(DataParserConfig):
     """The fraction of images to use for training. The remaining images are for eval."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
-    orientation_method: Literal["pca", "up", "none"] = "up"
+    orientation_method: Literal["pca", "up", "vertical", "none"] = "up"
     """The method to use for orientation."""
+    center_method: Literal["poses", "focus", "none"] = "poses"
+    """The method to use to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
-    center_poses: bool = True
-    """Whether to center the poses."""
 
 
 @dataclass
@@ -147,7 +147,7 @@ class Phototourism(DataParser):
             raise ValueError(f"Unknown dataparser split {split}")
 
         poses, transform_matrix = camera_utils.auto_orient_and_center_poses(
-            poses, method=self.config.orientation_method, center_poses=self.config.center_poses
+            poses, method=self.config.orientation_method, center_method=self.config.center_method
         )
 
         # Scale poses
