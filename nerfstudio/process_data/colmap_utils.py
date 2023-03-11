@@ -35,7 +35,7 @@ from nerfstudio.data.utils.colmap_parsing_utils import (
     qvec2rotmat,
     read_cameras_binary,
     read_images_binary,
-    read_points3d_binary,
+    read_points3D_binary,
 )
 from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils import colormaps
@@ -458,7 +458,7 @@ def colmap_to_json(
     applied_transform = np.eye(4)[:3, :]
     applied_transform = applied_transform[np.array([1, 0, 2]), :]
     applied_transform[2, :] *= -1
-    out["applied_transform"] = applied_transform
+    out["applied_transform"] = applied_transform.tolist()
 
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
         json.dump(out, f, indent=4)
@@ -515,7 +515,7 @@ def create_sfm_depth(
     # ptid_to_info = recon.points3D
     # cam_id_to_camera = recon.cameras
     # im_id_to_image = recon.images
-    ptid_to_info = read_points3d_binary(recon_dir / "points3D.bin")
+    ptid_to_info = read_points3D_binary(recon_dir / "points3D.bin")
     cam_id_to_camera = read_cameras_binary(recon_dir / "cameras.bin")
     im_id_to_image = read_images_binary(recon_dir / "images.bin")
 
