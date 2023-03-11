@@ -289,9 +289,9 @@ class Nerfstudio(DataParser):
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
 
         if "applied_transform" in meta:
-            applied_transform = np.array(meta["applied_transform"], dtype=np.float32)
-            transform_matrix = transform_matrix @ np.concatenate(
-                (applied_transform, np.array([0, 0, 0, 1], dtype=np.float32)), 0
+            applied_transform = torch.tensor(meta["applied_transform"], dtype=transform_matrix.dtype)
+            transform_matrix = transform_matrix @ torch.cat(
+                [applied_transform, torch.tensor([[0, 0, 0, 1]], dtype=transform_matrix.dtype)], 0
             )
         if "applied_scale" in meta:
             applied_scale = float(meta["applied_scale"])
