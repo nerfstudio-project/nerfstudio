@@ -28,7 +28,11 @@ from rich.progress import (
 from torchtyping import TensorType
 from typing_extensions import Literal, assert_never
 
-from nerfstudio.cameras.camera_paths import get_path_from_json, get_spiral_path
+from nerfstudio.cameras.camera_paths import (
+    get_interpolated_camera_path,
+    get_path_from_json,
+    get_spiral_path,
+)
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components import renderers
@@ -94,7 +98,6 @@ def _render_trajectory_video(
 
         with progress:
             for camera_idx in progress.track(range(cameras.size), description=""):
-
                 aabb_box = None
                 if crop_data is not None:
                     bounding_box_min = crop_data.center - crop_data.scale / 2.0
@@ -249,14 +252,20 @@ def get_crop_from_json(camera_json: Dict[str, Any]) -> Optional[CropData]:
 
 @dataclass
 class RenderTrajectory:
-    """Load a checkpoint, render a trajectory, and save to a video file."""
+    """Load a checkpoint, render a trajectory, and save to a video file.
+    The following trajectory options are available,
+    filename: Load from trajectory created using viewer or blender vfx plugin.
+    interpolate: Create trajectory by interpolating between eval dataset images.
+    spiral: Create a spiral trajectory (can be hit or miss).
+    """
 
     load_config: Path
     """Path to config YAML file."""
     rendered_output_names: List[str] = field(default_factory=lambda: ["rgb"])
     """Name of the renderer outputs to use. rgb, depth, etc. concatenates them along y axis"""
-    traj: Literal["spiral", "filename"] = "spiral"
-    """Trajectory to render."""
+    traj: Literal["spiral", "filename", "interpolate"] = "spiral"
+    """Trajectory type to render. Select between spiral-shaped trajectory, trajectory loaded from
+    a viewer-generated file and interpolated camera paths from the eval dataset."""
     downscale_factor: int = 1
     """Scaling factor to apply to the camera image resolution."""
     camera_path_filename: Path = Path("camera_path.json")
@@ -267,6 +276,8 @@ class RenderTrajectory:
     """How long the video should be."""
     output_format: Literal["images", "video"] = "video"
     """How to save output data."""
+    interpolation_steps: int = 10
+    """Number of interpolation steps between eval dataset cameras."""
     eval_num_rays_per_chunk: Optional[int] = None
     """Specifies number of rays per chunk during eval."""
 
@@ -275,7 +286,7 @@ class RenderTrajectory:
         _, pipeline, _ = eval_setup(
             self.load_config,
             eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
-            test_mode="test" if self.traj == "spiral" else "inference",
+            test_mode="test" if self.traj in ["spiral", "interpolate"] else "inference",
         )
 
         install_checks.check_ffmpeg_installed()
@@ -303,6 +314,11 @@ class RenderTrajectory:
                 camera_type = CameraType.PERSPECTIVE
             crop_data = get_crop_from_json(camera_path)
             camera_path = get_path_from_json(camera_path)
+        elif self.traj == "interpolate":
+            camera_type = CameraType.PERSPECTIVE
+            camera_path = get_interpolated_camera_path(
+                cameras=pipeline.datamanager.eval_dataloader.cameras, steps=self.interpolation_steps
+            )
         else:
             assert_never(self.traj)
 

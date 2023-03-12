@@ -17,7 +17,7 @@ NeRFPlayer (https://arxiv.org/abs/2210.15947) field implementations with Instant
 """
 
 
-from typing import Optional
+from typing import Dict, Optional, Tuple
 
 import torch
 from nerfacc import ContractionType, contract
@@ -68,7 +68,7 @@ class NerfplayerNGPField(Field):
 
     def __init__(
         self,
-        aabb,
+        aabb: TensorType,
         temporal_dim: int = 16,
         num_levels: int = 16,
         features_per_level: int = 2,
@@ -144,7 +144,7 @@ class NerfplayerNGPField(Field):
             },
         )
 
-    def get_density(self, ray_samples: RaySamples):
+    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
         positions = ray_samples.frustums.get_positions()
         positions_flat = positions.view(-1, 3)
         positions_flat = contract(x=positions_flat, roi=self.aabb, type=self.contraction_type)
@@ -161,7 +161,9 @@ class NerfplayerNGPField(Field):
         density = trunc_exp(density_before_activation.to(positions))
         return density, base_mlp_out
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
+    def get_outputs(
+        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
+    ) -> Dict[FieldHeadNames, TensorType]:
         directions = get_normalized_directions(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
 

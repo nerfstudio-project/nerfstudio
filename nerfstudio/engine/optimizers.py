@@ -66,6 +66,8 @@ class RAdamOptimizerConfig(OptimizerConfig):
     """Basic optimizer config with RAdam"""
 
     _target: Type = torch.optim.RAdam
+    weight_decay: float = 0
+    """The weight decay to use."""
 
 
 class Optimizers:

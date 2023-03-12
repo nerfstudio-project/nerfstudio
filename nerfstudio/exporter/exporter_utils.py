@@ -178,8 +178,8 @@ def generate_point_cloud(
     rgbs = torch.cat(rgbs, dim=0)
 
     pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(points.float().cpu().numpy())
-    pcd.colors = o3d.utility.Vector3dVector(rgbs.float().cpu().numpy())
+    pcd.points = o3d.utility.Vector3dVector(points.double().cpu().numpy())
+    pcd.colors = o3d.utility.Vector3dVector(rgbs.double().cpu().numpy())
 
     ind = None
     if remove_outliers:
@@ -203,7 +203,7 @@ def generate_point_cloud(
         if ind is not None:
             # mask out normals for points that were removed with remove_outliers
             normals = normals[ind]
-        pcd.normals = o3d.utility.Vector3dVector(normals.float().cpu().numpy())
+        pcd.normals = o3d.utility.Vector3dVector(normals.double().cpu().numpy())
 
     return pcd
 

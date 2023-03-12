@@ -140,7 +140,7 @@ To restrict to only CUDA architectures that you have available locally, use the 
 build arg and look up [the compute capability for your GPU](https://developer.nvidia.com/cuda-gpus).
 For example, here's how to build with support for GeForce 30xx series GPUs:
 ```bash
-docker build --build-arg CUDA_ARCHITECTURES=86 -tag nerfstudio-86 .
+docker build --build-arg CUDA_ARCHITECTURES=86 --tag nerfstudio-86 -f Dockerfile .
 ```
 
 ### Using an interactive container
