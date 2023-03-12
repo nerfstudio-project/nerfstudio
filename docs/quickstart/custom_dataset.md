@@ -310,7 +310,7 @@ The images-per-equirect argument is the number of images that will be sampled fr
 
 ### Videos
 
-For videos we reccomend taking a video with the camera held on top of your head. This will result in any unwanted capturer to just be in the bottom of each frame image and therefore can be cropped out.
+For videos we recommend taking a video with the camera held on top of your head. This will result in any unwanted capturer to just be in the bottom of each frame image and therefore can be cropped out.
 
 For a video, process the data using the following command:
 
