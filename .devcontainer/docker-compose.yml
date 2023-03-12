@@ -3,10 +3,10 @@ version: "3.8"
 services:
   nerfstudio:
     shm_size: '12gb'
-    image: dromni/nerfstudio:0.1.18
-    # build:
-    #   context: ..
-    #   dockerfile: ./Dockerfile
+    image: nerfstudio:latest
+    build:
+      context: ..
+      dockerfile: ./Dockerfile
     stdin_open: true
     tty: true
     environment:

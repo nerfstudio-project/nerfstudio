@@ -55,6 +55,8 @@ class ProcessImages:
     sfm_tool: Literal["any", "colmap", "hloc"] = "any"
     """Structure from motion tool to use. Colmap will use sift features, hloc can use many modern methods
        such as superpoint features and superglue matcher"""
+    refine_pixsfm: bool = False
+    """If True, runs refinement using Pixel Perfect SFM. Only works with hloc sfm_tool"""
     feature_type: Literal[
         "any",
         "sift",
@@ -211,6 +213,9 @@ class ProcessImages:
         (sfm_tool, feature_type, matcher_type) = process_data_utils.find_tool_feature_matcher_combination(
             self.sfm_tool, self.feature_type, self.matcher_type
         )
+        # check that sfm_tool is hloc if using refine_pixsfm
+        if self.refine_pixsfm:
+            assert sfm_tool == "hloc", "refine_pixsfm only works with sfm_tool hloc"
 
         if sfm_tool == "colmap":
             colmap_utils.run_colmap(
