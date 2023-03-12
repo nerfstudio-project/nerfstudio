@@ -200,6 +200,7 @@ Using an existing dataset is great, but likely you want to use your own data! We
 | ------------------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------- | ----------------------- |
 | 📷 [Images](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#images-and-video)   | Any            | [COLMAP](https://colmap.github.io/install.html) | 🐢                      |
 | 📹 [Video](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#images-and-video)    | Any            | [COLMAP](https://colmap.github.io/install.html) | 🐢                      |
+| 🌎 [360 Data](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#360_data)         | Any            | [COLMAP](https://colmap.github.io/install.html) | 🐢                      |
 | 📱 [Polycam](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#polycam-capture)   | IOS with LiDAR | [Polycam App](https://poly.cam/)                | 🐇                      |
 | 📱 [KIRI Engine](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#kiri-capture)  | IOS or Android | [KIRI Engine App](https://www.kiriengine.com/)  | 🐇                      |
 | 📱 [Record3D](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#record3d-capture) | IOS with LiDAR | [Record3D app](https://record3d.app/)           | 🐇                      |
