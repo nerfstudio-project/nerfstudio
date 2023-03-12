@@ -23,7 +23,7 @@ from torchtyping import TensorType
 from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
-from nerfstudio.utils.math import masked_reduction
+from nerfstudio.utils.math import masked_reduction, normalized_depth_scale_and_shift
 
 L1Loss = nn.L1Loss
 MSELoss = nn.MSELoss
@@ -355,7 +355,8 @@ class MiDaSMSELoss(nn.Module):
         """
         summed_mask = torch.sum(mask, (1, 2))
         image_loss = torch.sum(self.mse_loss(prediction, target) * mask, (1, 2))
-        image_loss = masked_reduction(image_loss, summed_mask, self.reduction_type)
+        # multiply by 2 magic number?
+        image_loss = masked_reduction(image_loss, 2 * summed_mask, self.reduction_type)
 
         return image_loss
 
@@ -456,47 +457,6 @@ class ScaleAndShiftInvariantLoss(nn.Module):
 
         self.__prediction_ssi = None
 
-    @classmethod
-    def compute_scale_and_shift(
-        cls, prediction: TensorType[1, 32, "mult"], target: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"]
-    ):
-        """
-        More info here: https://arxiv.org/pdf/2206.00665.pdf supplementary section A2 Depth Consistency Loss
-        This function computes scale/shift required to normalizes predicted depth map,
-        to allow for using normalized depth maps as input from monocular depth estimation networks.
-        These networks are trained such that they predict normalized depth maps.
-
-        Solves for scale/shift using a least squares approach with a closed form solution:
-        Based on:
-        https://github.com/autonomousvision/monosdf/blob/d9619e948bf3d85c6adec1a643f679e2e8e84d4b/code/model/loss.py#L7
-        Args:
-            prediction: predicted depth map
-            target: ground truth depth map
-            mask: mask of valid pixels
-        Returns:
-            scale and shift for depth prediction
-        """
-        # system matrix: A = [[a_00, a_01], [a_10, a_11]]
-        a_00 = torch.sum(mask * prediction * prediction, (1, 2))
-        a_01 = torch.sum(mask * prediction, (1, 2))
-        a_11 = torch.sum(mask, (1, 2))
-
-        # right hand side: b = [b_0, b_1]
-        b_0 = torch.sum(mask * prediction * target, (1, 2))
-        b_1 = torch.sum(mask * target, (1, 2))
-
-        # solution: x = A^-1 . b = [[a_11, -a_01], [-a_10, a_00]] / (a_00 * a_11 - a_01 * a_10) . b
-        scale = torch.zeros_like(b_0)
-        shift = torch.zeros_like(b_1)
-
-        det = a_00 * a_11 - a_01 * a_01
-        valid = det.nonzero()
-
-        scale[valid] = (a_11[valid] * b_0[valid] - a_01[valid] * b_1[valid]) / det[valid]
-        shift[valid] = (-a_01[valid] * b_0[valid] + a_00[valid] * b_1[valid]) / det[valid]
-
-        return scale, shift
-
     def forward(
         self, prediction: TensorType[1, 32, "mult"], target: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"]
     ) -> TensorType[0]:
@@ -508,7 +468,7 @@ class ScaleAndShiftInvariantLoss(nn.Module):
         Returns:
             scale and shift invariant loss
         """
-        scale, shift = ScaleAndShiftInvariantLoss.compute_scale_and_shift(prediction, target, mask)
+        scale, shift = normalized_depth_scale_and_shift(prediction, target, mask)
         self.__prediction_ssi = scale.view(-1, 1, 1) * prediction + shift.view(-1, 1, 1)
 
         total = self.__data_loss(self.__prediction_ssi, target, mask)

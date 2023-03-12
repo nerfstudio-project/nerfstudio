@@ -17,7 +17,7 @@ Some ray datastructures.
 """
 import random
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Dict, Optional, Tuple, Union
 
 import torch
 from torchtyping import TensorType
@@ -55,6 +55,14 @@ class Frustums(TensorDataclass):
         if self.offsets is not None:
             pos = pos + self.offsets
         return pos
+
+    def get_start_positions(self) -> TensorType[..., 3]:
+        """Calulates "start" position of frustum.
+
+        Returns:
+            xyz positions.
+        """
+        return self.origins + self.directions * self.starts
 
     def set_offsets(self, offsets):
         """Sets offsets for this frustum for computing positions"""
@@ -139,6 +147,27 @@ class RaySamples(TensorDataclass):
         weights = torch.nan_to_num(weights)
 
         return weights
+
+    @staticmethod
+    def get_weights_and_transmittance_from_alphas(
+        alphas: TensorType[..., "num_samples", 1], weights_only: bool = False
+    ) -> Tuple[TensorType[..., "num_samples", 1], TensorType[..., "num_samples", 1]]:
+        """Return weights based on predicted alphas
+        Args:
+            alphas: Predicted alphas (maybe from sdf) for samples along ray
+            weights_only: If function should return only weights
+        Returns:
+            Tuple of weights and transmittance for each sample
+        """
+
+        transmittance = torch.cumprod(
+            torch.cat([torch.ones((*alphas.shape[:1], 1, 1), device=alphas.device), 1.0 - alphas + 1e-7], 1), 1
+        )
+
+        weights = alphas * transmittance[:, :-1, :]
+        if weights_only:
+            return weights
+        return weights, transmittance
 
 
 @dataclass
