@@ -219,7 +219,6 @@ def copy_images_list(
         start_x = crop_factor[2]
         start_y = crop_factor[0]
         crop_cmd = f',"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}"'
-        # crop = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}"
         ffmpeg_cmd = (
             f'ffmpeg -y -noautorotate -i "{image_dir / filename}" -q:v 2 -vf {crop_cmd} "{image_dir / filename}"'
         )
