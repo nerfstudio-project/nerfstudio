@@ -112,6 +112,7 @@ class DepthSemanticNerfModel(Model):
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
             use_semantics=True,
             num_semantic_classes=len(self.semantics.classes),
+            pass_semantic_gradients=False,
         )
 
         # Build the proposal network(s)
@@ -262,7 +263,9 @@ class DepthSemanticNerfModel(Model):
         loss_dict = {}
         image = batch["image"].to(self.device)
         loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
-        loss_dict["semantics_loss"] = self.cross_entropy_loss(outputs["semantics"], batch["semantics"][..., 0].long())
+        loss_dict["semantics_loss"] = 0.005 * self.cross_entropy_loss(
+            outputs["semantics"], batch["semantics"][..., 0].long()
+        )
 
         if self.training:
             loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
