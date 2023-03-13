@@ -1,8 +1,8 @@
-from pathlib import Path
 import random
 import string
-from datetime import datetime
 import sys
+from datetime import datetime
+from pathlib import Path
 
 
 def get_timestamp():
@@ -13,7 +13,7 @@ def random_codeword():
     """ac53"""
     letters = random.sample(string.ascii_lowercase, 2)
     word = "".join(letters)
-    return f"{word}_{random.randint(10, 99)}"
+    return f"{word}{random.randint(10, 99)}"
 
 
 def get_experiment_name(timestamp=None, codeword=None):
@@ -60,3 +60,13 @@ def get_step_from_ckpt_path(checkpoint_path: Path | str):
 
 def get_sequence_size_from_experiment(experiment_name):
     return int(experiment_name.split("_n_")[1].split("-")[0])
+
+
+def add_prefix_to_keys(dict: dict, prefix) -> dict:
+    """
+    Example:
+        dict = {"a": 1, "b": 2}
+        prefix = "text_"
+        returns {"text_a": 1, "text_b": 2}
+    """
+    return {prefix + k: v for k, v in dict.items()}

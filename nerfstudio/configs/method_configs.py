@@ -78,7 +78,7 @@ class MyTrainerConf(TrainerConfig):
         quit_on_train_completion=True, num_rays_per_chunk=1 << 15
     )
     save_only_latest_checkpoint: bool = False
-    max_num_iterations: int = 40_000
+    max_num_iterations: int = 33_000
     vis: str | None = None  # vis: str = "viewer"
 
 

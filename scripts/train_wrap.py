@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-from nerfstudio.nerfstudio.utils.checkpoint_loader import find_latest_checkpoint
+from nerfstudio.utils.checkpoint_loader import find_latest_checkpoint
 
 os.environ["TERM"] = "dumb"
 import argparse
@@ -15,7 +15,7 @@ import scripts.train as train
 import tyro
 from scripts.my_utils import *
 
-from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
+from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion, MyTrainerConf
 
 SEGMENTATION_DIRECTORY_DELIMITER = ":"
 
@@ -24,7 +24,8 @@ def dynamically_override_config(config):
     timestamp = get_timestamp()
     data_name = Path(config.data).name
     experiment_name = get_experiment_name(timestamp=timestamp)
-    config.experiment_name = f"{experiment_name}-{data_name}-{config.method_name}"
+    config.experiment_name = f"{experiment_name}-{data_name}"
+    # config.experiment_name = f"{experiment_name}-{data_name}-{config.method_name}"
     config.relative_model_dir = "."  # don't save to nerfstudio_models
     return config
 
@@ -93,18 +94,22 @@ def main():
             prepare_args = []
             prepare_args.insert(0, model)
             prepare_args.extend(model_args)
+            prepare_args.append("nerfstudio-data")
             prepare_args.extend(["--data", dataset_path])
             prepare_args.extend(data_args)
 
             # Parse and adjust
-            config = tyro.cli(
+            config: MyTrainerConf = tyro.cli(
                 deepcopy(AnnotatedBaseConfigUnion),
                 args=prepare_args,
             )
-                        
-            config.experiment_name = (
-                f"{experiment_name}-{data_name}-{config.method_name}"
-            )
+
+            config.experiment_name = f"{experiment_name}-{data_name}"
+            if config.pipeline.datamanager.dataparser.indices_file is not None:
+                indices_file_name = Path(
+                    config.pipeline.datamanager.dataparser.indices_file
+                ).stem
+                config.experiment_name += f"_{indices_file_name}"
             config.relative_model_dir = Path(".")  # don't save to nerfstudio_models
 
             # Log to file

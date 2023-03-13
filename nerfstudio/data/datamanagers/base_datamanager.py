@@ -62,29 +62,32 @@ from nerfstudio.data.utils.dataloaders import (
     RandIndicesEvalDataloader,
 )
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
+from nerfstudio.defaults import SPLIT_MODE_ALL
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
 
 CONSOLE = Console(width=120, no_color=True)
 
-AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of flags in subcommands.
-    tyro.extras.subcommand_type_from_defaults(
-        {
-            "nerfstudio-data": NerfstudioDataParserConfig(),
-            "minimal-parser": MinimalDataParserConfig(),
-            "blender-data": BlenderDataParserConfig(),
-            "friends-data": FriendsDataParserConfig(),
-            "instant-ngp-data": InstantNGPDataParserConfig(),
-            "nuscenes-data": NuScenesDataParserConfig(),
-            "dnerf-data": DNeRFDataParserConfig(),
-            "phototourism-data": PhototourismDataParserConfig(),
-            "dycheck-data": DycheckDataParserConfig(),
-            "sdfstudio-data": SDFStudioDataParserConfig(),
-        },
-        prefix_names=False,  # Omit prefixes in subcommands themselves.
-    )
-]
+AnnotatedDataParserUnion = (
+    tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of flags in subcommands.
+        tyro.extras.subcommand_type_from_defaults(
+            {
+                "nerfstudio-data": NerfstudioDataParserConfig(),
+                "minimal-parser": MinimalDataParserConfig(),
+                "blender-data": BlenderDataParserConfig(),
+                "friends-data": FriendsDataParserConfig(),
+                "instant-ngp-data": InstantNGPDataParserConfig(),
+                "nuscenes-data": NuScenesDataParserConfig(),
+                "dnerf-data": DNeRFDataParserConfig(),
+                "phototourism-data": PhototourismDataParserConfig(),
+                "dycheck-data": DycheckDataParserConfig(),
+                "sdfstudio-data": SDFStudioDataParserConfig(),
+            },
+            prefix_names=False,  # Omit prefixes in subcommands themselves.
+        )
+    ]
+)
 """Union over possible dataparser types, annotated with metadata for tyro. This is the
 same as the vanilla union, but results in shorter subcommand names."""
 
@@ -295,6 +298,7 @@ class VanillaDataManagerConfig(InstantiateConfig):
     train_size_initial: Optional[int] = None
     """Size of the initial training dataset"""
 
+
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     """Basic stored data manager implementation.
 
@@ -338,6 +342,12 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
+        # TODO matej, still didnt call setup_full() as setup_train() setup_val() are
+        self.full_dataset = self.create_full_dataset()
+
+        if self.config.train_size_initial is None:
+            self.config.train_size_initial = len(self.train_dataset)
+
         super().__init__()
 
     def create_train_dataset(self) -> InputDataset:
@@ -352,6 +362,15 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         return InputDataset(
             dataparser_outputs=self.dataparser.get_dataparser_outputs(
                 split=self.test_split
+            ),
+            scale_factor=self.config.camera_res_scale_factor,
+        )
+
+    def create_full_dataset(self) -> InputDataset:
+        """Sets up the dataset which contains all images, both train and eval"""
+        return InputDataset(
+            dataparser_outputs=self.dataparser.get_dataparser_outputs(
+                split=SPLIT_MODE_ALL
             ),
             scale_factor=self.config.camera_res_scale_factor,
         )

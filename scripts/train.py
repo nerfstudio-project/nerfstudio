@@ -48,11 +48,11 @@ from rich.console import Console
 
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
-from nerfstudio.engine.trainer import Trainer, TrainerConfig
-from nerfstudio.nerfstudio.data.datamanagers.base_datamanager import (
+from nerfstudio.data.datamanagers.base_datamanager import (
     DataManager,
     VanillaDataManager,
 )
+from nerfstudio.engine.trainer import Trainer, TrainerConfig
 from nerfstudio.utils import comms, profiler
 
 CONSOLE = Console(width=120, no_color=True)

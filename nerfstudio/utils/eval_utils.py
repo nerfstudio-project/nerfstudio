@@ -25,13 +25,12 @@ from typing import Optional, Tuple
 import torch
 import yaml
 from rich.console import Console
+from scripts.my_utils import get_step_from_ckpt_path
 from typing_extensions import Literal
 
-from nerfstudio.engine.trainer import TrainerConfig
+from nerfstudio.engine.trainer import Trainer, TrainerConfig
 from nerfstudio.models.nerfacto import NerfactoModel
-from nerfstudio.nerfstudio.engine.trainer import Trainer
 from nerfstudio.pipelines.base_pipeline import Pipeline
-from nerfstudio.scripts.my_utils import get_step_from_ckpt_path
 
 CONSOLE = Console(width=120, no_color=True)
 
@@ -47,7 +46,6 @@ def eval_load_checkpoint(config: TrainerConfig, pipeline: Pipeline) -> Path:
 
     checkpoint_path = Path(config.load_ckpt)
 
-
     if checkpoint_path is None:
         CONSOLE.rule("Error", style="red")
         CONSOLE.print(
@@ -57,7 +55,7 @@ def eval_load_checkpoint(config: TrainerConfig, pipeline: Pipeline) -> Path:
         sys.exit(1)
 
     loaded_state = torch.load(checkpoint_path, map_location="cpu")
-    
+
     if "step" not in loaded_state or not loaded_state["step"]:
         step = get_step_from_ckpt_path(checkpoint_path)
     else:
@@ -75,6 +73,7 @@ def eval_setup(
     eval_num_rays_per_chunk: Optional[int] = None,
     test_mode: Literal["test", "val", "inference"] = "test",
     load_ckpt: Path | None = None,
+    indices_file: Path | None = None,
 ) -> Tuple[TrainerConfig, Pipeline, Path]:
     """Shared setup for loading a saved pipeline for evaluation.
 
@@ -93,12 +92,15 @@ def eval_setup(
     # load save config
     config = yaml.load(config_path.read_text(), Loader=yaml.Loader)
     assert isinstance(config, TrainerConfig)
-    
+
+    if indices_file is not None:
+        config.pipeline.datamanager.dataparser.indices_file = indices_file
+
     if load_ckpt is not None and config.pipeline.datamanager.train_size_initial is None:
         state = Trainer.get_checkpoint_state(load_ckpt)
         train_size_initial = NerfactoModel.get_train_size_from_checkpoint(state)
         config.pipeline.datamanager.train_size_initial = train_size_initial
-        
+
     if eval_num_rays_per_chunk:
         config.pipeline.model.eval_num_rays_per_chunk = eval_num_rays_per_chunk
 

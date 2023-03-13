@@ -30,6 +30,14 @@ from typing_extensions import Literal, assert_never
 
 from nerfstudio.cameras.camera_paths import get_path_from_json, get_spiral_path
 from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.data.datamanagers.base_datamanager import (
+    VanillaDataManager,
+    VanillaDataManagerConfig,
+)
+from nerfstudio.data.dataparsers.cameras_from_transforms import (
+    generate_dataparser_outputs_static,
+)
+from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components import renderers
 from nerfstudio.pipelines.base_pipeline import Pipeline
@@ -275,11 +283,12 @@ class RenderTrajectory:
     """Name of the renderer outputs to use. rgb, depth, etc. concatenates them along y axis"""
     rendered_output_names: List[str] = field(default_factory=lambda: ["rgb"])
     """Name of the renderer outputs to use. rgb, depth, etc. concatenates them along y axis"""
-    traj: Literal["spiral", "filename"] = "spiral"
+    traj: Literal["spiral", "filename", "dataset"] = "spiral"
     """Trajectory to render."""
     downscale_factor: int = 1
     """Scaling factor to apply to the camera image resolution."""
     camera_path_filename: Path = Path("camera_path.json")
+    indices_file: Optional[Path] = None
     """Filename of the camera path to render."""
     output_path: Path = Path("renders/output.mp4")
     """Name of the output file."""
@@ -292,7 +301,7 @@ class RenderTrajectory:
 
     def main(self) -> None:
         """Main function."""
-        _, pipeline, _ = eval_setup(
+        config, pipeline, _ = eval_setup(
             self.load_config,
             eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
             test_mode="test" if self.traj == "spiral" else "inference",
@@ -326,6 +335,21 @@ class RenderTrajectory:
                 camera_type = CameraType.PERSPECTIVE
             crop_data = get_crop_from_json(camera_path)
             camera_path = get_path_from_json(camera_path)
+        elif self.traj == "dataset":
+            # assert (
+            #     self.indices_file
+            # ), "Please provide indices.json file if trajectory is 'dataset'"
+            _config: NerfstudioDataParserConfig = config.pipeline.datamanager.dataparser  # type: ignore
+            dataparser_outputs = generate_dataparser_outputs_static(
+                data_or_transforms=self.camera_path_filename,
+                indices_file=self.indices_file,
+                center_poses=_config.center_poses,
+                auto_scale_poses=_config.auto_scale_poses,
+                scene_scale=_config.scene_scale,
+                orientation_method=_config.orientation_method,
+            )
+            camera_type = CameraType.PERSPECTIVE
+            camera_path = dataparser_outputs.cameras
         else:
             assert_never(self.traj)
 

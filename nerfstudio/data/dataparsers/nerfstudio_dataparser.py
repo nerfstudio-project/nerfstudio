@@ -25,9 +25,8 @@ import numpy as np
 import torch
 from PIL import Image
 from rich.console import Console
-from typing_extensions import Literal, assert_never
+from typing_extensions import Literal
 
-import nerfstudio.defaults as defaults
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (
@@ -36,6 +35,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataparserOutputs,
 )
 from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.defaults import SPLIT_MODE_ALL
 from nerfstudio.utils.io import load_from_json
 
 CONSOLE = Console(width=120, no_color=True)
@@ -44,9 +44,10 @@ MAX_AUTO_RESOLUTION = 1600
 
 
 class SplitMode(Enum):
-    RANDOM="random"
-    INDICES_FILE="indices file"
-    
+    RANDOM = "random"
+    INDICES_FILE = "indices file"
+
+
 @dataclass
 class NerfstudioDataParserConfig(DataParserConfig):
     """Nerfstudio dataset config"""
@@ -71,7 +72,9 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The percent of images to use for training. The remaining images are for eval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
-    split_mode: SplitMode = SplitMode.INDICES_FILE
+    # TODO matej
+    indices_file: Optional[Path] = None
+
 
 @dataclass
 class Nerfstudio(DataParser):
@@ -80,7 +83,7 @@ class Nerfstudio(DataParser):
     config: NerfstudioDataParserConfig
     downscale_factor: Optional[int] = None
 
-    def _generate_dataparser_outputs(self, split="train", indices_file: Path = defaults.SPLIT_INDICES_PATH):
+    def _generate_dataparser_outputs(self, split="train"):
         # pylint: disable=too-many-statements
 
         if self.config.data.suffix == ".json":
@@ -89,6 +92,14 @@ class Nerfstudio(DataParser):
         else:
             meta = load_from_json(self.config.data / "transforms.json")
             data_dir = self.config.data
+
+        indices_json: None | dict[str, str] = None
+        if self.config.indices_file is not None:
+            indices_file_path = self.config.indices_file
+            if indices_file_path.is_file():
+                indices_json = load_from_json(indices_file_path)
+            else:
+                raise FileNotFoundError(f"File {str(indices_file_path)} is not found.")
 
         image_filenames = []
         mask_filenames = []
@@ -117,10 +128,24 @@ class Nerfstudio(DataParser):
 
         for frame in meta["frames"]:
             filepath = PurePath(frame["file_path"])
+            # TODO: matej
+            filepath = Path(*filepath.parts[-2:])
             fname = self._get_fname(filepath, data_dir)
             if not fname.exists():
                 num_skipped_image_filenames += 1
+                CONSOLE.log(f"Skiping image {str(fname)} because it doesn't exist.")
                 continue
+            if indices_json is not None:
+                indices_json_key = str(Path("images", fname.name))
+                if (
+                    indices_json_key not in indices_json
+                    or indices_json[indices_json_key] == "ignore"
+                ):
+                    num_skipped_image_filenames += 1
+                    # CONSOLE.log(
+                    #     f"Skiping image {str(fname)} because it doesn't exist in {str(indices_file_path)}"
+                    # )
+                    continue
 
             if not fx_fixed:
                 assert "fl_x" in frame, "fx not specified in frame"
@@ -192,43 +217,50 @@ class Nerfstudio(DataParser):
         Different number of image and depth filenames.
         You should check that depth_file_path is specified for every frame (or zero frames) in transforms.json.
         """
-        
 
-        
-        if self.config.split_mode == SplitMode.INDICES_FILE:
-            indices_file_path = Path(data_dir, indices_file)
-            if indices_file_path.is_file():
-                
-                if split in ["val", "test"]:
-                    split_strategy = ["val", "test"]
-                elif split in ["train"]:
-                    split_strategy = ["train"]
-                else:
-                    ValueError(f"Split can't be '{split}'")
-                    
-                indices_json: dict[str, str] = load_from_json(indices_file_path)
-                assert len(indices_json) == len(image_filenames), "Indices file and number of image files in the directory should be equal."
-                
-                _indices = []
-                for image_path, image_split in indices_json.items():
-                    if image_split in split_strategy:
-                        i = image_filenames.index(Path(data_dir, image_path))
-                        _indices.append(i)
-                indices = np.array(sorted(_indices), dtype=np.int64)
+        if indices_json is not None:
+            if split in ["val", "test"]:
+                split_strategy = ["val", "test"]
+            elif split in ["train"]:
+                split_strategy = ["train"]
+            elif split in [SPLIT_MODE_ALL]:
+                split_strategy = ["train", "val", "test"]
             else:
-                raise FileNotFoundError(f"File {str(indices_file_path)} is not found.")
+                ValueError(f"Split can't be '{split}'")
 
-        elif self.config.split_mode == SplitMode.RANDOM:
-        # filter image_filenames and poses based on train/eval split percentage
+            indices_json: dict[str, str] = load_from_json(indices_file_path)
+            # assert len(indices_json) == len(
+            #     image_filenames
+            # ), "Indices file and number of image files in the directory should be equal."
+
+            _indices = []
+
+            for image_path, image_split in indices_json.items():
+
+                if image_split == "ignore":
+                    continue
+                if image_split not in split_strategy:
+                    continue
+
+                i = image_filenames.index(Path(data_dir, image_path))
+                _indices.append(i)
+
+            indices = np.array(sorted(_indices), dtype=np.int64)
+        else:
+            # filter image_filenames and poses based on train/eval split percentage
             num_images = len(image_filenames)
-            num_train_images = math.ceil(num_images * self.config.train_split_percentage)
+            num_train_images = math.ceil(
+                num_images * self.config.train_split_percentage
+            )
             num_eval_images = num_images - num_train_images
             i_all = np.arange(num_images)
             i_train = np.linspace(
                 0, num_images - 1, num_train_images, dtype=int
             )  # equally spaced training images starting and ending at 0 and num_images-1
-            
-            i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
+
+            i_eval = np.setdiff1d(
+                i_all, i_train
+            )  # eval images are the remaining images
             assert len(i_eval) == num_eval_images
             if split == "train":
                 indices = i_train
@@ -236,11 +268,9 @@ class Nerfstudio(DataParser):
                 indices = i_eval
             else:
                 raise ValueError(f"Unknown dataparser split {split}")
-        else:
-            assert_never(f"Invalid split type {self.config.split_mode}")
-            
+
         assert len(indices), "Indices array is empty"
-            
+
         if "orientation_override" in meta:
             orientation_method = meta["orientation_override"]
             CONSOLE.log(

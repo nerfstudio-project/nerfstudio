@@ -32,9 +32,9 @@ from nerfstudio.configs.base_config import (
     ViewerConfig,
 )
 from nerfstudio.configs.config_utils import to_immutable_dict
+from nerfstudio.configs.experiment_details import InferredExperimentDetails
 from nerfstudio.engine.optimizers import OptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
-from nerfstudio.nerfstudio.configs.experiment_details import InferredExperimentDetails
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 
 CONSOLE = Console(width=120, no_color=True)

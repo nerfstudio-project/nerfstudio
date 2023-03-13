@@ -2,7 +2,7 @@ import warnings
 from dataclasses import dataclass
 from typing import Optional
 
-from nerfstudio.nerfstudio.configs.base_config import PrintableConfig
+from nerfstudio.configs.base_config import PrintableConfig
 
 warnings.filterwarnings("ignore", module="torchvision")
 @dataclass

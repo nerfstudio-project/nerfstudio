@@ -5,15 +5,15 @@ eval.py
 from __future__ import annotations
 
 import json
+import traceback
 from dataclasses import dataclass
 from pathlib import Path
-import traceback
 
 import tyro
 from rich.console import Console
-from nerfstudio.scripts.my_utils import get_sequence_size_from_experiment, get_step_from_ckpt_path
-from nerfstudio.utils.colormaps import SceneDiverged
+from scripts.my_utils import get_sequence_size_from_experiment, get_step_from_ckpt_path
 
+from nerfstudio.utils.colormaps import SceneDiverged
 from nerfstudio.utils.eval_utils import eval_setup
 
 CONSOLE = Console(width=120, no_color=True)
