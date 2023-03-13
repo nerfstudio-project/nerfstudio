@@ -159,7 +159,7 @@ def convert_video_to_images(
             ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB{crop_cmd} -r 1"
         else:
             CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
-            ffmpeg_cmd += " -pix_fmt bgr8"
+            ffmpeg_cmd += f" -pix_fmt bgr8 -vf {crop_cmd[1:]}"
 
         ffmpeg_cmd += f" {out_filename}"
         run_command(ffmpeg_cmd, verbose=verbose)
@@ -220,8 +220,9 @@ def copy_images_list(
         start_y = crop_factor[0]
         crop_cmd = f',"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}"'
         ffmpeg_cmd = (
-            f'ffmpeg -y -noautorotate -i "{image_dir / filename}" -q:v 2 -vf {crop_cmd} "{image_dir / filename}"'
+            f'ffmpeg -y -noautorotate -i "{image_dir / filename}" -q:v 2 -vf {crop_cmd[1:]} "{image_dir / filename}"'
         )
+        run_command(ffmpeg_cmd, verbose=verbose)
 
     num_frames = len(image_paths)
 
