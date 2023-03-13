@@ -81,6 +81,7 @@ descriptions = {
     "phototourism": "Uses the Phototourism data.",
     "nerfplayer-nerfacto": "NeRFPlayer with nerfacto backbone.",
     "nerfplayer-ngp": "NeRFPlayer with InstantNGP backbone.",
+    "neus": "Implementation of NeuS. (slow)",
     "depth-semantic-nerfacto": "depth supervised semantic nerf",
 }
 
