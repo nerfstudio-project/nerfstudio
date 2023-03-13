@@ -91,6 +91,8 @@ class ProcessImages:
     """Number of samples per image to take from each equirectangular image.
        Used only when camera-type is equirectangular.
     """
+    crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+    """Portion of the image to crop. All values should be in [0,1]. (top, bottom, left, right)"""
     gpu: bool = True
     """If True, use GPU."""
     use_sfm_depth: bool = False
@@ -129,7 +131,7 @@ class ProcessImages:
             pers_size = equirect_utils.compute_resolution_from_equirect(self.data, self.images_per_equirect)
             CONSOLE.log(f"Generating {self.images_per_equirect} {pers_size} sized images per equirectangular image")
             self.data = equirect_utils.generate_planar_projections_from_equirectangular(
-                self.data, pers_size, self.images_per_equirect
+                self.data, pers_size, self.images_per_equirect, crop_factor=self.crop_factor
             )
 
         summary_log = []
