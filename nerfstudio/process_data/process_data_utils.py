@@ -174,7 +174,11 @@ def convert_video_to_images(
 
 
 def copy_images_list(
-    image_paths: List[Path], image_dir: Path, crop_border_pixels: Optional[int] = None, verbose: bool = False
+    image_paths: List[Path],
+    image_dir: Path,
+    crop_border_pixels: Optional[int] = None,
+    crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    verbose: bool = False,
 ) -> List[Path]:
     """Copy all images in a list of Paths. Useful for filtering from a directory.
     Args:
@@ -207,6 +211,18 @@ def copy_images_list(
         crop = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}"
         ffmpeg_cmd = f'ffmpeg -y -noautorotate -i "{image_dir / filename}" -q:v 2 -vf {crop} "{image_dir / filename}"'
         run_command(ffmpeg_cmd, verbose=verbose)
+    elif crop_factor != (0.0, 0.0, 0.0, 0.0):
+        file_type = image_paths[0].suffix
+        filename = f"frame_%05d{file_type}"
+        height = 1 - crop_factor[0] - crop_factor[1]
+        width = 1 - crop_factor[2] - crop_factor[3]
+        start_x = crop_factor[2]
+        start_y = crop_factor[0]
+        crop_cmd = f',"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}"'
+        # crop = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}"
+        ffmpeg_cmd = (
+            f'ffmpeg -y -noautorotate -i "{image_dir / filename}" -q:v 2 -vf {crop_cmd} "{image_dir / filename}"'
+        )
 
     num_frames = len(image_paths)
 
@@ -266,7 +282,9 @@ def copy_and_upscale_polycam_depth_maps_list(
     return copied_depth_map_paths
 
 
-def copy_images(data: Path, image_dir: Path, verbose) -> OrderedDict[Path, Path]:
+def copy_images(
+    data: Path, image_dir: Path, verbose, crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+) -> OrderedDict[Path, Path]:
     """Copy images from a directory to a new directory.
 
     Args:
@@ -283,7 +301,9 @@ def copy_images(data: Path, image_dir: Path, verbose) -> OrderedDict[Path, Path]
             CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
             sys.exit(1)
 
-        copied_images = copy_images_list(image_paths=image_paths, image_dir=image_dir, verbose=verbose)
+        copied_images = copy_images_list(
+            image_paths=image_paths, image_dir=image_dir, crop_factor=crop_factor, verbose=verbose
+        )
         return OrderedDict((original_path, new_path) for original_path, new_path in zip(image_paths, copied_images))
 
 

@@ -140,7 +140,7 @@ class ProcessImages:
         if not self.skip_image_processing:
             # Copy images to output directory
             image_rename_map_paths = process_data_utils.copy_images(
-                self.data, image_dir=image_dir, verbose=self.verbose
+                self.data, image_dir=image_dir, crop_factor=self.crop_factor, verbose=self.verbose
             )
             image_rename_map = dict((a.name, b.name) for a, b in image_rename_map_paths.items())
             num_frames = len(image_rename_map)
