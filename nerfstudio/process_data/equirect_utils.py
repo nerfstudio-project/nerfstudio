@@ -15,6 +15,7 @@
 """Helper utils for processing equirectangular data."""
 
 import os
+import sys
 from pathlib import Path
 from typing import List, Tuple
 
@@ -22,6 +23,7 @@ import cv2
 import numpy as np
 import torch
 from equilib import Equi2Pers
+from rich.console import Console
 from rich.progress import (
     BarColumn,
     Progress,
@@ -32,19 +34,21 @@ from rich.progress import (
 
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
 
+CONSOLE = Console(width=120)
 
-def _crop_bottom(bound_arr: list, fov: int, percent_crop: float) -> List[float]:
+
+def _crop_bottom(bound_arr: list, fov: int, crop_factor: float) -> List[float]:
     """Returns a list of vertical bounds with the bottom cropped.
 
     Args:
         bound_arr (list): List of vertical bounds in ascending order.
         fov (int): Field of view of the camera.
-        percent_crop (float): Percent of the image to crop from the bottom.
+        crop_factor (float): Portion of the image to crop from the bottom.
 
     Returns:
         list: A new list of bounds with the bottom cropped.
     """
-    degrees_chopped = 180 * percent_crop
+    degrees_chopped = 180 * crop_factor
     new_bottom_start = 90 - degrees_chopped - fov / 2
     for i, el in reversed(list(enumerate(bound_arr))):
         if el > new_bottom_start + fov / 2:
@@ -59,18 +63,18 @@ def _crop_bottom(bound_arr: list, fov: int, percent_crop: float) -> List[float]:
     return bound_arr
 
 
-def _crop_top(bound_arr: list, fov: int, percent_crop: float) -> List[float]:
+def _crop_top(bound_arr: list, fov: int, crop_factor: float) -> List[float]:
     """Returns a list of vertical bounds with the top cropped.
 
     Args:
         bound_arr (list): List of vertical bounds in ascending order.
         fov (int): Field of view of the camera.
-        percent_crop (float): Percent of the image to crop from the top.
+        crop_factor (float): Portion of the image to crop from the top.
 
     Returns:
         list: A new list of bounds with the top cropped.
     """
-    degrees_chopped = 180 * percent_crop
+    degrees_chopped = 180 * crop_factor
     new_top_start = -90 + degrees_chopped + fov / 2
     for i, el in enumerate(bound_arr):
         if el < new_top_start - fov / 2:
@@ -86,22 +90,22 @@ def _crop_top(bound_arr: list, fov: int, percent_crop: float) -> List[float]:
 
 
 def _crop_bound_arr_vertical(
-    bound_arr: list, fov: int, percent_crop: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+    bound_arr: list, fov: int, crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
 ) -> list:
     """Returns a list of vertical bounds adjusted for cropping.
 
     Args:
         bound_arr (list): Original list of vertical bounds in ascending order.
         fov (int): Field of view of the camera.
-        percent_crop (Tuple[float, float, float, float]): Crop arr (top, bottom, left, right).
+        crop_factor (Tuple[float, float, float, float]): Crop arr (top, bottom, left, right).
 
     Returns:
-        list: _description_
+        list: Cropped bound arr
     """
-    if percent_crop[1] > 0:
-        bound_arr = _crop_bottom(bound_arr, fov, percent_crop[1])
-    if percent_crop[0] > 0:
-        bound_arr = _crop_top(bound_arr, fov, percent_crop[0])
+    if crop_factor[1] > 0:
+        bound_arr = _crop_bottom(bound_arr, fov, crop_factor[1])
+    if crop_factor[0] > 0:
+        bound_arr = _crop_top(bound_arr, fov, crop_factor[0])
     return bound_arr
 
 
@@ -109,7 +113,7 @@ def generate_planar_projections_from_equirectangular(
     image_dir: Path,
     planar_image_size: Tuple[int, int],
     samples_per_im: int,
-    percent_crop: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
 ) -> Path:
     """Generate planar projections from an equirectangular image.
 
@@ -117,25 +121,31 @@ def generate_planar_projections_from_equirectangular(
         image_dir: The directory containing the equirectangular image.
         planar_image_size: The size of the planar projections [width, height].
         samples_per_im: The number of samples to take per image.
-        percent_crop: The percent of the image to crop from the (top, bottom, left, and right).
+        crop_factor: The portion of the image to crop from the (top, bottom, left, and right).
+                    Values should be in [0, 1].
     returns:
         The path to the planar projections directory.
     """
+
+    for i in crop_factor:
+        if i < 0 or i > 1:
+            CONSOLE.print("[bold red] Invalid crop factor. All values must be in [0,1].")
+            sys.exit(1)
 
     device = torch.device("cuda")
 
     fov = 120
     yaw_pitch_pairs = []
     left_bound, right_bound = -180, 180
-    if percent_crop[3] > 0:
-        left_bound = -180 + 360 * percent_crop[3]
-    if percent_crop[2] > 0:
-        right_bound = 180 - 360 * percent_crop[2]
+    if crop_factor[3] > 0:
+        left_bound = -180 + 360 * crop_factor[3]
+    if crop_factor[2] > 0:
+        right_bound = 180 - 360 * crop_factor[2]
 
     if samples_per_im == 8:
         fov = 120
         bound_arr = [-45, 0, 45]
-        bound_arr = _crop_bound_arr_vertical(bound_arr, fov, percent_crop)
+        bound_arr = _crop_bound_arr_vertical(bound_arr, fov, crop_factor)
         if bound_arr[1] is not None:
             for i in np.arange(left_bound, right_bound, 90):
                 yaw_pitch_pairs.append((i, bound_arr[1]))
@@ -148,7 +158,7 @@ def generate_planar_projections_from_equirectangular(
     elif samples_per_im == 14:
         fov = 110
         bound_arr = [-45, 0, 45]
-        bound_arr = _crop_bound_arr_vertical(bound_arr, fov, percent_crop)
+        bound_arr = _crop_bound_arr_vertical(bound_arr, fov, crop_factor)
         if bound_arr[1] is not None:
             for i in np.arange(left_bound, right_bound, 60):
                 yaw_pitch_pairs.append((i, bound_arr[1]))
@@ -172,7 +182,6 @@ def generate_planar_projections_from_equirectangular(
         TimeRemainingColumn(elapsed_when_finished=True, compact=True),
     )
 
-    curr_im = 0
     with progress:
         for i in progress.track(os.listdir(frame_dir), description="", total=num_ims):
             if i.lower().endswith((".jpg", ".png", ".jpeg")):
@@ -187,7 +196,6 @@ def generate_planar_projections_from_equirectangular(
                     pers_image = (pers_image.permute(1, 2, 0)).type(torch.uint8).to("cpu").numpy()
                     cv2.imwrite(f"{output_dir}/{i[:-4]}_{count}.jpg", pers_image)
                     count += 1
-            curr_im += 1
 
     return output_dir
 

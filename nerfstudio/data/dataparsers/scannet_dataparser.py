@@ -21,7 +21,9 @@ from typing import Type
 import cv2
 import numpy as np
 import torch
+from typing_extensions import Literal
 
+from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
@@ -47,11 +49,13 @@ class ScanNetDataParserConfig(DataParserConfig):
     """target class to instantiate"""
     data: Path = Path("data/scannet/scene0423_02")
     """Path to ScanNet folder with densely extracted scenes."""
+    scale_factor: float = 1.0
+    """How much to scale the camera origins by."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
-    center_poses: bool = True
-    """Whether to center the poses."""
-    scale_poses: bool = True
+    center_method: Literal["poses", "focus", "none"] = "poses"
+    """The method to use to center the poses."""
+    auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
     train_split_fraction: float = 0.9
     """The fraction of images to use for training. The remaining images are for eval."""
@@ -115,11 +119,19 @@ class ScanNet(DataParser):
         poses = torch.from_numpy(np.stack(poses).astype(np.float32))
         intrinsics = torch.from_numpy(np.stack(intrinsics).astype(np.float32))
 
-        if self.config.center_poses:
-            poses[:, :3, 3] -= poses[:, :3, 3].mean(dim=0)
+        poses, transform_matrix = camera_utils.auto_orient_and_center_poses(
+            poses,
+            method="none",
+            center_method=self.config.center_method,
+        )
 
-        if self.config.scale_poses:
-            poses[:, :3, 3] /= poses[:, :3, 3].abs().max()
+        # Scale poses
+        scale_factor = 1.0
+        if self.config.auto_scale_poses:
+            scale_factor /= float(torch.max(torch.abs(poses[:, :3, 3])))
+        scale_factor *= self.config.scale_factor
+
+        poses[:, :3, 3] *= scale_factor
 
         # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.
         image_filenames = [image_filenames[i] for i in indices]
@@ -151,6 +163,8 @@ class ScanNet(DataParser):
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
+            dataparser_scale=scale_factor,
+            dataparser_transform=transform_matrix,
             metadata={
                 "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
