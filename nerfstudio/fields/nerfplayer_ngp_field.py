@@ -30,8 +30,7 @@ from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.embedding import Embedding
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.temporal_grid import TemporalGridEncoder
-from nerfstudio.fields.base_field import Field
-from nerfstudio.fields.instant_ngp_field import get_normalized_directions
+from nerfstudio.fields.base_field import Field, get_normalized_directions
 
 try:
     import tinycudann as tcnn

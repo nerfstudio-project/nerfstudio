@@ -38,23 +38,13 @@ from nerfstudio.field_components.field_heads import (
 )
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.field_components.temporal_grid import TemporalGridEncoder
-from nerfstudio.fields.base_field import Field
+from nerfstudio.fields.base_field import Field, get_normalized_directions
 
 try:
     import tinycudann as tcnn
 except ImportError:
     # tinycudann module doesn't exist
     pass
-
-
-def get_normalized_directions(directions: TensorType["bs":..., 3]) -> TensorType["bs":..., 3]:
-    """SH encoding must be in the range [0, 1]
-
-    Args:
-        directions: batch of directions
-    """
-    return (directions + 1.0) / 2.0
-
 
 class TemporalHashMLPDensityField(Field):
     """A lightweight temporal density field module.
