@@ -46,6 +46,7 @@ except ImportError:
     # tinycudann module doesn't exist
     pass
 
+
 class TemporalHashMLPDensityField(Field):
     """A lightweight temporal density field module.
 

@@ -54,6 +54,7 @@ except ImportError:
     # tinycudann module doesn't exist
     pass
 
+
 class TCNNNerfactoField(Field):
     """Compound Field that uses TCNN
 

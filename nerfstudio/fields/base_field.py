@@ -127,6 +127,7 @@ class Field(nn.Module):
             field_outputs[FieldHeadNames.NORMALS] = normals  # type: ignore
         return field_outputs
 
+
 def get_normalized_directions(directions: TensorType["bs":..., 3]) -> TensorType["bs":..., 3]:
     """SH encoding must be in the range [0, 1]
 

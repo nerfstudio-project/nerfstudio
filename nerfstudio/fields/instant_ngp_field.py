@@ -38,6 +38,7 @@ except ImportError:
     # tinycudann module doesn't exist
     pass
 
+
 class TCNNInstantNGPField(Field):
     """TCNN implementation of the Instant-NGP field.
 
