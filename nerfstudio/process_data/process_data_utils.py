@@ -185,6 +185,7 @@ def copy_images_list(
         image_paths: List of Paths of images to copy to a new directory.
         image_dir: Path to the output directory.
         crop_border_pixels: If not None, crops each edge by the specified number of pixels.
+        crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
         verbose: If True, print extra logging.
     Returns:
         A list of the copied image Paths.
@@ -291,6 +292,7 @@ def copy_images(
         data: Path to the directory of images.
         image_dir: Path to the output directory.
         verbose: If True, print extra logging.
+        crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
     Returns:
         The mapping from the original filenames to the new ones.
     """
