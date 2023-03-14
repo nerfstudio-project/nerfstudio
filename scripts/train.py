@@ -219,8 +219,8 @@ def main(config: TrainerConfig) -> None:
 
     config.set_timestamp()
     if config.data:
-        CONSOLE.log("Using --data alias for --data.pipeline.datamanager.dataparser.data")
-        config.pipeline.datamanager.dataparser.data = config.data
+        CONSOLE.log("Using --data alias for --data.pipeline.datamanager.data")
+        config.pipeline.datamanager.data = config.data
 
     if config.load_config:
         CONSOLE.log(f"Loading pre-set config from: {config.load_config}")

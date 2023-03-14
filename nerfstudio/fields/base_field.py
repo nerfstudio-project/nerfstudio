@@ -17,14 +17,24 @@ Base class for the graphs.
 """
 
 from abc import abstractmethod
-from typing import Dict, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Dict, Optional, Tuple, Type
 
 import torch
 from torch import nn
 from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import Frustums, RaySamples
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.field_components.field_heads import FieldHeadNames
+
+
+@dataclass
+class FieldConfig(InstantiateConfig):
+    """Configuration for field instantiation"""
+
+    _target: Type = field(default_factory=lambda: Field)
+    """target class to instantiate"""
 
 
 class Field(nn.Module):
@@ -96,7 +106,7 @@ class Field(nn.Module):
             density_embedding: Density embeddings to condition on.
         """
 
-    def forward(self, ray_samples: RaySamples, compute_normals: bool = False):
+    def forward(self, ray_samples: RaySamples, compute_normals: bool = False) -> Dict[FieldHeadNames, TensorType]:
         """Evaluates the field at points along the ray.
 
         Args:
@@ -116,3 +126,12 @@ class Field(nn.Module):
                 normals = self.get_normals()
             field_outputs[FieldHeadNames.NORMALS] = normals  # type: ignore
         return field_outputs
+
+
+def shift_directions_for_tcnn(directions: TensorType["bs":..., 3]) -> TensorType["bs":..., 3]:
+    """Shift directions from [-1, 1] to [0, 1]
+
+    Args:
+        directions: batch of directions
+    """
+    return (directions + 1.0) / 2.0
