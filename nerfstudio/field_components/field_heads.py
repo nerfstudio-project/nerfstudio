@@ -39,6 +39,9 @@ class FieldHeadNames(Enum):
     TRANSIENT_DENSITY = "transient_density"
     SEMANTICS = "semantics"
     FEATURE = "feature"
+    SDF = "sdf"
+    ALPHA = "alpha"
+    GRADIENT = "gradient"
 
 
 class FieldHead(FieldComponent):
