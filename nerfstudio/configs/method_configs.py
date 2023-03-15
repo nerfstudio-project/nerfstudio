@@ -27,6 +27,7 @@ from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
 from nerfstudio.data.datamanagers.depth_datamanager import DepthDataManagerConfig
+from nerfstudio.data.datamanagers.sdf_datamanager import SDFDataManagerConfig
 from nerfstudio.data.datamanagers.dreamfusion_datamanager import (
     DreamFusionDataManagerConfig,
 )
