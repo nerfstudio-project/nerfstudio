@@ -40,7 +40,7 @@ class DreamEmbeddingModelConfig(DreamFusionModelConfig):
 
     _target: Type = field(default_factory=lambda: DreamEmbeddingModel)
     """target class to instantiate"""
-    prompt: str = "A high quality photo of a plate of waffles"
+    prompt: str = "A high quality photo of a rubber ducky"
     """prompt for stable dreamfusion"""
 
     orientation_loss_mult: float = 0.0001

@@ -152,7 +152,10 @@ def random_train_pose(
         cy=resolution / 2,
     ).to(device)
 
-    return cameras, torch.rad2deg(vertical_rotation), torch.rad2deg(central_rotation)
+    central_rotation = torch.rad2deg(central_rotation)
+    central_rotation = torch.where(central_rotation < 0, central_rotation + 360, central_rotation)
+
+    return cameras, torch.rad2deg(vertical_rotation), central_rotation
 
 
 @dataclass
@@ -232,6 +235,7 @@ class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
             radius_mean=self.config.radius_mean,
             radius_std=self.config.radius_std,
             focal_range=self.config.focal_range,
+            central_rotation_range=(-45, 45),
             vertical_rotation_range=self.config.vertical_rotation_range,
             jitter_std=self.config.jitter_std,
             center=self.config.center,
