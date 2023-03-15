@@ -6,6 +6,8 @@ from typing import Dict, List, Optional, Tuple, Type
 
 
 import torch
+import imageio
+import torch.nn.functional as F
 
 from typing_extensions import Literal
 
@@ -38,7 +40,7 @@ class DreamEmbeddingModelConfig(DreamFusionModelConfig):
 
     _target: Type = field(default_factory=lambda: DreamEmbeddingModel)
     """target class to instantiate"""
-    prompt: str = "A high quality photo of a tiger wearing a lab coat"
+    prompt: str = "A high quality photo of a plate of waffles"
     """prompt for stable dreamfusion"""
 
     orientation_loss_mult: float = 0.0001
@@ -160,19 +162,15 @@ class DreamEmbeddingModel(DreamFusionModel):
         self.field = DreamEmbeddingField(
             self.scene_box.aabb, max_res=self.config.max_res
         )
+        image = imageio.imread('/home/terrance/nerfstudio/data/generative/redfrogcrop.png')
+        image = (torch.from_numpy(image).to(self.sd_device).half() / 255.0).unsqueeze(0).permute(0, 3, 1, 2)
+        self.input_image = F.interpolate(image, (512, 512), mode="bilinear")
 
-        self.sd = StableDiffusion(self.sd_device, version=self.sd_version)
-        self.text_embeddings = PositionalTextEmbeddings(
-            base_prompt=self.cur_prompt,
-            top_prompt=self.cur_prompt + self.top_prompt,
-            side_prompt=self.cur_prompt + self.side_prompt,
-            back_prompt=self.cur_prompt + self.back_prompt,
-            front_prompt=self.cur_prompt + self.front_prompt,
-            stable_diffusion=self.sd,
-            positional_prompting=self.positional_prompting,
-        )
+        input_latent = self.sd.imgs_to_latent(self.input_image)
+        self.input_latent = input_latent.permute(0, 2, 3, 1).flatten(end_dim=-2)
 
         self.renderer_feature = FeatureRenderer()
+        self.l2_loss = MSELoss()
 
     def get_outputs(self, ray_bundle: RayBundle, ray_dims: Tuple):
         # uniform sampling
@@ -351,6 +349,8 @@ class DreamEmbeddingModel(DreamFusionModel):
             ] = self.config.interlevel_loss_mult * interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
             )
+            # if 45 < batch["central"] <= 135:
+            #     loss_dict["input_latent_loss"] = self.l2_loss(self.input_latent.detach(), outputs["latents"])
         return loss_dict
 
     def forward(
