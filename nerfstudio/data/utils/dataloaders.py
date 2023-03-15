@@ -116,7 +116,7 @@ class CacheDataloader(DataLoader):
         """Returns a collated batch."""
         batch_list = self._get_batch_list()
         collated_batch = self.collate_fn(batch_list)
-        collated_batch = get_dict_to_torch(collated_batch, device=self.device)
+        collated_batch = get_dict_to_torch(collated_batch, device=self.device, exclude=["image"])
         return collated_batch
 
     def __iter__(self):
@@ -183,7 +183,7 @@ class EvalDataloader(DataLoader):
         """
         ray_bundle = self.cameras.generate_rays(camera_indices=image_idx, keep_shape=True)
         batch = self.input_dataset[image_idx]
-        batch = get_dict_to_torch(batch, device=self.device)
+        batch = get_dict_to_torch(batch, device=self.device, exclude=["image"])
         return ray_bundle, batch
 
 

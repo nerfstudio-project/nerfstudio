@@ -107,3 +107,36 @@ class ExponentialDecayScheduler(Scheduler):
 
         scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=func)
         return scheduler
+
+
+@dataclass
+class CosineDecaySchedulerConfig(SchedulerConfig):
+    """Basic scheduler config with self-defined exponential decay schedule"""
+
+    _target: Type = field(default_factory=lambda: CosineDecayScheduler)
+    """target class to instantiate"""
+    warm_up_end: int = 5000
+    """Iteration number where warmp ends"""
+    learning_rate_alpha: float = 0.05
+    """Learning rate alpha value"""
+    max_steps: int = 300000
+    """The maximum number of steps."""
+
+
+class CosineDecayScheduler(Scheduler):
+    """Starts with a flat lr schedule until it reaches N epochs then applies a given scheduler"""
+
+    config: CosineDecaySchedulerConfig
+
+    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> lr_scheduler._LRScheduler:
+        def func(step):
+            if step < self.config.warm_up_end:
+                learning_factor = step / self.config.warm_up_end
+            else:
+                alpha = self.config.learning_rate_alpha
+                progress = (step - self.config.warm_up_end) / (self.config.max_steps - self.config.warm_up_end)
+                learning_factor = (np.cos(np.pi * progress) + 1.0) * 0.5 * (1 - alpha) + alpha
+            return learning_factor
+
+        scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=func)
+        return scheduler

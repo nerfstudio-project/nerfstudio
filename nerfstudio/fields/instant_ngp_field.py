@@ -19,6 +19,7 @@ Instant-NGP field implementations using tiny-cuda-nn, torch, ....
 
 from typing import Dict, Optional, Tuple
 
+import numpy as np
 import torch
 from nerfacc import ContractionType, contract
 from torch.nn.parameter import Parameter
@@ -29,22 +30,13 @@ from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.embedding import Embedding
 from nerfstudio.field_components.field_heads import FieldHeadNames
-from nerfstudio.fields.base_field import Field
+from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
 
 try:
     import tinycudann as tcnn
 except ImportError:
     # tinycudann module doesn't exist
     pass
-
-
-def get_normalized_directions(directions: TensorType["bs":..., 3]) -> TensorType["bs":..., 3]:
-    """SH encoding must be in the range [0, 1]
-
-    Args:
-        directions: batch of directions
-    """
-    return (directions + 1.0) / 2.0
 
 
 class TCNNInstantNGPField(Field):
@@ -63,6 +55,7 @@ class TCNNInstantNGPField(Field):
         contraction_type: type of contraction
         num_levels: number of levels of the hashmap for the base mlp
         log2_hashmap_size: size of the hashmap for the base mlp
+        max_res: maximum resolution of the hashmap for the base mlp
     """
 
     def __init__(
@@ -79,6 +72,7 @@ class TCNNInstantNGPField(Field):
         contraction_type: ContractionType = ContractionType.UN_BOUNDED_SPHERE,
         num_levels: int = 16,
         log2_hashmap_size: int = 19,
+        max_res: int = 2048,
     ) -> None:
         super().__init__()
 
@@ -93,7 +87,8 @@ class TCNNInstantNGPField(Field):
             self.appearance_embedding = Embedding(num_images, appearance_embedding_dim)
 
         # TODO: set this properly based on the aabb
-        per_level_scale = 1.4472692012786865
+        base_res: int = 16
+        per_level_scale = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
         self.direction_encoding = tcnn.Encoding(
             n_input_dims=3,
@@ -111,7 +106,7 @@ class TCNNInstantNGPField(Field):
                 "n_levels": num_levels,
                 "n_features_per_level": 2,
                 "log2_hashmap_size": log2_hashmap_size,
-                "base_resolution": 16,
+                "base_resolution": base_res,
                 "per_level_scale": per_level_scale,
             },
             network_config={
@@ -155,7 +150,7 @@ class TCNNInstantNGPField(Field):
     def get_outputs(
         self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
     ) -> Dict[FieldHeadNames, TensorType]:
-        directions = get_normalized_directions(ray_samples.frustums.directions)
+        directions = shift_directions_for_tcnn(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
 
         d = self.direction_encoding(directions_flat)
