@@ -152,10 +152,7 @@ def random_train_pose(
         cy=resolution / 2,
     ).to(device)
 
-    central_rotation = torch.rad2deg(central_rotation)
-    central_rotation = torch.where(central_rotation < 0, central_rotation + 360, central_rotation)
-
-    return cameras, torch.rad2deg(vertical_rotation), central_rotation
+    return cameras, torch.rad2deg(vertical_rotation), torch.rad2deg(central_rotation)
 
 
 @dataclass
