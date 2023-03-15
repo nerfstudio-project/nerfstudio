@@ -27,7 +27,6 @@ from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
 from nerfstudio.data.datamanagers.depth_datamanager import DepthDataManagerConfig
-from nerfstudio.data.datamanagers.sdf_datamanager import SDFDataManagerConfig
 from nerfstudio.data.datamanagers.dreamfusion_datamanager import (
     DreamFusionDataManagerConfig,
 )
@@ -448,24 +447,22 @@ method_configs["dreamembed"] = TrainerConfig(
     pipeline=VanillaPipelineConfig(
         generative=True,
         datamanager=DreamFusionDataManagerConfig(
-            horizontal_rotation_warmup=4000,
+            horizontal_rotation_warmup=0,
         ),
         model=DreamEmbeddingModelConfig(
             eval_num_rays_per_chunk=1 << 15,
             distortion_loss_mult=0.1,
             interlevel_loss_mult=100.0,
-            orientation_loss_mult=1.,
-            max_res=256,
+            orientation_loss_mult=1.0,
+            max_res=128,
             sphere_collider=True,
             initialize_density=False,
-            random_background=True,
             proposal_warmup=500,
             proposal_update_every=0,
             proposal_weights_anneal_max_num_iters=100,
-            start_normals_training=1000,
             opacity_loss_mult=1,
             positional_prompting="discrete",
-            guidance_scale=100,
+            guidance_scale=50,
         ),
     ),
     optimizers={
@@ -476,7 +473,7 @@ method_configs["dreamembed"] = TrainerConfig(
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
-                warmup_steps=2000, lr_final=1e-6, max_steps=20000, ramp="linear"
+                warmup_steps=1000, lr_final=1e-6, max_steps=20000, ramp="linear"
             ),
         },
     },

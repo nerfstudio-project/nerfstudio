@@ -55,9 +55,7 @@ class TrivialDataset(InputDataset):
 
     def __getitem__(self, index: int) -> Dict:
         return {
-            "image": torch.cat(
-                [torch.ones(128, 256, 3), torch.zeros(128, 256, 3)], dim=0
-            ),
+            "image": torch.cat([torch.ones(128, 256, 3), torch.zeros(128, 256, 3)], dim=0),
             "image_idx": index,
         }
 
@@ -95,13 +93,11 @@ def random_train_pose(
     )
     # This is the uniform sample on the part of the sphere we care about where 0 = 0 degrees and 1 = 360 degrees
     sampled_uniform = (
-        torch.rand(size) * (vertical_rotation_range[1] - vertical_rotation_range[0])
-        + vertical_rotation_range[0]
+        torch.rand(size) * (vertical_rotation_range[1] - vertical_rotation_range[0]) + vertical_rotation_range[0]
     ) / 180
     vertical_rotation = torch.arccos(1 - 2 * sampled_uniform)
     central_rotation = torch.deg2rad(
-        torch.rand(size) * (central_rotation_range[1] - central_rotation_range[0])
-        + central_rotation_range[0]
+        torch.rand(size) * (central_rotation_range[1] - central_rotation_range[0]) + central_rotation_range[0]
     )
 
     c_cos = torch.cos(central_rotation)
@@ -131,9 +127,7 @@ def random_train_pose(
 
     # Default directions are facing in the -z direction, so origins should face opposite way
     origins = torch.stack([torch.tensor([0, 0, 1])] * size, dim=0)
-    origins = (origins * radius_mean) + (
-        origins * (torch.randn((origins.shape)) * radius_std)
-    )
+    origins = (origins * radius_mean) + (origins * (torch.randn((origins.shape)) * radius_std))
     R = torch.bmm(rot_z, rot_x)  # Want to have Rx @ Ry @ origin
     t = (
         torch.bmm(R, origins.unsqueeze(-1))
@@ -220,9 +214,7 @@ class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
 
         if self.config.data is not None:
-            CONSOLE.print(
-                "[red] --data should not be used with the DreamFusionDataManager[/red]"
-            )
+            CONSOLE.print("[red] --data should not be used with the DreamFusionDataManager[/red]")
             sys.exit(1)
 
         cameras, _, _ = random_train_pose(
@@ -266,7 +258,7 @@ class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
         #     ).flatten()
         #     return ray_bundle, {"initialization": False}
 
-        horizontal_range = min((step / self.config.horizontal_rotation_warmup), 1) * 180
+        horizontal_range = min((step / max(1, self.config.horizontal_rotation_warmup)), 1) * 180
 
         cameras, vertical_rotation, central_rotation = random_train_pose(
             self.config.train_images_per_batch,
@@ -280,9 +272,7 @@ class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
             center=self.config.center,
             central_rotation_range=(-horizontal_range, horizontal_range),
         )
-        ray_bundle = cameras.generate_rays(
-            torch.tensor(list(range(self.config.train_images_per_batch)))
-        ).flatten()
+        ray_bundle = cameras.generate_rays(torch.tensor(list(range(self.config.train_images_per_batch)))).flatten()
 
         # camera_idx = torch.randint(0, self.eval_cameras.shape[0], [1], dtype=torch.long, device=self.device)
         # ray_bundle = self.eval_cameras.generate_rays(camera_idx).flatten()

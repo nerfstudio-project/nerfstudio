@@ -342,13 +342,14 @@ class NormalsRenderer(nn.Module):
         if normalize:
             n = safe_normalize(n)
         return n
-    
+
+
 class FeatureRenderer(nn.Module):
     """Calculate features along the ray."""
 
     @classmethod
     def forward(
-        cls, 
+        cls,
         features: TensorType["bs":..., "num_samples", 4],
         weights: TensorType["bs":..., "num_samples", 1],
     ) -> TensorType["bs":..., 4]:

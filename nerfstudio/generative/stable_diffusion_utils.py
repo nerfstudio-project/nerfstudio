@@ -16,9 +16,9 @@
 Stable diffusion utils
 """
 
+import torch
 from torchtyping import TensorType
 from typing_extensions import Literal
-import torch
 
 from nerfstudio.generative.stable_diffusion import StableDiffusion
 
