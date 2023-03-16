@@ -34,6 +34,7 @@ RUN apt-get update && \
     libboost-program-options-dev \
     libboost-system-dev \
     libboost-test-dev \
+    libhdf5-dev \
     libcgal-dev \
     libeigen3-dev \
     libflann-dev \
@@ -132,6 +133,19 @@ RUN git clone --branch master --recursive https://github.com/cvg/Hierarchical-Lo
     python3.10 -m pip install -e . && \
     cd ..
 
+# Install pyceres from source
+RUN git clone --branch main --recursive https://github.com/cvg/pyceres.git && \
+    cd pyceres && \
+    python3.10 -m pip install -e . && \
+    cd ..
+
+# Install pixel perfect sfm.
+RUN git clone --branch main --recursive https://github.com/cvg/pixel-perfect-sfm && \
+    cd pixel-perfect-sfm && \
+    python3.10 -m pip install -e . && \
+    cd ..
+
+RUN python3.10 -m pip install omegaconf
 # Copy nerfstudio folder and give ownership to user.
 ADD . /home/user/nerfstudio
 USER root
