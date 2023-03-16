@@ -2,7 +2,6 @@
 """Processes a video or image sequence to a nerfstudio compatible dataset."""
 
 
-import json
 import shutil
 import sys
 import zipfile
