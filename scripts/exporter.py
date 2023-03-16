@@ -27,6 +27,7 @@ from nerfstudio.exporter.exporter_utils import (
     generate_point_cloud,
     get_mesh_from_filename,
 )
+from nerfstudio.exporter.marching_cubes import get_surface_sliding
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 
@@ -324,6 +325,62 @@ class ExportMarchingCubesMesh(Exporter):
 
 
 @dataclass
+class ExportSDFMarchingCubesMesh(Exporter):
+    """Load SDF checkpoint, run marching cubes, extract mesh."""
+
+    resolution: int = 1024
+    """Marching cube resolution."""
+    simplify_mesh: bool = False
+    """Whether to simplify the mesh."""
+    bounding_box_min: Tuple[float, float, float] = (-1.0, -1.0, -1.0)
+    """Minimum of the bounding box."""
+    bounding_box_max: Tuple[float, float, float] = (1.0, 1.0, 1.0)
+    """Maximum of the bounding box."""
+    px_per_uv_triangle: int = 4
+    """Number of pixels per UV triangle."""
+    unwrap_method: Literal["xatlas", "custom"] = "xatlas"
+    """The method to use for unwrapping the mesh."""
+    num_pixels_per_side: int = 2048
+    """If using xatlas for unwrapping, the pixels per side of the texture image."""
+    target_num_faces: Optional[int] = 50000
+    """Target number of faces for the mesh to texture."""
+
+    def main(self) -> None:
+        """Main function."""
+        if not self.output_dir.exists():
+            self.output_dir.mkdir(parents=True)
+
+        _, pipeline, _ = eval_setup(self.load_config)
+
+        CONSOLE.print("Extract mesh with marching cubes and may take a while")
+
+        assert self.resolution % 512 == 0
+        # for sdf we can multi-scale extraction.
+        get_surface_sliding(
+            sdf=lambda x: pipeline.model.field.forward_geonetwork(x)[:, 0].contiguous(),
+            output_path=self.output_dir,
+            resolution=self.resolution,
+            bounding_box_min=self.bounding_box_min,
+            bounding_box_max=self.bounding_box_max,
+            coarse_mask=None,
+        )
+
+        # load the mesh from the marching cubes export
+        mesh = get_mesh_from_filename(
+            str(self.output_dir / "sdf_marching_cubes_mesh.ply"), target_num_faces=self.target_num_faces
+        )
+        CONSOLE.print("Texturing mesh with NeRF")
+        texture_utils.export_textured_mesh(
+            mesh,
+            pipeline,
+            self.output_dir,
+            px_per_uv_triangle=self.px_per_uv_triangle if self.unwrap_method == "custom" else None,
+            unwrap_method=self.unwrap_method,
+            num_pixels_per_side=self.num_pixels_per_side,
+        )
+
+
+@dataclass
 class ExportCameraPoses(Exporter):
     """
     Export camera poses to a .json file.
@@ -357,6 +414,7 @@ Commands = tyro.conf.FlagConversionOff[
         Annotated[ExportTSDFMesh, tyro.conf.subcommand(name="tsdf")],
         Annotated[ExportPoissonMesh, tyro.conf.subcommand(name="poisson")],
         Annotated[ExportMarchingCubesMesh, tyro.conf.subcommand(name="marching-cubes")],
+        Annotated[ExportSDFMarchingCubesMesh, tyro.conf.subcommand(name="sdf-marching-cubes")],
         Annotated[ExportCameraPoses, tyro.conf.subcommand(name="cameras")],
     ]
 ]
