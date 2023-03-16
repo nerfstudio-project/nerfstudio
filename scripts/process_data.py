@@ -238,6 +238,7 @@ class ProcessImages:
                 matching_method=self.matching_method,
                 feature_type=feature_type,
                 matcher_type=matcher_type,
+                refine_pixsfm=self.refine_pixsfm,
             )
         else:
             CONSOLE.log("[bold red]Invalid combination of sfm_tool, feature_type, and matcher_type, exiting")
