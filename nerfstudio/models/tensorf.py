@@ -73,7 +73,7 @@ class TensoRFModelConfig(ModelConfig):
     num_samples: int = 50
     """Number of samples in field evaluation"""
     num_uniform_samples: int = 200
-    """Number of samples in density evalutaion"""
+    """Number of samples in density evaluation"""
     num_den_components: int = 16
     """Number of components in density encoding"""
     num_color_components: int = 48
