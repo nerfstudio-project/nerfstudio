@@ -47,7 +47,7 @@ dependencies = [
     "rich>=12.5.1",
     "scikit-image>=0.19.3",
     "tensorboard==2.9.0",
-    "torch>=1.12.1",
+    "torch>=1.12.1,<2.0.0",
     "torchmetrics[image]>=0.9.3",
     "torchtyping>=0.1.4",
     "torchvision>=0.13.0",
@@ -76,7 +76,7 @@ dev = [
     "pylint==2.13.4",
     "pytest==7.1.2",
     "pytest-xdist==2.5.0",
-    "typeguard>=2.13.3",
+    "typeguard==2.13.3",
 ]
 
 # Documentation related packages
