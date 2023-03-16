@@ -85,6 +85,8 @@ def eval_setup(
     """
     # load save config
     config = yaml.load(config_path.read_text(), Loader=yaml.Loader)
+    # print('aoeuaoeuaoeuaoeu', config.load_step)
+    config.load_step = None  # load from the last checkpoint
     assert isinstance(config, TrainerConfig)
 
     if eval_num_rays_per_chunk:

@@ -137,6 +137,8 @@ class NerfactoModelConfig(ModelConfig):
     num_wavelength_samples_per_batch: int = -1
     """When wavelength_style is not NONE, this determines how many wavelengths to sample per batch"""
     train_wavelengths_every_nth: int = 1
+    geo_feat_dim: int = 15
+    """Dimension of latent vector after position MLP (in nerfacto field)."""
 
 
 class NerfactoModel(Model):
@@ -168,6 +170,7 @@ class NerfactoModel(Model):
             num_output_density_channels=self.config.num_density_channels,
             wavelength_style=self.config.wavelength_style,
             num_wavelength_encoding_freqs=self.config.num_wavelength_encoding_freqs,
+            geo_feat_dim=self.config.geo_feat_dim,
         )
 
         self.density_fns = []
@@ -504,7 +507,7 @@ class NerfactoModel(Model):
         else:
             image_gt = rgb_gt
             image = rgb
-        acc = colormaps.apply_colormap(outputs["accumulation"])
+        acc = colormaps.apply_colormap(torch.clamp(outputs["accumulation"], 0, 1))
         depth = colormaps.apply_depth_colormap(
             outputs["depth"],
             accumulation=outputs["accumulation"],

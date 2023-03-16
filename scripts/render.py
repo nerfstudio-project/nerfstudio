@@ -37,6 +37,8 @@ from nerfstudio.utils import install_checks
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
 
+import matplotlib.cm
+
 CONSOLE = Console(width=120)
 
 
@@ -50,6 +52,7 @@ def _render_trajectory_video(
     seconds: float = 5.0,
     output_format: Literal["images", "video"] = "video",
     camera_type: CameraType = CameraType.PERSPECTIVE,
+    force_color_channels: Optional[List[int]] = None,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -76,6 +79,8 @@ def _render_trajectory_video(
         ItersPerSecColumn(suffix="fps"),
         TimeRemainingColumn(elapsed_when_finished=True, compact=True),
     )
+    # progress = ExitStack()
+    # progress.track = lambda x, *args, **kwargs: x
     if output_format == "images":
         output_image_dir = output_filename.parent / output_filename.stem
         output_image_dir.mkdir(parents=True, exist_ok=True)
@@ -103,7 +108,9 @@ def _render_trajectory_video(
                 camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx, aabb_box=aabb_box)
 
                 color_override = 'rgb'
-                if cameras.color_channels is not None:
+                if force_color_channels is not None:
+                    color_override = force_color_channels
+                elif cameras.color_channels is not None:
                     channel = cameras.color_channels[camera_idx].item()
                     color_override = [int(channel)]
                 if crop_data is not None:
@@ -124,13 +131,27 @@ def _render_trajectory_video(
                             f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center"
                         )
                         sys.exit(1)
-                    if cameras.color_channels is not None:
+                    if (force_color_channels is not None) or (cameras.color_channels is not None):
                         # channel = cameras.color_channels[camera_idx].item()
                         # channel = int(channel)
                         # output_image = outputs['image'].cpu().numpy()
                         # print(f'The channel is: {channel = }, {output_image.shape = }')
                         # output_image = output_image[..., [channel, channel, channel]]
-                        output_image = outputs['image'].expand((-1, -1, 3)).cpu().numpy()
+                        false_color = True
+                        if false_color:
+                            output_image = outputs['image'].cpu().numpy()
+                            if output_image.shape[-1] == 128:
+                                output_image = output_image[:, :, force_color_channels]
+                            print(output_image.shape)
+                            cmap = matplotlib.cm.get_cmap('jet')
+                            output_image = cmap(output_image)[:, :, :, :3]
+                            print(output_image.shape)
+                            # output_image = output_image.reshape(800, 900, 4)[:, :, :3]
+                            output_image = output_image.transpose(2, 0, 1, 3)
+                            output_image = np.concatenate(output_image, axis = 1)
+                            # raise Exception()
+                        else:
+                            output_image = outputs['image'].expand((-1, -1, 3)).cpu().numpy()
                     else:
                         output_image = outputs[rendered_output_name].cpu().numpy()
                     if output_image.shape[-1] == 1:
@@ -143,6 +164,7 @@ def _render_trajectory_video(
                     if writer is None:
                         render_width = int(render_image.shape[1])
                         render_height = int(render_image.shape[0])
+                        print(f'{render_width = } {render_height = }')
                         writer = stack.enter_context(
                             media.VideoWriter(
                                 path=output_filename,
@@ -281,6 +303,8 @@ class RenderTrajectory:
     """How to save output data."""
     eval_num_rays_per_chunk: Optional[int] = None
     """Specifies number of rays per chunk during eval."""
+    force_color_channels: Optional[List[int]] = None
+    """Override which color channels to render (otherwise taken from camera paths json)"""
 
     def main(self) -> None:
         """Main function."""
@@ -328,6 +352,7 @@ class RenderTrajectory:
             seconds=seconds,
             output_format=self.output_format,
             camera_type=camera_type,
+            force_color_channels=self.force_color_channels,
         )
 
 

@@ -317,14 +317,27 @@ class TCNNNerfactoField(Field):
                 base_mlp_out = torch.sigmoid(base_mlp_out)
                 density_before_activation = self.density_head(base_mlp_out)
             else:
-                x = h[:, :, None, :].broadcast_to((-1, -1, len(ray_samples.wavelengths), -1))
-                wavelength_encodings = self.wavelength_encoding(ray_samples.wavelengths.view(-1, 1))
-                y = wavelength_encodings[None, None, :, :].broadcast_to(
-                    (*x.shape[:-1], self.wavelength_encoding.n_output_dims))
-                x = torch.cat([x, y], dim=-1)
-                base_mlp_out = x.view(-1, x.shape[-1])
-                base_mlp_out = torch.sigmoid(base_mlp_out)
-                density_before_activation = self.density_head(base_mlp_out)
+                dataset = 'rosemary'  # TODO(gerry): This is a holdover from data trained in different ways.  Very bad.
+                if not (dataset == 'tools' or dataset == 'origami'):
+                    x = h[:, :, None, :].broadcast_to((-1, -1, len(ray_samples.wavelengths), -1))
+                    wavelength_encodings = self.wavelength_encoding(ray_samples.wavelengths.view(-1, 1))
+                    y = wavelength_encodings[None, None, :, :].broadcast_to(
+                        (*x.shape[:-1], self.wavelength_encoding.n_output_dims))
+                    x = torch.cat([x, y], dim=-1)
+                    base_mlp_out = x.view(-1, x.shape[-1])
+                    base_mlp_out = torch.sigmoid(base_mlp_out)
+                    density_before_activation = self.density_head(base_mlp_out)
+                else:
+                    h = torch.relu(h)
+                    x = h[:, :, None, :].broadcast_to((-1, -1, len(ray_samples.wavelengths), -1))
+                    wavelength_encodings = self.wavelength_encoding(ray_samples.wavelengths.view(-1, 1))
+                    y = wavelength_encodings[None, None, :, :].broadcast_to(
+                        (*x.shape[:-1], self.wavelength_encoding.n_output_dims))
+                    x = torch.cat([x, y], dim=-1)
+                    base_mlp_out = x.view(-1, x.shape[-1])
+                    density_before_activation = self.density_head(base_mlp_out * 1.0)
+                    # density_before_activation = torch.sigmoid(density_before_activation)
+                    # print(f'{torch.max(h).item():6.3f}, {torch.max(x).item():6.3f}, {torch.max(y).item():6.3f}, {torch.max(base_mlp_out).item():6.3f}, {torch.max(density_before_activation).item():6.3f}')
         else:
             density_before_activation, base_mlp_out = torch.split(
                 h, [self.num_output_density_channels, self.geo_feat_dim], dim=-1)

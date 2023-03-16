@@ -258,7 +258,9 @@ def render_trajectory(
     return images, depths
 
 
-def collect_camera_poses_for_dataset(dataset: Optional[InputDataset]) -> List[Dict[str, Any]]:
+def collect_camera_poses_for_dataset(
+        dataset: Optional[InputDataset],
+        corrections: Optional[TensorType["num_cameras", 3, 4]] = None) -> List[Dict[str, Any]]:
     """Collects rescaled, translated and optimised camera poses for a dataset.
 
     Args:
@@ -279,18 +281,29 @@ def collect_camera_poses_for_dataset(dataset: Optional[InputDataset]) -> List[Di
     # new cameras are in cameras, whereas image paths are stored in a private member of the dataset
     for idx in range(len(cameras)):
         image_filename = image_filenames[idx]
-        transform = cameras.camera_to_worlds[idx].tolist()
-        frames.append(
-            {
-                "file_path": str(image_filename),
-                "transform": transform,
-            }
-        )
+        if corrections is not None:
+            cTcopt = corrections[idx].to(cameras.camera_to_worlds[idx].device)
+            if cTcopt.shape == (3, 4):
+                cTcopt = torch.cat([cTcopt, torch.tensor([0, 0, 0, 1], device=cTcopt.device).view(1, 4)])
+        else:
+            cTcopt = torch.eye(4, device=cameras.camera_to_worlds[idx].device)
+        transform = cameras.camera_to_worlds[idx] @ cTcopt
+        if transform.shape == (3, 4):
+            transform = torch.cat(
+                [transform,
+                 torch.tensor([0, 0, 0, 1], device=transform.device).view(1, 4)])
+        frames.append({
+            "file_path": str(image_filename),
+            "transform_matrix": transform.tolist(),
+        })
 
     return frames
 
 
-def collect_camera_poses(pipeline: VanillaPipeline) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+def collect_camera_poses(
+    pipeline: VanillaPipeline,
+    corrections: Optional[TensorType["num_cameras", 3, 4]] = None
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Collects camera poses for train and eval datasets.
 
     Args:
@@ -306,7 +319,7 @@ def collect_camera_poses(pipeline: VanillaPipeline) -> Tuple[List[Dict[str, Any]
     eval_dataset = pipeline.datamanager.eval_dataset
     assert isinstance(eval_dataset, InputDataset)
 
-    train_frames = collect_camera_poses_for_dataset(train_dataset)
-    eval_frames = collect_camera_poses_for_dataset(eval_dataset)
+    train_frames = collect_camera_poses_for_dataset(train_dataset, corrections)
+    eval_frames = collect_camera_poses_for_dataset(eval_dataset, corrections)
 
     return train_frames, eval_frames

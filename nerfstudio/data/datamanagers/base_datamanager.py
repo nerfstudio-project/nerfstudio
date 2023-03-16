@@ -72,6 +72,7 @@ AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of
                 num_hyperspectral_channels=128,
                 # num_hyperspectral_channels=24,
                 ),
+            "nerfstudio-data2": NerfstudioDataParserConfig(train_split_percentage=1.0),
             "minimal-parser": MinimalDataParserConfig(),
             "blender-data": BlenderDataParserConfig(),
             "friends-data": FriendsDataParserConfig(),

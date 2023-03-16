@@ -330,7 +330,15 @@ class ExportCameraPoses(Exporter):
 
         _, pipeline, _ = eval_setup(self.load_config)
         assert isinstance(pipeline, VanillaPipeline)
-        train_frames, eval_frames = collect_camera_poses(pipeline)
+
+        print(pipeline.datamanager.get_param_groups())
+        cam_optim = pipeline.datamanager.train_camera_optimizer
+        print(cam_optim.forward(torch.arange(cam_optim.num_cameras)))
+        cTcopt = cam_optim.forward(torch.arange(cam_optim.num_cameras))
+        print(cTcopt.shape)
+
+
+        train_frames, eval_frames = collect_camera_poses(pipeline, corrections=cTcopt)
 
         for file_name, frames in [("transforms_train.json", train_frames), ("transforms_eval.json", eval_frames)]:
             if len(frames) == 0:
