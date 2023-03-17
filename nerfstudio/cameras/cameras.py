@@ -91,6 +91,7 @@ class Cameras(TensorDataclass):
     distortion_params: Optional[TensorType["num_cameras":..., 6]]
     camera_type: TensorType["num_cameras":..., 1]
     times: Optional[TensorType["num_cameras", 1]]
+    metadata: Optional[Dict]
 
     def __init__(
         self,
@@ -111,6 +112,7 @@ class Cameras(TensorDataclass):
             ]
         ] = CameraType.PERSPECTIVE,
         times: Optional[TensorType["num_cameras"]] = None,
+        metadata: Optional[Dict] = None,
     ) -> None:
         """Initializes the Cameras object.
 
@@ -145,6 +147,8 @@ class Cameras(TensorDataclass):
         self.width = self._init_get_height_width(width, self.cx)
         self.camera_type = self._init_get_camera_type(camera_type)
         self.times = self._init_get_times(times)
+
+        self.metadata = metadata
 
         self.__post_init__()  # This will do the dataclass post_init and broadcast all the tensors
 
@@ -716,13 +720,23 @@ class Cameras(TensorDataclass):
 
         times = self.times[camera_indices, 0] if self.times is not None else None
 
+        metadata = (
+            self._apply_fn_to_dict(self.metadata, lambda x: x[true_indices]) if self.metadata is not None else None
+        )
+        if metadata is not None:
+            metadata["directions_norm"] = directions_norm[0].detach()
+        else:
+            metadata = {"directions_norm": directions_norm[0].detach()}
+
+        times = self.times[camera_indices, 0] if self.times is not None else None
+
         return RayBundle(
             origins=origins,
             directions=directions,
             pixel_area=pixel_area,
             camera_indices=camera_indices,
             times=times,
-            metadata={"directions_norm": directions_norm[0].detach()},
+            metadata=metadata,
         )
 
     def to_json(
