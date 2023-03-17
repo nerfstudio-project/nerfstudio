@@ -159,7 +159,7 @@ def convert_video_to_images(
             ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB{crop_cmd} -r 1"
         else:
             CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
-            ffmpeg_cmd += " -pix_fmt bgr8"
+            ffmpeg_cmd += f" -pix_fmt bgr8 -vf {crop_cmd[1:]}"
 
         ffmpeg_cmd += f" {out_filename}"
         run_command(ffmpeg_cmd, verbose=verbose)
@@ -174,13 +174,18 @@ def convert_video_to_images(
 
 
 def copy_images_list(
-    image_paths: List[Path], image_dir: Path, crop_border_pixels: Optional[int] = None, verbose: bool = False
+    image_paths: List[Path],
+    image_dir: Path,
+    crop_border_pixels: Optional[int] = None,
+    crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    verbose: bool = False,
 ) -> List[Path]:
     """Copy all images in a list of Paths. Useful for filtering from a directory.
     Args:
         image_paths: List of Paths of images to copy to a new directory.
         image_dir: Path to the output directory.
         crop_border_pixels: If not None, crops each edge by the specified number of pixels.
+        crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
         verbose: If True, print extra logging.
     Returns:
         A list of the copied image Paths.
@@ -206,6 +211,18 @@ def copy_images_list(
         filename = f"frame_%05d{file_type}"
         crop = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}"
         ffmpeg_cmd = f'ffmpeg -y -noautorotate -i "{image_dir / filename}" -q:v 2 -vf {crop} "{image_dir / filename}"'
+        run_command(ffmpeg_cmd, verbose=verbose)
+    elif crop_factor != (0.0, 0.0, 0.0, 0.0):
+        file_type = image_paths[0].suffix
+        filename = f"frame_%05d{file_type}"
+        height = 1 - crop_factor[0] - crop_factor[1]
+        width = 1 - crop_factor[2] - crop_factor[3]
+        start_x = crop_factor[2]
+        start_y = crop_factor[0]
+        crop_cmd = f',"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}"'
+        ffmpeg_cmd = (
+            f'ffmpeg -y -noautorotate -i "{image_dir / filename}" -q:v 2 -vf {crop_cmd[1:]} "{image_dir / filename}"'
+        )
         run_command(ffmpeg_cmd, verbose=verbose)
 
     num_frames = len(image_paths)
@@ -266,13 +283,16 @@ def copy_and_upscale_polycam_depth_maps_list(
     return copied_depth_map_paths
 
 
-def copy_images(data: Path, image_dir: Path, verbose) -> OrderedDict[Path, Path]:
+def copy_images(
+    data: Path, image_dir: Path, verbose, crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+) -> OrderedDict[Path, Path]:
     """Copy images from a directory to a new directory.
 
     Args:
         data: Path to the directory of images.
         image_dir: Path to the output directory.
         verbose: If True, print extra logging.
+        crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
     Returns:
         The mapping from the original filenames to the new ones.
     """
@@ -283,7 +303,9 @@ def copy_images(data: Path, image_dir: Path, verbose) -> OrderedDict[Path, Path]
             CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
             sys.exit(1)
 
-        copied_images = copy_images_list(image_paths=image_paths, image_dir=image_dir, verbose=verbose)
+        copied_images = copy_images_list(
+            image_paths=image_paths, image_dir=image_dir, crop_factor=crop_factor, verbose=verbose
+        )
         return OrderedDict((original_path, new_path) for original_path, new_path in zip(image_paths, copied_images))
 
 
