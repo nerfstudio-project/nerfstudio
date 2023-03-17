@@ -11,7 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Data parser for nerfosr datasets. """
+""" Data parser for NeRF-OSR datasets
+
+    Presented in the paper: https://4dqv.mpi-inf.mpg.de/NeRF-OSR/
+
+"""
 
 from __future__ import annotations
 
@@ -19,7 +23,7 @@ import glob
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Tuple, Type
+from typing import Tuple, Type, List
 
 import numpy as np
 import torch
@@ -38,19 +42,14 @@ from nerfstudio.data.scene_box import SceneBox
 CONSOLE = Console(width=120)
 
 
-def find_files(directory, exts):
+def find_files(directory: str, exts: List[str]):
     """Find all files in a directory that have a certain file extension.
 
-    Parameters
-    ----------
-    directory : str
-        The directory to search for files.
-    exts : list of str
-        A list of file extensions to search for. Each file extension should be in the form '*.ext'.
+    Args:
+        directory : The directory to search for files.
+        exts :  A list of file extensions to search for. Each file extension should be in the form '*.ext'.
 
-    Returns
-    -------
-    list of str
+    Returns:
         A list of file paths for all the files that were found. The list is sorted alphabetically.
     """
     if os.path.isdir(directory):
@@ -64,7 +63,7 @@ def find_files(directory, exts):
     return []
 
 
-def parse_txt(filename):
+def _parse_osm_txt(filename: str):
     """Parse a text file containing numbers and return a 4x4 numpy array of float32 values."""
     assert os.path.isfile(filename)
     with open(filename, encoding="UTF-8") as f:
@@ -72,22 +71,16 @@ def parse_txt(filename):
     return np.array([float(x) for x in nums]).reshape([4, 4]).astype(np.float32)
 
 
-def get_camera_params(scene_dir, split) -> Tuple[torch.Tensor, torch.Tensor, int]:
+def get_camera_params(scene_dir: str, split: str) -> Tuple[torch.Tensor, torch.Tensor, int]:
     """Load camera intrinsic and extrinsic parameters for a given scene split.
 
-    Parameters
-    ----------
-    scene_dir : str
-        The directory containing the scene data.
-    split : str
-        The split for which to load the camera parameters. Either "train", "val", or "test".
+    Args"
+      scene_dir : The directory containing the scene data.
+      split : The split for which to load the camera parameters. Either "train", "val", or "test".
 
     Returns
-    -------
-    Tuple[torch.Tensor, torch.Tensor, int]
         A tuple containing the intrinsic parameters (as a torch.Tensor of shape [N, 4, 4]),
         the camera-to-world matrices (as a torch.Tensor of shape [N, 4, 4]), and the number of cameras (N).
-
     """
     split = "validation" if split == "val" else split
     split_dir = f"{scene_dir}/{split}"
@@ -101,9 +94,9 @@ def get_camera_params(scene_dir, split) -> Tuple[torch.Tensor, torch.Tensor, int
     intrinsics = []
     camera_to_worlds = []
     for i in range(num_cams):
-        intrinsics.append(parse_txt(intrinsics_files[i]))
+        intrinsics.append(_parse_osm_txt(intrinsics_files[i]))
 
-        pose = parse_txt(pose_files[i])
+        pose = _parse_osm_txt(pose_files[i])
 
         # convert from COLMAP/OpenCV to nerfstudio camera (OpenGL/Blender)
         pose[0:3, 1:3] *= -1
