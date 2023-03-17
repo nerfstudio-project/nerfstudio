@@ -42,8 +42,16 @@ except ImportError:
 CONSOLE = Console(width=120)
 
 
-def init_grid_param(out_dim: int, reso: List[int], a: float = 0.1, b: float = 0.5):
-    """Initializes the grid parameters."""
+def init_grid_param(out_dim: int, reso: List[int], a: float = 0.1, b: float = 0.5) -> nn.ParameterList:
+    """Initializes the grid parameters.
+    Args:
+        out_dim: Dimension of feature vectors stored in grid
+        reso: Grid resolution
+        a: the lower bound of the uniform distribution used for initialization of spatial planes
+        b: the upper bound of the uniform distribution used for initialization of spatial planes
+    Returns:
+        Grid parameters
+    """
 
     in_dim = len(reso)
     has_time_planes = in_dim == 4
@@ -61,8 +69,15 @@ def init_grid_param(out_dim: int, reso: List[int], a: float = 0.1, b: float = 0.
 
 
 @torch.jit.script
-def grid_sample_wrapper(grid: torch.Tensor, coords: torch.Tensor, align_corners: bool = True) -> torch.Tensor:
-    """Generates feature vectors by sampling and interpolating between grid values."""
+def grid_sample_wrapper(grid: torch.Tensor, coords: torch.Tensor) -> torch.Tensor:
+    """Generates feature vectors by sampling and interpolating between grid values.
+    Args:
+        grid: Input grid
+        coords: Coordinates to sample at
+
+    Returns:
+        Feature vectors
+    """
 
     grid_dim = coords.shape[-1]
 
@@ -84,7 +99,7 @@ def grid_sample_wrapper(grid: torch.Tensor, coords: torch.Tensor, align_corners:
     interp = F.grid_sample(
         grid,  # [B, feature_dim, reso, ...]
         coords,  # [B, 1, ..., n, grid_dim]
-        align_corners=align_corners,
+        align_corners=True,
         mode="bilinear",
         padding_mode="border",
     )
@@ -100,7 +115,14 @@ def interpolate_ms_features(
     ms_grids: Union[nn.ModuleList, List[nn.ParameterList]],
     concat_features: bool,
 ) -> torch.Tensor:
-    """Combines/interpolates features across multiple dimensions and scales."""
+    """Combines/interpolates features across multiple dimensions and scales.
+    Args:
+        pts: Coordinates to sample at
+        ms_grids: Grids to sample
+        concat_features: Whether to concatenate features at different scales
+    Returns:
+        Feature vectors
+    """
 
     coo_combs = list(itertools.combinations(range(pts.shape[-1]), 2))
 
@@ -128,16 +150,32 @@ def interpolate_ms_features(
 
 
 class KPlanesField(Field):
-    """K-Planes field."""
+    """K-Planes field.
+
+    Args:
+        aabb: Parameters of scene aabb bounds
+        num_images: How many images exist in the dataset
+        geo_feat_dim: Output geo feat dimensions
+        grid_base_resolution: Base grid resolution
+        grid_feature_dim: Dimension of feature vectors stored in grid
+        concat_features_across_scales: Whether to concatenate features at different scales
+        multiscale_res: Multiscale grid resolutions
+        spatial_distortion: Spatial distortion to apply to the scene
+        appearance_embedding_dim: Dimension of appearance embedding. Set to 0 to disable
+        use_average_appearance_embedding: Whether to use average appearance embedding or zeros for inference
+        linear_decoder: Whether to use a linear decoder instead of an MLP
+        linear_decoder_layers: Number of layers in linear decoder
+    """
 
     def __init__(
         self,
         aabb: TensorType,
         num_images: int,
         geo_feat_dim: int = 15,
-        grid_config: List[Dict] = field(default_factory=lambda: []),
         concat_features_across_scales: bool = True,
-        multiscale_res: List[int] = field(default_factory=lambda: [1, 2, 4, 8]),
+        grid_base_resolution: List[int] = field(default_factory=lambda: [128, 128, 128]),
+        grid_feature_dim: int = 32,
+        multiscale_res: List[int] = field(default_factory=lambda: [1, 2, 4]),
         spatial_distortion: Optional[SpatialDistortion] = None,
         appearance_embedding_dim: int = 0,
         use_average_appearance_embedding: bool = True,
@@ -150,7 +188,7 @@ class KPlanesField(Field):
         self.register_buffer("aabb", aabb)
         self.num_images = num_images
         self.geo_feat_dim = geo_feat_dim
-        self.grid_config = grid_config
+        self.grid_base_resolution = grid_base_resolution
         self.concat_features_across_scales = concat_features_across_scales
         self.spatial_distortion = spatial_distortion
 
@@ -159,10 +197,9 @@ class KPlanesField(Field):
         self.feature_dim = 0
         for res in multiscale_res:
             # initialize coordinate grid
-            config = grid_config[0].copy()
             # Resolution fix: multi-res only on spatial planes
-            config["resolution"] = [r * res for r in config["resolution"][:3]] + config["resolution"][3:]
-            gp = init_grid_param(out_dim=config["output_coordinate_dim"], reso=config["resolution"])
+            resolution = [r * res for r in grid_base_resolution[:3]] + grid_base_resolution[3:]
+            gp = init_grid_param(out_dim=grid_feature_dim, reso=resolution)
 
             # shape[1] is out-dim - Concatenate over feature len for each scale
             if self.concat_features_across_scales:
@@ -256,7 +293,7 @@ class KPlanesField(Field):
             # Input should be in [-1, 1]
             grid_input = (grid_input - self.aabb[0]) * (2.0 / (self.aabb[1] - self.aabb[0])) - 1.0
 
-        if len(self.grid_config[0]["resolution"]) == 4:
+        if len(self.grid_base_resolution) == 4:
             grid_input = torch.cat([grid_input, (2 * ray_samples.times - 1).reshape(-1, 1)], -1)
 
         features = interpolate_ms_features(
@@ -330,7 +367,14 @@ class KPlanesField(Field):
 
 
 class KPlanesDensityField(Field):
-    """A lightweight density field module."""
+    """A lightweight density field module.
+    Args:
+        aabb: Parameters of scene aabb bounds
+        resolution: Grid resolution
+        num_output_coords: dimension of grid feature vectors
+        spatial_distortion: Spatial distortion to apply to the scene
+        linear_decoder: Whether to use a linear decoder instead of an MLP
+    """
 
     def __init__(
         self,

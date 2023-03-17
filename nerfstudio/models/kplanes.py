@@ -64,42 +64,78 @@ class KPlanesModelConfig(ModelConfig):
 
     near_plane: float = 2.0
     """How far along the ray to start sampling."""
+
     far_plane: float = 6.0
     """How far along the ray to stop sampling."""
 
-    grid_config: List[Dict] = field(
-        default_factory=lambda: [{"output_coordinate_dim": 32, "resolution": [128, 128, 128]}]
-    )
+    grid_base_resolution: List[int] = field(default_factory=lambda: [128, 128, 128])
+    """Base grid resolution."""
+
+    grid_feature_dim: int = 32
+    """Dimension of feature vectors stored in grid."""
+
+    multiscale_res: List[int] = field(default_factory=lambda: [1, 2, 4])
+    """Multiscale grid resolutions."""
 
     is_contracted: bool = False
-    multiscale_res: List[int] = field(default_factory=lambda: [1, 2, 4])
+    """Whether to use scene contraction (set to true for unbounded scenes)."""
+
     concat_features_across_scales: bool = True
+    """Whether to concatenate features at different scales."""
+
     linear_decoder: bool = False
+    """Whether to use a linear decoder instead of an MLP."""
+
     linear_decoder_layers: Optional[int] = 1
+    """Number of layers in linear decoder"""
 
     # proposal sampling arguments
     num_proposal_iterations: int = 2
+    """Number of proposal network iterations."""
+
     use_same_proposal_network: bool = False
+    """Use the same proposal network. Otherwise use different ones."""
+
     proposal_net_args_list: List[Dict] = field(
         default_factory=lambda: [
             {"num_output_coords": 8, "resolution": [64, 64, 64]},
             {"num_output_coords": 8, "resolution": [128, 128, 128]},
         ]
     )
-    num_proposal_samples: Optional[Tuple[int]] = (256, 128)
-    num_samples: Optional[int] = 48
-    single_jitter: bool = False
-    proposal_warmup: int = 5000
-    proposal_update_every: int = 5
-    use_proposal_weight_anneal: bool = True
-    proposal_weights_anneal_max_num_iters: int = 1000
-    proposal_weights_anneal_slope: float = 10.0
+    """Arguments for the proposal density fields."""
 
-    # appearance embedding (set to 0 to disable)
+    num_proposal_samples: Optional[Tuple[int]] = (256, 128)
+    """Number of samples per ray for each proposal network."""
+
+    num_samples: Optional[int] = 48
+    """Number of samples per ray used for rendering."""
+
+    single_jitter: bool = False
+    """Whether use single jitter or not for the proposal networks."""
+
+    proposal_warmup: int = 5000
+    """Scales n from 1 to proposal_update_every over this many steps."""
+
+    proposal_update_every: int = 5
+    """Sample every n steps after the warmup."""
+
+    use_proposal_weight_anneal: bool = True
+    """Whether to use proposal weight annealing."""
+
+    proposal_weights_anneal_slope: float = 10.0
+    """Slope of the annealing function for the proposal weights."""
+
+    proposal_weights_anneal_max_num_iters: int = 1000
+    """Max num iterations for the annealing function."""
+
     appearance_embedding_dim: int = 0
+    """Dimension of appearance embedding. Set to 0 to disable."""
+
     use_average_appearance_embedding: bool = True
+    """Whether to use average appearance embedding or zeros for inference."""
 
     background_color: Literal["random", "last_sample", "black", "white"] = "white"
+    """The background color as RGB."""
 
     loss_coefficients: Dict[str, float] = to_immutable_dict(
         {
@@ -114,6 +150,7 @@ class KPlanesModelConfig(ModelConfig):
             "time_smoothness_weight_proposal_net": 0.001,
         }
     )
+    """Loss coefficients."""
 
 
 class KPlanesModel(Model):
@@ -138,7 +175,8 @@ class KPlanesModel(Model):
         self.field = KPlanesField(
             self.scene_box.aabb,
             num_images=self.num_train_data,
-            grid_config=self.config.grid_config,
+            grid_base_resolution=self.config.grid_base_resolution,
+            grid_feature_dim=self.config.grid_feature_dim,
             concat_features_across_scales=self.config.concat_features_across_scales,
             multiscale_res=self.config.multiscale_res,
             spatial_distortion=scene_contraction,
@@ -213,7 +251,7 @@ class KPlanesModel(Model):
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
-        self.temporal_distortion = len(self.config.grid_config[0]["resolution"]) == 4  # for viewer
+        self.temporal_distortion = len(self.config.grid_base_resolution) == 4  # for viewer
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
@@ -293,7 +331,7 @@ class KPlanesModel(Model):
             prop_grids = [p.grids for p in self.proposal_networks]
             metrics_dict["plane_tv_proposal_net"] = space_tv_loss(prop_grids)
 
-            if len(self.config.grid_config[0]["resolution"]) == 4:
+            if len(self.config.grid_base_resolution) == 4:
                 metrics_dict["l1_time_planes"] = l1_time_planes(self.field.grids)
                 metrics_dict["l1_time_planes_proposal_net"] = l1_time_planes(prop_grids)
                 metrics_dict["time_smoothness_weight"] = time_smoothness(self.field.grids)
@@ -354,7 +392,13 @@ class KPlanesModel(Model):
 
 
 def compute_plane_tv(t: torch.Tensor, only_w: bool = False) -> float:
-    """Computes total variance across each plane."""
+    """Computes total variance across a plane.
+    Args:
+        t: Plane tensor
+        only_w: Whether to only compute total variance across w dimension
+    Returns:
+        Total variance
+    """
 
     _, _, h, w = t.shape
     w_tv = torch.square(t[..., :, 1:] - t[..., :, : w - 1]).mean()
@@ -367,7 +411,12 @@ def compute_plane_tv(t: torch.Tensor, only_w: bool = False) -> float:
 
 
 def space_tv_loss(multi_res_grids: List[torch.Tensor]) -> float:
-    """Computes total variance across each plane."""
+    """Computes total variance across each plane in the grids.
+    Args:
+        multi_res_grids: Grids to compute total variance over
+    Returns:
+        Total variance
+    """
 
     total = 0.0
     for grids in multi_res_grids:
@@ -386,7 +435,12 @@ def space_tv_loss(multi_res_grids: List[torch.Tensor]) -> float:
 
 
 def l1_time_planes(multi_res_grids: List[torch.Tensor]) -> float:
-    """Computes the L1 distance from the multiplicative identity (1) for spatiotemporal planes."""
+    """Computes the L1 distance from the multiplicative identity (1) for spatiotemporal planes.
+    Args:
+        multi_res_grids: Grids to compute L1 distance over
+    Returns:
+         L1 distance from the multiplicative identity (1)
+    """
 
     total = 0.0
     for grids in multi_res_grids:
@@ -398,7 +452,12 @@ def l1_time_planes(multi_res_grids: List[torch.Tensor]) -> float:
 
 
 def compute_plane_smoothness(t: torch.Tensor) -> float:
-    """Computes time smoothness across each plane."""
+    """Computes time smoothness across a plane.
+    Args:
+        t: Plane tensor
+    Returns:
+        Time smoothness
+    """
 
     _, _, h, _ = t.shape
     # Convolve with a second derivative filter, in the time dimension which is dimension 2
@@ -409,7 +468,12 @@ def compute_plane_smoothness(t: torch.Tensor) -> float:
 
 
 def time_smoothness(multi_res_grids: List[torch.Tensor]) -> float:
-    """Computes time smoothness."""
+    """Computes time smoothness across each plane in the grids.
+    Args:
+        multi_res_grids: Grids to compute time smoothness over
+    Returns:
+        Time smoothness
+    """
 
     total = 0
     for grids in multi_res_grids:

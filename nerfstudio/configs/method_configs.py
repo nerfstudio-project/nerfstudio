@@ -516,7 +516,7 @@ method_configs["kplanes-dnerf"] = TrainerConfig(
             eval_num_rays_per_batch=4096,
         ),
         model=KPlanesModelConfig(
-            grid_config=[{"output_coordinate_dim": 32, "resolution": [64, 64, 64, 25]}],
+            grid_base_resolution=[64, 64, 64, 25],
             multiscale_res=[1, 2, 4, 8],
             proposal_net_args_list=[
                 {"num_output_coords": 8, "resolution": [64, 64, 64, 50]},
