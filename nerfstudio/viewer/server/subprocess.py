@@ -34,7 +34,14 @@ CONSOLE = Console()
 
 
 def is_port_open(port: int):
-    """Returns True if the port is open."""
+    """Returns True if the port is open.
+
+    Args:
+        port: Port to check.
+
+    Returns:
+        True if the port is open, False otherwise.
+    """
     try:
         sock = socket.socket()
         _ = sock.bind(("", port))
@@ -45,8 +52,14 @@ def is_port_open(port: int):
 
 
 def get_free_port(default_port: int = None):
-    """Returns a free port on the local machine.
-    Try to use default_port is possible."""
+    """Returns a free port on the local machine. Try to use default_port is possible.
+
+    Args:
+        default_port: Port to try to use.
+
+    Returns:
+        A free port on the local machine.
+    """
     if default_port:
         if is_port_open(default_port):
             return default_port
