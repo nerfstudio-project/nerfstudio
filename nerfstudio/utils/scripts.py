@@ -40,7 +40,8 @@ def run_command(cmd: str, verbose=False) -> Optional[str]:
         )
         CONSOLE.print(f"[bold red]Error running command: {cmd}")
         CONSOLE.rule(style="red")
-        CONSOLE.print(out.stderr.decode("utf-8"))
+        if out.stderr:
+            CONSOLE.print(out.stderr.decode("utf-8"))
         sys.exit(1)
     if out.stdout is not None:
         return out.stdout.decode("utf-8")

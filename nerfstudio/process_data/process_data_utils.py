@@ -24,12 +24,12 @@ from typing import List, Optional, Tuple
 import cv2
 import numpy as np
 from rich.console import Console
-from typing_extensions import Literal
+from typing_extensions import Literal, OrderedDict
 
 from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command
 
-CONSOLE = Console(width=120, no_color=True)
+CONSOLE = Console(width=120)
 POLYCAM_UPSCALING_TIMES = 2
 
 
@@ -104,7 +104,11 @@ def get_num_frames_in_video(video: Path) -> int:
 
 
 def convert_video_to_images(
-    video_path: Path, image_dir: Path, num_frames_target: int, verbose: bool = False
+    video_path: Path,
+    image_dir: Path,
+    num_frames_target: int,
+    crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    verbose: bool = False,
 ) -> Tuple[List[str], int]:
     """Converts a video into a sequence of images.
 
@@ -112,10 +116,27 @@ def convert_video_to_images(
         video_path: Path to the video.
         output_dir: Path to the output directory.
         num_frames_target: Number of frames to extract.
+        crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
         verbose: If True, logs the output of the command.
     Returns:
         A tuple containing summary of the conversion and the number of extracted frames.
     """
+
+    for i in crop_factor:
+        if i < 0 or i > 1:
+            CONSOLE.print(
+                "[bold red]Error: Invalid crop factor. All crops must be in [0,1]."
+            )
+            sys.exit(1)
+
+    if video_path.is_dir():
+        CONSOLE.print(
+            f"[bold red]Error: Video path is a directory, not a path: {video_path}"
+        )
+        sys.exit(1)
+    if video_path.exists() is False:
+        CONSOLE.print(f"[bold red]Error: Video does not exist: {video_path}")
+        sys.exit(1)
 
     with status(
         msg="Converting video to images...", spinner="bouncingBall", verbose=verbose
@@ -134,18 +155,27 @@ def convert_video_to_images(
 
         out_filename = image_dir / "frame_%05d.png"
         ffmpeg_cmd = f'ffmpeg -i "{video_path}"'
-        spacing = num_frames // num_frames_target
 
+        crop_cmd = ""
+        if crop_factor != (0.0, 0.0, 0.0, 0.0):
+            height = 1 - crop_factor[0] - crop_factor[1]
+            width = 1 - crop_factor[2] - crop_factor[3]
+            start_x = crop_factor[2]
+            start_y = crop_factor[0]
+            crop_cmd = (
+                f',"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}"'
+            )
+
+        spacing = num_frames // num_frames_target
         if spacing > 1:
-            ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB -r 1"
+            ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB{crop_cmd} -r 1"
         else:
             CONSOLE.print(
                 "[bold red]Can't satisfy requested number of frames. Extracting all frames."
             )
-            ffmpeg_cmd += " -pix_fmt bgr8"
+            ffmpeg_cmd += f" -pix_fmt bgr8 -vf {crop_cmd[1:]}"
 
         ffmpeg_cmd += f" {out_filename}"
-
         run_command(ffmpeg_cmd, verbose=verbose)
 
     num_final_frames = len(list(image_dir.glob("*.png")))
@@ -161,6 +191,7 @@ def copy_images_list(
     image_paths: List[Path],
     image_dir: Path,
     crop_border_pixels: Optional[int] = None,
+    crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     verbose: bool = False,
 ) -> List[Path]:
     """Copy all images in a list of Paths. Useful for filtering from a directory.
@@ -168,6 +199,7 @@ def copy_images_list(
         image_paths: List of Paths of images to copy to a new directory.
         image_dir: Path to the output directory.
         crop_border_pixels: If not None, crops each edge by the specified number of pixels.
+        crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
         verbose: If True, print extra logging.
     Returns:
         A list of the copied image Paths.
@@ -193,6 +225,16 @@ def copy_images_list(
         filename = f"frame_%05d{file_type}"
         crop = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}"
         ffmpeg_cmd = f'ffmpeg -y -noautorotate -i "{image_dir / filename}" -q:v 2 -vf {crop} "{image_dir / filename}"'
+        run_command(ffmpeg_cmd, verbose=verbose)
+    elif crop_factor != (0.0, 0.0, 0.0, 0.0):
+        file_type = image_paths[0].suffix
+        filename = f"frame_%05d{file_type}"
+        height = 1 - crop_factor[0] - crop_factor[1]
+        width = 1 - crop_factor[2] - crop_factor[3]
+        start_x = crop_factor[2]
+        start_y = crop_factor[0]
+        crop_cmd = f',"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}"'
+        ffmpeg_cmd = f'ffmpeg -y -noautorotate -i "{image_dir / filename}" -q:v 2 -vf {crop_cmd[1:]} "{image_dir / filename}"'
         run_command(ffmpeg_cmd, verbose=verbose)
 
     num_frames = len(image_paths)
@@ -257,15 +299,21 @@ def copy_and_upscale_polycam_depth_maps_list(
     return copied_depth_map_paths
 
 
-def copy_images(data: Path, image_dir: Path, verbose) -> int:
+def copy_images(
+    data: Path,
+    image_dir: Path,
+    verbose,
+    crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+) -> OrderedDict[Path, Path]:
     """Copy images from a directory to a new directory.
 
     Args:
         data: Path to the directory of images.
         image_dir: Path to the output directory.
         verbose: If True, print extra logging.
+        crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
     Returns:
-        The number of images copied.
+        The mapping from the original filenames to the new ones.
     """
     with status(
         msg="[bold yellow]Copying images...", spinner="bouncingBall", verbose=verbose
@@ -276,15 +324,23 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
             CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
             sys.exit(1)
 
-        num_frames = len(copy_images_list(image_paths, image_dir, verbose))
-
-    return num_frames
+        copied_images = copy_images_list(
+            image_paths=image_paths,
+            image_dir=image_dir,
+            crop_factor=crop_factor,
+            verbose=verbose,
+        )
+        return OrderedDict(
+            (original_path, new_path)
+            for original_path, new_path in zip(image_paths, copied_images)
+        )
 
 
 def downscale_images(
     image_dir: Path,
     num_downscales: int,
     folder_name: str = "images",
+    nearest_neighbor: bool = False,
     verbose: bool = False,
 ) -> str:
     """Downscales the images in the directory. Uses FFMPEG.
@@ -295,6 +351,7 @@ def downscale_images(
         image_dir: Path to the directory containing the images.
         num_downscales: Number of times to downscale the images. Downscales by 2 each time.
         folder_name: Name of the output folder
+        nearest_neighbor: Use nearest neighbor sampling (useful for depth images)
         verbose: If True, logs the output of the command.
 
     Returns:
@@ -318,10 +375,13 @@ def downscale_images(
             # Using %05d ffmpeg commands appears to be unreliable (skips images), so use scandir.
             files = os.scandir(image_dir)
             for f in files:
+                if f.is_dir():
+                    continue
                 filename = f.name
+                nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
                 ffmpeg_cmd = [
                     f'ffmpeg -y -noautorotate -i "{image_dir / filename}" ',
-                    f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
+                    f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor}{nn_flag} ",
                     f'"{downscale_dir / filename}"',
                 ]
                 ffmpeg_cmd = " ".join(ffmpeg_cmd)
@@ -421,24 +481,24 @@ def generate_circle_mask(
 
 
 def generate_crop_mask(
-    height: int, width: int, percent_crop: Tuple[float, float, float, float]
+    height: int, width: int, crop_factor: Tuple[float, float, float, float]
 ) -> Optional[np.ndarray]:
     """generate a crop mask of the given size.
 
     Args:
         height: The height of the mask.
         width: The width of the mask.
-        percent_crop: The percent of the image to crop in each direction [top, bottom, left, right].
+        crop_factor: The percent of the image to crop in each direction [top, bottom, left, right].
 
     Returns:
         The mask or None if no cropping is performed.
     """
-    if np.all(np.array(percent_crop) == 0.0):
+    if np.all(np.array(crop_factor) == 0.0):
         return None
-    if np.any(np.array(percent_crop) < 0.0) or np.any(np.array(percent_crop) > 1.0):
+    if np.any(np.array(crop_factor) < 0.0) or np.any(np.array(crop_factor) > 1.0):
         CONSOLE.log("[bold red]Invalid crop percentage, must be between 0 and 1.")
         sys.exit(1)
-    top, bottom, left, right = percent_crop
+    top, bottom, left, right = crop_factor
     mask = np.zeros((height, width), dtype=np.uint8)
     top = int(top * height)
     bottom = int(bottom * height)
@@ -451,7 +511,7 @@ def generate_crop_mask(
 def generate_mask(
     height: int,
     width: int,
-    percent_crop: Tuple[float, float, float, float],
+    crop_factor: Tuple[float, float, float, float],
     percent_radius: float,
 ) -> Optional[np.ndarray]:
     """generate a mask of the given size.
@@ -459,13 +519,13 @@ def generate_mask(
     Args:
         height: The height of the mask.
         width: The width of the mask.
-        percent_crop: The percent of the image to crop in each direction [top, bottom, left, right].
+        crop_factor: The percent of the image to crop in each direction [top, bottom, left, right].
         percent_radius: The radius of the circle as a percentage of the image diagonal size.
 
     Returns:
         The mask or None if no mask is needed.
     """
-    crop_mask = generate_crop_mask(height, width, percent_crop)
+    crop_mask = generate_crop_mask(height, width, crop_factor)
     circle_mask = generate_circle_mask(height, width, percent_radius)
     if crop_mask is None:
         return circle_mask
@@ -477,7 +537,7 @@ def generate_mask(
 def save_mask(
     image_dir: Path,
     num_downscales: int,
-    percent_crop: Tuple[float, float, float, float] = (0, 0, 0, 0),
+    crop_factor: Tuple[float, float, float, float] = (0, 0, 0, 0),
     percent_radius: float = 1.0,
 ) -> Optional[Path]:
     """Save a mask for each image in the image directory.
@@ -485,7 +545,7 @@ def save_mask(
     Args:
         image_dir: The directory containing the images.
         num_downscales: The number of downscaling levels.
-        percent_crop: The percent of the image to crop in each direction [top, bottom, left, right].
+        crop_factor: The percent of the image to crop in each direction [top, bottom, left, right].
         percent_radius: The radius of the circle as a percentage of the image diagonal size.
 
     Returns:
@@ -494,7 +554,7 @@ def save_mask(
     image_path = next(image_dir.glob("frame_*"))
     image = cv2.imread(str(image_path))
     height, width = image.shape[:2]
-    mask = generate_mask(height, width, percent_crop, percent_radius)
+    mask = generate_mask(height, width, crop_factor, percent_radius)
     if mask is None:
         return None
     mask *= 255
