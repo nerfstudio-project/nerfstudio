@@ -33,6 +33,14 @@ from nerfstudio.viewer.server import server
 CONSOLE = Console()
 
 
+def get_free_port():
+    """Returns a free port on the local machine."""
+    sock = socket.socket()
+    sock.bind(("", 0))
+    port = sock.getsockname()[1]
+    return port
+
+
 def run_viewer_bridge_server_as_subprocess(
     websocket_port: int,
     zmq_port: Optional[int] = None,
@@ -54,9 +62,7 @@ def run_viewer_bridge_server_as_subprocess(
 
     # find an available port for zmq
     if zmq_port is None:
-        sock = socket.socket()
-        sock.bind(("", 0))
-        zmq_port = sock.getsockname()[1]
+        zmq_port = get_free_port()
         string = f"Using ZMQ port: {zmq_port}"
         CONSOLE.print(f"[bold yellow]{string}")
 
