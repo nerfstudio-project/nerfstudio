@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 import glob
-import math
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -68,7 +67,8 @@ def find_files(directory, exts):
 def parse_txt(filename):
     """Parse a text file containing numbers and return a 4x4 numpy array of float32 values."""
     assert os.path.isfile(filename)
-    nums = open(filename, encoding="UTF-8").read().split()
+    with open(filename, encoding="UTF-8") as f:
+        nums = f.read().split()
     return np.array([float(x) for x in nums]).reshape([4, 4]).astype(np.float32)
 
 
