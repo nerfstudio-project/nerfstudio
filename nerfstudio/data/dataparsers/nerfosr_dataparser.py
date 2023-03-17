@@ -23,7 +23,7 @@ import glob
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Tuple, Type, List
+from typing import List, Tuple, Type
 
 import numpy as np
 import torch
@@ -64,7 +64,14 @@ def find_files(directory: str, exts: List[str]):
 
 
 def _parse_osm_txt(filename: str):
-    """Parse a text file containing numbers and return a 4x4 numpy array of float32 values."""
+    """Parse a text file containing numbers and return a 4x4 numpy array of float32 values.
+
+    Args:
+        filename : a file containing numbers in a 4x4 matrix.
+
+    Returns:
+        A numpy array of shape [4, 4] containing the numbers from the file.
+    """
     assert os.path.isfile(filename)
     with open(filename, encoding="UTF-8") as f:
         nums = f.read().split()
