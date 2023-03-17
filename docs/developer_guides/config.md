@@ -148,3 +148,51 @@ name = "my_package"
 [project.entry-points.'nerfstudio.method_configs']
 my-method = 'my_package.my_config:MyMethod'
 ```
+
+Here is an example of how to create a new method in nerfstudio without having to create a package or modify nerfstudio
+source code. This script is a modified and simplified version of `scripts/train.py` in the nerfstudio repository.
+Running `python main.py custommethod <tyro subcommands>` will run the same as 
+`ns-train custommethod <tyro subcommands>` had you modified the source code. You can even use custom dataparsers 
+in this custom config so long as tyro>=0.4.2 is installed (adding custom dataparsers in this way is not officially
+ supported).
+```python
+"""main.py"""
+from __future__ import annotations
+
+from datetime import timedelta
+
+import torch
+import tyro
+from nerfstudio.configs.config_utils import convert_markup_to_ansi
+from nerfstudio.configs.method_configs import descriptions, method_configs
+from rich.console import Console
+from scripts.train import main
+
+# Custom imports from your own code here
+
+CONSOLE = Console(width=120)
+DEFAULT_TIMEOUT = timedelta(minutes=30)
+
+# speedup for when input size to model doesn't change (much)
+torch.backends.cudnn.benchmark = True  # type: ignore
+
+method_configs["custommethod"] = TrainerConfig(
+    # ... custom configs for custom classes
+)
+
+AnnotatedBaseConfigUnion = tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
+    tyro.conf.FlagConversionOff[
+        tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
+    ]
+]
+
+if __name__ == "__main__":
+    tyro.extras.set_accent_color("bright_yellow")
+    main(
+        tyro.cli(
+            AnnotatedBaseConfigUnion,
+            description=convert_markup_to_ansi(__doc__),
+        )
+    )
+
+```
