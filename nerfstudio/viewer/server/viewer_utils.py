@@ -260,7 +260,7 @@ class ViewerState:
         if self.config.launch_bridge_server:
             # start the viewer bridge server
             if self.config.websocket_port is None:
-                websocket_port = get_free_port()
+                websocket_port = get_free_port(default_port=7007)
             else:
                 websocket_port = self.config.websocket_port
             self.log_filename.parent.mkdir(exist_ok=True)

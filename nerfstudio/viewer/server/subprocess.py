@@ -33,8 +33,23 @@ from nerfstudio.viewer.server import server
 CONSOLE = Console()
 
 
-def get_free_port():
-    """Returns a free port on the local machine."""
+def is_port_open(port: int):
+    """Returns True if the port is open."""
+    try:
+        sock = socket.socket()
+        _ = sock.bind(("", port))
+        sock.close()
+        return True
+    except OSError:
+        return False
+
+
+def get_free_port(default_port: int = None):
+    """Returns a free port on the local machine.
+    Try to use default_port is possible."""
+    if default_port:
+        if is_port_open(default_port):
+            return default_port
     sock = socket.socket()
     sock.bind(("", 0))
     port = sock.getsockname()[1]
