@@ -47,6 +47,7 @@ from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
     InstantNGPDataParserConfig,
 )
 from nerfstudio.data.dataparsers.minimal_dataparser import MinimalDataParserConfig
+from nerfstudio.data.dataparsers.nerfosr_dataparser import NeRFOSRDataParserConfig
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.dataparsers.nuscenes_dataparser import NuScenesDataParserConfig
 from nerfstudio.data.dataparsers.phototourism_dataparser import (
@@ -54,7 +55,6 @@ from nerfstudio.data.dataparsers.phototourism_dataparser import (
 )
 from nerfstudio.data.dataparsers.scannet_dataparser import ScanNetDataParserConfig
 from nerfstudio.data.dataparsers.sdfstudio_dataparser import SDFStudioDataParserConfig
-from nerfstudio.data.dataparsers.nerfosr_dataparser import NeRFOSRDataParserConfig
 from nerfstudio.data.dataparsers.sitcoms3d_dataparser import Sitcoms3DDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import (
