@@ -138,7 +138,7 @@ class ViewerConfig(PrintableConfig):
     websocket_port: Optional[int] = None
     """The websocket port to connect to. If None, find an available port."""
     websocket_port_default: int = 7007
-    """The default websocket port to connect to."""
+    """The default websocket port to connect to if websocket_port is not specified"""
     ip_address: str = "127.0.0.1"
     """the ip address where the bridge server is running"""
     num_rays_per_chunk: int = 32768
