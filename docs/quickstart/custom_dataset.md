@@ -5,7 +5,7 @@ Training model on existing datasets is only so fun. If you would like to train o
 To process your own data run:
 
 ```bash
-ns-process-data {video,images,polycam,insta360,record3d} --data {DATA_PATH} --output-dir {PROCESSED_DATA_DIR}
+ns-process-data {video,images,polycam,record3d} --data {DATA_PATH} --output-dir {PROCESSED_DATA_DIR}
 ```
 
 A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`.
@@ -297,10 +297,10 @@ Equirectangular data is data that has been taken by a 360 camera such as Insta36
 For a set of equirectangular images, process the data using the following command:
 
 ```bash
-ns-process-data images --camera-type equirectangular --images-per-equirect {8, or 14} --data {data directory} --output-dir {output directory}
+ns-process-data images --camera-type equirectangular --images-per-equirect {8, or 14} --crop-factor {top bottom left right} --data {data directory} --output-dir {output directory}
 ```
 
-The images-per-equirect argument is the number of images that will be sampled from each equirectangular image. We have found that 8 images per equirectangular image is sufficient for most use cases so it defaults to that. However, if you find that there isn't enough detail in the nerf or that colmap is having trouble aligning the images, you can try increasing the number of images per equirectangular image to 14.
+The images-per-equirect argument is the number of images that will be sampled from each equirectangular image. We have found that 8 images per equirectangular image is sufficient for most use cases so it defaults to that. However, if you find that there isn't enough detail in the nerf or that colmap is having trouble aligning the images, you can try increasing the number of images per equirectangular image to 14. See the video section below for details on cropping.
 
 ### Videos
 

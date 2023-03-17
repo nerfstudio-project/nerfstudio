@@ -2,7 +2,6 @@
 """Processes a video or image sequence to a nerfstudio compatible dataset."""
 
 
-import json
 import shutil
 import sys
 import zipfile
@@ -19,7 +18,6 @@ from nerfstudio.process_data import (
     colmap_utils,
     equirect_utils,
     hloc_utils,
-    insta360_utils,
     metashape_utils,
     polycam_utils,
     process_data_utils,
@@ -459,148 +457,6 @@ class ProcessVideo:
 
 
 @dataclass
-class ProcessInsta360:
-    """Process Insta360 videos into a nerfstudio dataset. Currently this uses a center crop of the raw data
-    so data at the extreme edges of the video will be lost.
-
-    Expects data from a 2 camera Insta360, single or >2 camera models will not work.
-    (tested with Insta360 One X2)
-
-    This script does the following:
-
-    1. Converts the videos into images.
-    2. Scales images to a specified size.
-    3. Calculates the camera poses for each image using `COLMAP <https://colmap.github.io/>`_.
-    """
-
-    data: Path
-    """Path the data, It should be one of the 3 .insv files saved with each capture (Any work)."""
-    output_dir: Path
-    """Path to the output directory."""
-    num_frames_target: int = 400
-    """Target number of frames to use for the dataset, results may not be exact."""
-    matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
-    """Feature matching method to use. Vocab tree is recommended for a balance of speed and
-        accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos."""
-    num_downscales: int = 3
-    """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
-        will downscale the images by 2x, 4x, and 8x."""
-    skip_colmap: bool = False
-    """If True, skips COLMAP and generates transforms.json if possible."""
-    colmap_cmd: str = "colmap"
-    """How to call the COLMAP executable."""
-    use_sfm_depth: bool = False
-    """If True, export and use depth maps induced from SfM points."""
-    include_depth_debug: bool = False
-    """If --use-sfm-depth and this flag is True, also export debug images showing SfM overlaid upon input images."""
-    gpu: bool = True
-    """If True, use GPU."""
-    verbose: bool = False
-    """If True, print extra logging."""
-
-    def main(self) -> None:
-        """Process video into a nerfstudio dataset."""
-        install_checks.check_ffmpeg_installed()
-        install_checks.check_colmap_installed()
-
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        image_dir = self.output_dir / "images"
-        image_dir.mkdir(parents=True, exist_ok=True)
-
-        filename_back, filename_front = insta360_utils.get_insta360_filenames(self.data)
-
-        if not filename_back.exists():
-            raise FileNotFoundError(f"Could not find {filename_back}")
-
-        ffprobe_cmd = f'ffprobe -v quiet -print_format json -show_streams -select_streams v:0 "{filename_back}"'
-
-        ffprobe_output = process_data_utils.run_command(ffprobe_cmd)
-
-        assert ffprobe_output is not None
-        ffprobe_decoded = json.loads(ffprobe_output)
-
-        width, height = ffprobe_decoded["streams"][0]["width"], ffprobe_decoded["streams"][0]["height"]
-
-        summary_log, num_extracted_frames = [], 0
-
-        if width / height == 1:
-            if not filename_front.exists():
-                raise FileNotFoundError(f"Could not find {filename_front}")
-            # Convert video to images
-            summary_log, num_extracted_frames = insta360_utils.convert_insta360_to_images(
-                video_front=filename_front,
-                video_back=filename_back,
-                image_dir=image_dir,
-                num_frames_target=self.num_frames_target,
-                verbose=self.verbose,
-            )
-        else:
-            summary_log, num_extracted_frames = insta360_utils.convert_insta360_single_file_to_images(
-                video=filename_back,
-                image_dir=image_dir,
-                num_frames_target=self.num_frames_target,
-                verbose=self.verbose,
-            )
-
-        # Downscale images
-        summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
-
-        # Run Colmap
-        colmap_dir = self.output_dir / "colmap"
-        if not self.skip_colmap:
-            colmap_dir.mkdir(parents=True, exist_ok=True)
-
-            colmap_utils.run_colmap(
-                image_dir=image_dir,
-                colmap_dir=colmap_dir,
-                camera_model=CAMERA_MODELS["fisheye"],
-                gpu=self.gpu,
-                verbose=self.verbose,
-                matching_method=self.matching_method,
-                colmap_cmd=self.colmap_cmd,
-            )
-
-        # Export depth maps
-        if self.use_sfm_depth:
-            depth_dir = self.output_dir / "depth"
-            depth_dir.mkdir(parents=True, exist_ok=True)
-            image_id_to_depth_path = colmap_utils.create_sfm_depth(
-                recon_dir=colmap_dir / "sparse" / "0",
-                output_dir=depth_dir,
-                include_depth_debug=self.include_depth_debug,
-                input_images_dir=image_dir,
-                verbose=self.verbose,
-            )
-            summary_log.append(
-                process_data_utils.downscale_images(
-                    depth_dir, self.num_downscales, folder_name="depths", nearest_neighbor=True, verbose=self.verbose
-                )
-            )
-        else:
-            image_id_to_depth_path = None
-
-        # Save transforms.json
-        if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
-            with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
-                num_matched_frames = colmap_utils.colmap_to_json(
-                    recon_dir=colmap_dir / "sparse" / "0",
-                    output_dir=self.output_dir,
-                    image_id_to_depth_path=image_id_to_depth_path,
-                    image_rename_map=None,
-                )
-                summary_log.append(f"Colmap matched {num_matched_frames} images")
-            summary_log.append(colmap_utils.get_matching_summary(num_extracted_frames, num_matched_frames))
-        else:
-            CONSOLE.log("[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json")
-
-        CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
-
-        for summary in summary_log:
-            CONSOLE.print(summary, justify="center")
-        CONSOLE.rule()
-
-
-@dataclass
 class ProcessRecord3D:
     """Process Record3D data into a nerfstudio dataset.
 
@@ -967,7 +823,6 @@ Commands = Union[
     Annotated[ProcessPolycam, tyro.conf.subcommand(name="polycam")],
     Annotated[ProcessMetashape, tyro.conf.subcommand(name="metashape")],
     Annotated[ProcessRealityCapture, tyro.conf.subcommand(name="realitycapture")],
-    Annotated[ProcessInsta360, tyro.conf.subcommand(name="insta360")],
     Annotated[ProcessRecord3D, tyro.conf.subcommand(name="record3d")],
 ]
 
