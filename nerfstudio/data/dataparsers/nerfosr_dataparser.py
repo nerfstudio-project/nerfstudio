@@ -192,7 +192,7 @@ class NeRFOSR(DataParser):
         if split == "train":
             camera_to_worlds = camera_to_worlds[:n_train]
             intrinsics = intrinsics[:n_train]
-        elif split == "val":
+        elif split == "validation":
             camera_to_worlds = camera_to_worlds[n_train : n_train + n_val]
             intrinsics = intrinsics[n_train : n_train + n_val]
         elif split == "test":
