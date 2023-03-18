@@ -89,7 +89,6 @@ def get_camera_params(scene_dir: str, split: str) -> Tuple[torch.Tensor, torch.T
         A tuple containing the intrinsic parameters (as a torch.Tensor of shape [N, 4, 4]),
         the camera-to-world matrices (as a torch.Tensor of shape [N, 4, 4]), and the number of cameras (N).
     """
-    split = "validation" if split == "val" else split
     split_dir = f"{scene_dir}/{split}"
 
     # camera parameters files
@@ -169,7 +168,7 @@ class NeRFOSR(DataParser):
 
         # get all split cam params
         intrinsics_train, camera_to_worlds_train, n_train = get_camera_params(scene_dir, "train")
-        intrinsics_val, camera_to_worlds_val, n_val = get_camera_params(scene_dir, "val")
+        intrinsics_val, camera_to_worlds_val, n_val = get_camera_params(scene_dir, "validation")
         intrinsics_test, camera_to_worlds_test, _ = get_camera_params(scene_dir, "test")
 
         # combine all cam params
