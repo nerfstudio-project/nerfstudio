@@ -83,7 +83,7 @@ def get_camera_params(scene_dir: str, split: str) -> Tuple[torch.Tensor, torch.T
 
     Args"
       scene_dir : The directory containing the scene data.
-      split : The split for which to load the camera parameters. Either "train", "val", or "test".
+      split : The split for which to load the camera parameters. Either "train", "validation", or "test".
 
     Returns
         A tuple containing the intrinsic parameters (as a torch.Tensor of shape [N, 4, 4]),
