@@ -138,6 +138,62 @@ class CacheDataloader(DataLoader):
             yield collated_batch
 
 
+class GanDataloader(DataLoader):
+    """Evaluation dataloader base class
+
+    Args:
+        input_dataset: InputDataset to load data from
+        device: Device to load data to
+    """
+
+    def __init__(
+        self,
+        input_dataset: InputDataset,
+        device: Union[torch.device, str] = "cpu",
+        **kwargs,
+    ):
+        self.input_dataset = input_dataset
+        self.device = device
+        
+        # NOTE - cameras: Cameras to generate aribitary camera pose image sample 
+        self.cameras = input_dataset.cameras.to(device)
+        self.kwargs = kwargs
+        super().__init__(dataset=input_dataset)
+        self.count = 0
+
+    def __iter__(self):
+        self.count = 0
+        return self
+
+    def __next__(self):
+        if self.count < 1:
+            pose_indices = range(self.cameras.size) # 그냥 num_cameras라고 생각하는게 맞을 듯
+            pose_idx = random.choice(pose_indices)
+            ray_bundle, batch = self.get_data_from_image_idx(pose_idx)
+            self.count += 1
+            return ray_bundle, batch
+        raise StopIteration
+
+    def get_camera(self, image_idx: int = 0) -> Cameras:
+        """Get camera for the given image index
+
+        Args:
+            image_idx: Camera image index
+        """
+        return self.cameras[image_idx]
+
+    def get_data_from_pose_idx(self, pose_idx: int) -> Tuple[RayBundle, Dict]:
+        """Returns the data for a specific image index.
+
+        Args:
+            image_idx: Camera image index
+        """
+        ray_bundle = self.cameras.generate_rays(camera_indices=pose_idx, keep_shape=True) #REVIEW - Keep shape for fulll iamge
+        batch = self.input_dataset[pose_idx]
+        batch = get_dict_to_torch(batch, device=self.device, exclude=["image"]) # image는 torch로 혹은 device로 보내지 않나봐.
+        return ray_bundle, batch
+
+
 class EvalDataloader(DataLoader):
     """Evaluation dataloader base class
 
