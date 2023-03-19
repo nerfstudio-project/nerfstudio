@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional, Type
 
 import torch
 from torchtyping import TensorType
+from typing_extensions import Literal
 
 import nerfstudio.configs.base_config as cfg
 from nerfstudio.cameras.cameras import Cameras
@@ -89,6 +90,26 @@ class DataparserOutputs:
         with open(path, "w", encoding="UTF-8") as file:
             json.dump(data, file, indent=4)
 
+    def transform_poses_to_original_space(
+        self,
+        poses: TensorType["num_poses", 3, 4],
+        camera_convention: Literal["opengl", "opencv"] = "opencv",
+    ) -> TensorType["num_poses", 3, 4]:
+        """
+        Transforms the poses in the transformed space back to the original world coordinate system.
+        Args:
+            poses: Poses in the transformed space
+            camera_convention: Camera system convention used for the transformed poses
+        Returns:
+            Original poses
+        """
+        return transform_poses_to_original_space(
+            poses,
+            self.dataparser_transform,
+            self.dataparser_scale,
+            camera_convention=camera_convention,
+        )
+
 
 @dataclass
 class DataParserConfig(cfg.InstantiateConfig):
@@ -136,3 +157,46 @@ class DataParser:
         """
         dataparser_outputs = self._generate_dataparser_outputs(split)
         return dataparser_outputs
+
+
+def transform_poses_to_original_space(
+    poses: TensorType["num_poses", 3, 4],
+    applied_transform: TensorType[3, 4],
+    applied_scale: float,
+    camera_convention: Literal["opengl", "opencv"] = "opencv",
+) -> TensorType["num_poses", 3, 4]:
+    """
+    Transforms the poses in the transformed space back to the original world coordinate system.
+    Args:
+        poses: Poses in the transformed space
+        applied_transform: Transform matrix applied in the data processing step
+        applied_scale: Scale used in the data processing step
+        camera_convention: Camera system convention used for the transformed poses
+    Returns:
+        Original poses
+    """
+    output_poses = torch.cat(
+        (
+            poses,
+            torch.tensor([[[0, 0, 0, 1]]], dtype=poses.dtype, device=poses.device).repeat_interleave(len(poses), 0),
+        ),
+        1,
+    )
+    output_poses[..., :3, 3] /= applied_scale
+    inv_transform = torch.linalg.inv(
+        torch.cat(
+            (
+                applied_transform,
+                torch.tensor([[0, 0, 0, 1]], dtype=applied_transform.dtype, device=applied_transform.device),
+            ),
+            0,
+        )
+    )
+    output_poses = torch.einsum("ij,bjk->bik", inv_transform, output_poses)
+    if camera_convention == "opencv":
+        output_poses[..., 0:3, 1:3] *= -1
+    elif camera_convention == "opengl":
+        pass
+    else:
+        raise ValueError(f"Camera convention {camera_convention} is not supported.")
+    return output_poses[:, :3]
