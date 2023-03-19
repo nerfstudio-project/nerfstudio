@@ -104,11 +104,14 @@ class TCNNNerfactoField(Field):
         use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: SpatialDistortion = None,
+        freq_warmup=1000,
     ) -> None:
         super().__init__()
 
         self.register_buffer("aabb", aabb)
         self.geo_feat_dim = geo_feat_dim
+        self.freq_warmup = freq_warmup
+        self.step = 0
 
         self.register_buffer("max_res", torch.tensor(max_res))
         self.register_buffer("num_levels", torch.tensor(num_levels))
@@ -140,10 +143,8 @@ class TCNNNerfactoField(Field):
             n_input_dims=3,
             encoding_config={"otype": "Frequency", "n_frequencies": 2},
         )
-
-        self.mlp_base = tcnn.NetworkWithInputEncoding(
+        self.mlp_base_grid = tcnn.Encoding(
             n_input_dims=3,
-            n_output_dims=1 + self.geo_feat_dim,
             encoding_config={
                 "otype": "HashGrid",
                 "n_levels": num_levels,
@@ -152,6 +153,10 @@ class TCNNNerfactoField(Field):
                 "base_resolution": base_res,
                 "per_level_scale": growth_factor,
             },
+        )
+        self.mlp_base_mlp = tcnn.Network(
+            n_input_dims=self.mlp_base_grid.n_output_dims,
+            n_output_dims=1 + self.geo_feat_dim,
             network_config={
                 "otype": "FullyFusedMLP",
                 "activation": "ReLU",
@@ -160,6 +165,25 @@ class TCNNNerfactoField(Field):
                 "n_hidden_layers": num_layers - 1,
             },
         )
+        # self.mlp_base = tcnn.NetworkWithInputEncoding(
+        #     n_input_dims=3,
+        #     n_output_dims=1 + self.geo_feat_dim,
+        #     encoding_config={
+        #         "otype": "HashGrid",
+        #         "n_levels": num_levels,
+        #         "n_features_per_level": features_per_level,
+        #         "log2_hashmap_size": log2_hashmap_size,
+        #         "base_resolution": base_res,
+        #         "per_level_scale": growth_factor,
+        #     },
+        #     network_config={
+        #         "otype": "FullyFusedMLP",
+        #         "activation": "ReLU",
+        #         "output_activation": "None",
+        #         "n_neurons": hidden_dim,
+        #         "n_hidden_layers": num_layers - 1,
+        #     },
+        # )
 
         # transients
         if self.use_transient_embedding:
@@ -224,6 +248,29 @@ class TCNNNerfactoField(Field):
             },
         )
 
+    def step_cb(self, step):
+        self.step = step
+
+    def get_freq_mask(self, B, N, D, device):
+        step = self.step
+        warmup = self.freq_warmup
+        ts = np.linspace(step * N, step, N)
+        mask_vals = np.interp(ts, [0, warmup], [0, 1])
+        m = torch.from_numpy(mask_vals)[None, ..., None].to(device)
+        return m.repeat((B, 1, D))
+
+    def mask_freqs(self, hashgrid_outputs):
+        """
+        hashgrid_outputs is a B x N*D array of the hashgrid values
+        """
+        # N is number of levels (usually 16)
+        # D is feature dim (usually 2)
+        N = self.mlp_base_grid.encoding_config["n_levels"]
+        D = self.mlp_base_grid.encoding_config["n_features_per_level"]
+        hashgrid_outputs = hashgrid_outputs.view(-1, N, D)
+        masked = self.get_freq_mask(hashgrid_outputs.shape[0], N, D, hashgrid_outputs.device) * hashgrid_outputs
+        return masked.view(masked.shape[0], -1)
+
     def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
         """Computes and returns the densities."""
         if self.spatial_distortion is not None:
@@ -239,7 +286,10 @@ class TCNNNerfactoField(Field):
         if not self._sample_locations.requires_grad:
             self._sample_locations.requires_grad = True
         positions_flat = positions.view(-1, 3)
-        h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
+        hashgrid_vecs = self.mlp_base_grid(positions_flat)
+        hashgrid_vecs = self.mask_freqs(hashgrid_vecs)
+        # TODO: modulate frequencies
+        h = self.mlp_base_mlp(hashgrid_vecs).view(*ray_samples.frustums.shape, -1)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
         self._density_before_activation = density_before_activation
 

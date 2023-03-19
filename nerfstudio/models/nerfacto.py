@@ -93,6 +93,8 @@ class NerfactoModelConfig(ModelConfig):
     """Sample every n steps after the warmup"""
     proposal_warmup: int = 5000
     """Scales n from 1 to proposal_update_every over this many steps"""
+    freq_warmup: int = 0
+    "how long the warmup of hashgrid layers (similar to FreeNeRF) is"
     num_proposal_iterations: int = 2
     """Number of proposal network iterations."""
     use_same_proposal_network: bool = False
@@ -120,7 +122,7 @@ class NerfactoModelConfig(ModelConfig):
     """Whether to use average appearance embedding or zeros for inference."""
     proposal_weights_anneal_slope: float = 10.0
     """Slope of the annealing function for the proposal weights."""
-    proposal_weights_anneal_max_num_iters: int = 1000
+    proposal_weights_anneal_max_num_iters: int = 4000
     """Max num iterations for the annealing function."""
     use_single_jitter: bool = True
     """Whether use single jitter or not for the proposal networks."""
@@ -161,6 +163,7 @@ class NerfactoModel(Model):
             num_images=self.num_train_data,
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
+            freq_warmup=self.config.freq_warmup,
         )
 
         self.density_fns = []
@@ -258,6 +261,13 @@ class NerfactoModel(Model):
                     where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                     update_every_num_iters=1,
                     func=self.proposal_sampler.step_cb,
+                )
+            )
+            callbacks.append(
+                TrainingCallback(
+                    where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                    update_every_num_iters=1,
+                    func=self.field.step_cb,
                 )
             )
         return callbacks
