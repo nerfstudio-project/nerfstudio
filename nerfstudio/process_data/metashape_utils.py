@@ -27,7 +27,7 @@ from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 CONSOLE = Console(width=120)
 
 
-def _find_distortion_param(calib_xml: ET.Element, param_name: str):
+def _find_param(calib_xml: ET.Element, param_name: str):
     param = calib_xml.find(param_name)
     if param is not None:
         return float(param.text)  # type: ignore
@@ -62,34 +62,71 @@ def metashape_to_json(  # pylint: disable=too-many-statements
         raise ValueError("No sensors found")
 
     calibrated_sensors = [sensor for sensor in sensors if sensor.find("calibration")]
-    if len(calibrated_sensors) != 1:
-        raise ValueError("Only one sensor is supported for now")
-
-    sensor = calibrated_sensors[0]
-
+    if not calibrated_sensors:
+        raise ValueError("No calibrated sensor found in Metashape XML")
+    sensor_type = [s.get("type") for s in calibrated_sensors]
+    if sensor_type.count(sensor_type[0]) != len(sensor_type):
+        raise ValueError("All Metashape sensors do not have the same sensor type")
     data = {}
+    if sensor_type[0] == "frame":
+        data["camera_model"] = CAMERA_MODELS["perspective"].value
+    elif sensor_type[0] == "fisheye":
+        data["camera_model"] = CAMERA_MODELS["fisheye"].value
+    elif sensor_type[0] == "spherical":
+        data["camera_model"] = CAMERA_MODELS["equirectangular"].value
+    else:
+        # Cylindrical and RPC sensor types are not supported
+        raise ValueError(f"Unsupported Metashape sensor type '{sensor_type[0]}'")
 
-    assert sensor is not None, "Sensor not found in Metashape XML"
-    resolution = sensor.find("resolution")
-    assert resolution is not None, "Resolution not found in Metashape xml"
-    data["w"] = int(resolution.get("width"))  # type: ignore
-    data["h"] = int(resolution.get("height"))  # type: ignore
+    sensor_dict = {}
+    for sensor in calibrated_sensors:
+        s = {}
+        resolution = sensor.find("resolution")
+        assert resolution is not None, "Resolution not found in Metashape xml"
+        s["w"] = int(resolution.get("width"))  # type: ignore
+        s["h"] = int(resolution.get("height"))  # type: ignore
 
-    calib = sensor.find("calibration")
-    assert calib is not None, "Calibration not found in Metashape xml"
-    data["fl_x"] = float(calib.find("f").text)  # type: ignore
-    data["fl_y"] = float(calib.find("f").text)  # type: ignore
-    data["cx"] = float(calib.find("cx").text) + data["w"] / 2.0  # type: ignore
-    data["cy"] = float(calib.find("cy").text) + data["h"] / 2.0  # type: ignore
+        calib = sensor.find("calibration")
+        f = calib.find("f")
+        if f is not None:
+            s["fl_x"] = s["fl_y"] = float(f.text)  # type: ignore
+        s["cx"] = _find_param(calib, "cx") + s["w"] / 2.0  # type: ignore
+        s["cy"] = _find_param(calib, "cy") + s["h"] / 2.0  # type: ignore
 
-    data["k1"] = _find_distortion_param(calib, "k1")
-    data["k2"] = _find_distortion_param(calib, "k2")
-    data["k3"] = _find_distortion_param(calib, "k3")
-    data["k4"] = _find_distortion_param(calib, "k4")
-    data["p1"] = _find_distortion_param(calib, "p1")
-    data["p2"] = _find_distortion_param(calib, "p2")
+        s["k1"] = _find_param(calib, "k1")
+        s["k2"] = _find_param(calib, "k2")
+        s["k3"] = _find_param(calib, "k3")
+        s["k4"] = _find_param(calib, "k4")
+        s["p1"] = _find_param(calib, "p1")
+        s["p2"] = _find_param(calib, "p2")
 
-    data["camera_model"] = CAMERA_MODELS["perspective"].value
+        sensor_dict[sensor.get("id")] = s
+
+    components = chunk.find("components")
+    component_dict = {}
+    for component in components:
+        transform = component.find("transform")
+        if transform is not None:
+            rotation = transform.find("rotation")
+            if rotation is None:
+                r = np.eye(3)
+            else:
+                r = np.array([float(x) for x in rotation.text.split()]).reshape((3, 3))
+            translation = transform.find("translation")
+            if translation is None:
+                t = np.zeros(3)
+            else:
+                t = np.array([float(x) for x in translation.text.split()])
+            scale = transform.find("scale")
+            if scale is None:
+                s = 1.0
+            else:
+                s = float(scale.text)
+
+            m = np.eye(4)
+            m[:3, :3] = r
+            m[:3, 3] = t / s
+            component_dict[component.get("id")] = m
 
     frames = []
     cameras = chunk.find("cameras")
@@ -97,33 +134,36 @@ def metashape_to_json(  # pylint: disable=too-many-statements
     num_skipped = 0
     for camera in cameras:
         frame = {}
-        # Labels sometimes have a file extension. We remove it for consistency.
-        camera_label = camera.get("label").split(".")[0]  # type: ignore
+        camera_label = camera.get("label")
         if camera_label not in image_filename_map:
-            continue
+            # Labels sometimes have a file extension. Try without the extension.
+            # (maybe it's just a '.' in the image name)
+            camera_label = camera_label.split(".")[0]  # type: ignore
+            if camera_label not in image_filename_map:
+                continue
         frame["file_path"] = image_filename_map[camera_label].as_posix()
 
-        if camera.get("sensor_id") != sensor.get("id"):
+        sensor_id = camera.get("sensor_id")
+        if sensor_id not in sensor_dict:
             # this should only happen when we have a sensor that doesn't have calibration
             if verbose:
                 CONSOLE.print(f"Missing sensor calibration for {camera.get('label')}, Skipping")
             num_skipped += 1
             continue
+        # Add all sensor parameters to this frame.
+        frame.update(sensor_dict[sensor_id])
 
         if camera.find("transform") is None:
             if verbose:
                 CONSOLE.print(f"Missing transforms data for {camera.get('label')}, Skipping")
             num_skipped += 1
             continue
-        t = [float(x) for x in camera.find("transform").text.split()]  # type: ignore
-        transform = np.array(
-            [
-                [t[8], -t[9], -t[10], t[11]],
-                [t[0], -t[1], -t[2], t[3]],
-                [t[4], -t[5], -t[6], t[7]],
-                [t[12], -t[13], -t[14], t[15]],
-            ]
-        )
+        transform = np.array([float(x) for x in camera.find("transform").text.split()]).reshape((4, 4))
+        component_id = camera.get("component_id")
+        if component_id in component_dict:
+            transform = component_dict[component_id] @ transform
+        transform = transform[[2, 0, 1, 3], :]
+        transform[:, 1:3] *= -1
         frame["transform_matrix"] = transform.tolist()
         frames.append(frame)
 
