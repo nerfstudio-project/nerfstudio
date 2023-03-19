@@ -76,7 +76,7 @@ def metashape_to_json(  # pylint: disable=too-many-statements
         data["camera_model"] = CAMERA_MODELS["equirectangular"].value
     else:
         # Cylindrical and RPC sensor types are not supported
-        raise ValueError("Unsupported Metashape sensor type '{sensor_type[0]}'")
+        raise ValueError(f"Unsupported Metashape sensor type '{sensor_type[0]}'")
 
     sensor_dict = {}
     for sensor in calibrated_sensors:
