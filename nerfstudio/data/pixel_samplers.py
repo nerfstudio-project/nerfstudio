@@ -188,12 +188,20 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         Args:
             image_batch: batch of images to sample from
         """
+
         if isinstance(image_batch["image"], list):
             image_batch = dict(image_batch.items())  # copy the dictionary so we don't modify the original
+            if self.keep_full_image:
+                num_images = len(batch["image"])
+                image_height, image_width, _ = image_batch["image"][0].shape
+                set_num_rays_per_batch(num_images * image_height * image_width)
             pixel_batch = self.collate_image_dataset_batch_list(
                 image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
             )
         elif isinstance(image_batch["image"], torch.Tensor):
+            if self.keep_full_image:
+                num_images, image_height, image_width, _ = batch["image"].shape
+                set_num_rays_per_batch(num_images * image_height * image_width)
             pixel_batch = self.collate_image_dataset_batch(
                 image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
             )
