@@ -30,6 +30,7 @@ from nerfstudio.utils import writer
 
 warnings.filterwarnings("ignore", module="torchvision")
 
+
 # Pretty printing class
 class PrintableConfig:  # pylint: disable=too-few-public-methods
     """Printable Config defining str function"""
