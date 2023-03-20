@@ -164,7 +164,7 @@ class Trainer:
                 pipeline=self.pipeline,  # type: ignore
             )
         )
-        
+
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / self.config.logging.relative_log_dir
         writer.setup_event_writer(
