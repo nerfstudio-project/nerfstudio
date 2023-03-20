@@ -86,7 +86,7 @@ class ExperimentPipeline:
     @my_timer("Evaluate")
     def eval(self, config: str, output_name: str):
         CONSOLE.print("Evaluating model")
-        cmd = f"ns-eval --load-config {config} --output-path evals/{output_name}.json"
+        cmd = f"ns-eval --load-config {config} --output-path {self.output_dir}/{output_name}.json"
         run_command(cmd, verbose=True)
 
 
