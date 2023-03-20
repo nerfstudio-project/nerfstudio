@@ -24,7 +24,6 @@ class Args:
     model: str
     input_data_dir: Path
     output_dir: Path
-    eval_output_dir: Path
     experiment_name: str
 
 
@@ -35,7 +34,7 @@ class my_timer(ContextDecorator):
     def __enter__(self):
         self.start = timer()
 
-    def __exit__(self):
+    def __exit__(self, *args):
         self.end = timer()
         msg = f"[time] {self.name}: {self.end - self.start}\n"
         writer["terminal"].write(msg)
@@ -76,11 +75,9 @@ class ExperimentPipeline:
     # ns-train instant-ngp --data data/videos/tier2 --trainer.load_dir $output_path --viewer.start-train False
     @my_timer("Train")
     def train(self):
-        input_data_dir = self.input_data_dir
-        output_dir = self.output_dir
-        CONSOLE.print(f"Training model\nModel: {self.model}\nInput dir: {input_data_dir}")
-        # cmd = f"ns-train {self.model} --data {input_data_dir} --output-dir {output_dir} --vis wandb --viewer.quit-on-train-completion True"
-        cmd = f"ns-train {self.model} --data {input_data_dir} --output-dir {output_dir} --max-num-iterations 1000 --vis wandb --viewer.quit-on-train-completion True"
+        CONSOLE.print(f"Training model\nModel: {self.model}\nInput dir: {self.input_data_dir}")
+        # cmd = f"ns-train {self.model} --data {self.input_data_dir} --output-dir {output_dir} --vis wandb --viewer.quit-on-train-completion True"
+        cmd = f"ns-train {self.model} --data {self.input_data_dir} --output-dir {self.output_dir} --experiment-name {self.experiment_name} --max-num-iterations 1000 --vis wandb --viewer.quit-on-train-completion True"
 
         if self.model == "mipnerf":
             cmd += " nerfstudio-data"
@@ -97,7 +94,7 @@ class ExperimentPipeline:
 if __name__ == "__main__":
     """
     Run this script to process input-data, train and evaluate a model.
-    Example: ./nerf_carla_pipeline.py --model nerfacto --input_data ../carlo/runs/exp_capacity_1 --eval_output_dir ../carlo/runs/exp_capacity_1
+    Example: ./nerf_carla_pipeline.py --model nerfacto --input_data ../carlo/runs/exp_capacity_1 --output_dir ../carlo/runs/exp_capacity_1
     Old Example: ./nerf_pipeline.py --model nerfacto --data_source images --input_data data/videos/hovedbygget/images_old --output_dir data/videos/hovedbygget
     """
     args = tyro.cli(Args)
@@ -109,7 +106,6 @@ if __name__ == "__main__":
     args = Args(
         model="nerfacto",
         input_data_dir=input_data_dir,
-        eval_output_dir=input_data_dir,
         output_dir=input_data_dir,
         experiment_name=experiment_name,
     )
