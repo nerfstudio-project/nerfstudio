@@ -35,7 +35,7 @@ class my_timer(ContextDecorator):
     def __enter__(self):
         self.start = timer()
 
-    def __exit__(self, *args):
+    def __exit__(self):
         self.end = timer()
         msg = f"[time] {self.name}: {self.end - self.start}\n"
         writer["terminal"].write(msg)
