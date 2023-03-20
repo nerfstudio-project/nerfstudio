@@ -76,7 +76,7 @@ class ExperimentPipeline:
     def train(self):
         CONSOLE.print(f"Training model\nModel: {self.model}\nInput dir: {self.input_data_dir}")
         # cmd = f"ns-train {self.model} --data {self.input_data_dir} --output-dir {output_dir} --vis wandb --viewer.quit-on-train-completion True"
-        cmd = f"ns-train {self.model} --data {self.input_data_dir} --output-dir {self.output_dir} --experiment-name {self.experiment_name} --max-num-iterations 1000 --vis wandb --viewer.quit-on-train-completion True"
+        cmd = f"ns-train {self.model} --data {self.input_data_dir} --output-dir {self.output_dir} --experiment-name {self.experiment_name} --trainer.max-num-iterations 1000 --vis wandb --viewer.quit-on-train-completion True"
 
         if self.model == "mipnerf":
             cmd += " nerfstudio-data"
@@ -110,6 +110,7 @@ if __name__ == "__main__":
     for run_dir in input_data_dir.iterdir():
         if run_dir.is_dir():
             args.input_data_dir = run_dir
+            args.output_dir = run_dir
             experiment_name = "-".join(str(run_dir).split("/")[-2:])
             pipeline = ExperimentPipeline(args, writer, experiment_name)
             pipeline.run()
