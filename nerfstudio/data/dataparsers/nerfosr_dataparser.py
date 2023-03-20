@@ -78,12 +78,14 @@ def _parse_osm_txt(filename: str):
     return np.array([float(x) for x in nums]).reshape([4, 4]).astype(np.float32)
 
 
-def get_camera_params(scene_dir: str, split: str) -> Tuple[torch.Tensor, torch.Tensor, int]:
+def get_camera_params(
+    scene_dir: str, split: Literal["train", "validation", "test"]
+) -> Tuple[torch.Tensor, torch.Tensor, int]:
     """Load camera intrinsic and extrinsic parameters for a given scene split.
 
     Args"
       scene_dir : The directory containing the scene data.
-      split : The split for which to load the camera parameters. Either "train", "validation", or "test".
+      split : The split for which to load the camera parameters.
 
     Returns
         A tuple containing the intrinsic parameters (as a torch.Tensor of shape [N, 4, 4]),
