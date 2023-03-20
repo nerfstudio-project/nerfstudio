@@ -24,7 +24,6 @@ class Args:
     model: str
     input_data_dir: Path
     output_dir: Path
-    experiment_name: str
 
 
 class my_timer(ContextDecorator):
@@ -44,7 +43,7 @@ class my_timer(ContextDecorator):
 
 
 class ExperimentPipeline:
-    def __init__(self, args: Args, writer):
+    def __init__(self, args: Args, writer, experiment_name: str):
         self.args = args
         self.writer = writer
         self.terminal = sys.stdout
@@ -53,7 +52,7 @@ class ExperimentPipeline:
         self.input_data_dir = args.input_data_dir
         self.output_dir = args.output_dir
         self.model = args.model
-        self.experiment_name = args.experiment_name
+        self.experiment_name = experiment_name
 
     def run(self):
         self.train()
@@ -102,18 +101,17 @@ if __name__ == "__main__":
 
     # Run pipeline in sequence
     input_data_dir = Path(args.input_data_dir)
-    experiment_name = str(args.output_dir).split("/")[-1]
+    
     args = Args(
         model="nerfacto",
         input_data_dir=input_data_dir,
         output_dir=input_data_dir,
-        experiment_name=experiment_name,
     )
     for run_dir in input_data_dir.iterdir():
         if run_dir.is_dir():
             args.input_data_dir = run_dir
-            args.experiment_name = experiment_name + "-" + str(run_dir).split("/")[-1]
-            pipeline = ExperimentPipeline(args, writer)
+            experiment_name = "-".join(str(args.output_dir).split("/")[-2])
+            pipeline = ExperimentPipeline(args, writer, experiment_name)
             pipeline.run()
 
     terminal.close()
