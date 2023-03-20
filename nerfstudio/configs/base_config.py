@@ -23,6 +23,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, Type
 
+from typing_extensions import Literal
+
 # model instances
 from nerfstudio.utils import writer
 
@@ -148,3 +150,9 @@ class ViewerConfig(PrintableConfig):
     actually used in training/evaluation. If -1, display all."""
     quit_on_train_completion: bool = False
     """Whether to kill the training job when it has completed. Note this will stop rendering in the viewer."""
+    image_format: Literal["jpeg", "png"] = "png"
+    """Image format viewer should use; jpeg is lossy compression, while png is lossless."""
+    jpeg_quality: int = 75
+    """Quality tradeoff to use for jpeg compression."""
+    png_compression: int = 1
+    """Size/speed tradeoff to use for png compression."""
