@@ -8,10 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from timeit import default_timer as timer
 
-import cv2
 import tyro
 from rich.console import Console
-from typing_extensions import Literal
 
 from nerfstudio.utils.scripts import run_command
 
@@ -25,7 +23,9 @@ writer = {"terminal": terminal, "log": sys.stdout}
 class Args:
     model: str
     input_data_dir: Path
+    output_dir: Path
     eval_output_dir: Path
+    experiment_name: str
 
 
 class my_timer(ContextDecorator):
@@ -51,10 +51,15 @@ class ExperimentPipeline:
         self.terminal = sys.stdout
         self.log = open("experiment_log.txt", "a")
 
+        self.input_data_dir = args.input_data_dir
+        self.output_dir = args.output_dir
+        self.model = args.model
+        self.experiment_name = args.experiment_name
+
     def run(self):
         self.train()
-        train_output_dir, experiment_name = self.find_evaluate_paths()
-        self.eval(train_output_dir, experiment_name)
+        train_output_dir = self.find_evaluate_paths()
+        self.eval(train_output_dir, self.experiment_name)
 
     def write(self, text: str):
         self.writer["terminal"].write(text)
@@ -63,20 +68,21 @@ class ExperimentPipeline:
         self.writer["log"].flush()
 
     def find_evaluate_paths(self):
-        experiment_name = "-".join(str(self.args.eval_output_dir).split("/"))
-        train_output_dir = f"outputs/{experiment_name}/{self.args.model}"
+        train_output_dir = self.output_dir / self.experiment_name / self.model
         latest_changed_dir = max(glob.glob(f"{train_output_dir}/*"), key=os.path.getmtime).split("/")[-1]
         train_output_dir = os.path.join(train_output_dir, latest_changed_dir, "config.yml")
-        return train_output_dir, experiment_name
+        return train_output_dir
 
     # ns-train instant-ngp --data data/videos/tier2 --trainer.load_dir $output_path --viewer.start-train False
     @my_timer("Train")
     def train(self):
-        input_data_dir = self.args.input_data_dir
-        CONSOLE.print(f"Training model\nModel: {self.args.model}\nInput dir: {input_data_dir}")
-        cmd = f"ns-train {self.args.model} --data {input_data_dir} --vis wandb --viewer.quit-on-train-completion True"
+        input_data_dir = self.input_data_dir
+        output_dir = self.output_dir
+        CONSOLE.print(f"Training model\nModel: {self.model}\nInput dir: {input_data_dir}")
+        # cmd = f"ns-train {self.model} --data {input_data_dir} --output-dir {output_dir} --vis wandb --viewer.quit-on-train-completion True"
+        cmd = f"ns-train {self.model} --data {input_data_dir} --output-dir {output_dir} --max-num-iterations 1000 --vis wandb --viewer.quit-on-train-completion True"
 
-        if self.args.model == "mipnerf":
+        if self.model == "mipnerf":
             cmd += " nerfstudio-data"
 
         run_command(cmd, verbose=True)
@@ -99,11 +105,19 @@ if __name__ == "__main__":
 
     # Run pipeline in sequence
     input_data_dir = Path(args.input_data_dir)
-    args = Args(model="nerfacto", input_data_dir=input_data_dir, eval_output_dir=input_data_dir)
+    experiment_name = str(args.output_dir).split("/")[-1]
+    args = Args(
+        model="nerfacto",
+        input_data_dir=input_data_dir,
+        eval_output_dir=input_data_dir,
+        output_dir=input_data_dir,
+        experiment_name=experiment_name,
+    )
     for run_dir in input_data_dir.iterdir():
         if run_dir.is_dir():
             args.input_data_dir = run_dir
+            args.experiment_name = experiment_name + "-" + str(run_dir).split("/")[-1]
             pipeline = ExperimentPipeline(args, writer)
             pipeline.run()
-    
+
     terminal.close()
