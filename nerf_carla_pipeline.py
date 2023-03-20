@@ -109,10 +109,14 @@ if __name__ == "__main__":
     )
     for run_dir in input_data_dir.iterdir():
         if run_dir.is_dir():
-            args.input_data_dir = run_dir
-            args.output_dir = run_dir
+            new_args = Args(
+                model=args.model,
+                input_data_dir=run_dir,
+                output_dir=run_dir,
+            )
+
             experiment_name = "-".join(str(run_dir).split("/")[-2:])
-            pipeline = ExperimentPipeline(args, writer, experiment_name)
+            pipeline = ExperimentPipeline(new_args, writer, experiment_name)
             pipeline.run()
 
     terminal.close()
