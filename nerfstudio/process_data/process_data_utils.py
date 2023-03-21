@@ -159,7 +159,9 @@ def convert_video_to_images(
             ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB{crop_cmd} -r 1"
         else:
             CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
-            ffmpeg_cmd += f" -pix_fmt bgr8 -vf {crop_cmd[1:]}"
+            ffmpeg_cmd += " -pix_fmt bgr8"
+            if crop_cmd != "":
+                ffmpeg_cmd += f" -vf {crop_cmd[1:]}"
 
         ffmpeg_cmd += f" {out_filename}"
         run_command(ffmpeg_cmd, verbose=verbose)
