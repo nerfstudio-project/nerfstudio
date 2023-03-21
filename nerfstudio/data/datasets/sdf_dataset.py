@@ -42,7 +42,7 @@ class SDFDataset(InputDataset):
         self.normal_filenames = self.metadata["normal_filenames"]
         self.camera_to_worlds = self.metadata["camera_to_worlds"]
         # can be none if auto orient not enabled in dataparser
-        self.transform = self.metadata["normal_filenames"]
+        self.transform = self.metadata["transform"]
         self.include_mono_prior = self.metadata["include_mono_prior"]
 
     def get_metadata(self, data: Dict) -> Dict:
@@ -57,8 +57,8 @@ class SDFDataset(InputDataset):
             depth_image, normal_image = self.get_depths_and_normals(
                 depth_filepath=depth_filepath, normal_filename=normal_filepath, camtoworld=camtoworld
             )
-            metadata["depth_image"] = depth_image
-            metadata["normal_image"] = normal_image
+            metadata["depth"] = depth_image
+            metadata["normal"] = normal_image
 
         return metadata
 

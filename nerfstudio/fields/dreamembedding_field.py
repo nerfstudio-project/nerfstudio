@@ -1,3 +1,17 @@
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 
 from typing import Optional
 
@@ -18,6 +32,7 @@ except ImportError:
     # tinycudann module doesn't exist
     pass
 
+
 def get_normalized_directions(directions: TensorType["bs":..., 3]):
     """SH encoding must be in the range [0, 1]
 
@@ -25,6 +40,7 @@ def get_normalized_directions(directions: TensorType["bs":..., 3]):
         directions: batch of directions
     """
     return (directions + 1.0) / 2.0
+
 
 class DreamEmbeddingField(Field):
     """DreamEmbedding Field that uses TCNN
@@ -132,7 +148,7 @@ class DreamEmbeddingField(Field):
         # from smaller internal (float16) parameters.
         density = trunc_exp(density_before_activation.to(positions))
         return density, base_mlp_out
-    
+
     def get_background_feature(self, ray_bundle: RayBundle):
         """Predicts background colors at infinity."""
         directions = get_normalized_directions(ray_bundle.directions)
@@ -142,7 +158,7 @@ class DreamEmbeddingField(Field):
         background_feature = self.mlp_background_feature(directions_flat).view(*outputs_shape, -1).to(directions)
 
         return background_feature
-    
+
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
         assert density_embedding is not None
         outputs = {}

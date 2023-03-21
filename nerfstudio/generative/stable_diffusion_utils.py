@@ -16,6 +16,7 @@
 Stable diffusion utils
 """
 
+import torch
 from torchtyping import TensorType
 from typing_extensions import Literal
 
@@ -77,6 +78,9 @@ class PositionalTextEmbeddings:
             vertical_angle: vertical angle of the camera
             horizonal_angle: horizonal angle of the camera
         """
+        # set horizontal_angle between 0, 360
+        horizontal_angle = torch.fmod(horizontal_angle, 360)
+        horizontal_angle = torch.where(horizontal_angle < 0, horizontal_angle + 360, horizontal_angle)
 
         if self.positional_prompting == "discrete":
             if vertical_angle < 40:
@@ -105,7 +109,6 @@ class PositionalTextEmbeddings:
             text_embedding = text_embedding / 90.0
             text_embedding = (vert * text_embedding + (90 - vert) * self.top_embed) / 90.0
         else:
-            print("here")
             text_embedding = self.base_embed
 
         return text_embedding

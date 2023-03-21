@@ -54,10 +54,10 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
-    orientation_method: Literal["pca", "up", "none"] = "up"
+    orientation_method: Literal["pca", "up", "vertical", "none"] = "up"
     """The method to use for orientation."""
-    center_poses: bool = True
-    """Whether to center the poses."""
+    center_method: Literal["poses", "focus", "none"] = "poses"
+    """The method to use to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
     train_split_fraction: float = 0.9
@@ -223,7 +223,7 @@ class Nerfstudio(DataParser):
         poses, transform_matrix = camera_utils.auto_orient_and_center_poses(
             poses,
             method=orientation_method,
-            center_poses=self.config.center_poses,
+            center_method=self.config.center_method,
         )
 
         # Scale poses
@@ -289,9 +289,9 @@ class Nerfstudio(DataParser):
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
 
         if "applied_transform" in meta:
-            applied_transform = np.array(meta["applied_transform"], dtype=np.float32)
-            transform_matrix = transform_matrix @ np.concatenate(
-                (applied_transform, np.array([0, 0, 0, 1], dtype=np.float32)), 0
+            applied_transform = torch.tensor(meta["applied_transform"], dtype=transform_matrix.dtype)
+            transform_matrix = transform_matrix @ torch.cat(
+                [applied_transform, torch.tensor([[0, 0, 0, 1]], dtype=transform_matrix.dtype)], 0
             )
         if "applied_scale" in meta:
             applied_scale = float(meta["applied_scale"])

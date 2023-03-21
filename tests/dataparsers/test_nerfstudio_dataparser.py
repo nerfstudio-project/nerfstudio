@@ -43,7 +43,7 @@ def test_nerfstudio_dataparser_no_filelist(mocked_dataset, orientation_method):
         data=mocked_dataset,
         downscale_factor=4,
         orientation_method=orientation_method,
-        center_poses=False,
+        center_method="none",
         auto_scale_poses=False,
     ).setup()
 
@@ -81,7 +81,7 @@ def test_nerfstudio_dataparser_split_filelist(mocked_dataset):
         data=mocked_dataset,
         downscale_factor=4,
         orientation_method="none",
-        center_poses=False,
+        center_method="none",
         auto_scale_poses=False,
     ).setup()
 

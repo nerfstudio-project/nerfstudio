@@ -150,10 +150,10 @@ def random_train_pose(
 
 
 @dataclass
-class DreamFusionDataManagerConfig(DataManagerConfig):
+class IterativeDataManagerConfig(DataManagerConfig):
     """Configuration for data manager that does not load from a dataset. Instead, it generates random poses."""
 
-    _target: Type = field(default_factory=lambda: DreamFusionDataManager)
+    _target: Type = field(default_factory=lambda: IterativeDataManager)
     train_resolution: int = 64
     """Training resolution"""
     eval_resolution: int = 64
@@ -180,25 +180,14 @@ class DreamFusionDataManagerConfig(DataManagerConfig):
     """How many steps until the full horizontal rotation range is used"""
 
 
-class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
-    """Basic stored data manager implementation.
+class IterativeDataManager(DataManager):  # pylint: disable=abstract-method
 
-    This is pretty much a port over from our old dataloading utilities, and is a little jank
-    under the hood. We may clean this up a little bit under the hood with more standard dataloading
-    components that can be strung together, but it can be just used as a black box for now since
-    only the constructor is likely to change in the future, or maybe passing in step number to the
-    next_train and next_eval functions.
-
-    Args:
-        config: the DataManagerConfig used to instantiate class
-    """
-
-    config: DreamFusionDataManagerConfig
+    config: IterativeDataManagerConfig
 
     # pylint: disable=super-init-not-called
     def __init__(
         self,
-        config: DreamFusionDataManagerConfig,
+        config: IterativeDataManagerConfig,
         device: Union[torch.device, str] = "cpu",
         test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
@@ -242,46 +231,36 @@ class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
         # pylint: disable=non-parent-init-called
         DataManager.__init__(self)
 
-    def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
-        """Returns the next batch of data from the train dataloader."""
-
-        self.train_count += 1
-
-        # # TODO Reimplement when cameras are fully working
-        # if step > 2000:
-        #     cameras, _, _ = random_train_pose(
-        #         self.config.train_images_per_batch, self.config.train_resolution, device=self.device
-        #     )
-
-        #     ray_bundle = cameras.generate_rays(
-        #         torch.tensor(list(range(self.config.train_images_per_batch)))
-        #     ).flatten()
-        #     return ray_bundle, {"initialization": False}
-
-        horizontal_range = min((step / max(1, self.config.horizontal_rotation_warmup)), 1) * 180
-
-        cameras, vertical_rotation, central_rotation = random_train_pose(
-            self.config.train_images_per_batch,
-            self.config.train_resolution,
-            device=self.device,
+    def render_train_dataset(self, step: int) -> InputDataset:
+        """eawoijfaw"""
+        cameras, _, _ = random_train_pose(
+            size=10,
+            resolution=512,
+            device= self.device,
             radius_mean=self.config.radius_mean,
             radius_std=self.config.radius_std,
             focal_range=self.config.focal_range,
+            central_rotation_range=(0, 360),
             vertical_rotation_range=self.config.vertical_rotation_range,
             jitter_std=self.config.jitter_std,
             center=self.config.center,
-            central_rotation_range=(-horizontal_range, horizontal_range),
         )
-        ray_bundle = cameras.generate_rays(torch.tensor(list(range(self.config.train_images_per_batch)))).flatten()
 
-        # camera_idx = torch.randint(0, self.eval_cameras.shape[0], [1], dtype=torch.long, device=self.device)
-        # ray_bundle = self.eval_cameras.generate_rays(camera_idx).flatten()
+        ray_bundle = cameras.generate_rays(
+            torch.tensor([[i] for i in range(self.config.train_images_per_batch)])
+        ).flatten()
 
-        return ray_bundle, {
-            "vertical": vertical_rotation,
-            "central": central_rotation,
-            "initialization": True,
-        }
+        return ray_bundle, cameras
+
+    def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
+        """Returns the next batch of data from the train dataloader."""
+        self.train_count += 1
+        image_batch = next(self.iter_train_image_dataloader)
+        assert self.train_pixel_sampler is not None
+        batch = self.train_pixel_sampler.sample(image_batch)
+        ray_indices = batch["indices"]
+        ray_bundle = self.train_ray_generator(ray_indices)
+        return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the eval dataloader."""
