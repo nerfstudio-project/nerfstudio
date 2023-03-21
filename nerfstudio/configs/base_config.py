@@ -151,9 +151,9 @@ class ViewerConfig(PrintableConfig):
     actually used in training/evaluation. If -1, display all."""
     quit_on_train_completion: bool = False
     """Whether to kill the training job when it has completed. Note this will stop rendering in the viewer."""
-    image_format: Literal["jpeg", "png"] = "png"
+    image_format: Literal["jpeg", "png"] = "jpeg"
     """Image format viewer should use; jpeg is lossy compression, while png is lossless."""
-    jpeg_quality: int = 75
+    jpeg_quality: int = 90
     """Quality tradeoff to use for jpeg compression."""
     png_compression: int = 1
     """Size/speed tradeoff to use for png compression."""
