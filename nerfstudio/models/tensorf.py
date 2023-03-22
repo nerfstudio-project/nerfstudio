@@ -90,6 +90,8 @@ class TensoRFModel(Model):
         config: TensoRF configuration to instantiate model
     """
 
+    config: TensoRFModelConfig
+
     def __init__(
         self,
         config: TensoRFModelConfig,
@@ -303,6 +305,7 @@ class TensoRFModel(Model):
         image = batch["image"].to(outputs["rgb"].device)
         rgb = outputs["rgb"]
         acc = colormaps.apply_colormap(outputs["accumulation"])
+        assert self.config.collider_params is not None
         depth = colormaps.apply_depth_colormap(
             outputs["depth"],
             accumulation=outputs["accumulation"],
