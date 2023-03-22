@@ -55,7 +55,7 @@ class SDFStudioDataParserConfig(DataParserConfig):
     """
     skip_every_for_val_split: int = 1
     """sub sampling validation images"""
-    auto_orient: bool = False
+    auto_orient: bool = True
 
 
 @dataclass
@@ -142,7 +142,8 @@ class SDFStudio(DataParser):
         # TODO supports downsample
         # cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
 
-        assert meta["has_mono_prior"] == self.config.include_mono_prior, f"no mono prior in {self.config.data}"
+        if self.config.include_mono_prior:
+            assert meta["has_mono_prior"], f"no mono prior in {self.config.data}"
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
