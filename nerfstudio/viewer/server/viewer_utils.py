@@ -670,7 +670,7 @@ class ViewerState:
 
         image = selected_output[..., [2, 1, 0]].cpu().numpy()
 
-        data = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 75])[1].tobytes()
+        data = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 90])[1].tobytes()
         data = str("data:image/jpeg;base64," + base64.b64encode(data).decode("ascii"))
         self.vis["render_img"].write(data)
 
