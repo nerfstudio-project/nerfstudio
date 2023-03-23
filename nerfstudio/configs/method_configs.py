@@ -84,9 +84,10 @@ descriptions = {
     "neus": "Implementation of NeuS. (slow)",
 }
 
+from nerfstudio.data.datamanagers.lerf_datamanager import LERFDataManagerConfig
 from nerfstudio.models.lerf import LERFModelConfig
 from nerfstudio.pipelines.lerf_pipeline import LERFPipelineConfig, OpenCLIPNetworkConfig
-from nerfstudio.data.datamanagers.lerf_datamanager import LERFDataManagerConfig
+
 method_configs["lerf"] = TrainerConfig(
     method_name="lerf",
     steps_per_eval_batch=500,
@@ -106,17 +107,17 @@ method_configs["lerf"] = TrainerConfig(
     ),
     optimizers={
         "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "optimizer": RAdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
         },
         "fields": {
             "optimizer": RAdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
         },
-        # "lerf": {
-        #     "optimizer": RAdamOptimizerConfig(lr=1e-2, eps=1e-15),
-        #     "scheduler": None,
-        # },
+        "lerf": {
+            "optimizer": RAdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-3, max_steps=5000),
+        },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",

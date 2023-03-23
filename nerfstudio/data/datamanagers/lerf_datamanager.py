@@ -74,19 +74,21 @@ from nerfstudio.utils.misc import IterableWrapper
 
 CONSOLE = Console(width=120)
 
+from clip_nerf.clip_dataloader import CLIPDataloader
+from clip_nerf.dino_dataloader import DinoDataloader
+
 from nerfstudio.data.datamanagers.base_datamanager import (
     DataManager,
     DataManagerConfig,
+    VanillaDataManager,
     VanillaDataManagerConfig,
-    VanillaDataManager
 )
 
-from clip_nerf.clip_dataloader import CLIPDataloader
-from clip_nerf.dino_dataloader import DinoDataloader
 
 @dataclass
 class LERFDataManagerConfig(VanillaDataManagerConfig):
     _target: Type = field(default_factory=lambda: LERFDataManager)
+
 
 class LERFDataManager(VanillaDataManager):  # pylint: disable=abstract-method
     """Basic stored data manager implementation.
@@ -194,12 +196,14 @@ class LERFDataManager(VanillaDataManager):  # pylint: disable=abstract-method
                 "tile_size_res": 7,
                 "stride_scaler": 0.5,
             },
+            cache_dir=Path(f"outputs/{self.config.dataparser.data.name}"),
         )
-        self.clip_interpolator.try_load(f"outputs/{self.config.dataparser.data.name}")
+        # self.clip_interpolator.try_load(f"outputs/{self.config.dataparser.data.name}")
         # self.clip_interpolator.create()
         # self.clip_interpolator.save(f"outputs/{self.config.dataparser.data.name}")
-        self.dino_dataloader = DinoDataloader(image_list=images, device=self.device, cfg={})
-        self.dino_dataloader.try_load(f"outputs/{self.config.dataparser.data.name}")
+        self.dino_dataloader = DinoDataloader(
+            image_list=images, device=self.device, cfg={}, cache_dir=Path(f"outputs/{self.config.dataparser.data.name}")
+        )
         # self.dino_dataloader.create()
         # self.dino_dataloader.save(f"outputs/{self.config.dataparser.data.name}")
 
