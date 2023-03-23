@@ -73,7 +73,6 @@ class LERFModel(NerfactoModel):
                 if n_phrases_maxs[i] is None or pos_prob.max() > n_phrases_sims[i].max():
                     n_phrases_maxs[i] = s
                     n_phrases_sims[i] = pos_prob
-
         return torch.stack(n_phrases_sims), torch.Tensor(n_phrases_maxs)
 
     def get_outputs(self, ray_bundle: RayBundle):
@@ -94,7 +93,7 @@ class LERFModel(NerfactoModel):
         #     dens, _ = self.field.get_density(lerf_samples)
         #     lerf_weights = lerf_samples.get_weights(dens)
 
-        if "clip_scales" in ray_bundle.metadata:
+        if self.training:
             clip_scales = ray_bundle.metadata["clip_scales"]
             clip_scales = clip_scales[..., None]
             dist = lerf_samples.spacing_to_euclidean_fn(lerf_samples.spacing_starts.squeeze(-1)).unsqueeze(-1)
@@ -109,16 +108,13 @@ class LERFModel(NerfactoModel):
         for i in range(self.config.num_proposal_iterations):
             outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
 
-        lerf_field_outputs = self.lerf_field.get_outputs(lerf_samples, clip_scales)
+        lerf_field_outputs = self.lerf_field.get_outputs(ray_samples, clip_scales)
 
-        outputs["clip"] = self.renderer_clip(
-            embeds=lerf_field_outputs[FieldHeadNames.CLIP], weights=lerf_weights.detach()
-        )
-        outputs["dino"] = self.renderer_mean(
-            embeds=lerf_field_outputs[FieldHeadNames.DINO], weights=lerf_weights.detach()
-        )
+        if self.training:
+            outputs['clip'] = self.renderer_clip(embeds=lerf_field_outputs[FieldHeadNames.CLIP], weights=lerf_weights.detach())
+            outputs['dino'] = self.renderer_mean(embeds=lerf_field_outputs[FieldHeadNames.DINO], weights=lerf_weights.detach())
 
-        if not "clip_scales" in ray_bundle.metadata:
+        if not self.training:
             max_across, best_scales = self.get_max_across(
                 lerf_samples, lerf_weights, lerf_field_outputs[FieldHeadNames.HASHGRID], clip_scales.shape
             )
