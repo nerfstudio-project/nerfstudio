@@ -415,7 +415,6 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             cameras = self.train_dataparser_outputs.cameras
             if len(cameras) > 1:
                 for i in range(1, len(cameras)):
-                    i_img, i_label = self.train_dataset[i]
                     if cameras[0].width != cameras[i].width or cameras[0].height != cameras[i].height:
                         print("Variable resolution, using variable_res_collate")
                         self.config.collate_fn = variable_res_collate
