@@ -198,14 +198,9 @@ class LERFDataManager(VanillaDataManager):  # pylint: disable=abstract-method
             },
             cache_dir=Path(f"outputs/{self.config.dataparser.data.name}"),
         )
-        # self.clip_interpolator.try_load(f"outputs/{self.config.dataparser.data.name}")
-        # self.clip_interpolator.create()
-        # self.clip_interpolator.save(f"outputs/{self.config.dataparser.data.name}")
         self.dino_dataloader = DinoDataloader(
             image_list=images, device=self.device, cfg={}, cache_dir=Path(f"outputs/{self.config.dataparser.data.name}")
         )
-        # self.dino_dataloader.create()
-        # self.dino_dataloader.save(f"outputs/{self.config.dataparser.data.name}")
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""

@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Tuple, List
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -9,15 +9,12 @@ from torchtyping import TensorType
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
-from nerfstudio.field_components.field_heads import (
-    FieldHeadNames,
-)
-from nerfstudio.fields.base_field import Field
-
+from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import (
     SceneContraction,
     SpatialDistortion,
 )
+from nerfstudio.fields.base_field import Field
 
 try:
     import tinycudann as tcnn
@@ -30,10 +27,9 @@ class LERFField(Field):
         super().__init__()
 
         self.spatial_distortion = spatial_distortion
-        self.clip_encs = torch.nn.ModuleList([
-            LERFField._get_encoding(16, 128, 16, indim=3), 
-            LERFField._get_encoding(128, 512, 16, indim=3)
-            ])
+        self.clip_encs = torch.nn.ModuleList(
+            [LERFField._get_encoding(16, 128, 16, indim=3), LERFField._get_encoding(128, 512, 16, indim=3)]
+        )
         tot_out_dims = sum([e.n_output_dims for e in self.clip_encs])
 
         self.clip_net = tcnn.Network(
@@ -99,8 +95,10 @@ class LERFField(Field):
 
     def get_output_from_hashgrid(self, ray_samples: RaySamples, hashgrid_field, scale):
         # designated scales, run outputs for each scale
-        hashgrid_field = hashgrid_field.view(-1, self.clip_net.n_input_dims-1)
-        clip_pass = self.clip_net(torch.cat([hashgrid_field, scale.view(-1, 1)], dim=-1)).view(*ray_samples.frustums.shape, -1)
+        hashgrid_field = hashgrid_field.view(-1, self.clip_net.n_input_dims - 1)
+        clip_pass = self.clip_net(torch.cat([hashgrid_field, scale.view(-1, 1)], dim=-1)).view(
+            *ray_samples.frustums.shape, -1
+        )
         output = clip_pass / clip_pass.norm(dim=-1, keepdim=True)
 
         return output
