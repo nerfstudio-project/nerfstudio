@@ -61,7 +61,7 @@ class LERFModel(NerfactoModel):
                 clip_output = self.lerf_field.get_output_from_hashgrid(
                     ray_samples,
                     hashgrid_field,
-                    torch.full(scales_shape, s, device=weights.device, dtype=hashgrid_field.dtype),
+                    torch.full(scales_shape, scale, device=weights.device, dtype=hashgrid_field.dtype),
                 )
             clip_output = self.renderer_clip(embeds=clip_output, weights=weights.detach())
 

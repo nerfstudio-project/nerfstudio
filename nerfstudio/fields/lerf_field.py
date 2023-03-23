@@ -28,7 +28,8 @@ class LERFField(Field):
 
         self.spatial_distortion = spatial_distortion
         self.clip_encs = torch.nn.ModuleList(
-            [LERFField._get_encoding(16, 128, 16, indim=3), LERFField._get_encoding(128, 512, 16, indim=3)]
+            # [LERFField._get_encoding(16, 512, 16, indim=3)]
+            [LERFField._get_encoding(16, 128, 12, indim=3), LERFField._get_encoding(128, 512, 12, indim=3)]
         )
         tot_out_dims = sum([e.n_output_dims for e in self.clip_encs])
 
@@ -40,7 +41,7 @@ class LERFField(Field):
                 "activation": "ReLU",
                 "output_activation": "None",
                 "n_neurons": 256,
-                "n_hidden_layers": 3,
+                "n_hidden_layers": 4,
             },
         )
 
@@ -65,7 +66,7 @@ class LERFField(Field):
                 "otype": "HashGrid",
                 "n_levels": levels,
                 "n_features_per_level": 8,
-                "log2_hashmap_size": 21,
+                "log2_hashmap_size": 19,
                 "base_resolution": start_res,
                 "per_level_scale": growth,
             },
