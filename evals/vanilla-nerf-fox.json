@@ -1,0 +1,14 @@
+{
+  "experiment_name": "data-images-fox",
+  "method_name": "vanilla-nerf",
+  "checkpoint": "outputs/data-images-fox/vanilla-nerf/2022-12-08_101317/nerfstudio_models/step-000572000.ckpt",
+  "results": {
+    "psnr": 10.803905487060547,
+    "coarse_psnr": 11.041259765625,
+    "fine_psnr": 10.803905487060547,
+    "fine_ssim": 0.6202489137649536,
+    "fine_lpips": 0.572921097278595,
+    "num_rays_per_sec": 38395.57421875,
+    "fps": 0.018516384065151215
+  }
+}

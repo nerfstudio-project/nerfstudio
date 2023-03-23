@@ -1,0 +1,14 @@
+{
+  "experiment_name": "data-images-trex",
+  "method_name": "mipnerf",
+  "checkpoint": "outputs/data-images-trex/mipnerf/2022-12-10_125322/nerfstudio_models/step-000126000.ckpt",
+  "results": {
+    "psnr": 15.446966171264648,
+    "coarse_psnr": 15.3162202835083,
+    "fine_psnr": 15.446966171264648,
+    "fine_ssim": 0.635912299156189,
+    "fine_lpips": 0.48502254486083984,
+    "num_rays_per_sec": 33298.6875,
+    "fps": 0.0027310196310281754
+  }
+}

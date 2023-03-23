@@ -75,8 +75,7 @@ class ExperimentPipeline:
     @my_timer("Train")
     def train(self):
         CONSOLE.print(f"Training model\nModel: {self.model}\nInput dir: {self.input_data_dir}")
-        # cmd = f"ns-train {self.model} --data {self.input_data_dir} --output-dir {output_dir} --vis wandb --viewer.quit-on-train-completion True"
-        cmd = f"ns-train {self.model} --data {self.input_data_dir} --output-dir {self.output_dir} --experiment-name {self.experiment_name} --trainer.max-num-iterations 1000 --vis wandb --viewer.quit-on-train-completion True"
+        cmd = f"ns-train {self.model} --data {self.input_data_dir} --output-dir {self.output_dir} --experiment-name {self.experiment_name} --trainer.max-num-iterations 15000 --vis wandb --viewer.quit-on-train-completion True"
 
         if self.model == "mipnerf":
             cmd += " nerfstudio-data"
@@ -86,6 +85,7 @@ class ExperimentPipeline:
     @my_timer("Evaluate")
     def eval(self, config: str, output_name: str):
         CONSOLE.print("Evaluating model")
+        output_name = f"{self.model}-{output_name}"
         cmd = f"ns-eval --load-config {config} --output-path {self.output_dir}/{output_name}.json"
         run_command(cmd, verbose=True)
 

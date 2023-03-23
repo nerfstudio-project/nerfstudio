@@ -184,3 +184,7 @@ bash/
 cache/
 package-lock.json
 camera_paths/
+
+# Slurm outputs
+*srun.out
+*.slurm

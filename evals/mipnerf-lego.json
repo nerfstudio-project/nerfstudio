@@ -1,0 +1,14 @@
+{
+  "experiment_name": "data-blender-lego",
+  "method_name": "mipnerf",
+  "checkpoint": "outputs/data-blender-lego/mipnerf/2022-12-09_100002/nerfstudio_models/step-000601000.ckpt",
+  "results": {
+    "psnr": 31.239788055419922,
+    "coarse_psnr": 25.278627395629883,
+    "fine_psnr": 31.239788055419922,
+    "fine_ssim": 0.9570327997207642,
+    "fine_lpips": 0.021650495007634163,
+    "num_rays_per_sec": 34000.7734375,
+    "fps": 0.05312621220946312
+  }
+}

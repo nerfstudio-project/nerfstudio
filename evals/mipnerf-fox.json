@@ -1,0 +1,14 @@
+{
+  "experiment_name": "data-images-fox",
+  "method_name": "mipnerf",
+  "checkpoint": "outputs/data-images-fox/mipnerf/2022-12-08_101517/nerfstudio_models/step-000514000.ckpt",
+  "results": {
+    "psnr": 10.799108505249023,
+    "coarse_psnr": 10.391389846801758,
+    "fine_psnr": 10.799108505249023,
+    "fine_ssim": 0.6237953901290894,
+    "fine_lpips": 0.5449802875518799,
+    "num_rays_per_sec": 33777.91796875,
+    "fps": 0.01628950610756874
+  }
+}
