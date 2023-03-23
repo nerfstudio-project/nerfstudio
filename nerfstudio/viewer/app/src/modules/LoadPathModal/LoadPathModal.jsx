@@ -113,9 +113,9 @@ export default function LoadPathModal(props: LoadPathModalProps) {
                     </Button>
                   </FormControl>
                   <br />
-                  <p>
-                    <center>OR</center>
-                  </p>
+                  <center>
+                    <p>OR</p>
+                  </center>
                 </>
               )}
               {camera_paths_arr.length === 0 && (
