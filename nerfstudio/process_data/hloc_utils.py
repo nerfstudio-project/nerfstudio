@@ -75,6 +75,11 @@ def run_hloc(
         camera_model: Camera model to use.
         gpu: If True, use GPU.
         verbose: If True, logs the output of the command.
+        matching_method: Method to use for matching images.
+        feature_type: Type of visual features to use.
+        matcher_type: Type of feature matcher to use.
+        num_matched: Number of image pairs for loc.
+        refine_pixsfm: If True, refine the reconstruction using pixel-perfect-sfm.
     """
     if not _HAS_HLOC:
         CONSOLE.print(

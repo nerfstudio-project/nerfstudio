@@ -101,6 +101,7 @@ class Model(nn.Module):
         # NOTE: call `super().populate_modules()` in subclasses
 
         if self.config.enable_collider:
+            assert self.config.collider_params is not None
             self.collider = NearFarCollider(
                 near_plane=self.config.collider_params["near_plane"], far_plane=self.config.collider_params["far_plane"]
             )

@@ -641,6 +641,7 @@ class NeuSSampler(Sampler):
         # Start with uniform sampling
         if ray_samples is None:
             ray_samples = self.uniform_sampler(ray_bundle, num_samples=self.num_samples)
+        assert ray_samples is not None
 
         total_iters = 0
         sorted_index = None
@@ -697,6 +698,7 @@ class NeuSSampler(Sampler):
         """
         batch_size = ray_samples.shape[0]
         prev_sdf, next_sdf = sdf[:, :-1], sdf[:, 1:]
+        assert ray_samples.deltas is not None
         deltas = ray_samples.deltas[:, :-1, 0]
         mid_sdf = (prev_sdf + next_sdf) * 0.5
         cos_val = (next_sdf - prev_sdf) / (deltas + 1e-5)
@@ -738,6 +740,9 @@ class NeuSSampler(Sampler):
             ray_samples_2 : ray_samples to merge
         """
 
+        assert ray_samples_1.spacing_starts is not None and ray_samples_2.spacing_starts is not None
+        assert ray_samples_1.spacing_ends is not None and ray_samples_2.spacing_ends is not None
+        assert ray_samples_1.spacing_to_euclidean_fn is not None
         starts_1 = ray_samples_1.spacing_starts[..., 0]
         starts_2 = ray_samples_2.spacing_starts[..., 0]
 

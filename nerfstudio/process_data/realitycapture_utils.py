@@ -60,7 +60,7 @@ def realitycapture_to_json(
                 cameras.setdefault(column, []).append(value)
 
     for name in cameras["#name"]:
-        camera_label = name.split(".")[0]
+        camera_label = name.rpartition(".")[0]
         if camera_label in image_filename_map:
             img = np.array(Image.open(output_dir / image_filename_map[camera_label]))
             break
@@ -73,7 +73,7 @@ def realitycapture_to_json(
     missing_image_data = 0
 
     for i, name in enumerate(cameras["#name"]):
-        basename = name.split(".")[0]
+        basename = name.rpartition(".")[0]
         if basename not in image_filename_map:
             if verbose:
                 CONSOLE.print(f"Missing image for camera data {basename}, Skipping")

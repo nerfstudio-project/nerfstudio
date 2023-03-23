@@ -95,6 +95,7 @@ class Pipeline(nn.Module):
 
     datamanager: DataManager
     _model: Model
+    world_size: int
 
     @property
     def model(self):
@@ -201,6 +202,7 @@ class VanillaPipelineConfig(cfg.InstantiateConfig):
 class VanillaPipeline(Pipeline):
     """The pipeline class for the vanilla nerf setup of multiple cameras for one or a few scenes.
 
+    Args:
         config: configuration to instantiate pipeline
         device: location to place model and data
         test_mode:
