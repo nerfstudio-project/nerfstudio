@@ -30,7 +30,7 @@ function TabPanel(props: TabPanelProps) {
     >
       {value === index && (
         <Box sx={{ p: 3 }}>
-          <Typography>{children}</Typography>
+          <Typography component="div">{children}</Typography>
         </Box>
       )}
     </div>
@@ -51,7 +51,7 @@ export default function ExportPanel(props) {
   const sceneTree = props.sceneTree;
   const showExportBox = props.showExportBox;
 
-  const [type_value, setTypeValue] = React.useState(0);
+  const [type_value, setTypeValue] = React.useState(false);
 
   const handleTypeChange = (event: React.SyntheticEvent, newValue: number) => {
     setTypeValue(newValue);
