@@ -364,15 +364,6 @@ class ViewerState:
         max_scene_box = torch.max(dataset.scene_box.aabb[1] - dataset.scene_box.aabb[0]).item()
         self.vis["renderingState/max_box_size"].write(max_scene_box)
 
-        # self.vis["renderingState/render_time"].write(str(0))
-
-        # set the properties of the camera
-        # self.vis["renderingState/camera"].write(json_)
-
-        # set the main camera intrinsics to one from the dataset
-        # K = camera.get_intrinsics_matrix()
-        # set_persp_intrinsics_matrix(self.vis, K.double().numpy())
-
     def _check_camera_path_payload(self, trainer, step: int):
         """Check to see if the camera path export button was pressed."""
         # check if we should interrupt from a button press?

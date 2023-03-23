@@ -162,24 +162,16 @@ export default function ViewerWindow(props) {
   };
 
   useEffect(() => {
-    function update_dimensions() {
+    const handleNewDimensions = () => {
       setDimensions({
         height: get_window_height(),
         width: get_window_width(),
       });
-    }
+    };
 
-    window.addEventListener('resize', update_dimensions);
-
-    // force a rerender
-    setDimensions({
-      height: get_window_height(),
-      width: get_window_width(),
-    });
-    render();
-
+    window.addEventListener('resize', handleNewDimensions);
     return () => {
-      window.removeEventListener('resize', update_dimensions);
+      window.removeEventListener('resize', handleNewDimensions);
     };
   }, []);
 
