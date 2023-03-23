@@ -21,11 +21,15 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Type, Union
+from pathlib import Path
+from copy import deepcopy
 
 import torch
 from rich.progress import Console
 from torch.nn import Parameter
 from typing_extensions import Literal
+
+from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
@@ -231,11 +235,23 @@ class IterativeDataManager(DataManager):  # pylint: disable=abstract-method
         # pylint: disable=non-parent-init-called
         DataManager.__init__(self)
 
-    def render_train_dataset(self, step: int) -> InputDataset:
+    def create_dataset(self, filepaths: List[Path], cameras: Cameras):
+        dataparser_outputs = DataparserOutputs(
+            image_filenames=filepaths,
+            cameras=cameras,
+            scene_box=None,
+            mask_filenames=None,
+            dataparser_transform=None,
+            dataparser_scale=None,
+            metadata=None,
+        )
+        return InputDataset(dataparser_outputs)
+
+    def random_train_views(self, step: int, resolution:int, num_views: int) -> InputDataset:
         """eawoijfaw"""
         cameras, _, _ = random_train_pose(
-            size=10,
-            resolution=512,
+            size=num_views,
+            resolution=resolution,
             device= self.device,
             radius_mean=self.config.radius_mean,
             radius_std=self.config.radius_std,
@@ -247,7 +263,7 @@ class IterativeDataManager(DataManager):  # pylint: disable=abstract-method
         )
 
         ray_bundle = cameras.generate_rays(
-            torch.tensor([[i] for i in range(self.config.train_images_per_batch)])
+            torch.tensor([[i] for i in range(num_views)])
         ).flatten()
 
         return ray_bundle, cameras
