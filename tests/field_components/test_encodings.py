@@ -171,6 +171,32 @@ def test_tensor_hash_encoder():
     assert encoded.shape == (10, out_dim)
 
 
+def test_kplane_encoder():
+    """Test K-Planes encoder"""
+
+    out_dim = 8
+
+    encoder = encodings.KPlanesEncoding(
+        resolution=(32, 32, 32, 16),
+        num_components=out_dim,
+        reduce="product",
+    )
+    assert encoder.get_out_dim() == out_dim
+
+    in_tensor = torch.randn((10, 4))
+    encoded = encoder(in_tensor)
+    assert encoded.shape == (10, out_dim)
+
+    encoder = encodings.KPlanesEncoding(
+        resolution=(32, 32, 32),
+        num_components=out_dim,
+        reduce="product",
+    )
+    in_tensor = torch.randn((10, 3))
+    encoded = encoder(in_tensor)
+    assert encoded.shape == (10, out_dim)
+
+
 if __name__ == "__main__":
     test_scaling_and_offset()
     test_nerf_encoder()
