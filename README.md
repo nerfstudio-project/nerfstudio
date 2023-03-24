@@ -107,7 +107,7 @@ pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/to
 For CUDA 11.7:
 
 ```bash
-pip install torch torchvision functorch --extra-index-url https://download.pytorch.org/whl/cu117
+pip install torch==1.13.1 torchvision functorch --extra-index-url https://download.pytorch.org/whl/cu117
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
