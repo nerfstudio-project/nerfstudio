@@ -83,7 +83,7 @@ class NeuSFactoModel(NeuSModel):
     """NeuSFactoModel extends NeuSModel for a more efficient sampling strategy.
 
     The model improves the rendering speed and quality by incorporating a learning-based
-    proposal distribution to guide the sampling process.(like in mipnerf 360)
+    proposal distribution to guide the sampling process.(similar to mipnerf-360)
 
     Args:
         config: NeuS configuration to instantiate model
@@ -92,7 +92,7 @@ class NeuSFactoModel(NeuSModel):
     config: NeuSFactoModelConfig
 
     def populate_modules(self):
-        """ ""Instantiate modules and fields, including proposal networks."""
+        """Instantiate modules and fields, including proposal networks."""
         super().populate_modules()
 
         self.density_fns = []
