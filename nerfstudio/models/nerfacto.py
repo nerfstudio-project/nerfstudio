@@ -128,6 +128,8 @@ class NerfactoModelConfig(ModelConfig):
     """Whether to predict normals or not."""
     disable_scene_contraction: bool = False
     """Whether to disable scene contraction or not."""
+    sigmoid_geo_embedding: bool = False
+    """add sigmoid to geometry embeddimg to prevent nan"""
 
 
 class NerfactoModel(Model):
@@ -161,6 +163,7 @@ class NerfactoModel(Model):
             num_images=self.num_train_data,
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
+            sigmoid_geo_embeddimg=self.config.sigmoid_geo_embedding,
         )
 
         self.density_fns = []
