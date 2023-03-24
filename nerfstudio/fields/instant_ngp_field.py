@@ -182,7 +182,7 @@ class TCNNInstantNGPField(Field):
             positions: the positions to evaluate the opacity at.
             step_size: the step size to use for the opacity evaluation.
         """
-        density = self.density_fn(positions)
+        density = self.density_fn(positions, None)
         ## TODO: We should scale step size based on the distortion. Currently it uses too much memory.
         # aabb_min, aabb_max = self.aabb[0], self.aabb[1]
         # if self.contraction_type is not ContractionType.AABB:

@@ -45,11 +45,14 @@ class Field(nn.Module):
         self._sample_locations = None
         self._density_before_activation = None
 
-    def density_fn(self, positions: TensorType["bs":..., 3]) -> TensorType["bs":..., 1]:
+    def density_fn(
+        self, positions: TensorType["bs":..., 3], times: Optional[TensorType["bs":..., 1]]
+    ) -> TensorType["bs":..., 1]:
         """Returns only the density. Used primarily with the density grid.
 
         Args:
             positions: the origin of the samples/frustums
+            times: the times of the samples
         """
         # Need to figure out a better way to describe positions with a ray.
         ray_samples = RaySamples(
@@ -59,7 +62,8 @@ class Field(nn.Module):
                 starts=torch.zeros_like(positions[..., :1]),
                 ends=torch.zeros_like(positions[..., :1]),
                 pixel_area=torch.ones_like(positions[..., :1]),
-            )
+            ),
+            times=times,
         )
         density, _ = self.get_density(ray_samples)
         return density

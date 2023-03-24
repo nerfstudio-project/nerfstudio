@@ -326,15 +326,17 @@ class KPlanesModel(Model):
         if self.training:
             metrics_dict["interlevel"] = interlevel_loss(outputs["weights_list"], outputs["ray_samples_list"])
             metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
-            metrics_dict["plane_tv"] = space_tv_loss(self.field.grids)
 
-            prop_grids = [p.grids for p in self.proposal_networks]
+            field_grids = [x.plane_coefs for x in self.field.grids]
+            metrics_dict["plane_tv"] = space_tv_loss(field_grids)
+
+            prop_grids = [p.grids.plane_coefs for p in self.proposal_networks]
             metrics_dict["plane_tv_proposal_net"] = space_tv_loss(prop_grids)
 
             if len(self.config.grid_base_resolution) == 4:
-                metrics_dict["l1_time_planes"] = l1_time_planes(self.field.grids)
+                metrics_dict["l1_time_planes"] = l1_time_planes(field_grids)
                 metrics_dict["l1_time_planes_proposal_net"] = l1_time_planes(prop_grids)
-                metrics_dict["time_smoothness_weight"] = time_smoothness(self.field.grids)
+                metrics_dict["time_smoothness_weight"] = time_smoothness(field_grids)
                 metrics_dict["time_smoothness_weight_proposal_net"] = time_smoothness(prop_grids)
 
         return metrics_dict
@@ -400,7 +402,7 @@ def compute_plane_tv(t: torch.Tensor, only_w: bool = False) -> float:
         Total variance
     """
 
-    _, _, h, w = t.shape
+    _, h, w = t.shape
     w_tv = torch.square(t[..., :, 1:] - t[..., :, : w - 1]).mean()
 
     if only_w:
@@ -459,10 +461,10 @@ def compute_plane_smoothness(t: torch.Tensor) -> float:
         Time smoothness
     """
 
-    _, _, h, _ = t.shape
+    _, h, _ = t.shape
     # Convolve with a second derivative filter, in the time dimension which is dimension 2
-    first_difference = t[..., 1:, :] - t[..., : h - 1, :]  # [batch, c, h-1, w]
-    second_difference = first_difference[..., 1:, :] - first_difference[..., : h - 2, :]  # [batch, c, h-2, w]
+    first_difference = t[..., 1:, :] - t[..., : h - 1, :]  # [c, h-1, w]
+    second_difference = first_difference[..., 1:, :] - first_difference[..., : h - 2, :]  # [c, h-2, w]
     # Take the L2 norm of the result
     return torch.square(second_difference).mean()
 

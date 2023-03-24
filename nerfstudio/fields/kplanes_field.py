@@ -16,12 +16,10 @@
 Fields for K-Planes (https://sarafridov.github.io/K-Planes/).
 """
 
-import itertools
 from dataclasses import field
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import torch
-import torch.nn.functional as F
 from rich.console import Console
 from torch import nn
 from torchtyping import TensorType
@@ -29,6 +27,7 @@ from torchtyping import TensorType
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.embedding import Embedding
+from nerfstudio.field_components.encodings import KPlanesEncoding
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
@@ -42,106 +41,30 @@ except ImportError:
 CONSOLE = Console(width=120)
 
 
-def init_grid_param(out_dim: int, reso: List[int], a: float = 0.1, b: float = 0.5) -> nn.ParameterList:
-    """Initializes the grid parameters.
-    Args:
-        out_dim: Dimension of feature vectors stored in grid
-        reso: Grid resolution
-        a: the lower bound of the uniform distribution used for initialization of spatial planes
-        b: the upper bound of the uniform distribution used for initialization of spatial planes
-    Returns:
-        Grid parameters
-    """
-
-    in_dim = len(reso)
-    has_time_planes = in_dim == 4
-    coo_combs = list(itertools.combinations(range(in_dim), 2))
-    grid_coefs = nn.ParameterList()
-    for coo_comb in coo_combs:
-        new_grid_coef = nn.Parameter(torch.empty([1, out_dim] + [reso[cc] for cc in coo_comb[::-1]]))
-        if has_time_planes and 3 in coo_comb:  # Initialize time planes to 1
-            nn.init.ones_(new_grid_coef)
-        else:
-            nn.init.uniform_(new_grid_coef, a=a, b=b)
-        grid_coefs.append(new_grid_coef)
-
-    return grid_coefs
-
-
-@torch.jit.script
-def grid_sample_wrapper(grid: torch.Tensor, coords: torch.Tensor) -> torch.Tensor:
-    """Generates feature vectors by sampling and interpolating between grid values.
-    Args:
-        grid: Input grid
-        coords: Coordinates to sample at
-
-    Returns:
-        Feature vectors
-    """
-
-    grid_dim = coords.shape[-1]
-
-    if grid.dim() == grid_dim + 1:
-        # no batch dimension present, need to add it
-        grid = grid.unsqueeze(0)
-    if coords.dim() == 2:
-        coords = coords.unsqueeze(0)
-
-    assert grid_dim in (
-        2,
-        3,
-    ), f"Grid-sample was called with {grid_dim}D data but is only implemented for 2 and 3D data."
-
-    coords = coords.view([coords.shape[0]] + [1] * (grid_dim - 1) + list(coords.shape[1:]))
-    B, feature_dim = grid.shape[:2]
-    n = coords.shape[-2]
-
-    interp = F.grid_sample(
-        grid,  # [B, feature_dim, reso, ...]
-        coords,  # [B, 1, ..., n, grid_dim]
-        align_corners=True,
-        mode="bilinear",
-        padding_mode="border",
-    )
-
-    interp = interp.view(B, feature_dim, n).transpose(-1, -2)  # [B, n, feature_dim]
-    interp = interp.squeeze()  # [B?, n, feature_dim?]
-
-    return interp
-
-
 def interpolate_ms_features(
     pts: torch.Tensor,
-    ms_grids: Union[nn.ModuleList, List[nn.ParameterList]],
+    grid_encodings: Iterable[KPlanesEncoding],
     concat_features: bool,
 ) -> torch.Tensor:
     """Combines/interpolates features across multiple dimensions and scales.
     Args:
-        pts: Coordinates to sample at
-        ms_grids: Grids to sample
+        pts: Coordinates to query
+        grid_encodings: Grid encodings to query
         concat_features: Whether to concatenate features at different scales
     Returns:
         Feature vectors
     """
 
-    coo_combs = list(itertools.combinations(range(pts.shape[-1]), 2))
-
     multi_scale_interp = [] if concat_features else 0.0
     grid: nn.ParameterList
-    for grid in ms_grids:
-        interp_space = 1.0
-        for ci, coo_comb in enumerate(coo_combs):
-            # interpolate in plane
-            feature_dim = grid[ci].shape[1]  # shape of grid[ci]: 1, out_dim, *reso
-            interp_out_plane = grid_sample_wrapper(grid[ci], pts[..., coo_comb]).view(-1, feature_dim)
-            # compute product over planes
-            interp_space = interp_space * interp_out_plane
+    for grid in grid_encodings:
+        grid_features = grid(pts)
 
         # combine over scales
         if concat_features:
-            multi_scale_interp.append(interp_space)
+            multi_scale_interp.append(grid_features)
         else:
-            multi_scale_interp = multi_scale_interp + interp_space
+            multi_scale_interp = multi_scale_interp + grid_features
 
     if concat_features:
         multi_scale_interp = torch.cat(multi_scale_interp, dim=-1)
@@ -199,13 +122,13 @@ class KPlanesField(Field):
             # initialize coordinate grid
             # Resolution fix: multi-res only on spatial planes
             resolution = [r * res for r in grid_base_resolution[:3]] + grid_base_resolution[3:]
-            gp = init_grid_param(out_dim=grid_feature_dim, reso=resolution)
+            gp = KPlanesEncoding(resolution, grid_feature_dim)
 
-            # shape[1] is out-dim - Concatenate over feature len for each scale
+            # Concatenate over feature len for each scale
             if self.concat_features_across_scales:
-                self.feature_dim += gp[-1].shape[1]
+                self.feature_dim += grid_feature_dim
             else:
-                self.feature_dim = gp[-1].shape[1]
+                self.feature_dim = grid_feature_dim
 
             self.grids.append(gp)
 
@@ -297,7 +220,7 @@ class KPlanesField(Field):
             grid_input = torch.cat([grid_input, (2 * ray_samples.times - 1).reshape(-1, 1)], -1)
 
         features = interpolate_ms_features(
-            grid_input, ms_grids=self.grids, concat_features=self.concat_features_across_scales
+            grid_input, grid_encodings=self.grids, concat_features=self.concat_features_across_scales
         )
 
         if self.linear_decoder:
@@ -393,7 +316,7 @@ class KPlanesDensityField(Field):
         self.feature_dim = num_output_coords
         self.linear_decoder = linear_decoder
 
-        self.grids = init_grid_param(out_dim=num_output_coords, reso=resolution, a=0.1, b=0.15)
+        self.grids = KPlanesEncoding(resolution, num_output_coords, init_a=0.1, init_b=0.15)
 
         self.sigma_net = tcnn.Network(
             n_input_dims=self.feature_dim,
@@ -419,10 +342,10 @@ class KPlanesDensityField(Field):
         else:
             grid_input = (grid_input - self.aabb[0]) * (2.0 / (self.aabb[1] - self.aabb[0])) - 1.0
 
-        if ray_samples.times is not None and self.hexplane:
+        if self.hexplane:
             grid_input = torch.cat([grid_input, (2 * ray_samples.times - 1).view(-1, 1)], -1)
 
-        features = interpolate_ms_features(grid_input, ms_grids=[self.grids], concat_features=False)
+        features = interpolate_ms_features(grid_input, grid_encodings=[self.grids], concat_features=False)
 
         density_before_activation = self.sigma_net(features).view(*ray_samples.frustums.shape, -1)
         density = trunc_exp(density_before_activation.to(grid_input) - 1)
