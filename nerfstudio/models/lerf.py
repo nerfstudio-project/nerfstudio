@@ -88,11 +88,6 @@ class LERFModel(NerfactoModel):
         dataclass_fn = lambda dc: dc._apply_fn_to_fields(gather_fn, dataclass_fn)
         lerf_samples = ray_samples._apply_fn_to_fields(gather_fn, dataclass_fn)
 
-        # lerf_samples = self.lerf_sampler(ray_bundle, ray_samples, weights)
-        # with torch.no_grad():
-        #     dens, _ = self.field.get_density(lerf_samples)
-        #     lerf_weights = lerf_samples.get_weights(dens)
-
         if self.training:
             clip_scales = ray_bundle.metadata["clip_scales"]
             clip_scales = clip_scales[..., None]
@@ -108,7 +103,7 @@ class LERFModel(NerfactoModel):
         for i in range(self.config.num_proposal_iterations):
             outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
 
-        lerf_field_outputs = self.lerf_field.get_outputs(ray_samples, clip_scales)
+        lerf_field_outputs = self.lerf_field.get_outputs(lerf_samples, clip_scales)
 
         if self.training:
             outputs['clip'] = self.renderer_clip(embeds=lerf_field_outputs[FieldHeadNames.CLIP], weights=lerf_weights.detach())

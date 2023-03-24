@@ -53,6 +53,9 @@ export function RenderControls() {
   const crop_enabled = useSelector(
     (state) => state.renderingState.crop_enabled,
   );
+  const clip_pos_word = useSelector(
+    (state) => state.renderingState.clip_pos_word,
+  )
 
   const crop_bg_color = useSelector(
     (state) => state.renderingState.crop_bg_color,
@@ -206,6 +209,18 @@ export function RenderControls() {
         '1024px': () => setControls({ max_resolution: 1024 }),
         '2048px': () => setControls({ max_resolution: 2048 }),
       }),
+      clip_pos_word: {
+        label: 'clip_pos_word',
+        value: clip_pos_word,
+        onChange: (v) => {
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/clip_pos_word',
+            v,
+          );
+        },
+      },
       // Enable Crop
       crop_enabled: {
         label: 'Crop Viewport',
@@ -304,6 +319,7 @@ export function RenderControls() {
     setControls({ max_resolution });
     setControls({ output_options: outputChoice });
     setControls({ colormap_options: colormapChoice });
+    setControls({ clip_pos_word });
     setControls({ crop_enabled });
     setControls({ crop_bg_color });
     setControls({ crop_scale });
@@ -317,6 +333,7 @@ export function RenderControls() {
     max_resolution,
     target_train_util,
     render_time,
+    clip_pos_word,
     crop_enabled,
     crop_bg_color,
     crop_scale,

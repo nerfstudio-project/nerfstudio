@@ -190,7 +190,7 @@ export function get_scene_tree() {
   window.addEventListener('keyup', onKeyUp, true);
 
   window.addEventListener('keydown', (event) => {
-    if (event.code === 'Space') {
+    if (event.code === 'Space' && scene_state.value.get('mouse_in_scene')) {
       camera_controls.setLookAt(0.7, -0.7, 0.3, 0, 0, 0);
     }
   });

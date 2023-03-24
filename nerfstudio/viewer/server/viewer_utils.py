@@ -303,6 +303,7 @@ class ViewerState:
         self.camera_moving = False
         self.prev_camera_timestamp = 0
         self.prev_crop_enabled = False
+        self.prev_clip_pos_word = ""
         self.prev_crop_bg_color = None
         self.prev_crop_scale = None
         self.prev_crop_center = None
@@ -815,6 +816,13 @@ class ViewerState:
 
         colormap_range = self.vis["renderingState/colormap_range"].read()
         self.prev_colormap_range = colormap_range
+
+        clip_pos_word = self.vis["renderingState/clip_pos_word"].read()
+        if self.prev_clip_pos_word != clip_pos_word and clip_pos_word is not None:
+            print("setting target word to {}".format(clip_pos_word))
+            graph.network.set_positives([clip_pos_word])
+            print("done")
+            self.prev_clip_pos_word = clip_pos_word
 
         # update render aabb
         try:

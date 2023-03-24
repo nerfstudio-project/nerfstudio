@@ -29,7 +29,6 @@ except ImportError:
 
 import torch
 
-
 @dataclass
 class OpenCLIPNetworkConfig(cfg.InstantiateConfig):
     """Configuration for network instantiation"""
@@ -55,7 +54,7 @@ class OpenCLIPNetwork:
         self.model = model.to("cuda")
         self.clip_n_dims = self.config.clip_n_dims
 
-        self.positives = ["'wes' text"]
+        self.positives = ["hand sanitizer"]
         self.negatives = self.config.negatives
         with torch.no_grad():
             tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.positives]).to("cuda")
@@ -75,7 +74,7 @@ class OpenCLIPNetwork:
     def set_positives(self, text_list):
         self.positives = text_list
         with torch.no_grad():
-            tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.config.positives]).to("cuda")
+            tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.positives]).to("cuda")
             self.pos_embeds = self.model.encode_text(tok_phrases)
         self.pos_embeds /= self.pos_embeds.norm(dim=-1, keepdim=True)
 

@@ -54,6 +54,8 @@ const initialState = {
     clipping_center: [0.0, 0.0, 0.0],
     clipping_box_scale: [2.0, 2.0, 2.0],
 
+    clip_pos_word: "",
+
     // Crop Box Options
     crop_enabled: false,
     crop_bg_color: { r: 38, g: 42, b: 55 },
