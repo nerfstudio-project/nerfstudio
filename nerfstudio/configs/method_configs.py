@@ -96,7 +96,7 @@ method_configs["lerf"] = TrainerConfig(
     mixed_precision=True,
     pipeline=LERFPipelineConfig(
         datamanager=LERFDataManagerConfig(
-            dataparser=NerfstudioDataParserConfig(),
+            dataparser=NerfstudioDataParserConfig(train_split_fraction=0.99),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
@@ -108,15 +108,15 @@ method_configs["lerf"] = TrainerConfig(
     optimizers={
         "proposal_networks": {
             "optimizer": RAdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-3, max_steps=30000),
         },
         "fields": {
             "optimizer": RAdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-3, max_steps=30000),
         },
         "lerf": {
             "optimizer": RAdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-3, max_steps=5000),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-3, max_steps=7000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),

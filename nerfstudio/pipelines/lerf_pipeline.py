@@ -1,20 +1,26 @@
 import typing
-from typing import Literal, Type, List, Tuple
-
 from dataclasses import dataclass, field
-
-from nerfstudio.pipelines.base_pipeline import VanillaPipeline, VanillaPipelineConfig, Pipeline
-
-from nerfstudio.configs import base_config as cfg
-
-from nerfstudio.data.datamanagers.base_datamanager import DataManagerConfig, VanillaDataManagerConfig
-from nerfstudio.data.datamanagers.lerf_datamanager import LERFDataManager, LERFDataManagerConfig
-
-from nerfstudio.models.base_model import ModelConfig
-from nerfstudio.models.lerf import LERFModelConfig, LERFModel
+from typing import List, Literal, Tuple, Type
 
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
+
+from nerfstudio.configs import base_config as cfg
+from nerfstudio.data.datamanagers.base_datamanager import (
+    DataManagerConfig,
+    VanillaDataManagerConfig,
+)
+from nerfstudio.data.datamanagers.lerf_datamanager import (
+    LERFDataManager,
+    LERFDataManagerConfig,
+)
+from nerfstudio.models.base_model import ModelConfig
+from nerfstudio.models.lerf import LERFModel, LERFModelConfig
+from nerfstudio.pipelines.base_pipeline import (
+    Pipeline,
+    VanillaPipeline,
+    VanillaPipelineConfig,
+)
 
 try:
     import open_clip
@@ -23,9 +29,11 @@ except ImportError:
 
 import torch
 
+
 @dataclass
 class OpenCLIPNetworkConfig(cfg.InstantiateConfig):
     """Configuration for network instantiation"""
+
     _target: Type = field(default_factory=lambda: OpenCLIPNetwork)
     """target class to instantiate"""
     clip_model_type: str = "ViT-B-16"
@@ -33,20 +41,21 @@ class OpenCLIPNetworkConfig(cfg.InstantiateConfig):
     clip_n_dims: int = 512
     negatives: Tuple[str] = ("object", "things", "stuff", "texture")
 
+
 # ambivalent about this being here, it's still technically rendering but I want to keep it with the OpenCLIPNetworkConfig
 class OpenCLIPNetwork:
     def __init__(self, config: OpenCLIPNetworkConfig):
         self.config = config
         model, _, _ = open_clip.create_model_and_transforms(
-            self.config.clip_model_type, # e.g., ViT-B-16
-            pretrained=self.config.clip_model_pretrained, # e.g., laion2b_s34b_b88k
+            self.config.clip_model_type,  # e.g., ViT-B-16
+            pretrained=self.config.clip_model_pretrained,  # e.g., laion2b_s34b_b88k
             precision="fp16",
         )
         self.tokenizer = open_clip.get_tokenizer(self.config.clip_model_type)
         self.model = model.to("cuda")
         self.clip_n_dims = self.config.clip_n_dims
 
-        self.positives = ["hand sanitizer"]
+        self.positives = ["'wes' text"]
         self.negatives = self.config.negatives
         with torch.no_grad():
             tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.positives]).to("cuda")
@@ -56,8 +65,12 @@ class OpenCLIPNetwork:
         self.pos_embeds /= self.pos_embeds.norm(dim=-1, keepdim=True)
         self.neg_embeds /= self.neg_embeds.norm(dim=-1, keepdim=True)
 
-        assert self.pos_embeds.shape[1] == self.neg_embeds.shape[1], "Positive and negative embeddings must have the same dimensionality"
-        assert self.pos_embeds.shape[1] == self.clip_n_dims, "Embedding dimensionality must match the model dimensionality"
+        assert (
+            self.pos_embeds.shape[1] == self.neg_embeds.shape[1]
+        ), "Positive and negative embeddings must have the same dimensionality"
+        assert (
+            self.pos_embeds.shape[1] == self.clip_n_dims
+        ), "Embedding dimensionality must match the model dimensionality"
 
     def set_positives(self, text_list):
         self.positives = text_list
@@ -77,7 +90,9 @@ class OpenCLIPNetwork:
         sims = torch.stack((repeated_pos, negative_vals), dim=-1)  # rays x N-phrase x 2
         softmax = torch.softmax(10 * sims, dim=-1)  # rays x n-phrase x 2
         best_id = softmax[..., 0].argmin(dim=1)  # rays x 2
-        return torch.gather(softmax, 1, best_id[..., None, None].expand(best_id.shape[0], len(self.negatives), 2))[:, 0, :]
+        return torch.gather(softmax, 1, best_id[..., None, None].expand(best_id.shape[0], len(self.negatives), 2))[
+            :, 0, :
+        ]
 
 
 @dataclass
@@ -102,7 +117,7 @@ class LERFPipeline(VanillaPipeline):
         test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
-        ):
+    ):
         super(VanillaPipeline, self).__init__()
         self.config = config
         self.test_mode = test_mode

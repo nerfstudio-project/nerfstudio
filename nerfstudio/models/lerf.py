@@ -5,13 +5,13 @@ import numpy as np
 import open_clip
 import torch
 from torch.nn import Parameter
-from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle, RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.lerf_field import LERFField
+from nerfstudio.model_components.ray_samplers import PDFSampler
 from nerfstudio.model_components.renderers import (
     CLIPRenderer,
     DepthRenderer,
@@ -28,6 +28,7 @@ class LERFModelConfig(NerfactoModelConfig):
     max_scale: float = 1.5
     """maximum scale used to compute relevancy with"""
     specify_scale: bool = False
+    num_lerf_samples: int = 12
 
 
 class LERFModel(NerfactoModel):
@@ -41,6 +42,7 @@ class LERFModel(NerfactoModel):
 
         self.network = self.kwargs["network"]
         self.lerf_field = LERFField(clip_n_dims=self.network.clip_n_dims)
+        # self.lerf_sampler = PDFSampler(num_samples=self.config.num_lerf_samples, histogram_padding=0.00)
 
     def get_max_across(self, ray_samples, weights, hashgrid_field, scales_shape, preset_scales=None):
         # TODO smoothen this out
@@ -78,15 +80,28 @@ class LERFModel(NerfactoModel):
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         ray_samples_list.append(ray_samples)
 
+        nerfacto_field_outputs, outputs, weights = self._get_outputs_nerfacto(ray_samples)
+        lerf_weights, best_ids = torch.topk(weights, self.config.num_lerf_samples, dim=-2, sorted=False)
+
+        def gather_fn(tens):
+            return torch.gather(tens, -2, best_ids.expand(*best_ids.shape[:-1], tens.shape[-1]))
+
+        dataclass_fn = lambda dc: dc._apply_fn_to_fields(gather_fn, dataclass_fn)
+        lerf_samples = ray_samples._apply_fn_to_fields(gather_fn, dataclass_fn)
+
+        # lerf_samples = self.lerf_sampler(ray_bundle, ray_samples, weights)
+        # with torch.no_grad():
+        #     dens, _ = self.field.get_density(lerf_samples)
+        #     lerf_weights = lerf_samples.get_weights(dens)
+
         if "clip_scales" in ray_bundle.metadata:
             clip_scales = ray_bundle.metadata["clip_scales"]
             clip_scales = clip_scales[..., None]
-            dist = ray_samples.spacing_to_euclidean_fn(ray_samples.spacing_starts.squeeze(-1)).unsqueeze(-1)
+            dist = lerf_samples.spacing_to_euclidean_fn(lerf_samples.spacing_starts.squeeze(-1)).unsqueeze(-1)
             clip_scales = clip_scales * ray_bundle.metadata["width"] * (1 / ray_bundle.metadata["fx"]) * dist
         else:
-            clip_scales = torch.ones_like(ray_samples.spacing_starts, device=self.device)
+            clip_scales = torch.ones_like(lerf_samples.spacing_starts, device=self.device)
 
-        nerfacto_field_outputs, outputs, weights = self._get_outputs_nerfacto(ray_samples)
         weights_list.append(weights)
         if self.training:
             outputs["weights_list"] = weights_list
@@ -94,13 +109,18 @@ class LERFModel(NerfactoModel):
         for i in range(self.config.num_proposal_iterations):
             outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
 
-        lerf_field_outputs = self.lerf_field.get_outputs(ray_samples, clip_scales)
-        outputs["clip"] = self.renderer_clip(embeds=lerf_field_outputs[FieldHeadNames.CLIP], weights=weights.detach())
-        outputs["dino"] = self.renderer_mean(embeds=lerf_field_outputs[FieldHeadNames.DINO], weights=weights.detach())
+        lerf_field_outputs = self.lerf_field.get_outputs(lerf_samples, clip_scales)
+
+        outputs["clip"] = self.renderer_clip(
+            embeds=lerf_field_outputs[FieldHeadNames.CLIP], weights=lerf_weights.detach()
+        )
+        outputs["dino"] = self.renderer_mean(
+            embeds=lerf_field_outputs[FieldHeadNames.DINO], weights=lerf_weights.detach()
+        )
 
         if not "clip_scales" in ray_bundle.metadata:
             max_across, best_scales = self.get_max_across(
-                ray_samples, weights, lerf_field_outputs[FieldHeadNames.HASHGRID], clip_scales.shape
+                lerf_samples, lerf_weights, lerf_field_outputs[FieldHeadNames.HASHGRID], clip_scales.shape
             )
             multiphrase = max_across[0]
             # normalization for sanity check TODO(cmk) remove
