@@ -29,9 +29,6 @@ from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConf
 from nerfstudio.data.datamanagers.depth_datamanager import DepthDataManagerConfig
 from nerfstudio.data.datamanagers.sdf_datamanager import SDFDataManagerConfig
 from nerfstudio.data.datamanagers.semantic_datamanager import SemanticDataManagerConfig
-from nerfstudio.data.datamanagers.variable_res_datamanager import (
-    VariableResDataManagerConfig,
-)
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
 from nerfstudio.data.dataparsers.dycheck_dataparser import DycheckDataParserConfig
@@ -358,7 +355,7 @@ method_configs["phototourism"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
-        datamanager=VariableResDataManagerConfig(  # NOTE: one of the only differences with nerfacto
+        datamanager=VanillaDataManagerConfig(
             dataparser=PhototourismDataParserConfig(),  # NOTE: one of the only differences with nerfacto
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
