@@ -362,6 +362,11 @@ method_configs["phototourism"] = TrainerConfig(
             camera_optimizer=CameraOptimizerConfig(
                 mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),
+            # Large dataset, so using prior values from VariableResDataManager.
+            train_num_images_to_sample_from=40,
+            train_num_times_to_repeat_images=100,
+            eval_num_images_to_sample_from=40,
+            eval_num_times_to_repeat_images=100,
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
     ),
