@@ -59,8 +59,6 @@ def realitycapture_to_json(
             for column, value in row.items():
                 cameras.setdefault(column, []).append(value)
 
-    # Don't assume all images are the same dimensions
-
     missing_image_data = 0
 
     for i, name in enumerate(cameras["#name"]):
