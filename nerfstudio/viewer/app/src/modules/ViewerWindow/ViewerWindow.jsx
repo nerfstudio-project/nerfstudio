@@ -169,6 +169,12 @@ export default function ViewerWindow(props) {
       });
     };
 
+    setDimensions({
+      height: get_window_height(),
+      width: get_window_width(),
+    });
+    render();
+
     window.addEventListener('resize', handleNewDimensions);
     return () => {
       window.removeEventListener('resize', handleNewDimensions);
