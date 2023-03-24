@@ -117,7 +117,13 @@ def run_hloc(
         camera_model=camera_model.value
     )
     if refine_pixsfm:
-        sfm = PixSfM({"dense_features": {"max_edge": 1024}})
+        sfm = PixSfM(
+            conf={
+                "dense_features": {"use_cache": True},
+                "KA": {"dense_features": {"use_cache": True}, "max_kps_per_problem": 1000},
+                "BA": {"strategy": "costmaps"},
+            }
+        )
         refined, _ = sfm.reconstruction(
             sfm_dir,
             image_dir,
