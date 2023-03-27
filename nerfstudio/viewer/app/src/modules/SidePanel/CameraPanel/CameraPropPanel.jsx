@@ -66,7 +66,7 @@ export default function CameraPropPanel(props) {
             setExportPath(v);
           }
         },
-        
+
       },
       camera_resolution: {
         label: 'Resolution',
@@ -109,7 +109,7 @@ export default function CameraPropPanel(props) {
     { store },
   );
 
-  setControls({path: export_path});
+  setControls({ path: export_path });
   setControls({ video_fps: fps });
   setControls({ video_duration: seconds });
   setControls({

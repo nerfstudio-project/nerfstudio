@@ -266,6 +266,8 @@ class Nerfstudio(DataParser):
                 indices = i_train
             elif split in ["val", "test"]:
                 indices = i_eval
+            elif split in ["all"]:
+                indices = i_all
             else:
                 raise ValueError(f"Unknown dataparser split {split}")
 

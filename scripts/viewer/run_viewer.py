@@ -97,7 +97,9 @@ class RunViewer:
         )
 
         viewer_state.vis["renderingState/export_path"].write(
-            f"export-{config.pipeline.datamanager.dataparser.data.stem}_step_{get_step_from_ckpt_path(config.load_ckpt)}"
+            f"export-{config.pipeline.datamanager.dataparser.data.stem}_step_{get_step_from_ckpt_path(config.load_ckpt)}".replace(
+                ".", "_"
+            )
         )
 
         # TODO matej
@@ -113,11 +115,6 @@ class RunViewer:
             start_train=False,
         )
 
-        # assert viewer_state and pipeline.datamanager.train_dataset
-        # viewer_state.init_scene(
-        #     dataset=pipeline.datamanager.train_dataset,
-        #     start_train=False,
-        # )
         while True:
             viewer_state.vis["renderingState/isTraining"].write(False)
             self._update_viewer_state(viewer_state, config, pipeline)
