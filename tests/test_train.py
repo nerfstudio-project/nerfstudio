@@ -28,7 +28,7 @@ BLACKLIST = [
     "nerfplayer-nerfacto",
     "neus",
     "kplanes",
-    "kplanes-dnerf",
+    "kplanes-dynamic",
 ]
 
 
