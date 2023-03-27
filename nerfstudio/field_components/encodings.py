@@ -16,8 +16,9 @@
 Encoding functions
 """
 
+import itertools
 from abc import abstractmethod
-from typing import Optional
+from typing import Optional, Sequence
 
 import numpy as np
 import torch
@@ -242,7 +243,6 @@ class HashEncoding(Encoding):
         implementation: Literal["tcnn", "torch"] = "tcnn",
         interpolation: Optional[Literal["Nearest", "Linear", "Smoothstep"]] = None,
     ) -> None:
-
         super().__init__(in_dim=3)
         self.num_levels = num_levels
         self.features_per_level = features_per_level
@@ -469,9 +469,173 @@ class TensorVMEncoding(Encoding):
         )
         line_coef = F.interpolate(self.line_coef.data, size=(resolution, 1), mode="bilinear", align_corners=True)
 
-        # TODO(ethan): are these torch.nn.Parameters needed?
         self.plane_coef, self.line_coef = torch.nn.Parameter(plane_coef), torch.nn.Parameter(line_coef)
         self.resolution = resolution
+
+
+class TriplaneEncoding(Encoding):
+    """Learned triplane encoding
+
+    The encoding at [i,j,k] is an n dimensional vector corresponding to the element-wise product of the
+    three n dimensional vectors at plane_coeff[i,j], plane_coeff[i,k], and plane_coeff[j,k].
+
+    This allows for marginally more expressivity than the TensorVMEncoding, and each component is self standing
+    and symmetrical, unlike with VM decomposition where we needed one component with a vector along all the x, y, z
+    directions for symmetry.
+
+    This can be thought of as 3 planes of features perpendicular to the x, y, and z axes, respectively and intersecting
+    at the origin, and the encoding being the element-wise product of the element at the projection of [i, j, k] on
+    these planes.
+
+    The use for this is in representing a tensor decomp of a 4D embedding tensor: (x, y, z, feature_size)
+
+    This will return a tensor of shape (bs:..., num_components)
+
+    Args:
+        resolution: Resolution of grid.
+        num_components: The number of scalar triplanes to use (ie: output feature size)
+        init_scale: The scale of the initial values of the planes
+        product: Whether to use the element-wise product of the planes or the sum
+    """
+
+    plane_coef: TensorType[3, "num_components", "resolution", "resolution"]
+
+    def __init__(
+        self,
+        resolution: int = 32,
+        num_components: int = 64,
+        init_scale: float = 0.1,
+        reduce: Literal["sum", "product"] = "sum",
+    ) -> None:
+        super().__init__(in_dim=3)
+
+        self.resolution = resolution
+        self.num_components = num_components
+        self.init_scale = init_scale
+        self.reduce = reduce
+
+        self.plane_coef = nn.Parameter(
+            self.init_scale * torch.randn((3, self.num_components, self.resolution, self.resolution))
+        )
+
+    def get_out_dim(self) -> int:
+        return self.num_components
+
+    def forward(self, in_tensor: TensorType["bs":..., 3]) -> TensorType["bs":..., "num_components", "featuresize"]:
+        """Sample features from this encoder. Expects in_tensor to be in range [0, resolution]"""
+
+        original_shape = in_tensor.shape
+        in_tensor = in_tensor.reshape(-1, 3)
+
+        plane_coord = torch.stack([in_tensor[..., [0, 1]], in_tensor[..., [0, 2]], in_tensor[..., [1, 2]]], dim=0)
+
+        # Stop gradients from going to sampler
+        plane_coord = plane_coord.detach().view(3, -1, 1, 2)
+        plane_features = F.grid_sample(
+            self.plane_coef, plane_coord, align_corners=True
+        )  # [3, num_components, flattened_bs, 1]
+
+        if self.reduce == "product":
+            plane_features = plane_features.prod(0).squeeze(-1).T  # [flattened_bs, num_components]
+        else:
+            plane_features = plane_features.sum(0).squeeze(-1).T
+
+        return plane_features.reshape(*original_shape[:-1], self.num_components)
+
+    @torch.no_grad()
+    def upsample_grid(self, resolution: int) -> None:
+        """Upsamples underlying feature grid
+
+        Args:
+            resolution: Target resolution.
+        """
+        plane_coef = F.interpolate(
+            self.plane_coef.data, size=(resolution, resolution), mode="bilinear", align_corners=True
+        )
+
+        self.plane_coef = torch.nn.Parameter(plane_coef)
+        self.resolution = resolution
+
+
+class KPlanesEncoding(Encoding):
+    """Learned K-Planes encoding
+
+    A plane encoding supporting both 3D and 4D coordinates. With 3D coordinates this is similar to
+    :class:`TriplaneEncoding`. With 4D coordinates, the encoding at point ``[i,j,k,q]`` is
+    a n-dimensional vector computed as the elementwise product of 6 n-dimensional vectors at
+    ``planes[i,j]``, ``planes[i,k]``, ``planes[i,q]``, ``planes[j,k]``, ``planes[j,q]``,
+    ``planes[k,q]``.
+
+    Unlike :class:`TriplaneEncoding` this class supports different resolution along each axis.
+
+    This will return a tensor of shape (bs:..., num_components)
+
+    Args:
+        resolution: Resolution of the grid. Can be a sequence of 3 or 4 integers.
+        num_components: The number of scalar planes to use (ie: output feature size)
+        init_a: The lower-bound of the uniform distribution used to initialize the spatial planes
+        init_b: The upper-bound of the uniform distribution used to initialize the spatial planes
+        reduce: Whether to use the element-wise product of the planes or the sum
+    """
+
+    def __init__(
+        self,
+        resolution: Sequence[int] = (128, 128, 128),
+        num_components: int = 64,
+        init_a: float = 0.1,
+        init_b: float = 0.5,
+        reduce: Literal["sum", "product"] = "product",
+    ) -> None:
+        super().__init__(in_dim=len(resolution))
+
+        self.resolution = resolution
+        self.num_components = num_components
+        self.reduce = reduce
+        if self.in_dim not in {3, 4}:
+            raise ValueError(
+                f"The dimension of coordinates must be either 3 (static scenes) "
+                f"or 4 (dynamic scenes). Found resolution with {self.in_dim} dimensions."
+            )
+        has_time_planes = self.in_dim == 4
+
+        self.coo_combs = list(itertools.combinations(range(self.in_dim), 2))
+        # Unlike the Triplane encoding, we use a parameter list instead of batching all planes
+        # together to support uneven resolutions (especially useful for time).
+        # Dynamic models (in_dim == 4) will have 6 planes:
+        # (y, x), (z, x), (t, x), (z, y), (t, y), (t, z)
+        # static models (in_dim == 3) will only have the 1st, 2nd and 4th planes.
+        self.plane_coefs = nn.ParameterList()
+        for coo_comb in self.coo_combs:
+            new_plane_coef = nn.Parameter(
+                torch.empty([self.num_components] + [self.resolution[cc] for cc in coo_comb[::-1]])
+            )
+            if has_time_planes and 3 in coo_comb:  # Time planes initialized to 1
+                nn.init.ones_(new_plane_coef)
+            else:
+                nn.init.uniform_(new_plane_coef, a=init_a, b=init_b)
+            self.plane_coefs.append(new_plane_coef)
+
+    def get_out_dim(self) -> int:
+        return self.num_components
+
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
+        """Sample features from this encoder. Expects ``in_tensor`` to be in range [-1, 1]"""
+        original_shape = in_tensor.shape
+
+        output = 1.0 if self.reduce == "product" else 0.0  # identity for corresponding op
+        for ci, coo_comb in enumerate(self.coo_combs):
+            grid = self.plane_coefs[ci].unsqueeze(0)  # [1, feature_dim, reso1, reso2]
+            coords = in_tensor[..., coo_comb].view(1, 1, -1, 2)  # [1, 1, flattened_bs, 2]
+            interp = F.grid_sample(
+                grid, coords, align_corners=True, padding_mode="border"
+            )  # [1, output_dim, 1, flattened_bs]
+            interp = interp.view(self.num_components, -1).T  # [flattened_bs, output_dim]
+            if self.reduce == "product":
+                output = output * interp
+            else:
+                output = output + interp
+
+        return output.reshape(*original_shape[:-1], self.num_components)
 
 
 class SHEncoding(Encoding):

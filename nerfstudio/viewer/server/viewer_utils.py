@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=too-many-lines
+
 """Code to interface with the `vis/` (the JS viewer).
 """
 from __future__ import annotations
 
-import asyncio
+import base64
 import enum
 import os
-import re
 import sys
 import threading
 import time
@@ -27,14 +28,9 @@ import warnings
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
+import cv2
 import numpy as np
 import torch
-from aiortc import (
-    RTCConfiguration,
-    RTCIceServer,
-    RTCPeerConnection,
-    RTCSessionDescription,
-)
 from cryptography.utils import CryptographyDeprecationWarning
 from rich.console import Console
 
@@ -49,12 +45,11 @@ from nerfstudio.utils import colormaps, profiler, writer
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
-from nerfstudio.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
-from nerfstudio.viewer.server.utils import (
-    force_codec,
-    get_intrinsics_matrix_and_camera_to_world_h,
+from nerfstudio.viewer.server.subprocess import (
+    get_free_port,
+    run_viewer_bridge_server_as_subprocess,
 )
-from nerfstudio.viewer.server.video_stream import SingleFrameStreamTrack
+from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfstudio.viewer.server.visualizer import Viewer
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
@@ -70,11 +65,13 @@ def get_viewer_version() -> str:
 
 
 @check_main_thread
-def setup_viewer(config: cfg.ViewerConfig, log_filename: Path, datapath: str):
+def setup_viewer(config: cfg.ViewerConfig, log_filename: Path, datapath: Path):
     """Sets up the viewer if enabled
 
     Args:
         config: the configuration to instantiate viewer
+        log_filename: the log filename to write to
+        datapath: the path to the dataset
     """
     viewer_state = ViewerState(config, log_filename=log_filename, datapath=datapath)
     banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
@@ -150,16 +147,29 @@ class RenderThread(threading.Thread):
                 if self.state.prev_crop_enabled:
                     color = self.state.prev_crop_bg_color
                     if color is None:
-                        background_color = torch.tensor([0.0, 0.0, 0.0], device=self.graph.device)
+                        background_color = torch.tensor(
+                            [0.0, 0.0, 0.0], device=self.graph.device
+                        )
                     else:
                         background_color = torch.tensor(
-                            [color["r"] / 255.0, color["g"] / 255.0, color["b"] / 255.0], device=self.graph.device
+                            [
+                                color["r"] / 255.0,
+                                color["g"] / 255.0,
+                                color["b"] / 255.0,
+                            ],
+                            device=self.graph.device,
                         )
-                    with renderers.background_color_override_context(background_color), torch.no_grad():
-                        outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
+                    with renderers.background_color_override_context(
+                        background_color
+                    ), torch.no_grad():
+                        outputs = self.graph.get_outputs_for_camera_ray_bundle(
+                            self.camera_ray_bundle
+                        )
                 else:
                     with torch.no_grad():
-                        outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
+                        outputs = self.graph.get_outputs_for_camera_ray_bundle(
+                            self.camera_ray_bundle
+                        )
         except Exception as e:  # pylint: disable=broad-except
             self.exc = e
 
@@ -202,10 +212,15 @@ class CheckThread(threading.Thread):
                 if (
                     self.state.prev_camera_matrix is None
                     or (
-                        not np.allclose(camera_object["matrix"], self.state.prev_camera_matrix)
+                        not np.allclose(
+                            camera_object["matrix"], self.state.prev_camera_matrix
+                        )
                         and not self.state.prev_moving
                     )
-                    or (render_time is not None and render_time != self.state.prev_render_time)
+                    or (
+                        render_time is not None
+                        and render_time != self.state.prev_render_time
+                    )
                 ):
                     self.state.check_interrupt_vis = True
                     self.state.prev_moving = True
@@ -252,20 +267,27 @@ class ViewerState:
 
     Args:
         config: viewer setup configuration
+        log_filename: filename to log viewer output to
+        datapath: path to data
     """
 
-    def __init__(self, config: cfg.ViewerConfig, log_filename: Path, datapath: str):
+    def __init__(self, config: cfg.ViewerConfig, log_filename: Path, datapath: Path):
         self.config = config
         self.vis = None
         self.viewer_url = None
         self.log_filename = log_filename
-        self.datapath = datapath
+        self.datapath = datapath.parent if datapath.is_file() else datapath
         if self.config.launch_bridge_server:
             # start the viewer bridge server
-            assert self.config.websocket_port is not None
+            if self.config.websocket_port is None:
+                websocket_port = get_free_port(
+                    default_port=self.config.websocket_port_default
+                )
+            else:
+                websocket_port = self.config.websocket_port
             self.log_filename.parent.mkdir(exist_ok=True)
             zmq_port = run_viewer_bridge_server_as_subprocess(
-                self.config.websocket_port,
+                websocket_port,
                 zmq_port=self.config.zmq_port,
                 ip_address=self.config.ip_address,
                 log_filename=str(self.log_filename),
@@ -273,22 +295,16 @@ class ViewerState:
             # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
             CONSOLE.line()
             version = get_viewer_version()
-            websocket_url = f"ws://localhost:{self.config.websocket_port}"
+            websocket_url = f"ws://localhost:{websocket_port}"
             self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_url={websocket_url}"
             CONSOLE.rule(characters="=")
             CONSOLE.print(f"[Public] Open the viewer at {self.viewer_url}")
             CONSOLE.rule(characters="=")
             CONSOLE.line()
             self.vis = Viewer(zmq_port=zmq_port, ip_address=self.config.ip_address)
-            self.vis_webrtc_thread = Viewer(
-                zmq_port=zmq_port, ip_address=self.config.ip_address
-            )
         else:
             assert self.config.zmq_port is not None
             self.vis = Viewer(
-                zmq_port=self.config.zmq_port, ip_address=self.config.ip_address
-            )
-            self.vis_webrtc_thread = Viewer(
                 zmq_port=self.config.zmq_port, ip_address=self.config.ip_address
             )
 
@@ -317,12 +333,6 @@ class ViewerState:
 
         self.output_list = None
 
-        # webrtc
-        self.pcs = set()
-        self.video_tracks = set()
-        self.webrtc_thread = None
-        self.kill_webrtc_signal = False
-
     def _pick_drawn_image_idxs(self, total_num: int) -> list[int]:
         """Determine indicies of images to display in viewer.
 
@@ -349,7 +359,7 @@ class ViewerState:
             start_train: whether to start train when viewer init;
                 if False, only displays dataset until resume train is toggled
         """
-        
+
         # set the data base dir
         self.vis["renderingState/data_base_dir"].write(str(self.datapath))
 
@@ -374,17 +384,10 @@ class ViewerState:
         # set the initial state whether to train or not
         self.vis["renderingState/isTraining"].write(start_train)
 
-        max_scene_box = torch.max(dataset.scene_box.aabb[1] - dataset.scene_box.aabb[0]).item()
+        max_scene_box = torch.max(
+            dataset.scene_box.aabb[1] - dataset.scene_box.aabb[0]
+        ).item()
         self.vis["renderingState/max_box_size"].write(max_scene_box)
-
-        # self.vis["renderingState/render_time"].write(str(0))
-
-        # set the properties of the camera
-        # self.vis["renderingState/camera"].write(json_)
-
-        # set the main camera intrinsics to one from the dataset
-        # K = camera.get_intrinsics_matrix()
-        # set_persp_intrinsics_matrix(self.vis, K.double().numpy())
 
     def _check_camera_path_payload(self, trainer, step: int):
         """Check to see if the camera path export button was pressed."""
@@ -400,7 +403,10 @@ class ViewerState:
             if not os.path.exists(camera_paths_directory):
                 os.mkdir(camera_paths_directory)
 
-            write_to_json(Path(os.path.join(camera_paths_directory, camera_path_filename)), camera_path)
+            write_to_json(
+                Path(os.path.join(camera_paths_directory, camera_path_filename)),
+                camera_path,
+            )
             self.vis["camera_path_payload"].delete()
 
     def _check_populate_paths_payload(self, trainer, step: int):
@@ -415,29 +421,11 @@ class ViewerState:
                 all_path_dict = {}
                 for i in camera_path_files:
                     if i[-4:] == "json":
-                        all_path_dict[i[:-5]] = load_from_json(Path(os.path.join(camera_path_dir, i)))
+                        all_path_dict[i[:-5]] = load_from_json(
+                            Path(os.path.join(camera_path_dir, i))
+                        )
                 self.vis["renderingState/all_camera_paths"].write(all_path_dict)
                 self.vis["populate_paths_payload"].delete()
-
-    def _check_webrtc_offer(self):
-        """Check if there is a webrtc offer to respond to."""
-        data = self.vis["webrtc/offer"].read()
-        if data:
-            if self.webrtc_thread and self.webrtc_thread.is_alive():
-                # kill the previous thread if the webpage refreshes
-                self.kill_webrtc_signal = True
-                return
-
-            def loop_in_thread(loop):
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(self.send_webrtc_answer(data))
-
-            loop = asyncio.get_event_loop()
-            self.webrtc_thread = threading.Thread(target=loop_in_thread, args=(loop,))
-            self.webrtc_thread.daemon = True
-            self.webrtc_thread.start()
-            # remove the offer from the state tree
-            self.vis["webrtc/offer"].delete()
 
     def _update_render_aabb(self, graph):
         """
@@ -464,7 +452,10 @@ class ViewerState:
                 self.camera_moving = True
                 self.prev_crop_bg_color = crop_bg_color
 
-            if crop_scale != self.prev_crop_scale or crop_center != self.prev_crop_center:
+            if (
+                crop_scale != self.prev_crop_scale
+                or crop_center != self.prev_crop_center
+            ):
                 self.camera_moving = True
                 self.prev_crop_scale = crop_scale
                 self.prev_crop_center = crop_center
@@ -479,7 +470,9 @@ class ViewerState:
                     graph.render_aabb.aabb[0] = box_min
                     graph.render_aabb.aabb[1] = box_max
                 else:
-                    graph.render_aabb = SceneBox(aabb=torch.stack([box_min, box_max], dim=0))
+                    graph.render_aabb = SceneBox(
+                        aabb=torch.stack([box_min, box_max], dim=0)
+                    )
 
                 # maybe should update only if true change ?
                 json_ = graph.render_aabb.to_json()
@@ -487,22 +480,27 @@ class ViewerState:
         else:
             graph.render_aabb = None
 
-    def update_scene(self, trainer, step: int, graph: Model, num_rays_per_batch: int) -> None:
+    def update_scene(
+        self, trainer, step: int, graph: Model, num_rays_per_batch: int
+    ) -> None:
         """updates the scene based on the graph weights
 
         Args:
             step: iteration step of training
             graph: the current checkpoint of the model
         """
-        has_temporal_distortion = getattr(graph, "temporal_distortion", None) is not None
-        self.vis["model/has_temporal_distortion"].write(str(has_temporal_distortion).lower())
+        has_temporal_distortion = (
+            getattr(graph, "temporal_distortion", None) is not None
+        )
+        self.vis["model/has_temporal_distortion"].write(
+            str(has_temporal_distortion).lower()
+        )
 
         is_training = self.vis["renderingState/isTraining"].read()
         self.step = step
 
         self._check_camera_path_payload(trainer, step)
         self._check_populate_paths_payload(trainer, step)
-        self._check_webrtc_offer()
 
         camera_object = self._get_camera_object()
         if camera_object is None:
@@ -552,7 +550,6 @@ class ViewerState:
                 is_training = self.vis["renderingState/isTraining"].read()
                 self._check_populate_paths_payload(trainer, step)
                 self._check_camera_path_payload(trainer, step)
-                self._check_webrtc_offer()
                 run_loop = not is_training
                 local_step += 1
 
@@ -577,7 +574,8 @@ class ViewerState:
 
         if render_time is not None:
             if (
-                self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix)
+                self.prev_camera_matrix is not None
+                and np.allclose(camera_object["matrix"], self.prev_camera_matrix)
             ) and (self.prev_render_time == render_time):
                 self.camera_moving = False
             else:
@@ -585,7 +583,9 @@ class ViewerState:
                 self.prev_render_time = render_time
                 self.camera_moving = True
         else:
-            if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
+            if self.prev_camera_matrix is not None and np.allclose(
+                camera_object["matrix"], self.prev_camera_matrix
+            ):
                 self.camera_moving = False
             else:
                 self.prev_camera_matrix = camera_object["matrix"]
@@ -651,12 +651,18 @@ class ViewerState:
             return outputs[reformatted_output]
 
         # rendering depth outputs
-        if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
+        if (
+            outputs[reformatted_output].shape[-1] == 1
+            and outputs[reformatted_output].dtype == torch.float
+        ):
             output = outputs[reformatted_output]
             if self.prev_colormap_normalize:
                 output = output - torch.min(output)
                 output = output / (torch.max(output) + eps)
-            output = output * (self.prev_colormap_range[1] - self.prev_colormap_range[0]) + self.prev_colormap_range[0]
+            output = (
+                output * (self.prev_colormap_range[1] - self.prev_colormap_range[0])
+                + self.prev_colormap_range[0]
+            )
             output = torch.clip(output, 0, 1)
             if self.prev_colormap_invert:
                 output = 1 - output
@@ -677,67 +683,9 @@ class ViewerState:
 
         raise NotImplementedError
 
-    async def send_webrtc_answer(self, data):
-        """Setup the webrtc connection."""
-
-        # returns the description to for WebRTC to the specific websocket connection
-        offer = RTCSessionDescription(data["sdp"], data["type"])
-
-        if self.config.local:
-            pc = RTCPeerConnection()
-        else:
-            if self.config.skip_openrelay:
-                ice_servers = [
-                    RTCIceServer(urls="stun:stun.l.google.com:19302"),
-                ]
-            else:
-                ice_servers = [
-                    RTCIceServer(urls="stun:stun.l.google.com:19302"),
-                    RTCIceServer(urls="stun:openrelay.metered.ca:80"),
-                    RTCIceServer(
-                        urls="turn:openrelay.metered.ca:80", username="openrelayproject", credential="openrelayproject"
-                    ),
-                    RTCIceServer(
-                        urls="turn:openrelay.metered.ca:443", username="openrelayproject", credential="openrelayproject"
-                    ),
-                    RTCIceServer(
-                        urls="turn:openrelay.metered.ca:443?transport=tcp",
-                        username="openrelayproject",
-                        credential="openrelayproject",
-                    ),
-                ]
-
-            pc = RTCPeerConnection(configuration=RTCConfiguration(iceServers=ice_servers))
-        self.pcs.add(pc)
-
-        video = SingleFrameStreamTrack()
-        self.video_tracks.add(video)
-        video_sender = pc.addTrack(video)
-        print(f"viewer using video/{self.config.codec}")
-        force_codec(pc, video_sender, f"video/{self.config.codec}")
-
-        await pc.setRemoteDescription(offer)
-        answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
-
-        self.vis_webrtc_thread["webrtc/answer"].write(
-            {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
-        )
-        self.vis_webrtc_thread["webrtc/answer"].delete()
-
-        # continually exchange media
-        while True:
-            await asyncio.sleep(1)
-            if self.kill_webrtc_signal:
-                self.kill_webrtc_signal = False
-                return
-
-    def set_image(self, image):
-        """Write the image over webrtc."""
-        for video_track in self.video_tracks:
-            video_track.put_frame(image)
-
-    def _send_output_to_viewer(self, outputs: Dict[str, Any], colors: torch.Tensor = None):
+    def _send_output_to_viewer(
+        self, outputs: Dict[str, Any], colors: torch.Tensor = None
+    ):
         """Chooses the correct output and sends it to the viewer
 
         Args:
@@ -751,6 +699,9 @@ class ViewerState:
             if OutputTypes.RGB_FINE in self.output_list:
                 viewer_output_list.remove(OutputTypes.RGB_FINE)
             viewer_output_list.insert(0, OutputTypes.RGB)
+            # remove semantics, which crashes viewer; semantics_colormap is OK
+            if "semantics" in self.output_list:
+                viewer_output_list.remove("semantics")
             self.vis["renderingState/output_options"].write(viewer_output_list)
 
         reformatted_output = self._process_invalid_output(self.prev_output_type)
@@ -758,18 +709,39 @@ class ViewerState:
         if self.output_type_changed or self.prev_colormap_type is None:
             self.prev_colormap_type = ColormapTypes.DEFAULT
             colormap_options = []
+            self.vis["renderingState/colormap_options"].write(list(ColormapTypes))
             if outputs[reformatted_output].shape[-1] == 3:
                 colormap_options = [ColormapTypes.DEFAULT]
-            if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
-                colormap_options = list(ColormapTypes)
+            if (
+                outputs[reformatted_output].shape[-1] == 1
+                and outputs[reformatted_output].dtype == torch.float
+            ):
+                self.prev_colormap_type = ColormapTypes.TURBO
+                colormap_options = list(ColormapTypes)[1:]
             self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             self.vis["renderingState/colormap_options"].write(colormap_options)
         selected_output = (self._apply_colormap(outputs, colors) * 255).type(
             torch.uint8
         )
-        image = selected_output.cpu().numpy()
-        self.set_image(image)
+
+        image = selected_output[..., [2, 1, 0]].cpu().numpy()
+
+        data = cv2.imencode(
+            f".{self.config.image_format}",
+            image,
+            [
+                cv2.IMWRITE_JPEG_QUALITY,
+                self.config.jpeg_quality,
+                cv2.IMWRITE_PNG_COMPRESSION,
+                self.config.png_compression,
+            ],
+        )[1].tobytes()
+        data = str(
+            f"data:image/{self.config.image_format};base64,"
+            + base64.b64encode(data).decode("ascii")
+        )
+        self.vis["render_img"].write(data)
 
     def _update_viewer_stats(
         self, render_time: float, num_rays: int, image_height: int, image_width: int
@@ -867,11 +839,6 @@ class ViewerState:
         if image_width > self.max_resolution:
             image_width = self.max_resolution
             image_height = int(image_width / aspect_ratio)
-        if self.config.codec != "VP8":
-            # force even values to allow hardware encoder usage
-            quantize = 2
-            image_width = int(image_width / quantize) * quantize
-            image_height = int(image_height / quantize) * quantize
         return image_height, image_width
 
     def _process_invalid_output(self, output_type: str) -> str:
@@ -903,7 +870,7 @@ class ViewerState:
         # pylint: disable=too-many-statements
         """
         Draw an image using the current camera pose from the viewer.
-        The image is sent of a TCP connection and then uses WebRTC to send it to the viewer.
+        The image is sent over a TCP connection.
 
         Args:
             graph: current checkpoint of model
@@ -937,7 +904,9 @@ class ViewerState:
         try:
             self._update_render_aabb(graph)
         except RuntimeError as e:
-            self.vis["renderingState/log_errors"].write("Got an Error while trying to update aabb crop")
+            self.vis["renderingState/log_errors"].write(
+                "Got an Error while trying to update aabb crop"
+            )
             print(f"Error: {e}")
 
             time.sleep(0.5)  # sleep to allow buffer to reset
@@ -958,7 +927,10 @@ class ViewerState:
         if image_height is None:
             return
 
-        intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
+        (
+            intrinsics_matrix,
+            camera_to_world_h,
+        ) = get_intrinsics_matrix_and_camera_to_world_h(
             camera_object, image_height=image_height, image_width=image_width
         )
 
@@ -993,7 +965,9 @@ class ViewerState:
         )
         camera = camera.to(graph.device)
 
-        camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=graph.render_aabb)
+        camera_ray_bundle = camera.generate_rays(
+            camera_indices=0, aabb_box=graph.render_aabb
+        )
 
         graph.eval()
 

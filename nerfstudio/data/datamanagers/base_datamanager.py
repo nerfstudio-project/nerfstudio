@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import torch
@@ -35,21 +36,26 @@ from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
+from nerfstudio.data.dataparsers.arkitscenes_dataparser import (
+    ARKitScenesDataParserConfig,
+)
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
 from nerfstudio.data.dataparsers.dycheck_dataparser import DycheckDataParserConfig
-from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
 from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
     InstantNGPDataParserConfig,
 )
 from nerfstudio.data.dataparsers.minimal_dataparser import MinimalDataParserConfig
+from nerfstudio.data.dataparsers.nerfosr_dataparser import NeRFOSRDataParserConfig
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.dataparsers.nuscenes_dataparser import NuScenesDataParserConfig
 from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
+from nerfstudio.data.dataparsers.scannet_dataparser import ScanNetDataParserConfig
 from nerfstudio.data.dataparsers.sdfstudio_dataparser import SDFStudioDataParserConfig
+from nerfstudio.data.dataparsers.sitcoms3d_dataparser import Sitcoms3DDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import (
     EquirectangularPixelSampler,
@@ -69,20 +75,48 @@ from nerfstudio.utils.misc import IterableWrapper
 
 CONSOLE = Console(width=120, no_color=True)
 
+
+def variable_res_collate(batch: List[Dict]) -> Dict:
+    """Default collate function for the cached dataloader.
+    Args:
+        batch: Batch of samples from the dataset.
+    Returns:
+        Collated batch.
+    """
+    images = []
+    masks = []
+    for data in batch:
+        image = data.pop("image")
+        mask = data.pop("mask", None)
+        images.append(image)
+        if mask:
+            masks.append(mask)
+
+    new_batch: dict = nerfstudio_collate(batch)
+    new_batch["image"] = images
+    if masks:
+        new_batch["mask"] = masks
+
+    return new_batch
+
+
 AnnotatedDataParserUnion = (
     tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of flags in subcommands.
         tyro.extras.subcommand_type_from_defaults(
             {
                 "nerfstudio-data": NerfstudioDataParserConfig(),
                 "minimal-parser": MinimalDataParserConfig(),
+                "arkit-data": ARKitScenesDataParserConfig(),
                 "blender-data": BlenderDataParserConfig(),
-                "friends-data": FriendsDataParserConfig(),
                 "instant-ngp-data": InstantNGPDataParserConfig(),
                 "nuscenes-data": NuScenesDataParserConfig(),
                 "dnerf-data": DNeRFDataParserConfig(),
                 "phototourism-data": PhototourismDataParserConfig(),
                 "dycheck-data": DycheckDataParserConfig(),
+                "scannet-data": ScanNetDataParserConfig(),
                 "sdfstudio-data": SDFStudioDataParserConfig(),
+                "nerfosr-data": NeRFOSRDataParserConfig(),
+                "sitcoms3d-data": Sitcoms3DDataParserConfig(),
             },
             prefix_names=False,  # Omit prefixes in subcommands themselves.
         )
@@ -90,6 +124,21 @@ AnnotatedDataParserUnion = (
 )
 """Union over possible dataparser types, annotated with metadata for tyro. This is the
 same as the vanilla union, but results in shorter subcommand names."""
+
+
+@dataclass
+class DataManagerConfig(InstantiateConfig):
+    """Configuration for data manager instantiation; DataManager is in charge of keeping the train/eval dataparsers;
+    After instantiation, data manager holds both train/eval datasets and is in charge of returning unpacked
+    train/eval data at each iteration
+    """
+
+    _target: Type = field(default_factory=lambda: DataManager)
+    """Target class to instantiate."""
+    data: Optional[Path] = None
+    """Source of data, may not be used by all models."""
+    camera_optimizer: Optional[CameraOptimizerConfig] = None
+    """Specifies the camera pose optimizer used during training. Helpful if poses are noisy."""
 
 
 class DataManager(nn.Module):
@@ -210,33 +259,60 @@ class DataManager(nn.Module):
         """Sets up the data manager for training.
 
         Here you will define any subclass specific object attributes from the attribute"""
-        raise NotImplementedError
 
     @abstractmethod
     def setup_eval(self):
         """Sets up the data manager for evaluation"""
-        raise NotImplementedError
 
     @abstractmethod
-    def next_train(self, step: int) -> Tuple:
+    def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train data manager.
 
-        This will be a tuple of all the information that this data manager outputs.
+        Args:
+            step: the step number of the eval image to retrieve
+        Returns:
+            A tuple of the ray bundle for the image, and a dictionary of additional batch information
+            such as the groudtruth image.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def next_eval(self, step: int) -> Tuple:
+    def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the eval data manager.
 
-        This will be a tuple of all the information that this data manager outputs.
+        Args:
+            step: the step number of the eval image to retrieve
+        Returns:
+            A tuple of the ray bundle for the image, and a dictionary of additional batch information
+            such as the groudtruth image.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def next_eval_image(self, step: int) -> Tuple:
-        """Returns the next eval image."""
+    def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
+        """Retreive the next eval image.
+
+        Args:
+            step: the step number of the eval image to retrieve
+        Returns:
+            A tuple of the step number, the ray bundle for the image, and a dictionary of
+            additional batch information such as the groudtruth image.
+        """
         raise NotImplementedError
+
+    @abstractmethod
+    def get_train_rays_per_batch(self) -> int:
+        """Returns the number of rays per batch for training."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_eval_rays_per_batch(self) -> int:
+        """Returns the number of rays per batch for evaluation."""
+        raise NotImplementedError
+
+    def get_datapath(self) -> Optional[Path]:  # pylint:disable=no-self-use
+        """Returns the path to the data. This is used to determine where to save camera paths."""
+        return None
 
     def get_training_callbacks(  # pylint:disable=no-self-use
         self,
@@ -258,11 +334,8 @@ class DataManager(nn.Module):
 
 
 @dataclass
-class VanillaDataManagerConfig(InstantiateConfig):
-    """Configuration for data manager instantiation; DataManager is in charge of keeping the train/eval dataparsers;
-    After instantiation, data manager holds both train/eval datasets and is in charge of returning unpacked
-    train/eval data at each iteration
-    """
+class VanillaDataManagerConfig(DataManagerConfig):
+    """A basic data manager"""
 
     _target: Type = field(default_factory=lambda: VanillaDataManager)
     """Target class to instantiate."""
@@ -335,18 +408,34 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.sampler = None
         self.test_mode = test_mode
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
-        self.dataparser = self.config.dataparser.setup()
+        self.dataparser_config = self.config.dataparser
+        if self.config.data is not None:
+            self.config.dataparser.data = Path(self.config.data)
+        else:
+            self.config.data = self.config.dataparser.data
+        self.dataparser = self.dataparser_config.setup()
         self.train_dataparser_outputs = self.dataparser.get_dataparser_outputs(
             split="train"
         )
 
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
-        # TODO matej, still didnt call setup_full() as setup_train() setup_val() are
         self.full_dataset = self.create_full_dataset()
 
         if self.config.train_size_initial is None:
             self.config.train_size_initial = len(self.train_dataset)
+
+        if self.train_dataparser_outputs is not None:
+            cameras = self.train_dataparser_outputs.cameras
+            if len(cameras) > 1:
+                for i in range(1, len(cameras)):
+                    if (
+                        cameras[0].width != cameras[i].width
+                        or cameras[0].height != cameras[i].height
+                    ):
+                        CONSOLE.print("Variable resolution, using variable_res_collate")
+                        self.config.collate_fn = variable_res_collate
+                        break
 
         super().__init__()
 
@@ -442,9 +531,12 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.eval_pixel_sampler = self._get_pixel_sampler(
             self.eval_dataset, self.config.eval_num_rays_per_batch
         )
+        self.eval_camera_optimizer = self.config.camera_optimizer.setup(
+            num_cameras=self.eval_dataset.cameras.size, device=self.device
+        )
         self.eval_ray_generator = RayGenerator(
             self.eval_dataset.cameras.to(self.device),
-            self.train_camera_optimizer,  # should be shared between train and eval.
+            self.eval_camera_optimizer,
         )
         # for loading full images
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
@@ -485,6 +577,15 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             image_idx = int(camera_ray_bundle.camera_indices[0, 0, 0])
             return image_idx, camera_ray_bundle, batch
         raise ValueError("No more eval images")
+
+    def get_train_rays_per_batch(self) -> int:
+        return self.config.train_num_rays_per_batch
+
+    def get_eval_rays_per_batch(self) -> int:
+        return self.config.eval_num_rays_per_batch
+
+    def get_datapath(self) -> Path:
+        return self.config.dataparser.data
 
     def get_param_groups(
         self,

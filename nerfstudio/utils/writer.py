@@ -320,7 +320,7 @@ class WandbWriter(Writer):
     """WandDB Writer Class"""
 
     def __init__(self, log_dir: Path):
-        wandb.init(project="nerfstudio-project", dir=str(log_dir), reinit=True)
+        wandb.init(project="nerfstudio-project", dir=str(log_dir), reinit=True, name=log_dir.name)
 
     def write_image(
         self, name: str, image: TensorType["H", "W", "C"], step: int

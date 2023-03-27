@@ -16,6 +16,7 @@
 Miscellaneous helper code.
 """
 
+
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import torch
@@ -147,3 +148,10 @@ def update_avg(prev_avg: float, new_val: float, step: int) -> float:
         float: new updated average
     """
     return (step * prev_avg + new_val) / (step + 1)
+
+
+def strtobool(val) -> bool:
+    """Cheap replacement for `distutils.util.strtobool()` which is deprecated
+    FMI https://stackoverflow.com/a/715468
+    """
+    return val.lower() in ("yes", "y", "true", "t", "on", "1")

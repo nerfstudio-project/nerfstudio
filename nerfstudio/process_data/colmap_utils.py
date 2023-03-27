@@ -55,14 +55,12 @@ def get_colmap_version(colmap_cmd: str, default_version=3.8) -> float:
     Returns:
         The version of COLMAP.
     """
-    output = run_command(colmap_cmd, verbose=False)
+    output = run_command(f"{colmap_cmd} -h", verbose=False)
     assert output is not None
     for line in output.split("\n"):
         if line.startswith("COLMAP"):
             return float(line.split(" ")[1])
-    CONSOLE.print(
-        f"[bold red]Could not find COLMAP version. Using default {default_version}"
-    )
+    CONSOLE.print(f"[bold red]Could not find COLMAP version. Using default {default_version}")
     return default_version
 
 
@@ -200,9 +198,7 @@ def run_colmap(
     CONSOLE.log("[bold green]:tada: Done refining intrinsics.")
 
 
-def parse_colmap_camera_params(
-    camera,
-) -> Dict[str, Any]:  # pylint: disable=too-many-statements
+def parse_colmap_camera_params(camera) -> Dict[str, Any]:  # pylint: disable=too-many-statements
     """
     Parses all currently supported COLMAP cameras into the transforms.json metadata
 
@@ -464,9 +460,7 @@ def colmap_to_json(
             "colmap_im_id": im_id,
         }
         if camera_mask_path is not None:
-            frame["mask_path"] = camera_mask_path.relative_to(
-                camera_mask_path.parent.parent
-            ).as_posix()
+            frame["mask_path"] = camera_mask_path.relative_to(camera_mask_path.parent.parent).as_posix()
         if image_id_to_depth_path is not None:
             depth_path = image_id_to_depth_path[im_id]
             frame["depth_file_path"] = str(depth_path)
@@ -548,9 +542,7 @@ def create_sfm_depth(
 
     if verbose:
         iter_images = track(
-            im_id_to_image.items(),
-            total=len(im_id_to_image.items()),
-            description="Creating depth maps ...",
+            im_id_to_image.items(), total=len(im_id_to_image.items()), description="Creating depth maps ..."
         )
     else:
         iter_images = iter(im_id_to_image.items())
@@ -564,13 +556,7 @@ def create_sfm_depth(
         z = (rotation @ xyz_world.T)[-1] + im_data.tvec[-1]
         errors = np.array([ptid_to_info[pid].error for pid in pids])
         n_visible = np.array([len(ptid_to_info[pid].image_ids) for pid in pids])
-        uv = np.array(
-            [
-                im_data.xys[i]
-                for i in range(len(im_data.xys))
-                if im_data.point3D_ids[i] != -1
-            ]
-        )
+        uv = np.array([im_data.xys[i] for i in range(len(im_data.xys)) if im_data.point3D_ids[i] != -1])
         # TODO(1480) END delete when abandoning colmap_parsing_utils
 
         # TODO(1480) BEGIN use pycolmap API
@@ -623,16 +609,11 @@ def create_sfm_depth(
         image_id_to_depth_path[im_id] = depth_path
 
         if include_depth_debug:
-            assert (
-                input_images_dir is not None
-            ), "Need explicit input_images_dir for debug images"
+            assert input_images_dir is not None, "Need explicit input_images_dir for debug images"
             assert input_images_dir.exists(), input_images_dir
 
             depth_flat = depth.flatten()[:, None]
-            overlay = (
-                255.0
-                * colormaps.apply_depth_colormap(torch.from_numpy(depth_flat)).numpy()
-            )
+            overlay = 255.0 * colormaps.apply_depth_colormap(torch.from_numpy(depth_flat)).numpy()
             overlay = overlay.reshape([H, W, 3])
             input_image_path = input_images_dir / im_data.name
             input_image = cv2.imread(str(input_image_path))

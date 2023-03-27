@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import mediapy as media
 import numpy as np
@@ -38,6 +38,8 @@ from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.rich_utils import get_progress
 
 CONSOLE = Console(width=120, no_color=True)
+
+TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 
 
 def get_parallelogram_area(
@@ -58,7 +60,9 @@ def get_parallelogram_area(
     ) * (v1[..., 0] - v0[..., 0])
 
 
-def get_texture_image(num_pixels_w, num_pixels_h, device):
+def get_texture_image(
+    num_pixels_w: int, num_pixels_h: int, device: TORCH_DEVICE
+) -> Tuple[TensorType["num_pixels_h", "num_pixels_w", 2], TensorType["num_pixels_h", "num_pixels_w", 2]]:
     """Get a texture image."""
     px_w = 1.0 / num_pixels_w
     px_h = 1.0 / num_pixels_h
@@ -84,7 +88,11 @@ def unwrap_mesh_per_uv_triangle(
     faces: TensorType["num_faces", 3],
     vertex_normals: TensorType["num_verts", 3],
     px_per_uv_triangle: int,
-):
+) -> Tuple[
+    TensorType["num_faces", 3, 2],
+    TensorType["num_pixels", "num_pixels", 3],
+    TensorType["num_pixels", "num_pixels", "num_pixels"],
+]:
     """Unwrap a mesh to a UV texture. This is done by making a grid of rectangles in the UV texture map
     and then having two triangles per rectangle. Then the texture image is rasterized and uses barycentric
     interpolation to get the origins and directions, per pixel, that are needed to render the NeRF with.
@@ -364,7 +372,7 @@ def export_textured_mesh(
     unwrap_method: Literal["xatlas", "custom"] = "xatlas",
     raylen_method: Literal["edge", "none"] = "edge",
     num_pixels_per_side=1024,
-):
+) -> None:
     """Textures a mesh using the radiance field from the Pipeline.
     The mesh is written to an OBJ file in the output directory,
     along with the corresponding material and texture files.

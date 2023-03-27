@@ -62,10 +62,10 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
-    orientation_method: Literal["pca", "up", "none"] = "up"
+    orientation_method: Literal["pca", "up", "vertical", "none"] = "up"
     """The method to use for orientation."""
-    center_poses: bool = True
-    """Whether to center the poses."""
+    center_method: Literal["poses", "focus", "none"] = "poses"
+    """The method to use to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
     train_split_percentage: float = 0.5  # TODO: this was 0.9
@@ -218,7 +218,36 @@ class Nerfstudio(DataParser):
         You should check that depth_file_path is specified for every frame (or zero frames) in transforms.json.
         """
 
-        if indices_json is not None:
+        has_split_files_spec = any(
+            f"{split}_filenames" in meta for split in ("train", "val", "test")
+        )
+        if has_split_files_spec:
+            if f"{split}_filenames" in meta:
+                # Validate split first
+                split_filenames = set(
+                    self._get_fname(PurePath(x), data_dir)
+                    for x in meta[f"{split}_filenames"]
+                )
+                unmatched_filenames = split_filenames.difference(image_filenames)
+                if unmatched_filenames:
+                    raise RuntimeError(
+                        f"Some filenames for split {split} were not found: {unmatched_filenames}."
+                    )
+
+                indices = [
+                    i
+                    for i, path in enumerate(image_filenames)
+                    if path in split_filenames
+                ]
+                CONSOLE.log(
+                    f"[yellow] Dataset is overriding {split}_indices to {indices}"
+                )
+                indices = np.array(indices, dtype=np.int32)
+            else:
+                raise RuntimeError(
+                    f"The dataset's list of filenames for split {split} is missing."
+                )
+        elif indices_json is not None:
             if split in ["val", "test"]:
                 split_strategy = ["val", "test"]
             elif split in ["train"]:
@@ -285,7 +314,7 @@ class Nerfstudio(DataParser):
         poses, transform_matrix = camera_utils.auto_orient_and_center_poses(
             poses,
             method=orientation_method,
-            center_poses=self.config.center_poses,
+            center_method=self.config.center_method,
         )
 
         # Scale poses
@@ -381,6 +410,21 @@ class Nerfstudio(DataParser):
 
         assert self.downscale_factor is not None
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
+
+        if "applied_transform" in meta:
+            applied_transform = torch.tensor(
+                meta["applied_transform"], dtype=transform_matrix.dtype
+            )
+            transform_matrix = transform_matrix @ torch.cat(
+                [
+                    applied_transform,
+                    torch.tensor([[0, 0, 0, 1]], dtype=transform_matrix.dtype),
+                ],
+                0,
+            )
+        if "applied_scale" in meta:
+            applied_scale = float(meta["applied_scale"])
+            scale_factor *= applied_scale
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,

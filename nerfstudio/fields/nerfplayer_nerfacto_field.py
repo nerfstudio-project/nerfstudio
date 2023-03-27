@@ -17,7 +17,7 @@ Field implementations for NeRFPlayer (https://arxiv.org/abs/2210.15947) implemen
 """
 
 
-from typing import Optional
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 import torch
@@ -38,22 +38,13 @@ from nerfstudio.field_components.field_heads import (
 )
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.field_components.temporal_grid import TemporalGridEncoder
-from nerfstudio.fields.base_field import Field
+from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
 
 try:
     import tinycudann as tcnn
 except ImportError:
     # tinycudann module doesn't exist
     pass
-
-
-def get_normalized_directions(directions: TensorType["bs":..., 3]):
-    """SH encoding must be in the range [0, 1]
-
-    Args:
-        directions: batch of directions
-    """
-    return (directions + 1.0) / 2.0
 
 
 class TemporalHashMLPDensityField(Field):
@@ -74,16 +65,16 @@ class TemporalHashMLPDensityField(Field):
 
     def __init__(
         self,
-        aabb,
+        aabb: TensorType,
         temporal_dim: int = 64,
         num_layers: int = 2,
         hidden_dim: int = 64,
         spatial_distortion: Optional[SpatialDistortion] = None,
-        num_levels=8,
-        max_res=1024,
-        base_res=16,
-        log2_hashmap_size=18,
-        features_per_level=2,
+        num_levels: int = 8,
+        max_res: int = 1024,
+        base_res: int = 16,
+        log2_hashmap_size: int = 18,
+        features_per_level: int = 2,
     ) -> None:
         super().__init__()
         # from .temporal_grid import test; test() # DEBUG
@@ -137,7 +128,7 @@ class TemporalHashMLPDensityField(Field):
         density, _ = self.get_density(ray_samples)
         return density
 
-    def get_density(self, ray_samples: RaySamples):
+    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, None]:
         if self.spatial_distortion is not None:
             positions = self.spatial_distortion(ray_samples.frustums.get_positions())
             positions = (positions + 2.0) / 4.0
@@ -154,7 +145,7 @@ class TemporalHashMLPDensityField(Field):
         density = trunc_exp(density_before_activation)
         return density, None
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
+    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None) -> dict:
         return {}
 
 
@@ -186,7 +177,7 @@ class NerfplayerNerfactoField(Field):
 
     def __init__(
         self,
-        aabb,
+        aabb: TensorType,
         num_images: int,
         num_layers: int = 2,
         hidden_dim: int = 64,
@@ -318,7 +309,7 @@ class NerfplayerNerfactoField(Field):
             },
         )
 
-    def get_density(self, ray_samples: RaySamples):
+    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
         """Computes and returns the densities."""
         if self.spatial_distortion is not None:
             positions = ray_samples.frustums.get_positions()
@@ -339,13 +330,15 @@ class NerfplayerNerfactoField(Field):
         density = trunc_exp(density_before_activation.to(positions))
         return density, base_mlp_out
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
+    def get_outputs(
+        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
+    ) -> Dict[FieldHeadNames, TensorType]:
         assert density_embedding is not None
         outputs = {}
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
         camera_indices = ray_samples.camera_indices.squeeze()
-        directions = get_normalized_directions(ray_samples.frustums.directions)
+        directions = shift_directions_for_tcnn(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
         d = self.direction_encoding(directions_flat)
 

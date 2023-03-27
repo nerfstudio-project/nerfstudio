@@ -77,22 +77,35 @@ def _set_random_seed(seed) -> None:
     np.random.seed(seed)
     torch.manual_seed(seed)
 
-def _set_config_inferred_details(config: TrainerConfig, datamanager: VanillaDataManager):
-    
+
+def _set_config_inferred_details(
+    config: TrainerConfig, datamanager: VanillaDataManager
+):
+
     config.inferred_details.train_size = len(datamanager.train_dataset)
     config.inferred_details.val_size = len(datamanager.eval_dataset)
-    config.inferred_details.data_size = config.inferred_details.train_size + config.inferred_details.val_size
-    
-    split_percentage = config.inferred_details.train_size / config.inferred_details.data_size
+    config.inferred_details.data_size = (
+        config.inferred_details.train_size + config.inferred_details.val_size
+    )
+
+    split_percentage = (
+        config.inferred_details.train_size / config.inferred_details.data_size
+    )
 
     config.inferred_details.split_ratio = split_percentage
-    config.inferred_details.train_images = [str(path) for path in datamanager.train_dataset.image_filenames]
-    config.inferred_details.val_images = [str(path) for path in datamanager.eval_dataset.image_filenames]
+    config.inferred_details.train_images = [
+        str(path) for path in datamanager.train_dataset.image_filenames
+    ]
+    config.inferred_details.val_images = [
+        str(path) for path in datamanager.eval_dataset.image_filenames
+    ]
     config.pipeline.datamanager.dataparser.train_split_percentage = split_percentage
-    
+
     if not config.pipeline.datamanager.train_size_initial:
-        config.pipeline.datamanager.train_size_initial = config.inferred_details.train_size
-    
+        config.pipeline.datamanager.train_size_initial = (
+            config.inferred_details.train_size
+        )
+
 
 def train_loop(
     local_rank: int, world_size: int, config: TrainerConfig, global_rank: int = 0
@@ -105,16 +118,16 @@ def train_loop(
         config: config file specifying training regimen
     """
     _set_random_seed(config.machine.seed + global_rank)
-    
+
     trainer: Trainer = config.setup(local_rank=local_rank, world_size=world_size)
     trainer.setup()
-    
+
     _set_config_inferred_details(config, trainer.pipeline.datamanager)
-    
+
     # config save here
     config.print_to_terminal()
     config.save_config()
-    
+
     trainer.train()
 
 
@@ -268,10 +281,8 @@ def main(config: TrainerConfig) -> None:
     #     sys.exit(1)
 
     if config.data:
-        CONSOLE.log(
-            "Using --data alias for --data.pipeline.datamanager.dataparser.data"
-        )
-        config.pipeline.datamanager.dataparser.data = config.data
+        CONSOLE.log("Using --data alias for --data.pipeline.datamanager.data")
+        config.pipeline.datamanager.data = config.data
 
     if config.load_config:
         CONSOLE.log(f"Loading pre-set config from: {config.load_config}")

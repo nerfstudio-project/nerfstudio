@@ -75,7 +75,7 @@ class RunViewer:
 
         self._start_viewer(config, pipeline)
 
-    def _start_viewer(self, config: TrainerConfig, pipeline):
+    def _start_viewer(self, config: TrainerConfig, pipeline: Pipeline):
         base_dir = config.get_base_dir()
         viewer_log_path = base_dir / config.viewer.relative_log_filename
         viewer_state, banner_messages = viewer_utils.setup_viewer(
@@ -117,13 +117,10 @@ class RunViewer:
 
         while True:
             viewer_state.vis["renderingState/isTraining"].write(False)
-            self._update_viewer_state(viewer_state, config, pipeline)
+            self._update_viewer_state(viewer_state, pipeline)
 
     def _update_viewer_state(
-        self,
-        viewer_state: viewer_utils.ViewerState,
-        config: TrainerConfig,
-        pipeline: Pipeline,
+        self, viewer_state: viewer_utils.ViewerState, pipeline: Pipeline
     ):
         """Updates the viewer state by rendering out scene with current pipeline
         Returns the time taken to render scene.
@@ -131,7 +128,7 @@ class RunViewer:
         """
         # NOTE: step must be > 0 otherwise the rendering would not happen
         step = 1
-        num_rays_per_batch = config.pipeline.datamanager.train_num_rays_per_batch
+        num_rays_per_batch = pipeline.datamanager.get_train_rays_per_batch()
         with TimeWriter(writer, EventName.ITER_VIS_TIME) as _:
             try:
                 viewer_state.update_scene(

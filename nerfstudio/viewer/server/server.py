@@ -64,14 +64,10 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
         if type_ == "write":
             # writes the data coming from the websocket
             find_node(self.bridge.state_tree, path).data = m["data"]
-            if m["path"] != "renderingState/camera" and m["path"] != "webrtc/offer":
-                # dispatch to the websockets if not a camera update!
-                # TODO(ethan): handle the camera properly!
-                # TODO: but don't update the current websocket
-                command = {"type": "write", "path": m["path"], "data": m["data"]}
-                packed_data = umsgpack.packb(command)
-                frames = ["write".encode("utf-8"), m["path"].encode("utf-8"), packed_data]
-                self.bridge.forward_to_websockets(frames, websocket_to_skip=self)
+            command = {"type": "write", "path": m["path"], "data": m["data"]}
+            packed_data = umsgpack.packb(command)
+            frames = ["write".encode("utf-8"), m["path"].encode("utf-8"), packed_data]
+            self.bridge.forward_to_websockets(frames, websocket_to_skip=self)
         elif type_ == "read":
             # reads and returns the data
             data = find_node(self.bridge.state_tree, path).data

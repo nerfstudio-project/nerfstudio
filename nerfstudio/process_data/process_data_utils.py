@@ -124,23 +124,17 @@ def convert_video_to_images(
 
     for i in crop_factor:
         if i < 0 or i > 1:
-            CONSOLE.print(
-                "[bold red]Error: Invalid crop factor. All crops must be in [0,1]."
-            )
+            CONSOLE.print("[bold red]Error: Invalid crop factor. All crops must be in [0,1].")
             sys.exit(1)
 
     if video_path.is_dir():
-        CONSOLE.print(
-            f"[bold red]Error: Video path is a directory, not a path: {video_path}"
-        )
+        CONSOLE.print(f"[bold red]Error: Video path is a directory, not a path: {video_path}")
         sys.exit(1)
     if video_path.exists() is False:
         CONSOLE.print(f"[bold red]Error: Video does not exist: {video_path}")
         sys.exit(1)
 
-    with status(
-        msg="Converting video to images...", spinner="bouncingBall", verbose=verbose
-    ):
+    with status(msg="Converting video to images...", spinner="bouncingBall", verbose=verbose):
         # delete existing images in folder
         for img in image_dir.glob("*.png"):
             if verbose:
@@ -162,18 +156,16 @@ def convert_video_to_images(
             width = 1 - crop_factor[2] - crop_factor[3]
             start_x = crop_factor[2]
             start_y = crop_factor[0]
-            crop_cmd = (
-                f',"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}"'
-            )
+            crop_cmd = f',"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}"'
 
         spacing = num_frames // num_frames_target
         if spacing > 1:
             ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB{crop_cmd} -r 1"
         else:
-            CONSOLE.print(
-                "[bold red]Can't satisfy requested number of frames. Extracting all frames."
-            )
-            ffmpeg_cmd += f" -pix_fmt bgr8 -vf {crop_cmd[1:]}"
+            CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
+            ffmpeg_cmd += " -pix_fmt bgr8"
+            if crop_cmd != "":
+                ffmpeg_cmd += f" -vf {crop_cmd[1:]}"
 
         ffmpeg_cmd += f" {out_filename}"
         run_command(ffmpeg_cmd, verbose=verbose)
@@ -234,7 +226,9 @@ def copy_images_list(
         start_x = crop_factor[2]
         start_y = crop_factor[0]
         crop_cmd = f',"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}"'
-        ffmpeg_cmd = f'ffmpeg -y -noautorotate -i "{image_dir / filename}" -q:v 2 -vf {crop_cmd[1:]} "{image_dir / filename}"'
+        ffmpeg_cmd = (
+            f'ffmpeg -y -noautorotate -i "{image_dir / filename}" -q:v 2 -vf {crop_cmd[1:]} "{image_dir / filename}"'
+        )
         run_command(ffmpeg_cmd, verbose=verbose)
 
     num_frames = len(image_paths)
@@ -300,10 +294,7 @@ def copy_and_upscale_polycam_depth_maps_list(
 
 
 def copy_images(
-    data: Path,
-    image_dir: Path,
-    verbose,
-    crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    data: Path, image_dir: Path, verbose, crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
 ) -> OrderedDict[Path, Path]:
     """Copy images from a directory to a new directory.
 
@@ -325,15 +316,9 @@ def copy_images(
             sys.exit(1)
 
         copied_images = copy_images_list(
-            image_paths=image_paths,
-            image_dir=image_dir,
-            crop_factor=crop_factor,
-            verbose=verbose,
+            image_paths=image_paths, image_dir=image_dir, crop_factor=crop_factor, verbose=verbose
         )
-        return OrderedDict(
-            (original_path, new_path)
-            for original_path, new_path in zip(image_paths, copied_images)
-        )
+        return OrderedDict((original_path, new_path) for original_path, new_path in zip(image_paths, copied_images))
 
 
 def downscale_images(
@@ -480,9 +465,7 @@ def generate_circle_mask(
     return mask
 
 
-def generate_crop_mask(
-    height: int, width: int, crop_factor: Tuple[float, float, float, float]
-) -> Optional[np.ndarray]:
+def generate_crop_mask(height: int, width: int, crop_factor: Tuple[float, float, float, float]) -> Optional[np.ndarray]:
     """generate a crop mask of the given size.
 
     Args:
@@ -509,10 +492,7 @@ def generate_crop_mask(
 
 
 def generate_mask(
-    height: int,
-    width: int,
-    crop_factor: Tuple[float, float, float, float],
-    percent_radius: float,
+    height: int, width: int, crop_factor: Tuple[float, float, float, float], percent_radius: float
 ) -> Optional[np.ndarray]:
     """generate a mask of the given size.
 
