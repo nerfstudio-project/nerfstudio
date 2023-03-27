@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Helper utils for processing polycam data into the nerfstudio format."""
+"""Helper utils for processing reality capture data into the nerfstudio format."""
 
 import csv
 import json
