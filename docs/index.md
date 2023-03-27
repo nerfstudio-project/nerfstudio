@@ -60,6 +60,7 @@ Contributing<reference/contributing>
 :caption: Extensions
 extensions/blender_addon
 extensions/unreal_engine
+extensions/sdfstudio
 ```
 
 ```{toctree}
