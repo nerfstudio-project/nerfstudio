@@ -79,6 +79,8 @@ descriptions = {
     "nerfplayer-nerfacto": "NeRFPlayer with nerfacto backbone.",
     "nerfplayer-ngp": "NeRFPlayer with InstantNGP backbone.",
     "neus": "Implementation of NeuS. (slow)",
+    "kplanes": "Implementation of K-Planes for static scenes",
+    "kplanes-dynamic": "Implementation of K-Planes for dynamic scenes",
 }
 
 method_configs["nerfacto"] = TrainerConfig(
@@ -503,8 +505,8 @@ method_configs["kplanes"] = TrainerConfig(
     vis="viewer",
 )
 
-method_configs["kplanes-dnerf"] = TrainerConfig(
-    method_name="kplanes-dnerf",
+method_configs["kplanes-dynamic"] = TrainerConfig(
+    method_name="kplanes-dynamic",
     steps_per_eval_batch=500,
     steps_per_save=2000,
     max_num_iterations=30001,
