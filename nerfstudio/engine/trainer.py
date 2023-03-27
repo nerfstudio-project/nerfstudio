@@ -107,7 +107,9 @@ class Trainer:
     optimizers: Optimizers
     callbacks: List[TrainingCallback]
 
-    def __init__(self, config: TrainerConfig, local_rank: int = 0, world_size: int = 1) -> None:
+    def __init__(
+        self, config: TrainerConfig, local_rank: int = 0, world_size: int = 1
+    ) -> None:
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size
@@ -124,19 +126,18 @@ class Trainer:
         # directory to save checkpoints
         self.checkpoint_dir: Path = config.get_checkpoint_dir()
         CONSOLE.log(f"Saving checkpoints to: {self.checkpoint_dir}")
-        
-        # set up viewer if enabled        
-        viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
-        self.viewer_state, self.banner_messages = None, None
-        if self.config.is_viewer_enabled() and self.local_rank == 0:
-            datapath = self.config.data
-            if datapath is None:
-                datapath = self.base_dir
-            self.viewer_state, self.banner_messages = viewer_utils.setup_viewer(
-                self.config.viewer, log_filename=viewer_log_path, datapath=datapath
-            )
-        self._check_viewer_warnings()
-        
+
+        # set up viewer if enabled
+        # viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
+        # self.viewer_state, self.banner_messages = None, None
+        # if self.config.is_viewer_enabled() and self.local_rank == 0:
+        #     datapath = self.config.data
+        #     if datapath is None:
+        #         datapath = self.base_dir
+        #     self.viewer_state, self.banner_messages = viewer_utils.setup_viewer(
+        #         self.config.viewer, log_filename=viewer_log_path, datapath=datapath
+        #     )
+        # self._check_viewer_warnings()
 
         self.viewer_state = None
 
@@ -148,13 +149,42 @@ class Trainer:
                 'val': loads train/val datasets into memory
                 'test': loads train/test datasets into memory
                 'inference': does not load any dataset into memory
-        """       
-        if self.config.load_ckpt is not None and not self.config.pipeline.datamanager.train_size_initial :
+        """
+        # viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
+        # self.viewer_state, self.banner_messages = None, None
+        # if self.config.is_viewer_enabled() and self.local_rank == 0:
+        #     datapath = self.config.data
+        #     if datapath is None:
+        #         datapath = self.base_dir
+        #     self.viewer_state, self.banner_messages = viewer_utils.setup_viewer(
+        #         self.config.viewer, log_filename=viewer_log_path, datapath=datapath
+        #     )
+        # self._check_viewer_warnings()
+
+        # self.viewer_state = None
+        if (
+            self.config.load_ckpt is not None
+            and not self.config.pipeline.datamanager.train_size_initial
+        ):
             loaded_state = Trainer.get_checkpoint_state(self.config.load_ckpt)
-            num_of_initial_train_images = loaded_state['pipeline']['_model.field.embedding_appearance.embedding.weight'].shape[0]
-            self.config.pipeline.datamanager.train_size_initial = num_of_initial_train_images
-        
-        
+            num_of_initial_train_images = loaded_state["pipeline"][
+                "_model.field.embedding_appearance.embedding.weight"
+            ].shape[0]
+            self.config.pipeline.datamanager.train_size_initial = (
+                num_of_initial_train_images
+            )
+
+        viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
+        self.viewer_state, self.banner_messages = None, None
+        if self.config.is_viewer_enabled() and self.local_rank == 0:
+            datapath = self.config.data
+            if datapath is None:
+                datapath = self.base_dir
+            self.viewer_state, self.banner_messages = viewer_utils.setup_viewer(
+                self.config.viewer, log_filename=viewer_log_path, datapath=datapath
+            )
+        self._check_viewer_warnings()
+
         self.pipeline = self.config.pipeline.setup(
             device=self.device,
             test_mode=test_mode,
@@ -176,12 +206,18 @@ class Trainer:
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / self.config.logging.relative_log_dir
         writer.setup_event_writer(
-            self.config.is_wandb_enabled(), self.config.is_tensorboard_enabled(), log_dir=writer_log_path
+            self.config.is_wandb_enabled(),
+            self.config.is_tensorboard_enabled(),
+            log_dir=writer_log_path,
         )
         writer.setup_local_writer(
-            self.config.logging, max_iter=self.config.max_num_iterations, banner_messages=self.banner_messages
+            self.config.logging,
+            max_iter=self.config.max_num_iterations,
+            banner_messages=self.banner_messages,
         )
-        writer.put_config(name="config", config_dict=dataclasses.asdict(self.config), step=0)
+        writer.put_config(
+            name="config", config_dict=dataclasses.asdict(self.config), step=0
+        )
         profiler.setup_profiler(self.config.logging)
 
     def setup_optimizers(self) -> Optimizers:
@@ -193,7 +229,10 @@ class Trainer:
         optimizer_config = self.config.optimizers.copy()
         param_groups = self.pipeline.get_param_groups()
         camera_optimizer_config = self.config.pipeline.datamanager.camera_optimizer
-        if camera_optimizer_config is not None and camera_optimizer_config.mode != "off":
+        if (
+            camera_optimizer_config is not None
+            and camera_optimizer_config.mode != "off"
+        ):
             assert camera_optimizer_config.param_group not in optimizer_config
             optimizer_config[camera_optimizer_config.param_group] = {
                 "optimizer": camera_optimizer_config.optimizer,
@@ -216,7 +255,9 @@ class Trainer:
             num_iterations = self.config.max_num_iterations
             step = 0
             for step in range(self._start_step, self._start_step + num_iterations):
-                with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
+                with TimeWriter(
+                    writer, EventName.ITER_TRAIN_TIME, step=step
+                ) as train_t:
                     self.pipeline.train()
 
                     # training callbacks before the training iteration
@@ -240,7 +281,8 @@ class Trainer:
                 if step > 1:
                     writer.put_time(
                         name=EventName.TRAIN_RAYS_PER_SEC,
-                        duration=self.pipeline.datamanager.get_train_rays_per_batch() / train_t.duration,
+                        duration=self.pipeline.datamanager.get_train_rays_per_batch()
+                        / train_t.duration,
                         step=step,
                         avg_over_steps=True,
                     )
@@ -275,7 +317,10 @@ class Trainer:
         writer.write_out_storage()
 
         CONSOLE.rule()
-        CONSOLE.print("[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:", justify="center")
+        CONSOLE.print(
+            "[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:",
+            justify="center",
+        )
         if not self.config.viewer.quit_on_train_completion:
             CONSOLE.print("Use ctrl+c to quit", justify="center")
             self._always_render(step)
@@ -322,7 +367,9 @@ class Trainer:
         """
         assert self.viewer_state is not None
         with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
-            num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
+            num_rays_per_batch: int = (
+                self.pipeline.datamanager.get_train_rays_per_batch()
+            )
             try:
                 self.viewer_state.update_scene(
                     self, step, self.pipeline.model, num_rays_per_batch
@@ -335,7 +382,9 @@ class Trainer:
                 )
 
     @check_viewer_enabled
-    def _update_viewer_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int) -> None:
+    def _update_viewer_rays_per_sec(
+        self, train_t: TimeWriter, vis_t: TimeWriter, step: int
+    ) -> None:
         """Performs update on rays/sec calculation for training
 
         Args:
@@ -343,19 +392,21 @@ class Trainer:
             vis_t: timer object carrying time to execute visualization step
             step: current step
         """
-        train_num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
+        train_num_rays_per_batch: int = (
+            self.pipeline.datamanager.get_train_rays_per_batch()
+        )
         writer.put_time(
             name=EventName.TRAIN_RAYS_PER_SEC,
             duration=train_num_rays_per_batch / (train_t.duration - vis_t.duration),
             step=step,
             avg_over_steps=True,
         )
-        
+
     @staticmethod
     def get_checkpoint_state(load_ckpt: str | Path) -> torch.Tensor:
         checkpoint_path = Path(load_ckpt)
         return torch.load(checkpoint_path, map_location="cpu")
-            
+
     def _load_checkpoint(self) -> None:
         """Helper function to load pipeline and optimizer from prespecified checkpoint"""
         if self.config.load_ckpt is not None:
