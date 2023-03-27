@@ -85,17 +85,13 @@ class Phototourism(DataParser):
         image_filenames = []
         poses = []
 
-<<<<<<< HEAD
         with CONSOLE.status(
             f"[bold green]Reading phototourism images and poses for {split} split..."
         ) as _:
-=======
-        with CONSOLE.status(f"[bold green]Reading phototourism images and poses for {split} split...") as _:
             # TODO(1480) use pycolmap
             # recon = pycolmap.Reconstruction(self.data / "dense" / "sparse")
             # cams = recon.cameras
             # imgs = recon.images
->>>>>>> upstream/main
             cams = read_cameras_binary(self.data / "dense/sparse/cameras.bin")
             imgs = read_images_binary(self.data / "dense/sparse/images.bin")
 
@@ -158,13 +154,9 @@ class Phototourism(DataParser):
             raise ValueError(f"Unknown dataparser split {split}")
 
         poses, transform_matrix = camera_utils.auto_orient_and_center_poses(
-<<<<<<< HEAD
             poses,
             method=self.config.orientation_method,
-            center_poses=self.config.center_poses,
-=======
-            poses, method=self.config.orientation_method, center_method=self.config.center_method
->>>>>>> upstream/main
+            center_method=self.config.center_method,
         )
 
         # Scale poses
