@@ -383,7 +383,7 @@ class VolumetricSampler(Sampler):
     def __init__(
         self,
         occupancy_grid: Optional[OccupancyGrid] = None,
-        density_fn: Optional[Callable[[TensorType[..., 3]], TensorType[..., 1]]] = None,
+        density_fn: Optional[Callable[[TensorType[..., 3], Optional[TensorType[..., 1]]], TensorType[..., 1]]] = None,
         scene_aabb: Optional[TensorType[2, 3]] = None,
     ) -> None:
 
@@ -413,7 +413,7 @@ class VolumetricSampler(Sampler):
             t_origins = origins[ray_indices]
             t_dirs = directions[ray_indices]
             positions = t_origins + t_dirs * (t_starts + t_ends) / 2.0
-            return density_fn(positions)
+            return density_fn(positions, None)
 
         return sigma_fn
 
