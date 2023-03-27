@@ -138,6 +138,18 @@ class Trainer:
                 'test': loads train/test datasets into memory
                 'inference': does not load any dataset into memory
         """
+        # set up viewer if enabled
+        viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
+        self.viewer_state, banner_messages = None, None
+        if self.config.is_viewer_enabled() and self.local_rank == 0:
+            datapath = self.config.data
+            if datapath is None:
+                datapath = self.base_dir
+            self.viewer_state, banner_messages = viewer_utils.setup_viewer(
+                self.config.viewer, log_filename=viewer_log_path, datapath=datapath
+            )
+        self._check_viewer_warnings()
+
         self.pipeline = self.config.pipeline.setup(
             device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
         )
@@ -153,17 +165,6 @@ class Trainer:
             )
         )
 
-        # set up viewer if enabled
-        viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
-        self.viewer_state, banner_messages = None, None
-        if self.config.is_viewer_enabled() and self.local_rank == 0:
-            datapath = self.pipeline.datamanager.get_datapath()
-            if datapath is None:
-                datapath = self.base_dir
-            self.viewer_state, banner_messages = viewer_utils.setup_viewer(
-                self.config.viewer, log_filename=viewer_log_path, datapath=datapath
-            )
-        self._check_viewer_warnings()
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / self.config.logging.relative_log_dir
         writer.setup_event_writer(
