@@ -107,8 +107,8 @@ method_configs["lerf"] = TrainerConfig(
     ),
     optimizers={
         "proposal_networks": {
-            "optimizer": RAdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-3, max_steps=30000),
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
         },
         "fields": {
             "optimizer": RAdamOptimizerConfig(lr=1e-2, eps=1e-15),

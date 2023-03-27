@@ -42,7 +42,6 @@ class LERFModel(NerfactoModel):
 
         self.network = self.kwargs["network"]
         self.lerf_field = LERFField(clip_n_dims=self.network.clip_n_dims)
-        # self.lerf_sampler = PDFSampler(num_samples=self.config.num_lerf_samples, histogram_padding=0.00)
 
     def get_max_across(self, ray_samples, weights, hashgrid_field, scales_shape, preset_scales=None):
         # TODO smoothen this out
@@ -106,8 +105,12 @@ class LERFModel(NerfactoModel):
         lerf_field_outputs = self.lerf_field.get_outputs(lerf_samples, clip_scales)
 
         if self.training:
-            outputs['clip'] = self.renderer_clip(embeds=lerf_field_outputs[FieldHeadNames.CLIP], weights=lerf_weights.detach())
-            outputs['dino'] = self.renderer_mean(embeds=lerf_field_outputs[FieldHeadNames.DINO], weights=lerf_weights.detach())
+            outputs["clip"] = self.renderer_clip(
+                embeds=lerf_field_outputs[FieldHeadNames.CLIP], weights=lerf_weights.detach()
+            )
+            outputs["dino"] = self.renderer_mean(
+                embeds=lerf_field_outputs[FieldHeadNames.DINO], weights=lerf_weights.detach()
+            )
 
         if not self.training:
             max_across, best_scales = self.get_max_across(

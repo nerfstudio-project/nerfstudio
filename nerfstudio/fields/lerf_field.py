@@ -27,10 +27,13 @@ class LERFField(Field):
         super().__init__()
 
         self.spatial_distortion = spatial_distortion
-        self.clip_encs = torch.nn.ModuleList([
-            LERFField._get_encoding( 16, 128, 12, indim=3), 
-            LERFField._get_encoding(128, 512, 12, indim=3)
-            ])
+        self.clip_encs = torch.nn.ModuleList(
+            [
+                # LERFField._get_encoding(16, 512, 16, indim=3)
+                LERFField._get_encoding(16, 128, 10, indim=3),
+                LERFField._get_encoding(128, 1024, 13, indim=3),
+            ]
+        )
         tot_out_dims = sum([e.n_output_dims for e in self.clip_encs])
 
         self.clip_net = tcnn.Network(
