@@ -184,7 +184,6 @@ bash/
 cache/
 package-lock.json
 camera_paths/
-<<<<<<< HEAD
 
 
 
@@ -361,10 +360,3 @@ cython_debug/
 #.idea/
 
 *.DS_Store*
-=======
-.DS_Store
-._.DS_Store
-*/**/.DS_Store
-*/**/._.DS_Store
-
->>>>>>> upstream/main

@@ -412,10 +412,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         else:
             self.config.data = self.config.dataparser.data
         self.dataparser = self.dataparser_config.setup()
-<<<<<<< HEAD
-        self.train_dataparser_outputs = self.dataparser.get_dataparser_outputs(
-            split="train"
-        )
+        self.train_dataparser_outputs = self.dataparser.get_dataparser_outputs(split="train")
 
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
@@ -423,25 +420,12 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
         if self.config.train_size_initial is None:
             self.config.train_size_initial = len(self.train_dataset)
-=======
-        self.train_dataparser_outputs = self.dataparser.get_dataparser_outputs(split="train")
-
-        self.train_dataset = self.create_train_dataset()
-        self.eval_dataset = self.create_eval_dataset()
->>>>>>> upstream/main
 
         if self.train_dataparser_outputs is not None:
             cameras = self.train_dataparser_outputs.cameras
             if len(cameras) > 1:
                 for i in range(1, len(cameras)):
-<<<<<<< HEAD
-                    if (
-                        cameras[0].width != cameras[i].width
-                        or cameras[0].height != cameras[i].height
-                    ):
-=======
                     if cameras[0].width != cameras[i].width or cameras[0].height != cameras[i].height:
->>>>>>> upstream/main
                         CONSOLE.print("Variable resolution, using variable_res_collate")
                         self.config.collate_fn = variable_res_collate
                         break
@@ -458,18 +442,14 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def create_eval_dataset(self) -> InputDataset:
         """Sets up the data loaders for evaluation"""
         return InputDataset(
-            dataparser_outputs=self.dataparser.get_dataparser_outputs(
-                split=self.test_split
-            ),
+            dataparser_outputs=self.dataparser.get_dataparser_outputs(split=self.test_split),
             scale_factor=self.config.camera_res_scale_factor,
         )
 
     def create_full_dataset(self) -> InputDataset:
         """Sets up the dataset which contains all images, both train and eval"""
         return InputDataset(
-            dataparser_outputs=self.dataparser.get_dataparser_outputs(
-                split=SPLIT_MODE_ALL
-            ),
+            dataparser_outputs=self.dataparser.get_dataparser_outputs(split=SPLIT_MODE_ALL),
             scale_factor=self.config.camera_res_scale_factor,
         )
 
@@ -481,16 +461,12 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             return PatchPixelSampler(*args, **kwargs, patch_size=self.config.patch_size)
 
         # If all images are equirectangular, use equirectangular pixel sampler
-        is_equirectangular = (
-            dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
-        )
+        is_equirectangular = dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
         if is_equirectangular.all():
             return EquirectangularPixelSampler(*args, **kwargs)
         # Otherwise, use the default pixel sampler
         if is_equirectangular.any():
-            CONSOLE.print(
-                "[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler."
-            )
+            CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
         return PixelSampler(*args, **kwargs)
 
     def setup_train(self):
@@ -507,9 +483,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             collate_fn=self.config.collate_fn,
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
-        self.train_pixel_sampler = self._get_pixel_sampler(
-            self.train_dataset, self.config.train_num_rays_per_batch
-        )
+        self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
         # TODO matej changed
         # self.train_camera_optimizer = self.config.camera_optimizer.setup(
         #     num_cameras=self.train_dataset.cameras.size, device=self.device
@@ -537,13 +511,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             collate_fn=self.config.collate_fn,
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
-<<<<<<< HEAD
-        self.eval_pixel_sampler = self._get_pixel_sampler(
-            self.eval_dataset, self.config.eval_num_rays_per_batch
-        )
-=======
         self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
->>>>>>> upstream/main
         self.eval_camera_optimizer = self.config.camera_optimizer.setup(
             num_cameras=self.eval_dataset.cameras.size, device=self.device
         )
@@ -600,13 +568,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def get_datapath(self) -> Path:
         return self.config.dataparser.data
 
-<<<<<<< HEAD
-    def get_param_groups(
-        self,
-    ) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
-=======
     def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
->>>>>>> upstream/main
         """Get the param groups for the data manager.
         Returns:
             A list of dictionaries containing the data manager's param groups.
