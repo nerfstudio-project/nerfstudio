@@ -46,9 +46,7 @@ class RunViewer:
     """Path to config YAML file."""
     load_ckpt: Optional[Path] = None
     """Model checkpoint"""
-    viewer: ViewerConfigWithoutNumRays = field(
-        default_factory=ViewerConfigWithoutNumRays
-    )
+    viewer: ViewerConfigWithoutNumRays = field(default_factory=ViewerConfigWithoutNumRays)
     indices_file: Optional[Path] = None
     """Viewer configuration"""
     dataset_type: Literal["train", "val", "all"] = "val"
@@ -79,9 +77,7 @@ class RunViewer:
         base_dir = config.get_base_dir()
         viewer_log_path = base_dir / config.viewer.relative_log_filename
         viewer_state, banner_messages = viewer_utils.setup_viewer(
-            config.viewer,
-            log_filename=viewer_log_path,
-            datapath=config.pipeline.datamanager.dataparser.data,
+            config.viewer, log_filename=viewer_log_path, datapath=pipeline.datamanager.get_datapath()
         )
 
         # We don't need logging, but writer.GLOBAL_BUFFER needs to be populated
@@ -92,9 +88,7 @@ class RunViewer:
             banner_messages=banner_messages,
         )
 
-        viewer_state.vis["renderingState/config_base_dir"].write(
-            str(config.relative_model_dir)
-        )
+        viewer_state.vis["renderingState/config_base_dir"].write(str(config.relative_model_dir))
 
         viewer_state.vis["renderingState/export_path"].write(
             f"export-{config.pipeline.datamanager.dataparser.data.stem}_step_{get_step_from_ckpt_path(config.load_ckpt)}".replace(
@@ -119,9 +113,7 @@ class RunViewer:
             viewer_state.vis["renderingState/isTraining"].write(False)
             self._update_viewer_state(viewer_state, pipeline)
 
-    def _update_viewer_state(
-        self, viewer_state: viewer_utils.ViewerState, pipeline: Pipeline
-    ):
+    def _update_viewer_state(self, viewer_state: viewer_utils.ViewerState, pipeline: Pipeline):
         """Updates the viewer state by rendering out scene with current pipeline
         Returns the time taken to render scene.
 
@@ -131,9 +123,7 @@ class RunViewer:
         num_rays_per_batch = pipeline.datamanager.get_train_rays_per_batch()
         with TimeWriter(writer, EventName.ITER_VIS_TIME) as _:
             try:
-                viewer_state.update_scene(
-                    self, step, pipeline.model, num_rays_per_batch
-                )
+                viewer_state.update_scene(self, step, pipeline.model, num_rays_per_batch)
             except RuntimeError:
                 time.sleep(0.03)  # sleep to allow buffer to reset
                 assert viewer_state.vis is not None

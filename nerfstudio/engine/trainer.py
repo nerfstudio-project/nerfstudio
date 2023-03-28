@@ -55,6 +55,11 @@ TRAIN_INTERATION_OUTPUT = Tuple[  # pylint: disable=invalid-name
 ]
 TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 
+TRAIN_INTERATION_OUTPUT = Tuple[  # pylint: disable=invalid-name
+    torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]
+]
+TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
+
 
 @dataclass
 class TrainerConfig(ExperimentConfig):
@@ -107,9 +112,7 @@ class Trainer:
     optimizers: Optimizers
     callbacks: List[TrainingCallback]
 
-    def __init__(
-        self, config: TrainerConfig, local_rank: int = 0, world_size: int = 1
-    ) -> None:
+    def __init__(self, config: TrainerConfig, local_rank: int = 0, world_size: int = 1) -> None:
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size
@@ -126,18 +129,6 @@ class Trainer:
         # directory to save checkpoints
         self.checkpoint_dir: Path = config.get_checkpoint_dir()
         CONSOLE.log(f"Saving checkpoints to: {self.checkpoint_dir}")
-
-        # set up viewer if enabled
-        # viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
-        # self.viewer_state, self.banner_messages = None, None
-        # if self.config.is_viewer_enabled() and self.local_rank == 0:
-        #     datapath = self.config.data
-        #     if datapath is None:
-        #         datapath = self.base_dir
-        #     self.viewer_state, self.banner_messages = viewer_utils.setup_viewer(
-        #         self.config.viewer, log_filename=viewer_log_path, datapath=datapath
-        #     )
-        # self._check_viewer_warnings()
 
         self.viewer_state = None
 
@@ -229,10 +220,7 @@ class Trainer:
         optimizer_config = self.config.optimizers.copy()
         param_groups = self.pipeline.get_param_groups()
         camera_optimizer_config = self.config.pipeline.datamanager.camera_optimizer
-        if (
-            camera_optimizer_config is not None
-            and camera_optimizer_config.mode != "off"
-        ):
+        if camera_optimizer_config is not None and camera_optimizer_config.mode != "off":
             assert camera_optimizer_config.param_group not in optimizer_config
             optimizer_config[camera_optimizer_config.param_group] = {
                 "optimizer": camera_optimizer_config.optimizer,
@@ -281,8 +269,7 @@ class Trainer:
                 if step > 1:
                     writer.put_time(
                         name=EventName.TRAIN_RAYS_PER_SEC,
-                        duration=self.pipeline.datamanager.get_train_rays_per_batch()
-                        / train_t.duration,
+                        duration=self.pipeline.datamanager.get_train_rays_per_batch() / train_t.duration,
                         step=step,
                         avg_over_steps=True,
                     )
@@ -367,9 +354,7 @@ class Trainer:
         """
         assert self.viewer_state is not None
         with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
-            num_rays_per_batch: int = (
-                self.pipeline.datamanager.get_train_rays_per_batch()
-            )
+            num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
             try:
                 self.viewer_state.update_scene(
                     self, step, self.pipeline.model, num_rays_per_batch
@@ -382,9 +367,7 @@ class Trainer:
                 )
 
     @check_viewer_enabled
-    def _update_viewer_rays_per_sec(
-        self, train_t: TimeWriter, vis_t: TimeWriter, step: int
-    ) -> None:
+    def _update_viewer_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int) -> None:
         """Performs update on rays/sec calculation for training
 
         Args:
@@ -392,9 +375,7 @@ class Trainer:
             vis_t: timer object carrying time to execute visualization step
             step: current step
         """
-        train_num_rays_per_batch: int = (
-            self.pipeline.datamanager.get_train_rays_per_batch()
-        )
+        train_num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
         writer.put_time(
             name=EventName.TRAIN_RAYS_PER_SEC,
             duration=train_num_rays_per_batch / (train_t.duration - vis_t.duration),

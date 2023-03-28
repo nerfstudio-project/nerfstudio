@@ -77,15 +77,13 @@ class MyTrainerConf(TrainerConfig):
         max_buffer_size=200,
         local_writer=LocalWriterConfig(enable=True, max_log_size=0),
     )
-    viewer: ViewerConfig = ViewerConfig(
-        quit_on_train_completion=True, num_rays_per_chunk=1 << 15
-    )
+    viewer: ViewerConfig = ViewerConfig(quit_on_train_completion=True, num_rays_per_chunk=1 << 15)
     save_only_latest_checkpoint: bool = False
     max_num_iterations: int = 33_000
     vis: str | None = None  # vis: str = "viewer"
 
 
-method_configs: Dict[str, MyTrainerConf] = {}
+method_configs: Dict[str, MyTrainerConf | TrainerConfig] = {}
 
 descriptions = {
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
@@ -180,8 +178,7 @@ method_configs["volinga"] = TrainerConfig(
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3",
-                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
+                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),
         ),
         model=NerfactoModelConfig(
@@ -191,20 +188,8 @@ method_configs["volinga"] = TrainerConfig(
             hidden_dim_transient=32,
             num_nerf_samples_per_ray=24,
             proposal_net_args_list=[
-                {
-                    "hidden_dim": 16,
-                    "log2_hashmap_size": 17,
-                    "num_levels": 5,
-                    "max_res": 128,
-                    "use_linear": True,
-                },
-                {
-                    "hidden_dim": 16,
-                    "log2_hashmap_size": 17,
-                    "num_levels": 5,
-                    "max_res": 256,
-                    "use_linear": True,
-                },
+                {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 128, "use_linear": True},
+                {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 256, "use_linear": True},
             ],
         ),
     ),
@@ -229,9 +214,7 @@ method_configs["instant-ngp"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=True,
     pipeline=DynamicBatchPipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=8192
-        ),
+        datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=8192),
         model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
     ),
     optimizers={
@@ -252,9 +235,7 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=True,
     pipeline=DynamicBatchPipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            dataparser=InstantNGPDataParserConfig(), train_num_rays_per_batch=8192
-        ),
+        datamanager=VanillaDataManagerConfig(dataparser=InstantNGPDataParserConfig(), train_num_rays_per_batch=8192),
         model=InstantNGPModelConfig(
             eval_num_rays_per_chunk=8192,
             contraction_type=ContractionType.AABB,
@@ -278,9 +259,7 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
 method_configs["mipnerf"] = TrainerConfig(
     method_name="mipnerf",
     pipeline=VanillaPipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=1024
-        ),
+        datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=1024),
         model=VanillaModelConfig(
             _target=MipNerfModel,
             loss_coefficients={"rgb_loss_coarse": 0.1, "rgb_loss_fine": 1.0},
@@ -305,9 +284,7 @@ method_configs["semantic-nerfw"] = TrainerConfig(
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=SemanticDataManagerConfig(
-            dataparser=Sitcoms3DDataParserConfig(),
-            train_num_rays_per_batch=4096,
-            eval_num_rays_per_batch=8192,
+            dataparser=Sitcoms3DDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
         ),
         model=SemanticNerfWModelConfig(eval_num_rays_per_chunk=1 << 16),
     ),
@@ -362,15 +339,11 @@ method_configs["tensorf"] = TrainerConfig(
     optimizers={
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=0.001),
-            "scheduler": ExponentialDecaySchedulerConfig(
-                lr_final=0.0001, max_steps=30000
-            ),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=30000),
         },
         "encodings": {
             "optimizer": AdamOptimizerConfig(lr=0.02),
-            "scheduler": ExponentialDecaySchedulerConfig(
-                lr_final=0.002, max_steps=30000
-            ),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.002, max_steps=30000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
@@ -475,9 +448,7 @@ method_configs["nerfplayer-ngp"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=True,
     pipeline=DynamicBatchPipelineConfig(
-        datamanager=DepthDataManagerConfig(
-            dataparser=DycheckDataParserConfig(), train_num_rays_per_batch=8192
-        ),
+        datamanager=DepthDataManagerConfig(dataparser=DycheckDataParserConfig(), train_num_rays_per_batch=8192),
         model=NerfplayerNGPModelConfig(
             eval_num_rays_per_chunk=8192,
             contraction_type=ContractionType.AABB,
@@ -510,8 +481,7 @@ method_configs["neus"] = TrainerConfig(
             train_num_rays_per_batch=1024,
             eval_num_rays_per_batch=1024,
             camera_optimizer=CameraOptimizerConfig(
-                mode="off",
-                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
+                mode="off", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),
         ),
         model=NeuSModelConfig(eval_num_rays_per_chunk=1024),
@@ -519,15 +489,11 @@ method_configs["neus"] = TrainerConfig(
     optimizers={
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=5e-4, eps=1e-15),
-            "scheduler": CosineDecaySchedulerConfig(
-                warm_up_end=5000, learning_rate_alpha=0.05, max_steps=300000
-            ),
+            "scheduler": CosineDecaySchedulerConfig(warm_up_end=5000, learning_rate_alpha=0.05, max_steps=300000),
         },
         "field_background": {
             "optimizer": AdamOptimizerConfig(lr=5e-4, eps=1e-15),
-            "scheduler": CosineDecaySchedulerConfig(
-                warm_up_end=5000, learning_rate_alpha=0.05, max_steps=300000
-            ),
+            "scheduler": CosineDecaySchedulerConfig(warm_up_end=5000, learning_rate_alpha=0.05, max_steps=300000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
@@ -538,15 +504,11 @@ external_methods, external_descriptions = discover_methods()
 method_configs.update(external_methods)
 descriptions.update(external_descriptions)
 
-AnnotatedBaseConfigUnion = (
-    tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
-        tyro.conf.FlagConversionOff[
-            tyro.extras.subcommand_type_from_defaults(
-                defaults=method_configs, descriptions=descriptions
-            )
-        ]
+AnnotatedBaseConfigUnion = tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
+    tyro.conf.FlagConversionOff[
+        tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
     ]
-)
+]
 """Union[] type over config types, annotated with default instances for use with
 tyro.cli(). Allows the user to pick between one of several base configurations, and
 then override values in it."""

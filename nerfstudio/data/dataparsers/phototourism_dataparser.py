@@ -36,6 +36,8 @@ from nerfstudio.data.scene_box import SceneBox
 
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
 # import pycolmap
+# TODO(1480) use pycolmap instead of colmap_parsing_utils
+# import pycolmap
 from nerfstudio.data.utils.colmap_parsing_utils import (
     read_cameras_binary,
     read_images_binary,
@@ -85,9 +87,7 @@ class Phototourism(DataParser):
         image_filenames = []
         poses = []
 
-        with CONSOLE.status(
-            f"[bold green]Reading phototourism images and poses for {split} split..."
-        ) as _:
+        with CONSOLE.status(f"[bold green]Reading phototourism images and poses for {split} split...") as _:
             # TODO(1480) use pycolmap
             # recon = pycolmap.Reconstruction(self.data / "dense" / "sparse")
             # cams = recon.cameras
@@ -109,9 +109,7 @@ class Phototourism(DataParser):
         for _id, cam in cams.items():
             img = imgs[_id]
 
-            assert (
-                cam.model == "PINHOLE"
-            ), "Only pinhole (perspective) camera model is supported at the moment"
+            assert cam.model == "PINHOLE", "Only pinhole (perspective) camera model is supported at the moment"
 
             pose = torch.cat(
                 [torch.tensor(img.qvec2rotmat()), torch.tensor(img.tvec.reshape(3, 1))],
@@ -154,9 +152,7 @@ class Phototourism(DataParser):
             raise ValueError(f"Unknown dataparser split {split}")
 
         poses, transform_matrix = camera_utils.auto_orient_and_center_poses(
-            poses,
-            method=self.config.orientation_method,
-            center_method=self.config.center_method,
+            poses, method=self.config.orientation_method, center_method=self.config.center_method
         )
 
         # Scale poses

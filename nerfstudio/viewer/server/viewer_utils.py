@@ -126,9 +126,7 @@ class RenderThread(threading.Thread):
         camera_ray_bundle: input rays to pass through the graph to render out
     """
 
-    def __init__(
-        self, state: "ViewerState", graph: Model, camera_ray_bundle: RayBundle
-    ):
+    def __init__(self, state: "ViewerState", graph: Model, camera_ray_bundle: RayBundle):
         threading.Thread.__init__(self)
         self.state = state
         self.graph = graph
@@ -147,9 +145,7 @@ class RenderThread(threading.Thread):
                 if self.state.prev_crop_enabled:
                     color = self.state.prev_crop_bg_color
                     if color is None:
-                        background_color = torch.tensor(
-                            [0.0, 0.0, 0.0], device=self.graph.device
-                        )
+                        background_color = torch.tensor([0.0, 0.0, 0.0], device=self.graph.device)
                     else:
                         background_color = torch.tensor(
                             [
@@ -159,17 +155,11 @@ class RenderThread(threading.Thread):
                             ],
                             device=self.graph.device,
                         )
-                    with renderers.background_color_override_context(
-                        background_color
-                    ), torch.no_grad():
-                        outputs = self.graph.get_outputs_for_camera_ray_bundle(
-                            self.camera_ray_bundle
-                        )
+                    with renderers.background_color_override_context(background_color), torch.no_grad():
+                        outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
                 else:
                     with torch.no_grad():
-                        outputs = self.graph.get_outputs_for_camera_ray_bundle(
-                            self.camera_ray_bundle
-                        )
+                        outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
         except Exception as e:  # pylint: disable=broad-except
             self.exc = e
 
@@ -212,15 +202,10 @@ class CheckThread(threading.Thread):
                 if (
                     self.state.prev_camera_matrix is None
                     or (
-                        not np.allclose(
-                            camera_object["matrix"], self.state.prev_camera_matrix
-                        )
+                        not np.allclose(camera_object["matrix"], self.state.prev_camera_matrix)
                         and not self.state.prev_moving
                     )
-                    or (
-                        render_time is not None
-                        and render_time != self.state.prev_render_time
-                    )
+                    or (render_time is not None and render_time != self.state.prev_render_time)
                 ):
                     self.state.check_interrupt_vis = True
                     self.state.prev_moving = True
@@ -280,9 +265,7 @@ class ViewerState:
         if self.config.launch_bridge_server:
             # start the viewer bridge server
             if self.config.websocket_port is None:
-                websocket_port = get_free_port(
-                    default_port=self.config.websocket_port_default
-                )
+                websocket_port = get_free_port(default_port=self.config.websocket_port_default)
             else:
                 websocket_port = self.config.websocket_port
             self.log_filename.parent.mkdir(exist_ok=True)
@@ -304,9 +287,7 @@ class ViewerState:
             self.vis = Viewer(zmq_port=zmq_port, ip_address=self.config.ip_address)
         else:
             assert self.config.zmq_port is not None
-            self.vis = Viewer(
-                zmq_port=self.config.zmq_port, ip_address=self.config.ip_address
-            )
+            self.vis = Viewer(zmq_port=self.config.zmq_port, ip_address=self.config.ip_address)
 
         # viewer specific variables
         self.prev_camera_matrix = None
@@ -347,9 +328,7 @@ class ViewerState:
         else:
             num_display_images = min(self.config.max_num_display_images, total_num)
         # draw indices, roughly evenly spaced
-        return np.linspace(
-            0, total_num - 1, num_display_images, dtype=np.int32
-        ).tolist()
+        return np.linspace(0, total_num - 1, num_display_images, dtype=np.int32).tolist()
 
     def init_scene(self, dataset: InputDataset, start_train=True) -> None:
         """Draw some images and the scene aabb in the viewer.
@@ -372,9 +351,7 @@ class ViewerState:
         for idx in image_indices:
             image = dataset[idx]["image"]
             bgr = image[..., [2, 1, 0]]
-            camera_json = dataset.cameras.to_json(
-                camera_idx=idx, image=bgr, max_size=100
-            )
+            camera_json = dataset.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
             self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
 
         # draw the scene box (i.e., the bounding box)
@@ -384,9 +361,7 @@ class ViewerState:
         # set the initial state whether to train or not
         self.vis["renderingState/isTraining"].write(start_train)
 
-        max_scene_box = torch.max(
-            dataset.scene_box.aabb[1] - dataset.scene_box.aabb[0]
-        ).item()
+        max_scene_box = torch.max(dataset.scene_box.aabb[1] - dataset.scene_box.aabb[0]).item()
         self.vis["renderingState/max_box_size"].write(max_scene_box)
 
     def _check_camera_path_payload(self, trainer, step: int):
@@ -421,9 +396,7 @@ class ViewerState:
                 all_path_dict = {}
                 for i in camera_path_files:
                     if i[-4:] == "json":
-                        all_path_dict[i[:-5]] = load_from_json(
-                            Path(os.path.join(camera_path_dir, i))
-                        )
+                        all_path_dict[i[:-5]] = load_from_json(Path(os.path.join(camera_path_dir, i)))
                 self.vis["renderingState/all_camera_paths"].write(all_path_dict)
                 self.vis["populate_paths_payload"].delete()
 
@@ -452,10 +425,7 @@ class ViewerState:
                 self.camera_moving = True
                 self.prev_crop_bg_color = crop_bg_color
 
-            if (
-                crop_scale != self.prev_crop_scale
-                or crop_center != self.prev_crop_center
-            ):
+            if crop_scale != self.prev_crop_scale or crop_center != self.prev_crop_center:
                 self.camera_moving = True
                 self.prev_crop_scale = crop_scale
                 self.prev_crop_center = crop_center
@@ -470,9 +440,7 @@ class ViewerState:
                     graph.render_aabb.aabb[0] = box_min
                     graph.render_aabb.aabb[1] = box_max
                 else:
-                    graph.render_aabb = SceneBox(
-                        aabb=torch.stack([box_min, box_max], dim=0)
-                    )
+                    graph.render_aabb = SceneBox(aabb=torch.stack([box_min, box_max], dim=0))
 
                 # maybe should update only if true change ?
                 json_ = graph.render_aabb.to_json()
@@ -480,21 +448,15 @@ class ViewerState:
         else:
             graph.render_aabb = None
 
-    def update_scene(
-        self, trainer, step: int, graph: Model, num_rays_per_batch: int
-    ) -> None:
+    def update_scene(self, trainer, step: int, graph: Model, num_rays_per_batch: int) -> None:
         """updates the scene based on the graph weights
 
         Args:
             step: iteration step of training
             graph: the current checkpoint of the model
         """
-        has_temporal_distortion = (
-            getattr(graph, "temporal_distortion", None) is not None
-        )
-        self.vis["model/has_temporal_distortion"].write(
-            str(has_temporal_distortion).lower()
-        )
+        has_temporal_distortion = getattr(graph, "temporal_distortion", None) is not None
+        self.vis["model/has_temporal_distortion"].write(str(has_temporal_distortion).lower())
 
         is_training = self.vis["renderingState/isTraining"].read()
         self.step = step
@@ -520,12 +482,8 @@ class ViewerState:
                 # to render at a FPS defined by self.static_fps.
 
                 if EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
-                    train_rays_per_sec = GLOBAL_BUFFER["events"][
-                        EventName.TRAIN_RAYS_PER_SEC.value
-                    ]["avg"]
-                    target_train_util = self.vis[
-                        "renderingState/targetTrainUtil"
-                    ].read()
+                    train_rays_per_sec = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
+                    target_train_util = self.vis["renderingState/targetTrainUtil"].read()
                     if target_train_util is None:
                         target_train_util = 0.9
 
@@ -574,8 +532,7 @@ class ViewerState:
 
         if render_time is not None:
             if (
-                self.prev_camera_matrix is not None
-                and np.allclose(camera_object["matrix"], self.prev_camera_matrix)
+                self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix)
             ) and (self.prev_render_time == render_time):
                 self.camera_moving = False
             else:
@@ -583,9 +540,7 @@ class ViewerState:
                 self.prev_render_time = render_time
                 self.camera_moving = True
         else:
-            if self.prev_camera_matrix is not None and np.allclose(
-                camera_object["matrix"], self.prev_camera_matrix
-            ):
+            if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
                 self.camera_moving = False
             else:
                 self.prev_camera_matrix = camera_object["matrix"]
@@ -630,9 +585,7 @@ class ViewerState:
 
         return camera_object
 
-    def _apply_colormap(
-        self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6
-    ):
+    def _apply_colormap(self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6):
         """Determines which colormap to use based on set colormap type
 
         Args:
@@ -644,25 +597,16 @@ class ViewerState:
             reformatted_output = self._process_invalid_output(self.prev_output_type)
 
         # default for rgb images
-        if (
-            self.prev_colormap_type == ColormapTypes.DEFAULT
-            and outputs[reformatted_output].shape[-1] == 3
-        ):
+        if self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].shape[-1] == 3:
             return outputs[reformatted_output]
 
         # rendering depth outputs
-        if (
-            outputs[reformatted_output].shape[-1] == 1
-            and outputs[reformatted_output].dtype == torch.float
-        ):
+        if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
             output = outputs[reformatted_output]
             if self.prev_colormap_normalize:
                 output = output - torch.min(output)
                 output = output / (torch.max(output) + eps)
-            output = (
-                output * (self.prev_colormap_range[1] - self.prev_colormap_range[0])
-                + self.prev_colormap_range[0]
-            )
+            output = output * (self.prev_colormap_range[1] - self.prev_colormap_range[0]) + self.prev_colormap_range[0]
             output = torch.clip(output, 0, 1)
             if self.prev_colormap_invert:
                 output = 1 - output
@@ -683,9 +627,7 @@ class ViewerState:
 
         raise NotImplementedError
 
-    def _send_output_to_viewer(
-        self, outputs: Dict[str, Any], colors: torch.Tensor = None
-    ):
+    def _send_output_to_viewer(self, outputs: Dict[str, Any], colors: torch.Tensor = None):
         """Chooses the correct output and sends it to the viewer
 
         Args:
@@ -712,18 +654,13 @@ class ViewerState:
             self.vis["renderingState/colormap_options"].write(list(ColormapTypes))
             if outputs[reformatted_output].shape[-1] == 3:
                 colormap_options = [ColormapTypes.DEFAULT]
-            if (
-                outputs[reformatted_output].shape[-1] == 1
-                and outputs[reformatted_output].dtype == torch.float
-            ):
+            if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
                 self.prev_colormap_type = ColormapTypes.TURBO
                 colormap_options = list(ColormapTypes)[1:]
             self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             self.vis["renderingState/colormap_options"].write(colormap_options)
-        selected_output = (self._apply_colormap(outputs, colors) * 255).type(
-            torch.uint8
-        )
+        selected_output = (self._apply_colormap(outputs, colors) * 255).type(torch.uint8)
 
         image = selected_output[..., [2, 1, 0]].cpu().numpy()
 
@@ -737,15 +674,25 @@ class ViewerState:
                 self.config.png_compression,
             ],
         )[1].tobytes()
-        data = str(
-            f"data:image/{self.config.image_format};base64,"
-            + base64.b64encode(data).decode("ascii")
-        )
+        data = str(f"data:image/{self.config.image_format};base64," + base64.b64encode(data).decode("ascii"))
         self.vis["render_img"].write(data)
 
-    def _update_viewer_stats(
-        self, render_time: float, num_rays: int, image_height: int, image_width: int
-    ) -> None:
+        image = selected_output[..., [2, 1, 0]].cpu().numpy()
+
+        data = cv2.imencode(
+            f".{self.config.image_format}",
+            image,
+            [
+                cv2.IMWRITE_JPEG_QUALITY,
+                self.config.jpeg_quality,
+                cv2.IMWRITE_PNG_COMPRESSION,
+                self.config.png_compression,
+            ],
+        )[1].tobytes()
+        data = str(f"data:image/{self.config.image_format};base64," + base64.b64encode(data).decode("ascii"))
+        self.vis["render_img"].write(data)
+
+    def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int, image_width: int) -> None:
         """Function that calculates and populates all the rendering statistics accordingly
 
         Args:
@@ -764,18 +711,14 @@ class ViewerState:
         self.vis["renderingState/eval_res"].write(f"{image_height}x{image_width}px")
         if is_training is None or is_training:
             # process remaining training ETA
-            self.vis["renderingState/train_eta"].write(
-                GLOBAL_BUFFER["events"].get(EventName.ETA.value, "Starting")
-            )
+            self.vis["renderingState/train_eta"].write(GLOBAL_BUFFER["events"].get(EventName.ETA.value, "Starting"))
             # process ratio time spent on vis vs train
             if (
                 EventName.ITER_VIS_TIME.value in GLOBAL_BUFFER["events"]
                 and EventName.ITER_TRAIN_TIME.value in GLOBAL_BUFFER["events"]
             ):
                 vis_time = GLOBAL_BUFFER["events"][EventName.ITER_VIS_TIME.value]["avg"]
-                train_time = GLOBAL_BUFFER["events"][EventName.ITER_TRAIN_TIME.value][
-                    "avg"
-                ]
+                train_time = GLOBAL_BUFFER["events"][EventName.ITER_TRAIN_TIME.value]["avg"]
                 vis_train_ratio = f"{int(vis_time / train_time * 100)}% spent on viewer"
                 self.vis["renderingState/vis_train_ratio"].write(vis_train_ratio)
             else:
@@ -784,9 +727,7 @@ class ViewerState:
             self.vis["renderingState/train_eta"].write("Paused")
             self.vis["renderingState/vis_train_ratio"].write("100% spent on viewer")
 
-    def _calculate_image_res(
-        self, camera_object, is_training: bool
-    ) -> Optional[Tuple[int, int]]:
+    def _calculate_image_res(self, camera_object, is_training: bool) -> Optional[Tuple[int, int]]:
         """Calculate the maximum image height that can be rendered in the time budget
 
         Args:
@@ -808,17 +749,15 @@ class ViewerState:
                 target_train_util = 0.9
 
         if EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
-            train_rays_per_sec = GLOBAL_BUFFER["events"][
-                EventName.TRAIN_RAYS_PER_SEC.value
-            ]["avg"]
+            train_rays_per_sec = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
         elif not is_training:
-            train_rays_per_sec = 80000  # TODO(eventually find a way to not hardcode. case where there are no prior training steps)
+            train_rays_per_sec = (
+                80000  # TODO(eventually find a way to not hardcode. case where there are no prior training steps)
+            )
         else:
             return None, None
         if EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
-            vis_rays_per_sec = GLOBAL_BUFFER["events"][
-                EventName.VIS_RAYS_PER_SEC.value
-            ]["avg"]
+            vis_rays_per_sec = GLOBAL_BUFFER["events"][EventName.VIS_RAYS_PER_SEC.value]["avg"]
         else:
             vis_rays_per_sec = train_rays_per_sec
 
@@ -864,9 +803,7 @@ class ViewerState:
         return output_type
 
     @profiler.time_function
-    def _render_image_in_viewer(
-        self, camera_object, graph: Model, is_training: bool
-    ) -> None:
+    def _render_image_in_viewer(self, camera_object, graph: Model, is_training: bool) -> None:
         # pylint: disable=too-many-statements
         """
         Draw an image using the current camera pose from the viewer.
@@ -904,22 +841,16 @@ class ViewerState:
         try:
             self._update_render_aabb(graph)
         except RuntimeError as e:
-            self.vis["renderingState/log_errors"].write(
-                "Got an Error while trying to update aabb crop"
-            )
+            self.vis["renderingState/log_errors"].write("Got an Error while trying to update aabb crop")
             print(f"Error: {e}")
 
             time.sleep(0.5)  # sleep to allow buffer to reset
 
         # Calculate camera pose and intrinsics
         try:
-            image_height, image_width = self._calculate_image_res(
-                camera_object, is_training
-            )
+            image_height, image_width = self._calculate_image_res(camera_object, is_training)
         except ZeroDivisionError as e:
-            self.vis["renderingState/log_errors"].write(
-                "Error: Screen too small; no rays intersecting scene."
-            )
+            self.vis["renderingState/log_errors"].write("Error: Screen too small; no rays intersecting scene.")
             time.sleep(0.03)  # sleep to allow buffer to reset
             print(f"Error: {e}")
             return
@@ -927,10 +858,7 @@ class ViewerState:
         if image_height is None:
             return
 
-        (
-            intrinsics_matrix,
-            camera_to_world_h,
-        ) = get_intrinsics_matrix_and_camera_to_world_h(
+        (intrinsics_matrix, camera_to_world_h,) = get_intrinsics_matrix_and_camera_to_world_h(
             camera_object, image_height=image_height, image_width=image_width
         )
 
@@ -965,16 +893,12 @@ class ViewerState:
         )
         camera = camera.to(graph.device)
 
-        camera_ray_bundle = camera.generate_rays(
-            camera_indices=0, aabb_box=graph.render_aabb
-        )
+        camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=graph.render_aabb)
 
         graph.eval()
 
         check_thread = CheckThread(state=self)
-        render_thread = RenderThread(
-            state=self, graph=graph, camera_ray_bundle=camera_ray_bundle
-        )
+        render_thread = RenderThread(state=self, graph=graph, camera_ray_bundle=camera_ray_bundle)
 
         check_thread.daemon = True
         render_thread.daemon = True

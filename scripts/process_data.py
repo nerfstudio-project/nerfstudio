@@ -142,10 +142,7 @@ class ProcessImages:
                 f"Generating {self.images_per_equirect} {pers_size} sized images per equirectangular image"
             )
             self.data = equirect_utils.generate_planar_projections_from_equirectangular(
-                self.data,
-                pers_size,
-                self.images_per_equirect,
-                crop_factor=self.crop_factor,
+                self.data, pers_size, self.images_per_equirect, crop_factor=self.crop_factor
             )
 
         summary_log = []
@@ -154,14 +151,9 @@ class ProcessImages:
         if not self.skip_image_processing:
             # Copy images to output directory
             image_rename_map_paths = process_data_utils.copy_images(
-                self.data,
-                image_dir=image_dir,
-                crop_factor=self.crop_factor,
-                verbose=self.verbose,
+                self.data, image_dir=image_dir, crop_factor=self.crop_factor, verbose=self.verbose
             )
-            image_rename_map = dict(
-                (a.name, b.name) for a, b in image_rename_map_paths.items()
-            )
+            image_rename_map = dict((a.name, b.name) for a, b in image_rename_map_paths.items())
             num_frames = len(image_rename_map)
             summary_log.append(f"Starting with {num_frames} images")
 
@@ -203,11 +195,7 @@ class ProcessImages:
             )
             summary_log.append(
                 process_data_utils.downscale_images(
-                    depth_dir,
-                    self.num_downscales,
-                    folder_name="depths",
-                    nearest_neighbor=True,
-                    verbose=self.verbose,
+                    depth_dir, self.num_downscales, folder_name="depths", nearest_neighbor=True, verbose=self.verbose
                 )
             )
         else:
@@ -372,10 +360,7 @@ class ProcessVideo:
             # create temp images folder to store the equirect and perspective images
             temp_image_dir = self.output_dir / "temp_images"
             temp_image_dir.mkdir(parents=True, exist_ok=True)
-            (
-                summary_log,
-                num_extracted_frames,
-            ) = process_data_utils.convert_video_to_images(
+            summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
                 self.data,
                 image_dir=temp_image_dir,
                 num_frames_target=self.num_frames_target,
@@ -383,10 +368,7 @@ class ProcessVideo:
                 verbose=self.verbose,
             )
         else:
-            (
-                summary_log,
-                num_extracted_frames,
-            ) = process_data_utils.convert_video_to_images(
+            summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
                 self.data,
                 image_dir=image_dir,
                 num_frames_target=self.num_frames_target,
@@ -492,34 +474,7 @@ class ProcessVideo:
             )
             summary_log.append(
                 process_data_utils.downscale_images(
-                    depth_dir,
-                    self.num_downscales,
-                    folder_name="depths",
-                    nearest_neighbor=True,
-                    verbose=self.verbose,
-                )
-            )
-        else:
-            image_id_to_depth_path = None
-
-        # Export depth maps
-        if self.use_sfm_depth:
-            depth_dir = self.output_dir / "depth"
-            depth_dir.mkdir(parents=True, exist_ok=True)
-            image_id_to_depth_path = colmap_utils.create_sfm_depth(
-                recon_dir=colmap_dir / "sparse" / "0",
-                output_dir=depth_dir,
-                include_depth_debug=self.include_depth_debug,
-                input_images_dir=image_dir,
-                verbose=self.verbose,
-            )
-            summary_log.append(
-                process_data_utils.downscale_images(
-                    depth_dir,
-                    self.num_downscales,
-                    folder_name="depths",
-                    nearest_neighbor=True,
-                    verbose=self.verbose,
+                    depth_dir, self.num_downscales, folder_name="depths", nearest_neighbor=True, verbose=self.verbose
                 )
             )
         else:
@@ -527,20 +482,13 @@ class ProcessVideo:
 
         # Save transforms.json
         if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
-            with CONSOLE.status(
-                "[bold yellow]Saving results to transforms.json", spinner="balloon"
-            ):
+            with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
                 num_matched_frames = colmap_utils.colmap_to_json(
                     recon_dir=colmap_dir / "sparse" / "0",
                     output_dir=self.output_dir,
                     image_id_to_depth_path=image_id_to_depth_path,
                     camera_mask_path=mask_path,
                     image_rename_map=None,
-                )
-                summary_log.append(f"Colmap matched {num_matched_frames} images")
-            summary_log.append(
-                colmap_utils.get_matching_summary(
-                    num_extracted_frames, num_matched_frames
                 )
             )
         else:

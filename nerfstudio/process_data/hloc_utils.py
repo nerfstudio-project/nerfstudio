@@ -101,9 +101,7 @@ def run_hloc(
         sys.exit(1)
 
     if refine_pixsfm and not _HAS_PIXSFM:
-        CONSOLE.print(
-            "[bold red]Error: use refine_pixsfm, you must install pixel-perfect-sfm toolbox!!"
-        )
+        CONSOLE.print("[bold red]Error: use refine_pixsfm, you must install pixel-perfect-sfm toolbox!!")
         sys.exit(1)
 
     outputs = colmap_dir
@@ -117,9 +115,7 @@ def run_hloc(
     matcher_conf = match_features.confs[matcher_type]
 
     references = [p.relative_to(image_dir).as_posix() for p in image_dir.iterdir()]
-    extract_features.main(
-        feature_conf, image_dir, image_list=references, feature_path=features
-    )
+    extract_features.main(feature_conf, image_dir, image_list=references, feature_path=features)
     if matching_method == "exhaustive":
         pairs_from_exhaustive.main(sfm_pairs, image_list=references)
     else:
@@ -129,19 +125,14 @@ def run_hloc(
         pairs_from_retrieval.main(retrieval_path, sfm_pairs, num_matched=num_matched)
     match_features.main(matcher_conf, sfm_pairs, features=features, matches=matches)
 
-    image_options = (
-        pycolmap.ImageReaderOptions(  # pylint: disable=c-extension-no-member
-            camera_model=camera_model.value
-        )
+    image_options = pycolmap.ImageReaderOptions(  # pylint: disable=c-extension-no-member
+        camera_model=camera_model.value
     )
     if refine_pixsfm:
         sfm = PixSfM(
             conf={
                 "dense_features": {"use_cache": True},
-                "KA": {
-                    "dense_features": {"use_cache": True},
-                    "max_kps_per_problem": 1000,
-                },
+                "KA": {"dense_features": {"use_cache": True}, "max_kps_per_problem": 1000},
                 "BA": {"strategy": "costmaps"},
             }
         )

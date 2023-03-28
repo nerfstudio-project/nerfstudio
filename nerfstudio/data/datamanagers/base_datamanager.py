@@ -100,28 +100,26 @@ def variable_res_collate(batch: List[Dict]) -> Dict:
     return new_batch
 
 
-AnnotatedDataParserUnion = (
-    tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of flags in subcommands.
-        tyro.extras.subcommand_type_from_defaults(
-            {
-                "nerfstudio-data": NerfstudioDataParserConfig(),
-                "minimal-parser": MinimalDataParserConfig(),
-                "arkit-data": ARKitScenesDataParserConfig(),
-                "blender-data": BlenderDataParserConfig(),
-                "instant-ngp-data": InstantNGPDataParserConfig(),
-                "nuscenes-data": NuScenesDataParserConfig(),
-                "dnerf-data": DNeRFDataParserConfig(),
-                "phototourism-data": PhototourismDataParserConfig(),
-                "dycheck-data": DycheckDataParserConfig(),
-                "scannet-data": ScanNetDataParserConfig(),
-                "sdfstudio-data": SDFStudioDataParserConfig(),
-                "nerfosr-data": NeRFOSRDataParserConfig(),
-                "sitcoms3d-data": Sitcoms3DDataParserConfig(),
-            },
-            prefix_names=False,  # Omit prefixes in subcommands themselves.
-        )
-    ]
-)
+AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of flags in subcommands.
+    tyro.extras.subcommand_type_from_defaults(
+        {
+            "nerfstudio-data": NerfstudioDataParserConfig(),
+            "minimal-parser": MinimalDataParserConfig(),
+            "arkit-data": ARKitScenesDataParserConfig(),
+            "blender-data": BlenderDataParserConfig(),
+            "instant-ngp-data": InstantNGPDataParserConfig(),
+            "nuscenes-data": NuScenesDataParserConfig(),
+            "dnerf-data": DNeRFDataParserConfig(),
+            "phototourism-data": PhototourismDataParserConfig(),
+            "dycheck-data": DycheckDataParserConfig(),
+            "scannet-data": ScanNetDataParserConfig(),
+            "sdfstudio-data": SDFStudioDataParserConfig(),
+            "nerfosr-data": NeRFOSRDataParserConfig(),
+            "sitcoms3d-data": Sitcoms3DDataParserConfig(),
+        },
+        prefix_names=False,  # Omit prefixes in subcommands themselves.
+    )
+]
 """Union over possible dataparser types, annotated with metadata for tyro. This is the
 same as the vanilla union, but results in shorter subcommand names."""
 
@@ -414,6 +412,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         else:
             self.config.data = self.config.dataparser.data
         self.dataparser = self.dataparser_config.setup()
+<<<<<<< HEAD
         self.train_dataparser_outputs = self.dataparser.get_dataparser_outputs(
             split="train"
         )
@@ -424,15 +423,25 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
         if self.config.train_size_initial is None:
             self.config.train_size_initial = len(self.train_dataset)
+=======
+        self.train_dataparser_outputs = self.dataparser.get_dataparser_outputs(split="train")
+
+        self.train_dataset = self.create_train_dataset()
+        self.eval_dataset = self.create_eval_dataset()
+>>>>>>> upstream/main
 
         if self.train_dataparser_outputs is not None:
             cameras = self.train_dataparser_outputs.cameras
             if len(cameras) > 1:
                 for i in range(1, len(cameras)):
+<<<<<<< HEAD
                     if (
                         cameras[0].width != cameras[i].width
                         or cameras[0].height != cameras[i].height
                     ):
+=======
+                    if cameras[0].width != cameras[i].width or cameras[0].height != cameras[i].height:
+>>>>>>> upstream/main
                         CONSOLE.print("Variable resolution, using variable_res_collate")
                         self.config.collate_fn = variable_res_collate
                         break
@@ -528,9 +537,13 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             collate_fn=self.config.collate_fn,
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
+<<<<<<< HEAD
         self.eval_pixel_sampler = self._get_pixel_sampler(
             self.eval_dataset, self.config.eval_num_rays_per_batch
         )
+=======
+        self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
+>>>>>>> upstream/main
         self.eval_camera_optimizer = self.config.camera_optimizer.setup(
             num_cameras=self.eval_dataset.cameras.size, device=self.device
         )
@@ -587,9 +600,13 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def get_datapath(self) -> Path:
         return self.config.dataparser.data
 
+<<<<<<< HEAD
     def get_param_groups(
         self,
     ) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
+=======
+    def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
+>>>>>>> upstream/main
         """Get the param groups for the data manager.
         Returns:
             A list of dictionaries containing the data manager's param groups.

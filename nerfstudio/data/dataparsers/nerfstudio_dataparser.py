@@ -137,10 +137,7 @@ class Nerfstudio(DataParser):
                 continue
             if indices_json is not None:
                 indices_json_key = str(Path("images", fname.name))
-                if (
-                    indices_json_key not in indices_json
-                    or indices_json[indices_json_key] == "ignore"
-                ):
+                if indices_json_key not in indices_json or indices_json[indices_json_key] == "ignore":
                     num_skipped_image_filenames += 1
                     # CONSOLE.log(
                     #     f"Skiping image {str(fname)} because it doesn't exist in {str(indices_file_path)}"
@@ -190,15 +187,11 @@ class Nerfstudio(DataParser):
 
             if "depth_file_path" in frame:
                 depth_filepath = PurePath(frame["depth_file_path"])
-                depth_fname = self._get_fname(
-                    depth_filepath, data_dir, downsample_folder_prefix="depths_"
-                )
+                depth_fname = self._get_fname(depth_filepath, data_dir, downsample_folder_prefix="depths_")
                 depth_filenames.append(depth_fname)
 
         if num_skipped_image_filenames >= 0:
-            CONSOLE.log(
-                f"Skipping {num_skipped_image_filenames} files in dataset split {split}."
-            )
+            CONSOLE.log(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
         assert (
             len(image_filenames) != 0
         ), """
@@ -218,36 +211,8 @@ class Nerfstudio(DataParser):
         You should check that depth_file_path is specified for every frame (or zero frames) in transforms.json.
         """
 
-        has_split_files_spec = any(
-            f"{split}_filenames" in meta for split in ("train", "val", "test")
-        )
-        if has_split_files_spec:
-            if f"{split}_filenames" in meta:
-                # Validate split first
-                split_filenames = set(
-                    self._get_fname(PurePath(x), data_dir)
-                    for x in meta[f"{split}_filenames"]
-                )
-                unmatched_filenames = split_filenames.difference(image_filenames)
-                if unmatched_filenames:
-                    raise RuntimeError(
-                        f"Some filenames for split {split} were not found: {unmatched_filenames}."
-                    )
-
-                indices = [
-                    i
-                    for i, path in enumerate(image_filenames)
-                    if path in split_filenames
-                ]
-                CONSOLE.log(
-                    f"[yellow] Dataset is overriding {split}_indices to {indices}"
-                )
-                indices = np.array(indices, dtype=np.int32)
-            else:
-                raise RuntimeError(
-                    f"The dataset's list of filenames for split {split} is missing."
-                )
-        elif indices_json is not None:
+        has_split_files_spec = any(f"{split}_filenames" in meta for split in ("train", "val", "test"))
+        if indices_json is not None:
             if split in ["val", "test"]:
                 split_strategy = ["val", "test"]
             elif split in ["train"]:
@@ -275,21 +240,30 @@ class Nerfstudio(DataParser):
                 _indices.append(i)
 
             indices = np.array(sorted(_indices), dtype=np.int64)
+        elif has_split_files_spec:
+            if f"{split}_filenames" in meta:
+                # Validate split first
+                split_filenames = set(self._get_fname(PurePath(x), data_dir) for x in meta[f"{split}_filenames"])
+                unmatched_filenames = split_filenames.difference(image_filenames)
+                if unmatched_filenames:
+                    raise RuntimeError(f"Some filenames for split {split} were not found: {unmatched_filenames}.")
+
+                indices = [i for i, path in enumerate(image_filenames) if path in split_filenames]
+                CONSOLE.log(f"[yellow] Dataset is overriding {split}_indices to {indices}")
+                indices = np.array(indices, dtype=np.int32)
+            else:
+                raise RuntimeError(f"The dataset's list of filenames for split {split} is missing.")
         else:
             # filter image_filenames and poses based on train/eval split percentage
             num_images = len(image_filenames)
-            num_train_images = math.ceil(
-                num_images * self.config.train_split_percentage
-            )
+            num_train_images = math.ceil(num_images * self.config.train_split_percentage)
             num_eval_images = num_images - num_train_images
             i_all = np.arange(num_images)
             i_train = np.linspace(
                 0, num_images - 1, num_train_images, dtype=int
             )  # equally spaced training images starting and ending at 0 and num_images-1
 
-            i_eval = np.setdiff1d(
-                i_all, i_train
-            )  # eval images are the remaining images
+            i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
             assert len(i_eval) == num_eval_images
             if split == "train":
                 indices = i_train
@@ -304,9 +278,7 @@ class Nerfstudio(DataParser):
 
         if "orientation_override" in meta:
             orientation_method = meta["orientation_override"]
-            CONSOLE.log(
-                f"[yellow] Dataset is overriding orientation method to {orientation_method}"
-            )
+            CONSOLE.log(f"[yellow] Dataset is overriding orientation method to {orientation_method}")
         else:
             orientation_method = self.config.orientation_method
 
@@ -327,12 +299,8 @@ class Nerfstudio(DataParser):
 
         # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.
         image_filenames = [image_filenames[i] for i in indices]
-        mask_filenames = (
-            [mask_filenames[i] for i in indices] if len(mask_filenames) > 0 else []
-        )
-        depth_filenames = (
-            [depth_filenames[i] for i in indices] if len(depth_filenames) > 0 else []
-        )
+        mask_filenames = [mask_filenames[i] for i in indices] if len(mask_filenames) > 0 else []
+        depth_filenames = [depth_filenames[i] for i in indices] if len(depth_filenames) > 0 else []
         poses = poses[indices]
 
         # in x,y,z order
@@ -354,36 +322,12 @@ class Nerfstudio(DataParser):
             camera_type = CameraType.PERSPECTIVE
 
         idx_tensor = torch.tensor(indices, dtype=torch.long)
-        fx = (
-            float(meta["fl_x"])
-            if fx_fixed
-            else torch.tensor(fx, dtype=torch.float32)[idx_tensor]
-        )
-        fy = (
-            float(meta["fl_y"])
-            if fy_fixed
-            else torch.tensor(fy, dtype=torch.float32)[idx_tensor]
-        )
-        cx = (
-            float(meta["cx"])
-            if cx_fixed
-            else torch.tensor(cx, dtype=torch.float32)[idx_tensor]
-        )
-        cy = (
-            float(meta["cy"])
-            if cy_fixed
-            else torch.tensor(cy, dtype=torch.float32)[idx_tensor]
-        )
-        height = (
-            int(meta["h"])
-            if height_fixed
-            else torch.tensor(height, dtype=torch.int32)[idx_tensor]
-        )
-        width = (
-            int(meta["w"])
-            if width_fixed
-            else torch.tensor(width, dtype=torch.int32)[idx_tensor]
-        )
+        fx = float(meta["fl_x"]) if fx_fixed else torch.tensor(fx, dtype=torch.float32)[idx_tensor]
+        fy = float(meta["fl_y"]) if fy_fixed else torch.tensor(fy, dtype=torch.float32)[idx_tensor]
+        cx = float(meta["cx"]) if cx_fixed else torch.tensor(cx, dtype=torch.float32)[idx_tensor]
+        cy = float(meta["cy"]) if cy_fixed else torch.tensor(cy, dtype=torch.float32)[idx_tensor]
+        height = int(meta["h"]) if height_fixed else torch.tensor(height, dtype=torch.int32)[idx_tensor]
+        width = int(meta["w"]) if width_fixed else torch.tensor(width, dtype=torch.int32)[idx_tensor]
         if distort_fixed:
             distortion_params = camera_utils.get_distortion_params(
                 k1=float(meta["k1"]) if "k1" in meta else 0.0,
@@ -412,15 +356,9 @@ class Nerfstudio(DataParser):
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
 
         if "applied_transform" in meta:
-            applied_transform = torch.tensor(
-                meta["applied_transform"], dtype=transform_matrix.dtype
-            )
+            applied_transform = torch.tensor(meta["applied_transform"], dtype=transform_matrix.dtype)
             transform_matrix = transform_matrix @ torch.cat(
-                [
-                    applied_transform,
-                    torch.tensor([[0, 0, 0, 1]], dtype=transform_matrix.dtype),
-                ],
-                0,
+                [applied_transform, torch.tensor([[0, 0, 0, 1]], dtype=transform_matrix.dtype)], 0
             )
         if "applied_scale" in meta:
             applied_scale = float(meta["applied_scale"])
@@ -434,17 +372,13 @@ class Nerfstudio(DataParser):
             dataparser_scale=scale_factor,
             dataparser_transform=transform_matrix,
             metadata={
-                "depth_filenames": depth_filenames
-                if len(depth_filenames) > 0
-                else None,
+                "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
             },
         )
         return dataparser_outputs
 
-    def _get_fname(
-        self, filepath: PurePath, data_dir: PurePath, downsample_folder_prefix="images_"
-    ) -> Path:
+    def _get_fname(self, filepath: PurePath, data_dir: PurePath, downsample_folder_prefix="images_") -> Path:
         """Get the filename of the image file.
         downsample_folder_prefix can be used to point to auxiliary image data, e.g. masks
 
@@ -462,11 +396,7 @@ class Nerfstudio(DataParser):
                 while True:
                     if (max_res / 2 ** (df)) < MAX_AUTO_RESOLUTION:
                         break
-                    if not (
-                        data_dir
-                        / f"{downsample_folder_prefix}{2**(df+1)}"
-                        / filepath.name
-                    ).exists():
+                    if not (data_dir / f"{downsample_folder_prefix}{2**(df+1)}" / filepath.name).exists():
                         break
                     df += 1
 
@@ -476,9 +406,5 @@ class Nerfstudio(DataParser):
                 self.downscale_factor = self.config.downscale_factor
 
         if self.downscale_factor > 1:
-            return (
-                data_dir
-                / f"{downsample_folder_prefix}{self.downscale_factor}"
-                / filepath.name
-            )
+            return data_dir / f"{downsample_folder_prefix}{self.downscale_factor}" / filepath.name
         return data_dir / filepath

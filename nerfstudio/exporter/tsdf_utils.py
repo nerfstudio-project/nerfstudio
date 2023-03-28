@@ -39,6 +39,8 @@ CONSOLE = Console(width=120, no_color=True)
 
 TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 
+TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
+
 
 @dataclass
 class TSDF:

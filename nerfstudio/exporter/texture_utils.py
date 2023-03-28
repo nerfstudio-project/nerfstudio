@@ -41,6 +41,8 @@ CONSOLE = Console(width=120, no_color=True)
 
 TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 
+TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
+
 
 def get_parallelogram_area(
     p: TensorType["bs":..., 2], v0: TensorType["bs":..., 2], v1: TensorType["bs":..., 2]
