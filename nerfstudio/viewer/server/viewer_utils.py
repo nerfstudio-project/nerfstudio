@@ -677,21 +677,6 @@ class ViewerState:
         data = str(f"data:image/{self.config.image_format};base64," + base64.b64encode(data).decode("ascii"))
         self.vis["render_img"].write(data)
 
-        image = selected_output[..., [2, 1, 0]].cpu().numpy()
-
-        data = cv2.imencode(
-            f".{self.config.image_format}",
-            image,
-            [
-                cv2.IMWRITE_JPEG_QUALITY,
-                self.config.jpeg_quality,
-                cv2.IMWRITE_PNG_COMPRESSION,
-                self.config.png_compression,
-            ],
-        )[1].tobytes()
-        data = str(f"data:image/{self.config.image_format};base64," + base64.b64encode(data).decode("ascii"))
-        self.vis["render_img"].write(data)
-
     def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int, image_width: int) -> None:
         """Function that calculates and populates all the rendering statistics accordingly
 
