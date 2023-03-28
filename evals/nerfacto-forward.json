@@ -1,0 +1,12 @@
+{
+  "experiment_name": "data-images-fox",
+  "method_name": "nerfacto",
+  "checkpoint": "outputs/data-images-fox/nerfacto/2022-12-08_102416/nerfstudio_models/step-000029999.ckpt",
+  "results": {
+    "psnr": 27.558950424194336,
+    "ssim": 0.8573962450027466,
+    "lpips": 0.18833725154399872,
+    "num_rays_per_sec": 516265.25,
+    "fps": 0.24897050857543945
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "experiment_name": "data-images-trex",
+  "method_name": "vanilla-nerf",
+  "checkpoint": "outputs/data-images-trex/vanilla-nerf/2022-12-10_131118/nerfstudio_models/step-000144000.ckpt",
+  "results": {
+    "psnr": 16.738107681274414,
+    "coarse_psnr": 16.20501136779785,
+    "fine_psnr": 16.738107681274414,
+    "fine_ssim": 0.6344196200370789,
+    "fine_lpips": 0.48436442017555237,
+    "num_rays_per_sec": 38538.0546875,
+    "fps": 0.003160731168463826
+  }
+}

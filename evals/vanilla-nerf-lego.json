@@ -1,0 +1,14 @@
+{
+  "experiment_name": "data-blender-lego",
+  "method_name": "vanilla-nerf",
+  "checkpoint": "outputs/data-blender-lego/vanilla-nerf/2022-12-09_100002/nerfstudio_models/step-000649000.ckpt",
+  "results": {
+    "psnr": 32.208526611328125,
+    "coarse_psnr": 24.690685272216797,
+    "fine_psnr": 32.208526611328125,
+    "fine_ssim": 0.9606167674064636,
+    "fine_lpips": 0.01773144118487835,
+    "num_rays_per_sec": 39650.87109375,
+    "fps": 0.06195449456572533
+  }
+}

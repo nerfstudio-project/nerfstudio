@@ -1,0 +1,12 @@
+{
+  "experiment_name": "data-videos-ohma_electra-33",
+  "method_name": "nerfacto",
+  "checkpoint": "outputs/data-videos-ohma_electra-33/nerfacto/2022-12-05_143132/nerfstudio_models/step-000029999.ckpt",
+  "results": {
+    "psnr": 20.13486099243164,
+    "ssim": 0.5473781228065491,
+    "lpips": 0.2725581228733063,
+    "num_rays_per_sec": 552390.0625,
+    "fps": 1.065567135810852
+  }
+}
