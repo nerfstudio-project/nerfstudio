@@ -73,9 +73,7 @@ def convert_insta360_to_images(
         A tuple containing summary of the conversion and the number of extracted frames.
     """
 
-    with status(
-        msg="Converting video to images...", spinner="bouncingBall", verbose=verbose
-    ):
+    with status(msg="Converting video to images...", spinner="bouncingBall", verbose=verbose):
         # delete existing images in folder
         for img in image_dir.glob("*.png"):
             if verbose:
@@ -104,7 +102,9 @@ def convert_insta360_to_images(
         back_vf_cmds = vf_cmds + ["transpose=1"]
 
         front_ffmpeg_cmd = f"ffmpeg -i {video_front} -vf {','.join(front_vf_cmds)} -r 1 {image_dir / 'frame_%05d.png'}"
-        back_ffmpeg_cmd = f"ffmpeg -i {video_back} -vf {','.join(back_vf_cmds)} -r 1 {image_dir / 'back_frame_%05d.png'}"
+        back_ffmpeg_cmd = (
+            f"ffmpeg -i {video_back} -vf {','.join(back_vf_cmds)} -r 1 {image_dir / 'back_frame_%05d.png'}"
+        )
 
         run_command(front_ffmpeg_cmd, verbose=verbose)
         run_command(back_ffmpeg_cmd, verbose=verbose)
@@ -115,9 +115,7 @@ def convert_insta360_to_images(
 
     num_final_frames = len(list(image_dir.glob("*.png")))
     summary_log = []
-    summary_log.append(
-        f"Starting with {num_frames_front + num_frames_back} video frames"
-    )
+    summary_log.append(f"Starting with {num_frames_front + num_frames_back} video frames")
     summary_log.append(f"We extracted {num_final_frames} images")
     CONSOLE.log("[bold green]:tada: Done converting insta360 to images.")
 
@@ -144,9 +142,7 @@ def convert_insta360_single_file_to_images(
         A tuple containing summary of the conversion and the number of extracted frames.
     """
 
-    with status(
-        msg="Converting video to images...", spinner="bouncingBall", verbose=verbose
-    ):
+    with status(msg="Converting video to images...", spinner="bouncingBall", verbose=verbose):
         # delete existing images in folder
         for img in image_dir.glob("*.png"):
             if verbose:

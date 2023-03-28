@@ -30,6 +30,7 @@ from nerfstudio.utils import writer
 
 CONSOLE = Console(width=120, no_color=True)
 
+
 # Optimizer related configs
 @dataclass
 class OptimizerConfig(base_config.PrintableConfig):

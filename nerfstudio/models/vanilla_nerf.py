@@ -135,7 +135,6 @@ class NeRFModel(Model):
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
-
         if self.field_coarse is None or self.field_fine is None:
             raise ValueError("populate_fields() must be called before get_outputs")
 

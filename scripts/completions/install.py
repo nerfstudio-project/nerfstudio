@@ -133,34 +133,23 @@ def _generate_completion(
 
 
 def _exclamation() -> str:
-    return (
-        random.choice(["Cool", "Nice", "Neat", "Great", "Exciting", "Excellent", "Ok"])
-        + "!"
-    )
+    return random.choice(["Cool", "Nice", "Neat", "Great", "Exciting", "Excellent", "Ok"]) + "!"
 
 
-def _get_deactivate_script(
-    commands: List[str], shell: Optional[ShellType], add_header=True
-) -> str:
+def _get_deactivate_script(commands: List[str], shell: Optional[ShellType], add_header=True) -> str:
     if shell is None:
         # Install the universal script
         result_script = []
         for shell_type in typing_get_args(ShellType):
             result_script.append(f'if [ -n "${shell_type.upper()}_VERSION" ]; then')
-            result_script.append(
-                _get_deactivate_script(commands, shell_type, add_header=False)
-            )
+            result_script.append(_get_deactivate_script(commands, shell_type, add_header=False))
             result_script.append("fi")
         source_lines = "\n".join(result_script)
 
     elif shell == "zsh":
-        source_lines = "\n".join(
-            [f"unset '_comps[{command}]' &> /dev/null" for command in commands]
-        )
+        source_lines = "\n".join([f"unset '_comps[{command}]' &> /dev/null" for command in commands])
     elif shell == "bash":
-        source_lines = "\n".join(
-            [f"complete -r {command} &> /dev/null" for command in commands]
-        )
+        source_lines = "\n".join([f"complete -r {command} &> /dev/null" for command in commands])
     else:
         assert_never(shell)
 
@@ -169,17 +158,13 @@ def _get_deactivate_script(
     return source_lines
 
 
-def _get_source_script(
-    completions_dir: pathlib.Path, shell: Optional[ShellType], add_header=True
-) -> str:
+def _get_source_script(completions_dir: pathlib.Path, shell: Optional[ShellType], add_header=True) -> str:
     if shell is None:
         # Install the universal script
         result_script = []
         for shell_type in typing_get_args(ShellType):
             result_script.append(f'if [ -n "${shell_type.upper()}_VERSION" ]; then')
-            result_script.append(
-                _get_source_script(completions_dir, shell_type, add_header=False)
-            )
+            result_script.append(_get_source_script(completions_dir, shell_type, add_header=False))
             result_script.append("fi")
         source_lines = "\n".join(result_script)
 
@@ -228,9 +213,7 @@ def _update_rc(
     rc_source = rc_path.read_text()
     while HEADER_LINE in rc_source:
         before_install, _, after_install = rc_source.partition(HEADER_LINE)
-        source_file, _, after_install = after_install.partition("\nsource ")[
-            2
-        ].partition("\n")
+        source_file, _, after_install = after_install.partition("\nsource ")[2].partition("\n")
         assert source_file.endswith(f"/completions/setup.{shell}")
         rc_source = before_install + after_install
         rc_path.write_text(rc_source)
@@ -298,9 +281,7 @@ def _get_conda_path() -> Optional[pathlib.Path]:
     if "CONDA_PREFIX" in os.environ:
         # Conda is active, we will check if the Nerfstudio is installed in the conda env.
         distribution = importlib_metadata.distribution("nerfstudio")
-        if str(distribution.locate_file("nerfstudio")).startswith(
-            os.environ["CONDA_PREFIX"]
-        ):
+        if str(distribution.locate_file("nerfstudio")).startswith(os.environ["CONDA_PREFIX"]):
             conda_path = pathlib.Path(os.environ["CONDA_PREFIX"])
     return conda_path
 
@@ -315,11 +296,7 @@ def _generate_completions_files(
     include_scripts = False
 
     # Find tyro CLIs.
-    script_paths = (
-        list(filter(_check_tyro_cli, scripts_dir.glob("**/*.py")))
-        if include_scripts
-        else []
-    )
+    script_paths = list(filter(_check_tyro_cli, scripts_dir.glob("**/*.py"))) if include_scripts else []
     script_names = tuple(p.name for p in script_paths)
     assert len(set(script_names)) == len(script_names)
 
@@ -335,9 +312,7 @@ def _generate_completions_files(
 
     # Run generation jobs.
     concurrent_executor = concurrent.futures.ThreadPoolExecutor()
-    with CONSOLE.status(
-        "[bold]:writing_hand:  Generating completions...", spinner="bouncingBall"
-    ):
+    with CONSOLE.status("[bold]:writing_hand:  Generating completions...", spinner="bouncingBall"):
         completion_paths = list(
             concurrent_executor.map(
                 lambda path_or_entrypoint_and_shell: _generate_completion(
@@ -405,17 +380,11 @@ def main(mode: ConfigureMode = "install") -> None:
             if target_dir.exists():
                 assert target_dir.is_dir()
                 shutil.rmtree(target_dir, ignore_errors=True)
-                CONSOLE.log(
-                    f":broom: Deleted existing completion directory: {target_dir}."
-                )
+                CONSOLE.log(f":broom: Deleted existing completion directory: {target_dir}.")
             else:
-                CONSOLE.log(
-                    f":heavy_check_mark: No existing completions at: {target_dir}."
-                )
+                CONSOLE.log(f":heavy_check_mark: No existing completions at: {target_dir}.")
     elif mode == "install":
-        _generate_completions_files(
-            completions_dir, scripts_dir, shells_supported, shells_found
-        )
+        _generate_completions_files(completions_dir, scripts_dir, shells_supported, shells_found)
     else:
         assert_never(mode)
 

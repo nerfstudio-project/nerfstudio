@@ -62,9 +62,7 @@ def eval_load_checkpoint(config: TrainerConfig, pipeline: Pipeline) -> Path:
         step = loaded_state["step"]
 
     pipeline.load_pipeline(loaded_state["pipeline"], step)
-    CONSOLE.print(
-        f":white_check_mark: Done loading checkpoint from {str(checkpoint_path)}"
-    )
+    CONSOLE.print(f":white_check_mark: Done loading checkpoint from {str(checkpoint_path)}")
     return checkpoint_path
 
 

@@ -155,9 +155,7 @@ def metashape_to_json(  # pylint: disable=too-many-statements
 
         if camera.find("transform") is None:
             if verbose:
-                CONSOLE.print(
-                    f"Missing transforms data for {camera.get('label')}, Skipping"
-                )
+                CONSOLE.print(f"Missing transforms data for {camera.get('label')}, Skipping")
             num_skipped += 1
             continue
         transform = np.array([float(x) for x in camera.find("transform").text.split()]).reshape((4, 4))
@@ -176,13 +174,9 @@ def metashape_to_json(  # pylint: disable=too-many-statements
 
     summary = []
     if num_skipped == 1:
-        summary.append(
-            f"{num_skipped} image skipped because it was missing its camera pose."
-        )
+        summary.append(f"{num_skipped} image skipped because it was missing its camera pose.")
     if num_skipped > 1:
-        summary.append(
-            f"{num_skipped} images were skipped because they were missing camera poses."
-        )
+        summary.append(f"{num_skipped} images were skipped because they were missing camera poses.")
 
     summary.append(f"Final dataset is {len(data['frames'])} frames.")
 

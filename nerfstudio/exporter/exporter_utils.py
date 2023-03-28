@@ -72,9 +72,7 @@ def get_mesh_from_pymeshlab_mesh(mesh: pymeshlab.Mesh) -> Mesh:
     )
 
 
-def get_mesh_from_filename(
-    filename: str, target_num_faces: Optional[int] = None
-) -> Mesh:
+def get_mesh_from_filename(filename: str, target_num_faces: Optional[int] = None) -> Mesh:
     """Get a Mesh from a filename."""
     ms = pymeshlab.MeshSet()
     ms.load_new_mesh(filename)
@@ -183,9 +181,7 @@ def generate_point_cloud(
                 assert torch.all(
                     comp_l < comp_m
                 ), f"Bounding box min {bounding_box_min} must be smaller than max {bounding_box_max}"
-                mask = torch.all(
-                    torch.concat([point > comp_l, point < comp_m], dim=-1), dim=-1
-                )
+                mask = torch.all(torch.concat([point > comp_l, point < comp_m], dim=-1), dim=-1)
                 point = point[mask]
                 rgb = rgb[mask]
                 if normal_output_name is not None:
@@ -271,9 +267,7 @@ def render_trajectory(
                 camera_indices=camera_idx, disable_distortion=disable_distortion
             ).to(pipeline.device)
             with torch.no_grad():
-                outputs = pipeline.model.get_outputs_for_camera_ray_bundle(
-                    camera_ray_bundle
-                )
+                outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
             if rgb_output_name not in outputs:
                 CONSOLE.rule("Error", style="red")
                 CONSOLE.print(

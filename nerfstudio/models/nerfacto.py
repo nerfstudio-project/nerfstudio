@@ -168,9 +168,7 @@ class NerfactoModel(Model):
         # Build the proposal network(s)
         self.proposal_networks = torch.nn.ModuleList()
         if self.config.use_same_proposal_network:
-            assert (
-                len(self.config.proposal_net_args_list) == 1
-            ), "Only one proposal network is allowed."
+            assert len(self.config.proposal_net_args_list) == 1, "Only one proposal network is allowed."
             prop_net_args = self.config.proposal_net_args_list[0]
             network = HashMLPDensityField(
                 self.scene_box.aabb,
@@ -181,18 +179,14 @@ class NerfactoModel(Model):
             self.density_fns.extend([network.density_fn for _ in range(num_prop_nets)])
         else:
             for i in range(num_prop_nets):
-                prop_net_args = self.config.proposal_net_args_list[
-                    min(i, len(self.config.proposal_net_args_list) - 1)
-                ]
+                prop_net_args = self.config.proposal_net_args_list[min(i, len(self.config.proposal_net_args_list) - 1)]
                 network = HashMLPDensityField(
                     self.scene_box.aabb,
                     spatial_distortion=scene_contraction,
                     **prop_net_args,
                 )
                 self.proposal_networks.append(network)
-            self.density_fns.extend(
-                [network.density_fn for network in self.proposal_networks]
-            )
+            self.density_fns.extend([network.density_fn for network in self.proposal_networks])
 
         # Samplers
         update_schedule = lambda step: np.clip(
@@ -220,9 +214,7 @@ class NerfactoModel(Model):
         )
 
         # Collider
-        self.collider = NearFarCollider(
-            near_plane=self.config.near_plane, far_plane=self.config.far_plane
-        )
+        self.collider = NearFarCollider(near_plane=self.config.near_plane, far_plane=self.config.far_plane)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
@@ -279,12 +271,8 @@ class NerfactoModel(Model):
         return callbacks
 
     def get_outputs(self, ray_bundle: RayBundle):
-        ray_samples, weights_list, ray_samples_list = self.proposal_sampler(
-            ray_bundle, density_fns=self.density_fns
-        )
-        field_outputs = self.field(
-            ray_samples, compute_normals=self.config.predict_normals
-        )
+        ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
+        field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
@@ -323,9 +311,7 @@ class NerfactoModel(Model):
             )
 
         for i in range(self.config.num_proposal_iterations):
-            outputs[f"prop_depth_{i}"] = self.renderer_depth(
-                weights=weights_list[i], ray_samples=ray_samples_list[i]
-            )
+            outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
 
         return outputs
 
@@ -334,9 +320,7 @@ class NerfactoModel(Model):
         image = batch["image"].to(self.device)
         metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
         if self.training:
-            metrics_dict["distortion"] = distortion_loss(
-                outputs["weights_list"], outputs["ray_samples_list"]
-            )
+            metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
         return metrics_dict
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
@@ -344,27 +328,19 @@ class NerfactoModel(Model):
         image = batch["image"].to(self.device)
         loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
         if self.training:
-            loss_dict[
-                "interlevel_loss"
-            ] = self.config.interlevel_loss_mult * interlevel_loss(
+            loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
             )
             assert metrics_dict is not None and "distortion" in metrics_dict
-            loss_dict["distortion_loss"] = (
-                self.config.distortion_loss_mult * metrics_dict["distortion"]
-            )
+            loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
             if self.config.predict_normals:
                 # orientation loss for computed normals
-                loss_dict[
-                    "orientation_loss"
-                ] = self.config.orientation_loss_mult * torch.mean(
+                loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
                     outputs["rendered_orientation_loss"]
                 )
 
                 # ground truth supervision for normals
-                loss_dict[
-                    "pred_normal_loss"
-                ] = self.config.pred_normal_loss_mult * torch.mean(
+                loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
                     outputs["rendered_pred_normal_loss"]
                 )
         return loss_dict
@@ -411,8 +387,8 @@ class NerfactoModel(Model):
             images_dict[key] = prop_depth_i
 
         return metrics_dict, images_dict
-    
+
     @staticmethod
     def get_train_size_from_checkpoint(state):
-        num_of_initial_train_images = state['pipeline']['_model.field.embedding_appearance.embedding.weight'].shape[0]
+        num_of_initial_train_images = state["pipeline"]["_model.field.embedding_appearance.embedding.weight"].shape[0]
         return num_of_initial_train_images

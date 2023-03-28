@@ -386,7 +386,6 @@ class VolumetricSampler(Sampler):
         density_fn: Optional[Callable[[TensorType[..., 3]], TensorType[..., 1]]] = None,
         scene_aabb: Optional[TensorType[2, 3]] = None,
     ) -> None:
-
         super().__init__()
         self.scene_aabb = scene_aabb
         self.density_fn = density_fn
@@ -650,7 +649,6 @@ class NeuSSampler(Sampler):
         base_variance = self.base_variance
 
         while total_iters < self.num_upsample_steps:
-
             with torch.no_grad():
                 new_sdf = sdf_fn(new_samples)
 

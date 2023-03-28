@@ -36,9 +36,7 @@ def check_colmap_installed():
     colmap_path = shutil.which("colmap")
     if colmap_path is None:
         CONSOLE.print("[bold red]Could not find COLMAP. Please install COLMAP.")
-        print(
-            "See https://colmap.github.io/install.html for installation instructions."
-        )
+        print("See https://colmap.github.io/install.html for installation instructions.")
         sys.exit(1)
 
 

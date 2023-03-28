@@ -89,9 +89,7 @@ class Profiler:
 
     def print_profile(self):
         """helper to print out the profiler stats"""
-        CONSOLE.print(
-            "Printing profiling stats, from longest to shortest duration in seconds"
-        )
+        CONSOLE.print("Printing profiling stats, from longest to shortest duration in seconds")
         sorted_keys = sorted(
             self.profiler_dict.keys(),
             key=lambda k: self.profiler_dict[k]["val"],

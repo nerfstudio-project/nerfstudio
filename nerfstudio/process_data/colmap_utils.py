@@ -73,9 +73,7 @@ def get_vocab_tree() -> Path:
     vocab_tree_filename = Path(appdirs.user_data_dir("nerfstudio")) / "vocab_tree.fbow"
 
     if not vocab_tree_filename.exists():
-        r = requests.get(
-            "https://demuc.de/colmap/vocab_tree_flickr100K_words32K.bin", stream=True
-        )
+        r = requests.get("https://demuc.de/colmap/vocab_tree_flickr100K_words32K.bin", stream=True)
         vocab_tree_filename.parent.mkdir(parents=True, exist_ok=True)
         with open(vocab_tree_filename, "wb") as f:
             total_length = r.headers.get("content-length")
@@ -131,9 +129,7 @@ def run_colmap(
         f"--SiftExtraction.use_gpu {int(gpu)}",
     ]
     if camera_mask_path is not None:
-        feature_extractor_cmd.append(
-            f"--ImageReader.camera_mask_path {camera_mask_path}"
-        )
+        feature_extractor_cmd.append(f"--ImageReader.camera_mask_path {camera_mask_path}")
     feature_extractor_cmd = " ".join(feature_extractor_cmd)
     with status(
         msg="[bold yellow]Running COLMAP feature extractor...",
@@ -152,9 +148,7 @@ def run_colmap(
     ]
     if matching_method == "vocab_tree":
         vocab_tree_filename = get_vocab_tree()
-        feature_matcher_cmd.append(
-            f"--VocabTreeMatching.vocab_tree_path {vocab_tree_filename}"
-        )
+        feature_matcher_cmd.append(f"--VocabTreeMatching.vocab_tree_path {vocab_tree_filename}")
     feature_matcher_cmd = " ".join(feature_matcher_cmd)
     with status(
         msg="[bold yellow]Running COLMAP feature matcher...",
@@ -185,9 +179,7 @@ def run_colmap(
     ):
         run_command(mapper_cmd, verbose=verbose)
     CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
-    with status(
-        msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose
-    ):
+    with status(msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose):
         bundle_adjuster_cmd = [
             f"{colmap_cmd} bundle_adjuster",
             f"--input_path {sparse_dir}/0",
@@ -642,9 +634,7 @@ def get_matching_summary(num_intial_frames: int, num_matched_frames: int) -> str
         return "[bold green]COLMAP found poses for all images, CONGRATS!"
     if match_ratio < 0.4:
         result = f"[bold red]COLMAP only found poses for {num_matched_frames / num_intial_frames * 100:.2f}%"
-        result += (
-            " of the images. This is low.\nThis can be caused by a variety of reasons,"
-        )
+        result += " of the images. This is low.\nThis can be caused by a variety of reasons,"
         result += " such poor scene coverage, blurry images, or large exposure changes."
         return result
     if match_ratio < 0.8:

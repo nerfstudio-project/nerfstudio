@@ -56,15 +56,11 @@ def list_images(data: Path) -> List[Path]:
         Paths to images contained in the directory
     """
     allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
-    image_paths = sorted(
-        [p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts]
-    )
+    image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
     return image_paths
 
 
-def get_image_filenames(
-    directory: Path, max_num_images: int = -1
-) -> Tuple[List[Path], int]:
+def get_image_filenames(directory: Path, max_num_images: int = -1) -> Tuple[List[Path], int]:
     """Returns a list of image filenames in a directory.
 
     Args:
@@ -306,9 +302,7 @@ def copy_images(
     Returns:
         The mapping from the original filenames to the new ones.
     """
-    with status(
-        msg="[bold yellow]Copying images...", spinner="bouncingBall", verbose=verbose
-    ):
+    with status(msg="[bold yellow]Copying images...", spinner="bouncingBall", verbose=verbose):
         image_paths = list_images(data)
 
         if len(image_paths) == 0:
@@ -373,9 +367,7 @@ def downscale_images(
                 run_command(ffmpeg_cmd, verbose=verbose)
 
     CONSOLE.log("[bold green]:tada: Done downscaling images.")
-    downscale_text = [
-        f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)
-    ]
+    downscale_text = [f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)]
     downscale_text = ", ".join(downscale_text[:-1]) + " and " + downscale_text[-1]
     return f"We downsampled the images by {downscale_text}"
 
@@ -440,9 +432,7 @@ def find_tool_feature_matcher_combination(
     return (None, None, None)
 
 
-def generate_circle_mask(
-    height: int, width: int, percent_radius
-) -> Optional[np.ndarray]:
+def generate_circle_mask(height: int, width: int, percent_radius) -> Optional[np.ndarray]:
     """generate a circle mask of the given size.
 
     Args:

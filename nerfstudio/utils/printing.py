@@ -24,16 +24,12 @@ CONSOLE = Console(width=120, no_color=True)
 def print_tcnn_speed_warning(method_name: str):
     """Prints a warning about the speed of the TCNN."""
     CONSOLE.line()
-    CONSOLE.print(
-        f"[bold yellow]WARNING: Using a slow implementation of {method_name}. "
-    )
+    CONSOLE.print(f"[bold yellow]WARNING: Using a slow implementation of {method_name}. ")
     CONSOLE.print(
         "[bold yellow]:person_running: :person_running: "
         + "Install tcnn for speedups :person_running: :person_running:"
     )
-    CONSOLE.print(
-        "[yellow]pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch"
-    )
+    CONSOLE.print("[yellow]pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch")
     CONSOLE.line()
 
 

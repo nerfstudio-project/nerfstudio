@@ -47,9 +47,7 @@ def main(check: bool = False):
                     found_tags.append(val)
 
             if len(found_keys) > 1:
-                CONSOLE.print(
-                    f"[bold yellow]Found multiple tags {found_keys} for {ipath}"
-                )
+                CONSOLE.print(f"[bold yellow]Found multiple tags {found_keys} for {ipath}")
                 sys.exit(1)
 
             if len(cell_tags) != len(found_tags):

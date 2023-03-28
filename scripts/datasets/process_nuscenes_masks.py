@@ -80,7 +80,6 @@ class ProcessNuScenesMasks:
 
                 mask = np.ones((900, 1600), dtype=np.uint8)
                 for box in boxes:
-
                     # Dont mask out static objects (static in all frames)
                     instance_token = nusc.get("sample_annotation", box.token)["instance_token"]
                     if not instances_is_dynamic[instance_token]:

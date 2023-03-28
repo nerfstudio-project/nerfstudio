@@ -56,9 +56,7 @@ def run_github_actions_file(filename: str, continue_on_fail: bool = False):
 
             CONSOLE.line()
             CONSOLE.rule(f"[bold green]Running: {curr_command}")
-            success = success and run_command(
-                curr_command, continue_on_fail=continue_on_fail
-            )
+            success = success and run_command(curr_command, continue_on_fail=continue_on_fail)
         else:
             skip_name = step["name"] if "name" in step else step["uses"]
             CONSOLE.print(f"Skipping {skip_name}")
@@ -66,14 +64,10 @@ def run_github_actions_file(filename: str, continue_on_fail: bool = False):
     # Add checks for building documentation
     CONSOLE.line()
     CONSOLE.rule("[bold green]Adding notebook documentation metadata")
-    success = success and run_command(
-        "python scripts/docs/add_nb_tags.py", continue_on_fail=continue_on_fail
-    )
+    success = success and run_command("python scripts/docs/add_nb_tags.py", continue_on_fail=continue_on_fail)
     CONSOLE.line()
     CONSOLE.rule("[bold green]Building Documentation")
-    success = success and run_command(
-        "cd docs/; make html SPHINXOPTS='-W;'", continue_on_fail=continue_on_fail
-    )
+    success = success and run_command("cd docs/; make html SPHINXOPTS='-W;'", continue_on_fail=continue_on_fail)
 
     if success:
         CONSOLE.line()
