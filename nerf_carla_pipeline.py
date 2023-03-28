@@ -7,6 +7,7 @@ from contextlib import ContextDecorator
 from dataclasses import dataclass
 from pathlib import Path
 from timeit import default_timer as timer
+from datetime import datetime
 
 import tyro
 from rich.console import Console
@@ -57,7 +58,7 @@ class ExperimentPipeline:
     def run(self):
         self.train()
         train_output_dir = self.find_evaluate_paths()
-        self.eval(train_output_dir, self.experiment_name)
+        self.eval(train_output_dir)
 
     def write(self, text: str):
         self.writer["terminal"].write(text)
@@ -83,10 +84,24 @@ class ExperimentPipeline:
         run_command(cmd, verbose=True)
 
     @my_timer("Evaluate")
-    def eval(self, config: str, output_name: str):
+    def eval(self, config: str):
         CONSOLE.print("Evaluating model")
-        output_name = f"{self.model}-{output_name}"
+        output_name = f"{self.model}-{self.experiment_name}"
         cmd = f"ns-eval --load-config {config} --output-path {self.output_dir}/{output_name}.json"
+        run_command(cmd, verbose=True)
+    
+    @my_timer("Render")
+    def render(self, config_path: Path):
+        CONSOLE.print("Rendering model")
+        output_name = f"{self.model}-{self.experiment_name}"
+
+        experiment_output_path = self.output_dir / self.experiment_name / self.model
+        latest_changed_dir = max(glob.glob(f"{experiment_output_path}/*"), key=os.path.getmtime).split("/")[-1]
+        config_path = experiment_output_path / latest_changed_dir / "config.yml"
+
+        render_path = self.output_dir / "renders" / output_name
+        # ns-render --load-config outputs/data-images-exp_combined_baseline_2/nerfacto/2023-03-28_112618/config.yml --traj filename --camera-path-filename data/images/exp_combined_baseline_2/camera_paths/2023-03-28_112618.json --output-path renders/data/images/exp_combined_baseline_2/2023-03-28_112618.mp4
+        cmd = f"ns-render --load-config {config_path} --output-path {self.output_dir}/{output_name}.json"
         run_command(cmd, verbose=True)
 
 
