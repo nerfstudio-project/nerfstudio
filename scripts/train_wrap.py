@@ -41,9 +41,7 @@ def parse_args():
     return args.parse_known_args()
 
 
-def split_to_model_and_data(
-    nerfstudio_args, num_models, num_datasets, dataset_at_index
-) -> tuple[list[str], list[str]]:
+def split_to_model_and_data(nerfstudio_args, num_models, num_datasets, dataset_at_index) -> tuple[list[str], list[str]]:
     left = dataset_at_index - 1 - 1 - num_models
     right = left + num_datasets - 1
 
@@ -65,7 +63,6 @@ def stdout_to_log(log_dir: Path):
 
 
 def main():
-
     script_args, nerfstudio_args = parse_args()
 
     train_test_split = script_args.train_test_split
@@ -79,10 +76,7 @@ def main():
 
     for model in script_args.models:
         for dataset_and_segmentations in script_args.datasets:
-
-            dataset_and_segmentations = dataset_and_segmentations.split(
-                SEGMENTATION_DIRECTORY_DELIMITER
-            )
+            dataset_and_segmentations = dataset_and_segmentations.split(SEGMENTATION_DIRECTORY_DELIMITER)
             dataset_path = dataset_and_segmentations[0]
             segmentation_sequences = dataset_and_segmentations[1:]
 
@@ -106,9 +100,7 @@ def main():
 
             config.experiment_name = f"{experiment_name}-{data_name}"
             if config.pipeline.datamanager.dataparser.indices_file is not None:
-                indices_file_name = Path(
-                    config.pipeline.datamanager.dataparser.indices_file
-                ).stem
+                indices_file_name = Path(config.pipeline.datamanager.dataparser.indices_file).stem
                 config.experiment_name += f"_{indices_file_name}"
             config.relative_model_dir = Path(".")  # don't save to nerfstudio_models
 
@@ -129,7 +121,6 @@ def main():
 
             # Train segmentations
             for seg_path in segmentation_sequences:
-
                 reset_sockets()
 
                 config = tyro.cli(

@@ -81,9 +81,7 @@ class ExportPointCloud(Exporter):
         _, pipeline, _ = eval_setup(self.load_config, load_ckpt=self.load_ckpt)
 
         # Increase the batchsize to speed up the evaluation.
-        pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = (
-            self.num_rays_per_batch
-        )
+        pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
         pcd = generate_point_cloud(
             pipeline=pipeline,
@@ -179,9 +177,7 @@ class ExportTSDFMesh(Exporter):
                 mesh,
                 pipeline,
                 self.output_dir,
-                px_per_uv_triangle=self.px_per_uv_triangle
-                if self.unwrap_method == "custom"
-                else None,
+                px_per_uv_triangle=self.px_per_uv_triangle if self.unwrap_method == "custom" else None,
                 unwrap_method=self.unwrap_method,
                 num_pixels_per_side=self.num_pixels_per_side,
             )
@@ -259,15 +255,16 @@ class ExportPoissonMesh(Exporter):
     def main(self) -> None:
         """Export mesh"""
 
-
-
         config, pipeline, _ = eval_setup(self.load_config, load_ckpt=self.load_ckpt)
 
         if self.use_subdir:
             experiment_name = config.experiment_name
             if experiment_name is None:
                 CONSOLE.rule("Error", style="red")
-                CONSOLE.print(f"Could not find experiment_name in config {self.load_config}",justify="center",)
+                CONSOLE.print(
+                    f"Could not find experiment_name in config {self.load_config}",
+                    justify="center",
+                )
                 sys.exit(1)
             self.output_dir = Path(self.output_dir, experiment_name)
 
@@ -277,9 +274,7 @@ class ExportPoissonMesh(Exporter):
         self.validate_pipeline(pipeline)
 
         # Increase the batchsize to speed up the evaluation.
-        pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = (
-            self.num_rays_per_batch
-        )
+        pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
         # Whether the normals should be estimated based on the point cloud.
         estimate_normals = self.normal_method == "open3d"

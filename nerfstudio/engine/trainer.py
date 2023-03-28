@@ -153,17 +153,12 @@ class Trainer:
         # self._check_viewer_warnings()
 
         # self.viewer_state = None
-        if (
-            self.config.load_ckpt is not None
-            and not self.config.pipeline.datamanager.train_size_initial
-        ):
+        if self.config.load_ckpt is not None and not self.config.pipeline.datamanager.train_size_initial:
             loaded_state = Trainer.get_checkpoint_state(self.config.load_ckpt)
             num_of_initial_train_images = loaded_state["pipeline"][
                 "_model.field.embedding_appearance.embedding.weight"
             ].shape[0]
-            self.config.pipeline.datamanager.train_size_initial = (
-                num_of_initial_train_images
-            )
+            self.config.pipeline.datamanager.train_size_initial = num_of_initial_train_images
 
         viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
         self.viewer_state, self.banner_messages = None, None
@@ -206,9 +201,7 @@ class Trainer:
             max_iter=self.config.max_num_iterations,
             banner_messages=self.banner_messages,
         )
-        writer.put_config(
-            name="config", config_dict=dataclasses.asdict(self.config), step=0
-        )
+        writer.put_config(name="config", config_dict=dataclasses.asdict(self.config), step=0)
         profiler.setup_profiler(self.config.logging)
 
     def setup_optimizers(self) -> Optimizers:
@@ -230,9 +223,7 @@ class Trainer:
 
     def train(self) -> None:
         """Train the model."""
-        assert (
-            self.pipeline.datamanager.train_dataset is not None
-        ), "Missing DatsetInputs"
+        assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
 
         self.pipeline.datamanager.train_dataparser_outputs.save_dataparser_transform(
             self.base_dir / "dataparser_transforms.json"
@@ -243,9 +234,7 @@ class Trainer:
             num_iterations = self.config.max_num_iterations
             step = 0
             for step in range(self._start_step, self._start_step + num_iterations):
-                with TimeWriter(
-                    writer, EventName.ITER_TRAIN_TIME, step=step
-                ) as train_t:
+                with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
                     self.pipeline.train()
 
                     # training callbacks before the training iteration
@@ -277,16 +266,10 @@ class Trainer:
                 self._update_viewer_state(step)
 
                 # a batch of train rays
-                if step_check(
-                    step, self.config.logging.steps_per_log, run_at_zero=True
-                ):
+                if step_check(step, self.config.logging.steps_per_log, run_at_zero=True):
                     writer.put_scalar(name="Train Loss", scalar=loss, step=step)
-                    writer.put_dict(
-                        name="Train Loss Dict", scalar_dict=loss_dict, step=step
-                    )
-                    writer.put_dict(
-                        name="Train Metrics Dict", scalar_dict=metrics_dict, step=step
-                    )
+                    writer.put_dict(name="Train Loss Dict", scalar_dict=loss_dict, step=step)
+                    writer.put_dict(name="Train Metrics Dict", scalar_dict=metrics_dict, step=step)
 
                 # Do not perform evaluation if there are no validation images
                 if self.pipeline.datamanager.eval_dataset:
@@ -356,9 +339,7 @@ class Trainer:
         with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
             num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
             try:
-                self.viewer_state.update_scene(
-                    self, step, self.pipeline.model, num_rays_per_batch
-                )
+                self.viewer_state.update_scene(self, step, self.pipeline.model, num_rays_per_batch)
             except RuntimeError:
                 time.sleep(0.03)  # sleep to allow buffer to reset
                 assert self.viewer_state.vis is not None
@@ -420,9 +401,7 @@ class Trainer:
                 "pipeline": self.pipeline.module.state_dict()  # type: ignore
                 if hasattr(self.pipeline, "module")
                 else self.pipeline.state_dict(),
-                "optimizers": {
-                    k: v.state_dict() for (k, v) in self.optimizers.optimizers.items()
-                },
+                "optimizers": {k: v.state_dict() for (k, v) in self.optimizers.optimizers.items()},
                 "scalers": self.grad_scaler.state_dict(),
             },
             ckpt_path,
@@ -476,17 +455,11 @@ class Trainer:
         """
         # a batch of eval rays
         if step_check(step, self.config.steps_per_eval_batch):
-            _, eval_loss_dict, eval_metrics_dict = self.pipeline.get_eval_loss_dict(
-                step=step
-            )
+            _, eval_loss_dict, eval_metrics_dict = self.pipeline.get_eval_loss_dict(step=step)
             eval_loss = functools.reduce(torch.add, eval_loss_dict.values())
             writer.put_scalar(name="Eval Loss", scalar=eval_loss, step=step)
-            writer.put_dict(
-                name="Eval Loss Dict", scalar_dict=eval_loss_dict, step=step
-            )
-            writer.put_dict(
-                name="Eval Metrics Dict", scalar_dict=eval_metrics_dict, step=step
-            )
+            writer.put_dict(name="Eval Loss Dict", scalar_dict=eval_loss_dict, step=step)
+            writer.put_dict(name="Eval Metrics Dict", scalar_dict=eval_metrics_dict, step=step)
 
         # one eval image
         if step_check(step, self.config.steps_per_eval_image):
@@ -501,9 +474,7 @@ class Trainer:
                 step=step,
                 avg_over_steps=True,
             )
-            writer.put_dict(
-                name="Eval Images Metrics", scalar_dict=metrics_dict, step=step
-            )
+            writer.put_dict(name="Eval Images Metrics", scalar_dict=metrics_dict, step=step)
             group = "Eval Images"
             for image_name, image in images_dict.items():
                 writer.put_image(name=group + "/" + image_name, image=image, step=step)

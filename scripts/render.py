@@ -110,27 +110,17 @@ def _render_trajectory_video(
                 if crop_data is not None:
                     bounding_box_min = crop_data.center - crop_data.scale / 2.0
                     bounding_box_max = crop_data.center + crop_data.scale / 2.0
-                    aabb_box = SceneBox(
-                        torch.stack([bounding_box_min, bounding_box_max]).to(
-                            pipeline.device
-                        )
-                    )
-                camera_ray_bundle = cameras.generate_rays(
-                    camera_indices=camera_idx, aabb_box=aabb_box
-                )
+                    aabb_box = SceneBox(torch.stack([bounding_box_min, bounding_box_max]).to(pipeline.device))
+                camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx, aabb_box=aabb_box)
 
                 if crop_data is not None:
                     with renderers.background_color_override_context(
                         crop_data.background_color.to(pipeline.device)
                     ), torch.no_grad():
-                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(
-                            camera_ray_bundle
-                        )
+                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                 else:
                     with torch.no_grad():
-                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(
-                            camera_ray_bundle
-                        )
+                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
 
                 render_image = []
                 for rendered_output_name in rendered_output_names:
@@ -151,9 +141,7 @@ def _render_trajectory_video(
                     render_image.append(output_image)
                 render_image = np.concatenate(render_image, axis=1)
                 if output_format == "images":
-                    media.write_image(
-                        output_image_dir / f"{camera_idx:05d}.png", render_image
-                    )
+                    media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
                 if output_format == "video":
                     if writer is None:
                         render_width = int(render_image.shape[1])
@@ -268,9 +256,7 @@ def get_crop_from_json(camera_json: Dict[str, Any]) -> Optional[CropData]:
     bg_color = camera_json["crop"]["crop_bg_color"]
 
     return CropData(
-        background_color=torch.Tensor(
-            [bg_color["r"] / 255.0, bg_color["g"] / 255.0, bg_color["b"] / 255.0]
-        ),
+        background_color=torch.Tensor([bg_color["r"] / 255.0, bg_color["g"] / 255.0, bg_color["b"] / 255.0]),
         center=torch.Tensor(camera_json["crop"]["crop_center"]),
         scale=torch.Tensor(camera_json["crop"]["crop_scale"]),
     )
@@ -326,9 +312,7 @@ class RenderTrajectory:
 
         # TODO(ethan): use camera information from parsing args
         if self.traj == "spiral":
-            camera_start = pipeline.datamanager.eval_dataloader.get_camera(
-                image_idx=0
-            ).flatten()
+            camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
             # TODO(ethan): pass in the up direction of the camera
             camera_type = CameraType.PERSPECTIVE
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
