@@ -261,10 +261,7 @@ class ExportPoissonMesh(Exporter):
             experiment_name = config.experiment_name
             if experiment_name is None:
                 CONSOLE.rule("Error", style="red")
-                CONSOLE.print(
-                    f"Could not find experiment_name in config {self.load_config}",
-                    justify="center",
-                )
+                CONSOLE.print(f"Could not find experiment_name in config {self.load_config}", justify="center")
                 sys.exit(1)
             self.output_dir = Path(self.output_dir, experiment_name)
 

@@ -233,21 +233,13 @@ class TSDF:
         grid = grid[:, None]  # [batch, 1, N, 2]
         # depth
         sampled_depth = F.grid_sample(
-            input=depth_images,
-            grid=grid,
-            mode="nearest",
-            padding_mode="zeros",
-            align_corners=False,
+            input=depth_images, grid=grid, mode="nearest", padding_mode="zeros", align_corners=False
         )  # [batch, N, 1]
         sampled_depth = sampled_depth.squeeze(2)  # [batch, 1, N]
         # colors
         if color_images is not None:
             sampled_colors = F.grid_sample(
-                input=color_images,
-                grid=grid,
-                mode="nearest",
-                padding_mode="zeros",
-                align_corners=False,
+                input=color_images, grid=grid, mode="nearest", padding_mode="zeros", align_corners=False
             )  # [batch, N, 3]
             sampled_colors = sampled_colors.squeeze(2)  # [batch, 3, N]
 

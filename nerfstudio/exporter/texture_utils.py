@@ -68,9 +68,7 @@ def get_texture_image(
     px_h = 1.0 / num_pixels_h
     uv_indices = torch.stack(
         torch.meshgrid(
-            torch.arange(num_pixels_w, device=device),
-            torch.arange(num_pixels_h, device=device),
-            indexing="xy",
+            torch.arange(num_pixels_w, device=device), torch.arange(num_pixels_h, device=device), indexing="xy"
         ),
         dim=-1,
     )
@@ -257,11 +255,7 @@ def unwrap_mesh_with_xatlas(
     vertices_np = vertices.cpu().numpy()
     faces_np = faces.cpu().numpy()
     vertex_normals_np = vertex_normals.cpu().cpu().numpy()
-    (
-        vmapping,
-        indices,
-        uvs,
-    ) = xatlas.parametrize(  # pylint: disable=c-extension-no-member
+    vmapping, indices, uvs = xatlas.parametrize(  # pylint: disable=c-extension-no-member
         vertices_np, faces_np, vertex_normals_np
     )
 
@@ -450,11 +444,7 @@ def export_textured_mesh(
     file_mtl.close()
 
     # create the .obj file
-    lines_obj = [
-        "# Generated with nerfstudio",
-        "mtllib material_0.mtl",
-        "usemtl material_0",
-    ]
+    lines_obj = ["# Generated with nerfstudio", "mtllib material_0.mtl", "usemtl material_0"]
     lines_obj = [line + "\n" for line in lines_obj]
     file_obj = open(output_dir / "mesh.obj", "w", encoding="utf-8")  # pylint: disable=consider-using-with
     file_obj.writelines(lines_obj)

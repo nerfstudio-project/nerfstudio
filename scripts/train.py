@@ -88,7 +88,7 @@ def _set_config_inferred_details(config: TrainerConfig, datamanager: VanillaData
     config.inferred_details.split_ratio = split_percentage
     config.inferred_details.train_images = [str(path) for path in datamanager.train_dataset.image_filenames]
     config.inferred_details.val_images = [str(path) for path in datamanager.eval_dataset.image_filenames]
-    config.pipeline.datamanager.dataparser.train_split_percentage = split_percentage
+    config.pipeline.datamanager.dataparser.train_split_fraction = split_percentage
 
     if not config.pipeline.datamanager.train_size_initial:
         config.pipeline.datamanager.train_size_initial = config.inferred_details.train_size

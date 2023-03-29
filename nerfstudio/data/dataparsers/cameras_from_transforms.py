@@ -89,8 +89,7 @@ def generate_dataparser_outputs_static(
 
         indices_json_key = str(Path("images", fname.name))
         if indices_json is not None and (
-            indices_json_key not in indices_json
-            or indices_json[indices_json_key] == "ignore"
+            indices_json_key not in indices_json or indices_json[indices_json_key] == "ignore"
         ):
             num_skipped_image_filenames += 1
             # CONSOLE.log(
@@ -132,9 +131,7 @@ def generate_dataparser_outputs_static(
         poses.append(np.array(frame["transform_matrix"]))
 
     if num_skipped_image_filenames >= 0:
-        CONSOLE.log(
-            f"Skipping {num_skipped_image_filenames} files in dataset split {split}."
-        )
+        CONSOLE.log(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
     assert (
         len(image_filenames) != 0
     ), """
@@ -176,9 +173,7 @@ def generate_dataparser_outputs_static(
 
     if "orientation_override" in meta:
         orientation_method = meta["orientation_override"]
-        CONSOLE.log(
-            f"[yellow] Dataset is overriding orientation method to {orientation_method}"
-        )
+        CONSOLE.log(f"[yellow] Dataset is overriding orientation method to {orientation_method}")
 
     poses = torch.from_numpy(np.array(poses).astype(np.float32))
     poses, transform_matrix = camera_utils.auto_orient_and_center_poses(
@@ -218,36 +213,12 @@ def generate_dataparser_outputs_static(
         camera_type = CameraType.PERSPECTIVE
 
     idx_tensor = torch.tensor(indices, dtype=torch.long)
-    fx = (
-        float(meta["fl_x"])
-        if fx_fixed
-        else torch.tensor(fx, dtype=torch.float32)[idx_tensor]
-    )
-    fy = (
-        float(meta["fl_y"])
-        if fy_fixed
-        else torch.tensor(fy, dtype=torch.float32)[idx_tensor]
-    )
-    cx = (
-        float(meta["cx"])
-        if cx_fixed
-        else torch.tensor(cx, dtype=torch.float32)[idx_tensor]
-    )
-    cy = (
-        float(meta["cy"])
-        if cy_fixed
-        else torch.tensor(cy, dtype=torch.float32)[idx_tensor]
-    )
-    height = (
-        int(meta["h"])
-        if height_fixed
-        else torch.tensor(height, dtype=torch.int32)[idx_tensor]
-    )
-    width = (
-        int(meta["w"])
-        if width_fixed
-        else torch.tensor(width, dtype=torch.int32)[idx_tensor]
-    )
+    fx = float(meta["fl_x"]) if fx_fixed else torch.tensor(fx, dtype=torch.float32)[idx_tensor]
+    fy = float(meta["fl_y"]) if fy_fixed else torch.tensor(fy, dtype=torch.float32)[idx_tensor]
+    cx = float(meta["cx"]) if cx_fixed else torch.tensor(cx, dtype=torch.float32)[idx_tensor]
+    cy = float(meta["cy"]) if cy_fixed else torch.tensor(cy, dtype=torch.float32)[idx_tensor]
+    height = int(meta["h"]) if height_fixed else torch.tensor(height, dtype=torch.int32)[idx_tensor]
+    width = int(meta["w"]) if width_fixed else torch.tensor(width, dtype=torch.int32)[idx_tensor]
     if distort_fixed:
         distortion_params = camera_utils.get_distortion_params(
             k1=float(meta["k1"]) if "k1" in meta else 0.0,

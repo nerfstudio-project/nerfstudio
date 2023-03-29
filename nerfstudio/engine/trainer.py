@@ -141,18 +141,8 @@ class Trainer:
                 'test': loads train/test datasets into memory
                 'inference': does not load any dataset into memory
         """
-        # viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
-        # self.viewer_state, self.banner_messages = None, None
-        # if self.config.is_viewer_enabled() and self.local_rank == 0:
-        #     datapath = self.config.data
-        #     if datapath is None:
-        #         datapath = self.base_dir
-        #     self.viewer_state, self.banner_messages = viewer_utils.setup_viewer(
-        #         self.config.viewer, log_filename=viewer_log_path, datapath=datapath
-        #     )
-        # self._check_viewer_warnings()
 
-        # self.viewer_state = None
+        # Set train_size_initial by looking at checkpoint's architecture
         if self.config.load_ckpt is not None and not self.config.pipeline.datamanager.train_size_initial:
             loaded_state = Trainer.get_checkpoint_state(self.config.load_ckpt)
             num_of_initial_train_images = loaded_state["pipeline"][
@@ -161,12 +151,12 @@ class Trainer:
             self.config.pipeline.datamanager.train_size_initial = num_of_initial_train_images
 
         viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
-        self.viewer_state, self.banner_messages = None, None
+        self.viewer_state, banner_messages = None, None
         if self.config.is_viewer_enabled() and self.local_rank == 0:
             datapath = self.config.data
             if datapath is None:
                 datapath = self.base_dir
-            self.viewer_state, self.banner_messages = viewer_utils.setup_viewer(
+            self.viewer_state, banner_messages = viewer_utils.setup_viewer(
                 self.config.viewer, log_filename=viewer_log_path, datapath=datapath
             )
         self._check_viewer_warnings()
@@ -192,14 +182,10 @@ class Trainer:
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / self.config.logging.relative_log_dir
         writer.setup_event_writer(
-            self.config.is_wandb_enabled(),
-            self.config.is_tensorboard_enabled(),
-            log_dir=writer_log_path,
+            self.config.is_wandb_enabled(), self.config.is_tensorboard_enabled(), log_dir=writer_log_path
         )
         writer.setup_local_writer(
-            self.config.logging,
-            max_iter=self.config.max_num_iterations,
-            banner_messages=self.banner_messages,
+            self.config.logging, max_iter=self.config.max_num_iterations, banner_messages=banner_messages
         )
         writer.put_config(name="config", config_dict=dataclasses.asdict(self.config), step=0)
         profiler.setup_profiler(self.config.logging)
@@ -240,8 +226,7 @@ class Trainer:
                     # training callbacks before the training iteration
                     for callback in self.callbacks:
                         callback.run_callback_at_location(
-                            step,
-                            location=TrainingCallbackLocation.BEFORE_TRAIN_ITERATION,
+                            step, location=TrainingCallbackLocation.BEFORE_TRAIN_ITERATION
                         )
 
                     # time the forward pass
@@ -249,10 +234,7 @@ class Trainer:
 
                     # training callbacks after the training iteration
                     for callback in self.callbacks:
-                        callback.run_callback_at_location(
-                            step,
-                            location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION,
-                        )
+                        callback.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)
 
                 # Skip the first two steps to avoid skewed timings that break the viewer rendering speed estimate.
                 if step > 1:
@@ -287,10 +269,7 @@ class Trainer:
         writer.write_out_storage()
 
         CONSOLE.rule()
-        CONSOLE.print(
-            "[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:",
-            justify="center",
-        )
+        CONSOLE.print("[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:", justify="center")
         if not self.config.viewer.quit_on_train_completion:
             CONSOLE.print("Use ctrl+c to quit", justify="center")
             self._always_render(step)
@@ -464,10 +443,7 @@ class Trainer:
         # one eval image
         if step_check(step, self.config.steps_per_eval_image):
             with TimeWriter(writer, EventName.TEST_RAYS_PER_SEC, write=False) as test_t:
-                (
-                    metrics_dict,
-                    images_dict,
-                ) = self.pipeline.get_eval_image_metrics_and_images(step=step)
+                metrics_dict, images_dict = self.pipeline.get_eval_image_metrics_and_images(step=step)
             writer.put_time(
                 name=EventName.TEST_RAYS_PER_SEC,
                 duration=metrics_dict["num_rays"] / test_t.duration,
@@ -482,8 +458,4 @@ class Trainer:
         # all eval images
         if step_check(step, self.config.steps_per_eval_all_images):
             metrics_dict = self.pipeline.get_average_eval_image_metrics(step=step)
-            writer.put_dict(
-                name="Eval Images Metrics Dict (all images)",
-                scalar_dict=metrics_dict,
-                step=step,
-            )
+            writer.put_dict(name="Eval Images Metrics Dict (all images)", scalar_dict=metrics_dict, step=step)
