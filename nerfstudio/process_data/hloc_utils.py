@@ -125,7 +125,9 @@ def run_hloc(
         pairs_from_retrieval.main(retrieval_path, sfm_pairs, num_matched=num_matched)
     match_features.main(matcher_conf, sfm_pairs, features=features, matches=matches)
 
-    image_options = pycolmap.ImageReaderOptions(camera_model=camera_model.value)  # pylint: disable=c-extension-no-member
+    image_options = pycolmap.ImageReaderOptions(
+        camera_model=camera_model.value
+    )  # pylint: disable=c-extension-no-member
     if refine_pixsfm:
         sfm = PixSfM(
             conf={

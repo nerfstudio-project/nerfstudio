@@ -239,7 +239,9 @@ class NerfactoModel(Model):
         param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
-    def get_training_callbacks(self, training_callback_attributes: TrainingCallbackAttributes) -> List[TrainingCallback]:
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
         callbacks = []
         if self.config.use_proposal_weight_anneal:
             # anneal the weights of the proposal network before doing PDF sampling

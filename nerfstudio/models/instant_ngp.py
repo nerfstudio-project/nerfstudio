@@ -141,7 +141,9 @@ class NGPModel(Model):
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
 
-    def get_training_callbacks(self, training_callback_attributes: TrainingCallbackAttributes) -> List[TrainingCallback]:
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
         def update_occupancy_grid(step: int):
             # TODO: needs to get access to the sampler, on how the step size is determinated at each x. See
             # https://github.com/KAIR-BAIR/nerfacc/blob/127223b11401125a9fce5ce269bb0546ee4de6e8/examples/train_ngp_nerf.py#L190-L213
@@ -195,7 +197,9 @@ class NGPModel(Model):
             ray_indices=ray_indices,
             num_rays=num_rays,
         )
-        depth = self.renderer_depth(weights=weights, ray_samples=ray_samples, ray_indices=ray_indices, num_rays=num_rays)
+        depth = self.renderer_depth(
+            weights=weights, ray_samples=ray_samples, ray_indices=ray_indices, num_rays=num_rays
+        )
         accumulation = self.renderer_accumulation(weights=weights, ray_indices=ray_indices, num_rays=num_rays)
         alive_ray_mask = accumulation.squeeze(-1) > 0
 

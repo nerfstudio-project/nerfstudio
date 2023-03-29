@@ -27,7 +27,9 @@ from nerfstudio.utils.math import Gaussians
 class SpatialDistortion(nn.Module):
     """Apply spatial distortions"""
 
-    def forward(self, positions: Union[TensorType["bs":..., 3], Gaussians]) -> Union[TensorType["bs":..., 3], Gaussians]:
+    def forward(
+        self, positions: Union[TensorType["bs":..., 3], Gaussians]
+    ) -> Union[TensorType["bs":..., 3], Gaussians]:
         """
         Args:
             positions: Sample to distort

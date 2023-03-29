@@ -176,7 +176,9 @@ class NerfplayerNGPModel(NGPModel):
             ray_indices=ray_indices,
             num_rays=num_rays,
         )
-        depth = self.renderer_depth(weights=weights, ray_samples=ray_samples, ray_indices=ray_indices, num_rays=num_rays)
+        depth = self.renderer_depth(
+            weights=weights, ray_samples=ray_samples, ray_indices=ray_indices, num_rays=num_rays
+        )
         accumulation = self.renderer_accumulation(weights=weights, ray_indices=ray_indices, num_rays=num_rays)
         alive_ray_mask = accumulation.squeeze(-1) > 0
 

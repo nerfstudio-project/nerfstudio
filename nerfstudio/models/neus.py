@@ -72,7 +72,9 @@ class NeuSModel(SurfaceModel):
 
         self.anneal_end = 50000
 
-    def get_training_callbacks(self, training_callback_attributes: TrainingCallbackAttributes) -> List[TrainingCallback]:
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
         callbacks = []
         # anneal for cos in NeuS
         if self.anneal_end > 0:
