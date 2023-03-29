@@ -174,9 +174,7 @@ class Pipeline(nn.Module):
             step: training step of the loaded checkpoint
         """
 
-    def get_training_callbacks(
-        self, training_callback_attributes: TrainingCallbackAttributes
-    ) -> List[TrainingCallback]:
+    def get_training_callbacks(self, training_callback_attributes: TrainingCallbackAttributes) -> List[TrainingCallback]:
         """Returns the training callbacks from both the Dataloader and the Model."""
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
@@ -377,9 +375,7 @@ class VanillaPipeline(Pipeline):
         self._model.update_to_step(step)
         self.load_state_dict(state, strict=True)
 
-    def get_training_callbacks(
-        self, training_callback_attributes: TrainingCallbackAttributes
-    ) -> List[TrainingCallback]:
+    def get_training_callbacks(self, training_callback_attributes: TrainingCallbackAttributes) -> List[TrainingCallback]:
         """Returns the training callbacks from both the Dataloader and the Model."""
         datamanager_callbacks = self.datamanager.get_training_callbacks(training_callback_attributes)
         model_callbacks = self.model.get_training_callbacks(training_callback_attributes)

@@ -99,9 +99,7 @@ class ExponentialDecayScheduler(Scheduler):
                         + (lr_init - self.config.lr_pre_warmup) * step / self.config.warmup_steps
                     )
             else:
-                t = np.clip(
-                    (step - self.config.warmup_steps) / (self.config.max_steps - self.config.warmup_steps), 0, 1
-                )
+                t = np.clip((step - self.config.warmup_steps) / (self.config.max_steps - self.config.warmup_steps), 0, 1)
                 lr = np.exp(np.log(lr_init) * (1 - t) + np.log(lr_final) * t)
             return lr / lr_init  # divided by lr_init because the multiplier is with the initial learning rate
 

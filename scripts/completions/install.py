@@ -325,9 +325,7 @@ def _generate_completions_files(
         )
 
     # Delete obsolete completion files.
-    for unexpected_path in set(p.absolute() for p in existing_completions) - set(
-        p.absolute() for p in completion_paths
-    ):
+    for unexpected_path in set(p.absolute() for p in existing_completions) - set(p.absolute() for p in completion_paths):
         if unexpected_path.is_dir():
             shutil.rmtree(unexpected_path)
         elif unexpected_path.exists():

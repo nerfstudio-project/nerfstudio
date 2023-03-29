@@ -313,16 +313,13 @@ class DataManager(nn.Module):
         return None
 
     def get_training_callbacks(  # pylint:disable=no-self-use
-        self,
-        training_callback_attributes: TrainingCallbackAttributes,  # pylint: disable=unused-argument
+        self, training_callback_attributes: TrainingCallbackAttributes  # pylint: disable=unused-argument
     ) -> List[TrainingCallback]:
         """Returns a list of callbacks to be used during training."""
         return []
 
     @abstractmethod
-    def get_param_groups(
-        self,
-    ) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
+    def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
         """Get the param groups for the data manager.
 
         Returns:
@@ -488,6 +485,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         # self.train_camera_optimizer = self.config.camera_optimizer.setup(
         #     num_cameras=self.train_dataset.cameras.size, device=self.device
         # )
+
         self.train_camera_optimizer = self.config.camera_optimizer.setup(
             num_cameras=self.config.train_size_initial, device=self.device
         )

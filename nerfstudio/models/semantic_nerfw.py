@@ -149,9 +149,7 @@ class SemanticNerfWModel(Model):
         param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
-    def get_training_callbacks(
-        self, training_callback_attributes: TrainingCallbackAttributes
-    ) -> List[TrainingCallback]:
+    def get_training_callbacks(self, training_callback_attributes: TrainingCallbackAttributes) -> List[TrainingCallback]:
         callbacks = []
         if self.config.use_proposal_weight_anneal:
             # anneal the weights of the proposal network before doing PDF sampling
@@ -182,9 +180,7 @@ class SemanticNerfWModel(Model):
             weights = ray_samples.get_weights(density)
             weights_static = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
             rgb_static_component = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
-            rgb_transient_component = self.renderer_rgb(
-                rgb=field_outputs[FieldHeadNames.TRANSIENT_RGB], weights=weights
-            )
+            rgb_transient_component = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.TRANSIENT_RGB], weights=weights)
             rgb = rgb_static_component + rgb_transient_component
         else:
             weights_static = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
@@ -214,9 +210,7 @@ class SemanticNerfWModel(Model):
         semantic_weights = weights_static
         if not self.config.pass_semantic_gradients:
             semantic_weights = semantic_weights.detach()
-        outputs["semantics"] = self.renderer_semantics(
-            field_outputs[FieldHeadNames.SEMANTICS], weights=semantic_weights
-        )
+        outputs["semantics"] = self.renderer_semantics(field_outputs[FieldHeadNames.SEMANTICS], weights=semantic_weights)
 
         # semantics colormaps
         semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics"], dim=-1), dim=-1)

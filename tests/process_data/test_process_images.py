@@ -99,8 +99,6 @@ def test_process_images_skip_colmap(tmp_path: Path):
     # Test if the original poses can be obtained back
     gt_poses = original_poses[[0, 1, 2, 3, 4, 5, 6, 7, 9]]
     dataparser_poses = outputs.transform_poses_to_original_space(outputs.cameras.camera_to_worlds, "opencv").numpy()
-    dataparser_poses = np.concatenate(
-        (dataparser_poses, np.array([[[0, 0, 0, 1]]]).repeat(len(dataparser_poses), 0)), 1
-    )
+    dataparser_poses = np.concatenate((dataparser_poses, np.array([[[0, 0, 0, 1]]]).repeat(len(dataparser_poses), 0)), 1)
     dataparser_poses = np.linalg.inv(dataparser_poses)
     np.testing.assert_allclose(gt_poses, dataparser_poses, rtol=0, atol=1e-5)

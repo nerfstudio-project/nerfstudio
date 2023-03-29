@@ -293,9 +293,7 @@ class SurfaceModel(Model):
             if "fg_mask" in batch and self.config.fg_mask_loss_mult > 0.0:
                 fg_label = batch["fg_mask"].float().to(self.device)
                 weights_sum = outputs["weights"].sum(dim=1).clip(1e-3, 1.0 - 1e-3)
-                loss_dict["fg_mask_loss"] = (
-                    F.binary_cross_entropy(weights_sum, fg_label) * self.config.fg_mask_loss_mult
-                )
+                loss_dict["fg_mask_loss"] = F.binary_cross_entropy(weights_sum, fg_label) * self.config.fg_mask_loss_mult
 
             # monocular normal loss
             if "normal" in batch and self.config.mono_normal_loss_mult > 0.0:

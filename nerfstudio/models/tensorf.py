@@ -117,9 +117,7 @@ class TensoRFModel(Model):
         )
         super().__init__(config=config, **kwargs)
 
-    def get_training_callbacks(
-        self, training_callback_attributes: TrainingCallbackAttributes
-    ) -> List[TrainingCallback]:
+    def get_training_callbacks(self, training_callback_attributes: TrainingCallbackAttributes) -> List[TrainingCallback]:
         # the callback that we want to run every X iterations after the training iteration
         def reinitialize_optimizer(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
@@ -268,9 +266,7 @@ class TensoRFModel(Model):
         ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights)
 
         # fine field:
-        field_outputs_fine = self.field.forward(
-            ray_samples_pdf, mask=acc_mask, bg_color=colors.WHITE.to(weights.device)
-        )
+        field_outputs_fine = self.field.forward(ray_samples_pdf, mask=acc_mask, bg_color=colors.WHITE.to(weights.device))
 
         weights_fine = ray_samples_pdf.get_weights(field_outputs_fine[FieldHeadNames.DENSITY])
 

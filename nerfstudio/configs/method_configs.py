@@ -146,8 +146,7 @@ method_configs["depth-nerfacto"] = TrainerConfig(
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3",
-                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
+                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),
         ),
         model=DepthNerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
@@ -188,20 +187,26 @@ method_configs["volinga"] = TrainerConfig(
             hidden_dim_transient=32,
             num_nerf_samples_per_ray=24,
             proposal_net_args_list=[
-                {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 128, "use_linear": True},
-                {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 256, "use_linear": True},
+                {
+                    "hidden_dim": 16,
+                    "log2_hashmap_size": 17,
+                    "num_levels": 5,
+                    "max_res": 128,
+                    "use_linear": True,
+                },
+                {
+                    "hidden_dim": 16,
+                    "log2_hashmap_size": 17,
+                    "num_levels": 5,
+                    "max_res": 256,
+                    "use_linear": True,
+                },
             ],
         ),
     ),
     optimizers={
-        "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
-        },
-        "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
-        },
+        "proposal_networks": {"optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15), "scheduler": None},
+        "fields": {"optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15), "scheduler": None},
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",
@@ -217,12 +222,7 @@ method_configs["instant-ngp"] = TrainerConfig(
         datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=8192),
         model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
     ),
-    optimizers={
-        "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
-        }
-    },
+    optimizers={"fields": {"optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15), "scheduler": None}},
     viewer=ViewerConfig(num_rays_per_chunk=64000),
     vis="viewer",
 )
@@ -245,12 +245,7 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
             background_color="black",
         ),
     ),
-    optimizers={
-        "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
-        }
-    },
+    optimizers={"fields": {"optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15), "scheduler": None}},
     viewer=ViewerConfig(num_rays_per_chunk=64000),
     vis="viewer",
 )
@@ -268,12 +263,7 @@ method_configs["mipnerf"] = TrainerConfig(
             eval_num_rays_per_chunk=1024,
         ),
     ),
-    optimizers={
-        "fields": {
-            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
-            "scheduler": None,
-        }
-    },
+    optimizers={"fields": {"optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08), "scheduler": None}},
 )
 
 method_configs["semantic-nerfw"] = TrainerConfig(
@@ -284,7 +274,9 @@ method_configs["semantic-nerfw"] = TrainerConfig(
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=SemanticDataManagerConfig(
-            dataparser=Sitcoms3DDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
+            dataparser=Sitcoms3DDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=8192,
         ),
         model=SemanticNerfWModelConfig(eval_num_rays_per_chunk=1 << 16),
     ),
@@ -421,21 +413,14 @@ method_configs["nerfplayer-nerfacto"] = TrainerConfig(
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3",
-                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
+                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),
         ),
         model=NerfplayerNerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
     ),
     optimizers={
-        "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
-        },
-        "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
-        },
+        "proposal_networks": {"optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15), "scheduler": None},
+        "fields": {"optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15), "scheduler": None},
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",
@@ -457,12 +442,7 @@ method_configs["nerfplayer-ngp"] = TrainerConfig(
             near_plane=0.01,
         ),
     ),
-    optimizers={
-        "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
-        }
-    },
+    optimizers={"fields": {"optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15), "scheduler": None}},
     viewer=ViewerConfig(num_rays_per_chunk=64000),
     vis="viewer",
 )
