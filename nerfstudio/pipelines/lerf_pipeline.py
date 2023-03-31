@@ -29,15 +29,19 @@ except ImportError:
 
 import torch
 
+
 @dataclass
 class OpenCLIPNetworkConfig(cfg.InstantiateConfig):
     """Configuration for network instantiation"""
 
     _target: Type = field(default_factory=lambda: OpenCLIPNetwork)
     """target class to instantiate"""
-    clip_model_type: str = "ViT-B-16"
-    clip_model_pretrained: str = "laion2b_s34b_b88k"
-    clip_n_dims: int = 512
+    # clip_model_type: str = "ViT-B-16"
+    # clip_model_pretrained: str = "laion2b_s34b_b88k"
+    # clip_n_dims: int = 512
+    clip_model_type: str = "ViT-L-14"
+    clip_model_pretrained: str = "laion2b_s32b_b82k"
+    clip_n_dims: int = 768
     negatives: Tuple[str] = ("object", "things", "stuff", "texture")
 
 

@@ -194,7 +194,7 @@ class LERFDataManager(VanillaDataManager):  # pylint: disable=abstract-method
             cfg={
                 "tile_size_range": (0.05, 0.5),
                 "tile_size_res": 7,
-                "stride_scaler": 0.5,
+                "stride_scaler": 0.6,
             },
             cache_dir=Path(f"outputs/{self.config.dataparser.data.name}"),
         )
