@@ -16,6 +16,8 @@ from nerfstudio.field_components.spatial_distortions import (
 )
 from nerfstudio.fields.base_field import Field
 
+from lerf.lerf_fieldheadnames import LERFFieldHeadNames
+
 try:
     import tinycudann as tcnn
 except ImportError:
@@ -76,7 +78,7 @@ class LERFField(Field):
         )
         return enc
 
-    def get_outputs(self, ray_samples: RaySamples, clip_scales):
+    def get_outputs(self, ray_samples: RaySamples, clip_scales) -> Dict[LERFFieldHeadNames, TensorType]:
         # random scales, one scale
         outputs = {}
 
@@ -87,13 +89,13 @@ class LERFField(Field):
         xs = [e(positions.view(-1, 3)) for e in self.clip_encs]
         x = torch.concat(xs, dim=-1)
 
-        outputs[FieldHeadNames.HASHGRID] = x.view(*ray_samples.frustums.shape, -1)
+        outputs[LERFFieldHeadNames.HASHGRID] = x.view(*ray_samples.frustums.shape, -1)
 
         clip_pass = self.clip_net(torch.cat([x, clip_scales.view(-1, 1)], dim=-1)).view(*ray_samples.frustums.shape, -1)
-        outputs[FieldHeadNames.CLIP] = clip_pass / clip_pass.norm(dim=-1, keepdim=True)
+        outputs[LERFFieldHeadNames.CLIP] = clip_pass / clip_pass.norm(dim=-1, keepdim=True)
 
         dino_pass = self.dino_net(x).view(*ray_samples.frustums.shape, -1)
-        outputs[FieldHeadNames.DINO] = dino_pass
+        outputs[LERFFieldHeadNames.DINO] = dino_pass
 
         return outputs
 
