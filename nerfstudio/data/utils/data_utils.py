@@ -64,8 +64,8 @@ def get_depth_image_from_path(
     interpolation: int = cv2.INTER_NEAREST,
 ) -> torch.Tensor:
     """Loads, rescales and resizes depth images.
+    Filepath points to a 16-bit or 32-bit depth image, or a numpy array `*.npy`.
 
-    Assumes filepath points to a 16-bit or 32-bit depth image.
     Args:
         filepath: Path to depth image.
         height: Target depth image height.
@@ -76,7 +76,11 @@ def get_depth_image_from_path(
     Returns:
         Depth image torch tensor with shape [width, height, 1].
     """
-    image = cv2.imread(str(filepath.absolute()), cv2.IMREAD_ANYDEPTH)
-    image = image.astype(np.float64) * scale_factor
-    image = cv2.resize(image, (width, height), interpolation=interpolation)
+    if filepath.suffix == ".npy":
+        image = np.load(filepath) * scale_factor
+        image = cv2.resize(image, (width, height), interpolation=interpolation)
+    else:
+        image = cv2.imread(str(filepath.absolute()), cv2.IMREAD_ANYDEPTH)
+        image = image.astype(np.float64) * scale_factor
+        image = cv2.resize(image, (width, height), interpolation=interpolation)
     return torch.from_numpy(image[:, :, np.newaxis])

@@ -11,19 +11,15 @@ import PublicSharpIcon from '@mui/icons-material/PublicSharp';
 import SyncOutlinedIcon from '@mui/icons-material/SyncOutlined';
 import ThreeDRotationIcon from '@mui/icons-material/ThreeDRotation';
 import VideoCameraBackIcon from '@mui/icons-material/VideoCameraBackOutlined';
-import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
 import { WebSocketContext } from '../WebSocket/WebSocket';
+import RenderWindow from '../RenderWindow/RenderWindow';
 
 const msgpack = require('msgpack-lite');
 
 function CameraToggle() {
   const dispatch = useDispatch();
-  const websocket = useContext(WebSocketContext).socket;
   const camera_choice = useSelector(
     (state) => state.renderingState.camera_choice,
-  );
-  const crop_enabled = useSelector(
-    (state) => state.renderingState.crop_enabled,
   );
   const set_camera_choice = (event: SelectChangeEvent, value: string[]) => {
     if (value != null) {
@@ -32,21 +28,6 @@ function CameraToggle() {
         path: 'renderingState/camera_choice',
         data: value,
       });
-      if (websocket.readyState === WebSocket.OPEN) {
-        const path = 'renderingState/crop_enabled';
-        const data = {
-          type: 'write',
-          path,
-          data: false,
-        };
-        if (value === 'Render Camera') {
-          data.data = false;
-        } else {
-          data.data = crop_enabled;
-        }
-        const message = msgpack.encode(data);
-        websocket.send(message);
-      }
     }
   };
 
@@ -119,7 +100,7 @@ function TransformIcons(props) {
   );
 }
 
-// manages a camera and the web rtc stream...
+// manages a camera
 export default function ViewerWindow(props) {
   const sceneTree = props.sceneTree;
   const scene = sceneTree.object;
@@ -181,24 +162,22 @@ export default function ViewerWindow(props) {
   };
 
   useEffect(() => {
-    function update_dimensions() {
+    const handleNewDimensions = () => {
       setDimensions({
         height: get_window_height(),
         width: get_window_width(),
       });
-    }
+    };
 
-    window.addEventListener('resize', update_dimensions);
-
-    // force a rerender
     setDimensions({
       height: get_window_height(),
       width: get_window_width(),
     });
     render();
 
+    window.addEventListener('resize', handleNewDimensions);
     return () => {
-      window.removeEventListener('resize', update_dimensions);
+      window.removeEventListener('resize', handleNewDimensions);
     };
   }, []);
 
@@ -293,8 +272,7 @@ export default function ViewerWindow(props) {
 
   return (
     <>
-      {/* the webrtc viewer needs to know the camera pose */}
-      <WebRtcWindow />
+      <RenderWindow />
       <div className="canvas-container-main" ref={myRef}>
         <div className="ViewerWindow-camera-toggle">
           <CameraToggle />

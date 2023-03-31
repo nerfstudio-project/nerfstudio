@@ -16,11 +16,9 @@
 Camera Models
 """
 import base64
-import importlib
 import math
 import os
 from dataclasses import dataclass
-from distutils.util import strtobool
 from enum import Enum, auto
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -35,7 +33,10 @@ import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.utils.misc import strtobool
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
+
+TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 
 
 class CameraType(Enum):
@@ -110,7 +111,7 @@ class Cameras(TensorDataclass):
             ]
         ] = CameraType.PERSPECTIVE,
         times: Optional[TensorType["num_cameras"]] = None,
-    ):
+    ) -> None:
         """Initializes the Cameras object.
 
         Note on Input Tensor Dimensions: All of these tensors have items of dimensions TensorType[3, 4]
@@ -147,7 +148,9 @@ class Cameras(TensorDataclass):
 
         self.__post_init__()  # This will do the dataclass post_init and broadcast all the tensors
 
-    def _init_get_fc_xy(self, fc_xy, name):
+        self._use_nerfacc = strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "TRUE"))
+
+    def _init_get_fc_xy(self, fc_xy: Union[float, torch.Tensor], name: str) -> torch.Tensor:
         """
         Parses the input focal length / principle point x or y and returns a tensor of the correct shape
 
@@ -229,7 +232,7 @@ class Cameras(TensorDataclass):
             c_x_y: cx or cy for when h_w == None
         """
         if isinstance(h_w, int):
-            h_w = torch.Tensor([h_w]).to(torch.int64).to(self.device)
+            h_w = torch.as_tensor([h_w]).to(torch.int64).to(self.device)
         elif isinstance(h_w, torch.Tensor):
             assert not torch.is_floating_point(h_w), f"height and width tensor must be of type int, not: {h_w.dtype}"
             h_w = h_w.to(torch.int64).to(self.device)
@@ -237,12 +240,12 @@ class Cameras(TensorDataclass):
                 h_w = h_w.unsqueeze(-1)
         # assert torch.all(h_w == h_w.view(-1)[0]), "Batched cameras of different h, w will be allowed in the future."
         elif h_w is None:
-            h_w = torch.Tensor((c_x_y * 2).to(torch.int64).to(self.device))
+            h_w = torch.as_tensor((c_x_y * 2)).to(torch.int64).to(self.device)
         else:
             raise ValueError("Height must be an int, tensor, or None, received: " + str(type(h_w)))
         return h_w
 
-    def _init_get_times(self, times):
+    def _init_get_times(self, times: Union[None, torch.Tensor]) -> Union[None, torch.Tensor]:
         if times is None:
             times = None
         elif isinstance(times, torch.Tensor):
@@ -254,7 +257,7 @@ class Cameras(TensorDataclass):
         return times
 
     @property
-    def device(self):
+    def device(self) -> TORCH_DEVICE:
         """Returns the device that the camera is on."""
         return self.camera_to_worlds.device
 
@@ -269,7 +272,7 @@ class Cameras(TensorDataclass):
         return self.width
 
     @property
-    def is_jagged(self):
+    def is_jagged(self) -> bool:
         """
         Returns whether or not the cameras are "jagged" (i.e. the height and widths are different, meaning that
         you cannot concatenate the image coordinate maps together)
@@ -314,7 +317,7 @@ class Cameras(TensorDataclass):
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
         keep_shape: Optional[bool] = None,
         disable_distortion: bool = False,
-        aabb_box: SceneBox = None,
+        aabb_box: Optional[SceneBox] = None,
     ) -> RayBundle:
         """Generates rays for the given camera indices.
 
@@ -470,11 +473,7 @@ class Cameras(TensorDataclass):
                 rays_o = rays_o.reshape((-1, 3))
                 rays_d = rays_d.reshape((-1, 3))
 
-                if strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "TRUE")):
-                    nerfacc = importlib.import_module("nerfacc")
-                    t_min, t_max = nerfacc.ray_aabb_intersect(rays_o, rays_d, tensor_aabb)
-                else:
-                    t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
+                t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
 
                 t_min = t_min.reshape([shape[0], shape[1], 1])
                 t_max = t_max.reshape([shape[0], shape[1], 1])

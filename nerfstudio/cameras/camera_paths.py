@@ -38,7 +38,7 @@ def get_interpolated_camera_path(cameras: Cameras, steps: int) -> Cameras:
         A new set of cameras along a path.
     """
     Ks = cameras.get_intrinsics_matrices().cpu().numpy()
-    poses = cameras.camera_to_worlds().cpu().numpy()
+    poses = cameras.camera_to_worlds.cpu().numpy()
     poses, Ks = get_interpolated_poses_many(poses, Ks, steps_per_transition=steps)
 
     cameras = Cameras(fx=Ks[:, 0, 0], fy=Ks[:, 1, 1], cx=Ks[0, 0, 2], cy=Ks[0, 1, 2], camera_to_worlds=poses)
@@ -100,12 +100,16 @@ def get_spiral_path(
         new_c2ws.append(c2wh[:3, :4])
     new_c2ws = torch.stack(new_c2ws, dim=0)
 
+    times = None
+    if camera.times is not None:
+        times = torch.linspace(0, 1, steps)[:, None]
     return Cameras(
         fx=camera.fx[0],
         fy=camera.fy[0],
         cx=camera.cx[0],
         cy=camera.cy[0],
         camera_to_worlds=new_c2ws,
+        times=times,
     )
 
 

@@ -5,9 +5,9 @@ import os
 import sys
 from contextlib import ContextDecorator
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from timeit import default_timer as timer
-from datetime import datetime
 
 import tyro
 from rich.console import Console
@@ -25,6 +25,7 @@ class Args:
     model: str
     input_data_dir: Path
     output_dir: Path
+    use_camera_optimizer: bool = True
 
 
 class my_timer(ContextDecorator):
@@ -54,11 +55,14 @@ class ExperimentPipeline:
         self.output_dir = args.output_dir
         self.model = args.model
         self.experiment_name = experiment_name
+        self.use_camera_optimizer = args.use_camera_optimizer
 
     def run(self):
         self.train()
         train_output_dir = self.find_evaluate_paths()
         self.eval(train_output_dir)
+        self.render(interpolate=True)
+        self.render(interpolate=False)
 
     def write(self, text: str):
         self.writer["terminal"].write(text)
@@ -76,7 +80,10 @@ class ExperimentPipeline:
     @my_timer("Train")
     def train(self):
         CONSOLE.print(f"Training model\nModel: {self.model}\nInput dir: {self.input_data_dir}")
-        cmd = f"ns-train {self.model} --data {self.input_data_dir} --output-dir {self.output_dir} --experiment-name {self.experiment_name} --trainer.max-num-iterations 15000 --vis wandb --viewer.quit-on-train-completion True"
+        cmd = f"ns-train {self.model} --data {self.input_data_dir} --output-dir {self.output_dir} --experiment-name {self.experiment_name} --max-num-iterations 15000 --vis wandb --viewer.quit-on-train-completion True"
+
+        if not self.use_camera_optimizer:
+            cmd += " --pipeline.datamanager.camera-optimizer.mode off"
 
         if self.model == "mipnerf":
             cmd += " nerfstudio-data"
@@ -86,22 +93,36 @@ class ExperimentPipeline:
     @my_timer("Evaluate")
     def eval(self, config: str):
         CONSOLE.print("Evaluating model")
-        output_name = f"{self.model}-{self.experiment_name}"
+        # Create a timestamp
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+
+        output_name = f"{self.model}-{self.experiment_name}-{timestamp}"
         cmd = f"ns-eval --load-config {config} --output-path {self.output_dir}/{output_name}.json"
         run_command(cmd, verbose=True)
     
     @my_timer("Render")
-    def render(self, config_path: Path):
+    def render(self, interpolate: bool = False):
         CONSOLE.print("Rendering model")
         output_name = f"{self.model}-{self.experiment_name}"
 
         experiment_output_path = self.output_dir / self.experiment_name / self.model
         latest_changed_dir = max(glob.glob(f"{experiment_output_path}/*"), key=os.path.getmtime).split("/")[-1]
         config_path = experiment_output_path / latest_changed_dir / "config.yml"
-
-        render_path = self.output_dir / "renders" / output_name
+        
+        render_dir = self.output_dir / "renders"
+        render_dir.mkdir(parents=True, exist_ok=True)
+        
         # ns-render --load-config outputs/data-images-exp_combined_baseline_2/nerfacto/2023-03-28_112618/config.yml --traj filename --camera-path-filename data/images/exp_combined_baseline_2/camera_paths/2023-03-28_112618.json --output-path renders/data/images/exp_combined_baseline_2/2023-03-28_112618.mp4
-        cmd = f"ns-render --load-config {config_path} --output-path {self.output_dir}/{output_name}.json"
+        cmd = f"ns-render --load-config {config_path}"
+        
+        if (interpolate):
+            render_path = render_dir / f"{output_name}_interpolate.mp4"
+            cmd += f" --traj interpolate --output-path {render_path}"
+        else:
+            render_path = render_dir / f"{output_name}.mp4"
+            camera_path_path = "./camera_paths/camera_path_one_lap.json"
+            cmd += f" --traj filename --camera-path-filename {camera_path_path} --output-path {render_path}"
+            
         run_command(cmd, verbose=True)
 
 
@@ -121,6 +142,7 @@ if __name__ == "__main__":
         model="nerfacto",
         input_data_dir=input_data_dir,
         output_dir=input_data_dir,
+        use_camera_optimizer=args.use_camera_optimizer,
     )
     for run_dir in input_data_dir.iterdir():
         if run_dir.is_dir():
@@ -128,6 +150,7 @@ if __name__ == "__main__":
                 model=args.model,
                 input_data_dir=run_dir,
                 output_dir=run_dir,
+                use_camera_optimizer=args.use_camera_optimizer,
             )
 
             experiment_name = "-".join(str(run_dir).split("/")[-2:])

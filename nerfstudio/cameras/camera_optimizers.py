@@ -31,7 +31,10 @@ from typing_extensions import Literal, assert_never
 from nerfstudio.cameras.lie_groups import exp_map_SE3, exp_map_SO3xR3
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig
-from nerfstudio.engine.schedulers import SchedulerConfig
+from nerfstudio.engine.schedulers import (
+    ExponentialDecaySchedulerConfig,
+    SchedulerConfig,
+)
 from nerfstudio.utils import poses as pose_utils
 
 
@@ -53,7 +56,7 @@ class CameraOptimizerConfig(InstantiateConfig):
     optimizer: AdamOptimizerConfig = AdamOptimizerConfig(lr=6e-4, eps=1e-15)
     """ADAM parameters for camera optimization."""
 
-    scheduler: SchedulerConfig = SchedulerConfig(max_steps=10000)
+    scheduler: SchedulerConfig = ExponentialDecaySchedulerConfig(max_steps=10000)
     """Learning rate scheduler for camera optimizer.."""
 
     param_group: tyro.conf.Suppress[str] = "camera_opt"

@@ -151,6 +151,10 @@ def generate_point_cloud(
                     CONSOLE.print(f"Please set --normal_output_name to one of: {outputs.keys()}", justify="center")
                     sys.exit(1)
                 normal = outputs[normal_output_name]
+                assert (
+                    torch.min(normal) >= 0.0 and torch.max(normal) <= 1.0
+                ), "Normal values from method output must be in [0, 1]"
+                normal = (normal * 2.0) - 1.0
             point = ray_bundle.origins + ray_bundle.directions * depth
 
             if use_bounding_box:
@@ -174,8 +178,8 @@ def generate_point_cloud(
     rgbs = torch.cat(rgbs, dim=0)
 
     pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(points.float().cpu().numpy())
-    pcd.colors = o3d.utility.Vector3dVector(rgbs.float().cpu().numpy())
+    pcd.points = o3d.utility.Vector3dVector(points.double().cpu().numpy())
+    pcd.colors = o3d.utility.Vector3dVector(rgbs.double().cpu().numpy())
 
     ind = None
     if remove_outliers:
@@ -199,7 +203,7 @@ def generate_point_cloud(
         if ind is not None:
             # mask out normals for points that were removed with remove_outliers
             normals = normals[ind]
-        pcd.normals = o3d.utility.Vector3dVector(normals.float().cpu().numpy())
+        pcd.normals = o3d.utility.Vector3dVector(normals.double().cpu().numpy())
 
     return pcd
 

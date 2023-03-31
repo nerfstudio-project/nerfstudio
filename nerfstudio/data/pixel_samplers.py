@@ -243,3 +243,62 @@ class EquirectangularPixelSampler(PixelSampler):  # pylint: disable=too-few-publ
             ).long()
 
         return indices
+
+
+class PatchPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
+    """Samples 'pixel_batch's from 'image_batch's. Samples square patches
+    from the images randomly. Useful for patch-based losses.
+
+    Args:
+        num_rays_per_batch: number of rays to sample per batch
+        keep_full_image: whether or not to include a reference to the full image in returned batch
+        patch_size: side length of patch. This must be consistent in the method
+        config in order for samples to be reshaped into patches correctly.
+    """
+
+    def __init__(self, num_rays_per_batch: int, keep_full_image: bool = False, **kwargs) -> None:
+        self.patch_size = kwargs["patch_size"]
+        num_rays = (num_rays_per_batch // (self.patch_size**2)) * (self.patch_size**2)
+        super().__init__(num_rays, keep_full_image, **kwargs)
+
+    def set_num_rays_per_batch(self, num_rays_per_batch: int):
+        """Set the number of rays to sample per batch. Overrided to deal with patch-based sampling.
+
+        Args:
+            num_rays_per_batch: number of rays to sample per batch
+        """
+        self.num_rays_per_batch = (num_rays_per_batch // (self.patch_size**2)) * (self.patch_size**2)
+
+    # overrides base method
+    def sample_method(  # pylint: disable=no-self-use
+        self,
+        batch_size: int,
+        num_images: int,
+        image_height: int,
+        image_width: int,
+        mask: Optional[TensorType] = None,
+        device: Union[torch.device, str] = "cpu",
+    ) -> TensorType["batch_size", 3]:
+
+        if mask:
+            # Note: if there is a mask, sampling reduces back to uniform sampling
+            indices = super().sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)
+        else:
+            sub_bs = batch_size // (self.patch_size**2)
+            indices = torch.rand((sub_bs, 3), device=device) * torch.tensor(
+                [num_images, image_height - self.patch_size, image_width - self.patch_size],
+                device=device,
+            )
+
+            indices = indices.view(sub_bs, 1, 1, 3).broadcast_to(sub_bs, self.patch_size, self.patch_size, 3).clone()
+
+            yys, xxs = torch.meshgrid(
+                torch.arange(self.patch_size, device=device), torch.arange(self.patch_size, device=device)
+            )
+            indices[:, ..., 1] += yys
+            indices[:, ..., 2] += xxs
+
+            indices = torch.floor(indices).long()
+            indices = indices.flatten(0, 2)
+
+        return indices

@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  nerfstudio:
+    shm_size: '12gb'
+    image: nerfstudio:latest
+    build:
+      context: ..
+      dockerfile: ./Dockerfile
+    stdin_open: true
+    tty: true
+    environment:
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
+      DISPLAY: $DISPLAY
+    ports:
+      - "7007:7007"
+    volumes:
+      - ../:/workspace/
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    working_dir: /workspace/
+    command: /bin/bash
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]

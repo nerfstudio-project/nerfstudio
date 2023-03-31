@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=too-many-lines
+
 """Code to interface with the `vis/` (the JS viewer).
 """
 from __future__ import annotations
 
-import asyncio
+import base64
 import enum
 import os
-import re
 import sys
 import threading
 import time
@@ -27,14 +28,9 @@ import warnings
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
+import cv2
 import numpy as np
 import torch
-from aiortc import (
-    RTCConfiguration,
-    RTCIceServer,
-    RTCPeerConnection,
-    RTCSessionDescription,
-)
 from cryptography.utils import CryptographyDeprecationWarning
 from rich.console import Console
 
@@ -48,14 +44,12 @@ from nerfstudio.models.base_model import Model
 from nerfstudio.utils import colormaps, profiler, writer
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
-from nerfstudio.utils.misc import get_dict_to_torch
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
-from nerfstudio.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
-from nerfstudio.viewer.server.utils import (
-    force_codec,
-    get_intrinsics_matrix_and_camera_to_world_h,
+from nerfstudio.viewer.server.subprocess import (
+    get_free_port,
+    run_viewer_bridge_server_as_subprocess,
 )
-from nerfstudio.viewer.server.video_stream import SingleFrameStreamTrack
+from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfstudio.viewer.server.visualizer import Viewer
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
@@ -71,11 +65,13 @@ def get_viewer_version() -> str:
 
 
 @check_main_thread
-def setup_viewer(config: cfg.ViewerConfig, log_filename: Path, datapath: str):
+def setup_viewer(config: cfg.ViewerConfig, log_filename: Path, datapath: Path):
     """Sets up the viewer if enabled
 
     Args:
         config: the configuration to instantiate viewer
+        log_filename: the log filename to write to
+        datapath: the path to the dataset
     """
     viewer_state = ViewerState(config, log_filename=log_filename, datapath=datapath)
     banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
@@ -83,7 +79,7 @@ def setup_viewer(config: cfg.ViewerConfig, log_filename: Path, datapath: str):
 
 
 class OutputTypes(str, enum.Enum):
-    """Noncomprehsnive list of output render types"""
+    """Noncomprehensive list of output render types"""
 
     INIT = "init"
     RGB = "rgb"
@@ -93,14 +89,14 @@ class OutputTypes(str, enum.Enum):
 
 
 class ColormapTypes(str, enum.Enum):
-    """Noncomprehsnive list of colormap render types"""
+    """List of colormap render types"""
 
-    INIT = "init"
     DEFAULT = "default"
     TURBO = "turbo"
-    DEPTH = "depth"
-    SEMANTIC = "semantic"
-    BOOLEAN = "boolean"
+    VIRIDIS = "viridis"
+    MAGMA = "magma"
+    INFERNO = "inferno"
+    CIVIDIS = "cividis"
 
 
 class IOChangeException(Exception):
@@ -147,7 +143,14 @@ class RenderThread(threading.Thread):
         try:
             with SetTrace(self.state.check_interrupt):
                 if self.state.prev_crop_enabled:
-                    with renderers.background_mode_override_context("black"), torch.no_grad():
+                    color = self.state.prev_crop_bg_color
+                    if color is None:
+                        background_color = torch.tensor([0.0, 0.0, 0.0], device=self.graph.device)
+                    else:
+                        background_color = torch.tensor(
+                            [color["r"] / 255.0, color["g"] / 255.0, color["b"] / 255.0], device=self.graph.device
+                        )
+                    with renderers.background_color_override_context(background_color), torch.no_grad():
                         outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
                 else:
                     with torch.no_grad():
@@ -156,7 +159,6 @@ class RenderThread(threading.Thread):
             self.exc = e
 
         if outputs:
-            outputs = get_dict_to_torch(outputs)
             self.vis_outputs = outputs
 
         self.state.check_done_render = True
@@ -189,11 +191,16 @@ class CheckThread(threading.Thread):
         while not self.state.check_done_render:
             # check camera
             data = self.state.vis["renderingState/camera"].read()
+            render_time = self.state.vis["renderingState/render_time"].read()
             if data is not None:
                 camera_object = data["object"]
-                if self.state.prev_camera_matrix is None or (
-                    not np.allclose(camera_object["matrix"], self.state.prev_camera_matrix)
-                    and not self.state.prev_moving
+                if (
+                    self.state.prev_camera_matrix is None
+                    or (
+                        not np.allclose(camera_object["matrix"], self.state.prev_camera_matrix)
+                        and not self.state.prev_moving
+                    )
+                    or (render_time is not None and render_time != self.state.prev_render_time)
                 ):
                     self.state.check_interrupt_vis = True
                     self.state.prev_moving = True
@@ -210,9 +217,12 @@ class CheckThread(threading.Thread):
 
             # check colormap type
             colormap_type = self.state.vis["renderingState/colormap_choice"].read()
-            if colormap_type is None:
-                colormap_type = ColormapTypes.INIT
             if self.state.prev_colormap_type != colormap_type:
+                self.state.check_interrupt_vis = True
+                return
+
+            colormap_range = self.state.vis["renderingState/colormap_range"].read()
+            if self.state.prev_colormap_range != colormap_range:
                 self.state.check_interrupt_vis = True
                 return
 
@@ -237,20 +247,25 @@ class ViewerState:
 
     Args:
         config: viewer setup configuration
+        log_filename: filename to log viewer output to
+        datapath: path to data
     """
 
-    def __init__(self, config: cfg.ViewerConfig, log_filename: Path, datapath: str):
+    def __init__(self, config: cfg.ViewerConfig, log_filename: Path, datapath: Path):
         self.config = config
         self.vis = None
         self.viewer_url = None
         self.log_filename = log_filename
-        self.datapath = datapath
+        self.datapath = datapath.parent if datapath.is_file() else datapath
         if self.config.launch_bridge_server:
             # start the viewer bridge server
-            assert self.config.websocket_port is not None
+            if self.config.websocket_port is None:
+                websocket_port = get_free_port(default_port=self.config.websocket_port_default)
+            else:
+                websocket_port = self.config.websocket_port
             self.log_filename.parent.mkdir(exist_ok=True)
             zmq_port = run_viewer_bridge_server_as_subprocess(
-                self.config.websocket_port,
+                websocket_port,
                 zmq_port=self.config.zmq_port,
                 ip_address=self.config.ip_address,
                 log_filename=str(self.log_filename),
@@ -258,23 +273,25 @@ class ViewerState:
             # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
             CONSOLE.line()
             version = get_viewer_version()
-            websocket_url = f"ws://localhost:{self.config.websocket_port}"
+            websocket_url = f"ws://localhost:{websocket_port}"
             self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_url={websocket_url}"
             CONSOLE.rule(characters="=")
             CONSOLE.print(f"[Public] Open the viewer at {self.viewer_url}")
             CONSOLE.rule(characters="=")
             CONSOLE.line()
             self.vis = Viewer(zmq_port=zmq_port, ip_address=self.config.ip_address)
-            self.vis_webrtc_thread = Viewer(zmq_port=zmq_port, ip_address=self.config.ip_address)
         else:
             assert self.config.zmq_port is not None
             self.vis = Viewer(zmq_port=self.config.zmq_port, ip_address=self.config.ip_address)
-            self.vis_webrtc_thread = Viewer(zmq_port=self.config.zmq_port, ip_address=self.config.ip_address)
 
         # viewer specific variables
         self.prev_camera_matrix = None
+        self.prev_render_time = 0
         self.prev_output_type = OutputTypes.INIT
-        self.prev_colormap_type = ColormapTypes.INIT
+        self.prev_colormap_type = None
+        self.prev_colormap_invert = False
+        self.prev_colormap_normalize = False
+        self.prev_colormap_range = [0, 1]
         self.prev_moving = False
         self.output_type_changed = True
         self.max_resolution = 1000
@@ -286,16 +303,11 @@ class ViewerState:
         self.camera_moving = False
         self.prev_camera_timestamp = 0
         self.prev_crop_enabled = False
+        self.prev_crop_bg_color = None
         self.prev_crop_scale = None
         self.prev_crop_center = None
 
         self.output_list = None
-
-        # webrtc
-        self.pcs = set()
-        self.video_tracks = set()
-        self.webrtc_thread = None
-        self.kill_webrtc_signal = False
 
     def _pick_drawn_image_idxs(self, total_num: int) -> list[int]:
         """Determine indicies of images to display in viewer.
@@ -327,10 +339,8 @@ class ViewerState:
         # set the data base dir
         self.vis["renderingState/data_base_dir"].write(str(self.datapath))
 
-        # get the timestamp of the train run to set default export path name
-        timestamp_reg = re.compile("[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}")
-        timestamp_match = timestamp_reg.findall(str(self.log_filename.parents[0]))
-        self.vis["renderingState/export_path"].write(timestamp_match[-1])
+        # set default export path name
+        self.vis["renderingState/export_path"].write(self.log_filename.parent.stem)
 
         # clear the current scene
         self.vis["sceneState/sceneBox"].delete()
@@ -354,15 +364,6 @@ class ViewerState:
         max_scene_box = torch.max(dataset.scene_box.aabb[1] - dataset.scene_box.aabb[0]).item()
         self.vis["renderingState/max_box_size"].write(max_scene_box)
 
-        # self.vis["renderingState/render_time"].write(str(0))
-
-        # set the properties of the camera
-        # self.vis["renderingState/camera"].write(json_)
-
-        # set the main camera intrinsics to one from the dataset
-        # K = camera.get_intrinsics_matrix()
-        # set_persp_intrinsics_matrix(self.vis, K.double().numpy())
-
     def _check_camera_path_payload(self, trainer, step: int):
         """Check to see if the camera path export button was pressed."""
         # check if we should interrupt from a button press?
@@ -380,25 +381,21 @@ class ViewerState:
             write_to_json(Path(os.path.join(camera_paths_directory, camera_path_filename)), camera_path)
             self.vis["camera_path_payload"].delete()
 
-    def _check_webrtc_offer(self):
-        """Check if there is a webrtc offer to respond to."""
-        data = self.vis["webrtc/offer"].read()
-        if data:
-            if self.webrtc_thread and self.webrtc_thread.is_alive():
-                # kill the previous thread if the webpage refreshes
-                self.kill_webrtc_signal = True
-                return
-
-            def loop_in_thread(loop):
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(self.send_webrtc_answer(data))
-
-            loop = asyncio.get_event_loop()
-            self.webrtc_thread = threading.Thread(target=loop_in_thread, args=(loop,))
-            self.webrtc_thread.daemon = True
-            self.webrtc_thread.start()
-            # remove the offer from the state tree
-            self.vis["webrtc/offer"].delete()
+    def _check_populate_paths_payload(self, trainer, step: int):
+        populate_paths_payload = self.vis["populate_paths_payload"].read()
+        if populate_paths_payload:
+            # save a model checkpoint
+            trainer.save_checkpoint(step)
+            # get all camera paths
+            camera_path_dir = os.path.join(self.datapath, "camera_paths")
+            if os.path.exists(camera_path_dir):
+                camera_path_files = os.listdir(camera_path_dir)
+                all_path_dict = {}
+                for i in camera_path_files:
+                    if i[-4:] == "json":
+                        all_path_dict[i[:-5]] = load_from_json(Path(os.path.join(camera_path_dir, i)))
+                self.vis["renderingState/all_camera_paths"].write(all_path_dict)
+                self.vis["populate_paths_payload"].delete()
 
     def _update_render_aabb(self, graph):
         """
@@ -412,12 +409,18 @@ class ViewerState:
         if crop_enabled != self.prev_crop_enabled:
             self.camera_moving = True
             self.prev_crop_enabled = crop_enabled
+            self.prev_crop_bg_color = None
             self.prev_crop_scale = None
             self.prev_crop_center = None
 
         if crop_enabled:
             crop_scale = self.vis["renderingState/crop_scale"].read()
             crop_center = self.vis["renderingState/crop_center"].read()
+            crop_bg_color = self.vis["renderingState/crop_bg_color"].read()
+
+            if crop_bg_color != self.prev_crop_bg_color:
+                self.camera_moving = True
+                self.prev_crop_bg_color = crop_bg_color
 
             if crop_scale != self.prev_crop_scale or crop_center != self.prev_crop_center:
                 self.camera_moving = True
@@ -449,7 +452,6 @@ class ViewerState:
             step: iteration step of training
             graph: the current checkpoint of the model
         """
-
         has_temporal_distortion = getattr(graph, "temporal_distortion", None) is not None
         self.vis["model/has_temporal_distortion"].write(str(has_temporal_distortion).lower())
 
@@ -457,7 +459,7 @@ class ViewerState:
         self.step = step
 
         self._check_camera_path_payload(trainer, step)
-        self._check_webrtc_offer()
+        self._check_populate_paths_payload(trainer, step)
 
         camera_object = self._get_camera_object()
         if camera_object is None:
@@ -501,8 +503,8 @@ class ViewerState:
                     self._render_image_in_viewer(camera_object, graph, is_training)
                     camera_object = self._get_camera_object()
                 is_training = self.vis["renderingState/isTraining"].read()
+                self._check_populate_paths_payload(trainer, step)
                 self._check_camera_path_payload(trainer, step)
-                self._check_webrtc_offer()
                 run_loop = not is_training
                 local_step += 1
 
@@ -523,12 +525,23 @@ class ViewerState:
             return None
 
         camera_object = data["object"]
+        render_time = self.vis["renderingState/render_time"].read()
 
-        if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
-            self.camera_moving = False
+        if render_time is not None:
+            if (
+                self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix)
+            ) and (self.prev_render_time == render_time):
+                self.camera_moving = False
+            else:
+                self.prev_camera_matrix = camera_object["matrix"]
+                self.prev_render_time = render_time
+                self.camera_moving = True
         else:
-            self.prev_camera_matrix = camera_object["matrix"]
-            self.camera_moving = True
+            if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
+                self.camera_moving = False
+            else:
+                self.prev_camera_matrix = camera_object["matrix"]
+                self.camera_moving = True
 
         output_type = self.vis["renderingState/output_choice"].read()
         if output_type is None:
@@ -537,10 +550,25 @@ class ViewerState:
             self.camera_moving = True
 
         colormap_type = self.vis["renderingState/colormap_choice"].read()
-        if colormap_type is None:
-            colormap_type = ColormapTypes.INIT
         if self.prev_colormap_type != colormap_type:
             self.camera_moving = True
+
+        colormap_range = self.vis["renderingState/colormap_range"].read()
+        if self.prev_colormap_range != colormap_range:
+            self.camera_moving = True
+
+        colormap_invert = self.vis["renderingState/colormap_invert"].read()
+        if self.prev_colormap_invert != colormap_invert:
+            self.camera_moving = True
+
+        colormap_normalize = self.vis["renderingState/colormap_normalize"].read()
+        if self.prev_colormap_normalize != colormap_normalize:
+            self.camera_moving = True
+
+        crop_bg_color = self.vis["renderingState/crop_bg_color"].read()
+        if self.prev_crop_enabled:
+            if self.prev_crop_bg_color != crop_bg_color:
+                self.camera_moving = True
 
         crop_scale = self.vis["renderingState/crop_scale"].read()
         if self.prev_crop_enabled:
@@ -570,104 +598,38 @@ class ViewerState:
             return outputs[reformatted_output]
 
         # rendering depth outputs
-        if self.prev_colormap_type == ColormapTypes.DEPTH or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT
-            and outputs[reformatted_output].dtype == torch.float
-            and (torch.max(outputs[reformatted_output]) - 1.0) > eps  # handle floating point arithmetic
-        ):
-            accumulation_str = (
-                OutputTypes.ACCUMULATION
-                if OutputTypes.ACCUMULATION in self.output_list
-                else OutputTypes.ACCUMULATION_FINE
-            )
-            return colormaps.apply_depth_colormap(outputs[reformatted_output], accumulation=outputs[accumulation_str])
-
-        # rendering accumulation outputs
-        if self.prev_colormap_type == ColormapTypes.TURBO or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.float
-        ):
-            return colormaps.apply_colormap(outputs[reformatted_output])
+        if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
+            output = outputs[reformatted_output]
+            if self.prev_colormap_normalize:
+                output = output - torch.min(output)
+                output = output / (torch.max(output) + eps)
+            output = output * (self.prev_colormap_range[1] - self.prev_colormap_range[0]) + self.prev_colormap_range[0]
+            output = torch.clip(output, 0, 1)
+            if self.prev_colormap_invert:
+                output = 1 - output
+            if self.prev_colormap_type == ColormapTypes.DEFAULT:
+                return colormaps.apply_colormap(output, cmap=ColormapTypes.TURBO.value)
+            return colormaps.apply_colormap(output, cmap=self.prev_colormap_type)
 
         # rendering semantic outputs
-        if self.prev_colormap_type == ColormapTypes.SEMANTIC or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.int
-        ):
+        if outputs[reformatted_output].dtype == torch.int:
             logits = outputs[reformatted_output]
             labels = torch.argmax(torch.nn.functional.softmax(logits, dim=-1), dim=-1)  # type: ignore
             assert colors is not None
             return colors[labels]
 
         # rendering boolean outputs
-        if self.prev_colormap_type == ColormapTypes.BOOLEAN or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.bool
-        ):
+        if outputs[reformatted_output].dtype == torch.bool:
             return colormaps.apply_boolean_colormap(outputs[reformatted_output])
 
         raise NotImplementedError
 
-    async def send_webrtc_answer(self, data):
-        """Setup the webrtc connection."""
-
-        # returns the description to for WebRTC to the specific websocket connection
-        offer = RTCSessionDescription(data["sdp"], data["type"])
-
-        if self.config.skip_openrelay:
-            ice_servers = [
-                RTCIceServer(urls="stun:stun.l.google.com:19302"),
-            ]
-        else:
-            ice_servers = [
-                RTCIceServer(urls="stun:stun.l.google.com:19302"),
-                RTCIceServer(urls="stun:openrelay.metered.ca:80"),
-                RTCIceServer(
-                    urls="turn:openrelay.metered.ca:80", username="openrelayproject", credential="openrelayproject"
-                ),
-                RTCIceServer(
-                    urls="turn:openrelay.metered.ca:443", username="openrelayproject", credential="openrelayproject"
-                ),
-                RTCIceServer(
-                    urls="turn:openrelay.metered.ca:443?transport=tcp",
-                    username="openrelayproject",
-                    credential="openrelayproject",
-                ),
-            ]
-
-        pc = RTCPeerConnection(configuration=RTCConfiguration(iceServers=ice_servers))
-        self.pcs.add(pc)
-
-        video = SingleFrameStreamTrack()
-        self.video_tracks.add(video)
-        video_sender = pc.addTrack(video)
-        force_codec(pc, video_sender, "video/VP8")
-
-        await pc.setRemoteDescription(offer)
-        answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
-
-        self.vis_webrtc_thread["webrtc/answer"].write(
-            {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
-        )
-        self.vis_webrtc_thread["webrtc/answer"].delete()
-
-        # continually exchange media
-        while True:
-            await asyncio.sleep(1)
-            if self.kill_webrtc_signal:
-                self.kill_webrtc_signal = False
-                return
-
-    def set_image(self, image):
-        """Write the image over webrtc."""
-        for video_track in self.video_tracks:
-            video_track.put_frame(image)
-
-    def _send_output_to_viewer(self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6):
+    def _send_output_to_viewer(self, outputs: Dict[str, Any], colors: torch.Tensor = None):
         """Chooses the correct output and sends it to the viewer
 
         Args:
             outputs: the dictionary of outputs to choose from, from the graph
             colors: is only set if colormap is for semantics. Defaults to None.
-            eps: epsilon to handle floating point comparisons
         """
         if self.output_list is None:
             self.output_list = list(outputs.keys())
@@ -676,26 +638,41 @@ class ViewerState:
             if OutputTypes.RGB_FINE in self.output_list:
                 viewer_output_list.remove(OutputTypes.RGB_FINE)
             viewer_output_list.insert(0, OutputTypes.RGB)
+            # remove semantics, which crashes viewer; semantics_colormap is OK
+            if "semantics" in self.output_list:
+                viewer_output_list.remove("semantics")
             self.vis["renderingState/output_options"].write(viewer_output_list)
 
         reformatted_output = self._process_invalid_output(self.prev_output_type)
         # re-register colormaps and send to viewer
-        if self.output_type_changed or self.prev_colormap_type == ColormapTypes.INIT:
+        if self.output_type_changed or self.prev_colormap_type is None:
             self.prev_colormap_type = ColormapTypes.DEFAULT
-            colormap_options = [ColormapTypes.DEFAULT]
-            if (
-                outputs[reformatted_output].shape[-1] != 3
-                and outputs[reformatted_output].dtype == torch.float
-                and (torch.max(outputs[reformatted_output]) - 1.0) <= eps  # handle floating point arithmetic
-            ):
-                # accumulation can also include depth
-                colormap_options.extend(["depth"])
+            colormap_options = []
+            self.vis["renderingState/colormap_options"].write(list(ColormapTypes))
+            if outputs[reformatted_output].shape[-1] == 3:
+                colormap_options = [ColormapTypes.DEFAULT]
+            if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
+                self.prev_colormap_type = ColormapTypes.TURBO
+                colormap_options = list(ColormapTypes)[1:]
             self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             self.vis["renderingState/colormap_options"].write(colormap_options)
         selected_output = (self._apply_colormap(outputs, colors) * 255).type(torch.uint8)
-        image = selected_output.cpu().numpy()
-        self.set_image(image)
+
+        image = selected_output[..., [2, 1, 0]].cpu().numpy()
+
+        data = cv2.imencode(
+            f".{self.config.image_format}",
+            image,
+            [
+                cv2.IMWRITE_JPEG_QUALITY,
+                self.config.jpeg_quality,
+                cv2.IMWRITE_PNG_COMPRESSION,
+                self.config.png_compression,
+            ],
+        )[1].tobytes()
+        data = str(f"data:image/{self.config.image_format};base64," + base64.b64encode(data).decode("ascii"))
+        self.vis["render_img"].write(data)
 
     def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int, image_width: int) -> None:
         """Function that calculates and populates all the rendering statistics accordingly
@@ -775,7 +752,7 @@ class ViewerState:
         else:
             image_height = (num_vis_rays / aspect_ratio) ** 0.5
             image_height = int(round(image_height, -1))
-            image_height = min(self.max_resolution, image_height)
+            image_height = max(min(self.max_resolution, image_height), 30)
         image_width = int(image_height * aspect_ratio)
         if image_width > self.max_resolution:
             image_width = self.max_resolution
@@ -809,7 +786,7 @@ class ViewerState:
         # pylint: disable=too-many-statements
         """
         Draw an image using the current camera pose from the viewer.
-        The image is sent of a TCP connection and then uses WebRTC to send it to the viewer.
+        The image is sent over a TCP connection.
 
         Args:
             graph: current checkpoint of model
@@ -828,8 +805,16 @@ class ViewerState:
 
         # check and perform colormap type updates
         colormap_type = self.vis["renderingState/colormap_choice"].read()
-        colormap_type = ColormapTypes.INIT if colormap_type is None else colormap_type
         self.prev_colormap_type = colormap_type
+
+        colormap_invert = self.vis["renderingState/colormap_invert"].read()
+        self.prev_colormap_invert = colormap_invert
+
+        colormap_normalize = self.vis["renderingState/colormap_normalize"].read()
+        self.prev_colormap_normalize = colormap_normalize
+
+        colormap_range = self.vis["renderingState/colormap_range"].read()
+        self.prev_colormap_range = colormap_range
 
         # update render aabb
         try:
@@ -853,7 +838,7 @@ class ViewerState:
             return
 
         intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
-            camera_object, image_height=image_height
+            camera_object, image_height=image_height, image_width=image_width
         )
 
         camera_to_world = camera_to_world_h[:3, :]
@@ -865,10 +850,6 @@ class ViewerState:
             ],
             dim=0,
         )
-
-        times = self.vis["renderingState/render_time"].read()
-        if times is not None:
-            times = torch.tensor([float(times)])
 
         camera_type_msg = camera_object["camera_type"]
         if camera_type_msg == "perspective":
@@ -887,7 +868,7 @@ class ViewerState:
             cy=intrinsics_matrix[1, 2],
             camera_type=camera_type,
             camera_to_worlds=camera_to_world[None, ...],
-            times=times,
+            times=torch.tensor([float(self.prev_render_time)]),
         )
         camera = camera.to(graph.device)
 

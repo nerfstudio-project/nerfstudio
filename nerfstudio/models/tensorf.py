@@ -27,6 +27,7 @@ from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.config_utils import to_immutable_dict
@@ -35,7 +36,12 @@ from nerfstudio.engine.callbacks import (
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
-from nerfstudio.field_components.encodings import NeRFEncoding, TensorVMEncoding
+from nerfstudio.field_components.encodings import (
+    NeRFEncoding,
+    TensorCPEncoding,
+    TensorVMEncoding,
+    TriplaneEncoding,
+)
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.tensorf_field import TensoRFField
 from nerfstudio.model_components.losses import MSELoss
@@ -64,14 +70,17 @@ class TensoRFModelConfig(ModelConfig):
     """specifies a list of iteration step numbers to perform upsampling"""
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
     """Loss specific weights."""
-    num_samples: int = 256
+    num_samples: int = 50
     """Number of samples in field evaluation"""
+    num_uniform_samples: int = 200
+    """Number of samples in density evaluation"""
     num_den_components: int = 16
     """Number of components in density encoding"""
     num_color_components: int = 48
     """Number of components in color encoding"""
     appearance_dim: int = 27
     """Number of channels for color encoding"""
+    tensorf_encoding: Literal["triplane", "vm", "cp"] = "vm"
 
 
 class TensoRFModel(Model):
@@ -80,6 +89,8 @@ class TensoRFModel(Model):
     Args:
         config: TensoRF configuration to instantiate model
     """
+
+    config: TensoRFModelConfig
 
     def __init__(
         self,
@@ -109,7 +120,6 @@ class TensoRFModel(Model):
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
-
         # the callback that we want to run every X iterations after the training iteration
         def reinitialize_optimizer(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
@@ -130,9 +140,13 @@ class TensoRFModel(Model):
                 "optimizer"
             ].setup(params=enc)
             if optimizers_config["encodings"]["scheduler"]:
-                training_callback_attributes.optimizers.schedulers["encodings"] = optimizers_config["encodings"][
-                    "scheduler"
-                ].setup(optimizer=training_callback_attributes.optimizers.optimizers["encodings"], lr_init=lr_init)
+                training_callback_attributes.optimizers.schedulers["encodings"] = (
+                    optimizers_config["encodings"]["scheduler"]
+                    .setup()
+                    .get_scheduler(
+                        optimizer=training_callback_attributes.optimizers.optimizers["encodings"], lr_init=lr_init
+                    )
+                )
 
         callbacks = [
             TrainingCallback(
@@ -162,14 +176,35 @@ class TensoRFModel(Model):
         super().populate_modules()
 
         # setting up fields
-        density_encoding = TensorVMEncoding(
-            resolution=self.init_resolution,
-            num_components=self.num_den_components,
-        )
-        color_encoding = TensorVMEncoding(
-            resolution=self.init_resolution,
-            num_components=self.num_color_components,
-        )
+        if self.config.tensorf_encoding == "vm":
+            density_encoding = TensorVMEncoding(
+                resolution=self.init_resolution,
+                num_components=self.num_den_components,
+            )
+            color_encoding = TensorVMEncoding(
+                resolution=self.init_resolution,
+                num_components=self.num_color_components,
+            )
+        elif self.config.tensorf_encoding == "cp":
+            density_encoding = TensorCPEncoding(
+                resolution=self.init_resolution,
+                num_components=self.num_den_components,
+            )
+            color_encoding = TensorCPEncoding(
+                resolution=self.init_resolution,
+                num_components=self.num_color_components,
+            )
+        elif self.config.tensorf_encoding == "triplane":
+            density_encoding = TriplaneEncoding(
+                resolution=self.init_resolution,
+                num_components=self.num_den_components,
+            )
+            color_encoding = TriplaneEncoding(
+                resolution=self.init_resolution,
+                num_components=self.num_color_components,
+            )
+        else:
+            raise ValueError(f"Encoding {self.config.tensorf_encoding} not supported")
 
         feature_encoding = NeRFEncoding(in_dim=self.appearance_dim, num_frequencies=2, min_freq_exp=0, max_freq_exp=2)
         direction_encoding = NeRFEncoding(in_dim=3, num_frequencies=2, min_freq_exp=0, max_freq_exp=2)
@@ -187,8 +222,8 @@ class TensoRFModel(Model):
         )
 
         # samplers
-        self.sampler_uniform = UniformSampler(num_samples=self.config.num_samples, single_jitter=True)
-        self.sampler_pdf = PDFSampler(num_samples=self.config.num_samples // 2, single_jitter=True)
+        self.sampler_uniform = UniformSampler(num_samples=self.config.num_uniform_samples, single_jitter=True)
+        self.sampler_pdf = PDFSampler(num_samples=self.config.num_samples, single_jitter=True, include_original=False)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -201,7 +236,7 @@ class TensoRFModel(Model):
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
-        self.lpips = LearnedPerceptualImagePatchSimilarity()
+        self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
 
         # colliders
         if self.config.enable_collider:
@@ -270,6 +305,7 @@ class TensoRFModel(Model):
         image = batch["image"].to(outputs["rgb"].device)
         rgb = outputs["rgb"]
         acc = colormaps.apply_colormap(outputs["accumulation"])
+        assert self.config.collider_params is not None
         depth = colormaps.apply_depth_colormap(
             outputs["depth"],
             accumulation=outputs["accumulation"],

@@ -169,5 +169,12 @@ export const appTheme = createTheme({
         },
       },
     },
+    MuiSelect: {
+      styleOverrides: {
+        icon: {
+          color: '#eeeeee',
+        },
+      },
+    },
   },
 });
