@@ -1,0 +1,12 @@
+{
+  "experiment_name": "exp_capacity_1-1",
+  "method_name": "nerfacto",
+  "checkpoint": "../carlo/runs/exp_capacity_1/1/exp_capacity_1-1/nerfacto/2023-03-20_104653/nerfstudio_models/step-000000999.ckpt",
+  "results": {
+    "psnr": 17.4407901763916,
+    "ssim": 0.5161215662956238,
+    "lpips": 0.46282657980918884,
+    "num_rays_per_sec": 370680.125,
+    "fps": 3.089000701904297
+  }
+}

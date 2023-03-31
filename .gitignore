@@ -189,3 +189,7 @@ camera_paths/
 */**/.DS_Store
 */**/._.DS_Store
 
+
+# Slurm outputs
+*srun.out
+*.slurm
