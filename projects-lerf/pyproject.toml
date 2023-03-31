@@ -1,0 +1,6 @@
+[project]
+name = "lerf"
+version = "0.1.0"
+
+[project.entry-points.'nerfstudio.method_configs']
+lerf = 'lerf.lerf_config:lerf_method'

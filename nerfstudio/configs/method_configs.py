@@ -67,7 +67,6 @@ from nerfstudio.plugins.registry import discover_methods
 
 method_configs: Dict[str, TrainerConfig] = {}
 descriptions = {
-    "lerf": "TODO",
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
     "depth-nerfacto": "Nerfacto with depth supervision.",
     "volinga": "Real-time rendering model from Volinga. Directly exportable to NVOL format at https://volinga.ai/",
@@ -83,50 +82,6 @@ descriptions = {
     "nerfplayer-ngp": "NeRFPlayer with InstantNGP backbone.",
     "neus": "Implementation of NeuS. (slow)",
 }
-
-from nerfstudio.data.datamanagers.lerf_datamanager import LERFDataManagerConfig
-from nerfstudio.models.lerf import LERFModelConfig
-from nerfstudio.pipelines.lerf_pipeline import LERFPipelineConfig, OpenCLIPNetworkConfig
-
-method_configs["lerf"] = TrainerConfig(
-    method_name="lerf",
-    steps_per_eval_batch=500,
-    steps_per_save=2000,
-    max_num_iterations=30000,
-    mixed_precision=True,
-    pipeline=LERFPipelineConfig(
-        datamanager=LERFDataManagerConfig(
-            dataparser=NerfstudioDataParserConfig(train_split_fraction=0.99),
-            train_num_rays_per_batch=4096,
-            eval_num_rays_per_batch=4096,
-            camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
-            ),
-        ),
-        model=LERFModelConfig(eval_num_rays_per_chunk=1 << 16),
-        network=OpenCLIPNetworkConfig(
-            clip_model_type = "ViT-B-16",
-            clip_model_pretrained = "laion2b_s34b_b88k",
-            clip_n_dims= 512
-        )
-    ),
-    optimizers={
-        "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
-        },
-        "fields": {
-            "optimizer": RAdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-3, max_steps=30000),
-        },
-        "lerf": {
-            "optimizer": RAdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-3, max_steps=7000),
-        },
-    },
-    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
-    vis="viewer",
-)
 
 method_configs["nerfacto"] = TrainerConfig(
     method_name="nerfacto",

@@ -1,41 +1,23 @@
 import typing
-from abc import abstractmethod, abstractproperty
 from dataclasses import dataclass, field
-from typing import List, Literal, Tuple, Type
+from typing import Literal, Type
 
 import torch.distributed as dist
-import torchvision
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from nerfstudio.configs import base_config as cfg
-from nerfstudio.data.datamanagers.base_datamanager import (
-    DataManagerConfig,
-    VanillaDataManagerConfig,
-)
-from nerfstudio.data.datamanagers.lerf_datamanager import (
-    LERFDataManager,
-    LERFDataManagerConfig,
-)
 from nerfstudio.models.base_model import ModelConfig
-from nerfstudio.models.lerf import LERFModel, LERFModelConfig
 from nerfstudio.pipelines.base_pipeline import (
-    Pipeline,
     VanillaPipeline,
     VanillaPipelineConfig,
 )
 
-try:
-    import open_clip
-except ImportError:
-    assert False, "open_clip is not installed, install it with `pip install open-clip-torch`"
-
-import torch
-
-from nerfstudio.pipelines.lerf_encoders import (
-    ImageEncoder,
-    OpenCLIPNetwork,
-    OpenCLIPNetworkConfig,
+from lerf.data.lerf_datamanager import (
+    LERFDataManager,
+    LERFDataManagerConfig,
 )
+from lerf.lerf import LERFModel, LERFModelConfig
+from lerf.lerf_encoders import OpenCLIPNetwork, OpenCLIPNetworkConfig
 
 
 @dataclass

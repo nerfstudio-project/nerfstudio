@@ -11,7 +11,6 @@ from nerfstudio.cameras.rays import RayBundle, RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
-from nerfstudio.fields.lerf_field import LERFField
 from nerfstudio.model_components.ray_samplers import PDFSampler
 from nerfstudio.model_components.renderers import (
     CLIPRenderer,
@@ -19,7 +18,8 @@ from nerfstudio.model_components.renderers import (
     MeanRenderer,
 )
 from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig
-from nerfstudio.pipelines.lerf_encoders import ImageEncoder
+from lerf.lerf_encoders import ImageEncoder
+from lerf.lerf_field import LERFField
 
 
 @dataclass
