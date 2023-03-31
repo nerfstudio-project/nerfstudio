@@ -17,11 +17,10 @@ Proposal network field.
 """
 
 
-from typing import Optional
+from typing import Optional, Tuple
 
 import numpy as np
 import torch
-from torch.nn.parameter import Parameter
 from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
@@ -50,22 +49,26 @@ class HashMLPDensityField(Field):
 
     def __init__(
         self,
-        aabb,
+        aabb: TensorType,
         num_layers: int = 2,
         hidden_dim: int = 64,
         spatial_distortion: Optional[SpatialDistortion] = None,
-        use_linear=False,
-        num_levels=8,
-        max_res=1024,
-        base_res=16,
-        log2_hashmap_size=18,
-        features_per_level=2,
+        use_linear: bool = False,
+        num_levels: int = 8,
+        max_res: int = 1024,
+        base_res: int = 16,
+        log2_hashmap_size: int = 18,
+        features_per_level: int = 2,
     ) -> None:
         super().__init__()
-        self.aabb = Parameter(aabb, requires_grad=False)
+        self.register_buffer("aabb", aabb)
         self.spatial_distortion = spatial_distortion
         self.use_linear = use_linear
         growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
+
+        self.register_buffer("max_res", torch.tensor(max_res))
+        self.register_buffer("num_levels", torch.tensor(num_levels))
+        self.register_buffer("log2_hashmap_size", torch.tensor(log2_hashmap_size))
 
         config = {
             "encoding": {
@@ -96,12 +99,15 @@ class HashMLPDensityField(Field):
             self.encoding = tcnn.Encoding(n_input_dims=3, encoding_config=config["encoding"])
             self.linear = torch.nn.Linear(self.encoding.n_output_dims, 1)
 
-    def get_density(self, ray_samples: RaySamples):
+    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, None]:
         if self.spatial_distortion is not None:
             positions = self.spatial_distortion(ray_samples.frustums.get_positions())
             positions = (positions + 2.0) / 4.0
         else:
             positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        # Make sure the tcnn gets inputs between 0 and 1.
+        selector = ((positions > 0.0) & (positions < 1.0)).all(dim=-1)
+        positions = positions * selector[..., None]
         positions_flat = positions.view(-1, 3)
         if not self.use_linear:
             density_before_activation = (
@@ -115,7 +121,8 @@ class HashMLPDensityField(Field):
         # softplus, because it enables high post-activation (float32) density outputs
         # from smaller internal (float16) parameters.
         density = trunc_exp(density_before_activation)
+        density = density * selector[..., None]
         return density, None
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
+    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None) -> dict:
         return {}

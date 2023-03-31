@@ -46,7 +46,7 @@ from nerfstudio.field_components.spatial_distortions import (
     SceneContraction,
     SpatialDistortion,
 )
-from nerfstudio.fields.base_field import Field
+from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
 
 try:
     import tinycudann as tcnn
@@ -55,20 +55,12 @@ except ImportError:
     pass
 
 
-def get_normalized_directions(directions: TensorType["bs":..., 3]):
-    """SH encoding must be in the range [0, 1]
-
-    Args:
-        directions: batch of directions
-    """
-    return (directions + 1.0) / 2.0
-
-
 class TCNNNerfactoField(Field):
     """Compound Field that uses TCNN
 
     Args:
         aabb: parameters of scene aabb bounds
+        num_images: number of images in the dataset
         num_layers: number of hidden layers
         hidden_dim: dimension of hidden layers
         geo_feat_dim: output geo feat dimensions
@@ -76,22 +68,28 @@ class TCNNNerfactoField(Field):
         max_res: maximum resolution of the hashmap for the base mlp
         log2_hashmap_size: size of the hashmap for the base mlp
         num_layers_color: number of hidden layers for color network
+        num_layers_transient: number of hidden layers for transient network
         hidden_dim_color: dimension of hidden layers for color network
+        hidden_dim_transient: dimension of hidden layers for transient network
         appearance_embedding_dim: dimension of appearance embedding
         transient_embedding_dim: dimension of transient embedding
+        use_transient_embedding: whether to use transient embedding
+        use_semantics: whether to use semantic segmentation
+        num_semantic_classes: number of semantic classes
+        use_pred_normals: whether to use predicted normals
         use_average_appearance_embedding: whether to use average appearance embedding or zeros for inference
         spatial_distortion: spatial distortion to apply to the scene
     """
 
     def __init__(
         self,
-        aabb,
+        aabb: TensorType,
         num_images: int,
         num_layers: int = 2,
         hidden_dim: int = 64,
         geo_feat_dim: int = 15,
         num_levels: int = 16,
-        max_res: int = 1024,
+        max_res: int = 2048,
         log2_hashmap_size: int = 19,
         num_layers_color: int = 3,
         num_layers_transient: int = 2,
@@ -102,14 +100,19 @@ class TCNNNerfactoField(Field):
         use_transient_embedding: bool = False,
         use_semantics: bool = False,
         num_semantic_classes: int = 100,
+        pass_semantic_gradients: bool = False,
         use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
-        spatial_distortion: Optional[SpatialDistortion] = None,
+        spatial_distortion: SpatialDistortion = None,
     ) -> None:
         super().__init__()
 
-        self.aabb = Parameter(aabb, requires_grad=False)
+        self.register_buffer("aabb", aabb)
         self.geo_feat_dim = geo_feat_dim
+
+        self.register_buffer("max_res", torch.tensor(max_res))
+        self.register_buffer("num_levels", torch.tensor(num_levels))
+        self.register_buffer("log2_hashmap_size", torch.tensor(log2_hashmap_size))
 
         self.spatial_distortion = spatial_distortion
         self.num_images = num_images
@@ -119,9 +122,10 @@ class TCNNNerfactoField(Field):
         self.use_transient_embedding = use_transient_embedding
         self.use_semantics = use_semantics
         self.use_pred_normals = use_pred_normals
+        self.pass_semantic_gradients = pass_semantic_gradients
 
-        base_res = 16
-        features_per_level = 2
+        base_res: int = 16
+        features_per_level: int = 2
         growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
         self.direction_encoding = tcnn.Encoding(
@@ -220,7 +224,7 @@ class TCNNNerfactoField(Field):
             },
         )
 
-    def get_density(self, ray_samples: RaySamples):
+    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
         """Computes and returns the densities."""
         if self.spatial_distortion is not None:
             positions = ray_samples.frustums.get_positions()
@@ -228,6 +232,9 @@ class TCNNNerfactoField(Field):
             positions = (positions + 2.0) / 4.0
         else:
             positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        # Make sure the tcnn gets inputs between 0 and 1.
+        selector = ((positions > 0.0) & (positions < 1.0)).all(dim=-1)
+        positions = positions * selector[..., None]
         self._sample_locations = positions
         if not self._sample_locations.requires_grad:
             self._sample_locations.requires_grad = True
@@ -240,15 +247,18 @@ class TCNNNerfactoField(Field):
         # softplus, because it enables high post-activation (float32) density outputs
         # from smaller internal (float16) parameters.
         density = trunc_exp(density_before_activation.to(positions))
+        density = density * selector[..., None]
         return density, base_mlp_out
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
+    def get_outputs(
+        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
+    ) -> Dict[FieldHeadNames, TensorType]:
         assert density_embedding is not None
         outputs = {}
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
         camera_indices = ray_samples.camera_indices.squeeze()
-        directions = get_normalized_directions(ray_samples.frustums.directions)
+        directions = shift_directions_for_tcnn(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
         d = self.direction_encoding(directions_flat)
 
@@ -284,13 +294,10 @@ class TCNNNerfactoField(Field):
 
         # semantics
         if self.use_semantics:
-            density_embedding_copy = density_embedding.clone().detach()
-            semantics_input = torch.cat(
-                [
-                    density_embedding_copy.view(-1, self.geo_feat_dim),
-                ],
-                dim=-1,
-            )
+            semantics_input = density_embedding.view(-1, self.geo_feat_dim)
+            if not self.pass_semantic_gradients:
+                semantics_input = semantics_input.detach()
+
             x = self.mlp_semantics(semantics_input).view(*outputs_shape, -1).to(directions)
             outputs[FieldHeadNames.SEMANTICS] = self.field_head_semantics(x)
 
@@ -325,7 +332,7 @@ class TorchNerfactoField(Field):
 
     def __init__(
         self,
-        aabb,
+        aabb: TensorType,
         num_images: int,
         position_encoding: Encoding = HashEncoding(),
         direction_encoding: Encoding = SHEncoding(),
@@ -368,7 +375,7 @@ class TorchNerfactoField(Field):
         for field_head in self.field_heads:
             field_head.set_in_dim(self.mlp_head.get_out_dim())  # type: ignore
 
-    def get_density(self, ray_samples: RaySamples):
+    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
         if self.spatial_distortion is not None:
             positions = ray_samples.frustums.get_positions()
             positions = self.spatial_distortion(positions)
@@ -382,7 +389,6 @@ class TorchNerfactoField(Field):
     def get_outputs(
         self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
     ) -> Dict[FieldHeadNames, TensorType]:
-
         outputs_shape = ray_samples.frustums.directions.shape[:-1]
 
         if ray_samples.camera_indices is None:
@@ -413,4 +419,4 @@ class TorchNerfactoField(Field):
         return outputs
 
 
-field_implementation_to_class = {"tcnn": TCNNNerfactoField, "torch": TorchNerfactoField}
+field_implementation_to_class: Dict[str, Field] = {"tcnn": TCNNNerfactoField, "torch": TorchNerfactoField}

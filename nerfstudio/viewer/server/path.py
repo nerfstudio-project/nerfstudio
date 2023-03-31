@@ -34,7 +34,7 @@ class Path:
         self.entries = entries
 
     def append(self, other: str) -> "Path":
-        """Methodthat appends a new component and returns new Path
+        """Method that appends a new component and returns new Path
 
         Args:
             other: _description_

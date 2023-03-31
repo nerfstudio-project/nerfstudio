@@ -15,12 +15,15 @@
 """
 Collection of Losses.
 """
+from enum import Enum
 
 import torch
 from torch import nn
 from torchtyping import TensorType
+from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
+from nerfstudio.utils.math import masked_reduction, normalized_depth_scale_and_shift
 
 L1Loss = nn.L1Loss
 MSELoss = nn.MSELoss
@@ -28,6 +31,16 @@ MSELoss = nn.MSELoss
 LOSSES = {"L1": L1Loss, "MSE": MSELoss}
 
 EPS = 1.0e-7
+
+# Sigma scale factor from Urban Radiance Fields (Rematas et al., 2022)
+URF_SIGMA_SCALE_FACTOR = 3.0
+
+
+class DepthLossType(Enum):
+    """Types of depth losses for depth supervision."""
+
+    DS_NERF = 1
+    URF = 2
 
 
 def outer(
@@ -75,7 +88,7 @@ def lossfun_outer(
     Args:
         t: interval edges
         w: weights
-        t_env: interval edges of the upper bound enveloping historgram
+        t_env: interval edges of the upper bound enveloping histogram
         w_env: weights that should upper bound the inner (t,w) histogram
     """
     w_outer = outer(t[..., :-1], t[..., 1:], t_env[..., :-1], t_env[..., 1:], w_env)
@@ -182,7 +195,7 @@ def orientation_loss(
     """
     w = weights
     n = normals
-    v = viewdirs
+    v = viewdirs * -1
     n_dot_v = (n * v[..., None, :]).sum(axis=-1)
     return (w[..., 0] * torch.fmin(torch.zeros_like(n_dot_v), n_dot_v) ** 2).sum(dim=-1)
 
@@ -194,3 +207,281 @@ def pred_normal_loss(
 ):
     """Loss between normals calculated from density and normals from prediction network."""
     return (weights[..., 0] * (1.0 - torch.sum(normals * pred_normals, dim=-1))).sum(dim=-1)
+
+
+def ds_nerf_depth_loss(
+    weights: TensorType[..., "num_samples", 1],
+    termination_depth: TensorType[..., 1],
+    steps: TensorType[..., "num_samples", 1],
+    lengths: TensorType[..., "num_samples", 1],
+    sigma: TensorType[0],
+) -> TensorType[..., 1]:
+    """Depth loss from Depth-supervised NeRF (Deng et al., 2022).
+
+    Args:
+        weights: Weights predicted for each sample.
+        termination_depth: Ground truth depth of rays.
+        steps: Sampling distances along rays.
+        lengths: Distances between steps.
+        sigma: Uncertainty around depth values.
+    Returns:
+        Depth loss scalar.
+    """
+    depth_mask = termination_depth > 0
+
+    loss = -torch.log(weights + EPS) * torch.exp(-((steps - termination_depth[:, None]) ** 2) / (2 * sigma)) * lengths
+    loss = loss.sum(-2) * depth_mask
+    return torch.mean(loss)
+
+
+def urban_radiance_field_depth_loss(
+    weights: TensorType[..., "num_samples", 1],
+    termination_depth: TensorType[..., 1],
+    predicted_depth: TensorType[..., 1],
+    steps: TensorType[..., "num_samples", 1],
+    sigma: TensorType[0],
+) -> TensorType[..., 1]:
+    """Lidar losses from Urban Radiance Fields (Rematas et al., 2022).
+
+    Args:
+        weights: Weights predicted for each sample.
+        termination_depth: Ground truth depth of rays.
+        predicted_depth: Depth prediction from the network.
+        steps: Sampling distances along rays.
+        sigma: Uncertainty around depth values.
+    Returns:
+        Depth loss scalar.
+    """
+    depth_mask = termination_depth > 0
+
+    # Expected depth loss
+    expected_depth_loss = (termination_depth - predicted_depth) ** 2
+
+    # Line of sight losses
+    target_distribution = torch.distributions.normal.Normal(0.0, sigma / URF_SIGMA_SCALE_FACTOR)
+    termination_depth = termination_depth[:, None]
+    line_of_sight_loss_near_mask = torch.logical_and(
+        steps <= termination_depth + sigma, steps >= termination_depth - sigma
+    )
+    line_of_sight_loss_near = (weights - torch.exp(target_distribution.log_prob(steps - termination_depth))) ** 2
+    line_of_sight_loss_near = (line_of_sight_loss_near_mask * line_of_sight_loss_near).sum(-2)
+    line_of_sight_loss_empty_mask = steps < termination_depth - sigma
+    line_of_sight_loss_empty = (line_of_sight_loss_empty_mask * weights**2).sum(-2)
+    line_of_sight_loss = line_of_sight_loss_near + line_of_sight_loss_empty
+
+    loss = (expected_depth_loss + line_of_sight_loss) * depth_mask
+    return torch.mean(loss)
+
+
+def depth_loss(
+    weights: TensorType[..., "num_samples", 1],
+    ray_samples: RaySamples,
+    termination_depth: TensorType[..., 1],
+    predicted_depth: TensorType[..., 1],
+    sigma: TensorType[0],
+    directions_norm: TensorType[..., 1],
+    is_euclidean: bool,
+    depth_loss_type: DepthLossType,
+) -> TensorType[0]:
+    """Implementation of depth losses.
+
+    Args:
+        weights: Weights predicted for each sample.
+        ray_samples: Samples along rays corresponding to weights.
+        termination_depth: Ground truth depth of rays.
+        predicted_depth: Depth prediction from the network.
+        sigma: Uncertainty around depth value.
+        directions_norm: Norms of ray direction vectors in the camera frame.
+        is_euclidean: Whether ground truth depths corresponds to normalized direction vectors.
+        depth_loss_type: Type of depth loss to apply.
+
+    Returns:
+        Depth loss scalar.
+    """
+    if not is_euclidean:
+        termination_depth = termination_depth * directions_norm
+    steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
+
+    if depth_loss_type == DepthLossType.DS_NERF:
+        lengths = ray_samples.frustums.ends - ray_samples.frustums.starts
+        return ds_nerf_depth_loss(weights, termination_depth, steps, lengths, sigma)
+
+    if depth_loss_type == DepthLossType.URF:
+        return urban_radiance_field_depth_loss(weights, termination_depth, predicted_depth, steps, sigma)
+
+    raise NotImplementedError("Provided depth loss type not implemented.")
+
+
+def monosdf_normal_loss(
+    normal_pred: TensorType["num_samples", 3], normal_gt: TensorType["num_samples", 3]
+) -> TensorType[0]:
+    """
+    Normal consistency loss proposed in monosdf - https://niujinshuchong.github.io/monosdf/
+    Enforces consistency between the volume rendered normal and the predicted monocular normal.
+    With both angluar and L1 loss. Eq 14 https://arxiv.org/pdf/2206.00665.pdf
+    Args:
+        normal_pred: volume rendered normal
+        normal_gt: monocular normal
+    """
+    normal_gt = torch.nn.functional.normalize(normal_gt, p=2, dim=-1)
+    normal_pred = torch.nn.functional.normalize(normal_pred, p=2, dim=-1)
+    l1 = torch.abs(normal_pred - normal_gt).sum(dim=-1).mean()
+    cos = (1.0 - torch.sum(normal_pred * normal_gt, dim=-1)).mean()
+    return l1 + cos
+
+
+class MiDaSMSELoss(nn.Module):
+    """
+    data term from MiDaS paper
+    """
+
+    def __init__(self, reduction_type: Literal["image", "batch"] = "batch"):
+        super().__init__()
+
+        self.reduction_type: Literal["image", "batch"] = reduction_type
+        # reduction here is different from the image/batch-based reduction. This is either "mean" or "sum"
+        self.mse_loss = MSELoss(reduction="none")
+
+    def forward(
+        self, prediction: TensorType[1, 32, "mult"], target: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"]
+    ) -> TensorType[0]:
+        """
+        Args:
+            prediction: predicted depth map
+            target: ground truth depth map
+            mask: mask of valid pixels
+        Returns:
+            mse loss based on reduction function
+        """
+        summed_mask = torch.sum(mask, (1, 2))
+        image_loss = torch.sum(self.mse_loss(prediction, target) * mask, (1, 2))
+        # multiply by 2 magic number?
+        image_loss = masked_reduction(image_loss, 2 * summed_mask, self.reduction_type)
+
+        return image_loss
+
+
+# losses based on https://github.com/autonomousvision/monosdf/blob/main/code/model/loss.py
+class GradientLoss(nn.Module):
+    """
+    multiscale, scale-invariant gradient matching term to the disparity space.
+    This term biases discontinuities to be sharp and to coincide with discontinuities in the ground truth
+    More info here https://arxiv.org/pdf/1907.01341.pdf Equation 11
+    """
+
+    def __init__(self, scales: int = 4, reduction_type: Literal["image", "batch"] = "batch"):
+        """
+        Args:
+            scales: number of scales to use
+            reduction_type: either "batch" or "image"
+        """
+        super().__init__()
+        self.reduction_type = reduction_type
+        self.__scales = scales
+
+    def forward(
+        self, prediction: TensorType[1, 32, "mult"], target: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"]
+    ) -> TensorType[0]:
+        """
+        Args:
+            prediction: predicted depth map
+            target: ground truth depth map
+            mask: mask of valid pixels
+        Returns:
+            gradient loss based on reduction function
+        """
+        total = 0
+
+        for scale in range(self.__scales):
+            step = pow(2, scale)
+
+            grad_loss = self.gradient_loss(
+                prediction[:, ::step, ::step],
+                target[:, ::step, ::step],
+                mask[:, ::step, ::step],
+            )
+            total += grad_loss
+
+        return total
+
+    def gradient_loss(
+        self, prediction: TensorType[1, 32, "mult"], target: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"]
+    ) -> TensorType[0]:
+        """
+        multiscale, scale-invariant gradient matching term to the disparity space.
+        This term biases discontinuities to be sharp and to coincide with discontinuities in the ground truth
+        More info here https://arxiv.org/pdf/1907.01341.pdf Equation 11
+        Args:
+            prediction: predicted depth map
+            target: ground truth depth map
+            reduction: reduction function, either reduction_batch_based or reduction_image_based
+        Returns:
+            gradient loss based on reduction function
+        """
+        summed_mask = torch.sum(mask, (1, 2))
+        diff = prediction - target
+        diff = torch.mul(mask, diff)
+
+        grad_x = torch.abs(diff[:, :, 1:] - diff[:, :, :-1])
+        mask_x = torch.mul(mask[:, :, 1:], mask[:, :, :-1])
+        grad_x = torch.mul(mask_x, grad_x)
+
+        grad_y = torch.abs(diff[:, 1:, :] - diff[:, :-1, :])
+        mask_y = torch.mul(mask[:, 1:, :], mask[:, :-1, :])
+        grad_y = torch.mul(mask_y, grad_y)
+
+        image_loss = torch.sum(grad_x, (1, 2)) + torch.sum(grad_y, (1, 2))
+        image_loss = masked_reduction(image_loss, summed_mask, self.reduction_type)
+
+        return image_loss
+
+
+class ScaleAndShiftInvariantLoss(nn.Module):
+    """
+    Scale and shift invariant loss as described in
+    "Towards Robust Monocular Depth Estimation: Mixing Datasets for Zero-shot Cross-dataset Transfer"
+    https://arxiv.org/pdf/1907.01341.pdf
+    """
+
+    def __init__(self, alpha: float = 0.5, scales: int = 4, reduction_type: Literal["image", "batch"] = "batch"):
+        """
+        Args:
+            alpha: weight of the regularization term
+            scales: number of scales to use
+            reduction_type: either "batch" or "image"
+        """
+        super().__init__()
+        self.__data_loss = MiDaSMSELoss(reduction_type=reduction_type)
+        self.__regularization_loss = GradientLoss(scales=scales, reduction_type=reduction_type)
+        self.__alpha = alpha
+
+        self.__prediction_ssi = None
+
+    def forward(
+        self, prediction: TensorType[1, 32, "mult"], target: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"]
+    ) -> TensorType[0]:
+        """
+        Args:
+            prediction: predicted depth map (unnormalized)
+            target: ground truth depth map (normalized)
+            mask: mask of valid pixels
+        Returns:
+            scale and shift invariant loss
+        """
+        scale, shift = normalized_depth_scale_and_shift(prediction, target, mask)
+        self.__prediction_ssi = scale.view(-1, 1, 1) * prediction + shift.view(-1, 1, 1)
+
+        total = self.__data_loss(self.__prediction_ssi, target, mask)
+        if self.__alpha > 0:
+            total += self.__alpha * self.__regularization_loss(self.__prediction_ssi, target, mask)
+
+        return total
+
+    def __get_prediction_ssi(self):
+        """
+        scale and shift invariant prediction
+        from https://arxiv.org/pdf/1907.01341.pdf equation 1
+        """
+        return self.__prediction_ssi
+
+    prediction_ssi = property(__get_prediction_ssi)

@@ -15,9 +15,13 @@
 """ Math Helper Functions """
 
 from dataclasses import dataclass
+from typing import Tuple
 
 import torch
 from torchtyping import TensorType
+from typing_extensions import Literal
+
+_USE_NERFACC = True
 
 
 def components_from_spherical_harmonics(levels: int, directions: TensorType[..., 3]) -> TensorType[..., "components"]:
@@ -26,7 +30,7 @@ def components_from_spherical_harmonics(levels: int, directions: TensorType[...,
 
     Args:
         levels: Number of spherical harmonic levels to compute.
-        directions: Spherical hamonic coefficients
+        directions: Spherical harmonic coefficients
     """
     num_components = levels**2
     components = torch.zeros((*directions.shape[:-1], num_components), device=directions.device)
@@ -103,7 +107,7 @@ def compute_3d_gaussian(
     dir_variance: TensorType[..., 1],
     radius_variance: TensorType[..., 1],
 ) -> Gaussians:
-    """Compute guassian along ray.
+    """Compute gaussian along ray.
 
     Args:
         directions: Axis of Gaussian.
@@ -191,3 +195,160 @@ def expected_sin(x_means: torch.Tensor, x_vars: torch.Tensor) -> torch.Tensor:
     """
 
     return torch.exp(-0.5 * x_vars) * torch.sin(x_means)
+
+
+@torch.jit.script
+def _intersect_aabb(
+    origins: torch.Tensor,
+    directions: torch.Tensor,
+    aabb: torch.Tensor,
+    max_bound: float = 1e10,
+    invalid_value: float = 1e10,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Implementation of ray intersection with AABB box
+
+    Args:
+        origins: [N,3] tensor of 3d positions
+        directions: [N,3] tensor of normalized directions
+        aabb: [6] array of aabb box in the form of [x_min, y_min, z_min, x_max, y_max, z_max]
+        max_bound: Maximum value of t_max
+        invalid_value: Value to return in case of no intersection
+
+    Returns:
+        t_min, t_max - two tensors of shapes N representing distance of intersection from the origin.
+    """
+
+    tx_min = (aabb[:3] - origins) / directions
+    tx_max = (aabb[3:] - origins) / directions
+
+    t_min = torch.min(tx_min, tx_max)
+    t_max = torch.max(tx_min, tx_max)
+
+    t_min = torch.max(t_min, dim=-1).values
+    t_max = torch.min(t_max, dim=-1).values
+
+    t_min = torch.clamp(t_min, min=0, max=max_bound)
+    t_max = torch.clamp(t_max, min=0, max=max_bound)
+
+    cond = t_max <= t_min
+    t_min = torch.where(cond, invalid_value, t_min)
+    t_max = torch.where(cond, invalid_value, t_max)
+
+    return t_min, t_max
+
+
+def intersect_aabb(
+    origins: TensorType["N", 3],
+    directions: TensorType["N", 3],
+    aabb: TensorType[6],
+) -> Tuple[TensorType["N"], TensorType["N"]]:
+    """
+    Implementation of ray intersection with AABB box
+
+    Args:
+        origins: 3d positions
+        directions: Normalized directions
+        aabb: array of aabb box in the form of [x_min, y_min, z_min, x_max, y_max, z_max]
+        max_bound: Maximum value of t_max
+        invalid_value: Value to return in case of no intersection
+
+    Returns:
+        t_min, t_max - two tensors of shapes N representing distance of intersection from the origin.
+    """
+
+    global _USE_NERFACC  # pylint: disable=global-statement
+    if _USE_NERFACC:
+        try:
+            import nerfacc  # pylint: disable=import-outside-toplevel
+
+            t_min, t_max = nerfacc.ray_aabb_intersect(origins, directions, aabb)
+        except:  # pylint: disable=bare-except
+            t_min, t_max = _intersect_aabb(origins, directions, aabb, max_bound=1e10, invalid_value=1e10)
+            _USE_NERFACC = False
+    else:
+        t_min, t_max = _intersect_aabb(origins, directions, aabb, max_bound=1e10, invalid_value=1e10)
+
+    return t_min, t_max
+
+
+def safe_normalize(
+    vectors: TensorType["batch_dim":..., "N"],
+    eps: float = 1e-10,
+) -> TensorType["batch_dim":..., "N"]:
+    """Normalizes vectors.
+
+    Args:
+        vectors: Vectors to normalize.
+        eps: Epsilon value to avoid division by zero.
+
+    Returns:
+        Normalized vectors.
+    """
+    return vectors / (torch.norm(vectors, dim=-1, keepdim=True) + eps)
+
+
+def masked_reduction(
+    input_tensor: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"], reduction_type: Literal["image", "batch"]
+):
+    """
+    Whether to consolidate the input_tensor across the batch or across the image
+    Args:
+        input_tensor: input tensor
+        mask: mask tensor
+        reduction_type: either "batch" or "image"
+    Returns:
+        input_tensor: reduced input_tensor
+    """
+    if reduction_type == "batch":
+        # avoid division by 0 (if sum(M) = sum(sum(mask)) = 0: sum(image_loss) = 0)
+        divisor = torch.sum(mask)
+        input_tensor = 0 if divisor == 0 else torch.sum(input_tensor) / divisor
+    elif reduction_type == "image":
+        # avoid division by 0 (if M = sum(mask) = 0: image_loss = 0)
+        valid = mask.nonzero()
+
+        input_tensor[valid] = input_tensor[valid] / mask[valid]
+        input_tensor = torch.mean(input_tensor)
+    return input_tensor
+
+
+def normalized_depth_scale_and_shift(
+    prediction: TensorType[1, 32, "mult"], target: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"]
+):
+    """
+    More info here: https://arxiv.org/pdf/2206.00665.pdf supplementary section A2 Depth Consistency Loss
+    This function computes scale/shift required to normalizes predicted depth map,
+    to allow for using normalized depth maps as input from monocular depth estimation networks.
+    These networks are trained such that they predict normalized depth maps.
+
+    Solves for scale/shift using a least squares approach with a closed form solution:
+    Based on:
+    https://github.com/autonomousvision/monosdf/blob/d9619e948bf3d85c6adec1a643f679e2e8e84d4b/code/model/loss.py#L7
+    Args:
+        prediction: predicted depth map
+        target: ground truth depth map
+        mask: mask of valid pixels
+    Returns:
+        scale and shift for depth prediction
+    """
+    # system matrix: A = [[a_00, a_01], [a_10, a_11]]
+    a_00 = torch.sum(mask * prediction * prediction, (1, 2))
+    a_01 = torch.sum(mask * prediction, (1, 2))
+    a_11 = torch.sum(mask, (1, 2))
+
+    # right hand side: b = [b_0, b_1]
+    b_0 = torch.sum(mask * prediction * target, (1, 2))
+    b_1 = torch.sum(mask * target, (1, 2))
+
+    # solution: x = A^-1 . b = [[a_11, -a_01], [-a_10, a_00]] / (a_00 * a_11 - a_01 * a_10) . b
+    scale = torch.zeros_like(b_0)
+    shift = torch.zeros_like(b_1)
+
+    det = a_00 * a_11 - a_01 * a_01
+    valid = det.nonzero()
+
+    scale[valid] = (a_11[valid] * b_0[valid] - a_01[valid] * b_1[valid]) / det[valid]
+    shift[valid] = (-a_01[valid] * b_0[valid] + a_00[valid] * b_1[valid]) / det[valid]
+
+    return scale, shift

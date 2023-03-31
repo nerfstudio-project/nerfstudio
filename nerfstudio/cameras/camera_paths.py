@@ -23,7 +23,7 @@ import torch
 import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.camera_utils import get_interpolated_poses_many
-from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.viewer.server.utils import three_js_perspective_camera_focal_length
 
 
@@ -38,7 +38,7 @@ def get_interpolated_camera_path(cameras: Cameras, steps: int) -> Cameras:
         A new set of cameras along a path.
     """
     Ks = cameras.get_intrinsics_matrices().cpu().numpy()
-    poses = cameras.camera_to_worlds().cpu().numpy()
+    poses = cameras.camera_to_worlds.cpu().numpy()
     poses, Ks = get_interpolated_poses_many(poses, Ks, steps_per_transition=steps)
 
     cameras = Cameras(fx=Ks[:, 0, 0], fy=Ks[:, 1, 1], cx=Ks[0, 0, 2], cy=Ks[0, 1, 2], camera_to_worlds=poses)
@@ -54,7 +54,7 @@ def get_spiral_path(
     zrate: float = 0.5,
 ) -> Cameras:
     """
-    Returns a list of camera in a sprial trajectory.
+    Returns a list of camera in a spiral trajectory.
 
     Args:
         camera: The camera to start the spiral from.
@@ -100,12 +100,16 @@ def get_spiral_path(
         new_c2ws.append(c2wh[:3, :4])
     new_c2ws = torch.stack(new_c2ws, dim=0)
 
+    times = None
+    if camera.times is not None:
+        times = torch.linspace(0, 1, steps)[:, None]
     return Cameras(
         fx=camera.fx[0],
         fy=camera.fy[0],
         cx=camera.cx[0],
         cy=camera.cy[0],
         camera_to_worlds=new_c2ws,
+        times=times,
     )
 
 
@@ -121,6 +125,19 @@ def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
 
     image_height = camera_path["render_height"]
     image_width = camera_path["render_width"]
+    if "camera_type" in camera_path:
+        camera_type = camera_path["camera_type"]
+    else:
+        camera_type = "perspective"
+
+    if "camera_type" not in camera_path:
+        camera_type = CameraType.PERSPECTIVE
+    elif camera_path["camera_type"] == "fisheye":
+        camera_type = CameraType.FISHEYE
+    elif camera_path["camera_type"] == "equirectangular":
+        camera_type = CameraType.EQUIRECTANGULAR
+    else:
+        camera_type = CameraType.PERSPECTIVE
 
     c2ws = []
     fxs = []
@@ -129,11 +146,21 @@ def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
         # pose
         c2w = torch.tensor(camera["camera_to_world"]).view(4, 4)[:3]
         c2ws.append(c2w)
-        # field of view
-        fov = camera["fov"]
-        focal_length = three_js_perspective_camera_focal_length(fov, image_height)
-        fxs.append(focal_length)
-        fys.append(focal_length)
+        if camera_type == CameraType.EQUIRECTANGULAR:
+            fxs.append(image_width / 2)
+            fys.append(image_height)
+        else:
+            # field of view
+            fov = camera["fov"]
+            focal_length = three_js_perspective_camera_focal_length(fov, image_height)
+            fxs.append(focal_length)
+            fys.append(focal_length)
+
+    # Iff ALL cameras in the path have a "time" value, construct Cameras with times
+    if all("render_time" in camera for camera in camera_path["camera_path"]):
+        times = torch.tensor([camera["render_time"] for camera in camera_path["camera_path"]])
+    else:
+        times = None
 
     camera_to_worlds = torch.stack(c2ws, dim=0)
     fx = torch.tensor(fxs)
@@ -144,4 +171,6 @@ def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
         cx=image_width / 2,
         cy=image_height / 2,
         camera_to_worlds=camera_to_worlds,
+        camera_type=camera_type,
+        times=times,
     )

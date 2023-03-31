@@ -28,7 +28,7 @@ def exp_map_SO3xR3(tangent_vector: TensorType["b", 6]) -> TensorType["b", 3, 4]:
     Args:
         tangent_vector: Tangent vector; length-3 translations, followed by an `so(3)` tangent vector.
     Returns:
-        [R|t] tranformation matrices.
+        [R|t] transformation matrices.
     """
     # code for SO3 map grabbed from pytorch3d and stripped down to bare-bones
     log_rot = tangent_vector[:, 3:]
@@ -67,7 +67,7 @@ def exp_map_SE3(tangent_vector: TensorType["b", 6]) -> TensorType["b", 3, 4]:  #
         tangent_vector: A tangent vector from `se(3)`.
 
     Returns:
-        [R|t] tranformation matrices.
+        [R|t] transformation matrices.
     """
 
     tangent_vector_lin = tangent_vector[:, :3].view(-1, 3, 1)

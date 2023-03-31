@@ -42,7 +42,7 @@ class NeRFField(Field):
         direction_encoding: Direction encoder.
         base_mlp_num_layers: Number of layers for base MLP.
         base_mlp_layer_width: Width of base MLP layers.
-        head_mlp_num_layers: Number of layer for ourput head MLP.
+        head_mlp_num_layers: Number of layer for output head MLP.
         head_mlp_layer_width: Width of output head MLP layers.
         skip_connections: Where to add skip connection in base MLP.
         use_integrated_encoding: Used integrated samples as encoding input.
@@ -58,7 +58,7 @@ class NeRFField(Field):
         head_mlp_num_layers: int = 2,
         head_mlp_layer_width: int = 128,
         skip_connections: Tuple[int] = (4,),
-        field_heads: Tuple[FieldHead] = (RGBFieldHead(),),
+        field_heads: Optional[Tuple[FieldHead]] = (RGBFieldHead(),),
         use_integrated_encoding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
@@ -88,7 +88,7 @@ class NeRFField(Field):
         for field_head in self.field_heads:
             field_head.set_in_dim(self.mlp_head.get_out_dim())  # type: ignore
 
-    def get_density(self, ray_samples: RaySamples):
+    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
         if self.use_integrated_encoding:
             gaussian_samples = ray_samples.frustums.get_gaussian_blob()
             if self.spatial_distortion is not None:

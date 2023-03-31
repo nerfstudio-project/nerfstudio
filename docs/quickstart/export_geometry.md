@@ -6,33 +6,31 @@ Here we document how to export point clouds and meshes from nerfstudio. The main
 
 ### 1. TSDF Fusion
 
-    TSDF (truncated signed distance function) Fusion is a meshing algorithm that uses depth maps to extract a surface as a mesh. This method works for all models.
+TSDF (truncated signed distance function) Fusion is a meshing algorithm that uses depth maps to extract a surface as a mesh. This method works for all models.
 
-    ```python
-    ns-export tsdf --load-config CONFIG.yml --output-dir OUTPUT_DIR
-    ```
+```python
+ns-export tsdf --load-config CONFIG.yml --output-dir OUTPUT_DIR
+```
 
 ### 2. Poisson surface reconstruction
 
-    Poisson surface reconstruction gives the highest quality meshes. See the steps below to use Poisson surface reconstruction in our repo.
+Poisson surface reconstruction gives the highest quality meshes. See the steps below to use Poisson surface reconstruction in our repo.
 
-    :::{admonition} Note
-    :class: info
+> **Note:**
+> This will only work with a Model that computes or predicts normals, e.g., nerfacto.
 
-    This will only work with a Model that computes or predicts normals, e.g., nerfacto.
-    :::
 
-    1. Train nerfacto with network settings that predict normals.
+1. Train nerfacto with network settings that predict normals.
 
-    ```bash
-    ns-train nerfacto --pipeline.model.predict-normals True
-    ```
+```bash
+ns-train nerfacto --pipeline.model.predict-normals True
+```
 
-    2. Export a mesh with the Poisson meshing algorithm.
+2. Export a mesh with the Poisson meshing algorithm.
 
-    ```bash
-    ns-export poisson --load-config CONFIG.yml --output-dir OUTPUT_DIR
-    ```
+```bash
+ns-export poisson --load-config CONFIG.yml --output-dir OUTPUT_DIR
+```
 
 ## Exporting a point cloud
 
@@ -42,7 +40,7 @@ ns-export pointcloud --help
 
 ## Other exporting methods
 
-Run the folowing command to see other export methods that may exist.
+Run the following command to see other export methods that may exist.
 
 ```python
 ns-export --help

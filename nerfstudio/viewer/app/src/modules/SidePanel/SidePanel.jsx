@@ -15,6 +15,7 @@ import {
   WidgetsRounded,
   ImportExportRounded,
 } from '@mui/icons-material/';
+import { useSelector } from 'react-redux';
 import StatusPanel from './StatusPanel';
 import LevaTheme from '../../themes/leva_theme.json';
 import CameraPanel from './CameraPanel';
@@ -84,6 +85,15 @@ export function BasicTabs(props: BasicTabsProps) {
     setValue(newValue);
     setShowExportBox(newValue === 3);
   };
+  const camera_choice = useSelector(
+    (state) => state.renderingState.camera_choice,
+  );
+
+  React.useEffect(() => {
+    if (camera_choice === 'Render Camera') {
+      setValue(1);
+    }
+  }, [camera_choice]);
 
   return (
     <div>
@@ -99,10 +109,16 @@ export function BasicTabs(props: BasicTabsProps) {
           >
             <Tab icon={<TuneRounded />} label="Controls" {...a11yProps(0)} />
             <Tab icon={<CameraAltRounded />} label="Render" {...a11yProps(1)} />
-            <Tab icon={<WidgetsRounded />} label="Scene" {...a11yProps(2)} />
+            <Tab
+              icon={<WidgetsRounded />}
+              label="Scene"
+              disabled={camera_choice === 'Render Camera'}
+              {...a11yProps(2)}
+            />
             <Tab
               icon={<ImportExportRounded />}
               label="Export"
+              disabled={camera_choice === 'Render Camera'}
               {...a11yProps(3)}
             />
           </Tabs>

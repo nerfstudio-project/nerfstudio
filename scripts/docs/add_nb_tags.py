@@ -13,7 +13,7 @@ CONSOLE = Console(width=120)
 def main(check: bool = False):
     """Add tags to notebooks based on cell comments.
 
-    In notebook cells, you can add  the folling tags to the notebook by adding a comment:
+    In notebook cells, you can add the following tags to the notebook by adding a comment:
     "# HIDDEN" - This cell will be hidden from the notebook.
     "# OUTPUT_ONLY" - This cell will only show the output.
     "# COLLAPSED" - Hide the code and include a button to show the code.

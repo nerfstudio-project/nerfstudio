@@ -34,7 +34,7 @@ class DataManager(nn.Module):
         """Returns the next eval image.
 
         Returns:
-            The image index from the eval datset, the CameraRayBundle, and the RayGT dictionary.
+            The image index from the eval dataset, the CameraRayBundle, and the RayGT dictionary.
         """
 ```
 
@@ -87,7 +87,7 @@ def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
 
 You can see our code for more details.
 
-```{button-link} https://github.com/nerfstudio-project/nerfstudio/blob/master/nerfstudio/data/datamanagers.py
+```{button-link} https://github.com/nerfstudio-project/nerfstudio/blob/main/nerfstudio/data/datamanagers/base_datamanager.py
 :color: primary
 :outline:
 See the code!

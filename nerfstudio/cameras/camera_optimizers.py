@@ -29,14 +29,17 @@ from torchtyping import TensorType
 from typing_extensions import Literal, assert_never
 
 from nerfstudio.cameras.lie_groups import exp_map_SE3, exp_map_SO3xR3
-from nerfstudio.configs import base_config as cfg
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig
-from nerfstudio.engine.schedulers import SchedulerConfig
+from nerfstudio.engine.schedulers import (
+    ExponentialDecaySchedulerConfig,
+    SchedulerConfig,
+)
 from nerfstudio.utils import poses as pose_utils
 
 
 @dataclass
-class CameraOptimizerConfig(cfg.InstantiateConfig):
+class CameraOptimizerConfig(InstantiateConfig):
     """Configuration of optimization for camera poses."""
 
     _target: Type = field(default_factory=lambda: CameraOptimizer)
@@ -53,7 +56,7 @@ class CameraOptimizerConfig(cfg.InstantiateConfig):
     optimizer: AdamOptimizerConfig = AdamOptimizerConfig(lr=6e-4, eps=1e-15)
     """ADAM parameters for camera optimization."""
 
-    scheduler: SchedulerConfig = SchedulerConfig(max_steps=10000)
+    scheduler: SchedulerConfig = ExponentialDecaySchedulerConfig(max_steps=10000)
     """Learning rate scheduler for camera optimizer.."""
 
     param_group: tyro.conf.Suppress[str] = "camera_opt"
@@ -104,7 +107,7 @@ class CameraOptimizer(nn.Module):
         Args:
             indices: indices of Cameras to optimize.
         Returns:
-            Tranformation matrices from optimized camera coordinates coordinates
+            Transformation matrices from optimized camera coordinates
             to given camera coordinates.
         """
         outputs = []

@@ -17,14 +17,24 @@ Base class for the graphs.
 """
 
 from abc import abstractmethod
-from typing import Dict, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Dict, Optional, Tuple, Type
 
 import torch
 from torch import nn
 from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import Frustums, RaySamples
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.field_components.field_heads import FieldHeadNames
+
+
+@dataclass
+class FieldConfig(InstantiateConfig):
+    """Configuration for field instantiation"""
+
+    _target: Type = field(default_factory=lambda: Field)
+    """target class to instantiate"""
 
 
 class Field(nn.Module):
@@ -41,7 +51,7 @@ class Field(nn.Module):
         Args:
             positions: the origin of the samples/frustums
         """
-        # Need to figure out a better way to descibe positions with a ray.
+        # Need to figure out a better way to describe positions with a ray.
         ray_samples = RaySamples(
             frustums=Frustums(
                 origins=positions,
@@ -74,10 +84,15 @@ class Field(nn.Module):
             self._sample_locations.shape[:-1] == self._density_before_activation.shape[:-1]
         ), "Sample locations and density must have the same shape besides the last dimension."
 
-        self._density_before_activation.backward(
-            gradient=torch.ones_like(self._density_before_activation), inputs=self._sample_locations, retain_graph=True
-        )
-        normals = -torch.nn.functional.normalize(self._sample_locations.grad, dim=-1)
+        normals = torch.autograd.grad(
+            self._density_before_activation,
+            self._sample_locations,
+            grad_outputs=torch.ones_like(self._density_before_activation),
+            retain_graph=True,
+        )[0]
+
+        normals = -torch.nn.functional.normalize(normals, dim=-1)
+
         return normals
 
     @abstractmethod
@@ -91,7 +106,7 @@ class Field(nn.Module):
             density_embedding: Density embeddings to condition on.
         """
 
-    def forward(self, ray_samples: RaySamples, compute_normals: bool = False):
+    def forward(self, ray_samples: RaySamples, compute_normals: bool = False) -> Dict[FieldHeadNames, TensorType]:
         """Evaluates the field at points along the ray.
 
         Args:
@@ -111,3 +126,12 @@ class Field(nn.Module):
                 normals = self.get_normals()
             field_outputs[FieldHeadNames.NORMALS] = normals  # type: ignore
         return field_outputs
+
+
+def shift_directions_for_tcnn(directions: TensorType["bs":..., 3]) -> TensorType["bs":..., 3]:
+    """Shift directions from [-1, 1] to [0, 1]
+
+    Args:
+        directions: batch of directions
+    """
+    return (directions + 1.0) / 2.0

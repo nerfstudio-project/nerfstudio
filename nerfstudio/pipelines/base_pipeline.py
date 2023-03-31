@@ -21,7 +21,7 @@ import typing
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from time import time
-from typing import Any, Dict, List, Optional, Type, Union, cast
+from typing import Any, Dict, List, Mapping, Optional, Type, Union, cast
 
 import torch
 import torch.distributed as dist
@@ -40,6 +40,7 @@ from typing_extensions import Literal
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datamanagers.base_datamanager import (
     DataManager,
+    DataManagerConfig,
     VanillaDataManager,
     VanillaDataManagerConfig,
 )
@@ -80,7 +81,7 @@ class Pipeline(nn.Module):
         device: location to place model and data
         test_mode:
             'train': loads train/eval datasets into memory
-            'test': loads train/test datset into memory
+            'test': loads train/test dataset into memory
             'inference': does not load any dataset into memory
         world_size: total number of machines available
         local_rank: rank of current machine
@@ -94,6 +95,7 @@ class Pipeline(nn.Module):
 
     datamanager: DataManager
     _model: Model
+    world_size: int
 
     @property
     def model(self):
@@ -104,6 +106,12 @@ class Pipeline(nn.Module):
     def device(self):
         """Returns the device that the model is on."""
         return self.model.device
+
+    def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
+        model_state = {key[len("_model.") :]: value for key, value in state_dict.items() if key.startswith("_model.")}
+        pipeline_state = {key: value for key, value in state_dict.items() if not key.startswith("_model.")}
+        self._model.load_state_dict(model_state, strict=strict)
+        super().load_state_dict(pipeline_state, strict=False)
 
     @profiler.time_function
     def get_train_loss_dict(self, step: int):
@@ -158,11 +166,12 @@ class Pipeline(nn.Module):
     def get_average_eval_image_metrics(self, step: Optional[int] = None):
         """Iterate over all the images in the eval dataset and get the average."""
 
-    def load_pipeline(self, loaded_state: Dict[str, Any]) -> None:
+    def load_pipeline(self, loaded_state: Dict[str, Any], step: int) -> None:
         """Load the checkpoint from the given path
 
         Args:
             loaded_state: pre-trained model state dict
+            step: training step of the loaded checkpoint
         """
 
     def get_training_callbacks(
@@ -184,7 +193,7 @@ class VanillaPipelineConfig(cfg.InstantiateConfig):
 
     _target: Type = field(default_factory=lambda: VanillaPipeline)
     """target class to instantiate"""
-    datamanager: VanillaDataManagerConfig = VanillaDataManagerConfig()
+    datamanager: DataManagerConfig = VanillaDataManagerConfig()
     """specifies the datamanager config"""
     model: ModelConfig = ModelConfig()
     """specifies the model config"""
@@ -193,11 +202,12 @@ class VanillaPipelineConfig(cfg.InstantiateConfig):
 class VanillaPipeline(Pipeline):
     """The pipeline class for the vanilla nerf setup of multiple cameras for one or a few scenes.
 
+    Args:
         config: configuration to instantiate pipeline
         device: location to place model and data
         test_mode:
             'val': loads train/val datasets into memory
-            'test': loads train/test datset into memory
+            'test': loads train/test dataset into memory
             'inference': does not load any dataset into memory
         world_size: total number of machines available
         local_rank: rank of current machine
@@ -255,15 +265,16 @@ class VanillaPipeline(Pipeline):
         model_outputs = self.model(ray_bundle)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
 
-        camera_opt_param_group = self.config.datamanager.camera_optimizer.param_group
-        if camera_opt_param_group in self.datamanager.get_param_groups():
-            # Report the camera optimization metrics
-            metrics_dict["camera_opt_translation"] = (
-                self.datamanager.get_param_groups()[camera_opt_param_group][0].data[:, :3].norm()
-            )
-            metrics_dict["camera_opt_rotation"] = (
-                self.datamanager.get_param_groups()[camera_opt_param_group][0].data[:, 3:].norm()
-            )
+        if self.config.datamanager.camera_optimizer is not None:
+            camera_opt_param_group = self.config.datamanager.camera_optimizer.param_group
+            if camera_opt_param_group in self.datamanager.get_param_groups():
+                # Report the camera optimization metrics
+                metrics_dict["camera_opt_translation"] = (
+                    self.datamanager.get_param_groups()[camera_opt_param_group][0].data[:, :3].norm()
+                )
+                metrics_dict["camera_opt_rotation"] = (
+                    self.datamanager.get_param_groups()[camera_opt_param_group][0].data[:, 3:].norm()
+                )
 
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
 
@@ -352,20 +363,18 @@ class VanillaPipeline(Pipeline):
         self.train()
         return metrics_dict
 
-    def load_pipeline(self, loaded_state: Dict[str, Any]) -> None:
+    def load_pipeline(self, loaded_state: Dict[str, Any], step: int) -> None:
         """Load the checkpoint from the given path
 
         Args:
             loaded_state: pre-trained model state dict
+            step: training step of the loaded checkpoint
         """
-        state = {key.replace("module.", ""): value for key, value in loaded_state.items()}
-        if self.test_mode == "inference":
-            state.pop("datamanager.train_camera_optimizer.pose_adjustment", None)
-            state.pop("datamanager.train_ray_generator.image_coords", None)
-            state.pop("datamanager.train_ray_generator.pose_optimizer.pose_adjustment", None)
-            state.pop("datamanager.eval_ray_generator.image_coords", None)
-            state.pop("datamanager.eval_ray_generator.pose_optimizer.pose_adjustment", None)
-        self.load_state_dict(state)  # type: ignore
+        state = {
+            (key[len("module.") :] if key.startswith("module.") else key): value for key, value in loaded_state.items()
+        }
+        self._model.update_to_step(step)
+        self.load_state_dict(state, strict=True)
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes

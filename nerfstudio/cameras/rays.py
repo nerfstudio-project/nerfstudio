@@ -17,13 +17,15 @@ Some ray datastructures.
 """
 import random
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Optional, Tuple, Union
 
 import torch
 from torchtyping import TensorType
 
 from nerfstudio.utils.math import Gaussians, conical_frustum_to_gaussian
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
+
+TORCH_DEVICE = Union[str, torch.device]  # pylint: disable=invalid-name
 
 
 @dataclass
@@ -44,7 +46,7 @@ class Frustums(TensorDataclass):
     """Offsets for each sample position"""
 
     def get_positions(self) -> TensorType[..., 3]:
-        """Calulates "center" position of frustum. Not weighted by mass.
+        """Calculates "center" position of frustum. Not weighted by mass.
 
         Returns:
             xyz positions.
@@ -54,6 +56,14 @@ class Frustums(TensorDataclass):
             pos = pos + self.offsets
         return pos
 
+    def get_start_positions(self) -> TensorType[..., 3]:
+        """Calulates "start" position of frustum.
+
+        Returns:
+            xyz positions.
+        """
+        return self.origins + self.directions * self.starts
+
     def set_offsets(self, offsets):
         """Sets offsets for this frustum for computing positions"""
         self.offsets = offsets
@@ -61,7 +71,7 @@ class Frustums(TensorDataclass):
     def get_gaussian_blob(self) -> Gaussians:
         """Calculates guassian approximation of conical frustum.
 
-        Resturns:
+        Returns:
             Conical frustums approximated by gaussian distribution.
         """
         # Cone radius is set such that the square pixel_area matches the cone area.
@@ -77,7 +87,7 @@ class Frustums(TensorDataclass):
         )
 
     @classmethod
-    def get_mock_frustum(cls, device="cpu") -> "Frustums":
+    def get_mock_frustum(cls, device: Optional[TORCH_DEVICE] = "cpu") -> "Frustums":
         """Helper function to generate a placeholder frustum.
 
         Returns:
@@ -109,7 +119,7 @@ class RaySamples(TensorDataclass):
     spacing_to_euclidean_fn: Optional[Callable] = None
     """Function to convert bins to euclidean distance."""
     metadata: Optional[Dict[str, TensorType["bs":..., "latent_dims"]]] = None
-    """addtional information relevant to generating ray samples"""
+    """additional information relevant to generating ray samples"""
 
     times: Optional[TensorType[..., 1]] = None
     """Times at which rays are sampled"""
@@ -134,8 +144,30 @@ class RaySamples(TensorDataclass):
         transmittance = torch.exp(-transmittance)  # [..., "num_samples"]
 
         weights = alphas * transmittance  # [..., "num_samples"]
+        weights = torch.nan_to_num(weights)
 
         return weights
+
+    @staticmethod
+    def get_weights_and_transmittance_from_alphas(
+        alphas: TensorType[..., "num_samples", 1], weights_only: bool = False
+    ) -> Tuple[TensorType[..., "num_samples", 1], TensorType[..., "num_samples", 1]]:
+        """Return weights based on predicted alphas
+        Args:
+            alphas: Predicted alphas (maybe from sdf) for samples along ray
+            weights_only: If function should return only weights
+        Returns:
+            Tuple of weights and transmittance for each sample
+        """
+
+        transmittance = torch.cumprod(
+            torch.cat([torch.ones((*alphas.shape[:1], 1, 1), device=alphas.device), 1.0 - alphas + 1e-7], 1), 1
+        )
+
+        weights = alphas * transmittance[:, :-1, :]
+        if weights_only:
+            return weights
+        return weights, transmittance
 
 
 @dataclass
@@ -168,7 +200,7 @@ class RayBundle(TensorDataclass):
         """
         self.camera_indices = torch.ones_like(self.origins[..., 0:1]).long() * camera_index
 
-    def __len__(self):
+    def __len__(self) -> int:
         num_rays = torch.numel(self.origins) // self.origins.shape[-1]
         return num_rays
 
@@ -186,7 +218,7 @@ class RayBundle(TensorDataclass):
         return self[indices]
 
     def get_row_major_sliced_ray_bundle(self, start_idx: int, end_idx: int) -> "RayBundle":
-        """Flattens RayBundle and extracts chunk given start and end indicies.
+        """Flattens RayBundle and extracts chunk given start and end indices.
 
         Args:
             start_idx: Start index of RayBundle chunk.

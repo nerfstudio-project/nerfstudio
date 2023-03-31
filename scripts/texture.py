@@ -56,10 +56,10 @@ class TextureMesh:
         # texture the mesh with NeRF and export to a mesh.obj file
         # and a material and texture file
         texture_utils.export_textured_mesh(
-            mesh,
-            pipeline,
-            self.px_per_uv_triangle,
-            self.output_dir,
+            mesh=mesh,
+            pipeline=pipeline,
+            output_dir=self.output_dir,
+            px_per_uv_triangle=self.px_per_uv_triangle,
             unwrap_method=self.unwrap_method,
             num_pixels_per_side=self.num_pixels_per_side,
         )

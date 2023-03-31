@@ -63,9 +63,10 @@ You will need to forward the port that the viewer is running on.
 For example, if you are running the viewer on port 7007, you will need to forward that port to your local machine. 
 You can (without needing to modify router port settings) simply do this by opening a new terminal window and sshing into the remote machine with the following command:
 
-```bash
-ssh -L 7007:localhost:7007 <username>@<remote-machine-ip>
-```
+..  code-block:: bash
+
+    ssh -L 7007:localhost:7007 <username>@<remote-machine-ip>
+
 
 ..  admonition:: Note
 

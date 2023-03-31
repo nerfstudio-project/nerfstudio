@@ -15,6 +15,8 @@ from rich.console import Console
 from typing_extensions import Annotated
 
 from nerfstudio.configs.base_config import PrintableConfig
+from nerfstudio.utils import install_checks
+from nerfstudio.utils.scripts import run_command
 
 CONSOLE = Console(width=120)
 
@@ -60,22 +62,25 @@ class BlenderDownload(DatasetDownload):
 
 
 @dataclass
-class FriendsDownload(DatasetDownload):
-    """Download the friends dataset."""
+class Sitcoms3DDownload(DatasetDownload):
+    """Download the sitcoms3D dataset."""
 
     def download(self, save_dir: Path):
-        """Download the friends dataset."""
+        """Download the sitcoms3D dataset."""
 
         # https://drive.google.com/file/d/1sgKr0ZO7BQC0FYinAnRSxobIWNucAST5/view?usp=sharing
-        friends_file_id = "1sgKr0ZO7BQC0FYinAnRSxobIWNucAST5"
+        sitcoms3d_file_id = "1sgKr0ZO7BQC0FYinAnRSxobIWNucAST5"
 
         # Download the files
-        url = f"https://drive.google.com/uc?id={friends_file_id}"
-        download_path = str(save_dir / "friends.zip")
+        url = f"https://drive.google.com/uc?id={sitcoms3d_file_id}"
+        download_path = str(save_dir / "sitcoms3d.zip")
         gdown.download(url, output=download_path)
         with zipfile.ZipFile(download_path, "r") as zip_ref:
             zip_ref.extractall(str(save_dir))
         os.remove(download_path)
+        # The folder name of the downloaded dataset is the previously using 'friends/'
+        if os.path.exists(str(save_dir / "friends/")):
+            os.rename(str(save_dir / "friends/"), str(save_dir / "sitcoms3d/"))
 
 
 def grab_file_id(zip_url: str) -> str:
@@ -84,17 +89,39 @@ def grab_file_id(zip_url: str) -> str:
     return s.split("/")[0]
 
 
+nerfstudio_dataset = [
+    "Egypt",
+    "person",
+    "kitchen",
+    "plane",
+    "dozer",
+    "floating-tree",
+    "aspen",
+    "stump",
+    "sculpture",
+    "Giannini-Hall",
+]
 nerfstudio_file_ids = {
     "bww_entrance": grab_file_id("https://drive.google.com/file/d/1ylkRHtfB3n3IRLf2wplpfxzPTq7nES9I/view?usp=sharing"),
     "campanile": grab_file_id("https://drive.google.com/file/d/13aOfGJRRH05pOOk9ikYGTwqFc2L1xskU/view?usp=sharing"),
     "desolation": grab_file_id("https://drive.google.com/file/d/14IzOOQm9KBJ3kPbunQbUTHPnXnmZus-f/view?usp=sharing"),
-    "dozer": grab_file_id("https://drive.google.com/file/d/1-OR5F_V5S4s-yzxohbwTylaXjzYLu8ZR/view?usp=sharing"),
     "library": grab_file_id("https://drive.google.com/file/d/1Hjbh_-BuaWETQExn2x2qGD74UwrFugHx/view?usp=sharing"),
     "poster": grab_file_id("https://drive.google.com/file/d/1dmjWGXlJnUxwosN6MVooCDQe970PkD-1/view?usp=sharing"),
     "redwoods2": grab_file_id("https://drive.google.com/file/d/1rg-4NoXT8p6vkmbWxMOY6PSG4j3rfcJ8/view?usp=sharing"),
     "storefront": grab_file_id("https://drive.google.com/file/d/16b792AguPZWDA_YC4igKCwXJqW0Tb21o/view?usp=sharing"),
     "vegetation": grab_file_id("https://drive.google.com/file/d/1wBhLQ2odycrtU39y2akVurXEAt9SsVI3/view?usp=sharing"),
+    "Egypt": "https://data.nerf.studio/nerfstudio/Egypt.zip",
+    "person": "https://data.nerf.studio/nerfstudio/person.zip",
+    "kitchen": "https://data.nerf.studio/nerfstudio/kitchen.zip",
+    "plane": "https://data.nerf.studio/nerfstudio/plane.zip",
+    "dozer": "https://data.nerf.studio/nerfstudio/dozer.zip",
+    "floating-tree": "https://data.nerf.studio/nerfstudio/floating-tree.zip",
+    "aspen": "https://data.nerf.studio/nerfstudio/aspen.zip",
+    "stump": "https://data.nerf.studio/nerfstudio/stump.zip",
+    "sculpture": "https://data.nerf.studio/nerfstudio/sculpture.zip",
+    "Giannini-Hall": "https://data.nerf.studio/nerfstudio/Giannini-Hall.zip",
     "all": None,
+    "nerfstudio-dataset": nerfstudio_dataset,
 }
 
 NerfstudioCaptureName = tyro.extras.literal_type_from_choices(nerfstudio_file_ids.keys())
@@ -103,14 +130,33 @@ NerfstudioCaptureName = tyro.extras.literal_type_from_choices(nerfstudio_file_id
 def download_capture_name(save_dir: Path, dataset_name: str, capture_name: str, capture_name_to_file_id: dict):
     """Download specific captures a given dataset and capture name."""
 
-    url = f"https://drive.google.com/uc?id={capture_name_to_file_id[capture_name]}"
-    target_path = str(save_dir / f"{dataset_name}/{capture_name}")
-    os.makedirs(target_path, exist_ok=True)
-    download_path = Path(f"{target_path}.zip")
-    tmp_path = str(save_dir / ".temp")
-    shutil.rmtree(tmp_path, ignore_errors=True)
-    os.makedirs(tmp_path, exist_ok=True)
-    gdown.download(url, output=str(download_path))
+    file_id_or_zip_url = capture_name_to_file_id[capture_name]
+    if file_id_or_zip_url.endswith(".zip"):
+        url = file_id_or_zip_url  # zip url
+        target_path = str(save_dir / f"{dataset_name}/{capture_name}")
+        os.makedirs(target_path, exist_ok=True)
+        download_path = Path(f"{target_path}.zip")
+        tmp_path = str(save_dir / ".temp")
+        shutil.rmtree(tmp_path, ignore_errors=True)
+        os.makedirs(tmp_path, exist_ok=True)
+        try:
+            os.remove(download_path)
+        except OSError:
+            pass
+        run_command(f"wget {url} -O {download_path}", verbose=True)
+    else:
+        url = f"https://drive.google.com/uc?id={file_id_or_zip_url}"  # file id
+        target_path = str(save_dir / f"{dataset_name}/{capture_name}")
+        os.makedirs(target_path, exist_ok=True)
+        download_path = Path(f"{target_path}.zip")
+        tmp_path = str(save_dir / ".temp")
+        shutil.rmtree(tmp_path, ignore_errors=True)
+        os.makedirs(tmp_path, exist_ok=True)
+        try:
+            os.remove(download_path)
+        except OSError:
+            pass
+        gdown.download(url, output=str(download_path))
     with zipfile.ZipFile(download_path, "r") as zip_ref:
         zip_ref.extractall(tmp_path)
     inner_folders = os.listdir(tmp_path)
@@ -132,7 +178,13 @@ class NerfstudioDownload(DatasetDownload):
         """Download the nerfstudio dataset."""
         if self.capture_name == "all":
             for capture_name in nerfstudio_file_ids:
-                if capture_name != "all":
+                if capture_name not in ("all", "nerfstudio-dataset"):
+                    download_capture_name(save_dir, "nerfstudio", capture_name, nerfstudio_file_ids)
+            return
+
+        if self.capture_name == "nerfstudio-dataset":
+            for capture_name in nerfstudio_dataset:
+                if capture_name not in ("all", "nerfstudio-dataset"):
                     download_capture_name(save_dir, "nerfstudio", capture_name, nerfstudio_file_ids)
             return
 
@@ -164,6 +216,7 @@ class DNerfDownload(DatasetDownload):
         """Download the D-NeRF dataset (https://github.com/albertpumarola/D-NeRF)."""
         # TODO: give this code the same structure as download_nerfstudio
 
+        install_checks.check_curl_installed()
         final_path = save_dir / Path("dnerf")
         if os.path.exists(final_path):
             shutil.rmtree(str(final_path))
@@ -205,6 +258,7 @@ class PhototourismDownload(DatasetDownload):
     def download(self, save_dir: Path):
         """Download a PhotoTourism dataset: https://www.cs.ubc.ca/~kmyi/imw2020/data.html"""
 
+        install_checks.check_curl_installed()
         if self.capture_name == "all":
             for capture_name in phototourism_downloads:
                 if capture_name != "all":
@@ -236,13 +290,143 @@ class PhototourismDownload(DatasetDownload):
         os.remove(download_path)
 
 
+# credit to https://autonomousvision.github.io/sdfstudio/
+# pylint: disable=line-too-long
+sdfstudio_downloads = {
+    "sdfstudio-demo-data": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/sdfstudio-demo-data.tar",
+    "dtu": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/DTU.tar",
+    "replica": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/Replica.tar",
+    "scannet": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/scannet.tar",
+    "tanks-and-temple": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/tnt_advanced.tar",
+    "tanks-and-temple-highres": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/highresTNT.tar",
+    "heritage": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/Heritage-Recon.tar",
+    "neural-rgbd-data": "http://kaldir.vc.in.tum.de/neural_rgbd/neural_rgbd_data.zip",
+    "all": None,
+}
+
+SDFstudioCaptureName = tyro.extras.literal_type_from_choices(sdfstudio_downloads.keys())
+
+
+@dataclass
+class SDFstudioDemoDownload(DatasetDownload):
+    """Download the sdfstudio dataset."""
+
+    dataset_name: SDFstudioCaptureName = "sdfstudio-demo-data"
+
+    def download(self, save_dir: Path):
+        """Download the D-NeRF dataset (https://github.com/albertpumarola/D-NeRF)."""
+        # TODO: give this code the same structure as download_nerfstudio
+
+        if self.dataset_name == "all":
+            for dataset_name in sdfstudio_downloads:
+                if dataset_name != "all":
+                    SDFstudioDemoDownload(dataset_name=dataset_name).download(save_dir)
+            return
+
+        assert (
+            self.dataset_name in sdfstudio_downloads
+        ), f"Capture name {self.dataset_name} not found in {sdfstudio_downloads.keys()}"
+
+        url = sdfstudio_downloads[self.dataset_name]
+
+        target_path = str(save_dir / self.dataset_name)
+        os.makedirs(target_path, exist_ok=True)
+
+        file_format = url[-4:]
+
+        download_path = Path(f"{target_path}{file_format}")
+        tmp_path = str(save_dir / ".temp")
+        shutil.rmtree(tmp_path, ignore_errors=True)
+        os.makedirs(tmp_path, exist_ok=True)
+
+        os.system(f"curl -L {url} > {download_path}")
+        if file_format == ".tar":
+            with tarfile.open(download_path, "r") as tar_ref:
+                tar_ref.extractall(str(tmp_path))
+        elif file_format == ".zip":
+            with zipfile.ZipFile(download_path, "r") as zip_ref:
+                zip_ref.extractall(str(target_path))
+            return
+        else:
+            raise NotImplementedError
+
+        inner_folders = os.listdir(tmp_path)
+        assert len(inner_folders) == 1, "There is more than one folder inside this zip file."
+        folder = os.path.join(tmp_path, inner_folders[0])
+        shutil.rmtree(target_path)
+        shutil.move(folder, target_path)
+        shutil.rmtree(tmp_path)
+        os.remove(download_path)
+
+
+# pylint: disable=line-too-long
+nerfosr_downloads = {
+    "europa": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=europa&downloadStartSecret=0k2r95c1fdej",
+    "lk2": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=lk2&downloadStartSecret=w8kuvjzmchc",
+    "lwp": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=lwp&downloadStartSecret=gtnc4vmkcjq",
+    "rathaus": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=rathaus&downloadStartSecret=7372aewy6rr",
+    "schloss": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=schloss&downloadStartSecret=y8t00nqx0h",
+    "st": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=st&downloadStartSecret=kl9ptuxe8v",
+    "stjacob": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=stjacob&downloadStartSecret=sntsim6ebvm",
+    "stjohann": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=stjohann&downloadStartSecret=g80ug1fsbmh",
+    "trevi": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=trevi&downloadStartSecret=ot1483bigjm",
+    "all": None,
+}
+
+
+NeRFOSRCaptureName = tyro.extras.literal_type_from_choices(nerfosr_downloads.keys())
+
+
+@dataclass
+class NeRFOSRDownload(DatasetDownload):
+    """Download the NeRF-OSR dataset."""
+
+    capture_name: NeRFOSRCaptureName = "europa"
+
+    def download(self, save_dir: Path):
+        """Download the NeRF-OSR dataset: https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk"""
+
+        if self.capture_name == "all":
+            for capture_name in nerfosr_downloads:
+                if capture_name != "all":
+                    NeRFOSRDownload(capture_name=capture_name).download(save_dir)
+            return
+
+        assert (
+            self.capture_name in nerfosr_downloads
+        ), f"Capture name {self.capture_name} not found in {nerfosr_downloads.keys()}"
+        url = nerfosr_downloads[self.capture_name]
+        target_path = str(save_dir / f"NeRF-OSR/Data/{self.capture_name}")
+        os.makedirs(target_path, exist_ok=True)
+        download_path = Path(f"{target_path}.zip")
+        tmp_path = str(save_dir / ".temp")
+        shutil.rmtree(tmp_path, ignore_errors=True)
+        os.makedirs(tmp_path, exist_ok=True)
+
+        os.system(f"curl -L '{url}' > {download_path}")
+
+        # Extract the zip file
+        with zipfile.ZipFile(download_path, "r") as zip_ref:
+            zip_ref.extractall(tmp_path)
+
+        inner_folders = os.listdir(tmp_path)
+        assert len(inner_folders) == 1, "There is more than one folder inside this zip file."
+        folder = os.path.join(tmp_path, inner_folders[0])
+        shutil.rmtree(target_path)
+        shutil.move(folder, target_path)
+        shutil.rmtree(tmp_path)
+        os.remove(download_path)
+
+
 Commands = Union[
     Annotated[BlenderDownload, tyro.conf.subcommand(name="blender")],
-    Annotated[FriendsDownload, tyro.conf.subcommand(name="friends")],
+    Annotated[Sitcoms3DDownload, tyro.conf.subcommand(name="sitcoms3d")],
     Annotated[NerfstudioDownload, tyro.conf.subcommand(name="nerfstudio")],
     Annotated[Record3dDownload, tyro.conf.subcommand(name="record3d")],
     Annotated[DNerfDownload, tyro.conf.subcommand(name="dnerf")],
     Annotated[PhototourismDownload, tyro.conf.subcommand(name="phototourism")],
+    Annotated[SDFstudioDemoDownload, tyro.conf.subcommand(name="sdfstudio")],
+    Annotated[NeRFOSRDownload, tyro.conf.subcommand(name="nerfosr")],
 ]
 
 
@@ -254,7 +438,7 @@ def main(
     - nerfstudio: Growing collection of real-world scenes. Use the `capture_name` argument to specify
         which capture to download.
     - blender: Blender synthetic scenes realeased with NeRF.
-    - friends: Friends TV show scenes.
+    - sitcoms3d: Friends TV show scenes.
     - record3d: Record3d dataset.
     - dnerf: D-NeRF dataset.
     - phototourism: PhotoTourism dataset. Use the `capture_name` argument to specify which capture to download.

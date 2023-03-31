@@ -1,11 +1,11 @@
 import * as React from 'react';
 
 import Button from '@mui/material/Button';
-import { ButtonGroup } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import ViewInArIcon from '@mui/icons-material/ViewInAr';
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 
 import { WebSocketContext } from '../../WebSocket/WebSocket';
 
@@ -24,35 +24,34 @@ export default function StatusPanel(props: StatusPanelProps) {
   const isWebsocketConnected = useSelector(
     (state) => state.websocketState.isConnected,
   );
-  const isWebrtcConnected = useSelector(
-    (state) => state.webrtcState.isConnected,
-  );
   const eval_res = useSelector((state) => state.renderingState.eval_res);
   const vis_train_ratio = useSelector(
     (state) => state.renderingState.vis_train_ratio,
   );
+  const camera_choice = useSelector(
+    (state) => state.renderingState.camera_choice,
+  );
 
   // logic for toggling visibility of the entire scene and just the training images
-  const [is_scene_visible, set_is_scene_visible] = React.useState(1);
-  const [is_images_visible, set_is_images_visible] = React.useState(1);
+  const [is_scene_visible, set_is_scene_visible] = React.useState(true);
+  const [is_images_visible, set_is_images_visible] = React.useState(true);
   const scene_button = is_scene_visible ? 'Hide Scene' : 'Show Scene';
   const cameras_button = is_images_visible ? 'Hide Images' : 'Show Images';
-  sceneTree.object.visible = is_scene_visible;
+  sceneTree.object.visible =
+    is_scene_visible && camera_choice === 'Main Camera';
   if (sceneTree.find_no_create(['Training Cameras']) !== null) {
     sceneTree.find_no_create(['Training Cameras']).object.visible =
       is_images_visible;
   }
 
   React.useEffect(() => {
-    sceneTree.object.traverse(
-      (obj) => {
-        if (obj.name === 'CAMERA_LABEL') {
-          // eslint-disable-next-line no-param-reassign
-          obj.visible = is_scene_visible;
-        }
+    sceneTree.object.traverse((obj) => {
+      if (obj.name === 'CAMERA_LABEL') {
+        // eslint-disable-next-line no-param-reassign
+        obj.visible = is_scene_visible && camera_choice === 'Main Camera';
       }
-    );
-  }, [is_scene_visible]);
+    });
+  }, [camera_choice, is_scene_visible]);
 
   const handlePlayChange = () => {
     dispatch({
@@ -75,13 +74,9 @@ export default function StatusPanel(props: StatusPanelProps) {
   const training_icon = isTraining ? <PauseIcon /> : <PlayArrowIcon />;
 
   const websocket_connected_text = isWebsocketConnected
-    ? 'Server Connected'
-    : 'Server Disconnected';
-  const webrtc_connected_text = isWebrtcConnected
-    ? 'Render Connected'
-    : 'Render Disconnected';
+    ? 'Renderer Connected'
+    : 'Renderer Disconnected';
   const websocket_connected_color = isWebsocketConnected ? 'success' : 'error';
-  const webrtc_connected_color = isWebrtcConnected ? 'success' : 'error';
 
   return (
     <div className="StatusPanel">
@@ -105,6 +100,7 @@ export default function StatusPanel(props: StatusPanelProps) {
         }}
         style={{ textTransform: 'none' }}
         startIcon={<ViewInArIcon />}
+        disabled={camera_choice === 'Render Camera'}
       >
         {scene_button}
       </Button>
@@ -115,7 +111,8 @@ export default function StatusPanel(props: StatusPanelProps) {
           set_is_images_visible(!is_images_visible);
         }}
         style={{ textTransform: 'none' }}
-        startIcon={<ViewInArIcon />}
+        startIcon={<ImageOutlinedIcon />}
+        disabled={camera_choice === 'Render Camera'}
       >
         {cameras_button}
       </Button>
@@ -138,26 +135,13 @@ export default function StatusPanel(props: StatusPanelProps) {
           <b>Time Allocation:</b> {vis_train_ratio}
         </div>
       </div>
-      <ButtonGroup
-        className="StatusPanel-button-group"
-        variant="text"
-        aria-label="text button group"
+      <Button
+        className="StatusPanel-button"
+        color={websocket_connected_color}
+        style={{ textTransform: 'none' }}
       >
-        <Button
-          className="StatusPanel-button"
-          color={websocket_connected_color}
-          style={{ textTransform: 'none' }}
-        >
-          {websocket_connected_text}
-        </Button>
-        <Button
-          className="StatusPanel-button"
-          color={webrtc_connected_color}
-          style={{ textTransform: 'none' }}
-        >
-          {webrtc_connected_text}
-        </Button>
-      </ButtonGroup>
+        {websocket_connected_text}
+      </Button>
     </div>
   );
 }

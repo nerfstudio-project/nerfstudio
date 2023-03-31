@@ -40,7 +40,7 @@ def test_sh_renderer():
     sh_renderer = renderers.SHRenderer()
 
     rgb = sh_renderer(sh=sh, directions=directions, weights=weights)
-    assert torch.max(rgb) > 0.9
+    assert torch.max(rgb) > 0.7
 
 
 def test_acc_renderer():

@@ -102,7 +102,11 @@ class DNeRF(DataParser):
         )
 
         dataparser_outputs = DataparserOutputs(
-            image_filenames=image_filenames, cameras=cameras, alpha_color=alpha_color_tensor, scene_box=scene_box
+            image_filenames=image_filenames,
+            cameras=cameras,
+            alpha_color=alpha_color_tensor,
+            scene_box=scene_box,
+            dataparser_scale=self.scale_factor,
         )
 
         return dataparser_outputs
