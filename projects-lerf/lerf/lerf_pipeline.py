@@ -17,7 +17,7 @@ from lerf.data.lerf_datamanager import (
     LERFDataManagerConfig,
 )
 from lerf.lerf import LERFModel, LERFModelConfig
-from lerf.lerf_encoders import OpenCLIPNetwork, OpenCLIPNetworkConfig
+from lerf.encoders.image_encoder import BaseImageEncoderConfig, BaseImageEncoder
 
 
 @dataclass
@@ -30,7 +30,7 @@ class LERFPipelineConfig(VanillaPipelineConfig):
     """specifies the datamanager config"""
     model: ModelConfig = LERFModelConfig()
     """specifies the model config"""
-    network: OpenCLIPNetworkConfig = OpenCLIPNetworkConfig()
+    network: BaseImageEncoderConfig = BaseImageEncoderConfig()
     """specifies the vision-language network config"""
 
 
@@ -47,7 +47,7 @@ class LERFPipeline(VanillaPipeline):
         self.config = config
         self.test_mode = test_mode
 
-        self.image_encoder: OpenCLIPNetwork = config.network.setup()
+        self.image_encoder: BaseImageEncoder = config.network.setup()
 
         self.datamanager: LERFDataManager = config.datamanager.setup(
             device=device,

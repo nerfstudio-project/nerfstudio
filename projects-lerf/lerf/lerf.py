@@ -18,7 +18,7 @@ from nerfstudio.model_components.renderers import (
     MeanRenderer,
 )
 from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig
-from lerf.lerf_encoders import ImageEncoder
+from lerf.encoders.image_encoder import BaseImageEncoder
 from lerf.lerf_field import LERFField
 
 
@@ -42,7 +42,7 @@ class LERFModel(NerfactoModel):
         self.renderer_clip = CLIPRenderer()
         self.renderer_mean = MeanRenderer()
 
-        self.image_encoder: ImageEncoder = self.kwargs["image_encoder"]
+        self.image_encoder: BaseImageEncoder = self.kwargs["image_encoder"]
         self.lerf_field = LERFField(clip_n_dims=self.image_encoder.embedding_dim)
 
     def get_max_across(self, ray_samples, weights, hashgrid_field, scales_shape, preset_scales=None):

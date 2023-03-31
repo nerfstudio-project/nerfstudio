@@ -1,58 +1,28 @@
-import typing
-from abc import abstractmethod, abstractproperty
 from dataclasses import dataclass, field
-from typing import List, Literal, Tuple, Type
-
-import torchvision
-
-from nerfstudio.configs import base_config as cfg
-
-try:
-    import open_clip
-except ImportError:
-    assert False, "open_clip is not installed, install it with `pip install open-clip-torch`"
+from typing import Tuple, Type
 
 import torch
+import torchvision
 
+try:
+    import clip
+except ImportError:
+    assert False, "clip is not installed, install it with `pip install clip`"
+
+from lerf.encoders.image_encoder import BaseImageEncoder, BaseImageEncoderConfig
 
 @dataclass
-class OpenCLIPNetworkConfig(cfg.InstantiateConfig):
-    """Configuration for network instantiation"""
-
-    _target: Type = field(default_factory=lambda: OpenCLIPNetwork)
+class CLIPNetworkConfig(BaseImageEncoderConfig):
+    _target: Type = field(default_factory=lambda: CLIPNetwork)
+    name: str = "clip"
+    description: str = "OpenAI CLIP network, images and text"
     """target class to instantiate"""
     clip_model_type: str = "ViT-B-16"
-    clip_model_pretrained: str = "laion2b_s34b_b88k"
     clip_n_dims: int = 512
-    # clip_model_type: str = "ViT-L-14"
-    # clip_model_pretrained: str = "laion2b_s32b_b82k"
-    # clip_n_dims: int = 768
     negatives: Tuple[str] = ("object", "things", "stuff", "texture")
 
-
-class ImageEncoder:
-    @abstractproperty
-    def embedding_dim(self) -> int:
-        """
-        returns the dimension of the embeddings
-        """
-
-    @abstractmethod
-    def encode_image(self, input: torch.Tensor) -> torch.Tensor:
-        """
-        Given a batch of input images, return their encodings
-        """
-
-    @abstractmethod
-    def get_relevancy(self, embed: torch.Tensor, positive_id: int) -> torch.Tensor:
-        """
-        Given a batch of embeddings, return the relevancy to the given positive id
-        """
-
-
-# ambivalent about this being here, it's still technically rendering but I want to keep it with the OpenCLIPNetworkConfig
-class OpenCLIPNetwork(ImageEncoder):
-    def __init__(self, config: OpenCLIPNetworkConfig):
+class CLIPNetwork(BaseImageEncoder):
+    def __init__(self, config: CLIPNetworkConfig):
         self.config = config
         self.process = torchvision.transforms.Compose(
             [
@@ -63,13 +33,9 @@ class OpenCLIPNetwork(ImageEncoder):
                 ),
             ]
         )
-        model, _, _ = open_clip.create_model_and_transforms(
-            self.config.clip_model_type,  # e.g., ViT-B-16
-            pretrained=self.config.clip_model_pretrained,  # e.g., laion2b_s34b_b88k
-            precision="fp16",
-        )
+        model, _ = clip.load(self.config.clip_model_type)
         model.eval()
-        self.tokenizer = open_clip.get_tokenizer(self.config.clip_model_type)
+        self.tokenizer = clip.tokenize
         self.model = model.to("cuda")
         self.clip_n_dims = self.config.clip_n_dims
 

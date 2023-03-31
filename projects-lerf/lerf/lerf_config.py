@@ -13,7 +13,12 @@ from nerfstudio.plugins.types import MethodSpecification
 from lerf.data.lerf_datamanager import LERFDataManagerConfig
 from lerf.lerf import LERFModelConfig
 from lerf.lerf_pipeline import LERFPipelineConfig
-from lerf.lerf_encoders import OpenCLIPNetworkConfig
+
+"""
+Swap out the network config to use OpenCLIP or CLIP here.
+"""
+from lerf.encoders.openclip_encoder import OpenCLIPNetworkConfig
+from lerf.encoders.clip_encoder import CLIPNetworkConfig
 
 lerf_method = MethodSpecification(
   config=TrainerConfig(
