@@ -104,6 +104,11 @@ method_configs["lerf"] = TrainerConfig(
             ),
         ),
         model=LERFModelConfig(eval_num_rays_per_chunk=1 << 16),
+        network=OpenCLIPNetworkConfig(
+            clip_model_type = "ViT-B-16",
+            clip_model_pretrained = "laion2b_s34b_b88k",
+            clip_n_dims= 512
+        )
     ),
     optimizers={
         "proposal_networks": {

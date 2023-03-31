@@ -1,8 +1,10 @@
 import typing
+from abc import abstractmethod, abstractproperty
 from dataclasses import dataclass, field
 from typing import List, Literal, Tuple, Type
 
 import torch.distributed as dist
+import torchvision
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from nerfstudio.configs import base_config as cfg
@@ -29,73 +31,11 @@ except ImportError:
 
 import torch
 
-
-@dataclass
-class OpenCLIPNetworkConfig(cfg.InstantiateConfig):
-    """Configuration for network instantiation"""
-
-    _target: Type = field(default_factory=lambda: OpenCLIPNetwork)
-    """target class to instantiate"""
-    # clip_model_type: str = "ViT-B-16"
-    # clip_model_pretrained: str = "laion2b_s34b_b88k"
-    # clip_n_dims: int = 512
-    clip_model_type: str = "ViT-L-14"
-    clip_model_pretrained: str = "laion2b_s32b_b82k"
-    clip_n_dims: int = 768
-    negatives: Tuple[str] = ("object", "things", "stuff", "texture")
-
-
-# ambivalent about this being here, it's still technically rendering but I want to keep it with the OpenCLIPNetworkConfig
-class OpenCLIPNetwork:
-    def __init__(self, config: OpenCLIPNetworkConfig):
-        self.config = config
-        model, _, _ = open_clip.create_model_and_transforms(
-            self.config.clip_model_type,  # e.g., ViT-B-16
-            pretrained=self.config.clip_model_pretrained,  # e.g., laion2b_s34b_b88k
-            precision="fp16",
-        )
-        self.tokenizer = open_clip.get_tokenizer(self.config.clip_model_type)
-        self.model = model.to("cuda")
-        self.clip_n_dims = self.config.clip_n_dims
-
-        self.positives = ["hand sanitizer"]
-        self.negatives = self.config.negatives
-        with torch.no_grad():
-            tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.positives]).to("cuda")
-            self.pos_embeds = model.encode_text(tok_phrases)
-            tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.negatives]).to("cuda")
-            self.neg_embeds = model.encode_text(tok_phrases)
-        self.pos_embeds /= self.pos_embeds.norm(dim=-1, keepdim=True)
-        self.neg_embeds /= self.neg_embeds.norm(dim=-1, keepdim=True)
-
-        assert (
-            self.pos_embeds.shape[1] == self.neg_embeds.shape[1]
-        ), "Positive and negative embeddings must have the same dimensionality"
-        assert (
-            self.pos_embeds.shape[1] == self.clip_n_dims
-        ), "Embedding dimensionality must match the model dimensionality"
-
-    def set_positives(self, text_list):
-        self.positives = text_list
-        with torch.no_grad():
-            tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.positives]).to("cuda")
-            self.pos_embeds = self.model.encode_text(tok_phrases)
-        self.pos_embeds /= self.pos_embeds.norm(dim=-1, keepdim=True)
-
-    def get_relevancy(self, embed, positive_id):
-        phrases_embeds = torch.cat([self.pos_embeds, self.neg_embeds], dim=0)
-        p = phrases_embeds.to(embed.dtype)  # phrases x 512
-        output = torch.mm(embed, p.T)  # rays x phrases
-        positive_vals = output[..., positive_id : positive_id + 1]  # rays x 1
-        negative_vals = output[..., len(self.positives) :]  # rays x N_phrase
-        repeated_pos = positive_vals.repeat(1, len(self.negatives))  # rays x N_phrase
-
-        sims = torch.stack((repeated_pos, negative_vals), dim=-1)  # rays x N-phrase x 2
-        softmax = torch.softmax(10 * sims, dim=-1)  # rays x n-phrase x 2
-        best_id = softmax[..., 0].argmin(dim=1)  # rays x 2
-        return torch.gather(softmax, 1, best_id[..., None, None].expand(best_id.shape[0], len(self.negatives), 2))[
-            :, 0, :
-        ]
+from nerfstudio.pipelines.lerf_encoders import (
+    ImageEncoder,
+    OpenCLIPNetwork,
+    OpenCLIPNetworkConfig,
+)
 
 
 @dataclass
@@ -104,7 +44,7 @@ class LERFPipelineConfig(VanillaPipelineConfig):
 
     _target: Type = field(default_factory=lambda: LERFPipeline)
     """target class to instantiate"""
-    datamanager: DataManagerConfig = LERFDataManagerConfig()
+    datamanager: LERFDataManagerConfig = LERFDataManagerConfig()
     """specifies the datamanager config"""
     model: ModelConfig = LERFModelConfig()
     """specifies the model config"""
@@ -125,10 +65,14 @@ class LERFPipeline(VanillaPipeline):
         self.config = config
         self.test_mode = test_mode
 
-        self.network: OpenCLIPNetwork = config.network.setup()
+        self.image_encoder: OpenCLIPNetwork = config.network.setup()
 
         self.datamanager: LERFDataManager = config.datamanager.setup(
-            device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank, network=self.network
+            device=device,
+            test_mode=test_mode,
+            world_size=world_size,
+            local_rank=local_rank,
+            image_encoder=self.image_encoder,
         )
         self.datamanager.to(device)
 
@@ -139,7 +83,7 @@ class LERFPipeline(VanillaPipeline):
             scene_box=self.datamanager.train_dataset.scene_box,
             num_train_data=len(self.datamanager.train_dataset),
             metadata=self.datamanager.train_dataset.metadata,
-            network=self.network,
+            image_encoder=self.image_encoder,
         )
         self.model.to(device)
 

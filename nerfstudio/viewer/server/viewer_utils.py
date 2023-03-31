@@ -820,8 +820,7 @@ class ViewerState:
         clip_pos_word = self.vis["renderingState/clip_pos_word"].read()
         if self.prev_clip_pos_word != clip_pos_word and clip_pos_word is not None:
             print("setting target word to {}".format(clip_pos_word))
-            graph.network.set_positives([clip_pos_word])
-            print("done")
+            graph.image_encoder.set_positives([clip_pos_word])
             self.prev_clip_pos_word = clip_pos_word
 
         # update render aabb

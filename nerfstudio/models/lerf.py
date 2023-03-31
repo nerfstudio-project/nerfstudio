@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Type
 
@@ -18,6 +19,7 @@ from nerfstudio.model_components.renderers import (
     MeanRenderer,
 )
 from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig
+from nerfstudio.pipelines.lerf_encoders import ImageEncoder
 
 
 @dataclass
@@ -40,20 +42,20 @@ class LERFModel(NerfactoModel):
         self.renderer_clip = CLIPRenderer()
         self.renderer_mean = MeanRenderer()
 
-        self.network = self.kwargs["network"]
-        self.lerf_field = LERFField(clip_n_dims=self.network.clip_n_dims)
+        self.image_encoder: ImageEncoder = self.kwargs["image_encoder"]
+        self.lerf_field = LERFField(clip_n_dims=self.image_encoder.embedding_dim)
 
     def get_max_across(self, ray_samples, weights, hashgrid_field, scales_shape, preset_scales=None):
         # TODO smoothen this out
         if self.config.specify_scale:
             assert preset_scales is not None
-            assert len(preset_scales) == len(self.network.positives)
+            assert len(preset_scales) == len(self.image_encoder.positives)
             scales_list = torch.tensor(preset_scales)
         else:
             scales_list = torch.linspace(0.0, self.config.max_scale, self.config.n_scales)
 
         # probably not a good idea bc it's prob going to be a lot of memory
-        n_phrases = len(self.network.positives)
+        n_phrases = len(self.image_encoder.positives)
         n_phrases_maxs = [None for _ in range(n_phrases)]
         n_phrases_sims = [None for _ in range(n_phrases)]
         for s, scale in enumerate(scales_list):
@@ -67,7 +69,7 @@ class LERFModel(NerfactoModel):
             clip_output = self.renderer_clip(embeds=clip_output, weights=weights.detach())
 
             for i in range(n_phrases):
-                probs = self.network.get_relevancy(clip_output, i)
+                probs = self.image_encoder.get_relevancy(clip_output, i)
                 pos_prob = probs[..., 0:1]
                 if n_phrases_maxs[i] is None or pos_prob.max() > n_phrases_sims[i].max():
                     n_phrases_maxs[i] = s
