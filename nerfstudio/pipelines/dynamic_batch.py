@@ -60,7 +60,8 @@ class DynamicBatchPipeline(VanillaPipeline):
         ), "DynamicBatchPipeline only works with VanillaDataManager."
 
         self.dynamic_num_rays_per_batch = self.config.target_num_samples // self.config.max_num_samples_per_ray
-        self._update_pixel_samplers()
+        if test_mode != "inference":
+            self._update_pixel_samplers()
 
     def _update_pixel_samplers(self):
         """Update the pixel samplers for train and eval with the dynamic number of rays per batch."""

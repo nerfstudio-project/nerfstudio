@@ -1,0 +1,12 @@
+{
+  "experiment_name": "data-videos-uteplante_test",
+  "method_name": "nerfacto",
+  "checkpoint": "outputs/data-videos-uteplante_test/nerfacto/2022-11-24_152528/nerfstudio_models/step-000029999.ckpt",
+  "results": {
+    "psnr": 23.286663055419922,
+    "ssim": 0.624953031539917,
+    "lpips": 0.2206728458404541,
+    "num_rays_per_sec": 797340.0625,
+    "fps_at_960x540": 1.538078784942627
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "experiment_name": "data-nerfstudio-poster",
+  "method_name": "nerfacto",
+  "checkpoint": "outputs/data-nerfstudio-poster/nerfacto/2022-11-18_142540/nerfstudio_models/step-000029999.ckpt",
+  "results": {
+    "psnr": 20.356365203857422,
+    "ssim": 0.8386561870574951,
+    "lpips": 0.11881813406944275,
+    "num_rays_per_sec": 859573.1875,
+    "fps_at_960x540": 1.6581275463104248
+  }
+}

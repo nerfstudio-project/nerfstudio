@@ -1,0 +1,89 @@
+we are running from this directory: /cluster/home/olesto/code/nerfstudio
+ the name of the job is: train_nerfstudio_mip
+The job ID is 16297339
+The job was run on these nodes: idun-04-04
+Number of nodes: 1
+We are using 1 cores
+We are using 1 cores per node
+Total of 1 cores
+
+     active environment : nerfstudio
+    active env location : /cluster/home/olesto/.conda/envs/nerfstudio
+            shell level : 2
+       user config file : /cluster/home/olesto/.condarc
+ populated config files : 
+          conda version : 4.8.3
+    conda-build version : 3.18.11
+         python version : 3.8.3.final.0
+       virtual packages : __cuda=11.6
+                          __glibc=2.28
+       base environment : /cluster/apps/eb/software/Anaconda3/2020.07  (read only)
+           channel URLs : https://repo.anaconda.com/pkgs/main/linux-64
+                          https://repo.anaconda.com/pkgs/main/noarch
+                          https://repo.anaconda.com/pkgs/r/linux-64
+                          https://repo.anaconda.com/pkgs/r/noarch
+          package cache : /cluster/apps/eb/software/Anaconda3/2020.07/pkgs
+                          /cluster/home/olesto/.conda/pkgs
+       envs directories : /cluster/home/olesto/.conda/envs
+                          /cluster/apps/eb/software/Anaconda3/2020.07/envs
+               platform : linux-64
+             user-agent : conda/4.8.3 requests/2.28.1 CPython/3.8.3 Linux/4.18.0-348.el8.0.2.x86_64 rocky/8.5 glibc/2.28
+                UID:GID : 1265179:13401
+             netrc file : /cluster/home/olesto/.netrc
+           offline mode : False
+
+
+CommandNotFoundError: Your shell has not been properly configured to use 'conda activate'.
+To initialize your shell, run
+
+    $ conda init <SHELL_NAME>
+
+Currently supported shells are:
+  - bash
+  - fish
+  - tcsh
+  - xonsh
+  - zsh
+  - powershell
+
+See 'conda init --help' for more information and options.
+
+IMPORTANT: You may need to close and restart your shell after running 'conda init'.
+
+
+
+     active environment : nerfstudio
+    active env location : /cluster/home/olesto/.conda/envs/nerfstudio
+            shell level : 2
+       user config file : /cluster/home/olesto/.condarc
+ populated config files : 
+          conda version : 4.8.3
+    conda-build version : 3.18.11
+         python version : 3.8.3.final.0
+       virtual packages : __cuda=11.6
+                          __glibc=2.28
+       base environment : /cluster/apps/eb/software/Anaconda3/2020.07  (read only)
+           channel URLs : https://repo.anaconda.com/pkgs/main/linux-64
+                          https://repo.anaconda.com/pkgs/main/noarch
+                          https://repo.anaconda.com/pkgs/r/linux-64
+                          https://repo.anaconda.com/pkgs/r/noarch
+          package cache : /cluster/apps/eb/software/Anaconda3/2020.07/pkgs
+                          /cluster/home/olesto/.conda/pkgs
+       envs directories : /cluster/home/olesto/.conda/envs
+                          /cluster/apps/eb/software/Anaconda3/2020.07/envs
+               platform : linux-64
+             user-agent : conda/4.8.3 requests/2.28.1 CPython/3.8.3 Linux/4.18.0-348.el8.0.2.x86_64 rocky/8.5 glibc/2.28
+                UID:GID : 1265179:13401
+             netrc file : /cluster/home/olesto/.netrc
+           offline mode : False
+
+[02:57:03 PM] Auto image downscale factor of 1                                              nerfstudio_dataparser.py:216
+              Skipping 0 files in dataset split train.                                       nerfstudio_dataparser.py:96
+              Skipping 0 files in dataset split test.                                        nerfstudio_dataparser.py:96
+Loading latest checkpoint from load_dir
+✅ Done loading checkpoint from 
+outputs/data-videos-ohma_electra/mipnerf/2022-11-28_221252/nerfstudio_models/step-000149000.ckpt
+Creating trajectory video
+🎥 Rendering 🎥 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% ? 1:31:43
+──────────────────────────────────────────────  🎉 🎉 🎉 Success 🎉 🎉 🎉 ──────────────────────────────────────────────
+                                 Saved video to renders/ohma_electra_mipnerf_render.mp4                                 

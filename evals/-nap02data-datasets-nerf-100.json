@@ -1,0 +1,12 @@
+{
+  "experiment_name": "-nap02data-datasets-nerf-100",
+  "method_name": "nerfacto",
+  "checkpoint": "outputs/-nap02data-datasets-nerf-100/nerfacto/2022-11-30_095314/nerfstudio_models/step-000029999.ckpt",
+  "results": {
+    "psnr": 20.192188262939453,
+    "ssim": 0.5500048995018005,
+    "lpips": 0.2612527906894684,
+    "num_rays_per_sec": 833613.75,
+    "fps": 1.6080514192581177
+  }
+}

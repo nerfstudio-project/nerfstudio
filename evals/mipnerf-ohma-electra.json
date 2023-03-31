@@ -1,0 +1,14 @@
+{
+  "experiment_name": "data-videos-ohma_electra",
+  "method_name": "mipnerf",
+  "checkpoint": "outputs/data-videos-ohma_electra/mipnerf/2022-11-28_221252/nerfstudio_models/step-000149000.ckpt",
+  "results": {
+    "psnr": 10.081944465637207,
+    "coarse_psnr": 10.070719718933105,
+    "fine_psnr": 10.081944465637207,
+    "fine_ssim": 0.41228431463241577,
+    "fine_lpips": 0.7335678935050964,
+    "num_rays_per_sec": 37130.40625,
+    "fps": 0.017906252294778824
+  }
+}
