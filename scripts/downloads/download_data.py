@@ -188,12 +188,7 @@ class NerfstudioDownload(DatasetDownload):
                     download_capture_name(save_dir, "nerfstudio", capture_name, nerfstudio_file_ids)
             return
 
-        download_capture_name(
-            save_dir,
-            "nerfstudio",
-            self.capture_name,
-            capture_name_to_file_id=nerfstudio_file_ids,
-        )
+        download_capture_name(save_dir, "nerfstudio", self.capture_name, capture_name_to_file_id=nerfstudio_file_ids)
 
 
 record3d_file_ids = {
@@ -210,12 +205,7 @@ class Record3dDownload(DatasetDownload):
     capture_name: Record3dCaptureName = "bear"
 
     def download(self, save_dir: Path):
-        download_capture_name(
-            save_dir,
-            "record3d",
-            self.capture_name,
-            capture_name_to_file_id=record3d_file_ids,
-        )
+        download_capture_name(save_dir, "record3d", self.capture_name, capture_name_to_file_id=record3d_file_ids)
 
 
 @dataclass

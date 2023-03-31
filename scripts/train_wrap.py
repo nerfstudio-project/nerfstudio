@@ -103,6 +103,7 @@ def main():
                 indices_file_name = Path(config.pipeline.datamanager.dataparser.indices_file).stem
                 config.experiment_name += f"_{indices_file_name}"
             config.relative_model_dir = Path(".")  # don't save to nerfstudio_models
+            config.viewer.quit_on_train_completion = True
 
             # Log to file
             # rgb_out_dir = Path(config.output_dir, config.experiment_name)  # type: ignore

@@ -37,6 +37,7 @@ from nerfstudio.engine.callbacks import (
     TrainingCallbackLocation,
 )
 from nerfstudio.engine.optimizers import Optimizers
+from nerfstudio.models.nerfacto import NerfactoModel
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline
 from nerfstudio.utils import profiler, writer
 from nerfstudio.utils.decorators import (
@@ -145,9 +146,7 @@ class Trainer:
         # Set train_size_initial by looking at checkpoint's architecture
         if self.config.load_ckpt is not None and not self.config.pipeline.datamanager.train_size_initial:
             loaded_state = Trainer.get_checkpoint_state(self.config.load_ckpt)
-            num_of_initial_train_images = loaded_state["pipeline"][
-                "_model.field.embedding_appearance.embedding.weight"
-            ].shape[0]
+            num_of_initial_train_images = NerfactoModel.get_train_size_from_checkpoint(loaded_state)
             self.config.pipeline.datamanager.train_size_initial = num_of_initial_train_images
 
         viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
@@ -242,7 +241,7 @@ class Trainer:
                         name=EventName.TRAIN_RAYS_PER_SEC,
                         duration=self.pipeline.datamanager.get_train_rays_per_batch() / train_t.duration,
                         step=step,
-                        avg_over_steps=True,
+                        avg_over_steps=True
                     )
 
                 self._update_viewer_state(step)
@@ -340,7 +339,7 @@ class Trainer:
             name=EventName.TRAIN_RAYS_PER_SEC,
             duration=train_num_rays_per_batch / (train_t.duration - vis_t.duration),
             step=step,
-            avg_over_steps=True,
+            avg_over_steps=True
         )
 
     @staticmethod
@@ -448,7 +447,7 @@ class Trainer:
                 name=EventName.TEST_RAYS_PER_SEC,
                 duration=metrics_dict["num_rays"] / test_t.duration,
                 step=step,
-                avg_over_steps=True,
+                avg_over_steps=True
             )
             writer.put_dict(name="Eval Images Metrics", scalar_dict=metrics_dict, step=step)
             group = "Eval Images"

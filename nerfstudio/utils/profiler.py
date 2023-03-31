@@ -82,10 +82,7 @@ class Profiler:
         func_dict = self.profiler_dict.get(func_name, {"val": 0, "step": 0})
         prev_val = func_dict["val"]
         prev_step = func_dict["step"]
-        self.profiler_dict[func_name] = {
-            "val": (prev_val * prev_step + val) / (prev_step + 1),
-            "step": prev_step + 1,
-        }
+        self.profiler_dict[func_name] = {"val": (prev_val * prev_step + val) / (prev_step + 1), "step": prev_step + 1}
 
     def print_profile(self):
         """helper to print out the profiler stats"""

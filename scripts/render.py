@@ -126,13 +126,9 @@ def _render_trajectory_video(
                 for rendered_output_name in rendered_output_names:
                     if rendered_output_name not in outputs:
                         CONSOLE.rule("Error", style="red")
+                        CONSOLE.print(f"Could not find {rendered_output_name} in the model outputs", justify="center")
                         CONSOLE.print(
-                            f"Could not find {rendered_output_name} in the model outputs",
-                            justify="center",
-                        )
-                        CONSOLE.print(
-                            f"Please set --rendered_output_name to one of: {outputs.keys()}",
-                            justify="center",
+                            f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center"
                         )
                         sys.exit(1)
                     output_image = outputs[rendered_output_name].cpu().numpy()
@@ -348,8 +344,7 @@ class RenderTrajectory:
         elif self.traj == "interpolate":
             camera_type = CameraType.PERSPECTIVE
             camera_path = get_interpolated_camera_path(
-                cameras=pipeline.datamanager.eval_dataloader.cameras,
-                steps=self.interpolation_steps,
+                cameras=pipeline.datamanager.eval_dataloader.cameras, steps=self.interpolation_steps
             )
         else:
             assert_never(self.traj)

@@ -378,10 +378,7 @@ class ViewerState:
             if not os.path.exists(camera_paths_directory):
                 os.mkdir(camera_paths_directory)
 
-            write_to_json(
-                Path(os.path.join(camera_paths_directory, camera_path_filename)),
-                camera_path,
-            )
+            write_to_json(Path(os.path.join(camera_paths_directory, camera_path_filename)), camera_path)
             self.vis["camera_path_payload"].delete()
 
     def _check_populate_paths_payload(self, trainer, step: int):
@@ -687,10 +684,7 @@ class ViewerState:
             image_width: resolution of the current view
         """
         writer.put_time(
-            name=EventName.VIS_RAYS_PER_SEC,
-            duration=num_rays / render_time,
-            step=self.step,
-            avg_over_steps=True,
+            name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=self.step, avg_over_steps=True
         )
         is_training = self.vis["renderingState/isTraining"].read()
         self.vis["renderingState/eval_res"].write(f"{image_height}x{image_width}px")
@@ -912,8 +906,5 @@ class ViewerState:
             colors = graph.colors if hasattr(graph, "colors") else None
             self._send_output_to_viewer(outputs, colors=colors)
             self._update_viewer_stats(
-                vis_t.duration,
-                num_rays=len(camera_ray_bundle),
-                image_height=image_height,
-                image_width=image_width,
+                vis_t.duration, num_rays=len(camera_ray_bundle), image_height=image_height, image_width=image_width
             )

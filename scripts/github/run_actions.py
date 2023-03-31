@@ -72,18 +72,12 @@ def run_github_actions_file(filename: str, continue_on_fail: bool = False):
     if success:
         CONSOLE.line()
         CONSOLE.rule(characters="=")
-        CONSOLE.print(
-            "[bold green]:TADA: :TADA: :TADA: ALL CHECKS PASSED :TADA: :TADA: :TADA:",
-            justify="center",
-        )
+        CONSOLE.print("[bold green]:TADA: :TADA: :TADA: ALL CHECKS PASSED :TADA: :TADA: :TADA:", justify="center")
         CONSOLE.rule(characters="=")
     else:
         CONSOLE.line()
         CONSOLE.rule(characters="=", style=Style(color="red"))
-        CONSOLE.print(
-            "[bold red]:skull: :skull: :skull: ERRORS FOUND :skull: :skull: :skull:",
-            justify="center",
-        )
+        CONSOLE.print("[bold red]:skull: :skull: :skull: ERRORS FOUND :skull: :skull: :skull:", justify="center")
         CONSOLE.rule(characters="=", style=Style(color="red"))
 
 
@@ -94,10 +88,7 @@ def run_code_checks(continue_on_fail: bool = False):
         continue_on_fail: Whether or not to continue running actions commands if the current one fails
     """
     # core code checks
-    run_github_actions_file(
-        filename=".github/workflows/core_code_checks.yml",
-        continue_on_fail=continue_on_fail,
-    )
+    run_github_actions_file(filename=".github/workflows/core_code_checks.yml", continue_on_fail=continue_on_fail)
     # viewer build and deployment
     # run_github_actions_file(filename=".github/workflows/viewer_build_deploy.yml", continue_on_fail=continue_on_fail)
 

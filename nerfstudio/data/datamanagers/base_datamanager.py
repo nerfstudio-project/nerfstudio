@@ -137,6 +137,8 @@ class DataManagerConfig(InstantiateConfig):
     """Source of data, may not be used by all models."""
     camera_optimizer: Optional[CameraOptimizerConfig] = None
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy."""
+    train_size_initial: Optional[int] = None
+    """Size of the initial training dataset"""
 
 
 class DataManager(nn.Module):
@@ -363,8 +365,6 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If >1, patch-based sampling will be used."""
-    train_size_initial: Optional[int] = None
-    """Size of the initial training dataset"""
 
 
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method

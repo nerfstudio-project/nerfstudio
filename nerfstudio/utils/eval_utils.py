@@ -48,10 +48,7 @@ def eval_load_checkpoint(config: TrainerConfig, pipeline: Pipeline) -> Path:
 
     if checkpoint_path is None:
         CONSOLE.rule("Error", style="red")
-        CONSOLE.print(
-            f"Please pass the --load-ckpt <CKPT_PATH> argument.",
-            justify="center",
-        )
+        CONSOLE.print(f"Please pass the --load-ckpt <CKPT_PATH> argument.", justify="center")
         sys.exit(1)
 
     loaded_state = torch.load(checkpoint_path, map_location="cpu")
@@ -72,7 +69,7 @@ def eval_setup(
     test_mode: Literal["test", "val", "inference"] = "test",
     load_ckpt: Path | None = None,
     indices_file: Path | None = None,
-) -> Tuple[TrainerConfig, Pipeline, Path]:
+) -> tuple[TrainerConfig, Pipeline, Path]:
     """Shared setup for loading a saved pipeline for evaluation.
 
     Args:
@@ -90,6 +87,10 @@ def eval_setup(
     # load save config
     config = yaml.load(config_path.read_text(), Loader=yaml.Loader)
     assert isinstance(config, TrainerConfig)
+
+    # load checkpointed information
+    if load_ckpt is not None:
+        config.load_ckpt = load_ckpt
 
     if indices_file is not None:
         config.pipeline.datamanager.dataparser.indices_file = indices_file
@@ -112,9 +113,6 @@ def eval_setup(
     assert isinstance(pipeline, Pipeline)
     pipeline.eval()
 
-    # load checkpointed information
-    if load_ckpt is not None:
-        config.load_ckpt = load_ckpt
     checkpoint_path = eval_load_checkpoint(config, pipeline)
 
     return config, pipeline, checkpoint_path

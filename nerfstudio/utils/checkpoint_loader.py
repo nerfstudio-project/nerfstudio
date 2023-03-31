@@ -34,10 +34,7 @@ DEFAULT_MODEL_COMPARATOR = lambda x: os.path.getctime(x)
 def _validate_load_dir(load_dir: Path):
     if not load_dir.is_dir():
         CONSOLE.rule("Error", style="red")
-        CONSOLE.print(
-            f"No checkpoint directory found at {str(load_dir)}, ",
-            justify="center",
-        )
+        CONSOLE.print(f"No checkpoint directory found at {str(load_dir)}, ", justify="center")
         CONSOLE.print(
             "Please make sure the checkpoints exists, they should be generated periodically during training",
             justify="center",
@@ -66,10 +63,7 @@ def find_latest_checkpoint(
     CONSOLE.print(f"Loading latest checkpoint from {load_dir}")
     checkpoints = _list_checkpoints(load_dir, glob)
     if len(checkpoints) == 0:
-        CONSOLE.print(
-            f"Please make sure directory {str(load_dir)} contains checkpoints.",
-            justify="center",
-        )
+        CONSOLE.print(f"Please make sure directory {str(load_dir)} contains checkpoints.", justify="center")
         sys.exit(1)
 
     if reverse_comparator:

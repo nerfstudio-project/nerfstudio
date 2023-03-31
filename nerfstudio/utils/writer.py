@@ -80,7 +80,6 @@ def put_image(name, image: TensorType["H", "W", "C"], step: int):
             "name": name,
             "write_type": EventType.IMAGE,
             "event": image.detach().cpu(),
-            "step": step,
         }
     )
 
@@ -121,24 +120,11 @@ def put_config(name: str, config_dict: Dict[str, Any], step: int):
         scalar_dict: values to write out
         step: step associated with dict
     """
-    EVENT_STORAGE.append(
-        {
-            "name": name,
-            "write_type": EventType.CONFIG,
-            "event": config_dict,
-            "step": step,
-        }
-    )
+    EVENT_STORAGE.append({"name": name, "write_type": EventType.CONFIG, "event": config_dict, "step": step})
 
 
 @check_main_thread
-def put_time(
-    name: str,
-    duration: float,
-    step: int,
-    avg_over_steps: bool = True,
-    update_eta: bool = False,
-):
+def put_time(name: str, duration: float, step: int, avg_over_steps: bool = True, update_eta: bool = False):
     """Setter function to place a time element into the queue to be written out.
     Processes the time info according to the options.
 
@@ -187,11 +173,7 @@ def write_out_storage():
     EVENT_STORAGE.clear()
 
 
-def setup_local_writer(
-    config: cfg.LoggingConfig,
-    max_iter: int,
-    banner_messages: Optional[List[str]] = None,
-) -> None:
+def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages: Optional[List[str]] = None) -> None:
     """Initialization of all event writers specified in config
 
     Args:

@@ -124,7 +124,7 @@ class NerfactoModelConfig(ModelConfig):
     """Max num iterations for the annealing function."""
     use_single_jitter: bool = True
     """Whether use single jitter or not for the proposal networks."""
-    predict_normals: bool = True
+    predict_normals: bool = False
     """Whether to predict normals or not."""
     disable_scene_contraction: bool = False
     """Whether to disable scene contraction or not."""
@@ -190,11 +190,7 @@ class NerfactoModel(Model):
 
         # Samplers
         update_schedule = lambda step: np.clip(
-            np.interp(
-                step,
-                [0, self.config.proposal_warmup],
-                [0, self.config.proposal_update_every],
-            ),
+            np.interp(step, [0, self.config.proposal_warmup], [0, self.config.proposal_update_every]),
             1,
             self.config.proposal_update_every,
         )
@@ -299,9 +295,7 @@ class NerfactoModel(Model):
 
         if self.training and self.config.predict_normals:
             outputs["rendered_orientation_loss"] = orientation_loss(
-                weights.detach(),
-                field_outputs[FieldHeadNames.NORMALS],
-                ray_bundle.directions,
+                weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
             )
 
             outputs["rendered_pred_normal_loss"] = pred_normal_loss(
@@ -372,11 +366,7 @@ class NerfactoModel(Model):
         metrics_dict = {"psnr": float(psnr.item()), "ssim": float(ssim)}  # type: ignore
         metrics_dict["lpips"] = float(lpips)
 
-        images_dict = {
-            "img": combined_rgb,
-            "accumulation": combined_acc,
-            "depth": combined_depth,
-        }
+        images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
 
         for i in range(self.config.num_proposal_iterations):
             key = f"prop_depth_{i}"

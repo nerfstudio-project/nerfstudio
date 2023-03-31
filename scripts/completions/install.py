@@ -71,9 +71,7 @@ def _check_tyro_cli(script_path: pathlib.Path) -> bool:
 
 
 def _generate_completion(
-    path_or_entrypoint: Union[pathlib.Path, str],
-    shell: ShellType,
-    completions_dir: pathlib.Path,
+    path_or_entrypoint: Union[pathlib.Path, str], shell: ShellType, completions_dir: pathlib.Path
 ) -> pathlib.Path:
     """Given a path to a tyro CLI, write a completion script to a target directory.
 
@@ -88,12 +86,7 @@ def _generate_completion(
     if isinstance(path_or_entrypoint, pathlib.Path):
         # Scripts.
         target_name = "_" + path_or_entrypoint.name.replace(".", "_")
-        args = [
-            sys.executable,
-            str(path_or_entrypoint),
-            "--tyro-print-completion",
-            shell,
-        ]
+        args = [sys.executable, str(path_or_entrypoint), "--tyro-print-completion", shell]
     elif isinstance(path_or_entrypoint, str):
         # Entry points.
         target_name = "_" + path_or_entrypoint
@@ -318,7 +311,7 @@ def _generate_completions_files(
                 lambda path_or_entrypoint_and_shell: _generate_completion(
                     path_or_entrypoint_and_shell[0],
                     path_or_entrypoint_and_shell[1],
-                    completions_dir,
+                    completions_dir
                 ),
                 itertools.product(script_paths + entry_points, shells_found),
             )

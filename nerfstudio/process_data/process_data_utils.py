@@ -387,14 +387,7 @@ def find_tool_feature_matcher_combination(
         "disk",
     ],
     matcher_type: Literal[
-        "any",
-        "NN",
-        "superglue",
-        "superglue-fast",
-        "NN-superpoint",
-        "NN-ratio",
-        "NN-mutual",
-        "adalam",
+        "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
     ],
 ):
     """Find a valid combination of sfm tool, feature type, and matcher type.

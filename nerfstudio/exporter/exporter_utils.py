@@ -147,14 +147,8 @@ def generate_point_cloud(
             if normal_output_name is not None:
                 if normal_output_name not in outputs:
                     CONSOLE.rule("Error", style="red")
-                    CONSOLE.print(
-                        f"Could not find {normal_output_name} in the model outputs",
-                        justify="center",
-                    )
-                    CONSOLE.print(
-                        f"Please set --normal_output_name to one of: {outputs.keys()}",
-                        justify="center",
-                    )
+                    CONSOLE.print(f"Could not find {normal_output_name} in the model outputs", justify="center")
+                    CONSOLE.print(f"Please set --normal_output_name to one of: {outputs.keys()}", justify="center")
                     sys.exit(1)
                 normal = outputs[normal_output_name]
                 assert (
@@ -198,10 +192,7 @@ def generate_point_cloud(
     if estimate_normals:
         if normal_output_name is not None:
             CONSOLE.rule("Error", style="red")
-            CONSOLE.print(
-                "Cannot estimate normals and use normal_output_name at the same time",
-                justify="center",
-            )
+            CONSOLE.print("Cannot estimate normals and use normal_output_name at the same time", justify="center")
             sys.exit(1)
         CONSOLE.print("Estimating Point Cloud Normals")
         pcd.estimate_normals()

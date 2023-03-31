@@ -49,7 +49,7 @@ class RunViewer:
     viewer: ViewerConfigWithoutNumRays = field(default_factory=ViewerConfigWithoutNumRays)
     indices_file: Optional[Path] = None
     """Viewer configuration"""
-    dataset_type: Literal["train", "val", "all"] = "val"
+    dataset_type: Literal["train", "val", "all"] = "train"
 
     def main(self) -> None:
         """Main function."""
@@ -82,11 +82,7 @@ class RunViewer:
 
         # We don't need logging, but writer.GLOBAL_BUFFER needs to be populated
         config.logging.local_writer.enable = False
-        writer.setup_local_writer(
-            config.logging,
-            max_iter=config.max_num_iterations,
-            banner_messages=banner_messages,
-        )
+        writer.setup_local_writer(config.logging, max_iter=config.max_num_iterations, banner_messages=banner_messages)
 
         viewer_state.vis["renderingState/config_base_dir"].write(str(config.relative_model_dir))
 
@@ -104,10 +100,7 @@ class RunViewer:
         }
 
         assert viewer_state and dataset_map[self.dataset_type]
-        viewer_state.init_scene(
-            dataset=dataset_map[self.dataset_type],
-            start_train=False,
-        )
+        viewer_state.init_scene(dataset=dataset_map[self.dataset_type], start_train=False)
 
         while True:
             viewer_state.vis["renderingState/isTraining"].write(False)
