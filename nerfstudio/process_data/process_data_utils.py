@@ -14,6 +14,7 @@
 
 """Helper utils for processing data into the nerfstudio format."""
 
+import math
 import os
 import shutil
 import sys
