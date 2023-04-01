@@ -57,7 +57,9 @@ def test_load_state_dict():
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.register_parameter("param", nn.Parameter(torch.ones((3,))))
-            self.register_module("module", Model(*args, **kwargs))  # make sure that non-DDP checkpoint won't be processed as DDP one
+            self.register_module(
+                "module", Model(*args, **kwargs)
+            )  # make sure that non-DDP checkpoint won't be processed as DDP one
 
         def load_state_dict(self, state_dict, strict=True):
             """Mocked load_state_dict"""
