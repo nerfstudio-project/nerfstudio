@@ -10,17 +10,13 @@ import numpy as np
 import torch
 from rich.console import Console
 
-from nerfstudio.nerfstudio.cameras import camera_utils
-from nerfstudio.nerfstudio.cameras.cameras import (
-    CAMERA_MODEL_TO_TYPE,
-    Cameras,
-    CameraType,
-)
-from nerfstudio.nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-from nerfstudio.nerfstudio.data.dataparsers.nerfstudio_dataparser import Nerfstudio
-from nerfstudio.nerfstudio.data.scene_box import SceneBox
-from nerfstudio.nerfstudio.defaults import SPLIT_MODE_ALL
-from nerfstudio.nerfstudio.utils.io import load_from_json
+from nerfstudio.cameras import camera_utils
+from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
+from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
+from nerfstudio.data.dataparsers.nerfstudio_dataparser import Nerfstudio
+from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.defaults import SPLIT_MODE_ALL
+from nerfstudio.utils.io import load_from_json
 
 downscale_factor: Optional[int] = None
 

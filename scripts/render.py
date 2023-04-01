@@ -1,7 +1,4 @@
-#!/usr/bin/env python
-"""
-render.py
-"""
+
 from __future__ import annotations
 
 import json
