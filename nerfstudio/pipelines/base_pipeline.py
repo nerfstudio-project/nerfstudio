@@ -108,9 +108,13 @@ class Pipeline(nn.Module):
         return self.model.device
 
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
-        model_state = {key[len("_model.") :]: value for key, value in state_dict.items() if key.startswith("_model.")}
+        # remove the "_model." or "_model.module" prefix from key
+        model_state = {
+            key[len("_model.module."):] if key.startswith("_model.module.") else key[len("_model."):]: value
+            for key, value in state_dict.items() if key.startswith("_model.")
+        }
         pipeline_state = {key: value for key, value in state_dict.items() if not key.startswith("_model.")}
-        self._model.load_state_dict(model_state, strict=strict)
+        self.model.load_state_dict(model_state, strict=strict)
         super().load_state_dict(pipeline_state, strict=False)
 
     @profiler.time_function
@@ -373,7 +377,7 @@ class VanillaPipeline(Pipeline):
         state = {
             (key[len("module.") :] if key.startswith("module.") else key): value for key, value in loaded_state.items()
         }
-        self._model.update_to_step(step)
+        self.model.update_to_step(step)
         self.load_state_dict(state, strict=True)
 
     def get_training_callbacks(
