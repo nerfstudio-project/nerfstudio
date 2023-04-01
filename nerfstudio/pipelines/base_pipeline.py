@@ -114,7 +114,8 @@ class Pipeline(nn.Module):
             if key.startswith("_model."):
                 # remove the "_model." prefix from key
                 model_state[key[len("_model.") :]] = value
-                # make sure that the "module." prefix comes from DDP, rather than an attribute of the model named "module"
+                # make sure that the "module." prefix comes from DDP,
+                # rather than an attribute of the model named "module"
                 if not key.startswith("_model.module."):
                     is_ddp_model_state = False
         # remove "module." prefix added by DDP

@@ -83,7 +83,7 @@ def test_load_state_dict():
     assert pipeline.model.param[0].item() == 2
 
     # preparation for another test
-    state_dict["_model.param"].mul_(2)
+    state_dict["_model.param"].mul_(2)  # pylint: disable=unsubscriptable-object
     was_called = False
     # pretends to be a DDP checkpoint
     ddp_state_dict = {}
