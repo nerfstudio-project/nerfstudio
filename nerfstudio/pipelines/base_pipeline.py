@@ -108,12 +108,19 @@ class Pipeline(nn.Module):
         return self.model.device
 
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
-        # remove the "_model." or "_model.module." prefix from key
-        model_state = {
-            key[len("_model.module.") :] if key.startswith("_model.module.") else key[len("_model.") :]: value
-            for key, value in state_dict.items()
-            if key.startswith("_model.")
-        }
+        is_ddp_model_state = True
+        model_state = {}
+        for key, value in state_dict.items():
+            if key.startswith("_model."):
+                # remove the "_model." prefix from key
+                model_state[key[len("_model.") :]] = value
+                # make sure that the "module." prefix comes from DDP, rather than an attribute of the model named "module"
+                if not key.startswith("_model.module."):
+                    is_ddp_model_state = False
+        # remove "module." prefix added by DDP
+        if is_ddp_model_state:
+            model_state = {key[len("module.") :]: value for key, value in model_state.items()}
+
         pipeline_state = {key: value for key, value in state_dict.items() if not key.startswith("_model.")}
         self.model.load_state_dict(model_state, strict=strict)
         super().load_state_dict(pipeline_state, strict=False)
