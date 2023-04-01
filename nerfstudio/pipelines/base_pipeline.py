@@ -110,8 +110,9 @@ class Pipeline(nn.Module):
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
         # remove the "_model." or "_model.module." prefix from key
         model_state = {
-            key[len("_model.module."):] if key.startswith("_model.module.") else key[len("_model."):]: value
-            for key, value in state_dict.items() if key.startswith("_model.")
+            key[len("_model.module.") :] if key.startswith("_model.module.") else key[len("_model.") :]: value
+            for key, value in state_dict.items()
+            if key.startswith("_model.")
         }
         pipeline_state = {key: value for key, value in state_dict.items() if not key.startswith("_model.")}
         self.model.load_state_dict(model_state, strict=strict)
