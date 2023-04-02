@@ -2,6 +2,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
+from lerf.lerf_fieldheadnames import LERFFieldHeadNames
 from torch import nn
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
@@ -16,8 +17,6 @@ from nerfstudio.field_components.spatial_distortions import (
 )
 from nerfstudio.fields.base_field import Field
 
-from lerf.lerf_fieldheadnames import LERFFieldHeadNames
-
 try:
     import tinycudann as tcnn
 except ImportError:
@@ -25,15 +24,22 @@ except ImportError:
 
 
 class LERFField(Field):
-    def __init__(self, clip_n_dims: int, spatial_distortion: SpatialDistortion = SceneContraction()):
+    def __init__(
+        self,
+        grid_layers,
+        grid_sizes,
+        grid_resolutions,
+        clip_n_dims: int,
+        spatial_distortion: SpatialDistortion = SceneContraction(),
+    ):
         super().__init__()
-
+        assert len(grid_layers) == len(grid_sizes) and len(grid_resolutions) == len(grid_layers)
         self.spatial_distortion = spatial_distortion
         self.clip_encs = torch.nn.ModuleList(
             [
-                # LERFField._get_encoding(16, 512, 16, indim=3)
-                LERFField._get_encoding(16, 128, 12, indim=3),
-                LERFField._get_encoding(128, 512, 12, indim=3),
+                LERFField._get_encoding(
+                    grid_resolutions[i][0], grid_resolutions[i][1], grid_layers[i], indim=3, hash_size=grid_sizes[i]
+                ) for i in range(len(grid_layers))
             ]
         )
         tot_out_dims = sum([e.n_output_dims for e in self.clip_encs])
@@ -63,7 +69,7 @@ class LERFField(Field):
         )
 
     @staticmethod
-    def _get_encoding(start_res, end_res, levels, indim=3):
+    def _get_encoding(start_res, end_res, levels, indim=3, hash_size=19):
         growth = np.exp((np.log(end_res) - np.log(start_res)) / (levels - 1))
         enc = tcnn.Encoding(
             n_input_dims=indim,
@@ -71,7 +77,7 @@ class LERFField(Field):
                 "otype": "HashGrid",
                 "n_levels": levels,
                 "n_features_per_level": 8,
-                "log2_hashmap_size": 19,
+                "log2_hashmap_size": hash_size,
                 "base_resolution": start_res,
                 "per_level_scale": growth,
             },

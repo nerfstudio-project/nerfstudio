@@ -1,9 +1,9 @@
 import numpy as np
 import torch
+from lerf.data.utils.feature_dataloader import FeatureDataloader
+from lerf.encoders.image_encoder import BaseImageEncoder
 from tqdm import tqdm
 
-from lerf.encoders.image_encoder import BaseImageEncoder
-from lerf.data.utils.feature_dataloader import FeatureDataloader
 
 class PyramidInterpolator(FeatureDataloader):
     def __init__(
@@ -18,17 +18,22 @@ class PyramidInterpolator(FeatureDataloader):
         assert "stride_ratio" in cfg
         assert "image_shape" in cfg
 
-        self.kernel_size = int(cfg['image_shape'][0] * cfg["tile_ratio"])
+        self.kernel_size = int(cfg["image_shape"][0] * cfg["tile_ratio"])
         self.stride = int(self.kernel_size * cfg["stride_ratio"])
         self.padding = self.kernel_size // 2
         self.center_x = (
-            (self.kernel_size - 1) / 2 - self.padding + self.stride
+            (self.kernel_size - 1) / 2
+            - self.padding
+            + self.stride
             * np.arange(
                 np.floor((cfg["image_shape"][0] + 2 * self.padding - (self.kernel_size - 1) - 1) / self.stride + 1)
             )
         )
         self.center_y = (
-            (self.kernel_size - 1) / 2 - self.padding + self.stride * np.arange(
+            (self.kernel_size - 1) / 2
+            - self.padding
+            + self.stride
+            * np.arange(
                 np.floor((cfg["image_shape"][1] + 2 * self.padding - (self.kernel_size - 1) - 1) / self.stride + 1)
             )
         )
