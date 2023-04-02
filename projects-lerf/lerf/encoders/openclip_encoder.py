@@ -11,6 +11,7 @@ except ImportError:
 
 from lerf.encoders.image_encoder import BaseImageEncoder, BaseImageEncoderConfig
 
+
 @dataclass
 class OpenCLIPNetworkConfig(BaseImageEncoderConfig):
     _target: Type = field(default_factory=lambda: OpenCLIPNetwork)
@@ -20,9 +21,6 @@ class OpenCLIPNetworkConfig(BaseImageEncoderConfig):
     clip_model_type: str = "ViT-B-16"
     clip_model_pretrained: str = "laion2b_s34b_b88k"
     clip_n_dims: int = 512
-    # clip_model_type: str = "ViT-L-14"
-    # clip_model_pretrained: str = "laion2b_s32b_b82k"
-    # clip_n_dims: int = 768
     negatives: Tuple[str] = ("object", "things", "stuff", "texture")
 
 class OpenCLIPNetwork(BaseImageEncoder):
