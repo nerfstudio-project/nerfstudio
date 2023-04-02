@@ -6,7 +6,6 @@ import torch
 
 from nerfstudio.configs import base_config as cfg
 
-# TODO(cmk) want to rename ImageEncoder to be more generic
 @dataclass
 class BaseImageEncoderConfig(cfg.InstantiateConfig):
     _target: Type = field(default_factory=lambda: BaseImageEncoder)
