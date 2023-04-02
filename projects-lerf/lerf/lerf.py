@@ -176,7 +176,7 @@ class LERFModel(NerfactoModel):
         loss_dict["clip_loss"] = self.config.clip_loss_weight * torch.nn.functional.huber_loss(
             outputs["clip"], batch["clip"], delta=1.25
         )
-        # loss_dict["dino_loss"] = torch.nn.functional.mse_loss(outputs["dino"], batch["dino"])
+        loss_dict["dino_loss"] = torch.nn.functional.mse_loss(outputs["dino"], batch["dino"])
         return loss_dict
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:

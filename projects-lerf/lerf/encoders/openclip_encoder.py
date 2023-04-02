@@ -14,7 +14,7 @@ from lerf.encoders.image_encoder import BaseImageEncoder, BaseImageEncoderConfig
 @dataclass
 class OpenCLIPNetworkConfig(BaseImageEncoderConfig):
     _target: Type = field(default_factory=lambda: OpenCLIPNetwork)
-    name: str = "openclip"
+    name: str = "openclip_vit_b_16"
     description: str = "OpenCLIP network, images and text"
     """target class to instantiate"""
     clip_model_type: str = "ViT-B-16"

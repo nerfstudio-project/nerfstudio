@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Type, Union, Literal
 import os.path as osp
+import yaml
 
 import torch
 from rich.progress import Console
@@ -46,6 +47,9 @@ from lerf.encoders.image_encoder import BaseImageEncoder
 @dataclass
 class LERFDataManagerConfig(VanillaDataManagerConfig):
     _target: Type = field(default_factory=lambda: LERFDataManager)
+    patch_tile_size_range: Tuple[int, int] = (0.05, 0.5)
+    patch_tile_size_res: int = 7
+    patch_stride_scaler: float = 0.5
 
 class LERFDataManager(VanillaDataManager):  # pylint: disable=abstract-method
     """Basic stored data manager implementation.
@@ -79,26 +83,38 @@ class LERFDataManager(VanillaDataManager):  # pylint: disable=abstract-method
         images = torch.cat(images)
         
         cache_dir = f"outputs/{self.config.dataparser.data.name}"
+        # clip_cache_path, dino_cache_path = self._search_cache(cache_dir)
+        clip_cache_path = osp.join(cache_dir, "clip")
+        dino_cache_path = osp.join(cache_dir, "dino.npy")
         self.clip_interpolator = PatchedDataloader(
             image_list=images,
             device=self.device,
-            cfg={
+            cfg=
+            {
                 "tile_size_range": (0.05, 0.5),
                 "tile_size_res": 7,
                 "stride_scaler": 0.5,
                 "image_shape": tuple(images.shape[2:4])
             },
-            cache_path=Path(osp.join(cache_dir, "clip")),
+            cache_path=clip_cache_path,
             model=self.image_encoder,
         )
         self.dino_dataloader = DinoDataloader(
             image_list=images, device=self.device,
             cfg={"image_shape": tuple(images.shape[2:4])},
-            cache_path=Path(osp.join(cache_dir, "dino.npy"))
+            cache_path=dino_cache_path
         )
 
-    def _search_cache(self):
-        pass
+    # def _search_cache(self, cache_path, prop_dict):
+    #     if osp.exists(cache_path):
+    #         # load yaml file
+    #         with open(cache_path, "r") as f:
+    #             cache = yaml.load(f, Loader=yaml.FullLoader)
+    #         for k, v in cache.items():
+    #             if k in self.config:
+    #                 self.config[k] = v
+    #     else:
+    #         ...
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
