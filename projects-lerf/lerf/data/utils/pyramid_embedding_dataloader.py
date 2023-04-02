@@ -6,6 +6,8 @@ from lerf.data.utils.feature_dataloader import FeatureDataloader
 from lerf.data.utils.patch_embedding_dataloader import PatchEmbeddingDataloader
 from lerf.encoders.image_encoder import BaseImageEncoder
 from tqdm import tqdm
+from pathlib import Path
+import json
 
 
 class PyramidEmbeddingDataloader(FeatureDataloader):
@@ -21,9 +23,10 @@ class PyramidEmbeddingDataloader(FeatureDataloader):
         assert "tile_size_res" in cfg
         assert "stride_scaler" in cfg
         assert "image_shape" in cfg
+        assert "model_name" in cfg
 
-        cfg["tile_sizes"] = torch.linspace(*cfg["tile_size_range"], cfg["tile_size_res"]).to(device)
-        cfg["strider_scaler_list"] = [self._stride_scaler(tr.item(), cfg["stride_scaler"]) for tr in cfg["tile_sizes"]]
+        self.tile_sizes = torch.linspace(*cfg["tile_size_range"], cfg["tile_size_res"]).to(device)
+        self.strider_scaler_list = [self._stride_scaler(tr.item(), cfg["stride_scaler"]) for tr in self.tile_sizes]
 
         self.model = model
         self.embed_size = self.model.embedding_dim
@@ -41,38 +44,58 @@ class PyramidEmbeddingDataloader(FeatureDataloader):
 
     def load(self):
         # don't create anything, PatchEmbeddingDataloader will create itself
+        cache_info_path = self.cache_path.with_suffix(".info")
+        
+        # check if cache exists
+        if not cache_info_path.exists():
+            raise FileNotFoundError
+        
+        # if config is different, remove all cached content
+        with open(cache_info_path, "r") as f:
+            cfg = json.loads(f.read())
+        if cfg != self.cfg:
+            for f in os.listdir(self.cache_path):
+                os.remove(os.path.join(self.cache_path, f))
+            raise ValueError("Config mismatch")
+
         raise FileNotFoundError  # trigger create
 
     def create(self, image_list):
         os.makedirs(self.cache_path, exist_ok=True)
-        for i, tr in enumerate(tqdm(self.cfg["tile_sizes"], desc="Scales")):
-            stride_scaler = self.cfg["strider_scaler_list"][i]
+        for i, tr in enumerate(tqdm(self.tile_sizes, desc="Scales")):
+            stride_scaler = self.strider_scaler_list[i]
             self.data_dict[i] = PatchEmbeddingDataloader(
-                cfg={"tile_ratio": tr.item(), "stride_ratio": stride_scaler, "image_shape": self.cfg["image_shape"]},
+                cfg={
+                    "tile_ratio": tr.item(),
+                    "stride_ratio": stride_scaler,
+                    "image_shape": self.cfg["image_shape"],
+                    "model_name": self.cfg["model_name"]
+                    },
                 device=self.device,
                 model=self.model,
                 image_list=image_list,
-                cache_path=f"{self.cache_path}/level_{i}.npy",
+                cache_path=Path(f"{self.cache_path}/level_{i}.npy"),
             )
 
     def save(self):
+        cache_info_path = self.cache_path.with_suffix(".info")
+        with open(cache_info_path, "w") as f:
+            f.write(json.dumps(self.cfg))
         # don't save anything, PatchEmbeddingDataloader will save itself
         pass
 
     def _random_scales(self, img_points):
         # img_points: (B, 3) # (img_ind, x, y)
         # return: (B, 512), some random scale (between 0, 1)
-        tile_sizes = self.cfg["tile_sizes"]
-
-        random_scale_bin = torch.randint(tile_sizes.shape[0] - 1, size=(img_points.shape[0],), device=self.device)
+        random_scale_bin = torch.randint(self.tile_sizes.shape[0] - 1, size=(img_points.shape[0],), device=self.device)
         random_scale_weight = torch.rand(img_points.shape[0], dtype=torch.float16, device=self.device)
 
-        stepsize = (tile_sizes[1] - tile_sizes[0]) / (tile_sizes[-1] - tile_sizes[0])
+        stepsize = (self.tile_sizes[1] - self.tile_sizes[0]) / (self.tile_sizes[-1] - self.tile_sizes[0])
 
         bottom_interp = torch.zeros((img_points.shape[0], self.embed_size), dtype=torch.float16, device=self.device)
         top_interp = torch.zeros((img_points.shape[0], self.embed_size), dtype=torch.float16, device=self.device)
 
-        for i in range(len(tile_sizes) - 1):
+        for i in range(len(self.tile_sizes) - 1):
             bottom_interp[random_scale_bin == i] = self.data_dict[i](img_points[random_scale_bin == i])
             top_interp[random_scale_bin == i] = self.data_dict[i + 1](img_points[random_scale_bin == i])
 
@@ -82,12 +105,10 @@ class PyramidEmbeddingDataloader(FeatureDataloader):
         )
 
     def _uniform_scales(self, img_points, scale):
-        tile_sizes = self.cfg["tile_sizes"]
-
         scale_bin = torch.floor(
-            (scale - tile_sizes[0]) / (tile_sizes[-1] - tile_sizes[0]) * (tile_sizes.shape[0] - 1)
+            (scale - self.tile_sizes[0]) / (self.tile_sizes[-1] - self.tile_sizes[0]) * (self.tile_sizes.shape[0] - 1)
         ).to(torch.int64)
-        scale_weight = (scale - tile_sizes[scale_bin]) / (tile_sizes[scale_bin + 1] - tile_sizes[scale_bin])
+        scale_weight = (scale - self.tile_sizes[scale_bin]) / (self.tile_sizes[scale_bin + 1] - self.tile_sizes[scale_bin])
         interp_lst = torch.stack([interp(img_points) for interp in self.data_dict.values()])
         point_inds = torch.arange(img_points.shape[0])
         interp = torch.lerp(

@@ -9,12 +9,14 @@ from nerfstudio.configs import base_config as cfg
 @dataclass
 class BaseImageEncoderConfig(cfg.InstantiateConfig):
     _target: Type = field(default_factory=lambda: BaseImageEncoder)
-    name: str = ""
-    """name of the encoder"""
-    description: str = ""
-    """description of the encoder"""
 
 class BaseImageEncoder:
+    @abstractproperty
+    def name(self) -> str:
+        """
+        returns the name of the encoder
+        """
+
     @abstractproperty
     def embedding_dim(self) -> int:
         """

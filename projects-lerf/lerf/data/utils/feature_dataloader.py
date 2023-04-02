@@ -2,6 +2,7 @@ import os
 import typing
 from abc import ABC, ABCMeta, abstractmethod
 from pathlib import Path
+import json
 
 import numpy as np
 import torch
@@ -30,14 +31,24 @@ class FeatureDataloader(ABC):
         pass
 
     def load(self):
+        cache_info_path = self.cache_path.with_suffix(".info")
+        if not cache_info_path.exists():
+            raise FileNotFoundError
+        with open(cache_info_path, "r") as f:
+            cfg = json.loads(f.read())
+        if cfg != self.cfg:
+            raise ValueError("Config mismatch")
         self.data = torch.from_numpy(np.load(self.cache_path))
 
     def save(self):
+        cache_info_path = self.cache_path.with_suffix(".info")
+        with open(cache_info_path, "w") as f:
+            f.write(json.dumps(self.cfg))
         np.save(self.cache_path, self.data)
 
     def try_load(self, img_list: torch.Tensor):
         try:
             self.load()
-        except FileNotFoundError:
+        except (FileNotFoundError, ValueError):
             self.create(img_list)
             self.save()

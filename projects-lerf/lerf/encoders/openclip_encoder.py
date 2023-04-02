@@ -15,9 +15,6 @@ from lerf.encoders.image_encoder import BaseImageEncoder, BaseImageEncoderConfig
 @dataclass
 class OpenCLIPNetworkConfig(BaseImageEncoderConfig):
     _target: Type = field(default_factory=lambda: OpenCLIPNetwork)
-    name: str = "openclip_vit_b_16"
-    description: str = "OpenCLIP network, images and text"
-    """target class to instantiate"""
     clip_model_type: str = "ViT-B-16"
     clip_model_pretrained: str = "laion2b_s34b_b88k"
     clip_n_dims: int = 512
@@ -61,6 +58,10 @@ class OpenCLIPNetwork(BaseImageEncoder):
         assert (
             self.pos_embeds.shape[1] == self.clip_n_dims
         ), "Embedding dimensionality must match the model dimensionality"
+
+    @property
+    def name(self) -> str:
+        return "openclip_{}_{}".format(self.config.clip_model_type, self.config.clip_model_pretrained)
 
     @property
     def embedding_dim(self) -> int:

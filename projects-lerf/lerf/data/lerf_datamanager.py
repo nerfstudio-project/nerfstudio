@@ -85,17 +85,18 @@ class LERFDataManager(VanillaDataManager):  # pylint: disable=abstract-method
         images = torch.cat(images)
 
         cache_dir = f"outputs/{self.config.dataparser.data.name}"
-        # clip_cache_path, dino_cache_path = self._search_cache(cache_dir)
-        clip_cache_path = osp.join(cache_dir, "clip")
-        dino_cache_path = osp.join(cache_dir, "dino.npy")
+        clip_cache_path = Path(osp.join(cache_dir, f"clip_{self.image_encoder.name}"))
+        dino_cache_path = Path(osp.join(cache_dir, "dino.npy"))
+        # NOTE: cache config is sensitive to list vs. tuple, because it checks for dict equality
         self.clip_interpolator = PyramidEmbeddingDataloader(
             image_list=images,
             device=self.device,
             cfg={
-                "tile_size_range": (0.05, 0.5),
+                "tile_size_range": [0.05, 0.5],
                 "tile_size_res": 7,
                 "stride_scaler": 0.5,
-                "image_shape": tuple(images.shape[2:4]),
+                "image_shape": list(images.shape[2:4]),
+                "model_name": self.image_encoder.name
             },
             cache_path=clip_cache_path,
             model=self.image_encoder,
@@ -103,20 +104,9 @@ class LERFDataManager(VanillaDataManager):  # pylint: disable=abstract-method
         self.dino_dataloader = DinoDataloader(
             image_list=images,
             device=self.device,
-            cfg={"image_shape": tuple(images.shape[2:4])},
+            cfg={"image_shape": list(images.shape[2:4])},
             cache_path=dino_cache_path,
         )
-
-    # def _search_cache(self, cache_path, prop_dict):
-    #     if osp.exists(cache_path):
-    #         # load yaml file
-    #         with open(cache_path, "r") as f:
-    #             cache = yaml.load(f, Loader=yaml.FullLoader)
-    #         for k, v in cache.items():
-    #             if k in self.config:
-    #                 self.config[k] = v
-    #     else:
-    #         ...
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""

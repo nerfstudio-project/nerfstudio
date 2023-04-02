@@ -17,6 +17,7 @@ class PatchEmbeddingDataloader(FeatureDataloader):
         assert "tile_ratio" in cfg
         assert "stride_ratio" in cfg
         assert "image_shape" in cfg
+        assert "model_name" in cfg
 
         self.kernel_size = int(cfg["image_shape"][0] * cfg["tile_ratio"])
         self.stride = int(self.kernel_size * cfg["stride_ratio"])
