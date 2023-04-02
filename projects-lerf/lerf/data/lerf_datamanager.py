@@ -18,30 +18,31 @@ Datamanager.
 
 from __future__ import annotations
 
+import os.path as osp
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, Literal
-import os.path as osp
-import yaml
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
 
 import torch
+import yaml
 from rich.progress import Console
 
+from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
-from nerfstudio.cameras.rays import RayBundle
 
 CONSOLE = Console(width=120)
+
+from lerf.data.utils.dino_dataloader import DinoDataloader
+from lerf.data.utils.pyramid_embedding_dataloader import PyramidEmbeddingDataloader
+from lerf.encoders.image_encoder import BaseImageEncoder
 
 from nerfstudio.data.datamanagers.base_datamanager import (
     VanillaDataManager,
     VanillaDataManagerConfig,
 )
-from lerf.data.utils.dino_dataloader import DinoDataloader
-from lerf.data.utils.patched_dataloader import PatchedDataloader
-from lerf.encoders.image_encoder import BaseImageEncoder
 
 
 @dataclass
@@ -50,6 +51,7 @@ class LERFDataManagerConfig(VanillaDataManagerConfig):
     patch_tile_size_range: Tuple[int, int] = (0.05, 0.5)
     patch_tile_size_res: int = 7
     patch_stride_scaler: float = 0.5
+
 
 class LERFDataManager(VanillaDataManager):  # pylint: disable=abstract-method
     """Basic stored data manager implementation.
@@ -81,28 +83,28 @@ class LERFDataManager(VanillaDataManager):  # pylint: disable=abstract-method
         self.image_encoder: BaseImageEncoder = kwargs["image_encoder"]
         images = [self.train_dataset[i]["image"].permute(2, 0, 1)[None, ...] for i in range(len(self.train_dataset))]
         images = torch.cat(images)
-        
+
         cache_dir = f"outputs/{self.config.dataparser.data.name}"
         # clip_cache_path, dino_cache_path = self._search_cache(cache_dir)
         clip_cache_path = osp.join(cache_dir, "clip")
         dino_cache_path = osp.join(cache_dir, "dino.npy")
-        self.clip_interpolator = PatchedDataloader(
+        self.clip_interpolator = PyramidEmbeddingDataloader(
             image_list=images,
             device=self.device,
-            cfg=
-            {
+            cfg={
                 "tile_size_range": (0.05, 0.5),
                 "tile_size_res": 7,
                 "stride_scaler": 0.5,
-                "image_shape": tuple(images.shape[2:4])
+                "image_shape": tuple(images.shape[2:4]),
             },
             cache_path=clip_cache_path,
             model=self.image_encoder,
         )
         self.dino_dataloader = DinoDataloader(
-            image_list=images, device=self.device,
+            image_list=images,
+            device=self.device,
             cfg={"image_shape": tuple(images.shape[2:4])},
-            cache_path=dino_cache_path
+            cache_path=dino_cache_path,
         )
 
     # def _search_cache(self, cache_path, prop_dict):

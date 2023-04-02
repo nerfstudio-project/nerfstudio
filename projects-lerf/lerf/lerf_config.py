@@ -37,7 +37,7 @@ lerf_method = MethodSpecification(
                 ),
             ),
             model=LERFModelConfig(
-                eval_num_rays_per_chunk=1 << 16,
+                eval_num_rays_per_chunk=1 << 15,
                 hashgrid_sizes=(19, 19),
                 hashgrid_layers=(12, 12),
                 hashgrid_resolutions=((16, 128), (128, 512)),
@@ -83,7 +83,7 @@ lerf_method_big = MethodSpecification(
                 ),
             ),
             model=LERFModelConfig(
-                eval_num_rays_per_chunk=1 << 16,
+                eval_num_rays_per_chunk=1 << 15,
                 hashgrid_sizes=(19, 19),
                 hashgrid_layers=(14, 14),
                 hashgrid_resolutions=((16, 128), (128, 512)),
@@ -130,7 +130,7 @@ lerf_method_lite = MethodSpecification(
                 ),
             ),
             model=LERFModelConfig(
-                eval_num_rays_per_chunk=1 << 16,
+                eval_num_rays_per_chunk=1 << 15,
                 hashgrid_sizes=(19,),
                 hashgrid_layers=(16,),
                 hashgrid_resolutions=((16, 512),),
