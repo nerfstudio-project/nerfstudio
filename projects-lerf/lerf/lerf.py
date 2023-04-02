@@ -27,7 +27,6 @@ class LERFModelConfig(NerfactoModelConfig):
     n_scales: int = 30
     max_scale: float = 1.5
     """maximum scale used to compute relevancy with"""
-    specify_scale: bool = False
     num_lerf_samples: int = 24
     hashgrid_layers: Tuple[int] = (12, 12)
     hashgrid_resolutions: Tuple[Tuple[int]] = ((16, 128), (128, 512))
@@ -53,8 +52,7 @@ class LERFModel(NerfactoModel):
 
     def get_max_across(self, ray_samples, weights, hashgrid_field, scales_shape, preset_scales=None):
         # TODO smoothen this out
-        if self.config.specify_scale:
-            assert preset_scales is not None
+        if preset_scales is not None:
             assert len(preset_scales) == len(self.image_encoder.positives)
             scales_list = torch.tensor(preset_scales)
         else:
@@ -64,7 +62,7 @@ class LERFModel(NerfactoModel):
         n_phrases = len(self.image_encoder.positives)
         n_phrases_maxs = [None for _ in range(n_phrases)]
         n_phrases_sims = [None for _ in range(n_phrases)]
-        for s, scale in enumerate(scales_list):
+        for _, scale in enumerate(scales_list):
             scale = scale.item()
             with torch.no_grad():
                 clip_output = self.lerf_field.get_output_from_hashgrid(
@@ -78,7 +76,7 @@ class LERFModel(NerfactoModel):
                 probs = self.image_encoder.get_relevancy(clip_output, i)
                 pos_prob = probs[..., 0:1]
                 if n_phrases_maxs[i] is None or pos_prob.max() > n_phrases_sims[i].max():
-                    n_phrases_maxs[i] = s
+                    n_phrases_maxs[i] = scale
                     n_phrases_sims[i] = pos_prob
         return torch.stack(n_phrases_sims), torch.Tensor(n_phrases_maxs)
 
@@ -103,6 +101,9 @@ class LERFModel(NerfactoModel):
         else:
             clip_scales = torch.ones_like(lerf_samples.spacing_starts, device=self.device)
 
+        override_scales = (
+            None if "override_scales" not in ray_bundle.metadata else ray_bundle.metadata["override_scales"]
+        )
         weights_list.append(weights)
         if self.training:
             outputs["weights_list"] = weights_list
@@ -121,15 +122,16 @@ class LERFModel(NerfactoModel):
             )
 
         if not self.training:
-            max_across, best_scales = self.get_max_across(
-                lerf_samples, lerf_weights, lerf_field_outputs[LERFFieldHeadNames.HASHGRID], clip_scales.shape
-            )
-            multiphrase = max_across[0]
-            # normalization for sanity check TODO(cmk) remove
-            multiphrase[multiphrase < 0.5] = 0.5
-            multiphrase -= 0.5
-            multiphrase = multiphrase / multiphrase.max()
-            outputs[f"multiphrase"] = multiphrase
+            with torch.no_grad():
+                max_across, best_scales = self.get_max_across(
+                    lerf_samples,
+                    lerf_weights,
+                    lerf_field_outputs[LERFFieldHeadNames.HASHGRID],
+                    clip_scales.shape,
+                    preset_scales=override_scales,
+                )
+                outputs["raw_relevancy"] = max_across  # N x B x 1
+                outputs["best_scales"] = best_scales.to(self.device)  # N
 
         return outputs
 
@@ -146,14 +148,39 @@ class LERFModel(NerfactoModel):
         num_rays_per_chunk = self.config.eval_num_rays_per_chunk
         image_height, image_width = camera_ray_bundle.origins.shape[:2]
         num_rays = len(camera_ray_bundle)
-        outputs_lists = defaultdict(list)
+        outputs_lists = defaultdict(list)  # dict from name:list of outputs (1 per bundle)
+
         for i in range(0, num_rays, num_rays_per_chunk):
             start_idx = i
             end_idx = i + num_rays_per_chunk
             ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
             outputs = self.forward(ray_bundle=ray_bundle)
+            # take the best scale for each query across each ray bundle
+            if i == 0:
+                best_scales = outputs["best_scales"]
+                best_relevancies = [m.max() for m in outputs["raw_relevancy"]]
+            else:
+                for phrase_i in range(outputs["best_scales"].shape[0]):
+                    m = outputs["raw_relevancy"][phrase_i, ...].max()
+                    if m > best_relevancies[phrase_i]:
+                        best_scales[phrase_i] = outputs["best_scales"][phrase_i]
+                        best_relevancies[phrase_i] = m
+        # re-render the max_across outputs using the best scales across all batches
+        for i in range(0, num_rays, num_rays_per_chunk):
+            start_idx = i
+            end_idx = i + num_rays_per_chunk
+            ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
+            ray_bundle.metadata["override_scales"] = best_scales
+            outputs = self.forward(ray_bundle=ray_bundle)
+            # standard nerfstudio concatting
             for output_name, output in outputs.items():  # type: ignore
-                outputs_lists[output_name].append(output)
+                if output_name == "best_scales":
+                    continue
+                if output_name == "raw_relevancy":
+                    for r_id in range(output.shape[0]):
+                        outputs_lists[f"relevancy_{r_id}"].append(output[r_id, ...])
+                else:
+                    outputs_lists[output_name].append(output)
         outputs = {}
         for output_name, outputs_list in outputs_lists.items():
             if not torch.is_tensor(outputs_list[0]):
