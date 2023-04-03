@@ -85,7 +85,7 @@ lerf_method_big = MethodSpecification(
             model=LERFModelConfig(
                 eval_num_rays_per_chunk=1 << 15,
                 hashgrid_sizes=(19, 19),
-                hashgrid_layers=(14, 14),
+                hashgrid_layers=(16, 16),
                 hashgrid_resolutions=((16, 128), (128, 512)),
                 num_lerf_samples=32,
             ),
@@ -104,7 +104,7 @@ lerf_method_big = MethodSpecification(
             },
             "lerf": {
                 "optimizer": RAdamOptimizerConfig(lr=1e-2, eps=1e-15),
-                "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-3, max_steps=7000),
+                "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-3, max_steps=3000),
             },
         },
         viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
