@@ -45,15 +45,21 @@ The images below show the rgb, raw, centered, and normalized output views for th
 
 
 <div align='center'>
-<img src="readme_images/lily_rgb.jpg" width="50px">
-<img src="readme_images/lily_raw.jpg" width="50px">
-<img src="readme_images/lily_centered.jpg" width="50px">
-<img src="readme_images/lily_normalized.jpg" width="50px">
+<img src="readme_images/lily_rgb.jpg" width="150px">
+<img src="readme_images/lily_raw.jpg" width="150px">
+<img src="readme_images/lily_centered.jpg" width="150px">
+<img src="readme_images/lily_normalized.jpg" width="150px">
 </div>
-
 
 
 ## Resolution
 The Nerfstudio viewer dynamically changes resolution to achieve a desired training throughput.
 
 **To increase resolution, pause training**. Rendering at high resolution (512 or above) can take a second or two, so we recommend rendering at 256px
+## `lerf-big` and `lerf-lite`
+If your GPU is struggling on memory, we provide a `lerf-lite` implementation that reduces the LERF network capacity and number of samples along rays. If you find you still need to reduce memory footprint, the most impactful parameters for memory are `num_lerf_samples` and 
+
+`lerf-big` provides a larger model that uses ViT-L/14 instead of ViT-B/16 for those with large memory GPUs.
+
+# Extending LERF
+TODO
