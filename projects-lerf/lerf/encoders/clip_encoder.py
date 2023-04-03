@@ -14,7 +14,7 @@ from lerf.encoders.image_encoder import BaseImageEncoder, BaseImageEncoderConfig
 @dataclass
 class CLIPNetworkConfig(BaseImageEncoderConfig):
     _target: Type = field(default_factory=lambda: CLIPNetwork)
-    clip_model_type: str = "ViT-B-16"
+    clip_model_type: str = "ViT-B/16"
     clip_n_dims: int = 512
     negatives: Tuple[str] = ("object", "things", "stuff", "texture")
 
@@ -55,7 +55,7 @@ class CLIPNetwork(BaseImageEncoder):
 
     @property
     def name(self) -> str:
-        return "clip_{}".format(self.config.clip_model_type)
+        return "clip_openai_{}".format(self.config.clip_model_type)
 
     @property
     def embedding_dim(self) -> int:
