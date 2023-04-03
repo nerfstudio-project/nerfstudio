@@ -44,6 +44,7 @@ def is_port_open(port: int):
     """
     try:
         sock = socket.socket()
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         _ = sock.bind(("", port))
         sock.close()
         return True
