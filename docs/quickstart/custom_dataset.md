@@ -20,6 +20,7 @@ We Currently support the following custom data types:
 | 📱 [KIRI Engine](kiri) | IOS or Android | [KIRI Engine App](https://www.kiriengine.com/) | 🐇 |
 | 📱 [Record3D](record3d) | IOS with LiDAR | [Record3D app](https://record3d.app/) | 🐇 |
 | 🖥 [Metashape](metashape) | Any | [Metashape](https://www.agisoft.com/) | 🐇 |
+| 🖥 [RealityCapture](realitycapture) | Any | [RealityCapture](https://www.capturingreality.com/realitycapture) | 🐇 |
 
 (images_and_video)=
 
@@ -278,6 +279,26 @@ ns-train nerfacto --data {output directory}
 
 ```bash
 ns-process-data metashape --data {data directory} --xml {xml file} --output-dir {output directory}
+```
+
+4. Train with nerfstudio!
+
+```bash
+ns-train nerfacto --data {output directory}
+```
+
+(realitycapture)=
+
+## RealityCapture
+
+1. Align your images using RealityCapture. `ALIGNMENT -> Align Images`
+
+2. Export the camera alignment as a `csv` file. Choose `Internal/External camera parameters`
+
+3. Convert the data to the nerfstudio format.
+
+```bash
+ns-process-data realitycapture --data {data directory} --csv {csv file} --output-dir {output directory}
 ```
 
 4. Train with nerfstudio!
