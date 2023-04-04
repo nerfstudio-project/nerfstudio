@@ -49,7 +49,7 @@ const CLIPPING_BOX_NAME = 'Clipping Box';
 export default function ExportPanel(props) {
   // unpack relevant information
   const sceneTree = props.sceneTree;
-  const showExportBox = props.showExportBox;
+  const showExportBox = useSelector((state) => state.show_export_box);
 
   const [type_value, setTypeValue] = React.useState(false);
 
