@@ -147,9 +147,7 @@ function RenderTimeSelector(props) {
       disabled={disabled}
       sx={{
         input: {
-          '-webkit-text-fill-color': `${
-            disabled ? '#24B6FF' : '#EBEBEB'
-          } !important`,
+          WebkitTextFillColor: `${disabled ? '#24B6FF' : '#EBEBEB'} !important`,
           color: `${disabled ? '#24B6FF' : '#EBEBEB'} !important`,
         },
       }}
@@ -282,9 +280,7 @@ function FovSelector(props) {
       }}
       sx={{
         input: {
-          '-webkit-text-fill-color': `${
-            disabled ? '#24B6FF' : '#EBEBEB'
-          } !important`,
+          WebkitTextFillColor: `${disabled ? '#24B6FF' : '#EBEBEB'} !important`,
           color: `${disabled ? '#24B6FF' : '#EBEBEB'} !important`,
         },
       }}
@@ -655,13 +651,11 @@ export default function CameraPanel(props) {
   };
 
   const setCropEnabled = (value) => {
-    console.log('setting the crop enabled value to: ', value);
     dispatch({
       type: 'write',
       path: 'renderingState/crop_enabled',
       data: value,
     });
-    console.log('crop enabled value is now: ', crop_enabled);
   };
 
   const serCropBgColor = (value) => {
@@ -1121,7 +1115,6 @@ export default function CameraPanel(props) {
     reset_slider_render_on_add(new_camera_list);
 
     if ('crop' in camera_path_object && camera_path_object.crop !== null) {
-      console.log('crop' in camera_path_object);
       setCropEnabled(true);
       serCropBgColor(camera_path_object.crop.crop_bg_color);
       setCropCenter(camera_path_object.crop.crop_center);
