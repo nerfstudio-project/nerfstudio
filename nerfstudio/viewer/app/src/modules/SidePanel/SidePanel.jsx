@@ -74,6 +74,7 @@ interface PanelContentsProps {
 function PanelContents(props: PanelContentsProps) {
   const dispatch = useDispatch();
   const [tabState, setTabState] = React.useState(0);
+
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabState(newValue);
     dispatch({
@@ -86,6 +87,12 @@ function PanelContents(props: PanelContentsProps) {
     (state) => state.renderingState.camera_choice,
   );
   const arrayChildren = React.Children.toArray(props.children);
+
+  React.useEffect(() => {
+    if (camera_choice === 'Render Camera') {
+      setTabState(1);
+    }
+  }, [camera_choice]);
 
   return (
     <>
