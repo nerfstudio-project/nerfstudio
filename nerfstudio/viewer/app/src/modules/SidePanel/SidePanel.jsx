@@ -5,19 +5,16 @@ import * as THREE from 'three';
 
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
-import { Leva } from 'leva';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
-import Typography from '@mui/material/Typography';
 import {
   CameraAltRounded,
   TuneRounded,
   WidgetsRounded,
   ImportExportRounded,
 } from '@mui/icons-material/';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import StatusPanel from './StatusPanel';
-import LevaTheme from '../../themes/leva_theme.json';
 import CameraPanel from './CameraPanel';
 import ScenePanel from './ScenePanel';
 import { RenderControls } from '../ConfigPanel/ConfigPanel';
@@ -39,36 +36,91 @@ export const snap_to_camera = (sceneTree, camera, matrix) => {
   );
 };
 
-interface TabPanelProps {
-  children: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`simple-tabpanel-${index}`}
-      aria-labelledby={`simple-tab-${index}`}
-      // eslint-disable-next-line react/jsx-props-no-spreading
-      {...other}
-    >
-      <Box sx={{ p: 3, padding: 0 }}>
-        <Typography component="div">{children}</Typography>
-      </Box>
-    </div>
-  );
-}
-
 function a11yProps(index: number) {
   return {
     id: `simple-tab-${index}`,
     'aria-controls': `simple-tabpanel-${index}`,
   };
+}
+
+interface PanelTabContentsProps {
+  children: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+/** One tab in the control panel. */
+function PanelTabContents(props: PanelTabContentsProps) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <Box
+      component="div"
+      role="tabpanel"
+      hidden={value !== index}
+      id={`simple-tabpanel-${index}`}
+      aria-labelledby={`simple-tab-${index}`}
+      {...other}
+    >
+      {children}
+    </Box>
+  );
+}
+
+interface PanelContentsProps {
+  children: React.ReactNode;
+}
+
+function PanelContents(props: PanelContentsProps) {
+  const dispatch = useDispatch();
+  const [tabState, setTabState] = React.useState(0);
+  const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setTabState(newValue);
+    dispatch({
+      type: 'write',
+      path: 'show_export_box',
+      data: newValue === 3,
+    });
+  };
+  const camera_choice = useSelector(
+    (state) => state.renderingState.camera_choice,
+  );
+  const arrayChildren = React.Children.toArray(props.children);
+
+  return (
+    <>
+      <Box component="div" sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Tabs
+          value={tabState}
+          onChange={handleChange}
+          aria-label="panel tabs"
+          centered
+        >
+          <Tab icon={<TuneRounded />} label="Controls" {...a11yProps(0)} />
+          <Tab icon={<CameraAltRounded />} label="Render" {...a11yProps(1)} />
+          <Tab
+            icon={<WidgetsRounded />}
+            label="Scene"
+            disabled={camera_choice === 'Render Camera'}
+            {...a11yProps(2)}
+          />
+          <Tab
+            icon={<ImportExportRounded />}
+            label="Export"
+            disabled={camera_choice === 'Render Camera'}
+            {...a11yProps(3)}
+          />
+        </Tabs>
+      </Box>
+
+      {arrayChildren.map((child, index) => (
+        // eslint-disable-next-line react/no-array-index-key
+        <PanelTabContents value={tabState} index={index} key={index}>
+          {child}
+        </PanelTabContents>
+      ))}
+    </>
+  );
 }
 
 interface BasicTabsProps {
@@ -78,78 +130,17 @@ interface BasicTabsProps {
 export function BasicTabs(props: BasicTabsProps) {
   const sceneTree = props.sceneTree;
 
-  const [value, setValue] = React.useState(0);
-  const [showExportBox, setShowExportBox] = React.useState(false);
-
-  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
-    setValue(newValue);
-    setShowExportBox(newValue === 3);
-  };
-  const camera_choice = useSelector(
-    (state) => state.renderingState.camera_choice,
-  );
-
-  React.useEffect(() => {
-    if (camera_choice === 'Render Camera') {
-      setValue(1);
-    }
-  }, [camera_choice]);
-
   return (
     <div>
       <StatusPanel sceneTree={sceneTree} />
       <Divider />
       <Box sx={{ width: '100%' }}>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs
-            value={value}
-            onChange={handleChange}
-            aria-label="panel tabs"
-            centered
-          >
-            <Tab icon={<TuneRounded />} label="Controls" {...a11yProps(0)} />
-            <Tab icon={<CameraAltRounded />} label="Render" {...a11yProps(1)} />
-            <Tab
-              icon={<WidgetsRounded />}
-              label="Scene"
-              disabled={camera_choice === 'Render Camera'}
-              {...a11yProps(2)}
-            />
-            <Tab
-              icon={<ImportExportRounded />}
-              label="Export"
-              disabled={camera_choice === 'Render Camera'}
-              {...a11yProps(3)}
-            />
-          </Tabs>
-        </Box>
-        <TabPanel value={value} index={0}>
-          <div className="Leva-container">
-            <RenderControls />
-            <Leva
-              className="Leva-panel"
-              theme={LevaTheme}
-              titleBar={false}
-              fill
-              flat
-            />
-          </div>
-        </TabPanel>
-        <TabPanel value={value} index={1}>
-          <CameraPanel
-            sceneTree={sceneTree}
-            // camera_controls={sceneTree.metadata.camera_controls}
-          />
-        </TabPanel>
-        <TabPanel value={value} index={2}>
-          <div className="Scene-container">
-            <ScenePanel sceneTree={sceneTree} />
-          </div>
-        </TabPanel>
-
-        <TabPanel value={value} index={3}>
-          <ExportPanel sceneTree={sceneTree} showExportBox={showExportBox} />
-        </TabPanel>
+        <PanelContents>
+          <RenderControls />
+          <CameraPanel sceneTree={sceneTree} />
+          <ScenePanel sceneTree={sceneTree} />
+          <ExportPanel sceneTree={sceneTree} />
+        </PanelContents>
       </Box>
     </div>
   );
