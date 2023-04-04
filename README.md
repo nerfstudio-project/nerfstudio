@@ -57,6 +57,9 @@
 - [Learn more](#learn-more)
 - [Supported Features](#supported-features)
 
+# This branch is temporary
+`lerf-merge` includes some hardcoded viewer code (text box) for supporting lerf. Soon, this will be refactored and this branch will be deleted.
+
 # About
 
 Nerfstudio provides a simple API that allows for a simplified end-to-end process of creating, training, and testing NeRFs.
