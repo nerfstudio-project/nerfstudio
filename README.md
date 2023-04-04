@@ -1,3 +1,7 @@
+
+# !! This branch is temporary !!
+`lerf-merge` includes some hardcoded viewer code (text box) for supporting LERF. Soon, this will be refactored and this branch will be deleted.
+
 <p align="center">
     <!-- community badges -->
     <a href="https://discord.gg/uMbNqcraFc"><img src="https://img.shields.io/badge/Join-Discord-blue.svg"/></a>
@@ -57,8 +61,6 @@
 - [Learn more](#learn-more)
 - [Supported Features](#supported-features)
 
-# This branch is temporary
-`lerf-merge` includes some hardcoded viewer code (text box) for supporting LERF. Soon, this will be refactored and this branch will be deleted.
 
 # About
 
