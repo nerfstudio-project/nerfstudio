@@ -94,6 +94,8 @@ class Nerfstudio(DataParser):
             data_dir = self.config.data
 
         indices_json: None | dict[str, str] = None
+        indices_file_path: None | Path = None
+
         if self.config.indices_file is not None:
             indices_file_path = self.config.indices_file
             if indices_file_path.is_file():
@@ -139,9 +141,6 @@ class Nerfstudio(DataParser):
                 indices_json_key = str(Path("images", fname.name))
                 if indices_json_key not in indices_json or indices_json[indices_json_key] == "ignore":
                     num_skipped_image_filenames += 1
-                    # CONSOLE.log(
-                    #     f"Skiping image {str(fname)} because it doesn't exist in {str(indices_file_path)}"
-                    # )
                     continue
 
             if not fx_fixed:
@@ -212,7 +211,7 @@ class Nerfstudio(DataParser):
         """
 
         has_split_files_spec = any(f"{split}_filenames" in meta for split in ("train", "val", "test"))
-        if indices_json is not None:
+        if indices_json is not None and indices_file_path is not None:
             if split in ["val", "test"]:
                 split_strategy = ["val", "test"]
             elif split in ["train"]:
@@ -220,7 +219,7 @@ class Nerfstudio(DataParser):
             elif split in [SPLIT_MODE_ALL]:
                 split_strategy = ["train", "val", "test"]
             else:
-                ValueError(f"Split can't be '{split}'")
+                raise ValueError(f"Split can't be '{split}'")
 
             indices_json: dict[str, str] = load_from_json(indices_file_path)
             # assert len(indices_json) == len(

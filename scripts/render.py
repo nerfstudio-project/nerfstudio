@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import json
@@ -14,6 +13,7 @@ import mediapy as media
 import numpy as np
 import torch
 import tyro
+import yaml
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -38,7 +38,10 @@ from nerfstudio.data.datamanagers.base_datamanager import (
 from nerfstudio.data.dataparsers.cameras_from_transforms import (
     generate_dataparser_outputs_static,
 )
-from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
+from nerfstudio.data.dataparsers.nerfstudio_dataparser import (
+    Nerfstudio,
+    NerfstudioDataParserConfig,
+)
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components import renderers
 from nerfstudio.pipelines.base_pipeline import Pipeline
@@ -273,9 +276,10 @@ class RenderTrajectory:
     traj: Literal["spiral", "filename", "interpolate", "dataset"] = "spiral"
     """Trajectory type to render. Select between spiral-shaped trajectory, trajectory loaded from
     a viewer-generated file and interpolated camera paths from the eval dataset."""
+    traj_source: Optional[Path] = None
+    """Trajectory will be defined by the dataset or a camera path filename"""
     downscale_factor: int = 1
     """Scaling factor to apply to the camera image resolution."""
-    camera_path_filename: Path = Path("camera_path.json")
     indices_file: Optional[Path] = None
     """Filename of the camera path to render."""
     output_path: Path = Path("renders/output.mp4")
@@ -291,6 +295,9 @@ class RenderTrajectory:
 
     def main(self) -> None:
         """Main function."""
+        if self.traj in ["dataset", "filename"] and self.traj_source is None:
+            raise Exception("Please provide --traj-source <DATASET CONFIG OR camera.json>")
+
         config, pipeline, _ = eval_setup(
             self.load_config,
             eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
@@ -309,8 +316,9 @@ class RenderTrajectory:
             # TODO(ethan): pass in the up direction of the camera
             camera_type = CameraType.PERSPECTIVE
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
-        elif self.traj == "filename":
-            with open(self.camera_path_filename, "r", encoding="utf-8") as f:
+        elif self.traj == "filename" and self.traj_source is not None:
+            assert Path(self.traj_source).suffix == ".json"
+            with open(self.traj_source, "r", encoding="utf-8") as f:
                 camera_path = json.load(f)
             seconds = camera_path["seconds"]
             if "camera_type" not in camera_path:
@@ -323,19 +331,14 @@ class RenderTrajectory:
                 camera_type = CameraType.PERSPECTIVE
             crop_data = get_crop_from_json(camera_path)
             camera_path = get_path_from_json(camera_path)
-        elif self.traj == "dataset":
-            # assert (
-            #     self.indices_file
-            # ), "Please provide indices.json file if trajectory is 'dataset'"
-            _config: NerfstudioDataParserConfig = config.pipeline.datamanager.dataparser  # type: ignore
-            dataparser_outputs = generate_dataparser_outputs_static(
-                data_or_transforms=self.camera_path_filename,
-                indices_file=self.indices_file,
-                center_poses=_config.center_poses,
-                auto_scale_poses=_config.auto_scale_poses,
-                scene_scale=_config.scene_scale,
-                orientation_method=_config.orientation_method,
-            )
+        elif self.traj == "dataset" and self.traj_source is not None:
+            assert self.indices_file, "Please provide indices.json file if trajectory is 'dataset'"
+            assert Path(self.traj_source).suffix == ".yml"
+            camera_dataset_config = yaml.load(self.traj_source.read_text(), Loader=yaml.Loader)
+            data_parser_config: NerfstudioDataParserConfig = camera_dataset_config.pipeline.datamanager.dataparser  # type: ignore
+            data_parser_config.indices_file = self.indices_file
+            dataparser: Nerfstudio = data_parser_config.setup()
+            dataparser_outputs = dataparser._generate_dataparser_outputs(split="all")
             camera_type = CameraType.PERSPECTIVE
             camera_path = dataparser_outputs.cameras
         elif self.traj == "interpolate":

@@ -26,7 +26,7 @@ CONSOLE = Console(width=120, no_color=True)
 def generate_dataparser_outputs_static(
     data_or_transforms: Path,
     indices_file: Path | None,
-    center_poses,
+    center_method,
     auto_scale_poses,
     scene_scale,
     orientation_method,
@@ -172,10 +172,10 @@ def generate_dataparser_outputs_static(
         CONSOLE.log(f"[yellow] Dataset is overriding orientation method to {orientation_method}")
 
     poses = torch.from_numpy(np.array(poses).astype(np.float32))
-    poses, transform_matrix = camera_utils.auto_orient_and_center_poses(
+    poses, transform_matrix = camera_utils.auto_orient_and_center_method(
         poses,
         method=orientation_method,
-        center_poses=center_poses,
+        center_method=center_method,
     )
 
     # Scale poses
@@ -241,7 +241,14 @@ def generate_dataparser_outputs_static(
 
     downscale_factor = 1
     cameras.rescale_output_resolution(scaling_factor=1.0 / downscale_factor)
-
+    if "applied_transform" in meta:
+        applied_transform = torch.tensor(meta["applied_transform"], dtype=transform_matrix.dtype)
+        transform_matrix = transform_matrix @ torch.cat(
+            [applied_transform, torch.tensor([[0, 0, 0, 1]], dtype=transform_matrix.dtype)], 0
+        )
+    if "applied_scale" in meta:
+        applied_scale = float(meta["applied_scale"])
+        scale_factor *= applied_scale
     dataparser_outputs = DataparserOutputs(
         image_filenames=image_filenames,
         cameras=cameras,
