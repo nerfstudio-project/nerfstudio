@@ -26,7 +26,7 @@ from torch import nn
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
 
-from nerfstudio.cameras.rays import RaySamples
+from nerfstudio.cameras.rays import Frustums, RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.embedding import Embedding
@@ -270,6 +270,29 @@ class TCNNNerfactoField(Field):
             },
         )
 
+    def density_fn(self, positions: TensorType["bs":..., 3], wavelengths=None) -> TensorType["bs":..., 1]:
+        """Returns only the density. Used primarily with the density grid.
+
+        Args:
+            positions: the origin of the samples/frustums
+        """
+        # Need to figure out a better way to describe positions with a ray.
+        ray_samples = RaySamples(
+            frustums=Frustums(
+                origins=positions,
+                directions=torch.ones_like(positions),
+                starts=torch.zeros_like(positions[..., :1]),
+                ends=torch.zeros_like(positions[..., :1]),
+                pixel_area=torch.ones_like(positions[..., :1]),
+            )
+        )
+        if wavelengths is not None:
+            ray_samples.wavelengths = wavelengths
+        else:
+            pass  # TODO, use default wavelengths somehow
+        density, _ = self.get_density(ray_samples)
+        return density
+
     def get_density(self, ray_samples: RaySamples):
         """Computes and returns the densities."""
         if self.spatial_distortion is not None:
@@ -284,7 +307,7 @@ class TCNNNerfactoField(Field):
         positions_flat = positions.view(-1, 3)
         # if self.wavelength_style != InputWavelengthStyle.NONE:
         if self.wavelength_style == InputWavelengthStyle.BEFORE_BASE:
-            if "wavelengths" in ray_samples.metadata:
+            if ray_samples.metadata is not None and "wavelengths" in ray_samples.metadata:
                 wavelengths = ray_samples.metadata["wavelengths"].view(-1, 1)
                 positions_flat = torch.cat([positions_flat, wavelengths], dim=-1)
             elif "set_of_wavelengths" in ray_samples.metadata:
@@ -310,7 +333,7 @@ class TCNNNerfactoField(Field):
         else:
             h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         if self.wavelength_style == InputWavelengthStyle.AFTER_BASE:
-            if "wavelengths" in ray_samples.metadata:
+            if ray_samples.metadata is not None and "wavelengths" in ray_samples.metadata:
                 raise Exception("not right")
                 wavelength_encodings = self.wavelength_encoding(ray_samples.metadata["wavelengths"].reshape(-1, 1))
                 base_mlp_out = torch.cat([h.view(-1, h.shape[-1]), wavelength_encodings], dim=-1)
