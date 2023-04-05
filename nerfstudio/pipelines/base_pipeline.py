@@ -107,24 +107,37 @@ class Pipeline(nn.Module):
         """Returns the device that the model is on."""
         return self.model.device
 
-    def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
-        is_ddp_model_state = True
+    @staticmethod
+    def _parse_pipeline_state(loaded_state: Dict[str, Any]) -> Mapping[str, Any]:
+        """Parse a pipeline state in a more understandable format.
+
+        Args:
+            loaded_state: raw state of the pipeline saved with torch.save
+
+        Returns:
+            a dictionnary of key and values from the state's items.
+        """
+        return {
+            (key[len("module.") :] if key.startswith("module.") else key): value for key, value in loaded_state.items()
+        }
+
+    @staticmethod
+    def parse_model_state(loaded_state: Dict[str, Any]) -> Dict[str, Any]:
+        """Extracts the model state out of the pipeline state
+
+        Args:
+            loaded_state: raw state of the pipeline saved with torch.save
+
+        Returns:
+            a dictionnary of key and values from the model's items.
+        """
+        state_dict = Pipeline._parse_pipeline_state(loaded_state)
         model_state = {}
         for key, value in state_dict.items():
             if key.startswith("_model."):
                 # remove the "_model." prefix from key
                 model_state[key[len("_model.") :]] = value
-                # make sure that the "module." prefix comes from DDP,
-                # rather than an attribute of the model named "module"
-                if not key.startswith("_model.module."):
-                    is_ddp_model_state = False
-        # remove "module." prefix added by DDP
-        if is_ddp_model_state:
-            model_state = {key[len("module.") :]: value for key, value in model_state.items()}
-
-        pipeline_state = {key: value for key, value in state_dict.items() if not key.startswith("_model.")}
-        self.model.load_state_dict(model_state, strict=strict)
-        super().load_state_dict(pipeline_state, strict=False)
+        return model_state
 
     @profiler.time_function
     def get_train_loss_dict(self, step: int):
@@ -383,11 +396,13 @@ class VanillaPipeline(Pipeline):
             loaded_state: pre-trained model state dict
             step: training step of the loaded checkpoint
         """
-        state = {
-            (key[len("module.") :] if key.startswith("module.") else key): value for key, value in loaded_state.items()
-        }
-        self.model.update_to_step(step)
-        self.load_state_dict(state, strict=True)
+
+        model_state = Pipeline.parse_model_state(loaded_state)
+        self.model.load_model_state(model_state, step)
+
+        readable_pipeline_state = Pipeline._parse_pipeline_state(loaded_state)
+        pipeline_state = {key: value for key, value in readable_pipeline_state.items() if not key.startswith("_model.")}
+        self.load_state_dict(pipeline_state, strict=False)
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes

@@ -203,6 +203,66 @@ class Model(nn.Module):
             A dictionary of metrics.
         """
 
+    @staticmethod
+    def is_dpp(loaded_state: Dict[str, Any]) -> bool:  # pylint: disable=missing-function-docstring
+        for key, _ in loaded_state.items():
+            if not key.startswith("module."):
+                return False
+        return True
+
+    @staticmethod
+    def _parse_state(loaded_state: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse state of model.
+
+        Effectively removes the "module." naming of DPP
+
+        Args:
+            loaded_state: pre-trained model state dict
+
+        Returns:
+            parsed state
+        """
+        if Model.is_dpp(loaded_state):
+            return {key[len("module.") :]: value for key, value in loaded_state.items()}
+        return loaded_state
+
+    def load_model_state(self, loaded_state: Dict[str, Any], step: int, strict: bool = True) -> None:
+        """Loads a model from a checkpoint
+
+        Args:
+            loaded_state: pre-trained model state dict
+            step: training step of the loaded checkpoint
+            strict: whether to strictly enforce that the keys in :attr:`state_dict` match the keys returned by this
+                    module's :meth:`~torch.nn.Module.state_dict` function. Default: ``True``
+
+        Example:
+
+        .. code-block:: python
+
+            # Given a pipeline
+            config = VanillaPipelineConfig(
+                datamanager=VanillaDataManagerConfig(
+                    _target=MockedDataManager,
+                ),
+                model=VanillaModelConfig(_target=NeRFModel),
+            )
+            pipeline = VanillaPipeline(config, "cpu")
+
+            # We can export the state of the pipeline
+            state_dict = pipeline.state_dict()
+
+            # the model can be loaded alone from the pipeline's state
+            config = VanillaModelConfig(_target=NeRFModel)
+            model = NeRFModel(config, scene_box=SceneBox(), num_train_data=1)
+
+            model_state = Pipeline.parse_model_state(state_dict)
+            model.load_model_state(model_state, 0)
+
+        """
+        model_state = Model._parse_state(loaded_state)
+        self.update_to_step(step)
+        self.load_state_dict(model_state, strict=strict)
+
     def load_model(self, loaded_state: Dict[str, Any]) -> None:
         """Load the checkpoint from the given path
 
