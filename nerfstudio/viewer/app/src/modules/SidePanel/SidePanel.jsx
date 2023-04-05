@@ -87,6 +87,12 @@ function PanelContents(props: PanelContentsProps) {
   );
   const arrayChildren = React.Children.toArray(props.children);
 
+  React.useEffect(() => {
+    if (camera_choice === 'Render Camera') {
+      setTabState(1);
+    }
+  }, [camera_choice]);
+
   return (
     <>
       <Box component="div" sx={{ borderBottom: 1, borderColor: 'divider' }}>
