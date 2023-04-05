@@ -312,7 +312,7 @@ method_configs["hs-nerfacto3-rgb"] = TrainerConfig(
                                   num_output_color_channels=3,
                                   num_density_channels=1,
                                   proposal_wavelength_use=False,
-                                  wavelength_style=InputWavelengthStyle.BEFORE_BASE,
+                                  wavelength_style=InputWavelengthStyle.AFTER_BASE,
                                   num_wavelength_encoding_freqs=2,
                                   train_wavelengths_every_nth=1),
     ),
