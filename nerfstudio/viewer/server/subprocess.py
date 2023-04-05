@@ -33,6 +33,43 @@ from nerfstudio.viewer.server import server
 CONSOLE = Console()
 
 
+def is_port_open(port: int):
+    """Returns True if the port is open.
+
+    Args:
+        port: Port to check.
+
+    Returns:
+        True if the port is open, False otherwise.
+    """
+    try:
+        sock = socket.socket()
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        _ = sock.bind(("", port))
+        sock.close()
+        return True
+    except OSError:
+        return False
+
+
+def get_free_port(default_port: int = None):
+    """Returns a free port on the local machine. Try to use default_port is possible.
+
+    Args:
+        default_port: Port to try to use.
+
+    Returns:
+        A free port on the local machine.
+    """
+    if default_port:
+        if is_port_open(default_port):
+            return default_port
+    sock = socket.socket()
+    sock.bind(("", 0))
+    port = sock.getsockname()[1]
+    return port
+
+
 def run_viewer_bridge_server_as_subprocess(
     websocket_port: int,
     zmq_port: Optional[int] = None,
@@ -54,9 +91,7 @@ def run_viewer_bridge_server_as_subprocess(
 
     # find an available port for zmq
     if zmq_port is None:
-        sock = socket.socket()
-        sock.bind(("", 0))
-        zmq_port = sock.getsockname()[1]
+        zmq_port = get_free_port()
         string = f"Using ZMQ port: {zmq_port}"
         CONSOLE.print(f"[bold yellow]{string}")
 
@@ -90,7 +125,6 @@ def run_viewer_bridge_server_as_subprocess(
             "You likely have to modify --viewer.zmq-port and/or --viewer.websocket-port in the "
             "config to avoid conflicting ports.\n"
         )
-        string += "Try modifying --viewer.websocket-port 7007\n"
         CONSOLE.print(f"[bold red]{string}")
         cleanup(process)
         # This exists the entire program. sys.exit() will only kill the thread that this runs in.

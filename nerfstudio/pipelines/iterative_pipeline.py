@@ -101,7 +101,7 @@ class IterativePipeline(VanillaPipeline):
     @torch.no_grad()
     def save_new_train_images(self, step: int):
         print("saving training images")
-        num_images_per_train = 7
+        num_images_per_train = 5
         resolution = 512
         ray_bundles, cameras, camera_angles = self.datamanager.random_train_views(step, resolution=resolution, num_views=num_images_per_train)
         train_img_paths = []
@@ -148,10 +148,11 @@ class IterativePipeline(VanillaPipeline):
         # use a data loader that allows for multiview supervision each train step
         # rerender train dataset every Y iterations
 
-        if step % 2000 == 0:
+        if step % 500 == 0:
             self.save_new_train_images(step)
 
         if step % 500 == 0:
+        # if step == 0:
             self.update_train_images(step)
 
         if self.world_size > 1 and step:

@@ -71,7 +71,7 @@ pip uninstall torch torchvision functorch
 Install pytorch 1.13.1 with CUDA and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
 
 ```bash
-pip install torch torchvision functorch --extra-index-url https://download.pytorch.org/whl/cu117
+pip install torch==1.13.1 torchvision functorch --extra-index-url https://download.pytorch.org/whl/cu117
 ```
 
 :::
@@ -79,10 +79,10 @@ pip install torch torchvision functorch --extra-index-url https://download.pytor
 
 ### tinycudann
 
-After pytorch, install the torch bindings for tinycudann:
+After pytorch and ninja, install the torch bindings for tinycudann:
 
 ```bash
-pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
 ## Installing nerfstudio

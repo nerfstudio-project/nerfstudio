@@ -348,7 +348,7 @@ class StableDiffusionImg2Img(nn.Module):
         latent = self.imgs_to_latent(image.half())
 
         # t = torch.randint(self.max_step - 1, self.max_step, [1], dtype=torch.long, device=self.device)
-        t = torch.randint(0, 1, [1], dtype=torch.long)
+        t = torch.randint(4, 5, [1], dtype=torch.long)
         new_steps = self.scheduler.timesteps[t:]
 
         t_noise = self.scheduler.timesteps[t]
@@ -358,7 +358,6 @@ class StableDiffusionImg2Img(nn.Module):
 
         # for i, time in enumerate(self.scheduler.timesteps):
         for i, time in enumerate(new_steps):
-        # for i in range(num_inference_steps):
             # predict the noise residual
             latent_model_input = torch.cat([latent] * 2)
 
@@ -374,7 +373,6 @@ class StableDiffusionImg2Img(nn.Module):
             latent = self.scheduler.step(noise_pred, time, latent)["prev_sample"]  # type: ignore
 
         diffused_img = self.latents_to_img(latent.half())
-        # diffused_img = F.interpolate(diffused_img, (128, 128), mode="bilinear")
         diffused_img = diffused_img.detach().cpu().permute(0, 2, 3, 1).numpy()
         diffused_img = (diffused_img * 255).round().astype("uint8")[0] # might delete this indexing
 

@@ -31,10 +31,10 @@ export function get_scene_tree() {
     },
     setValue(key, value) {
       this.value.set(key, value);
-      this.callbacks.forEach((cbk) => {
-        const i = cbk[1];
-        const callback = cbk[0];
-        return callback(this.value.get(i));
+      this.callbacks.forEach((callback, callbackKey) => {
+        if (callbackKey === key) {
+          callback(value);
+        }
       });
     },
   };
@@ -164,6 +164,9 @@ export function get_scene_tree() {
     if (!scene_state.value.get('mouse_in_scene')) {
       return;
     }
+    if (keyMap.Space === true) {
+      camera_controls.setLookAt(0.7, -0.7, 0.3, 0, 0, 0);
+    }
     translate();
     rotate();
   }
@@ -188,12 +191,6 @@ export function get_scene_tree() {
 
   window.addEventListener('keydown', onKeyDown, true);
   window.addEventListener('keyup', onKeyUp, true);
-
-  window.addEventListener('keydown', (event) => {
-    if (event.code === 'Space') {
-      camera_controls.setLookAt(0.7, -0.7, 0.3, 0, 0, 0);
-    }
-  });
 
   sceneTree.metadata.camera_controls = camera_controls;
   sceneTree.metadata.moveCamera = moveCamera;
@@ -390,7 +387,7 @@ export function SceneTreeWebSocketListener() {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    socket.addEventListener('message', (originalCmd) => {
+    const messageHandler = (originalCmd) => {
       // set the remote description when the offer is received
       const cmd = msgpack.decode(new Uint8Array(originalCmd.data));
       if (cmd.type === 'write') {
@@ -401,6 +398,11 @@ export function SceneTreeWebSocketListener() {
           data: cmd.data,
         });
       }
-    });
+    };
+    socket.addEventListener('message', messageHandler);
+
+    return () => {
+      socket.removeEventListener('message', messageHandler);
+    };
   }, [socket]); // dependency to call this whenever the websocket changes
 }

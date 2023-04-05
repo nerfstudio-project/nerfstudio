@@ -45,7 +45,10 @@ from nerfstudio.utils import colormaps, profiler, writer
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
-from nerfstudio.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
+from nerfstudio.viewer.server.subprocess import (
+    get_free_port,
+    run_viewer_bridge_server_as_subprocess,
+)
 from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfstudio.viewer.server.visualizer import Viewer
 
@@ -256,10 +259,13 @@ class ViewerState:
         self.datapath = datapath.parent if datapath.is_file() else datapath
         if self.config.launch_bridge_server:
             # start the viewer bridge server
-            assert self.config.websocket_port is not None
+            if self.config.websocket_port is None:
+                websocket_port = get_free_port(default_port=self.config.websocket_port_default)
+            else:
+                websocket_port = self.config.websocket_port
             self.log_filename.parent.mkdir(exist_ok=True)
             zmq_port = run_viewer_bridge_server_as_subprocess(
-                self.config.websocket_port,
+                websocket_port,
                 zmq_port=self.config.zmq_port,
                 ip_address=self.config.ip_address,
                 log_filename=str(self.log_filename),
@@ -267,7 +273,7 @@ class ViewerState:
             # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
             CONSOLE.line()
             version = get_viewer_version()
-            websocket_url = f"ws://localhost:{self.config.websocket_port}"
+            websocket_url = f"ws://localhost:{websocket_port}"
             self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_url={websocket_url}"
             CONSOLE.rule(characters="=")
             CONSOLE.print(f"[Public] Open the viewer at {self.viewer_url}")
@@ -357,15 +363,6 @@ class ViewerState:
 
         max_scene_box = torch.max(dataset.scene_box.aabb[1] - dataset.scene_box.aabb[0]).item()
         self.vis["renderingState/max_box_size"].write(max_scene_box)
-
-        # self.vis["renderingState/render_time"].write(str(0))
-
-        # set the properties of the camera
-        # self.vis["renderingState/camera"].write(json_)
-
-        # set the main camera intrinsics to one from the dataset
-        # K = camera.get_intrinsics_matrix()
-        # set_persp_intrinsics_matrix(self.vis, K.double().numpy())
 
     def _check_camera_path_payload(self, trainer, step: int):
         """Check to see if the camera path export button was pressed."""
@@ -679,8 +676,17 @@ class ViewerState:
 
         image = selected_output[..., [2, 1, 0]].cpu().numpy()
 
-        data = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 75])[1].tobytes()
-        data = str("data:image/jpeg;base64," + base64.b64encode(data).decode("ascii"))
+        data = cv2.imencode(
+            f".{self.config.image_format}",
+            image,
+            [
+                cv2.IMWRITE_JPEG_QUALITY,
+                self.config.jpeg_quality,
+                cv2.IMWRITE_PNG_COMPRESSION,
+                self.config.png_compression,
+            ],
+        )[1].tobytes()
+        data = str(f"data:image/{self.config.image_format};base64," + base64.b64encode(data).decode("ascii"))
         self.vis["render_img"].write(data)
 
     def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int, image_width: int) -> None:

@@ -70,8 +70,10 @@ class TensoRFModelConfig(ModelConfig):
     """specifies a list of iteration step numbers to perform upsampling"""
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
     """Loss specific weights."""
-    num_samples: int = 256
+    num_samples: int = 50
     """Number of samples in field evaluation"""
+    num_uniform_samples: int = 200
+    """Number of samples in density evaluation"""
     num_den_components: int = 16
     """Number of components in density encoding"""
     num_color_components: int = 48
@@ -87,6 +89,8 @@ class TensoRFModel(Model):
     Args:
         config: TensoRF configuration to instantiate model
     """
+
+    config: TensoRFModelConfig
 
     def __init__(
         self,
@@ -116,7 +120,6 @@ class TensoRFModel(Model):
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
-
         # the callback that we want to run every X iterations after the training iteration
         def reinitialize_optimizer(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
@@ -219,8 +222,8 @@ class TensoRFModel(Model):
         )
 
         # samplers
-        self.sampler_uniform = UniformSampler(num_samples=self.config.num_samples, single_jitter=True)
-        self.sampler_pdf = PDFSampler(num_samples=self.config.num_samples // 2, single_jitter=True)
+        self.sampler_uniform = UniformSampler(num_samples=self.config.num_uniform_samples, single_jitter=True)
+        self.sampler_pdf = PDFSampler(num_samples=self.config.num_samples, single_jitter=True, include_original=False)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -302,6 +305,7 @@ class TensoRFModel(Model):
         image = batch["image"].to(outputs["rgb"].device)
         rgb = outputs["rgb"]
         acc = colormaps.apply_colormap(outputs["accumulation"])
+        assert self.config.collider_params is not None
         depth = colormaps.apply_depth_colormap(
             outputs["depth"],
             accumulation=outputs["accumulation"],

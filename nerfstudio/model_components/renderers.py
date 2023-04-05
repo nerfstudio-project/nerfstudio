@@ -180,7 +180,7 @@ class SHRenderer(nn.Module):
         components = components_from_spherical_harmonics(levels=levels, directions=directions)
 
         rgb = sh * components[..., None, :]  # [..., num_samples, 3, sh_components]
-        rgb = torch.sum(sh, dim=-1) + 0.5  # [..., num_samples, 3]
+        rgb = torch.sum(rgb, dim=-1)  # [..., num_samples, 3]
 
         if self.activation is not None:
             rgb = self.activation(rgb)
