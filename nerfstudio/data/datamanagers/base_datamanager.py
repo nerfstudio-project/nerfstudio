@@ -149,10 +149,11 @@ class DataManager(nn.Module):
     Usage:
     To get data, use the next_train and next_eval functions.
     This data manager's next_train and next_eval methods will return 2 things:
-        1. A Raybundle: This will contain the rays we are sampling, with latents and
-            conditionals attached (everything needed at inference)
-        2. A "batch" of auxiliary information: This will contain the mask, the ground truth
-            pixels, etc needed to actually train, score, etc the model
+
+    1. A Raybundle: This will contain the rays we are sampling, with latents and
+        conditionals attached (everything needed at inference)
+    2. A "batch" of auxiliary information: This will contain the mask, the ground truth
+        pixels, etc needed to actually train, score, etc the model
 
     Rationale:
     Because of this abstraction we've added, we can support more NeRF paradigms beyond the
