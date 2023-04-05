@@ -32,6 +32,8 @@ from torch import nn
 from torch.cuda.amp import custom_bwd, custom_fwd
 from torch.cuda.amp.grad_scaler import GradScaler
 from torchtyping import TensorType
+from PIL import Image
+
 
 try:
     from diffusers import PNDMScheduler, StableDiffusionPipeline
@@ -98,7 +100,7 @@ class StableDiffusionImg2Img(nn.Module):
         pipe = pipe.to(self.device)
 
         pipe.enable_attention_slicing()
-        pipe.enable_xformers_memory_efficient_attention()
+        # pipe.enable_xformers_memory_efficient_attention()
 
         # use jitted unet
         filename_sd_id = sd_id.split("/")[-1]
@@ -283,7 +285,7 @@ class StableDiffusionImg2Img(nn.Module):
         self.scheduler.set_timesteps(num_inference_steps)  # type: ignore
 
         with torch.autocast("cuda"):
-            for t in self.scheduler.timesteps:  # type: ignore
+            for i, t in enumerate(self.scheduler.timesteps):  # type: ignore
                 assert latents is not None
                 # expand the latents if we are doing classifier-free guidance to avoid doing two forward passes.
                 latent_model_input = torch.cat([latents] * 2)
@@ -300,6 +302,14 @@ class StableDiffusionImg2Img(nn.Module):
 
                 # compute the previous noisy sample x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents)["prev_sample"]  # type: ignore
+
+                cur_img = self.latents_to_img(latents.half())
+                cur_img = cur_img.detach().cpu().permute(0, 2, 3, 1).numpy()
+                cur_img = (cur_img * 255).round().astype("uint8")[0] # might delete this indexing
+
+                save_path = Path(f"normal_diffusion_image_steps/{i}.png")
+                mediapy.write_image(str(save_path), cur_img)
+
         return latents
 
     def latents_to_img(self, latents: TensorType["BS", 4, "H", "W"]) -> TensorType["BS", 3, "H", "W"]:
@@ -333,24 +343,37 @@ class StableDiffusionImg2Img(nn.Module):
 
         return latents
 
-    def update_img(self, prompt, negative_prompt, image, num_inference_steps, guidance_scale):
-        prompt = [prompt] if isinstance(prompt, str) else prompt
-        negative_prompt = [negative_prompt] if isinstance(negative_prompt, str) else negative_prompt
-        text_embeddings = self.get_text_embeds(prompt, negative_prompt)
+    def update_img(self, text_embedding, image, num_inference_steps=50, guidance_scale=7.5):
+        self.scheduler.set_timesteps(50)  # type: ignore
+        latent = self.imgs_to_latent(image.half())
 
-        # image = F.interpolate(image.half(), (IMG_DIM, IMG_DIM), mode="bilinear")
-        init_latents = self.imgs_to_latent(image.half())
+        # t = torch.randint(self.max_step - 1, self.max_step, [1], dtype=torch.long, device=self.device)
+        t = torch.randint(0, 1, [1], dtype=torch.long)
+        new_steps = self.scheduler.timesteps[t:]
 
-        latents = self.produce_latents(
-            text_embeddings,
-            height=IMG_DIM,
-            width=IMG_DIM,
-            latents=init_latents,
-            num_inference_steps=num_inference_steps,
-            guidance_scale=guidance_scale,
-        )  # [1, 4, resolution, resolution]
+        t_noise = self.scheduler.timesteps[t]
 
-        diffused_img = self.latents_to_img(latents.half())
+        noise = torch.randn_like(latent)
+        latent = self.scheduler.add_noise(latent, noise, t_noise)  # type: ignore
+
+        # for i, time in enumerate(self.scheduler.timesteps):
+        for i, time in enumerate(new_steps):
+        # for i in range(num_inference_steps):
+            # predict the noise residual
+            latent_model_input = torch.cat([latent] * 2)
+
+            with torch.no_grad():
+                noise_pred = self.unet(
+                    latent_model_input, time.to(self.device), encoder_hidden_states=text_embedding
+                ).sample     
+
+            # perform guidance
+            noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+            noise_pred = noise_pred_text + guidance_scale * (noise_pred_text - noise_pred_uncond)
+                
+            latent = self.scheduler.step(noise_pred, time, latent)["prev_sample"]  # type: ignore
+
+        diffused_img = self.latents_to_img(latent.half())
         # diffused_img = F.interpolate(diffused_img, (128, 128), mode="bilinear")
         diffused_img = diffused_img.detach().cpu().permute(0, 2, 3, 1).numpy()
         diffused_img = (diffused_img * 255).round().astype("uint8")[0] # might delete this indexing
@@ -395,7 +418,7 @@ class StableDiffusionImg2Img(nn.Module):
         return diffused_img
 
     def forward(
-        self, prompts, negative_prompts="", num_inference_steps=50, guidance_scale=7.5, latents=None
+        self, prompts, negative_prompts="", num_inference_steps=150, guidance_scale=7.5, latents=None
     ) -> np.ndarray:
         """Generate an image from a prompt.
         Args:
@@ -411,7 +434,7 @@ class StableDiffusionImg2Img(nn.Module):
 
 
 def generate_image(
-    prompt: str, negative: str = "", seed: int = 0, steps: int = 50, save_path: Path = Path("test_sd.png")
+    prompt: str, negative: str = "", image_path: str = "", seed: int = 0, steps: int = 50, save_path: Path = Path("test_sd.png")
 ):
     """Generate an image from a prompt using Stable Diffusion.
     Args:
@@ -425,9 +448,17 @@ def generate_image(
     torch.cuda.manual_seed(seed)
     cuda_device = torch.device("cuda")
     with torch.no_grad():
-        sd = StableDiffusion(cuda_device)
-        imgs = sd.prompt_to_img(prompt, negative, steps)
-        mediapy.write_image(str(save_path), imgs[0])
+        sd = StableDiffusionImg2Img(cuda_device)
+        pil_image = Image.open(image_path)
+        image = np.array(pil_image, dtype="uint8")  # shape is (h, w) or (h, w, 3 or 4)
+        image = torch.from_numpy(image.astype("float32") / 255.0)
+        image = image[None, :, :, :3].permute(0, 3, 1, 2).to(cuda_device)
+
+        num_steps=50
+
+        imgs = sd.update_img(prompt, negative, image, num_steps)
+        # imgs = sd.prompt_to_img(prompt, negative)
+        mediapy.write_image(str(save_path), imgs)
 
 
 if __name__ == "__main__":

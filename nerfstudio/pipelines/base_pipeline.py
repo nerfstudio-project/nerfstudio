@@ -127,7 +127,7 @@ class Pipeline(nn.Module):
             assert self.datamanager.train_sampler is not None
             self.datamanager.train_sampler.set_epoch(step)
         ray_bundle, batch = self.datamanager.next_train(step)
-        model_outputs = self.model(ray_bundle, batch)
+        model_outputs = self.model(ray_bundle)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
 

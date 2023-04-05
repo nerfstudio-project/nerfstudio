@@ -26,6 +26,7 @@ from torch.cuda.amp.grad_scaler import GradScaler
 from typing_extensions import Literal
 import torch.distributed as dist
 import mediapy
+from nerfstudio.generative.stable_diffusion_utils import PositionalTextEmbeddings
 
 
 from nerfstudio.data.datamanagers.base_datamanager import (
@@ -57,7 +58,7 @@ class IterativePipelineConfig(VanillaPipelineConfig):
     """specifies whether the pipeline is for generative models"""
     temp_save_path: Path=PurePath("")
     """save path for generated dataset"""
-    prompt: str="a pineapple"
+    prompt: str="a photo of a pineapple"
 
 class IterativePipeline(VanillaPipeline):
     """Pipeline with logic for saving outputs from nerf for use as training images."""    
@@ -76,10 +77,18 @@ class IterativePipeline(VanillaPipeline):
         self.datamanager: IterativeDataManager = config.datamanager.setup(
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
-        self.train_dataset = None
         sd_version = "1-5"
-        self.prompt = config.prompt
+
         self.sd = StableDiffusionImg2Img(self.device, version=sd_version)
+        self.text_embeddings = PositionalTextEmbeddings(
+            base_prompt=config.prompt,
+            top_prompt=config.prompt + ", overhead view",
+            side_prompt=config.prompt + ", side view",
+            back_prompt=config.prompt + ", back view",
+            front_prompt=config.prompt + ", front view",
+            stable_diffusion=self.sd,
+            positional_prompting="discrete",
+        )
 
 
     def forward(self):
@@ -92,13 +101,11 @@ class IterativePipeline(VanillaPipeline):
     @torch.no_grad()
     def save_new_train_images(self, step: int):
         print("saving training images")
-        num_images_per_train = 5
+        num_images_per_train = 7
         resolution = 512
-        ray_bundles, cameras = self.datamanager.random_train_views(step, resolution=resolution, num_views=num_images_per_train)
+        ray_bundles, cameras, camera_angles = self.datamanager.random_train_views(step, resolution=resolution, num_views=num_images_per_train)
         train_img_paths = []
         num_rays_per_chunk = 512
-
-        self.model.eval()
 
         for i in range(num_images_per_train):
             total_rgb = []
@@ -115,18 +122,23 @@ class IterativePipeline(VanillaPipeline):
             train_img_paths.append(str(save_path))
             mediapy.write_image(str(save_path), img)
 
-        self.train_dataset = self.datamanager.create_dataset(train_img_paths, cameras)
+        self.datamanager.create_train_dataset(train_img_paths, cameras, camera_angles)
 
     @torch.no_grad()
-    def update_train_images(self):
+    def update_train_images(self, step: int):
         print("updating training images")
-        for i in range(len(self.train_dataset)):
-        # for i in range(1):
-            image = self.train_dataset.get_image(i)[None, :, :, :].permute(0, 3, 1, 2).to(self.sd.device)
-            print(i)
-            image = self.sd.update_img(self.prompt, "", image, num_inference_steps=50, guidance_scale=7.5)
-            mediapy.write_image(self.train_dataset.image_filenames[i], image)
-            del image
+        for i in range(len(self.datamanager.train_dataset)):
+            camera_angles = self.datamanager.camera_angles[i]
+            text_embedding = self.text_embeddings.get_text_embedding(camera_angles[0], camera_angles[1])
+
+            image = self.datamanager.train_dataset.get_image(i)[None, :, :, :].permute(0, 3, 1, 2).to(self.sd.device)
+            image = self.sd.update_img(text_embedding, image, num_inference_steps=50, guidance_scale=7.5)
+            mediapy.write_image(self.datamanager.train_dataset.image_filenames[i], image)
+
+        filenames = self.datamanager.train_dataset.image_filenames
+        cameras = self.datamanager.train_dataset.cameras
+
+        self.datamanager.create_train_dataset(filenames, cameras, self.datamanager.camera_angles)
     
     @profiler.time_function
     def get_train_loss_dict(self, step: int):
@@ -136,21 +148,19 @@ class IterativePipeline(VanillaPipeline):
         # use a data loader that allows for multiview supervision each train step
         # rerender train dataset every Y iterations
 
-        if step == 0:
+        if step % 2000 == 0:
             self.save_new_train_images(step)
 
-        # snapshot1 = tracemalloc.take_snapshot()
+        if step % 500 == 0:
+            self.update_train_images(step)
 
-        if step % 20 == 0:
-            self.update_train_images()
+        if self.world_size > 1 and step:
+            assert self.datamanager.train_sampler is not None
+            self.datamanager.train_sampler.set_epoch(step)
 
-        # snapshot2 = tracemalloc.take_snapshot()
-        # top_stats = snapshot2.compare_to(snapshot1, 'lineno')
+        ray_bundle, batch = self.datamanager.next_train(step)
+        model_outputs = self.model(ray_bundle)
+        metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
+        loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
 
-        # print("[ Top 10 differences ]")
-        # for stat in top_stats[:10]:
-        #     print(stat)
-
-        raise Exception
-
-        return
+        return model_outputs, loss_dict, metrics_dict

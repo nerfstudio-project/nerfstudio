@@ -58,6 +58,7 @@ from nerfstudio.field_components.temporal_distortions import TemporalDistortionK
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
 from nerfstudio.models.dreamembedding import DreamEmbeddingModelConfig
 from nerfstudio.models.dreamfusion import DreamFusionModelConfig
+from nerfstudio.models.iterative_dreamfusion import DreamFusionIterativeModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.nerfacto import NerfactoModelConfig
@@ -450,7 +451,7 @@ method_configs["iter_test"] = TrainerConfig(
         generative=True,
         datamanager=IterativeDataManagerConfig(
         ),
-        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
+        model=DreamFusionIterativeModelConfig(),
     ),
     optimizers={
         "proposal_networks": {
@@ -458,7 +459,7 @@ method_configs["iter_test"] = TrainerConfig(
             "scheduler": None,
         },
         "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
             "scheduler": None,
         },
     },

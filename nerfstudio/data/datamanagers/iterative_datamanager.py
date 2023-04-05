@@ -28,8 +28,11 @@ import torch
 from rich.progress import Console
 from torch.nn import Parameter
 from typing_extensions import Literal
+from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
+from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
+from nerfstudio.model_components.ray_generators import RayGenerator
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
@@ -37,7 +40,9 @@ from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.data.utils.dataloaders import RandIndicesEvalDataloader
+from nerfstudio.data.utils.dataloaders import RandIndicesEvalDataloader, CacheDataloader
+
+from nerfstudio.data.pixel_samplers import PixelSampler
 
 CONSOLE = Console(width=120)
 
@@ -158,6 +163,17 @@ class IterativeDataManagerConfig(DataManagerConfig):
     """Configuration for data manager that does not load from a dataset. Instead, it generates random poses."""
 
     _target: Type = field(default_factory=lambda: IterativeDataManager)
+    train_num_rays_per_batch: int = 1024
+    """Number of rays per batch to use per training iteration."""
+    train_num_images_to_sample_from: int = -1
+    """Number of images to sample during training iteration."""
+    train_num_times_to_repeat_images: int = -1
+    """When not training on all images, number of iterations before picking new"""
+    collate_fn = staticmethod(nerfstudio_collate)
+    """Specifies the collate function to use for the train and eval dataloaders."""
+    camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
+    """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
+    Record3D."""
     train_resolution: int = 64
     """Training resolution"""
     eval_resolution: int = 64
@@ -217,7 +233,7 @@ class IterativeDataManager(DataManager):  # pylint: disable=abstract-method
             radius_mean=self.config.radius_mean,
             radius_std=self.config.radius_std,
             focal_range=self.config.focal_range,
-            central_rotation_range=(-45, 45),
+            central_rotation_range=(-180, 180),
             vertical_rotation_range=self.config.vertical_rotation_range,
             jitter_std=self.config.jitter_std,
             center=self.config.center,
@@ -232,24 +248,44 @@ class IterativeDataManager(DataManager):  # pylint: disable=abstract-method
             num_workers=self.world_size * 4,
         )
 
+        self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
+
         # pylint: disable=non-parent-init-called
         DataManager.__init__(self)
 
-    def create_dataset(self, filepaths: List[Path], cameras: Cameras):
+    def create_train_dataset(self, filepaths: List[Path], cameras: Cameras, camera_angles):
         dataparser_outputs = DataparserOutputs(
             image_filenames=filepaths,
             cameras=cameras,
-            scene_box=None,
+            scene_box=SceneBox(torch.Tensor([[-1, -1, -1], [1, 1, 1]])),
             mask_filenames=None,
             dataparser_transform=None,
             dataparser_scale=None,
             metadata=None,
         )
-        return InputDataset(dataparser_outputs)
+        self.train_dataset = InputDataset(dataparser_outputs)
+        self.camera_angles = camera_angles
+        self.train_image_dataloader = CacheDataloader(
+            self.train_dataset,
+            num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+            num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
+            device=self.device,
+            num_workers=self.world_size * 4,
+            pin_memory=True,
+            collate_fn=self.config.collate_fn,
+        )
+        self.iter_train_image_dataloader = iter(self.train_image_dataloader)
+        self.train_camera_optimizer = self.config.camera_optimizer.setup(
+            num_cameras=self.train_dataset.cameras.size, device=self.device
+        )
+        self.train_ray_generator = RayGenerator(
+            self.train_dataset.cameras.to(self.device),
+            self.train_camera_optimizer,
+        )
 
     def random_train_views(self, step: int, resolution:int, num_views: int) -> InputDataset:
         """eawoijfaw"""
-        cameras, _, _ = random_train_pose(
+        cameras, vertical_rotation, central_rotation = random_train_pose(
             size=num_views,
             resolution=resolution,
             device= self.device,
@@ -266,7 +302,7 @@ class IterativeDataManager(DataManager):  # pylint: disable=abstract-method
             torch.tensor([[i] for i in range(num_views)])
         ).flatten()
 
-        return ray_bundle, cameras
+        return ray_bundle, cameras, list(zip(vertical_rotation, central_rotation))
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
