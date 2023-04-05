@@ -155,5 +155,3 @@ class ViewerConfig(PrintableConfig):
     """Image format viewer should use; jpeg is lossy compression, while png is lossless."""
     jpeg_quality: int = 90
     """Quality tradeoff to use for jpeg compression."""
-    png_compression: int = 1
-    """Size/speed tradeoff to use for png compression."""

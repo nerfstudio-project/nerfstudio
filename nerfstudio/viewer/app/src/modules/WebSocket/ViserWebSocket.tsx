@@ -1,7 +1,8 @@
-import React, { useEffect, MutableRefObject } from 'react';
+import React, { useEffect, MutableRefObject, Dispatch } from 'react';
 
 import AwaitLock from 'await-lock';
 import { pack, unpack } from 'msgpackr';
+import { useDispatch } from 'react-redux';
 
 import { Message } from './ViserMessages';
 
@@ -34,7 +35,9 @@ export function makeThrottledMessageSender(
   return send;
 }
 export function ViserWebSocket() {
+  const dispatch = useDispatch();
   const server = 'ws://localhost:8080';
+
   useEffect(() => {
     // Lock for making sure messages are handled in order.
     const orderLock = new AwaitLock();
@@ -49,10 +52,20 @@ export function ViserWebSocket() {
 
       ws.onopen = () => {
         console.log('Viser connected!' + server);
+        dispatch({
+          type: 'write',
+          path: 'websocketState/isConnected',
+          data: true,
+        });
       };
 
       ws.onclose = () => {
         console.log('Viser disconnected! ' + server);
+        dispatch({
+          type: 'write',
+          path: 'websocketState/isConnected',
+          data: false,
+        });
 
         // Try to reconnect.
         timeout = setTimeout(tryConnect, 1000);
@@ -72,7 +85,7 @@ export function ViserWebSocket() {
           orderLock.release();
         });
         try {
-          handleMessage(await messagePromise);
+          handleMessage(await messagePromise, dispatch);
         } finally {
           orderLock.acquired && orderLock.release();
         }
@@ -91,7 +104,7 @@ export function ViserWebSocket() {
   return <></>;
 }
 
-function handleMessage(message: Message) {
+function handleMessage(message: Message, dispatch: Dispatch<any>) {
   // TODO: we need to actually handle messages that are received.
   console.log('Handling viser message!');
   console.log(message);
@@ -120,6 +133,11 @@ function handleMessage(message: Message) {
     }
     // Add a background image.
     case 'background_image': {
+      dispatch({
+        type: 'write',
+        path: 'render_img',
+        data: `data:${message.media_type};base64,${message.base64_data}`,
+      });
       break;
     }
     // Add an image.
