@@ -51,6 +51,7 @@ from nerfstudio.viewer.server.subprocess import (
 )
 from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfstudio.viewer.server.visualizer import Viewer
+from nerfstudio.viewer.viser import ViserServer
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 
@@ -308,6 +309,11 @@ class ViewerState:
         self.prev_crop_center = None
 
         self.output_list = None
+
+
+        # TODO: host and port should not be hardcoded. This should eventually replace
+        # the ZMQ + websocket logic above.
+        self.viser_server = ViserServer(host="localhost", port=8080)
 
     def _pick_drawn_image_idxs(self, total_num: int) -> list[int]:
         """Determine indicies of images to display in viewer.
@@ -673,6 +679,8 @@ class ViewerState:
         )[1].tobytes()
         data = str(f"data:image/{self.config.image_format};base64," + base64.b64encode(data).decode("ascii"))
         self.vis["render_img"].write(data)
+
+        self.viser_server.set_background_image(selected_output.cpu().numpy(), format="jpeg", quality=75)
 
     def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int, image_width: int) -> None:
         """Function that calculates and populates all the rendering statistics accordingly
