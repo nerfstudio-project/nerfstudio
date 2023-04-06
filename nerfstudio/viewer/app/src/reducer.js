@@ -13,6 +13,8 @@ const initialState = {
 
   render_img: null, // The rendered images
 
+  show_export_box: false, // whether to show the export box
+
   // the rendering state
   renderingState: {
     // cameras

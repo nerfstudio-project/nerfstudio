@@ -18,7 +18,6 @@
 """
 from __future__ import annotations
 
-import base64
 import enum
 import os
 import sys
@@ -28,7 +27,6 @@ import warnings
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-import cv2
 import numpy as np
 import torch
 from cryptography.utils import CryptographyDeprecationWarning
@@ -359,7 +357,7 @@ class ViewerState:
             image = dataset[idx]["image"]
             bgr = image[..., [2, 1, 0]]
             camera_json = dataset.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
-            self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
+            self.viser_server.add_dataset_image(idx=f"{idx:06d}", json=camera_json)
 
         # draw the scene box (i.e., the bounding box)
         json_ = dataset.scene_box.to_json()
@@ -672,22 +670,9 @@ class ViewerState:
             self.vis["renderingState/colormap_options"].write(colormap_options)
         selected_output = (self._apply_colormap(outputs, colors) * 255).type(torch.uint8)
 
-        image = selected_output[..., [2, 1, 0]].cpu().numpy()
-
-        data = cv2.imencode(
-            f".{self.config.image_format}",
-            image,
-            [
-                cv2.IMWRITE_JPEG_QUALITY,
-                self.config.jpeg_quality,
-                cv2.IMWRITE_PNG_COMPRESSION,
-                self.config.png_compression,
-            ],
-        )[1].tobytes()
-        data = str(f"data:image/{self.config.image_format};base64," + base64.b64encode(data).decode("ascii"))
-        self.vis["render_img"].write(data)
-
-        self.viser_server.set_background_image(selected_output.cpu().numpy(), format="jpeg", quality=75)
+        self.viser_server.set_background_image(
+            selected_output.cpu().numpy(), file_format=self.config.image_format, quality=self.config.jpeg_quality
+        )
 
     def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int, image_width: int) -> None:
         """Function that calculates and populates all the rendering statistics accordingly

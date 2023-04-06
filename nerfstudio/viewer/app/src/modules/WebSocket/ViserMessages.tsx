@@ -121,6 +121,11 @@ export interface GuiSetLevaConfMessage {
   name: string;
   leva_conf: any;
 }
+export interface DatasetImageMessage {
+  type: 'dataset_image';
+  idx: string;
+  json: string;
+}
 
 export type Message =
   | ViewerCameraMessage
@@ -140,4 +145,5 @@ export type Message =
   | GuiRemoveMessage
   | GuiUpdateMessage
   | GuiSetValueMessage
-  | GuiSetLevaConfMessage;
+  | GuiSetLevaConfMessage
+  | DatasetImageMessage;

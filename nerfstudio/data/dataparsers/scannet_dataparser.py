@@ -39,10 +39,14 @@ class ScanNetDataParserConfig(DataParserConfig):
     ScanNet dataset (https://www.scan-net.org/) is a large-scale 3D dataset of indoor scenes.
     This dataparser assumes that the dense stream was extracted from .sens files.
     Expected structure of scene directory:
-     - color/
-     - depth/
-     - intrinsic/
-     - pose/
+
+    .. code-block:: text
+
+        root/
+        ├── color/
+        ├── depth/
+        ├── intrinsic/
+        ├── pose/
     """
 
     _target: Type = field(default_factory=lambda: ScanNet)
