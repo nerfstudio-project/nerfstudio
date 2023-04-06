@@ -172,6 +172,16 @@ function handleMessage(message: Message, dispatch: Dispatch<any>) {
     case 'remove_gui': {
       break;
     }
+    // Add dataset image.
+    case 'dataset_image': {
+      const dataset_path = `sceneState/cameras/${message.idx}`;
+      dispatch({
+        type: 'write',
+        path: dataset_path,
+        data: message.json,
+      });
+      break;
+    }
     default: {
       console.log('Received message did not match any known types:', message);
       break;

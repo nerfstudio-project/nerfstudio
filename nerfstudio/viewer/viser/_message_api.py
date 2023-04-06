@@ -68,16 +68,27 @@ def _colors_to_uint8(colors: onp.ndarray) -> onpt.NDArray[onp.uint8]:
 
 def _encode_image_base64(
     image: onp.ndarray,
-    format: Literal["png", "jpeg"],
+    file_format: Literal["png", "jpeg"],
     quality: Optional[int] = None,
 ) -> Tuple[Literal["image/png", "image/jpeg"], str]:
+    """Encode an image as a base64 string.
+
+    Args:
+        image: The image to encode.
+        file_format: The format to encode the image as.
+        quality: The quality to encode the image as. Only used for JPEG.
+
+    Returns:
+        A tuple of the media type and the base64-encoded image.
+    """
+
     media_type: Literal["image/png", "image/jpeg"]
     image = _colors_to_uint8(image)
     with io.BytesIO() as data_buffer:
-        if format == "png":
+        if file_format == "png":
             media_type = "image/png"
             iio.imwrite(data_buffer, image, format="PNG")
-        elif format == "jpeg":
+        elif file_format == "jpeg":
             media_type = "image/jpeg"
             iio.imwrite(
                 data_buffer,
@@ -86,7 +97,7 @@ def _encode_image_base64(
                 quality=75 if quality is None else quality,
             )
         else:
-            assert_never(format)
+            assert_never(file_format)
 
         base64_data = base64.b64encode(data_buffer.getvalue()).decode("ascii")
 
@@ -117,14 +128,10 @@ class MessageApi(abc.ABC):
 
     def __init__(self) -> None:
         self._handle_state_from_gui_name: Dict[str, _GuiHandleState[Any]] = {}
-        self._handle_state_from_transform_controls_name: Dict[
-            str, _TransformControlsState
-        ] = {}
+        self._handle_state_from_transform_controls_name: Dict[str, _TransformControlsState] = {}
         self._incoming_handlers: List[Callable[[ClientId, _messages.Message], None]] = [
             lambda client_id, msg: _handle_gui_updates(self, client_id, msg),
-            lambda client_id, msg: _handle_transform_controls_updates(
-                self, client_id, msg
-            ),
+            lambda client_id, msg: _handle_transform_controls_updates(self, client_id, msg),
         ]
         self._gui_folder_label = "User"
 
@@ -151,9 +158,7 @@ class MessageApi(abc.ABC):
             is_button=True,
         )
 
-    def add_gui_checkbox(
-        self, name: str, initial_value: bool, disabled: bool = False
-    ) -> GuiHandle[bool]:
+    def add_gui_checkbox(self, name: str, initial_value: bool, disabled: bool = False) -> GuiHandle[bool]:
         """Add a checkbox to the GUI."""
         assert isinstance(initial_value, bool)
         return _add_gui_impl(
@@ -163,9 +168,7 @@ class MessageApi(abc.ABC):
             leva_conf={"value": initial_value, "label": name, "disabled": disabled},
         )
 
-    def add_gui_text(
-        self, name: str, initial_value: str, disabled: bool = False
-    ) -> GuiHandle[str]:
+    def add_gui_text(self, name: str, initial_value: str, disabled: bool = False) -> GuiHandle[str]:
         """Add a text input to the GUI."""
         assert isinstance(initial_value, str)
         return _add_gui_impl(
@@ -175,9 +178,7 @@ class MessageApi(abc.ABC):
             leva_conf={"value": initial_value, "label": name, "disabled": disabled},
         )
 
-    def add_gui_number(
-        self, name: str, initial_value: IntOrFloat, disabled: bool = False
-    ) -> GuiHandle[IntOrFloat]:
+    def add_gui_number(self, name: str, initial_value: IntOrFloat, disabled: bool = False) -> GuiHandle[IntOrFloat]:
         """Add a number input to the GUI."""
         assert isinstance(initial_value, (int, float))
         return _add_gui_impl(
@@ -288,14 +289,9 @@ class MessageApi(abc.ABC):
         fov: float,
         aspect: float,
         scale: float = 0.3,
-        color: Tuple[int, int, int]
-        | Tuple[float, float, float]
-        | onp.ndarray = (80, 120, 255),
+        color: Tuple[int, int, int] | Tuple[float, float, float] | onp.ndarray = (80, 120, 255),
     ) -> None:
-        color = tuple(
-            value if isinstance(value, int) else int(value * 255)  # type: ignore
-            for value in color
-        )
+        color = tuple(value if isinstance(value, int) else int(value * 255) for value in color)  # type: ignore
         self._queue(
             _messages.CameraFrustumMessage(
                 name=name,
@@ -348,15 +344,10 @@ class MessageApi(abc.ABC):
         name: str,
         vertices: onp.ndarray,
         faces: onp.ndarray,
-        color: Tuple[int, int, int]
-        | Tuple[float, float, float]
-        | onp.ndarray = (90, 200, 255),
+        color: Tuple[int, int, int] | Tuple[float, float, float] | onp.ndarray = (90, 200, 255),
         wireframe: bool = False,
     ) -> None:
-        color = tuple(
-            value if isinstance(value, int) else int(value * 255)  # type: ignore
-            for value in color
-        )
+        color = tuple(value if isinstance(value, int) else int(value * 255) for value in color)  # type: ignore
         self._queue(
             _messages.MeshMessage(
                 name,
@@ -371,15 +362,18 @@ class MessageApi(abc.ABC):
     def set_background_image(
         self,
         image: onp.ndarray,
-        format: Literal["png", "jpeg"] = "jpeg",
+        file_format: Literal["png", "jpeg"] = "jpeg",
         quality: Optional[int] = None,
     ) -> None:
-        media_type, base64_data = _encode_image_base64(image, format, quality=quality)
-        self._queue(
-            _messages.BackgroundImageMessage(
-                media_type=media_type, base64_data=base64_data
-            )
-        )
+        """Set the background image of the scene.
+
+        Args:
+            image: The image to set as the background. Must be a 3D numpy array of shape (H, W, 3).
+            file_format: The file format to use for the image.
+            quality: The quality of the image, if using jpeg. Must be an integer between 0 and 100.
+        """
+        media_type, base64_data = _encode_image_base64(image, file_format, quality=quality)
+        self._queue(_messages.BackgroundImageMessage(media_type=media_type, base64_data=base64_data))
 
     def add_image(
         self,
@@ -387,10 +381,10 @@ class MessageApi(abc.ABC):
         image: onp.ndarray,
         render_width: float,
         render_height: float,
-        format: Literal["png", "jpeg"] = "jpeg",
+        file_format: Literal["png", "jpeg"] = "jpeg",
         quality: Optional[int] = None,
     ) -> None:
-        media_type, base64_data = _encode_image_base64(image, format, quality=quality)
+        media_type, base64_data = _encode_image_base64(image, file_format, quality=quality)
         self._queue(
             _messages.ImageMessage(
                 name=name,
@@ -412,12 +406,16 @@ class MessageApi(abc.ABC):
         disable_axes: bool = False,
         disable_sliders: bool = False,
         disable_rotations: bool = False,
-        translation_limits: Tuple[
-            Tuple[float, float], Tuple[float, float], Tuple[float, float]
-        ] = ((-1000.0, 1000.0), (-1000.0, 1000.0), (-1000.0, 1000.0)),
-        rotation_limits: Tuple[
-            Tuple[float, float], Tuple[float, float], Tuple[float, float]
-        ] = ((-1000.0, 1000.0), (-1000.0, 1000.0), (-1000.0, 1000.0)),
+        translation_limits: Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]] = (
+            (-1000.0, 1000.0),
+            (-1000.0, 1000.0),
+            (-1000.0, 1000.0),
+        ),
+        rotation_limits: Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]] = (
+            (-1000.0, 1000.0),
+            (-1000.0, 1000.0),
+            (-1000.0, 1000.0),
+        ),
         depth_test: bool = True,
         opacity: float = 1.0,
     ) -> TransformControlsHandle:
@@ -441,9 +439,7 @@ class MessageApi(abc.ABC):
         )
 
         def sync_cb(client_id: ClientId, state: _TransformControlsState) -> None:
-            message = _messages.TransformControlsSetMessage(
-                name=name, wxyz=state.wxyz, position=state.position
-            )
+            message = _messages.TransformControlsSetMessage(name=name, wxyz=state.wxyz, position=state.position)
             message.excluded_self_client = client_id
             self._queue(message)
 
@@ -471,9 +467,18 @@ class MessageApi(abc.ABC):
     def reset_scene(self):
         self._queue(_messages.ResetSceneMessage())
 
-    def _handle_incoming_message(
-        self, client_id: ClientId, message: _messages.Message
-    ) -> None:
+    # Nerfstudio specific methods
+
+    def add_dataset_image(self, idx: str, json: str) -> None:
+        """ Add a dataset image to the scene.
+        
+        Args:
+            idx: The index of the image.
+            json: The json string from the camera frustum and image.
+        """
+        self._queue(_messages.DatasetImageMessage(idx=idx, json=json))
+
+    def _handle_incoming_message(self, client_id: ClientId, message: _messages.Message) -> None:
         for cb in self._incoming_handlers:
             cb(client_id, message)
 
@@ -520,9 +525,7 @@ def _handle_transform_controls_updates(
     if not isinstance(message, _messages.TransformControlsUpdateMessage):
         return
 
-    handle_state = self._handle_state_from_transform_controls_name.get(
-        message.name, None
-    )
+    handle_state = self._handle_state_from_transform_controls_name.get(message.name, None)
     if handle_state is None:
         return
 

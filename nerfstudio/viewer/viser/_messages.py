@@ -50,12 +50,8 @@ class Message:
 
         # msgpack deserializes to lists by default, but all of our annotations use
         # tuples.
-        mapping = {
-            k: tuple(v) if isinstance(v, list) else v for k, v in mapping.items()
-        }
-        message_type = Message._subclass_from_type_string()[
-            cast(str, mapping.pop("type"))
-        ]
+        mapping = {k: tuple(v) if isinstance(v, list) else v for k, v in mapping.items()}
+        message_type = Message._subclass_from_type_string()[cast(str, mapping.pop("type"))]
         return message_type(**mapping)
 
     @staticmethod
@@ -181,12 +177,8 @@ class TransformControlsMessage(Message):
     disable_axes: bool
     disable_sliders: bool
     disable_rotations: bool
-    translation_limits: Tuple[
-        Tuple[float, float], Tuple[float, float], Tuple[float, float]
-    ]
-    rotation_limits: Tuple[
-        Tuple[float, float], Tuple[float, float], Tuple[float, float]
-    ]
+    translation_limits: Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]
+    rotation_limits: Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]
     depth_test: bool
     opacity: float
 
@@ -306,3 +298,17 @@ class GuiSetLevaConfMessage(Message):
     type: ClassVar[str] = "gui_set_leva_conf"
     name: str
     leva_conf: Any
+
+
+# Nerfstudio specific messages
+
+
+@dataclasses.dataclass
+class DatasetImageMessage(Message):
+    """Message for rendering a dataset image frustum."""
+
+    type: ClassVar[str] = "dataset_image"
+    idx: str
+    """Index of the image in the threejs scene"""
+    json: str
+    """JSON computed by the camera class"""
