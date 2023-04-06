@@ -1,27 +1,57 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
+from abc import abstractmethod
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from nerfstudio.viewer.viser import GuiHandle, ViserServer
 
 
-class ViewerParameter:
-    def __init__(self, name: str, default_value, min_value=None, max_value=None):
+class ViewerElement:
+    def __init__(self, name: str, disabled=False):
         self.name = name
-        self.param_type = type(default_value)
-        self.cur_value = default_value
         self.gui_handle = None
+        self.disabled = disabled
 
-    def create_gui_element(self, viser_server: ViserServer) -> GuiHandle:
+    @abstractmethod
+    def _create_gui_handle(self, viser_server: ViserServer):
+        """
+        Returns the GuiHandle object which actually controls the parameter in the gui
+        """
+        raise RuntimeError("Cannot instantiate ViewerElement directly")
+
+    @abstractmethod
+    def install(self, viser_server: ViserServer):
+        raise RuntimeError("Must implement install() for a ViewerElement")
+
+
+class ViewerButton(ViewerElement):
+    def __init__(self, name: str, callable: Callable, disabled=False):
+        super().__init__(name, disabled=disabled)
+        self.fn = callable
+
+    def _create_gui_handle(self, viser_server: ViserServer):
+        self.gui_handle = viser_server.add_gui_button(self.name, disabled=self.disabled)
+
+    def install(self, viser_server: ViserServer):
+        self._create_gui_handle(viser_server)
+
+        def call_fn(handle):
+            print("call_fn called")
+            self.fn()
+
+        self.gui_handle.on_update(call_fn)
+
+
+class ViewerParameter(ViewerElement):
+    def __init__(self, name: str, default_value, disabled=False):
+        super().__init__(name, disabled=disabled)
+        self.cur_value = default_value
+
+    def install(self, viser_server: ViserServer) -> GuiHandle:
         """
         Based on the type provided by default_value, installs a gui element inside the given viser_server
         """
-        if self.param_type == str:
-            self.gui_handle = viser_server.add_gui_text(self.name, self.cur_value)
-        elif self.param_type == int or self.param_type == float:
-            self.gui_handle = viser_server.add_gui_number(self.name, self.cur_value)
-        else:
-            raise RuntimeError("Unsupported datatype given to ViewerParameter")
+        self._create_gui_handle(viser_server)
 
         def update_fn(handle):
             self.cur_value = handle.get_value()
@@ -32,3 +62,47 @@ class ViewerParameter:
     def value(self):
         return self.cur_value
 
+
+class ViewerSlider(ViewerParameter):
+    def __init__(self, name: str, default_value, min_value, max_value, step, disabled=False):
+        assert isinstance(default_value, float) or isinstance(default_value, int)
+        super().__init__(name, default_value, disabled=disabled)
+        self.min = min_value
+        self.max = max_value
+        self.step = step
+
+    def _create_gui_handle(self, viser_server: ViserServer):
+        assert self.gui_handle is None, "gui_handle should be initialized once"
+        self.gui_handle = viser_server.add_gui_slider(
+            self.name, self.min, self.max, self.step, self.cur_value, disabled=self.disabled
+        )
+
+
+class ViewerText(ViewerParameter):
+    def __init__(self, name, default_value, disabled=False):
+        assert isinstance(default_value, str)
+        super().__init__(name, default_value, disabled=disabled)
+
+    def _create_gui_handle(self, viser_server: ViserServer):
+        assert self.gui_handle is None, "gui_handle should be initialized once"
+        self.gui_handle = viser_server.add_gui_text(self.name, self.cur_value, disabled=self.disabled)
+
+
+class ViewerNumber(ViewerParameter):
+    def __init__(self, name, default_value, disabled=False):
+        assert isinstance(default_value, float) or isinstance(default_value, int)
+        super().__init__(name, default_value, disabled=disabled)
+
+    def _create_gui_handle(self, viser_server: ViserServer):
+        assert self.gui_handle is None, "gui_handle should be initialized once"
+        self.gui_handle = viser_server.add_gui_number(self.name, self.cur_value, disabled=self.disabled)
+
+
+class ViewerCheckbox(ViewerParameter):
+    def __init__(self, name, default_value, disabled=False):
+        assert isinstance(default_value, bool)
+        super().__init__(name, default_value, disabled=disabled)
+
+    def _create_gui_handle(self, viser_server: ViserServer):
+        assert self.gui_handle is None, "gui_handle should be initialized once"
+        self.gui_handle = viser_server.add_gui_checkbox(self.name, self.cur_value, disabled=self.disabled)

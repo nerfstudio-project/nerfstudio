@@ -44,7 +44,7 @@ from nerfstudio.utils import colormaps, profiler, writer
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
-from nerfstudio.viewer.server.gui_utils import get_viewer_parameters
+from nerfstudio.viewer.server.gui_utils import get_viewer_elements
 from nerfstudio.viewer.server.subprocess import (
     get_free_port,
     run_viewer_bridge_server_as_subprocess,
@@ -458,10 +458,11 @@ class ViewerState:
             graph: the current checkpoint of the model
         """
         if not hasattr(self, "viewer_params"):
-            self.viewer_params = get_viewer_parameters(pipeline)
-            for name, param in self.viewer_params:
-                with self.viser_server.gui_folder(name.split("/")[-2]):
-                    param.create_gui_element(self.viser_server)
+            self.viewer_params = get_viewer_elements(pipeline)
+            for param_path, param in self.viewer_params:
+                dir_name = param_path[: param_path.rfind("/")]
+                with self.viser_server.gui_folder(dir_name):
+                    param.install(self.viser_server)
         graph = pipeline.model
         has_temporal_distortion = getattr(graph, "temporal_distortion", None) is not None
         self.vis["model/has_temporal_distortion"].write(str(has_temporal_distortion).lower())

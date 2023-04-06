@@ -6,7 +6,7 @@ import torch.nn as nn
 
 from nerfstudio.models.base_model import Model
 from nerfstudio.pipelines.base_pipeline import Pipeline
-from nerfstudio.viewer.server.viewer_param import ViewerParameter
+from nerfstudio.viewer.server.viewer_param import ViewerElement
 
 
 def parse_object(
@@ -29,11 +29,11 @@ def parse_object(
     return ret
 
 
-def get_viewer_parameters(pipeline: Pipeline) -> List[Tuple[str, ViewerParameter]]:
+def get_viewer_elements(pipeline: Pipeline) -> List[Tuple[str, ViewerElement]]:
     """
-    Recursively parse the pipeline object and return a tree of all the ViewerParameters contained
+    Recursively parse the pipeline object and return a tree of all the ViewerElements contained
 
     returns a list of (path/to/object, param), which represents the path down the object tree
     """
-    ret = parse_object(pipeline, ViewerParameter, "pipeline")
+    ret = parse_object(pipeline, ViewerElement, "pipeline")
     return ret
