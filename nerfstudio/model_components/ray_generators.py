@@ -21,6 +21,7 @@ from torchtyping import TensorType
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
+from nerfstudio.utils import profiler
 
 
 class RayGenerator(nn.Module):
@@ -38,6 +39,8 @@ class RayGenerator(nn.Module):
         self.pose_optimizer = pose_optimizer
         self.register_buffer("image_coords", cameras.get_image_coords(), persistent=False)
 
+    @profiler.time_function
+    @profile
     def forward(self, ray_indices: TensorType["num_rays", 3]) -> RayBundle:
         """Index into the cameras to generate the rays.
 

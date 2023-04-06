@@ -35,6 +35,7 @@ from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.misc import strtobool
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
+from nerfstudio.utils import profiler
 
 TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 
@@ -309,6 +310,8 @@ class Cameras(TensorDataclass):
             image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         return image_coords
 
+    @profiler.time_function
+    @profile
     def generate_rays(  # pylint: disable=too-many-statements
         self,
         camera_indices: Union[TensorType["num_rays":..., "num_cameras_batch_dims"], int],
@@ -487,6 +490,7 @@ class Cameras(TensorDataclass):
         return raybundle
 
     # pylint: disable=too-many-statements
+    @profile
     def _generate_rays_from_coords(
         self,
         camera_indices: TensorType["num_rays":..., "num_cameras_batch_dims"],

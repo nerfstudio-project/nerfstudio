@@ -71,6 +71,7 @@ from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
+from nerfstudio.utils import profiler
 
 CONSOLE = Console(width=120)
 
@@ -510,6 +511,8 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             num_workers=self.world_size * 4,
         )
 
+    @profiler.time_function
+    @profile
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
