@@ -31,3 +31,4 @@ class ViewerParameter:
     @property
     def value(self):
         return self.cur_value
+

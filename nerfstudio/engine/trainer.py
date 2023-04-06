@@ -304,7 +304,7 @@ class Trainer:
         with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
             num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
             try:
-                self.viewer_state.update_scene(self, step, self.pipeline.model, num_rays_per_batch)
+                self.viewer_state.update_scene(self, step, self.pipeline, num_rays_per_batch)
             except RuntimeError:
                 time.sleep(0.03)  # sleep to allow buffer to reset
                 assert self.viewer_state.vis is not None

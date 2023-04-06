@@ -1,8 +1,9 @@
 import * as React from 'react';
-import { Leva, buttonGroup, useControls } from 'leva';
+import {LevaPanel, useCreateStore, Leva, buttonGroup, useControls,folder } from 'leva';
 import { useContext, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import LevaTheme from '../../themes/leva_theme.json';
+import { GuiUpdateMessage } from '../WebSocket/ViserMessages';
 
 import { WebSocketContext } from '../WebSocket/WebSocket';
 
@@ -22,6 +23,109 @@ function dispatch_and_send(websocket, dispatch, path, data) {
     });
     websocket.send(message);
   }
+}
+function CustomLeva() {
+  const customGui = useSelector(
+    (state) => state.custom_gui,
+    );
+    const guiNames = customGui.guiNames;
+    const guiConfigFromName = customGui.guiConfigFromName;
+    console.log(guiNames);
+    console.log(guiConfigFromName);
+  // Add callbacks to guiConfigFromName.
+  // const suppressOnChange = React.useRef<{ [key: string]: boolean }>({});
+  const suppressOnChange = React.useRef({});
+
+  // We're going to try and build an object that looks like:
+  // {"folder name": {"input name": leva config}}
+  const guiConfigWithCallbacks: { [key: string]: any } = {};
+  for (const key of guiNames) {
+    const { levaConf, folderName } = guiConfigFromName[key];
+    console.log(levaConf);
+    console.log(folderName);
+    // Create object for folder if it doesn't exist yet.
+    if (guiConfigWithCallbacks[folderName] === undefined)
+      guiConfigWithCallbacks[folderName] = {};
+
+    // Hacky stuff that lives outside of TypeScript...
+    if (levaConf["type"] === "BUTTON") {
+      // Add a button.
+      guiConfigWithCallbacks[folderName][key] = button((_get: any) => {
+        const message: GuiUpdateMessage = {
+          type: "gui_update",
+          name: key,
+          value: true,
+        };
+        // props.websocketRef.current!.send(pack(message));
+      }, levaConf["settings"]);
+    } else {
+      // Add any other kind of input.
+      // const sendUpdate = makeThrottledMessageSender(props.websocketRef, 50);
+      guiConfigWithCallbacks[folderName][key] = {
+        ...levaConf,
+        onChange: (value: any, _propName: any, options: any) => {
+          if (options.initial) return;
+          if (suppressOnChange.current[key]) {
+            delete suppressOnChange.current[key];
+            return;
+          }
+          const message: GuiUpdateMessage = {
+            type: "gui_update",
+            name: key,
+            value: value,
+          };
+          // sendUpdate(message);
+        },
+      };
+    }
+  }
+  for (const folderName of Object.keys(guiConfigWithCallbacks)) {
+    // Apply Leva folder() wrapper...
+    guiConfigWithCallbacks[folderName] = folder(
+      guiConfigWithCallbacks[folderName]
+    );
+  }
+
+  // Make Leva controls.
+  const levaStore = useCreateStore();
+  const [, set] = useControls(
+    () => guiConfigWithCallbacks,
+    { store: levaStore },
+    [guiConfigFromName]
+  );
+
+  // Logic for setting control inputs when items are put onto the guiSetQueue.
+  // const guiSetQueue = props.useGui((state) => state.guiSetQueue);
+  // const applyGuiSetQueue = props.useGui((state) => state.applyGuiSetQueue);
+  // const timeouts = React.useRef<{ [key: string]: NodeJS.Timeout }>({});
+  // React.useEffect(() => {
+  //   if (Object.keys(guiSetQueue).length === 0) return;
+  //   applyGuiSetQueue((name, value) => {
+  //     suppressOnChange.current[name] = true;
+
+  //     // Suppression timeout. Resolves some issues with onChange() not firing
+  //     // after we call set... this is hacky and should be revisited.
+  //     clearTimeout(timeouts.current[name]);
+  //     timeouts.current[name] = setTimeout(() => {
+  //       suppressOnChange.current[name] = false;
+  //     }, 10);
+
+  //     // Set Leva control.
+  //     set({ [name]: value });
+  //   });
+  // }, [guiSetQueue, applyGuiSetQueue, set]);
+
+  // Leva theming is a bit limited, so we hack at styles here...
+  return (
+      <LevaPanel
+        fill
+        flat
+        titleBar={false}
+        store={levaStore}
+        theme={LevaTheme}
+        hideCopyButton
+      />
+  );
 }
 
 function ControlsLeva() {
@@ -340,6 +444,7 @@ export function RenderControls() {
         fill
         flat
       />
+      <CustomLeva />
     </div>
   );
 }

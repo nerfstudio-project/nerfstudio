@@ -15,6 +15,11 @@ const initialState = {
 
   show_export_box: false, // whether to show the export box
 
+
+  custom_gui: {
+    guiNames: [],
+    guiConfigFromName: {}
+  },
   // the rendering state
   renderingState: {
     // cameras

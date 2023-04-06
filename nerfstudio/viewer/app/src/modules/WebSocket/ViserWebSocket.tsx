@@ -106,8 +106,8 @@ export function ViserWebSocket() {
 
 function handleMessage(message: Message, dispatch: Dispatch<any>) {
   // TODO: we need to actually handle messages that are received.
-  console.log('Handling viser message!');
-  console.log(message);
+  // console.log('Handling viser message!');
+  // console.log(message);
   switch (message.type) {
     // Add a coordinate frame.
     case 'frame': {
@@ -158,6 +158,20 @@ function handleMessage(message: Message, dispatch: Dispatch<any>) {
     }
     // Add a GUI input.
     case 'add_gui': {
+      console.log("add_gui called")
+      dispatch({
+        type: 'write',
+        path: 'custom_gui/guiNames',
+        data: [message.name],
+      });
+      dispatch({
+        type: 'write',
+        path: 'custom_gui/guiConfigFromName',
+        data: {[message.name]: {
+          folderName: message.folder,
+          levaConf: message.leva_conf
+        }},
+      });
       break;
     }
     // Set the value of a GUI input.

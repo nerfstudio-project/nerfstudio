@@ -60,6 +60,7 @@ from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
+from nerfstudio.viewer.server.viewer_param import ViewerParameter
 
 
 @dataclass
@@ -162,6 +163,7 @@ class NerfactoModel(Model):
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
         )
+        self.rgb_scale = ViewerParameter("Pretty_RGB_Scaler", 1.0)
 
         self.density_fns = []
         num_prop_nets = self.config.num_proposal_iterations
@@ -269,7 +271,7 @@ class NerfactoModel(Model):
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
 
-        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights) * self.rgb_scale.value
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 
