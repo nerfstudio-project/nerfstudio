@@ -312,3 +312,12 @@ class DatasetImageMessage(Message):
     """Index of the image in the threejs scene"""
     json: str
     """JSON computed by the camera class"""
+
+
+@dataclasses.dataclass
+class IsTrainingMessage(Message):
+    """Wheather the scene is in training mode or not."""
+
+    type: ClassVar[str] = "is_training"
+    is_training: bool
+    """True if the model is currently trianing, False otherwise"""

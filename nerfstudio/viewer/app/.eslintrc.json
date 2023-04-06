@@ -29,6 +29,10 @@
     "prefer-destructuring": "off",
     "react/destructuring-assignment": "off",
     "react/prop-types": 0,
+    "react/jsx-filename-extension": [
+      2,
+      { "extensions": [".js", ".jsx", ".ts", ".tsx"] }
+    ],
     "unused-imports/no-unused-imports-ts": 2,
     "import/extensions": [
       "error",

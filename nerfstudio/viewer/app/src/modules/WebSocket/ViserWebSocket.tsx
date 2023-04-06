@@ -3,8 +3,12 @@ import React, { useEffect, MutableRefObject, Dispatch } from 'react';
 import AwaitLock from 'await-lock';
 import { pack, unpack } from 'msgpackr';
 import { useDispatch } from 'react-redux';
-
 import { Message } from './ViserMessages';
+
+const ViserWebSocketContext =
+  React.createContext<React.RefObject<WebSocket> | null>(null);
+
+export { ViserWebSocketContext };
 
 /** Returns a function for sending messages, with automatic throttling. */
 export function makeThrottledMessageSender(
@@ -34,23 +38,24 @@ export function makeThrottledMessageSender(
   }
   return send;
 }
-export function ViserWebSocket() {
+export function ViserWebSocket({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
   const server = 'ws://localhost:8080';
+
+  const ws = React.useRef<WebSocket>();
 
   useEffect(() => {
     // Lock for making sure messages are handled in order.
     const orderLock = new AwaitLock();
 
-    let ws: null | WebSocket = null;
     let done = false;
 
     function tryConnect(): void {
       if (done) return;
 
-      ws = new WebSocket(server);
+      ws.current = new WebSocket(server);
 
-      ws.onopen = () => {
+      ws.current.onopen = () => {
         console.log('Viser connected!' + server);
         dispatch({
           type: 'write',
@@ -59,7 +64,7 @@ export function ViserWebSocket() {
         });
       };
 
-      ws.onclose = () => {
+      ws.current.onclose = () => {
         console.log('Viser disconnected! ' + server);
         dispatch({
           type: 'write',
@@ -71,7 +76,7 @@ export function ViserWebSocket() {
         timeout = setTimeout(tryConnect, 1000);
       };
 
-      ws.onmessage = async (event) => {
+      ws.current.onmessage = async (event) => {
         // Reduce websocket backpressure.
         const messagePromise = new Promise<Message>(async (resolve) => {
           resolve(
@@ -96,12 +101,16 @@ export function ViserWebSocket() {
     return () => {
       done = true;
       clearTimeout(timeout);
-      ws && ws.close();
+      ws.current && ws.current.close();
       clearTimeout(timeout);
     };
   }, [server]);
 
-  return <></>;
+  return (
+    <ViserWebSocketContext.Provider value={ws}>
+      {children}
+    </ViserWebSocketContext.Provider>
+  );
 }
 
 function handleMessage(message: Message, dispatch: Dispatch<any>) {
@@ -158,7 +167,7 @@ function handleMessage(message: Message, dispatch: Dispatch<any>) {
     }
     // Add a GUI input.
     case 'add_gui': {
-      console.log("add_gui called")
+      console.log('add_gui called');
       dispatch({
         type: 'write',
         path: 'custom_gui/guiNames',
@@ -167,10 +176,12 @@ function handleMessage(message: Message, dispatch: Dispatch<any>) {
       dispatch({
         type: 'write',
         path: 'custom_gui/guiConfigFromName',
-        data: {[message.name]: {
-          folderName: message.folder,
-          levaConf: message.leva_conf
-        }},
+        data: {
+          [message.name]: {
+            folderName: message.folder,
+            levaConf: message.leva_conf,
+          },
+        },
       });
       break;
     }
@@ -193,6 +204,17 @@ function handleMessage(message: Message, dispatch: Dispatch<any>) {
         type: 'write',
         path: dataset_path,
         data: message.json,
+      });
+      break;
+    }
+    // Set training value.
+    case 'is_training': {
+      console.log('is_trianing called');
+      console.log(message.is_training);
+      dispatch({
+        type: 'write',
+        path: 'renderingState/isTraining',
+        data: message.is_training,
       });
       break;
     }

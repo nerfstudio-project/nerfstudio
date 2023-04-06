@@ -15,6 +15,7 @@ from typing import (
     Literal,
     Optional,
     Tuple,
+    Type,
     TypeVar,
     cast,
 )
@@ -129,10 +130,12 @@ class MessageApi(abc.ABC):
     def __init__(self) -> None:
         self._handle_state_from_gui_name: Dict[str, _GuiHandleState[Any]] = {}
         self._handle_state_from_transform_controls_name: Dict[str, _TransformControlsState] = {}
-        self._incoming_handlers: List[Callable[[ClientId, _messages.Message], None]] = [
-            lambda client_id, msg: _handle_gui_updates(self, client_id, msg),
-            lambda client_id, msg: _handle_transform_controls_updates(self, client_id, msg),
-        ]
+        self._incoming_handlers: Dict[Type[_messages.Message], List[Callable[[ClientId, _messages.Message], None]]] = {
+            _messages.GuiUpdateMessage: [lambda client_id, msg: _handle_gui_updates(self, client_id, msg)],
+            _messages.TransformControlsUpdateMessage: [
+                lambda client_id, msg: _handle_transform_controls_updates(self, client_id, msg)
+            ],
+        }
         self._gui_folder_label = "User"
 
     @contextlib.contextmanager
@@ -144,6 +147,19 @@ class MessageApi(abc.ABC):
         self._gui_folder_label = label
         yield
         self._gui_folder_label = old_folder_label
+
+    def register_handler(
+        self, message_type: Type[_messages.Message], handler: Callable[[_messages.Message], None]
+    ) -> None:
+        """Register a handler for incoming messages.
+
+        Args:
+            handler: A function that takes a message, and does something
+        """
+        if message_type not in self._incoming_handlers:
+            self._incoming_handlers[message_type] = [lambda client_id, msg: handler(msg)]
+        else:
+            self._incoming_handlers[message_type].append(lambda client_id, msg: handler(msg))
 
     def add_gui_button(self, name: str, disabled: bool = False) -> GuiHandle[bool]:
         """Add a button to the GUI. The value of this input is set to `True` every time
@@ -478,9 +494,19 @@ class MessageApi(abc.ABC):
         """
         self._queue(_messages.DatasetImageMessage(idx=idx, json=json))
 
+    def set_is_training(self, is_training: bool) -> None:
+        """Set the training mode.
+
+        Args:
+            is_training: The training mode.
+        """
+        self._queue(_messages.IsTrainingMessage(is_training=is_training))
+
     def _handle_incoming_message(self, client_id: ClientId, message: _messages.Message) -> None:
-        for cb in self._incoming_handlers:
-            cb(client_id, message)
+        """Handle incoming messages."""
+        if type(message) in self._incoming_handlers:
+            for cb in self._incoming_handlers[type(message)]:
+                cb(client_id, message)
 
     @abc.abstractmethod
     def _queue(self, message: _messages.Message) -> None:
@@ -491,10 +517,8 @@ class MessageApi(abc.ABC):
 def _handle_gui_updates(
     self: MessageApi,
     client_id: ClientId,
-    message: _messages.Message,
+    message: _messages.GuiUpdateMessage,
 ) -> None:
-    if not isinstance(message, _messages.GuiUpdateMessage):
-        return
 
     handle_state = self._handle_state_from_gui_name.get(message.name, None)
     if handle_state is None:
@@ -520,10 +544,8 @@ def _handle_gui_updates(
 def _handle_transform_controls_updates(
     self: MessageApi,
     client_id: ClientId,
-    message: _messages.Message,
+    message: _messages.TransformControlsUpdateMessage,
 ) -> None:
-    if not isinstance(message, _messages.TransformControlsUpdateMessage):
-        return
 
     handle_state = self._handle_state_from_transform_controls_name.get(message.name, None)
     if handle_state is None:

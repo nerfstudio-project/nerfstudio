@@ -6,7 +6,11 @@ import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import ViewInArIcon from '@mui/icons-material/ViewInAr';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
-
+import {
+  makeThrottledMessageSender,
+  ViserWebSocketContext,
+} from '../../WebSocket/ViserWebSocket';
+import { IsTrainingMessage } from '../../WebSocket/ViserMessages';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
 
 const msgpack = require('msgpack-lite');
@@ -18,6 +22,7 @@ interface StatusPanelProps {
 export default function StatusPanel(props: StatusPanelProps) {
   const dispatch = useDispatch();
   const websocket = React.useContext(WebSocketContext).socket;
+  const viser_websocket = React.useContext(ViserWebSocketContext);
   const isTraining = useSelector((state) => state.renderingState.isTraining);
   const sceneTree = props.sceneTree;
 
@@ -60,15 +65,15 @@ export default function StatusPanel(props: StatusPanelProps) {
       data: !isTraining,
     });
     // write to server
-    const cmd = 'write';
-    const path = 'renderingState/isTraining';
-    const data = {
-      type: cmd,
-      path,
-      data: !isTraining,
+    const sendIsTrainingMessage = makeThrottledMessageSender(
+      viser_websocket,
+      25,
+    );
+    const viser_message: IsTrainingMessage = {
+      type: 'is_training',
+      is_training: !isTraining,
     };
-    const message = msgpack.encode(data);
-    websocket.send(message);
+    sendIsTrainingMessage(viser_message);
   };
   const is_training_text = isTraining ? 'Pause Training' : 'Resume Training';
   const training_icon = isTraining ? <PauseIcon /> : <PlayArrowIcon />;

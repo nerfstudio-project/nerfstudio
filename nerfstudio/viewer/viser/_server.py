@@ -58,26 +58,22 @@ class ClientHandle(MessageApi):
     def __post_init__(self) -> None:
         super().__init__()
 
-        def handle_camera(client_id: ClientId, message: Message) -> None:
+        def handle_camera(client_id: ClientId, message: ViewerCameraMessage) -> None:
             """Handle camera messages."""
-            if not isinstance(message, ViewerCameraMessage):
-                return
             self._state.camera_info = CameraState(
                 message.wxyz, message.position, message.fov, message.aspect, time.time()
             )
             for cb in self._state.camera_cb:
                 cb(self)
 
-        self._incoming_handlers.append(handle_camera)
+        self._incoming_handlers[ViewerCameraMessage] = [handle_camera]
 
     def get_camera(self) -> CameraState:
         while self._state.camera_info is None:
             time.sleep(0.01)
         return self._state.camera_info
 
-    def on_camera_update(
-        self, callback: Callable[[ClientHandle], None]
-    ) -> Callable[[ClientHandle], None]:
+    def on_camera_update(self, callback: Callable[[ClientHandle], None]) -> Callable[[ClientHandle], None]:
         self._state.camera_cb.append(callback)
         return callback
 
@@ -86,9 +82,7 @@ class ClientHandle(MessageApi):
         """Implements message enqueue required by MessageApi.
 
         Pushes a message onto a client-specific queue."""
-        self._state.event_loop.call_soon_threadsafe(
-            self._state.message_buffer.put_nowait, message
-        )
+        self._state.event_loop.call_soon_threadsafe(self._state.message_buffer.put_nowait, message)
 
 
 ClientId = NewType("ClientId", int)
@@ -199,17 +193,13 @@ class ViserServer(MessageApi):
 
             def handle_incoming(message: Message) -> None:
                 self._handle_incoming_message(client_id, message)
-                ClientHandle(client_id, client_handle)._handle_incoming_message(
-                    client_id, message
-                )
+                ClientHandle(client_id, client_handle)._handle_incoming_message(client_id, message)
 
             try:
                 # For each client: infinite loop over producers (which send messages)
                 # and consumers (which receive messages).
                 await asyncio.gather(
-                    _single_connection_producer(
-                        websocket, client_handle.message_buffer
-                    ),
+                    _single_connection_producer(websocket, client_handle.message_buffer),
                     _broadcast_producer(websocket, client_id, self._broadcast_buffer),
                     _consumer(websocket, client_id, handle_incoming),
                 )
@@ -218,10 +208,7 @@ class ViserServer(MessageApi):
                 websockets.exceptions.ConnectionClosedError,
             ):
                 # Cleanup.
-                rich.print(
-                    f"[bold](viser)[/bold] Connection closed ({client_id},"
-                    f" {total_connections} total)"
-                )
+                rich.print(f"[bold](viser)[/bold] Connection closed ({client_id}," f" {total_connections} total)")
                 total_connections -= 1
                 self._client_lock.acquire()
                 self._handle_from_client.pop(client_id)
@@ -230,9 +217,7 @@ class ViserServer(MessageApi):
         # Host client on the same port as the websocket.
         async def viser_http_server(
             path: str, request_headers: websockets.datastructures.Headers
-        ) -> Optional[
-            Tuple[http.HTTPStatus, websockets.datastructures.HeadersLike, bytes]
-        ]:
+        ) -> Optional[Tuple[http.HTTPStatus, websockets.datastructures.HeadersLike, bytes]]:
             # Ignore websocket packets.
             if request_headers.get("Upgrade") == "websocket":
                 return None
@@ -290,14 +275,10 @@ class ViserServer(MessageApi):
 
 
 def httpserver(port: int):
-    http.server.HTTPServer(
-        ("", port), http.server.BaseHTTPRequestHandler
-    ).serve_forever()
+    http.server.HTTPServer(("", port), http.server.BaseHTTPRequestHandler).serve_forever()
 
 
-async def _single_connection_producer(
-    websocket: WebSocketServerProtocol, buffer: asyncio.Queue
-) -> None:
+async def _single_connection_producer(websocket: WebSocketServerProtocol, buffer: asyncio.Queue) -> None:
     """Infinite loop to send messages from the client buffer."""
     while True:
         message = await buffer.get()

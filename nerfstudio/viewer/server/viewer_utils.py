@@ -25,7 +25,7 @@ import threading
 import time
 import warnings
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Type
 
 import numpy as np
 import torch
@@ -52,10 +52,14 @@ from nerfstudio.viewer.server.subprocess import (
 from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfstudio.viewer.server.visualizer import Viewer
 from nerfstudio.viewer.viser import ViserServer
+from nerfstudio.viewer.viser._messages import IsTrainingMessage
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 
 CONSOLE = Console(width=120)
+
+if TYPE_CHECKING:
+    from ._server import ClientId
 
 
 def get_viewer_version() -> str:
@@ -309,10 +313,17 @@ class ViewerState:
         self.prev_crop_center = None
 
         self.output_list = None
+        self.is_training = self.config.start_train
 
         # TODO: host and port should not be hardcoded. This should eventually replace
         # the ZMQ + websocket logic above.
         self.viser_server = ViserServer(host="localhost", port=8080)
+
+        self.viser_server.register_handler(IsTrainingMessage, self._handle_is_training)
+
+    def _handle_is_training(self, message: IsTrainingMessage) -> None:
+        """Handle is_training message from viewer."""
+        self.is_training = message.is_training
 
     def _pick_drawn_image_idxs(self, total_num: int) -> list[int]:
         """Determine indicies of images to display in viewer.
@@ -364,7 +375,7 @@ class ViewerState:
         self.vis["sceneState/sceneBox"].write(json_)
 
         # set the initial state whether to train or not
-        self.vis["renderingState/isTraining"].write(start_train)
+        self.viser_server.set_is_training(start_train)
 
         max_scene_box = torch.max(dataset.scene_box.aabb[1] - dataset.scene_box.aabb[0]).item()
         self.vis["renderingState/max_box_size"].write(max_scene_box)
@@ -467,7 +478,7 @@ class ViewerState:
         has_temporal_distortion = getattr(graph, "temporal_distortion", None) is not None
         self.vis["model/has_temporal_distortion"].write(str(has_temporal_distortion).lower())
 
-        is_training = self.vis["renderingState/isTraining"].read()
+        is_training = self.is_training
         self.step = step
 
         self._check_camera_path_payload(trainer, step)
@@ -508,16 +519,15 @@ class ViewerState:
         else:
             # in pause training mode, enter render loop with set graph
             local_step = step
-            run_loop = not is_training
+            run_loop = not self.is_training
             while run_loop:
                 # if self._is_render_step(local_step) and step > 0:
                 if step > 0:
-                    self._render_image_in_viewer(camera_object, graph, is_training)
+                    self._render_image_in_viewer(camera_object, graph, self.is_training)
                     camera_object = self._get_camera_object()
-                is_training = self.vis["renderingState/isTraining"].read()
                 self._check_populate_paths_payload(trainer, step)
                 self._check_camera_path_payload(trainer, step)
-                run_loop = not is_training
+                run_loop = not self.is_training
                 local_step += 1
 
     def check_interrupt(self, frame, event, arg):  # pylint: disable=unused-argument
@@ -687,9 +697,8 @@ class ViewerState:
         writer.put_time(
             name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=self.step, avg_over_steps=True
         )
-        is_training = self.vis["renderingState/isTraining"].read()
         self.vis["renderingState/eval_res"].write(f"{image_height}x{image_width}px")
-        if is_training is None or is_training:
+        if self.is_training is None or self.is_training:
             # process remaining training ETA
             self.vis["renderingState/train_eta"].write(GLOBAL_BUFFER["events"].get(EventName.ETA.value, "Starting"))
             # process ratio time spent on vis vs train

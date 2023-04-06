@@ -11,8 +11,9 @@ const root = createRoot(document.getElementById('root'));
 root.render(
   <Provider store={store}>
     <WebSocketProvider>
-      <ViserWebSocket />
-      <App />
+      <ViserWebSocket>
+        <App />
+      </ViserWebSocket>
     </WebSocketProvider>
   </Provider>,
 );

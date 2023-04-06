@@ -126,6 +126,10 @@ export interface DatasetImageMessage {
   idx: string;
   json: string;
 }
+export interface IsTrainingMessage {
+  type: 'is_training';
+  is_training: boolean;
+}
 
 export type Message =
   | ViewerCameraMessage
@@ -146,4 +150,5 @@ export type Message =
   | GuiUpdateMessage
   | GuiSetValueMessage
   | GuiSetLevaConfMessage
-  | DatasetImageMessage;
+  | DatasetImageMessage
+  | IsTrainingMessage;
