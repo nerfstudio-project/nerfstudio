@@ -470,8 +470,8 @@ class MessageApi(abc.ABC):
     # Nerfstudio specific methods
 
     def add_dataset_image(self, idx: str, json: str) -> None:
-        """ Add a dataset image to the scene.
-        
+        """Add a dataset image to the scene.
+
         Args:
             idx: The index of the image.
             json: The json string from the camera frustum and image.
