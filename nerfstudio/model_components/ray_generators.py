@@ -15,6 +15,9 @@
 """
 Ray generator.
 """
+from typing import Optional
+
+import torch
 from torch import nn
 from torchtyping import TensorType
 
@@ -33,7 +36,11 @@ class RayGenerator(nn.Module):
         pose_optimizer: pose optimization module, for optimizing noisy camera intrinsics/extrinsics.
     """
 
-    def __init__(self, cameras: Cameras, pose_optimizer: CameraOptimizer) -> None:
+    image_coords: TensorType["height", "width", 2]
+
+    def __init__(
+        self, cameras: Cameras, pose_optimizer: Optional[CameraOptimizer] = None
+    ) -> None:
         super().__init__()
         self.cameras = cameras
         self.pose_optimizer = pose_optimizer
@@ -52,7 +59,10 @@ class RayGenerator(nn.Module):
         x = ray_indices[:, 2]  # col indices
         coords = self.image_coords[y, x]
 
-        camera_opt_to_camera = self.pose_optimizer(c)
+        if self.pose_optimizer is not None:
+            camera_opt_to_camera = self.pose_optimizer(c)
+        else:
+            camera_opt_to_camera = None
 
         ray_bundle = self.cameras.generate_rays(
             camera_indices=c.unsqueeze(-1),
