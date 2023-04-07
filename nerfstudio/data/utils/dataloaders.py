@@ -230,14 +230,6 @@ class RandIndicesEvalDataloader(EvalDataloader):
         device: Device to load data to
     """
 
-    def __init__(
-        self,
-        input_dataset: InputDataset,
-        device: Union[torch.device, str] = "cpu",
-        **kwargs,
-    ):
-        super().__init__(input_dataset, device, **kwargs)
-
     def __iter__(self):
         return self
 

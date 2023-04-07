@@ -36,7 +36,6 @@ from nerfstudio.cameras.camera_paths import (
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components import renderers
-from nerfstudio.model_components.renderers import DepthRenderer
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import colormaps, install_checks
 from nerfstudio.utils.eval_utils import eval_setup
@@ -57,6 +56,7 @@ def _render_trajectory_video(
     camera_type: CameraType = CameraType.PERSPECTIVE,
     depth_near_plane: Optional[float] = None,
     depth_far_plane: Optional[float] = None,
+    using_eval_images: bool = False,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -72,15 +72,14 @@ def _render_trajectory_video(
         camera_type: Camera projection format type.
         depth_near_plane: Closest depth to consider. If None, use min image value.
         depth_far_plane: Furthest depth to consider. If None, use max image value.
+        using_eval_images: Whether the eval images are being used or not.
+        depth_method: Method to use for depth rendering. If None, use model default.
     """
+    # pylint: disable=too-many-statements
     CONSOLE.print("[bold green]Creating trajectory " + output_format)
     cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
     cameras = cameras.to(pipeline.device)
     fps = len(cameras) / seconds
-
-    # set the pipeline to use median depth
-    # TODO(ethan): don't hardcode this...
-    pipeline.model.renderer_depth = DepthRenderer(method="median")
 
     progress = Progress(
         TextColumn(":movie_camera: Rendering :movie_camera:"),
@@ -153,9 +152,8 @@ def _render_trajectory_video(
                         output_image = np.concatenate((output_image,) * 3, axis=-1)
                     render_image.append(output_image)
 
-                # TODO: check for eval-images mode
-                # if, so then save the GT image as well!
-                if True:
+                if using_eval_images:
+                    # if in the eval-images mode, then save the GT images as well
                     batch = pipeline.datamanager.eval_dataloader.input_dataset[camera_idx]
                     rgb_gt = batch["image"]
                     # resize to match the rendered image
@@ -390,6 +388,7 @@ class RenderTrajectory:
             camera_type=camera_type,
             depth_near_plane=self.depth_near_plane,
             depth_far_plane=self.depth_far_plane,
+            using_eval_images=self.traj == "eval-images",
         )
 
 

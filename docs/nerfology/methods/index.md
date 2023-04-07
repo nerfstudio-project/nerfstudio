@@ -31,4 +31,5 @@ In addition to their implementations, we have provided guides that walk through 
     Nerfacto<nerfacto.md>
     Instant-NGP<instant_ngp.md>
     Semantic NeRF-W<semantic_nerfw.md>
+    CleaNeRF<cleanerf.md>
 ```
