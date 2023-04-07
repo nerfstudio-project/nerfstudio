@@ -161,7 +161,6 @@ function handleMessage(
     }
     // Set training value.
     case 'is_training': {
-      console.log(message.is_training);
       dispatch({
         type: 'write',
         path: 'renderingState/isTraining',

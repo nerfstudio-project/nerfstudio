@@ -22,13 +22,11 @@ import os
 import sys
 import threading
 import time
-import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-from cryptography.utils import CryptographyDeprecationWarning
 from rich.console import Console
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -65,8 +63,6 @@ from nerfstudio.viewer.viser._messages import (
     IsTrainingMessage,
     Message,
 )
-
-warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 
 CONSOLE = Console(width=120)
 
@@ -203,16 +199,18 @@ class CheckThread(threading.Thread):
         """
         self.state.check_done_render = False
         while not self.state.check_done_render:
-            # check camera
+            # Interrupt on the start of a camera move, but not during a camera move
             if self.state.camera_message is not None:
-                if self.state.prev_camera_matrix is None or (
-                    not np.allclose(self.state.camera_message.matrix, self.state.prev_camera_matrix)
-                    and not self.state.prev_moving
-                ):
-                    self.state.check_interrupt_vis = True
-                    self.state.prev_moving = True
-                    return
-                self.state.prev_moving = False
+                if self.state.camera_moving:
+                    if self.state.prev_moving:
+                        self.state.check_interrupt_vis = False
+                        self.state.prev_moving = True
+                    else:
+                        self.state.check_interrupt_vis = True
+                        self.state.prev_moving = True
+                        return
+                else:
+                    self.state.prev_moving = False
 
             # check output type
             output_type = self.state.vis["renderingState/output_choice"].read()
@@ -294,7 +292,6 @@ class ViewerState:
             self.vis = Viewer(zmq_port=self.config.zmq_port, ip_address=self.config.ip_address)
 
         # viewer specific variables
-        self.prev_camera_matrix = None
         self.prev_output_type = OutputTypes.INIT
         self.prev_colormap_type = None
         self.prev_colormap_invert = False
@@ -590,7 +587,7 @@ class ViewerState:
         Used in conjunction with SetTrace.
         """
         if event == "line":
-            if self.check_interrupt_vis and not self.camera_moving:
+            if self.check_interrupt_vis:
                 raise IOChangeException
         return self.check_interrupt
 
