@@ -10,6 +10,15 @@ const ViserWebSocketContext =
 
 export { ViserWebSocketContext };
 
+/** Send message over websocket. */
+export function sendWebsocketMessage(
+  websocketRef: MutableRefObject<WebSocket | null>,
+  message: Message,
+) {
+  if (websocketRef.current === null) return;
+  websocketRef.current!.send(pack(message));
+}
+
 /** Returns a function for sending messages, with automatic throttling. */
 export function makeThrottledMessageSender(
   websocketRef: MutableRefObject<WebSocket | null>,
@@ -38,6 +47,7 @@ export function makeThrottledMessageSender(
   }
   return send;
 }
+
 export function ViserWebSocket({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
   const server = 'ws://localhost:8080';
