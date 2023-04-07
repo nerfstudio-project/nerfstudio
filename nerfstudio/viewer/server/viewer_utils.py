@@ -385,7 +385,6 @@ class ViewerState:
         )
 
         # clear the current scene
-        self.vis["sceneState/sceneBox"].delete()
         self.vis["sceneState/cameras"].delete()
 
         # draw the training cameras and images
@@ -397,14 +396,10 @@ class ViewerState:
             self.viser_server.add_dataset_image(idx=f"{idx:06d}", json=camera_json)
 
         # draw the scene box (i.e., the bounding box)
-        json_ = dataset.scene_box.to_json()
-        self.vis["sceneState/sceneBox"].write(json_)
+        self.viser_server.update_scene_box(dataset.scene_box)
 
         # set the initial state whether to train or not
         self.viser_server.set_is_training(start_train)
-
-        max_scene_box = torch.max(dataset.scene_box.aabb[1] - dataset.scene_box.aabb[0]).item()
-        self.vis["renderingState/max_box_size"].write(max_scene_box)
 
     def _update_render_aabb(self, graph):
         """
@@ -448,9 +443,7 @@ class ViewerState:
                 else:
                     graph.render_aabb = SceneBox(aabb=torch.stack([box_min, box_max], dim=0))
 
-                # maybe should update only if true change ?
-                json_ = graph.render_aabb.to_json()
-                self.vis["sceneState/sceneBox"].write(json_)
+                self.viser_server.update_scene_box(graph.render_aabb)
         else:
             graph.render_aabb = None
 

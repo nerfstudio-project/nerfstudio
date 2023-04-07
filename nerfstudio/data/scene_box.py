@@ -64,21 +64,6 @@ class SceneBox:
         normalized_positions = (positions - aabb[0]) / aabb_lengths
         return normalized_positions
 
-    def to_json(self) -> Dict:
-        """Returns a json object from the Python object."""
-        return {"type": "aabb", "min_point": self.aabb[0].tolist(), "max_point": self.aabb[1].tolist()}
-
-    @staticmethod
-    def from_json(json_: Dict) -> "SceneBox":
-        """Returns the an instance of SceneBox from a json dictionary.
-
-        Args:
-            json_: the json dictionary containing scene box information
-        """
-        assert json_["type"] == "aabb"
-        aabb = torch.tensor([json_[0], json_[1]])
-        return SceneBox(aabb=aabb)
-
     @staticmethod
     def from_camera_poses(poses: TensorType[..., 3, 4], scale_factor: float) -> "SceneBox":
         """Returns the instance of SceneBox that fully envelopes a set of poses

@@ -340,6 +340,17 @@ class CameraMessage(Message):
 
 
 @dataclasses.dataclass
+class SceneBoxMessage(Message):
+    """Scene Box data."""
+
+    type: ClassVar[str] = "scene_box"
+    min: Tuple[float, float, float]
+    """ Minimum coordinates of the scene box """
+    max: Tuple[float, float, float]
+    """ Maximum coordinates of the scene box """
+
+
+@dataclasses.dataclass
 class DatasetImageMessage(Message):
     """Message for rendering a dataset image frustum."""
 

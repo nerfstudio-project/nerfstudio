@@ -207,6 +207,15 @@ function handleMessage(message: Message, dispatch: Dispatch<any>) {
     case 'remove_gui': {
       break;
     }
+    // Update scene box.
+    case 'scene_box': {
+      dispatch({
+        type: 'write',
+        path: 'sceneState/sceneBox',
+        data: message,
+      });
+      break;
+    }
     // Add dataset image.
     case 'dataset_image': {
       const dataset_path = `sceneState/cameras/${message.idx}`;

@@ -28,6 +28,8 @@ import numpy as onp
 import numpy.typing as onpt
 from typing_extensions import Literal, LiteralString, ParamSpec, assert_never
 
+from nerfstudio.data.scene_box import SceneBox
+
 from . import _messages
 from ._gui import GuiHandle, _GuiHandleState
 from ._scene_handle import TransformControlsHandle, _TransformControlsState
@@ -502,6 +504,14 @@ class MessageApi(abc.ABC):
                 export_path_name=export_path_name,
             )
         )
+
+    def update_scene_box(self, scene_box: SceneBox) -> None:
+        """Update the scene box.
+
+        Args:
+            scene_box: The scene box.
+        """
+        self._queue(_messages.SceneBoxMessage(min=scene_box.aabb[0].tolist(), max=scene_box.aabb[1].tolist()))
 
     def add_dataset_image(self, idx: str, json: Dict) -> None:
         """Add a dataset image to the scene.

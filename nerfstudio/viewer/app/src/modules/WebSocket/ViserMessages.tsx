@@ -154,6 +154,11 @@ export interface CameraMessage {
   is_moving: boolean;
   timestamp: number;
 }
+export interface SceneBoxMessage {
+  type: 'scene_box';
+  min: [number, number, number];
+  max: [number, number, number];
+}
 export interface DatasetImageMessage {
   type: 'dataset_image';
   idx: string;
@@ -197,6 +202,7 @@ export type Message =
   | GuiSetLevaConfMessage
   | FilePathInfoMessage
   | CameraMessage
+  | SceneBoxMessage
   | DatasetImageMessage
   | IsTrainingMessage
   | CameraPathPayloadMessage
