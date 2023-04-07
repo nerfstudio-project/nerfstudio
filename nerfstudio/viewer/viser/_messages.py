@@ -304,6 +304,29 @@ class GuiSetLevaConfMessage(Message):
 
 
 @dataclasses.dataclass
+class CameraMessage(Message):
+    """Render camera data."""
+
+    type: ClassVar[str] = "camera"
+    aspect: float
+    """ Aspect ratio of the camera """
+    render_aspect: float
+    """ Aspect ratio of the render window """
+    fov: float
+    """ Field of view of the camera """
+    matrix: Tuple[
+        float, float, float, float, float, float, float, float, float, float, float, float, float, float, float, float
+    ]
+    """ Camera matrix """
+    camera_type: Literal["perspective", "fisheye", "equirectangular"]
+    """ Camera type """
+    is_moving: bool
+    """ True if the camera is moving, False otherwise """
+    timestamp: int
+    """JSON computed by the camera class"""
+
+
+@dataclasses.dataclass
 class DatasetImageMessage(Message):
     """Message for rendering a dataset image frustum."""
 

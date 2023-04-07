@@ -53,7 +53,7 @@ from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_w
 from nerfstudio.viewer.server.viewer_param import ViewerElement
 from nerfstudio.viewer.server.visualizer import Viewer
 from nerfstudio.viewer.viser import ViserServer
-from nerfstudio.viewer.viser._messages import IsTrainingMessage
+from nerfstudio.viewer.viser._messages import CameraMessage, IsTrainingMessage
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 
@@ -196,14 +196,12 @@ class CheckThread(threading.Thread):
         self.state.check_done_render = False
         while not self.state.check_done_render:
             # check camera
-            data = self.state.vis["renderingState/camera"].read()
             render_time = self.state.vis["renderingState/render_time"].read()
-            if data is not None:
-                camera_object = data["object"]
+            if self.state.camera_message is not None:
                 if (
                     self.state.prev_camera_matrix is None
                     or (
-                        not np.allclose(camera_object["matrix"], self.state.prev_camera_matrix)
+                        not np.allclose(self.state.camera_message.matrix, self.state.prev_camera_matrix)
                         and not self.state.prev_moving
                     )
                     or (render_time is not None and render_time != self.state.prev_render_time)
@@ -315,16 +313,23 @@ class ViewerState:
 
         self.output_list = None
         self.is_training = self.config.start_train
+        self.camera_message = None
 
         # TODO: host and port should not be hardcoded. This should eventually replace
         # the ZMQ + websocket logic above.
         self.viser_server = ViserServer(host="localhost", port=8080)
 
         self.viser_server.register_handler(IsTrainingMessage, self._handle_is_training)
+        self.viser_server.register_handler(CameraMessage, self._handle_camera_update)
 
     def _handle_is_training(self, message: IsTrainingMessage) -> None:
         """Handle is_training message from viewer."""
         self.is_training = message.is_training
+
+    def _handle_camera_update(self, message: CameraMessage) -> None:
+        """Handle camera update message from viewer."""
+        self.camera_message = message
+        self.camera_moving = message.is_moving
 
     def _pick_drawn_image_idxs(self, total_num: int) -> list[int]:
         """Determine indicies of images to display in viewer.
@@ -492,8 +497,8 @@ class ViewerState:
         self._check_camera_path_payload(trainer, step)
         self._check_populate_paths_payload(trainer, step)
 
-        camera_object = self._get_camera_object()
-        if camera_object is None:
+        self._legacy_messages()
+        if self.camera_message is None:
             return
 
         if is_training is None or is_training:
@@ -503,8 +508,8 @@ class ViewerState:
                 # if the camera is moving, then we pause training and update camera continuously
 
                 while self.camera_moving:
-                    self._render_image_in_viewer(camera_object, graph, is_training)
-                    camera_object = self._get_camera_object()
+                    self._render_image_in_viewer(self.camera_message, graph, is_training)
+                    self._legacy_messages()
             else:
                 # if the camera is not moving, then we approximate how many training steps need to be taken
                 # to render at a FPS defined by self.static_fps.
@@ -522,7 +527,7 @@ class ViewerState:
                     num_steps = 1
 
                 if step % num_steps == 0:
-                    self._render_image_in_viewer(camera_object, graph, is_training)
+                    self._render_image_in_viewer(self.camera_message, graph, is_training)
 
         else:
             # in pause training mode, enter render loop with set graph
@@ -531,8 +536,8 @@ class ViewerState:
             while run_loop:
                 # if self._is_render_step(local_step) and step > 0:
                 if step > 0:
-                    self._render_image_in_viewer(camera_object, graph, self.is_training)
-                    camera_object = self._get_camera_object()
+                    self._legacy_messages()
+                    self._render_image_in_viewer(self.camera_message, graph, self.is_training)
                 self._check_populate_paths_payload(trainer, step)
                 self._check_camera_path_payload(trainer, step)
                 run_loop = not self.is_training
@@ -547,31 +552,31 @@ class ViewerState:
                 raise IOChangeException
         return self.check_interrupt
 
-    def _get_camera_object(self):
+    def _legacy_messages(self):
         """Gets the camera object from the viewer and updates the movement state if it has changed."""
 
-        data = self.vis["renderingState/camera"].read()
-        if data is None:
-            return None
+        # data = self.vis["renderingState/camera"].read()
+        # if data is None:
+        #     return None
 
-        camera_object = data["object"]
-        render_time = self.vis["renderingState/render_time"].read()
+        # camera_object = data["object"]
+        # render_time = self.vis["renderingState/render_time"].read()
 
-        if render_time is not None:
-            if (
-                self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix)
-            ) and (self.prev_render_time == render_time):
-                self.camera_moving = False
-            else:
-                self.prev_camera_matrix = camera_object["matrix"]
-                self.prev_render_time = render_time
-                self.camera_moving = True
-        else:
-            if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
-                self.camera_moving = False
-            else:
-                self.prev_camera_matrix = camera_object["matrix"]
-                self.camera_moving = True
+        # if render_time is not None:
+        #     if (
+        #         self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix)
+        #     ) and (self.prev_render_time == render_time):
+        #         self.camera_moving = False
+        #     else:
+        #         self.prev_camera_matrix = camera_object["matrix"]
+        #         self.prev_render_time = render_time
+        #         self.camera_moving = True
+        # else:
+        #     if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
+        #         self.camera_moving = False
+        #     else:
+        #         self.prev_camera_matrix = camera_object["matrix"]
+        #         self.camera_moving = True
 
         output_type = self.vis["renderingState/output_choice"].read()
         if output_type is None:
@@ -609,8 +614,6 @@ class ViewerState:
         if self.prev_crop_enabled:
             if self.prev_crop_center != crop_center:
                 self.camera_moving = True
-
-        return camera_object
 
     def _apply_colormap(self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6):
         """Determines which colormap to use based on set colormap type
@@ -724,11 +727,11 @@ class ViewerState:
             self.vis["renderingState/train_eta"].write("Paused")
             self.vis["renderingState/vis_train_ratio"].write("100% spent on viewer")
 
-    def _calculate_image_res(self, camera_object, is_training: bool) -> Optional[Tuple[int, int]]:
+    def _calculate_image_res(self, aspect_ratio: float, is_training: bool) -> Optional[Tuple[int, int]]:
         """Calculate the maximum image height that can be rendered in the time budget
 
         Args:
-            camera_object: the camera object to use for rendering
+            apect_ration: the aspect ratio of the current view
             is_training: whether or not we are training
         Returns:
             image_height: the maximum image height that can be rendered in the time budget
@@ -762,8 +765,6 @@ class ViewerState:
 
         # calculate number of rays that can be rendered given the target fps
         num_vis_rays = vis_rays_per_sec / current_fps * (1 - target_train_util)
-
-        aspect_ratio = camera_object["aspect"]
 
         if not self.camera_moving and not is_training:
             image_height = self.max_resolution
@@ -810,10 +811,11 @@ class ViewerState:
             graph: current checkpoint of model
         """
         # Check that timestamp is newer than the last one
-        if int(camera_object["timestamp"]) < self.prev_camera_timestamp:
+        camera_message = self.camera_message
+        if int(camera_message.timestamp) < self.prev_camera_timestamp:
             return
 
-        self.prev_camera_timestamp = int(camera_object["timestamp"])
+        self.prev_camera_timestamp = camera_message.timestamp
 
         # check and perform output type updates
         output_type = self.vis["renderingState/output_choice"].read()
@@ -845,7 +847,7 @@ class ViewerState:
 
         # Calculate camera pose and intrinsics
         try:
-            image_height, image_width = self._calculate_image_res(camera_object, is_training)
+            image_height, image_width = self._calculate_image_res(camera_message.aspect, is_training)
         except ZeroDivisionError as e:
             self.vis["renderingState/log_errors"].write("Error: Screen too small; no rays intersecting scene.")
             time.sleep(0.03)  # sleep to allow buffer to reset
@@ -856,7 +858,7 @@ class ViewerState:
             return
 
         intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
-            camera_object, image_height=image_height, image_width=image_width
+            camera_message, image_height=image_height, image_width=image_width
         )
 
         camera_to_world = camera_to_world_h[:3, :]
@@ -869,7 +871,7 @@ class ViewerState:
             dim=0,
         )
 
-        camera_type_msg = camera_object["camera_type"]
+        camera_type_msg = camera_message.camera_type
         if camera_type_msg == "perspective":
             camera_type = CameraType.PERSPECTIVE
         elif camera_type_msg == "fisheye":

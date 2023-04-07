@@ -11,9 +11,6 @@ import {
   ViserWebSocketContext,
 } from '../../WebSocket/ViserWebSocket';
 import { IsTrainingMessage } from '../../WebSocket/ViserMessages';
-import { WebSocketContext } from '../../WebSocket/WebSocket';
-
-const msgpack = require('msgpack-lite');
 
 interface StatusPanelProps {
   sceneTree: object;
@@ -21,7 +18,6 @@ interface StatusPanelProps {
 
 export default function StatusPanel(props: StatusPanelProps) {
   const dispatch = useDispatch();
-  const websocket = React.useContext(WebSocketContext).socket;
   const viser_websocket = React.useContext(ViserWebSocketContext);
   const isTraining = useSelector((state) => state.renderingState.isTraining);
   const sceneTree = props.sceneTree;
