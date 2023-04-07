@@ -333,7 +333,7 @@ class DatasetImageMessage(Message):
     type: ClassVar[str] = "dataset_image"
     idx: str
     """Index of the image in the threejs scene"""
-    json: str
+    json: Any
     """JSON computed by the camera class"""
 
 
@@ -353,5 +353,21 @@ class CameraPathPayloadMessage(Message):
     type: ClassVar[str] = "camera_path_payload"
     camera_path_filename: str
     """ Camera path filename """
-    camera_path: any
+    camera_path: Any
     """ Camera path data """
+
+
+@dataclasses.dataclass
+class CameraPathOptionsRequest(Message):
+    """Request list of existing camera paths"""
+
+    type: ClassVar[str] = "camera_path_options"
+
+
+@dataclasses.dataclass
+class CameraPathsMessage(Message):
+    """Dictionary of camera paths"""
+
+    type: ClassVar[str] = "camera_paths"
+    payload: Any
+    """ Dictionary of camera paths """

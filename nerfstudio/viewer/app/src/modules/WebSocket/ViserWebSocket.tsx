@@ -2,8 +2,9 @@ import React, { useEffect, MutableRefObject, Dispatch } from 'react';
 
 import AwaitLock from 'await-lock';
 import { pack, unpack } from 'msgpackr';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector, useStore } from 'react-redux';
 import { Message } from './ViserMessages';
+import { Store } from 'redux';
 
 const ViserWebSocketContext =
   React.createContext<React.RefObject<WebSocket> | null>(null);
@@ -29,7 +30,7 @@ export function makeThrottledMessageSender(
   let latestMessage: Message | null = null;
 
   function send(message: Message) {
-    if (websocketRef.current === null) return;
+    if (websocketRef.current == null) return;
     latestMessage = message;
     if (readyToSend) {
       websocketRef.current!.send(pack(message));
@@ -50,6 +51,7 @@ export function makeThrottledMessageSender(
 
 export function ViserWebSocket({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
+  const store = useStore();
   const server = 'ws://localhost:8080';
 
   const ws = React.useRef<WebSocket>();
@@ -100,7 +102,7 @@ export function ViserWebSocket({ children }: { children: React.ReactNode }) {
           orderLock.release();
         });
         try {
-          handleMessage(await messagePromise, dispatch);
+          handleMessage(await messagePromise, dispatch, store);
         } finally {
           orderLock.acquired && orderLock.release();
         }
@@ -123,7 +125,7 @@ export function ViserWebSocket({ children }: { children: React.ReactNode }) {
   );
 }
 
-function handleMessage(message: Message, dispatch: Dispatch<any>) {
+function handleMessage(message: Message, dispatch: Dispatch<any>, store: Store) {
   // TODO: we need to actually handle messages that are received.
   // console.log('Handling viser message!');
   // console.log(message);
@@ -178,15 +180,18 @@ function handleMessage(message: Message, dispatch: Dispatch<any>) {
     // Add a GUI input.
     case 'add_gui': {
       console.log('add_gui called');
+      const curGuiNames = store.getState().custom_gui.guiNames;
+      const curGuiConfigFromName = store.getState().custom_gui.guiConfigFromName;
       dispatch({
         type: 'write',
         path: 'custom_gui/guiNames',
-        data: [message.name],
+        data: [...curGuiNames,message.name],
       });
       dispatch({
         type: 'write',
         path: 'custom_gui/guiConfigFromName',
         data: {
+          ...curGuiConfigFromName,
           [message.name]: {
             folderLabels: message.folder_labels,
             levaConf: message.leva_conf,
@@ -225,6 +230,16 @@ function handleMessage(message: Message, dispatch: Dispatch<any>) {
         type: 'write',
         path: 'renderingState/isTraining',
         data: message.is_training,
+      });
+      break;
+    }
+    // Populate camera paths.
+    case 'camera_paths': {
+      console.log('populating camera paths');
+      dispatch({
+        type: 'write',
+        path: 'renderingState/all_camera_paths',
+        data: message.payload,
       });
       break;
     }

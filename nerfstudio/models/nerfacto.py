@@ -62,6 +62,7 @@ from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
 from nerfstudio.viewer.server.viewer_param import (
     ViewerButton,
+    ViewerDropdown,
     ViewerNumber,
     ViewerSlider,
     ViewerText,
@@ -169,6 +170,7 @@ class NerfactoModel(Model):
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
         )
         self.rgb_scale = ViewerSlider("RGB Scaler", 1.0, 0, 1, 0.1)
+        self.dropdown = ViewerDropdown("Output Render", "rgb", ["rgb", "lol"])
         # self.number = ViewerNumber("Dummy number", 1.0)
         # self.text = ViewerText("Dummy text", "lol")
 
@@ -283,7 +285,7 @@ class NerfactoModel(Model):
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
 
-        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights) * self.rgb_scale.value
+        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 
