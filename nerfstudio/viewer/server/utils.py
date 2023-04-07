@@ -16,7 +16,7 @@
 """
 
 import sys
-from typing import Callable, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import numpy as np
 import torch
