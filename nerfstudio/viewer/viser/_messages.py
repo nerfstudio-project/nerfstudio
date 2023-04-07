@@ -1,3 +1,17 @@
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Message type definitions. For synchronization with the TypeScript definitions, see
 `_typescript_interface_gen.py.`"""
 
@@ -161,50 +175,6 @@ class MeshMessage(Message):
         # Check shapes.
         assert self.vertices.shape[-1] == 3
         assert self.faces.shape[-1] == 3
-
-
-@dataclasses.dataclass
-class TransformControlsMessage(Message):
-    """Message for transform gizmos."""
-
-    type: ClassVar[str] = "transform_controls"
-    name: str
-    scale: float
-    line_width: float
-    fixed: bool
-    auto_transform: bool
-    active_axes: Tuple[bool, bool, bool]
-    disable_axes: bool
-    disable_sliders: bool
-    disable_rotations: bool
-    translation_limits: Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]
-    rotation_limits: Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]
-    depth_test: bool
-    opacity: float
-
-
-@dataclasses.dataclass
-class TransformControlsSetMessage(Message):
-    """Server -> client message to set a transform control's pose.
-
-    As with all other messages, transforms take the `T_parent_local` convention."""
-
-    type: ClassVar[str] = "transform_controls_set"
-    name: str
-    wxyz: Tuple[float, float, float, float]
-    position: Tuple[float, float, float]
-
-
-@dataclasses.dataclass
-class TransformControlsUpdateMessage(Message):
-    """Client -> server message when a transform control is updated.
-
-    As with all other messages, transforms take the `T_parent_local` convention."""
-
-    type: ClassVar[str] = "transform_controls_update"
-    name: str
-    wxyz: Tuple[float, float, float, float]
-    position: Tuple[float, float, float]
 
 
 @dataclasses.dataclass

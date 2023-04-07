@@ -2,9 +2,9 @@ import React, { useEffect, MutableRefObject, Dispatch } from 'react';
 
 import AwaitLock from 'await-lock';
 import { pack, unpack } from 'msgpackr';
-import { useDispatch, useSelector, useStore } from 'react-redux';
-import { Message } from './ViserMessages';
+import { useDispatch, useStore } from 'react-redux';
 import { Store } from 'redux';
+import { Message } from './ViserMessages';
 
 const ViserWebSocketContext =
   React.createContext<React.RefObject<WebSocket> | null>(null);
@@ -49,83 +49,11 @@ export function makeThrottledMessageSender(
   return send;
 }
 
-export function ViserWebSocket({ children }: { children: React.ReactNode }) {
-  const dispatch = useDispatch();
-  const store = useStore();
-  const server = 'ws://localhost:8080';
-
-  const ws = React.useRef<WebSocket>();
-
-  useEffect(() => {
-    // Lock for making sure messages are handled in order.
-    const orderLock = new AwaitLock();
-
-    let done = false;
-
-    function tryConnect(): void {
-      if (done) return;
-
-      ws.current = new WebSocket(server);
-
-      ws.current.onopen = () => {
-        console.log('Viser connected!' + server);
-        dispatch({
-          type: 'write',
-          path: 'websocketState/isConnected',
-          data: true,
-        });
-      };
-
-      ws.current.onclose = () => {
-        console.log('Viser disconnected! ' + server);
-        dispatch({
-          type: 'write',
-          path: 'websocketState/isConnected',
-          data: false,
-        });
-
-        // Try to reconnect.
-        timeout = setTimeout(tryConnect, 1000);
-      };
-
-      ws.current.onmessage = async (event) => {
-        // Reduce websocket backpressure.
-        const messagePromise = new Promise<Message>(async (resolve) => {
-          resolve(
-            unpack(new Uint8Array(await event.data.arrayBuffer())) as Message,
-          );
-        });
-
-        // Try our best to handle messages in order. If this takes more than 1 second, we give up. :)
-        await orderLock.acquireAsync({ timeout: 1000 }).catch(() => {
-          console.log('Order lock timed.');
-          orderLock.release();
-        });
-        try {
-          handleMessage(await messagePromise, dispatch, store);
-        } finally {
-          orderLock.acquired && orderLock.release();
-        }
-      };
-    }
-
-    let timeout = setTimeout(tryConnect, 500);
-    return () => {
-      done = true;
-      clearTimeout(timeout);
-      ws.current && ws.current.close();
-      clearTimeout(timeout);
-    };
-  }, [server]);
-
-  return (
-    <ViserWebSocketContext.Provider value={ws}>
-      {children}
-    </ViserWebSocketContext.Provider>
-  );
-}
-
-function handleMessage(message: Message, dispatch: Dispatch<any>, store: Store) {
+function handleMessage(
+  message: Message,
+  dispatch: Dispatch<any>,
+  store: Store,
+) {
   // TODO: we need to actually handle messages that are received.
   // console.log('Handling viser message!');
   // console.log(message);
@@ -179,13 +107,13 @@ function handleMessage(message: Message, dispatch: Dispatch<any>, store: Store) 
     }
     // Add a GUI input.
     case 'add_gui': {
-      console.log('add_gui called');
       const curGuiNames = store.getState().custom_gui.guiNames;
-      const curGuiConfigFromName = store.getState().custom_gui.guiConfigFromName;
+      const curGuiConfigFromName =
+        store.getState().custom_gui.guiConfigFromName;
       dispatch({
         type: 'write',
         path: 'custom_gui/guiNames',
-        data: [...curGuiNames,message.name],
+        data: [...curGuiNames, message.name],
       });
       dispatch({
         type: 'write',
@@ -233,7 +161,6 @@ function handleMessage(message: Message, dispatch: Dispatch<any>, store: Store) 
     }
     // Set training value.
     case 'is_training': {
-      console.log('is_trianing called');
       console.log(message.is_training);
       dispatch({
         type: 'write',
@@ -244,7 +171,6 @@ function handleMessage(message: Message, dispatch: Dispatch<any>, store: Store) 
     }
     // Populate camera paths.
     case 'camera_paths': {
-      console.log('populating camera paths');
       dispatch({
         type: 'write',
         path: 'renderingState/all_camera_paths',
@@ -254,7 +180,6 @@ function handleMessage(message: Message, dispatch: Dispatch<any>, store: Store) 
     }
     // Set file path info.
     case 'path_info': {
-      console.log('setting path info');
       dispatch({
         type: 'write',
         path: 'file_path_info/config_base_dir',
@@ -277,4 +202,80 @@ function handleMessage(message: Message, dispatch: Dispatch<any>, store: Store) 
       break;
     }
   }
+}
+
+export function ViserWebSocket({ children }: { children: React.ReactNode }) {
+  const dispatch = useDispatch();
+  const server = 'ws://localhost:8080';
+  const store = useStore();
+
+  const ws = React.useRef<WebSocket>();
+
+  useEffect(() => {
+    // Lock for making sure messages are handled in order.
+    const orderLock = new AwaitLock();
+
+    let done = false;
+
+    function tryConnect(): void {
+      if (done) return;
+
+      ws.current = new WebSocket(server);
+
+      ws.current.onopen = () => {
+        console.log(`Viser connected! ${server}`);
+        dispatch({
+          type: 'write',
+          path: 'websocketState/isConnected',
+          data: true,
+        });
+      };
+
+      ws.current.onclose = () => {
+        console.log(`Viser disconnected! ${server}`);
+        dispatch({
+          type: 'write',
+          path: 'websocketState/isConnected',
+          data: false,
+        });
+
+        // Try to reconnect.
+        timeout = setTimeout(tryConnect, 1000);
+      };
+
+      ws.current.onmessage = async (event) => {
+        // Reduce websocket backpressure.
+        const messagePromise = new Promise<Message>(async (resolve) => {
+          resolve(
+            unpack(new Uint8Array(await event.data.arrayBuffer())) as Message,
+          );
+        });
+
+        // Try our best to handle messages in order. If this takes more than 1 second, we give up. :)
+        await orderLock.acquireAsync({ timeout: 1000 }).catch(() => {
+          console.log('Order lock timed.');
+          orderLock.release();
+        });
+        try {
+          handleMessage(await messagePromise, dispatch, store);
+        } finally {
+          orderLock.acquired && orderLock.release();
+        }
+      };
+    }
+
+    let timeout = setTimeout(tryConnect, 500);
+    return () => {
+      done = true;
+      clearTimeout(timeout);
+      ws.current && ws.current.close();
+      clearTimeout(timeout);
+    };
+  }, [server]);
+
+  return (
+    <ViserWebSocketContext.Provider value={ws}>
+      {children}
+    </ViserWebSocketContext.Provider>
+  );
 }

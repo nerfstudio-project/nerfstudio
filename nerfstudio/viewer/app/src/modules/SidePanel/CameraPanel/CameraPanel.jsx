@@ -113,14 +113,6 @@ function RenderTimeSelector(props) {
     if (applyAll) {
       setAllCameraRenderTime(val);
     }
-
-    if (changeMain) {
-      dispatch({
-        type: 'write',
-        path: 'renderingState/render_time',
-        data: camera.renderTime,
-      });
-    }
   };
 
   const handleValidation = (e) => {

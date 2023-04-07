@@ -1,3 +1,20 @@
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+""" Core Viser Server """
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import asyncio
@@ -5,7 +22,6 @@ import dataclasses
 import http.server
 import mimetypes
 import threading
-import time
 from asyncio.events import AbstractEventLoop
 from pathlib import Path
 from typing import Callable, Dict, List, NewType, Optional, Tuple
@@ -23,24 +39,12 @@ from websockets.legacy.server import WebSocketServerProtocol
 
 from ._async_message_buffer import AsyncMessageBuffer
 from ._message_api import MessageApi
-from ._messages import Message, ViewerCameraMessage
-
-
-@dataclasses.dataclass(frozen=True)
-class CameraState:
-    """Information about a client's camera state."""
-
-    wxyz: Tuple[float, float, float, float]
-    position: Tuple[float, float, float]
-    fov: float
-    aspect: float
-    last_updated: float
+from ._messages import Message
 
 
 @dataclasses.dataclass
 class _ClientHandleState:
     # Internal state for ClientHandle objects.
-    camera_info: Optional[CameraState]
     message_buffer: asyncio.Queue
     event_loop: AbstractEventLoop
     camera_cb: List[Callable[[ClientHandle], None]]
@@ -58,30 +62,13 @@ class ClientHandle(MessageApi):
     def __post_init__(self) -> None:
         super().__init__()
 
-        def handle_camera(client_id: ClientId, message: ViewerCameraMessage) -> None:
-            """Handle camera messages."""
-            self._state.camera_info = CameraState(
-                message.wxyz, message.position, message.fov, message.aspect, time.time()
-            )
-            for cb in self._state.camera_cb:
-                cb(self)
-
-        self._incoming_handlers[ViewerCameraMessage] = [handle_camera]
-
-    def get_camera(self) -> CameraState:
-        while self._state.camera_info is None:
-            time.sleep(0.01)
-        return self._state.camera_info
-
-    def on_camera_update(self, callback: Callable[[ClientHandle], None]) -> Callable[[ClientHandle], None]:
-        self._state.camera_cb.append(callback)
-        return callback
-
     @override
     def _queue(self, message: Message) -> None:
         """Implements message enqueue required by MessageApi.
+        Pushes a message onto a client-specific queue.
 
-        Pushes a message onto a client-specific queue."""
+        Args:
+            message: Message to enqueue."""
         self._state.event_loop.call_soon_threadsafe(self._state.message_buffer.put_nowait, message)
 
 
@@ -182,7 +169,6 @@ class ViserServer(MessageApi):
             )
 
             client_handle = _ClientHandleState(
-                camera_info=None,
                 message_buffer=asyncio.Queue(),
                 event_loop=event_loop,
                 camera_cb=[],
@@ -275,6 +261,7 @@ class ViserServer(MessageApi):
 
 
 def httpserver(port: int):
+    """Simple HTTP server for serving the viser client."""
     http.server.HTTPServer(("", port), http.server.BaseHTTPRequestHandler).serve_forever()
 
 
@@ -297,7 +284,7 @@ async def _broadcast_producer(
 
 async def _consumer(
     websocket: WebSocketServerProtocol,
-    client_id: ClientId,
+    client_id: ClientId,  # pylint: disable=unused-argument
     handle_message: Callable[[Message], None],
 ) -> None:
     """Infinite loop waiting for and then handling incoming messages."""

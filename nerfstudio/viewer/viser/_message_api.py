@@ -1,3 +1,17 @@
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """ This module contains the MessageApi class, which is the interface for sending messages to the Viewer"""
 # pylint: disable=protected-access
 
@@ -32,7 +46,6 @@ from nerfstudio.data.scene_box import SceneBox
 
 from . import _messages
 from ._gui import GuiHandle, _GuiHandleState
-from ._scene_handle import TransformControlsHandle, _TransformControlsState
 
 if TYPE_CHECKING:
     from ._server import ClientId
@@ -93,13 +106,13 @@ def _encode_image_base64(
     with io.BytesIO() as data_buffer:
         if file_format == "png":
             media_type = "image/png"
-            iio.imwrite(data_buffer, image, format="PNG")
+            iio.imwrite(data_buffer, image, extension=".png")
         elif file_format == "jpeg":
             media_type = "image/jpeg"
             iio.imwrite(
                 data_buffer,
                 image[..., :3],  # Strip alpha.
-                format="JPEG",
+                extension=".jpeg",
                 quality=75 if quality is None else quality,
             )
         else:
@@ -134,12 +147,8 @@ class MessageApi(abc.ABC):
 
     def __init__(self) -> None:
         self._handle_state_from_gui_name: Dict[str, _GuiHandleState[Any]] = {}
-        self._handle_state_from_transform_controls_name: Dict[str, _TransformControlsState] = {}
         self._incoming_handlers: Dict[Type[_messages.Message], List[Callable[[ClientId, _messages.Message], None]]] = {
             _messages.GuiUpdateMessage: [lambda client_id, msg: _handle_gui_updates(self, client_id, msg)],
-            _messages.TransformControlsUpdateMessage: [
-                lambda client_id, msg: _handle_transform_controls_updates(self, client_id, msg)
-            ],
         }
         self._gui_folder_labels: List[str] = []
 
@@ -415,71 +424,8 @@ class MessageApi(abc.ABC):
             )
         )
 
-    def add_transform_controls(
-        self,
-        name: str,
-        scale: float = 1.0,
-        line_width: float = 2.5,
-        fixed: bool = False,
-        auto_transform: bool = True,
-        active_axes: Tuple[bool, bool, bool] = (True, True, True),
-        disable_axes: bool = False,
-        disable_sliders: bool = False,
-        disable_rotations: bool = False,
-        translation_limits: Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]] = (
-            (-1000.0, 1000.0),
-            (-1000.0, 1000.0),
-            (-1000.0, 1000.0),
-        ),
-        rotation_limits: Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]] = (
-            (-1000.0, 1000.0),
-            (-1000.0, 1000.0),
-            (-1000.0, 1000.0),
-        ),
-        depth_test: bool = True,
-        opacity: float = 1.0,
-    ) -> TransformControlsHandle:
-        # That decorator factory would be really helpful here...
-        self._queue(
-            _messages.TransformControlsMessage(
-                name=name,
-                scale=scale,
-                line_width=line_width,
-                fixed=fixed,
-                auto_transform=auto_transform,
-                active_axes=active_axes,
-                disable_axes=disable_axes,
-                disable_sliders=disable_sliders,
-                disable_rotations=disable_rotations,
-                translation_limits=translation_limits,
-                rotation_limits=rotation_limits,
-                depth_test=depth_test,
-                opacity=opacity,
-            )
-        )
-
-        def sync_cb(client_id: ClientId, state: _TransformControlsState) -> None:
-            message = _messages.TransformControlsSetMessage(name=name, wxyz=state.wxyz, position=state.position)
-            message.excluded_self_client = client_id
-            self._queue(message)
-
-        state = _TransformControlsState(
-            name=name,
-            api=self,
-            wxyz=(1.0, 0.0, 0.0, 0.0),
-            position=(0.0, 0.0, 0.0),
-            last_updated=time.time(),
-            update_cb=[],
-            sync_cb=sync_cb,
-        )
-        self._handle_state_from_transform_controls_name[name] = state
-        return TransformControlsHandle(state)
-
     def remove_scene_node(self, name: str) -> None:
         self._queue(_messages.RemoveSceneNodeMessage(name=name))
-
-        if name in self._handle_state_from_transform_controls_name:
-            self._handle_state_from_transform_controls_name.pop(name)
 
     def set_scene_node_visibility(self, name: str, visible: bool) -> None:
         self._queue(_messages.SetSceneNodeVisibilityMessage(name=name, visible=visible))
@@ -575,28 +521,6 @@ def _handle_gui_updates(
         cb(GuiHandle(handle_state))
     if handle_state.sync_cb is not None:
         handle_state.sync_cb(client_id, message.value)
-
-
-def _handle_transform_controls_updates(
-    self: MessageApi,
-    client_id: ClientId,
-    message: _messages.TransformControlsUpdateMessage,
-) -> None:
-
-    handle_state = self._handle_state_from_transform_controls_name.get(message.name, None)
-    if handle_state is None:
-        return
-
-    # Update state.
-    handle_state.wxyz = message.wxyz
-    handle_state.position = message.position
-    handle_state.last_updated = time.time()
-
-    # Trigger callbacks.
-    for cb in handle_state.update_cb:
-        cb(TransformControlsHandle(handle_state))
-    if handle_state.sync_cb is not None:
-        handle_state.sync_cb(client_id, handle_state)
 
 
 T = TypeVar("T")
