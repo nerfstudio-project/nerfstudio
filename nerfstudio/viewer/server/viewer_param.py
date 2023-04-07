@@ -9,7 +9,7 @@ from nerfstudio.viewer.viser import GuiHandle, ViserServer
 class ViewerElement:
     def __init__(self, name: str, disabled=False):
         self.name = name
-        self.gui_handle = None
+        self.gui_handle: GuiHandle = None
         self.disabled = disabled
 
     @abstractmethod
@@ -17,11 +17,15 @@ class ViewerElement:
         """
         Returns the GuiHandle object which actually controls the parameter in the gui
         """
-        raise RuntimeError("Cannot instantiate ViewerElement directly")
+        ...
+
+    def remove(self):
+        self.gui_handle.remove()
+        self.gui_handle = None
 
     @abstractmethod
     def install(self, viser_server: ViserServer) -> None:
-        raise RuntimeError("Must implement install() for a ViewerElement")
+        ...
 
 
 class ViewerButton(ViewerElement):
@@ -106,3 +110,14 @@ class ViewerCheckbox(ViewerParameter):
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
         self.gui_handle = viser_server.add_gui_checkbox(self.name, self.cur_value, disabled=self.disabled)
+
+
+class ViewerDropdown(ViewerParameter):
+    def __init__(self, name, default_value, options: List, disabled=False):
+        assert default_value in options
+        super().__init__(name, default_value, disabled=disabled)
+        self.options = options
+
+    def _create_gui_handle(self, viser_server: ViserServer) -> None:
+        assert self.gui_handle is None, "gui_handle should be initialized once"
+        self.gui_handle = viser_server.add_gui_select(self.name, self.options, self.cur_value, disabled=self.disabled)
