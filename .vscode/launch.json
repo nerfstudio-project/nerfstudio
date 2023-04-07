@@ -112,5 +112,14 @@
         "--include_mono_prior=True"
       ]
     },
+    {
+      "name": "Python: train pigan",
+      "type": "python",
+      "request": "launch",
+      "program": "scripts/train.py",
+      "console": "integratedTerminal",
+      // "justMyCode": true,
+      "args": ["pigan"]
+    },
   ]
 }

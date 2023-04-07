@@ -21,6 +21,9 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 from typing_extensions import Literal
+from typing import List
+
+from nerfstudio.model_components.op import conv2d_gradfix
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.utils.math import masked_reduction, normalized_depth_scale_and_shift
@@ -492,8 +495,8 @@ class ScaleAndShiftInvariantLoss(nn.Module):
 # NOTE - Literal 클래스 : 변수가 가질 수 있는 값의 범위를 명시적으로 제한 -> Literal[1,2,3,4] 의 의미는 갑싱 가질 수 있는 값의 범위가 이 것들 중 하나라는 것이다. 
 
 # GAN Loss
-class GanLoss(nn.Module):
-    def __init__(self, m_type: Literal['G', 'D'], r1_gamma): 
+class GANLoss(nn.Module):
+    def __init__(self, m_type: Literal['G', 'D'], r1_gamma = 0.2, reg_step : int = 16): 
         """
         Args:
             m_type: according to module type (m_type) determine gan loss  ( gnerator : 'G' or discriminator : 'D')
@@ -503,30 +506,35 @@ class GanLoss(nn.Module):
 
         self.non_saturating_loss = torch.nn.functional.softplus
         self.r1_gamma = r1_gamma #NOTE - Config로부터 가져올 것. 
+        self.reg_step = reg_step
 
 
     def forward(
-        self, real_pred: TensorType['batch', 1], fake_pred: TensorType['batch', 1], **kwargs # real_img = []
+        self, preds: List[TensorType['batch', 1]], **kwargs
+        # real_pred: TensorType['batch', 1], fake_pred: TensorType['batch', 1], **kwargs # real_img = []
         # self, prediction: TensorType[1, 32, "mult"], target: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"] # 여기도 바뀌어야하는게 입력이 real / fake임.
     ) -> TensorType[0]:
 
 
         if self.m_type == 'G':
+            fake_pred = preds[0]
             loss_Gmain = self.non_saturating_loss(-fake_pred).mean()
             loss = loss_Gmain
 
         elif self.m_type == 'D':
+            fake_pred, real_pred = preds
             loss_Dmain = self.non_saturating_loss(-real_pred).mean() + self.non_saturating_loss(fake_pred).mean()
-            loss_r1 = self.r1_regularization(real_pred,real_img) * (self.r1_gamma/2) # *args같은거 쓰면 될 듯.
-            loss = loss_Dmain + loss_r1
-
+            loss = loss_Dmain
+            if step % self.reg_step == 0:
+                loss_r1 = self.r1_regularization(real_pred,real_img) * (self.r1_gamma/2) # *args같은거 쓰면 될 듯.
+                loss += loss_r1
         return loss
             
 
     def r1_regularization(self, real_pred, real_img):
-        # with conv2d_gradfix.no_weight_gradients():
-        grad_real = torch.autograd.grad(outputs = real_pred.sum(), inputs=real_img, create_graph=True)
-        grad_penalty = grad_real.pow(2).reshape(grad_real.shape[0], -1).sum(1).mean()
+        with conv2d_gradfix.no_weight_gradients():
+            grad_real = torch.autograd.grad(outputs = real_pred.sum(), inputs=real_img, create_graph=True)
+            grad_penalty = grad_real.pow(2).reshape(grad_real.shape[0], -1).sum(1).mean()
         return grad_penalty
          
 

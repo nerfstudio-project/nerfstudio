@@ -62,6 +62,7 @@ from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
 from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
+from nerfstudio.pipelines.gan_pipeline import VanilaGanPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 from nerfstudio.plugins.registry import discover_methods
 
@@ -81,6 +82,7 @@ descriptions = {
     "nerfplayer-nerfacto": "NeRFPlayer with nerfacto backbone.",
     "nerfplayer-ngp": "NeRFPlayer with InstantNGP backbone.",
     "neus": "Implementation of NeuS. (slow)",
+    "pigan": "Implementation of Pi-GAN. (slow)",
 }
 
 method_configs["nerfacto"] = TrainerConfig(
@@ -467,6 +469,50 @@ method_configs["neus"] = TrainerConfig(
             "optimizer": AdamOptimizerConfig(lr=5e-4, eps=1e-15),
             "scheduler": CosineDecaySchedulerConfig(warm_up_end=5000, learning_rate_alpha=0.05, max_steps=300000),
         },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    vis="viewer",
+)
+
+from nerfstudio.data.dataparsers.pigan_dataparser import PiganDataParserConfig
+from nerfstudio.data.datamanagers.generative_datamanager import GenerativeDataManagerConfig
+from nerfstudio.models.pigan import GenerativeModelConfig
+
+method_configs["pigan"] = TrainerConfig(
+    method_name="pigan",
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    max_num_iterations=30000,
+    mixed_precision=True,
+    pipeline=VanilaGanPipelineConfig(
+        datamanager=GenerativeDataManagerConfig(
+            # dataparser=PiganDataParserConfig(),
+            train_num_images_to_sample_from=4 ,
+            # camera_optimizer=CameraOptimizerConfig(
+            #     mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+            # ),
+        ),
+        model=GenerativeModelConfig(),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+        "discriminator": {
+                "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+                "scheduler": None,
+
+            },
+        "mapping_network": {
+                "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+                "scheduler": None,
+
+            }
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",

@@ -482,6 +482,8 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         batch = self.train_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
         ray_bundle = self.train_ray_generator(ray_indices)
+        # FIXME - fixed를 쓰면 애초에 ray_bundle과 batch를 같이 return해주게 할 수 있다. 이것에 따라서 
+        # datamanger도 수정되어야 한다.
         return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:

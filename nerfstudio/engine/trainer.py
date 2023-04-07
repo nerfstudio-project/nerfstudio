@@ -31,6 +31,7 @@ from torch.cuda.amp.grad_scaler import GradScaler
 from typing_extensions import Literal
 
 from nerfstudio.configs.experiment_config import ExperimentConfig
+from nerfstudio.configs.gan_experiment_config import GanExperimentConfig
 from nerfstudio.engine.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
@@ -38,6 +39,7 @@ from nerfstudio.engine.callbacks import (
 )
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline
+from nerfstudio.pipelines.gan_pipeline import VanillaGanPipeline
 from nerfstudio.utils import profiler, writer
 from nerfstudio.utils.decorators import (
     check_eval_enabled,
@@ -57,7 +59,7 @@ TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 
 
 @dataclass
-class TrainerConfig(ExperimentConfig):
+class TrainerConfig(GanExperimentConfig):
     """Configuration for training regimen"""
 
     _target: Type = field(default_factory=lambda: Trainer)
@@ -105,7 +107,7 @@ class Trainer:
         callbacks: The callbacks object.
     """
 
-    pipeline: VanillaPipeline
+    pipeline: VanillaGanPipeline
     optimizers: Optimizers
     callbacks: List[TrainingCallback]
 
@@ -215,7 +217,9 @@ class Trainer:
                         )
 
                     # time the forward pass
-                    loss, loss_dict, metrics_dict = self.train_iteration(step)
+                    # loss, loss_dict, metrics_dict = self.train_iteration(step)
+                    loss, loss_dict, metrics_dict = self.gan_train_iteration(step)
+
 
                     # training callbacks after the training iteration
                     for callback in self.callbacks:
@@ -410,6 +414,38 @@ class Trainer:
 
         # Merging loss and metrics dict into a single output.
         return loss, loss_dict, metrics_dict
+
+    #REVIEW
+    @profiler.time_function
+    def gan_train_iteration(self, step: int) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
+        """Run one iteration with a batch of inputs. Returns dictionary of model losses.
+
+        Args:
+            step: Current training step.
+        """
+        self.optimizers.zero_grad_all()
+        cpu_or_cuda_str = self.device.split(":")[0]
+
+        # genertor step
+        _, loss_dict_g, _ = self.pipeline.get_train_loss_dict(step=step,type='g')
+        g_loss = functools.reduce(torch.add, loss_dict_g.values())
+        g_loss.backward()
+        self.optimizers.optimizer_step('fields')
+        self.optimizers.scheduler_step('fields')
+
+        self.optimizers.zero_grad_all()
+
+        # discriminator step
+        _, loss_dict_d, metrics_dict = self.pipeline.get_train_loss_dict(step=step,type='d')
+        d_loss = functools.reduce(torch.add, loss_dict_d.values())
+        d_loss.backward()
+        self.optimizers.optimizer_step('discriminator')
+        self.optimizers.scheduler_step('discriminator')
+        
+        loss = g_loss + d_loss
+        loss_dict = loss_dict_g + loss_dict_d
+        return loss, loss_dict, metrics_dict
+
 
     @check_eval_enabled
     @profiler.time_function

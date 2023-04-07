@@ -40,3 +40,14 @@ class _TruncExp(Function):  # pylint: disable=abstract-method
 trunc_exp = _TruncExp.apply
 """Same as torch.exp, but with the backward pass clipped to prevent vanishing/exploding
 gradients."""
+
+# # SIREN : Implicit Neural Representations with Periodic Activation Function
+# # https://arxiv.org/abs/2006.09661
+# class Sine(nn.Module):
+#     """Sine Activation Function."""
+
+#     def __init__(self):
+#         super().__init__()
+#     def forward(self, x):
+#         return torch.sin(30. * x) # FIXME 30 나눠줘야 하는거 체크. 
+ 

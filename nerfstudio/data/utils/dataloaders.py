@@ -22,6 +22,7 @@ import multiprocessing
 import random
 from abc import abstractmethod
 from typing import Dict, Optional, Tuple, Union
+from torchtyping import TensorType
 
 import torch
 from rich.progress import Console, track
@@ -149,30 +150,39 @@ class GanDataloader(DataLoader):
     def __init__(
         self,
         input_dataset: InputDataset,
+        num_images_to_sample_from : int = 1, # NOTE - batch_size ( num_images )
         device: Union[torch.device, str] = "cpu",
         **kwargs,
     ):
         self.input_dataset = input_dataset
         self.device = device
+        self.num_images_to_sample_from = num_images_to_sample_from
         
         # NOTE - cameras: Cameras to generate aribitary camera pose image sample 
         self.cameras = input_dataset.cameras.to(device)
         self.kwargs = kwargs
-        super().__init__(dataset=input_dataset)
+        super().__init__(dataset=input_dataset, **kwargs,)
         self.count = 0
 
+    def __getitem__(self, idx):
+        return self.dataset.__getitem__(idx)
+    
     def __iter__(self):
         self.count = 0
         return self
 
     def __next__(self):
-        if self.count < 1:
-            pose_indices = range(self.cameras.size) # 그냥 num_cameras라고 생각하는게 맞을 듯
-            pose_idx = random.choice(pose_indices)
-            ray_bundle, batch = self.get_data_from_image_idx(pose_idx)
-            self.count += 1
-            return ray_bundle, batch
-        raise StopIteration
+        # pose_indices = torch.Tensor(random.sample(range(self.cameras.size), k = self.num_images_to_sample_from))
+        pose_indices = random.sample(range(self.cameras.size), k = 1)[0]
+        
+        ray_bundle, batch = self.get_data_from_pose_idx(pose_indices)
+        self.count += self.num_images_to_sample_from # eval이 아니기 때문에 조건이 필요없음. 
+            # pose_indices = range(self.cameras.size) # 그냥 num_cameras라고 생각하는게 맞을 듯
+            # pose_idx = random.choice(pose_indices)
+            # ray_bundle, batch = self.get_data_from_image_idx(pose_idx)
+            # self.count += 1
+        return ray_bundle, batch
+        # raise StopIteration
 
     def get_camera(self, image_idx: int = 0) -> Cameras:
         """Get camera for the given image index
@@ -182,15 +192,16 @@ class GanDataloader(DataLoader):
         """
         return self.cameras[image_idx]
 
-    def get_data_from_pose_idx(self, pose_idx: int) -> Tuple[RayBundle, Dict]:
+    #FIXME : batch 단위 처리 문제 발생가능성 (유)
+    def get_data_from_pose_idx(self, pose_indices: TensorType['batch']) -> Tuple[RayBundle, Dict]:
         """Returns the data for a specific image index.
 
         Args:
             image_idx: Camera image index
         """
-        ray_bundle = self.cameras.generate_rays(camera_indices=pose_idx, keep_shape=True) #REVIEW - Keep shape for fulll iamge
-        batch = self.input_dataset[pose_idx]
-        batch = get_dict_to_torch(batch, device=self.device, exclude=["image"]) # image는 torch로 혹은 device로 보내지 않나봐.
+        ray_bundle = self.cameras.generate_rays(camera_indices=pose_indices, keep_shape=True) #REVIEW - Keep shape for fulll iamge
+        batch = self.input_dataset[pose_indices]
+        batch = get_dict_to_torch(batch, device=self.device,)#exclude=["image"]) # image는 torch로 혹은 device로 보내지 않나봐.
         return ray_bundle, batch
 
 

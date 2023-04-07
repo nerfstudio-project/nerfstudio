@@ -393,6 +393,9 @@ class Cameras(TensorDataclass):
             ), "camera_indices must be a tensor if cameras are batched with more than 1 batch dimension"
             camera_indices = torch.tensor([camera_indices], device=cameras.device)
 
+        print(camera_indices.shape[-1]) # 4
+        print(cameras.shape) # 70000
+
         assert camera_indices.shape[-1] == len(
             cameras.shape
         ), "camera_indices must have shape (num_rays:..., num_cameras_batch_dims)"
