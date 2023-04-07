@@ -25,6 +25,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import cv2
 import torch
 import torchvision
+from nerfacc.cameras import opencv_lens_undistortion
 from torch.nn import Parameter
 from torchtyping import TensorType
 
@@ -33,9 +34,9 @@ import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.utils import profiler
 from nerfstudio.utils.misc import strtobool
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
-from nerfstudio.utils import profiler
 
 TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 
@@ -148,8 +149,6 @@ class Cameras(TensorDataclass):
         self.times = self._init_get_times(times)
 
         self.__post_init__()  # This will do the dataclass post_init and broadcast all the tensors
-
-        self._use_nerfacc = strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "TRUE"))
 
     def _init_get_fc_xy(self, fc_xy: Union[float, torch.Tensor], name: str) -> torch.Tensor:
         """
@@ -636,10 +635,23 @@ class Cameras(TensorDataclass):
                 mask = (self.camera_type[true_indices] != CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
                 coord_mask = torch.stack([mask, mask, mask], dim=0)
                 if mask.any():
-                    coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
-                        coord_stack[coord_mask, :].reshape(3, -1, 2),
-                        distortion_params[mask, :],
-                    ).reshape(-1, 2)
+                    if distortion_params_delta is not None:
+                        coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
+                            coord_stack[coord_mask, :].reshape(3, -1, 2),
+                            distortion_params[mask, :],
+                        ).reshape(-1, 2)
+                    else:
+                        # try to use nerfacc to accelerate if we don't need any gradient to optimize distortion params
+                        try:
+                            coord_stack[coord_mask, :] = opencv_lens_undistortion(
+                                coord_stack[coord_mask, :].reshape(3, -1, 2),
+                                distortion_params[mask, :],
+                            ).reshape(-1, 2)
+                        except:
+                            coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
+                                coord_stack[coord_mask, :].reshape(3, -1, 2),
+                                distortion_params[mask, :],
+                            ).reshape(-1, 2)
 
         # Make sure after we have undistorted our images, the shapes are still correct
         assert coord_stack.shape == (3,) + num_rays_shape + (2,)
