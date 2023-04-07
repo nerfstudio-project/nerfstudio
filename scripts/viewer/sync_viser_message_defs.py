@@ -7,6 +7,8 @@ from nerfstudio.viewer.viser._typescript_interface_gen import generate_typescrip
 
 
 def entrypoint() -> None:
+    """Generate viser message definitions for TypeScript, by parsing Python dataclasses."""
+
     # Generate typescript source.
     defs = generate_typescript_defs()
 

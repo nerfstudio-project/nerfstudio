@@ -1,5 +1,13 @@
 import * as React from 'react';
-import {LevaPanel, useCreateStore, Leva, buttonGroup, useControls,folder,button } from 'leva';
+import {
+  LevaPanel,
+  useCreateStore,
+  Leva,
+  buttonGroup,
+  useControls,
+  folder,
+  button,
+} from 'leva';
 import { useContext, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import LevaTheme from '../../themes/leva_theme.json';
@@ -25,13 +33,9 @@ function dispatch_and_send(websocket, dispatch, path, data) {
   }
 }
 function CustomLeva() {
-  const customGui = useSelector(
-    (state) => state.custom_gui,
-    );
-    const guiNames = customGui.guiNames;
-    const guiConfigFromName = customGui.guiConfigFromName;
-    console.log(guiNames);
-    console.log(guiConfigFromName);
+  const customGui = useSelector((state) => state.custom_gui);
+  const guiNames = customGui.guiNames;
+  const guiConfigFromName = customGui.guiConfigFromName;
   // Add callbacks to guiConfigFromName.
   // const suppressOnChange = React.useRef<{ [key: string]: boolean }>({});
   const suppressOnChange = React.useRef({});
@@ -41,23 +45,21 @@ function CustomLeva() {
   const guiConfigWithCallbacks: { [key: string]: any } = {};
   for (const key of guiNames) {
     const { levaConf, folderName } = guiConfigFromName[key];
-    console.log(levaConf);
-    console.log(folderName);
     // Create object for folder if it doesn't exist yet.
     if (guiConfigWithCallbacks[folderName] === undefined)
       guiConfigWithCallbacks[folderName] = {};
 
     // Hacky stuff that lives outside of TypeScript...
-    if (levaConf["type"] === "BUTTON") {
+    if (levaConf['type'] === 'BUTTON') {
       // Add a button.
       guiConfigWithCallbacks[folderName][key] = button((_get: any) => {
         const message: GuiUpdateMessage = {
-          type: "gui_update",
+          type: 'gui_update',
           name: key,
           value: true,
         };
         // props.websocketRef.current!.send(pack(message));
-      }, levaConf["settings"]);
+      }, levaConf['settings']);
     } else {
       // Add any other kind of input.
       // const sendUpdate = makeThrottledMessageSender(props.websocketRef, 50);
@@ -70,7 +72,7 @@ function CustomLeva() {
             return;
           }
           const message: GuiUpdateMessage = {
-            type: "gui_update",
+            type: 'gui_update',
             name: key,
             value: value,
           };
@@ -82,7 +84,7 @@ function CustomLeva() {
   for (const folderName of Object.keys(guiConfigWithCallbacks)) {
     // Apply Leva folder() wrapper...
     guiConfigWithCallbacks[folderName] = folder(
-      guiConfigWithCallbacks[folderName]
+      guiConfigWithCallbacks[folderName],
     );
   }
 
@@ -91,7 +93,7 @@ function CustomLeva() {
   const [, set] = useControls(
     () => guiConfigWithCallbacks,
     { store: levaStore },
-    [guiConfigFromName]
+    [guiConfigFromName],
   );
 
   // Logic for setting control inputs when items are put onto the guiSetQueue.
@@ -117,14 +119,14 @@ function CustomLeva() {
 
   // Leva theming is a bit limited, so we hack at styles here...
   return (
-      <LevaPanel
-        fill
-        flat
-        titleBar={false}
-        store={levaStore}
-        theme={LevaTheme}
-        hideCopyButton
-      />
+    <LevaPanel
+      fill
+      flat
+      titleBar={false}
+      store={levaStore}
+      theme={LevaTheme}
+      hideCopyButton
+    />
   );
 }
 

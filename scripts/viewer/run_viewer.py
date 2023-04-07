@@ -75,7 +75,7 @@ class RunViewer:
             start_train=False,
         )
         while True:
-            viewer_state.vis["renderingState/isTraining"].write(False)
+            viewer_state.viser_server.set_is_training(False)
             self._update_viewer_state(viewer_state, pipeline)
 
     def _update_viewer_state(self, viewer_state: viewer_utils.ViewerState, pipeline: Pipeline):

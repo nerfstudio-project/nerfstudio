@@ -264,7 +264,7 @@ class Trainer:
     def _always_render(self, step: int) -> None:
         if self.viewer_state is not None:
             while True:
-                self.viewer_state.vis["renderingState/isTraining"].write(False)
+                self.viewer_state.viser_server.set_is_training(False)
                 self._update_viewer_state(step)
 
     @check_main_thread
