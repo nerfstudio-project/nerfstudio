@@ -58,28 +58,6 @@ function handleMessage(
   // console.log('Handling viser message!');
   // console.log(message);
   switch (message.type) {
-    // Add a coordinate frame.
-    case 'frame': {
-      break;
-    }
-    // Add a point cloud.
-    case 'point_cloud': {
-      break;
-    }
-    // Add mesh
-    case 'mesh': {
-      break;
-    }
-    // Add a camera frustum.
-    case 'camera_frustum': {
-      break;
-    }
-    case 'transform_controls': {
-      break;
-    }
-    case 'transform_controls_set': {
-      break;
-    }
     // Add a background image.
     case 'background_image': {
       dispatch({
@@ -87,18 +65,6 @@ function handleMessage(
         path: 'render_img',
         data: `data:${message.media_type};base64,${message.base64_data}`,
       });
-      break;
-    }
-    // Add an image.
-    case 'image': {
-      break;
-    }
-    // Remove a scene node by name.
-    case 'remove_scene_node': {
-      break;
-    }
-    // Set the visibility of a particular scene node.
-    case 'set_scene_node_visibility': {
       break;
     }
     // Reset the entire scene, removing all scene nodes.

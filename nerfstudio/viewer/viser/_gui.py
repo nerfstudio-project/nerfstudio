@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=protected-access
+""" Manages GUI communication """
+
 from __future__ import annotations
 
 import dataclasses
@@ -88,12 +91,19 @@ class GuiHandle(Generic[T]):
         return func
 
     def get_value(self) -> T:
+        """Returns the value from GUI component"""
         return self._impl.value
 
     def get_update_timestamp(self) -> float:
+        """Returns the timestamp of the last update."""
         return self._impl.last_updated
 
     def set_value(self, value: Union[T, onp.ndarray]) -> None:
+        """Set the value of the GUI component
+
+        Args:
+            value: The value to set the GUI component to.
+        """
         if isinstance(value, onp.ndarray):
             assert len(value.shape) <= 1, f"{value.shape} should be at most 1D!"
 
@@ -111,6 +121,11 @@ class GuiHandle(Generic[T]):
             cb(self)
 
     def set_disabled(self, disabled: bool) -> None:
+        """Set the disabled state of the GUI component
+
+        Args:
+            disabled: The disabled state to set the GUI component to.
+        """
         if self._impl.is_button:
             self._impl.api._queue(
                 GuiSetLevaConfMessage(

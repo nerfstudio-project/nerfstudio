@@ -549,7 +549,7 @@ class ViewerState:
                 # if the camera is moving, then we pause training and update camera continuously
 
                 while self.camera_moving:
-                    self._render_image_in_viewer(self.camera_message, model, is_training)
+                    self._render_image_in_viewer(model, is_training)
                     self._legacy_messages()
             else:
                 # if the camera is not moving, then we approximate how many training steps need to be taken
@@ -568,7 +568,7 @@ class ViewerState:
                     num_steps = 1
 
                 if step % num_steps == 0:
-                    self._render_image_in_viewer(self.camera_message, model, is_training)
+                    self._render_image_in_viewer(model, is_training)
 
         else:
             # in pause training mode, enter render loop with set model
@@ -578,7 +578,7 @@ class ViewerState:
                 # if self._is_render_step(local_step) and step > 0:
                 if step > 0:
                     self._legacy_messages()
-                    self._render_image_in_viewer(self.camera_message, model, self.is_training)
+                    self._render_image_in_viewer(model, self.is_training)
                 run_loop = not self.is_training
                 local_step += 1
 
@@ -747,7 +747,7 @@ class ViewerState:
         """Calculate the maximum image height that can be rendered in the time budget
 
         Args:
-            apect_ration: the aspect ratio of the current view
+            apect_ratio: the aspect ratio of the current view
             is_training: whether or not we are training
         Returns:
             image_height: the maximum image height that can be rendered in the time budget
@@ -817,7 +817,7 @@ class ViewerState:
         return output_type
 
     @profiler.time_function
-    def _render_image_in_viewer(self, camera_object, model: Model, is_training: bool) -> None:
+    def _render_image_in_viewer(self, model: Model, is_training: bool) -> None:
         # pylint: disable=too-many-statements
         """
         Draw an image using the current camera pose from the viewer.
@@ -825,6 +825,7 @@ class ViewerState:
 
         Args:
             model: current checkpoint of model
+            is_training: whether or not we are training
         """
         # Check that timestamp is newer than the last one
         camera_message = self.camera_message

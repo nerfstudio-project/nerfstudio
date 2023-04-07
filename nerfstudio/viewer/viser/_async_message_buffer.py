@@ -17,12 +17,7 @@ import dataclasses
 from asyncio.events import AbstractEventLoop
 from typing import Dict
 
-from ._messages import (
-    BackgroundImageMessage,
-    Message,
-    RemoveSceneNodeMessage,
-    ResetSceneMessage,
-)
+from ._messages import BackgroundImageMessage, Message, ResetSceneMessage
 
 
 @dataclasses.dataclass
@@ -67,18 +62,6 @@ class AsyncMessageBuffer:
                 old_message_id = self.id_from_name.pop(node_name)
                 self.message_from_id.pop(old_message_id)
 
-            # If we're removing a scene node, remove children as well.
-            #
-            # TODO: this currently does a linear pass over all existing messages. We
-            # could easily optimize this.
-            if isinstance(message, RemoveSceneNodeMessage) and node_name is not None:
-                remove_list = []
-                for name, id in self.id_from_name.items():
-                    if name.startswith(node_name):
-                        remove_list.append((name, id))
-                for name, id in remove_list:
-                    self.id_from_name.pop(name)
-                    self.message_from_id.pop(id)
             self.id_from_name[node_name] = new_message_id
 
         # Notify consumers that a new message is available.

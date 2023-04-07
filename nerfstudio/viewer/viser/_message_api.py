@@ -130,9 +130,8 @@ def _cast_vector(vector: TVector | onp.ndarray, length: int) -> TVector:
     if isinstance(vector, tuple):
         assert len(vector) == length
         return cast(TVector, vector)
-    else:
-        assert cast(onp.ndarray, vector).shape == (length,)
-        return cast(TVector, tuple(map(float, vector)))
+    assert cast(onp.ndarray, vector).shape == (length,)
+    return cast(TVector, tuple(map(float, vector)))
 
 
 IntOrFloat = TypeVar("IntOrFloat", int, float)
@@ -156,7 +155,11 @@ class MessageApi(abc.ABC):
     def gui_folder(self, label: str) -> Generator[None, None, None]:
         """Context for placing all GUI elements into a particular folder.
 
-        We currently only support one folder level."""
+        We currently only support one folder level.
+
+        Args:
+            label: The label for the folder.
+        """
         self._gui_folder_labels.append(label)
         yield
         assert self._gui_folder_labels.pop() == label
@@ -178,7 +181,12 @@ class MessageApi(abc.ABC):
         """Add a button to the GUI. The value of this input is set to `True` every time
         it is clicked; to detect clicks, we can manually set it back to `False`.
 
-        Currently, all button names need to be unique."""
+        Currently, all button names need to be unique.
+
+        Args:
+            name: The name of the button.
+            disabled: Whether the gui elemet is disabled.
+        """
         return _add_gui_impl(
             self,
             name,
@@ -188,7 +196,13 @@ class MessageApi(abc.ABC):
         )
 
     def add_gui_checkbox(self, name: str, initial_value: bool, disabled: bool = False) -> GuiHandle[bool]:
-        """Add a checkbox to the GUI."""
+        """Add a checkbox to the GUI.
+
+        Args:
+            name: The name of the checkbox.
+            initial_value: The initial value of the checkbox.
+            disabled: Whether the gui elemet is disabled.
+        """
         assert isinstance(initial_value, bool)
         return _add_gui_impl(
             self,
@@ -198,7 +212,13 @@ class MessageApi(abc.ABC):
         )
 
     def add_gui_text(self, name: str, initial_value: str, disabled: bool = False) -> GuiHandle[str]:
-        """Add a text input to the GUI."""
+        """Add a text input to the GUI.
+
+        Args:
+            name: The name of the text input.
+            initial_value: The initial value of the text input.
+            disabled: Whether the gui elemet is disabled.
+        """
         assert isinstance(initial_value, str)
         return _add_gui_impl(
             self,
@@ -208,7 +228,13 @@ class MessageApi(abc.ABC):
         )
 
     def add_gui_number(self, name: str, initial_value: IntOrFloat, disabled: bool = False) -> GuiHandle[IntOrFloat]:
-        """Add a number input to the GUI."""
+        """Add a number input to the GUI.
+
+        Args:
+            name: The name of the number.
+            initial_value: The initial value of the number.
+            disabled: Whether the gui elemet is disabled.
+        """
         assert isinstance(initial_value, (int, float))
         return _add_gui_impl(
             self,
@@ -224,7 +250,14 @@ class MessageApi(abc.ABC):
         step: Optional[float] = None,
         disabled: bool = False,
     ) -> GuiHandle[Tuple[float, float]]:
-        """Add a length-2 vector input to the GUI."""
+        """Add a length-2 vector input to the GUI.
+
+        Args:
+            name: The name of the vector.
+            initial_value: The initial value of the vector.
+            step: The step size for the vector.
+            disabled: Whether the gui elemet is disabled.
+        """
         return _add_gui_impl(
             self,
             "/".join(self._gui_folder_labels + [name]),
@@ -245,7 +278,15 @@ class MessageApi(abc.ABC):
         lock: bool = False,
         disabled: bool = False,
     ) -> GuiHandle[Tuple[float, float, float]]:
-        """Add a length-3 vector input to the GUI."""
+        """Add a length-3 vector input to the GUI.
+
+        Args:
+            name: The name of the vector.
+            initial_value: The initial value of the vector.
+            step: The step size for the vector.
+            lock: Whether the vector is locked.
+            disabled: Whether the gui element is disabled.
+        """
         return _add_gui_impl(
             self,
             "/".join(self._gui_folder_labels + [name]),
@@ -266,7 +307,14 @@ class MessageApi(abc.ABC):
         initial_value: Optional[TLiteralString] = None,
         disabled: bool = False,
     ) -> GuiHandle[TLiteralString]:
-        """Add a dropdown to the GUI."""
+        """Add a dropdown to the GUI.
+
+        Args:
+            name: The name of the dropdown.
+            options: The options to choose from.
+            initial_value: The initial value of the dropdown.
+            disabled: Whether the dropdown is disabled.
+        """
         assert len(options) > 0
         if initial_value is None:
             initial_value = options[0]
@@ -286,17 +334,26 @@ class MessageApi(abc.ABC):
     def add_gui_slider(
         self,
         name: str,
-        min: IntOrFloat,
-        max: IntOrFloat,
+        min_value: IntOrFloat,
+        max_value: IntOrFloat,
         step: Optional[IntOrFloat],
         initial_value: IntOrFloat,
         disabled: bool = False,
     ) -> GuiHandle[IntOrFloat]:
-        """Add a dropdown to the GUI."""
-        assert max >= min
+        """Add a dropdown to the GUI.
+
+        Args:
+            name: The name of the slider.
+            min: The minimum value of the slider.
+            max: The maximum value of the slider.
+            step: The step size of the slider.
+            initial_value: The initial value of the slider.
+            disabled: Whether the slider is disabled.
+        """
+        assert max_value >= min_value
         if step is not None:
-            assert step <= (max - min)
-        assert max >= initial_value >= min
+            assert step <= (max_value - min_value)
+        assert max_value >= initial_value >= min_value
 
         return _add_gui_impl(
             self,
@@ -305,87 +362,11 @@ class MessageApi(abc.ABC):
             leva_conf={
                 "value": initial_value,
                 "label": name,
-                "min": min,
-                "max": max,
+                "min": min_value,
+                "max": max_value,
                 "step": step,
                 "disabled": disabled,
             },
-        )
-
-    def add_camera_frustum(
-        self,
-        name: str,
-        fov: float,
-        aspect: float,
-        scale: float = 0.3,
-        color: Tuple[int, int, int] | Tuple[float, float, float] | onp.ndarray = (80, 120, 255),
-    ) -> None:
-        color = tuple(value if isinstance(value, int) else int(value * 255) for value in color)  # type: ignore
-        self._queue(
-            _messages.CameraFrustumMessage(
-                name=name,
-                fov=fov,
-                aspect=aspect,
-                scale=scale,
-                # (255, 255, 255) => 0xffffff, etc
-                color=int(color[0] * (256**2) + color[1] * 256 + color[2]),
-            )
-        )
-
-    def add_frame(
-        self,
-        name: str,
-        wxyz: Tuple[float, float, float, float] | onp.ndarray,
-        position: Tuple[float, float, float] | onp.ndarray,
-        show_axes: bool = True,
-        axes_length: float = 0.5,
-        axes_radius: float = 0.025,
-    ) -> None:
-        self._queue(
-            _messages.FrameMessage(
-                name=name,
-                wxyz=_cast_vector(wxyz, length=4),
-                position=_cast_vector(position, length=3),
-                show_axes=show_axes,
-                axes_length=axes_length,
-                axes_radius=axes_radius,
-            )
-        )
-
-    def add_point_cloud(
-        self,
-        name: str,
-        position: onp.ndarray,
-        color: onp.ndarray,
-        point_size: float = 0.1,
-    ) -> None:
-        self._queue(
-            _messages.PointCloudMessage(
-                name=name,
-                position=position.astype(onp.float32),
-                color=_colors_to_uint8(color),
-                point_size=point_size,
-            )
-        )
-
-    def add_mesh(
-        self,
-        name: str,
-        vertices: onp.ndarray,
-        faces: onp.ndarray,
-        color: Tuple[int, int, int] | Tuple[float, float, float] | onp.ndarray = (90, 200, 255),
-        wireframe: bool = False,
-    ) -> None:
-        color = tuple(value if isinstance(value, int) else int(value * 255) for value in color)  # type: ignore
-        self._queue(
-            _messages.MeshMessage(
-                name,
-                vertices.astype(onp.float32),
-                faces.astype(onp.uint32),
-                # (255, 255, 255) => 0xffffff, etc
-                color=int(color[0] * (256**2) + color[1] * 256 + color[2]),
-                wireframe=wireframe,
-            )
         )
 
     def set_background_image(
@@ -403,37 +384,10 @@ class MessageApi(abc.ABC):
         """
         media_type, base64_data = _encode_image_base64(image, file_format, quality=quality)
         self._queue(_messages.BackgroundImageMessage(media_type=media_type, base64_data=base64_data))
-
-    def add_image(
-        self,
-        name: str,
-        image: onp.ndarray,
-        render_width: float,
-        render_height: float,
-        file_format: Literal["png", "jpeg"] = "jpeg",
-        quality: Optional[int] = None,
-    ) -> None:
-        media_type, base64_data = _encode_image_base64(image, file_format, quality=quality)
-        self._queue(
-            _messages.ImageMessage(
-                name=name,
-                media_type=media_type,
-                base64_data=base64_data,
-                render_width=render_width,
-                render_height=render_height,
-            )
-        )
-
-    def remove_scene_node(self, name: str) -> None:
-        self._queue(_messages.RemoveSceneNodeMessage(name=name))
-
-    def set_scene_node_visibility(self, name: str, visible: bool) -> None:
-        self._queue(_messages.SetSceneNodeVisibilityMessage(name=name, visible=visible))
-
+        
     def reset_scene(self):
+        """ Reset the scene. """
         self._queue(_messages.ResetSceneMessage())
-
-    # Nerfstudio specific methods
 
     def send_file_path_info(self, config_base_dir: Path, data_base_dir: Path, export_path_name: str) -> None:
         """Send file path info to the scene.
@@ -550,7 +504,7 @@ def _add_gui_impl(
     handle_state.cleanup_cb = lambda: api._handle_state_from_gui_name.pop(name)
 
     # For broadcasted GUI handles, we should synchronize all clients.
-    from ._server import ViserServer
+    from ._server import ViserServer  # pylint: disable=import-outside-toplevel
 
     if not is_button and isinstance(api, ViserServer):
 

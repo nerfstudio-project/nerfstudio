@@ -37,7 +37,6 @@ function CustomLeva() {
   const guiNames = customGui.guiNames;
   const guiConfigFromName = customGui.guiConfigFromName;
   // Add callbacks to guiConfigFromName.
-  // const suppressOnChange = React.useRef<{ [key: string]: boolean }>({});
   const suppressOnChange = React.useRef({});
 
   // We're going to try and build an object that looks like:
