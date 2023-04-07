@@ -121,6 +121,33 @@ export interface GuiSetLevaConfMessage {
   name: string;
   leva_conf: any;
 }
+export interface CameraMessage {
+  type: 'camera';
+  aspect: number;
+  render_aspect: number;
+  fov: number;
+  matrix: [
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+  ];
+  camera_type: 'perspective' | 'fisheye' | 'equirectangular';
+  is_moving: boolean;
+  timestamp: number;
+}
 export interface DatasetImageMessage {
   type: 'dataset_image';
   idx: string;
@@ -150,5 +177,6 @@ export type Message =
   | GuiUpdateMessage
   | GuiSetValueMessage
   | GuiSetLevaConfMessage
+  | CameraMessage
   | DatasetImageMessage
   | IsTrainingMessage;

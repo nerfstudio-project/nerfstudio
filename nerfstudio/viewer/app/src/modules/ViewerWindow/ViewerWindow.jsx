@@ -11,10 +11,13 @@ import PublicSharpIcon from '@mui/icons-material/PublicSharp';
 import SyncOutlinedIcon from '@mui/icons-material/SyncOutlined';
 import ThreeDRotationIcon from '@mui/icons-material/ThreeDRotation';
 import VideoCameraBackIcon from '@mui/icons-material/VideoCameraBackOutlined';
-import { WebSocketContext } from '../WebSocket/WebSocket';
+import { isEqual } from 'lodash';
 import RenderWindow from '../RenderWindow/RenderWindow';
-
-const msgpack = require('msgpack-lite');
+import {
+  makeThrottledMessageSender,
+  ViserWebSocketContext,
+} from '../WebSocket/ViserWebSocket';
+import { CameraMessage } from '../WebSocket/ViserMessages';
 
 function CameraToggle() {
   const dispatch = useDispatch();
@@ -108,7 +111,7 @@ export default function ViewerWindow(props) {
   const labelRenderer = sceneTree.metadata.labelRenderer;
 
   const myRef = useRef(null);
-  const websocket = useContext(WebSocketContext).socket;
+  const viser_websocket = useContext(ViserWebSocketContext);
   const field_of_view = useSelector(
     (state) => state.renderingState.field_of_view,
   );
@@ -236,27 +239,36 @@ export default function ViewerWindow(props) {
     sceneTree.metadata.camera.fov = 50;
   }
 
+  let old_camera_matrix = null;
+  let is_moving = false;
+
   // update the camera information in the python server
   const sendCamera = () => {
-    if (websocket.readyState === WebSocket.OPEN) {
-      const cmd = 'write';
-      const path = 'renderingState/camera';
-      const data_packet = sceneTree.metadata.camera.toJSON();
-      data_packet.object.timestamp = +new Date();
-      if (camera_choice === 'Render Camera') {
-        data_packet.object.camera_type = camera_type;
+    const sendThrottledCameraMessage = makeThrottledMessageSender(
+      viser_websocket,
+      25,
+    );
+    if (isEqual(old_camera_matrix, sceneTree.metadata.camera.matrix.elements)) {
+      if (is_moving) {
+        is_moving = false;
       } else {
-        data_packet.object.camera_type = 'perspective';
+        return;
       }
-      data_packet.object.render_aspect = render_aspect;
-      const data = {
-        type: cmd,
-        path,
-        data: data_packet,
-      };
-      const message = msgpack.encode(data);
-      websocket.send(message);
+    } else {
+      is_moving = true;
     }
+    old_camera_matrix = sceneTree.metadata.camera.matrix.elements.slice();
+    const viser_message: CameraMessage = {
+      type: 'camera',
+      aspect: sceneTree.metadata.camera.aspect,
+      render_aspect,
+      fov: sceneTree.metadata.camera.fov,
+      matrix: old_camera_matrix,
+      camera_type,
+      is_moving,
+      timestamp: +new Date(),
+    };
+    sendThrottledCameraMessage(viser_message);
   };
 
   // keep sending the camera often
@@ -268,7 +280,7 @@ export default function ViewerWindow(props) {
     return () => {
       clearInterval(refreshIntervalId);
     };
-  }, [websocket, camera_choice, camera_type, render_aspect]);
+  }, [viser_websocket, camera_choice, camera_type, render_aspect]);
 
   return (
     <>
