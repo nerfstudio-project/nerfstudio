@@ -36,8 +36,9 @@ from nerfstudio.cameras.camera_paths import (
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components import renderers
+from nerfstudio.model_components.renderers import DepthRenderer
 from nerfstudio.pipelines.base_pipeline import Pipeline
-from nerfstudio.utils import install_checks
+from nerfstudio.utils import colormaps, install_checks
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
 
@@ -54,6 +55,8 @@ def _render_trajectory_video(
     seconds: float = 5.0,
     output_format: Literal["images", "video"] = "video",
     camera_type: CameraType = CameraType.PERSPECTIVE,
+    depth_near_plane: Optional[float] = None,
+    depth_far_plane: Optional[float] = None,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -67,11 +70,17 @@ def _render_trajectory_video(
         seconds: Length of output video.
         output_format: How to save output data.
         camera_type: Camera projection format type.
+        depth_near_plane: Closest depth to consider. If None, use min image value.
+        depth_far_plane: Furthest depth to consider. If None, use max image value.
     """
     CONSOLE.print("[bold green]Creating trajectory " + output_format)
     cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
     cameras = cameras.to(pipeline.device)
     fps = len(cameras) / seconds
+
+    # set the pipeline to use median depth
+    # TODO(ethan): don't hardcode this...
+    pipeline.model.renderer_depth = DepthRenderer(method="median")
 
     progress = Progress(
         TextColumn(":movie_camera: Rendering :movie_camera:"),
@@ -115,6 +124,7 @@ def _render_trajectory_video(
                         outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
 
                 render_image = []
+                depth_raw = None
                 for rendered_output_name in rendered_output_names:
                     if rendered_output_name not in outputs:
                         CONSOLE.rule("Error", style="red")
@@ -123,14 +133,52 @@ def _render_trajectory_video(
                             f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center"
                         )
                         sys.exit(1)
+                    # apply colormap to depth outputs
+                    if rendered_output_name == "depth":
+                        depth_raw = outputs[rendered_output_name]
+                        outputs[rendered_output_name] = colormaps.apply_depth_colormap(
+                            outputs[rendered_output_name],
+                            accumulation=outputs["accumulation"],
+                            near_plane=depth_near_plane,
+                            far_plane=depth_far_plane,
+                        )
+                    if rendered_output_name == "visibility_median_count":
+                        # NOTE(ethan): we cap the number of visible images to 255 here
+                        outputs[rendered_output_name] = outputs[rendered_output_name].clamp(0, 255).to(torch.uint8)
+                        if output_format == "video":
+                            # rescale to [0, 1] is needed to concatenate into a video format (see below)
+                            outputs[rendered_output_name] = outputs[rendered_output_name].float() / 255.0
                     output_image = outputs[rendered_output_name].cpu().numpy()
                     if output_image.shape[-1] == 1:
                         output_image = np.concatenate((output_image,) * 3, axis=-1)
                     render_image.append(output_image)
-                render_image = np.concatenate(render_image, axis=1)
+
+                # TODO: check for eval-images mode
+                # if, so then save the GT image as well!
+                if True:
+                    batch = pipeline.datamanager.eval_dataloader.input_dataset[camera_idx]
+                    rgb_gt = batch["image"]
+                    # resize to match the rendered image
+                    h, w = output_image.shape[:2]
+                    rgb_gt = media.resize_image(rgb_gt, (h, w))
+                    render_image = [rgb_gt] + render_image
+                    names = ["rgb_gt"] + rendered_output_names
+                else:
+                    names = rendered_output_names
+
                 if output_format == "images":
-                    media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
+                    # for images, we keep outputs in different folders
+                    for name, im in zip(names, render_image):
+                        folder = output_image_dir / name
+                        folder.mkdir(parents=True, exist_ok=True)
+                        media.write_image(folder / f"{camera_idx:05d}.png", im)
+                    if depth_raw is not None:
+                        folder = output_image_dir / "depth_raw"
+                        folder.mkdir(parents=True, exist_ok=True)
+                        np.save(folder / f"{camera_idx:05d}.npy", depth_raw.cpu().numpy())
                 if output_format == "video":
+                    # for videos, we concatenate images horizontally
+                    render_image = np.concatenate(render_image, axis=1)
                     if writer is None:
                         render_width = int(render_image.shape[1])
                         render_height = int(render_image.shape[0])
@@ -263,9 +311,9 @@ class RenderTrajectory:
     """Path to config YAML file."""
     rendered_output_names: List[str] = field(default_factory=lambda: ["rgb"])
     """Name of the renderer outputs to use. rgb, depth, etc. concatenates them along y axis"""
-    traj: Literal["spiral", "filename", "interpolate"] = "spiral"
+    traj: Literal["spiral", "filename", "interpolate", "eval-images"] = "spiral"
     """Trajectory type to render. Select between spiral-shaped trajectory, trajectory loaded from
-    a viewer-generated file and interpolated camera paths from the eval dataset."""
+    a viewer-generated file, interpolated camera paths from the eval dataset, of the eval cameras."""
     downscale_factor: int = 1
     """Scaling factor to apply to the camera image resolution."""
     camera_path_filename: Path = Path("camera_path.json")
@@ -280,13 +328,17 @@ class RenderTrajectory:
     """Number of interpolation steps between eval dataset cameras."""
     eval_num_rays_per_chunk: Optional[int] = None
     """Specifies number of rays per chunk during eval."""
+    depth_near_plane: Optional[float] = None
+    """Specifies the near plane for depth rendering."""
+    depth_far_plane: Optional[float] = None
+    """Specifies the far plane for depth rendering."""
 
     def main(self) -> None:
         """Main function."""
         _, pipeline, _ = eval_setup(
             self.load_config,
             eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
-            test_mode="test" if self.traj in ["spiral", "interpolate"] else "inference",
+            test_mode="test" if self.traj in ["spiral", "interpolate", "eval-images"] else "inference",
         )
 
         install_checks.check_ffmpeg_installed()
@@ -319,6 +371,10 @@ class RenderTrajectory:
             camera_path = get_interpolated_camera_path(
                 cameras=pipeline.datamanager.eval_dataloader.cameras, steps=self.interpolation_steps
             )
+        elif self.traj == "eval-images":
+            camera_type = CameraType.PERSPECTIVE
+            # TODO(ethan): support any camera type, reading from the cameras object
+            camera_path = pipeline.datamanager.eval_dataloader.cameras
         else:
             assert_never(self.traj)
 
@@ -332,6 +388,8 @@ class RenderTrajectory:
             seconds=seconds,
             output_format=self.output_format,
             camera_type=camera_type,
+            depth_near_plane=self.depth_near_plane,
+            depth_far_plane=self.depth_far_plane,
         )
 
 

@@ -19,7 +19,7 @@ NeRF implementation that combines many recent advancements.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Optional, Tuple, Type
 
 import numpy as np
 import torch
@@ -39,6 +39,7 @@ from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
+from nerfstudio.fields.visibility_field import VisibilityField
 from nerfstudio.model_components.losses import (
     MSELoss,
     distortion_loss,
@@ -126,6 +127,8 @@ class NerfactoModelConfig(ModelConfig):
     """Whether use single jitter or not for the proposal networks."""
     predict_normals: bool = False
     """Whether to predict normals or not."""
+    depth_method: Literal["median", "expected"] = "median"
+    """Median or expected depth from the depth renderer."""
     disable_scene_contraction: bool = False
     """Whether to disable scene contraction or not."""
 
@@ -162,6 +165,10 @@ class NerfactoModel(Model):
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
         )
+
+        # this can be set by the pipeline
+        # is set, then we create a visibility outputs
+        self.visibility_field: Optional[VisibilityField] = None
 
         self.density_fns = []
         num_prop_nets = self.config.num_proposal_iterations
@@ -211,8 +218,10 @@ class NerfactoModel(Model):
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
         self.renderer_accumulation = AccumulationRenderer()
-        self.renderer_depth = DepthRenderer()
+        self.renderer_depth = DepthRenderer(method=self.config.depth_method)
         self.renderer_normals = NormalsRenderer()
+        self.renderer_depth_expected = DepthRenderer(method="expected")
+        self.renderer_depth_median = DepthRenderer(method="median")
 
         # shaders
         self.normals_shader = NormalsShader()
@@ -263,9 +272,12 @@ class NerfactoModel(Model):
         return callbacks
 
     def get_outputs(self, ray_bundle: RayBundle):
-        ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
+        ray_samples, densities_list, weights_list, ray_samples_list = self.proposal_sampler(
+            ray_bundle, density_fns=self.density_fns
+        )
         field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
+        densities_list.append(field_outputs[FieldHeadNames.DENSITY])
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
 
@@ -279,6 +291,22 @@ class NerfactoModel(Model):
             "depth": depth,
         }
 
+        if self.visibility_field is not None:
+            assert isinstance(self.visibility_field, VisibilityField), "self.visibility_field must be a VisibilityField"
+            visibility_samples = self.visibility_field.forward(ray_samples_list[-1])
+            visibility = self.renderer_depth_expected(
+                weights=weights, ray_samples=ray_samples, quantity=visibility_samples
+            )
+            outputs["visibility_count"] = visibility.long()
+            visibility = visibility.float() / len(self.visibility_field.c2ws)  # [0, 1] 1 is seen by all cameras
+            outputs["visibility"] = visibility
+            visibility_median = self.renderer_depth_median(
+                weights=weights, ray_samples=ray_samples, quantity=visibility_samples
+            )
+            outputs["visibility_median_count"] = visibility_median.long()
+            visibility_median = visibility_median.float() / len(self.visibility_field.c2ws)  # [0, 1]
+            outputs["visibility_median"] = visibility_median
+
         if self.config.predict_normals:
             normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
             pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
@@ -286,6 +314,7 @@ class NerfactoModel(Model):
             outputs["pred_normals"] = self.normals_shader(pred_normals)
         # These use a lot of GPU memory, so we avoid storing them for eval.
         if self.training:
+            outputs["densities_list"] = densities_list
             outputs["weights_list"] = weights_list
             outputs["ray_samples_list"] = ray_samples_list
 
@@ -363,6 +392,12 @@ class NerfactoModel(Model):
         metrics_dict["lpips"] = float(lpips)
 
         images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
+
+        # add visibility
+        if "visibility" in outputs:
+            vis = colormaps.apply_colormap(outputs["visibility"])
+            combined_vis = torch.cat([vis], dim=1)
+            images_dict["visibility"] = combined_vis
 
         for i in range(self.config.num_proposal_iterations):
             key = f"prop_depth_{i}"

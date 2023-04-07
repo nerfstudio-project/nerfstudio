@@ -126,7 +126,6 @@ class Trainer:
         # directory to save checkpoints
         self.checkpoint_dir: Path = config.get_checkpoint_dir()
         CONSOLE.log(f"Saving checkpoints to: {self.checkpoint_dir}")
-
         self.viewer_state = None
 
     def setup(self, test_mode: Literal["test", "val", "inference"] = "val") -> None:
@@ -162,13 +161,18 @@ class Trainer:
                 optimizers=self.optimizers,  # type: ignore
                 grad_scaler=self.grad_scaler,  # type: ignore
                 pipeline=self.pipeline,  # type: ignore
+                viewer_state=self.viewer_state,  # type: ignore
             )
         )
 
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / self.config.logging.relative_log_dir
         writer.setup_event_writer(
-            self.config.is_wandb_enabled(), self.config.is_tensorboard_enabled(), log_dir=writer_log_path
+            self.config.is_wandb_enabled(),
+            self.config.is_tensorboard_enabled(),
+            log_dir=writer_log_path,
+            experiment_name=self.config.experiment_name,
+            project_name=self.config.project_name,
         )
         writer.setup_local_writer(
             self.config.logging, max_iter=self.config.max_num_iterations, banner_messages=banner_messages
@@ -288,6 +292,7 @@ class Trainer:
         self.viewer_state.init_scene(
             dataset=self.pipeline.datamanager.train_dataset,
             start_train=self.config.viewer.start_train,
+            eval_dataset=self.pipeline.datamanager.eval_dataset,
         )
         if not self.config.viewer.start_train:
             self._always_render(self._start_step)
@@ -335,7 +340,7 @@ class Trainer:
         if load_dir is not None:
             load_step = self.config.load_step
             if load_step is None:
-                print("Loading latest checkpoint from load_dir")
+                print("Loading latest Nerfstudio checkpoint from load_dir...")
                 # NOTE: this is specific to the checkpoint name format
                 load_step = sorted(int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(load_dir))[-1]
             load_path: Path = load_dir / f"step-{load_step:09d}.ckpt"
@@ -346,9 +351,9 @@ class Trainer:
             self.pipeline.load_pipeline(loaded_state["pipeline"], loaded_state["step"])
             self.optimizers.load_optimizers(loaded_state["optimizers"])
             self.grad_scaler.load_state_dict(loaded_state["scalers"])
-            CONSOLE.print(f"done loading checkpoint from {load_path}")
+            CONSOLE.print(f"Done loading Nerfstudio checkpoint from {load_path}")
         else:
-            CONSOLE.print("No checkpoints to load, training from scratch")
+            CONSOLE.print("No Nerfstudio checkpoint to load, so training from scratch.")
 
     @check_main_thread
     def save_checkpoint(self, step: int) -> None:

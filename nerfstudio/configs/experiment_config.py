@@ -50,6 +50,8 @@ class ExperimentConfig(InstantiateConfig):
     """Method name. Required to set in python or via cli"""
     experiment_name: Optional[str] = None
     """Experiment name. If None, will automatically be set to dataset name"""
+    project_name: Optional[str] = "nerfstudio-project"
+    """Project name."""
     timestamp: str = "{timestamp}"
     """Experiment timestamp."""
     machine: MachineConfig = MachineConfig()

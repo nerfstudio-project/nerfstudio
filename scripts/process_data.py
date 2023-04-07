@@ -254,8 +254,8 @@ class ProcessVideo:
     3. Calculates the camera poses for each image using `COLMAP <https://colmap.github.io/>`_.
     """
 
-    data: Path
-    """Path the data, either a video file or a directory of images."""
+    data: Union[Tuple[Path], Tuple[Path, Path]]
+    """Data. Either a video file or a directory of images. If two, then store processed images in separate folders."""
     output_dir: Path
     """Path to the output directory."""
     num_frames_target: int = 300
@@ -321,6 +321,7 @@ class ProcessVideo:
         summary_log = []
         # Convert video to images
         if self.camera_type == "equirectangular":
+            assert len(self.data) == 1, "Only one video can be processed at a time for equirectangular camera type"
             # create temp images folder to store the equirect and perspective images
             temp_image_dir = self.output_dir / "temp_images"
             temp_image_dir.mkdir(parents=True, exist_ok=True)
@@ -332,13 +333,31 @@ class ProcessVideo:
                 verbose=self.verbose,
             )
         else:
+            num_frames_target = int(self.num_frames_target / len(self.data))
             summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
-                self.data,
+                self.data[0],
                 image_dir=image_dir,
                 num_frames_target=self.num_frames_target,
                 crop_factor=self.crop_factor,
                 verbose=self.verbose,
             )
+            for i in range(1, len(self.data)):
+                temp_image_dir = self.output_dir / "temp_images"
+                temp_image_dir.mkdir(parents=True, exist_ok=True)
+                summary_log_i, num_extracted_frames_i = process_data_utils.convert_video_to_images(
+                    self.data[i],
+                    image_dir=temp_image_dir,
+                    num_frames_target=num_frames_target,
+                    verbose=self.verbose,
+                )
+                summary_log += summary_log_i
+                num_extracted_frames += num_extracted_frames_i
+                # copy the images from the temp directory to the image directory
+                process_data_utils.copy_images(
+                    temp_image_dir, image_dir=image_dir, verbose=False, image_prefix=f"frame_{i}_", keep_image_dir=True
+                )
+                # remove the temp directory
+                shutil.rmtree(self.output_dir / "temp_images", ignore_errors=True)
 
         # Generate planar projections if equirectangular
         if self.camera_type == "equirectangular":

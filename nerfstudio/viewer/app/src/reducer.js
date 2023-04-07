@@ -66,6 +66,8 @@ const initialState = {
   sceneState: {
     sceneBox: null,
     cameras: null,
+    eval_cameras: null,
+    cubes: null,
   },
 };
 

@@ -19,6 +19,8 @@ const msgpack = require('msgpack-lite');
 
 const SCENE_BOX_NAME = 'Scene Box';
 const CAMERAS_NAME = 'Training Cameras';
+const EVAL_CAMERAS_NAME = 'Evaluation Cameras';
+const CUBES_NAME = 'Cubes';
 
 export function get_scene_tree() {
   const scene = new THREE.Scene();
@@ -285,6 +287,80 @@ export function get_scene_tree() {
     }
   };
   subscribe_to_changes(selector_fn_cameras, fn_value_cameras);
+
+  // draw eval camera
+  // NOTE: this has some issues right now! it won't
+  // update the camera on an individual change w/o deleting first
+  const selector_fn_eval_cameras = (state) => {
+    return state.sceneState.eval_cameras;
+  };
+  const fn_value_eval_cameras = (previous, current) => {
+    if (current !== null) {
+      let prev = new Set();
+      if (previous !== null) {
+        prev = new Set(Object.keys(previous));
+      }
+      const curr = new Set(Object.keys(current));
+      // valid if in current but not previous
+      // invalid if in previous but not current
+      for (const key of curr) {
+        // valid so draw
+        if (!prev.has(key)) {
+          // keys_valid.push(key);
+          const json = current[key];
+          const camera = drawCamera(json, key);
+          sceneTree.set_object_from_path([EVAL_CAMERAS_NAME, key], camera);
+        }
+      }
+      for (const key of prev) {
+        // invalid so delete
+        if (!curr.has(key) || current[key] === null) {
+          // keys_invalid.push(key);
+          sceneTree.delete([EVAL_CAMERAS_NAME, key]);
+        }
+      }
+    } else {
+      sceneTree.delete([EVAL_CAMERAS_NAME]);
+    }
+  };
+  subscribe_to_changes(selector_fn_eval_cameras, fn_value_eval_cameras);
+
+  // draw cubes
+  // NOTE: this has some issues right now! it won't
+  // update the camera on an individual change w/o deleting first
+  const selector_fn_cubes = (state) => {
+    return state.sceneState.cubes;
+  };
+  const fn_value_cubes = (previous, current) => {
+    if (current !== null) {
+      let prev = new Set();
+      if (previous !== null) {
+        prev = new Set(Object.keys(previous));
+      }
+      const curr = new Set(Object.keys(current));
+      // valid if in current but not previous
+      // invalid if in previous but not current
+      for (const key of curr) {
+        // valid so draw
+        if (!prev.has(key)) {
+          // keys_valid.push(key);
+          const json = current[key];
+          const line = drawSceneBox(json);
+          sceneTree.set_object_from_path([CUBES_NAME, key], line);
+        }
+      }
+      for (const key of prev) {
+        // invalid so delete
+        if (!curr.has(key) || current[key] === null) {
+          // keys_invalid.push(key);
+          sceneTree.delete([CUBES_NAME, key]);
+        }
+      }
+    } else {
+      sceneTree.delete([CUBES_NAME]);
+    }
+  };
+  subscribe_to_changes(selector_fn_cubes, fn_value_cubes);
 
   // Check for clicks on training cameras
   const mouseVector = new THREE.Vector2();

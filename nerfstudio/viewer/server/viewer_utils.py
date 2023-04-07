@@ -325,7 +325,7 @@ class ViewerState:
         # draw indices, roughly evenly spaced
         return np.linspace(0, total_num - 1, num_display_images, dtype=np.int32).tolist()
 
-    def init_scene(self, dataset: InputDataset, start_train=True) -> None:
+    def init_scene(self, dataset: InputDataset, start_train=True, eval_dataset: InputDataset = None) -> None:
         """Draw some images and the scene aabb in the viewer.
 
         Args:
@@ -345,6 +345,7 @@ class ViewerState:
         # clear the current scene
         self.vis["sceneState/sceneBox"].delete()
         self.vis["sceneState/cameras"].delete()
+        self.vis["sceneState/eval_cameras"].delete()
 
         # draw the training cameras and images
         image_indices = self._pick_drawn_image_idxs(len(dataset))
@@ -353,6 +354,15 @@ class ViewerState:
             bgr = image[..., [2, 1, 0]]
             camera_json = dataset.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
             self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
+
+        if eval_dataset is not None:
+            # draw the eval cameras and images
+            image_indices = self._pick_drawn_image_idxs(len(eval_dataset))
+            for idx in image_indices:
+                image = eval_dataset[idx]["image"]
+                bgr = image[..., [2, 1, 0]]
+                camera_json = eval_dataset.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
+                self.vis[f"sceneState/eval_cameras/{idx:06d}"].write(camera_json)
 
         # draw the scene box (i.e., the bounding box)
         json_ = dataset.scene_box.to_json()

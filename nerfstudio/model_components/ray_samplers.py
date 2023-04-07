@@ -560,10 +560,11 @@ class ProposalNetworkSampler(Sampler):
         self,
         ray_bundle: Optional[RayBundle] = None,
         density_fns: Optional[List[Callable]] = None,
-    ) -> Tuple[RaySamples, List, List]:
+    ) -> Tuple[RaySamples, List, List, List]:
         assert ray_bundle is not None
         assert density_fns is not None
 
+        densities_list = []
         weights_list = []
         ray_samples_list = []
 
@@ -591,13 +592,14 @@ class ProposalNetworkSampler(Sampler):
                     with torch.no_grad():
                         density = density_fns[i_level](ray_samples.frustums.get_positions())
                 weights = ray_samples.get_weights(density)
+                densities_list.append(density)
                 weights_list.append(weights)  # (num_rays, num_samples)
                 ray_samples_list.append(ray_samples)
         if updated:
             self._steps_since_update = 0
 
         assert ray_samples is not None
-        return ray_samples, weights_list, ray_samples_list
+        return ray_samples, densities_list, weights_list, ray_samples_list
 
 
 class NeuSSampler(Sampler):

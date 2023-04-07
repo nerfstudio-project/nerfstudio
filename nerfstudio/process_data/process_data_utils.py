@@ -180,23 +180,27 @@ def convert_video_to_images(
 def copy_images_list(
     image_paths: List[Path],
     image_dir: Path,
+    image_prefix: str = "frame_",
     crop_border_pixels: Optional[int] = None,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     verbose: bool = False,
+    keep_image_dir: bool = False,
 ) -> List[Path]:
     """Copy all images in a list of Paths. Useful for filtering from a directory.
     Args:
         image_paths: List of Paths of images to copy to a new directory.
         image_dir: Path to the output directory.
+        image_prefix: Prefix for the image filenames.
         crop_border_pixels: If not None, crops each edge by the specified number of pixels.
         crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
         verbose: If True, print extra logging.
+        keep_image_dir: If True, keep the original directory.
     Returns:
         A list of the copied image Paths.
     """
 
     # Remove original directory only if we provide a proper image folder path
-    if image_dir.is_dir() and len(image_paths):
+    if image_dir.is_dir() and len(image_paths) and not keep_image_dir:
         shutil.rmtree(image_dir, ignore_errors=True)
         image_dir.mkdir(exist_ok=True, parents=True)
 
@@ -206,13 +210,13 @@ def copy_images_list(
     for idx, image_path in enumerate(image_paths):
         if verbose:
             CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
-        copied_image_path = image_dir / f"frame_{idx + 1:05d}{image_path.suffix}"
+        copied_image_path = image_dir / f"{image_prefix}{idx + 1:05d}{image_path.suffix}"
         shutil.copy(image_path, copied_image_path)
         copied_image_paths.append(copied_image_path)
 
     if crop_border_pixels is not None:
         file_type = image_paths[0].suffix
-        filename = f"frame_%05d{file_type}"
+        filename = f"{image_prefix}%05d{file_type}"
         crop = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}"
         ffmpeg_cmd = f'ffmpeg -y -noautorotate -i "{image_dir / filename}" -q:v 2 -vf {crop} "{image_dir / filename}"'
         run_command(ffmpeg_cmd, verbose=verbose)
@@ -288,7 +292,12 @@ def copy_and_upscale_polycam_depth_maps_list(
 
 
 def copy_images(
-    data: Path, image_dir: Path, verbose, crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+    data: Path,
+    image_dir: Path,
+    verbose,
+    image_prefix: str = "frame_",
+    crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    keep_image_dir: bool = False,
 ) -> OrderedDict[Path, Path]:
     """Copy images from a directory to a new directory.
 
@@ -296,7 +305,9 @@ def copy_images(
         data: Path to the directory of images.
         image_dir: Path to the output directory.
         verbose: If True, print extra logging.
+        image_prefix: Prefix for the image filenames.
         crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
+        keep_image_dir: If True, keep the original directory.
     Returns:
         The mapping from the original filenames to the new ones.
     """
@@ -308,7 +319,12 @@ def copy_images(
             sys.exit(1)
 
         copied_images = copy_images_list(
-            image_paths=image_paths, image_dir=image_dir, crop_factor=crop_factor, verbose=verbose
+            image_paths=image_paths,
+            image_dir=image_dir,
+            image_prefix=image_prefix,
+            crop_factor=crop_factor,
+            verbose=verbose,
+            keep_image_dir=keep_image_dir,
         )
         return OrderedDict((original_path, new_path) for original_path, new_path in zip(image_paths, copied_images))
 

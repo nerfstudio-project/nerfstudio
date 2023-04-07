@@ -16,9 +16,10 @@
 from __future__ import annotations
 
 import math
+import os
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath
-from typing import Optional, Type
+from typing import Optional, Tuple, Type
 
 import numpy as np
 import torch
@@ -60,8 +61,14 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The method to use to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
+    eval_mode: Literal["train-split-fraction", "eval-frame-index"] = "train-split-fraction"
+    """The method to use for splitting the dataset into train and eval."""
     train_split_fraction: float = 0.9
     """The fraction of images to use for training. The remaining images are for eval."""
+    train_frame_indices: Tuple[int, ...] = (0,)
+    """The index of the frames to use for train."""
+    eval_frame_indices: Tuple[int, ...] = (1,)
+    """The index of the frames to use for eval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
 
@@ -110,7 +117,17 @@ class Nerfstudio(DataParser):
         width = []
         distort = []
 
+        # sort the frames by fname
+        # they do this in mipnerf360 code
+        fnames = []
         for frame in meta["frames"]:
+            filepath = PurePath(frame["file_path"])
+            fname = self._get_fname(filepath, data_dir)
+            fnames.append(fname)
+        inds = np.argsort(fnames)
+        frames = [meta["frames"][ind] for ind in inds]
+
+        for frame in frames:
             filepath = PurePath(frame["file_path"])
             fname = self._get_fname(filepath, data_dir)
             if not fname.exists():
@@ -184,30 +201,61 @@ class Nerfstudio(DataParser):
         You should check that depth_file_path is specified for every frame (or zero frames) in transforms.json.
         """
 
-        has_split_files_spec = any(f"{split}_filenames" in meta for split in ("train", "val", "test"))
-        if f"{split}_filenames" in meta:
-            # Validate split first
-            split_filenames = set(self._get_fname(PurePath(x), data_dir) for x in meta[f"{split}_filenames"])
-            unmatched_filenames = split_filenames.difference(image_filenames)
-            if unmatched_filenames:
-                raise RuntimeError(f"Some filenames for split {split} were not found: {unmatched_filenames}.")
+        if self.config.eval_mode == "train-split-fraction":
+            has_split_files_spec = any(f"{split}_filenames" in meta for split in ("train", "val", "test"))
+            if f"{split}_filenames" in meta:
+                # Validate split first
+                split_filenames = set(self._get_fname(PurePath(x), data_dir) for x in meta[f"{split}_filenames"])
+                unmatched_filenames = split_filenames.difference(image_filenames)
+                if unmatched_filenames:
+                    raise RuntimeError(f"Some filenames for split {split} were not found: {unmatched_filenames}.")
 
-            indices = [i for i, path in enumerate(image_filenames) if path in split_filenames]
-            CONSOLE.log(f"[yellow] Dataset is overriding {split}_indices to {indices}")
-            indices = np.array(indices, dtype=np.int32)
-        elif has_split_files_spec:
-            raise RuntimeError(f"The dataset's list of filenames for split {split} is missing.")
-        else:
-            # filter image_filenames and poses based on train/eval split percentage
+                indices = [i for i, path in enumerate(image_filenames) if path in split_filenames]
+                CONSOLE.log(f"[yellow] Dataset is overriding {split}_indices to {indices}")
+                indices = np.array(indices, dtype=np.int32)
+            elif has_split_files_spec:
+                raise RuntimeError(f"The dataset's list of filenames for split {split} is missing.")
+            else:
+                # filter image_filenames and poses based on train/eval split percentage
+                num_images = len(image_filenames)
+                num_train_images = math.ceil(num_images * self.config.train_split_fraction)
+                num_eval_images = num_images - num_train_images
+                i_all = np.arange(num_images)
+                i_train = np.linspace(
+                    0, num_images - 1, num_train_images, dtype=int
+                )  # equally spaced training images starting and ending at 0 and num_images-1
+                i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
+                assert len(i_eval) == num_eval_images
+                if split == "train":
+                    indices = i_train
+                elif split in ["val", "test"]:
+                    indices = i_eval
+                else:
+                    raise ValueError(f"Unknown dataparser split {split}")
+        elif self.config.eval_mode == "eval-frame-index":
+            # keep around some metadata
+            eval_frame_index_0_metadata = []
+            # filter image_filenames and poses based on train and eval frame indices
             num_images = len(image_filenames)
-            num_train_images = math.ceil(num_images * self.config.train_split_fraction)
-            num_eval_images = num_images - num_train_images
+            basenames = [os.path.basename(image_filename) for image_filename in image_filenames]
             i_all = np.arange(num_images)
-            i_train = np.linspace(
-                0, num_images - 1, num_train_images, dtype=int
-            )  # equally spaced training images starting and ending at 0 and num_images-1
-            i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
-            assert len(i_eval) == num_eval_images
+            i_train = []
+            i_eval = []
+            for idx, basename in zip(i_all, basenames):
+                # check the frame index
+                if len(basename.split("_")) == 2:
+                    frame_index = 0
+                else:
+                    frame_index = int(basename.split("_")[1])
+                if frame_index in self.config.train_frame_indices:
+                    i_train.append(idx)
+                    if frame_index == 0:
+                        # set 1 where frame_index is 0
+                        eval_frame_index_0_metadata.append(1)
+                    else:
+                        eval_frame_index_0_metadata.append(0)
+                if frame_index in self.config.eval_frame_indices:
+                    i_eval.append(idx)
             if split == "train":
                 indices = i_train
             elif split in ["val", "test"]:
@@ -290,6 +338,14 @@ class Nerfstudio(DataParser):
         assert self.downscale_factor is not None
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
 
+        metadata = {
+            "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
+            "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
+        }
+
+        if self.config.eval_mode == "eval-frame-index":
+            metadata["eval_frame_index_0_metadata"] = torch.tensor(eval_frame_index_0_metadata, dtype=torch.long)
+
         if "applied_transform" in meta:
             applied_transform = torch.tensor(meta["applied_transform"], dtype=transform_matrix.dtype)
             transform_matrix = transform_matrix @ torch.cat(
@@ -306,10 +362,7 @@ class Nerfstudio(DataParser):
             mask_filenames=mask_filenames if len(mask_filenames) > 0 else None,
             dataparser_scale=scale_factor,
             dataparser_transform=transform_matrix,
-            metadata={
-                "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
-                "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
-            },
+            metadata=metadata,
         )
         return dataparser_outputs
 
