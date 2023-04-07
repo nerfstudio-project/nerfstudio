@@ -25,7 +25,7 @@ import threading
 import time
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -55,16 +55,15 @@ from nerfstudio.viewer.server.visualizer import Viewer
 from nerfstudio.viewer.viser import ViserServer
 from nerfstudio.viewer.viser._messages import (
     CameraMessage,
+    CameraPathOptionsRequest,
     CameraPathPayloadMessage,
     IsTrainingMessage,
+    Message,
 )
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 
 CONSOLE = Console(width=120)
-
-if TYPE_CHECKING:
-    from ._server import ClientId
 
 
 def get_viewer_version() -> str:
@@ -254,6 +253,8 @@ class ViewerState:
         datapath: path to data
     """
 
+    vis: Any
+
     def __init__(self, config: cfg.ViewerConfig, log_filename: Path, datapath: Path):
         self.config = config
         self.vis = None
@@ -319,19 +320,34 @@ class ViewerState:
 
         self.viser_server.register_handler(IsTrainingMessage, self._handle_is_training)
         self.viser_server.register_handler(CameraMessage, self._handle_camera_update)
+        self.viser_server.register_handler(CameraPathOptionsRequest, self._handle_camera_path_option_request)
         self.viser_server.register_handler(CameraPathPayloadMessage, self._handle_camera_path_payload)
 
-    def _handle_is_training(self, message: IsTrainingMessage) -> None:
+    def _handle_is_training(self, message: Message) -> None:
         """Handle is_training message from viewer."""
+        assert isinstance(message, IsTrainingMessage)
         self.is_training = message.is_training
 
-    def _handle_camera_update(self, message: CameraMessage) -> None:
+    def _handle_camera_update(self, message: Message) -> None:
         """Handle camera update message from viewer."""
+        assert isinstance(message, CameraMessage)
         self.camera_message = message
         self.camera_moving = message.is_moving
 
-    def _handle_camera_path_payload(self, message: CameraPathPayloadMessage) -> None:
+    def _handle_camera_path_option_request(self, message: Message) -> None:
+        """Handle camera path option request message from viewer."""
+        assert isinstance(message, CameraPathOptionsRequest)
+        camera_path_dir = self.datapath / "camera_paths"
+        if camera_path_dir.exists():
+            all_path_dict = {}
+            for path in camera_path_dir.iterdir():
+                if path.suffix == ".json":
+                    all_path_dict[path.stem] = load_from_json(path)
+            self.viser_server.send_camera_paths(all_path_dict)
+
+    def _handle_camera_path_payload(self, message: Message) -> None:
         """Handle camera path payload message from viewer."""
+        assert isinstance(message, CameraPathPayloadMessage)
         camera_path_filename = message.camera_path_filename + ".json"
         camera_path = message.camera_path
         camera_paths_directory = self.datapath / "camera_paths"
@@ -392,22 +408,6 @@ class ViewerState:
 
         max_scene_box = torch.max(dataset.scene_box.aabb[1] - dataset.scene_box.aabb[0]).item()
         self.vis["renderingState/max_box_size"].write(max_scene_box)
-
-    def _check_populate_paths_payload(self, trainer, step: int):
-        populate_paths_payload = self.vis["populate_paths_payload"].read()
-        if populate_paths_payload:
-            # save a model checkpoint
-            trainer.save_checkpoint(step)
-            # get all camera paths
-            camera_path_dir = os.path.join(self.datapath, "camera_paths")
-            if os.path.exists(camera_path_dir):
-                camera_path_files = os.listdir(camera_path_dir)
-                all_path_dict = {}
-                for i in camera_path_files:
-                    if i[-4:] == "json":
-                        all_path_dict[i[:-5]] = load_from_json(Path(os.path.join(camera_path_dir, i)))
-                self.vis["renderingState/all_camera_paths"].write(all_path_dict)
-                self.vis["populate_paths_payload"].delete()
 
     def _update_render_aabb(self, graph):
         """
@@ -484,8 +484,6 @@ class ViewerState:
         is_training = self.is_training
         self.step = step
 
-        self._check_populate_paths_payload(trainer, step)
-
         self._legacy_messages()
         if self.camera_message is None:
             return
@@ -527,7 +525,6 @@ class ViewerState:
                 if step > 0:
                     self._legacy_messages()
                     self._render_image_in_viewer(self.camera_message, graph, self.is_training)
-                self._check_populate_paths_payload(trainer, step)
                 run_loop = not self.is_training
                 local_step += 1
 

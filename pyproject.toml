@@ -160,7 +160,6 @@ include = ["nerfstudio"]
 exclude = ["**/node_modules",
     "**/__pycache__",
 ]
-ignore = ["nerfstudio/viewer"]
 defineConstant = { DEBUG = true }
 
 reportMissingImports = true

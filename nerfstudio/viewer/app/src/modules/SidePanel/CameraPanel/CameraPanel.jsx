@@ -54,7 +54,10 @@ import RenderModal from '../../RenderModal';
 import LoadPathModal from '../../LoadPathModal';
 import CameraPropPanel from './CameraPropPanel';
 import LevaTheme from '../../../themes/leva_theme.json';
-import { CameraPathPayloadMessage } from '../../WebSocket/ViserMessages';
+import {
+  CameraPathPayloadMessage,
+  CameraPathOptionsRequest,
+} from '../../WebSocket/ViserMessages';
 
 const msgpack = require('msgpack-lite');
 
@@ -1145,24 +1148,19 @@ export default function CameraPanel(props) {
 
     const camera_path_object = get_camera_path();
 
-    const viser_message: CameraPathPayloadMessage = {
+    const message: CameraPathPayloadMessage = {
       type: 'camera_path_payload',
       camera_path_filename: export_path,
       camera_path: camera_path_object,
     };
-    sendWebsocketMessage(viser_websocket, viser_message);
+    sendWebsocketMessage(viser_websocket, message);
   };
 
   const open_load_path_modal = () => {
-    if (websocket.readyState === WebSocket.OPEN) {
-      const data = {
-        type: 'write',
-        path: 'populate_paths_payload',
-        data: true,
-      };
-      const message = msgpack.encode(data);
-      websocket.send(message);
-    }
+    const message: CameraPathOptionsRequest = {
+      type: 'camera_path_options',
+    };
+    sendWebsocketMessage(viser_websocket, message);
     setLoadPathModalOpen(true);
   };
 

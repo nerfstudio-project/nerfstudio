@@ -99,7 +99,7 @@ export interface ResetSceneMessage {
 export interface GuiAddMessage {
   type: 'add_gui';
   name: string;
-  folder_labels: string[];
+  folder_labels: [string];
   leva_conf: any;
 }
 export interface GuiRemoveMessage {
@@ -151,11 +151,23 @@ export interface CameraMessage {
 export interface DatasetImageMessage {
   type: 'dataset_image';
   idx: string;
-  json: string;
+  json: any;
 }
 export interface IsTrainingMessage {
   type: 'is_training';
   is_training: boolean;
+}
+export interface CameraPathPayloadMessage {
+  type: 'camera_path_payload';
+  camera_path_filename: string;
+  camera_path: any;
+}
+export interface CameraPathOptionsRequest {
+  type: 'camera_path_options';
+}
+export interface CameraPathsMessage {
+  type: 'camera_paths';
+  payload: any;
 }
 
 export type Message =
@@ -179,4 +191,7 @@ export type Message =
   | GuiSetLevaConfMessage
   | CameraMessage
   | DatasetImageMessage
-  | IsTrainingMessage;
+  | IsTrainingMessage
+  | CameraPathPayloadMessage
+  | CameraPathOptionsRequest
+  | CameraPathsMessage;

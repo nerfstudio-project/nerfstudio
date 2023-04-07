@@ -1,3 +1,7 @@
+
+""" This module contains the MessageApi class, which is the interface for sending messages to the Viewer"""
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import abc
@@ -12,7 +16,6 @@ from typing import (
     Dict,
     Generator,
     List,
-    Literal,
     Optional,
     Tuple,
     Type,
@@ -23,7 +26,7 @@ from typing import (
 import imageio.v3 as iio
 import numpy as onp
 import numpy.typing as onpt
-from typing_extensions import LiteralString, ParamSpec, assert_never
+from typing_extensions import Literal, LiteralString, ParamSpec, assert_never
 
 from . import _messages
 from ._gui import GuiHandle, _GuiHandleState
@@ -484,12 +487,12 @@ class MessageApi(abc.ABC):
 
     # Nerfstudio specific methods
 
-    def add_dataset_image(self, idx: str, json: str) -> None:
+    def add_dataset_image(self, idx: str, json: Dict) -> None:
         """Add a dataset image to the scene.
 
         Args:
             idx: The index of the image.
-            json: The json string from the camera frustum and image.
+            json: The json dict from the camera frustum and image.
         """
         self._queue(_messages.DatasetImageMessage(idx=idx, json=json))
 
@@ -500,6 +503,14 @@ class MessageApi(abc.ABC):
             is_training: The training mode.
         """
         self._queue(_messages.IsTrainingMessage(is_training=is_training))
+
+    def send_camera_paths(self, camera_paths: Dict[str, Any]) -> None:
+        """Send camera paths to the scene.
+
+        Args:
+            camera_paths: A dictionary of camera paths.
+        """
+        self._queue(_messages.CameraPathsMessage(payload=camera_paths))
 
     def _handle_incoming_message(self, client_id: ClientId, message: _messages.Message) -> None:
         """Handle incoming messages."""

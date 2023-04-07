@@ -29,7 +29,7 @@ export function makeThrottledMessageSender(
   let latestMessage: Message | null = null;
 
   function send(message: Message) {
-    if (websocketRef.current === null) return;
+    if (websocketRef.current == null) return;
     latestMessage = message;
     if (readyToSend) {
       websocketRef.current!.send(pack(message));
@@ -225,6 +225,16 @@ function handleMessage(message: Message, dispatch: Dispatch<any>) {
         type: 'write',
         path: 'renderingState/isTraining',
         data: message.is_training,
+      });
+      break;
+    }
+    // Populate camera paths.
+    case 'camera_paths': {
+      console.log('populating camera paths');
+      dispatch({
+        type: 'write',
+        path: 'renderingState/all_camera_paths',
+        data: message.payload,
       });
       break;
     }
