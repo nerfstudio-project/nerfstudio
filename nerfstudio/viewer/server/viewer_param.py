@@ -13,26 +13,26 @@ class ViewerElement:
         self.disabled = disabled
 
     @abstractmethod
-    def _create_gui_handle(self, viser_server: ViserServer):
+    def _create_gui_handle(self, viser_server: ViserServer) -> None:
         """
         Returns the GuiHandle object which actually controls the parameter in the gui
         """
         raise RuntimeError("Cannot instantiate ViewerElement directly")
 
     @abstractmethod
-    def install(self, viser_server: ViserServer):
+    def install(self, viser_server: ViserServer) -> None:
         raise RuntimeError("Must implement install() for a ViewerElement")
 
 
 class ViewerButton(ViewerElement):
-    def __init__(self, name: str, callable: Callable, disabled=False):
+    def __init__(self, name: str, call_fn: Callable, disabled=False):
         super().__init__(name, disabled=disabled)
-        self.fn = callable
+        self.fn = call_fn
 
-    def _create_gui_handle(self, viser_server: ViserServer):
+    def _create_gui_handle(self, viser_server: ViserServer) -> None:
         self.gui_handle = viser_server.add_gui_button(self.name, disabled=self.disabled)
 
-    def install(self, viser_server: ViserServer):
+    def install(self, viser_server: ViserServer) -> None:
         self._create_gui_handle(viser_server)
 
         def call_fn(handle):
@@ -47,7 +47,7 @@ class ViewerParameter(ViewerElement):
         super().__init__(name, disabled=disabled)
         self.cur_value = default_value
 
-    def install(self, viser_server: ViserServer) -> GuiHandle:
+    def install(self, viser_server: ViserServer) -> None:
         """
         Based on the type provided by default_value, installs a gui element inside the given viser_server
         """
@@ -71,7 +71,7 @@ class ViewerSlider(ViewerParameter):
         self.max = max_value
         self.step = step
 
-    def _create_gui_handle(self, viser_server: ViserServer):
+    def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
         self.gui_handle = viser_server.add_gui_slider(
             self.name, self.min, self.max, self.step, self.cur_value, disabled=self.disabled
@@ -83,7 +83,7 @@ class ViewerText(ViewerParameter):
         assert isinstance(default_value, str)
         super().__init__(name, default_value, disabled=disabled)
 
-    def _create_gui_handle(self, viser_server: ViserServer):
+    def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
         self.gui_handle = viser_server.add_gui_text(self.name, self.cur_value, disabled=self.disabled)
 
@@ -93,7 +93,7 @@ class ViewerNumber(ViewerParameter):
         assert isinstance(default_value, float) or isinstance(default_value, int)
         super().__init__(name, default_value, disabled=disabled)
 
-    def _create_gui_handle(self, viser_server: ViserServer):
+    def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
         self.gui_handle = viser_server.add_gui_number(self.name, self.cur_value, disabled=self.disabled)
 
@@ -103,6 +103,6 @@ class ViewerCheckbox(ViewerParameter):
         assert isinstance(default_value, bool)
         super().__init__(name, default_value, disabled=disabled)
 
-    def _create_gui_handle(self, viser_server: ViserServer):
+    def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
         self.gui_handle = viser_server.add_gui_checkbox(self.name, self.cur_value, disabled=self.disabled)
