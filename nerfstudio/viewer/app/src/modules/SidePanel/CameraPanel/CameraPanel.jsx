@@ -47,8 +47,8 @@ import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
 import {
-  makeThrottledMessageSender,
   ViserWebSocketContext,
+  sendWebsocketMessage,
 } from '../../WebSocket/ViserWebSocket';
 import RenderModal from '../../RenderModal';
 import LoadPathModal from '../../LoadPathModal';
@@ -1145,16 +1145,12 @@ export default function CameraPanel(props) {
 
     const camera_path_object = get_camera_path();
 
-    const sendCameraPathPayload = makeThrottledMessageSender(
-      viser_websocket,
-      100,
-    );
     const viser_message: CameraPathPayloadMessage = {
       type: 'camera_path_payload',
       camera_path_filename: export_path,
       camera_path: camera_path_object,
     };
-    sendCameraPathPayload(viser_message);
+    sendWebsocketMessage(viser_websocket, viser_message);
   };
 
   const open_load_path_modal = () => {

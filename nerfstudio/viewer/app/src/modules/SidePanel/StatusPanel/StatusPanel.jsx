@@ -7,8 +7,8 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import ViewInArIcon from '@mui/icons-material/ViewInAr';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import {
-  makeThrottledMessageSender,
   ViserWebSocketContext,
+  sendWebsocketMessage,
 } from '../../WebSocket/ViserWebSocket';
 import { IsTrainingMessage } from '../../WebSocket/ViserMessages';
 
@@ -60,16 +60,11 @@ export default function StatusPanel(props: StatusPanelProps) {
       path: 'renderingState/isTraining',
       data: !isTraining,
     });
-    // write to server
-    const sendIsTrainingMessage = makeThrottledMessageSender(
-      viser_websocket,
-      25,
-    );
     const viser_message: IsTrainingMessage = {
       type: 'is_training',
       is_training: !isTraining,
     };
-    sendIsTrainingMessage(viser_message);
+    sendWebsocketMessage(viser_websocket, viser_message);
   };
   const is_training_text = isTraining ? 'Pause Training' : 'Resume Training';
   const training_icon = isTraining ? <PauseIcon /> : <PlayArrowIcon />;
