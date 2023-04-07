@@ -18,7 +18,11 @@ _raw_type_mapping = {
 
 def _get_ts_type(typ: Type) -> str:
     if get_origin(typ) is tuple:
-        return "[" + ", ".join(map(_get_ts_type, get_args(typ))) + "]"
+        args = get_args(typ)
+        if len(args) == 2 and args[1] == ...:
+            return _get_ts_type(args[0]) + "[]"
+        else:
+            return "[" + ", ".join(map(_get_ts_type, args)) + "]"
     if get_origin(typ) is Literal:
         return " | ".join(
             map(
@@ -44,10 +48,7 @@ def _get_ts_type(typ: Type) -> str:
 
 def generate_typescript_defs() -> str:
     out_lines = [
-        (
-            "// AUTOMATICALLY GENERATED message interfaces, from Python dataclass"
-            " definitions."
-        ),
+        ("// AUTOMATICALLY GENERATED message interfaces, from Python dataclass" " definitions."),
         "// This file should not be manually modified.",
         "",
         "// For numpy arrays, we directly serialize the underlying data buffer.",

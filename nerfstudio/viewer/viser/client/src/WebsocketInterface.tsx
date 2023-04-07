@@ -311,7 +311,7 @@ function useMessageHandler(
       case "add_gui": {
         addGui(message.name, {
           levaConf: message.leva_conf,
-          folderName: message.folder,
+          folderLabels: message.folder_labels,
         });
         break;
       }
@@ -326,7 +326,7 @@ function useMessageHandler(
         if (currentConf !== undefined) {
           addGui(message.name, {
             levaConf: message.leva_conf,
-            folderName: currentConf.folderName,
+            folderLabels: currentConf.folderLabels,
           });
         }
         break;

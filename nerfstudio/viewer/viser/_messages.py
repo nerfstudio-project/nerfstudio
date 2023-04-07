@@ -261,7 +261,7 @@ class GuiAddMessage(Message):
 
     type: ClassVar[str] = "add_gui"
     name: str
-    folder: str
+    folder_labels: Tuple[str]
     leva_conf: Any
 
 

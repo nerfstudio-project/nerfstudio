@@ -4,7 +4,7 @@ import { immer } from "zustand/middleware/immer";
 
 interface GuiConfig {
   levaConf: any;
-  folderName: string;
+  folderLabels: string[];
 }
 
 interface GuiState {

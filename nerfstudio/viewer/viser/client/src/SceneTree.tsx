@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { CoordinateFrame } from "./ThreeAssets";
 
 import { immerable } from "immer";
-import create from "zustand";
+import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
 // The covariance/contravariance rules are too complicated here, so we just

@@ -99,7 +99,7 @@ export interface ResetSceneMessage {
 export interface GuiAddMessage {
   type: "add_gui";
   name: string;
-  folder: string;
+  folder_labels: string[];
   leva_conf: any;
 }
 export interface GuiRemoveMessage {

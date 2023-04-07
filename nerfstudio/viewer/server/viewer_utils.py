@@ -25,7 +25,7 @@ import threading
 import time
 import warnings
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -50,6 +50,7 @@ from nerfstudio.viewer.server.subprocess import (
     run_viewer_bridge_server_as_subprocess,
 )
 from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
+from nerfstudio.viewer.server.viewer_param import ViewerElement
 from nerfstudio.viewer.server.visualizer import Viewer
 from nerfstudio.viewer.viser import ViserServer
 
@@ -457,12 +458,19 @@ class ViewerState:
             step: iteration step of training
             graph: the current checkpoint of the model
         """
-        if not hasattr(self, "viewer_params"):
-            self.viewer_params = get_viewer_elements(pipeline)
-            for param_path, param in self.viewer_params:
-                dir_name = param_path[: param_path.rfind("/")]
-                with self.viser_server.gui_folder(dir_name):
-                    param.install(self.viser_server)
+        if not hasattr(self, "viewer_elements"):
+
+            def nested_folder_install(folder_labels: List[str], element: ViewerElement):
+                if len(folder_labels) == 0:
+                    element.install(self.viser_server)
+                else:
+                    with self.viser_server.gui_folder(folder_labels[0]):
+                        nested_folder_install(folder_labels[1:], element)
+
+            self.viewer_elements = get_viewer_elements(pipeline)
+            for param_path, element in self.viewer_elements:
+                folder_labels = param_path.split("/")[:-1]
+                nested_folder_install(folder_labels, element)
         graph = pipeline.model
         has_temporal_distortion = getattr(graph, "temporal_distortion", None) is not None
         self.vis["model/has_temporal_distortion"].write(str(has_temporal_distortion).lower())
