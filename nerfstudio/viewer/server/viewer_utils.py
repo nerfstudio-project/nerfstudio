@@ -44,19 +44,14 @@ from nerfstudio.utils import colormaps, profiler, writer
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
+from nerfstudio.viewer.server.control_panel import ControlPanel
 from nerfstudio.viewer.server.gui_utils import get_viewer_elements
 from nerfstudio.viewer.server.subprocess import (
     get_free_port,
     run_viewer_bridge_server_as_subprocess,
 )
 from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
-from nerfstudio.viewer.server.viewer_param import (
-    ViewerCheckbox,
-    ViewerDropdown,
-    ViewerElement,
-    ViewerNumber,
-    ViewerSlider,
-)
+from nerfstudio.viewer.server.viewer_param import ViewerElement
 from nerfstudio.viewer.server.visualizer import Viewer
 from nerfstudio.viewer.viser import ViserServer
 from nerfstudio.viewer.viser._messages import (
@@ -329,6 +324,8 @@ class ViewerState:
         self.viser_server.register_handler(CameraPathOptionsRequest, self._handle_camera_path_option_request)
         self.viser_server.register_handler(CameraPathPayloadMessage, self._handle_camera_path_payload)
 
+        self.control_panel = ControlPanel()
+
     def _handle_is_training(self, message: Message) -> None:
         """Handle is_training message from viewer."""
         assert isinstance(message, IsTrainingMessage)
@@ -452,65 +449,6 @@ class ViewerState:
                 self.viser_server.update_scene_box(graph.render_aabb)
         else:
             graph.render_aabb = None
-
-    def setup_default_control(self):
-        # train speed
-        self.train_speed_gui = ViewerDropdown("Train Speed", "Balanced", ["Fast", "Balanced", "Slow"])
-        self.train_speed_gui.install(self.viser_server)
-        # output render
-        self.output_options = ViewerDropdown("Output Render", "rgb", ["rgb"])
-        self.output_options.install(self.viser_server)
-        # colormap
-        self.colormap = ViewerDropdown("Colormap", "default", ["default"])
-        self.colormap.install(self.viser_server)
-        with self.viser_server.gui_folder("Colormap Options"):
-            self.setup_colormap_controls()
-            self.install_colormap_controls()
-        # train util
-        self.train_util = ViewerSlider("Train Util", 0.9, 0, 1, 0.05)
-        self.train_util.install(self.viser_server)
-        # max res
-        self.max_res = ViewerSlider("Max Res.", 500, 100, 2000, 100)
-        self.max_res.install(self.viser_server)
-        # crop viewport
-        self.crop_viewport = ViewerCheckbox("Crop Viewport", False)
-        self.crop_viewport.install(self.viser_server)
-        with self.viser_server.gui_folder("Crop Options"):
-            self.setup_crop_controls()
-            self.install_crop_controls()
-
-    def setup_crop_controls(self):
-        # TODO the crop options are not supported in viser (color picker, xyz range with sliders)
-        self.crop_elements: List[ViewerElement] = []
-
-    def install_crop_controls(self):
-        for e in self.crop_elements:
-            e.install(self.viser_server)
-
-    def remove_crop_controls(self):
-        for e in self.crop_elements:
-            e.remove()
-
-    def setup_colormap_controls(self):
-        assert not hasattr(self, "colormap_elements")
-        self.invert_colormap = ViewerCheckbox("Invert", False)
-        self.normalize_colormap = ViewerCheckbox("Normalize", False)
-        self.colormap_min = ViewerNumber("Min", 0.0)
-        self.colormap_max = ViewerNumber("Max", 1.0)
-        self.colormap_elements: List[ViewerElement] = [
-            self.invert_colormap,
-            self.normalize_colormap,
-            self.colormap_min,
-            self.colormap_max,
-        ]
-
-    def install_colormap_controls(self):
-        for e in self.colormap_elements:
-            e.install(self.viser_server)
-
-    def remove_colormap_controls(self):
-        for e in self.colormap_elements:
-            e.remove()
 
     def update_scene(self, trainer, step: int, pipeline: Pipeline, num_rays_per_batch: int) -> None:
         """updates the scene based on the graph weights

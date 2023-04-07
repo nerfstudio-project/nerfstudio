@@ -47,9 +47,10 @@ class ViewerButton(ViewerElement):
 
 
 class ViewerParameter(ViewerElement):
-    def __init__(self, name: str, default_value, disabled=False):
+    def __init__(self, name: str, default_value, disabled=False, cb_hook: Callable = lambda: None):
         super().__init__(name, disabled=disabled)
         self.cur_value = default_value
+        self.cb_hook = cb_hook
 
     def install(self, viser_server: ViserServer) -> None:
         """
@@ -59,6 +60,7 @@ class ViewerParameter(ViewerElement):
 
         def update_fn(handle):
             self.cur_value = handle.get_value()
+            self.cb_hook()
 
         self.gui_handle.on_update(update_fn)
 
@@ -68,9 +70,9 @@ class ViewerParameter(ViewerElement):
 
 
 class ViewerSlider(ViewerParameter):
-    def __init__(self, name: str, default_value, min_value, max_value, step, disabled=False):
+    def __init__(self, name: str, default_value, min_value, max_value, step, disabled=False, **kwargs):
         assert isinstance(default_value, float) or isinstance(default_value, int)
-        super().__init__(name, default_value, disabled=disabled)
+        super().__init__(name, default_value, disabled=disabled,**kwargs)
         self.min = min_value
         self.max = max_value
         self.step = step
@@ -83,9 +85,9 @@ class ViewerSlider(ViewerParameter):
 
 
 class ViewerText(ViewerParameter):
-    def __init__(self, name, default_value, disabled=False):
+    def __init__(self, name, default_value, disabled=False,**kwargs):
         assert isinstance(default_value, str)
-        super().__init__(name, default_value, disabled=disabled)
+        super().__init__(name, default_value, disabled=disabled,**kwargs)
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
@@ -93,9 +95,9 @@ class ViewerText(ViewerParameter):
 
 
 class ViewerNumber(ViewerParameter):
-    def __init__(self, name, default_value, disabled=False):
+    def __init__(self, name, default_value, disabled=False,**kwargs):
         assert isinstance(default_value, float) or isinstance(default_value, int)
-        super().__init__(name, default_value, disabled=disabled)
+        super().__init__(name, default_value, disabled=disabled,**kwargs)
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
@@ -103,9 +105,9 @@ class ViewerNumber(ViewerParameter):
 
 
 class ViewerCheckbox(ViewerParameter):
-    def __init__(self, name, default_value, disabled=False):
+    def __init__(self, name, default_value, disabled=False,**kwargs):
         assert isinstance(default_value, bool)
-        super().__init__(name, default_value, disabled=disabled)
+        super().__init__(name, default_value, disabled=disabled,**kwargs)
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
@@ -113,11 +115,21 @@ class ViewerCheckbox(ViewerParameter):
 
 
 class ViewerDropdown(ViewerParameter):
-    def __init__(self, name, default_value, options: List, disabled=False):
+    def __init__(self, name, default_value, options: List, disabled=False,**kwargs):
         assert default_value in options
-        super().__init__(name, default_value, disabled=disabled)
+        super().__init__(name, default_value, disabled=disabled,**kwargs)
         self.options = options
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
         self.gui_handle = viser_server.add_gui_select(self.name, self.options, self.cur_value, disabled=self.disabled)
+
+
+class ViewerVec3(ViewerParameter):
+    def __init__(self, name, default_value: Tuple[float, float, float], step, disabled=False,**kwargs):
+        assert len(default_value) == 3
+        super().__init__(name, default_value, disabled=disabled,**kwargs)
+        self.step = step
+
+    def _create_gui_handle(self, viser_server: ViserServer) -> None:
+        self.gui_handle = viser_server.add_gui_vector3(self.name, self.cur_value, self.step, disabled=self.disabled)
