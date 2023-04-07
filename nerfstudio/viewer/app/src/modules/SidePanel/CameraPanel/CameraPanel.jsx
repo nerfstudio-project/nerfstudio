@@ -46,10 +46,15 @@ import VideoCameraBackIcon from '@mui/icons-material/VideoCameraBack';
 import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
+import {
+  makeThrottledMessageSender,
+  ViserWebSocketContext,
+} from '../../WebSocket/ViserWebSocket';
 import RenderModal from '../../RenderModal';
 import LoadPathModal from '../../LoadPathModal';
 import CameraPropPanel from './CameraPropPanel';
 import LevaTheme from '../../../themes/leva_theme.json';
+import { CameraPathPayloadMessage } from '../../WebSocket/ViserMessages';
 
 const msgpack = require('msgpack-lite');
 
@@ -555,6 +560,7 @@ export default function CameraPanel(props) {
   const export_path = useSelector((state) => state.renderingState.export_path);
 
   const websocket = useContext(WebSocketContext).socket;
+  const viser_websocket = useContext(ViserWebSocketContext);
   const DEFAULT_FOV = 50;
   const DEFAULT_RENDER_TIME = 0.0;
 
@@ -1138,21 +1144,17 @@ export default function CameraPanel(props) {
     setRenderModalOpen(true);
 
     const camera_path_object = get_camera_path();
-    const camera_path_payload = {
+
+    const sendCameraPathPayload = makeThrottledMessageSender(
+      viser_websocket,
+      100,
+    );
+    const viser_message: CameraPathPayloadMessage = {
+      type: 'camera_path_payload',
       camera_path_filename: export_path,
       camera_path: camera_path_object,
     };
-
-    // send a command of the websocket to save the trajectory somewhere!
-    if (websocket.readyState === WebSocket.OPEN) {
-      const data = {
-        type: 'write',
-        path: 'camera_path_payload',
-        data: camera_path_payload,
-      };
-      const message = msgpack.encode(data);
-      websocket.send(message);
-    }
+    sendCameraPathPayload(viser_message);
   };
 
   const open_load_path_modal = () => {

@@ -53,7 +53,11 @@ from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_w
 from nerfstudio.viewer.server.viewer_param import ViewerElement
 from nerfstudio.viewer.server.visualizer import Viewer
 from nerfstudio.viewer.viser import ViserServer
-from nerfstudio.viewer.viser._messages import CameraMessage, IsTrainingMessage
+from nerfstudio.viewer.viser._messages import (
+    CameraMessage,
+    CameraPathPayloadMessage,
+    IsTrainingMessage,
+)
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 
@@ -196,15 +200,10 @@ class CheckThread(threading.Thread):
         self.state.check_done_render = False
         while not self.state.check_done_render:
             # check camera
-            render_time = self.state.vis["renderingState/render_time"].read()
             if self.state.camera_message is not None:
-                if (
-                    self.state.prev_camera_matrix is None
-                    or (
-                        not np.allclose(self.state.camera_message.matrix, self.state.prev_camera_matrix)
-                        and not self.state.prev_moving
-                    )
-                    or (render_time is not None and render_time != self.state.prev_render_time)
+                if self.state.prev_camera_matrix is None or (
+                    not np.allclose(self.state.camera_message.matrix, self.state.prev_camera_matrix)
+                    and not self.state.prev_moving
                 ):
                     self.state.check_interrupt_vis = True
                     self.state.prev_moving = True
@@ -290,7 +289,6 @@ class ViewerState:
 
         # viewer specific variables
         self.prev_camera_matrix = None
-        self.prev_render_time = 0
         self.prev_output_type = OutputTypes.INIT
         self.prev_colormap_type = None
         self.prev_colormap_invert = False
@@ -321,6 +319,7 @@ class ViewerState:
 
         self.viser_server.register_handler(IsTrainingMessage, self._handle_is_training)
         self.viser_server.register_handler(CameraMessage, self._handle_camera_update)
+        self.viser_server.register_handler(CameraPathPayloadMessage, self._handle_camera_path_payload)
 
     def _handle_is_training(self, message: IsTrainingMessage) -> None:
         """Handle is_training message from viewer."""
@@ -330,6 +329,14 @@ class ViewerState:
         """Handle camera update message from viewer."""
         self.camera_message = message
         self.camera_moving = message.is_moving
+
+    def _handle_camera_path_payload(self, message: CameraPathPayloadMessage) -> None:
+        """Handle camera path payload message from viewer."""
+        camera_path_filename = message.camera_path_filename + ".json"
+        camera_path = message.camera_path
+        camera_paths_directory = self.datapath / "camera_paths"
+        camera_paths_directory.mkdir(parents=True, exist_ok=True)
+        write_to_json(camera_paths_directory / camera_path_filename, camera_path)
 
     def _pick_drawn_image_idxs(self, total_num: int) -> list[int]:
         """Determine indicies of images to display in viewer.
@@ -385,23 +392,6 @@ class ViewerState:
 
         max_scene_box = torch.max(dataset.scene_box.aabb[1] - dataset.scene_box.aabb[0]).item()
         self.vis["renderingState/max_box_size"].write(max_scene_box)
-
-    def _check_camera_path_payload(self, trainer, step: int):
-        """Check to see if the camera path export button was pressed."""
-        # check if we should interrupt from a button press?
-        camera_path_payload = self.vis["camera_path_payload"].read()
-        if camera_path_payload:
-            # save a model checkpoint
-            trainer.save_checkpoint(step)
-            # write to json file in datapath directory
-            camera_path_filename = camera_path_payload["camera_path_filename"] + ".json"
-            camera_path = camera_path_payload["camera_path"]
-            camera_paths_directory = os.path.join(self.datapath, "camera_paths")
-            if not os.path.exists(camera_paths_directory):
-                os.mkdir(camera_paths_directory)
-
-            write_to_json(Path(os.path.join(camera_paths_directory, camera_path_filename)), camera_path)
-            self.vis["camera_path_payload"].delete()
 
     def _check_populate_paths_payload(self, trainer, step: int):
         populate_paths_payload = self.vis["populate_paths_payload"].read()
@@ -494,7 +484,6 @@ class ViewerState:
         is_training = self.is_training
         self.step = step
 
-        self._check_camera_path_payload(trainer, step)
         self._check_populate_paths_payload(trainer, step)
 
         self._legacy_messages()
@@ -539,7 +528,6 @@ class ViewerState:
                     self._legacy_messages()
                     self._render_image_in_viewer(self.camera_message, graph, self.is_training)
                 self._check_populate_paths_payload(trainer, step)
-                self._check_camera_path_payload(trainer, step)
                 run_loop = not self.is_training
                 local_step += 1
 
@@ -554,29 +542,6 @@ class ViewerState:
 
     def _legacy_messages(self):
         """Gets the camera object from the viewer and updates the movement state if it has changed."""
-
-        # data = self.vis["renderingState/camera"].read()
-        # if data is None:
-        #     return None
-
-        # camera_object = data["object"]
-        # render_time = self.vis["renderingState/render_time"].read()
-
-        # if render_time is not None:
-        #     if (
-        #         self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix)
-        #     ) and (self.prev_render_time == render_time):
-        #         self.camera_moving = False
-        #     else:
-        #         self.prev_camera_matrix = camera_object["matrix"]
-        #         self.prev_render_time = render_time
-        #         self.camera_moving = True
-        # else:
-        #     if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
-        #         self.camera_moving = False
-        #     else:
-        #         self.prev_camera_matrix = camera_object["matrix"]
-        #         self.camera_moving = True
 
         output_type = self.vis["renderingState/output_choice"].read()
         if output_type is None:
@@ -888,7 +853,7 @@ class ViewerState:
             cy=intrinsics_matrix[1, 2],
             camera_type=camera_type,
             camera_to_worlds=camera_to_world[None, ...],
-            times=torch.tensor([float(self.prev_render_time)]),
+            times=torch.tensor([0.0]),
         )
         camera = camera.to(graph.device)
 

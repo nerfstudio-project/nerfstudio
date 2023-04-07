@@ -344,3 +344,14 @@ class IsTrainingMessage(Message):
     type: ClassVar[str] = "is_training"
     is_training: bool
     """True if the model is currently trianing, False otherwise"""
+
+
+@dataclasses.dataclass
+class CameraPathPayloadMessage(Message):
+    """Camera path"""
+
+    type: ClassVar[str] = "camera_path_payload"
+    camera_path_filename: str
+    """ Camera path filename """
+    camera_path: any
+    """ Camera path data """
