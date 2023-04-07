@@ -35,5 +35,5 @@ def get_viewer_elements(pipeline: Pipeline) -> List[Tuple[str, ViewerElement]]:
 
     returns a list of (path/to/object, param), which represents the path down the object tree
     """
-    ret = parse_object(pipeline, ViewerElement, "pipeline")
+    ret = parse_object(pipeline, ViewerElement, "Custom")
     return ret

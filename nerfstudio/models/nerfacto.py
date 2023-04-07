@@ -168,9 +168,9 @@ class NerfactoModel(Model):
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
         )
-        # self.rgb_scale = ViewerSlider("RGB Scaler", 1.0, 0, 1, 0.1)
+        self.rgb_scale = ViewerSlider("RGB Scaler", 1.0, 0, 1, 0.1)
         # self.number = ViewerNumber("Dummy number", 1.0)
-        self.text = ViewerText("Dummy text", "lol")
+        # self.text = ViewerText("Dummy text", "lol")
 
         def call():
             print("button press!")
@@ -282,9 +282,8 @@ class NerfactoModel(Model):
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
-        # print(self.text.value)
 
-        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights) * self.rgb_scale.value
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 

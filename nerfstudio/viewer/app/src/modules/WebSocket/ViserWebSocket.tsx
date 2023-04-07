@@ -178,7 +178,7 @@ function handleMessage(message: Message, dispatch: Dispatch<any>) {
         path: 'custom_gui/guiConfigFromName',
         data: {
           [message.name]: {
-            folderName: message.folder,
+            folderLabels: message.folder_labels,
             levaConf: message.leva_conf,
           },
         },

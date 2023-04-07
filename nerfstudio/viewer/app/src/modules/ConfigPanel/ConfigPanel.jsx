@@ -42,28 +42,36 @@ function CustomLeva() {
 
   // We're going to try and build an object that looks like:
   // {"folder name": {"input name": leva config}}
-  const guiConfigWithCallbacks: { [key: string]: any } = {};
-  for (const key of guiNames) {
-    const { levaConf, folderName } = guiConfigFromName[key];
-    // Create object for folder if it doesn't exist yet.
-    if (guiConfigWithCallbacks[folderName] === undefined)
-      guiConfigWithCallbacks[folderName] = {};
+  const guiConfigTree: { [key: string]: any } = {};
+    function getFolderContainer(folderLabels: string[]) {
+      let guiConfigNode = guiConfigTree;
+      folderLabels.forEach((label) => {
+        if (guiConfigNode[label] === undefined) {
+          guiConfigNode[label] = { _is_folder_marker: true };
+        }
+        guiConfigNode = guiConfigNode[label];
+      });
+      return guiConfigNode;
+    }
+
+    guiNames.forEach((key) => {
+      const { levaConf, folderLabels } = guiConfigFromName[key];
+
+      const leafFolder = getFolderContainer(folderLabels);
 
     // Hacky stuff that lives outside of TypeScript...
-    if (levaConf['type'] === 'BUTTON') {
+    if (levaConf["type"] === "BUTTON") {
       // Add a button.
-      guiConfigWithCallbacks[folderName][key] = button((_get: any) => {
+      leafFolder[key] = button((_get: any) => {
         const message: GuiUpdateMessage = {
-          type: 'gui_update',
+          type: "gui_update",
           name: key,
           value: true,
         };
-        // props.websocketRef.current!.send(pack(message));
-      }, levaConf['settings']);
+      }, levaConf["settings"]);
     } else {
       // Add any other kind of input.
-      // const sendUpdate = makeThrottledMessageSender(props.websocketRef, 50);
-      guiConfigWithCallbacks[folderName][key] = {
+      leafFolder[key] = {
         ...levaConf,
         onChange: (value: any, _propName: any, options: any) => {
           if (options.initial) return;
@@ -72,26 +80,37 @@ function CustomLeva() {
             return;
           }
           const message: GuiUpdateMessage = {
-            type: 'gui_update',
+            type: "gui_update",
             name: key,
             value: value,
           };
-          // sendUpdate(message);
         },
       };
     }
-  }
-  for (const folderName of Object.keys(guiConfigWithCallbacks)) {
-    // Apply Leva folder() wrapper...
-    guiConfigWithCallbacks[folderName] = folder(
-      guiConfigWithCallbacks[folderName],
-    );
+  });
+
+  // Recursively wrap folders in a GUI config tree with Leva's `folder()`.
+  function wrapFoldersInGuiConfigTree(
+    guiConfigNode: { [key: string]: any },
+    root: boolean
+  ) {
+    const { _is_folder_marker, ...rest } = guiConfigNode;
+    guiConfigNode = rest;
+
+    if (root || _is_folder_marker === true) {
+      const out: { [key: string]: any } = {};
+      for (const [k, v] of Object.entries(guiConfigNode)) {
+        out[k] = wrapFoldersInGuiConfigTree(v, false);
+      }
+      return root ? out : folder(out);
+    }
+    return guiConfigNode;
   }
 
   // Make Leva controls.
   const levaStore = useCreateStore();
   const [, set] = useControls(
-    () => guiConfigWithCallbacks,
+    () => wrapFoldersInGuiConfigTree(guiConfigTree, true),
     { store: levaStore },
     [guiConfigFromName],
   );
