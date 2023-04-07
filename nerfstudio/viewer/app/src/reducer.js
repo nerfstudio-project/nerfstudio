@@ -15,25 +15,27 @@ const initialState = {
 
   show_export_box: false, // whether to show the export box
 
-
   custom_gui: {
     guiNames: [],
-    guiConfigFromName: {}
+    guiConfigFromName: {},
   },
+
+  file_path_info: {
+    config_base_dir: 'config_base_dir', // the base directory of the config file
+    data_base_dir: 'data_base_dir', // the base directory of the images for saving camera path with the data
+    export_path_name: 'export_path_name', // export name for render and camera_path
+  },
+
   // the rendering state
   renderingState: {
     // cameras
     camera_choice: 'Main Camera', // the camera being used to render the scene
 
     // camera path information
-    config_base_dir: 'config_base_dir', // the base directory of the config file
     render_height: 1080,
     render_width: 1920,
     field_of_view: 50,
     camera_type: 'perspective',
-
-    data_base_dir: 'data_base_dir', // the base directory of the images for saving camera path with the data
-    export_path: 'export_path', // export name for render and camera_path
 
     all_camera_paths: null, // object containing camera paths and names
 

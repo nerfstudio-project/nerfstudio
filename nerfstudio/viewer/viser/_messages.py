@@ -304,6 +304,19 @@ class GuiSetLevaConfMessage(Message):
 
 
 @dataclasses.dataclass
+class FilePathInfoMessage(Message):
+    """Experiment file path info"""
+
+    type: ClassVar[str] = "path_info"
+    config_base_dir: str
+    """ Base directory for config files """
+    data_base_dir: str
+    """ Base directory for data files """
+    export_path_name: str
+    """ Name of the export folder """
+
+
+@dataclasses.dataclass
 class CameraMessage(Message):
     """Render camera data."""
 

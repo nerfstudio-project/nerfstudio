@@ -560,7 +560,9 @@ export default function CameraPanel(props) {
   ]);
 
   // redux store state
-  const export_path = useSelector((state) => state.renderingState.export_path);
+  const export_path = useSelector(
+    (state) => state.file_path_info.export_path_name,
+  );
 
   const websocket = useContext(WebSocketContext).socket;
   const viser_websocket = useContext(ViserWebSocketContext);

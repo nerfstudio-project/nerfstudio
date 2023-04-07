@@ -1,4 +1,3 @@
-
 """ This module contains the MessageApi class, which is the interface for sending messages to the Viewer"""
 # pylint: disable=protected-access
 
@@ -9,6 +8,7 @@ import base64
 import contextlib
 import io
 import time
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -486,6 +486,22 @@ class MessageApi(abc.ABC):
         self._queue(_messages.ResetSceneMessage())
 
     # Nerfstudio specific methods
+
+    def send_file_path_info(self, config_base_dir: Path, data_base_dir: Path, export_path_name: str) -> None:
+        """Send file path info to the scene.
+
+        Args:
+            config_base_dir: The base directory for config files.
+            data_base_dir: The base directory for data files.
+            export_path_name: The name for the export folder.
+        """
+        self._queue(
+            _messages.FilePathInfoMessage(
+                config_base_dir=str(config_base_dir),
+                data_base_dir=str(data_base_dir),
+                export_path_name=export_path_name,
+            )
+        )
 
     def add_dataset_image(self, idx: str, json: Dict) -> None:
         """Add a dataset image to the scene.

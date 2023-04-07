@@ -238,6 +238,26 @@ function handleMessage(message: Message, dispatch: Dispatch<any>) {
       });
       break;
     }
+    // Set file path info.
+    case 'path_info': {
+      console.log('setting path info');
+      dispatch({
+        type: 'write',
+        path: 'file_path_info/config_base_dir',
+        data: message.config_base_dir,
+      });
+      dispatch({
+        type: 'write',
+        path: 'file_path_info/data_base_dir',
+        data: message.data_base_dir,
+      });
+      dispatch({
+        type: 'write',
+        path: 'file_path_info/export_path_name',
+        data: message.export_path_name,
+      });
+      break;
+    }
     default: {
       console.log('Received message did not match any known types:', message);
       break;
