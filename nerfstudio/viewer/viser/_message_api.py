@@ -1,4 +1,3 @@
-
 """ This module contains the MessageApi class, which is the interface for sending messages to the Viewer"""
 # pylint: disable=protected-access
 
@@ -9,6 +8,7 @@ import base64
 import contextlib
 import io
 import time
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -27,6 +27,8 @@ import imageio.v3 as iio
 import numpy as onp
 import numpy.typing as onpt
 from typing_extensions import Literal, LiteralString, ParamSpec, assert_never
+
+from nerfstudio.data.scene_box import SceneBox
 
 from . import _messages
 from ._gui import GuiHandle, _GuiHandleState
@@ -486,6 +488,30 @@ class MessageApi(abc.ABC):
         self._queue(_messages.ResetSceneMessage())
 
     # Nerfstudio specific methods
+
+    def send_file_path_info(self, config_base_dir: Path, data_base_dir: Path, export_path_name: str) -> None:
+        """Send file path info to the scene.
+
+        Args:
+            config_base_dir: The base directory for config files.
+            data_base_dir: The base directory for data files.
+            export_path_name: The name for the export folder.
+        """
+        self._queue(
+            _messages.FilePathInfoMessage(
+                config_base_dir=str(config_base_dir),
+                data_base_dir=str(data_base_dir),
+                export_path_name=export_path_name,
+            )
+        )
+
+    def update_scene_box(self, scene_box: SceneBox) -> None:
+        """Update the scene box.
+
+        Args:
+            scene_box: The scene box.
+        """
+        self._queue(_messages.SceneBoxMessage(min=scene_box.aabb[0].tolist(), max=scene_box.aabb[1].tolist()))
 
     def add_dataset_image(self, idx: str, json: Dict) -> None:
         """Add a dataset image to the scene.

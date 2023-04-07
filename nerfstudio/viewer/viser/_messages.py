@@ -304,6 +304,19 @@ class GuiSetLevaConfMessage(Message):
 
 
 @dataclasses.dataclass
+class FilePathInfoMessage(Message):
+    """Experiment file path info"""
+
+    type: ClassVar[str] = "path_info"
+    config_base_dir: str
+    """ Base directory for config files """
+    data_base_dir: str
+    """ Base directory for data files """
+    export_path_name: str
+    """ Name of the export folder """
+
+
+@dataclasses.dataclass
 class CameraMessage(Message):
     """Render camera data."""
 
@@ -324,6 +337,17 @@ class CameraMessage(Message):
     """ True if the camera is moving, False otherwise """
     timestamp: int
     """JSON computed by the camera class"""
+
+
+@dataclasses.dataclass
+class SceneBoxMessage(Message):
+    """Scene Box data."""
+
+    type: ClassVar[str] = "scene_box"
+    min: Tuple[float, float, float]
+    """ Minimum coordinates of the scene box """
+    max: Tuple[float, float, float]
+    """ Maximum coordinates of the scene box """
 
 
 @dataclasses.dataclass

@@ -212,6 +212,15 @@ function handleMessage(message: Message, dispatch: Dispatch<any>, store: Store) 
     case 'remove_gui': {
       break;
     }
+    // Update scene box.
+    case 'scene_box': {
+      dispatch({
+        type: 'write',
+        path: 'sceneState/sceneBox',
+        data: message,
+      });
+      break;
+    }
     // Add dataset image.
     case 'dataset_image': {
       const dataset_path = `sceneState/cameras/${message.idx}`;
@@ -240,6 +249,26 @@ function handleMessage(message: Message, dispatch: Dispatch<any>, store: Store) 
         type: 'write',
         path: 'renderingState/all_camera_paths',
         data: message.payload,
+      });
+      break;
+    }
+    // Set file path info.
+    case 'path_info': {
+      console.log('setting path info');
+      dispatch({
+        type: 'write',
+        path: 'file_path_info/config_base_dir',
+        data: message.config_base_dir,
+      });
+      dispatch({
+        type: 'write',
+        path: 'file_path_info/data_base_dir',
+        data: message.data_base_dir,
+      });
+      dispatch({
+        type: 'write',
+        path: 'file_path_info/export_path_name',
+        data: message.export_path_name,
       });
       break;
     }

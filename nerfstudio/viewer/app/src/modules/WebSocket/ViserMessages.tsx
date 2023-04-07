@@ -121,6 +121,12 @@ export interface GuiSetLevaConfMessage {
   name: string;
   leva_conf: any;
 }
+export interface FilePathInfoMessage {
+  type: 'path_info';
+  config_base_dir: string;
+  data_base_dir: string;
+  export_path_name: string;
+}
 export interface CameraMessage {
   type: 'camera';
   aspect: number;
@@ -147,6 +153,11 @@ export interface CameraMessage {
   camera_type: 'perspective' | 'fisheye' | 'equirectangular';
   is_moving: boolean;
   timestamp: number;
+}
+export interface SceneBoxMessage {
+  type: 'scene_box';
+  min: [number, number, number];
+  max: [number, number, number];
 }
 export interface DatasetImageMessage {
   type: 'dataset_image';
@@ -189,7 +200,9 @@ export type Message =
   | GuiUpdateMessage
   | GuiSetValueMessage
   | GuiSetLevaConfMessage
+  | FilePathInfoMessage
   | CameraMessage
+  | SceneBoxMessage
   | DatasetImageMessage
   | IsTrainingMessage
   | CameraPathPayloadMessage
