@@ -300,6 +300,60 @@ class MessageApi(abc.ABC):
             },
         )
 
+    def add_gui_rgb(
+        self,
+        name: str,
+        initial_value: Tuple[int, int, int],
+        disabled: bool = False,
+    ) -> GuiHandle[Tuple[int, int, int]]:
+        """Add an RGB picker to the GUI."""
+        return _add_gui_impl(
+            self,
+            "/".join(self._gui_folder_labels + [name]),
+            initial_value,
+            leva_conf={
+                "value": {
+                    "r": initial_value[0],
+                    "g": initial_value[1],
+                    "b": initial_value[2],
+                },
+                "label": name,
+                "disabled": disabled,
+            },
+            encoder=lambda rgb: dict(zip("rgb", rgb)),
+            decoder=lambda rgb_dict: (rgb_dict["r"], rgb_dict["g"], rgb_dict["b"]),
+        )
+
+    def add_gui_rgba(
+        self,
+        name: str,
+        initial_value: Tuple[int, int, int, int],
+        disabled: bool = False,
+    ) -> GuiHandle[Tuple[int, int, int, int]]:
+        """Add an RGBA picker to the GUI."""
+        return _add_gui_impl(
+            self,
+            "/".join(self._gui_folder_labels + [name]),
+            initial_value,
+            leva_conf={
+                "value": {
+                    "r": initial_value[0],
+                    "g": initial_value[1],
+                    "b": initial_value[2],
+                    "a": initial_value[3],
+                },
+                "label": name,
+                "disabled": disabled,
+            },
+            encoder=lambda rgba: dict(zip("rgba", rgba)),
+            decoder=lambda rgba_dict: (
+                rgba_dict["r"],
+                rgba_dict["g"],
+                rgba_dict["b"],
+                rgba_dict["a"],
+            ),
+        )
+
     def add_gui_select(
         self,
         name: str,
@@ -384,9 +438,9 @@ class MessageApi(abc.ABC):
         """
         media_type, base64_data = _encode_image_base64(image, file_format, quality=quality)
         self._queue(_messages.BackgroundImageMessage(media_type=media_type, base64_data=base64_data))
-        
+
     def reset_scene(self):
-        """ Reset the scene. """
+        """Reset the scene."""
         self._queue(_messages.ResetSceneMessage())
 
     def send_file_path_info(self, config_base_dir: Path, data_base_dir: Path, export_path_name: str) -> None:
@@ -481,11 +535,13 @@ T = TypeVar("T")
 
 
 def _add_gui_impl(
-    api: MessageApi,
+    api,
     name: str,
     initial_value: T,
     leva_conf: dict,
     is_button: bool = False,
+    encoder: Callable[[T], Any] = lambda x: x,
+    decoder: Callable[[Any], T] = lambda x: x,
 ) -> GuiHandle[T]:
     """Private helper for adding a simple GUI element."""
 
@@ -499,6 +555,8 @@ def _add_gui_impl(
         update_cb=[],
         leva_conf=leva_conf,
         is_button=is_button,
+        encoder=encoder,
+        decoder=decoder,
     )
     api._handle_state_from_gui_name[name] = handle_state
     handle_state.cleanup_cb = lambda: api._handle_state_from_gui_name.pop(name)
@@ -509,7 +567,7 @@ def _add_gui_impl(
     if not is_button and isinstance(api, ViserServer):
 
         def sync_other_clients(client_id: ClientId, value: Any) -> None:
-            message = _messages.GuiSetValueMessage(name=name, value=value)
+            message = _messages.GuiSetValueMessage(name=name, value=handle_state.encoder(value))
             message.excluded_self_client = client_id
             api._queue(message)
 

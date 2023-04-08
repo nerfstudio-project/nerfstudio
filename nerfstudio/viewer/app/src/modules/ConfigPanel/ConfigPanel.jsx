@@ -60,7 +60,7 @@ function CustomLeva() {
   }
 
   guiNames.forEach((key) => {
-    const { levaConf, folderLabels } = guiConfigFromName[key];
+    const { levaConf, folderLabels, hidden } = guiConfigFromName[key];
 
     const leafFolder = getFolderContainer(folderLabels);
 
@@ -93,6 +93,7 @@ function CustomLeva() {
           const throttledSender = makeThrottledMessageSender(viser_websocket,25);
           throttledSender(message);
         },
+        render: () => !hidden
       };
     }
   });

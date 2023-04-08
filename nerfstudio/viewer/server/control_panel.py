@@ -16,12 +16,12 @@ class ControlPanel:
         self.elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
         self.elements_by_name: Dict[str, ViewerElement] = {}
         self.add_element(ViewerDropdown("Train Speed", "Balanced", ["Fast", "Balanced", "Slow"]))
-        self.add_element(ViewerDropdown("Output Render", "rgb", ["rgb"], cb_hook=rerender_cb))
         self.add_element(
             ViewerDropdown(
-                "Colormap", "default", ["default"], cb_hook=lambda: [self.update_control_panel(), rerender_cb()]
+                "Output Render", "rgb", ["rgb", "depth"], cb_hook=lambda: [self.update_control_panel(), rerender_cb()]
             )
         )
+        self.add_element(ViewerDropdown("Colormap", "default", ["default"], cb_hook=rerender_cb))
         # colormap options
         self.add_element(ViewerCheckbox("Invert", False), additional_tags=("colormap",))
         self.add_element(ViewerCheckbox("Normalize", False), additional_tags=("colormap",))
@@ -29,12 +29,20 @@ class ControlPanel:
         self.add_element(ViewerNumber("Max", 1.0), additional_tags=("colormap",))
 
         self.add_element(ViewerSlider("Train Util", 0.9, 0, 1, 0.05))
-        self.add_element(ViewerSlider("Max Res.", 500, 100, 2000, 100, cb_hook=rerender_cb))
+        self.add_element(ViewerSlider("Max Res", 500, 100, 2000, 100, cb_hook=rerender_cb))
         self.add_element(ViewerCheckbox("Crop Viewport", False, cb_hook=self.update_control_panel))
         # Crop options
+        self.add_element(ViewerRGB("Background color", (0, 0, 0)), additional_tags=("crop",))
         self.add_element(ViewerVec3("Crop Min", (0, 0, 0), 0.05), additional_tags=("crop",))
         self.add_element(ViewerVec3("Crop Max", (1, 1, 1), 0.05), additional_tags=("crop",))
-        # TODO add background color
+
+    def install(self, viser_server: ViserServer):
+        for e in self.elements_by_name.values():
+            e.install(viser_server)
+        self.update_control_panel()
+
+    def update_output_options(self, new_options: List[str]):
+        raise NotImplementedError("Not implemented yet")
 
     def add_element(self, e: ViewerElement, additional_tags: Tuple[str] = tuple()):
         """
@@ -50,10 +58,11 @@ class ControlPanel:
         """
         Sets elements to be hidden or not based on the current state of the control panel
         """
+        self._get_element_by_name("Colormap").set_disabled(self.output_render == "rgb")
         for e in self.elements_by_tag["colormap"]:
             e.set_hidden(self.output_render == "rgb")
         for e in self.elements_by_tag["crop"]:
-            e.set_hidden(self.crop_viewport)
+            e.set_hidden(not self.crop_viewport)
 
     def _get_element_by_name(self, name):
         return self.elements_by_name[name]
@@ -92,7 +101,7 @@ class ControlPanel:
 
     @property
     def max_res(self):
-        return self._get_element_by_name("Max Res.").value
+        return self._get_element_by_name("Max Res").value
 
     @property
     def crop_viewport(self):
@@ -105,3 +114,7 @@ class ControlPanel:
     @property
     def crop_max(self):
         return self._get_element_by_name("Crop Max").value
+
+    @property
+    def background_color(self):
+        return self._get_element_by_name("Background color").value

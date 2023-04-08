@@ -89,17 +89,54 @@ function handleMessage(
           [message.name]: {
             folderLabels: message.folder_labels,
             levaConf: message.leva_conf,
+            hidden: false,
           },
         },
       });
+      break;
+    }
+    // Set the hidden state of a GUI input.
+    case "gui_set_hidden": {
+      const curGuiConfigFromName =
+        store.getState().custom_gui.guiConfigFromName;
+      const currentConf = curGuiConfigFromName[message.name];
+      if (currentConf !== undefined) {
+        dispatch({
+          type: 'write',
+          path: 'custom_gui/guiConfigFromName',
+          data: {
+            ...curGuiConfigFromName,
+            [message.name]: {
+              ...currentConf,
+              hidden: message.hidden,
+            },
+          },
+        });
+      }
       break;
     }
     // Set the value of a GUI input.
     case 'gui_set': {
       break;
     }
-    // Add a GUI input.
+    // Set leva conf of element.
     case 'gui_set_leva_conf': {
+      const curGuiConfigFromName =
+        store.getState().custom_gui.guiConfigFromName;
+      const currentConf = curGuiConfigFromName[message.name];
+      if (currentConf !== undefined) {
+        dispatch({
+          type: 'write',
+          path: 'custom_gui/guiConfigFromName',
+          data: {
+            ...curGuiConfigFromName,
+            [message.name]: {
+              ...currentConf,
+              levaConf: message.leva_conf,
+            },
+          },
+        });
+      }
       break;
     }
     // Remove a GUI input.

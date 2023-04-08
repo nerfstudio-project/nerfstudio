@@ -320,7 +320,8 @@ class ViewerState:
         self.viser_server.register_handler(CameraPathOptionsRequest, self._handle_camera_path_option_request)
         self.viser_server.register_handler(CameraPathPayloadMessage, self._handle_camera_path_payload)
 
-        self.control_panel = ControlPanel()
+        self.control_panel = ControlPanel(lambda: None)  # TODO define rerender_cb
+        self.control_panel.install(self.viser_server)
 
     def _handle_is_training(self, message: Message) -> None:
         """Handle is_training message from viewer."""

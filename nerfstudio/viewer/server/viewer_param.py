@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Callable, List, Optional, TypeVar
+from typing import Any, Callable, List, Optional, Tuple, TypeVar
 
 from nerfstudio.viewer.viser import GuiHandle, ViserServer
 
@@ -55,7 +55,11 @@ class ViewerElement:
 
     def set_hidden(self, hidden: bool):
         """Sets the hidden state of the gui element"""
-        raise NotImplementedError("TODO implement set_hidden for viewer_param")
+        self.gui_handle.set_hidden(hidden)
+
+    def set_disabled(self, disabled: bool):
+        """Sets the disabled state of the gui element"""
+        self.gui_handle.set_disabled(disabled)
 
     @abstractmethod
     def install(self, viser_server: ViserServer) -> None:
@@ -252,11 +256,23 @@ class ViewerDropdown(ViewerParameter):
         self.gui_handle = viser_server.add_gui_select(self.name, self.options, self.cur_value, disabled=self.disabled)
 
 
-class ViewerVec3(ViewerParameter):
+class ViewerRGB(ViewerParameter):
     """
-    TODO thing
+    An RGB color picker for the viewer
+    """
 
-    """
+    def __init__(
+        self, name, default_value: Tuple[float, float, float], disabled=False, cb_hook: Callable = lambda: None
+    ):
+        assert len(default_value) == 3
+        super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
+
+    def _create_gui_handle(self, viser_server: ViserServer) -> None:
+        self.gui_handle = viser_server.add_gui_rgb(self.name, self.cur_value, disabled=self.disabled)
+
+
+class ViewerVec3(ViewerParameter):
+    """ """
 
     def __init__(
         self, name, default_value: Tuple[float, float, float], step, disabled=False, cb_hook: Callable = lambda: None

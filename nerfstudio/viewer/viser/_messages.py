@@ -123,6 +123,15 @@ class GuiUpdateMessage(Message):
 
 
 @dataclasses.dataclass
+class GuiSetHiddenMessage(Message):
+    """Sent client->server when a GUI input is changed."""
+
+    type: ClassVar[str] = "gui_set_hidden"
+    name: str
+    hidden: bool
+
+
+@dataclasses.dataclass
 class GuiSetValueMessage(Message):
     """Sent server->client to set the value of a particular input."""
 

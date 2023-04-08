@@ -34,7 +34,12 @@ from typing import (
 
 import numpy as onp
 
-from ._messages import GuiRemoveMessage, GuiSetLevaConfMessage, GuiSetValueMessage
+from ._messages import (
+    GuiRemoveMessage,
+    GuiSetHiddenMessage,
+    GuiSetLevaConfMessage,
+    GuiSetValueMessage,
+)
 
 if TYPE_CHECKING:
     from ._message_api import MessageApi
@@ -71,6 +76,14 @@ class _GuiHandleState(Generic[T]):
 
     cleanup_cb: Optional[Callable[[], Any]] = None
     """Function to call when GUI element is removed."""
+
+    # Encoder: run on outgoing message values.
+    # Decoder: run on incoming message values.
+    #
+    # This helps us handle cases where types used by Leva don't match what we want to
+    # expose as a Python API.
+    encoder: Callable[[T], Any] = lambda x: x
+    decoder: Callable[[Any], T] = lambda x: x
 
 
 @dataclasses.dataclass(frozen=True)
@@ -109,7 +122,7 @@ class GuiHandle(Generic[T]):
 
         # Send to client, except for buttons.
         if not self._impl.is_button:
-            self._impl.api._queue(GuiSetValueMessage(self._impl.name, value))
+            self._impl.api._queue(GuiSetValueMessage(self._impl.name, self._impl.encoder(value)))  # type: ignore
 
         # Set internal state. We automatically convert numpy arrays to the expected
         # internal type. (eg 1D arrays to tuples)
@@ -142,7 +155,11 @@ class GuiHandle(Generic[T]):
             )
 
     def remove(self) -> None:
-        """Remove this GUI element from the visualizer."""
+        """Permanently Remove this GUI element from the visualizer."""
         self._impl.api._queue(GuiRemoveMessage(self._impl.name))
         assert self._impl.cleanup_cb is not None
         self._impl.cleanup_cb()
+
+    def set_hidden(self, hidden: bool) -> None:
+        """Temporarily hide this GUI element from the visualizer."""
+        self._impl.api._queue(GuiSetHiddenMessage(self._impl.name, hidden=hidden))
