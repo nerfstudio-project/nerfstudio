@@ -1,3 +1,17 @@
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Message type definitions. For synchronization with the TypeScript definitions, see
 `_typescript_interface_gen.py.`"""
 
@@ -9,7 +23,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Tuple, Ty
 
 import msgpack
 import numpy as onp
-import numpy.typing as onpt
 from typing_extensions import Literal
 
 if TYPE_CHECKING:
@@ -24,8 +37,7 @@ def _prepare_for_serialization(value: Any) -> Any:
 
     if isinstance(value, onp.ndarray):
         return value.data if value.data.c_contiguous else value.copy().data
-    else:
-        return value
+    return value
 
 
 class Message:
@@ -75,184 +87,12 @@ class Message:
 
 
 @dataclasses.dataclass
-class ViewerCameraMessage(Message):
-    """Message for a posed viewer camera.
-    Pose is in the form T_world_camera, OpenCV convention, +Z forward."""
-
-    type: ClassVar[str] = "viewer_camera"
-    wxyz: Tuple[float, float, float, float]
-    position: Tuple[float, float, float]
-    fov: float
-    aspect: float
-    # Should we include near and far?
-
-
-@dataclasses.dataclass
-class CameraFrustumMessage(Message):
-    """Variant of CameraMessage used for visualizing camera frustums.
-
-    OpenCV convention, +Z forward."""
-
-    type: ClassVar[str] = "camera_frustum"
-    name: str
-    fov: float
-    aspect: float
-    scale: float
-    color: int
-
-
-@dataclasses.dataclass
-class FrameMessage(Message):
-    """Coordinate frame message.
-
-    Position and orientation should follow a `T_parent_local` convention, which
-    corresponds to the R matrix and t vector in `p_parent = [R | t] p_local`."""
-
-    type: ClassVar[str] = "frame"
-    name: str
-    wxyz: Tuple[float, float, float, float]
-    position: Tuple[float, float, float]
-    show_axes: bool = True
-    axes_length: float = 0.5
-    axes_radius: float = 0.025
-
-
-@dataclasses.dataclass
-class PointCloudMessage(Message):
-    """Point cloud message.
-
-    Positions are internally canonicalized to float32, colors to uint8.
-
-    Float color inputs should be in the range [0,1], int color inputs should be in the
-    range [0,255].
-    """
-
-    type: ClassVar[str] = "point_cloud"
-    name: str
-    position: onpt.NDArray[onp.float32]
-    color: onpt.NDArray[onp.uint8]
-    point_size: float = 0.1
-
-    def __post_init__(self):
-        # Check shapes.
-        assert self.position.shape == self.color.shape
-        assert self.position.shape[-1] == 3
-
-        # Check dtypes.
-        assert self.position.dtype == onp.float32
-        assert self.color.dtype == onp.uint8
-
-
-@dataclasses.dataclass
-class MeshMessage(Message):
-    """Mesh message.
-
-    Vertices are internally canonicalized to float32, faces to uint32.
-    """
-
-    type: ClassVar[str] = "mesh"
-    name: str
-    vertices: onpt.NDArray[onp.float32]
-    faces: onpt.NDArray[onp.uint32]
-    color: int
-    wireframe: bool
-
-    def __post_init__(self):
-        # Check shapes.
-        assert self.vertices.shape[-1] == 3
-        assert self.faces.shape[-1] == 3
-
-
-@dataclasses.dataclass
-class TransformControlsMessage(Message):
-    """Message for transform gizmos."""
-
-    type: ClassVar[str] = "transform_controls"
-    name: str
-    scale: float
-    line_width: float
-    fixed: bool
-    auto_transform: bool
-    active_axes: Tuple[bool, bool, bool]
-    disable_axes: bool
-    disable_sliders: bool
-    disable_rotations: bool
-    translation_limits: Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]
-    rotation_limits: Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]
-    depth_test: bool
-    opacity: float
-
-
-@dataclasses.dataclass
-class TransformControlsSetMessage(Message):
-    """Server -> client message to set a transform control's pose.
-
-    As with all other messages, transforms take the `T_parent_local` convention."""
-
-    type: ClassVar[str] = "transform_controls_set"
-    name: str
-    wxyz: Tuple[float, float, float, float]
-    position: Tuple[float, float, float]
-
-
-@dataclasses.dataclass
-class TransformControlsUpdateMessage(Message):
-    """Client -> server message when a transform control is updated.
-
-    As with all other messages, transforms take the `T_parent_local` convention."""
-
-    type: ClassVar[str] = "transform_controls_update"
-    name: str
-    wxyz: Tuple[float, float, float, float]
-    position: Tuple[float, float, float]
-
-
-@dataclasses.dataclass
 class BackgroundImageMessage(Message):
     """Message for rendering a background image."""
 
     type: ClassVar[str] = "background_image"
     media_type: Literal["image/jpeg", "image/png"]
     base64_data: str
-
-
-@dataclasses.dataclass
-class ImageMessage(Message):
-    """Message for rendering 2D images."""
-
-    # Note: it might be faster to do the bytes->base64 conversion on the client.
-    # Potentially worth revisiting.
-
-    type: ClassVar[str] = "image"
-    name: str
-    media_type: Literal["image/jpeg", "image/png"]
-    base64_data: str
-    render_width: float
-    render_height: float
-
-
-@dataclasses.dataclass
-class RemoveSceneNodeMessage(Message):
-    """Remove a particular node from the scene."""
-
-    type: ClassVar[str] = "remove_scene_node"
-    name: str
-
-
-@dataclasses.dataclass
-class SetSceneNodeVisibilityMessage(Message):
-    """Set the visibility of a particular node in the scene."""
-
-    type: ClassVar[str] = "set_scene_node_visibility"
-    name: str
-    visible: bool
-
-
-@dataclasses.dataclass
-class ResetSceneMessage(Message):
-    """Reset scene."""
-
-    type: ClassVar[str] = "reset_scene"
 
 
 @dataclasses.dataclass
@@ -300,7 +140,11 @@ class GuiSetLevaConfMessage(Message):
     leva_conf: Any
 
 
-# Nerfstudio specific messages
+@dataclasses.dataclass
+class ResetSceneMessage(Message):
+    """Reset scene."""
+
+    type: ClassVar[str] = "reset_scene"
 
 
 @dataclasses.dataclass

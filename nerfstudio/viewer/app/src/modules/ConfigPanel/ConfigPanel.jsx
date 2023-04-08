@@ -8,9 +8,14 @@ import {
   folder,
   button,
 } from 'leva';
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import LevaTheme from '../../themes/leva_theme.json';
+import {
+  ViserWebSocketContext,
+  sendWebsocketMessage,
+  makeThrottledMessageSender
+} from '../WebSocket/ViserWebSocket';
 import { GuiUpdateMessage } from '../WebSocket/ViserMessages';
 
 import { WebSocketContext } from '../WebSocket/WebSocket';
@@ -33,42 +38,43 @@ function dispatch_and_send(websocket, dispatch, path, data) {
   }
 }
 function CustomLeva() {
+  const viser_websocket = React.useContext(ViserWebSocketContext);
   const customGui = useSelector((state) => state.custom_gui);
   const guiNames = customGui.guiNames;
   const guiConfigFromName = customGui.guiConfigFromName;
   // Add callbacks to guiConfigFromName.
-  // const suppressOnChange = React.useRef<{ [key: string]: boolean }>({});
   const suppressOnChange = React.useRef({});
 
   // We're going to try and build an object that looks like:
   // {"folder name": {"input name": leva config}}
   const guiConfigTree: { [key: string]: any } = {};
-    function getFolderContainer(folderLabels: string[]) {
-      let guiConfigNode = guiConfigTree;
-      folderLabels.forEach((label) => {
-        if (guiConfigNode[label] === undefined) {
-          guiConfigNode[label] = { _is_folder_marker: true };
-        }
-        guiConfigNode = guiConfigNode[label];
-      });
-      return guiConfigNode;
-    }
+  function getFolderContainer(folderLabels: string[]) {
+    let guiConfigNode = guiConfigTree;
+    folderLabels.forEach((label) => {
+      if (guiConfigNode[label] === undefined) {
+        guiConfigNode[label] = { _is_folder_marker: true };
+      }
+      guiConfigNode = guiConfigNode[label];
+    });
+    return guiConfigNode;
+  }
 
-    guiNames.forEach((key) => {
-      const { levaConf, folderLabels } = guiConfigFromName[key];
+  guiNames.forEach((key) => {
+    const { levaConf, folderLabels } = guiConfigFromName[key];
 
-      const leafFolder = getFolderContainer(folderLabels);
+    const leafFolder = getFolderContainer(folderLabels);
 
     // Hacky stuff that lives outside of TypeScript...
-    if (levaConf["type"] === "BUTTON") {
+    if (levaConf['type'] === 'BUTTON') {
       // Add a button.
       leafFolder[key] = button((_get: any) => {
         const message: GuiUpdateMessage = {
-          type: "gui_update",
+          type: 'gui_update',
           name: key,
           value: true,
         };
-      }, levaConf["settings"]);
+        sendWebsocketMessage(viser_websocket,message);
+      }, levaConf['settings']);
     } else {
       // Add any other kind of input.
       leafFolder[key] = {
@@ -80,10 +86,12 @@ function CustomLeva() {
             return;
           }
           const message: GuiUpdateMessage = {
-            type: "gui_update",
+            type: 'gui_update',
             name: key,
             value: value,
           };
+          const throttledSender = makeThrottledMessageSender(viser_websocket,25);
+          throttledSender(message);
         },
       };
     }
@@ -92,7 +100,7 @@ function CustomLeva() {
   // Recursively wrap folders in a GUI config tree with Leva's `folder()`.
   function wrapFoldersInGuiConfigTree(
     guiConfigNode: { [key: string]: any },
-    root: boolean
+    root: boolean,
   ) {
     const { _is_folder_marker, ...rest } = guiConfigNode;
     guiConfigNode = rest;
@@ -176,7 +184,6 @@ function ControlsLeva() {
   const target_train_util = useSelector(
     (state) => state.renderingState.targetTrainUtil,
   );
-  const render_time = useSelector((state) => state.renderingState.renderTime);
   const crop_enabled = useSelector(
     (state) => state.renderingState.crop_enabled,
   );
@@ -190,17 +197,6 @@ function ControlsLeva() {
   const crop_center = useSelector((state) => state.renderingState.crop_center);
 
   const dispatch = useDispatch();
-
-  const [display_render_time, set_display_render_time] = useState(false);
-
-  const receive_temporal_dist = (e) => {
-    const msg = msgpack.decode(new Uint8Array(e.data));
-    if (msg.path === '/model/has_temporal_distortion') {
-      set_display_render_time(msg.data === 'true');
-      websocket.removeEventListener('message', receive_temporal_dist);
-    }
-  };
-  websocket.addEventListener('message', receive_temporal_dist);
 
   const [, setControls] = useControls(
     () => ({
@@ -392,26 +388,6 @@ function ControlsLeva() {
           );
         },
       },
-      // Dynamic NeRF rendering time
-      ...(display_render_time
-        ? {
-            render_time: {
-              label: 'Render Timestep',
-              value: render_time,
-              min: 0,
-              max: 1,
-              step: 0.01,
-              onChange: (v) => {
-                dispatch_and_send(
-                  websocket,
-                  dispatch,
-                  'renderingState/render_time',
-                  v,
-                );
-              },
-            },
-          }
-        : {}),
     }),
     [
       outputOptions,
@@ -421,8 +397,6 @@ function ControlsLeva() {
       max_resolution,
       crop_enabled,
       target_train_util,
-      render_time,
-      display_render_time,
       websocket, // need to re-render when websocket changes to use the new websocket
     ],
   );
@@ -443,12 +417,10 @@ function ControlsLeva() {
     colormapChoice,
     max_resolution,
     target_train_util,
-    render_time,
     crop_enabled,
     crop_bg_color,
     crop_scale,
     crop_center,
-    display_render_time,
   ]);
 
   return null;

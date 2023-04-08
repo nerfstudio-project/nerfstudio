@@ -14,8 +14,7 @@
 
 # pylint: disable=too-many-lines
 
-"""Code to interface with the `vis/` (the JS viewer).
-"""
+"""Code to interface with the `vis/` (the JS viewer)."""
 from __future__ import annotations
 
 import enum
@@ -23,13 +22,11 @@ import os
 import sys
 import threading
 import time
-import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-from cryptography.utils import CryptographyDeprecationWarning
 from rich.console import Console
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -61,8 +58,6 @@ from nerfstudio.viewer.viser._messages import (
     IsTrainingMessage,
     Message,
 )
-
-warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 
 CONSOLE = Console(width=120)
 
@@ -132,20 +127,20 @@ class RenderThread(threading.Thread):
 
     Args:
         state: current viewer state object
-        graph: current checkpoint of model
-        camera_ray_bundle: input rays to pass through the graph to render out
+        model: current checkpoint of model
+        camera_ray_bundle: input rays to pass through the model to render out
     """
 
-    def __init__(self, state: "ViewerState", graph: Model, camera_ray_bundle: RayBundle):
+    def __init__(self, state: "ViewerState", model: Model, camera_ray_bundle: RayBundle):
         threading.Thread.__init__(self)
         self.state = state
-        self.graph = graph
+        self.model = model
         self.camera_ray_bundle = camera_ray_bundle
         self.exc = None
         self.vis_outputs = None
 
     def run(self):
-        """run function that renders out images given the current graph and ray bundles.
+        """run function that renders out images given the current model and ray bundles.
         Interlaced with a trace function that checks to see if any I/O changes were registered.
         Exits and continues program if IOChangeException thrown.
         """
@@ -155,16 +150,16 @@ class RenderThread(threading.Thread):
                 if self.state.prev_crop_enabled:
                     color = self.state.prev_crop_bg_color
                     if color is None:
-                        background_color = torch.tensor([0.0, 0.0, 0.0], device=self.graph.device)
+                        background_color = torch.tensor([0.0, 0.0, 0.0], device=self.model.device)
                     else:
                         background_color = torch.tensor(
-                            [color["r"] / 255.0, color["g"] / 255.0, color["b"] / 255.0], device=self.graph.device
+                            [color["r"] / 255.0, color["g"] / 255.0, color["b"] / 255.0], device=self.model.device
                         )
                     with renderers.background_color_override_context(background_color), torch.no_grad():
-                        outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
+                        outputs = self.model.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
                 else:
                     with torch.no_grad():
-                        outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
+                        outputs = self.model.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
         except Exception as e:  # pylint: disable=broad-except
             self.exc = e
 
@@ -199,16 +194,18 @@ class CheckThread(threading.Thread):
         """
         self.state.check_done_render = False
         while not self.state.check_done_render:
-            # check camera
+            # Interrupt on the start of a camera move, but not during a camera move
             if self.state.camera_message is not None:
-                if self.state.prev_camera_matrix is None or (
-                    not np.allclose(self.state.camera_message.matrix, self.state.prev_camera_matrix)
-                    and not self.state.prev_moving
-                ):
-                    self.state.check_interrupt_vis = True
-                    self.state.prev_moving = True
-                    return
-                self.state.prev_moving = False
+                if self.state.camera_moving:
+                    if self.state.prev_moving:
+                        self.state.check_interrupt_vis = False
+                        self.state.prev_moving = True
+                    else:
+                        self.state.check_interrupt_vis = True
+                        self.state.prev_moving = True
+                        return
+                else:
+                    self.state.prev_moving = False
 
             # check output type
             output_type = self.state.vis["renderingState/output_choice"].read()
@@ -290,7 +287,6 @@ class ViewerState:
             self.vis = Viewer(zmq_port=self.config.zmq_port, ip_address=self.config.ip_address)
 
         # viewer specific variables
-        self.prev_camera_matrix = None
         self.prev_output_type = OutputTypes.INIT
         self.prev_colormap_type = None
         self.prev_colormap_invert = False
@@ -387,9 +383,6 @@ class ViewerState:
             export_path_name=self.log_filename.parent.stem,
         )
 
-        # clear the current scene
-        self.vis["sceneState/cameras"].delete()
-
         # draw the training cameras and images
         image_indices = self._pick_drawn_image_idxs(len(dataset))
         for idx in image_indices:
@@ -404,12 +397,12 @@ class ViewerState:
         # set the initial state whether to train or not
         self.viser_server.set_is_training(start_train)
 
-    def _update_render_aabb(self, graph):
+    def _update_render_aabb(self, model):
         """
         update the render aabb box for the viewer:
 
-        :param graph:
-        :return:
+        Args:
+            model: the model to render
         """
 
         crop_enabled = self.vis["renderingState/crop_enabled"].read()
@@ -440,22 +433,23 @@ class ViewerState:
                 box_min = crop_center - crop_scale / 2.0
                 box_max = crop_center + crop_scale / 2.0
 
-                if isinstance(graph.render_aabb, SceneBox):
-                    graph.render_aabb.aabb[0] = box_min
-                    graph.render_aabb.aabb[1] = box_max
+                if isinstance(model.render_aabb, SceneBox):
+                    model.render_aabb.aabb[0] = box_min
+                    model.render_aabb.aabb[1] = box_max
                 else:
-                    graph.render_aabb = SceneBox(aabb=torch.stack([box_min, box_max], dim=0))
+                    model.render_aabb = SceneBox(aabb=torch.stack([box_min, box_max], dim=0))
 
-                self.viser_server.update_scene_box(graph.render_aabb)
+                self.viser_server.update_scene_box(model.render_aabb)
         else:
-            graph.render_aabb = None
+            model.render_aabb = None
 
-    def update_scene(self, trainer, step: int, pipeline: Pipeline, num_rays_per_batch: int) -> None:
+    def update_scene(self, step: int, pipeline: Pipeline, num_rays_per_batch: int) -> None:
         """updates the scene based on the graph weights
 
         Args:
             step: iteration step of training
-            graph: the current checkpoint of the model
+            pipeline: the method pipeline
+            num_rays_per_batch: number of rays per batch
         """
         if not hasattr(self, "viewer_elements"):
 
@@ -470,9 +464,7 @@ class ViewerState:
             for param_path, element in self.viewer_elements:
                 folder_labels = param_path.split("/")[:-1]
                 nested_folder_install(folder_labels, element)
-        graph = pipeline.model
-        has_temporal_distortion = getattr(graph, "temporal_distortion", None) is not None
-        self.vis["model/has_temporal_distortion"].write(str(has_temporal_distortion).lower())
+        model = pipeline.model
 
         is_training = self.is_training
         self.step = step
@@ -488,7 +480,7 @@ class ViewerState:
                 # if the camera is moving, then we pause training and update camera continuously
 
                 while self.camera_moving:
-                    self._render_image_in_viewer(self.camera_message, graph, is_training)
+                    self._render_image_in_viewer(model, is_training)
                     self._legacy_messages()
             else:
                 # if the camera is not moving, then we approximate how many training steps need to be taken
@@ -507,17 +499,17 @@ class ViewerState:
                     num_steps = 1
 
                 if step % num_steps == 0:
-                    self._render_image_in_viewer(self.camera_message, graph, is_training)
+                    self._render_image_in_viewer(model, is_training)
 
         else:
-            # in pause training mode, enter render loop with set graph
+            # in pause training mode, enter render loop with set model
             local_step = step
             run_loop = not self.is_training
             while run_loop:
                 # if self._is_render_step(local_step) and step > 0:
                 if step > 0:
                     self._legacy_messages()
-                    self._render_image_in_viewer(self.camera_message, graph, self.is_training)
+                    self._render_image_in_viewer(model, self.is_training)
                 run_loop = not self.is_training
                 local_step += 1
 
@@ -526,7 +518,7 @@ class ViewerState:
         Used in conjunction with SetTrace.
         """
         if event == "line":
-            if self.check_interrupt_vis and not self.camera_moving:
+            if self.check_interrupt_vis:
                 raise IOChangeException
         return self.check_interrupt
 
@@ -616,7 +608,7 @@ class ViewerState:
         """Chooses the correct output and sends it to the viewer
 
         Args:
-            outputs: the dictionary of outputs to choose from, from the graph
+            outputs: the dictionary of outputs to choose from, from the model
             colors: is only set if colormap is for semantics. Defaults to None.
         """
         if self.output_list is None:
@@ -686,7 +678,7 @@ class ViewerState:
         """Calculate the maximum image height that can be rendered in the time budget
 
         Args:
-            apect_ration: the aspect ratio of the current view
+            apect_ratio: the aspect ratio of the current view
             is_training: whether or not we are training
         Returns:
             image_height: the maximum image height that can be rendered in the time budget
@@ -756,14 +748,15 @@ class ViewerState:
         return output_type
 
     @profiler.time_function
-    def _render_image_in_viewer(self, camera_object, graph: Model, is_training: bool) -> None:
+    def _render_image_in_viewer(self, model: Model, is_training: bool) -> None:
         # pylint: disable=too-many-statements
         """
         Draw an image using the current camera pose from the viewer.
         The image is sent over a TCP connection.
 
         Args:
-            graph: current checkpoint of model
+            model: current checkpoint of model
+            is_training: whether or not we are training
         """
         # Check that timestamp is newer than the last one
         camera_message = self.camera_message
@@ -793,7 +786,7 @@ class ViewerState:
 
         # update render aabb
         try:
-            self._update_render_aabb(graph)
+            self._update_render_aabb(model)
         except RuntimeError as e:
             self.vis["renderingState/log_errors"].write("Got an Error while trying to update aabb crop")
             print(f"Error: {e}")
@@ -845,14 +838,14 @@ class ViewerState:
             camera_to_worlds=camera_to_world[None, ...],
             times=torch.tensor([0.0]),
         )
-        camera = camera.to(graph.device)
+        camera = camera.to(model.device)
 
-        camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=graph.render_aabb)
+        camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=model.render_aabb)
 
-        graph.eval()
+        model.eval()
 
         check_thread = CheckThread(state=self)
-        render_thread = RenderThread(state=self, graph=graph, camera_ray_bundle=camera_ray_bundle)
+        render_thread = RenderThread(state=self, model=model, camera_ray_bundle=camera_ray_bundle)
 
         check_thread.daemon = True
         render_thread.daemon = True
@@ -875,10 +868,10 @@ class ViewerState:
                 torch.cuda.empty_cache()
                 time.sleep(0.5)  # sleep to allow buffer to reset
 
-        graph.train()
+        model.train()
         outputs = render_thread.vis_outputs
         if outputs is not None:
-            colors = graph.colors if hasattr(graph, "colors") else None
+            colors = model.colors if hasattr(model, "colors") else None
             self._send_output_to_viewer(outputs, colors=colors)
             self._update_viewer_stats(
                 vis_t.duration, num_rays=len(camera_ray_bundle), image_height=image_height, image_width=image_width

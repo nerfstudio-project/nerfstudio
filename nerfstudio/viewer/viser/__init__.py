@@ -1,7 +1,21 @@
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+""" Viser is used for the nerfstudio viewr backend """
+# pylint: disable=useless-import-alias
+
 from ._message_api import GuiHandle as GuiHandle
-from ._scene_handle import TransformControlsHandle as TransformControlsHandle
-from ._scene_handle import TransformControlsState as TransformControlsState
-from ._server import CameraState as CameraState
 from ._server import ClientHandle as ClientHandle
 from ._server import ClientId as ClientId
 from ._server import ViserServer as ViserServer

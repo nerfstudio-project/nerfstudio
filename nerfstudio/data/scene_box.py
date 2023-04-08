@@ -17,7 +17,7 @@ Dataset input structures.
 """
 
 from dataclasses import dataclass
-from typing import Dict, Union
+from typing import Union
 
 import torch
 from torchtyping import TensorType

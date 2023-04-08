@@ -1,14 +1,23 @@
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import asyncio
 import dataclasses
 from asyncio.events import AbstractEventLoop
 from typing import Dict
 
-from ._messages import (
-    BackgroundImageMessage,
-    Message,
-    RemoveSceneNodeMessage,
-    ResetSceneMessage,
-)
+from ._messages import BackgroundImageMessage, Message, ResetSceneMessage
 
 
 @dataclasses.dataclass
@@ -53,18 +62,6 @@ class AsyncMessageBuffer:
                 old_message_id = self.id_from_name.pop(node_name)
                 self.message_from_id.pop(old_message_id)
 
-            # If we're removing a scene node, remove children as well.
-            #
-            # TODO: this currently does a linear pass over all existing messages. We
-            # could easily optimize this.
-            if isinstance(message, RemoveSceneNodeMessage) and node_name is not None:
-                remove_list = []
-                for name, id in self.id_from_name.items():
-                    if name.startswith(node_name):
-                        remove_list.append((name, id))
-                for name, id in remove_list:
-                    self.id_from_name.pop(name)
-                    self.message_from_id.pop(id)
             self.id_from_name[node_name] = new_message_id
 
         # Notify consumers that a new message is available.

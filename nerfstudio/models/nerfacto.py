@@ -66,6 +66,7 @@ from nerfstudio.viewer.server.viewer_param import (
     ViewerNumber,
     ViewerSlider,
     ViewerText,
+    ViewerVec3,
 )
 
 
@@ -171,13 +172,14 @@ class NerfactoModel(Model):
         )
         self.rgb_scale = ViewerSlider("RGB Scaler", 1.0, 0, 1, 0.1)
         self.dropdown = ViewerDropdown("Output Render", "rgb", ["rgb", "lol"])
-        # self.number = ViewerNumber("Dummy number", 1.0)
-        # self.text = ViewerText("Dummy text", "lol")
+        self.number = ViewerNumber("Dummy number", 1.0)
+        self.text = ViewerText("Dummy text", "lol")
+        self.vec3 = ViewerVec3("blah", (0, 0, 0), 0.1)
 
         def call():
             print("button press!")
 
-        # self.button = ViewerButton("Dummy button", call)
+        self.button = ViewerButton("Dummy button", call)
 
         self.density_fns = []
         num_prop_nets = self.config.num_proposal_iterations
