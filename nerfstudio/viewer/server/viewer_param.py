@@ -53,6 +53,10 @@ class ViewerElement:
             self.gui_handle.remove()
             self.gui_handle = None
 
+    def set_hidden(self, hidden: bool):
+        """Sets the hidden state of the gui element"""
+        raise NotImplementedError("TODO implement set_hidden for viewer_param")
+
     @abstractmethod
     def install(self, viser_server: ViserServer) -> None:
         """Installs the gui element into the given viser_server"""
