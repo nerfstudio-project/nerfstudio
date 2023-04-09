@@ -91,6 +91,11 @@ export interface CropParamsMessage {
   crop_center: [number, number, number];
   crop_scale: [number, number, number];
 }
+export interface StatusMessage {
+  type: "status";
+  eval_res: string;
+  vis_train_ratio: string;
+}
 
 export type Message = 
   | BackgroundImageMessage
@@ -109,4 +114,5 @@ export type Message =
   | CameraPathPayloadMessage
   | CameraPathOptionsRequest
   | CameraPathsMessage
-  | CropParamsMessage;
+  | CropParamsMessage
+  | StatusMessage;

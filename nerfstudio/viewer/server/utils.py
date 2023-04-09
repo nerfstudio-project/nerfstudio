@@ -15,12 +15,10 @@
 """Generic utility functions
 """
 
-import sys
 from typing import Callable, List, Optional, Tuple
 
 import numpy as np
 import torch
-import zmq
 
 from nerfstudio.viewer.viser._messages import CameraMessage
 
@@ -119,8 +117,6 @@ def find_available_port(func: Callable, default_port: int, max_attempts: int = 1
         port = default_port + i
         try:
             return func(port, **kwargs), port
-        except (OSError, zmq.error.ZMQError):
-            print(f"Port: {port:d} in use, trying another...", file=sys.stderr)
         except Exception as e:
             print(type(e))
             raise
