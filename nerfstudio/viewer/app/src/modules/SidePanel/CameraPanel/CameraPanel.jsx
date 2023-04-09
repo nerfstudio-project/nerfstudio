@@ -77,11 +77,9 @@ function RenderTimeSelector(props) {
   const disabled = props.disabled;
   const isGlobal = props.isGlobal;
   const camera = props.camera;
-  const dispatch = props.dispatch;
   const globalRenderTime = props.globalRenderTime;
   const setGlobalRenderTime = props.setGlobalRenderTime;
   const applyAll = props.applyAll;
-  const changeMain = props.changeMain;
   const setAllCameraRenderTime = props.setAllCameraRenderTime;
 
   const getRenderTimeLabel = () => {

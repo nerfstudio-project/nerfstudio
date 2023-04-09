@@ -134,10 +134,6 @@ class ViewerConfig(PrintableConfig):
     start_train: bool = True
     """whether to immediately start training upon loading viewer
     if False, will just visualize dataset but you can toggle training in viewer"""
-    zmq_port: Optional[int] = None
-    """The zmq port to connect to for communication. If None, find an available port."""
-    launch_bridge_server: bool = True
-    """whether or not to launch the bridge server"""
     websocket_port: Optional[int] = None
     """The websocket port to connect to. If None, find an available port."""
     websocket_port_default: int = 7007

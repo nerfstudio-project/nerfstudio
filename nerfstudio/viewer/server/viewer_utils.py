@@ -43,13 +43,9 @@ from nerfstudio.utils.io import load_from_json, write_to_json
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server.control_panel import ControlPanel
 from nerfstudio.viewer.server.gui_utils import get_viewer_elements
-from nerfstudio.viewer.server.subprocess import (
-    get_free_port,
-    run_viewer_bridge_server_as_subprocess,
-)
+from nerfstudio.viewer.server.subprocess import get_free_port
 from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfstudio.viewer.server.viewer_param import ViewerElement
-from nerfstudio.viewer.server.visualizer import Viewer
 from nerfstudio.viewer.viser import ViserServer
 from nerfstudio.viewer.viser._messages import (
     CameraMessage,
@@ -208,23 +204,13 @@ class CheckThread(threading.Thread):
                     self.state.prev_moving = False
 
             # check output type
-            output_type = self.state.vis["renderingState/output_choice"].read()
-            if output_type is None:
-                output_type = OutputTypes.INIT
-            if self.state.prev_output_type != output_type:
-                self.state.check_interrupt_vis = True
-                return
-
-            # check colormap type
-            colormap_type = self.state.vis["renderingState/colormap_choice"].read()
-            if self.state.prev_colormap_type != colormap_type:
-                self.state.check_interrupt_vis = True
-                return
-
-            colormap_range = self.state.vis["renderingState/colormap_range"].read()
-            if self.state.prev_colormap_range != colormap_range:
-                self.state.check_interrupt_vis = True
-                return
+            # output_type = self.state.vis["renderingState/output_choice"].read()
+            # print("interupt", output_type)
+            # if output_type is None:
+            #     output_type = OutputTypes.INIT
+            # if self.state.prev_output_type != output_type:
+            #     self.state.check_interrupt_vis = True
+            #     return
 
 
 @decorate_all([check_main_thread])
@@ -237,47 +223,30 @@ class ViewerState:
         datapath: path to data
     """
 
-    vis: Any
-
     def __init__(self, config: cfg.ViewerConfig, log_filename: Path, datapath: Path):
         self.config = config
-        self.vis = None
         self.viewer_url = None
         self.log_filename = log_filename
         self.datapath = datapath.parent if datapath.is_file() else datapath
-        if self.config.launch_bridge_server:
-            # start the viewer bridge server
-            if self.config.websocket_port is None:
-                websocket_port = get_free_port(default_port=self.config.websocket_port_default)
-            else:
-                websocket_port = self.config.websocket_port
-            self.log_filename.parent.mkdir(exist_ok=True)
-            zmq_port = run_viewer_bridge_server_as_subprocess(
-                websocket_port,
-                zmq_port=self.config.zmq_port,
-                ip_address=self.config.ip_address,
-                log_filename=str(self.log_filename),
-            )
-            # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
-            CONSOLE.line()
-            version = get_viewer_version()
-            websocket_url = f"ws://localhost:{websocket_port}"
-            self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_url={websocket_url}"
-            CONSOLE.rule(characters="=")
-            CONSOLE.print(f"[Public] Open the viewer at {self.viewer_url}")
-            CONSOLE.rule(characters="=")
-            CONSOLE.line()
-            self.vis = Viewer(zmq_port=zmq_port, ip_address=self.config.ip_address)
+
+        if self.config.websocket_port is None:
+            websocket_port = get_free_port(default_port=self.config.websocket_port_default)
         else:
-            assert self.config.zmq_port is not None
-            self.vis = Viewer(zmq_port=self.config.zmq_port, ip_address=self.config.ip_address)
+            websocket_port = self.config.websocket_port
+        self.log_filename.parent.mkdir(exist_ok=True)
+
+        CONSOLE.line()
+        version = get_viewer_version()
+        websocket_url = f"ws://localhost:{websocket_port}"
+        self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_url={websocket_url}"
+        CONSOLE.rule(characters="=")
+        CONSOLE.print(f"[Public] Open the viewer at {self.viewer_url}")
+        CONSOLE.rule(characters="=")
+        CONSOLE.line()
 
         # viewer specific variables
         self.prev_output_type = OutputTypes.INIT
-        self.prev_colormap_type = None
-        self.prev_colormap_invert = False
-        self.prev_colormap_normalize = False
-        self.prev_colormap_range = [0, 1]
+        self.prev_colormap_type = ColormapTypes.DEFAULT  # TODO Update with selected colormap
         self.prev_moving = False
         self.output_type_changed = True
         self.check_interrupt_vis = False
@@ -292,8 +261,6 @@ class ViewerState:
         self.is_training = self.config.start_train
         self.camera_message = None
 
-        # TODO: host and port should not be hardcoded. This should eventually replace
-        # the ZMQ + websocket logic above.
         self.viser_server = ViserServer(host="localhost", port=8080)
 
         self.viser_server.register_handler(IsTrainingMessage, self._handle_is_training)
@@ -444,7 +411,6 @@ class ViewerState:
         is_training = self.is_training
         self.step = step
 
-        self._legacy_messages()
         if self.camera_message is None:
             return
 
@@ -456,7 +422,6 @@ class ViewerState:
 
                 while self.camera_moving:
                     self._render_image_in_viewer(model, is_training)
-                    self._legacy_messages()
             else:
                 # if the camera is not moving, then we approximate how many training steps need to be taken
                 # to render at a FPS defined by self.static_fps.
@@ -483,7 +448,6 @@ class ViewerState:
             while run_loop:
                 # if self._is_render_step(local_step) and step > 0:
                 if step > 0:
-                    self._legacy_messages()
                     self._render_image_in_viewer(model, self.is_training)
                 run_loop = not self.is_training
                 local_step += 1
@@ -496,31 +460,6 @@ class ViewerState:
             if self.check_interrupt_vis:
                 raise IOChangeException
         return self.check_interrupt
-
-    def _legacy_messages(self):
-        """Gets the camera object from the viewer and updates the movement state if it has changed."""
-
-        output_type = self.vis["renderingState/output_choice"].read()
-        if output_type is None:
-            output_type = OutputTypes.INIT
-        if self.prev_output_type != output_type:
-            self.camera_moving = True
-
-        colormap_type = self.vis["renderingState/colormap_choice"].read()
-        if self.prev_colormap_type != colormap_type:
-            self.camera_moving = True
-
-        colormap_range = self.vis["renderingState/colormap_range"].read()
-        if self.prev_colormap_range != colormap_range:
-            self.camera_moving = True
-
-        colormap_invert = self.vis["renderingState/colormap_invert"].read()
-        if self.prev_colormap_invert != colormap_invert:
-            self.camera_moving = True
-
-        colormap_normalize = self.vis["renderingState/colormap_normalize"].read()
-        if self.prev_colormap_normalize != colormap_normalize:
-            self.camera_moving = True
 
     def _apply_colormap(self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6):
         """Determines which colormap to use based on set colormap type
@@ -540,12 +479,13 @@ class ViewerState:
         # rendering depth outputs
         if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
             output = outputs[reformatted_output]
-            if self.prev_colormap_normalize:
+            if self.control_panel.colormap_normalize:
                 output = output - torch.min(output)
                 output = output / (torch.max(output) + eps)
-            output = output * (self.prev_colormap_range[1] - self.prev_colormap_range[0]) + self.prev_colormap_range[0]
+            # TODO Update with actual ranges
+            # output = output * (range_max - range_min) + range_max
             output = torch.clip(output, 0, 1)
-            if self.prev_colormap_invert:
+            if self.control_panel.colormap_invert:
                 output = 1 - output
             if self.prev_colormap_type == ColormapTypes.DEFAULT:
                 return colormaps.apply_colormap(output, cmap=ColormapTypes.TURBO.value)
@@ -581,22 +521,24 @@ class ViewerState:
             # remove semantics, which crashes viewer; semantics_colormap is OK
             if "semantics" in self.output_list:
                 viewer_output_list.remove("semantics")
-            self.vis["renderingState/output_options"].write(viewer_output_list)
+            # TODO populate viewer output list
 
         reformatted_output = self._process_invalid_output(self.prev_output_type)
         # re-register colormaps and send to viewer
         if self.output_type_changed or self.prev_colormap_type is None:
             self.prev_colormap_type = ColormapTypes.DEFAULT
             colormap_options = []
-            self.vis["renderingState/colormap_options"].write(list(ColormapTypes))
+            # self.vis["renderingState/colormap_options"].write(list(ColormapTypes))
+            # TODO populate colormap options
             if outputs[reformatted_output].shape[-1] == 3:
                 colormap_options = [ColormapTypes.DEFAULT]
             if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
                 self.prev_colormap_type = ColormapTypes.TURBO
                 colormap_options = list(ColormapTypes)[1:]
             self.output_type_changed = False
-            self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
-            self.vis["renderingState/colormap_options"].write(colormap_options)
+            # self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
+            # self.vis["renderingState/colormap_options"].write(colormap_options)
+            # TODO populate colormap choice
         selected_output = (self._apply_colormap(outputs, colors) * 255).type(torch.uint8)
 
         self.viser_server.set_background_image(
@@ -615,10 +557,8 @@ class ViewerState:
         writer.put_time(
             name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=self.step, avg_over_steps=True
         )
-        self.vis["renderingState/eval_res"].write(f"{image_height}x{image_width}px")
+        vis_train_ratio = "Starting"
         if self.is_training is None or self.is_training:
-            # process remaining training ETA
-            self.vis["renderingState/train_eta"].write(GLOBAL_BUFFER["events"].get(EventName.ETA.value, "Starting"))
             # process ratio time spent on vis vs train
             if (
                 EventName.ITER_VIS_TIME.value in GLOBAL_BUFFER["events"]
@@ -627,12 +567,11 @@ class ViewerState:
                 vis_time = GLOBAL_BUFFER["events"][EventName.ITER_VIS_TIME.value]["avg"]
                 train_time = GLOBAL_BUFFER["events"][EventName.ITER_TRAIN_TIME.value]["avg"]
                 vis_train_ratio = f"{int(vis_time / train_time * 100)}% spent on viewer"
-                self.vis["renderingState/vis_train_ratio"].write(vis_train_ratio)
-            else:
-                self.vis["renderingState/vis_train_ratio"].write("Starting")
         else:
-            self.vis["renderingState/train_eta"].write("Paused")
-            self.vis["renderingState/vis_train_ratio"].write("100% spent on viewer")
+            vis_train_ratio = "100% spent on viewer"
+        self.viser_server.send_status_message(
+            eval_res=f"{image_height}x{image_width}px", vis_train_ratio=vis_train_ratio
+        )
 
     def _calculate_image_res(self, aspect_ratio: float, is_training: bool) -> Optional[Tuple[int, int]]:
         """Calculate the maximum image height that can be rendered in the time budget
@@ -723,29 +662,16 @@ class ViewerState:
         self.prev_camera_timestamp = camera_message.timestamp
 
         # check and perform output type updates
-        output_type = self.vis["renderingState/output_choice"].read()
-        output_type = OutputTypes.INIT if output_type is None else output_type
-        self.output_type_changed = self.prev_output_type != output_type
-        self.prev_output_type = output_type
-
-        # check and perform colormap type updates
-        colormap_type = self.vis["renderingState/colormap_choice"].read()
-        self.prev_colormap_type = colormap_type
-
-        colormap_invert = self.vis["renderingState/colormap_invert"].read()
-        self.prev_colormap_invert = colormap_invert
-
-        colormap_normalize = self.vis["renderingState/colormap_normalize"].read()
-        self.prev_colormap_normalize = colormap_normalize
-
-        colormap_range = self.vis["renderingState/colormap_range"].read()
-        self.prev_colormap_range = colormap_range
+        # output_type = self.vis["renderingState/output_choice"].read()
+        # print("render", output_type)
+        # output_type = OutputTypes.INIT if output_type is None else output_type
+        # self.output_type_changed = self.prev_output_type != output_type
+        # self.prev_output_type = output_type
 
         # update render aabb
         try:
             self._update_render_aabb(model)
         except RuntimeError as e:
-            self.vis["renderingState/log_errors"].write("Got an Error while trying to update aabb crop")
             print(f"Error: {e}")
 
             time.sleep(0.5)  # sleep to allow buffer to reset
@@ -754,7 +680,6 @@ class ViewerState:
         try:
             image_height, image_width = self._calculate_image_res(camera_message.aspect, is_training)
         except ZeroDivisionError as e:
-            self.vis["renderingState/log_errors"].write("Error: Screen too small; no rays intersecting scene.")
             time.sleep(0.03)  # sleep to allow buffer to reset
             print(f"Error: {e}")
             return
@@ -817,9 +742,6 @@ class ViewerState:
                 del camera_ray_bundle
                 torch.cuda.empty_cache()
             except RuntimeError as e:
-                self.vis["renderingState/log_errors"].write(
-                    "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
-                )
                 print(f"Error: {e}")
                 del camera_ray_bundle
                 torch.cuda.empty_cache()

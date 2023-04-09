@@ -513,6 +513,15 @@ class MessageApi(abc.ABC):
             )
         )
 
+    def send_status_message(self, eval_res: str, vis_train_ratio: str):
+        """Send status message
+
+        Args:
+            eval_res: The resolution of the render in plain text.
+            vis_train_ratio: Ratio of training to inference time in plain text.
+        """
+        self._queue(_messages.StatusMessage(eval_res=eval_res, vis_train_ratio=vis_train_ratio))
+
     def _handle_incoming_message(self, client_id: ClientId, message: _messages.Message) -> None:
         """Handle incoming messages."""
         if type(message) in self._incoming_handlers:

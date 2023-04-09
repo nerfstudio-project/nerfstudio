@@ -51,7 +51,6 @@ const initialState = {
     colormap_range: [0.0, 1.0], // the range of the colormap
 
     eval_res: '?',
-    train_eta: 'Paused',
     vis_train_ratio: 'Paused',
     log_errors: '',
     renderTime: 0.0,
