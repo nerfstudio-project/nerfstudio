@@ -539,7 +539,7 @@ def _handle_gui_updates(
     if not handle_state.is_button and message.value == handle_state.value:
         return
 
-    value = handle_state.typ(message.value)
+    value = handle_state.typ(handle_state.decoder(message.value))
 
     # Update state.
     handle_state.value = value
