@@ -654,16 +654,16 @@ class Cameras(TensorDataclass):
                         ).reshape(-1, 2)
                     else:
                         # try to use nerfacc to accelerate if we don't need to optimize distortion params
-                        # try:
-                        coord_stack[coord_mask, :] = opencv_lens_undistortion(
-                            coord_stack[coord_mask, :].reshape(3, -1, 2),
-                            distortion_params[mask, :],
-                        ).reshape(-1, 2)
-                        # except:
-                        #     coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
-                        #         coord_stack[coord_mask, :].reshape(3, -1, 2),
-                        #         distortion_params[mask, :],
-                        #     ).reshape(-1, 2)
+                        try:
+                            coord_stack[coord_mask, :] = opencv_lens_undistortion(
+                                coord_stack[coord_mask, :].reshape(3, -1, 2),
+                                distortion_params[mask, :],
+                            ).reshape(-1, 2)
+                        except:
+                            coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
+                                coord_stack[coord_mask, :].reshape(3, -1, 2),
+                                distortion_params[mask, :],
+                            ).reshape(-1, 2)
 
                 mask = (self.camera_type[true_indices] == CameraType.FISHEYE.value).squeeze(-1)  # (num_rays)
                 coord_mask = torch.stack([mask, mask, mask], dim=0)
