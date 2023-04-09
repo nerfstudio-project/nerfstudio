@@ -105,7 +105,7 @@ class NerfplayerNGPModel(NGPModel):
 
         self.field = NerfplayerNGPField(
             aabb=self.scene_box.aabb,
-            use_appearance_embedding=self.config.use_appearance_embedding,
+            use_appearance_embedding=False,
             num_images=self.num_train_data,
             temporal_dim=self.config.temporal_dim,
             num_levels=self.config.num_levels,
@@ -119,9 +119,8 @@ class NerfplayerNGPModel(NGPModel):
         self.scene_aabb = Parameter(self.scene_box.aabb.flatten(), requires_grad=False)
 
         # Occupancy Grid
-        grid_scale = 1 << (self.config.grid_levels - 1)
         self.occupancy_grid = nerfacc.OccGridEstimator(
-            roi_aabb=nerfacc.grid._enlarge_aabb(self.scene_aabb, 1.0 / grid_scale),
+            roi_aabb=self.scene_aabb,
             resolution=self.config.grid_resolution,
             levels=self.config.grid_levels,
         )

@@ -366,7 +366,8 @@ def radial_and_tangential_undistort(
 
     if distortion_params.shape[-1] == 0:
         return coords
-    elif distortion_params.shape[-1] < 8:
+
+    if distortion_params.shape[-1] < 8:
         distortion_params = F.pad(distortion_params, (0, 8 - distortion_params.shape[-1]), "constant", 0.0)
     assert distortion_params.shape[-1] == 8
 

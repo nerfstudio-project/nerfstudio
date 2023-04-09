@@ -25,7 +25,6 @@ import numpy as np
 import torch
 from rich.console import Console
 
-from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,

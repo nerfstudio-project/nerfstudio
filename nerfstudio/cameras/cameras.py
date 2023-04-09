@@ -17,7 +17,6 @@ Camera Models
 """
 import base64
 import math
-import os
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Dict, List, Optional, Tuple, Union
@@ -35,7 +34,6 @@ from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils import profiler
-from nerfstudio.utils.misc import strtobool
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
 TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
@@ -659,7 +657,7 @@ class Cameras(TensorDataclass):
                                 coord_stack[coord_mask, :].reshape(3, -1, 2),
                                 distortion_params[mask, :],
                             ).reshape(-1, 2)
-                        except:
+                        except ImportError:
                             coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
                                 coord_stack[coord_mask, :].reshape(3, -1, 2),
                                 distortion_params[mask, :],
@@ -670,12 +668,11 @@ class Cameras(TensorDataclass):
                 if mask.any():
                     if distortion_params_delta is not None:
                         raise NotImplementedError("Fisheye distortion optimization is not implemented")
-                    else:
-                        # use nerfacc with do not provide gradient
-                        coord_stack[coord_mask, :] = opencv_lens_undistortion_fisheye(
-                            coord_stack[coord_mask, :].reshape(3, -1, 2),
-                            distortion_params[mask, :],
-                        ).reshape(-1, 2)
+                    # use nerfacc which does not provide gradient
+                    coord_stack[coord_mask, :] = opencv_lens_undistortion_fisheye(
+                        coord_stack[coord_mask, :].reshape(3, -1, 2),
+                        distortion_params[mask, :],
+                    ).reshape(-1, 2)
 
         # Make sure after we have undistorted our images, the shapes are still correct
         assert coord_stack.shape == (3,) + num_rays_shape + (2,)
