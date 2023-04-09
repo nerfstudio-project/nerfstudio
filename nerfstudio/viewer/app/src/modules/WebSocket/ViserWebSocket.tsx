@@ -117,6 +117,25 @@ function handleMessage(
     }
     // Set the value of a GUI input.
     case 'gui_set': {
+      console.log("Inside gui set");
+      console.log(message);
+      const curGuiConfigFromName =
+        store.getState().custom_gui.guiConfigFromName;
+      const currentConf = curGuiConfigFromName[message.name];
+      console.log(currentConf);
+      if (currentConf !== undefined) {
+        dispatch({
+          type: 'write',
+          path: 'custom_gui/guiConfigFromName',
+          data: {
+            ...curGuiConfigFromName,
+            [message.name]: {
+              ...currentConf,
+              value: message.value,
+            },
+          },
+        });
+      }
       break;
     }
     // Set leva conf of element.

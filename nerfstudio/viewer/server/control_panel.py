@@ -15,7 +15,9 @@ class ControlPanel:
         # elements holds a mapping from tag: [elements]
         self.elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
         self.elements_by_name: Dict[str, ViewerElement] = {}
-        self.add_element(ViewerDropdown("Train Speed", "Balanced", ["Fast", "Balanced", "Slow"]))
+        self.add_element(
+            ViewerDropdown("Train Speed", "Balanced", ["Fast", "Balanced", "Slow"], cb_hook=self.train_speed_cb)
+        )
         self.add_element(
             ViewerDropdown(
                 "Output Render", "rgb", ["rgb", "depth"], cb_hook=lambda: [self.update_control_panel(), rerender_cb()]
@@ -28,13 +30,22 @@ class ControlPanel:
         self.add_element(ViewerNumber("Min", 0.0), additional_tags=("colormap",))
         self.add_element(ViewerNumber("Max", 1.0), additional_tags=("colormap",))
 
-        self.add_element(ViewerSlider("Train Util", 0.9, 0, 1, 0.05))
+        self.add_element(ViewerSlider("Train Util", 0.9, 0, 1, 0.05, cb_hook=lambda: print("train util updated")))
         self.add_element(ViewerSlider("Max Res", 500, 100, 2000, 100, cb_hook=rerender_cb))
         self.add_element(ViewerCheckbox("Crop Viewport", False, cb_hook=self.update_control_panel))
         # Crop options
         self.add_element(ViewerRGB("Background color", (0, 0, 0)), additional_tags=("crop",))
         self.add_element(ViewerVec3("Crop Min", (0, 0, 0), 0.05), additional_tags=("crop",))
         self.add_element(ViewerVec3("Crop Max", (1, 1, 1), 0.05), additional_tags=("crop",))
+
+    def train_speed_cb(self):
+        print("inside train speed cb")
+        if self.train_speed == "Fast":
+            self._get_element_by_name("Train Util").set_value(0.95)
+        elif self.train_speed == "Balanced":
+            self._get_element_by_name("Train Util").set_value(0.85)
+        elif self.train_speed == "Slow":
+            self._get_element_by_name("Train Util").set_value(0.5)
 
     def install(self, viser_server: ViserServer):
         for e in self.elements_by_name.values():

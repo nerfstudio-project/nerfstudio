@@ -83,6 +83,10 @@ class ViewerButton(ViewerElement):
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         self.gui_handle = viser_server.add_gui_button(self.name, disabled=self.disabled)
 
+    def set_hidden(self, hidden: bool):
+        """Sets the hidden state of the gui element"""
+        raise NotImplementedError("Hiding buttons isn't supported on javascript side yet")
+
     def install(self, viser_server: ViserServer) -> None:
         self._create_gui_handle(viser_server)
 
@@ -124,6 +128,11 @@ class ViewerParameter(ViewerElement):
 
         assert self.gui_handle is not None
         self.gui_handle.on_update(update_fn)
+
+    def set_value(self, value: Any):
+        """Sets the value of the element"""
+        if self.gui_handle is not None:
+            self.gui_handle.set_value(value)
 
     @abstractmethod
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
