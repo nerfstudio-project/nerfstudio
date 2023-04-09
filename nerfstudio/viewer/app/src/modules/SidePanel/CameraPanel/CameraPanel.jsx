@@ -57,6 +57,7 @@ import LevaTheme from '../../../themes/leva_theme.json';
 import {
   CameraPathPayloadMessage,
   CameraPathOptionsRequest,
+  CropParamsMessage,
 } from '../../WebSocket/ViserMessages';
 
 const msgpack = require('msgpack-lite');
@@ -653,38 +654,6 @@ export default function CameraPanel(props) {
     });
   };
 
-  const setCropEnabled = (value) => {
-    dispatch({
-      type: 'write',
-      path: 'renderingState/crop_enabled',
-      data: value,
-    });
-  };
-
-  const serCropBgColor = (value) => {
-    dispatch({
-      type: 'write',
-      path: 'renderingState/crop_bg_color',
-      data: value,
-    });
-  };
-
-  const setCropCenter = (value) => {
-    dispatch({
-      type: 'write',
-      path: 'renderingState/crop_center',
-      data: value,
-    });
-  };
-
-  const setCropScale = (value) => {
-    dispatch({
-      type: 'write',
-      path: 'renderingState/crop_scale',
-      data: value,
-    });
-  };
-
   const setRenderTime = (value) => {
     dispatch({
       type: 'write',
@@ -1032,7 +1001,11 @@ export default function CameraPanel(props) {
     let crop = null;
     if (crop_enabled) {
       crop = {
-        crop_bg_color,
+        crop_bg_color: {
+          r: crop_bg_color[0],
+          g: crop_bg_color[1],
+          b: crop_bg_color[2],
+        },
         crop_center,
         crop_scale,
       };
@@ -1118,10 +1091,15 @@ export default function CameraPanel(props) {
     reset_slider_render_on_add(new_camera_list);
 
     if ('crop' in camera_path_object && camera_path_object.crop !== null) {
-      setCropEnabled(true);
-      serCropBgColor(camera_path_object.crop.crop_bg_color);
-      setCropCenter(camera_path_object.crop.crop_center);
-      setCropScale(camera_path_object.crop.crop_scale);
+      const bg_color = camera_path_object.crop.crop_bg_color;
+      const message: CropParamsMessage = {
+        type: 'crop_params',
+        crop_enabled: true,
+        crop_bg_color: [bg_color.r, bg_color.g, bg_color.b],
+        crop_center: camera_path_object.crop.crop_center,
+        crop_scale: camera_path_object.crop.crop_scale,
+      };
+      sendWebsocketMessage(message);
     }
   };
 

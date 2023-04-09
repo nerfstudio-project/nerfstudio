@@ -50,8 +50,6 @@ const initialState = {
     colormap_normalize: false, // whether to normalize the colormap
     colormap_range: [0.0, 1.0], // the range of the colormap
 
-    maxResolution: 1024,
-    targetTrainUtil: 0.9,
     eval_res: '?',
     train_eta: 'Paused',
     vis_train_ratio: 'Paused',

@@ -147,13 +147,13 @@ class RenderThread(threading.Thread):
         outputs = None
         try:
             with SetTrace(self.state.check_interrupt):
-                if self.state.prev_crop_enabled:
-                    color = self.state.prev_crop_bg_color
+                if self.state.control_panel.crop_viewport:
+                    color = self.state.control_panel.background_color
                     if color is None:
                         background_color = torch.tensor([0.0, 0.0, 0.0], device=self.model.device)
                     else:
                         background_color = torch.tensor(
-                            [color["r"] / 255.0, color["g"] / 255.0, color["b"] / 255.0], device=self.model.device
+                            [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0], device=self.model.device
                         )
                     with renderers.background_color_override_context(background_color), torch.no_grad():
                         outputs = self.model.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
@@ -226,20 +226,6 @@ class CheckThread(threading.Thread):
                 self.state.check_interrupt_vis = True
                 return
 
-            # check max render
-            max_resolution = self.state.vis["renderingState/maxResolution"].read()
-            if max_resolution is not None:
-                if self.state.max_resolution != max_resolution:
-                    self.state.check_interrupt_vis = True
-                    return
-
-            # check crop changes
-            crop_enabled = self.state.vis["renderingState/crop_enabled"].read()
-            if crop_enabled is not None:
-                if self.state.prev_crop_enabled != crop_enabled:
-                    self.state.check_interrupt_vis = True
-                    return
-
 
 @decorate_all([check_main_thread])
 class ViewerState:
@@ -294,7 +280,6 @@ class ViewerState:
         self.prev_colormap_range = [0, 1]
         self.prev_moving = False
         self.output_type_changed = True
-        self.max_resolution = 1000
         self.check_interrupt_vis = False
         self.check_done_render = True
         self.step = 0
@@ -302,10 +287,6 @@ class ViewerState:
         self.moving_fps = 24
         self.camera_moving = False
         self.prev_camera_timestamp = 0
-        self.prev_crop_enabled = False
-        self.prev_crop_bg_color = None
-        self.prev_crop_scale = None
-        self.prev_crop_center = None
 
         self.output_list = None
         self.is_training = self.config.start_train
@@ -320,8 +301,27 @@ class ViewerState:
         self.viser_server.register_handler(CameraPathOptionsRequest, self._handle_camera_path_option_request)
         self.viser_server.register_handler(CameraPathPayloadMessage, self._handle_camera_path_payload)
 
-        self.control_panel = ControlPanel(lambda: None)  # TODO define rerender_cb
+        self.control_panel = ControlPanel(self._interrupt_render, self._crop_params_update)
         self.control_panel.install(self.viser_server)
+
+    def _interrupt_render(self) -> None:
+        """Interrupt current render."""
+        self.check_interrupt_vis = True
+
+    def _crop_params_update(self) -> None:
+        """Update crop parameters"""
+        crop_min = torch.tensor(self.control_panel.crop_min, dtype=torch.float32)
+        crop_max = torch.tensor(self.control_panel.crop_max, dtype=torch.float32)
+        scene_box = SceneBox(aabb=torch.stack([crop_min, crop_max], dim=0))
+        self.viser_server.update_scene_box(scene_box)
+        crop_scale = (crop_max - crop_min) / 2.0
+        crop_center = (crop_max + crop_min) / 2.0
+        self.viser_server.send_crop_params(
+            crop_enabled=self.control_panel.crop_viewport,
+            crop_bg_color=self.control_panel.background_color,
+            crop_scale=tuple(crop_scale.tolist()),
+            crop_center=tuple(crop_center.tolist()),
+        )
 
     def _handle_is_training(self, message: Message) -> None:
         """Handle is_training message from viewer."""
@@ -406,41 +406,15 @@ class ViewerState:
             model: the model to render
         """
 
-        crop_enabled = self.vis["renderingState/crop_enabled"].read()
-        if crop_enabled != self.prev_crop_enabled:
-            self.camera_moving = True
-            self.prev_crop_enabled = crop_enabled
-            self.prev_crop_bg_color = None
-            self.prev_crop_scale = None
-            self.prev_crop_center = None
+        if self.control_panel.crop_viewport:
+            crop_min = torch.tensor(self.control_panel.crop_min, dtype=torch.float32)
+            crop_max = torch.tensor(self.control_panel.crop_max, dtype=torch.float32)
 
-        if crop_enabled:
-            crop_scale = self.vis["renderingState/crop_scale"].read()
-            crop_center = self.vis["renderingState/crop_center"].read()
-            crop_bg_color = self.vis["renderingState/crop_bg_color"].read()
-
-            if crop_bg_color != self.prev_crop_bg_color:
-                self.camera_moving = True
-                self.prev_crop_bg_color = crop_bg_color
-
-            if crop_scale != self.prev_crop_scale or crop_center != self.prev_crop_center:
-                self.camera_moving = True
-                self.prev_crop_scale = crop_scale
-                self.prev_crop_center = crop_center
-
-                crop_scale = torch.tensor(crop_scale)
-                crop_center = torch.tensor(crop_center)
-
-                box_min = crop_center - crop_scale / 2.0
-                box_max = crop_center + crop_scale / 2.0
-
-                if isinstance(model.render_aabb, SceneBox):
-                    model.render_aabb.aabb[0] = box_min
-                    model.render_aabb.aabb[1] = box_max
-                else:
-                    model.render_aabb = SceneBox(aabb=torch.stack([box_min, box_max], dim=0))
-
-                self.viser_server.update_scene_box(model.render_aabb)
+            if isinstance(model.render_aabb, SceneBox):
+                model.render_aabb.aabb[0] = crop_min
+                model.render_aabb.aabb[1] = crop_max
+            else:
+                model.render_aabb = SceneBox(aabb=torch.stack([crop_min, crop_max], dim=0))
         else:
             model.render_aabb = None
 
@@ -489,7 +463,7 @@ class ViewerState:
 
                 if EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
                     train_rays_per_sec = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
-                    target_train_util = self.vis["renderingState/targetTrainUtil"].read()
+                    target_train_util = self.control_panel.train_util
                     if target_train_util is None:
                         target_train_util = 0.9
 
@@ -547,21 +521,6 @@ class ViewerState:
         colormap_normalize = self.vis["renderingState/colormap_normalize"].read()
         if self.prev_colormap_normalize != colormap_normalize:
             self.camera_moving = True
-
-        crop_bg_color = self.vis["renderingState/crop_bg_color"].read()
-        if self.prev_crop_enabled:
-            if self.prev_crop_bg_color != crop_bg_color:
-                self.camera_moving = True
-
-        crop_scale = self.vis["renderingState/crop_scale"].read()
-        if self.prev_crop_enabled:
-            if self.prev_crop_scale != crop_scale:
-                self.camera_moving = True
-
-        crop_center = self.vis["renderingState/crop_center"].read()
-        if self.prev_crop_enabled:
-            if self.prev_crop_center != crop_center:
-                self.camera_moving = True
 
     def _apply_colormap(self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6):
         """Determines which colormap to use based on set colormap type
@@ -685,14 +644,10 @@ class ViewerState:
             image_height: the maximum image height that can be rendered in the time budget
             image_width: the maximum image width that can be rendered in the time budget
         """
-        max_resolution = self.vis["renderingState/maxResolution"].read()
-        if max_resolution:
-            self.max_resolution = max_resolution
-
         if self.camera_moving or not is_training:
             target_train_util = 0
         else:
-            target_train_util = self.vis["renderingState/targetTrainUtil"].read()
+            target_train_util = self.control_panel.train_util
             if target_train_util is None:
                 target_train_util = 0.9
 
@@ -714,15 +669,16 @@ class ViewerState:
         # calculate number of rays that can be rendered given the target fps
         num_vis_rays = vis_rays_per_sec / current_fps * (1 - target_train_util)
 
+        max_res = self.control_panel.max_res
         if not self.camera_moving and not is_training:
-            image_height = self.max_resolution
+            image_height = max_res
         else:
             image_height = (num_vis_rays / aspect_ratio) ** 0.5
             image_height = int(round(image_height, -1))
-            image_height = max(min(self.max_resolution, image_height), 30)
+            image_height = max(min(max_res, image_height), 30)
         image_width = int(image_height * aspect_ratio)
-        if image_width > self.max_resolution:
-            image_width = self.max_resolution
+        if image_width > max_res:
+            image_width = max_res
             image_height = int(image_width / aspect_ratio)
         return image_height, image_width
 

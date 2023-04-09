@@ -96,7 +96,7 @@ function handleMessage(
       break;
     }
     // Set the hidden state of a GUI input.
-    case "gui_set_hidden": {
+    case 'gui_set_hidden': {
       const curGuiConfigFromName =
         store.getState().custom_gui.guiConfigFromName;
       const currentConf = curGuiConfigFromName[message.name];
@@ -215,6 +215,30 @@ function handleMessage(
         type: 'write',
         path: 'file_path_info/export_path_name',
         data: message.export_path_name,
+      });
+      break;
+    }
+    // Set crop parameters
+    case 'crop_params': {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/crop_enabled',
+        data: message.crop_enabled,
+      });
+      dispatch({
+        type: 'write',
+        path: 'renderingState/crop_bg_color',
+        data: message.crop_bg_color,
+      });
+      dispatch({
+        type: 'write',
+        path: 'renderingState/crop_scale',
+        data: message.crop_scale,
+      });
+      dispatch({
+        type: 'write',
+        path: 'renderingState/crop_center',
+        data: message.crop_center,
       });
       break;
     }
