@@ -70,10 +70,13 @@ class ControlPanel:
         print("inside train speed cb")
         if self.train_speed == "Fast":
             self._get_element_by_name("Train Util").set_value(0.95)
+            self._get_element_by_name("Max Res").set_value(256)
         elif self.train_speed == "Balanced":
             self._get_element_by_name("Train Util").set_value(0.85)
+            self._get_element_by_name("Max Res").set_value(512)
         elif self.train_speed == "Slow":
             self._get_element_by_name("Train Util").set_value(0.5)
+            self._get_element_by_name("Max Res").set_value(1024)
 
     def install(self, viser_server: ViserServer):
         for e in self.elements_by_name.values():

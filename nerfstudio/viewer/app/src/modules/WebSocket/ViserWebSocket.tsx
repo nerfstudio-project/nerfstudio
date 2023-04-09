@@ -122,7 +122,6 @@ function handleMessage(
       const curGuiConfigFromName =
         store.getState().custom_gui.guiConfigFromName;
       const currentConf = curGuiConfigFromName[message.name];
-      console.log(currentConf);
       if (currentConf !== undefined) {
         dispatch({
           type: 'write',
@@ -133,6 +132,16 @@ function handleMessage(
               ...currentConf,
               value: message.value,
             },
+          },
+        });
+        //  To propagate change to the leva element, need to add to the guiSetQueue
+        const curSetQueue = store.getState().custom_gui.guiSetQueue;
+        dispatch({
+          type: 'write',
+          path: 'custom_gui/guiSetQueue',
+          data: {
+            ...curSetQueue,
+            [message.name]: message.value,
           },
         });
       }

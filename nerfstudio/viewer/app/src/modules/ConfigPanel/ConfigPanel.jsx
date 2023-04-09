@@ -108,27 +108,27 @@ function CustomLeva() {
     { store: levaStore },
     [guiConfigFromName],
   );
-
-  // Logic for setting control inputs when items are put onto the guiSetQueue.
-  // const guiSetQueue = props.useGui((state) => state.guiSetQueue);
-  // const applyGuiSetQueue = props.useGui((state) => state.applyGuiSetQueue);
-  // const timeouts = React.useRef<{ [key: string]: NodeJS.Timeout }>({});
-  // React.useEffect(() => {
-  //   if (Object.keys(guiSetQueue).length === 0) return;
-  //   applyGuiSetQueue((name, value) => {
-  //     suppressOnChange.current[name] = true;
-
-  //     // Suppression timeout. Resolves some issues with onChange() not firing
-  //     // after we call set... this is hacky and should be revisited.
-  //     clearTimeout(timeouts.current[name]);
-  //     timeouts.current[name] = setTimeout(() => {
-  //       suppressOnChange.current[name] = false;
-  //     }, 10);
-
-  //     // Set Leva control.
-  //     set({ [name]: value });
-  //   });
-  // }, [guiSetQueue, applyGuiSetQueue, set]);
+  
+  const dispatch = useDispatch();
+  const guiSetQueue = customGui.guiSetQueue;
+  React.useEffect(() => {
+    // This line is important to prevent looping
+    if(Object.keys(guiSetQueue).length === 0) return;
+    for (const [key, value] of Object.entries(guiSetQueue)) {
+      // Linear runtime here could be improved.
+      if (guiNames.includes(key)) {
+        // delete guiSetQueue[key];
+        set({ [key]: value });//call the leva function for setting the value of the element
+      }
+    }
+    //  delete the queue
+    dispatch({
+      type: "write",
+      path: "custom_gui/guiSetQueue",
+      data: {
+      }
+    });
+  }, [guiSetQueue,set,guiNames]);
 
   // Leva theming is a bit limited, so we hack at styles here...
   return (

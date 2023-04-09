@@ -18,6 +18,7 @@ const initialState = {
   custom_gui: {
     guiNames: [],
     guiConfigFromName: {},
+    guiSetQueue: {},
   },
 
   file_path_info: {
