@@ -266,7 +266,6 @@ class VanillaPipeline(Pipeline):
         return self.model.device
 
     @profiler.time_function
-    @profile
     def get_train_loss_dict(self, step: int):
         """This function gets your training loss dict. This will be responsible for
         getting the next batch of data from the DataManager and interfacing with the

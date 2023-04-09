@@ -47,7 +47,6 @@ class RayGenerator(nn.Module):
         self.register_buffer("image_coords", cameras.get_image_coords(), persistent=False)
 
     @profiler.time_function
-    @profile
     def forward(self, ray_indices: TensorType["num_rays", 3]) -> RayBundle:
         """Index into the cameras to generate the rays.
 

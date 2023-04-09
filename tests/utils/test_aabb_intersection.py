@@ -168,7 +168,9 @@ def test_equall_nerfacc():
         # time2 = time.time()
 
         # time3 = time.time()
-        t_min_nerfacc, t_max_nerfacc = nerfacc.ray_aabb_intersect(origins, directions, aabb)
+        t_min_nerfacc, t_max_nerfacc, _ = nerfacc.ray_aabb_intersect(origins, directions, aabb[None, :])
+        t_max_nerfacc = t_max_nerfacc.squeeze(-1)
+        t_min_nerfacc = t_min_nerfacc.squeeze(-1)
         # time4 = time.time()
 
         # print("pytorch ", time2-time1)

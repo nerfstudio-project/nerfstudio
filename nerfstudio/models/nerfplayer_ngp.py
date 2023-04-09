@@ -23,7 +23,6 @@ from typing import Type
 
 import nerfacc
 import torch
-from nerfacc import ContractionType
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
@@ -32,6 +31,7 @@ from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.field_components.field_heads import FieldHeadNames
+from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.nerfplayer_ngp_field import NerfplayerNGPField
 from nerfstudio.model_components.losses import MSELoss
 from nerfstudio.model_components.ray_samplers import VolumetricSampler
@@ -80,6 +80,8 @@ class NerfplayerNGPModelConfig(InstantNGPModelConfig):
     """The training background color that is given to untrained areas."""
     disable_viewing_dependent: bool = True
     """Disable viewing dependent effects."""
+    disable_scene_contraction: bool = False
+    """Whether to disable scene contraction or not."""
 
 
 class NerfplayerNGPModel(NGPModel):
@@ -96,9 +98,13 @@ class NerfplayerNGPModel(NGPModel):
         """Set the fields and modules."""
         Model.populate_modules(self)
 
+        if self.config.disable_scene_contraction:
+            scene_contraction = None
+        else:
+            scene_contraction = SceneContraction(order=float("inf"))
+
         self.field = NerfplayerNGPField(
             aabb=self.scene_box.aabb,
-            contraction_type=self.config.contraction_type,
             use_appearance_embedding=self.config.use_appearance_embedding,
             num_images=self.num_train_data,
             temporal_dim=self.config.temporal_dim,
@@ -107,21 +113,21 @@ class NerfplayerNGPModel(NGPModel):
             log2_hashmap_size=self.config.log2_hashmap_size,
             base_resolution=self.config.base_resolution,
             disable_viewing_dependent=self.config.disable_viewing_dependent,
+            spatial_distortion=scene_contraction,
         )
 
         self.scene_aabb = Parameter(self.scene_box.aabb.flatten(), requires_grad=False)
 
         # Occupancy Grid
-        self.occupancy_grid = nerfacc.OccupancyGrid(
-            roi_aabb=self.scene_aabb,
+        grid_scale = 1 << (self.config.grid_levels - 1)
+        self.occupancy_grid = nerfacc.OccGridEstimator(
+            roi_aabb=nerfacc.grid._enlarge_aabb(self.scene_aabb, 1.0 / grid_scale),
             resolution=self.config.grid_resolution,
-            contraction_type=self.config.contraction_type,
+            levels=self.config.grid_levels,
         )
 
         # Sampler
-        vol_sampler_aabb = self.scene_box.aabb if self.config.contraction_type == ContractionType.AABB else None
         self.sampler = VolumetricSampler(
-            scene_aabb=vol_sampler_aabb,
             occupancy_grid=self.occupancy_grid,
             density_fn=self.field.density_fn,
         )  # need to update the density_fn later during forward (for input time)
@@ -161,8 +167,8 @@ class NerfplayerNGPModel(NGPModel):
         weights = nerfacc.render_weight_from_density(
             packed_info=packed_info,
             sigmas=field_outputs[FieldHeadNames.DENSITY],
-            t_starts=ray_samples.frustums.starts,
-            t_ends=ray_samples.frustums.ends,
+            t_starts=ray_samples.frustums.starts.squeeze(-1),
+            t_ends=ray_samples.frustums.ends.squeeze(-1),
         )
 
         # update bgcolor in the renderer; usually random color for training and fixed color for inference
@@ -180,13 +186,11 @@ class NerfplayerNGPModel(NGPModel):
             weights=weights, ray_samples=ray_samples, ray_indices=ray_indices, num_rays=num_rays
         )
         accumulation = self.renderer_accumulation(weights=weights, ray_indices=ray_indices, num_rays=num_rays)
-        alive_ray_mask = accumulation.squeeze(-1) > 0
 
         outputs = {
             "rgb": rgb,
             "accumulation": accumulation,
             "depth": depth,
-            "alive_ray_mask": alive_ray_mask,  # the rays we kept from sampler
             "num_samples_per_ray": packed_info[:, 1],
         }
         # adding them to outputs for calculating losses
@@ -199,8 +203,7 @@ class NerfplayerNGPModel(NGPModel):
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         image = batch["image"].to(self.device)
-        mask = outputs["alive_ray_mask"]
-        rgb_loss = self.rgb_loss(image[mask], outputs["rgb"][mask])
+        rgb_loss = self.rgb_loss(image, outputs["rgb"])
         loss_dict = {"rgb_loss": rgb_loss}
         if "depth_image" in batch.keys() and self.config.depth_weight > 0:
             mask = batch["depth_image"] != 0

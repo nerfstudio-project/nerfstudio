@@ -74,7 +74,6 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
 
         return indices
 
-    @profile
     def collate_image_dataset_batch(self, batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
         """
         Operates on a batch of images and samples pixels to use for generating rays.
@@ -113,7 +112,6 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
 
         return collated_batch
 
-    @profile
     def collate_image_dataset_batch_list(self, batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
         """
         Does the same as collate_image_dataset_batch, except it will operate over a list of images / masks inside
@@ -186,7 +184,6 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         return collated_batch
 
     @profiler.time_function
-    @profile
     def sample(self, image_batch: Dict):
         """Sample an image batch and return a pixel batch.
 

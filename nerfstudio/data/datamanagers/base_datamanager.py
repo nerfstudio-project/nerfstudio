@@ -518,7 +518,6 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
 
     @profiler.time_function
-    @profile
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
@@ -547,10 +546,16 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         raise ValueError("No more eval images")
 
     def get_train_rays_per_batch(self) -> int:
-        return self.config.train_num_rays_per_batch
+        if self.train_pixel_sampler is None:
+            return self.config.train_num_rays_per_batch
+        else:
+            return self.train_pixel_sampler.num_rays_per_batch
 
     def get_eval_rays_per_batch(self) -> int:
-        return self.config.eval_num_rays_per_batch
+        if self.eval_pixel_sampler is None:
+            return self.config.eval_num_rays_per_batch
+        else:
+            return self.eval_pixel_sampler.num_rays_per_batch
 
     def get_datapath(self) -> Path:
         return self.config.dataparser.data
