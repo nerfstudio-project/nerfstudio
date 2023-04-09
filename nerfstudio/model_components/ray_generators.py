@@ -38,9 +38,7 @@ class RayGenerator(nn.Module):
 
     image_coords: TensorType["height", "width", 2]
 
-    def __init__(
-        self, cameras: Cameras, pose_optimizer: Optional[CameraOptimizer] = None
-    ) -> None:
+    def __init__(self, cameras: Cameras, pose_optimizer: Optional[CameraOptimizer] = None) -> None:
         super().__init__()
         self.cameras = cameras
         self.pose_optimizer = pose_optimizer
