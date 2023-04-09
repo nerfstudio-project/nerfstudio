@@ -492,6 +492,27 @@ class MessageApi(abc.ABC):
         """
         self._queue(_messages.CameraPathsMessage(payload=camera_paths))
 
+    def send_crop_params(
+        self,
+        crop_enabled: bool,
+        crop_bg_color: Tuple[int, int, int],
+        crop_center: Tuple[float, float, float],
+        crop_scale: Tuple[float, float, float],
+    ) -> None:
+        """Send crop parameters to the scene.
+
+        Args:
+            crop_enabled: Whether crop is enabled.
+            crop_bg_color: The background color of the crop.
+            crop_center: The center of the crop.
+            crop_scale: The scale of the crop.
+        """
+        self._queue(
+            _messages.CropParamsMessage(
+                crop_enabled=crop_enabled, crop_bg_color=crop_bg_color, crop_center=crop_center, crop_scale=crop_scale
+            )
+        )
+
     def _handle_incoming_message(self, client_id: ClientId, message: _messages.Message) -> None:
         """Handle incoming messages."""
         if type(message) in self._incoming_handlers:

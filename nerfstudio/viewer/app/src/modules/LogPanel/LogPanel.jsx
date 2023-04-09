@@ -13,44 +13,6 @@ export function LogPanel() {
   let local_error = resolved_msg;
   // connection status indicators
 
-  const set_max_train_util = () => {
-    if (websocket.readyState === WebSocket.OPEN) {
-      dispatch({
-        type: 'write',
-        path: 'renderingState/targetTrainUtil',
-        data: 0.9,
-      });
-      const cmd = 'write';
-      const path = 'renderingState/targetTrainUtil';
-      const data = {
-        type: cmd,
-        path,
-        data: 0.9,
-      };
-      const message = msgpack.encode(data);
-      websocket.send(message);
-    }
-  };
-
-  const set_small_resolution = () => {
-    if (websocket.readyState === WebSocket.OPEN) {
-      dispatch({
-        type: 'write',
-        path: 'renderingState/maxResolution',
-        data: 512,
-      });
-      const cmd = 'write';
-      const path = 'renderingState/maxResolution';
-      const data = {
-        type: cmd,
-        path,
-        data: 512,
-      };
-      const message = msgpack.encode(data);
-      websocket.send(message);
-    }
-  };
-
   const set_log_message = () => {
     if (websocket.readyState === WebSocket.OPEN) {
       dispatch({
@@ -75,8 +37,6 @@ export function LogPanel() {
     if (local_error.includes(gpu_oom_error_msg)) {
       console.log(local_error);
       set_log_message();
-      set_small_resolution();
-      set_max_train_util();
     }
   });
 

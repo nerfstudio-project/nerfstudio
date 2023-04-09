@@ -5,12 +5,13 @@ from nerfstudio.viewer.server.viewer_param import *
 
 
 class ControlPanel:
-    def __init__(self, rerender_cb: Callable):
+    def __init__(self, rerender_cb: Callable, crop_update_cb: Callable):
         """
         Initializes the control panel with all the elements
         Args:
-             rerender_cb: a callback that will be called when the user changes a parameter that requires a rerender
+            rerender_cb: a callback that will be called when the user changes a parameter that requires a rerender
                 (eg train speed, max res, etc)
+            crop_update_cb: a callback that will be called when the user changes the crop parameters
         """
         # elements holds a mapping from tag: [elements]
         self.elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
@@ -29,12 +30,39 @@ class ControlPanel:
         self.add_element(ViewerNumber("Max", 1.0), additional_tags=("colormap",))
 
         self.add_element(ViewerSlider("Train Util", 0.9, 0, 1, 0.05))
-        self.add_element(ViewerSlider("Max Res", 500, 100, 2000, 100, cb_hook=rerender_cb))
-        self.add_element(ViewerCheckbox("Crop Viewport", False, cb_hook=self.update_control_panel))
+        self.add_element(ViewerSlider("Max Res", 1024, 64, 2048, 100, cb_hook=rerender_cb))
+        self.add_element(
+            ViewerCheckbox(
+                "Crop Viewport", False, cb_hook=lambda: [self.update_control_panel(), rerender_cb(), crop_update_cb()]
+            )
+        )
         # Crop options
-        self.add_element(ViewerRGB("Background color", (0, 0, 0)), additional_tags=("crop",))
-        self.add_element(ViewerVec3("Crop Min", (0, 0, 0), 0.05), additional_tags=("crop",))
-        self.add_element(ViewerVec3("Crop Max", (1, 1, 1), 0.05), additional_tags=("crop",))
+        self.add_element(
+            ViewerRGB(
+                "Background color",
+                (38, 42, 55),
+                cb_hook=crop_update_cb,
+            ),
+            additional_tags=("crop",),
+        )
+        self.add_element(
+            ViewerVec3(
+                "Crop Min",
+                (-1, -1, -1),
+                0.05,
+                cb_hook=crop_update_cb,
+            ),
+            additional_tags=("crop",),
+        )
+        self.add_element(
+            ViewerVec3(
+                "Crop Max",
+                (1, 1, 1),
+                0.05,
+                cb_hook=crop_update_cb,
+            ),
+            additional_tags=("crop",),
+        )
 
     def install(self, viser_server: ViserServer):
         for e in self.elements_by_name.values():

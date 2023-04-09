@@ -248,3 +248,18 @@ class CameraPathsMessage(Message):
     type: ClassVar[str] = "camera_paths"
     payload: Any
     """ Dictionary of camera paths """
+
+@dataclasses.dataclass
+class CropParamsMessage(Message):
+    """Crop parameters"""
+
+    type: ClassVar[str] = "crop_params"
+    crop_enabled: bool
+    """ Crop parameters """
+    crop_bg_color: Tuple[int, int, int]
+    """ Crop background color, range 0-255 """
+    crop_center: Tuple[float, float, float]
+    """ Center of the crop box """
+    crop_scale: Tuple[float, float, float]
+    """ Scale of the crop box """
+    

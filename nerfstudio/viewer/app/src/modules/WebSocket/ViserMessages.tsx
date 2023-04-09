@@ -19,15 +19,15 @@ export interface GuiRemoveMessage {
   type: "remove_gui";
   name: string;
 }
-export interface GuiSetHiddenMessage {
-  type: "gui_set_hidden";
-  name: string;
-  hidden: boolean;
-}
 export interface GuiUpdateMessage {
   type: "gui_update";
   name: string;
   value: any;
+}
+export interface GuiSetHiddenMessage {
+  type: "gui_set_hidden";
+  name: string;
+  hidden: boolean;
 }
 export interface GuiSetValueMessage {
   type: "gui_set";
@@ -84,6 +84,13 @@ export interface CameraPathsMessage {
   type: "camera_paths";
   payload: any;
 }
+export interface CropParamsMessage {
+  type: "crop_params";
+  crop_enabled: boolean;
+  crop_bg_color: [number, number, number];
+  crop_center: [number, number, number];
+  crop_scale: [number, number, number];
+}
 
 export type Message = 
   | BackgroundImageMessage
@@ -101,4 +108,5 @@ export type Message =
   | IsTrainingMessage
   | CameraPathPayloadMessage
   | CameraPathOptionsRequest
-  | CameraPathsMessage;
+  | CameraPathsMessage
+  | CropParamsMessage;
