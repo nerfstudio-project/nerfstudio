@@ -21,6 +21,7 @@ from typing import Dict, Optional, Union
 
 import torch
 from torchtyping import TensorType
+
 from nerfstudio.utils import profiler
 
 

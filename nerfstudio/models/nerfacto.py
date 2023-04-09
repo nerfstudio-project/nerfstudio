@@ -59,8 +59,7 @@ from nerfstudio.model_components.renderers import (
 from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
-from nerfstudio.utils import colormaps
-from nerfstudio.utils import profiler
+from nerfstudio.utils import colormaps, profiler
 
 
 @dataclass
