@@ -21,6 +21,7 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from numpy.typing import ArrayLike
 from torchtyping import TensorType
 from typing_extensions import Literal
@@ -271,29 +272,6 @@ def viewmatrix(lookat: torch.Tensor, up: torch.Tensor, pos: torch.Tensor) -> Ten
     return m
 
 
-def get_distortion_params(
-    k1: float = 0.0,
-    k2: float = 0.0,
-    k3: float = 0.0,
-    k4: float = 0.0,
-    p1: float = 0.0,
-    p2: float = 0.0,
-) -> TensorType[...]:
-    """Returns a distortion parameters matrix.
-
-    Args:
-        k1: The first radial distortion parameter.
-        k2: The second radial distortion parameter.
-        k3: The third radial distortion parameter.
-        k4: The fourth radial distortion parameter.
-        p1: The first tangential distortion parameter.
-        p2: The second tangential distortion parameter.
-    Returns:
-        torch.Tensor: A distortion parameters matrix.
-    """
-    return torch.Tensor([k1, k2, k3, k4, p1, p2])
-
-
 @torch.jit.script
 def _compute_residual_and_jacobian(
     x: torch.Tensor,
@@ -311,24 +289,23 @@ def _compute_residual_and_jacobian(
         y: The updated y coordinates.
         xd: The distorted x coordinates.
         yd: The distorted y coordinates.
-        distortion_params: The distortion parameters [k1, k2, k3, k4, p1, p2].
+        distortion_params: The distortion parameters [k1, k2, p1, p2, k3, k4, k5, k6].
 
     Returns:
         The residuals (fx, fy) and jacobians (fx_x, fx_y, fy_x, fy_y).
     """
+    assert distortion_params.shape[-1] == 8
 
-    k1 = distortion_params[..., 0]
-    k2 = distortion_params[..., 1]
-    k3 = distortion_params[..., 2]
-    k4 = distortion_params[..., 3]
-    p1 = distortion_params[..., 4]
-    p2 = distortion_params[..., 5]
+    k1, k2, p1, p2, k3, k4, k5, k6 = torch.unbind(distortion_params, dim=-1)
 
     # let r(x, y) = x^2 + y^2;
-    #     d(x, y) = 1 + k1 * r(x, y) + k2 * r(x, y) ^2 + k3 * r(x, y)^3 +
-    #                   k4 * r(x, y)^4;
+    #     alpha(x, y) = 1 + k1 * r(x, y) + k2 * r(x, y) ^2 + k3 * r(x, y)^3;
+    #     beta(x, y) = 1 + k4 * r(x, y) + k5 * r(x, y) ^2 + k6 * r(x, y)^3;
+    #     d(x, y) = alpha(x, y) / beta(x, y);
     r = x * x + y * y
-    d = 1.0 + r * (k1 + r * (k2 + r * (k3 + r * k4)))
+    alpha = 1.0 + r * (k1 + r * (k2 + r * k3))
+    beta = 1.0 + r * (k4 + r * (k5 + r * k6))
+    d = alpha / beta
 
     # The perfect projection is:
     # xd = x * d(x, y) + 2 * p1 * x * y + p2 * (r(x, y) + 2 * x^2);
@@ -344,8 +321,12 @@ def _compute_residual_and_jacobian(
     fx = d * x + 2 * p1 * x * y + p2 * (r + 2 * x * x) - xd
     fy = d * y + 2 * p2 * x * y + p1 * (r + 2 * y * y) - yd
 
+    # Compute derivative of alpha, beta over r.
+    alpha_r = k1 + r * (2.0 * k2 + r * (3.0 * k3))
+    beta_r = k4 + r * (2.0 * k5 + r * (3.0 * k6))
+
     # Compute derivative of d over [x, y]
-    d_r = k1 + r * (2.0 * k2 + r * (3.0 * k3 + r * 4.0 * k4))
+    d_r = (alpha_r * beta - alpha * beta_r) / (beta * beta)
     d_x = 2.0 * x * d_r
     d_y = 2.0 * y * d_r
 
@@ -373,13 +354,21 @@ def radial_and_tangential_undistort(
 
     Args:
         coords: The distorted coordinates.
-        distortion_params: The distortion parameters [k1, k2, k3, k4, p1, p2].
+        distortion_params: The distortion parameters. Supports 0, 1, 2, 4, 8 parameters, in
+            the order of [k1, k2, p1, p2, k3, k4, k5, k6].
         eps: The epsilon for the convergence.
         max_iterations: The maximum number of iterations to perform.
 
     Returns:
         The undistorted coordinates.
     """
+    assert distortion_params.shape[-1] in [0, 1, 2, 4, 8]
+
+    if distortion_params.shape[-1] == 0:
+        return coords
+    elif distortion_params.shape[-1] < 8:
+        distortion_params = F.pad(distortion_params, (0, 8 - distortion_params.shape[-1]), "constant", 0.0)
+    assert distortion_params.shape[-1] == 8
 
     # Initialize from the distorted point.
     x = coords[..., 0]
