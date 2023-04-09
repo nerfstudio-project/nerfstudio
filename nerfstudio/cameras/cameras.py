@@ -657,7 +657,7 @@ class Cameras(TensorDataclass):
                                 coord_stack[coord_mask, :].reshape(3, -1, 2),
                                 distortion_params[mask, :],
                             ).reshape(-1, 2)
-                        except ImportError:
+                        except (RuntimeError, ImportError):
                             coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
                                 coord_stack[coord_mask, :].reshape(3, -1, 2),
                                 distortion_params[mask, :],
