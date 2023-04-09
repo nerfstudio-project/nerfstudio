@@ -67,7 +67,6 @@ class ControlPanel:
         )
 
     def train_speed_cb(self):
-        print("inside train speed cb")
         if self.train_speed == "Fast":
             self._get_element_by_name("Train Util").set_value(0.95)
             self._get_element_by_name("Max Res").set_value(256)
