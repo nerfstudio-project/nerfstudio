@@ -118,7 +118,7 @@ class ViewerParameter(ViewerElement):
         self._create_gui_handle(viser_server)
 
         def update_fn(handle):
-            self.cb_hook()
+            self.cb_hook(handle)
 
         assert self.gui_handle is not None
         self.gui_handle.on_update(update_fn)

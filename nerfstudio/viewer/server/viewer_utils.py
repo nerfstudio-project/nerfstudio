@@ -227,14 +227,14 @@ class ViewerState:
         self.control_panel = ControlPanel(self._interrupt_render, self._crop_params_update, self._output_type_change)
         self.control_panel.install(self.viser_server)
 
-    def _output_type_change(self):
+    def _output_type_change(self, handle):
         self.output_type_changed = True
 
-    def _interrupt_render(self) -> None:
+    def _interrupt_render(self, handle) -> None:
         """Interrupt current render."""
         self.check_interrupt_vis = True
 
-    def _crop_params_update(self) -> None:
+    def _crop_params_update(self, handle) -> None:
         """Update crop parameters"""
         crop_min = torch.tensor(self.control_panel.crop_min, dtype=torch.float32)
         crop_max = torch.tensor(self.control_panel.crop_max, dtype=torch.float32)

@@ -34,7 +34,7 @@ class ControlPanel:
             "Output Render",
             "not set",
             ["not set"],
-            cb_hook=lambda: [self.update_control_panel(), rerender_cb(), update_output_cb()],
+            cb_hook=lambda han: [self.update_control_panel(), rerender_cb(han), update_output_cb(han)],
         )
         self._colormap = ViewerDropdown("Colormap", "default", ["default"], cb_hook=rerender_cb)
         self._invert = ViewerCheckbox("Invert", False, cb_hook=rerender_cb)
@@ -44,7 +44,9 @@ class ControlPanel:
         self._train_util = ViewerSlider("Train Util", 0.9, 0, 1, 0.05)
         self._max_res = ViewerSlider("Max Res", 1024, 64, 2048, 100, cb_hook=rerender_cb)
         self._crop_viewport = ViewerCheckbox(
-            "Crop Viewport", False, cb_hook=lambda: [self.update_control_panel(), rerender_cb(), crop_update_cb()]
+            "Crop Viewport",
+            False,
+            cb_hook=lambda han: [self.update_control_panel(), rerender_cb(han), crop_update_cb(han)],
         )
         self._background_color = ViewerRGB("Background color", (38, 42, 55), cb_hook=crop_update_cb)
         self._crop_min = ViewerVec3("Crop Min", (-1, -1, -1), 0.05, cb_hook=crop_update_cb)
