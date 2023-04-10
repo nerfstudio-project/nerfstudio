@@ -45,7 +45,6 @@ import Tooltip from '@mui/material/Tooltip';
 import VideoCameraBackIcon from '@mui/icons-material/VideoCameraBack';
 import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
-import { WebSocketContext } from '../../WebSocket/WebSocket';
 import {
   ViserWebSocketContext,
   sendWebsocketMessage,
@@ -59,8 +58,6 @@ import {
   CameraPathOptionsRequest,
   CropParamsMessage,
 } from '../../WebSocket/ViserMessages';
-
-const msgpack = require('msgpack-lite');
 
 const FOV_LABELS = {
   FOV: '°',
@@ -555,7 +552,6 @@ export default function CameraPanel(props) {
     (state) => state.file_path_info.export_path_name,
   );
 
-  const websocket = useContext(WebSocketContext).socket;
   const viser_websocket = useContext(ViserWebSocketContext);
   const DEFAULT_FOV = 50;
   const DEFAULT_RENDER_TIME = 0.0;
@@ -611,15 +607,6 @@ export default function CameraPanel(props) {
   const crop_scale = useSelector((state) => state.renderingState.crop_scale);
 
   const [display_render_time, set_display_render_time] = React.useState(false);
-
-  const receive_temporal_dist = (e) => {
-    const msg = msgpack.decode(new Uint8Array(e.data));
-    if (msg.path === '/model/has_temporal_distortion') {
-      set_display_render_time(msg.data === 'true');
-      websocket.removeEventListener('message', receive_temporal_dist);
-    }
-  };
-  websocket.addEventListener('message', receive_temporal_dist);
 
   const setRenderHeight = (value) => {
     dispatch({
