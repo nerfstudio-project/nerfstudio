@@ -17,7 +17,6 @@ This module implements the Marching Cubes algorithm for extracting
 isosurfaces
 """
 
-from pathlib import Path
 from typing import Callable, List, Tuple, Union
 
 import numpy as np
@@ -131,15 +130,14 @@ def evaluate_multiresolution_sdf(
 
 
 @torch.no_grad()
-def get_surface_sliding(
+def generate_mesh_with_multires_marching_cubes(
     sdf: Callable,
-    output_path: Path,
     resolution: int = 512,
     bounding_box_min: Tuple[float, float, float] = (-1.0, -1.0, -1.0),
     bounding_box_max: Tuple[float, float, float] = (1.0, 1.0, 1.0),
-    level: float = 0,
+    isosurface_threshold: float = 0.0,
     coarse_mask: Union[None, TensorType["height", "width", "depth"]] = None,
-) -> None:
+) -> trimesh.Trimesh:
     """
     Computes the isosurface of a signed distance function (SDF) defined by the
     callable `sdf` in a given bounding box with a specified resolution. The SDF
@@ -157,17 +155,22 @@ def get_surface_sliding(
             will be evaluated.
         bounding_box_max: The maximum coordinates of the bounding box in which the SDF
             will be evaluated.
-        level: The isovalue at which to approximate the isosurface.
+        isosurface_threshold: The isovalue at which to approximate the isosurface.
         coarse_mask: A binary mask tensor of size ("height", "width", "depth") that indicates the regions
             of the bounding box where the SDF is expected to have a zero-crossing. If
             provided, the algorithm first evaluates the SDF at the coarse voxels where
             the mask is True, and then refines the evaluation within these voxels using
             a multi-scale approach. If None, evaluates the SDF at all points in the
             bounding box.
+    Returns:
+        A torch tensor with the SDF values evaluated at the given points.
     """
     # Check if resolution is divisible by 512
-    assert resolution % 512 == 0
-
+    assert (
+        resolution % 512 == 0
+    ), f"""resolution must be divisible by 512, got {resolution}.
+       This is important because the algorithm uses a multi-resolution approach
+       to evaluate the SDF where the mimimum resolution is 512."""
     # Prepare coarse mask if provided
     if coarse_mask is not None:
         coarse_mask = coarse_mask.permute(2, 1, 0)[None, None].cuda().float()
@@ -224,14 +227,16 @@ def get_surface_sliding(
                 # Skip if no surface found
                 if current_mask is not None:
                     valid_z = z.reshape(crop_n, crop_n, crop_n)[current_mask]
-                    if valid_z.shape[0] <= 0 or (np.min(valid_z) > level or np.max(valid_z) < level):
+                    if valid_z.shape[0] <= 0 or (
+                        np.min(valid_z) > isosurface_threshold or np.max(valid_z) < isosurface_threshold
+                    ):
                         continue
 
-                if not (np.min(z) > level or np.max(z) < level):
+                if not (np.min(z) > isosurface_threshold or np.max(z) < isosurface_threshold):
                     z = z.astype(np.float32)
                     verts, faces, normals, _ = measure.marching_cubes(
                         volume=z.reshape(crop_n, crop_n, crop_n),
-                        level=level,
+                        level=isosurface_threshold,
                         spacing=(
                             (x_max - x_min) / (crop_n - 1),
                             (y_max - y_min) / (crop_n - 1),
@@ -244,6 +249,5 @@ def get_surface_sliding(
                     meshcrop = trimesh.Trimesh(verts, faces, normals)
                     meshes.append(meshcrop)
 
-    combined = trimesh.util.concatenate(meshes)
-    filename = output_path / "sdf_marching_cubes_mesh.ply"
-    combined.export(filename)
+    combined_mesh: trimesh.Trimesh = trimesh.util.concatenate(meshes)
+    return combined_mesh

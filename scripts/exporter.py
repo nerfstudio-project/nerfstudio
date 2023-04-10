@@ -27,7 +27,9 @@ from nerfstudio.exporter.exporter_utils import (
     generate_point_cloud,
     get_mesh_from_filename,
 )
-from nerfstudio.exporter.marching_cubes import get_surface_sliding
+from nerfstudio.exporter.marching_cubes import (
+    generate_mesh_with_multires_marching_cubes,
+)
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 
@@ -314,20 +316,10 @@ class ExportPoissonMesh(Exporter):
 
 @dataclass
 class ExportMarchingCubesMesh(Exporter):
-    """
-    NOT YET IMPLEMENTED
-    Export a mesh using marching cubes.
-    """
+    """Export a mesh using marching cubes."""
 
-    def main(self) -> None:
-        """Export mesh"""
-        raise NotImplementedError("Marching cubes not implemented yet.")
-
-
-@dataclass
-class ExportSDFMarchingCubesMesh(Exporter):
-    """Load SDF checkpoint, run marching cubes, extract mesh."""
-
+    isosurface_threshold: float = 0.0
+    """The isosurface threshold for extraction. For SDF based methods the surface is the zero level set."""
     resolution: int = 1024
     """Marching cube resolution."""
     simplify_mesh: bool = False
@@ -352,24 +344,32 @@ class ExportSDFMarchingCubesMesh(Exporter):
 
         _, pipeline, _ = eval_setup(self.load_config)
 
-        CONSOLE.print("Extract mesh with marching cubes and may take a while")
+        # TODO: Make this work with Density Field
+        assert hasattr(pipeline.model.config, "sdf_field"), "Model must have an SDF field."
 
-        assert self.resolution % 512 == 0
-        # for sdf we can multi-scale extraction.
-        get_surface_sliding(
+        CONSOLE.print("Extracting mesh with marching cubes... which may take a while")
+
+        assert (
+            self.resolution % 512 == 0
+        ), f"""resolution must be divisible by 512, got {self.resolution}.
+        This is important because the algorithm uses a multi-resolution approach
+        to evaluate the SDF where the mimimum resolution is 512."""
+
+        # Extract mesh using marching cubes for sdf at a multi-scale resolution.
+        multi_res_mesh = generate_mesh_with_multires_marching_cubes(
             sdf=lambda x: pipeline.model.field.forward_geonetwork(x)[:, 0].contiguous(),
-            output_path=self.output_dir,
             resolution=self.resolution,
             bounding_box_min=self.bounding_box_min,
             bounding_box_max=self.bounding_box_max,
+            isosurface_threshold=self.isosurface_threshold,
             coarse_mask=None,
         )
+        filename = self.output_dir / "sdf_marching_cubes_mesh.ply"
+        multi_res_mesh.export(filename)
 
         # load the mesh from the marching cubes export
-        mesh = get_mesh_from_filename(
-            str(self.output_dir / "sdf_marching_cubes_mesh.ply"), target_num_faces=self.target_num_faces
-        )
-        CONSOLE.print("Texturing mesh with NeRF")
+        mesh = get_mesh_from_filename(str(filename), target_num_faces=self.target_num_faces)
+        CONSOLE.print("Texturing mesh with NeRF...")
         texture_utils.export_textured_mesh(
             mesh,
             pipeline,
@@ -414,7 +414,6 @@ Commands = tyro.conf.FlagConversionOff[
         Annotated[ExportTSDFMesh, tyro.conf.subcommand(name="tsdf")],
         Annotated[ExportPoissonMesh, tyro.conf.subcommand(name="poisson")],
         Annotated[ExportMarchingCubesMesh, tyro.conf.subcommand(name="marching-cubes")],
-        Annotated[ExportSDFMarchingCubesMesh, tyro.conf.subcommand(name="sdf-marching-cubes")],
         Annotated[ExportCameraPoses, tyro.conf.subcommand(name="cameras")],
     ]
 ]
