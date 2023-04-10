@@ -268,8 +268,11 @@ class ViewerState:
         self.viser_server.register_handler(CameraPathOptionsRequest, self._handle_camera_path_option_request)
         self.viser_server.register_handler(CameraPathPayloadMessage, self._handle_camera_path_payload)
 
-        self.control_panel = ControlPanel(self._interrupt_render, self._crop_params_update)
+        self.control_panel = ControlPanel(self._interrupt_render, self._crop_params_update, self._output_type_change)
         self.control_panel.install(self.viser_server)
+
+    def _output_type_change(self):
+        self.output_type_changed = True
 
     def _interrupt_render(self) -> None:
         """Interrupt current render."""
@@ -469,11 +472,13 @@ class ViewerState:
             colors: is only set if colormap is for semantics. Defaults to None.
             eps: epsilon to handle floating point comparisons
         """
+        colormap_type = self.control_panel.colormap
+        output_type = self.control_panel.output_render
         if self.output_list:
-            reformatted_output = self._process_invalid_output(self.prev_output_type)
+            reformatted_output = self._process_invalid_output(output_type)
 
         # default for rgb images
-        if self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].shape[-1] == 3:
+        if colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].shape[-1] == 3:
             return outputs[reformatted_output]
 
         # rendering depth outputs
@@ -487,9 +492,9 @@ class ViewerState:
             output = torch.clip(output, 0, 1)
             if self.control_panel.colormap_invert:
                 output = 1 - output
-            if self.prev_colormap_type == ColormapTypes.DEFAULT:
+            if colormap_type == ColormapTypes.DEFAULT:
                 return colormaps.apply_colormap(output, cmap=ColormapTypes.TURBO.value)
-            return colormaps.apply_colormap(output, cmap=self.prev_colormap_type)
+            return colormaps.apply_colormap(output, cmap=colormap_type)
 
         # rendering semantic outputs
         if outputs[reformatted_output].dtype == torch.int:
@@ -528,18 +533,21 @@ class ViewerState:
         reformatted_output = self._process_invalid_output(self.prev_output_type)
         # re-register colormaps and send to viewer
         if self.output_type_changed or self.prev_colormap_type is None:
-            self.prev_colormap_type = ColormapTypes.DEFAULT
+            # self.prev_colormap_type = ColormapTypes.DEFAULT
             colormap_options = []
             # self.vis["renderingState/colormap_options"].write(list(ColormapTypes))
             # TODO populate colormap options
             if outputs[reformatted_output].shape[-1] == 3:
                 colormap_options = [ColormapTypes.DEFAULT]
             if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
-                self.prev_colormap_type = ColormapTypes.TURBO
+                # self.prev_colormap_type = ColormapTypes.TURBO
+                print("using all colormaps")
                 colormap_options = list(ColormapTypes)[1:]
             self.output_type_changed = False
             # self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             # self.vis["renderingState/colormap_options"].write(colormap_options)
+            print("Sending new colormap options", colormap_options)
+            self.control_panel.update_colormap_options(colormap_options)
             # TODO populate colormap choice
         selected_output = (self._apply_colormap(outputs, colors) * 255).type(torch.uint8)
 

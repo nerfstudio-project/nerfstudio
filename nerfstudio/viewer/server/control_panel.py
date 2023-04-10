@@ -23,7 +23,7 @@ class ControlPanel:
         crop_update_cb: a callback that will be called when the user changes the crop parameters
     """
 
-    def __init__(self, rerender_cb: Callable, crop_update_cb: Callable):
+    def __init__(self, rerender_cb: Callable, crop_update_cb: Callable, update_output_cb: Callable):
         # elements holds a mapping from tag: [elements]
         self._elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
 
@@ -31,7 +31,10 @@ class ControlPanel:
             "Train Speed", "Balanced", ["Fast", "Balanced", "Slow"], cb_hook=self._train_speed_cb
         )
         self._output_render = ViewerDropdown(
-            "Output Render", "not set", ["not set"], cb_hook=lambda: [self.update_control_panel(), rerender_cb()]
+            "Output Render",
+            "not set",
+            ["not set"],
+            cb_hook=lambda: [self.update_control_panel(), rerender_cb(), update_output_cb()],
         )
         self._colormap = ViewerDropdown("Colormap", "default", ["default"], cb_hook=rerender_cb)
         self._invert = ViewerCheckbox("Invert", False, cb_hook=rerender_cb)
@@ -85,6 +88,13 @@ class ControlPanel:
         for e in self._elements_by_tag["all"]:
             e.install(viser_server)
         self.update_control_panel()
+
+    def update_colormap_options(self, new_options: List[str]):
+        """
+        Args:
+            new_options: a list of new colormap options
+        """
+        self._colormap.set_options(new_options)
 
     def update_output_options(self, new_options: List[str]):
         """
