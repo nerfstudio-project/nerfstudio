@@ -91,10 +91,7 @@ class RunViewer:
                 viewer_state.update_scene(step, pipeline.model, num_rays_per_batch)
             except RuntimeError:
                 time.sleep(0.03)  # sleep to allow buffer to reset
-                assert viewer_state.vis is not None
-                viewer_state.vis["renderingState/log_errors"].write(
-                    "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
-                )
+                CONSOLE.log("Viewer failed. Continuing training.")
 
     def save_checkpoint(self, *args, **kwargs):
         """
