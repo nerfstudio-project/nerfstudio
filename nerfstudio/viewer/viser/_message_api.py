@@ -35,6 +35,7 @@ from typing import (
     Type,
     TypeVar,
     cast,
+    overload,
 )
 
 import imageio.v3 as iio
@@ -45,7 +46,7 @@ from typing_extensions import Literal, LiteralString, ParamSpec, assert_never
 from nerfstudio.data.scene_box import SceneBox
 
 from . import _messages
-from ._gui import GuiHandle, _GuiHandleState
+from ._gui import GuiHandle, GuiSelectHandle, _GuiHandleState
 
 if TYPE_CHECKING:
     from ._server import ClientId
@@ -354,13 +355,34 @@ class MessageApi(abc.ABC):
             ),
         )
 
+    # Resolve type of value to a Literal whenever possible.
+    @overload
     def add_gui_select(
         self,
         name: str,
         options: List[TLiteralString],
         initial_value: Optional[TLiteralString] = None,
         disabled: bool = False,
-    ) -> GuiHandle[TLiteralString]:
+    ) -> GuiSelectHandle[TLiteralString]:
+        ...
+
+    @overload
+    def add_gui_select(
+        self,
+        name: str,
+        options: List[str],
+        initial_value: Optional[str] = None,
+        disabled: bool = False,
+    ) -> GuiSelectHandle[str]:
+        ...
+
+    def add_gui_select(
+        self,
+        name: str,
+        options: List[TLiteralString] | List[str],
+        initial_value: Optional[TLiteralString | str] = None,
+        disabled: bool = False,
+    ) -> GuiSelectHandle[TLiteralString] | GuiSelectHandle[str]:
         """Add a dropdown to the GUI.
 
         Args:
@@ -372,18 +394,19 @@ class MessageApi(abc.ABC):
         assert len(options) > 0
         if initial_value is None:
             initial_value = options[0]
-        out: GuiHandle[TLiteralString] = _add_gui_impl(
-            self,
-            "/".join(self._gui_folder_labels + [name]),
-            initial_value,
-            leva_conf={
-                "value": initial_value,
-                "label": name,
-                "options": options,
-                "disabled": disabled,
-            },
+        return GuiSelectHandle(
+            _add_gui_impl(
+                self,
+                "/".join(self._gui_folder_labels + [name]),
+                initial_value,
+                leva_conf={
+                    "value": initial_value,
+                    "label": name,
+                    "options": options,
+                    "disabled": disabled,
+                },
+            )._impl
         )
-        return out
 
     def add_gui_slider(
         self,
@@ -394,7 +417,7 @@ class MessageApi(abc.ABC):
         initial_value: IntOrFloat,
         disabled: bool = False,
     ) -> GuiHandle[IntOrFloat]:
-        """Add a dropdown to the GUI.
+        """Add a slider to the GUI.
 
         Args:
             name: The name of the slider.

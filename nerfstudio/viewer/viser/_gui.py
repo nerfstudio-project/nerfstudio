@@ -82,8 +82,8 @@ class _GuiHandleState(Generic[T]):
     #
     # This helps us handle cases where types used by Leva don't match what we want to
     # expose as a Python API.
-    encoder: Callable[[T], Any] = lambda x: x
-    decoder: Callable[[Any], T] = lambda x: x
+    encoder: Callable[[T], Any] = lambda x: x  # noqa
+    decoder: Callable[[Any], T] = lambda x: x  # noqa
 
 
 @dataclasses.dataclass(frozen=True)
@@ -140,18 +140,14 @@ class GuiHandle(Generic[T]):
             disabled: The disabled state to set the GUI component to.
         """
         if self._impl.is_button:
+            self._impl.leva_conf["settings"]["disabled"] = disabled
             self._impl.api._queue(
-                GuiSetLevaConfMessage(
-                    self._impl.name,
-                    {**self._impl.leva_conf, "settings": {"disabled": disabled}},
-                ),
+                GuiSetLevaConfMessage(self._impl.name, self._impl.leva_conf),
             )
         else:
+            self._impl.leva_conf["disabled"] = disabled
             self._impl.api._queue(
-                GuiSetLevaConfMessage(
-                    self._impl.name,
-                    {**self._impl.leva_conf, "disabled": disabled},
-                ),
+                GuiSetLevaConfMessage(self._impl.name, self._impl.leva_conf),
             )
 
     def remove(self) -> None:
@@ -163,3 +159,23 @@ class GuiHandle(Generic[T]):
     def set_hidden(self, hidden: bool) -> None:
         """Temporarily hide this GUI element from the visualizer."""
         self._impl.api._queue(GuiSetHiddenMessage(self._impl.name, hidden=hidden))
+
+
+StringType = TypeVar("StringType", bound=str)
+
+
+@dataclasses.dataclass(frozen=True)
+class GuiSelectHandle(Generic[StringType], GuiHandle[StringType]):
+    def set_options(self, options: List[StringType]) -> None:
+        """Assign a new set of options for the dropdown menu.
+        For projects that care about typing: the static type of `options` should be
+        consistent with the `StringType` associated with a handle. Literal types will be
+        inferred where possible when handles are instantiated; for the most flexibility,
+        we can declare handles as `GuiHandle[str]`.
+        """
+        self._impl.leva_conf["options"] = options
+        self._impl.api._queue(
+            GuiSetLevaConfMessage(self._impl.name, self._impl.leva_conf),
+        )
+        if self.get_value() not in options:
+            self.set_value(options[0])

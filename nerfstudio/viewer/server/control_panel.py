@@ -76,6 +76,7 @@ class ControlPanel:
         elif self.train_speed == "Slow":
             self._get_element_by_name("Train Util").set_value(0.5)
             self._get_element_by_name("Max Res").set_value(1024)
+        self.update_output_options(["rgb", "depth", "depth_0", "lol"])
 
     def install(self, viser_server: ViserServer):
         for e in self.elements_by_name.values():
@@ -83,7 +84,7 @@ class ControlPanel:
         self.update_control_panel()
 
     def update_output_options(self, new_options: List[str]):
-        raise NotImplementedError("Not implemented yet")
+        self._get_element_by_name("Output Render").set_options(new_options)
 
     def add_element(self, e: ViewerElement, additional_tags: Tuple[str] = tuple()):
         """

@@ -91,7 +91,6 @@ class ViewerButton(ViewerElement):
         self._create_gui_handle(viser_server)
 
         def call_fn(handle):  # pylint: disable=unused-argument
-            print("call_fn called")
             self.fn()
 
         assert self.gui_handle is not None
@@ -263,6 +262,10 @@ class ViewerDropdown(ViewerParameter):
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
         self.gui_handle = viser_server.add_gui_select(self.name, self.options, self.cur_value, disabled=self.disabled)
+
+    def set_options(self, new_options):
+        self.options = new_options
+        self.gui_handle.set_options(new_options)
 
 
 class ViewerRGB(ViewerParameter):
