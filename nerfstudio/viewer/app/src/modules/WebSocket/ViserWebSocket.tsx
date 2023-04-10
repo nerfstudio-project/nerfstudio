@@ -2,7 +2,7 @@ import React, { useEffect, MutableRefObject, Dispatch } from 'react';
 
 import AwaitLock from 'await-lock';
 import { pack, unpack } from 'msgpackr';
-import { useDispatch, useStore } from 'react-redux';
+import { useDispatch, useStore, useSelector } from 'react-redux';
 import { Store } from 'redux';
 import { Message } from './ViserMessages';
 
@@ -272,10 +272,13 @@ function handleMessage(
 
 export function ViserWebSocket({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
-  const server = 'ws://localhost:8080';
   const store = useStore();
 
   const ws = React.useRef<WebSocket>();
+
+  const websocket_url = useSelector(
+    (state) => state.websocketState.websocket_url,
+  );
 
   useEffect(() => {
     // Lock for making sure messages are handled in order.
@@ -286,10 +289,10 @@ export function ViserWebSocket({ children }: { children: React.ReactNode }) {
     function tryConnect(): void {
       if (done) return;
 
-      ws.current = new WebSocket(server);
+      ws.current = new WebSocket(websocket_url);
 
       ws.current.onopen = () => {
-        console.log(`Viser connected! ${server}`);
+        console.log(`Viser connected! ${websocket_url}`);
         dispatch({
           type: 'write',
           path: 'websocketState/isConnected',
@@ -298,7 +301,7 @@ export function ViserWebSocket({ children }: { children: React.ReactNode }) {
       };
 
       ws.current.onclose = () => {
-        console.log(`Viser disconnected! ${server}`);
+        console.log(`Viser disconnected! ${websocket_url}`);
         dispatch({
           type: 'write',
           path: 'websocketState/isConnected',
@@ -337,7 +340,7 @@ export function ViserWebSocket({ children }: { children: React.ReactNode }) {
       ws.current && ws.current.close();
       clearTimeout(timeout);
     };
-  }, [server]);
+  }, [websocket_url]);
 
   return (
     <ViserWebSocketContext.Provider value={ws}>

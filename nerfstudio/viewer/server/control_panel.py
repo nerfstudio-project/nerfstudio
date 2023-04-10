@@ -1,162 +1,180 @@
+""" Control panel for the viewer """
 from collections import defaultdict
 from typing import Callable, DefaultDict, Dict, List, Tuple
 
-from nerfstudio.viewer.server.viewer_param import *
+from nerfstudio.viewer.server.viewer_param import (
+    ViewerCheckbox,
+    ViewerDropdown,
+    ViewerElement,
+    ViewerNumber,
+    ViewerRGB,
+    ViewerSlider,
+    ViewerVec3,
+)
+from nerfstudio.viewer.viser import ViserServer
 
 
 class ControlPanel:
+    """
+    Initializes the control panel with all the elements
+    Args:
+        rerender_cb: a callback that will be called when the user changes a parameter that requires a rerender
+            (eg train speed, max res, etc)
+        crop_update_cb: a callback that will be called when the user changes the crop parameters
+    """
+
     def __init__(self, rerender_cb: Callable, crop_update_cb: Callable):
-        """
-        Initializes the control panel with all the elements
-        Args:
-            rerender_cb: a callback that will be called when the user changes a parameter that requires a rerender
-                (eg train speed, max res, etc)
-            crop_update_cb: a callback that will be called when the user changes the crop parameters
-        """
         # elements holds a mapping from tag: [elements]
-        self.elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
-        self.elements_by_name: Dict[str, ViewerElement] = {}
-        self.add_element(
-            ViewerDropdown("Train Speed", "Balanced", ["Fast", "Balanced", "Slow"], cb_hook=self.train_speed_cb)
+        self._elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
+
+        self._train_speed = ViewerDropdown(
+            "Train Speed", "Balanced", ["Fast", "Balanced", "Slow"], cb_hook=self._train_speed_cb
         )
-        self.add_element(
-            ViewerDropdown(
-                "Output Render", "rgb", ["rgb", "depth"], cb_hook=lambda: [self.update_control_panel(), rerender_cb()]
-            )
+        self._output_render = ViewerDropdown(
+            "Output Render", "not set", ["not set"], cb_hook=lambda: [self.update_control_panel(), rerender_cb()]
         )
-        self.add_element(ViewerDropdown("Colormap", "default", ["default"], cb_hook=rerender_cb))
+        self._colormap = ViewerDropdown("Colormap", "default", ["default"], cb_hook=rerender_cb)
+        self._invert = ViewerCheckbox("Invert", False, cb_hook=rerender_cb)
+        self._normalize = ViewerCheckbox("Normalize", False, cb_hook=rerender_cb)
+        self._min = ViewerNumber("Min", 0.0, cb_hook=rerender_cb)
+        self._max = ViewerNumber("Max", 1.0, cb_hook=rerender_cb)
+        self._train_util = ViewerSlider("Train Util", 0.9, 0, 1, 0.05)
+        self._max_res = ViewerSlider("Max Res", 1024, 64, 2048, 100, cb_hook=rerender_cb)
+        self._crop_viewport = ViewerCheckbox(
+            "Crop Viewport", False, cb_hook=lambda: [self.update_control_panel(), rerender_cb(), crop_update_cb()]
+        )
+        self._background_color = ViewerRGB("Background color", (38, 42, 55), cb_hook=crop_update_cb)
+        self._crop_min = ViewerVec3("Crop Min", (-1, -1, -1), 0.05, cb_hook=crop_update_cb)
+        self._crop_max = ViewerVec3("Crop Max", (1, 1, 1), 0.05, cb_hook=crop_update_cb)
+
+        self.add_element(self._train_speed)
+        self.add_element(self._output_render)
+        self.add_element(self._colormap)
         # colormap options
-        self.add_element(ViewerCheckbox("Invert", False), additional_tags=("colormap",))
-        self.add_element(ViewerCheckbox("Normalize", False), additional_tags=("colormap",))
-        self.add_element(ViewerNumber("Min", 0.0), additional_tags=("colormap",))
-        self.add_element(ViewerNumber("Max", 1.0), additional_tags=("colormap",))
+        self.add_element(self._invert, additional_tags=("colormap",))
+        self.add_element(self._normalize, additional_tags=("colormap",))
+        self.add_element(self._min, additional_tags=("colormap",))
+        self.add_element(self._max, additional_tags=("colormap",))
 
-        self.add_element(ViewerSlider("Train Util", 0.9, 0, 1, 0.05))
-        self.add_element(ViewerSlider("Max Res", 1024, 64, 2048, 100, cb_hook=rerender_cb))
-        self.add_element(
-            ViewerCheckbox(
-                "Crop Viewport", False, cb_hook=lambda: [self.update_control_panel(), rerender_cb(), crop_update_cb()]
-            )
-        )
+        self.add_element(self._train_util)
+        self.add_element(self._max_res)
+        self.add_element(self._crop_viewport)
         # Crop options
-        self.add_element(
-            ViewerRGB(
-                "Background color",
-                (38, 42, 55),
-                cb_hook=crop_update_cb,
-            ),
-            additional_tags=("crop",),
-        )
-        self.add_element(
-            ViewerVec3(
-                "Crop Min",
-                (-1, -1, -1),
-                0.05,
-                cb_hook=crop_update_cb,
-            ),
-            additional_tags=("crop",),
-        )
-        self.add_element(
-            ViewerVec3(
-                "Crop Max",
-                (1, 1, 1),
-                0.05,
-                cb_hook=crop_update_cb,
-            ),
-            additional_tags=("crop",),
-        )
+        self.add_element(self._background_color, additional_tags=("crop",))
+        self.add_element(self._crop_min, additional_tags=("crop",))
+        self.add_element(self._crop_max, additional_tags=("crop",))
 
-    def train_speed_cb(self):
+    def _train_speed_cb(self) -> None:
+        """Callback for when the train speed is changed"""
         if self.train_speed == "Fast":
-            self._get_element_by_name("Train Util").set_value(0.95)
-            self._get_element_by_name("Max Res").set_value(256)
+            self._train_util.set_value(0.95)
+            self._max_res.set_value(256)
         elif self.train_speed == "Balanced":
-            self._get_element_by_name("Train Util").set_value(0.85)
-            self._get_element_by_name("Max Res").set_value(512)
+            self._train_util.set_value(0.85)
+            self._max_res.set_value(512)
         elif self.train_speed == "Slow":
-            self._get_element_by_name("Train Util").set_value(0.5)
-            self._get_element_by_name("Max Res").set_value(1024)
-        self.update_output_options(["rgb", "depth", "depth_0", "lol"])
+            self._train_util.set_value(0.5)
+            self._max_res.set_value(1024)
 
-    def install(self, viser_server: ViserServer):
-        for e in self.elements_by_name.values():
+    def install(self, viser_server: ViserServer) -> None:
+        """Installs the control panel on the viser server
+
+        Args:
+            viser_server: the viser server
+        """
+        for e in self._elements_by_tag["all"]:
             e.install(viser_server)
         self.update_control_panel()
 
     def update_output_options(self, new_options: List[str]):
-        self._get_element_by_name("Output Render").set_options(new_options)
+        """
+        Args:
+            new_options: a list of new output options
+        """
+        self._output_render.set_options(new_options)
 
-    def add_element(self, e: ViewerElement, additional_tags: Tuple[str] = tuple()):
+    def add_element(self, e: ViewerElement, additional_tags: Tuple[str] = tuple()) -> None:
+        """Adds an element to the control panel
+
+        Args:
+            e: the element to add
+            additional_tags: additional tags to add to the element for selection
         """
-        Adds an element to the control panel
-        """
-        self.elements_by_tag["all"].append(e)
+        self._elements_by_tag["all"].append(e)
         for t in additional_tags:
-            self.elements_by_tag[t].append(e)
-        assert e.name not in self.elements_by_name
-        self.elements_by_name[e.name] = e
+            self._elements_by_tag[t].append(e)
 
-    def update_control_panel(self):
+    def update_control_panel(self) -> None:
         """
         Sets elements to be hidden or not based on the current state of the control panel
         """
-        self._get_element_by_name("Colormap").set_disabled(self.output_render == "rgb")
-        for e in self.elements_by_tag["colormap"]:
+        self._colormap.set_disabled(self.output_render == "rgb")
+        for e in self._elements_by_tag["colormap"]:
             e.set_hidden(self.output_render == "rgb")
-        for e in self.elements_by_tag["crop"]:
+        for e in self._elements_by_tag["crop"]:
             e.set_hidden(not self.crop_viewport)
 
-    def _get_element_by_name(self, name):
-        return self.elements_by_name[name]
+    @property
+    def train_speed(self) -> str:
+        """Returns the current train speed setting"""
+        return self._train_speed.value
 
     @property
-    def train_speed(self):
-        return self._get_element_by_name("Train Speed").value
+    def output_render(self) -> str:
+        """Returns the current output render"""
+        return self._output_render.value
 
     @property
-    def output_render(self):
-        return self._get_element_by_name("Output Render").value
+    def colormap(self) -> str:
+        """Returns the current colormap"""
+        return self._colormap.value
 
     @property
-    def colormap(self):
-        return self._get_element_by_name("Colormap").value
+    def colormap_invert(self) -> bool:
+        """Returns the current colormap invert setting"""
+        return self._invert.value
 
     @property
-    def colormap_invert(self):
-        return self._get_element_by_name("Invert").value
+    def colormap_normalize(self) -> bool:
+        """Returns the current colormap normalize setting"""
+        return self._normalize.value
 
     @property
-    def colormap_normalize(self):
-        return self._get_element_by_name("Normalize").value
+    def colormap_min(self) -> float:
+        """Returns the current colormap min setting"""
+        return self._min.value
 
     @property
-    def colormap_min(self):
-        return self._get_element_by_name("Min").value
+    def colormap_max(self) -> float:
+        """Returns the current colormap max setting"""
+        return self._max.value
 
     @property
-    def colormap_max(self):
-        return self._get_element_by_name("Max").value
+    def train_util(self) -> float:
+        """Returns the current train util setting"""
+        return self._train_util.value
 
     @property
-    def train_util(self):
-        return self._get_element_by_name("Train Util").value
+    def max_res(self) -> int:
+        """Returns the current max res setting"""
+        return self._max_res.value
 
     @property
-    def max_res(self):
-        return self._get_element_by_name("Max Res").value
+    def crop_viewport(self) -> bool:
+        """Returns the current crop viewport setting"""
+        return self._crop_viewport.value
 
     @property
-    def crop_viewport(self):
-        return self._get_element_by_name("Crop Viewport").value
+    def crop_min(self) -> Tuple[float, float, float]:
+        """Returns the current crop min setting"""
+        return self._crop_min.value
 
     @property
-    def crop_min(self):
-        return self._get_element_by_name("Crop Min").value
+    def crop_max(self) -> Tuple[float, float, float]:
+        """Returns the current crop max setting"""
+        return self._crop_max.value
 
     @property
-    def crop_max(self):
-        return self._get_element_by_name("Crop Max").value
-
-    @property
-    def background_color(self):
-        return self._get_element_by_name("Background color").value
+    def background_color(self) -> Tuple[int, int, int]:
+        """Returns the current background color"""
+        return self._background_color.value

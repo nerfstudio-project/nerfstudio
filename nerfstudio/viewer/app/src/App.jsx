@@ -1,9 +1,6 @@
 import { CssBaseline, ThemeProvider } from '@mui/material';
 import React from 'react';
-import {
-  SceneTreeWebSocketListener,
-  get_scene_tree,
-} from './modules/Scene/Scene';
+import { get_scene_tree } from './modules/Scene/Scene';
 
 import Banner from './modules/Banner';
 import { BasicTabs } from './modules/SidePanel/SidePanel';
@@ -21,7 +18,6 @@ export default function App() {
       <CssBaseline enableColorScheme />
       <div className="App">
         {/* Listens for websocket 'write' messages and updates the redux store. */}
-        <SceneTreeWebSocketListener />
         {/* The banner at the top of the page. */}
         <Banner />
         <div className="App-body">

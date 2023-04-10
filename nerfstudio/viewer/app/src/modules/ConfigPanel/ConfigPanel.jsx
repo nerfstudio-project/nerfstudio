@@ -7,7 +7,6 @@ import {
   folder,
   button,
 } from 'leva';
-import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import LevaTheme from '../../themes/leva_theme.json';
 import {
@@ -16,8 +15,6 @@ import {
   makeThrottledMessageSender,
 } from '../WebSocket/ViserWebSocket';
 import { GuiUpdateMessage } from '../WebSocket/ViserMessages';
-
-import { WebSocketContext } from '../WebSocket/WebSocket';
 
 function CustomLeva() {
   const viser_websocket = React.useContext(ViserWebSocketContext);
@@ -108,27 +105,26 @@ function CustomLeva() {
     { store: levaStore },
     [guiConfigFromName],
   );
-  
+
   const dispatch = useDispatch();
   const guiSetQueue = customGui.guiSetQueue;
   React.useEffect(() => {
     // This line is important to prevent looping
-    if(Object.keys(guiSetQueue).length === 0) return;
+    if (Object.keys(guiSetQueue).length === 0) return;
     for (const [key, value] of Object.entries(guiSetQueue)) {
       // Linear runtime here could be improved.
       if (guiNames.includes(key)) {
         // delete guiSetQueue[key];
-        set({ [key]: value });//call the leva function for setting the value of the element
+        set({ [key]: value }); //call the leva function for setting the value of the element
       }
     }
     //  delete the queue
     dispatch({
-      type: "write",
-      path: "custom_gui/guiSetQueue",
-      data: {
-      }
+      type: 'write',
+      path: 'custom_gui/guiSetQueue',
+      data: {},
     });
-  }, [guiSetQueue,set,guiNames]);
+  }, [guiSetQueue, set, guiNames]);
 
   // Leva theming is a bit limited, so we hack at styles here...
   return (

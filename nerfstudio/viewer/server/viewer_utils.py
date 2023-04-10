@@ -261,7 +261,7 @@ class ViewerState:
         self.is_training = self.config.start_train
         self.camera_message = None
 
-        self.viser_server = ViserServer(host="localhost", port=8080)
+        self.viser_server = ViserServer(host="localhost", port=websocket_port)
 
         self.viser_server.register_handler(IsTrainingMessage, self._handle_is_training)
         self.viser_server.register_handler(CameraMessage, self._handle_camera_update)
@@ -521,6 +521,7 @@ class ViewerState:
             # remove semantics, which crashes viewer; semantics_colormap is OK
             if "semantics" in self.output_list:
                 viewer_output_list.remove("semantics")
+            self.control_panel.update_output_options(viewer_output_list)
             # TODO populate viewer output list
 
         reformatted_output = self._process_invalid_output(self.prev_output_type)
