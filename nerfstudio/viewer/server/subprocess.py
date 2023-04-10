@@ -22,6 +22,7 @@ from rich.console import Console
 
 CONSOLE = Console()
 
+
 def is_port_open(port: int):
     """Returns True if the port is open.
 

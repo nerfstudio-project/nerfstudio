@@ -249,6 +249,7 @@ class CameraPathsMessage(Message):
     payload: Any
     """ Dictionary of camera paths """
 
+
 @dataclasses.dataclass
 class CropParamsMessage(Message):
     """Crop parameters"""
@@ -262,7 +263,8 @@ class CropParamsMessage(Message):
     """ Center of the crop box """
     crop_scale: Tuple[float, float, float]
     """ Scale of the crop box """
-    
+
+
 @dataclasses.dataclass
 class StatusMessage(Message):
     """Status message."""
@@ -272,4 +274,3 @@ class StatusMessage(Message):
     """ Resolution of the viewer display in plain text """
     vis_train_ratio: str
     """ Ratio of training to inference time in plain text """
-    

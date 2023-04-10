@@ -27,7 +27,7 @@ def entrypoint() -> None:
     # Run prettier.
     # TODO: if this is not installed maybe we should print some error with installation
     # instructions?
-    subprocess.run(args=["prettier", "-w", str(target_path)])
+    subprocess.run(args=["prettier", "-w", str(target_path)], check=False)
 
 
 if __name__ == "__main__":

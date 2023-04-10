@@ -161,11 +161,13 @@ class GuiHandle(Generic[T]):
         self._impl.api._queue(GuiSetHiddenMessage(self._impl.name, hidden=hidden))
 
 
-StringType = TypeVar("StringType", bound=str)
+StringType = TypeVar("StringType", bound=str)  # pylint: disable=invalid-name
 
 
 @dataclasses.dataclass(frozen=True)
 class GuiSelectHandle(Generic[StringType], GuiHandle[StringType]):
+    """Handle for a particular GUI select input in the visualizer."""
+
     def set_options(self, options: List[StringType]) -> None:
         """Assign a new set of options for the dropdown menu.
         For projects that care about typing: the static type of `options` should be

@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=stop-iteration-return
+
+""" Async iterable for keeping a persistent buffer of messages """
+
 import asyncio
 import dataclasses
 from asyncio.events import AbstractEventLoop

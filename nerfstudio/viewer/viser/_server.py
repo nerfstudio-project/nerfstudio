@@ -14,6 +14,7 @@
 
 """ Core Viser Server """
 # pylint: disable=protected-access
+# pylint: disable=too-many-statements
 
 from __future__ import annotations
 
@@ -100,14 +101,14 @@ class ViserServer(MessageApi):
 
         # Start server thread.
         ready_sem = threading.Semaphore(value=1)
-        ready_sem.acquire()
+        ready_sem.acquire()  # pylint: disable=consider-using-with
         threading.Thread(
             target=lambda: self._background_worker(host, port, ready_sem, http_server),
             daemon=True,
         ).start()
 
         # Wait for the thread to set self._event_loop and self._broadcast_buffer...
-        ready_sem.acquire()
+        ready_sem.acquire()  # pylint: disable=consider-using-with
 
         # Broadcast buffer should be populated by the background worker.
         assert isinstance(self._broadcast_buffer, AsyncMessageBuffer)
@@ -121,9 +122,8 @@ class ViserServer(MessageApi):
         We can use client handles to get camera information, send individual messages to
         clients, etc."""
 
-        self._client_lock.acquire()
-        out = {k: ClientHandle(k, v) for k, v in self._handle_from_client.items()}
-        self._client_lock.release()
+        with self._client_lock:
+            out = {k: ClientHandle(k, v) for k, v in self._handle_from_client.items()}
         return out
 
     @override
@@ -156,7 +156,7 @@ class ViserServer(MessageApi):
 
             async with count_lock:
                 nonlocal connection_count
-                client_id = ClientId(connection_count)
+                client_id = ClientId(connection_count)  # pylint: disable=used-before-assignment
                 connection_count += 1
 
                 nonlocal total_connections
@@ -173,9 +173,8 @@ class ViserServer(MessageApi):
                 event_loop=event_loop,
                 camera_cb=[],
             )
-            self._client_lock.acquire()
-            self._handle_from_client[client_id] = client_handle
-            self._client_lock.release()
+            with self._client_lock:
+                self._handle_from_client[client_id] = client_handle
 
             def handle_incoming(message: Message) -> None:
                 self._handle_incoming_message(client_id, message)
@@ -195,10 +194,8 @@ class ViserServer(MessageApi):
             ):
                 # Cleanup.
                 rich.print(f"[bold](viser)[/bold] Connection closed ({client_id}," f" {total_connections} total)")
-                total_connections -= 1
-                self._client_lock.acquire()
-                self._handle_from_client.pop(client_id)
-                self._client_lock.release()
+                with self._client_lock:
+                    self._handle_from_client.pop(client_id)
 
         # Host client on the same port as the websocket.
         async def viser_http_server(

@@ -56,47 +56,49 @@ class RunViewer:
         config.viewer = self.viewer.as_viewer_config()
         config.viewer.num_rays_per_chunk = num_rays_per_chunk
 
-        self._start_viewer(config, pipeline)
-
-    def _start_viewer(self, config: TrainerConfig, pipeline: Pipeline):
-        base_dir = config.get_base_dir()
-        viewer_log_path = base_dir / config.viewer.relative_log_filename
-        viewer_state, banner_messages = viewer_utils.setup_viewer(
-            config.viewer, log_filename=viewer_log_path, datapath=pipeline.datamanager.get_datapath()
-        )
-
-        # We don't need logging, but writer.GLOBAL_BUFFER needs to be populated
-        config.logging.local_writer.enable = False
-        writer.setup_local_writer(config.logging, max_iter=config.max_num_iterations, banner_messages=banner_messages)
-
-        assert viewer_state and pipeline.datamanager.train_dataset
-        viewer_state.init_scene(
-            dataset=pipeline.datamanager.train_dataset,
-            start_train=False,
-        )
-        while True:
-            viewer_state.viser_server.set_is_training(False)
-            self._update_viewer_state(viewer_state, pipeline)
-
-    def _update_viewer_state(self, viewer_state: viewer_utils.ViewerState, pipeline: Pipeline):
-        """Updates the viewer state by rendering out scene with current pipeline
-        Returns the time taken to render scene.
-
-        """
-        # NOTE: step must be > 0 otherwise the rendering would not happen
-        step = 1
-        num_rays_per_batch = pipeline.datamanager.get_train_rays_per_batch()
-        with TimeWriter(writer, EventName.ITER_VIS_TIME) as _:
-            try:
-                viewer_state.update_scene(step, pipeline.model, num_rays_per_batch)
-            except RuntimeError:
-                time.sleep(0.03)  # sleep to allow buffer to reset
-                CONSOLE.log("Viewer failed. Continuing training.")
+        _start_viewer(config, pipeline)
 
     def save_checkpoint(self, *args, **kwargs):
         """
         Mock method because we pass this instance to viewer_state.update_scene
         """
+
+
+def _start_viewer(config: TrainerConfig, pipeline: Pipeline):
+    base_dir = config.get_base_dir()
+    viewer_log_path = base_dir / config.viewer.relative_log_filename
+    viewer_state, banner_messages = viewer_utils.setup_viewer(
+        config.viewer, log_filename=viewer_log_path, datapath=pipeline.datamanager.get_datapath()
+    )
+
+    # We don't need logging, but writer.GLOBAL_BUFFER needs to be populated
+    config.logging.local_writer.enable = False
+    writer.setup_local_writer(config.logging, max_iter=config.max_num_iterations, banner_messages=banner_messages)
+
+    assert viewer_state and pipeline.datamanager.train_dataset
+    viewer_state.init_scene(
+        dataset=pipeline.datamanager.train_dataset,
+        start_train=False,
+    )
+    while True:
+        viewer_state.viser_server.set_is_training(False)
+        _update_viewer_state(viewer_state, pipeline)
+
+
+def _update_viewer_state(viewer_state: viewer_utils.ViewerState, pipeline: Pipeline):
+    """Updates the viewer state by rendering out scene with current pipeline
+    Returns the time taken to render scene.
+
+    """
+    # NOTE: step must be > 0 otherwise the rendering would not happen
+    step = 1
+    num_rays_per_batch = pipeline.datamanager.get_train_rays_per_batch()
+    with TimeWriter(writer, EventName.ITER_VIS_TIME) as _:
+        try:
+            viewer_state.update_scene(step, pipeline, num_rays_per_batch)
+        except RuntimeError:
+            time.sleep(0.03)  # sleep to allow buffer to reset
+            CONSOLE.log("Viewer failed. Continuing training.")
 
 
 def entrypoint():
