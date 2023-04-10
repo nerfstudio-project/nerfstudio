@@ -357,7 +357,7 @@ class ExportMarchingCubesMesh(Exporter):
 
         # Extract mesh using marching cubes for sdf at a multi-scale resolution.
         multi_res_mesh = generate_mesh_with_multires_marching_cubes(
-            sdf=lambda x: pipeline.model.field.forward_geonetwork(x)[:, 0].contiguous(),
+            geometry_callable_field=lambda x: pipeline.model.field.forward_geonetwork(x)[:, 0].contiguous(),
             resolution=self.resolution,
             bounding_box_min=self.bounding_box_min,
             bounding_box_max=self.bounding_box_max,
