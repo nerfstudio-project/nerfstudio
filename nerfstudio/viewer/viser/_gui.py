@@ -173,9 +173,13 @@ class GuiSelectHandle(Generic[StringType], GuiHandle[StringType]):
         inferred where possible when handles are instantiated; for the most flexibility,
         we can declare handles as `GuiHandle[str]`.
         """
+        overwrite_value = False
         self._impl.leva_conf["options"] = options
+        if self._impl.leva_conf["value"] not in options:
+            self._impl.leva_conf["value"] = options[0]
+            overwrite_value = True
         self._impl.api._queue(
             GuiSetLevaConfMessage(self._impl.name, self._impl.leva_conf),
         )
-        if self.get_value() not in options:
+        if overwrite_value:
             self.set_value(options[0])

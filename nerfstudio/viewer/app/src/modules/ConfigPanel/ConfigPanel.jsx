@@ -113,7 +113,6 @@ function CustomLeva() {
     for (const [key, value] of Object.entries(guiSetQueue)) {
       // Linear runtime here could be improved.
       if (guiNames.includes(key)) {
-        // delete guiSetQueue[key];
         set({ [key]: value }); //call the leva function for setting the value of the element
       }
     }

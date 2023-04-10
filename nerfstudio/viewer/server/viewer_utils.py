@@ -517,7 +517,8 @@ class ViewerState:
             # remapping rgb_fine -> rgb for all cases just so that we dont have 2 of them in the options
             if OutputTypes.RGB_FINE in self.output_list:
                 viewer_output_list.remove(OutputTypes.RGB_FINE)
-            viewer_output_list.insert(0, OutputTypes.RGB)
+            if OutputTypes.RGB not in viewer_output_list:
+                viewer_output_list.insert(0, OutputTypes.RGB)
             # remove semantics, which crashes viewer; semantics_colormap is OK
             if "semantics" in self.output_list:
                 viewer_output_list.remove("semantics")

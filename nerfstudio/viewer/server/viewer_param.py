@@ -105,7 +105,7 @@ class ViewerParameter(ViewerElement):
 
     def __init__(self, name: str, default_value: Any, disabled: bool = False, cb_hook: Callable = lambda: None):
         super().__init__(name, disabled=disabled)
-        self.cur_value = default_value
+        self.def_value = default_value
         self.cb_hook = cb_hook
 
     def install(self, viser_server: ViserServer) -> None:
@@ -118,7 +118,6 @@ class ViewerParameter(ViewerElement):
         self._create_gui_handle(viser_server)
 
         def update_fn(handle):
-            self.cur_value = handle.get_value()
             self.cb_hook()
 
         assert self.gui_handle is not None
@@ -136,7 +135,7 @@ class ViewerParameter(ViewerElement):
     @property
     def value(self) -> Any:
         """Returns the current value of the viewer element"""
-        return self.cur_value
+        return self.gui_handle.get_value()
 
 
 class ViewerSlider(ViewerParameter):
@@ -171,7 +170,7 @@ class ViewerSlider(ViewerParameter):
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
         self.gui_handle = viser_server.add_gui_slider(
-            self.name, self.min, self.max, self.step, self.cur_value, disabled=self.disabled
+            self.name, self.min, self.max, self.step, self.def_value, disabled=self.disabled
         )
 
 
@@ -191,7 +190,7 @@ class ViewerText(ViewerParameter):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_text(self.name, self.cur_value, disabled=self.disabled)
+        self.gui_handle = viser_server.add_gui_text(self.name, self.def_value, disabled=self.disabled)
 
 
 class ViewerNumber(ViewerParameter):
@@ -210,7 +209,7 @@ class ViewerNumber(ViewerParameter):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_number(self.name, self.cur_value, disabled=self.disabled)
+        self.gui_handle = viser_server.add_gui_number(self.name, self.def_value, disabled=self.disabled)
 
 
 class ViewerCheckbox(ViewerParameter):
@@ -229,7 +228,7 @@ class ViewerCheckbox(ViewerParameter):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_checkbox(self.name, self.cur_value, disabled=self.disabled)
+        self.gui_handle = viser_server.add_gui_checkbox(self.name, self.def_value, disabled=self.disabled)
 
 
 class ViewerDropdown(ViewerParameter):
@@ -257,7 +256,7 @@ class ViewerDropdown(ViewerParameter):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_select(self.name, self.options, self.cur_value, disabled=self.disabled)
+        self.gui_handle = viser_server.add_gui_select(self.name, self.options, self.def_value, disabled=self.disabled)
 
     def set_options(self, new_options):
         self.options = new_options
@@ -276,7 +275,7 @@ class ViewerRGB(ViewerParameter):
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        self.gui_handle = viser_server.add_gui_rgb(self.name, self.cur_value, disabled=self.disabled)
+        self.gui_handle = viser_server.add_gui_rgb(self.name, self.def_value, disabled=self.disabled)
 
 
 class ViewerVec3(ViewerParameter):
@@ -290,4 +289,4 @@ class ViewerVec3(ViewerParameter):
         self.step = step
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        self.gui_handle = viser_server.add_gui_vector3(self.name, self.cur_value, self.step, disabled=self.disabled)
+        self.gui_handle = viser_server.add_gui_vector3(self.name, self.def_value, self.step, disabled=self.disabled)
