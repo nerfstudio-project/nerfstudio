@@ -18,30 +18,46 @@ Code
     <source id="mp4" src="https://instruct-nerf2nerf.github.io/data/videos/face.mp4" type="video/mp4">
 </video>
 
-<h5>TL;DR: Instruct-NeRF2NeRF enables instruction-based editing of NeRFs via a 2D diffusion model</h5>
+**Instruct-NeRF2NeRF enables instruction-based editing of NeRFs via a 2D diffusion model**
 
-### Running the Method
+## Installation
 
-Details for running Instruct-NeRF2NeRF (built with Nerfstudio!) can be found [here](https://github.com/ayaanzhaque/instruct-nerf2nerf). Once installed, run 
+First install nerfstudio dependencies. Then run:
+
+```bash
+pip install git+https://github.com/ayaanzhaque/instruct-nerf2nerf
+```
+
+## Running Instruct-NeRF2NeRF
+
+Details for running Instruct-NeRF2NeRF (built with Nerfstudio!) can be found [here](https://github.com/ayaanzhaque/instruct-nerf2nerf). Once installed, run:
 
 ```bash
 ns-train in2n --help
 ```
- 
+
+Three varients of Instruct-NeRF2NeRF are provided:
+
+| Method      | Description                  | Memory | Quality |
+| ----------- | ---------------------------- | ------ | ------- |
+| `in2n-big`  | Full model, used in paper    | ~15GB  | Best    |
+| `in2n`      | Half precision model         | ~12GB  | Good    |
+| `in2n-lite` | Half prevision with no LPIPS | ~10GB  | Ok      |
+
 ## Method
- 
+
 ### Overview
- 
+
 Instruct-NeRF2NeRF is a method for editing NeRF scenes with text-instructions. Given a NeRF of a scene and the collection of images used to reconstruct it, the method uses an image-conditioned diffusion model ([InstructPix2Pix](https://www.timothybrooks.com/instruct-pix2pix)) to iteratively edit the input images while optimizing the underlying scene, resulting in an optimized 3D scene that respects the edit instruction. The paper demonstrates that their method is able to edit large-scale, real-world scenes, and is able to accomplish more realistic, targeted edits than prior work.
- 
+
 ## Pipeline
- 
+
 <video id="pipeline" muted autoplay playsinline loop width="100%">
     <source id="mp4" src="https://instruct-nerf2nerf.github.io/data/videos/pipeline_animation.mp4" type="video/mp4">
 </video>
 
 This section will walk through each component of the Instruct-NeRF2NeRF method.
- 
+
 ### How it Works
 
 Instruct-NeRF2NeRF gradually updates a reconstructed NeRF scene by iteratively updating the dataset images while training the NeRF:
@@ -52,7 +68,7 @@ Instruct-NeRF2NeRF gradually updates a reconstructed NeRF scene by iteratively u
 4. The NeRF continues training as usual.
 
 ### Editing Images with InstructPix2Pix
- 
+
 InstructPix2Pix is an image-editing diffusion model which can be prompted using text instructions. More details on InstructPix2Pix can be found [here](https://www.timothybrooks.com/instruct-pix2pix).
 
 Traditionally, at inference time, InstructPix2Pix takes as input random noise and is conditioned on an image (the image to edit) and a text instruction. The strength of the edit can be controlled using the image and text classifier-free guidance scales.
@@ -78,7 +94,3 @@ The traditional method for supervising NeRFs using diffusion models is to use a 
 ## Results
 
 For results, view the [project page](https://instruct-nerf2nerf.github.io/)!
-
-## Code
-
-As outlined on [this page](https://docs.nerf.studio/en/latest/developer_guides/new_methods.html), the code is hosted in an external repository which imports Nerfstudio as a dependency. For more information on how you can run Instruct-NeRF2NeRF yourself, visit the README of their [code repository](https://github.com/ayaanzhaque/instruct-nerf2nerf).
