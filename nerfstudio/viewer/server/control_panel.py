@@ -28,7 +28,7 @@ class ControlPanel:
         self._elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
 
         self._train_speed = ViewerDropdown(
-            "Train Speed", "Balanced", ["Fast", "Balanced", "Slow"], cb_hook=self._train_speed_cb
+            "Train Speed", "Balanced", ["Fast", "Balanced", "Slow"], cb_hook=lambda han: self._train_speed_cb()
         )
         self._output_render = ViewerDropdown(
             "Output Render",

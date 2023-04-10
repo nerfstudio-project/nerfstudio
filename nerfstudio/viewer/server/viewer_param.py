@@ -103,7 +103,7 @@ class ViewerParameter(ViewerElement):
         cb_hook: Callback to call on update
     """
 
-    def __init__(self, name: str, default_value: Any, disabled: bool = False, cb_hook: Callable = lambda: None):
+    def __init__(self, name: str, default_value: Any, disabled: bool = False, cb_hook: Callable = lambda handle: None):
         super().__init__(name, disabled=disabled)
         self.def_value = default_value
         self.cb_hook = cb_hook
@@ -159,7 +159,7 @@ class ViewerSlider(ViewerParameter):
         max_value: IntOrFloat,
         step: IntOrFloat,
         disabled: bool = False,
-        cb_hook: Callable = lambda: None,
+        cb_hook: Callable = lambda handle: None,
     ):
         assert isinstance(default_value, (float, int))
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
@@ -184,7 +184,13 @@ class ViewerText(ViewerParameter):
         cb_hook: Callback to call on update
     """
 
-    def __init__(self, name: str, default_value: str, disabled: bool = False, cb_hook: Callable = lambda: None):
+    def __init__(
+        self,
+        name: str,
+        default_value: str,
+        disabled: bool = False,
+        cb_hook: Callable = lambda handle: None,
+    ):
         assert isinstance(default_value, str)
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
 
@@ -203,7 +209,13 @@ class ViewerNumber(ViewerParameter):
         cb_hook: Callback to call on update
     """
 
-    def __init__(self, name: str, default_value: IntOrFloat, disabled: bool = False, cb_hook: Callable = lambda: None):
+    def __init__(
+        self,
+        name: str,
+        default_value: IntOrFloat,
+        disabled: bool = False,
+        cb_hook: Callable = lambda handle: None,
+    ):
         assert isinstance(default_value, (float, int))
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
 
@@ -222,7 +234,13 @@ class ViewerCheckbox(ViewerParameter):
         cb_hook: Callback to call on update
     """
 
-    def __init__(self, name: str, default_value: bool, disabled: bool = False, cb_hook: Callable = lambda: None):
+    def __init__(
+        self,
+        name: str,
+        default_value: bool,
+        disabled: bool = False,
+        cb_hook: Callable = lambda handle: None,
+    ):
         assert isinstance(default_value, bool)
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
 
@@ -248,7 +266,7 @@ class ViewerDropdown(ViewerParameter):
         default_value: str,
         options: List[str],
         disabled: bool = False,
-        cb_hook: Callable = lambda: None,
+        cb_hook: Callable = lambda handle: None,
     ):
         assert default_value in options
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
@@ -269,7 +287,11 @@ class ViewerRGB(ViewerParameter):
     """
 
     def __init__(
-        self, name, default_value: Tuple[float, float, float], disabled=False, cb_hook: Callable = lambda: None
+        self,
+        name,
+        default_value: Tuple[float, float, float],
+        disabled=False,
+        cb_hook: Callable = lambda handle: None,
     ):
         assert len(default_value) == 3
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
@@ -282,7 +304,12 @@ class ViewerVec3(ViewerParameter):
     """ """
 
     def __init__(
-        self, name, default_value: Tuple[float, float, float], step, disabled=False, cb_hook: Callable = lambda: None
+        self,
+        name,
+        default_value: Tuple[float, float, float],
+        step,
+        disabled=False,
+        cb_hook: Callable = lambda handle: None,
     ):
         assert len(default_value) == 3
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
