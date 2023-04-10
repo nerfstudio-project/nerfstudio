@@ -57,6 +57,7 @@ import {
   CameraPathPayloadMessage,
   CameraPathOptionsRequest,
   CropParamsMessage,
+  SaveCheckpointMessage
 } from '../../WebSocket/ViserMessages';
 
 const FOV_LABELS = {
@@ -1017,6 +1018,11 @@ export default function CameraPanel(props) {
     // inspired by:
     // https://stackoverflow.com/questions/55613438/reactwrite-to-json-file-or-export-download-no-server
 
+    const save_chkpt_message: SaveCheckpointMessage = {
+      type: 'save_checkpoint',
+    };
+    sendWebsocketMessage(viser_websocket, save_chkpt_message);
+
     const camera_path_object = get_camera_path();
     console.log(camera_render.toJSON());
 
@@ -1105,12 +1111,16 @@ export default function CameraPanel(props) {
 
     const camera_path_object = get_camera_path();
 
-    const message: CameraPathPayloadMessage = {
+    const path_payload_message: CameraPathPayloadMessage = {
       type: 'camera_path_payload',
       camera_path_filename: export_path,
       camera_path: camera_path_object,
     };
-    sendWebsocketMessage(viser_websocket, message);
+    sendWebsocketMessage(viser_websocket, path_payload_message);
+    const save_chkpt_message: SaveCheckpointMessage = {
+      type: 'save_checkpoint',
+    };
+    sendWebsocketMessage(viser_websocket, save_chkpt_message);
   };
 
   const open_load_path_modal = () => {

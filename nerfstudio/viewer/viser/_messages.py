@@ -274,3 +274,10 @@ class StatusMessage(Message):
     """ Resolution of the viewer display in plain text """
     vis_train_ratio: str
     """ Ratio of training to inference time in plain text """
+
+
+@dataclasses.dataclass
+class SaveCheckpointMessage(Message):
+    """Save checkpoint message."""
+
+    type: ClassVar[str] = "save_checkpoint"

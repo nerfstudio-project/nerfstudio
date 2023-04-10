@@ -23,7 +23,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -53,7 +53,11 @@ from nerfstudio.viewer.viser._messages import (
     CameraPathPayloadMessage,
     IsTrainingMessage,
     Message,
+    SaveCheckpointMessage,
 )
+
+if TYPE_CHECKING:
+    from nerfstudio.engine.trainer import Trainer
 
 CONSOLE = Console(width=120)
 
@@ -66,27 +70,18 @@ def get_viewer_version() -> str:
 
 
 @check_main_thread
-def setup_viewer(config: cfg.ViewerConfig, log_filename: Path, datapath: Path):
+def setup_viewer(config: cfg.ViewerConfig, log_filename: Path, datapath: Path, trainer: Optional[Trainer] = None):
     """Sets up the viewer if enabled
 
     Args:
         config: the configuration to instantiate viewer
         log_filename: the log filename to write to
         datapath: the path to the dataset
+        trainer: the trainer to use
     """
-    viewer_state = ViewerState(config, log_filename=log_filename, datapath=datapath)
+    viewer_state = ViewerState(config, log_filename=log_filename, datapath=datapath, trainer=trainer)
     banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
     return viewer_state, banner_messages
-
-
-class OutputTypes(str, enum.Enum):
-    """Noncomprehensive list of output render types"""
-
-    INIT = "init"
-    RGB = "rgb"
-    RGB_FINE = "rgb_fine"
-    ACCUMULATION = "accumulation"
-    ACCUMULATION_FINE = "accumulation_fine"
 
 
 class ColormapTypes(str, enum.Enum):
@@ -179,10 +174,12 @@ class ViewerState:
         config: viewer setup configuration
         log_filename: filename to log viewer output to
         datapath: path to data
+        trainer: trainer object to use
     """
 
-    def __init__(self, config: cfg.ViewerConfig, log_filename: Path, datapath: Path):
+    def __init__(self, config: cfg.ViewerConfig, log_filename: Path, datapath: Path, trainer: Optional[Trainer] = None):
         self.config = config
+        self.trainer = trainer
         self.viewer_url = None
         self.log_filename = log_filename
         self.datapath = datapath.parent if datapath.is_file() else datapath
@@ -221,6 +218,7 @@ class ViewerState:
         self.viser_server = ViserServer(host="localhost", port=websocket_port)
 
         self.viser_server.register_handler(IsTrainingMessage, self._handle_is_training)
+        self.viser_server.register_handler(SaveCheckpointMessage, self._handle_save_checkpoint)
         self.viser_server.register_handler(CameraMessage, self._handle_camera_update)
         self.viser_server.register_handler(CameraPathOptionsRequest, self._handle_camera_path_option_request)
         self.viser_server.register_handler(CameraPathPayloadMessage, self._handle_camera_path_payload)
@@ -254,6 +252,12 @@ class ViewerState:
         """Handle is_training message from viewer."""
         assert isinstance(message, IsTrainingMessage)
         self.is_training = message.is_training
+
+    def _handle_save_checkpoint(self, message: Message) -> None:
+        """Handle is_training message from viewer."""
+        assert isinstance(message, SaveCheckpointMessage)
+        if self.trainer is not None:
+            self.trainer.save_checkpoint(self.step)
 
     def _handle_camera_update(self, message: Message) -> None:
         """Handle camera update message from viewer."""
@@ -362,6 +366,7 @@ class ViewerState:
             pipeline: the method pipeline
             num_rays_per_batch: number of rays per batch
         """
+        self.model = pipeline.model
         if not hasattr(self, "viewer_elements"):
 
             def nested_folder_install(folder_labels: List[str], element: ViewerElement):
@@ -440,16 +445,14 @@ class ViewerState:
         """
         colormap_type = self.control_panel.colormap
         output_type = self.control_panel.output_render
-        if self.output_list:
-            reformatted_output = self._process_invalid_output(output_type)
 
         # default for rgb images
-        if colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].shape[-1] == 3:
-            return outputs[reformatted_output]
+        if colormap_type == ColormapTypes.DEFAULT and outputs[output_type].shape[-1] == 3:
+            return outputs[output_type]
 
         # rendering depth outputs
-        if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
-            output = outputs[reformatted_output]
+        if outputs[output_type].shape[-1] == 1 and outputs[output_type].dtype == torch.float:
+            output = outputs[output_type]
             if self.control_panel.colormap_normalize:
                 output = output - torch.min(output)
                 output = output / (torch.max(output) + eps)
@@ -465,15 +468,15 @@ class ViewerState:
             return colormaps.apply_colormap(output, cmap=colormap_type)
 
         # rendering semantic outputs
-        if outputs[reformatted_output].dtype == torch.int:
-            logits = outputs[reformatted_output]
+        if outputs[output_type].dtype == torch.int:
+            logits = outputs[output_type]
             labels = torch.argmax(torch.nn.functional.softmax(logits, dim=-1), dim=-1)  # type: ignore
             assert colors is not None
             return colors[labels]
 
         # rendering boolean outputs
-        if outputs[reformatted_output].dtype == torch.bool:
-            return colormaps.apply_boolean_colormap(outputs[reformatted_output])
+        if outputs[output_type].dtype == torch.bool:
+            return colormaps.apply_boolean_colormap(outputs[output_type])
 
         raise NotImplementedError
 
@@ -487,23 +490,18 @@ class ViewerState:
         if self.output_list is None:
             self.output_list = list(outputs.keys())
             viewer_output_list = list(np.copy(self.output_list))
-            # remapping rgb_fine -> rgb for all cases just so that we dont have 2 of them in the options
-            if OutputTypes.RGB_FINE in self.output_list:
-                viewer_output_list.remove(OutputTypes.RGB_FINE)
-            if OutputTypes.RGB not in viewer_output_list:
-                viewer_output_list.insert(0, OutputTypes.RGB)
             # remove semantics, which crashes viewer; semantics_colormap is OK
             if "semantics" in self.output_list:
                 viewer_output_list.remove("semantics")
             self.control_panel.update_output_options(viewer_output_list)
 
-        reformatted_output = self._process_invalid_output(self.control_panel.output_render)
+        output_render = self.control_panel.output_render
         # re-register colormaps and send to viewer
         if self.output_type_changed:
             colormap_options = []
-            if outputs[reformatted_output].shape[-1] == 3:
+            if outputs[output_render].shape[-1] == 3:
                 colormap_options = [ColormapTypes.DEFAULT.value]
-            if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
+            if outputs[output_render].shape[-1] == 1 and outputs[output_render].dtype == torch.float:
                 colormap_options = [c.value for c in list(ColormapTypes)[1:]]
             self.output_type_changed = False
             self.control_panel.update_colormap_options(colormap_options)
@@ -588,28 +586,6 @@ class ViewerState:
             image_width = max_res
             image_height = int(image_width / aspect_ratio)
         return image_height, image_width
-
-    def _process_invalid_output(self, output_type: str) -> str:
-        """Check to see whether we are in the corner case of RGB; if still invalid, throw error
-        Returns correct string mapping given improperly formatted output_type.
-
-        Args:
-            output_type: reformatted output type
-        """
-        if output_type == OutputTypes.INIT:
-            output_type = OutputTypes.RGB
-
-        # check if rgb or rgb_fine should be the case TODO: add other checks here
-        attempted_output_type = output_type
-        if output_type not in self.output_list and output_type == OutputTypes.RGB:
-            output_type = OutputTypes.RGB_FINE
-
-        # check if output_type is not in list
-        if output_type not in self.output_list:
-            assert (
-                NotImplementedError
-            ), f"Output {attempted_output_type} not in list. Tried to reformat as {output_type} but still not found."
-        return output_type
 
     @profiler.time_function
     def _render_image_in_viewer(self, model: Model, is_training: bool) -> None:

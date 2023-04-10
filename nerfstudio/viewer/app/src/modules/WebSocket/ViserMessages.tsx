@@ -96,6 +96,9 @@ export interface StatusMessage {
   eval_res: string;
   vis_train_ratio: string;
 }
+export interface SaveCheckpointMessage {
+  type: "save_checkpoint";
+}
 
 export type Message = 
   | BackgroundImageMessage
@@ -115,4 +118,5 @@ export type Message =
   | CameraPathOptionsRequest
   | CameraPathsMessage
   | CropParamsMessage
-  | StatusMessage;
+  | StatusMessage
+  | SaveCheckpointMessage;

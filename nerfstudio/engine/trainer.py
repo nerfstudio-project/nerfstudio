@@ -146,7 +146,7 @@ class Trainer:
             if datapath is None:
                 datapath = self.base_dir
             self.viewer_state, banner_messages = viewer_utils.setup_viewer(
-                self.config.viewer, log_filename=viewer_log_path, datapath=datapath
+                self.config.viewer, log_filename=viewer_log_path, datapath=datapath, trainer=self
             )
         self._check_viewer_warnings()
 
