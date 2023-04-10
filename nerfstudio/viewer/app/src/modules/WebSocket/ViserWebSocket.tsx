@@ -117,8 +117,6 @@ function handleMessage(
     }
     // Set the value of a GUI input.
     case 'gui_set': {
-      console.log("Inside gui set");
-      console.log(message);
       const curGuiConfigFromName =
         store.getState().custom_gui.guiConfigFromName;
       const currentConf = curGuiConfigFromName[message.name];
@@ -248,6 +246,20 @@ function handleMessage(
         type: 'write',
         path: 'renderingState/crop_center',
         data: message.crop_center,
+      });
+      break;
+    }
+    // Handle status messages.
+    case 'status': {
+      dispatch({
+        type: 'write',
+        path: 'eval_res',
+        data: message.eval_res,
+      });
+      dispatch({
+        type: 'write',
+        path: 'vis_train_ratio',
+        data: message.vis_train_ratio,
       });
       break;
     }

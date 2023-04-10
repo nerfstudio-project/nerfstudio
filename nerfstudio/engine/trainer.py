@@ -307,10 +307,7 @@ class Trainer:
                 self.viewer_state.update_scene(step, self.pipeline, num_rays_per_batch)
             except RuntimeError:
                 time.sleep(0.03)  # sleep to allow buffer to reset
-                assert self.viewer_state.vis is not None
-                self.viewer_state.vis["renderingState/log_errors"].write(
-                    "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
-                )
+                CONSOLE.log("Viewer failed. Continuing training.")
 
     @check_viewer_enabled
     def _update_viewer_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int) -> None:
