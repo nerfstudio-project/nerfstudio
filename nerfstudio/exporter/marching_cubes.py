@@ -131,7 +131,7 @@ def evaluate_multiresolution_sdf(
 
 @torch.no_grad()
 def generate_mesh_with_multires_marching_cubes(
-    sdf: Callable,
+    geometry_callable_field: Callable,
     resolution: int = 512,
     bounding_box_min: Tuple[float, float, float] = (-1.0, -1.0, -1.0),
     bounding_box_max: Tuple[float, float, float] = (1.0, 1.0, 1.0),
@@ -205,7 +205,7 @@ def generate_mesh_with_multires_marching_cubes(
 
                 # Function to evaluate SDF for a batch of points
                 def evaluate(points: torch.Tensor) -> torch.Tensor:
-                    return evaluate_sdf(sdf, points)
+                    return evaluate_sdf(geometry_callable_field, points)
 
                 # Construct point pyramids
                 points = points.reshape(crop_n, crop_n, crop_n, 3).permute(3, 0, 1, 2)
