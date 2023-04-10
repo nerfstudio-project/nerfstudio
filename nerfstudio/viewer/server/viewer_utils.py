@@ -171,48 +171,6 @@ class RenderThread(threading.Thread):
             raise self.exc
 
 
-class CheckThread(threading.Thread):
-    """Thread the constantly checks for io changes and sets a flag indicating interrupt
-
-    Args:
-        state: current viewer state object
-    """
-
-    def __init__(self, state):
-        threading.Thread.__init__(self)
-        self.state = state
-
-    def run(self):
-        """Run function that checks to see if any of the existing state has changed
-        (e.g. camera pose/output type/resolutions).
-        Sets the viewer state flag to true to signal
-        to render thread that an interrupt was registered.
-        """
-        self.state.check_done_render = False
-        while not self.state.check_done_render:
-            # Interrupt on the start of a camera move, but not during a camera move
-            if self.state.camera_message is not None:
-                if self.state.camera_moving:
-                    if self.state.prev_moving:
-                        self.state.check_interrupt_vis = False
-                        self.state.prev_moving = True
-                    else:
-                        self.state.check_interrupt_vis = True
-                        self.state.prev_moving = True
-                        return
-                else:
-                    self.state.prev_moving = False
-
-            # check output type
-            # output_type = self.state.vis["renderingState/output_choice"].read()
-            # print("interupt", output_type)
-            # if output_type is None:
-            #     output_type = OutputTypes.INIT
-            # if self.state.prev_output_type != output_type:
-            #     self.state.check_interrupt_vis = True
-            #     return
-
-
 @decorate_all([check_main_thread])
 class ViewerState:
     """Class to hold state for viewer variables
@@ -303,6 +261,15 @@ class ViewerState:
         assert isinstance(message, CameraMessage)
         self.camera_message = message
         self.camera_moving = message.is_moving
+        if self.camera_moving:
+            if self.prev_moving:
+                self.check_interrupt_vis = False
+                self.prev_moving = True
+            else:
+                self.check_interrupt_vis = True
+                self.prev_moving = True
+        else:
+            self.prev_moving = False
 
     def _handle_camera_path_option_request(self, message: Message) -> None:
         """Handle camera path option request message from viewer."""
@@ -671,13 +638,6 @@ class ViewerState:
 
         self.prev_camera_timestamp = camera_message.timestamp
 
-        # check and perform output type updates
-        # output_type = self.vis["renderingState/output_choice"].read()
-        # print("render", output_type)
-        # output_type = OutputTypes.INIT if output_type is None else output_type
-        # self.output_type_changed = self.prev_output_type != output_type
-        # self.prev_output_type = output_type
-
         # update render aabb
         try:
             self._update_render_aabb(model)
@@ -736,18 +696,13 @@ class ViewerState:
 
         model.eval()
 
-        check_thread = CheckThread(state=self)
         render_thread = RenderThread(state=self, model=model, camera_ray_bundle=camera_ray_bundle)
-
-        check_thread.daemon = True
         render_thread.daemon = True
 
         with TimeWriter(None, None, write=False) as vis_t:
-            check_thread.start()
             render_thread.start()
             try:
                 render_thread.join()
-                check_thread.join()
             except IOChangeException:
                 del camera_ray_bundle
                 torch.cuda.empty_cache()
