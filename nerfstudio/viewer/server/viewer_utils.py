@@ -203,8 +203,6 @@ class ViewerState:
         CONSOLE.line()
 
         # viewer specific variables
-        self.prev_output_type = OutputTypes.INIT
-        self.prev_colormap_type = ColormapTypes.DEFAULT  # TODO Update with selected colormap
         self.prev_moving = False
         self.output_type_changed = True
         self.check_interrupt_vis = False
@@ -454,8 +452,10 @@ class ViewerState:
             if self.control_panel.colormap_normalize:
                 output = output - torch.min(output)
                 output = output / (torch.max(output) + eps)
-            # TODO Update with actual ranges
-            # output = output * (range_max - range_min) + range_max
+            output = (
+                output * (self.control_panel.colormap_max - self.control_panel.colormap_min)
+                + self.control_panel.colormap_min
+            )
             output = torch.clip(output, 0, 1)
             if self.control_panel.colormap_invert:
                 output = 1 - output
@@ -495,27 +495,17 @@ class ViewerState:
             if "semantics" in self.output_list:
                 viewer_output_list.remove("semantics")
             self.control_panel.update_output_options(viewer_output_list)
-            # TODO populate viewer output list
 
-        reformatted_output = self._process_invalid_output(self.prev_output_type)
+        reformatted_output = self._process_invalid_output(self.control_panel.output_render)
         # re-register colormaps and send to viewer
-        if self.output_type_changed or self.prev_colormap_type is None:
-            # self.prev_colormap_type = ColormapTypes.DEFAULT
+        if self.output_type_changed:
             colormap_options = []
-            # self.vis["renderingState/colormap_options"].write(list(ColormapTypes))
-            # TODO populate colormap options
             if outputs[reformatted_output].shape[-1] == 3:
-                colormap_options = [ColormapTypes.DEFAULT]
+                colormap_options = [ColormapTypes.DEFAULT.value]
             if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
-                # self.prev_colormap_type = ColormapTypes.TURBO
-                print("using all colormaps")
-                colormap_options = list(ColormapTypes)[1:]
+                colormap_options = [c.value for c in list(ColormapTypes)[1:]]
             self.output_type_changed = False
-            # self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
-            # self.vis["renderingState/colormap_options"].write(colormap_options)
-            print("Sending new colormap options", colormap_options)
             self.control_panel.update_colormap_options(colormap_options)
-            # TODO populate colormap choice
         selected_output = (self._apply_colormap(outputs, colors) * 255).type(torch.uint8)
 
         self.viser_server.set_background_image(
