@@ -30,8 +30,16 @@ class DataparserOutputs:
     """Color of dataset background."""
     scene_box: SceneBox = SceneBox()
     """Scene box of dataset. Used to bound the scene or provide the scene scale depending on model."""
-    semantics: Optional[Semantics] = None
-    """Semantics information."""
+    mask_filenames: Optional[List[Path]] = None
+    """Filenames for any masks that are required"""
+    metadata: Dict[str, Any] = to_immutable_dict({})
+    """Dictionary of any metadata that be required for the given experiment.
+    Will be processed by the InputDataset to create any additional tensors that may be required.
+    """
+    dataparser_transform: TensorType[3, 4] = torch.eye(4)[:3, :]
+    """Transform applied by the dataparser."""
+    dataparser_scale: float = 1.0
+    """Scale applied by the dataparser."""
 
 @dataclass
 class DataParser:
@@ -115,48 +123,12 @@ You can also pull out information from the DataParserOutputs for other DataManga
 ray_generator = RayGenerator(dataparser_outputs.cameras)
 ```
 
-## Our Implementations
+## Included DataParsers
 
-Below we enumerate the various dataparsers that we have implemented in our codebase. Feel free to use ours or add your own. Also any contributions are welcome and appreciated!
+```{toctree}
+---
+maxdepth: 2
+---
 
-###### Nerfstudio
-
-This is our custom dataparser. We have a script to convert images or videos with COLMAP to this format.
-
-```{button-link} https://github.com/nerfstudio-project/nerfstudio/blob/master/nerfstudio/data/dataparsers/nerfstudio_dataparser.py
-:color: primary
-:outline:
-See the code!
-```
-
-###### Blender
-
-We support the synthetic Blender dataset from the original NeRF paper.
-
-```{button-link} https://github.com/nerfstudio-project/nerfstudio/blob/master/nerfstudio/data/dataparsers/blender_dataparser.py
-:color: primary
-:outline:
-See the code!
-```
-
-###### Instant NGP
-
-This supports the Instant NGP dataset.
-
-```{button-link} https://github.com/nerfstudio-project/nerfstudio/blob/master/nerfstudio/data/dataparsers/instant_ngp_dataparser.py
-:color: primary
-:outline:
-See the code!
-```
-
-###### Record3D
-
-This dataparser can use recorded data from a >= iPhone 12 Pro using the [Record3D app](https://record3d.app/) . Record a video and export with the `EXR + JPG sequence` format. Unzip export and `rgb` folder before training.
-
-For more information on capturing with Record3D, see the [Custom Dataset Docs](/quickstart/custom_dataset.md).
-
-```{button-link} https://github.com/nerfstudio-project/nerfstudio/blob/master/nerfstudio/data/dataparsers/record3d_dataparser.py
-:color: primary
-:outline:
-See the code!
+../../reference/api/data/dataparsers
 ```

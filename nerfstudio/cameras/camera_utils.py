@@ -164,8 +164,8 @@ def quaternion_matrix(quaternion: ArrayLike) -> np.ndarray:
 def get_interpolated_poses(pose_a: ArrayLike, pose_b: ArrayLike, steps: int = 10) -> List[float]:
     """Return interpolation of poses with specified number of steps.
     Args:
-        poseA: first pose
-        poseB: second pose
+        pose_a: first pose
+        pose_b: second pose
         steps: number of steps the interpolated pose path should contain
     """
 
@@ -190,8 +190,8 @@ def get_interpolated_k(k_a, k_b, steps: int = 10) -> TensorType[3, 4]:
     Returns interpolated path between two camera poses with specified number of steps.
 
     Args:
-        KA: camera matrix 1
-        KB: camera matrix 2
+        k_a: camera matrix 1
+        k_b: camera matrix 2
         steps: number of steps the interpolated pose path should contain
     """
     Ks = []
