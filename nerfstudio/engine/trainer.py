@@ -138,6 +138,11 @@ class Trainer:
                 'test': loads train/test datasets into memory
                 'inference': does not load any dataset into memory
         """
+        self.pipeline = self.config.pipeline.setup(
+            device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
+        )
+        self.optimizers = self.setup_optimizers()
+
         # set up viewer if enabled
         viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
         self.viewer_state, banner_messages = None, None
@@ -146,14 +151,13 @@ class Trainer:
             if datapath is None:
                 datapath = self.base_dir
             self.viewer_state, banner_messages = viewer_utils.setup_viewer(
-                self.config.viewer, log_filename=viewer_log_path, datapath=datapath, trainer=self
+                self.config.viewer,
+                log_filename=viewer_log_path,
+                datapath=datapath,
+                pipeline=self.pipeline,
+                trainer=self,
             )
         self._check_viewer_warnings()
-
-        self.pipeline = self.config.pipeline.setup(
-            device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
-        )
-        self.optimizers = self.setup_optimizers()
 
         self._load_checkpoint()
 
@@ -304,7 +308,7 @@ class Trainer:
         with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
             num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
             try:
-                self.viewer_state.update_scene(step, self.pipeline, num_rays_per_batch)
+                self.viewer_state.update_scene(step, num_rays_per_batch)
             except RuntimeError:
                 time.sleep(0.03)  # sleep to allow buffer to reset
                 CONSOLE.log("Viewer failed. Continuing training.")

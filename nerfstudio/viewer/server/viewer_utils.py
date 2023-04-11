@@ -70,16 +70,19 @@ def get_viewer_version() -> str:
 
 
 @check_main_thread
-def setup_viewer(config: cfg.ViewerConfig, log_filename: Path, datapath: Path, trainer: Optional[Trainer] = None):
+def setup_viewer(
+    config: cfg.ViewerConfig, log_filename: Path, datapath: Path, pipeline: Pipeline, trainer: Optional[Trainer] = None
+):
     """Sets up the viewer if enabled
 
     Args:
         config: the configuration to instantiate viewer
         log_filename: the log filename to write to
         datapath: the path to the dataset
+        pipeline: the pipeline to use
         trainer: the trainer to use
     """
-    viewer_state = ViewerState(config, log_filename=log_filename, datapath=datapath, trainer=trainer)
+    viewer_state = ViewerState(config, log_filename=log_filename, datapath=datapath, pipeline=pipeline, trainer=trainer)
     banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
     return viewer_state, banner_messages
 
@@ -174,12 +177,21 @@ class ViewerState:
         config: viewer setup configuration
         log_filename: filename to log viewer output to
         datapath: path to data
+        pipeline: pipeline object to use
         trainer: trainer object to use
     """
 
-    def __init__(self, config: cfg.ViewerConfig, log_filename: Path, datapath: Path, trainer: Optional[Trainer] = None):
+    def __init__(
+        self,
+        config: cfg.ViewerConfig,
+        log_filename: Path,
+        datapath: Path,
+        pipeline: Pipeline,
+        trainer: Optional[Trainer] = None,
+    ):
         self.config = config
         self.trainer = trainer
+        self.pipeline = pipeline
         self.viewer_url = None
         self.log_filename = log_filename
         self.datapath = datapath.parent if datapath.is_file() else datapath
@@ -200,7 +212,6 @@ class ViewerState:
         CONSOLE.line()
 
         # viewer specific variables
-        self.viewer_elements = None
         self.prev_moving = False
         self.output_type_changed = True
         self.check_interrupt_vis = False
@@ -226,12 +237,25 @@ class ViewerState:
         self.control_panel = ControlPanel(self._interrupt_render, self._crop_params_update, self._output_type_change)
         self.control_panel.install(self.viser_server)
 
+        def nested_folder_install(folder_labels: List[str], element: ViewerElement):
+            if len(folder_labels) == 0:
+                element.install(self.viser_server)
+            else:
+                with self.viser_server.gui_folder(folder_labels[0]):
+                    nested_folder_install(folder_labels[1:], element)
+
+        self.viewer_elements = get_viewer_elements(self.pipeline)
+        for param_path, element in self.viewer_elements:
+            folder_labels = param_path.split("/")[:-1]
+            nested_folder_install(folder_labels, element)
+
     def _output_type_change(self, _):
         self.output_type_changed = True
 
     def _interrupt_render(self, _) -> None:
         """Interrupt current render."""
         self.check_interrupt_vis = True
+        self._render_image_in_viewer(self.pipeline.model, self.is_training)
 
     def _crop_params_update(self, _) -> None:
         """Update crop parameters"""
@@ -358,7 +382,7 @@ class ViewerState:
         else:
             model.render_aabb = None
 
-    def update_scene(self, step: int, pipeline: Pipeline, num_rays_per_batch: int) -> None:
+    def update_scene(self, step: int, num_rays_per_batch: int) -> None:
         """updates the scene based on the graph weights
 
         Args:
@@ -366,20 +390,7 @@ class ViewerState:
             pipeline: the method pipeline
             num_rays_per_batch: number of rays per batch
         """
-        if self.viewer_elements is None:
-
-            def nested_folder_install(folder_labels: List[str], element: ViewerElement):
-                if len(folder_labels) == 0:
-                    element.install(self.viser_server)
-                else:
-                    with self.viser_server.gui_folder(folder_labels[0]):
-                        nested_folder_install(folder_labels[1:], element)
-
-            self.viewer_elements = get_viewer_elements(pipeline)
-            for param_path, element in self.viewer_elements:
-                folder_labels = param_path.split("/")[:-1]
-                nested_folder_install(folder_labels, element)
-        model = pipeline.model
+        model = self.pipeline.model
 
         is_training = self.is_training
         self.step = step
