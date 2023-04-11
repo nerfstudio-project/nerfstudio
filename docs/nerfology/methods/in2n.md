@@ -14,7 +14,7 @@ Paper Website
 Code
 ```
 
-<video id="teaser" muted autoplay playsinline loop width="100%">
+<video id="teaser" muted autoplay playsinline loop controls width="100%">
     <source id="mp4" src="https://instruct-nerf2nerf.github.io/data/videos/face.mp4" type="video/mp4">
 </video>
 
@@ -40,9 +40,9 @@ Three varients of Instruct-NeRF2NeRF are provided:
 
 | Method      | Description                  | Memory | Quality |
 | ----------- | ---------------------------- | ------ | ------- |
-| `in2n-big`  | Full model, used in paper    | ~15GB  | Best    |
-| `in2n`      | Half precision model         | ~12GB  | Good    |
-| `in2n-lite` | Half prevision with no LPIPS | ~10GB  | Ok      |
+| `in2n`  | Full model, used in paper    | ~15GB  | Best    |
+| `in2n-small`      | Half precision model         | ~12GB  | Good    |
+| `in2n-tiny` | Half prevision with no LPIPS | ~10GB  | Ok      |
 
 ## Method
 
@@ -52,7 +52,7 @@ Instruct-NeRF2NeRF is a method for editing NeRF scenes with text-instructions. G
 
 ## Pipeline
 
-<video id="pipeline" muted autoplay playsinline loop width="100%">
+<video id="pipeline" muted autoplay playsinline loop controls width="100%">
     <source id="mp4" src="https://instruct-nerf2nerf.github.io/data/videos/pipeline_animation.mp4" type="video/mp4">
 </video>
 
@@ -85,7 +85,7 @@ When NeRF training starts, the dataset consists of the original, unedited images
 
 At early iterations of this process, the edited images may be inconistent with one another, as InstructPix2Pix often doesn't perform consistent edits across viewpoints. However, over time, since images are edited using the current render of the NeRF, the edits begin to converge towards a globally consistent depiction of the underlying scene. Here is an example of how the underlying dataset evolves and becomes more consistent.
 
-<video id="idu" muted autoplay playsinline loop width="100%">
+<video id="idu" muted autoplay playsinline loop controls width="100%">
     <source id="mp4" src="https://instruct-nerf2nerf.github.io/data/videos/du_update.mp4" type="video/mp4">
 </video>
 
