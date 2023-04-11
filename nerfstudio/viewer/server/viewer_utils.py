@@ -200,7 +200,7 @@ class ViewerState:
         CONSOLE.line()
 
         # viewer specific variables
-        self.viewer_elements = []
+        self.viewer_elements = None
         self.prev_moving = False
         self.output_type_changed = True
         self.check_interrupt_vis = False
@@ -366,8 +366,7 @@ class ViewerState:
             pipeline: the method pipeline
             num_rays_per_batch: number of rays per batch
         """
-        self.model = pipeline.model
-        if not hasattr(self, "viewer_elements"):
+        if self.viewer_elements is None:
 
             def nested_folder_install(folder_labels: List[str], element: ViewerElement):
                 if len(folder_labels) == 0:
@@ -418,12 +417,10 @@ class ViewerState:
         else:
             # in pause training mode, enter render loop with set model
             local_step = step
-            run_loop = not self.is_training
-            while run_loop:
+            while not self.is_training:
                 # if self._is_render_step(local_step) and step > 0:
                 if step > 0:
                     self._render_image_in_viewer(model, self.is_training)
-                run_loop = not self.is_training
                 local_step += 1
 
     def check_interrupt(self, frame, event, arg):  # pylint: disable=unused-argument

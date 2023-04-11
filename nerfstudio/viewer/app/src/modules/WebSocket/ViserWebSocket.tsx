@@ -253,12 +253,12 @@ function handleMessage(
     case 'status': {
       dispatch({
         type: 'write',
-        path: 'eval_res',
+        path: 'renderingState/eval_res',
         data: message.eval_res,
       });
       dispatch({
         type: 'write',
-        path: 'vis_train_ratio',
+        path: 'renderingState/vis_train_ratio',
         data: message.vis_train_ratio,
       });
       break;
@@ -314,31 +314,29 @@ export function ViserWebSocket({ children }: { children: React.ReactNode }) {
 
       ws.current.onmessage = async (event) => {
         // Reduce websocket backpressure.
-        const messagePromise = new Promise<Message>(async (resolve) => {
-          resolve(
-            unpack(new Uint8Array(await event.data.arrayBuffer())) as Message,
-          );
-        });
-
-        // Try our best to handle messages in order. If this takes more than 1 second, we give up. :)
-        await orderLock.acquireAsync({ timeout: 1000 }).catch(() => {
-          console.log('Order lock timed.');
-          orderLock.release();
-        });
         try {
-          handleMessage(await messagePromise, dispatch, store);
+          const message = (await unpack(
+            new Uint8Array(await event.data.arrayBuffer()),
+          )) as Message;
+          await orderLock.acquireAsync({ timeout: 1000 });
+          handleMessage(message, dispatch, store);
+        } catch (error) {
+          console.error(`Error handling message: ${error}`);
         } finally {
-          orderLock.acquired && orderLock.release();
+          if (orderLock.acquired) {
+            orderLock.release();
+          }
         }
       };
     }
 
     let timeout = setTimeout(tryConnect, 500);
     return () => {
-      done = true;
       clearTimeout(timeout);
-      ws.current && ws.current.close();
-      clearTimeout(timeout);
+      if (ws.current) {
+        done = true;
+        ws.current.close();
+      }
     };
   }, [websocket_url]);
 

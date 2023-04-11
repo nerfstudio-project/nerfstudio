@@ -2,7 +2,6 @@
 // This file should not be manually modified.
 
 // For numpy arrays, we directly serialize the underlying data buffer.
-type ArrayBuffer = Uint8Array;
 
 export interface BackgroundImageMessage {
   type: "background_image";

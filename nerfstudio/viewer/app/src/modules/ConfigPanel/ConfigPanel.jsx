@@ -8,6 +8,7 @@ import {
   button,
 } from 'leva';
 import { useDispatch, useSelector } from 'react-redux';
+import { Box } from '@mui/material';
 import LevaTheme from '../../themes/leva_theme.json';
 import {
   ViserWebSocketContext,
@@ -140,14 +141,24 @@ function CustomLeva() {
 export function RenderControls() {
   return (
     <div className="Leva-container">
-      <Leva
-        className="Leva-panel"
-        theme={LevaTheme}
-        titleBar={false}
-        fill
-        flat
-      />
-      <CustomLeva />
+      <Box
+        component="div"
+        sx={{
+          "a& input[type='checkbox']~label svg path": {
+            stroke: '#222831 !important',
+          },
+          '& button': { color: '#222831 !important', height: '2em' },
+        }}
+      >
+        <Leva
+          className="Leva-panel"
+          theme={LevaTheme}
+          titleBar={false}
+          fill
+          flat
+        />
+        <CustomLeva />
+      </Box>
     </div>
   );
 }
