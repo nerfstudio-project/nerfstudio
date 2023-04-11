@@ -189,18 +189,38 @@ class ControlPanel:
     def crop_viewport(self) -> bool:
         """Returns the current crop viewport setting"""
         return self._crop_viewport.value
+    
+    @crop_viewport.setter
+    def crop_viewport(self, value: bool):
+        """Sets the crop viewport setting"""
+        self._crop_viewport.set_value(value)
 
     @property
     def crop_min(self) -> Tuple[float, float, float]:
         """Returns the current crop min setting"""
         return self._crop_min.value
+    
+    @crop_min.setter
+    def crop_min(self, value: Tuple[float, float, float]):
+        """Sets the crop min setting"""
+        self._crop_min.set_value(value)
 
     @property
     def crop_max(self) -> Tuple[float, float, float]:
         """Returns the current crop max setting"""
         return self._crop_max.value
+    
+    @crop_max.setter
+    def crop_max(self, value: Tuple[float, float, float]):
+        """Sets the crop max setting"""
+        self._crop_max.set_value(value)
 
     @property
     def background_color(self) -> Tuple[int, int, int]:
         """Returns the current background color"""
         return self._background_color.value
+
+    @background_color.setter
+    def background_color(self, value: Tuple[int, int, int]):
+        """Sets the background color"""
+        self._background_color.set_value(value)

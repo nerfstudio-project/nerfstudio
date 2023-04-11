@@ -28,7 +28,7 @@ export default function CameraPropPanel(props) {
   const setExportPath = (value) => {
     dispatch({
       type: 'write',
-      path: 'renderingState/export_path',
+      path: 'file_path_info/export_path_name',
       data: value,
     });
   };

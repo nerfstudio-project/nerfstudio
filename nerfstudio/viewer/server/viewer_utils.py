@@ -21,40 +21,18 @@ import enum
 import os
 import sys
 import threading
-import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
-import numpy as np
 import torch
 from rich.console import Console
 
-from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.configs import base_config as cfg
-from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components import renderers
 from nerfstudio.models.base_model import Model
-from nerfstudio.pipelines.base_pipeline import Pipeline
-from nerfstudio.utils import colormaps, profiler, writer
-from nerfstudio.utils.decorators import check_main_thread, decorate_all
-from nerfstudio.utils.io import load_from_json, write_to_json
-from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
+from nerfstudio.utils.io import load_from_json
 from nerfstudio.viewer.server.control_panel import ControlPanel
-from nerfstudio.viewer.server.gui_utils import get_viewer_elements
-from nerfstudio.viewer.server.subprocess import get_free_port
-from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
-from nerfstudio.viewer.server.viewer_param import ViewerElement
-from nerfstudio.viewer.viser import ViserServer
-from nerfstudio.viewer.viser._messages import (
-    CameraMessage,
-    CameraPathOptionsRequest,
-    CameraPathPayloadMessage,
-    IsTrainingMessage,
-    Message,
-    SaveCheckpointMessage,
-)
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer

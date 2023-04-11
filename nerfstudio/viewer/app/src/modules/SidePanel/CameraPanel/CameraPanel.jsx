@@ -981,7 +981,7 @@ export default function CameraPanel(props) {
         crop_center: camera_path_object.crop.crop_center,
         crop_scale: camera_path_object.crop.crop_scale,
       };
-      sendWebsocketMessage(message);
+      sendWebsocketMessage(viser_websocket, message);
     }
   };
 

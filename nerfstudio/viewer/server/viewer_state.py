@@ -19,7 +19,7 @@ from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.models.base_model import Model
 from nerfstudio.pipelines.base_pipeline import Pipeline
-from nerfstudio.utils import colormaps, profiler, writer
+from nerfstudio.utils import profiler, writer
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
@@ -34,6 +34,7 @@ from nerfstudio.viewer.viser._messages import (
     CameraMessage,
     CameraPathOptionsRequest,
     CameraPathPayloadMessage,
+    CropParamsMessage,
     IsTrainingMessage,
     Message,
     SaveCheckpointMessage,
@@ -111,6 +112,7 @@ class ViewerState:
         self.viser_server.register_handler(CameraMessage, self._handle_camera_update)
         self.viser_server.register_handler(CameraPathOptionsRequest, self._handle_camera_path_option_request)
         self.viser_server.register_handler(CameraPathPayloadMessage, self._handle_camera_path_payload)
+        self.viser_server.register_handler(CropParamsMessage, self._handle_crop_params_message)
 
         self.control_panel = ControlPanel(self._interrupt_render, self._crop_params_update, self._output_type_change)
         self.control_panel.install(self.viser_server)
@@ -141,8 +143,8 @@ class ViewerState:
         crop_max = torch.tensor(self.control_panel.crop_max, dtype=torch.float32)
         scene_box = SceneBox(aabb=torch.stack([crop_min, crop_max], dim=0))
         self.viser_server.update_scene_box(scene_box)
-        crop_scale = (crop_max - crop_min) / 2.0
-        crop_center = (crop_max + crop_min) / 2.0
+        crop_scale = crop_max - crop_min
+        crop_center = crop_max + crop_min
         self.viser_server.send_crop_params(
             crop_enabled=self.control_panel.crop_viewport,
             crop_bg_color=self.control_panel.background_color,
@@ -195,6 +197,18 @@ class ViewerState:
         camera_paths_directory = self.datapath / "camera_paths"
         camera_paths_directory.mkdir(parents=True, exist_ok=True)
         write_to_json(camera_paths_directory / camera_path_filename, camera_path)
+
+    def _handle_crop_params_message(self, message: Message) -> None:
+        """Handle crop parameters message from viewer."""
+        assert isinstance(message, CropParamsMessage)
+        self.control_panel.crop_viewport = message.crop_enabled
+        self.control_panel.background_color = message.crop_bg_color
+        center = np.array(message.crop_center)
+        scale = np.array(message.crop_scale)
+        crop_min = center - scale / 2.0
+        crop_max = center + scale / 2.0
+        self.control_panel.crop_min = tuple(crop_min.tolist())
+        self.control_panel.crop_max = tuple(crop_max.tolist())
 
     def _pick_drawn_image_idxs(self, total_num: int) -> list[int]:
         """Determine indicies of images to display in viewer.
