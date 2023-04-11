@@ -12,6 +12,7 @@ from timeit import default_timer as timer
 import tyro
 from rich.console import Console
 
+import block_nerf.block_nerf as block_nerf
 from nerfstudio.utils.scripts import run_command
 
 CONSOLE = Console(width=120)
@@ -80,7 +81,7 @@ class ExperimentPipeline:
     @my_timer("Train")
     def train(self):
         CONSOLE.print(f"Training model\nModel: {self.model}\nInput dir: {self.input_data_dir}")
-        cmd = f"ns-train {self.model} --data {self.input_data_dir} --output-dir {self.output_dir} --experiment-name {self.experiment_name} --max-num-iterations 15000 --vis wandb --viewer.quit-on-train-completion True"
+        cmd = f"ns-train {self.model} --data {self.input_data_dir} --output-dir {self.output_dir} --experiment-name {self.experiment_name} --max-num-iterations 2000 --vis viewer --viewer.quit-on-train-completion True"
 
         if not self.use_camera_optimizer:
             cmd += " --pipeline.datamanager.camera-optimizer.mode off"
@@ -137,6 +138,11 @@ if __name__ == "__main__":
 
     # Run pipeline in sequence
     input_data_dir = Path(args.input_data_dir)
+
+    # Create the blocks
+    # new_transforms, image_indexes = block_nerf.split_transforms(input_data_dir / "transforms.json", 4)
+    # block_nerf.write_transforms(new_transforms, image_indexes, input_data_dir)
+
     
     args = Args(
         model="nerfacto",
@@ -145,7 +151,7 @@ if __name__ == "__main__":
         use_camera_optimizer=args.use_camera_optimizer,
     )
     for run_dir in input_data_dir.iterdir():
-        if run_dir.is_dir():
+        if run_dir.is_dir() and run_dir.name != "images":
             new_args = Args(
                 model=args.model,
                 input_data_dir=run_dir,

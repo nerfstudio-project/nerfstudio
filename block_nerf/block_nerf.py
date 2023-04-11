@@ -1,6 +1,7 @@
 import glob
 import json
 import os
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -42,7 +43,7 @@ def split_transforms(path: Path, splits: int):
 
 
 def write_transforms(transforms: list, image_indexes: list, path: Path):
-    original_images_path = Path("images")
+    original_images_path = path / "images"
     images = glob.glob(f"{original_images_path}/*.png")
     images.sort()
 
@@ -55,5 +56,5 @@ def write_transforms(transforms: list, image_indexes: list, path: Path):
         image_path = split_path / "images"
         image_path.mkdir(parents=True, exist_ok=True)
 
-        for j in range(image_indexes[i]):
-            os.symlink(f"{images[j]}", f"{image_path}/{j}.png")
+        for j in range(0 if i == 0 else image_indexes[i-1], image_indexes[i]):
+            shutil.copyfile(f"{images[j]}", f"{image_path}/{images[j].split('/')[-1]}")
