@@ -46,7 +46,7 @@ from nerfstudio.utils.decorators import (
 )
 from nerfstudio.utils.misc import step_check
 from nerfstudio.utils.writer import EventName, TimeWriter
-from nerfstudio.viewer.server import viewer_utils
+from nerfstudio.viewer.server.viewer_state import ViewerState
 
 CONSOLE = Console(width=120)
 
@@ -150,13 +150,14 @@ class Trainer:
             datapath = self.config.data
             if datapath is None:
                 datapath = self.base_dir
-            self.viewer_state, banner_messages = viewer_utils.setup_viewer(
+            self.viewer_state = ViewerState(
                 self.config.viewer,
                 log_filename=viewer_log_path,
                 datapath=datapath,
                 pipeline=self.pipeline,
                 trainer=self,
             )
+            banner_messages = [f"Viewer at: {self.viewer_state.viewer_url}"]
         self._check_viewer_warnings()
 
         self._load_checkpoint()
