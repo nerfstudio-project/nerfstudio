@@ -32,5 +32,4 @@ The following methods are supported in nerfstudio:
     Instant-NGP<instant_ngp.md>
     Instruct-NeRF2NeRF<in2n.md>
     Semantic NeRF-W<semantic_nerfw.md>
-    Instruct-NeRF2NeRF<in2n.md>
 ```
