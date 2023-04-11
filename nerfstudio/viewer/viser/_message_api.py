@@ -568,11 +568,11 @@ def _handle_gui_updates(
     if handle_state is None:
         return
 
-    # Only call update when value has actually changed.
-    if not handle_state.is_button and message.value == handle_state.value:
-        return
-
     value = handle_state.typ(handle_state.decoder(message.value))
+
+    # Only call update when value has actually changed.
+    if not handle_state.is_button and value == handle_state.value:
+        return
 
     # Update state.
     handle_state.value = value
@@ -582,7 +582,7 @@ def _handle_gui_updates(
     for cb in handle_state.update_cb:
         cb(GuiHandle(handle_state))
     if handle_state.sync_cb is not None:
-        handle_state.sync_cb(client_id, message.value)
+        handle_state.sync_cb(client_id, value)
 
 
 T = TypeVar("T")

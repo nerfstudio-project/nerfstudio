@@ -85,6 +85,10 @@ class Message:
 
         return _get_subclasses(Message)
 
+    def unique_id(self) -> str:
+        """Returns a unique identifier for this message, used for caching purposes."""
+        return self.type
+
 
 @dataclasses.dataclass
 class BackgroundImageMessage(Message):
@@ -104,6 +108,9 @@ class GuiAddMessage(Message):
     folder_labels: Tuple[str]
     leva_conf: Any
 
+    def unique_id(self) -> str:
+        return f"{self.type}_{self.name}"
+
 
 @dataclasses.dataclass
 class GuiRemoveMessage(Message):
@@ -111,6 +118,9 @@ class GuiRemoveMessage(Message):
 
     type: ClassVar[str] = "remove_gui"
     name: str
+
+    def unique_id(self) -> str:
+        return f"{self.type}_{self.name}"
 
 
 @dataclasses.dataclass
@@ -121,6 +131,9 @@ class GuiUpdateMessage(Message):
     name: str
     value: Any
 
+    def unique_id(self) -> str:
+        return f"{self.type}_{self.name}"
+
 
 @dataclasses.dataclass
 class GuiSetHiddenMessage(Message):
@@ -129,6 +142,9 @@ class GuiSetHiddenMessage(Message):
     type: ClassVar[str] = "gui_set_hidden"
     name: str
     hidden: bool
+
+    def unique_id(self) -> str:
+        return f"{self.type}_{self.name}"
 
 
 @dataclasses.dataclass
@@ -139,6 +155,9 @@ class GuiSetValueMessage(Message):
     name: str
     value: Any
 
+    def unique_id(self) -> str:
+        return f"{self.type}_{self.name}"
+
 
 @dataclasses.dataclass
 class GuiSetLevaConfMessage(Message):
@@ -147,6 +166,9 @@ class GuiSetLevaConfMessage(Message):
     type: ClassVar[str] = "gui_set_leva_conf"
     name: str
     leva_conf: Any
+
+    def unique_id(self) -> str:
+        return f"{self.type}_{self.name}"
 
 
 @dataclasses.dataclass
@@ -212,6 +234,9 @@ class DatasetImageMessage(Message):
     """Index of the image in the threejs scene"""
     json: Any
     """JSON computed by the camera class"""
+
+    def unique_id(self) -> str:
+        return f"{self.type}_{self.idx}"
 
 
 @dataclasses.dataclass

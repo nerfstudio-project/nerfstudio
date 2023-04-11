@@ -201,7 +201,7 @@ function handleMessage(
     case 'camera_paths': {
       dispatch({
         type: 'write',
-        path: 'renderingState/all_camera_paths',
+        path: 'all_camera_paths',
         data: message.payload,
       });
       break;

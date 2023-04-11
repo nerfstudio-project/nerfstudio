@@ -27,6 +27,8 @@ const initialState = {
     export_path_name: 'export_path_name', // export name for render and camera_path
   },
 
+  all_camera_paths: null, // object containing camera paths and names
+
   // the rendering state
   renderingState: {
     // cameras
@@ -37,8 +39,6 @@ const initialState = {
     render_width: 1920,
     field_of_view: 50,
     camera_type: 'perspective',
-
-    all_camera_paths: null, // object containing camera paths and names
 
     isTraining: true,
 
@@ -54,7 +54,6 @@ const initialState = {
     eval_res: '?',
     vis_train_ratio: 'Paused',
     log_errors: '',
-    renderTime: 0.0,
 
     // export options
     clipping_enabled: true,

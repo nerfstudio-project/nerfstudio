@@ -50,23 +50,19 @@ class AsyncMessageBuffer:
         self.message_counter += 1
 
         # All messages that modify scene nodes have a name field.
-        node_name = getattr(message, "name", None)
+        node_name = message.unique_id()
 
-        if isinstance(message, BackgroundImageMessage):
-            node_name = "__viser_background_image__"
+        # TODO: hack to prevent undesirable message culling. We should revisit
+        # this.
+        node_name = str(type(message)) + node_name
 
-        if node_name is not None:
-            # TODO: hack to prevent undesirable message culling. We should revisit
-            # this.
-            node_name = str(type(message)) + node_name
+        # If an existing message with the same name already exists in our buffer, we
+        # don't need the old one anymore. :-)
+        if node_name in self.id_from_name:
+            old_message_id = self.id_from_name.pop(node_name)
+            self.message_from_id.pop(old_message_id)
 
-            # If an existing message with the same name already exists in our buffer, we
-            # don't need the old one anymore. :-)
-            if node_name is not None and node_name in self.id_from_name:
-                old_message_id = self.id_from_name.pop(node_name)
-                self.message_from_id.pop(old_message_id)
-
-            self.id_from_name[node_name] = new_message_id
+        self.id_from_name[node_name] = new_message_id
 
         # Notify consumers that a new message is available.
         self.event_loop.call_soon_threadsafe(self.message_event.set)

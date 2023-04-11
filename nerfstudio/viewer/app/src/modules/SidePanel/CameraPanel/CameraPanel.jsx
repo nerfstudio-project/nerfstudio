@@ -541,14 +541,6 @@ export default function CameraPanel(props) {
     });
   };
 
-  const setRenderTime = (value) => {
-    dispatch({
-      type: 'write',
-      path: 'renderingState/render_time',
-      data: parseFloat(value),
-    });
-  };
-
   // ui state
   const [fovLabel, setFovLabel] = React.useState(FOV_LABELS.FOV);
 
