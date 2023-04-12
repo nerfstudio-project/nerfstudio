@@ -13,9 +13,10 @@ from typing_extensions import Literal, get_args
 import nerfstudio.viewer.server.viewer_utils as viewer_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.model_components.renderers import background_color_override_context
+from nerfstudio.utils import profiler, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
+from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
-from nerfstudio.viewer.server.viewer_utils import SetTrace
 from nerfstudio.viewer.viser._messages import CameraMessage
 
 if TYPE_CHECKING:
@@ -146,11 +147,10 @@ class RenderStateMachine(threading.Thread):
 
         with (self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext()):
             camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
-            #  TODO this rendering isn't threadsafe with training (setting .eval() can break training), we might want
-            #  a mutex around training/rendering in the future.
 
             with TimeWriter(None, None, write=False) as vis_t:
                 self.viewer.get_model().eval()
+                step = self.viewer.step
                 if self.viewer.control_panel.crop_viewport:
                     color = self.viewer.control_panel.background_color
                     if color is None:
@@ -166,8 +166,17 @@ class RenderStateMachine(threading.Thread):
                     with torch.no_grad():
                         outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                 self.viewer.get_model().train()
-        self.viewer._update_viewer_stats(
-            vis_t.duration, num_rays=len(camera_ray_bundle), image_height=image_height, image_width=image_width
+        num_rays = len(camera_ray_bundle)
+        render_time = vis_t.duration
+        writer.put_time(
+            name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=step, avg_over_steps=True
+        )
+        viewer_utils.send_status_message(
+            viser_server=self.viewer.viser_server,
+            is_training=self.viewer.is_training,
+            image_height=image_height,
+            image_width=image_width,
+            step=step
         )
         return outputs
 
@@ -185,7 +194,7 @@ class RenderStateMachine(threading.Thread):
             print("Trying to render from state", self.state, "with action", action.action)
             self.state = self.transitions[self.state][action.action]
             try:
-                with SetTrace(self.check_interrupt):
+                with viewer_utils.SetTrace(self.check_interrupt):
                     outputs = self._render_img(action.cam_msg)
             except viewer_utils.IOChangeException:
                 # if we got interrupted, don't send the output to the viewer

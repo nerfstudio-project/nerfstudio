@@ -262,6 +262,11 @@ function handleMessage(
         path: 'renderingState/vis_train_ratio',
         data: message.vis_train_ratio,
       });
+      dispatch({
+        type: 'write',
+        path: 'renderingState/step',
+        data: message.step,
+      });
       break;
     }
     default: {

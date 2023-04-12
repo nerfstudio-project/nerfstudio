@@ -51,6 +51,7 @@ const initialState = {
     colormap_normalize: false, // whether to normalize the colormap
     colormap_range: [0.0, 1.0], // the range of the colormap
 
+    step: 0,
     eval_res: '?',
     vis_train_ratio: 'Paused',
     log_errors: '',

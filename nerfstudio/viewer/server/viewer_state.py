@@ -161,7 +161,7 @@ class ViewerState:
     def _handle_is_training(self, message: Message) -> None:
         """Handle is_training message from viewer."""
         assert isinstance(message, IsTrainingMessage)
-        self._set_is_training(message.is_training)
+        self.is_training = message.is_training
         self.train_btn_state = message.is_training
         self.viser_server.set_is_training(message.is_training)
 
@@ -178,10 +178,10 @@ class ViewerState:
         self.camera_moving = message.is_moving
         if message.is_moving:
             self.render_statemachine.action(RenderAction("move", self.camera_message))
-            self._set_is_training(False)
+            self.is_training = False
         else:
             self.render_statemachine.action(RenderAction("static", self.camera_message))
-            self._set_is_training(self.train_btn_state)
+            self.is_training = self.train_btn_state
 
     def _handle_camera_path_option_request(self, message: Message) -> None:
         """Handle camera path option request message from viewer."""
@@ -215,7 +215,15 @@ class ViewerState:
         self.control_panel.crop_min = tuple(crop_min.tolist())
         self.control_panel.crop_max = tuple(crop_max.tolist())
 
-    def _set_is_training(self, is_training: bool) -> None:
+    @property
+    def is_training(self) -> bool:
+        """Get is_training flag from viewer."""
+        if self.trainer is not None:
+            return self.trainer.is_training
+        return False
+
+    @is_training.setter
+    def is_training(self, is_training: bool) -> None:
         """Set is_training flag in viewer."""
         if self.trainer is not None:
             self.trainer.is_training = is_training
@@ -296,31 +304,3 @@ class ViewerState:
     def get_model(self) -> Model:
         """Returns the model."""
         return self.pipeline.model
-
-    def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int, image_width: int) -> None:
-        """Function that calculates and populates all the rendering statistics accordingly
-
-        Args:
-            render_time: total time spent rendering current view
-            num_rays: number of rays rendered
-            image_height: resolution of the current view
-            image_width: resolution of the current view
-        """
-        writer.put_time(
-            name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=self.step, avg_over_steps=True
-        )
-        vis_train_ratio = "Starting"
-        if self.trainer is not None and self.trainer.is_training:
-            # process ratio time spent on vis vs train
-            if (
-                EventName.ITER_VIS_TIME.value in GLOBAL_BUFFER["events"]
-                and EventName.ITER_TRAIN_TIME.value in GLOBAL_BUFFER["events"]
-            ):
-                vis_time = GLOBAL_BUFFER["events"][EventName.ITER_VIS_TIME.value]["avg"]
-                train_time = GLOBAL_BUFFER["events"][EventName.ITER_TRAIN_TIME.value]["avg"]
-                vis_train_ratio = f"{int(vis_time / train_time * 100)}% spent on viewer"
-        else:
-            vis_train_ratio = "100% spent on viewer"
-        self.viser_server.send_status_message(
-            eval_res=f"{image_height}x{image_width}px", vis_train_ratio=vis_train_ratio
-        )

@@ -25,6 +25,7 @@ export default function StatusPanel(props: StatusPanelProps) {
   const isWebsocketConnected = useSelector(
     (state) => state.websocketState.isConnected,
   );
+  const step = useSelector((state) => state.renderingState.step);
   const eval_res = useSelector((state) => state.renderingState.eval_res);
   const vis_train_ratio = useSelector(
     (state) => state.renderingState.vis_train_ratio,
@@ -124,6 +125,9 @@ export default function StatusPanel(props: StatusPanelProps) {
         Refresh Page
       </Button>
       <div className="StatusPanel-metrics">
+        <div>
+          <b>Itteration:</b> {step}
+        </div>
         <div>
           <b>Resolution:</b> {eval_res}
         </div>
