@@ -21,7 +21,7 @@ from typing import Any, List, Tuple
 from torch import nn
 
 from nerfstudio.pipelines.base_pipeline import Pipeline
-from nerfstudio.viewer.server.viewer_param import ViewerElement
+from nerfstudio.viewer.server.viewer_elements import ViewerElement
 
 
 def parse_object(

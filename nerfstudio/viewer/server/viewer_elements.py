@@ -276,7 +276,11 @@ class ViewerDropdown(ViewerParameter):
         assert self.gui_handle is None, "gui_handle should be initialized once"
         self.gui_handle = viser_server.add_gui_select(self.name, self.options, self.def_value, disabled=self.disabled)
 
-    def set_options(self, new_options):
+    def set_options(self, new_options: List[str]) -> None:
+        """
+        Sets the options of the dropdown,
+        new_options: The new options. if the current option isn't in the new options, the first option is selected
+        """
         self.options = new_options
         self.gui_handle.set_options(new_options)
 
@@ -301,7 +305,9 @@ class ViewerRGB(ViewerParameter):
 
 
 class ViewerVec3(ViewerParameter):
-    """ """
+    """
+    3 number boxes in a row to input a vector
+    """
 
     def __init__(
         self,

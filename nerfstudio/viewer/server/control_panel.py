@@ -19,7 +19,7 @@ from typing import Callable, DefaultDict, List, Tuple
 import torch
 
 from nerfstudio.viewer.server import viewer_utils
-from nerfstudio.viewer.server.viewer_param import (
+from nerfstudio.viewer.server.viewer_elements import (
     ViewerCheckbox,
     ViewerDropdown,
     ViewerElement,
