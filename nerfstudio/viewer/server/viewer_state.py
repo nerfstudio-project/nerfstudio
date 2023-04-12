@@ -103,9 +103,10 @@ class ViewerState:
         self.step = 0
         self.camera_moving = False
         self.prev_camera_timestamp = 0
+        self.static_fps = 1.0
+        self.train_btn_state = True
 
         self.output_list = None
-        self.is_training = self.config.start_train
         self.camera_message = None
 
         self.viser_server = ViserServer(host="localhost", port=websocket_port)
@@ -160,7 +161,9 @@ class ViewerState:
     def _handle_is_training(self, message: Message) -> None:
         """Handle is_training message from viewer."""
         assert isinstance(message, IsTrainingMessage)
-        self.is_training = message.is_training
+        self._set_is_training(message.is_training)
+        self.train_btn_state = message.is_training
+        self.viser_server.set_is_training(message.is_training)
 
     def _handle_save_checkpoint(self, message: Message) -> None:
         """Handle is_training message from viewer."""
@@ -175,8 +178,10 @@ class ViewerState:
         self.camera_moving = message.is_moving
         if message.is_moving:
             self.render_statemachine.action(RenderAction("move", self.camera_message))
+            self._set_is_training(False)
         else:
             self.render_statemachine.action(RenderAction("static", self.camera_message))
+            self._set_is_training(self.train_btn_state)
 
     def _handle_camera_path_option_request(self, message: Message) -> None:
         """Handle camera path option request message from viewer."""
@@ -209,6 +214,11 @@ class ViewerState:
         crop_max = center + scale / 2.0
         self.control_panel.crop_min = tuple(crop_min.tolist())
         self.control_panel.crop_max = tuple(crop_max.tolist())
+
+    def _set_is_training(self, is_training: bool) -> None:
+        """Set is_training flag in viewer."""
+        if self.trainer is not None:
+            self.trainer.is_training = is_training
 
     def _pick_drawn_image_idxs(self, total_num: int) -> list[int]:
         """Determine indicies of images to display in viewer.
@@ -252,6 +262,7 @@ class ViewerState:
         self.viser_server.update_scene_box(dataset.scene_box)
 
         # set the initial state whether to train or not
+        self.train_btn_state = start_train
         self.viser_server.set_is_training(start_train)
 
     def update_scene(self, step: int, num_rays_per_batch: int) -> None:
@@ -267,44 +278,20 @@ class ViewerState:
         if self.camera_message is None:
             return
 
-        if self.is_training:
-            self.render_statemachine.action(RenderAction("step", self.camera_message))
+        if self.trainer is not None and self.trainer.is_training:
+            if EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
+                train_rays_per_sec = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
+                target_train_util = self.control_panel.train_util
+                if target_train_util is None:
+                    target_train_util = 0.9
 
-        # if is_training is None or is_training:
-        #     # in training mode
+                batches_per_sec = train_rays_per_sec / num_rays_per_batch
 
-        #     if self.camera_moving:
-        #         # if the camera is moving, then we pause training and update camera continuously
-
-        #         while self.camera_moving:
-        #             self._render_image_in_viewer(model, is_training)
-        #     else:
-        #         # if the camera is not moving, then we approximate how many training steps need to be taken
-        #         # to render at a FPS defined by self.static_fps.
-
-        #         if EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
-        #             train_rays_per_sec = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
-        #             target_train_util = self.control_panel.train_util
-        #             if target_train_util is None:
-        #                 target_train_util = 0.9
-
-        #             batches_per_sec = train_rays_per_sec / num_rays_per_batch
-
-        #             num_steps = max(int(1 / self.static_fps * batches_per_sec), 1)
-        #         else:
-        #             num_steps = 1
-
-        #         if step % num_steps == 0:
-        #             self._render_image_in_viewer(model, is_training)
-
-        # else:
-        #     # in pause training mode, enter render loop with set model
-        #     local_step = step
-        #     while not self.is_training:
-        #         # if self._is_render_step(local_step) and step > 0:
-        #         if step > 0:
-        #             self._render_image_in_viewer(model, self.is_training)
-        #         local_step += 1
+                num_steps = max(int(1 / self.static_fps * batches_per_sec), 1)
+            else:
+                num_steps = 1
+            if step % num_steps == 0:
+                self.render_statemachine.action(RenderAction("step", self.camera_message))
 
     def get_model(self) -> Model:
         """Returns the model."""
@@ -323,7 +310,7 @@ class ViewerState:
             name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=self.step, avg_over_steps=True
         )
         vis_train_ratio = "Starting"
-        if self.is_training is None or self.is_training:
+        if self.trainer is not None and self.trainer.is_training:
             # process ratio time spent on vis vs train
             if (
                 EventName.ITER_VIS_TIME.value in GLOBAL_BUFFER["events"]

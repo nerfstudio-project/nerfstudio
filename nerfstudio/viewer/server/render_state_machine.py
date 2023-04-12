@@ -4,7 +4,7 @@ import threading
 import time
 from asyncio import Future
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
@@ -22,6 +22,9 @@ from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_w
 from nerfstudio.viewer.server.viewer_utils import SetTrace
 from nerfstudio.viewer.viser._messages import CameraMessage
 
+if TYPE_CHECKING:
+    from nerfstudio.viewer.server.viewer_state import ViewerState
+
 RenderStates = Literal["low_move", "low_static", "high"]
 RenderActions = Literal["rerender", "move", "static", "step"]
 
@@ -33,7 +36,7 @@ class RenderAction:
 
 
 class RenderStateMachine(threading.Thread):
-    def __init__(self, viewer):
+    def __init__(self, viewer: ViewerState):
         threading.Thread.__init__(self)
         self.transitions: Dict[RenderStates, Dict[RenderActions, RenderStates]] = {
             s: {} for s in get_args(RenderStates)
@@ -118,26 +121,29 @@ class RenderStateMachine(threading.Thread):
             times=torch.tensor([0.0]),
         )
         camera = camera.to(self.viewer.get_model().device)
-        camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
-        #  TODO this rendering isn't threadsafe with training (setting .eval() can break training), we might want
-        #  a mutex around training/rendering in the future.
-        with TimeWriter(None, None, write=False) as vis_t, self.viewer.train_lock:
-            self.viewer.get_model().eval()
-            if self.viewer.control_panel.crop_viewport:
-                color = self.viewer.control_panel.background_color
-                if color is None:
-                    background_color = torch.tensor([0.0, 0.0, 0.0], device=self.viewer.pipeline.model.device)
+
+        with self.viewer.train_lock:
+            camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
+            #  TODO this rendering isn't threadsafe with training (setting .eval() can break training), we might want
+            #  a mutex around training/rendering in the future.
+
+            with TimeWriter(None, None, write=False) as vis_t:
+                self.viewer.get_model().eval()
+                if self.viewer.control_panel.crop_viewport:
+                    color = self.viewer.control_panel.background_color
+                    if color is None:
+                        background_color = torch.tensor([0.0, 0.0, 0.0], device=self.viewer.pipeline.model.device)
+                    else:
+                        background_color = torch.tensor(
+                            [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0],
+                            device=self.viewer.get_model().device,
+                        )
+                    with background_color_override_context(background_color), torch.no_grad():
+                        outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                 else:
-                    background_color = torch.tensor(
-                        [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0],
-                        device=self.viewer.get_model().device,
-                    )
-                with background_color_override_context(background_color), torch.no_grad():
-                    outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-            else:
-                with torch.no_grad():
-                    outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-            self.viewer.get_model().train()
+                    with torch.no_grad():
+                        outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                self.viewer.get_model().train()
         self.viewer._update_viewer_stats(
             vis_t.duration, num_rays=len(camera_ray_bundle), image_height=image_height, image_width=image_width
         )
@@ -216,7 +222,6 @@ class RenderStateMachine(threading.Thread):
 
         Args:
             apect_ratio: the aspect ratio of the current view
-            is_training: whether or not we are training
         Returns:
             image_height: the maximum image height that can be rendered in the time budget
             image_width: the maximum image width that can be rendered in the time budget
