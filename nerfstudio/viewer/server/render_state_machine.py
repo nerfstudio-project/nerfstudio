@@ -61,14 +61,27 @@ class RenderStateMachine(threading.Thread):
         self.daemon = True
 
     def action(self, action: RenderAction):
-        # TODO we need to implement framerate logic for the step action
-        if action.action == "step" and self.state != "high":
-            # ignore steps unless we're in high state, otherwise sometimes we get stuck inside a low state
+        # essentially we want a priority queue where rerender>move/static>step
+        if self.next_action is None:
+            self.next_action = action
+        elif action.action == "step" and (
+            self.state != "high" or self.next_action.action in ("move", "static", "rerender")
+        ):
+            # ignore steps if:
+            #  1. we are in one of the low states
+            #  2. the current next_action is move, static, or rerender
             return
-        self.next_action = action
-        if self.state == "high" and action.action == "move":
+        elif self.next_action == "rerender":
+            # never overwrite rerenders
+            pass
+        else:
+            #  monimal use case, just set the next action
+            self.next_action = action
+
+        # handle interrupt logic
+        if self.state == "high" and self.next_action.action == "move":
             self.interrupt_render_flag = True
-        if action.action == "rerender":
+        if self.next_action.action == "rerender":
             self.interrupt_render_flag = True
         self.render_trigger.set()
 
@@ -154,6 +167,7 @@ class RenderStateMachine(threading.Thread):
             self.render_trigger.wait()
             self.render_trigger.clear()
             action = self.next_action
+            self.next_action = None
             if self.state == "high" and action.action == "static":
                 # if we are in high res and we get a static action, we don't need to do anything
                 continue
