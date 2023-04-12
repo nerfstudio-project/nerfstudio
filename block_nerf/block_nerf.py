@@ -58,3 +58,31 @@ def write_transforms(transforms: list, image_indexes: list, path: Path):
 
         for j in range(0 if i == 0 else image_indexes[i-1], image_indexes[i]):
             shutil.copyfile(f"{images[j]}", f"{image_path}/{images[j].split('/')[-1]}")
+
+def transform_camera_path(camera_path_path: Path, dataparser_transform_path: Path):
+    """
+        Transform a un-transformed camera path to a transformed camera path, in the respective transform's coordinate system.
+    """
+    camera_path = load_json(camera_path_path)
+    dataparser_transform = load_json(dataparser_transform_path)
+
+    t = np.array(dataparser_transform["transform"])
+    s = dataparser_transform["scale"]
+
+    for i, camera in enumerate(camera_path["camera_path"]):
+        c2w = np.array(camera["camera_to_world"]).reshape(4, 4)
+        c2w = (t @ c2w) * s
+        camera["camera_to_world"] = c2w.reshape(16).tolist()
+    
+    with open(camera_path_path.parent / "camera_path_transformed.json", "w") as f:
+        json.dump(camera_path, f, indent=4)
+
+if __name__ == "__main__":
+    camera_path_path = Path("camera_path_one_lap_final_copy.json")
+    exp_path = Path("../data/images/exp_combined_baseline_block_nerf_2")
+    dataparser_transform_path = exp_path / "0/exp_combined_baseline_block_nerf_2-0/nerfacto/2023-04-11_130124/dataparser_transforms.json"
+
+    transform_camera_path(
+        camera_path_path,
+        dataparser_transform_path,
+    )
