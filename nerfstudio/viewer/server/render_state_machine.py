@@ -59,10 +59,13 @@ class RenderStateMachine(threading.Thread):
 
     def action(self, action: RenderAction):
         # TODO we need to implement framerate logic for the step action
+        if action.action == "step" and self.state != "high":
+            # ignore steps unless we're in high state, otherwise sometimes we get stuck inside a low state
+            return
         self.next_action = action
-        self.render_trigger.set()
         if self.state == "high" and action.action in ("move", "rerender"):
             self.interrupt_render_flag = True
+        self.render_trigger.set()
 
     def _render_img(self, cam_msg: CameraMessage):
         """
@@ -83,10 +86,6 @@ class RenderStateMachine(threading.Thread):
             time.sleep(0.5)  # sleep to allow buffer to reset
 
         image_height, image_width = self._calculate_image_res(cam_msg.aspect)
-
-        if image_height is None:
-            # TODO idk why this if statement was in the original code, we can probably delete it?
-            raise NotImplementedError()
 
         intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
             cam_msg, image_height=image_height, image_width=image_width

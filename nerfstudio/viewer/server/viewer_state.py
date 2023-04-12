@@ -97,7 +97,6 @@ class ViewerState:
         # viewer specific variables
         self.prev_moving = False
         self.output_type_changed = True
-        self.check_interrupt_vis = False
         self.check_done_render = True
         self.step = 0
         self.camera_moving = False
@@ -172,15 +171,10 @@ class ViewerState:
         assert isinstance(message, CameraMessage)
         self.camera_message = message
         self.camera_moving = message.is_moving
-        # if self.camera_moving:
-        #     if self.prev_moving:
-        #         self.check_interrupt_vis = False
-        #         self.prev_moving = True
-        #     else:
-        #         self.check_interrupt_vis = True
-        #         self.prev_moving = True
-        # else:
-        #     self.prev_moving = False
+        if message.is_moving:
+            self.render_statemachine.action(RenderAction("move", self.camera_message))
+        else:
+            self.render_statemachine.action(RenderAction("static", self.camera_message))
 
     def _handle_camera_path_option_request(self, message: Message) -> None:
         """Handle camera path option request message from viewer."""
@@ -266,23 +260,13 @@ class ViewerState:
             pipeline: the method pipeline
             num_rays_per_batch: number of rays per batch
         """
-        # model = self.pipeline.model
-
-        # is_training = self.is_training
         self.step = step
 
         if self.camera_message is None:
             return
 
-        if self.camera_moving:
-            action = "move"
-        else:
-            if self.is_training:
-                action = "step"
-            else:
-                action = "static"
-        # TODO this isn't really the right way to pass in actions, it should be based on message callbacks
-        self.render_statemachine.action(RenderAction(action, self.camera_message))
+        if self.is_training:
+            self.render_statemachine.action(RenderAction("step", self.camera_message))
 
         # if is_training is None or is_training:
         #     # in training mode
@@ -320,15 +304,6 @@ class ViewerState:
         #             self._render_image_in_viewer(model, self.is_training)
         #         local_step += 1
 
-    def check_interrupt(self, frame, event, arg):  # pylint: disable=unused-argument
-        """Raises interrupt when flag has been set and not already on lowest resolution.
-        Used in conjunction with SetTrace.
-        """
-        if event == "line":
-            if self.check_interrupt_vis:
-                raise viewer_utils.IOChangeException
-        return self.check_interrupt
-
     def get_model(self) -> Model:
         """Returns the model."""
         return self.pipeline.model
@@ -360,109 +335,3 @@ class ViewerState:
         self.viser_server.send_status_message(
             eval_res=f"{image_height}x{image_width}px", vis_train_ratio=vis_train_ratio
         )
-
-    # @profiler.time_function
-    # def _render_image_in_viewer(self, model: Model, is_training: bool) -> None:
-    #     # pylint: disable=too-many-statements
-    #     """
-    #     Draw an image using the current camera pose from the viewer.
-    #     The image is sent over a TCP connection.
-
-    #     Args:
-    #         model: current checkpoint of model
-    #         is_training: whether or not we are training
-    #     """
-    #     # Check that timestamp is newer than the last one
-    #     camera_message = self.camera_message
-    #     if int(camera_message.timestamp) < self.prev_camera_timestamp:
-    #         return
-
-    #     self.prev_camera_timestamp = camera_message.timestamp
-
-    #     # update render aabb
-    #     try:
-    #         viewer_utils.update_render_aabb(
-    #             crop_viewport=self.control_panel.crop_viewport,
-    #             crop_min=self.control_panel.crop_min,
-    #             crop_max=self.control_panel.crop_max,
-    #             model=model,
-    #         )
-    #     except RuntimeError as e:
-    #         print(f"Error: {e}")
-
-    #         time.sleep(0.5)  # sleep to allow buffer to reset
-
-    #     # Calculate camera pose and intrinsics
-    #     try:
-    #         image_height, image_width = self._calculate_image_res(camera_message.aspect, is_training)
-    #     except ZeroDivisionError as e:
-    #         time.sleep(0.03)  # sleep to allow buffer to reset
-    #         print(f"Error: {e}")
-    #         return
-
-    #     if image_height is None:
-    #         return
-
-    #     intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
-    #         camera_message, image_height=image_height, image_width=image_width
-    #     )
-
-    #     camera_to_world = camera_to_world_h[:3, :]
-    #     camera_to_world = torch.stack(
-    #         [
-    #             camera_to_world[0, :],
-    #             camera_to_world[2, :],
-    #             camera_to_world[1, :],
-    #         ],
-    #         dim=0,
-    #     )
-
-    #     camera_type_msg = camera_message.camera_type
-    #     if camera_type_msg == "perspective":
-    #         camera_type = CameraType.PERSPECTIVE
-    #     elif camera_type_msg == "fisheye":
-    #         camera_type = CameraType.FISHEYE
-    #     elif camera_type_msg == "equirectangular":
-    #         camera_type = CameraType.EQUIRECTANGULAR
-    #     else:
-    #         camera_type = CameraType.PERSPECTIVE
-
-    #     camera = Cameras(
-    #         fx=intrinsics_matrix[0, 0],
-    #         fy=intrinsics_matrix[1, 1],
-    #         cx=intrinsics_matrix[0, 2],
-    #         cy=intrinsics_matrix[1, 2],
-    #         camera_type=camera_type,
-    #         camera_to_worlds=camera_to_world[None, ...],
-    #         times=torch.tensor([0.0]),
-    #     )
-    #     camera = camera.to(model.device)
-
-    #     camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=model.render_aabb)
-
-    #     model.eval()
-
-    #     render_thread = viewer_utils.RenderThread(state=self, model=model, camera_ray_bundle=camera_ray_bundle)
-    #     render_thread.daemon = True
-
-    #     with TimeWriter(None, None, write=False) as vis_t:
-    #         render_thread.start()
-    #         try:
-    #             render_thread.join()
-    #         except viewer_utils.IOChangeException:
-    #             del camera_ray_bundle
-    #             torch.cuda.empty_cache()
-    #         except RuntimeError as e:
-    #             print(f"Error: {e}")
-    #             del camera_ray_bundle
-    #             torch.cuda.empty_cache()
-    #             time.sleep(0.5)  # sleep to allow buffer to reset
-
-    #     model.train()
-    #     outputs = render_thread.vis_outputs
-    #     if outputs is not None:
-    #         colors = model.colors if hasattr(model, "colors") else None
-    #         self._send_output_to_viewer(outputs, colors=colors)
-    #         self._update_viewer_stats(
-    #             vis_t.duration, num_rays=len(camera_ray_bundle), image_height=image_height, image_width=image_width
-    #         )
