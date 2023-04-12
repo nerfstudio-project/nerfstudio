@@ -13,6 +13,7 @@ import tyro
 from rich.console import Console
 
 import block_nerf.block_nerf as block_nerf
+from block_nerf.block_nerf import transform_camera_path
 from nerfstudio.utils.scripts import run_command
 
 CONSOLE = Console(width=120)
@@ -108,7 +109,8 @@ class ExperimentPipeline:
 
         experiment_output_path = self.output_dir / self.experiment_name / self.model
         latest_changed_dir = max(glob.glob(f"{experiment_output_path}/*"), key=os.path.getmtime).split("/")[-1]
-        config_path = experiment_output_path / latest_changed_dir / "config.yml"
+        model_path = experiment_output_path / latest_changed_dir
+        config_path = model_path / "config.yml"
         
         render_dir = self.output_dir / "renders"
         render_dir.mkdir(parents=True, exist_ok=True)
@@ -121,10 +123,25 @@ class ExperimentPipeline:
             cmd += f" --traj interpolate --output-path {render_path}"
         else:
             render_path = render_dir / f"{output_name}.mp4"
-            camera_path_path = "./camera_paths/camera_path_one_lap.json"
+            # camera_path_path = "./camera_paths/camera_path_one_lap.json"
+            camera_path_path = self.get_camera_path(model_path)
             cmd += f" --traj filename --camera-path-filename {camera_path_path} --output-path {render_path}"
             
         run_command(cmd, verbose=True)
+
+    def get_camera_path(self, model_path: Path):
+        export_path = self.output_dir / "camera_path_transformed.json"
+        if export_path.exists():
+            return export_path
+        
+        original_camera_path_path = Path("camera_paths/camera_path_transformed_original.json")
+        target_dataparser_transforms_path = model_path / "dataparser_transform.json"
+
+        return transform_camera_path(
+            original_camera_path_path,
+            target_dataparser_transforms_path,
+            export_path=export_path
+        )
 
 
 if __name__ == "__main__":

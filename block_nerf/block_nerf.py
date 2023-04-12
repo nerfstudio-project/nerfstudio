@@ -104,28 +104,29 @@ def transform_camera_path(camera_path_path: Path, dataparser_transform_path: Pat
         json.dump(camera_path, f, indent=4)
 
     print("✅ Created transformed camera path at: ", export_path)
+    return export_path
 
-if __name__ == "__main__":
-    # Leave all variables with "source" as the prefix as they are the original variables.
-    source_camera_path_path = Path("block_nerf/camera_path_one_lap_final_copy.json")
-    source_exp_path = Path("data/images/exp_combined_baseline_2")
-    source_config_path = source_exp_path / "exp_combined_baseline_2/nerfacto/2023-04-10_140345/config.yml"
+# if __name__ == "__main__":
+#     # Leave all variables with "source" as the prefix as they are the original variables.
+#     source_camera_path_path = Path("block_nerf/camera_path_one_lap_final_copy.json")
+#     source_exp_path = Path("data/images/exp_combined_baseline_2")
+#     source_config_path = source_exp_path / "exp_combined_baseline_2/nerfacto/2023-04-10_140345/config.yml"
     
-    # Change the variables with "target" as the prefix to the variables you want to transform.
-    target_exp_path = Path("data/images/exp_combined_baseline_block_nerf_2/1")
-    target_transform_path = target_exp_path / "exp_combined_baseline_block_nerf_2-1/nerfacto/2023-04-11_122919/dataparser_transforms.json"
+#     # Change the variables with "target" as the prefix to the variables you want to transform.
+#     target_exp_path = Path("data/images/exp_combined_baseline_block_nerf_2/1")
+#     target_dataparser_transforms_path = target_exp_path / "exp_combined_baseline_block_nerf_2-1/nerfacto/2023-04-11_130124/dataparser_transforms.json"
     
-    eval_num_rays_per_chunk = 1 << 15 # Same as 2^15
-    _, pipeline, _ = eval_setup(
-        source_config_path,
-        eval_num_rays_per_chunk=eval_num_rays_per_chunk,
-        test_mode="inference",
-    )
+#     eval_num_rays_per_chunk = 1 << 15 # Same as 2^15
+#     _, pipeline, _ = eval_setup(
+#         source_config_path,
+#         eval_num_rays_per_chunk=eval_num_rays_per_chunk,
+#         test_mode="inference",
+#     )
 
-    original_camera_path_path = transform_camera_path_to_original_space(source_camera_path_path, pipeline)
+#     original_camera_path_path = transform_camera_path_to_original_space(source_camera_path_path, pipeline)
 
-    transform_camera_path(
-        original_camera_path_path,
-        target_transform_path,
-        export_path=target_exp_path / "camera_path_transformed.json"
-    )
+#     transform_camera_path(
+#         original_camera_path_path,
+#         target_dataparser_transforms_path,
+#         export_path=target_exp_path / "camera_path_transformed.json"
+#     )
