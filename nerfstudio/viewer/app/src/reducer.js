@@ -73,31 +73,37 @@ const initialState = {
   },
 };
 
-function setData(newState, state, path, data) {
+// Recursive function to update the state object with new data at a given path
+function setData(state, path, data) {
+  // If we've reached the final level of the path, update the property with the new data
   if (path.length === 1) {
-    newState[path[0]] = data; // eslint-disable-line no-param-reassign
-  } else {
-    newState[path[0]] = { ...state[path[0]] }; // eslint-disable-line no-param-reassign
-    setData(newState[path[0]], state[path[0]], path.slice(1), data);
+    // Use the spread operator to create a shallow copy of the state object
+    // and update the property with the new data
+    return { ...state, [path[0]]: data };
   }
+  // If we haven't reached the final level of the path, recursively update the nested object
+  // by creating a shallow copy of the parent object and updating the relevant property
+  return {
+    ...state,
+    [path[0]]: setData(state[path[0]], path.slice(1), data),
+  };
 }
 
-// Use the initialState as a default value
-// eslint-disable-next-line default-param-last
+// Reducer function that handles the state updates
 export default function rootReducer(state = initialState, action) {
-  // The reducer normally looks at the action type field to decide what happens
-
   switch (action.type) {
     case 'write': {
-      const path = split_path(action.path); // convert string with "/"s to a list
-      const data = action.data;
-      const newState = { ...state };
-      setData(newState, state, path, data);
+      // Destructure the path and data values from the action object
+      const { path, data } = action;
+      // Split the path string into an array of path segments
+      const pathSegments = split_path(path);
+      // Call the setData function to update the state object with the new data
+      const newState = setData(state, pathSegments, data);
+      // Return the updated state object
       return newState;
     }
+    // If the reducer doesn't recognize the action type, return the existing state unchanged
     default:
-      // If this reducer doesn't recognize the action type, or doesn't
-      // care about this specific action, return the existing state unchanged
       return state;
   }
 }
