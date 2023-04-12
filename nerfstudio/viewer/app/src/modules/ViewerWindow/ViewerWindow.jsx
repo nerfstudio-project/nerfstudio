@@ -241,13 +241,12 @@ export default function ViewerWindow(props) {
 
   let old_camera_matrix = null;
   let is_moving = false;
-
+  const sendThrottledCameraMessage = makeThrottledMessageSender(
+    viser_websocket,
+    25,
+  );
   // update the camera information in the python server
   const sendCamera = () => {
-    const sendThrottledCameraMessage = makeThrottledMessageSender(
-      viser_websocket,
-      25,
-    );
     if (isEqual(old_camera_matrix, sceneTree.metadata.camera.matrix.elements)) {
       if (is_moving) {
         is_moving = false;

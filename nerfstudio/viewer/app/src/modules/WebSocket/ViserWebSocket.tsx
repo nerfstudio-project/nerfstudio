@@ -60,11 +60,12 @@ function handleMessage(
   switch (message.type) {
     // Add a background image.
     case 'background_image': {
-      dispatch({
-        type: 'write',
-        path: 'render_img',
-        data: `data:${message.media_type};base64,${message.base64_data}`,
-      });
+      document
+        .getElementById('background-image')!
+        .setAttribute(
+          'src',
+          `data:${message.media_type};base64,${message.base64_data}`,
+        );
       break;
     }
     // Reset the entire scene, removing all scene nodes.
