@@ -74,9 +74,11 @@ class ViewerState:
         datapath: Path,
         pipeline: Pipeline,
         trainer: Optional[Trainer] = None,
+        train_lock: Optional[threading.Lock] = None,
     ):
         self.config = config
         self.trainer = trainer
+        self.train_lock = train_lock
         self.pipeline = pipeline
         self.log_filename = log_filename
         self.datapath = datapath.parent if datapath.is_file() else datapath

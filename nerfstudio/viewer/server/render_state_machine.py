@@ -63,7 +63,9 @@ class RenderStateMachine(threading.Thread):
             # ignore steps unless we're in high state, otherwise sometimes we get stuck inside a low state
             return
         self.next_action = action
-        if self.state == "high" and action.action in ("move", "rerender"):
+        if self.state == "high" and action.action == "move":
+            self.interrupt_render_flag = True
+        if action.action == "rerender":
             self.interrupt_render_flag = True
         self.render_trigger.set()
 
@@ -119,7 +121,8 @@ class RenderStateMachine(threading.Thread):
         camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
         #  TODO this rendering isn't threadsafe with training (setting .eval() can break training), we might want
         #  a mutex around training/rendering in the future.
-        with TimeWriter(None, None, write=False) as vis_t:
+        with TimeWriter(None, None, write=False) as vis_t, self.viewer.train_lock:
+            self.viewer.get_model().eval()
             if self.viewer.control_panel.crop_viewport:
                 color = self.viewer.control_panel.background_color
                 if color is None:
@@ -134,6 +137,7 @@ class RenderStateMachine(threading.Thread):
             else:
                 with torch.no_grad():
                     outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+            self.viewer.get_model().train()
         self.viewer._update_viewer_stats(
             vis_t.duration, num_rays=len(camera_ray_bundle), image_height=image_height, image_width=image_width
         )
@@ -218,7 +222,6 @@ class RenderStateMachine(threading.Thread):
             image_width: the maximum image width that can be rendered in the time budget
         """
         max_res = self.viewer.control_panel.max_res
-        print("State in image res", self.state)
         if self.state == "high":
             # high res is always static
             image_height = max_res
