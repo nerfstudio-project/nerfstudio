@@ -6,6 +6,8 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from nerfstudio.utils.eval_utils import eval_setup
+
 
 def load_json(path: Path):
     with open(path, "r") as f:
@@ -59,7 +61,7 @@ def write_transforms(transforms: list, image_indexes: list, path: Path):
         for j in range(0 if i == 0 else image_indexes[i-1], image_indexes[i]):
             shutil.copyfile(f"{images[j]}", f"{image_path}/{images[j].split('/')[-1]}")
 
-def transform_camera_path_to_original_space(camera_path_path: Path, pipeline: VanillaPipeline):
+def transform_camera_path_to_original_space(camera_path_path: Path, pipeline):
     """
         The camera_path_path must be the camera path created in the pipeline.
     """
@@ -67,22 +69,26 @@ def transform_camera_path_to_original_space(camera_path_path: Path, pipeline: Va
 
     poses = []
     for i, camera in enumerate(camera_path["camera_path"]):
-        c2w = np.array(camera["camera_to_world"]).reshape(4, 4)
-        poses.append(c2w)
+        poses.append(camera["camera_to_world"])
     
+    poses = np.array(poses).reshape(-1, 4, 4)
     poses = torch.tensor(poses)[:, :-1, :]
+    poses = poses.float()
     transformed_poses = pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(poses).numpy()
     for i, camera in enumerate(camera_path["camera_path"]):
-        camera["camera_to_world"] = transformed_poses[i].reshape(16).tolist()
+        temp = np.array(transformed_poses[i])
+        temp = np.vstack((temp, np.array([0, 0, 0, 1])))
+        camera["camera_to_world"] = temp.reshape(16).tolist()
     
     export_path = camera_path_path.parent / "camera_path_transformed_original.json"
     with open(export_path, "w") as f:
         json.dump(camera_path, f, indent=4)
     
+    print("✅ Created transformed camera path at: ", export_path)
     return export_path
 
 
-def transform_camera_path(camera_path_path: Path, dataparser_transform_path: Path):
+def transform_camera_path(camera_path_path: Path, dataparser_transform_path: Path, export_path: Path = None):
     """
         Transform a un-transformed camera path to a transformed camera path, in the respective transform's coordinate system.
     """
@@ -98,25 +104,31 @@ def transform_camera_path(camera_path_path: Path, dataparser_transform_path: Pat
         c2w = np.vstack((c2w, np.array([0, 0, 0, 1])))
         camera["camera_to_world"] = c2w.reshape(16).tolist()
     
-    with open(camera_path_path.parent / "camera_path_transformed.json", "w") as f:
+    export_path = export_path if export_path is not None else camera_path_path.parent / "camera_path_transformed.json"
+    with open(export_path, "w") as f:
         json.dump(camera_path, f, indent=4)
 
+    print("✅ Created transformed camera path at: ", export_path)
+
 if __name__ == "__main__":
-    camera_path_path = Path("block_nerf/camera_path_one_lap_final_copy.json")
-    exp_path = Path("data/images/exp_combined_baseline_2")
-    config_path = exp_path / "exp_combined_baseline_2/nerfacto/2023-04-10_140345/config.yml"
-    dataparser_transform_path = exp_path / "exp_combined_baseline_2/nerfacto/2023-04-10_140345/dataparser_transforms.json"
+    source_camera_path_path = Path("block_nerf/camera_path_one_lap_final_copy.json")
+    source_exp_path = Path("data/images/exp_combined_baseline_2")
+    source_config_path = source_exp_path / "exp_combined_baseline_2/nerfacto/2023-04-10_140345/config.yml"
+    
+    target_exp_path = Path("data/images/exp_combined_baseline_block_nerf_2/0")
+    target_transform_path = target_exp_path / "exp_combined_baseline_block_nerf_2-0/nerfacto/2023-04-11_130124/dataparser_transforms.json"
     
     eval_num_rays_per_chunk = 1 << 15 # Same as 2^15
     _, pipeline, _ = eval_setup(
-        config_path,
+        source_config_path,
         eval_num_rays_per_chunk=eval_num_rays_per_chunk,
         test_mode="inference",
     )
 
-    original_camera_path_path = transform_camera_path_to_original_space(camera_path_path, pipeline)
+    original_camera_path_path = transform_camera_path_to_original_space(source_camera_path_path, pipeline)
 
     transform_camera_path(
         original_camera_path_path,
-        dataparser_transform_path,
+        target_transform_path,
+        export_path=target_exp_path / "camera_path_transformed.json"
     )
