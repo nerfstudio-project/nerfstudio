@@ -238,6 +238,14 @@ class Trainer:
                     writer.put_scalar(name="Train Loss", scalar=loss, step=step)
                     writer.put_dict(name="Train Loss Dict", scalar_dict=loss_dict, step=step)
                     writer.put_dict(name="Train Metrics Dict", scalar_dict=metrics_dict, step=step)
+                    # The actual memory allocated by Pytorch. This is likely less than the amount
+                    # shown in nvidia-smi since some unused memory can be held by the caching
+                    # allocator and some context needs to be created on GPU. See Memory management
+                    # (https://pytorch.org/docs/stable/notes/cuda.html#cuda-memory-management)
+                    # for more details about GPU memory management.
+                    writer.put_scalar(
+                        name="GPU Memory (MB)", scalar=torch.cuda.max_memory_allocated() / (1024**2), step=step
+                    )
 
                 # Do not perform evaluation if there are no validation images
                 if self.pipeline.datamanager.eval_dataset:
