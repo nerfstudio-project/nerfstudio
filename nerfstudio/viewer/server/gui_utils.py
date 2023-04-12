@@ -16,7 +16,7 @@
 
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
 from torch import nn
 
@@ -25,10 +25,19 @@ from nerfstudio.viewer.server.viewer_param import ViewerElement
 
 
 def parse_object(
-    obj,
+    obj: Any,
     type_check,
-    tree_stub,
-):
+    tree_stub: str,
+) -> List[Tuple[str, Any]]:
+    """
+    obj: the object to parse
+    type_check: recursively adds instances of this type to the output
+    tree_stub: the path down the object tree to this object
+
+    Returns:
+        a list of (path/to/object, obj), which represents the path down the object tree
+        along with the object itself
+    """
     if not hasattr(obj, "__dict__"):
         return []
     ret = []
@@ -48,7 +57,8 @@ def get_viewer_elements(pipeline: Pipeline) -> List[Tuple[str, ViewerElement]]:
     """
     Recursively parse the pipeline object and return a tree of all the ViewerElements contained
 
-    returns a list of (path/to/object, param), which represents the path down the object tree
+    returns a list of (path/to/object, param), which represents the path down the object tree as well as
+    the ViewerElement itself
     """
     ret = parse_object(pipeline, ViewerElement, "Custom")
     return ret
