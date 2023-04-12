@@ -67,14 +67,9 @@ def transform_camera_path_to_original_space(camera_path_path: Path, pipeline):
     """
     camera_path = load_json(camera_path_path)
 
-    poses = []
-    for i, camera in enumerate(camera_path["camera_path"]):
-        poses.append(camera["camera_to_world"])
-    
-    poses = np.array(poses).reshape(-1, 4, 4)
-    poses = torch.tensor(poses)[:, :-1, :]
-    poses = poses.float()
-    transformed_poses = pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(poses).numpy()
+    poses = np.array([np.array(camera["camera_to_world"]) for camera in camera_path["camera_path"]]).reshape(-1, 4, 4)
+    poses = torch.tensor(poses)[:, :-1, :].float()
+    transformed_poses = pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(poses, camera_convention="opengl").numpy()
     for i, camera in enumerate(camera_path["camera_path"]):
         temp = np.array(transformed_poses[i])
         temp = np.vstack((temp, np.array([0, 0, 0, 1])))
@@ -111,12 +106,14 @@ def transform_camera_path(camera_path_path: Path, dataparser_transform_path: Pat
     print("✅ Created transformed camera path at: ", export_path)
 
 if __name__ == "__main__":
+    # Leave all variables with "source" as the prefix as they are the original variables.
     source_camera_path_path = Path("block_nerf/camera_path_one_lap_final_copy.json")
     source_exp_path = Path("data/images/exp_combined_baseline_2")
     source_config_path = source_exp_path / "exp_combined_baseline_2/nerfacto/2023-04-10_140345/config.yml"
     
-    target_exp_path = Path("data/images/exp_combined_baseline_block_nerf_2/0")
-    target_transform_path = target_exp_path / "exp_combined_baseline_block_nerf_2-0/nerfacto/2023-04-11_130124/dataparser_transforms.json"
+    # Change the variables with "target" as the prefix to the variables you want to transform.
+    target_exp_path = Path("data/images/exp_combined_baseline_block_nerf_2/1")
+    target_transform_path = target_exp_path / "exp_combined_baseline_block_nerf_2-1/nerfacto/2023-04-11_122919/dataparser_transforms.json"
     
     eval_num_rays_per_chunk = 1 << 15 # Same as 2^15
     _, pipeline, _ = eval_setup(
