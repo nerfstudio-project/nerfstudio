@@ -1,22 +1,18 @@
+""" This file contains the render state machine, which is responsible for deciding when to render the image """
 from __future__ import annotations
 
+import contextlib
 import threading
-import time
-from asyncio import Future
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
-import torch.nn as nn
 from typing_extensions import Literal, get_args
 
 import nerfstudio.viewer.server.viewer_utils as viewer_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
-from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components.renderers import background_color_override_context
-from nerfstudio.utils import colormaps
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfstudio.viewer.server.viewer_utils import SetTrace
@@ -31,11 +27,22 @@ RenderActions = Literal["rerender", "move", "static", "step"]
 
 @dataclass
 class RenderAction:
+    """Message to the render state machine"""
+
     action: RenderActions
+    """The action to take """
     cam_msg: CameraMessage
+    """The camera message to render"""
 
 
 class RenderStateMachine(threading.Thread):
+    """The render state machine is responsible for deciding how to render the image.
+    It decides the resolution and whether to interrupt the current render.
+
+    Args:
+        viewer: the viewer state
+    """
+
     def __init__(self, viewer: ViewerState):
         threading.Thread.__init__(self)
         self.transitions: Dict[RenderStates, Dict[RenderActions, RenderStates]] = {
@@ -53,7 +60,7 @@ class RenderStateMachine(threading.Thread):
         self.transitions["high"]["move"] = "low_move"
         self.transitions["high"]["rerender"] = "low_static"
         self.next_action: Optional[RenderAction] = None
-        self.state = "low_static"
+        self.state: RenderStates = "low_static"
         self.render_trigger = threading.Event()
         self.target_fps = 24
         self.viewer = viewer
@@ -61,7 +68,11 @@ class RenderStateMachine(threading.Thread):
         self.daemon = True
 
     def action(self, action: RenderAction):
-        # TODO we need to implement framerate logic for the step action
+        """Update next action and trigger render
+
+        Args:
+            action: the action to take
+        """
         if action.action == "step" and self.state != "high":
             # ignore steps unless we're in high state, otherwise sometimes we get stuck inside a low state
             return
@@ -73,8 +84,10 @@ class RenderStateMachine(threading.Thread):
         self.render_trigger.set()
 
     def _render_img(self, cam_msg: CameraMessage):
-        """
-        This thing actually takes the current camera, generates rays, and renders the colors
+        """Takes the current camera, generates rays, and renders the iamge
+
+        Args:
+            cam_msg: the camera message to render
         """
 
         # initialize the camera ray bundle
@@ -122,7 +135,7 @@ class RenderStateMachine(threading.Thread):
         )
         camera = camera.to(self.viewer.get_model().device)
 
-        with self.viewer.train_lock:
+        with (self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext()):
             camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
             #  TODO this rendering isn't threadsafe with training (setting .eval() can break training), we might want
             #  a mutex around training/rendering in the future.
@@ -150,10 +163,12 @@ class RenderStateMachine(threading.Thread):
         return outputs
 
     def run(self):
+        """Main loop for the render thread"""
         while True:
             self.render_trigger.wait()
             self.render_trigger.clear()
             action = self.next_action
+            assert action is not None, "Action should never be None at this point"
             if self.state == "high" and action.action == "static":
                 # if we are in high res and we get a static action, we don't need to do anything
                 continue
