@@ -68,7 +68,6 @@ class RenderStateMachine(threading.Thread):
         self.daemon = True
 
     def action(self, action: RenderAction):
-<<<<<<< HEAD
         # essentially we want a priority queue where rerender>move/static>step
         if self.next_action is None:
             self.next_action = action
@@ -78,15 +77,6 @@ class RenderStateMachine(threading.Thread):
             # ignore steps if:
             #  1. we are in one of the low states
             #  2. the current next_action is move, static, or rerender
-=======
-        """Update next action and trigger render
-
-        Args:
-            action: the action to take
-        """
-        if action.action == "step" and self.state != "high":
-            # ignore steps unless we're in high state, otherwise sometimes we get stuck inside a low state
->>>>>>> 00569a769bf3ff586ac824f333257842d9743258
             return
         elif self.next_action == "rerender":
             # never overwrite rerenders
@@ -187,11 +177,8 @@ class RenderStateMachine(threading.Thread):
             self.render_trigger.wait()
             self.render_trigger.clear()
             action = self.next_action
-<<<<<<< HEAD
-            self.next_action = None
-=======
             assert action is not None, "Action should never be None at this point"
->>>>>>> 00569a769bf3ff586ac824f333257842d9743258
+            self.next_action = None
             if self.state == "high" and action.action == "static":
                 # if we are in high res and we get a static action, we don't need to do anything
                 continue
