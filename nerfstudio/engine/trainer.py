@@ -274,7 +274,7 @@ class Trainer:
         if not self.config.viewer.quit_on_train_completion:
             CONSOLE.print("Use ctrl+c to quit", justify="center")
             while True:
-                time.sleep(.01)
+                time.sleep(0.01)
 
     @check_main_thread
     def _check_viewer_warnings(self) -> None:

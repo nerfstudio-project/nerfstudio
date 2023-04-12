@@ -16,6 +16,9 @@
 from collections import defaultdict
 from typing import Callable, DefaultDict, List, Tuple
 
+import torch
+
+from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer.server.viewer_param import (
     ViewerCheckbox,
     ViewerDropdown,
@@ -105,13 +108,6 @@ class ControlPanel:
             e.install(viser_server)
         self.update_control_panel()
 
-    def update_colormap_options(self, new_options: List[str]):
-        """
-        Args:
-            new_options: a list of new colormap options
-        """
-        self._colormap.set_options(new_options)
-
     def update_output_options(self, new_options: List[str]):
         """
         Args:
@@ -139,6 +135,21 @@ class ControlPanel:
             e.set_hidden(self.output_render == "rgb")
         for e in self._elements_by_tag["crop"]:
             e.set_hidden(not self.crop_viewport)
+
+    def update_colormap_options(self, dimensions: int, dtype: type) -> None:
+        """update the colormap options based on the current render
+
+        Args:
+            dimensions: the number of dimensions of the render
+            dtype: the data type of the render
+        """
+        colormap_options = []
+        if dimensions == 3:
+            colormap_options = [viewer_utils.ColormapTypes.DEFAULT.value]
+        if dimensions == 1 and dtype == torch.float:
+            colormap_options = [c.value for c in list(viewer_utils.ColormapTypes)[1:]]
+
+        self._colormap.set_options(colormap_options)
 
     @property
     def train_speed(self) -> str:
@@ -189,7 +200,7 @@ class ControlPanel:
     def crop_viewport(self) -> bool:
         """Returns the current crop viewport setting"""
         return self._crop_viewport.value
-    
+
     @crop_viewport.setter
     def crop_viewport(self, value: bool):
         """Sets the crop viewport setting"""
@@ -199,7 +210,7 @@ class ControlPanel:
     def crop_min(self) -> Tuple[float, float, float]:
         """Returns the current crop min setting"""
         return self._crop_min.value
-    
+
     @crop_min.setter
     def crop_min(self, value: Tuple[float, float, float]):
         """Sets the crop min setting"""
@@ -209,7 +220,7 @@ class ControlPanel:
     def crop_max(self) -> Tuple[float, float, float]:
         """Returns the current crop max setting"""
         return self._crop_max.value
-    
+
     @crop_max.setter
     def crop_max(self, value: Tuple[float, float, float]):
         """Sets the crop max setting"""

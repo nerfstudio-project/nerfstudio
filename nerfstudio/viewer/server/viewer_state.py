@@ -1,28 +1,36 @@
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """ Manage the state of the viewer """
 from __future__ import annotations
 
-import enum
-import os
-import sys
 import threading
-import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional
 
 import numpy as np
 import torch
 from rich.console import Console
 
-from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.models.base_model import Model
 from nerfstudio.pipelines.base_pipeline import Pipeline
-from nerfstudio.utils import profiler, writer
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
-from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
+from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer.server.control_panel import ControlPanel
 from nerfstudio.viewer.server.gui_utils import get_viewer_elements
@@ -31,7 +39,6 @@ from nerfstudio.viewer.server.render_state_machine import (
     RenderStateMachine,
 )
 from nerfstudio.viewer.server.subprocess import get_free_port
-from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfstudio.viewer.server.viewer_param import ViewerElement
 from nerfstudio.viewer.viser import ViserServer
 from nerfstudio.viewer.viser._messages import (
@@ -106,7 +113,6 @@ class ViewerState:
         self.static_fps = 1.0
         self.train_btn_state = True
 
-        self.output_list = None
         self.camera_message = None
 
         self.viser_server = ViserServer(host="localhost", port=websocket_port)
@@ -141,7 +147,8 @@ class ViewerState:
 
     def _interrupt_render(self, _) -> None:
         """Interrupt current render."""
-        self.render_statemachine.action(RenderAction("rerender", self.camera_message))
+        if self.camera_message is not None:
+            self.render_statemachine.action(RenderAction("rerender", self.camera_message))
 
     def _crop_params_update(self, _) -> None:
         """Update crop parameters"""
@@ -278,7 +285,6 @@ class ViewerState:
 
         Args:
             step: iteration step of training
-            pipeline: the method pipeline
             num_rays_per_batch: number of rays per batch
         """
         self.step = step
@@ -300,6 +306,17 @@ class ViewerState:
                 num_steps = 1
             if step % num_steps == 0:
                 self.render_statemachine.action(RenderAction("step", self.camera_message))
+
+    def update_colormap_options(self, dimensions: int, dtype: type) -> None:
+        """update the colormap options based on the current render
+
+        Args:
+            dimensions: the number of dimensions of the render
+            dtype: the data type of the render
+        """
+        if self.output_type_changed:
+            self.control_panel.update_colormap_options(dimensions, dtype)
+            self.output_type_changed = False
 
     def get_model(self) -> Model:
         """Returns the model."""

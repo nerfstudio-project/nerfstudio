@@ -1,3 +1,17 @@
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """ This file contains the render state machine, which is responsible for deciding when to render the image """
 from __future__ import annotations
 
@@ -6,14 +20,12 @@ import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
-import numpy as np
 import torch
 from typing_extensions import Literal, get_args
 
-import nerfstudio.viewer.server.viewer_utils as viewer_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.model_components.renderers import background_color_override_context
-from nerfstudio.utils import profiler, writer
+from nerfstudio.utils import writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
@@ -69,7 +81,11 @@ class RenderStateMachine(threading.Thread):
         self.daemon = True
 
     def action(self, action: RenderAction):
-        # essentially we want a priority queue where rerender>move/static>step
+        """Takes an action and updates the state machine
+
+        Args:
+            action: the action to take
+        """
         if self.next_action is None:
             self.next_action = action
         elif action.action == "step" and (
@@ -176,7 +192,7 @@ class RenderStateMachine(threading.Thread):
             is_training=self.viewer.is_training,
             image_height=image_height,
             image_width=image_width,
-            step=step
+            step=step,
         )
         return outputs
 
@@ -199,9 +215,7 @@ class RenderStateMachine(threading.Thread):
             except viewer_utils.IOChangeException:
                 # if we got interrupted, don't send the output to the viewer
                 continue
-            # TODO below line seems messy, what is it? (why is colors sometimes defined and sometimes not??)
-            colors = getattr(self.viewer.get_model(), "colors", None)
-            self._send_output_to_viewer(outputs, colors)  # TODO what is colors?
+            self._send_output_to_viewer(outputs)
             # if we rendered a static low res, we need to self-trigger a static high-res
             if self.state == "low_static":
                 self.action(RenderAction("static", action.cam_msg))
@@ -216,34 +230,19 @@ class RenderStateMachine(threading.Thread):
                 raise viewer_utils.IOChangeException
         return self.check_interrupt
 
-    def _send_output_to_viewer(self, outputs: Dict[str, Any], colors: torch.Tensor = None):
+    def _send_output_to_viewer(self, outputs: Dict[str, Any]):
         """Chooses the correct output and sends it to the viewer
 
         Args:
             outputs: the dictionary of outputs to choose from, from the model
-            colors: is only set if colormap is for semantics. Defaults to None.
         """
-        if self.viewer.output_list is None:
-            self.viewer.output_list = list(outputs.keys())
-            viewer_output_list = list(np.copy(self.viewer.output_list))
-            # remove semantics, which crashes viewer; semantics_colormap is OK
-            if "semantics" in self.viewer.output_list:
-                viewer_output_list.remove("semantics")
-            self.viewer.control_panel.update_output_options(viewer_output_list)
+        self.viewer.control_panel.update_output_options(list(outputs.keys()))
 
         output_render = self.viewer.control_panel.output_render
-        # re-register colormaps and send to viewer
-        if self.viewer.output_type_changed:
-            colormap_options = []
-            if outputs[output_render].shape[-1] == 3:
-                colormap_options = [viewer_utils.ColormapTypes.DEFAULT.value]
-            if outputs[output_render].shape[-1] == 1 and outputs[output_render].dtype == torch.float:
-                colormap_options = [c.value for c in list(viewer_utils.ColormapTypes)[1:]]
-            self.viewer.output_type_changed = False
-            self.viewer.control_panel.update_colormap_options(colormap_options)
-        selected_output = (viewer_utils.apply_colormap(self.viewer.control_panel, outputs, colors) * 255).type(
-            torch.uint8
+        self.viewer.update_colormap_options(
+            dimensions=outputs[output_render].shape[-1], dtype=outputs[output_render].dtype
         )
+        selected_output = (viewer_utils.apply_colormap(self.viewer.control_panel, outputs) * 255).type(torch.uint8)
 
         self.viewer.viser_server.set_background_image(
             selected_output.cpu().numpy(),
@@ -251,7 +250,7 @@ class RenderStateMachine(threading.Thread):
             quality=self.viewer.config.jpeg_quality,
         )
 
-    def _calculate_image_res(self, aspect_ratio: float) -> Optional[Tuple[int, int]]:
+    def _calculate_image_res(self, aspect_ratio: float) -> Tuple[int, int]:
         """Calculate the maximum image height that can be rendered in the time budget
 
         Args:

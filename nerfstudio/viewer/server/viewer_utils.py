@@ -21,9 +21,8 @@ import enum
 import os
 import sys
 import threading
-from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 import torch
 from rich.console import Console
