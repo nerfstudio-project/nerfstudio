@@ -3,7 +3,7 @@ Test metrics
 """
 import torch
 
-from nerfstudio.utils.metrics import PSNRModule, SSIMModule, LPIPSModule
+from nerfstudio.utils.metrics import LPIPSModule, PSNRModule, SSIMModule
 
 
 def test_psnr():
@@ -55,14 +55,9 @@ def test_lpips():
 
     # test non-masked version
     lpips = lpips_module(preds=pred, target=target)
+    print(lpips)
     assert lpips.shape == (bs,)
 
     # test masked version
     lpips = lpips_module(preds=pred, target=target, mask=mask)
     assert lpips.shape == (bs,)
-
-
-if __name__ == "__main__":
-    test_psnr()
-    test_ssim()
-    test_lpips()

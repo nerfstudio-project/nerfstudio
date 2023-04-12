@@ -58,7 +58,7 @@ def _render_trajectory_video(
     depth_far_plane: Optional[float] = None,
     using_eval_images: bool = False,
 ) -> None:
-    """Helper function to create a video of the spiral trajectory.
+    """Helper function to create a video from cameras.
 
     Args:
         pipeline: Pipeline to evaluate with.
@@ -73,7 +73,6 @@ def _render_trajectory_video(
         depth_near_plane: Closest depth to consider. If None, use min image value.
         depth_far_plane: Furthest depth to consider. If None, use max image value.
         using_eval_images: Whether the eval images are being used or not.
-        depth_method: Method to use for depth rendering. If None, use model default.
     """
     # pylint: disable=too-many-statements
     CONSOLE.print("[bold green]Creating trajectory " + output_format)
@@ -142,10 +141,10 @@ def _render_trajectory_video(
                             far_plane=depth_far_plane,
                         )
                     if rendered_output_name == "visibility_median_count":
-                        # NOTE(ethan): we cap the number of visible images to 255 here
+                        # NOTE: we cap the number of visible images to 255 by using torch.uint8
                         outputs[rendered_output_name] = outputs[rendered_output_name].clamp(0, 255).to(torch.uint8)
                         if output_format == "video":
-                            # rescale to [0, 1] is needed to concatenate into a video format (see below)
+                            # rescaling to [0, 1] is needed to concatenate into a video output format (see below)
                             outputs[rendered_output_name] = outputs[rendered_output_name].float() / 255.0
                     output_image = outputs[rendered_output_name].cpu().numpy()
                     if output_image.shape[-1] == 1:
@@ -165,11 +164,12 @@ def _render_trajectory_video(
                     names = rendered_output_names
 
                 if output_format == "images":
-                    # for images, we keep outputs in different folders
+                    # for images, we write outputs to separate folders
                     for name, im in zip(names, render_image):
                         folder = output_image_dir / name
                         folder.mkdir(parents=True, exist_ok=True)
                         media.write_image(folder / f"{camera_idx:05d}.png", im)
+                    # save depth_raw, which doesn't have the colormap applied
                     if depth_raw is not None:
                         folder = output_image_dir / "depth_raw"
                         folder.mkdir(parents=True, exist_ok=True)
@@ -370,9 +370,9 @@ class RenderTrajectory:
                 cameras=pipeline.datamanager.eval_dataloader.cameras, steps=self.interpolation_steps
             )
         elif self.traj == "eval-images":
-            camera_type = CameraType.PERSPECTIVE
-            # TODO(ethan): support any camera type, reading from the cameras object
             camera_path = pipeline.datamanager.eval_dataloader.cameras
+            camera_type = pipeline.datamanager.eval_dataloader.cameras.camera_type[0]
+            # TODO: support more than one camera type
         else:
             assert_never(self.traj)
 

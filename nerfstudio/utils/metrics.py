@@ -20,7 +20,7 @@ from abc import abstractmethod
 from typing import Optional
 
 import torch
-from torch import Tensor, nn
+from torch import nn
 from torchmetrics.functional import (
     peak_signal_noise_ratio,
     structural_similarity_index_measure,
@@ -50,7 +50,7 @@ class ImageMetricModule(nn.Module):
         preds: TensorType["bs", 3, "H", "W"],
         target: TensorType["bs", 3, "H", "W"],
         mask: Optional[TensorType["bs", 1, "H", "W"]] = None,
-    ) -> Tensor:
+    ) -> TensorType["bs"]:
         """Computes the metric.
 
         Args:
@@ -59,7 +59,7 @@ class ImageMetricModule(nn.Module):
             mask: Mask to use to only compute the metrics where the mask is True.
 
         Returns:
-            TensorType["bs"]: Metric value.
+            Metric value.
         """
 
 
@@ -71,7 +71,7 @@ class PSNRModule(ImageMetricModule):
         preds: TensorType["bs", 3, "H", "W"],
         target: TensorType["bs", 3, "H", "W"],
         mask: Optional[TensorType["bs", 1, "H", "W"]] = None,
-    ) -> Tensor:
+    ) -> TensorType["bs"]:
 
         bs, h, w = preds.shape[0], preds.shape[2], preds.shape[3]
         hw = h * w
@@ -86,8 +86,10 @@ class PSNRModule(ImageMetricModule):
 
         # the masked version
         psnr_reshaped = psnr_image.view(bs, hw)
+        psnr_reshaped = torch.nan_to_num(psnr_reshaped, nan=0.0, posinf=0.0, neginf=0.0)
         mask_reshaped = mask.view(bs, hw)
-        psnr = (psnr_reshaped * mask_reshaped).sum(-1) / hw
+        den = mask_reshaped.sum(-1, keepdim=True)
+        psnr = (psnr_reshaped * mask_reshaped / den).sum(-1)
         return psnr
 
 
@@ -99,7 +101,7 @@ class SSIMModule(ImageMetricModule):
         preds: TensorType["bs", 3, "H", "W"],
         target: TensorType["bs", 3, "H", "W"],
         mask: Optional[TensorType["bs", 1, "H", "W"]] = None,
-    ) -> Tensor:
+    ) -> TensorType["bs"]:
 
         bs, h, w = preds.shape[0], preds.shape[2], preds.shape[3]
         hw = h * w
@@ -118,7 +120,8 @@ class SSIMModule(ImageMetricModule):
         # the masked version
         ssim_reshaped = ssim_image.view(bs, hw)
         mask_reshaped = mask.view(bs, hw)
-        ssim = (ssim_reshaped * mask_reshaped).sum(-1) / hw
+        den = mask_reshaped.sum(-1, keepdim=True)
+        ssim = (ssim_reshaped * mask_reshaped / den).sum(-1)
         return ssim
 
 
@@ -134,7 +137,7 @@ class LPIPSModule(ImageMetricModule):
         preds: TensorType["bs", 3, "H", "W"],
         target: TensorType["bs", 3, "H", "W"],
         mask: Optional[TensorType["bs", 1, "H", "W"]] = None,
-    ) -> Tensor:
+    ) -> TensorType["bs"]:
 
         bs, h, w = preds.shape[0], preds.shape[2], preds.shape[3]
         hw = h * w
@@ -152,5 +155,6 @@ class LPIPSModule(ImageMetricModule):
         # the masked version
         lpips_reshaped = lpips_image.view(bs, hw)
         mask_reshaped = mask.view(bs, hw)
-        lpips = (lpips_reshaped * mask_reshaped).sum(-1) / hw
+        den = mask_reshaped.sum(-1, keepdim=True)
+        lpips = (lpips_reshaped * mask_reshaped / den).sum(-1)
         return lpips
