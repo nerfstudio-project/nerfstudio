@@ -73,17 +73,12 @@ class RenderStateMachine(threading.Thread):
         """
 
         # initialize the camera ray bundle
-        try:
-            viewer_utils.update_render_aabb(
-                crop_viewport=self.viewer.control_panel.crop_viewport,
-                crop_min=self.viewer.control_panel.crop_min,
-                crop_max=self.viewer.control_panel.crop_max,
-                model=self.viewer.get_model(),
-            )
-        except RuntimeError as e:
-            print(f"Error: {e}")
-
-            time.sleep(0.5)  # sleep to allow buffer to reset
+        viewer_utils.update_render_aabb(
+            crop_viewport=self.viewer.control_panel.crop_viewport,
+            crop_min=self.viewer.control_panel.crop_min,
+            crop_max=self.viewer.control_panel.crop_max,
+            model=self.viewer.get_model(),
+        )
 
         image_height, image_width = self._calculate_image_res(cam_msg.aspect)
 
