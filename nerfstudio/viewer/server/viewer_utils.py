@@ -21,8 +21,9 @@ import enum
 import os
 import sys
 import threading
+from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple
 
 import torch
 from rich.console import Console
@@ -88,7 +89,6 @@ class SetTrace:
 
     def __exit__(self, ext_type, exc_value, traceback):
         sys.settrace(None)
-
 
 class RenderThread(threading.Thread):
     """Thread that does all the rendering calls while listening for interrupts
