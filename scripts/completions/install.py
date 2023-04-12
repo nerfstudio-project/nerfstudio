@@ -399,3 +399,6 @@ def entrypoint():
 
 if __name__ == "__main__":
     entrypoint()
+
+# For sphinx docs
+get_parser_fn = lambda: tyro.extras.get_parser(main)  # noqa

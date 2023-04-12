@@ -21,6 +21,7 @@ BLACKLIST = [
     "instant-ngp",
     "instant-ngp-bounded",
     "nerfacto",
+    "nerfacto-big",
     "volinga",
     "phototourism",
     "depth-nerfacto",

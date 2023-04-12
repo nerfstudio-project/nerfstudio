@@ -1,6 +1,8 @@
-import { buttonGroup, useControls } from 'leva';
+import * as React from 'react';
+import { Leva, buttonGroup, useControls } from 'leva';
 import { useContext, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import LevaTheme from '../../themes/leva_theme.json';
 
 import { WebSocketContext } from '../WebSocket/WebSocket';
 
@@ -22,7 +24,7 @@ function dispatch_and_send(websocket, dispatch, path, data) {
   }
 }
 
-export function RenderControls() {
+function ControlsLeva() {
   // connection status indicators
   const websocket = useContext(WebSocketContext).socket;
   const outputOptions = useSelector(
@@ -325,4 +327,19 @@ export function RenderControls() {
   ]);
 
   return null;
+}
+
+export function RenderControls() {
+  return (
+    <div className="Leva-container">
+      <ControlsLeva />
+      <Leva
+        className="Leva-panel"
+        theme={LevaTheme}
+        titleBar={false}
+        fill
+        flat
+      />
+    </div>
+  );
 }

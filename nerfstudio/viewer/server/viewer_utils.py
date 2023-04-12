@@ -364,15 +364,6 @@ class ViewerState:
         max_scene_box = torch.max(dataset.scene_box.aabb[1] - dataset.scene_box.aabb[0]).item()
         self.vis["renderingState/max_box_size"].write(max_scene_box)
 
-        # self.vis["renderingState/render_time"].write(str(0))
-
-        # set the properties of the camera
-        # self.vis["renderingState/camera"].write(json_)
-
-        # set the main camera intrinsics to one from the dataset
-        # K = camera.get_intrinsics_matrix()
-        # set_persp_intrinsics_matrix(self.vis, K.double().numpy())
-
     def _check_camera_path_payload(self, trainer, step: int):
         """Check to see if the camera path export button was pressed."""
         # check if we should interrupt from a button press?
@@ -670,8 +661,17 @@ class ViewerState:
 
         image = selected_output[..., [2, 1, 0]].cpu().numpy()
 
-        data = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 75])[1].tobytes()
-        data = str("data:image/jpeg;base64," + base64.b64encode(data).decode("ascii"))
+        data = cv2.imencode(
+            f".{self.config.image_format}",
+            image,
+            [
+                cv2.IMWRITE_JPEG_QUALITY,
+                self.config.jpeg_quality,
+                cv2.IMWRITE_PNG_COMPRESSION,
+                self.config.png_compression,
+            ],
+        )[1].tobytes()
+        data = str(f"data:image/{self.config.image_format};base64," + base64.b64encode(data).decode("ascii"))
         self.vis["render_img"].write(data)
 
     def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int, image_width: int) -> None:

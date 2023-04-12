@@ -42,7 +42,7 @@ from nerfstudio.data.scene_box import SceneBox
 CONSOLE = Console(width=120)
 
 
-def find_files(directory: str, exts: List[str]):
+def _find_files(directory: str, exts: List[str]):
     """Find all files in a directory that have a certain file extension.
 
     Args:
@@ -78,23 +78,24 @@ def _parse_osm_txt(filename: str):
     return np.array([float(x) for x in nums]).reshape([4, 4]).astype(np.float32)
 
 
-def get_camera_params(scene_dir: str, split: str) -> Tuple[torch.Tensor, torch.Tensor, int]:
+def get_camera_params(
+    scene_dir: str, split: Literal["train", "validation", "test"]
+) -> Tuple[torch.Tensor, torch.Tensor, int]:
     """Load camera intrinsic and extrinsic parameters for a given scene split.
 
     Args"
       scene_dir : The directory containing the scene data.
-      split : The split for which to load the camera parameters. Either "train", "val", or "test".
+      split : The split for which to load the camera parameters.
 
     Returns
         A tuple containing the intrinsic parameters (as a torch.Tensor of shape [N, 4, 4]),
         the camera-to-world matrices (as a torch.Tensor of shape [N, 4, 4]), and the number of cameras (N).
     """
-    split = "validation" if split == "val" else split
     split_dir = f"{scene_dir}/{split}"
 
     # camera parameters files
-    intrinsics_files = find_files(f"{split_dir}/intrinsics", exts=["*.txt"])
-    pose_files = find_files(f"{split_dir}/pose", exts=["*.txt"])
+    intrinsics_files = _find_files(f"{split_dir}/intrinsics", exts=["*.txt"])
+    pose_files = _find_files(f"{split_dir}/pose", exts=["*.txt"])
 
     num_cams = len(pose_files)
 
@@ -169,7 +170,7 @@ class NeRFOSR(DataParser):
 
         # get all split cam params
         intrinsics_train, camera_to_worlds_train, n_train = get_camera_params(scene_dir, "train")
-        intrinsics_val, camera_to_worlds_val, n_val = get_camera_params(scene_dir, "val")
+        intrinsics_val, camera_to_worlds_val, n_val = get_camera_params(scene_dir, "validation")
         intrinsics_test, camera_to_worlds_test, _ = get_camera_params(scene_dir, "test")
 
         # combine all cam params
@@ -192,7 +193,7 @@ class NeRFOSR(DataParser):
         if split == "train":
             camera_to_worlds = camera_to_worlds[:n_train]
             intrinsics = intrinsics[:n_train]
-        elif split == "val":
+        elif split == "validation":
             camera_to_worlds = camera_to_worlds[n_train : n_train + n_val]
             intrinsics = intrinsics[n_train : n_train + n_val]
         elif split == "test":
@@ -218,12 +219,12 @@ class NeRFOSR(DataParser):
         )
 
         # --- images ---
-        image_filenames = find_files(f"{split_dir}/rgb", exts=["*.png", "*.jpg", "*.JPG", "*.PNG"])
+        image_filenames = _find_files(f"{split_dir}/rgb", exts=["*.png", "*.jpg", "*.JPG", "*.PNG"])
 
         # --- masks ---
         mask_filenames = []
         if self.config.use_masks:
-            mask_filenames = find_files(f"{split_dir}/mask", exts=["*.png", "*.jpg", "*.JPG", "*.PNG"])
+            mask_filenames = _find_files(f"{split_dir}/mask", exts=["*.png", "*.jpg", "*.JPG", "*.PNG"])
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
