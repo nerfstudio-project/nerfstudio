@@ -38,18 +38,35 @@ def parse_object(
         a list of (path/to/object, obj), which represents the path down the object tree
         along with the object itself
     """
+
+    def add(ret: List[Tuple[str, Any]], ts: str, v: Any):
+        """
+        helper that adds to ret, and if v exists already keeps the tree stub with
+        the shortest path
+        """
+        for i, (t, o) in enumerate(ret):
+            if o == v:
+                if len(t.split("/")) > len(ts.split("/")):
+                    ret[i] = (ts, v)
+                return
+        ret.append((ts, v))
+
     if not hasattr(obj, "__dict__"):
         return []
     ret = []
-    for k in dir(obj):
+    # get a list of the properties of the object, sorted by whether things are instances of type_check
+    obj_props = [(k, getattr(obj, k)) for k in dir(obj)]
+    for (k, v) in obj_props:
         if k[0] == "_":
             continue
-        v = getattr(obj, k)
         new_tree_stub = f"{tree_stub}/{k}"
         if isinstance(v, type_check):
-            ret.append((new_tree_stub, v))
+            add(ret, new_tree_stub, v)
         elif isinstance(v, nn.Module):
-            ret.extend(parse_object(v, type_check, new_tree_stub))
+            lower_rets = parse_object(v, type_check, new_tree_stub)
+            # check that the values aren't already in the tree
+            for ts, o in lower_rets:
+                add(ret, ts, o)
     return ret
 
 

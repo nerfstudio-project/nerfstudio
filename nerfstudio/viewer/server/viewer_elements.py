@@ -135,6 +135,8 @@ class ViewerParameter(ViewerElement):
     @property
     def value(self) -> Any:
         """Returns the current value of the viewer element"""
+        if self.gui_handle is None:
+            return self.def_value
         return self.gui_handle.get_value()
 
 
