@@ -268,17 +268,12 @@ class RenderStateMachine(threading.Thread):
                 image_width = max_res
                 image_height = int(image_width / aspect_ratio)
         elif self.state in ("low_move", "low_static"):
-            target_train_util = 0
-            if EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
-                train_rays_per_sec = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
-            else:
-                train_rays_per_sec = 80000
             if EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
                 vis_rays_per_sec = GLOBAL_BUFFER["events"][EventName.VIS_RAYS_PER_SEC.value]["avg"]
             else:
-                vis_rays_per_sec = train_rays_per_sec
+                vis_rays_per_sec = 100000
             target_fps = self.target_fps
-            num_vis_rays = vis_rays_per_sec / target_fps * (1 - target_train_util)
+            num_vis_rays = vis_rays_per_sec / target_fps
             image_height = (num_vis_rays / aspect_ratio) ** 0.5
             image_height = int(round(image_height, -1))
             image_height = max(min(max_res, image_height), 30)
@@ -288,4 +283,5 @@ class RenderStateMachine(threading.Thread):
                 image_height = int(image_width / aspect_ratio)
         else:
             raise ValueError(f"Invalid state: {self.state}")
+
         return image_height, image_width

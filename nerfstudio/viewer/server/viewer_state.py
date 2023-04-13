@@ -85,6 +85,7 @@ class ViewerState:
     ):
         self.config = config
         self.trainer = trainer
+        self.last_step = 0
         self.train_lock = train_lock
         self.pipeline = pipeline
         self.log_filename = log_filename
@@ -293,18 +294,28 @@ class ViewerState:
             return
 
         if self.trainer is not None and self.trainer.is_training:
-            if EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
-                train_rays_per_sec = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
-                target_train_util = self.control_panel.train_util
-                if target_train_util is None:
-                    target_train_util = 0.9
+            if (
+                EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]
+                and EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]
+            ):
+                train_s = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
+                vis_s = GLOBAL_BUFFER["events"][EventName.VIS_RAYS_PER_SEC.value]["avg"]
+                train_util = self.control_panel.train_util
+                vis_n = self.control_panel.max_res**2
+                train_n = num_rays_per_batch
+                train_time = train_n / train_s
+                vis_time = vis_n / vis_s
 
-                batches_per_sec = train_rays_per_sec / num_rays_per_batch
-
-                num_steps = max(int(1 / self.static_fps * batches_per_sec), 1)
+                # thats wrong, we want render_freq*train_time/(vis_time+render_freq*train_time) = train_util
+                # step by step, render_freq*train_time = train_util*(vis_time + render_freq*train_time) = train_util*vis_time + train_util*render_freq*train_time
+                # render_freq*train_time - train_util*render_freq*train_time = train_util*vis_time
+                # render_freq(train_time-train_util*train_time) = train_util*vis_time
+                # render_freq = train_util*vis_time/(train_time-train_util*train_time)
+                render_freq = train_util * vis_time / (train_time - train_util * train_time)
             else:
-                num_steps = 1
-            if step % num_steps == 0:
+                render_freq = 30
+            if step > self.last_step + render_freq:
+                self.last_step = step
                 self.render_statemachine.action(RenderAction("step", self.camera_message))
 
     def update_colormap_options(self, dimensions: int, dtype: type) -> None:
