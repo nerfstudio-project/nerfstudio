@@ -67,7 +67,7 @@ class Message:
         return message_type(**mapping)
 
     @staticmethod
-    @functools.lru_cache
+    @functools.lru_cache(maxsize=1)
     def _subclass_from_type_string() -> Dict[str, Type[Message]]:
         subclasses = Message.get_subclasses()
         return {s.type: s for s in subclasses}
