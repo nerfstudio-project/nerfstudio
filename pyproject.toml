@@ -53,6 +53,7 @@ dependencies = [
     "torchvision>=0.13.0",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
+    "websockets>=11.0",
     "xatlas",
     "trimesh>=3.20.2"
 ]

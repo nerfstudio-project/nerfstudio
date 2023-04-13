@@ -109,6 +109,7 @@ function FovSelector(props) {
 
   useEffect(
     () => setUIFieldOfView(getFovLabel()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [camera, fovLabel, globalFov],
   );
 
@@ -490,6 +491,7 @@ export default function CameraPanel(props) {
       (value) => setMouseInScene(value),
       'mouse_in_scene',
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const dispatch = useDispatch();
@@ -557,7 +559,6 @@ export default function CameraPanel(props) {
     if (new_camera_list.length >= 1) {
       set_camera_position(camera_render, new_camera_list[0].matrix);
       setFieldOfView(new_camera_list[0].fov);
-      setRenderTime(new_camera_list[0].renderTime);
       set_slider_value(slider_min);
     }
   };
@@ -696,6 +697,7 @@ export default function CameraPanel(props) {
         camera_helper,
       );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameras, cameraProperties, render_width, render_height]);
 
   // update the camera curve
@@ -813,6 +815,7 @@ export default function CameraPanel(props) {
       setFieldOfView(fov);
       setGlobalFov(fov);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slider_value, render_height, render_width]);
 
   // call this function whenever slider state changes
@@ -824,6 +827,7 @@ export default function CameraPanel(props) {
       return () => clearInterval(interval);
     }
     return () => {};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [is_playing]);
 
   // make sure to pause if the slider reaches the end

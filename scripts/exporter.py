@@ -342,7 +342,7 @@ class ExportMarchingCubesMesh(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _, _ = eval_setup(self.load_config)
 
         # TODO: Make this work with Density Field
         assert hasattr(pipeline.model.config, "sdf_field"), "Model must have an SDF field."
