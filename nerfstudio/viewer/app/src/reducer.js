@@ -91,6 +91,7 @@ function setData(state, path, data) {
 }
 
 // Reducer function that handles the state updates
+// eslint-disable-next-line default-param-last
 export default function rootReducer(state = initialState, action) {
   switch (action.type) {
     case 'write': {

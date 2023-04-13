@@ -315,6 +315,7 @@ export function ViserWebSocket({ children }: { children: React.ReactNode }) {
         });
 
         // Try to reconnect.
+        // eslint-disable-next-line no-use-before-define
         timeout = setTimeout(tryConnect, 1000);
       };
 
@@ -344,6 +345,7 @@ export function ViserWebSocket({ children }: { children: React.ReactNode }) {
         ws.current.close();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [websocket_url]);
 
   return (

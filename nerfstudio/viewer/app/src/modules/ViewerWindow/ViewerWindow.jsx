@@ -182,6 +182,7 @@ export default function ViewerWindow(props) {
     return () => {
       window.removeEventListener('resize', handleNewDimensions);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // start the three.js rendering loop
@@ -189,6 +190,7 @@ export default function ViewerWindow(props) {
   useEffect(() => {
     myRef.current.append(renderer.domElement);
     render();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const render_height = useSelector(
@@ -279,7 +281,28 @@ export default function ViewerWindow(props) {
     return () => {
       clearInterval(refreshIntervalId);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viser_websocket, camera_choice, camera_type, render_aspect]);
+
+  const isWebsocketConnected = useSelector(
+    (state) => state.websocketState.isConnected,
+  );
+  useEffect(() => {
+    if (isWebsocketConnected) {
+      const viser_message: CameraMessage = {
+        type: 'camera',
+        aspect: sceneTree.metadata.camera.aspect,
+        render_aspect,
+        fov: sceneTree.metadata.camera.fov,
+        matrix: sceneTree.metadata.camera.matrix.elements.slice(),
+        camera_type,
+        is_moving: false,
+        timestamp: +new Date(),
+      };
+      sendThrottledCameraMessage(viser_message);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isWebsocketConnected]);
 
   return (
     <>

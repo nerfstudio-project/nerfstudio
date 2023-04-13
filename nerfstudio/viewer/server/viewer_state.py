@@ -281,12 +281,12 @@ class ViewerState:
         self.train_btn_state = start_train
         self.viser_server.set_is_training(start_train)
 
-    def update_scene(self, step: int, num_rays_per_batch: int) -> None:
+    def update_scene(self, step: int, num_rays_per_batch: Optional[int] = None) -> None:
         """updates the scene based on the graph weights
 
         Args:
             step: iteration step of training
-            num_rays_per_batch: number of rays per batch
+            num_rays_per_batch: number of rays per batch, used during training
         """
         self.step = step
 

@@ -2,33 +2,9 @@
 
 > We have a real-time web viewer that requires no installation. It's available at [https://viewer.nerf.studio/](https://viewer.nerf.studio/), where you can connect to your training job. If you want to understand how the viewer works and contribute to it's features, this section is for you!
 
-The viewer is built using [ThreeJS](https://threejs.org/) and packaged into a [ReactJS](https://reactjs.org/) application. This client viewer application will connect via a websocket to a server running on your machine. The following figure helps to illustrate how our viewer framework works:
-
-```{image} imgs/viewer_light.png
-:align: center
-:class: only-light
-```
-
-```{image} imgs/viewer_dark.png
-:align: center
-:class: only-dark
-```
-
-## System design
-
-#### Connection between nerfstudio and the Bridge Server
-
-In the center, we have the Bridge Server, which facilitates the connection between nerfstudio code and the Client App. This server runs on the same machine that you are using nerfstudio. It has a TCP Request/Reply (REQ/REP) connection that nerfstudio can connect to with the Viewer object (left). We use [ZeroMQ](https://zeromq.org/), an open-sourced messaging library, to implement this lightweight TCP connection. The Viewer class can send commands to the Bridge Server and receive replies. The Bridge Server will either dispatch commands to the Client App via a websocket or it will return information stored in the Bridge Server state.
-
-#### Connection between the Bridge Server and the Client App
-
-The connection between the Bridge Server and the Client App works with WebSockets.
-
-- **WebSocket connection** - The WebSocket is used by the Bridge Server to dispatch commands coming from the nerfstudio TCP connection. Commands can be used for drawing primitives, for setting the transform of objects, for the setting various properties, and more.
+The viewer is built using [ThreeJS](https://threejs.org/) and packaged into a [ReactJS](https://reactjs.org/) application. This client viewer application will connect via a websocket to a server running on your machine.
 
 ## Installing and running locally
-
-#### Running the Client App
 
 ```shell
 cd nerfstudio/viewer/app
@@ -59,14 +35,6 @@ yarn start
 The local webserver runs on port 4000 by default,
 so when `ns-train` is running, you can connect to the viewer locally at
 [http://localhost:4000/?websocket_url=ws://localhost:7007](http://localhost:4000/?websocket_url=ws://localhost:7007)
-
-#### Running the Bridge Server Manually
-
-The viewer bridge server runs on the same machine that you use for training. The training code will connect to this server with a lightweight TCP connection using ZMQ. The training job will launch the viewer bridge server is you specify `--viewer.launch-bridge-server` in the terminal. Otherwise, you can launch the bridge server manually with the following script.
-
-```python
-ns-bridge-server --help
-```
 
 ## Acknowledgements and references
 

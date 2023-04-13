@@ -53,6 +53,7 @@ export default function StatusPanel(props: StatusPanelProps) {
         obj.visible = is_scene_visible && camera_choice === 'Main Camera';
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera_choice, is_scene_visible]);
 
   const handlePlayChange = () => {
@@ -126,7 +127,7 @@ export default function StatusPanel(props: StatusPanelProps) {
       </Button>
       <div className="StatusPanel-metrics">
         <div>
-          <b>Itteration:</b> {step}
+          <b>Iteration:</b> {step}
         </div>
         <div>
           <b>Resolution:</b> {eval_res}

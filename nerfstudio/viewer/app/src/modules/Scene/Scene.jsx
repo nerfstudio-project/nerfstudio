@@ -37,6 +37,7 @@ export function get_scene_tree() {
 
   const sceneTree = new SceneNode(scene, scene_state);
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const dispatch = useDispatch();
   const BANNER_HEIGHT = 50;
 

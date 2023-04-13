@@ -51,7 +51,7 @@ class TextureMesh:
         mesh = get_mesh_from_filename(str(self.input_mesh_filename), target_num_faces=self.target_num_faces)
 
         # load the Pipeline
-        _, pipeline, _ = eval_setup(self.load_config, test_mode="inference")
+        _, pipeline, _, _ = eval_setup(self.load_config, test_mode="inference")
 
         # texture the mesh with NeRF and export to a mesh.obj file
         # and a material and texture file

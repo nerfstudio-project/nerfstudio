@@ -45,16 +45,16 @@ function CustomLeva() {
     const leafFolder = getFolderContainer(folderLabels);
 
     // Hacky stuff that lives outside of TypeScript...
-    if (levaConf['type'] === 'BUTTON') {
+    if (levaConf.type === 'BUTTON') {
       // Add a button.
-      leafFolder[key] = button((_get: any) => {
+      leafFolder[key] = button(() => {
         const message: GuiUpdateMessage = {
           type: 'gui_update',
           name: key,
           value: true,
         };
         sendWebsocketMessage(viser_websocket, message);
-      }, levaConf['settings']);
+      }, levaConf.settings);
     } else {
       // Add any other kind of input.
       leafFolder[key] = {
@@ -68,7 +68,7 @@ function CustomLeva() {
           const message: GuiUpdateMessage = {
             type: 'gui_update',
             name: key,
-            value: value,
+            value,
           };
           const throttledSender = makeThrottledMessageSender(
             viser_websocket,
@@ -86,13 +86,13 @@ function CustomLeva() {
     root: boolean,
   ) {
     const { _is_folder_marker, ...rest } = guiConfigNode;
-    guiConfigNode = rest;
+    const nodeCopy = { ...rest };
 
     if (root || _is_folder_marker === true) {
       const out: { [key: string]: any } = {};
-      for (const [k, v] of Object.entries(guiConfigNode)) {
+      Object.entries(nodeCopy).forEach(([k, v]) => {
         out[k] = wrapFoldersInGuiConfigTree(v, false);
-      }
+      });
       return root ? out : folder(out);
     }
     return guiConfigNode;
@@ -111,18 +111,18 @@ function CustomLeva() {
   React.useEffect(() => {
     // This line is important to prevent looping
     if (Object.keys(guiSetQueue).length === 0) return;
-    for (const [key, value] of Object.entries(guiSetQueue)) {
-      // Linear runtime here could be improved.
+    Object.entries(guiSetQueue).forEach(([key, value]) => {
       if (guiNames.includes(key)) {
-        set({ [key]: value }); //call the leva function for setting the value of the element
+        set({ [key]: value }); // call the leva function for setting the value of the element
       }
-    }
+    });
     //  delete the queue
     dispatch({
       type: 'write',
       path: 'custom_gui/guiSetQueue',
       data: {},
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guiSetQueue, set, guiNames]);
 
   // Leva theming is a bit limited, so we hack at styles here...
