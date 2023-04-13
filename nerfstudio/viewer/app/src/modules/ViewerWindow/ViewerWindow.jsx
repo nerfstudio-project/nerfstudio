@@ -281,6 +281,25 @@ export default function ViewerWindow(props) {
     };
   }, [viser_websocket, camera_choice, camera_type, render_aspect]);
 
+  const isWebsocketConnected = useSelector(
+    (state) => state.websocketState.isConnected,
+  );
+  useEffect(() => {
+    if (isWebsocketConnected) {
+      const viser_message: CameraMessage = {
+        type: 'camera',
+        aspect: sceneTree.metadata.camera.aspect,
+        render_aspect,
+        fov: sceneTree.metadata.camera.fov,
+        matrix: sceneTree.metadata.camera.matrix.elements.slice(),
+        camera_type,
+        is_moving: false,
+        timestamp: +new Date(),
+      };
+      sendThrottledCameraMessage(viser_message);
+    }
+  }, [isWebsocketConnected]);
+
   return (
     <>
       <RenderWindow />
