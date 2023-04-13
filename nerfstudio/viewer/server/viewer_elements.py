@@ -127,6 +127,8 @@ class ViewerParameter(ViewerElement):
         """Sets the value of the element"""
         if self.gui_handle is not None:
             self.gui_handle.set_value(value)
+        else:
+            self.def_value = value
 
     @abstractmethod
     def _create_gui_handle(self, viser_server: ViserServer) -> None:

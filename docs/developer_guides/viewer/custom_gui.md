@@ -20,10 +20,20 @@ class MyClass(nn.Module):
         self.custom_value = ViewerNumber(name="My Value", default_value=1.0)
 ```
 
+**Reading the value**
+
 To read the value of a custom element, simply access its `value` attribute. In this case it will be `1.0` unless modified by the user in the viewer.
 
 ```python
 current_value = self.custom_value.value
+```
+
+**Writing to the element**
+
+You can write to a viewer element in Python, which provides a convenient way to track values in your code without the need for wandb/tensorboard or relying on `print` statements.
+
+```python
+self.custom_value.set_value(x)
 ```
 
 :::{admonition} Warning
@@ -39,7 +49,7 @@ Note that updating module state while training can have unexpected side effects.
 :width: 400
 ```
 
-This was created with the following elements, refer to the [API](../../reference/api/viewer.rst) for more details:
+This was created with the following elements:
 
 ```python
 from nerfstudio.viewer.server.viewer_elements import *
@@ -61,3 +71,5 @@ class RGBRenderer(nn.Module):
         self.a = ViewerRGB(name="F", default_value=(0.1, 0.7, 0.1))
 ...
 ```
+
+For more information on the available classes and their arguments, refer to the [API documentation](../../reference/api/viewer.rst)
