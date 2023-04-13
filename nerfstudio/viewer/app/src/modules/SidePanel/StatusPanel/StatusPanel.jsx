@@ -27,9 +27,6 @@ export default function StatusPanel(props: StatusPanelProps) {
   );
   const step = useSelector((state) => state.renderingState.step);
   const eval_res = useSelector((state) => state.renderingState.eval_res);
-  const vis_train_ratio = useSelector(
-    (state) => state.renderingState.vis_train_ratio,
-  );
   const camera_choice = useSelector(
     (state) => state.renderingState.camera_choice,
   );
@@ -131,9 +128,6 @@ export default function StatusPanel(props: StatusPanelProps) {
         </div>
         <div>
           <b>Resolution:</b> {eval_res}
-        </div>
-        <div>
-          <b>Time Allocation:</b> {vis_train_ratio}
         </div>
       </div>
       <Button

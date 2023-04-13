@@ -297,8 +297,6 @@ class StatusMessage(Message):
     type: ClassVar[str] = "status"
     eval_res: str
     """ Resolution of the viewer display in plain text """
-    vis_train_ratio: str
-    """ Ratio of training to inference time in plain text """
     step: int
     """ Current step """
 

@@ -60,14 +60,6 @@ from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
-from nerfstudio.viewer.server.viewer_elements import (
-    ViewerButton,
-    ViewerDropdown,
-    ViewerNumber,
-    ViewerSlider,
-    ViewerText,
-    ViewerVec3,
-)
 
 
 @dataclass
@@ -170,16 +162,6 @@ class NerfactoModel(Model):
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
         )
-        self.rgb_scale = ViewerSlider("RGB Scaler", 1.0, 0, 1, 0.1)
-        self.dropdown = ViewerDropdown("Output Render", "rgb", ["rgb", "lol"])
-        self.number = ViewerNumber("Dummy number", 1.0)
-        self.text = ViewerText("Dummy text", "lol")
-        self.vec3 = ViewerVec3("blah", (0, 0, 0), 0.1)
-
-        def call():
-            print("button press!")
-
-        self.button = ViewerButton("Dummy button", call)
 
         self.density_fns = []
         num_prop_nets = self.config.num_proposal_iterations

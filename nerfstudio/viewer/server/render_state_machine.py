@@ -185,13 +185,7 @@ class RenderStateMachine(threading.Thread):
         writer.put_time(
             name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=step, avg_over_steps=True
         )
-        viewer_utils.send_status_message(
-            viser_server=self.viewer.viser_server,
-            is_training=self.viewer.is_training,
-            image_height=image_height,
-            image_width=image_width,
-            step=step,
-        )
+        self.viewer.viser_server.send_status_message(eval_res=f"{image_height}x{image_width}px", step=step)
         return outputs
 
     def run(self):

@@ -110,7 +110,6 @@ export interface CropParamsMessage {
 export interface StatusMessage {
   type: 'status';
   eval_res: string;
-  vis_train_ratio: string;
   step: number;
 }
 export interface SaveCheckpointMessage {

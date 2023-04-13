@@ -53,7 +53,6 @@ const initialState = {
 
     step: 0,
     eval_res: '?',
-    vis_train_ratio: 'Paused',
     log_errors: '',
 
     // export options

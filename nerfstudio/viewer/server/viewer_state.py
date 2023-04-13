@@ -307,11 +307,6 @@ class ViewerState:
                 train_time = train_n / train_s
                 vis_time = vis_n / vis_s
 
-                # thats wrong, we want render_freq*train_time/(vis_time+render_freq*train_time) = train_util
-                # step by step, render_freq*train_time = train_util*(vis_time + render_freq*train_time) = train_util*vis_time + train_util*render_freq*train_time
-                # render_freq*train_time - train_util*render_freq*train_time = train_util*vis_time
-                # render_freq(train_time-train_util*train_time) = train_util*vis_time
-                # render_freq = train_util*vis_time/(train_time-train_util*train_time)
                 render_freq = train_util * vis_time / (train_time - train_util * train_time)
             else:
                 render_freq = 30

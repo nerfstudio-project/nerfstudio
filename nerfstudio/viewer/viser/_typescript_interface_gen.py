@@ -68,9 +68,6 @@ def generate_typescript_defs() -> str:
         "// AUTOMATICALLY GENERATED message interfaces, from Python dataclass definitions.",
         "// This file should not be manually modified.",
         "",
-        "// For numpy arrays, we directly serialize the underlying data buffer.",
-        "type ArrayBuffer = Uint8Array;",
-        "",
     ]
 
     message_types = Message.get_subclasses()
