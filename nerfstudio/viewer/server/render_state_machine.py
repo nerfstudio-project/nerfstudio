@@ -89,10 +89,10 @@ class RenderStateMachine(threading.Thread):
         if self.next_action is None:
             self.next_action = action
         elif action.action == "step" and (
-            self.state != "high" or self.next_action.action in ("move", "static", "rerender")
+            self.state == "low_move" or self.next_action.action in ("move", "static", "rerender")
         ):
             # ignore steps if:
-            #  1. we are in one of the low states
+            #  1. we are in low_moving state
             #  2. the current next_action is move, static, or rerender
             return
         elif self.next_action == "rerender":
@@ -103,9 +103,7 @@ class RenderStateMachine(threading.Thread):
             self.next_action = action
 
         # handle interrupt logic
-        if self.state == "high" and self.next_action.action == "move":
-            self.interrupt_render_flag = True
-        if self.next_action.action == "rerender":
+        if self.state == "high" and self.next_action.action in ("move", "rerender"):
             self.interrupt_render_flag = True
         self.render_trigger.set()
 
@@ -207,7 +205,6 @@ class RenderStateMachine(threading.Thread):
             if self.state == "high" and action.action == "static":
                 # if we are in high res and we get a static action, we don't need to do anything
                 continue
-            print("Trying to render from state", self.state, "with action", action.action)
             self.state = self.transitions[self.state][action.action]
             try:
                 with viewer_utils.SetTrace(self.check_interrupt):

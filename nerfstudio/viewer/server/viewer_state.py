@@ -153,6 +153,7 @@ class ViewerState:
 
     def _crop_params_update(self, _) -> None:
         """Update crop parameters"""
+        self.render_statemachine.action(RenderAction("rerender", self.camera_message))
         crop_min = torch.tensor(self.control_panel.crop_min, dtype=torch.float32)
         crop_max = torch.tensor(self.control_panel.crop_max, dtype=torch.float32)
         scene_box = SceneBox(aabb=torch.stack([crop_min, crop_max], dim=0))
