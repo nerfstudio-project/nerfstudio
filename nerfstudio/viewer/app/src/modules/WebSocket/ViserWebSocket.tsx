@@ -54,9 +54,6 @@ function handleMessage(
   dispatch: Dispatch<any>,
   store: Store,
 ) {
-  // TODO: we need to actually handle messages that are received.
-  // console.log('Handling viser message!');
-  // console.log(message);
   switch (message.type) {
     // Add a background image.
     case 'background_image': {

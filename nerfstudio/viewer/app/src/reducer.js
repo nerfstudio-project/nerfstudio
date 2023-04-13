@@ -42,18 +42,8 @@ const initialState = {
 
     isTraining: true,
 
-    // colormap options
-    output_options: ['rgb'], // populated by the possible Graph outputs
-    output_choice: 'rgb', // the selected output
-    colormap_options: ['default'], // populated by the output choice
-    colormap_choice: 'default', // the selected colormap
-    colormap_invert: false, // whether to invert the colormap
-    colormap_normalize: false, // whether to normalize the colormap
-    colormap_range: [0.0, 1.0], // the range of the colormap
-
     step: 0,
     eval_res: '?',
-    log_errors: '',
 
     // export options
     clipping_enabled: true,
