@@ -21,7 +21,7 @@ import concurrent.futures
 import multiprocessing
 import random
 from abc import abstractmethod
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 from rich.progress import track
@@ -55,8 +55,11 @@ class CacheDataloader(DataLoader):
         num_times_to_repeat_images: int = -1,
         device: Union[torch.device, str] = "cpu",
         collate_fn=nerfstudio_collate,
+        exclude_batch_keys_from_device: Optional[List[str]] = None,
         **kwargs,
     ):
+        if exclude_batch_keys_from_device is None:
+            exclude_batch_keys_from_device = ["image"]
         self.dataset = dataset
         super().__init__(dataset=dataset, **kwargs)  # This will set self.dataset
         self.num_times_to_repeat_images = num_times_to_repeat_images
@@ -65,6 +68,7 @@ class CacheDataloader(DataLoader):
         self.device = device
         self.collate_fn = collate_fn
         self.num_workers = kwargs.get("num_workers", 0)
+        self.exclude_batch_keys_from_device = exclude_batch_keys_from_device
 
         self.num_repeated = self.num_times_to_repeat_images  # starting value
         self.first_time = True
@@ -115,7 +119,9 @@ class CacheDataloader(DataLoader):
         """Returns a collated batch."""
         batch_list = self._get_batch_list()
         collated_batch = self.collate_fn(batch_list)
-        collated_batch = get_dict_to_torch(collated_batch, device=self.device, exclude=["image"])
+        collated_batch = get_dict_to_torch(
+            collated_batch, device=self.device, exclude=self.exclude_batch_keys_from_device
+        )
         return collated_batch
 
     def __iter__(self):
