@@ -238,6 +238,7 @@ def send_status_message(
         ):
             vis_time = GLOBAL_BUFFER["events"][EventName.ITER_VIS_TIME.value]["avg"]
             train_time = GLOBAL_BUFFER["events"][EventName.ITER_TRAIN_TIME.value]["avg"]
+            print(vis_time, train_time)
             vis_train_ratio = f"{int(vis_time / train_time * 100)}% spent on viewer"
     else:
         vis_train_ratio = "100% spent on viewer"

@@ -126,7 +126,7 @@ export default function StatusPanel(props: StatusPanelProps) {
       </Button>
       <div className="StatusPanel-metrics">
         <div>
-          <b>Itteration:</b> {step}
+          <b>Iteration:</b> {step}
         </div>
         <div>
           <b>Resolution:</b> {eval_res}
