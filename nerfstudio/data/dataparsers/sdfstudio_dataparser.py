@@ -55,7 +55,7 @@ class SDFStudioDataParserConfig(DataParserConfig):
     """
     skip_every_for_val_split: int = 1
     """sub sampling validation images"""
-    auto_orient: bool = False
+    auto_orient: bool = True
 
 
 @dataclass

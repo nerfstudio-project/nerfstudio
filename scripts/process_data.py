@@ -268,6 +268,8 @@ class ProcessVideo:
     sfm_tool: Literal["any", "colmap", "hloc"] = "any"
     """Structure from motion tool to use. Colmap will use sift features, hloc can use many modern methods
        such as superpoint features and superglue matcher"""
+    refine_pixsfm: bool = False
+    """If True, runs refinement using Pixel Perfect SFM. Only has an effect if sfm_tool is hloc"""
     feature_type: Literal[
         "any",
         "sift",
@@ -410,6 +412,7 @@ class ProcessVideo:
                     matching_method=self.matching_method,
                     feature_type=feature_type,
                     matcher_type=matcher_type,
+                    refine_pixsfm=self.refine_pixsfm,
                 )
             else:
                 CONSOLE.log("[bold red]Invalid combination of sfm_tool, feature_type, and matcher_type, exiting")
