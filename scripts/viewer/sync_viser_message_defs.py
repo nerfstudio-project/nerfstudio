@@ -21,7 +21,7 @@ def entrypoint() -> None:
         "nerfstudio/viewer/app/src/modules/WebSocket/ViserMessages.tsx"
     )
     assert target_path.exists()
-    target_path.write_text(defs)
+    target_path.write_text(defs, encoding="utf_8")
     print(f"Wrote to {target_path}")
 
     # Run prettier.
