@@ -135,7 +135,7 @@ class ExperimentPipeline:
             return export_path
         
         original_camera_path_path = Path("camera_paths/camera_path_transformed_original.json")
-        target_dataparser_transforms_path = model_path / "dataparser_transform.json"
+        target_dataparser_transforms_path = model_path / "dataparser_transforms.json"
 
         return transform_camera_path(
             original_camera_path_path,
