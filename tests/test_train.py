@@ -28,6 +28,7 @@ BLACKLIST = [
     "nerfplayer-ngp",
     "nerfplayer-nerfacto",
     "neus",
+    "neus-facto",
 ]
 
 
