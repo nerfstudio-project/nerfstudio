@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
-import http.server
 import mimetypes
 import threading
 from asyncio.events import AbstractEventLoop
@@ -91,7 +90,6 @@ class ViserServer(MessageApi):
         self,
         host: str = "localhost",
         port: int = 8080,
-        http_server: bool = True,
     ):
         super().__init__()
 
@@ -210,7 +208,7 @@ class ViserServer(MessageApi):
             relpath = str(Path(path).relative_to("/"))
             if relpath == ".":
                 relpath = "index.html"
-            source = Path(__file__).absolute().parent / "client" / "build" / relpath
+            source = Path(__file__).absolute().parent.parent / "app" / "build" / relpath
 
             # Try to read + send over file.
             try:
@@ -240,26 +238,7 @@ class ViserServer(MessageApi):
                 port += 1
                 continue
 
-        http_url = f"http://{host}:{port}"
-        ws_url = f"ws://{host}:{port}"
-
-        table = Table(
-            title=None,
-            show_header=False,
-            box=box.MINIMAL,
-            title_style=style.Style(bold=True),
-        )
-        table.add_row("HTTP", f"[link={http_url}]{http_url}[/link]")
-        table.add_row("Websocket", f"[link={ws_url}]{ws_url}[/link]")
-
-        rich.print(Panel(table, title="[bold]viser[/bold]", expand=False))
-
         event_loop.run_forever()
-
-
-def httpserver(port: int):
-    """Simple HTTP server for serving the viser client."""
-    http.server.HTTPServer(("", port), http.server.BaseHTTPRequestHandler).serve_forever()
 
 
 async def _single_connection_producer(websocket: WebSocketServerProtocol, buffer: asyncio.Queue) -> None:
