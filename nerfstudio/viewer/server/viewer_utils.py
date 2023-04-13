@@ -33,9 +33,7 @@ from nerfstudio.model_components import renderers
 from nerfstudio.models.base_model import Model
 from nerfstudio.utils import colormaps
 from nerfstudio.utils.io import load_from_json
-from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
 from nerfstudio.viewer.server.control_panel import ControlPanel
-from nerfstudio.viewer.viser import ViserServer
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer

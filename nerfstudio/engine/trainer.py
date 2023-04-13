@@ -316,13 +316,12 @@ class Trainer:
             step: current train step
         """
         assert self.viewer_state is not None
-        with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
-            num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
-            try:
-                self.viewer_state.update_scene(step, num_rays_per_batch)
-            except RuntimeError:
-                time.sleep(0.03)  # sleep to allow buffer to reset
-                CONSOLE.log("Viewer failed. Continuing training.")
+        num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
+        try:
+            self.viewer_state.update_scene(step, num_rays_per_batch)
+        except RuntimeError:
+            time.sleep(0.03)  # sleep to allow buffer to reset
+            CONSOLE.log("Viewer failed. Continuing training.")
 
     @check_viewer_enabled
     def _update_viewer_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int) -> None:

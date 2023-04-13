@@ -20,11 +20,9 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
-import mimetypes
 import threading
 from asyncio.events import AbstractEventLoop
-from pathlib import Path
-from typing import Callable, Dict, List, NewType, Optional, Tuple
+from typing import Callable, Dict, List, NewType
 
 import rich
 import websockets.connection
@@ -98,7 +96,7 @@ class ViserServer(MessageApi):
         ready_sem = threading.Semaphore(value=1)
         ready_sem.acquire()  # pylint: disable=consider-using-with
         threading.Thread(
-            target=lambda: self._background_worker(host, port, ready_sem, http_server),
+            target=lambda: self._background_worker(host, port, ready_sem),
             daemon=True,
         ).start()
 
@@ -133,7 +131,6 @@ class ViserServer(MessageApi):
         host: str,
         port: int,
         ready_sem: threading.Semaphore,
-        http_server: bool,
     ) -> None:
         # Need to make a new event loop for notebook compatbility.
         event_loop = asyncio.new_event_loop()
@@ -192,33 +189,6 @@ class ViserServer(MessageApi):
                 with self._client_lock:
                     self._handle_from_client.pop(client_id)
 
-        # Host client on the same port as the websocket.
-        async def viser_http_server(
-            path: str, request_headers: websockets.datastructures.Headers
-        ) -> Optional[Tuple[http.HTTPStatus, websockets.datastructures.HeadersLike, bytes]]:
-            # Ignore websocket packets.
-            if request_headers.get("Upgrade") == "websocket":
-                return None
-
-            # Strip out search params, get relative path.
-            path = path.partition("?")[0]
-            relpath = str(Path(path).relative_to("/"))
-            if relpath == ".":
-                relpath = "index.html"
-            source = Path(__file__).absolute().parent.parent / "app" / "build" / relpath
-
-            # Try to read + send over file.
-            try:
-                return (  # type: ignore
-                    http.HTTPStatus.OK,
-                    {
-                        "content-type": mimetypes.MimeTypes().guess_type(relpath)[0],
-                    },
-                    source.read_bytes(),
-                )
-            except FileNotFoundError:
-                return (http.HTTPStatus.NOT_FOUND, {}, b"404")  # type: ignore
-
         for _ in range(500):
             try:
                 event_loop.run_until_complete(
@@ -227,7 +197,6 @@ class ViserServer(MessageApi):
                         host,
                         port,
                         compression=None,
-                        process_request=viser_http_server if http_server else None,
                     )
                 )
                 break
