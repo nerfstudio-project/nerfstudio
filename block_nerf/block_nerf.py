@@ -2,6 +2,7 @@ import glob
 import json
 import shutil
 from pathlib import Path
+from typing import Dict, Union
 
 import numpy as np
 import torch
@@ -9,7 +10,7 @@ import torch
 from nerfstudio.utils.eval_utils import eval_setup
 
 
-def load_json(path: Path):
+def load_json(path: Union[Path, str]):
     with open(path, "r") as f:
         return json.load(f)
 
@@ -131,7 +132,7 @@ def create_block_lookup(exp_path: Path, camera_path_path: Path):
         # print(f"Closest index: {closest_index}")
         # print(f"Closest distance: {closest_distance}")
         # print(f"Query location: {tuple(query_location)}")
-        lookup_table[f"{i}"] = closest_index
+        lookup_table[f"{i}"] = str(closest_index)
 
     export_path = exp_path / "lookup_table.json"
     with open(export_path, 'w') as f:
@@ -164,6 +165,13 @@ def _test_block_nerf():
         export_path=target_exp_path / "camera_path_transformed.json"
     )
 
+def get_block_lookup(exp_path: Path) -> Dict[str, str]:
+    lookup_path = exp_path / "lookup_table.json"
+    if not lookup_path.exists():
+        print("⚠️ Warning: Lookup table does not exist. Creating one now.")
+        original_camera_path = Path("block_nerf/camera_path_transformed_original.json")
+        create_block_lookup(exp_path, original_camera_path)
+    return load_json(lookup_path)
 
 if __name__ == "__main__":
     original_camera_path = Path("block_nerf/camera_path_transformed_original.json")

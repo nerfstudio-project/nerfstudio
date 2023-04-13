@@ -36,6 +36,7 @@ from nerfstudio.cameras.camera_paths import (
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components import renderers
+from nerfstudio.models.base_model import Model
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import install_checks
 from nerfstudio.utils.eval_utils import eval_setup
@@ -113,6 +114,115 @@ def _render_trajectory_video(
                 else:
                     with torch.no_grad():
                         outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+
+                render_image = []
+                for rendered_output_name in rendered_output_names:
+                    if rendered_output_name not in outputs:
+                        CONSOLE.rule("Error", style="red")
+                        CONSOLE.print(f"Could not find {rendered_output_name} in the model outputs", justify="center")
+                        CONSOLE.print(
+                            f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center"
+                        )
+                        sys.exit(1)
+                    output_image = outputs[rendered_output_name].cpu().numpy()
+                    if output_image.shape[-1] == 1:
+                        output_image = np.concatenate((output_image,) * 3, axis=-1)
+                    render_image.append(output_image)
+                render_image = np.concatenate(render_image, axis=1)
+                if output_format == "images":
+                    media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
+                if output_format == "video":
+                    if writer is None:
+                        render_width = int(render_image.shape[1])
+                        render_height = int(render_image.shape[0])
+                        writer = stack.enter_context(
+                            media.VideoWriter(
+                                path=output_filename,
+                                shape=(render_height, render_width),
+                                fps=fps,
+                            )
+                        )
+                    writer.add_image(render_image)
+
+    if output_format == "video":
+        if camera_type == CameraType.EQUIRECTANGULAR:
+            insert_spherical_metadata_into_file(output_filename)
+
+
+def _render_trajectory_video_blocknerf(
+    pipeline_device: torch.device,
+    pipeline_models: Dict[str, Model],
+    block_lookup: Dict[str, str],
+    cameras: Cameras,
+    output_filename: Path,
+    rendered_output_names: List[str],
+    crop_data: Optional[CropData] = None,
+    rendered_resolution_scaling_factor: float = 1.0,
+    seconds: float = 5.0,
+    output_format: Literal["images", "video"] = "video",
+    camera_type: CameraType = CameraType.PERSPECTIVE,
+) -> None:
+    """Helper function to create a video of the spiral trajectory.
+
+    Args:
+        pipeline: Pipeline to evaluate with.
+        cameras: Cameras to render.
+        output_filename: Name of the output file.
+        rendered_output_names: List of outputs to visualise.
+        crop_data: Crop data to apply to the rendered images.
+        rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
+        seconds: Length of output video.
+        output_format: How to save output data.
+        camera_type: Camera projection format type.
+    """
+    CONSOLE.print("[bold green] BLOCK NERF - Creating trajectory " + output_format)
+    cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
+    cameras = cameras.to(pipeline_device)
+    fps = len(cameras) / seconds
+
+    progress = Progress(
+        TextColumn(":movie_camera: Rendering :movie_camera:"),
+        BarColumn(),
+        TaskProgressColumn(show_speed=True),
+        ItersPerSecColumn(suffix="fps"),
+        TimeRemainingColumn(elapsed_when_finished=True, compact=True),
+    )
+    if output_format == "images":
+        output_image_dir = output_filename.parent / output_filename.stem
+        output_image_dir.mkdir(parents=True, exist_ok=True)
+    if output_format == "video":
+        # make the folder if it doesn't exist
+        output_filename.parent.mkdir(parents=True, exist_ok=True)
+        # NOTE:
+        # we could use ffmpeg_args "-movflags faststart" for progressive download,
+        # which would force moov atom into known position before mdat,
+        # but then we would have to move all of mdat to insert metadata atom
+        # (unless we reserve enough space to overwrite with our uuid tag,
+        # but we don't know how big the video file will be, so it's not certain!)
+
+    with ExitStack() as stack:
+        writer = None
+
+        with progress:
+            for camera_idx in progress.track(range(cameras.size), description=""):
+                # TODO: Based on the camera_idx, change which pipeline, i.e. model, we use.
+                model = pipeline_models[block_lookup[str(camera_idx)]]
+                
+                aabb_box = None
+                if crop_data is not None:
+                    bounding_box_min = crop_data.center - crop_data.scale / 2.0
+                    bounding_box_max = crop_data.center + crop_data.scale / 2.0
+                    aabb_box = SceneBox(torch.stack([bounding_box_min, bounding_box_max]).to(pipeline_device))
+                camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx, aabb_box=aabb_box)
+
+                if crop_data is not None:
+                    with renderers.background_color_override_context(
+                        crop_data.background_color.to(pipeline_device)
+                    ), torch.no_grad():
+                        outputs = model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                else:
+                    with torch.no_grad():
+                        outputs = model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
 
                 render_image = []
                 for rendered_output_name in rendered_output_names:
@@ -268,7 +378,7 @@ class RenderTrajectory:
     a viewer-generated file and interpolated camera paths from the eval dataset."""
     downscale_factor: int = 1
     """Scaling factor to apply to the camera image resolution."""
-    camera_path_filename: Path = Path("camera_path.json")
+    camera_path_filename: Optional[Path] = Path("camera_path.json")
     """Filename of the camera path to render."""
     output_path: Path = Path("renders/output.mp4")
     """Name of the output file."""
@@ -321,7 +431,6 @@ class RenderTrajectory:
             )
         else:
             assert_never(self.traj)
-
         _render_trajectory_video(
             pipeline,
             camera_path,
@@ -333,6 +442,87 @@ class RenderTrajectory:
             output_format=self.output_format,
             camera_type=camera_type,
         )
+
+
+@dataclass
+class BlockNerfRenderTrajectory:
+    """Load a checkpoint, render a trajectory, and save to a video file.
+    The following trajectory options are available,
+    filename: Load from trajectory created using viewer or blender vfx plugin.
+    interpolate: Create trajectory by interpolating between eval dataset images.
+    spiral: Create a spiral trajectory (can be hit or miss).
+    """
+
+    config_files: List[Path]
+    """Path to config YAML file."""
+    rendered_output_names: List[str] = field(default_factory=lambda: ["rgb"])
+    """Name of the renderer outputs to use. rgb, depth, etc. concatenates them along y axis"""
+    traj: Literal["spiral", "filename", "interpolate"] = "spiral"
+    """Trajectory type to render. Select between spiral-shaped trajectory, trajectory loaded from
+    a viewer-generated file and interpolated camera paths from the eval dataset."""
+    downscale_factor: int = 1
+    """Scaling factor to apply to the camera image resolution."""
+    camera_path_filename: Path = Path("camera_path.json")
+    """Filename of the camera path to render."""
+    output_path: Path = Path("renders/output.mp4")
+    """Name of the output file."""
+    seconds: float = 5.0
+    """How long the video should be."""
+    output_format: Literal["images", "video"] = "video"
+    """How to save output data."""
+    interpolation_steps: int = 10
+    """Number of interpolation steps between eval dataset cameras."""
+    eval_num_rays_per_chunk: Optional[int] = None
+    """Specifies number of rays per chunk during eval."""
+    block_nerf: bool = False
+    """Specifies if there will be multiple nerf models used to render the scene."""
+    block_lookup: Dict[str, str] = field(default_factory=lambda: {})
+    """Specifies which nerf model to use for each block."""
+
+    def main(self) -> None:
+        """Main function."""
+
+        pipeline_models: Dict[str, Model] = {}
+        pipeline_devices: List[torch.device] = []
+        for i, config_path in enumerate(self.config_files):
+            _, pipeline, _ = eval_setup(config_path, self.eval_num_rays_per_chunk, "inference")
+            # TODO: I can change the pipeline_models to a dict with pipeline_models[config.experiment_name]. Need the create_block_lookup to save it in similar fashion.
+            pipeline_models[f"{i}"] = pipeline.model
+            pipeline_devices.append(pipeline.device)
+
+        install_checks.check_ffmpeg_installed()
+
+        seconds = self.seconds
+        crop_data = None
+
+        with open(self.camera_path_filename, "r", encoding="utf-8") as f:
+            camera_path = json.load(f)
+        seconds = camera_path["seconds"]
+        if "camera_type" not in camera_path:
+            camera_type = CameraType.PERSPECTIVE
+        elif camera_path["camera_type"] == "fisheye":
+            camera_type = CameraType.FISHEYE
+        elif camera_path["camera_type"] == "equirectangular":
+            camera_type = CameraType.EQUIRECTANGULAR
+        else:
+            camera_type = CameraType.PERSPECTIVE
+        crop_data = get_crop_from_json(camera_path)
+        camera_path = get_path_from_json(camera_path)
+
+        _render_trajectory_video_blocknerf(
+            pipeline_device=pipeline_devices[0],
+            pipeline_models=pipeline_models,
+            block_lookup=self.block_lookup,
+            cameras=camera_path,
+            output_filename=self.output_path,
+            rendered_output_names=self.rendered_output_names,
+            rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
+            crop_data=crop_data,
+            seconds=seconds,
+            output_format=self.output_format,
+            camera_type=camera_type,
+        )
+
 
 
 def entrypoint():
