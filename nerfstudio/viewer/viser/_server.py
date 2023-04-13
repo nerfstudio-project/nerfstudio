@@ -31,9 +31,6 @@ import websockets.connection
 import websockets.datastructures
 import websockets.exceptions
 import websockets.server
-from rich import box, style
-from rich.panel import Panel
-from rich.table import Table
 from typing_extensions import override
 from websockets.legacy.server import WebSocketServerProtocol
 

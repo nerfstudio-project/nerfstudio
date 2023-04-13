@@ -215,33 +215,3 @@ def apply_colormap(
         return colormaps.apply_boolean_colormap(outputs[output_type])
 
     raise NotImplementedError
-
-
-def send_status_message(
-    viser_server: ViserServer, is_training: bool, image_height: int, image_width: int, step: int
-) -> None:
-    """Send status message to viewer
-
-    Args:
-        viser_server: the viser server
-        is_training: whether the model is training or not
-        image_height: resolution of the current view
-        image_width: resolution of the current view
-        step: current step
-    """
-    vis_train_ratio = "Starting"
-    if is_training:
-        # process ratio time spent on vis vs train
-        if (
-            EventName.ITER_VIS_TIME.value in GLOBAL_BUFFER["events"]
-            and EventName.ITER_TRAIN_TIME.value in GLOBAL_BUFFER["events"]
-        ):
-            vis_time = GLOBAL_BUFFER["events"][EventName.ITER_VIS_TIME.value]["avg"]
-            train_time = GLOBAL_BUFFER["events"][EventName.ITER_TRAIN_TIME.value]["avg"]
-            print(vis_time, train_time)
-            vis_train_ratio = f"{int(vis_time / train_time * 100)}% spent on viewer"
-    else:
-        vis_train_ratio = "100% spent on viewer"
-    viser_server.send_status_message(
-        eval_res=f"{image_height}x{image_width}px", vis_train_ratio=vis_train_ratio, step=step
-    )

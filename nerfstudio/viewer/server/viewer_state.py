@@ -21,7 +21,10 @@ from typing import TYPE_CHECKING, List, Optional
 
 import numpy as np
 import torch
+from rich import box, style
 from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
@@ -97,12 +100,16 @@ class ViewerState:
             websocket_port = self.config.websocket_port
         self.log_filename.parent.mkdir(exist_ok=True)
 
-        CONSOLE.line()
         self.viewer_url = viewer_utils.get_viewer_url(websocket_port)
-        CONSOLE.rule(characters="=")
-        CONSOLE.print(f"[Public] Open the viewer at {self.viewer_url}")
-        CONSOLE.rule(characters="=")
-        CONSOLE.line()
+        table = Table(
+            title=None,
+            show_header=False,
+            box=box.MINIMAL,
+            title_style=style.Style(bold=True),
+        )
+        table.add_row("HTTP", f"[link={self.viewer_url}][blue]{self.viewer_url}[/link]")
+
+        CONSOLE.print(Panel(table, title="[bold][yellow]Viewer[/bold]", expand=False))
 
         # viewer specific variables
         self.prev_moving = False
