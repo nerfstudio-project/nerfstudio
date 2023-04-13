@@ -108,7 +108,7 @@ def is_port_open(port: int):
 
 
 def get_free_port(default_port: Optional[int] = None):
-    """Returns a free port on the local machine. Try to use default_port is possible.
+    """Returns a free port on the local machine. Try to use default_port if possible.
 
     Args:
         default_port: Port to try to use.
