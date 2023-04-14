@@ -51,11 +51,7 @@ def set_reduced_config(config: TrainerConfig):
     if hasattr(config.pipeline.model, "num_importance_samples"):
         config.pipeline.model.num_importance_samples = 4
     # remove viewer
-    config.viewer.enable = False
-
-    # model specific config settings
-    if config.method_name == "instant-ngp":
-        config.pipeline.model.field_implementation = "torch"
+    config.viewer.quit_on_train_completion = True
 
     return config
 

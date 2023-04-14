@@ -51,7 +51,7 @@ dependencies = [
     "torchmetrics[image]>=0.9.3",
     "torchtyping>=0.1.4",
     "torchvision>=0.13.0",
-    "u-msgpack-python>=2.4.1",
+    "viser==0.0.2",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
     "xatlas",
@@ -108,7 +108,7 @@ ns-eval = "scripts.eval:entrypoint"
 ns-render = "scripts.render:entrypoint"
 ns-export = "scripts.exporter:entrypoint"
 ns-dev-test = "scripts.github.run_actions:entrypoint"
-ns-bridge-server = "nerfstudio.viewer.server.server:entrypoint"
+ns-dev-sync-viser-message-defs = "scripts.viewer.sync_viser_message_defs:entrypoint"
 
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision
@@ -159,7 +159,6 @@ include = ["nerfstudio"]
 exclude = ["**/node_modules",
     "**/__pycache__",
 ]
-ignore = ["nerfstudio/viewer"]
 defineConstant = { DEBUG = true }
 
 reportMissingImports = true
