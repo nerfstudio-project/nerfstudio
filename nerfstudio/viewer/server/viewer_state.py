@@ -138,6 +138,9 @@ class ViewerState:
         def nested_folder_install(folder_labels: List[str], element: ViewerElement):
             if len(folder_labels) == 0:
                 element.install(self.viser_server)
+                # also rewire the hook to rerender
+                prev_cb = element.cb_hook
+                element.cb_hook = lambda handle: [self._interrupt_render(handle), prev_cb(handle)]
             else:
                 with self.viser_server.gui_folder(folder_labels[0]):
                     nested_folder_install(folder_labels[1:], element)

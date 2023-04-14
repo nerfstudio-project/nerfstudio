@@ -32,10 +32,11 @@ class ViewerElement:
         disabled: If the element is disabled
     """
 
-    def __init__(self, name: str, disabled: bool = False):
+    def __init__(self, name: str, disabled: bool = False, cb_hook: Callable = lambda handle: None):
         self.name = name
         self.gui_handle: Optional[GuiHandle] = None
         self.disabled = disabled
+        self.cb_hook = cb_hook
 
     @abstractmethod
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
@@ -77,8 +78,7 @@ class ViewerButton(ViewerElement):
     """
 
     def __init__(self, name: str, call_fn: Callable, disabled: bool = False):
-        super().__init__(name, disabled=disabled)
-        self.fn = call_fn
+        super().__init__(name, disabled=disabled, cb_hook=call_fn)
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         self.gui_handle = viser_server.add_gui_button(self.name, disabled=self.disabled)
@@ -87,7 +87,7 @@ class ViewerButton(ViewerElement):
         self._create_gui_handle(viser_server)
 
         def call_fn(handle):  # pylint: disable=unused-argument
-            self.fn()
+            self.cb_hook(handle)
 
         assert self.gui_handle is not None
         self.gui_handle.on_update(call_fn)
@@ -104,9 +104,8 @@ class ViewerParameter(ViewerElement):
     """
 
     def __init__(self, name: str, default_value: Any, disabled: bool = False, cb_hook: Callable = lambda handle: None):
-        super().__init__(name, disabled=disabled)
+        super().__init__(name, disabled=disabled, cb_hook=cb_hook)
         self.def_value = default_value
-        self.cb_hook = cb_hook
 
     def install(self, viser_server: ViserServer) -> None:
         """
