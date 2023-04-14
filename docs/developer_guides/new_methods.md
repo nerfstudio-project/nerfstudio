@@ -73,3 +73,7 @@ After registering your method you should be able to run the method with,
 ```
 ns-train my-method --data DATA_DIR
 ```
+
+## Adding to the _nerf.studio_ documentation
+
+We invite researchers to contribute their own methods to our online documentation. You can find more information on how to do this {ref}`here<own_method_docs>`.

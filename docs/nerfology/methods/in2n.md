@@ -36,13 +36,13 @@ Details for running Instruct-NeRF2NeRF (built with Nerfstudio!) can be found [he
 ns-train in2n --help
 ```
 
-Three varients of Instruct-NeRF2NeRF are provided:
+Three variants of Instruct-NeRF2NeRF are provided:
 
-| Method      | Description                  | Memory | Quality |
-| ----------- | ---------------------------- | ------ | ------- |
-| `in2n`  | Full model, used in paper    | ~15GB  | Best    |
-| `in2n-small`      | Half precision model         | ~12GB  | Good    |
-| `in2n-tiny` | Half prevision with no LPIPS | ~10GB  | Ok      |
+| Method       | Description                  | Memory | Quality |
+| ------------ | ---------------------------- | ------ | ------- |
+| `in2n`       | Full model, used in paper    | ~15GB  | Best    |
+| `in2n-small` | Half precision model         | ~12GB  | Good    |
+| `in2n-tiny`  | Half prevision with no LPIPS | ~10GB  | Ok      |
 
 ## Method
 
