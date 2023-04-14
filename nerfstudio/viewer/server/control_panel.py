@@ -89,14 +89,14 @@ class ControlPanel:
     def _train_speed_cb(self) -> None:
         """Callback for when the train speed is changed"""
         if self.train_speed == "Fast":
-            self._train_util.set_value(0.95)
-            self._max_res.set_value(256)
+            self._train_util.value = 0.95
+            self._max_res.value = 256
         elif self.train_speed == "Balanced":
-            self._train_util.set_value(0.85)
-            self._max_res.set_value(512)
+            self._train_util.value = 0.85
+            self._max_res.value = 512
         elif self.train_speed == "Slow":
-            self._train_util.set_value(0.5)
-            self._max_res.set_value(1024)
+            self._train_util.value = 0.5
+            self._max_res.value = 1024
 
     def install(self, viser_server: ViserServer) -> None:
         """Installs the control panel on the viser server
@@ -204,7 +204,7 @@ class ControlPanel:
     @crop_viewport.setter
     def crop_viewport(self, value: bool):
         """Sets the crop viewport setting"""
-        self._crop_viewport.set_value(value)
+        self._crop_viewport.value = value
 
     @property
     def crop_min(self) -> Tuple[float, float, float]:
@@ -214,7 +214,7 @@ class ControlPanel:
     @crop_min.setter
     def crop_min(self, value: Tuple[float, float, float]):
         """Sets the crop min setting"""
-        self._crop_min.set_value(value)
+        self._crop_min.value = value
 
     @property
     def crop_max(self) -> Tuple[float, float, float]:
@@ -224,7 +224,7 @@ class ControlPanel:
     @crop_max.setter
     def crop_max(self, value: Tuple[float, float, float]):
         """Sets the crop max setting"""
-        self._crop_max.set_value(value)
+        self._crop_max.value = value
 
     @property
     def background_color(self) -> Tuple[int, int, int]:
@@ -234,4 +234,4 @@ class ControlPanel:
     @background_color.setter
     def background_color(self, value: Tuple[int, int, int]):
         """Sets the background color"""
-        self._background_color.set_value(value)
+        self._background_color.value = value

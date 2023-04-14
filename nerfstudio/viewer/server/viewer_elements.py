@@ -87,7 +87,7 @@ class ViewerButton(ViewerElement):
     def install(self, viser_server: ViserServer) -> None:
         self._create_gui_handle(viser_server)
 
-        def call_fn(element):  # pylint: disable=unused-argument
+        def call_fn(_: GuiHandle):  # pylint: disable=unused-argument
             self.cb_hook(self)
 
         assert self.gui_handle is not None
@@ -117,18 +117,11 @@ class ViewerParameter(ViewerElement):
         """
         self._create_gui_handle(viser_server)
 
-        def update_fn(element):
+        def update_fn(_: GuiHandle):
             self.cb_hook(self)
 
         assert self.gui_handle is not None
         self.gui_handle.on_update(update_fn)
-
-    def set_value(self, value: Any):
-        """Sets the value of the element"""
-        if self.gui_handle is not None:
-            self.gui_handle.set_value(value)
-        else:
-            self.def_value = value
 
     @abstractmethod
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
@@ -140,6 +133,13 @@ class ViewerParameter(ViewerElement):
         if self.gui_handle is None:
             return self.def_value
         return self.gui_handle.get_value()
+
+    @value.setter
+    def value(self, value: Any):
+        if self.gui_handle is not None:
+            self.gui_handle.set_value(value)
+        else:
+            self.def_value = value
 
 
 class ViewerSlider(ViewerParameter):
