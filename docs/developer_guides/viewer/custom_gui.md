@@ -14,22 +14,52 @@ To define a custom element, create an instance of one of the provided classes in
 ```python
 from nerfstudio.viewer.server.viewer_elements import ViewerNumber
 
-class MyClass(nn.Module):
-    def __init__():
+class MyClass(nn.Module):#must inherit from nn.Module
+    def __init__(self):
         # Must be a class variable
         self.custom_value = ViewerNumber(name="My Value", default_value=1.0)
 ```
+**Element Hierarchy**
+The viewer recursively searches all `nn.Module` children of the base `Pipeline` object, and arranges parameters into folders based on their variable names. 
+For example, a `ViewerElement` defined in `pipeline.model.field` will be in the "Custom/model/field" folder in the GUI.
 
 **Reading the value**
-
 To read the value of a custom element, simply access its `value` attribute. In this case it will be `1.0` unless modified by the user in the viewer.
 
 ```python
 current_value = self.custom_value.value
 ```
 
-**Writing to the element**
+**Callbacks**
+You can register a callback that will be called whenever a new value for your GUI element is available. For example, one can use a callback to update config parameters when elements are changed:
+```python
+def on_change_callback(handle: GuiHandle):
+    self.config.example_parameter = handle.get_value()
 
+self.custom_checkbox = ViewerCheckbox(
+    name="Checkbox",
+    default_value = False,
+    cb_hook = on_change_callback
+)
+```
+The GuiHandle value is a viser object which you can use to get the new value.
+
+**Thread safety**
+Note that `ViewerElement` values can change asynchronously to model execution. So, it's best practice to store the value of a viewer element once at the beginning
+of a forward pass and refer to the static variable afterwards.
+```python
+class MyModel(Model):
+    def __init__(self):
+        self.slider = ViewerSlider(name="Slider", default_value=0.5, min_value=0.0, max_value=1.0)
+
+    def get_outputs(self,ray)
+        slider_val = self.slider.value
+        #self.slider.value could change after this, unsafe to use
+
+```
+
+
+**Writing to the element**
 You can write to a viewer element in Python, which provides a convenient way to track values in your code without the need for wandb/tensorboard or relying on `print` statements.
 
 ```python
@@ -55,7 +85,7 @@ This was created with the following elements:
 from nerfstudio.viewer.server.viewer_elements import *
 
 class MyModel(Model):
-    def __init__():
+    def __init__(self):
         self.a = ViewerButton(name="My Button", call_fn=self.handle_btn)
         self.b = ViewerNumber(name="Number", default_value=1.0)
         self.c = ViewerCheckbox(name="Checkbox", default_value=False)
@@ -67,7 +97,8 @@ class MyModel(Model):
         self.rgb_renderer = RGBRenderer()
 ...
 class RGBRenderer(nn.Module):
-    def __init__():
+    def __init__(self):
+        #lives in "Custom/model/rgb_renderer" GUI folder
         self.a = ViewerRGB(name="F", default_value=(0.1, 0.7, 0.1))
 ...
 ```
