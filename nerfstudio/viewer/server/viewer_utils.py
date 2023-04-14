@@ -19,17 +19,15 @@ from __future__ import annotations
 
 import enum
 import os
+import socket
 import sys
-import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 import torch
 from rich.console import Console
 
-from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.model_components import renderers
 from nerfstudio.models.base_model import Model
 from nerfstudio.utils import colormaps
 from nerfstudio.utils.io import load_from_json
@@ -90,57 +88,41 @@ class SetTrace:
         sys.settrace(None)
 
 
-class RenderThread(threading.Thread):
-    """Thread that does all the rendering calls while listening for interrupts
+def is_port_open(port: int):
+    """Returns True if the port is open.
 
     Args:
-        state: current viewer state object
-        model: current checkpoint of model
-        camera_ray_bundle: input rays to pass through the model to render out
+        port: Port to check.
+
+    Returns:
+        True if the port is open, False otherwise.
     """
+    try:
+        sock = socket.socket()
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        _ = sock.bind(("", port))
+        sock.close()
+        return True
+    except OSError:
+        return False
 
-    def __init__(self, state: "ViewerState", model: Model, camera_ray_bundle: RayBundle):
-        threading.Thread.__init__(self)
-        self.state = state
-        self.model = model
-        self.camera_ray_bundle = camera_ray_bundle
-        self.exc = None
-        self.vis_outputs = None
 
-    def run(self):
-        """run function that renders out images given the current model and ray bundles.
-        Interlaced with a trace function that checks to see if any I/O changes were registered.
-        Exits and continues program if IOChangeException thrown.
-        """
-        outputs = None
-        try:
-            with SetTrace(self.state.check_interrupt):
-                if self.state.control_panel.crop_viewport:
-                    color = self.state.control_panel.background_color
-                    if color is None:
-                        background_color = torch.tensor([0.0, 0.0, 0.0], device=self.model.device)
-                    else:
-                        background_color = torch.tensor(
-                            [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0], device=self.model.device
-                        )
-                    with renderers.background_color_override_context(background_color), torch.no_grad():
-                        outputs = self.model.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
-                else:
-                    with torch.no_grad():
-                        outputs = self.model.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
-        except Exception as e:  # pylint: disable=broad-except
-            self.exc = e
+def get_free_port(default_port: Optional[int] = None):
+    """Returns a free port on the local machine. Try to use default_port if possible.
 
-        if outputs:
-            self.vis_outputs = outputs
+    Args:
+        default_port: Port to try to use.
 
-        self.state.check_done_render = True
-        self.state.check_interrupt_vis = False
-
-    def join(self, timeout=None):
-        threading.Thread.join(self)
-        if self.exc:
-            raise self.exc
+    Returns:
+        A free port on the local machine.
+    """
+    if default_port is not None:
+        if is_port_open(default_port):
+            return default_port
+    sock = socket.socket()
+    sock.bind(("", 0))
+    port = sock.getsockname()[1]
+    return port
 
 
 def update_render_aabb(

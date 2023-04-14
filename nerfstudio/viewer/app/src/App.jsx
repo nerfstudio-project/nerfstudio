@@ -17,7 +17,6 @@ export default function App() {
     <ThemeProvider theme={appTheme}>
       <CssBaseline enableColorScheme />
       <div className="App">
-        {/* Listens for websocket 'write' messages and updates the redux store. */}
         {/* The banner at the top of the page. */}
         <Banner />
         <div className="App-body">

@@ -126,6 +126,8 @@ class ViewerParameter(ViewerElement):
         """Sets the value of the element"""
         if self.gui_handle is not None:
             self.gui_handle.set_value(value)
+        else:
+            self.def_value = value
 
     @abstractmethod
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
@@ -158,7 +160,7 @@ class ViewerSlider(ViewerParameter):
         default_value: IntOrFloat,
         min_value: IntOrFloat,
         max_value: IntOrFloat,
-        step: IntOrFloat,
+        step: IntOrFloat = 0.1,
         disabled: bool = False,
         cb_hook: Callable = lambda handle: None,
     ):
@@ -294,7 +296,7 @@ class ViewerRGB(ViewerParameter):
     def __init__(
         self,
         name,
-        default_value: Tuple[float, float, float],
+        default_value: Tuple[int, int, int],
         disabled=False,
         cb_hook: Callable = lambda handle: None,
     ):
@@ -314,7 +316,7 @@ class ViewerVec3(ViewerParameter):
         self,
         name,
         default_value: Tuple[float, float, float],
-        step,
+        step=0.1,
         disabled=False,
         cb_hook: Callable = lambda handle: None,
     ):

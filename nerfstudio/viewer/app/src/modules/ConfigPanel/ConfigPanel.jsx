@@ -144,7 +144,7 @@ export function RenderControls() {
       <Box
         component="div"
         sx={{
-          "a& input[type='checkbox']~label svg path": {
+          "& input[type='checkbox']~label svg path": {
             stroke: '#222831 !important',
           },
           '& button': { color: '#222831 !important', height: '2em' },

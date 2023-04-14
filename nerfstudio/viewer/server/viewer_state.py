@@ -41,7 +41,6 @@ from nerfstudio.viewer.server.render_state_machine import (
     RenderAction,
     RenderStateMachine,
 )
-from nerfstudio.viewer.server.subprocess import get_free_port
 from nerfstudio.viewer.server.viewer_elements import ViewerElement
 from nerfstudio.viewer.viser import ViserServer
 from nerfstudio.viewer.viser._messages import (
@@ -95,7 +94,7 @@ class ViewerState:
         self.datapath = datapath.parent if datapath.is_file() else datapath
 
         if self.config.websocket_port is None:
-            websocket_port = get_free_port(default_port=self.config.websocket_port_default)
+            websocket_port = viewer_utils.get_free_port(default_port=self.config.websocket_port_default)
         else:
             websocket_port = self.config.websocket_port
         self.log_filename.parent.mkdir(exist_ok=True)
