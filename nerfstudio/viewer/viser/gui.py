@@ -37,7 +37,7 @@ from typing import (
 import numpy as onp
 from viser.infra import ClientId
 
-from ._messages import (
+from .messages import (
     GuiRemoveMessage,
     GuiSetHiddenMessage,
     GuiSetLevaConfMessage,
@@ -45,7 +45,7 @@ from ._messages import (
 )
 
 if TYPE_CHECKING:
-    from ._message_api import MessageApi
+    from .message_api import MessageApi
 
 
 T = TypeVar("T")

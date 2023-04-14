@@ -15,6 +15,6 @@
 """ Viser is used for the nerfstudio viewr backend """
 # pylint: disable=useless-import-alias
 
-from ._message_api import GuiHandle as GuiHandle
-from ._messages import NerfstudioMessage as NerfstudioMessage
-from ._server import ViserServer as ViserServer
+from .message_api import GuiHandle as GuiHandle
+from .messages import NerfstudioMessage as NerfstudioMessage
+from .server import ViserServer as ViserServer

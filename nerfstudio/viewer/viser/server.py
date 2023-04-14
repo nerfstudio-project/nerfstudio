@@ -24,8 +24,8 @@ from typing import Callable, Type
 import viser.infra
 from typing_extensions import override
 
-from ._message_api import MessageApi
-from ._messages import GuiUpdateMessage, NerfstudioMessage
+from .message_api import MessageApi
+from .messages import GuiUpdateMessage, NerfstudioMessage
 
 
 class ViserServer(MessageApi):

@@ -29,7 +29,7 @@ from nerfstudio.utils import writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
-from nerfstudio.viewer.viser._messages import CameraMessage
+from nerfstudio.viewer.viser.messages import CameraMessage
 
 if TYPE_CHECKING:
     from nerfstudio.viewer.server.viewer_state import ViewerState

@@ -43,7 +43,7 @@ from nerfstudio.viewer.server.render_state_machine import (
 )
 from nerfstudio.viewer.server.viewer_elements import ViewerElement
 from nerfstudio.viewer.viser import ViserServer
-from nerfstudio.viewer.viser._messages import (
+from nerfstudio.viewer.viser.messages import (
     CameraMessage,
     CameraPathOptionsRequest,
     CameraPathPayloadMessage,

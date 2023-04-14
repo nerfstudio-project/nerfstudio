@@ -45,11 +45,11 @@ from typing_extensions import Literal, LiteralString, ParamSpec, assert_never
 
 from nerfstudio.data.scene_box import SceneBox
 
-from . import _messages
-from ._gui import GuiHandle, GuiSelectHandle, _GuiHandleState
+from . import messages
+from .gui import GuiHandle, GuiSelectHandle, _GuiHandleState
 
 if TYPE_CHECKING:
-    from ._server import ClientId
+    from viser.infra import ClientId
 
 
 P = ParamSpec("P")
@@ -131,7 +131,7 @@ class MessageApi(abc.ABC):
         self._gui_folder_labels: List[str] = []
 
     @abc.abstractmethod
-    def _queue(self, message: _messages.NerfstudioMessage) -> None:
+    def _queue(self, message: messages.NerfstudioMessage) -> None:
         """Abstract method for sending messages."""
         ...
 
@@ -404,7 +404,7 @@ class MessageApi(abc.ABC):
             quality: The quality of the image, if using jpeg. Must be an integer between 0 and 100.
         """
         media_type, base64_data = _encode_image_base64(image, file_format, quality=quality)
-        self._queue(_messages.BackgroundImageMessage(media_type=media_type, base64_data=base64_data))
+        self._queue(messages.BackgroundImageMessage(media_type=media_type, base64_data=base64_data))
 
     def send_file_path_info(self, config_base_dir: Path, data_base_dir: Path, export_path_name: str) -> None:
         """Send file path info to the scene.
@@ -415,7 +415,7 @@ class MessageApi(abc.ABC):
             export_path_name: The name for the export folder.
         """
         self._queue(
-            _messages.FilePathInfoMessage(
+            messages.FilePathInfoMessage(
                 config_base_dir=str(config_base_dir),
                 data_base_dir=str(data_base_dir),
                 export_path_name=export_path_name,
@@ -428,7 +428,7 @@ class MessageApi(abc.ABC):
         Args:
             scene_box: The scene box.
         """
-        self._queue(_messages.SceneBoxMessage(min=scene_box.aabb[0].tolist(), max=scene_box.aabb[1].tolist()))
+        self._queue(messages.SceneBoxMessage(min=scene_box.aabb[0].tolist(), max=scene_box.aabb[1].tolist()))
 
     def add_dataset_image(self, idx: str, json: Dict) -> None:
         """Add a dataset image to the scene.
@@ -437,7 +437,7 @@ class MessageApi(abc.ABC):
             idx: The index of the image.
             json: The json dict from the camera frustum and image.
         """
-        self._queue(_messages.DatasetImageMessage(idx=idx, json=json))
+        self._queue(messages.DatasetImageMessage(idx=idx, json=json))
 
     def set_is_training(self, is_training: bool) -> None:
         """Set the training mode.
@@ -445,7 +445,7 @@ class MessageApi(abc.ABC):
         Args:
             is_training: The training mode.
         """
-        self._queue(_messages.IsTrainingMessage(is_training=is_training))
+        self._queue(messages.IsTrainingMessage(is_training=is_training))
 
     def send_camera_paths(self, camera_paths: Dict[str, Any]) -> None:
         """Send camera paths to the scene.
@@ -453,7 +453,7 @@ class MessageApi(abc.ABC):
         Args:
             camera_paths: A dictionary of camera paths.
         """
-        self._queue(_messages.CameraPathsMessage(payload=camera_paths))
+        self._queue(messages.CameraPathsMessage(payload=camera_paths))
 
     def send_crop_params(
         self,
@@ -471,7 +471,7 @@ class MessageApi(abc.ABC):
             crop_scale: The scale of the crop.
         """
         self._queue(
-            _messages.CropParamsMessage(
+            messages.CropParamsMessage(
                 crop_enabled=crop_enabled, crop_bg_color=crop_bg_color, crop_center=crop_center, crop_scale=crop_scale
             )
         )
@@ -483,7 +483,7 @@ class MessageApi(abc.ABC):
             eval_res: The resolution of the render in plain text.
             step: The current step.
         """
-        self._queue(_messages.StatusMessage(eval_res=eval_res, step=step))
+        self._queue(messages.StatusMessage(eval_res=eval_res, step=step))
 
     def _add_gui_impl(
         self,
@@ -517,14 +517,14 @@ class MessageApi(abc.ABC):
         if not is_button:
 
             def sync_other_clients(client_id: ClientId, value: Any) -> None:
-                message = _messages.GuiSetValueMessage(name=name, value=handle_state.encoder(value))
+                message = messages.GuiSetValueMessage(name=name, value=handle_state.encoder(value))
                 message.excluded_self_client = client_id
                 self._queue(message)
 
             handle_state.sync_cb = sync_other_clients
 
         self._queue(
-            _messages.GuiAddMessage(
+            messages.GuiAddMessage(
                 name=name,
                 folder_labels=tuple(self._gui_folder_labels),
                 leva_conf=leva_conf,
@@ -535,7 +535,7 @@ class MessageApi(abc.ABC):
     def _handle_gui_updates(
         self: MessageApi,
         client_id: ClientId,
-        message: _messages.GuiUpdateMessage,
+        message: messages.GuiUpdateMessage,
     ) -> None:
         handle_state = self._handle_state_from_gui_name.get(message.name, None)
         if handle_state is None:
