@@ -10,7 +10,6 @@ import {
   ViserWebSocketContext,
   sendWebsocketMessage,
 } from '../../WebSocket/ViserWebSocket';
-import { IsTrainingMessage } from '../../WebSocket/ViserMessages';
 
 interface StatusPanelProps {
   sceneTree: object;

@@ -53,12 +53,6 @@ import RenderModal from '../../RenderModal';
 import LoadPathModal from '../../LoadPathModal';
 import CameraPropPanel from './CameraPropPanel';
 import LevaTheme from '../../../themes/leva_theme.json';
-import {
-  CameraPathPayloadMessage,
-  CameraPathOptionsRequest,
-  CropParamsMessage,
-  SaveCheckpointMessage,
-} from '../../WebSocket/ViserMessages';
 
 const FOV_LABELS = {
   FOV: '°',
