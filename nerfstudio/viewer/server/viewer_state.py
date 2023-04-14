@@ -139,7 +139,7 @@ class ViewerState:
                 element.install(self.viser_server)
                 # also rewire the hook to rerender
                 prev_cb = element.cb_hook
-                element.cb_hook = lambda handle: [self._interrupt_render(handle), prev_cb(handle)]
+                element.cb_hook = lambda element: [self._interrupt_render(element), prev_cb(element)]
             else:
                 with self.viser_server.gui_folder(folder_labels[0]):
                     nested_folder_install(folder_labels[1:], element)

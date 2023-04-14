@@ -32,7 +32,7 @@ class ViewerElement:
         disabled: If the element is disabled
     """
 
-    def __init__(self, name: str, disabled: bool = False, cb_hook: Callable = lambda handle: None):
+    def __init__(self, name: str, disabled: bool = False, cb_hook: Callable = lambda element: None):
         self.name = name
         self.gui_handle: Optional[GuiHandle] = None
         self.disabled = disabled
@@ -87,8 +87,8 @@ class ViewerButton(ViewerElement):
     def install(self, viser_server: ViserServer) -> None:
         self._create_gui_handle(viser_server)
 
-        def call_fn(handle):  # pylint: disable=unused-argument
-            self.cb_hook(handle)
+        def call_fn(element):  # pylint: disable=unused-argument
+            self.cb_hook(self)
 
         assert self.gui_handle is not None
         self.gui_handle.on_update(call_fn)
@@ -104,7 +104,7 @@ class ViewerParameter(ViewerElement):
         cb_hook: Callback to call on update
     """
 
-    def __init__(self, name: str, default_value: Any, disabled: bool = False, cb_hook: Callable = lambda handle: None):
+    def __init__(self, name: str, default_value: Any, disabled: bool = False, cb_hook: Callable = lambda element: None):
         super().__init__(name, disabled=disabled, cb_hook=cb_hook)
         self.def_value = default_value
 
@@ -117,8 +117,8 @@ class ViewerParameter(ViewerElement):
         """
         self._create_gui_handle(viser_server)
 
-        def update_fn(handle):
-            self.cb_hook(handle)
+        def update_fn(element):
+            self.cb_hook(self)
 
         assert self.gui_handle is not None
         self.gui_handle.on_update(update_fn)
@@ -163,7 +163,7 @@ class ViewerSlider(ViewerParameter):
         max_value: IntOrFloat,
         step: IntOrFloat = 0.1,
         disabled: bool = False,
-        cb_hook: Callable = lambda handle: None,
+        cb_hook: Callable = lambda element: None,
     ):
         assert isinstance(default_value, (float, int))
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
@@ -192,7 +192,7 @@ class ViewerText(ViewerParameter):
         name: str,
         default_value: str,
         disabled: bool = False,
-        cb_hook: Callable = lambda handle: None,
+        cb_hook: Callable = lambda element: None,
     ):
         assert isinstance(default_value, str)
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
@@ -218,7 +218,7 @@ class ViewerNumber(ViewerParameter):
         name: str,
         default_value: IntOrFloat,
         disabled: bool = False,
-        cb_hook: Callable = lambda handle: None,
+        cb_hook: Callable = lambda element: None,
     ):
         assert isinstance(default_value, (float, int))
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
@@ -243,7 +243,7 @@ class ViewerCheckbox(ViewerParameter):
         name: str,
         default_value: bool,
         disabled: bool = False,
-        cb_hook: Callable = lambda handle: None,
+        cb_hook: Callable = lambda element: None,
     ):
         assert isinstance(default_value, bool)
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
@@ -271,7 +271,7 @@ class ViewerDropdown(ViewerParameter):
         default_value: str,
         options: List[str],
         disabled: bool = False,
-        cb_hook: Callable = lambda handle: None,
+        cb_hook: Callable = lambda element: None,
     ):
         assert default_value in options
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
@@ -301,7 +301,7 @@ class ViewerRGB(ViewerParameter):
         name,
         default_value: Tuple[int, int, int],
         disabled=False,
-        cb_hook: Callable = lambda handle: None,
+        cb_hook: Callable = lambda element: None,
     ):
         assert len(default_value) == 3
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
@@ -322,7 +322,7 @@ class ViewerVec3(ViewerParameter):
         default_value: Tuple[float, float, float],
         step=0.1,
         disabled=False,
-        cb_hook: Callable = lambda handle: None,
+        cb_hook: Callable = lambda element: None,
     ):
         assert len(default_value) == 3
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
