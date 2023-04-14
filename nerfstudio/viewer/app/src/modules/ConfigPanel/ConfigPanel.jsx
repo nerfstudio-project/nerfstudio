@@ -22,8 +22,6 @@ function CustomLeva() {
   const customGui = useSelector((state) => state.custom_gui);
   const guiNames = customGui.guiNames;
   const guiConfigFromName = customGui.guiConfigFromName;
-  // Add callbacks to guiConfigFromName.
-  const suppressOnChange = React.useRef({});
 
   // We're going to try and build an object that looks like:
   // {"folder name": {"input name": leva config}}
@@ -48,33 +46,24 @@ function CustomLeva() {
     if (levaConf.type === 'BUTTON') {
       // Add a button.
       leafFolder[key] = button(() => {
-        const message: GuiUpdateMessage = {
-          type: 'gui_update',
+        sendWebsocketMessage(viser_websocket, {
+          type: 'GuiUpdateMessage',
           name: key,
           value: true,
-        };
-        sendWebsocketMessage(viser_websocket, message);
+        });
       }, levaConf.settings);
     } else {
       // Add any other kind of input.
+      const throttledSender = makeThrottledMessageSender(viser_websocket, 25);
       leafFolder[key] = {
         ...levaConf,
         onChange: (value: any, _propName: any, options: any) => {
           if (options.initial) return;
-          if (suppressOnChange.current[key]) {
-            delete suppressOnChange.current[key];
-            return;
-          }
-          const message: GuiUpdateMessage = {
-            type: 'gui_update',
+          throttledSender({
+            type: 'GuiUpdateMessage',
             name: key,
             value,
-          };
-          const throttledSender = makeThrottledMessageSender(
-            viser_websocket,
-            25,
-          );
-          throttledSender(message);
+          });
         },
       };
     }

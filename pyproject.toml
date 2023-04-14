@@ -51,9 +51,9 @@ dependencies = [
     "torchmetrics[image]>=0.9.3",
     "torchtyping>=0.1.4",
     "torchvision>=0.13.0",
+    "viser==0.0.2",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
-    "websockets>=11.0",
     "xatlas",
     "trimesh>=3.20.2"
 ]

@@ -1,54 +1,48 @@
 // AUTOMATICALLY GENERATED message interfaces, from Python dataclass definitions.
 // This file should not be manually modified.
-
-// For numpy arrays, we directly serialize the underlying data buffer.
-
-export interface BackgroundImageMessage {
-  type: 'background_image';
+interface BackgroundImageMessage {
+  type: 'BackgroundImageMessage';
   media_type: 'image/jpeg' | 'image/png';
   base64_data: string;
 }
-export interface GuiAddMessage {
-  type: 'add_gui';
+interface GuiAddMessage {
+  type: 'GuiAddMessage';
   name: string;
   folder_labels: [string];
   leva_conf: any;
 }
-export interface GuiRemoveMessage {
-  type: 'remove_gui';
+interface GuiRemoveMessage {
+  type: 'GuiRemoveMessage';
   name: string;
 }
-export interface GuiUpdateMessage {
-  type: 'gui_update';
+interface GuiUpdateMessage {
+  type: 'GuiUpdateMessage';
   name: string;
   value: any;
 }
-export interface GuiSetHiddenMessage {
-  type: 'gui_set_hidden';
+interface GuiSetHiddenMessage {
+  type: 'GuiSetHiddenMessage';
   name: string;
   hidden: boolean;
 }
-export interface GuiSetValueMessage {
-  type: 'gui_set';
+interface GuiSetValueMessage {
+  type: 'GuiSetValueMessage';
   name: string;
   value: any;
 }
-export interface GuiSetLevaConfMessage {
-  type: 'gui_set_leva_conf';
+interface GuiSetLevaConfMessage {
+  type: 'GuiSetLevaConfMessage';
   name: string;
   leva_conf: any;
 }
-export interface ResetSceneMessage {
-  type: 'reset_scene';
-}
-export interface FilePathInfoMessage {
-  type: 'path_info';
+interface FilePathInfoMessage {
+  type: 'FilePathInfoMessage';
   config_base_dir: string;
   data_base_dir: string;
   export_path_name: string;
 }
-export interface CameraMessage {
-  type: 'camera';
+interface CameraMessage {
+  type: 'CameraMessage';
   aspect: number;
   render_aspect: number;
   fov: number;
@@ -74,46 +68,46 @@ export interface CameraMessage {
   is_moving: boolean;
   timestamp: number;
 }
-export interface SceneBoxMessage {
-  type: 'scene_box';
+interface SceneBoxMessage {
+  type: 'SceneBoxMessage';
   min: [number, number, number];
   max: [number, number, number];
 }
-export interface DatasetImageMessage {
-  type: 'dataset_image';
+interface DatasetImageMessage {
+  type: 'DatasetImageMessage';
   idx: string;
   json: any;
 }
-export interface IsTrainingMessage {
-  type: 'is_training';
+interface IsTrainingMessage {
+  type: 'IsTrainingMessage';
   is_training: boolean;
 }
-export interface CameraPathPayloadMessage {
-  type: 'camera_path_payload';
+interface CameraPathPayloadMessage {
+  type: 'CameraPathPayloadMessage';
   camera_path_filename: string;
   camera_path: any;
 }
-export interface CameraPathOptionsRequest {
-  type: 'camera_path_options';
+interface CameraPathOptionsRequest {
+  type: 'CameraPathOptionsRequest';
 }
-export interface CameraPathsMessage {
-  type: 'camera_paths';
+interface CameraPathsMessage {
+  type: 'CameraPathsMessage';
   payload: any;
 }
-export interface CropParamsMessage {
-  type: 'crop_params';
+interface CropParamsMessage {
+  type: 'CropParamsMessage';
   crop_enabled: boolean;
   crop_bg_color: [number, number, number];
   crop_center: [number, number, number];
   crop_scale: [number, number, number];
 }
-export interface StatusMessage {
-  type: 'status';
+interface StatusMessage {
+  type: 'StatusMessage';
   eval_res: string;
   step: number;
 }
-export interface SaveCheckpointMessage {
-  type: 'save_checkpoint';
+interface SaveCheckpointMessage {
+  type: 'SaveCheckpointMessage';
 }
 
 export type Message =
@@ -124,7 +118,6 @@ export type Message =
   | GuiSetHiddenMessage
   | GuiSetValueMessage
   | GuiSetLevaConfMessage
-  | ResetSceneMessage
   | FilePathInfoMessage
   | CameraMessage
   | SceneBoxMessage

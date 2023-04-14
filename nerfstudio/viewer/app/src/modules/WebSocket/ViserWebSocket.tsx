@@ -56,7 +56,7 @@ function handleMessage(
 ) {
   switch (message.type) {
     // Add a background image.
-    case 'background_image': {
+    case 'BackgroundImageMessage': {
       document
         .getElementById('background-image')!
         .setAttribute(
@@ -65,12 +65,8 @@ function handleMessage(
         );
       break;
     }
-    // Reset the entire scene, removing all scene nodes.
-    case 'reset_scene': {
-      break;
-    }
     // Add a GUI input.
-    case 'add_gui': {
+    case 'GuiAddMessage': {
       const curGuiNames = store.getState().custom_gui.guiNames;
       const curGuiConfigFromName =
         store.getState().custom_gui.guiConfigFromName;
@@ -94,7 +90,7 @@ function handleMessage(
       break;
     }
     // Set the hidden state of a GUI input.
-    case 'gui_set_hidden': {
+    case 'GuiSetHiddenMessage': {
       const curGuiConfigFromName =
         store.getState().custom_gui.guiConfigFromName;
       const currentConf = curGuiConfigFromName[message.name];
@@ -114,7 +110,7 @@ function handleMessage(
       break;
     }
     // Set the value of a GUI input.
-    case 'gui_set': {
+    case 'GuiSetValueMessage': {
       const curGuiConfigFromName =
         store.getState().custom_gui.guiConfigFromName;
       const currentConf = curGuiConfigFromName[message.name];
@@ -144,7 +140,7 @@ function handleMessage(
       break;
     }
     // Set leva conf of element.
-    case 'gui_set_leva_conf': {
+    case 'GuiSetLevaConfMessage': {
       const curGuiConfigFromName =
         store.getState().custom_gui.guiConfigFromName;
       const currentConf = curGuiConfigFromName[message.name];
@@ -164,11 +160,12 @@ function handleMessage(
       break;
     }
     // Remove a GUI input.
-    case 'remove_gui': {
+    case 'GuiRemoveMessage': {
+      // TODO: not implemented.
       break;
     }
     // Update scene box.
-    case 'scene_box': {
+    case 'SceneBoxMessage': {
       dispatch({
         type: 'write',
         path: 'sceneState/sceneBox',
@@ -177,7 +174,7 @@ function handleMessage(
       break;
     }
     // Add dataset image.
-    case 'dataset_image': {
+    case 'DatasetImageMessage': {
       const dataset_path = `sceneState/cameras/${message.idx}`;
       dispatch({
         type: 'write',
@@ -187,7 +184,7 @@ function handleMessage(
       break;
     }
     // Set training value.
-    case 'is_training': {
+    case 'IsTrainingMessage': {
       dispatch({
         type: 'write',
         path: 'renderingState/isTraining',
@@ -196,7 +193,7 @@ function handleMessage(
       break;
     }
     // Populate camera paths.
-    case 'camera_paths': {
+    case 'CameraPathsMessage': {
       dispatch({
         type: 'write',
         path: 'all_camera_paths',
@@ -205,7 +202,7 @@ function handleMessage(
       break;
     }
     // Set file path info.
-    case 'path_info': {
+    case 'FilePathInfoMessage': {
       dispatch({
         type: 'write',
         path: 'file_path_info/config_base_dir',
@@ -224,7 +221,7 @@ function handleMessage(
       break;
     }
     // Set crop parameters
-    case 'crop_params': {
+    case 'CropParamsMessage': {
       dispatch({
         type: 'write',
         path: 'renderingState/crop_enabled',
@@ -248,7 +245,7 @@ function handleMessage(
       break;
     }
     // Handle status messages.
-    case 'status': {
+    case 'StatusMessage': {
       dispatch({
         type: 'write',
         path: 'renderingState/eval_res',

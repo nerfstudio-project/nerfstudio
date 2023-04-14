@@ -18,171 +18,104 @@
 from __future__ import annotations
 
 import dataclasses
-import functools
-from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Tuple, Type, cast
+from typing import Any, Tuple
 
-import msgpack
-import numpy as onp
-from typing_extensions import Literal
-
-if TYPE_CHECKING:
-    from ._server import ClientId
-else:
-    ClientId = Any
+import viser.infra
+from typing_extensions import Literal, override
 
 
-def _prepare_for_serialization(value: Any) -> Any:
-    """Prepare any special types for serialization. Currently just maps numpy arrays to
-    their underlying data buffers."""
-
-    if isinstance(value, onp.ndarray):
-        return value.data if value.data.c_contiguous else value.copy().data
-    return value
-
-
-class Message:
+class NerfstudioMessage(viser.infra.Message):
     """Base message type for controlling our viewer."""
 
-    type: ClassVar[str]
-    excluded_self_client: Optional[ClientId] = None
-    """Don't send this message to a particular client. Example of when this is useful:
-    for synchronizing GUI stuff, we want to """
-
-    def serialize(self) -> bytes:
-        """Convert a Python Message object into bytes."""
-        mapping = {k: _prepare_for_serialization(v) for k, v in vars(self).items()}
-        out = msgpack.packb({"type": self.type, **mapping})
-        assert isinstance(out, bytes)
-        return out
-
-    @staticmethod
-    def deserialize(message: bytes) -> Message:
-        """Convert bytes into a Python Message object."""
-        mapping = msgpack.unpackb(message)
-
-        # msgpack deserializes to lists by default, but all of our annotations use
-        # tuples.
-        mapping = {k: tuple(v) if isinstance(v, list) else v for k, v in mapping.items()}
-        message_type = Message._subclass_from_type_string()[cast(str, mapping.pop("type"))]
-        return message_type(**mapping)
-
-    @staticmethod
-    @functools.lru_cache(maxsize=1)
-    def _subclass_from_type_string() -> Dict[str, Type[Message]]:
-        subclasses = Message.get_subclasses()
-        return {s.type: s for s in subclasses}
-
-    @staticmethod
-    def get_subclasses() -> List[Type[Message]]:
-        """Recursively get message subclasses."""
-
-        def _get_subclasses(typ: Type[Message]) -> List[Type[Message]]:
-            out = []
-            for sub in typ.__subclasses__():
-                out.append(sub)
-                out.extend(_get_subclasses(sub))
-            return out
-
-        return _get_subclasses(Message)
-
-    def unique_id(self) -> str:
-        """Returns a unique identifier for this message, used for caching purposes."""
-        return self.type
+    @override
+    def redundancy_key(self) -> str:
+        return type(self).__name__
 
 
 @dataclasses.dataclass
-class BackgroundImageMessage(Message):
+class BackgroundImageMessage(NerfstudioMessage):
     """Message for rendering a background image."""
 
-    type: ClassVar[str] = "background_image"
     media_type: Literal["image/jpeg", "image/png"]
     base64_data: str
 
 
 @dataclasses.dataclass
-class GuiAddMessage(Message):
+class GuiAddMessage(NerfstudioMessage):
     """Sent server->client to add a new GUI input."""
 
-    type: ClassVar[str] = "add_gui"
     name: str
     folder_labels: Tuple[str]
     leva_conf: Any
 
-    def unique_id(self) -> str:
-        return f"{self.type}_{self.name}"
+    @override
+    def redundancy_key(self) -> str:
+        return f"{type(self).__name__}_{self.name}"
 
 
 @dataclasses.dataclass
-class GuiRemoveMessage(Message):
+class GuiRemoveMessage(NerfstudioMessage):
     """Sent server->client to add a new GUI input."""
 
-    type: ClassVar[str] = "remove_gui"
     name: str
 
-    def unique_id(self) -> str:
-        return f"{self.type}_{self.name}"
+    @override
+    def redundancy_key(self) -> str:
+        return f"{type(self).__name__}_{self.name}"
 
 
 @dataclasses.dataclass
-class GuiUpdateMessage(Message):
+class GuiUpdateMessage(NerfstudioMessage):
     """Sent client->server when a GUI input is changed."""
 
-    type: ClassVar[str] = "gui_update"
     name: str
     value: Any
 
-    def unique_id(self) -> str:
-        return f"{self.type}_{self.name}"
+    @override
+    def redundancy_key(self) -> str:
+        return f"{type(self).__name__}_{self.name}"
 
 
 @dataclasses.dataclass
-class GuiSetHiddenMessage(Message):
+class GuiSetHiddenMessage(NerfstudioMessage):
     """Sent client->server when a GUI input is changed."""
 
-    type: ClassVar[str] = "gui_set_hidden"
     name: str
     hidden: bool
 
-    def unique_id(self) -> str:
-        return f"{self.type}_{self.name}"
+    @override
+    def redundancy_key(self) -> str:
+        return f"{type(self).__name__}_{self.name}"
 
 
 @dataclasses.dataclass
-class GuiSetValueMessage(Message):
+class GuiSetValueMessage(NerfstudioMessage):
     """Sent server->client to set the value of a particular input."""
 
-    type: ClassVar[str] = "gui_set"
     name: str
     value: Any
 
-    def unique_id(self) -> str:
-        return f"{self.type}_{self.name}"
+    @override
+    def redundancy_key(self) -> str:
+        return f"{type(self).__name__}_{self.name}"
 
 
 @dataclasses.dataclass
-class GuiSetLevaConfMessage(Message):
+class GuiSetLevaConfMessage(NerfstudioMessage):
     """Sent server->client to override some part of an input's Leva config."""
 
-    type: ClassVar[str] = "gui_set_leva_conf"
     name: str
     leva_conf: Any
 
-    def unique_id(self) -> str:
-        return f"{self.type}_{self.name}"
+    @override
+    def redundancy_key(self) -> str:
+        return f"{type(self).__name__}_{self.name}"
 
 
 @dataclasses.dataclass
-class ResetSceneMessage(Message):
-    """Reset scene."""
-
-    type: ClassVar[str] = "reset_scene"
-
-
-@dataclasses.dataclass
-class FilePathInfoMessage(Message):
+class FilePathInfoMessage(NerfstudioMessage):
     """Experiment file path info"""
 
-    type: ClassVar[str] = "path_info"
     config_base_dir: str
     """ Base directory for config files """
     data_base_dir: str
@@ -192,10 +125,9 @@ class FilePathInfoMessage(Message):
 
 
 @dataclasses.dataclass
-class CameraMessage(Message):
+class CameraMessage(NerfstudioMessage):
     """Render camera data."""
 
-    type: ClassVar[str] = "camera"
     aspect: float
     """ Aspect ratio of the camera """
     render_aspect: float
@@ -215,10 +147,9 @@ class CameraMessage(Message):
 
 
 @dataclasses.dataclass
-class SceneBoxMessage(Message):
+class SceneBoxMessage(NerfstudioMessage):
     """Scene Box data."""
 
-    type: ClassVar[str] = "scene_box"
     min: Tuple[float, float, float]
     """ Minimum coordinates of the scene box """
     max: Tuple[float, float, float]
@@ -226,33 +157,31 @@ class SceneBoxMessage(Message):
 
 
 @dataclasses.dataclass
-class DatasetImageMessage(Message):
+class DatasetImageMessage(NerfstudioMessage):
     """Message for rendering a dataset image frustum."""
 
-    type: ClassVar[str] = "dataset_image"
     idx: str
     """Index of the image in the threejs scene"""
     json: Any
     """JSON computed by the camera class"""
 
-    def unique_id(self) -> str:
-        return f"{self.type}_{self.idx}"
+    @override
+    def redundancy_key(self) -> str:
+        return f"{type(self).__name__}_{self.idx}"
 
 
 @dataclasses.dataclass
-class IsTrainingMessage(Message):
+class IsTrainingMessage(NerfstudioMessage):
     """Wheather the scene is in training mode or not."""
 
-    type: ClassVar[str] = "is_training"
     is_training: bool
     """True if the model is currently trianing, False otherwise"""
 
 
 @dataclasses.dataclass
-class CameraPathPayloadMessage(Message):
+class CameraPathPayloadMessage(NerfstudioMessage):
     """Camera path"""
 
-    type: ClassVar[str] = "camera_path_payload"
     camera_path_filename: str
     """ Camera path filename """
     camera_path: Any
@@ -260,26 +189,22 @@ class CameraPathPayloadMessage(Message):
 
 
 @dataclasses.dataclass
-class CameraPathOptionsRequest(Message):
+class CameraPathOptionsRequest(NerfstudioMessage):
     """Request list of existing camera paths"""
-
-    type: ClassVar[str] = "camera_path_options"
 
 
 @dataclasses.dataclass
-class CameraPathsMessage(Message):
+class CameraPathsMessage(NerfstudioMessage):
     """Dictionary of camera paths"""
 
-    type: ClassVar[str] = "camera_paths"
     payload: Any
     """ Dictionary of camera paths """
 
 
 @dataclasses.dataclass
-class CropParamsMessage(Message):
+class CropParamsMessage(NerfstudioMessage):
     """Crop parameters"""
 
-    type: ClassVar[str] = "crop_params"
     crop_enabled: bool
     """ Crop parameters """
     crop_bg_color: Tuple[int, int, int]
@@ -291,10 +216,9 @@ class CropParamsMessage(Message):
 
 
 @dataclasses.dataclass
-class StatusMessage(Message):
+class StatusMessage(NerfstudioMessage):
     """Status message."""
 
-    type: ClassVar[str] = "status"
     eval_res: str
     """ Resolution of the viewer display in plain text """
     step: int
@@ -302,7 +226,5 @@ class StatusMessage(Message):
 
 
 @dataclasses.dataclass
-class SaveCheckpointMessage(Message):
+class SaveCheckpointMessage(NerfstudioMessage):
     """Save checkpoint message."""
-
-    type: ClassVar[str] = "save_checkpoint"

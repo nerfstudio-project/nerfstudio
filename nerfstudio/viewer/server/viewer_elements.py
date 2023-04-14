@@ -81,7 +81,8 @@ class ViewerButton(ViewerElement):
         super().__init__(name, disabled=disabled, cb_hook=call_fn)
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        self.gui_handle = viser_server.add_gui_button(self.name, disabled=self.disabled)
+        self.gui_handle = viser_server.add_gui_button(self.name)
+        self.gui_handle.set_disabled(self.disabled)
 
     def install(self, viser_server: ViserServer) -> None:
         self._create_gui_handle(viser_server)
@@ -172,9 +173,8 @@ class ViewerSlider(ViewerParameter):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_slider(
-            self.name, self.min, self.max, self.step, self.def_value, disabled=self.disabled
-        )
+        self.gui_handle = viser_server.add_gui_slider(self.name, self.min, self.max, self.step, self.def_value)
+        self.gui_handle.set_disabled(self.disabled)
 
 
 class ViewerText(ViewerParameter):
@@ -199,7 +199,8 @@ class ViewerText(ViewerParameter):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_text(self.name, self.def_value, disabled=self.disabled)
+        self.gui_handle = viser_server.add_gui_text(self.name, self.def_value)
+        self.gui_handle.set_disabled(self.disabled)
 
 
 class ViewerNumber(ViewerParameter):
@@ -224,7 +225,7 @@ class ViewerNumber(ViewerParameter):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_number(self.name, self.def_value, disabled=self.disabled)
+        self.gui_handle = viser_server.add_gui_number(self.name, self.def_value)
 
 
 class ViewerCheckbox(ViewerParameter):
@@ -249,7 +250,8 @@ class ViewerCheckbox(ViewerParameter):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_checkbox(self.name, self.def_value, disabled=self.disabled)
+        self.gui_handle = viser_server.add_gui_checkbox(self.name, self.def_value)
+        self.gui_handle.set_disabled(self.disabled)
 
 
 class ViewerDropdown(ViewerParameter):
@@ -277,7 +279,8 @@ class ViewerDropdown(ViewerParameter):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_select(self.name, self.options, self.def_value, disabled=self.disabled)
+        self.gui_handle = viser_server.add_gui_select(self.name, self.options, self.def_value)
+        self.gui_handle.set_disabled(self.disabled)
 
     def set_options(self, new_options: List[str]) -> None:
         """
@@ -304,7 +307,8 @@ class ViewerRGB(ViewerParameter):
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        self.gui_handle = viser_server.add_gui_rgb(self.name, self.def_value, disabled=self.disabled)
+        self.gui_handle = viser_server.add_gui_rgb(self.name, self.def_value)
+        self.gui_handle.set_disabled(self.disabled)
 
 
 class ViewerVec3(ViewerParameter):
@@ -325,4 +329,5 @@ class ViewerVec3(ViewerParameter):
         self.step = step
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        self.gui_handle = viser_server.add_gui_vector3(self.name, self.def_value, self.step, disabled=self.disabled)
+        self.gui_handle = viser_server.add_gui_vector3(self.name, self.def_value, self.step)
+        self.gui_handle.set_disabled(self.disabled)

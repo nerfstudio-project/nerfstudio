@@ -49,7 +49,7 @@ from nerfstudio.viewer.viser._messages import (
     CameraPathPayloadMessage,
     CropParamsMessage,
     IsTrainingMessage,
-    Message,
+    NerfstudioMessage,
     SaveCheckpointMessage,
 )
 
@@ -176,20 +176,20 @@ class ViewerState:
             crop_center=tuple(crop_center.tolist()),
         )
 
-    def _handle_is_training(self, message: Message) -> None:
+    def _handle_is_training(self, message: NerfstudioMessage) -> None:
         """Handle is_training message from viewer."""
         assert isinstance(message, IsTrainingMessage)
         self.is_training = message.is_training
         self.train_btn_state = message.is_training
         self.viser_server.set_is_training(message.is_training)
 
-    def _handle_save_checkpoint(self, message: Message) -> None:
+    def _handle_save_checkpoint(self, message: NerfstudioMessage) -> None:
         """Handle is_training message from viewer."""
         assert isinstance(message, SaveCheckpointMessage)
         if self.trainer is not None:
             self.trainer.save_checkpoint(self.step)
 
-    def _handle_camera_update(self, message: Message) -> None:
+    def _handle_camera_update(self, message: NerfstudioMessage) -> None:
         """Handle camera update message from viewer."""
         assert isinstance(message, CameraMessage)
         self.camera_message = message
@@ -201,7 +201,7 @@ class ViewerState:
             self.render_statemachine.action(RenderAction("static", self.camera_message))
             self.is_training = self.train_btn_state
 
-    def _handle_camera_path_option_request(self, message: Message) -> None:
+    def _handle_camera_path_option_request(self, message: NerfstudioMessage) -> None:
         """Handle camera path option request message from viewer."""
         assert isinstance(message, CameraPathOptionsRequest)
         camera_path_dir = self.datapath / "camera_paths"
@@ -212,7 +212,7 @@ class ViewerState:
                     all_path_dict[path.stem] = load_from_json(path)
             self.viser_server.send_camera_paths(all_path_dict)
 
-    def _handle_camera_path_payload(self, message: Message) -> None:
+    def _handle_camera_path_payload(self, message: NerfstudioMessage) -> None:
         """Handle camera path payload message from viewer."""
         assert isinstance(message, CameraPathPayloadMessage)
         camera_path_filename = message.camera_path_filename + ".json"
@@ -221,7 +221,7 @@ class ViewerState:
         camera_paths_directory.mkdir(parents=True, exist_ok=True)
         write_to_json(camera_paths_directory / camera_path_filename, camera_path)
 
-    def _handle_crop_params_message(self, message: Message) -> None:
+    def _handle_crop_params_message(self, message: NerfstudioMessage) -> None:
         """Handle crop parameters message from viewer."""
         assert isinstance(message, CropParamsMessage)
         self.control_panel.crop_viewport = message.crop_enabled

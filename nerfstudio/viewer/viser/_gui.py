@@ -13,8 +13,10 @@
 # limitations under the License.
 
 # pylint: disable=protected-access
-""" Manages GUI communication """
+""" Manages GUI communication.
 
+Should be almost identical to: https://github.com/brentyi/viser/blob/main/viser/_gui.py
+"""
 from __future__ import annotations
 
 import dataclasses
@@ -33,6 +35,7 @@ from typing import (
 )
 
 import numpy as onp
+from viser.infra import ClientId
 
 from ._messages import (
     GuiRemoveMessage,
@@ -43,7 +46,6 @@ from ._messages import (
 
 if TYPE_CHECKING:
     from ._message_api import MessageApi
-    from ._server import ClientId
 
 
 T = TypeVar("T")
@@ -82,6 +84,8 @@ class _GuiHandleState(Generic[T]):
     #
     # This helps us handle cases where types used by Leva don't match what we want to
     # expose as a Python API.
+    #
+    # noqa because ruff --fix currently breaks these lines.
     encoder: Callable[[T], Any] = lambda x: x  # noqa
     decoder: Callable[[Any], T] = lambda x: x  # noqa
 
@@ -104,21 +108,18 @@ class GuiHandle(Generic[T]):
         return func
 
     def get_value(self) -> T:
-        """Returns the value from GUI component"""
+        """Get the value of the GUI input."""
         return self._impl.value
 
     def get_update_timestamp(self) -> float:
-        """Returns the timestamp of the last update."""
+        """Get the last time that this input was updated."""
         return self._impl.last_updated
 
-    def set_value(self, value: Union[T, onp.ndarray]) -> None:
-        """Set the value of the GUI component
-
-        Args:
-            value: The value to set the GUI component to.
-        """
+    def set_value(self, value: Union[T, onp.ndarray]) -> GuiHandle[T]:
+        """Set the value of the GUI input."""
         if isinstance(value, onp.ndarray):
             assert len(value.shape) <= 1, f"{value.shape} should be at most 1D!"
+            value = tuple(map(float, value))  # type: ignore
 
         # Send to client, except for buttons.
         if not self._impl.is_button:
@@ -133,12 +134,10 @@ class GuiHandle(Generic[T]):
         for cb in self._impl.update_cb:
             cb(self)
 
-    def set_disabled(self, disabled: bool) -> None:
-        """Set the disabled state of the GUI component
+        return self
 
-        Args:
-            disabled: The disabled state to set the GUI component to.
-        """
+    def set_disabled(self, disabled: bool) -> GuiHandle[T]:
+        """Allow/disallow user interaction with the input."""
         if self._impl.is_button:
             self._impl.leva_conf["settings"]["disabled"] = disabled
             self._impl.api._queue(
@@ -150,26 +149,32 @@ class GuiHandle(Generic[T]):
                 GuiSetLevaConfMessage(self._impl.name, self._impl.leva_conf),
             )
 
+        return self
+
+    def set_hidden(self, hidden: bool) -> GuiHandle[T]:
+        """Temporarily hide this GUI element from the visualizer."""
+        self._impl.api._queue(GuiSetHiddenMessage(self._impl.name, hidden=hidden))
+        return self
+
     def remove(self) -> None:
-        """Permanently Remove this GUI element from the visualizer."""
+        """Permanently remove this GUI element from the visualizer."""
         self._impl.api._queue(GuiRemoveMessage(self._impl.name))
         assert self._impl.cleanup_cb is not None
         self._impl.cleanup_cb()
 
-    def set_hidden(self, hidden: bool) -> None:
-        """Temporarily hide this GUI element from the visualizer."""
-        self._impl.api._queue(GuiSetHiddenMessage(self._impl.name, hidden=hidden))
 
-
-StringType = TypeVar("StringType", bound=str)  # pylint: disable=invalid-name
+TString = TypeVar("TString", bound=str)
 
 
 @dataclasses.dataclass(frozen=True)
-class GuiSelectHandle(Generic[StringType], GuiHandle[StringType]):
-    """Handle for a particular GUI select input in the visualizer."""
+class GuiSelectHandle(GuiHandle[TString], Generic[TString]):
+    """Handle for a particular drop-down input in our visualizer.
 
-    def set_options(self, options: List[StringType]) -> None:
+    Lets us get values, set values, and detect updates."""
+
+    def set_options(self, options: List[TString]) -> None:
         """Assign a new set of options for the dropdown menu.
+
         For projects that care about typing: the static type of `options` should be
         consistent with the `StringType` associated with a handle. Literal types will be
         inferred where possible when handles are instantiated; for the most flexibility,
@@ -180,8 +185,10 @@ class GuiSelectHandle(Generic[StringType], GuiHandle[StringType]):
         if self._impl.leva_conf["value"] not in options:
             self._impl.leva_conf["value"] = options[0]
             overwrite_value = True
+
         self._impl.api._queue(
             GuiSetLevaConfMessage(self._impl.name, self._impl.leva_conf),
         )
+
         if overwrite_value:
             self.set_value(options[0])

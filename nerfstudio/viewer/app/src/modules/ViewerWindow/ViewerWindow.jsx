@@ -17,7 +17,6 @@ import {
   makeThrottledMessageSender,
   ViserWebSocketContext,
 } from '../WebSocket/ViserWebSocket';
-import { CameraMessage } from '../WebSocket/ViserMessages';
 
 function CameraToggle() {
   const dispatch = useDispatch();
@@ -259,8 +258,8 @@ export default function ViewerWindow(props) {
       is_moving = true;
     }
     old_camera_matrix = sceneTree.metadata.camera.matrix.elements.slice();
-    const viser_message: CameraMessage = {
-      type: 'camera',
+    sendThrottledCameraMessage({
+      type: 'CameraMessage',
       aspect: sceneTree.metadata.camera.aspect,
       render_aspect,
       fov: sceneTree.metadata.camera.fov,
@@ -268,8 +267,7 @@ export default function ViewerWindow(props) {
       camera_type,
       is_moving,
       timestamp: +new Date(),
-    };
-    sendThrottledCameraMessage(viser_message);
+    });
   };
 
   // keep sending the camera often
@@ -289,8 +287,8 @@ export default function ViewerWindow(props) {
   );
   useEffect(() => {
     if (isWebsocketConnected) {
-      const viser_message: CameraMessage = {
-        type: 'camera',
+      sendThrottledCameraMessage({
+        type: 'CameraMessage',
         aspect: sceneTree.metadata.camera.aspect,
         render_aspect,
         fov: sceneTree.metadata.camera.fov,
@@ -298,8 +296,7 @@ export default function ViewerWindow(props) {
         camera_type,
         is_moving: false,
         timestamp: +new Date(),
-      };
-      sendThrottledCameraMessage(viser_message);
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isWebsocketConnected]);

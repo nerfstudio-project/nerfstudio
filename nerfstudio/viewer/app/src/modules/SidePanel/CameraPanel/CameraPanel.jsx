@@ -905,10 +905,7 @@ export default function CameraPanel(props) {
     // inspired by:
     // https://stackoverflow.com/questions/55613438/reactwrite-to-json-file-or-export-download-no-server
 
-    const save_chkpt_message: SaveCheckpointMessage = {
-      type: 'save_checkpoint',
-    };
-    sendWebsocketMessage(viser_websocket, save_chkpt_message);
+    sendWebsocketMessage(viser_websocket, { type: 'SaveCheckpointMessage' });
 
     const camera_path_object = get_camera_path();
     console.log(camera_render.toJSON());
@@ -970,14 +967,13 @@ export default function CameraPanel(props) {
 
     if ('crop' in camera_path_object && camera_path_object.crop !== null) {
       const bg_color = camera_path_object.crop.crop_bg_color;
-      const message: CropParamsMessage = {
+      sendWebsocketMessage(viser_websocket, {
         type: 'crop_params',
         crop_enabled: true,
         crop_bg_color: [bg_color.r, bg_color.g, bg_color.b],
         crop_center: camera_path_object.crop.crop_center,
         crop_scale: camera_path_object.crop.crop_scale,
-      };
-      sendWebsocketMessage(viser_websocket, message);
+      });
     }
   };
 
@@ -998,23 +994,16 @@ export default function CameraPanel(props) {
 
     const camera_path_object = get_camera_path();
 
-    const path_payload_message: CameraPathPayloadMessage = {
-      type: 'camera_path_payload',
+    sendWebsocketMessage(viser_websocket, {
+      type: 'CameraPathPayloadMessage',
       camera_path_filename: export_path,
       camera_path: camera_path_object,
-    };
-    sendWebsocketMessage(viser_websocket, path_payload_message);
-    const save_chkpt_message: SaveCheckpointMessage = {
-      type: 'save_checkpoint',
-    };
-    sendWebsocketMessage(viser_websocket, save_chkpt_message);
+    });
+    sendWebsocketMessage(viser_websocket, { type: 'SaveCheckpointMessage' });
   };
 
   const open_load_path_modal = () => {
-    const message: CameraPathOptionsRequest = {
-      type: 'camera_path_options',
-    };
-    sendWebsocketMessage(viser_websocket, message);
+    sendWebsocketMessage(viser_websocket, { type: 'CameraPathOptionsRequest' });
     setLoadPathModalOpen(true);
   };
 

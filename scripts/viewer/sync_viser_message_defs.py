@@ -3,14 +3,16 @@
 import pathlib
 import subprocess
 
-from nerfstudio.viewer.viser._typescript_interface_gen import generate_typescript_defs
+from viser.infra import generate_typescript_interfaces
+
+from nerfstudio.viewer.viser import NerfstudioMessage
 
 
 def entrypoint() -> None:
     """Generate viser message definitions for TypeScript, by parsing Python dataclasses."""
 
     # Generate typescript source.
-    defs = generate_typescript_defs()
+    defs = generate_typescript_interfaces(NerfstudioMessage)
 
     # Write to file.
     # Three parents from nerfstudio/scripts/viewer/sync_viser_message_defs.py:

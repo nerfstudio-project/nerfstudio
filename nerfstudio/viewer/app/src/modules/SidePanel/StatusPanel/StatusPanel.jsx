@@ -59,11 +59,10 @@ export default function StatusPanel(props: StatusPanelProps) {
       path: 'renderingState/isTraining',
       data: !isTraining,
     });
-    const viser_message: IsTrainingMessage = {
-      type: 'is_training',
+    sendWebsocketMessage(viser_websocket, {
+      type: 'IsTrainingMessage',
       is_training: !isTraining,
-    };
-    sendWebsocketMessage(viser_websocket, viser_message);
+    });
   };
   const is_training_text = isTraining ? 'Pause Training' : 'Resume Training';
   const training_icon = isTraining ? <PauseIcon /> : <PlayArrowIcon />;
