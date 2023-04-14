@@ -20,7 +20,7 @@ To list the available methods run:
 ns-train --help
 ```
 
-## Impelmented Methods
+## Implemented Methods
 
 The following methods are supported in nerfstudio:
 
