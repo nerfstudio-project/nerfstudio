@@ -15,7 +15,6 @@ import {
   sendWebsocketMessage,
   makeThrottledMessageSender,
 } from '../WebSocket/ViserWebSocket';
-import { GuiUpdateMessage } from '../WebSocket/ViserMessages';
 
 function CustomLeva() {
   const viser_websocket = React.useContext(ViserWebSocketContext);
