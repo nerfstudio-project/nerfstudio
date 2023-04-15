@@ -201,8 +201,8 @@ class RFFEncoding(Encoding):
         Returns:
             Output values will be between -1 and 1
         """
-        in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
-        scaled_inputs = in_tensor @ self.b_matrix  # [..., "num_frequencies"]
+        scaled_in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
+        scaled_inputs = scaled_in_tensor @ self.b_matrix  # [..., "num_frequencies"]
 
         if covs is None:
             encoded_inputs = torch.sin(torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1))
