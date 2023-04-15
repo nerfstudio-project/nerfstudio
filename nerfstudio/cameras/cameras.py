@@ -62,11 +62,7 @@ CAMERA_MODEL_TO_TYPE = {
 class Cameras(TensorDataclass):
     """Dataparser outputs for the image dataset and the ray generator.
 
-    Note: currently only supports cameras with the same principal points and types. The reason we type
-    the focal lengths, principal points, and image sizes as tensors is to allow for batched cameras
-    down the line in cases where your batches of camera data don't come from the same cameras.
-
-     If a single value is provided, it is broadcasted to all cameras.
+    If a single value is provided, it is broadcasted to all cameras.
 
     Args:
         camera_to_worlds: Camera to world matrices. Tensor of per-image c2w matrices, in [R | t] format
