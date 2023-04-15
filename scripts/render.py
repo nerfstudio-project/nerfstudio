@@ -283,7 +283,7 @@ class RenderTrajectory:
 
     def main(self) -> None:
         """Main function."""
-        _, pipeline, _ = eval_setup(
+        _, pipeline, _, _ = eval_setup(
             self.load_config,
             eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
             test_mode="test" if self.traj in ["spiral", "interpolate"] else "inference",

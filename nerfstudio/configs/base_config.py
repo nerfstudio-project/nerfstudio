@@ -23,10 +23,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, Type
 
+from typing_extensions import Literal
+
 # model instances
 from nerfstudio.utils import writer
 
 warnings.filterwarnings("ignore", module="torchvision")
+
 
 # Pretty printing class
 class PrintableConfig:  # pylint: disable=too-few-public-methods
@@ -128,17 +131,10 @@ class ViewerConfig(PrintableConfig):
 
     relative_log_filename: str = "viewer_log_filename.txt"
     """Filename to use for the log file."""
-    start_train: bool = True
-    """whether to immediately start training upon loading viewer
-    if False, will just visualize dataset but you can toggle training in viewer"""
-    zmq_port: Optional[int] = None
-    """The zmq port to connect to for communication. If None, find an available port."""
-    launch_bridge_server: bool = True
-    """whether or not to launch the bridge server"""
-    websocket_port: Optional[int] = 7007
-    """the default websocket port to connect to"""
-    ip_address: str = "127.0.0.1"
-    """the ip address where the bridge server is running"""
+    websocket_port: Optional[int] = None
+    """The websocket port to connect to. If None, find an available port."""
+    websocket_port_default: int = 7007
+    """The default websocket port to connect to if websocket_port is not specified"""
     num_rays_per_chunk: int = 32768
     """number of rays per chunk to render with viewer"""
     max_num_display_images: int = 512
@@ -146,3 +142,7 @@ class ViewerConfig(PrintableConfig):
     actually used in training/evaluation. If -1, display all."""
     quit_on_train_completion: bool = False
     """Whether to kill the training job when it has completed. Note this will stop rendering in the viewer."""
+    image_format: Literal["jpeg", "png"] = "jpeg"
+    """Image format viewer should use; jpeg is lossy compression, while png is lossless."""
+    jpeg_quality: int = 90
+    """Quality tradeoff to use for jpeg compression."""

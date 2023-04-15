@@ -338,7 +338,7 @@ class MiDaSMSELoss(nn.Module):
     def __init__(self, reduction_type: Literal["image", "batch"] = "batch"):
         super().__init__()
 
-        self.reduction_type = reduction_type
+        self.reduction_type: Literal["image", "batch"] = reduction_type
         # reduction here is different from the image/batch-based reduction. This is either "mean" or "sum"
         self.mse_loss = MSELoss(reduction="none")
 
