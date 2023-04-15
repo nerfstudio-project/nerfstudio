@@ -86,7 +86,7 @@ from nerfstudio.viewer.server.viewer_elements import *
 
 class MyModel(Model):
     def __init__(self):
-        self.a = ViewerButton(name="My Button", call_fn=self.handle_btn)
+        self.a = ViewerButton(name="My Button", cb_hook=self.handle_btn)
         self.b = ViewerNumber(name="Number", default_value=1.0)
         self.c = ViewerCheckbox(name="Checkbox", default_value=False)
         self.d = ViewerDropdown(name="Dropdown", default_value="A", options=["A", "B"])
