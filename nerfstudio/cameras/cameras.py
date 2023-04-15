@@ -79,6 +79,8 @@ class Cameras(TensorDataclass):
         distortion_params: OpenCV 6 radial distortion coefficients
         camera_type: Type of camera model. This will be an int corresponding to the CameraType enum.
         times: Timestamps for each camera
+        metadata: Additional metadata or data needed for interpolation, will mimic shape of the cameras
+            and will be broadcasted to the rays generated from any derivative RaySamples we create with this
     """
 
     camera_to_worlds: TensorType["num_cameras":..., 3, 4]
