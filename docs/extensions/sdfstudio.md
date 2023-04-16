@@ -34,6 +34,7 @@ We intend to integrate many of the SDFStudio improvments back into the nerstudio
 Supported methods:
 
 - NeuS
+- NeuS-facto
 
 ## Citation
 
