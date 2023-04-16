@@ -44,12 +44,12 @@ This Blender add-on allows for compositing with a Nerfstudio render as a backgro
 
    - In object properties, select "Shadow Catcher". This makes the representation invisible in the render, but all shadows cast on it will render. You may have to switch to the cycles renderer to see the shadow catcher option.
    <center>
-   <img width="200" alt="image" src="https://user-images.githubusercontent.com/9502341/211244787-859ca9b5-6ba2-4056-aaf2-c89fc6370c2a.png">
+   <img width="300" alt="image" src="https://user-images.githubusercontent.com/9502341/211244787-859ca9b5-6ba2-4056-aaf2-c89fc6370c2a.png">
    </center>
 
    - Note: This may not give ideal results if the mesh is not very clear or occludes other objects in the scene. If this is the case, you can hide the mesh from the render instead by clicking the camera button in the Outliner next to its name.
    <center>
-   <img width="200" alt="image" src="https://user-images.githubusercontent.com/9502341/211244858-54091d36-086d-4211-a7d9-75dcfdcb1436.png">
+   <img width="300" alt="image" src="https://user-images.githubusercontent.com/9502341/211244858-54091d36-086d-4211-a7d9-75dcfdcb1436.png">
    </center>
 
 2. Verify that the animation plays and the NeRF representation does not occlude the camera.
