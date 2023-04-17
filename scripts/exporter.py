@@ -77,7 +77,7 @@ class ExportPointCloud(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _, _ = eval_setup(self.load_config)
 
         # Increase the batchsize to speed up the evaluation.
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
@@ -147,7 +147,7 @@ class ExportTSDFMesh(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _, _ = eval_setup(self.load_config)
 
         tsdf_utils.export_tsdf_mesh(
             pipeline,
@@ -253,7 +253,7 @@ class ExportPoissonMesh(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _, _ = eval_setup(self.load_config)
         self.validate_pipeline(pipeline)
 
         # Increase the batchsize to speed up the evaluation.
@@ -342,7 +342,7 @@ class ExportMarchingCubesMesh(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _, _ = eval_setup(self.load_config)
 
         # TODO: Make this work with Density Field
         assert hasattr(pipeline.model.config, "sdf_field"), "Model must have an SDF field."
@@ -391,7 +391,7 @@ class ExportCameraPoses(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _, _ = eval_setup(self.load_config)
         assert isinstance(pipeline, VanillaPipeline)
         train_frames, eval_frames = collect_camera_poses(pipeline)
 

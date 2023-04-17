@@ -16,13 +16,15 @@ export default function RenderModal(props: RenderModalProps) {
 
   // redux store state
   const config_base_dir = useSelector(
-    (state) => state.renderingState.config_base_dir,
+    (state) => state.file_path_info.config_base_dir,
   );
 
-  const export_path = useSelector((state) => state.renderingState.export_path);
+  const export_path = useSelector(
+    (state) => state.file_path_info.export_path_name,
+  );
 
   const data_base_dir = useSelector(
-    (state) => state.renderingState.data_base_dir,
+    (state) => state.file_path_info.data_base_dir,
   );
 
   // react state

@@ -23,6 +23,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from threading import Lock
 from typing import Dict, List, Optional, Tuple, Type, Union
 
 import torch
@@ -46,7 +47,7 @@ from nerfstudio.utils.decorators import (
 )
 from nerfstudio.utils.misc import step_check
 from nerfstudio.utils.writer import EventName, TimeWriter
-from nerfstudio.viewer.server import viewer_utils
+from nerfstudio.viewer.server.viewer_state import ViewerState
 
 CONSOLE = Console(width=120)
 
@@ -103,6 +104,7 @@ class Trainer:
         pipeline: The pipeline object.
         optimizers: The optimizers object.
         callbacks: The callbacks object.
+        is_training: Whether the model is training.
     """
 
     pipeline: VanillaPipeline
@@ -110,11 +112,13 @@ class Trainer:
     callbacks: List[TrainingCallback]
 
     def __init__(self, config: TrainerConfig, local_rank: int = 0, world_size: int = 1) -> None:
+        self.train_lock = Lock()
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size
         self.device: TORCH_DEVICE = "cpu" if world_size == 0 else f"cuda:{local_rank}"
         self.mixed_precision: bool = self.config.mixed_precision
+        self.is_training: bool = True
         if self.device == "cpu":
             self.mixed_precision = False
             CONSOLE.print("Mixed precision is disabled for CPU training.")
@@ -138,6 +142,11 @@ class Trainer:
                 'test': loads train/test datasets into memory
                 'inference': does not load any dataset into memory
         """
+        self.pipeline = self.config.pipeline.setup(
+            device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
+        )
+        self.optimizers = self.setup_optimizers()
+
         # set up viewer if enabled
         viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
         self.viewer_state, banner_messages = None, None
@@ -145,15 +154,16 @@ class Trainer:
             datapath = self.config.data
             if datapath is None:
                 datapath = self.base_dir
-            self.viewer_state, banner_messages = viewer_utils.setup_viewer(
-                self.config.viewer, log_filename=viewer_log_path, datapath=datapath
+            self.viewer_state = ViewerState(
+                self.config.viewer,
+                log_filename=viewer_log_path,
+                datapath=datapath,
+                pipeline=self.pipeline,
+                trainer=self,
+                train_lock=self.train_lock,
             )
+            banner_messages = [f"Viewer at: {self.viewer_state.viewer_url}"]
         self._check_viewer_warnings()
-
-        self.pipeline = self.config.pipeline.setup(
-            device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
-        )
-        self.optimizers = self.setup_optimizers()
 
         self._load_checkpoint()
 
@@ -206,21 +216,26 @@ class Trainer:
             num_iterations = self.config.max_num_iterations
             step = 0
             for step in range(self._start_step, self._start_step + num_iterations):
-                with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
-                    self.pipeline.train()
+                while not self.is_training:
+                    time.sleep(0.01)
+                with self.train_lock:
+                    with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
+                        self.pipeline.train()
 
-                    # training callbacks before the training iteration
-                    for callback in self.callbacks:
-                        callback.run_callback_at_location(
-                            step, location=TrainingCallbackLocation.BEFORE_TRAIN_ITERATION
-                        )
+                        # training callbacks before the training iteration
+                        for callback in self.callbacks:
+                            callback.run_callback_at_location(
+                                step, location=TrainingCallbackLocation.BEFORE_TRAIN_ITERATION
+                            )
 
-                    # time the forward pass
-                    loss, loss_dict, metrics_dict = self.train_iteration(step)
+                        # time the forward pass
+                        loss, loss_dict, metrics_dict = self.train_iteration(step)
 
-                    # training callbacks after the training iteration
-                    for callback in self.callbacks:
-                        callback.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)
+                        # training callbacks after the training iteration
+                        for callback in self.callbacks:
+                            callback.run_callback_at_location(
+                                step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION
+                            )
 
                 # Skip the first two steps to avoid skewed timings that break the viewer rendering speed estimate.
                 if step > 1:
@@ -266,14 +281,8 @@ class Trainer:
         CONSOLE.print("[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:", justify="center")
         if not self.config.viewer.quit_on_train_completion:
             CONSOLE.print("Use ctrl+c to quit", justify="center")
-            self._always_render(step)
-
-    @check_main_thread
-    def _always_render(self, step: int) -> None:
-        if self.viewer_state is not None:
             while True:
-                self.viewer_state.vis["renderingState/isTraining"].write(False)
-                self._update_viewer_state(step)
+                time.sleep(0.01)
 
     @check_main_thread
     def _check_viewer_warnings(self) -> None:
@@ -295,10 +304,8 @@ class Trainer:
         assert self.viewer_state and self.pipeline.datamanager.train_dataset
         self.viewer_state.init_scene(
             dataset=self.pipeline.datamanager.train_dataset,
-            start_train=self.config.viewer.start_train,
+            start_train=True,
         )
-        if not self.config.viewer.start_train:
-            self._always_render(self._start_step)
 
     @check_viewer_enabled
     def _update_viewer_state(self, step: int) -> None:
@@ -309,16 +316,12 @@ class Trainer:
             step: current train step
         """
         assert self.viewer_state is not None
-        with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
-            num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
-            try:
-                self.viewer_state.update_scene(self, step, self.pipeline.model, num_rays_per_batch)
-            except RuntimeError:
-                time.sleep(0.03)  # sleep to allow buffer to reset
-                assert self.viewer_state.vis is not None
-                self.viewer_state.vis["renderingState/log_errors"].write(
-                    "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
-                )
+        num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
+        try:
+            self.viewer_state.update_scene(step, num_rays_per_batch)
+        except RuntimeError:
+            time.sleep(0.03)  # sleep to allow buffer to reset
+            CONSOLE.log("Viewer failed. Continuing training.")
 
     @check_viewer_enabled
     def _update_viewer_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int) -> None:
@@ -395,8 +398,10 @@ class Trainer:
         Args:
             step: Current training step.
         """
+
         self.optimizers.zero_grad_all()
         cpu_or_cuda_str: str = self.device.split(":")[0]
+
         with torch.autocast(device_type=cpu_or_cuda_str, enabled=self.mixed_precision):
             _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
             loss = functools.reduce(torch.add, loss_dict.values())
