@@ -20,9 +20,10 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Type, Union
+from typing import Dict, List, Tuple, Type, Union, Optional
 from pathlib import Path
 from copy import deepcopy
+from pathlib import Path, PurePath
 
 import torch
 from rich.progress import Console
@@ -300,7 +301,7 @@ class IterativeDataManager(DataManager):  # pylint: disable=abstract-method
 
         ray_bundle = cameras.generate_rays(
             torch.tensor([[i] for i in range(num_views)])
-        ).flatten()
+        ) 
 
         return ray_bundle, cameras, list(zip(vertical_rotation, central_rotation))
 
@@ -347,6 +348,12 @@ class IterativeDataManager(DataManager):  # pylint: disable=abstract-method
 
     def get_eval_rays_per_batch(self) -> int:
         return self.config.eval_resolution**2
+    
+    def get_datapath(self) -> Optional[Path]:  # pylint:disable=no-self-use
+        """Returns the path to the data. This is used to determine where to save camera paths."""
+        if self.temp_save_path is None:
+            raise Exception("need to set a temp save path")
+        return Path(self.temp_save_path)
 
     def get_param_groups(
         self,

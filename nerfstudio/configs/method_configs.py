@@ -33,9 +33,6 @@ from nerfstudio.data.datamanagers.dreamfusion_datamanager import (
 from nerfstudio.data.datamanagers.sdf_datamanager import SDFDataManagerConfig
 from nerfstudio.data.datamanagers.semantic_datamanager import SemanticDataManagerConfig
 from nerfstudio.data.datamanagers.iterative_datamanager import IterativeDataManagerConfig
-from nerfstudio.data.datamanagers.variable_res_datamanager import (
-    VariableResDataManagerConfig,
-)
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
 from nerfstudio.data.dataparsers.dycheck_dataparser import DycheckDataParserConfig

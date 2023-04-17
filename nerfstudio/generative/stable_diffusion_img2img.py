@@ -36,7 +36,7 @@ from PIL import Image
 
 
 try:
-    from diffusers import PNDMScheduler, StableDiffusionPipeline
+    from diffusers import PNDMScheduler, StableDiffusionPipeline, DDIMScheduler, DDPMScheduler
     from transformers import logging
 
     SD_AVAILABLE = True
@@ -86,6 +86,7 @@ class StableDiffusionImg2Img(nn.Module):
         self.max_step = int(self.num_train_timesteps * 0.98)
 
         self.scheduler = PNDMScheduler(
+            skip_prk_steps=True,
             beta_start=0.00085,
             beta_end=0.012,
             beta_schedule="scaled_linear",
@@ -342,22 +343,100 @@ class StableDiffusionImg2Img(nn.Module):
         latents = posterior.sample() * CONST_SCALE
 
         return latents
-
-    def update_img(self, text_embedding, image, num_inference_steps=50, guidance_scale=7.5):
+    
+    def search_updates(self, text_embedding, image):
         self.scheduler.set_timesteps(50)  # type: ignore
+        guidance_scale = 7.5
+
+        print(self.scheduler.timesteps)
+        print(len(self.scheduler.timesteps))
+
+        noise_strength = .8
+
+        # for noise_strength in (1.0, .95, .9, 0.8, 0.7, 0.5, .4, .3, .25, 0.2, .1):
+        # for noise_strength in reversed([1.0, .95, .9, 0.8, 0.7, 0.5, .4, .3, .25, 0.2, .1]):
+        for a in range(0, 50, 2):
+            latent = self.imgs_to_latent(image.half())
+            # t = torch.randint(0, 1, [1], dtype=torch.long)
+            # t = torch.randint(12, 13, [1], dtype=torch.long)
+            t = torch.randint(a, a+1, [1], dtype=torch.long)
+
+            new_steps = self.scheduler.timesteps[t:]
+            new_steps = torch.round(new_steps * noise_strength).type(torch.long)
+            print(new_steps)
+
+            t_noise = torch.round(self.scheduler.timesteps[t] * noise_strength).type(torch.long)
+
+            noise = torch.randn_like(latent)
+            latent = self.scheduler.add_noise(latent, noise, t_noise)  # type: ignore
+        
+            for j, time in enumerate(new_steps):
+                # predict the noise residual
+                latent_model_input = torch.cat([latent] * 2)
+
+                with torch.no_grad():
+                    noise_pred = self.unet(
+                        latent_model_input, time.to(self.device), encoder_hidden_states=text_embedding
+                    ).sample     
+
+                # perform guidance
+                noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                noise_pred = noise_pred_text + guidance_scale * (noise_pred_text - noise_pred_uncond)
+                    
+                latent = self.scheduler.step(noise_pred, time, latent)["prev_sample"]  # type: ignore
+
+            diffused_img = self.latents_to_img(latent.half())
+            diffused_img = diffused_img.detach().cpu().permute(0, 2, 3, 1).numpy()
+            diffused_img = (diffused_img * 255).round().astype("uint8")[0] # might delete this indexing
+
+            mediapy.write_image(f'/home/terrance/nerfactory/nerfstudio/generative/img2img/7/newsched_test{a}.png', diffused_img)
+
+        return diffused_img
+
+
+    def update_img(self, text_embedding, image, step=0):
+        guidance_scale = 7.5
+        noise_strength = 1.0
+
+        min_step = int(self.num_train_timesteps * 0.4)
+        max_step = int(self.num_train_timesteps * 0.98)
+
+        # t = torch.randint(min_step, max_step, [1], dtype=torch.long, device=self.device)
+
+        # self.scheduler.config.num_train_timesteps = t.item()        
+        # self.scheduler.set_timesteps(20)  # type: ignore
+
         latent = self.imgs_to_latent(image.half())
 
-        # t = torch.randint(self.max_step - 1, self.max_step, [1], dtype=torch.long, device=self.device)
-        t = torch.randint(4, 5, [1], dtype=torch.long)
-        new_steps = self.scheduler.timesteps[t:]
 
-        t_noise = self.scheduler.timesteps[t]
+        # t = torch.randint(10, 11, [1], dtype=torch.long)
+        # t = torch.randint(5, 6, [1], dtype=torch.long)
 
-        noise = torch.randn_like(latent)
-        latent = self.scheduler.add_noise(latent, noise, t_noise)  # type: ignore
+        if step < 2001:
+            t = torch.randint(max_step - 1, max_step, [1], dtype=torch.long)
+            noise_strength = 1.0
+        else:
+            t = torch.randint(min_step, max_step, [1], dtype=torch.long, device=self.device)
+            
+        
+        self.scheduler.config.num_train_timesteps = t.item()        
+        self.scheduler.set_timesteps(20)  # type: ignore
 
-        # for i, time in enumerate(self.scheduler.timesteps):
-        for i, time in enumerate(new_steps):
+        #     self.scheduler.set_timesteps(50)  # type: ignore
+        #     t = torch.randint(34, 35, [1], dtype=torch.long)    
+        #     noise_strength = 0.8
+
+        # new_steps = self.scheduler.timesteps[t:]
+        # new_steps = torch.round(new_steps * noise_strength).type(torch.long)
+
+        # t_noise = torch.round(self.scheduler.timesteps[t] * noise_strength).type(torch.long)
+
+        with torch.no_grad():
+            noise = torch.randn_like(latent)
+            latent = self.scheduler.add_noise(latent, noise, t)  # type: ignore
+
+        for i, time in enumerate(self.scheduler.timesteps):
+        # for i, time in enumerate(new_steps):
             # predict the noise residual
             latent_model_input = torch.cat([latent] * 2)
 
@@ -372,7 +451,9 @@ class StableDiffusionImg2Img(nn.Module):
                 
             latent = self.scheduler.step(noise_pred, time, latent)["prev_sample"]  # type: ignore
 
-        diffused_img = self.latents_to_img(latent.half())
+        with torch.no_grad():
+            diffused_img = self.latents_to_img(latent.half())
+
         diffused_img = diffused_img.detach().cpu().permute(0, 2, 3, 1).numpy()
         diffused_img = (diffused_img * 255).round().astype("uint8")[0] # might delete this indexing
 
@@ -451,12 +532,14 @@ def generate_image(
         image = np.array(pil_image, dtype="uint8")  # shape is (h, w) or (h, w, 3 or 4)
         image = torch.from_numpy(image.astype("float32") / 255.0)
         image = image[None, :, :, :3].permute(0, 3, 1, 2).to(cuda_device)
+        
+        text_embedding = sd.get_text_embeds(prompt, "")
 
-        num_steps=50
-
-        imgs = sd.update_img(prompt, negative, image, num_steps)
-        # imgs = sd.prompt_to_img(prompt, negative)
-        mediapy.write_image(str(save_path), imgs)
+        num_steps=20
+        imgs = sd.search_updates(text_embedding, image)
+        # imgs = sd.update_img(text_embedding, image)
+        # # imgs = sd.prompt_to_img(prompt, negative)
+        mediapy.write_image("img2img/test.png", imgs)
 
 
 if __name__ == "__main__":

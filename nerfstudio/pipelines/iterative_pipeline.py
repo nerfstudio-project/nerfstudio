@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Mapping, Optional, Type, cast
 from pathlib import Path, PurePath
 
-
+import os
 import torch
 from torch.cuda.amp.grad_scaler import GradScaler
 from typing_extensions import Literal
@@ -56,7 +56,7 @@ class IterativePipelineConfig(VanillaPipelineConfig):
     """specifies the model config"""
     generative: bool = True
     """specifies whether the pipeline is for generative models"""
-    temp_save_path: Path=PurePath("")
+    temp_save_path: str = "iterative_assets"
     """save path for generated dataset"""
     prompt: str="a photo of a pineapple"
 
@@ -74,9 +74,7 @@ class IterativePipeline(VanillaPipeline):
     ):
         super().__init__(config, device, test_mode, world_size, local_rank)
         self.temp_save_path = config.temp_save_path
-        self.datamanager: IterativeDataManager = config.datamanager.setup(
-            device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
-        )
+        self.datamanager.temp_save_path = self.temp_save_path
         sd_version = "1-5"
 
         self.sd = StableDiffusionImg2Img(self.device, version=sd_version)
@@ -90,6 +88,10 @@ class IterativePipeline(VanillaPipeline):
             positional_prompting="discrete",
         )
 
+        if not Path(self.temp_save_path).exists():
+            Path.mkdir(Path(self.temp_save_path))
+            Path.mkdir(Path(self.temp_save_path) / "rendered_images")
+            Path.mkdir(Path(self.temp_save_path) / "generated_images")
 
     def forward(self):
         """Blank forward method
@@ -105,40 +107,39 @@ class IterativePipeline(VanillaPipeline):
         resolution = 512
         ray_bundles, cameras, camera_angles = self.datamanager.random_train_views(step, resolution=resolution, num_views=num_images_per_train)
         train_img_paths = []
-        num_rays_per_chunk = 512
+
+        # no grad 
 
         for i in range(num_images_per_train):
-            total_rgb = []
-            for j in range(0, resolution * resolution, num_rays_per_chunk):
-                start_idx = (i * resolution * resolution) + j
-                end_idx = (i * resolution * resolution) + j + num_rays_per_chunk
-
-                ray_bundle = ray_bundles.get_row_major_sliced_ray_bundle(start_idx, end_idx)
-                outputs = self.model(ray_bundle)
-                total_rgb.append(outputs['rgb'])
-
-            img = torch.cat(total_rgb).reshape(resolution, resolution, 3).detach().cpu().numpy() # something
-            save_path = PurePath(self.temp_save_path, f"img_{i}.png")
+            cur_bundle = ray_bundles[:, :, i]
+            rgb = self.model.get_outputs_for_camera_ray_bundle(cur_bundle)['rgb']
+            
+            img = rgb.detach().cpu().numpy() # something
+            save_path = PurePath(self.temp_save_path, "rendered_images", f"img_{i}.png")
             train_img_paths.append(str(save_path))
             mediapy.write_image(str(save_path), img)
+        
 
         self.datamanager.create_train_dataset(train_img_paths, cameras, camera_angles)
 
     @torch.no_grad()
     def update_train_images(self, step: int):
         print("updating training images")
+        generated_img_paths = []
+
         for i in range(len(self.datamanager.train_dataset)):
             camera_angles = self.datamanager.camera_angles[i]
             text_embedding = self.text_embeddings.get_text_embedding(camera_angles[0], camera_angles[1])
 
             image = self.datamanager.train_dataset.get_image(i)[None, :, :, :].permute(0, 3, 1, 2).to(self.sd.device)
-            image = self.sd.update_img(text_embedding, image, num_inference_steps=50, guidance_scale=7.5)
-            mediapy.write_image(self.datamanager.train_dataset.image_filenames[i], image)
+            image = self.sd.update_img(text_embedding, image, step)
+            save_path = PurePath(self.temp_save_path, "generated_images", f"img_{i}.png")
+            generated_img_paths.append(str(save_path))
+            mediapy.write_image(str(save_path), image)
 
-        filenames = self.datamanager.train_dataset.image_filenames
         cameras = self.datamanager.train_dataset.cameras
 
-        self.datamanager.create_train_dataset(filenames, cameras, self.datamanager.camera_angles)
+        self.datamanager.create_train_dataset(generated_img_paths, cameras, self.datamanager.camera_angles)
     
     @profiler.time_function
     def get_train_loss_dict(self, step: int):
@@ -148,11 +149,10 @@ class IterativePipeline(VanillaPipeline):
         # use a data loader that allows for multiview supervision each train step
         # rerender train dataset every Y iterations
 
-        if step % 500 == 0:
-            self.save_new_train_images(step)
+        update_steps = [0, 2000, 4000, 6000, 10000, 15000]
 
-        if step % 500 == 0:
-        # if step == 0:
+        if step in update_steps:
+            self.save_new_train_images(step)
             self.update_train_images(step)
 
         if self.world_size > 1 and step:

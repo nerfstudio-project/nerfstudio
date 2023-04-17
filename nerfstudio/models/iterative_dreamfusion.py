@@ -131,7 +131,7 @@ class DreamFusionIterativeModel(Model):
         **kwargs,
     ) -> None:
         self.initialize_density = config.initialize_density
-        self.density_strength = 5
+        self.density_strength = 25
         super().__init__(config=config, **kwargs)
 
     def populate_modules(self):
@@ -234,6 +234,37 @@ class DreamFusionIterativeModel(Model):
         param_groups["proposal_networks"] = list(self.proposal_networks.parameters())
         param_groups["fields"] = list(self.field.parameters())
         return param_groups
+    
+    def render_rgb(self, ray_bundle: RayBundle):
+        ray_bundle = self.collider(ray_bundle)
+        
+        b = ray_bundle.nears != ray_bundle.fars
+        indices = b.nonzero()[:, 0]
+        if len(indices) == 0:
+            return torch.ones((ray_bundle.shape[0], 3)).to(self.device)
+
+        ray_samples, _, _ = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
+
+        # filter samples 
+        ray_samples_filtered = ray_samples[indices]
+
+        field_outputs = self.field(ray_samples_filtered, compute_normals=False)
+        density = field_outputs[FieldHeadNames.DENSITY]
+
+        if self.initialize_density:
+            pos = ray_samples_filtered.frustums.get_positions()
+            # density_blob = (self.density_strength * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04)) - 0.5)[..., None]
+            density_blob = (-torch.exp(torch.norm(pos, dim=-1) / 0.6) + 2)[..., None]
+            density = torch.max(density + density_blob, torch.tensor([0.], device=self.device))
+
+        weights = ray_samples_filtered.get_weights(density)
+    
+        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+
+        image = torch.ones((ray_bundle.shape[0], 3)).to(self.device)
+        image[indices] = rgb
+
+        return image
 
     def get_outputs(self, ray_bundle: RayBundle):  # pylint: disable=too-many-statements
         # uniform sampling
@@ -244,8 +275,9 @@ class DreamFusionIterativeModel(Model):
 
         if self.initialize_density:
             pos = ray_samples.frustums.get_positions()
-            density_blob = self.density_strength * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
-            density = density + density_blob
+            # density_blob = (self.density_strength * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04)) - 0.5)[..., None]
+            density_blob = (-torch.exp(torch.norm(pos, dim=-1) / 0.6) + 2)[..., None]
+            density = torch.max(density + density_blob, torch.tensor([0.], device=self.device))
 
         weights = ray_samples.get_weights(density)
         weights_list.append(weights)
