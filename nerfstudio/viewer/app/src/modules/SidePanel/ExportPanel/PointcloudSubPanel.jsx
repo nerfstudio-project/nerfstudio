@@ -15,7 +15,7 @@ export default function PointcloudSubPanel(props) {
 
   // redux store state
   const config_base_dir = useSelector(
-    (state) => state.renderingState.config_base_dir,
+    (state) => state.file_path_info.config_base_dir,
   );
   const clippingEnabled = useSelector(
     (state) => state.renderingState.clipping_enabled,

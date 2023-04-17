@@ -42,6 +42,7 @@ extensions = [
     "sphinx_design",
     "sphinx.ext.mathjax",
     "sphinxext.opengraph",
+    "sphinx.ext.viewcode",
 ]
 
 # List of patterns, relative to source directory, that match files and
