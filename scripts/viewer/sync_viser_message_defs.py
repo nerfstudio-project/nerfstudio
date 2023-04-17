@@ -33,6 +33,7 @@ def main() -> None:
 
 
 def entrypoint() -> None:
+    """Entrypoint for use with pyproject scripts."""
     # All entrypoints must currently be tyro CLIs.
     tyro.cli(main)
 
