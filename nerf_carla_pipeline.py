@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from timeit import default_timer as timer
+from typing import Optional
 
 import tyro
 from rich.console import Console
@@ -85,7 +86,7 @@ class ExperimentPipeline:
     @my_timer("Train")
     def train(self):
         CONSOLE.print(f"Training model\nModel: {self.model}\nInput dir: {self.input_data_dir}")
-        cmd = f"ns-train {self.model} --data {self.input_data_dir} --output-dir {self.output_dir} --experiment-name {self.experiment_name} --max-num-iterations 2000 --vis viewer --viewer.quit-on-train-completion True"
+        cmd = f"ns-train {self.model} --data {self.input_data_dir} --output-dir {self.output_dir} --experiment-name {self.experiment_name} --max-num-iterations 1000 --vis viewer --viewer.quit-on-train-completion True"
 
         if not self.use_camera_optimizer:
             cmd += " --pipeline.datamanager.camera-optimizer.mode off"
@@ -135,7 +136,7 @@ class ExperimentPipeline:
     def render_blocknerf(self):
         CONSOLE.print("Block NeRF Rendering model")
         output_name = f"blocknerf-{self.experiment_name}"
-        config_files = [Path(f) for f in glob.glob(f"**/config.yml", recursive=True)] # BUG: Assumes only one config.yml file per experiment
+        config_files = [Path(f) for f in glob.glob(f"{self.output_dir}/**/config.yml", recursive=True)] # BUG: Assumes only one config.yml file per experiment
         render_dir = self.output_dir / "renders"
         render_dir.mkdir(parents=True, exist_ok=True)
         render_path = render_dir / f"{output_name}.mp4"
@@ -181,35 +182,34 @@ if __name__ == "__main__":
     print(args)
 
     # Run pipeline in sequence
-    input_data_dir = Path(args.input_data_dir)
+    # input_data_dir = Path(args.input_data_dir)
 
-    # Create the blocks
-    if (args.block_segments):
-        new_transforms, image_indexes = block_nerf.split_transforms(input_data_dir / "transforms.json", args.block_segments)
-        block_nerf.write_transforms(new_transforms, image_indexes, input_data_dir)
+    # # Create the blocks
+    # if (args.block_segments):
+    #     new_transforms, image_indexes = block_nerf.split_transforms(input_data_dir / "transforms.json", args.block_segments)
+    #     block_nerf.write_transforms(new_transforms, image_indexes, input_data_dir)
 
     
-    args = Args(
-        model="nerfacto",
-        input_data_dir=input_data_dir,
-        output_dir=input_data_dir,
-        use_camera_optimizer=args.use_camera_optimizer,
-        block_segments=args.block_segments
-    )
-    for run_dir in input_data_dir.iterdir():
-        if run_dir.is_dir() and run_dir.name != "images":
-            new_args = Args(
-                model=args.model,
-                input_data_dir=run_dir,
-                output_dir=run_dir,
-                use_camera_optimizer=args.use_camera_optimizer,
-                block_segments=args.block_segments
-            )
+    # args = Args(
+    #     model="nerfacto",
+    #     input_data_dir=input_data_dir,
+    #     output_dir=input_data_dir,
+    #     use_camera_optimizer=args.use_camera_optimizer,
+    #     block_segments=args.block_segments
+    # )
+    # for run_dir in input_data_dir.iterdir():
+    #     if run_dir.is_dir() and run_dir.name != "images":
+    #         new_args = Args(
+    #             model=args.model,
+    #             input_data_dir=run_dir,
+    #             output_dir=run_dir,
+    #             use_camera_optimizer=args.use_camera_optimizer,
+    #             block_segments=args.block_segments
+    #         )
 
-            experiment_name = "-".join(str(run_dir).split("/")[-2:])
-            pipeline = ExperimentPipeline(new_args, writer, experiment_name)
-            pipeline.run()
-
+    #         experiment_name = "-".join(str(run_dir).split("/")[-2:])
+    #         pipeline = ExperimentPipeline(new_args, writer, experiment_name)
+    #         pipeline.run()
 
     # Run the render_blocknerf after all blocks have been trained
     if (args.block_segments):

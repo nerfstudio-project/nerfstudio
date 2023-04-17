@@ -136,7 +136,7 @@ def create_block_lookup(exp_path: Path, camera_path_path: Path):
 
     export_path = exp_path / "lookup_table.json"
     with open(export_path, 'w') as f:
-        json.dump(lookup_table, f)
+        json.dump(lookup_table, f, indent=4)
 
     print("✅ Created lookup table at: ", export_path)
 
