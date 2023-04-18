@@ -25,6 +25,7 @@ from rich import box, style
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from typing_extensions import Literal
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
@@ -48,10 +49,10 @@ from nerfstudio.viewer.viser.messages import (
     CameraPathOptionsRequest,
     CameraPathPayloadMessage,
     CropParamsMessage,
-    IsTrainingMessage,
     NerfstudioMessage,
     SaveCheckpointMessage,
     TimeConditionMessage,
+    TrainingStateMessage,
 )
 
 if TYPE_CHECKING:
@@ -114,20 +115,16 @@ class ViewerState:
         self.include_time = self.pipeline.datamanager.includes_time
 
         # viewer specific variables
-        self.prev_moving = False
         self.output_type_changed = True
-        self.check_done_render = True
         self.step = 0
-        self.camera_moving = False
-        self.prev_camera_timestamp = 0
-        self.static_fps = 1.0
-        self.train_btn_state = True
+        self.train_btn_state: Literal["training", "paused", "completed"] = "training"
+        self._prev_train_state: Literal["training", "paused", "completed"] = "training"
 
         self.camera_message = None
 
         self.viser_server = ViserServer(host="0.0.0.0", port=websocket_port)
 
-        self.viser_server.register_handler(IsTrainingMessage, self._handle_is_training)
+        self.viser_server.register_handler(TrainingStateMessage, self._handle_training_state_message)
         self.viser_server.register_handler(SaveCheckpointMessage, self._handle_save_checkpoint)
         self.viser_server.register_handler(CameraMessage, self._handle_camera_update)
         self.viser_server.register_handler(CameraPathOptionsRequest, self._handle_camera_path_option_request)
@@ -184,15 +181,15 @@ class ViewerState:
             crop_center=tuple(crop_center.tolist()),
         )
 
-    def _handle_is_training(self, message: NerfstudioMessage) -> None:
-        """Handle is_training message from viewer."""
-        assert isinstance(message, IsTrainingMessage)
-        self.is_training = message.is_training
-        self.train_btn_state = message.is_training
-        self.viser_server.set_is_training(message.is_training)
+    def _handle_training_state_message(self, message: NerfstudioMessage) -> None:
+        """Handle training state message from viewer."""
+        assert isinstance(message, TrainingStateMessage)
+        self.train_btn_state = message.training_state
+        self.training_state = message.training_state
+        self.viser_server.set_training_state(message.training_state)
 
     def _handle_save_checkpoint(self, message: NerfstudioMessage) -> None:
-        """Handle is_training message from viewer."""
+        """Handle save checkpoint message from viewer."""
         assert isinstance(message, SaveCheckpointMessage)
         if self.trainer is not None:
             self.trainer.save_checkpoint(self.step)
@@ -201,13 +198,13 @@ class ViewerState:
         """Handle camera update message from viewer."""
         assert isinstance(message, CameraMessage)
         self.camera_message = message
-        self.camera_moving = message.is_moving
         if message.is_moving:
             self.render_statemachine.action(RenderAction("move", self.camera_message))
-            self.is_training = False
+            if self.training_state == "training":
+                self.training_state = "paused"
         else:
             self.render_statemachine.action(RenderAction("static", self.camera_message))
-            self.is_training = self.train_btn_state
+            self.training_state = self.train_btn_state
 
     def _handle_camera_path_option_request(self, message: NerfstudioMessage) -> None:
         """Handle camera path option request message from viewer."""
@@ -247,17 +244,17 @@ class ViewerState:
         self.control_panel.time = message.time
 
     @property
-    def is_training(self) -> bool:
-        """Get is_training flag from viewer."""
+    def training_state(self) -> Literal["training", "paused", "completed"]:
+        """Get training state flag."""
         if self.trainer is not None:
-            return self.trainer.is_training
-        return False
+            return self.trainer.training_state
+        return self.train_btn_state
 
-    @is_training.setter
-    def is_training(self, is_training: bool) -> None:
-        """Set is_training flag in viewer."""
+    @training_state.setter
+    def training_state(self, training_state: Literal["training", "paused", "completed"]) -> None:
+        """Set training state flag."""
         if self.trainer is not None:
-            self.trainer.is_training = is_training
+            self.trainer.training_state = training_state
 
     def _pick_drawn_image_idxs(self, total_num: int) -> list[int]:
         """Determine indicies of images to display in viewer.
@@ -275,13 +272,12 @@ class ViewerState:
         # draw indices, roughly evenly spaced
         return np.linspace(0, total_num - 1, num_display_images, dtype=np.int32).tolist()
 
-    def init_scene(self, dataset: InputDataset, start_train=True) -> None:
+    def init_scene(self, dataset: InputDataset, train_state=Literal["training", "paused", "completed"]) -> None:
         """Draw some images and the scene aabb in the viewer.
 
         Args:
             dataset: dataset to render in the scene
-            start_train: whether to start train when viewer init;
-                if False, only displays dataset until resume train is toggled
+            train_state: Current status of training
         """
         self.viser_server.send_file_path_info(
             config_base_dir=self.log_filename.parents[0],
@@ -301,8 +297,8 @@ class ViewerState:
         self.viser_server.update_scene_box(dataset.scene_box)
 
         # set the initial state whether to train or not
-        self.train_btn_state = start_train
-        self.viser_server.set_is_training(start_train)
+        self.train_btn_state = train_state
+        self.viser_server.set_training_state(train_state)
 
     def update_scene(self, step: int, num_rays_per_batch: Optional[int] = None) -> None:
         """updates the scene based on the graph weights
@@ -316,7 +312,11 @@ class ViewerState:
         if self.camera_message is None:
             return
 
-        if self.trainer is not None and self.trainer.is_training and self.control_panel.train_util != 1:
+        if (
+            self.trainer is not None
+            and self.trainer.training_state == "training"
+            and self.control_panel.train_util != 1
+        ):
             if (
                 EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]
                 and EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]
@@ -350,3 +350,8 @@ class ViewerState:
     def get_model(self) -> Model:
         """Returns the model."""
         return self.pipeline.model
+
+    def training_complete(self) -> None:
+        """Called when training is complete."""
+        self.training_state = "completed"
+        self.viser_server.set_training_state("completed")

@@ -171,10 +171,10 @@ class DatasetImageMessage(NerfstudioMessage):
 
 
 @dataclasses.dataclass
-class IsTrainingMessage(NerfstudioMessage):
+class TrainingStateMessage(NerfstudioMessage):
     """Wheather the scene is in training mode or not."""
 
-    is_training: bool
+    training_state: Literal["training", "paused", "completed"]
     """True if the model is currently trianing, False otherwise"""
 
 
