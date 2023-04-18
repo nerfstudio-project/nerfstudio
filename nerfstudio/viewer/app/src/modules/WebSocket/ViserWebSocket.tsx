@@ -258,6 +258,24 @@ function handleMessage(
       });
       break;
     }
+    // Handle time conditioning messages.
+    case 'UseTimeConditioningMessage': {
+      console.log('HERERERE');
+      dispatch({
+        type: 'write',
+        path: 'renderingState/use_time_conditioning',
+        data: true,
+      });
+      break;
+    }
+    case 'TimeConditionMessage': {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/time_condition',
+        data: message.time,
+      });
+      break;
+    }
     default: {
       console.log('Received message did not match any known types:', message);
       break;
