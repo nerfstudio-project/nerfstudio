@@ -92,7 +92,7 @@ class ProcessImages:
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
     """Portion of the image to crop. All values should be in [0,1]. (top, bottom, left, right)"""
     crop_bottom: float = 0.0
-    """Portion of the image to crop from the bottom. 
+    """Portion of the image to crop from the bottom.
        Can be used instead of `crop-factor 0.0 [num] 0.0 0.0` Should be in [0,1].
     """
     gpu: bool = True
@@ -310,7 +310,7 @@ class ProcessVideo:
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
     """Portion of the image to crop. All values should be in [0,1]. (top, bottom, left, right)"""
     crop_bottom: float = 0.0
-    """Portion of the image to crop from the bottom. 
+    """Portion of the image to crop from the bottom.
        Can be used instead of `crop-factor 0.0 [num] 0.0 0.0` Should be in [0,1].
     """
     use_sfm_depth: bool = False
