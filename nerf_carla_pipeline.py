@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from timeit import default_timer as timer
-from typing import Optional
+from typing import List, Optional
 
 import tyro
 from rich.console import Console
@@ -66,7 +66,7 @@ class ExperimentPipeline:
     def run(self):
         self.train()
         train_output_dir = self.find_evaluate_paths()
-        self.eval(train_output_dir)
+        # self.eval(train_output_dir)
         # self.render(interpolate=True)
         # self.render(interpolate=False)
 
@@ -133,24 +133,38 @@ class ExperimentPipeline:
             
         run_command(cmd, verbose=True)
 
-    def render_blocknerf(self):
+    def render_blocknerf(self, block_paths: List[Path]):
         CONSOLE.print("Block NeRF Rendering model")
         output_name = f"blocknerf-{self.experiment_name}"
-        config_files = [Path(f) for f in glob.glob(f"{self.output_dir}/**/config.yml", recursive=True)] # BUG: Assumes only one config.yml file per experiment
+
+        # Assumes that there're only one config file and one dataparser_transforms file in each block
+        config_files = {
+            block_path.name: Path(glob.glob(f"{block_path}/**/config.yml", recursive=True)[0]) for block_path in block_paths
+        }
+        dataparser_transforms_paths = {
+            block_path.name: Path(glob.glob(f"{block_path}/**/dataparser_transforms.json", recursive=True)[0]) for block_path in block_paths
+        }
         render_dir = self.output_dir / "renders"
         render_dir.mkdir(parents=True, exist_ok=True)
         render_path = render_dir / f"{output_name}.mp4"
+        block_lookup=block_nerf.get_block_lookup(self.output_dir, block_paths)
+
+        combined_transformed_camera_path = block_nerf.transform_to_single_camera_path(
+            camera_path_path=Path("camera_paths/camera_path_transformed_original.json"), # This is the original camera path transformed to the original CARLA coordinate system
+            block_lookup=block_lookup,
+            dataparser_transform_paths=dataparser_transforms_paths,
+            export_dir=self.output_dir
+        )
 
         # Use this class to run the render script programmatically
         BlockNerfRenderTrajectory(
-            config_files=config_files, # TODO: Get the config files in a better way
+            config_files=config_files,
             traj="filename",
-            # camera_path_filename=self.get_camera_path(model_path), # TODO: This isn't correct
-            camera_path_filename=Path("camera_paths/camera_path_transformed.json"), # TODO: Insert one of the transformed camera paths
+            camera_path_filename=combined_transformed_camera_path,
             output_path=render_path,
-            block_nerf=self.block_segments is not None,
             eval_num_rays_per_chunk=1<<15,
-            block_lookup=block_nerf.get_block_lookup(self.output_dir),
+            block_lookup=block_lookup,
+
         ).main()
 
 
@@ -182,34 +196,34 @@ if __name__ == "__main__":
     print(args)
 
     # Run pipeline in sequence
-    # input_data_dir = Path(args.input_data_dir)
+    input_data_dir = Path(args.input_data_dir)
 
-    # # Create the blocks
-    # if (args.block_segments):
-    #     new_transforms, image_indexes = block_nerf.split_transforms(input_data_dir / "transforms.json", args.block_segments)
-    #     block_nerf.write_transforms(new_transforms, image_indexes, input_data_dir)
-
+    # Create the blocks
+    block_paths = []
+    if (args.block_segments):
+        new_transforms, image_indexes = block_nerf.split_transforms(input_data_dir / "transforms.json", args.block_segments)
+        block_paths = block_nerf.write_transforms(new_transforms, image_indexes, input_data_dir)
     
-    # args = Args(
-    #     model="nerfacto",
-    #     input_data_dir=input_data_dir,
-    #     output_dir=input_data_dir,
-    #     use_camera_optimizer=args.use_camera_optimizer,
-    #     block_segments=args.block_segments
-    # )
-    # for run_dir in input_data_dir.iterdir():
-    #     if run_dir.is_dir() and run_dir.name != "images":
-    #         new_args = Args(
-    #             model=args.model,
-    #             input_data_dir=run_dir,
-    #             output_dir=run_dir,
-    #             use_camera_optimizer=args.use_camera_optimizer,
-    #             block_segments=args.block_segments
-    #         )
+    args = Args(
+        model="nerfacto",
+        input_data_dir=input_data_dir,
+        output_dir=input_data_dir,
+        use_camera_optimizer=args.use_camera_optimizer,
+        block_segments=args.block_segments
+    )
+    for run_dir in input_data_dir.iterdir():
+        if run_dir.is_dir() and run_dir.name != "images":
+            new_args = Args(
+                model=args.model,
+                input_data_dir=run_dir,
+                output_dir=run_dir,
+                use_camera_optimizer=args.use_camera_optimizer,
+                block_segments=args.block_segments
+            )
 
-    #         experiment_name = "-".join(str(run_dir).split("/")[-2:])
-    #         pipeline = ExperimentPipeline(new_args, writer, experiment_name)
-    #         pipeline.run()
+            experiment_name = "-".join(str(run_dir).split("/")[-2:])
+            pipeline = ExperimentPipeline(new_args, writer, experiment_name)
+            pipeline.run()
 
     # Run the render_blocknerf after all blocks have been trained
     if (args.block_segments):
@@ -221,6 +235,6 @@ if __name__ == "__main__":
             )
         experiment_name = "-".join(str(args.input_data_dir).split("/")[-2:])
         pipeline = ExperimentPipeline(args, writer, experiment_name)
-        pipeline.render_blocknerf()
+        pipeline.render_blocknerf(block_paths=block_paths)
 
     terminal.close()

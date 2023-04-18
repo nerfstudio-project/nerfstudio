@@ -1,8 +1,9 @@
+import copy
 import glob
 import json
 import shutil
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, List, Union
 
 import numpy as np
 import torch
@@ -50,8 +51,9 @@ def write_transforms(transforms: list, image_indexes: list, path: Path):
     images = glob.glob(f"{original_images_path}/*.png")
     images.sort()
 
+    block_paths = []
     for i, transform in enumerate(transforms):
-        split_path = path / f"{i}"
+        split_path = path / f"block_{i}" # f"block_{i}" is the block_name.
         split_path.mkdir(parents=True, exist_ok=True)
         with open(split_path / "transforms.json", "w") as f:
             json.dump(transform, f, indent=4)
@@ -61,6 +63,10 @@ def write_transforms(transforms: list, image_indexes: list, path: Path):
 
         for j in range(0 if i == 0 else image_indexes[i-1], image_indexes[i]):
             shutil.copyfile(f"{images[j]}", f"{image_path}/{images[j].split('/')[-1]}")
+        
+        block_paths.append(split_path)
+    
+    return block_paths
 
 def transform_camera_path_to_original_space(camera_path_path: Path, pipeline):
     """
@@ -107,13 +113,47 @@ def transform_camera_path(camera_path_path: Path, dataparser_transform_path: Pat
     print("✅ Created transformed camera path at: ", export_path)
     return export_path
 
-def create_block_lookup(exp_path: Path, camera_path_path: Path):
-    # Load the transforms from all the block-nerfs. Easily done with glob
-    transforms = [load_json(path) for path in glob.glob(f"{exp_path}/*/transforms.json")]
+def transform_to_single_camera_path(camera_path_path: Path, block_lookup: Dict[str, str], dataparser_transform_paths: Dict[str, Path], export_dir: Path):
+    """
+        Transform a un-transformed camera path to a transformed camera path, in the respective transform's coordinate system.
+        dataparser_transform_paths is a dictionary of block_name: dataparser_transform_path
+    """
+    assert set(block_lookup.values()) == set(dataparser_transform_paths.keys())
+
+    original_camera_path = load_json(camera_path_path)
+    new_camera_path = copy.deepcopy(original_camera_path)
+
+    # Load the dataparser_transforms within the dictionary
+    dataparser_transforms = {}
+    for block_name, dataparser_transform_path in dataparser_transform_paths.items():
+        dataparser_transform = load_json(dataparser_transform_path)
+        dataparser_transforms[block_name] = dataparser_transform
+
+    for i, camera in enumerate(new_camera_path["camera_path"]):
+        block_name = block_lookup[str(i)]
+        t = np.array(dataparser_transforms[block_name]["transform"])
+        s = dataparser_transforms[block_name]["scale"]
+        
+        c2w = np.array(camera["camera_to_world"]).reshape(4, 4)
+        c2w = (t @ c2w) * s
+        c2w = np.vstack((c2w, np.array([0, 0, 0, 1])))
+        camera["camera_to_world"] = c2w.reshape(16).tolist()
+
+    export_path = export_dir / "combined_camera_path.json"
+    with open(export_path, "w") as f:
+        json.dump(new_camera_path, f, indent=4)
+
+    print(f"✅ Created transformed camera path for {len(block_lookup)} blocks at: ", export_path)
+    return export_path
+
+def create_block_lookup(exp_path: Path, camera_path_path: Path, block_paths: List[Path]):
+    transforms = {
+        block_path.name: load_json(glob.glob(f"{block_path}/**/transforms.json", recursive=True)[0]) for block_path in block_paths
+    }
     camera_path = load_json(camera_path_path)
 
     # Define a function to compute the Euclidean distance between two 4x4 homogeneous matrices
-    def matrix_distance(m1, m2):
+    def matrix_distance(m1: np.ndarray, m2: np.ndarray) -> float:
         return np.linalg.norm(np.array(m1) - np.array(m2))
 
     # Create a lookup table that maps each camera path to its closest transform matrix
@@ -122,9 +162,9 @@ def create_block_lookup(exp_path: Path, camera_path_path: Path):
         # Get the location from the camera_to_world matrix
         query_location = np.array(camera['camera_to_world']).reshape(4, 4)[:3, 3]
 
-        distances = [[matrix_distance(query_location, np.array(frame['transform_matrix'])[:3, 3])for frame in transform["frames"]] for transform in transforms]
-        closest_index = min(range(len(distances)), key=lambda i: min(distances[i]))
-        closest_distance = np.min(np.array(distances[closest_index]), axis=0)
+        distances = {block_name: [matrix_distance(query_location, np.array(frame['transform_matrix'])[:3, 3])for frame in transform["frames"]] for block_name, transform in transforms.items()}
+        closest_block = min(distances, key=lambda block_name: min(distances[block_name]))
+        closest_distance = min(distances[closest_block])
         if closest_distance > 5:
             print("⚠️ Warning: Closest distance is greater than 5: ", closest_distance)
 
@@ -132,7 +172,7 @@ def create_block_lookup(exp_path: Path, camera_path_path: Path):
         # print(f"Closest index: {closest_index}")
         # print(f"Closest distance: {closest_distance}")
         # print(f"Query location: {tuple(query_location)}")
-        lookup_table[f"{i}"] = str(closest_index)
+        lookup_table[f"{i}"] = closest_block
 
     export_path = exp_path / "lookup_table.json"
     with open(export_path, 'w') as f:
@@ -165,15 +205,16 @@ def _test_block_nerf():
         export_path=target_exp_path / "camera_path_transformed.json"
     )
 
-def get_block_lookup(exp_path: Path) -> Dict[str, str]:
+def get_block_lookup(exp_path: Path, block_paths: List[Path]) -> Dict[str, str]:
     lookup_path = exp_path / "lookup_table.json"
     if not lookup_path.exists():
         print("⚠️ Warning: Lookup table does not exist. Creating one now.")
         original_camera_path = Path("block_nerf/camera_path_transformed_original.json")
-        create_block_lookup(exp_path, original_camera_path)
+        create_block_lookup(exp_path, original_camera_path, block_paths)
     return load_json(lookup_path)
 
 if __name__ == "__main__":
     original_camera_path = Path("block_nerf/camera_path_transformed_original.json")
     exp_path = Path("data/images/exp_combined_baseline_block_nerf_3")
+    block_paths = [] # TODO: Not correct
     create_block_lookup(exp_path, original_camera_path)

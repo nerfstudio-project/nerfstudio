@@ -208,11 +208,13 @@ def _render_trajectory_video_blocknerf(
                 # TODO: Based on the camera_idx, change which pipeline, i.e. model, we use.
                 model = pipeline_models[block_lookup[str(camera_idx)]]
                 
+                
                 aabb_box = None
                 if crop_data is not None:
                     bounding_box_min = crop_data.center - crop_data.scale / 2.0
                     bounding_box_max = crop_data.center + crop_data.scale / 2.0
                     aabb_box = SceneBox(torch.stack([bounding_box_min, bounding_box_max]).to(pipeline_device))
+                
                 camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx, aabb_box=aabb_box)
 
                 if crop_data is not None:
@@ -453,7 +455,7 @@ class BlockNerfRenderTrajectory:
     spiral: Create a spiral trajectory (can be hit or miss).
     """
 
-    config_files: List[Path]
+    config_files: Dict[str, Path]
     """Path to config YAML file."""
     rendered_output_names: List[str] = field(default_factory=lambda: ["rgb"])
     """Name of the renderer outputs to use. rgb, depth, etc. concatenates them along y axis"""
@@ -474,8 +476,6 @@ class BlockNerfRenderTrajectory:
     """Number of interpolation steps between eval dataset cameras."""
     eval_num_rays_per_chunk: Optional[int] = None
     """Specifies number of rays per chunk during eval."""
-    block_nerf: bool = False
-    """Specifies if there will be multiple nerf models used to render the scene."""
     block_lookup: Dict[str, str] = field(default_factory=lambda: {})
     """Specifies which nerf model to use for each block."""
 
@@ -484,10 +484,10 @@ class BlockNerfRenderTrajectory:
 
         pipeline_models: Dict[str, Model] = {}
         pipeline_devices: List[torch.device] = []
-        for i, config_path in enumerate(self.config_files):
+        for block_name, config_path in self.config_files.items():
             _, pipeline, _ = eval_setup(config_path, self.eval_num_rays_per_chunk, "inference")
             # TODO: I can change the pipeline_models to a dict with pipeline_models[config.experiment_name]. Need the create_block_lookup to save it in similar fashion.
-            pipeline_models[f"{i}"] = pipeline.model
+            pipeline_models[block_name] = pipeline.model
             pipeline_devices.append(pipeline.device)
 
         install_checks.check_ffmpeg_installed()
@@ -497,7 +497,7 @@ class BlockNerfRenderTrajectory:
 
         with open(self.camera_path_filename, "r", encoding="utf-8") as f:
             camera_path = json.load(f)
-        seconds = camera_path["seconds"]
+    
         if "camera_type" not in camera_path:
             camera_type = CameraType.PERSPECTIVE
         elif camera_path["camera_type"] == "fisheye":
@@ -506,6 +506,8 @@ class BlockNerfRenderTrajectory:
             camera_type = CameraType.EQUIRECTANGULAR
         else:
             camera_type = CameraType.PERSPECTIVE
+        
+        seconds = camera_path["seconds"]
         crop_data = get_crop_from_json(camera_path)
         camera_path = get_path_from_json(camera_path)
 
