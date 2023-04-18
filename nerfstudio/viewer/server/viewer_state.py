@@ -303,7 +303,7 @@ class ViewerState:
         if self.camera_message is None:
             return
 
-        if self.trainer is not None and self.trainer.is_training:
+        if self.trainer is not None and self.trainer.is_training and self.control_panel.train_util != 1:
             if (
                 EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]
                 and EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]
