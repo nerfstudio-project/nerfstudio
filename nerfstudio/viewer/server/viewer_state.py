@@ -122,7 +122,7 @@ class ViewerState:
 
         self.camera_message = None
 
-        self.viser_server = ViserServer(host="localhost", port=websocket_port)
+        self.viser_server = ViserServer(host="0.0.0.0", port=websocket_port)
 
         self.viser_server.register_handler(IsTrainingMessage, self._handle_is_training)
         self.viser_server.register_handler(SaveCheckpointMessage, self._handle_save_checkpoint)
