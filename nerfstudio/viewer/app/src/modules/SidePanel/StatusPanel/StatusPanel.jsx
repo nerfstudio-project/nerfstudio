@@ -66,11 +66,6 @@ export default function StatusPanel(props: StatusPanelProps) {
   const is_training_text = isTraining ? 'Pause Training' : 'Resume Training';
   const training_icon = isTraining ? <PauseIcon /> : <PlayArrowIcon />;
 
-  const websocket_connected_text = isWebsocketConnected
-    ? 'Renderer Connected'
-    : 'Renderer Disconnected';
-  const websocket_connected_color = isWebsocketConnected ? 'success' : 'error';
-
   return (
     <div className="StatusPanel">
       <div className="StatusPanel-play-button">
@@ -128,13 +123,6 @@ export default function StatusPanel(props: StatusPanelProps) {
           <b>Resolution:</b> {eval_res}
         </div>
       </div>
-      <Button
-        className="StatusPanel-button"
-        color={websocket_connected_color}
-        style={{ textTransform: 'none' }}
-      >
-        {websocket_connected_text}
-      </Button>
     </div>
   );
 }
