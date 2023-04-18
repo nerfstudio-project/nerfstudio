@@ -17,10 +17,14 @@ Profiler base class and functionality
 """
 from __future__ import annotations
 
+import os
 import time
-from typing import Callable
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Callable, List, Optional
 
 from rich.console import Console
+from torch.profiler import ProfilerActivity, profile, record_function
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.utils import comms
@@ -33,16 +37,21 @@ from nerfstudio.utils.decorators import (
 CONSOLE = Console(width=120)
 
 PROFILER = []
+PYTORCH_PROFILER = None
 
 
 def time_function(func: Callable) -> Callable:
     """Decorator: time a function call"""
 
     def wrapper(*args, **kwargs):
+        class_str = func.__qualname__
         start = time.time()
-        ret = func(*args, **kwargs)
+        if PYTORCH_PROFILER is not None:
+            with PYTORCH_PROFILER.record_function(class_str, *args, **kwargs):
+                ret = func(*args, **kwargs)
+        else:
+            ret = func(*args, **kwargs)
         if PROFILER:
-            class_str = func.__qualname__
             PROFILER[0].update_time(class_str, start, time.time())
         return ret
 
@@ -51,14 +60,67 @@ def time_function(func: Callable) -> Callable:
 
 def flush_profiler(config: cfg.LoggingConfig):
     """Method that checks if profiler is enabled before flushing"""
-    if config.enable_profiler and PROFILER:
+    if config.profiler != "none" and PROFILER:
         PROFILER[0].print_profile()
 
 
-def setup_profiler(config: cfg.LoggingConfig):
+def setup_profiler(config: cfg.LoggingConfig, log_dir: Path):
     """Initialization of profilers"""
+    global PYTORCH_PROFILER  # pylint: disable=global-statement
     if comms.is_main_process():
         PROFILER.append(Profiler(config))
+        if config.profiler == "pytorch":
+            PYTORCH_PROFILER = PytorchProfiler(log_dir)
+
+
+class PytorchProfiler:
+    """
+    Wrapper for Pytorch Profiler
+    """
+
+    def __init__(self, output_path: Path, trace_steps: Optional[List[int]] = None):
+        self.output_path = output_path / "profiler_traces"
+        if trace_steps is None:
+            trace_steps = [12, 17]
+        self.trace_steps = trace_steps
+
+    @contextmanager
+    def record_function(self, function: str, *args, **_kwargs):
+        """
+        Context manager that records a function call and saves the trace to a json file.
+        Traced functions are: train_iteration, eval_iteration
+        """
+        if function == "train_iteration" or function == "eval_iteration":
+            step = args[0]
+            assert isinstance(step, int)
+            if step in self.trace_steps:
+                launch_kernel_blocking = self.trace_steps.index(step) % 2 == 0
+                backup_lb_var = ""
+                if launch_kernel_blocking:
+                    backup_lb_var = os.environ.get("CUDA_LAUNCH_BLOCKING", "")
+                    os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+                with profile(
+                    activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+                    record_shapes=True,
+                    with_stack=True,
+                    profile_memory=True,
+                ) as prof:
+                    with record_function(function):
+                        yield None
+                if launch_kernel_blocking:
+                    os.environ["CUDA_LAUNCH_BLOCKING"] = backup_lb_var
+                self.output_path.mkdir(parents=True, exist_ok=True)
+                prof.export_chrome_trace(
+                    str(
+                        self.output_path
+                        / "traces"
+                        / f"trace_{function}_{step}_{'_blocking' if launch_kernel_blocking else ''}.json"
+                    )
+                )
+                return
+        with record_function(function):
+            yield None
+            return
 
 
 @decorate_all([check_profiler_enabled, check_main_thread])

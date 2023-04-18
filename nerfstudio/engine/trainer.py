@@ -184,7 +184,7 @@ class Trainer:
             self.config.logging, max_iter=self.config.max_num_iterations, banner_messages=banner_messages
         )
         writer.put_config(name="config", config_dict=dataclasses.asdict(self.config), step=0)
-        profiler.setup_profiler(self.config.logging)
+        profiler.setup_profiler(self.config.logging, writer_log_path)
 
     def setup_optimizers(self) -> Optimizers:
         """Helper to set up the optimizers
