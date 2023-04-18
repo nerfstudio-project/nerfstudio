@@ -41,7 +41,7 @@ class ViserServer(MessageApi):
 
     def __init__(
         self,
-        host: str = "127.0.0.1",
+        host: str = "localhost",
         port: int = 8080,
     ):
         super().__init__()
