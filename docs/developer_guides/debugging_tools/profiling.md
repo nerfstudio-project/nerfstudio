@@ -23,13 +23,38 @@ class RayGenerator(nn.Module):
         ...
 ```
 
-At termination of training or end of the training run, the profiler will print out the average execution time for all of the functions that have the profiler tag.
+Alternatively, you can also time parts of the code:
+```python
+...
+
+def forward(self, ray_indices: TensorType["num_rays", 3]) -> RayBundle:
+    # implementation here
+    with profiler.time_function("code1"):
+      # some code here
+      ...
+
+    with profiler.time_function("code2"):
+      # some code here
+      ...
+    ...
+```
+
+
+At termination of training or end of the training run, the profiler will print out the average execution time for all of the functions or code blocks that have the profiler tag.
 
 :::{admonition} Tip
 :class: info
 
 Use this profiler if there are *specific/individual functions* you want to measure the times for.
   :::
+
+
+#### Profiling with PyTorch profiler
+
+If you want to profile the training or evaluation code and track the memory and CUDA kernel launches, consider using [PyTorch profiler](https://pytorch.org/tutorials/recipes/recipes/profiler_recipe.html).
+It will run the profiler for some selected step numbers, once with `CUDA_LAUNCH_BLOCKING=1`, once with `CUDA_LAUNCH_BLOCKING=0`.
+The PyTorch profiler can be enabled with `--logging.profiler=pytorch` flag.
+The outputs of the profiler are trace files stored in `{PATH_TO_MODEL_OUTPUT}/profiler_traces`, and can be loaded in Google Chrome by typing `chrome://tracing`.
 
 
 #### Profiling with PySpy
