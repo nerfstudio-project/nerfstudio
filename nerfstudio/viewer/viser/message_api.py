@@ -532,6 +532,10 @@ class MessageApi(abc.ABC):
         )
         return GuiHandle(handle_state)
 
+    def use_time_conditioning(self) -> None:
+        """Use time conditioning."""
+        self._queue(messages.UseTimeConditioningMessage())
+
     def _handle_gui_updates(
         self: MessageApi,
         client_id: ClientId,

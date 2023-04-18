@@ -109,6 +109,13 @@ interface StatusMessage {
 interface SaveCheckpointMessage {
   type: 'SaveCheckpointMessage';
 }
+interface UseTimeConditioningMessage {
+  type: 'UseTimeConditioningMessage';
+}
+interface TimeConditionMessage {
+  type: 'TimeConditionMessage';
+  time: number;
+}
 
 export type Message =
   | BackgroundImageMessage
@@ -128,4 +135,6 @@ export type Message =
   | CameraPathsMessage
   | CropParamsMessage
   | StatusMessage
-  | SaveCheckpointMessage;
+  | SaveCheckpointMessage
+  | UseTimeConditioningMessage
+  | TimeConditionMessage;
