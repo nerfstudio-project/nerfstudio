@@ -122,7 +122,7 @@ class ViewerState:
 
         self.camera_message = None
 
-        self.viser_server = ViserServer(host="localhost", port=websocket_port)
+        self.viser_server = ViserServer(host="0.0.0.0", port=websocket_port)
 
         self.viser_server.register_handler(IsTrainingMessage, self._handle_is_training)
         self.viser_server.register_handler(SaveCheckpointMessage, self._handle_save_checkpoint)
@@ -303,7 +303,7 @@ class ViewerState:
         if self.camera_message is None:
             return
 
-        if self.trainer is not None and self.trainer.is_training:
+        if self.trainer is not None and self.trainer.is_training and self.control_panel.train_util != 1:
             if (
                 EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]
                 and EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]
