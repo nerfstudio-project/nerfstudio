@@ -228,3 +228,16 @@ class StatusMessage(NerfstudioMessage):
 @dataclasses.dataclass
 class SaveCheckpointMessage(NerfstudioMessage):
     """Save checkpoint message."""
+
+
+@dataclasses.dataclass
+class UseTimeConditioningMessage(NerfstudioMessage):
+    """Use time conditioning message."""
+
+
+@dataclasses.dataclass
+class TimeConditionMessage(NerfstudioMessage):
+    """Time conditioning message."""
+
+    time: float
+    """ Time conditioning value """

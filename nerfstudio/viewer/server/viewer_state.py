@@ -51,6 +51,7 @@ from nerfstudio.viewer.viser.messages import (
     IsTrainingMessage,
     NerfstudioMessage,
     SaveCheckpointMessage,
+    TimeConditionMessage,
 )
 
 if TYPE_CHECKING:
@@ -110,6 +111,8 @@ class ViewerState:
 
         CONSOLE.print(Panel(table, title="[bold][yellow]Viewer[/bold]", expand=False))
 
+        self.include_time = self.pipeline.datamanager.includes_time
+
         # viewer specific variables
         self.prev_moving = False
         self.output_type_changed = True
@@ -130,8 +133,13 @@ class ViewerState:
         self.viser_server.register_handler(CameraPathOptionsRequest, self._handle_camera_path_option_request)
         self.viser_server.register_handler(CameraPathPayloadMessage, self._handle_camera_path_payload)
         self.viser_server.register_handler(CropParamsMessage, self._handle_crop_params_message)
+        if self.include_time:
+            self.viser_server.use_time_conditioning()
+            self.viser_server.register_handler(TimeConditionMessage, self._handle_time_condition_message)
 
-        self.control_panel = ControlPanel(self._interrupt_render, self._crop_params_update, self._output_type_change)
+        self.control_panel = ControlPanel(
+            self.include_time, self._interrupt_render, self._crop_params_update, self._output_type_change
+        )
         self.control_panel.install(self.viser_server)
 
         def nested_folder_install(folder_labels: List[str], element: ViewerElement):
@@ -232,6 +240,11 @@ class ViewerState:
         crop_max = center + scale / 2.0
         self.control_panel.crop_min = tuple(crop_min.tolist())
         self.control_panel.crop_max = tuple(crop_max.tolist())
+
+    def _handle_time_condition_message(self, message: NerfstudioMessage) -> None:
+        """Handle time conditioning message from viewer."""
+        assert isinstance(message, TimeConditionMessage)
+        self.control_panel.time = message.time
 
     @property
     def is_training(self) -> bool:

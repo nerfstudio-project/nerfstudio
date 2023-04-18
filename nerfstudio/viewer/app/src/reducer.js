@@ -55,6 +55,9 @@ const initialState = {
     crop_bg_color: { r: 38, g: 42, b: 55 },
     crop_scale: [2.0, 2.0, 2.0],
     crop_center: [0.0, 0.0, 0.0],
+
+    // Time options
+    use_time_conditioning: false,
   },
   // the scene state
   sceneState: {
