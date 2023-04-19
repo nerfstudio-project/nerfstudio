@@ -119,9 +119,11 @@ class LoggingConfig(PrintableConfig):
      e.g. if 20, averages will be computed over past 20 occurrences."""
     local_writer: LocalWriterConfig = LocalWriterConfig(enable=True)
     """if provided, will print stats locally. if None, will disable printing"""
-    enable_profiler: bool = True
-    """whether to enable profiling code; prints speed of functions at the end of a program.
-    profiler logs run times of functions and prints at end of training"""
+    profiler: Literal["none", "basic", "pytorch"] = "basic"
+    """how to profile the code;
+        "basic" - prints speed of all decorated functions at the end of a program.
+        "pytorch" - same as basic, but it also traces few training steps.
+    """
 
 
 # Viewer related configs
