@@ -76,7 +76,7 @@ class TrainerConfig(ExperimentConfig):
     mixed_precision: bool = False
     """Whether or not to use mixed precision for training."""
     use_grad_scaler: bool = False
-    """Use gradient scaler even if the automatic mixed precision is disabled (i.e. mixed_precision=False)"""
+    """Use gradient scaler even if the automatic mixed precision is disabled."""
     save_only_latest_checkpoint: bool = True
     """Whether to only save the latest checkpoint or all checkpoints."""
     # optional parameters if we want to resume training
@@ -121,7 +121,6 @@ class Trainer:
         self.device: TORCH_DEVICE = "cpu" if world_size == 0 else f"cuda:{local_rank}"
         self.mixed_precision: bool = self.config.mixed_precision
         self.use_grad_scaler: bool = self.mixed_precision or self.config.use_grad_scaler
-        self.is_training: bool = True
         self.training_state: Literal["training", "paused", "completed"] = "training"
 
         if self.device == "cpu":
