@@ -11,10 +11,10 @@ from pathlib import Path
 
 import tyro
 from rich.console import Console
-from scripts.my_utils import get_sequence_size_from_experiment, get_step_from_ckpt_path
 
 from nerfstudio.utils.colormaps import SceneDiverged
 from nerfstudio.utils.eval_utils import eval_setup
+from scripts.my_utils import get_sequence_size_from_experiment, get_step_from_ckpt_path
 
 CONSOLE = Console(width=120, no_color=True)
 
@@ -32,7 +32,7 @@ class ComputePSNR:
 
     def main(self) -> None:
         """Main function."""
-        config, pipeline, checkpoint_path = eval_setup(self.load_config, load_ckpt=self.load_ckpt)
+        config, pipeline, checkpoint_path, _ = eval_setup(self.load_config)
         assert self.output_path.suffix == ".json"
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
 

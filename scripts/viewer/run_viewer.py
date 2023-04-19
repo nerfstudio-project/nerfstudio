@@ -11,7 +11,6 @@ from typing import Literal, Optional, Tuple
 
 import tyro
 from rich.console import Console
-from scripts.my_utils import get_step_from_ckpt_path
 
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
@@ -20,8 +19,8 @@ from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import writer
 from nerfstudio.utils.eval_utils import eval_setup
-from nerfstudio.utils.writer import EventName, TimeWriter
-from nerfstudio.viewer.server import viewer_utils
+from nerfstudio.viewer.server.viewer_state import ViewerState
+from scripts.my_utils import get_step_from_ckpt_path
 
 CONSOLE = Console(width=120, no_color=True)
 
@@ -31,7 +30,6 @@ class ViewerConfigWithoutNumRays(ViewerConfig):
     """Configuration for viewer instantiation"""
 
     num_rays_per_chunk: tyro.conf.Suppress[int] = -1
-    start_train: tyro.conf.Suppress[bool] = False
 
     def as_viewer_config(self):
         """Converts the instance to ViewerConfig"""
@@ -57,7 +55,7 @@ class RunViewer:
             self.dataset_type = "all"
             CONSOLE.log("Setting dataset_type to 'all' because of indices file.")
 
-        config, pipeline, _ = eval_setup(
+        config, pipeline, _, step = eval_setup(
             self.load_config,
             eval_num_rays_per_chunk=None,
             test_mode="test",
@@ -71,63 +69,45 @@ class RunViewer:
         config.viewer = self.viewer.as_viewer_config()
         config.viewer.num_rays_per_chunk = num_rays_per_chunk
 
-        self._start_viewer(config, pipeline)
-
-    def _start_viewer(self, config: TrainerConfig, pipeline: Pipeline):
-        base_dir = config.get_base_dir()
-        viewer_log_path = base_dir / config.viewer.relative_log_filename
-        viewer_state, banner_messages = viewer_utils.setup_viewer(
-            config.viewer, log_filename=viewer_log_path, datapath=pipeline.datamanager.get_datapath()
-        )
-
-        # We don't need logging, but writer.GLOBAL_BUFFER needs to be populated
-        config.logging.local_writer.enable = False
-        writer.setup_local_writer(config.logging, max_iter=config.max_num_iterations, banner_messages=banner_messages)
-
-        viewer_state.vis["renderingState/config_base_dir"].write(str(config.relative_model_dir))
-
-        viewer_state.vis["renderingState/export_path"].write(
-            f"export-{config.pipeline.datamanager.dataparser.data.stem}_step_{get_step_from_ckpt_path(config.load_ckpt)}".replace(
-                ".", "_"
-            )
-        )
-
-        # TODO matej
-        dataset_map = {
-            "train": pipeline.datamanager.train_dataset,
-            "val": pipeline.datamanager.eval_dataset,
-            SPLIT_MODE_ALL: pipeline.datamanager.full_dataset,
-        }
-
-        assert viewer_state and dataset_map[self.dataset_type]
-        viewer_state.init_scene(dataset=dataset_map[self.dataset_type], start_train=False)
-
-        while True:
-            viewer_state.vis["renderingState/isTraining"].write(False)
-            self._update_viewer_state(viewer_state, pipeline)
-
-    def _update_viewer_state(self, viewer_state: viewer_utils.ViewerState, pipeline: Pipeline):
-        """Updates the viewer state by rendering out scene with current pipeline
-        Returns the time taken to render scene.
-
-        """
-        # NOTE: step must be > 0 otherwise the rendering would not happen
-        step = 1
-        num_rays_per_batch = pipeline.datamanager.get_train_rays_per_batch()
-        with TimeWriter(writer, EventName.ITER_VIS_TIME) as _:
-            try:
-                viewer_state.update_scene(self, step, pipeline.model, num_rays_per_batch)
-            except RuntimeError:
-                time.sleep(0.03)  # sleep to allow buffer to reset
-                assert viewer_state.vis is not None
-                viewer_state.vis["renderingState/log_errors"].write(
-                    "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
-                )
+        _start_viewer(config, pipeline, step)
 
     def save_checkpoint(self, *args, **kwargs):
         """
         Mock method because we pass this instance to viewer_state.update_scene
         """
+
+
+def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
+    """Starts the viewer
+
+    Args:
+        config: Configuration of pipeline to load
+        pipeline: Pipeline instance of which to load weights
+        step: Step at which the pipeline was saved
+    """
+    base_dir = config.get_base_dir()
+    viewer_log_path = base_dir / config.viewer.relative_log_filename
+    viewer_state = ViewerState(
+        config.viewer,
+        log_filename=viewer_log_path,
+        datapath=pipeline.datamanager.get_datapath(),
+        pipeline=pipeline,
+    )
+    banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
+
+    # We don't need logging, but writer.GLOBAL_BUFFER needs to be populated
+    config.logging.local_writer.enable = False
+    writer.setup_local_writer(config.logging, max_iter=config.max_num_iterations, banner_messages=banner_messages)
+
+    assert viewer_state and pipeline.datamanager.train_dataset
+    viewer_state.init_scene(
+        dataset=pipeline.datamanager.train_dataset,
+        start_train=False,
+    )
+    viewer_state.viser_server.set_is_training(False)
+    viewer_state.update_scene(step=step)
+    while True:
+        time.sleep(0.01)
 
 
 def entrypoint():

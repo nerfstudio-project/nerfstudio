@@ -25,23 +25,25 @@ from typing import Optional, Tuple
 import torch
 import yaml
 from rich.console import Console
-from scripts.my_utils import get_step_from_ckpt_path
 from typing_extensions import Literal
 
 from nerfstudio.engine.trainer import Trainer, TrainerConfig
 from nerfstudio.models.nerfacto import NerfactoModel
 from nerfstudio.pipelines.base_pipeline import Pipeline
+from scripts.my_utils import get_step_from_ckpt_path
 
 CONSOLE = Console(width=120, no_color=True)
 
 
-def eval_load_checkpoint(config: TrainerConfig, pipeline: Pipeline) -> Path:
+def eval_load_checkpoint(config: TrainerConfig, pipeline: Pipeline) -> Tuple[Path, int]:
     ## TODO: ideally eventually want to get this to be the same as whatever is used to load train checkpoint too
     """Helper function to load checkpointed pipeline
 
     Args:
         config (DictConfig): Configuration of pipeline to load
         pipeline (Pipeline): Pipeline instance of which to load weights
+    Returns:
+        A tuple of the path to the loaded checkpoint and the step at which it was saved.
     """
 
     checkpoint_path = Path(config.load_ckpt)
@@ -54,13 +56,13 @@ def eval_load_checkpoint(config: TrainerConfig, pipeline: Pipeline) -> Path:
     loaded_state = torch.load(checkpoint_path, map_location="cpu")
 
     if "step" not in loaded_state or not loaded_state["step"]:
-        step = get_step_from_ckpt_path(checkpoint_path)
+        load_step = get_step_from_ckpt_path(checkpoint_path)
     else:
-        step = loaded_state["step"]
+        load_step = loaded_state["step"]
 
-    pipeline.load_pipeline(loaded_state["pipeline"], step)
+    pipeline.load_pipeline(loaded_state["pipeline"], load_step)
     CONSOLE.print(f":white_check_mark: Done loading checkpoint from {str(checkpoint_path)}")
-    return checkpoint_path
+    return checkpoint_path, load_step
 
 
 def eval_setup(
@@ -69,7 +71,7 @@ def eval_setup(
     test_mode: Literal["test", "val", "inference"] = "test",
     load_ckpt: Path | None = None,
     indices_file: Path | None = None,
-) -> tuple[TrainerConfig, Pipeline, Path]:
+) -> tuple[TrainerConfig, Pipeline, Path, int]:
     """Shared setup for loading a saved pipeline for evaluation.
 
     Args:
@@ -82,7 +84,7 @@ def eval_setup(
 
 
     Returns:
-        Loaded config, pipeline module, and corresponding checkpoint.
+        Loaded config, pipeline module, corresponding checkpoint, and step
     """
     # load save config
     config = yaml.load(config_path.read_text(), Loader=yaml.Loader)
@@ -113,6 +115,7 @@ def eval_setup(
     assert isinstance(pipeline, Pipeline)
     pipeline.eval()
 
-    checkpoint_path = eval_load_checkpoint(config, pipeline)
+    # load checkpointed information
+    checkpoint_path, step = eval_load_checkpoint(config, pipeline)
 
-    return config, pipeline, checkpoint_path
+    return config, pipeline, checkpoint_path, step

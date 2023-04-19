@@ -1,14 +1,11 @@
 import { CssBaseline, ThemeProvider } from '@mui/material';
 import React from 'react';
-import {
-  SceneTreeWebSocketListener,
-  get_scene_tree,
-} from './modules/Scene/Scene';
+import { get_scene_tree } from './modules/Scene/Scene';
 
 import Banner from './modules/Banner';
 import { BasicTabs } from './modules/SidePanel/SidePanel';
 import ViewerWindow from './modules/ViewerWindow/ViewerWindow';
-import { appTheme } from './themes/theme.ts';
+import { appTheme } from './themes/theme';
 
 export default function App() {
   // The scene tree won't rerender but it will listen to changes
@@ -20,8 +17,6 @@ export default function App() {
     <ThemeProvider theme={appTheme}>
       <CssBaseline enableColorScheme />
       <div className="App">
-        {/* Listens for websocket 'write' messages and updates the redux store. */}
-        <SceneTreeWebSocketListener />
         {/* The banner at the top of the page. */}
         <Banner />
         <div className="App-body">

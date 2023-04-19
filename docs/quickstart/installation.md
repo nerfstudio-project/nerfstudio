@@ -79,10 +79,10 @@ pip install torch==1.13.1 torchvision functorch --extra-index-url https://downlo
 
 ### tinycudann
 
-After pytorch, install the torch bindings for tinycudann:
+After pytorch and ninja, install the torch bindings for tinycudann:
 
 ```bash
-pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
 ## Installing nerfstudio

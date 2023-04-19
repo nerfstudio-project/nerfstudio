@@ -298,7 +298,7 @@ class RenderTrajectory:
         if self.traj in ["dataset", "filename"] and self.traj_source is None:
             raise Exception("Please provide --traj-source <DATASET CONFIG OR camera.json>")
 
-        config, pipeline, _ = eval_setup(
+        config, pipeline, _, _ = eval_setup(
             self.load_config,
             eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
             test_mode="test" if self.traj in ["spiral", "interpolate"] else "inference",

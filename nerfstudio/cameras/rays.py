@@ -57,7 +57,7 @@ class Frustums(TensorDataclass):
         return pos
 
     def get_start_positions(self) -> TensorType[..., 3]:
-        """Calulates "start" position of frustum.
+        """Calculates "start" position of frustum.
 
         Returns:
             xyz positions.
@@ -193,7 +193,7 @@ class RayBundle(TensorDataclass):
     """Times at which rays are sampled"""
 
     def set_camera_indices(self, camera_index: int) -> None:
-        """Sets all of the the camera indices to a specific camera index.
+        """Sets all the camera indices to a specific camera index.
 
         Args:
             camera_index: Camera index.

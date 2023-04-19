@@ -62,11 +62,7 @@ CAMERA_MODEL_TO_TYPE = {
 class Cameras(TensorDataclass):
     """Dataparser outputs for the image dataset and the ray generator.
 
-    Note: currently only supports cameras with the same principal points and types. The reason we type
-    the focal lengths, principal points, and image sizes as tensors is to allow for batched cameras
-    down the line in cases where your batches of camera data don't come from the same cameras.
-
-     If a single value is provided, it is broadcasted to all cameras.
+    If a single value is provided, it is broadcasted to all cameras.
 
     Args:
         camera_to_worlds: Camera to world matrices. Tensor of per-image c2w matrices, in [R | t] format
@@ -79,6 +75,8 @@ class Cameras(TensorDataclass):
         distortion_params: OpenCV 6 radial distortion coefficients
         camera_type: Type of camera model. This will be an int corresponding to the CameraType enum.
         times: Timestamps for each camera
+        metadata: Additional metadata or data needed for interpolation, will mimic shape of the cameras
+            and will be broadcasted to the rays generated from any derivative RaySamples we create with this
     """
 
     camera_to_worlds: TensorType["num_cameras":..., 3, 4]
@@ -91,6 +89,7 @@ class Cameras(TensorDataclass):
     distortion_params: Optional[TensorType["num_cameras":..., 6]]
     camera_type: TensorType["num_cameras":..., 1]
     times: Optional[TensorType["num_cameras", 1]]
+    metadata: Optional[Dict]
 
     def __init__(
         self,
@@ -111,6 +110,7 @@ class Cameras(TensorDataclass):
             ]
         ] = CameraType.PERSPECTIVE,
         times: Optional[TensorType["num_cameras"]] = None,
+        metadata: Optional[Dict] = None,
     ) -> None:
         """Initializes the Cameras object.
 
@@ -145,6 +145,8 @@ class Cameras(TensorDataclass):
         self.width = self._init_get_height_width(width, self.cx)
         self.camera_type = self._init_get_camera_type(camera_type)
         self.times = self._init_get_times(times)
+
+        self.metadata = metadata
 
         self.__post_init__()  # This will do the dataclass post_init and broadcast all the tensors
 
@@ -716,13 +718,23 @@ class Cameras(TensorDataclass):
 
         times = self.times[camera_indices, 0] if self.times is not None else None
 
+        metadata = (
+            self._apply_fn_to_dict(self.metadata, lambda x: x[true_indices]) if self.metadata is not None else None
+        )
+        if metadata is not None:
+            metadata["directions_norm"] = directions_norm[0].detach()
+        else:
+            metadata = {"directions_norm": directions_norm[0].detach()}
+
+        times = self.times[camera_indices, 0] if self.times is not None else None
+
         return RayBundle(
             origins=origins,
             directions=directions,
             pixel_area=pixel_area,
             camera_indices=camera_indices,
             times=times,
-            metadata={"directions_norm": directions_norm[0].detach()},
+            metadata=metadata,
         )
 
     def to_json(

@@ -45,13 +45,14 @@ import Tooltip from '@mui/material/Tooltip';
 import VideoCameraBackIcon from '@mui/icons-material/VideoCameraBack';
 import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
-import { WebSocketContext } from '../../WebSocket/WebSocket';
+import {
+  ViserWebSocketContext,
+  sendWebsocketMessage,
+} from '../../WebSocket/ViserWebSocket';
 import RenderModal from '../../RenderModal';
 import LoadPathModal from '../../LoadPathModal';
 import CameraPropPanel from './CameraPropPanel';
 import LevaTheme from '../../../themes/leva_theme.json';
-
-const msgpack = require('msgpack-lite');
 
 const FOV_LABELS = {
   FOV: '°',
@@ -62,101 +63,6 @@ function set_camera_position(camera, matrix) {
   const mat = new THREE.Matrix4();
   mat.fromArray(matrix.elements);
   mat.decompose(camera.position, camera.quaternion, camera.scale);
-}
-
-function RenderTimeSelector(props) {
-  const disabled = props.disabled;
-  const isGlobal = props.isGlobal;
-  const camera = props.camera;
-  const dispatch = props.dispatch;
-  const globalRenderTime = props.globalRenderTime;
-  const setGlobalRenderTime = props.setGlobalRenderTime;
-  const applyAll = props.applyAll;
-  const changeMain = props.changeMain;
-  const setAllCameraRenderTime = props.setAllCameraRenderTime;
-
-  const getRenderTimeLabel = () => {
-    if (!isGlobal) {
-      return camera.renderTime;
-    }
-    camera.renderTime = globalRenderTime;
-    return globalRenderTime;
-  };
-
-  const [UIRenderTime, setUIRenderTime] = React.useState(
-    isGlobal ? globalRenderTime : getRenderTimeLabel(),
-  );
-
-  const [valid, setValid] = React.useState(true);
-
-  useEffect(
-    () => setUIRenderTime(getRenderTimeLabel()),
-    [camera, globalRenderTime],
-  );
-
-  const setRndrTime = (val) => {
-    if (!isGlobal) {
-      camera.renderTime = val;
-    } else {
-      camera.renderTime = val;
-      setGlobalRenderTime(val);
-    }
-
-    if (applyAll) {
-      setAllCameraRenderTime(val);
-    }
-
-    if (changeMain) {
-      dispatch({
-        type: 'write',
-        path: 'renderingState/render_time',
-        data: camera.renderTime,
-      });
-    }
-  };
-
-  const handleValidation = (e) => {
-    const valueFloat = parseFloat(e.target.value);
-    let valueStr = String(valueFloat);
-    if (e.target.value >= 0 && e.target.value <= 1) {
-      setValid(true);
-      if (valueFloat === 1.0) {
-        valueStr = '1.0';
-      }
-      if (valueFloat === 0.0) {
-        valueStr = '0.0';
-      }
-      setUIRenderTime(parseFloat(valueStr));
-      setRndrTime(parseFloat(valueStr));
-    } else {
-      setValid(false);
-    }
-  };
-
-  return (
-    <TextField
-      label="Render Time"
-      InputLabelProps={{
-        style: { color: '#8E8E8E' },
-      }}
-      inputProps={{
-        inputMode: 'numeric',
-      }}
-      onChange={(e) => setUIRenderTime(e.target.value)}
-      onBlur={(e) => handleValidation(e)}
-      disabled={disabled}
-      sx={{
-        input: {
-          WebkitTextFillColor: `${disabled ? '#24B6FF' : '#EBEBEB'} !important`,
-          color: `${disabled ? '#24B6FF' : '#EBEBEB'} !important`,
-        },
-      }}
-      value={UIRenderTime}
-      error={!valid}
-      helperText={!valid ? 'RenderTime should be between 0.0 and 1.0' : ''}
-      variant="standard"
-    />
-  );
 }
 
 function FovSelector(props) {
@@ -197,6 +103,7 @@ function FovSelector(props) {
 
   useEffect(
     () => setUIFieldOfView(getFovLabel()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [camera, fovLabel, globalFov],
   );
 
@@ -510,16 +417,7 @@ function CameraList(props) {
               changeMain={false}
             />
           )}
-          {isAnimated('RenderTime') && (
-            <RenderTimeSelector
-              camera={camera}
-              dispatch={dispatch}
-              disabled={!isAnimated('RenderTime')}
-              isGlobal={false}
-              changeMain={false}
-            />
-          )}
-          {!isAnimated('FOV') && !isAnimated('RenderTime') && (
+          {!isAnimated('FOV') && (
             <p style={{ fontSize: 'smaller', color: '#999999' }}>
               Animated camera properties will show up here!
             </p>
@@ -552,11 +450,12 @@ export default function CameraPanel(props) {
   ]);
 
   // redux store state
-  const export_path = useSelector((state) => state.renderingState.export_path);
+  const export_path = useSelector(
+    (state) => state.file_path_info.export_path_name,
+  );
 
-  const websocket = useContext(WebSocketContext).socket;
+  const viser_websocket = useContext(ViserWebSocketContext);
   const DEFAULT_FOV = 50;
-  const DEFAULT_RENDER_TIME = 0.0;
 
   // react state
   const [cameras, setCameras] = React.useState([]);
@@ -572,8 +471,6 @@ export default function CameraPanel(props) {
   const [load_path_modal_open, setLoadPathModalOpen] = React.useState(false);
   const [animate, setAnimate] = React.useState(new Set());
   const [globalFov, setGlobalFov] = React.useState(DEFAULT_FOV);
-  const [globalRenderTime, setGlobalRenderTime] =
-    React.useState(DEFAULT_RENDER_TIME);
 
   // leva store
   const cameraPropsStore = useCreateStore();
@@ -588,6 +485,7 @@ export default function CameraPanel(props) {
       (value) => setMouseInScene(value),
       'mouse_in_scene',
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const dispatch = useDispatch();
@@ -607,17 +505,6 @@ export default function CameraPanel(props) {
   );
   const crop_center = useSelector((state) => state.renderingState.crop_center);
   const crop_scale = useSelector((state) => state.renderingState.crop_scale);
-
-  const [display_render_time, set_display_render_time] = React.useState(false);
-
-  const receive_temporal_dist = (e) => {
-    const msg = msgpack.decode(new Uint8Array(e.data));
-    if (msg.path === '/model/has_temporal_distortion') {
-      set_display_render_time(msg.data === 'true');
-      websocket.removeEventListener('message', receive_temporal_dist);
-    }
-  };
-  websocket.addEventListener('message', receive_temporal_dist);
 
   const setRenderHeight = (value) => {
     dispatch({
@@ -650,46 +537,6 @@ export default function CameraPanel(props) {
     });
   };
 
-  const setCropEnabled = (value) => {
-    dispatch({
-      type: 'write',
-      path: 'renderingState/crop_enabled',
-      data: value,
-    });
-  };
-
-  const serCropBgColor = (value) => {
-    dispatch({
-      type: 'write',
-      path: 'renderingState/crop_bg_color',
-      data: value,
-    });
-  };
-
-  const setCropCenter = (value) => {
-    dispatch({
-      type: 'write',
-      path: 'renderingState/crop_center',
-      data: value,
-    });
-  };
-
-  const setCropScale = (value) => {
-    dispatch({
-      type: 'write',
-      path: 'renderingState/crop_scale',
-      data: value,
-    });
-  };
-
-  const setRenderTime = (value) => {
-    dispatch({
-      type: 'write',
-      path: 'renderingState/render_time',
-      data: parseFloat(value),
-    });
-  };
-
   // ui state
   const [fovLabel, setFovLabel] = React.useState(FOV_LABELS.FOV);
 
@@ -706,7 +553,6 @@ export default function CameraPanel(props) {
     if (new_camera_list.length >= 1) {
       set_camera_position(camera_render, new_camera_list[0].matrix);
       setFieldOfView(new_camera_list[0].fov);
-      setRenderTime(new_camera_list[0].renderTime);
       set_slider_value(slider_min);
     }
   };
@@ -715,7 +561,7 @@ export default function CameraPanel(props) {
     const camera_main_copy = camera_main.clone();
     camera_main_copy.aspect = 1.0;
     camera_main_copy.fov = globalFov;
-    camera_main_copy.renderTime = globalRenderTime;
+    camera_main_copy.renderTime = 0.0;
     const new_camera_properties = new Map();
     camera_main_copy.properties = new_camera_properties;
     new_camera_properties.set('FOV', globalFov);
@@ -845,6 +691,7 @@ export default function CameraPanel(props) {
         camera_helper,
       );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameras, cameraProperties, render_width, render_height]);
 
   // update the camera curve
@@ -962,6 +809,7 @@ export default function CameraPanel(props) {
       setFieldOfView(fov);
       setGlobalFov(fov);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slider_value, render_height, render_width]);
 
   // call this function whenever slider state changes
@@ -973,6 +821,7 @@ export default function CameraPanel(props) {
       return () => clearInterval(interval);
     }
     return () => {};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [is_playing]);
 
   // make sure to pause if the slider reaches the end
@@ -998,21 +847,11 @@ export default function CameraPanel(props) {
 
       const mat = get_transform_matrix(position, lookat, up);
 
-      if (display_render_time) {
-        const renderTime = curve_object.curve_render_times.getPoint(pt).z;
-        camera_path.push({
-          camera_to_world: mat.transpose().elements, // convert from col-major to row-major matrix
-          fov,
-          aspect: camera_render.aspect,
-          render_time: Math.max(Math.min(renderTime, 1.0), 0.0), // clamp time values to [0, 1]
-        });
-      } else {
-        camera_path.push({
-          camera_to_world: mat.transpose().elements, // convert from col-major to row-major matrix
-          fov,
-          aspect: camera_render.aspect,
-        });
-      }
+      camera_path.push({
+        camera_to_world: mat.transpose().elements, // convert from col-major to row-major matrix
+        fov,
+        aspect: camera_render.aspect,
+      });
     }
 
     const keyframes = [];
@@ -1029,7 +868,11 @@ export default function CameraPanel(props) {
     let crop = null;
     if (crop_enabled) {
       crop = {
-        crop_bg_color,
+        crop_bg_color: {
+          r: crop_bg_color[0],
+          g: crop_bg_color[1],
+          b: crop_bg_color[2],
+        },
         crop_center,
         crop_scale,
       };
@@ -1055,6 +898,8 @@ export default function CameraPanel(props) {
     // export the camera path
     // inspired by:
     // https://stackoverflow.com/questions/55613438/reactwrite-to-json-file-or-export-download-no-server
+
+    sendWebsocketMessage(viser_websocket, { type: 'SaveCheckpointMessage' });
 
     const camera_path_object = get_camera_path();
     console.log(camera_render.toJSON());
@@ -1115,10 +960,14 @@ export default function CameraPanel(props) {
     reset_slider_render_on_add(new_camera_list);
 
     if ('crop' in camera_path_object && camera_path_object.crop !== null) {
-      setCropEnabled(true);
-      serCropBgColor(camera_path_object.crop.crop_bg_color);
-      setCropCenter(camera_path_object.crop.crop_center);
-      setCropScale(camera_path_object.crop.crop_scale);
+      const bg_color = camera_path_object.crop.crop_bg_color;
+      sendWebsocketMessage(viser_websocket, {
+        type: 'crop_params',
+        crop_enabled: true,
+        crop_bg_color: [bg_color.r, bg_color.g, bg_color.b],
+        crop_center: camera_path_object.crop.crop_center,
+        crop_scale: camera_path_object.crop.crop_scale,
+      });
     }
   };
 
@@ -1138,33 +987,17 @@ export default function CameraPanel(props) {
     setRenderModalOpen(true);
 
     const camera_path_object = get_camera_path();
-    const camera_path_payload = {
+
+    sendWebsocketMessage(viser_websocket, {
+      type: 'CameraPathPayloadMessage',
       camera_path_filename: export_path,
       camera_path: camera_path_object,
-    };
-
-    // send a command of the websocket to save the trajectory somewhere!
-    if (websocket.readyState === WebSocket.OPEN) {
-      const data = {
-        type: 'write',
-        path: 'camera_path_payload',
-        data: camera_path_payload,
-      };
-      const message = msgpack.encode(data);
-      websocket.send(message);
-    }
+    });
+    sendWebsocketMessage(viser_websocket, { type: 'SaveCheckpointMessage' });
   };
 
   const open_load_path_modal = () => {
-    if (websocket.readyState === WebSocket.OPEN) {
-      const data = {
-        type: 'write',
-        path: 'populate_paths_payload',
-        data: true,
-      };
-      const message = msgpack.encode(data);
-      websocket.send(message);
-    }
+    sendWebsocketMessage(viser_websocket, { type: 'CameraPathOptionsRequest' });
     setLoadPathModalOpen(true);
   };
 
@@ -1190,12 +1023,6 @@ export default function CameraPanel(props) {
       for (let i = 0; i < cameras.length; i += 1) {
         cameras[i].setFocalLength(val / cameras[i].aspect);
       }
-    }
-  };
-
-  const setAllCameraRenderTime = (val) => {
-    for (let i = 0; i < cameras.length; i += 1) {
-      cameras[i].renderTime = val;
     }
   };
 
@@ -1263,51 +1090,6 @@ export default function CameraPanel(props) {
           />
         </LevaStoreProvider>
       </div>
-      {display_render_time && (
-        <div className="CameraList-row-animation-properties">
-          <Tooltip title="Animate Render Time for Each Camera">
-            <Button
-              value="animateRenderTime"
-              selected={isAnimated('RenderTime')}
-              onClick={() => {
-                toggleAnimate('RenderTime');
-              }}
-              style={{
-                maxWidth: '20px',
-                maxHeight: '20px',
-                minWidth: '20px',
-                minHeight: '20px',
-                position: 'relative',
-                top: '22px',
-              }}
-              sx={{
-                mt: 1,
-              }}
-            >
-              <Animation
-                style={{
-                  color: isAnimated('RenderTime') ? '#24B6FF' : '#EBEBEB',
-                  maxWidth: '20px',
-                  maxHeight: '20px',
-                  minWidth: '20px',
-                  minHeight: '20px',
-                }}
-              />
-            </Button>
-          </Tooltip>
-          <RenderTimeSelector
-            disabled={false}
-            isGlobal
-            camera={camera_main}
-            dispatch={dispatch}
-            globalRenderTime={globalRenderTime}
-            setGlobalRenderTime={setGlobalRenderTime}
-            applyAll={!isAnimated('RenderTime')}
-            setAllCameraRenderTime={setAllCameraRenderTime}
-            changeMain
-          />
-        </div>
-      )}
       {camera_type !== 'equirectangular' && (
         <div className="CameraList-row-animation-properties">
           <Tooltip title="Animate FOV for Each Camera">
