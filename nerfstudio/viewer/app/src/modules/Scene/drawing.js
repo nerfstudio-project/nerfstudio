@@ -50,6 +50,7 @@ export function getCameraWireframe(
   focalLength = 4,
   w = 1.5,
   h = 2,
+  color = 0x000000,
 ) {
   // Returns a wireframe of a 3D line-plot of a camera symbol.
   // A wireframe is a frustum.
@@ -93,17 +94,18 @@ export function getCameraWireframe(
 
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   const material = new THREE.LineBasicMaterial({
-    color: 0x000000,
+    color: color,
     linewidth: 1,
   });
   const lines = new THREE.LineSegments(geometry, material);
   return lines;
 }
 
-export function drawCameraImagePlane(width, height, imageString, name) {
+export function drawCameraImagePlane(width, height, imageString, name, color = 0xffffff) {
   // imageString is the texture as a base64 string
   const geometry = new THREE.PlaneGeometry(width, height);
   const material = new THREE.MeshBasicMaterial({
+    color: color,
     side: THREE.DoubleSide,
   });
   const texture = new THREE.TextureLoader().load(imageString);
@@ -117,7 +119,7 @@ function transpose(matrix) {
   return matrix[0].map((col, i) => matrix.map((row) => row[i]));
 }
 
-export function drawCamera(camera, name): THREE.Object3D {
+export function drawCamera(camera, name, wireframe_color = 0x000000, image_plane_color = 0xffffff): THREE.Object3D {
   const group = new THREE.Group();
 
   console.assert(
@@ -133,6 +135,7 @@ export function drawCamera(camera, name): THREE.Object3D {
     displayedFocalLength,
     width,
     height,
+    wireframe_color,
   );
   cameraWireframeObject.translateZ(displayedFocalLength); // move the wireframe frustum back
   group.add(cameraWireframeObject);
@@ -141,6 +144,7 @@ export function drawCamera(camera, name): THREE.Object3D {
     height * 2,
     camera.image,
     name,
+    image_plane_color
   );
   group.add(cameraImagePlaneObject);
 
@@ -155,12 +159,4 @@ export function drawCamera(camera, name): THREE.Object3D {
   mat.decompose(group.position, group.quaternion, group.scale);
 
   return group;
-}
-
-export function drawCameras(cameras): Record<number, THREE.Object3D> {
-  const cameraObjects = {};
-  for (const [key, camera] of Object.entries(cameras)) {
-    cameraObjects[key] = drawCamera(camera);
-  }
-  return cameraObjects;
 }

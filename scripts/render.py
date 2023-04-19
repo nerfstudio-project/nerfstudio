@@ -376,6 +376,10 @@ class RenderTrajectory:
         else:
             assert_never(self.traj)
 
+        # check if visibility is a desired output. if not, disable it for fast rendering
+        if "visibility" not in self.rendered_output_names:
+            pipeline.model.visibility_field = None
+
         _render_trajectory_video(
             pipeline,
             camera_path,

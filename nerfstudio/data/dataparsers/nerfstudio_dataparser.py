@@ -61,7 +61,7 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The method to use to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
-    eval_mode: Literal["train-split-fraction", "eval-frame-index"] = "train-split-fraction"
+    eval_mode: Literal["train-split-fraction", "eval-frame-index", "eval-interval"] = "train-split-fraction"
     """The method to use for splitting the dataset into train and eval."""
     train_split_fraction: float = 0.9
     """The fraction of images to use for training. The remaining images are for eval."""
@@ -69,6 +69,8 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The index of the frames to use for train."""
     eval_frame_indices: Tuple[int, ...] = (1,)
     """The index of the frames to use for eval."""
+    eval_interval: int = 8
+    """The interval between frames to use for eval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
 
@@ -213,6 +215,8 @@ class Nerfstudio(DataParser):
                 indices = [i for i, path in enumerate(image_filenames) if path in split_filenames]
                 CONSOLE.log(f"[yellow] Dataset is overriding {split}_indices to {indices}")
                 indices = np.array(indices, dtype=np.int32)
+                i_train = indices
+                i_eval = indices
             elif has_split_files_spec:
                 raise RuntimeError(f"The dataset's list of filenames for split {split} is missing.")
             else:
@@ -226,12 +230,6 @@ class Nerfstudio(DataParser):
                 )  # equally spaced training images starting and ending at 0 and num_images-1
                 i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
                 assert len(i_eval) == num_eval_images
-                if split == "train":
-                    indices = i_train
-                elif split in ["val", "test"]:
-                    indices = i_eval
-                else:
-                    raise ValueError(f"Unknown dataparser split {split}")
         elif self.config.eval_mode == "eval-frame-index":
             # keep around some metadata
             eval_frame_index_0_metadata = []
@@ -256,12 +254,24 @@ class Nerfstudio(DataParser):
                         eval_frame_index_0_metadata.append(0)
                 if frame_index in self.config.eval_frame_indices:
                     i_eval.append(idx)
-            if split == "train":
-                indices = i_train
-            elif split in ["val", "test"]:
-                indices = i_eval
-            else:
-                raise ValueError(f"Unknown dataparser split {split}")
+        elif self.config.eval_mode == "eval-interval":
+            # filter image_filenames and poses based on a specified interval for eval
+            # this chunk of code is very similar to the mipnerf360 code
+            num_images = len(image_filenames)
+            all_indices = np.arange(num_images)
+            train_indices = all_indices[all_indices % self.config.eval_interval != 0]
+            eval_indices = all_indices[all_indices % self.config.eval_interval == 0]
+            i_train = train_indices
+            i_eval = eval_indices
+        else:
+            raise ValueError(f"Unknown eval mode {self.config.eval_mode}")
+
+        if split == "train":
+            indices = i_train
+        elif split in ["val", "test"]:
+            indices = i_eval
+        else:
+            raise ValueError(f"Unknown dataparser split {split}")
 
         if "orientation_override" in meta:
             orientation_method = meta["orientation_override"]

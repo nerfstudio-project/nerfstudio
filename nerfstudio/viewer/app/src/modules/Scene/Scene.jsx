@@ -271,7 +271,7 @@ export function get_scene_tree() {
         if (!prev.has(key)) {
           // keys_valid.push(key);
           const json = current[key];
-          const camera = drawCamera(json, key);
+          const camera = drawCamera(json, key, 0x000000, 0xffffff);
           sceneTree.set_object_from_path([CAMERAS_NAME, key], camera);
         }
       }
@@ -308,7 +308,7 @@ export function get_scene_tree() {
         if (!prev.has(key)) {
           // keys_valid.push(key);
           const json = current[key];
-          const camera = drawCamera(json, key);
+          const camera = drawCamera(json, key, 0xff0000, 0xff5555);
           sceneTree.set_object_from_path([EVAL_CAMERAS_NAME, key], camera);
         }
       }
