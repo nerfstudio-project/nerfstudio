@@ -76,3 +76,14 @@ Set the "Output Render" type to `relevancy_0`, and enter the text query in the "
 
 ## Results
 For results, view the [project page](https://lerf.io)!
+
+Datasets used in the original paper can be found [here](https://drive.google.com/drive/folders/1LUzwEvBCE19PNYcwfmrG-9FLpZLbi4on?usp=sharing).
+
+```none
+@article{lerf2023,
+ author = {Kerr, Justin and Kim, Chung Min and Goldberg, Ken and Kanazawa, Angjoo and Tancik, Matthew},
+ title = {LERF: Language Embedded Radiance Fields},
+ journal = {arXiv preprint arXiv:2303.09553},
+ year = {2023},
+} 
+```
