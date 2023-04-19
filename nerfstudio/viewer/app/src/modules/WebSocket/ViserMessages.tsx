@@ -78,9 +78,9 @@ interface DatasetImageMessage {
   idx: string;
   json: any;
 }
-interface IsTrainingMessage {
-  type: 'IsTrainingMessage';
-  is_training: boolean;
+interface TrainingStateMessage {
+  type: 'TrainingStateMessage';
+  training_state: 'training' | 'paused' | 'completed';
 }
 interface CameraPathPayloadMessage {
   type: 'CameraPathPayloadMessage';
@@ -109,6 +109,13 @@ interface StatusMessage {
 interface SaveCheckpointMessage {
   type: 'SaveCheckpointMessage';
 }
+interface UseTimeConditioningMessage {
+  type: 'UseTimeConditioningMessage';
+}
+interface TimeConditionMessage {
+  type: 'TimeConditionMessage';
+  time: number;
+}
 
 export type Message =
   | BackgroundImageMessage
@@ -122,10 +129,12 @@ export type Message =
   | CameraMessage
   | SceneBoxMessage
   | DatasetImageMessage
-  | IsTrainingMessage
+  | TrainingStateMessage
   | CameraPathPayloadMessage
   | CameraPathOptionsRequest
   | CameraPathsMessage
   | CropParamsMessage
   | StatusMessage
-  | SaveCheckpointMessage;
+  | SaveCheckpointMessage
+  | UseTimeConditioningMessage
+  | TimeConditionMessage;

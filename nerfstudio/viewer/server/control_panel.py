@@ -35,12 +35,14 @@ class ControlPanel:
     """
     Initializes the control panel with all the elements
     Args:
+        time_enabled: whether or not the time slider should be enabled
         rerender_cb: a callback that will be called when the user changes a parameter that requires a rerender
             (eg train speed, max res, etc)
         crop_update_cb: a callback that will be called when the user changes the crop parameters
+        update_output_cb: a callback that will be called when the user changes the output render
     """
 
-    def __init__(self, rerender_cb: Callable, crop_update_cb: Callable, update_output_cb: Callable):
+    def __init__(self, time_enabled: bool, rerender_cb: Callable, crop_update_cb: Callable, update_output_cb: Callable):
         # elements holds a mapping from tag: [elements]
         self._elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
 
@@ -68,6 +70,8 @@ class ControlPanel:
         self._background_color = ViewerRGB("| Background color", (38, 42, 55), cb_hook=crop_update_cb)
         self._crop_min = ViewerVec3("| Crop Min", (-1, -1, -1), 0.05, cb_hook=crop_update_cb)
         self._crop_max = ViewerVec3("| Crop Max", (1, 1, 1), 0.05, cb_hook=crop_update_cb)
+        self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=rerender_cb)
+        self._time_enabled = time_enabled
 
         self.add_element(self._train_speed)
         self.add_element(self._output_render)
@@ -85,6 +89,8 @@ class ControlPanel:
         self.add_element(self._background_color, additional_tags=("crop",))
         self.add_element(self._crop_min, additional_tags=("crop",))
         self.add_element(self._crop_max, additional_tags=("crop",))
+
+        self.add_element(self._time, additional_tags=("time",))
 
     def _train_speed_cb(self) -> None:
         """Callback for when the train speed is changed"""
@@ -135,6 +141,7 @@ class ControlPanel:
             e.set_hidden(self.output_render == "rgb")
         for e in self._elements_by_tag["crop"]:
             e.set_hidden(not self.crop_viewport)
+        self._time.set_hidden(not self._time_enabled)
 
     def update_colormap_options(self, dimensions: int, dtype: type) -> None:
         """update the colormap options based on the current render
@@ -235,3 +242,13 @@ class ControlPanel:
     def background_color(self, value: Tuple[int, int, int]):
         """Sets the background color"""
         self._background_color.value = value
+
+    @property
+    def time(self) -> float:
+        """Returns the current background color"""
+        return self._time.value
+
+    @time.setter
+    def time(self, value: float):
+        """Sets the background color"""
+        self._time.value = value

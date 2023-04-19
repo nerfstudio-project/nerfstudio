@@ -155,7 +155,7 @@ class RenderStateMachine(threading.Thread):
             cy=intrinsics_matrix[1, 2],
             camera_type=camera_type,
             camera_to_worlds=camera_to_world[None, ...],
-            times=torch.tensor([0.0]),
+            times=torch.tensor([self.viewer.control_panel.time], dtype=torch.float32),
         )
         camera = camera.to(self.viewer.get_model().device)
 

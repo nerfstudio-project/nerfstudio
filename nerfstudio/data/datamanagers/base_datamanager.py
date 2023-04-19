@@ -179,6 +179,7 @@ class DataManager(nn.Module):
         eval_count (int): the step number of our eval iteration, needs to be incremented manually
         train_dataset (Dataset): the dataset for the train dataset
         eval_dataset (Dataset): the dataset for the eval dataset
+        includes_time (bool): whether the dataset includes time information
 
         Additional attributes specific to each subclass are defined in the setup_train and setup_eval
         functions.
@@ -189,6 +190,7 @@ class DataManager(nn.Module):
     eval_dataset: Optional[Dataset] = None
     train_sampler: Optional[DistributedSampler] = None
     eval_sampler: Optional[DistributedSampler] = None
+    includes_time: bool = False
 
     def __init__(self):
         """Constructor for the DataManager class.
@@ -407,6 +409,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         else:
             self.config.data = self.config.dataparser.data
         self.dataparser = self.dataparser_config.setup()
+        self.includes_time = self.dataparser.includes_time
         self.train_dataparser_outputs = self.dataparser.get_dataparser_outputs(split="train")
 
         self.train_dataset = self.create_train_dataset()
