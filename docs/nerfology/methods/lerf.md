@@ -44,11 +44,12 @@ Three variants of LERF are provided:
 
 | Method       | Description                                     | Memory    | Quality |
 | ------------ | ----------------------------------------------- | --------- | ------- |
-| `lerf-big`   | LERF with OpenCLIP ViT-L/14                     | ~TODO GB  | Best    |
-| `lerf`       | Model with OpenCLIP ViT-B/16, used in paper     | ~TODO GB  | Good    |
-| `lerf-lite`  | LERF with smaller network and less LERF samples | ~8GB      | Ok      |
+| `lerf-big`   | LERF with OpenCLIP ViT-L/14                     | ~22 GB    | Best    |
+| `lerf`       | Model with OpenCLIP ViT-B/16, used in paper     | ~15 GB    | Good    |
+| `lerf-lite`  | LERF with smaller network and less LERF samples | ~8 GB     | Ok      |
 
 `lerf-lite` should work on a single NVIDIA 2080.
+`lerf-big` is experimental, and needs further tuning. 
 
 ## Method
 
