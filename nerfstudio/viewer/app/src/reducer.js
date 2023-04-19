@@ -40,7 +40,7 @@ const initialState = {
     field_of_view: 50,
     camera_type: 'perspective',
 
-    isTraining: true,
+    training_state: 'training',
 
     step: 0,
     eval_res: '?',

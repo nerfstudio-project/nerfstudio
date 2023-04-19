@@ -439,13 +439,13 @@ class MessageApi(abc.ABC):
         """
         self._queue(messages.DatasetImageMessage(idx=idx, json=json))
 
-    def set_is_training(self, is_training: bool) -> None:
+    def set_training_state(self, training_state: Literal["training", "paused", "completed"]) -> None:
         """Set the training mode.
 
         Args:
-            is_training: The training mode.
+            training_state: The training mode.
         """
-        self._queue(messages.IsTrainingMessage(is_training=is_training))
+        self._queue(messages.TrainingStateMessage(training_state=training_state))
 
     def send_camera_paths(self, camera_paths: Dict[str, Any]) -> None:
         """Send camera paths to the scene.

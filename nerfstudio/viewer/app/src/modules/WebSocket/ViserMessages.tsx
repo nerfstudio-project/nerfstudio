@@ -78,9 +78,9 @@ interface DatasetImageMessage {
   idx: string;
   json: any;
 }
-interface IsTrainingMessage {
-  type: 'IsTrainingMessage';
-  is_training: boolean;
+interface TrainingStateMessage {
+  type: 'TrainingStateMessage';
+  training_state: 'training' | 'paused' | 'completed';
 }
 interface CameraPathPayloadMessage {
   type: 'CameraPathPayloadMessage';
@@ -129,7 +129,7 @@ export type Message =
   | CameraMessage
   | SceneBoxMessage
   | DatasetImageMessage
-  | IsTrainingMessage
+  | TrainingStateMessage
   | CameraPathPayloadMessage
   | CameraPathOptionsRequest
   | CameraPathsMessage

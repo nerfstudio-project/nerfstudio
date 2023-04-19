@@ -184,11 +184,11 @@ function handleMessage(
       break;
     }
     // Set training value.
-    case 'IsTrainingMessage': {
+    case 'TrainingStateMessage': {
       dispatch({
         type: 'write',
-        path: 'renderingState/isTraining',
-        data: message.is_training,
+        path: 'renderingState/training_state',
+        data: message.training_state,
       });
       break;
     }
