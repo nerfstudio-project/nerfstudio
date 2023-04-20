@@ -137,6 +137,8 @@ class ViewerConfig(PrintableConfig):
     """The websocket port to connect to. If None, find an available port."""
     websocket_port_default: int = 7007
     """The default websocket port to connect to if websocket_port is not specified"""
+    websocket_host: str = "0.0.0.0"
+    """The host address to bind the websocket server to."""
     num_rays_per_chunk: int = 32768
     """number of rays per chunk to render with viewer"""
     max_num_display_images: int = 512
