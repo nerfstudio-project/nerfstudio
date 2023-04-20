@@ -65,9 +65,7 @@ class RunViewer:
         # NOTE: for generative pipeline(s), set the data path on-the-fly.
         if pipeline.config.generative:
             assert pipeline.datamanager.get_datapath() is None
-            CONSOLE.print(
-                f"Generative models should not have data path. Setting it to {str(base_dir)}"
-            )
+            CONSOLE.print(f"Generative models should not have data path. Setting it to {str(base_dir)}")
             viewer_state, banner_messages = viewer_utils.setup_viewer(
                 config.viewer, log_filename=viewer_log_path, datapath=base_dir
             )
