@@ -17,10 +17,17 @@ Profiler base class and functionality
 """
 from __future__ import annotations
 
+import functools
+import os
 import time
-from typing import Callable
+from collections import deque
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from rich.console import Console
+from torch.autograd.profiler import ContextDecorator
+from torch.profiler import ProfilerActivity, profile, record_function
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.utils import comms
@@ -33,32 +40,122 @@ from nerfstudio.utils.decorators import (
 CONSOLE = Console(width=120)
 
 PROFILER = []
+PYTORCH_PROFILER = None
 
 
-def time_function(func: Callable) -> Callable:
-    """Decorator: time a function call"""
+class time_function(ContextDecorator):  # pylint: disable=invalid-name
+    """Decorator/Context manager: time a function call or a block of code"""
 
-    def wrapper(*args, **kwargs):
-        start = time.time()
-        ret = func(*args, **kwargs)
+    def __init__(self, name: str):
+        self.name = name
+        self.start = None
+        self._profiler_contexts = deque()
+        self._function_call_args: Optional[Tuple[Tuple, Dict]] = None
+
+    def __new__(cls, func: Union[str, Callable]):
+        instance = super().__new__(cls)
+        if isinstance(func, str):
+            instance.__init__(func)
+            return instance
+        if callable(func):
+            instance.__init__(func.__qualname__)
+            return instance(func)
+        raise ValueError(f"Argument func of type {type(func)} is not a string or a callable.")
+
+    def __enter__(self):
+        self.start = time.time()
+        if PYTORCH_PROFILER is not None:
+            args, kwargs = tuple(), {}
+            if self._function_call_args is not None:
+                args, kwargs = self._function_call_args
+            ctx = PYTORCH_PROFILER.record_function(self.name, *args, **kwargs)
+            ctx.__enter__()  # pylint: disable=no-member
+            self._profiler_contexts.append(ctx)
+            if self._function_call_args is None:
+                ctx = record_function(self.name)
+                ctx.__enter__()
+                self._profiler_contexts.append(ctx)
+
+    def __exit__(self, *args, **kwargs):
+        while self._profiler_contexts:
+            context = self._profiler_contexts.pop()
+            context.__exit__(*args, **kwargs)
         if PROFILER:
-            class_str = func.__qualname__
-            PROFILER[0].update_time(class_str, start, time.time())
-        return ret
+            PROFILER[0].update_time(self.name, self.start, time.time())
 
-    return wrapper
+    def __call__(self, func: Callable):
+        @functools.wraps(func)
+        def inner(*args, **kwargs):
+            self._function_call_args = (args, kwargs)
+            with self:
+                out = func(*args, **kwargs)
+            self._function_call_args = None
+            return out
+
+        return inner
 
 
 def flush_profiler(config: cfg.LoggingConfig):
     """Method that checks if profiler is enabled before flushing"""
-    if config.enable_profiler and PROFILER:
+    if config.profiler != "none" and PROFILER:
         PROFILER[0].print_profile()
 
 
-def setup_profiler(config: cfg.LoggingConfig):
+def setup_profiler(config: cfg.LoggingConfig, log_dir: Path):
     """Initialization of profilers"""
+    global PYTORCH_PROFILER  # pylint: disable=global-statement
     if comms.is_main_process():
         PROFILER.append(Profiler(config))
+        if config.profiler == "pytorch":
+            PYTORCH_PROFILER = PytorchProfiler(log_dir)
+
+
+class PytorchProfiler:  # pylint: disable=too-few-public-methods
+    """
+    Wrapper for Pytorch Profiler
+    """
+
+    def __init__(self, output_path: Path, trace_steps: Optional[List[int]] = None):
+        self.output_path = output_path / "profiler_traces"
+        if trace_steps is None:
+            # Some arbitrary steps which likely do not overlap with steps usually chosen to run callbacks
+            trace_steps = [12, 17]
+        self.trace_steps = trace_steps
+
+    @contextmanager
+    def record_function(self, function: str, *args, **_kwargs):
+        """
+        Context manager that records a function call and saves the trace to a json file.
+        Traced functions are: train_iteration, eval_iteration
+        """
+        if function.endswith("train_iteration") or function.endswith("eval_iteration"):
+            step = args[1]
+            assert isinstance(step, int)
+            assert len(args) == 2
+            stage = function.split(".")[-1].split("_")[0]
+            if step in self.trace_steps:
+                launch_kernel_blocking = self.trace_steps.index(step) % 2 == 0
+                backup_lb_var = ""
+                if launch_kernel_blocking:
+                    backup_lb_var = os.environ.get("CUDA_LAUNCH_BLOCKING", "")
+                    os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+                with profile(
+                    activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+                    record_shapes=True,
+                    with_stack=True,
+                    profile_memory=True,
+                ) as prof:
+                    yield None
+                if launch_kernel_blocking:
+                    os.environ["CUDA_LAUNCH_BLOCKING"] = backup_lb_var
+                self.output_path.mkdir(parents=True, exist_ok=True)
+                prof.export_chrome_trace(
+                    str(self.output_path / f"trace_{stage}_{step}{'_blocking' if launch_kernel_blocking else ''}.json")
+                )
+                return
+        # Functions are recorded automatically
+        yield None
+        return
 
 
 @decorate_all([check_profiler_enabled, check_main_thread])

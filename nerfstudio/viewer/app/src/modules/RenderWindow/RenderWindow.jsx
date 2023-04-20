@@ -2,11 +2,23 @@ import * as React from 'react';
 import { useSelector } from 'react-redux';
 
 export default function RenderWindow() {
-  const render_img = useSelector((state) => state.render_img);
+  const isWebsocketConnected = useSelector(
+    (state) => state.websocketState.isConnected,
+  );
 
   return (
     <div className="RenderWindow">
-      <img src={render_img} width="100%" height="100%" alt="Render window" />
+      <div id="not-connected-overlay" hidden={isWebsocketConnected}>
+        <div id="not-connected-overlay-text">Renderer Disconnected</div>
+      </div>
+      <img
+        id="background-image"
+        width="100%"
+        height="100%"
+        alt="Render window"
+        z-index="1"
+        hidden={!isWebsocketConnected}
+      />
     </div>
   );
 }

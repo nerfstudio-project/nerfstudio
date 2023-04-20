@@ -13,41 +13,37 @@ const initialState = {
 
   render_img: null, // The rendered images
 
+  show_export_box: false, // whether to show the export box
+
+  custom_gui: {
+    guiNames: [],
+    guiConfigFromName: {},
+    guiSetQueue: {},
+  },
+
+  file_path_info: {
+    config_base_dir: 'config_base_dir', // the base directory of the config file
+    data_base_dir: 'data_base_dir', // the base directory of the images for saving camera path with the data
+    export_path_name: 'export_path_name', // export name for render and camera_path
+  },
+
+  all_camera_paths: null, // object containing camera paths and names
+
   // the rendering state
   renderingState: {
     // cameras
     camera_choice: 'Main Camera', // the camera being used to render the scene
 
     // camera path information
-    config_base_dir: 'config_base_dir', // the base directory of the config file
     render_height: 1080,
     render_width: 1920,
     field_of_view: 50,
     camera_type: 'perspective',
 
-    data_base_dir: 'data_base_dir', // the base directory of the images for saving camera path with the data
-    export_path: 'export_path', // export name for render and camera_path
+    training_state: 'training',
 
-    all_camera_paths: null, // object containing camera paths and names
-
-    isTraining: true,
-
-    // colormap options
-    output_options: ['rgb'], // populated by the possible Graph outputs
-    output_choice: 'rgb', // the selected output
-    colormap_options: ['default'], // populated by the output choice
-    colormap_choice: 'default', // the selected colormap
-    colormap_invert: false, // whether to invert the colormap
-    colormap_normalize: false, // whether to normalize the colormap
-    colormap_range: [0.0, 1.0], // the range of the colormap
-
-    maxResolution: 1024,
-    targetTrainUtil: 0.9,
+    step: 0,
     eval_res: '?',
-    train_eta: 'Paused',
-    vis_train_ratio: 'Paused',
-    log_errors: '',
-    renderTime: 0.0,
 
     // export options
     clipping_enabled: true,
@@ -59,6 +55,9 @@ const initialState = {
     crop_bg_color: { r: 38, g: 42, b: 55 },
     crop_scale: [2.0, 2.0, 2.0],
     crop_center: [0.0, 0.0, 0.0],
+
+    // Time options
+    use_time_conditioning: false,
   },
   // the scene state
   sceneState: {
@@ -67,31 +66,38 @@ const initialState = {
   },
 };
 
-function setData(newState, state, path, data) {
+// Recursive function to update the state object with new data at a given path
+function setData(state, path, data) {
+  // If we've reached the final level of the path, update the property with the new data
   if (path.length === 1) {
-    newState[path[0]] = data; // eslint-disable-line no-param-reassign
-  } else {
-    newState[path[0]] = { ...state[path[0]] }; // eslint-disable-line no-param-reassign
-    setData(newState[path[0]], state[path[0]], path.slice(1), data);
+    // Use the spread operator to create a shallow copy of the state object
+    // and update the property with the new data
+    return { ...state, [path[0]]: data };
   }
+  // If we haven't reached the final level of the path, recursively update the nested object
+  // by creating a shallow copy of the parent object and updating the relevant property
+  return {
+    ...state,
+    [path[0]]: setData(state[path[0]], path.slice(1), data),
+  };
 }
 
-// Use the initialState as a default value
+// Reducer function that handles the state updates
 // eslint-disable-next-line default-param-last
 export default function rootReducer(state = initialState, action) {
-  // The reducer normally looks at the action type field to decide what happens
-
   switch (action.type) {
     case 'write': {
-      const path = split_path(action.path); // convert string with "/"s to a list
-      const data = action.data;
-      const newState = { ...state };
-      setData(newState, state, path, data);
+      // Destructure the path and data values from the action object
+      const { path, data } = action;
+      // Split the path string into an array of path segments
+      const pathSegments = split_path(path);
+      // Call the setData function to update the state object with the new data
+      const newState = setData(state, pathSegments, data);
+      // Return the updated state object
       return newState;
     }
+    // If the reducer doesn't recognize the action type, return the existing state unchanged
     default:
-      // If this reducer doesn't recognize the action type, or doesn't
-      // care about this specific action, return the existing state unchanged
       return state;
   }
 }

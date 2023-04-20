@@ -20,6 +20,7 @@ We Currently support the following custom data types:
 | 📱 [KIRI Engine](kiri) | IOS or Android | [KIRI Engine App](https://www.kiriengine.com/) | 🐇 |
 | 📱 [Record3D](record3d) | IOS with LiDAR | [Record3D app](https://record3d.app/) | 🐇 |
 | 🖥 [Metashape](metashape) | Any | [Metashape](https://www.agisoft.com/) | 🐇 |
+| 🖥 [RealityCapture](realitycapture) | Any | [RealityCapture](https://www.capturingreality.com/realitycapture) | 🐇 |
 
 (images_and_video)=
 
@@ -286,6 +287,26 @@ ns-process-data metashape --data {data directory} --xml {xml file} --output-dir 
 ns-train nerfacto --data {output directory}
 ```
 
+(realitycapture)=
+
+## RealityCapture
+
+1. Align your images using RealityCapture. `ALIGNMENT -> Align Images`
+
+2. Export the camera alignment as a `csv` file. Choose `Internal/External camera parameters`
+
+3. Convert the data to the nerfstudio format.
+
+```bash
+ns-process-data realitycapture --data {data directory} --csv {csv file} --output-dir {output directory}
+```
+
+4. Train with nerfstudio!
+
+```bash
+ns-train nerfacto --data {output directory}
+```
+
 (360_data)=
 
 ## 360 Data (Equirectangular)
@@ -320,4 +341,6 @@ The `crop-factor` argument is optional but often very helpful. This is because e
 
   <img src="imgs/equirect_crop.jpg">
 
-This obscene mesh of human is obviously not helpful in training a nerf so we can remove it by cropping the bottom 20% of the image. This can be done by using the `--crop-factor 0 0.2 0 0` argument.
+The pixels representing the distorted hand and head are obviously not useful in training a nerf so we can remove it by cropping the bottom 20% of the image. This can be done by using the `--crop-factor 0 0.2 0 0` argument.
+
+If cropping only needs to be done from the bottom, you can use the `--crop-bottom [num]` argument which would be the same as doing `--crop-factor 0.0 [num] 0.0 0.0`

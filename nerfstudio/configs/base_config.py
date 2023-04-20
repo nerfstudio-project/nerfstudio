@@ -119,9 +119,11 @@ class LoggingConfig(PrintableConfig):
      e.g. if 20, averages will be computed over past 20 occurrences."""
     local_writer: LocalWriterConfig = LocalWriterConfig(enable=True)
     """if provided, will print stats locally. if None, will disable printing"""
-    enable_profiler: bool = True
-    """whether to enable profiling code; prints speed of functions at the end of a program.
-    profiler logs run times of functions and prints at end of training"""
+    profiler: Literal["none", "basic", "pytorch"] = "basic"
+    """how to profile the code;
+        "basic" - prints speed of all decorated functions at the end of a program.
+        "pytorch" - same as basic, but it also traces few training steps.
+    """
 
 
 # Viewer related configs
@@ -131,19 +133,12 @@ class ViewerConfig(PrintableConfig):
 
     relative_log_filename: str = "viewer_log_filename.txt"
     """Filename to use for the log file."""
-    start_train: bool = True
-    """whether to immediately start training upon loading viewer
-    if False, will just visualize dataset but you can toggle training in viewer"""
-    zmq_port: Optional[int] = None
-    """The zmq port to connect to for communication. If None, find an available port."""
-    launch_bridge_server: bool = True
-    """whether or not to launch the bridge server"""
     websocket_port: Optional[int] = None
     """The websocket port to connect to. If None, find an available port."""
     websocket_port_default: int = 7007
     """The default websocket port to connect to if websocket_port is not specified"""
-    ip_address: str = "127.0.0.1"
-    """the ip address where the bridge server is running"""
+    websocket_host: str = "0.0.0.0"
+    """The host address to bind the websocket server to."""
     num_rays_per_chunk: int = 32768
     """number of rays per chunk to render with viewer"""
     max_num_display_images: int = 512
@@ -155,5 +150,3 @@ class ViewerConfig(PrintableConfig):
     """Image format viewer should use; jpeg is lossy compression, while png is lossless."""
     jpeg_quality: int = 90
     """Quality tradeoff to use for jpeg compression."""
-    png_compression: int = 1
-    """Size/speed tradeoff to use for png compression."""
