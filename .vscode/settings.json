@@ -120,6 +120,6 @@
     "__atomic": "cpp",
     "__node_handle": "cpp"
   },
-  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.typeCheckingMode": "off",
   "python.analysis.diagnosticMode": "workspace"
 }
