@@ -62,18 +62,15 @@ class RunViewer:
         base_dir = config.get_base_dir()
         viewer_log_path = base_dir / config.viewer.relative_log_filename
 
-        if pipeline.datamanager.get_datapath() is None:
-            viewer_state, banner_messages = viewer_utils.setup_viewer(
-                config.viewer,
-                log_filename=viewer_log_path,
-                datapath=base_dir,
-            )
-        else:
-            viewer_state, banner_messages = viewer_utils.setup_viewer(
-                config.viewer,
-                log_filename=viewer_log_path,
-                datapath=pipeline.datamanager.get_datapath(),
-            )
+        datapath = pipeline.datamanager.get_datapath()
+        if datapath is None:
+            datapath = base_dir
+
+        viewer_state, banner_messages = viewer_utils.setup_viewer(
+            config.viewer,
+            log_filename=viewer_log_path,
+            datapath=datapath,
+        )
 
         # We don't need logging, but writer.GLOBAL_BUFFER needs to be populated
         config.logging.local_writer.enable = False
