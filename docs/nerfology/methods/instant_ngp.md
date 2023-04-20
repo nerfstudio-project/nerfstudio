@@ -29,11 +29,11 @@ Many of the main contributions of Instant-NGP are built into our Nerfacto method
 
 Instant-NGP breaks NeRF training into 3 pillars and proposes improvements to each to enable real-time training of NeRFs. The 3 pillars are:
 
-1. An improved training and rendering algorithm in the form of efficient sampling
+1. An improved training and rendering algorithm via a ray marching scheme which uses an occupancy grid
 2. A smaller, fully-fused neural network
 3. An effective multi-resolution hash encoding, the main contribution of this paper.
 
-The main idea behind their sampling technique is that sampling over empty space should be skipped and sampling behind high density areas should also be skipped. They do this by using a task-specific GPU implementation. The authors find they can increase sampling speed by 10-100x compared to naive approaches.
+The core idea behind the improved sampling technique is that sampling over empty space should be skipped and sampling behind high density areas should also be skipped. This is achieved by maintaining a set of multiscale occupancy grids which coarsely mark empty and non-empty space. Occupancy is stored as a single bit, and a sample on a ray is skipped if its occupancy is too low. These occupancy grids are stored independently of the trainable encoding and are updated throughout training based on the updated density predictions. The authors find they can increase sampling speed by 10-100x compared to naive approaches.
 
 Another major bottleneck for NeRF's training speed has been querying the neural network. The authors of this work implement the network such that it runs entirely on a single CUDA kernal. The network is also shrunk down to be just 4 layers with 64 neurons in each layer. They show that their fully-fused neural network is 5-10x faster than a Tensorflow implementation.
 
@@ -46,7 +46,7 @@ The speedups at each level are multiplicative. With all their improvements, Inst
 ```{image} imgs/ingp/hash_figure.png
 :align: center
 ```
-The largest contribution of Instant-NGP is the multi-resolution hash encoding. In the traditional NeRF pipelines, input coordinates are mapped to a higher dimensional space using a positional encoding function, which is described [here](https://docs.nerf.studio/en/latest/nerfology/methods/nerf.html#positional-encoding). Instant-NGP proposes a trainable hash-based encoding. The idea is to map coordinates to trainable feature vectors which can be optimized in the standard flow of NeRF training.
+One contribution of Instant-NGP is the multi-resolution hash encoding. In the traditional NeRF pipelines, input coordinates are mapped to a higher dimensional space using a positional encoding function, which is described [here](https://docs.nerf.studio/en/latest/nerfology/methods/nerf.html#positional-encoding). Instant-NGP proposes a trainable hash-based encoding. The idea is to map coordinates to trainable feature vectors which can be optimized in the standard flow of NeRF training.
 
 The trainable features are F-dimensional vectors and are arranged into L grids which contain up to T vectors, where L represents the number of resolutions for features and T represents the number of feature vectors in each hash grid. The steps for the hash grid encoding, as shown in the figure provided by the authors, are as follows:
 
