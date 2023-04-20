@@ -83,6 +83,8 @@ class TrainerConfig(ExperimentConfig):
     """Optionally specify model step to load from; if none, will find most recent model in load_dir."""
     load_config: Optional[Path] = None
     """Path to config YAML file."""
+    load_checkpoint: Optional[Path] = None
+    """Path to checkpoint file."""
     log_gradients: bool = False
     """Optionally log gradients during training"""
 
@@ -345,6 +347,7 @@ class Trainer:
     def _load_checkpoint(self) -> None:
         """Helper function to load pipeline and optimizer from prespecified checkpoint"""
         load_dir: Path = self.config.load_dir
+        load_checkpoint: Path = self.config.load_checkpoint
         if load_dir is not None:
             load_step = self.config.load_step
             if load_step is None:
@@ -360,6 +363,15 @@ class Trainer:
             self.optimizers.load_optimizers(loaded_state["optimizers"])
             self.grad_scaler.load_state_dict(loaded_state["scalers"])
             CONSOLE.print(f"Done loading Nerfstudio checkpoint from {load_path}")
+        elif load_checkpoint is not None:
+            assert load_checkpoint.exists(), f"Checkpoint {load_checkpoint} does not exist"
+            loaded_state = torch.load(load_checkpoint, map_location="cpu")
+            self._start_step = loaded_state["step"] + 1
+            # load the checkpoints for pipeline, optimizers, and gradient scalar
+            self.pipeline.load_pipeline(loaded_state["pipeline"], loaded_state["step"])
+            self.optimizers.load_optimizers(loaded_state["optimizers"])
+            self.grad_scaler.load_state_dict(loaded_state["scalers"])
+            CONSOLE.print(f"Done loading Nerfstudio checkpoint from {load_checkpoint}")
         else:
             CONSOLE.print("No Nerfstudio checkpoint to load, so training from scratch.")
 
