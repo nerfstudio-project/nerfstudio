@@ -63,16 +63,13 @@ class RunViewer:
         viewer_log_path = base_dir / config.viewer.relative_log_filename
 
         # NOTE: for generative pipeline(s), set the data path on-the-fly.
-        if pipeline.config.generative:
-            assert pipeline.datamanager.get_datapath() is None
-            CONSOLE.print(f"Generative models should not have data path. Setting it to {str(base_dir)}")
-            viewer_state, banner_messages = viewer_utils.setup_viewer(
-                config.viewer, log_filename=viewer_log_path, datapath=base_dir
-            )
-        else:
-            viewer_state, banner_messages = viewer_utils.setup_viewer(
-                config.viewer, log_filename=viewer_log_path, datapath=pipeline.datamanager.get_datapath()
-            )
+        viewer_state, banner_messages = viewer_utils.setup_viewer(
+            config.viewer,
+            log_filename=viewer_log_path,
+            datapath=pipeline.datamanager.get_datapath()
+            if pipeline.datamanager.get_datapath() is not None
+            else base_dir,
+        )
 
         # We don't need logging, but writer.GLOBAL_BUFFER needs to be populated
         config.logging.local_writer.enable = False
