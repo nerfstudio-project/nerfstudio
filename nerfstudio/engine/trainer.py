@@ -75,6 +75,8 @@ class TrainerConfig(ExperimentConfig):
     """Maximum number of iterations to run."""
     mixed_precision: bool = False
     """Whether or not to use mixed precision for training."""
+    use_grad_scaler: bool = False
+    """Use gradient scaler even if the automatic mixed precision is disabled."""
     save_only_latest_checkpoint: bool = True
     """Whether to only save the latest checkpoint or all checkpoints."""
     # optional parameters if we want to resume training
@@ -118,13 +120,15 @@ class Trainer:
         self.world_size = world_size
         self.device: TORCH_DEVICE = "cpu" if world_size == 0 else f"cuda:{local_rank}"
         self.mixed_precision: bool = self.config.mixed_precision
+        self.use_grad_scaler: bool = self.mixed_precision or self.config.use_grad_scaler
         self.training_state: Literal["training", "paused", "completed"] = "training"
+
         if self.device == "cpu":
             self.mixed_precision = False
             CONSOLE.print("Mixed precision is disabled for CPU training.")
         self._start_step: int = 0
         # optimizers
-        self.grad_scaler = GradScaler(enabled=self.mixed_precision)
+        self.grad_scaler = GradScaler(enabled=self.use_grad_scaler)
 
         self.base_dir: Path = config.get_base_dir()
         # directory to save checkpoints
