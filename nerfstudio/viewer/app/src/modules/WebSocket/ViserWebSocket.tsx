@@ -184,11 +184,11 @@ function handleMessage(
       break;
     }
     // Set training value.
-    case 'IsTrainingMessage': {
+    case 'TrainingStateMessage': {
       dispatch({
         type: 'write',
-        path: 'renderingState/isTraining',
-        data: message.is_training,
+        path: 'renderingState/training_state',
+        data: message.training_state,
       });
       break;
     }
@@ -255,6 +255,24 @@ function handleMessage(
         type: 'write',
         path: 'renderingState/step',
         data: message.step,
+      });
+      break;
+    }
+    // Handle time conditioning messages.
+    case 'UseTimeConditioningMessage': {
+      console.log('HERERERE');
+      dispatch({
+        type: 'write',
+        path: 'renderingState/use_time_conditioning',
+        data: true,
+      });
+      break;
+    }
+    case 'TimeConditionMessage': {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/time_condition',
+        data: message.time,
       });
       break;
     }
