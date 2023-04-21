@@ -186,10 +186,10 @@ export default function ViewerWindow(props) {
   // start the three.js rendering loop
   // when the DOM is ready
   useEffect(() => {
-    document.getElementById("background-image").onload = function (e) {
+    document.getElementById("background-image").onload = function () {
       if (scene) {
-        let oldBackground = scene.background;
-        let texture = new THREE.Texture(this);
+        const oldBackground = scene.background;
+        const texture = new THREE.Texture(this);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.NearestFilter;
         texture.needsUpdate = true;
@@ -324,7 +324,7 @@ export default function ViewerWindow(props) {
         id="background-image"
         alt="Render window"
         z-index="1"
-        hidden={true}
+        hidden
       />
       <div className="canvas-container-main" ref={myRef}>
         <div className="ViewerWindow-camera-toggle">
