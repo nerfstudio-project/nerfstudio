@@ -43,13 +43,13 @@ export function get_scene_tree() {
 
   // Main camera
   const main_camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-  const start_position = new THREE.Vector3(0.7, -0.7, 0.3);
+  const start_position = new THREE.Vector3(0, 0, 2);//0.7, -0.7, 0.3);
   main_camera.position.set(
     start_position.x,
     start_position.y,
     start_position.z,
   );
-  main_camera.up = new THREE.Vector3(0, 0, 1);
+  //main_camera.up = new THREE.Vector3(0, 0, 1);
   sceneTree.set_object_from_path(['Cameras', 'Main Camera'], main_camera);
 
   sceneTree.metadata.camera = main_camera;
@@ -162,7 +162,7 @@ export function get_scene_tree() {
       return;
     }
     if (keyMap.Space === true) {
-      camera_controls.setLookAt(0.7, -0.7, 0.3, 0, 0, 0);
+      camera_controls.setLookAt(0, 0, 2, 0, 0, 0); //0.7, -0.7, 0.3, 0, 0, 0);
     }
     translate();
     rotate();
@@ -223,7 +223,7 @@ export function get_scene_tree() {
 
   // Grid
   const grid = new THREE.GridHelper(20, 20);
-  grid.rotateX(Math.PI / 2); // rotated to xy plane
+  //grid.rotateX(Math.PI / 2); // rotated to xy plane
   sceneTree.set_object_from_path(['Grid'], grid);
 
   // Lights
