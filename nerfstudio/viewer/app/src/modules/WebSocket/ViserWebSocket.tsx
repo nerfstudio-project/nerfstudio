@@ -184,11 +184,11 @@ function handleMessage(
       break;
     }
     // Set training value.
-    case 'IsTrainingMessage': {
+    case 'TrainingStateMessage': {
       dispatch({
         type: 'write',
-        path: 'renderingState/isTraining',
-        data: message.is_training,
+        path: 'renderingState/training_state',
+        data: message.training_state,
       });
       break;
     }
@@ -258,6 +258,24 @@ function handleMessage(
       });
       break;
     }
+    // Handle time conditioning messages.
+    case 'UseTimeConditioningMessage': {
+      console.log('HERERERE');
+      dispatch({
+        type: 'write',
+        path: 'renderingState/use_time_conditioning',
+        data: true,
+      });
+      break;
+    }
+    case 'TimeConditionMessage': {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/time_condition',
+        data: message.time,
+      });
+      break;
+    }
     default: {
       console.log('Received message did not match any known types:', message);
       break;
@@ -269,7 +287,7 @@ export function ViserWebSocket({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
   const store = useStore();
 
-  const ws = React.useRef<WebSocket>();
+  const ws = React.useRef<WebSocket | null>(null);
 
   const websocket_url = useSelector(
     (state) => state.websocketState.websocket_url,
@@ -286,8 +304,19 @@ export function ViserWebSocket({ children }: { children: React.ReactNode }) {
 
       ws.current = new WebSocket(websocket_url);
 
+      const connecting_timeout = setTimeout(() => {
+        if (
+          ws.current != null &&
+          ws.current.readyState === WebSocket.CONNECTING
+        ) {
+          ws.current.close();
+          console.log('WebSocket connection timed out');
+        }
+      }, 5000); // timeout after 5 seconds
+
       ws.current.onopen = () => {
         console.log(`Viser connected! ${websocket_url}`);
+        clearTimeout(connecting_timeout);
         dispatch({
           type: 'write',
           path: 'websocketState/isConnected',
@@ -323,6 +352,11 @@ export function ViserWebSocket({ children }: { children: React.ReactNode }) {
             orderLock.release();
           }
         }
+      };
+
+      // add websocket error handling
+      ws.current.onerror = (err) => {
+        console.log('Websocket error: ', err);
       };
     }
 

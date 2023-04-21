@@ -98,6 +98,10 @@ class ProcessImages:
     """
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
     """Portion of the image to crop. All values should be in [0,1]. (top, bottom, left, right)"""
+    crop_bottom: float = 0.0
+    """Portion of the image to crop from the bottom.
+       Can be used instead of `crop-factor 0.0 [num] 0.0 0.0` Should be in [0,1].
+    """
     gpu: bool = True
     """If True, use GPU."""
     use_sfm_depth: bool = False
@@ -130,6 +134,9 @@ class ProcessImages:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
+
+        if self.crop_bottom > 0.0:
+            self.crop_factor = (0.0, self.crop_bottom, 0.0, 0.0)
 
         # Generate planar projections if equirectangular
         if self.camera_type == "equirectangular":
@@ -316,6 +323,10 @@ class ProcessVideo:
     """Create circle crop mask. The radius is the percent of the image diagonal."""
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
     """Portion of the image to crop. All values should be in [0,1]. (top, bottom, left, right)"""
+    crop_bottom: float = 0.0
+    """Portion of the image to crop from the bottom.
+       Can be used instead of `crop-factor 0.0 [num] 0.0 0.0` Should be in [0,1].
+    """
     use_sfm_depth: bool = False
     """If True, export and use depth maps induced from SfM points."""
     include_depth_debug: bool = False
@@ -333,6 +344,9 @@ class ProcessVideo:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
+
+        if self.crop_bottom > 0.0:
+            self.crop_factor = (0.0, self.crop_bottom, 0.0, 0.0)
 
         summary_log = []
         # Convert video to images

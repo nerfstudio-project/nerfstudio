@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "0.2.0"
+version = "0.2.1"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -51,6 +51,7 @@ dependencies = [
     "torchmetrics[image]>=0.9.3",
     "torchtyping>=0.1.4",
     "torchvision>=0.13.0",
+    "typing_extensions>=4.4.0",
     "viser>=0.0.5",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
@@ -144,6 +145,7 @@ disable = [
   "too-many-branches",
   "too-many-instance-attributes",
   "too-many-locals",
+  "too-many-statements",
   "unnecessary-ellipsis",
 ]
 
