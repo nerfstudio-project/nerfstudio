@@ -46,7 +46,7 @@ except ImportError:
     sys.exit(1)
 
 logging.set_verbosity_error()
-IMG_DIM = 512
+IMG_DIM = 256
 CONST_SCALE = 0.18215
 SD_IDENTIFIERS = {
     "1-5": "runwayml/stable-diffusion-v1-5",
