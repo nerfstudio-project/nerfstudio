@@ -12,7 +12,6 @@ import SyncOutlinedIcon from '@mui/icons-material/SyncOutlined';
 import ThreeDRotationIcon from '@mui/icons-material/ThreeDRotation';
 import VideoCameraBackIcon from '@mui/icons-material/VideoCameraBackOutlined';
 import { isEqual } from 'lodash';
-import RenderWindow from '../RenderWindow/RenderWindow';
 import {
   makeThrottledMessageSender,
   ViserWebSocketContext,
@@ -187,6 +186,19 @@ export default function ViewerWindow(props) {
   // start the three.js rendering loop
   // when the DOM is ready
   useEffect(() => {
+    document.getElementById("background-image").onload = function (e) {
+      if (scene) {
+        let oldBackground = scene.background;
+        let texture = new THREE.Texture(this);
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.NearestFilter;
+        texture.needsUpdate = true;
+        scene.background = texture;
+        if (oldBackground) {
+          oldBackground.dispose();
+        }
+      }
+    }
     myRef.current.append(renderer.domElement);
     render();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -303,7 +315,17 @@ export default function ViewerWindow(props) {
 
   return (
     <>
-      <RenderWindow />
+      <div className="RenderWindow">
+        <div id="not-connected-overlay" hidden={isWebsocketConnected}>
+          <div id="not-connected-overlay-text">Renderer Disconnected</div>
+        </div>
+      </div>
+      <img
+        id="background-image"
+        alt="Render window"
+        z-index="1"
+        hidden={true}
+      />
       <div className="canvas-container-main" ref={myRef}>
         <div className="ViewerWindow-camera-toggle">
           <CameraToggle />
