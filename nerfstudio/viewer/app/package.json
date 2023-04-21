@@ -84,6 +84,12 @@
     "wait-on": "^6.0.1"
   },
   "resolutions": {
-    "nth-check": "^2.0.1"
+    "babel-loader": "^9.1.2",
+    "json5": "^2.2.3",
+    "loader-utils": "^3.2.1",
+    "nth-check": "^2.0.1",
+    "@pmmmwh/react-refresh-webpack-plugin": "^0.5.10",
+    "recursive-readdir": "^2.2.3",
+    "resolve-url-loader": "^5.0.0"
   }
 }
