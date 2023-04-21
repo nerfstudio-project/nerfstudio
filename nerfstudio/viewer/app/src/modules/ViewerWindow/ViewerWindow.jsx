@@ -123,8 +123,8 @@ export default function ViewerWindow(props) {
   const size = new THREE.Vector2();
   renderer.getSize(size);
   const [viewport_size, setDimensions] = React.useState({
-    height: size.x,
-    width: size.y,
+    height: size.y,
+    width: size.x,
   });
   const viewport_width = viewport_size.width;
   const viewport_height = viewport_size.height;
