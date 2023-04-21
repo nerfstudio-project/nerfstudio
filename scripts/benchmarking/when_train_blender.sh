@@ -81,7 +81,7 @@ for dataset in "${DATASETS[@]}"; do
              --experiment-name="blender_${dataset}_${tag}" \
              --relative-model-dir=nerfstudio_models/ \
              --steps-per-save=1000 \
-             --max-num-iterations=300000 \
+             --max-num-iterations=301000 \
              --logging.local-writer.enable=False  \
              --logging.enable-profiler=False \
              --vis "${vis}" \
