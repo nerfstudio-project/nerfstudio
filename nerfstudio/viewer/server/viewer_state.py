@@ -37,7 +37,7 @@ from nerfstudio.utils.io import load_from_json, write_to_json
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer.server.control_panel import ControlPanel
-from nerfstudio.viewer.server.gui_utils import get_viewer_elements
+from nerfstudio.viewer.server.gui_utils import parse_object
 from nerfstudio.viewer.server.render_state_machine import (
     RenderAction,
     RenderStateMachine,
@@ -149,7 +149,11 @@ class ViewerState:
                 with self.viser_server.gui_folder(folder_labels[0]):
                     nested_folder_install(folder_labels[1:], element)
 
-        self.viewer_elements = get_viewer_elements(self.pipeline)
+        self.viewer_elements = []
+        if self.trainer is not None:
+            self.viewer_elements.extend(parse_object(self.trainer, ViewerElement, "Trainer"))
+
+        self.viewer_elements.extend(parse_object(pipeline, ViewerElement, "Pipeline"))
         for param_path, element in self.viewer_elements:
             folder_labels = param_path.split("/")[:-1]
             nested_folder_install(folder_labels, element)
