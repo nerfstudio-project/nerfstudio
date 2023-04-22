@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from timeit import default_timer as timer
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import tyro
 from rich.console import Console
@@ -69,15 +69,22 @@ class ExperimentPipeline:
         self.block_segments = args.block_segments
 
         self.trainer_config: TrainerConfig = self.setup()
-        self.trainer_config.setup()
         self.checkpoint_dir = self.trainer_config.get_checkpoint_dir()
         self.model_dir = self.checkpoint_dir.parent
 
-    def run(self):
+    def run(self) -> Dict[str, Path]:
+        """
+        Returns the path to the config file of the trained model.
+        """
         self.train()
         self.eval()
         self.render(interpolate=True)
         # self.render(interpolate=False)
+
+        return {
+            "model_dir": self.model_dir,
+            "base_dir": self.input_data_dir,
+        }
 
     def setup(self) -> TrainerConfig:
         config = method_configs[self.model]
@@ -87,7 +94,7 @@ class ExperimentPipeline:
         config.experiment_name = self.experiment_name
         config.vis = "viewer"
         config.viewer.quit_on_train_completion = True
-        config.max_num_iterations = 500
+        config.max_num_iterations = 100
 
         if not self.use_camera_optimizer:
             config.pipeline.datamanager.camera_optimizer.mode = "off"
@@ -159,58 +166,53 @@ class ExperimentPipeline:
 
         render_config.main()
 
-    def render_blocknerf(self, block_paths: List[Path]):
-        CONSOLE.print("Block NeRF Rendering model")
-        output_name = f"blocknerf-{self.experiment_name}"
-
-        # Assumes that there're only one config file and one dataparser_transforms file in each block
-        config_files = {
-            block_path.name: Path(glob.glob(f"{block_path}/**/config.yml", recursive=True)[0])
-            for block_path in block_paths
-        }
-        dataparser_transforms_paths = {
-            block_path.name: Path(glob.glob(f"{block_path}/**/dataparser_transforms.json", recursive=True)[0])
-            for block_path in block_paths
-        }
-        render_dir = self.output_dir / "renders"
-        render_dir.mkdir(parents=True, exist_ok=True)
-        render_path = render_dir / f"{output_name}.mp4"
-        block_lookup = block_nerf.get_block_lookup(self.output_dir, block_paths)
-
-        combined_transformed_camera_path = block_nerf.transform_to_single_camera_path(
-            camera_path_path=Path(
-                "camera_paths/camera_path_transformed_original.json"
-            ),  # This is the original camera path transformed to the original CARLA coordinate system
-            block_lookup=block_lookup,
-            dataparser_transform_paths=dataparser_transforms_paths,
-            export_dir=self.output_dir,
-        )
-
-        # Use this class to run the render script programmatically
-        BlockNerfRenderTrajectory(
-            config_files=config_files,
-            traj="filename",
-            camera_path_filename=combined_transformed_camera_path,
-            output_path=render_path,
-            eval_num_rays_per_chunk=1 << 15,
-            block_lookup=block_lookup,
-        ).main()
-
     def get_camera_path(self, model_path: Path) -> Path:
         if not self.block_segments:
-            return Path("camera_paths/camera_path_one_lap_final.json")
+            return Path("camera_paths/camera_path_one_lap_final.json") # TODO: Rename this file to: camera_path_one_lap_nerf_coordinates.json
 
-        export_path = self.output_dir / "camera_path_transformed.json"
+        export_path = self.output_dir / "camera_path_transformed.json" # TODO: Rename this file to: camera_path_nerf_coordinates.json
         if export_path.exists():
             return export_path
 
-        original_camera_path_path = Path("camera_paths/camera_path_transformed_original.json")
+        original_camera_path_path = Path("camera_paths/camera_path_transformed_original.json") # TODO: Rename this file to: camera_path_carla_coordinates.json
         target_dataparser_transforms_path = model_path / "dataparser_transforms.json"
 
         return transform_camera_path(
             original_camera_path_path, target_dataparser_transforms_path, export_path=export_path
         )
 
+def render_blocknerf(output_dir: Path, run_paths: List[Dict[str, Path]]):
+    CONSOLE.print("Block NeRF Rendering model")
+    transforms_paths = {run_path["base_dir"].name: run_path["base_dir"] / "transforms.json" for run_path in run_paths}
+    config_paths = {run_path["base_dir"].name: run_path["model_dir"] / "config.yml" for run_path in run_paths}
+    dataparser_transforms_paths = {
+        run_path["base_dir"].name: run_path["model_dir"] / "dataparser_transforms.json" for run_path in run_paths
+    }
+
+    render_dir = output_dir / "renders"
+    render_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    render_path = render_dir / f"{timestamp}-blocknerf.mp4"
+    block_lookup = block_nerf.get_block_lookup(output_dir, block_transforms=transforms_paths)
+
+    combined_transformed_camera_path = block_nerf.transform_to_single_camera_path(
+        camera_path_path=Path(
+            "camera_paths/camera_path_transformed_original.json" # TODO: Rename this file to: camera_path_carla_coordinates.json
+        ),  # This is the original camera path transformed to the original CARLA coordinate system
+        block_lookup=block_lookup,
+        dataparser_transform_paths=dataparser_transforms_paths,
+        export_dir=output_dir,
+    )
+
+    # Use this class to run the render script programmatically
+    BlockNerfRenderTrajectory(
+        config_files=config_paths,
+        traj="filename",
+        camera_path_filename=combined_transformed_camera_path,
+        output_path=render_path,
+        eval_num_rays_per_chunk=1 << 15,
+        block_lookup=block_lookup,
+    ).main()
 
 if __name__ == "__main__":
     """
@@ -221,26 +223,20 @@ if __name__ == "__main__":
     args = tyro.cli(Args)
     print(args)
 
-    # Run pipeline in sequence
-    input_data_dir = Path(args.input_data_dir)
-
     # Create the blocks
     block_paths = []
     if args.block_segments:
         new_transforms, image_indexes = block_nerf.split_transforms(
-            input_data_dir / "transforms.json", args.block_segments
+            args.input_data_dir / "transforms.json", args.block_segments
         )
-        block_paths = block_nerf.write_transforms(new_transforms, image_indexes, input_data_dir)
+        block_nerf.write_transforms(new_transforms, image_indexes, args.input_data_dir)
 
-    args = Args(
-        model="nerfacto",
-        input_data_dir=input_data_dir,
-        output_dir=input_data_dir,
-        use_camera_optimizer=args.use_camera_optimizer,
-        block_segments=args.block_segments,
-    )
-    for run_dir in input_data_dir.iterdir():
-        if run_dir.is_dir() and run_dir.name != "images":
+    run_paths: List[Dict[str, Path]] = []
+    ignore_dirs = ["images", "renders", "camera_paths"]
+    # Run the pipeline for all the experiment/blocks in the input_data_dir
+    for run_dir in args.input_data_dir.iterdir():
+        if run_dir.is_dir() and run_dir.name not in ignore_dirs:
+
             new_args = Args(
                 model=args.model,
                 input_data_dir=run_dir,
@@ -251,18 +247,14 @@ if __name__ == "__main__":
 
             experiment_name = "-".join(str(run_dir).split("/")[-2:])
             pipeline = ExperimentPipeline(new_args, writer, experiment_name)
-            pipeline.run()
+            run_path = pipeline.run()
+            run_paths.append(run_path)
+
+    
+    print(f"RUN_PATHS:\n {run_paths}")
 
     # Run the render_blocknerf after all blocks have been trained
     if args.block_segments:
-        args = Args(
-            model=args.model,
-            input_data_dir=args.input_data_dir,
-            output_dir=args.output_dir,
-            block_segments=args.block_segments,
-        )
-        experiment_name = "-".join(str(args.input_data_dir).split("/")[-2:])
-        pipeline = ExperimentPipeline(args, writer, experiment_name)
-        pipeline.render_blocknerf(block_paths=block_paths)
+        render_blocknerf(output_dir=args.output_dir, run_paths=run_paths)
 
     terminal.close()
