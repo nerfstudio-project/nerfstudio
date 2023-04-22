@@ -27,6 +27,10 @@ CONSOLE = Console(width=120)
 
 terminal = open("logs/experiment.log", "a")
 writer = {"terminal": terminal, "log": sys.stdout}
+camera_paths = {
+    "one_lap_nerf_coordinates": Path("camera_paths/camera_path_one_lap_nerf_coordinates.json"),
+    "one_lap_carla_coordinates": Path("camera_paths/camera_path_one_lap_carla_coordinates.json"),
+}
 
 
 @dataclass
@@ -168,13 +172,13 @@ class ExperimentPipeline:
 
     def get_camera_path(self, model_path: Path) -> Path:
         if not self.block_segments:
-            return Path("camera_paths/camera_path_one_lap_final.json") # TODO: Rename this file to: camera_path_one_lap_nerf_coordinates.json
+            return Path("camera_paths/camera_path_nerf_coordinates.json") # TODO: Rename this file to: camera_path_one_lap_nerf_coordinates.json
 
-        export_path = self.output_dir / "camera_path_transformed.json" # TODO: Rename this file to: camera_path_nerf_coordinates.json
+        export_path = self.output_dir / "camera_path_transformed.json"
         if export_path.exists():
             return export_path
 
-        original_camera_path_path = Path("camera_paths/camera_path_transformed_original.json") # TODO: Rename this file to: camera_path_carla_coordinates.json
+        original_camera_path_path = Path("camera_paths/camera_path_one_lap_carla_coordinates.json") 
         target_dataparser_transforms_path = model_path / "dataparser_transforms.json"
 
         return transform_camera_path(
@@ -197,7 +201,7 @@ def render_blocknerf(output_dir: Path, run_paths: List[Dict[str, Path]]):
 
     combined_transformed_camera_path = block_nerf.transform_to_single_camera_path(
         camera_path_path=Path(
-            "camera_paths/camera_path_transformed_original.json" # TODO: Rename this file to: camera_path_carla_coordinates.json
+            "camera_paths/camera_path_one_lap_carla_coordinates.json" # TODO: Rename this file to: camera_path_carla_coordinates.json
         ),  # This is the original camera path transformed to the original CARLA coordinate system
         block_lookup=block_lookup,
         dataparser_transform_paths=dataparser_transforms_paths,

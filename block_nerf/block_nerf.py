@@ -81,7 +81,7 @@ def transform_camera_path_to_original_space(camera_path_path: Path, pipeline):
         temp = np.vstack((temp, np.array([0, 0, 0, 1])))
         camera["camera_to_world"] = temp.reshape(16).tolist()
 
-    export_path = camera_path_path.parent / "camera_path_transformed_original.json"
+    export_path = camera_path_path.parent / "camera_path_nerf_coordinates.json"
     with open(export_path, "w") as f:
         json.dump(camera_path, f, indent=4)
 
@@ -221,13 +221,13 @@ def get_block_lookup(exp_path: Path, block_transforms: Dict[str, Path]) -> Dict[
     lookup_path = exp_path / "lookup_table.json"
     if not lookup_path.exists():
         print("⚠️ Warning: Lookup table does not exist. Creating one now.")
-        original_camera_path = Path("block_nerf/camera_path_transformed_original.json")
+        original_camera_path = Path("block_nerf/camera_path_nerf_coordinates.json")
         create_block_lookup(exp_path, original_camera_path, block_transforms=block_transforms)
     return load_json(lookup_path)
 
 
 if __name__ == "__main__":
-    original_camera_path = Path("block_nerf/camera_path_transformed_original.json")
+    original_camera_path = Path("block_nerf/camera_path_nerf_coordinates.json")
     exp_path = Path("data/images/exp_combined_baseline_block_nerf_3")
     block_paths = []  # TODO: Not correct
     create_block_lookup(exp_path, original_camera_path)
