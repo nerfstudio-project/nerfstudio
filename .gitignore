@@ -183,7 +183,7 @@ node_modules/
 bash/
 cache/
 package-lock.json
-camera_paths/
+# camera_paths/
 .DS_Store
 ._.DS_Store
 */**/.DS_Store
