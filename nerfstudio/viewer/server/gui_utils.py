@@ -20,9 +20,6 @@ from typing import Any, List, Tuple
 
 from torch import nn
 
-from nerfstudio.pipelines.base_pipeline import Pipeline
-from nerfstudio.viewer.server.viewer_elements import ViewerElement
-
 
 def parse_object(
     obj: Any,
@@ -67,15 +64,4 @@ def parse_object(
             # check that the values aren't already in the tree
             for ts, o in lower_rets:
                 add(ret, ts, o)
-    return ret
-
-
-def get_viewer_elements(pipeline: Pipeline) -> List[Tuple[str, ViewerElement]]:
-    """
-    Recursively parse the pipeline object and return a tree of all the ViewerElements contained
-
-    returns a list of (path/to/object, param), which represents the path down the object tree as well as
-    the ViewerElement itself
-    """
-    ret = parse_object(pipeline, ViewerElement, "Custom")
     return ret
