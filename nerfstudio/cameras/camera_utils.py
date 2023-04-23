@@ -383,17 +383,18 @@ def radial_and_tangential_undistort(
     all_jacobian = torch.empty(x.shape + (2, 2), device=x.device)
     all_residual = torch.empty_like(coords)
 
-    next_upd = torch.arange(coords.shape[0], device=coords.device)
+    #next_upd = torch.arange(coords.shape[0], device=coords.device)
 
     for _ in range(max_iterations):
         # n_iters += next_upd.shape[0]
 
-        x_upd = x[next_upd]
-        y_upd = y[next_upd]
+        #x_upd = x[next_upd]
+        #y_upd = y[next_upd]
         fx, fy, fx_x, fx_y, fy_x, fy_y = _compute_residual_and_jacobian(
-            x=x_upd, y=y_upd,
-            xd=coords[next_upd, 0], yd=coords[next_upd, 1],
-            distortion_params=distortion_params[next_upd]
+            x=x, y=y,#x=x_upd, y=y_upd,
+            #xd=coords[next_upd, 0], yd=coords[next_upd, 1],
+            xd=coords[:, 0], yd=coords[:, 1],
+            distortion_params=distortion_params#[next_upd]
         )
 
         # max_x = torch.max(torch.abs(fx * resolution[..., 0])).item()
@@ -401,7 +402,9 @@ def radial_and_tangential_undistort(
         # print(f"iteration {i}, max residual {max_x}, {max_y}")
 
         converged = (resolution[0] * fx) ** 2 + (resolution[1] * fy) ** 2 < 0.01
-        not_converged = ~converged
+
+        not_converged = np.argwhere(~converged)
+        converged = np.argwhere(converged)
 
         # print(f"{converged.sum().item()} points converged")
 
@@ -409,9 +412,10 @@ def radial_and_tangential_undistort(
         invertible = torch.abs(denominator) > eps
         numerator = torch.stack([fy_y, -fx_y, -fy_x, fx_x], dim=-1)
         j_inv = (torch.where(invertible, 1 / denominator, 0).reshape(-1, 1) * numerator).reshape(-1, 2, 2)
-        all_jacobian[next_upd[converged]] = j_inv[converged]
+        upd_conv = next_upd[converged]
+        all_jacobian[upd_conv] = j_inv[converged]
         residual = torch.stack((fx, fy), dim=-1)
-        all_residual[next_upd[converged]] = residual[converged]
+        all_residual[upd_conv] = residual[converged]
 
         next_upd = next_upd[not_converged]
         if next_upd.numel() == 0:
