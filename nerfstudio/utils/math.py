@@ -262,7 +262,10 @@ def intersect_aabb(
         try:
             import nerfacc  # pylint: disable=import-outside-toplevel
 
-            t_min, t_max = nerfacc.ray_aabb_intersect(origins, directions, aabb)
+            t_min, t_max, _ = nerfacc.ray_aabb_intersect(
+                origins, directions, aabb[None, :], near_plane=0, far_plane=1e10, miss_value=1e10
+            )
+            t_min, t_max = t_min.squeeze(-1), t_max.squeeze(-1)
         except:  # pylint: disable=bare-except
             t_min, t_max = _intersect_aabb(origins, directions, aabb, max_bound=1e10, invalid_value=1e10)
             _USE_NERFACC = False

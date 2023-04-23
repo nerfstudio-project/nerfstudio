@@ -103,7 +103,7 @@ class TCNNNerfactoField(Field):
         pass_semantic_gradients: bool = False,
         use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
-        spatial_distortion: SpatialDistortion = None,
+        spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
         super().__init__()
 
