@@ -347,7 +347,8 @@ def radial_and_tangential_undistort(
     distortion_params: torch.Tensor,
     eps: float = 1e-3,
     max_iterations: int = 10,
-) -> torch.Tensor:
+    resolution: torch.Tensor = torch.tensor([1000, 1000]),
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Computes undistorted coords given opencv distortion parameters.
     Adapted from MultiNeRF
     https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L477-L509
@@ -358,6 +359,7 @@ def radial_and_tangential_undistort(
             the order of [k1, k2, p1, p2, k3, k4, k5, k6].
         eps: The epsilon for the convergence.
         max_iterations: The maximum number of iterations to perform.
+        resolution: The resolution [w, h] of the cameras
 
     Returns:
         The undistorted coordinates.
@@ -365,31 +367,68 @@ def radial_and_tangential_undistort(
     assert distortion_params.shape[-1] in [0, 1, 2, 4, 8]
 
     if distortion_params.shape[-1] == 0:
-        return coords
+        return coords, torch.eye(2), coords
 
     if distortion_params.shape[-1] < 8:
         distortion_params = F.pad(distortion_params, (0, 8 - distortion_params.shape[-1]), "constant", 0.0)
     assert distortion_params.shape[-1] == 8
 
+    resolution = resolution.to(coords.device)
+    # n_samples = coords.shape[0]
+    # n_iters = 0
+
     # Initialize from the distorted point.
     x = coords[..., 0]
     y = coords[..., 1]
+    all_jacobian = torch.empty(x.shape + (2, 2), device=x.device)
+    all_residual = torch.empty_like(coords)
+
+    next_upd = torch.arange(coords.shape[0], device=coords.device)
 
     for _ in range(max_iterations):
+        # n_iters += next_upd.shape[0]
+
+        x_upd = x[next_upd]
+        y_upd = y[next_upd]
         fx, fy, fx_x, fx_y, fy_x, fy_y = _compute_residual_and_jacobian(
-            x=x, y=y, xd=coords[..., 0], yd=coords[..., 1], distortion_params=distortion_params
+            x=x_upd, y=y_upd,
+            xd=coords[next_upd, 0], yd=coords[next_upd, 1],
+            distortion_params=distortion_params[next_upd]
         )
-        denominator = fy_x * fx_y - fx_x * fy_y
-        x_numerator = fx * fy_y - fy * fx_y
-        y_numerator = fy * fx_x - fx * fy_x
-        step_x = torch.where(torch.abs(denominator) > eps, x_numerator / denominator, torch.zeros_like(denominator))
-        step_y = torch.where(torch.abs(denominator) > eps, y_numerator / denominator, torch.zeros_like(denominator))
 
-        x = x + step_x
-        y = y + step_y
+        # max_x = torch.max(torch.abs(fx * resolution[..., 0])).item()
+        # max_y = torch.max(torch.abs(fy * resolution[..., 1])).item()
+        # print(f"iteration {i}, max residual {max_x}, {max_y}")
 
-    return torch.stack([x, y], dim=-1)
+        converged = (resolution[0] * fx) ** 2 + (resolution[1] * fy) ** 2 < 0.01
+        not_converged = ~converged
 
+        # print(f"{converged.sum().item()} points converged")
+
+        denominator = fx_x * fy_y - fx_y * fy_x
+        invertible = torch.abs(denominator) > eps
+        numerator = torch.stack([fy_y, -fx_y, -fy_x, fx_x], dim=-1)
+        j_inv = (torch.where(invertible, 1 / denominator, 0).reshape(-1, 1) * numerator).reshape(-1, 2, 2)
+        all_jacobian[next_upd[converged]] = j_inv[converged]
+        residual = torch.stack((fx, fy), dim=-1)
+        all_residual[next_upd[converged]] = residual[converged]
+
+        next_upd = next_upd[not_converged]
+        if next_upd.numel() == 0:
+            break
+
+        j_inv = j_inv[not_converged]
+
+        residual = residual[not_converged].reshape(-1, 2, 1)
+        step = (j_inv @ residual).squeeze().to(torch.float32)
+
+        x = x.index_add(dim=0, index=next_upd, source=step[:, 0], alpha=-1)
+        y = y.index_add(dim=0, index=next_upd, source=step[:, 1], alpha=-1)
+
+    # print(f"average number of newton iterations per sample: {n_iters / n_samples}")
+
+    undistort = torch.stack([x, y], dim=-1)
+    return undistort, all_jacobian, coords + all_residual
 
 def rotation_matrix(a: TensorType[3], b: TensorType[3]) -> TensorType[3, 3]:
     """Compute the rotation matrix that rotates vector a to vector b.

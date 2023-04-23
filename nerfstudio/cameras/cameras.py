@@ -77,7 +77,7 @@ class Cameras(TensorDataclass):
     the focal lengths, principal points, and image sizes as tensors is to allow for batched cameras
     down the line in cases where your batches of camera data don't come from the same cameras.
 
-     If a single value is provided, it is broadcasted to all cameras.
+    If a single value is provided, it is broadcasted to all cameras.
 
     Args:
         camera_to_worlds: Camera to world matrices. Tensor of per-image c2w matrices, in [R | t] format
@@ -629,6 +629,9 @@ class Cameras(TensorDataclass):
         coord_stack = torch.stack([coord, coord_x_offset, coord_y_offset], dim=0)  # (3, num_rays, 2)
         assert coord_stack.shape == (3,) + num_rays_shape + (2,)
 
+        jacobian = torch.eye(2)
+        reproject = coords
+
         # Undistorts our images according to our distortion parameters
         if not disable_distortion:
             distortion_params = None
@@ -644,24 +647,25 @@ class Cameras(TensorDataclass):
                 mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
                 coord_mask = torch.stack([mask, mask, mask], dim=0)
                 if mask.any():
-                    if distortion_params_delta is not None:
+                    # if distortion_params_delta is not None:
                         # if we need to optimize distortion params, we need to use the gradient version
-                        coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
-                            coord_stack[coord_mask, :].reshape(3, -1, 2),
-                            distortion_params[mask, :],
-                        ).reshape(-1, 2)
-                    else:
-                        # try to use nerfacc to accelerate if we don't need to optimize distortion params
-                        try:
-                            coord_stack[coord_mask, :] = opencv_lens_undistortion(
-                                coord_stack[coord_mask, :].reshape(3, -1, 2),
-                                distortion_params[mask, :],
-                            ).reshape(-1, 2)
-                        except (RuntimeError, ImportError, AttributeError):
-                            coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
-                                coord_stack[coord_mask, :].reshape(3, -1, 2),
-                                distortion_params[mask, :],
-                            ).reshape(-1, 2)
+                        undistort, jacobian, reproject = camera_utils.radial_and_tangential_undistort(
+                            coord[mask],
+                            distortion_params[mask],
+                        )
+                        coord[mask] = undistort
+                    # else:
+                    #     # try to use nerfacc to accelerate if we don't need to optimize distortion params
+                    #     try:
+                    #         coord_stack[coord_mask, :] = opencv_lens_undistortion(
+                    #             coord_stack[coord_mask, :].reshape(3, -1, 2),
+                    #             distortion_params[mask, :],
+                    #         ).reshape(-1, 2)
+                    #     except (RuntimeError, ImportError, AttributeError):
+                    #         coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
+                    #             coord_stack[coord_mask, :].reshape(3, -1, 2),
+                    #             distortion_params[mask, :],
+                    #         ).reshape(-1, 2)
 
                 mask = (self.camera_type[true_indices] == CameraType.FISHEYE.value).squeeze(-1)  # (num_rays)
                 coord_mask = torch.stack([mask, mask, mask], dim=0)
@@ -684,12 +688,13 @@ class Cameras(TensorDataclass):
         # directions_stack[2] is the direction for ray in camera coordinates offset by 1 in y
         cam_types = torch.unique(self.camera_type, sorted=False)
         directions_stack = torch.empty((3,) + num_rays_shape + (3,), device=self.device)
+        perspective_mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)
         if CameraType.PERSPECTIVE.value in cam_types:
-            mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
-            mask = torch.stack([mask, mask, mask], dim=0)
-            directions_stack[..., 0][mask] = torch.masked_select(coord_stack[..., 0], mask).float()
-            directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1], mask).float()
-            directions_stack[..., 2][mask] = -1.0
+              mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
+        #     mask = torch.stack([mask, mask, mask], dim=0)
+              directions_stack[0, ..., 0][mask] = torch.masked_select(coord[..., 0], mask).float()
+        #     directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1], mask).float()
+        #     directions_stack[..., 2][mask] = -1.0
 
         if CameraType.FISHEYE.value in cam_types:
             mask = (self.camera_type[true_indices] == CameraType.FISHEYE.value).squeeze(-1)  # (num_rays)
@@ -749,6 +754,8 @@ class Cameras(TensorDataclass):
         assert dx.shape == num_rays_shape and dy.shape == num_rays_shape
 
         pixel_area = (dx * dy)[..., None]  # ("num_rays":..., 1)
+        ja, jb, jc, jd = torch.unbind((jacobian / torch.stack((fx, fy), dim=-1).reshape(-1, 1, 2)).reshape(-1, 4), dim=1)
+        pixel_area[perspective_mask, 0] = ja * jd - jb * jc
         assert pixel_area.shape == num_rays_shape + (1,)
 
         times = self.times[camera_indices, 0] if self.times is not None else None

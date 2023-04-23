@@ -33,6 +33,9 @@ from torch.utils.data.distributed import DistributedSampler
 from typing_extensions import Literal
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
+from nerfstudio.cameras.camera_utils import (  # radial_and_tangential_distort,
+    radial_and_tangential_undistort,
+)
 from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
@@ -454,6 +457,32 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
         return PixelSampler(*args, **kwargs)
 
+    # def _get_ray_masks(
+    #     self, dataset: InputDataset
+    # ) -> Union[List[torch.Tensor], torch.Tensor, None]:
+    #     for i, camera in enumerate(dataset.cameras):
+    #         corners = torch.FloatTensor([[0, 0], [0, camera.width], [camera.height, 0], [camera.height, camera.width]])
+    #         bbox = radial_and_tangential_undistort(corners, camera.distortion_params)
+
+    #     return None
+
+    # def _get_ray_sampler(  # pylint: disable=no-self-use
+    #     self, dataset: InputDataset, *args: Any, **kwargs: Any
+    # ) -> RaySampler:
+    #     """Infer ray sampler to use."""
+    #     #if self.config.patch_size > 1:
+    #     #    return PatchPixelSampler(*args, **kwargs, patch_size=self.config.patch_size)
+
+    #     # If all images are equirectangular, use equirectangular pixel sampler
+    #     #is_equirectangular = dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
+    #     #if is_equirectangular.all():
+    #     #    return EquirectangularPixelSampler(*args, **kwargs)
+    #     # Otherwise, use the default pixel sampler
+    #     #if is_equirectangular.any():
+    #     #    CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
+
+    #     return RaySampler(*args, **kwargs)
+
     def setup_train(self):
         """Sets up the data loaders for training"""
         assert self.train_dataset is not None
@@ -479,6 +508,15 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             self.train_dataset.cameras.to(self.device),
             self.train_camera_optimizer,
         )
+
+        # self.train_ray_masks = self._get_ray_masks(self.train_dataset)
+        # self.train_ray_pixel_generator = RayPixelGenerator(
+        #     self.train_dataset,
+        #     self.config.train_num_rays_per_batch,
+        #     self.train_dataset.cameras.to(self.device),
+        #     self.train_camera_optimizer,
+        # )
+        
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
@@ -526,6 +564,8 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         batch = self.train_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
         ray_bundle = self.train_ray_generator(ray_indices)
+        # assert self.train_ray_sampler is not None
+        # ray_bundle, batch = self.train_ray_pixel_generator(image_batch)
         return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
