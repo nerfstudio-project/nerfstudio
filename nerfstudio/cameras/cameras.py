@@ -319,6 +319,7 @@ class Cameras(TensorDataclass):
         return image_coords
 
     @profiler.time_function
+    @profile
     def generate_rays(  # pylint: disable=too-many-statements
         self,
         camera_indices: Union[TensorType["num_rays":..., "num_cameras_batch_dims"], int],
@@ -497,6 +498,7 @@ class Cameras(TensorDataclass):
         return raybundle
 
     # pylint: disable=too-many-statements
+    @profile
     def _generate_rays_from_coords(
         self,
         camera_indices: TensorType["num_rays":..., "num_cameras_batch_dims"],

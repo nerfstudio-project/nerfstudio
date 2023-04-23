@@ -556,6 +556,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
 
     @profiler.time_function
+    @profile
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
