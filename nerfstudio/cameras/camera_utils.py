@@ -331,12 +331,12 @@ def _compute_residual_and_jacobian(
     d_y = 2.0 * y * d_r
 
     # Compute derivative of fx over x and y.
-    fx_x = d + d_x * x + 2.0 * p1 * y + 6.0 * p2 * x
-    fx_y = d_y * x + 2.0 * p1 * x + 2.0 * p2 * y
+    fx_x = d + 2.0 * p1 * y + (d_x + 6.0 * p2) * x
+    fx_y = (d_y + 2.0 * p1) * x + 2.0 * p2 * y
 
     # Compute derivative of fy over x and y.
-    fy_x = d_x * y + 2.0 * p2 * y + 2.0 * p1 * x
-    fy_y = d + d_y * y + 2.0 * p2 * x + 6.0 * p1 * y
+    fy_x = (d_x + 2.0 * p2) * y + 2.0 * p1 * x
+    fy_y = d + 2.0 * p2 * x + (d_y + 6.0 * p1) * y
 
     return fx, fy, fx_x, fx_y, fy_x, fy_y
 
@@ -383,18 +383,19 @@ def radial_and_tangential_undistort(
     all_jacobian = torch.empty(x.shape + (2, 2), device=x.device)
     all_residual = torch.empty_like(coords)
 
-    #next_upd = torch.arange(coords.shape[0], device=coords.device)
+    next_upd = torch.arange(coords.shape[0], device=coords.device)
 
     for _ in range(max_iterations):
         # n_iters += next_upd.shape[0]
 
-        #x_upd = x[next_upd]
-        #y_upd = y[next_upd]
+        x_upd = x[next_upd]
+        y_upd = y[next_upd]
         fx, fy, fx_x, fx_y, fy_x, fy_y = _compute_residual_and_jacobian(
-            x=x, y=y,#x=x_upd, y=y_upd,
-            #xd=coords[next_upd, 0], yd=coords[next_upd, 1],
-            xd=coords[:, 0], yd=coords[:, 1],
-            distortion_params=distortion_params#[next_upd]
+            # x=x, y=y,
+            x=x_upd, y=y_upd,
+            xd=coords[next_upd, 0], yd=coords[next_upd, 1],
+            # xd=coords[:, 0], yd=coords[:, 1],
+            distortion_params=distortion_params[next_upd]
         )
 
         # max_x = torch.max(torch.abs(fx * resolution[..., 0])).item()
@@ -403,10 +404,10 @@ def radial_and_tangential_undistort(
 
         converged = (resolution[0] * fx) ** 2 + (resolution[1] * fy) ** 2 < 0.01
 
-        not_converged = np.argwhere(~converged)
-        converged = np.argwhere(converged)
+        not_converged = torch.argwhere(~converged).squeeze()
+        converged = torch.argwhere(converged).squeeze()
 
-        # print(f"{converged.sum().item()} points converged")
+        # print(f"{converged.shape[0]} points converged")
 
         denominator = fx_x * fy_y - fx_y * fy_x
         invertible = torch.abs(denominator) > eps
@@ -426,8 +427,8 @@ def radial_and_tangential_undistort(
         residual = residual[not_converged].reshape(-1, 2, 1)
         step = (j_inv @ residual).squeeze().to(torch.float32)
 
-        x = x.index_add(dim=0, index=next_upd, source=step[:, 0], alpha=-1)
-        y = y.index_add(dim=0, index=next_upd, source=step[:, 1], alpha=-1)
+        x.index_add(dim=0, index=next_upd, source=step[:, 0], alpha=-1)
+        y.index_add(dim=0, index=next_upd, source=step[:, 1], alpha=-1)
 
     # print(f"average number of newton iterations per sample: {n_iters / n_samples}")
 
