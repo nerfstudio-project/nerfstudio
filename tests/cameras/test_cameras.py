@@ -39,7 +39,7 @@ CX_YS = [
     torch.ones(BATCH_SIZE, 1) * CX_Y,
     torch.ones((BATCH_SIZE, BATCH_SIZE, 1)) * CX_Y,
 ]
-DISTORTION_PARAMS = [None, torch.zeros(6), torch.zeros((BATCH_SIZE, 6)), torch.zeros((BATCH_SIZE, BATCH_SIZE, 6))]
+DISTORTION_PARAMS = [None, torch.zeros(8), torch.zeros((BATCH_SIZE, 8)), torch.zeros((BATCH_SIZE, BATCH_SIZE, 8))]
 camera_types = [
     1,
     torch.tensor([1]),
@@ -303,7 +303,7 @@ def _check_cam_shapes(cam: Cameras, _batch_size):
     assert cam.cy.shape == (*_batch_size, 1)
     assert cam.height.shape == (*_batch_size, 1)
     assert cam.width.shape == (*_batch_size, 1)
-    assert cam.distortion_params is None or cam.distortion_params.shape == (*_batch_size, 6)
+    assert cam.distortion_params is None or cam.distortion_params.shape == (*_batch_size, 8)
     assert cam.camera_type.shape == (*_batch_size, 1)
     return True
 

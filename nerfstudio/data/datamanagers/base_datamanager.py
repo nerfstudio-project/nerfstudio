@@ -70,6 +70,7 @@ from nerfstudio.data.utils.dataloaders import (
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
+from nerfstudio.utils import profiler
 from nerfstudio.utils.misc import IterableWrapper
 
 CONSOLE = Console(width=120)
@@ -471,9 +472,12 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
-        self.train_camera_optimizer = self.config.camera_optimizer.setup(
-            num_cameras=self.train_dataset.cameras.size, device=self.device
-        )
+        if self.config.camera_optimizer.mode != "off":
+            self.train_camera_optimizer = self.config.camera_optimizer.setup(
+                num_cameras=self.train_dataset.cameras.size, device=self.device
+            )
+        else:
+            self.train_camera_optimizer = None
         self.train_ray_generator = RayGenerator(
             self.train_dataset.cameras.to(self.device),
             self.train_camera_optimizer,
@@ -494,9 +498,12 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
-        self.eval_camera_optimizer = self.config.camera_optimizer.setup(
-            num_cameras=self.eval_dataset.cameras.size, device=self.device
-        )
+        if self.config.camera_optimizer.mode != "off":
+            self.eval_camera_optimizer = self.config.camera_optimizer.setup(
+                num_cameras=self.eval_dataset.cameras.size, device=self.device
+            )
+        else:
+            self.eval_camera_optimizer = None
         self.eval_ray_generator = RayGenerator(
             self.eval_dataset.cameras.to(self.device),
             self.eval_camera_optimizer,
@@ -513,6 +520,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             num_workers=self.world_size * 4,
         )
 
+    @profiler.time_function
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
@@ -541,10 +549,14 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         raise ValueError("No more eval images")
 
     def get_train_rays_per_batch(self) -> int:
-        return self.config.train_num_rays_per_batch
+        if self.train_pixel_sampler is None:
+            return self.config.train_num_rays_per_batch
+        return self.train_pixel_sampler.num_rays_per_batch
 
     def get_eval_rays_per_batch(self) -> int:
-        return self.config.eval_num_rays_per_batch
+        if self.eval_pixel_sampler is None:
+            return self.config.eval_num_rays_per_batch
+        return self.eval_pixel_sampler.num_rays_per_batch
 
     def get_datapath(self) -> Path:
         return self.config.dataparser.data
@@ -556,11 +568,9 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         """
         param_groups = {}
 
-        camera_opt_params = list(self.train_camera_optimizer.parameters())
         if self.config.camera_optimizer.mode != "off":
+            camera_opt_params = list(self.train_camera_optimizer.parameters())
             assert len(camera_opt_params) > 0
             param_groups[self.config.camera_optimizer.param_group] = camera_opt_params
-        else:
-            assert len(camera_opt_params) == 0
 
         return param_groups

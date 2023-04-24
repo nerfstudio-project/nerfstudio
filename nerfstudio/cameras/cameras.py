@@ -17,7 +17,6 @@ Camera Models
 """
 import base64
 import math
-import os
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Dict, List, Optional, Tuple, Union
@@ -25,6 +24,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import cv2
 import torch
 import torchvision
+from nerfacc.cameras import opencv_lens_undistortion, opencv_lens_undistortion_fisheye
 from torch.nn import Parameter
 from torchtyping import TensorType
 
@@ -33,7 +33,7 @@ import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.utils.misc import strtobool
+from nerfstudio.utils import profiler
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
 TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
@@ -57,6 +57,17 @@ CAMERA_MODEL_TO_TYPE = {
     "EQUIRECTANGULAR": CameraType.EQUIRECTANGULAR,
 }
 
+# This should be consistent with the `nerfstudio/process_data/colmap_utils.py`
+CAMERA_MODEL_DISTORTION_PARAMETERS = {
+    "SIMPLE_PINHOLE": [],
+    "PINHOLE": [],
+    "SIMPLE_RADIAL": ["k1"],
+    "RADIAL": ["k1", "k2"],
+    "OPENCV": ["k1", "k2", "p1", "p2"],
+    "OPENCV_FISHEYE": ["k1", "k2", "k3", "k4"],
+    "EQUIRECTANGULAR": [],
+}
+
 
 @dataclass(init=False)
 class Cameras(TensorDataclass):
@@ -72,7 +83,7 @@ class Cameras(TensorDataclass):
         cy: Principal point y
         width: Image width
         height: Image height
-        distortion_params: OpenCV 6 radial distortion coefficients
+        distortion_params: OpenCV N distortion coefficients (N depends on camera type)
         camera_type: Type of camera model. This will be an int corresponding to the CameraType enum.
         times: Timestamps for each camera
         metadata: Additional metadata or data needed for interpolation, will mimic shape of the cameras
@@ -86,7 +97,7 @@ class Cameras(TensorDataclass):
     cy: TensorType["num_cameras":..., 1]
     width: TensorType["num_cameras":..., 1]
     height: TensorType["num_cameras":..., 1]
-    distortion_params: Optional[TensorType["num_cameras":..., 6]]
+    distortion_params: Optional[TensorType["num_cameras":..., "num_distortion_params"]]
     camera_type: TensorType["num_cameras":..., 1]
     times: Optional[TensorType["num_cameras", 1]]
     metadata: Optional[Dict]
@@ -100,7 +111,7 @@ class Cameras(TensorDataclass):
         cy: Union[TensorType["batch_cys":..., 1], float],
         width: Optional[Union[TensorType["batch_ws":..., 1], int]] = None,
         height: Optional[Union[TensorType["batch_hs":..., 1], int]] = None,
-        distortion_params: Optional[TensorType["batch_dist_params":..., 6]] = None,
+        distortion_params: Optional[TensorType["batch_dist_params":..., "num_distortion_params"]] = None,
         camera_type: Optional[
             Union[
                 TensorType["batch_cam_types":..., 1],
@@ -115,7 +126,7 @@ class Cameras(TensorDataclass):
         """Initializes the Cameras object.
 
         Note on Input Tensor Dimensions: All of these tensors have items of dimensions TensorType[3, 4]
-        (in the case of the c2w matrices), TensorType[6] (in the case of distortion params), or
+        (in the case of the c2w matrices), TensorType[N] (in the case of distortion params with N parameters), or
         TensorType[1] (in the case of the rest of the elements). The dimensions before that are
         considered the batch dimension of that tensor (batch_c2ws, batch_fxs, etc.). We will broadcast
         all the tensors to be the same batch dimension. This means you can use any combination of the
@@ -149,8 +160,6 @@ class Cameras(TensorDataclass):
         self.metadata = metadata
 
         self.__post_init__()  # This will do the dataclass post_init and broadcast all the tensors
-
-        self._use_nerfacc = strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "TRUE"))
 
     def _init_get_fc_xy(self, fc_xy: Union[float, torch.Tensor], name: str) -> torch.Tensor:
         """
@@ -311,12 +320,13 @@ class Cameras(TensorDataclass):
             image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         return image_coords
 
+    @profiler.time_function
     def generate_rays(  # pylint: disable=too-many-statements
         self,
         camera_indices: Union[TensorType["num_rays":..., "num_cameras_batch_dims"], int],
         coords: Optional[TensorType["num_rays":..., 2]] = None,
         camera_opt_to_camera: Optional[TensorType["num_rays":..., 3, 4]] = None,
-        distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
+        distortion_params_delta: Optional[TensorType["num_rays":..., "num_distortion_params"]] = None,
         keep_shape: Optional[bool] = None,
         disable_distortion: bool = False,
         aabb_box: Optional[SceneBox] = None,
@@ -328,7 +338,7 @@ class Cameras(TensorDataclass):
             - camera_indices: (num_rays:..., num_cameras_batch_dims)
             - coords: (num_rays:..., 2)
             - camera_opt_to_camera: (num_rays:..., 3, 4) or None
-            - distortion_params_delta: (num_rays:..., 6) or None
+            - distortion_params_delta: (num_rays:..., N) or None
 
         Read the docstring for _generate_rays_from_coords for more information on how we generate the rays
         after we have standardized the arguments.
@@ -436,8 +446,8 @@ class Cameras(TensorDataclass):
                 if camera_opt_to_camera is not None
                 else None
             )
-            distortion_params_delta = (  # (h, w, num_rays, 6) or None
-                distortion_params_delta.broadcast_to(coords.shape[:-1] + (6,))
+            distortion_params_delta = (  # (h, w, num_rays, N) or None
+                distortion_params_delta.broadcast_to(coords.shape[:-1] + (distortion_params_delta.shape[-1],))
                 if distortion_params_delta is not None
                 else None
             )
@@ -494,7 +504,7 @@ class Cameras(TensorDataclass):
         camera_indices: TensorType["num_rays":..., "num_cameras_batch_dims"],
         coords: TensorType["num_rays":..., 2],
         camera_opt_to_camera: Optional[TensorType["num_rays":..., 3, 4]] = None,
-        distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
+        distortion_params_delta: Optional[TensorType["num_rays":..., "num_distortion_params"]] = None,
         disable_distortion: bool = False,
     ) -> RayBundle:
         """Generates rays for the given camera indices and coords where self isn't jagged
@@ -559,7 +569,7 @@ class Cameras(TensorDataclass):
 
             distortion_params_delta: Optional delta for the distortion parameters.
                 In terms of shape, it follows the same rules as coords, but indexing into it with [i:...] gets you
-                the 1D tensor with the 6 distortion parameters for the camera optimization at RayBundle[i:...].
+                the 1D tensor with the N distortion parameters for the camera optimization at RayBundle[i:...].
 
             disable_distortion: If True, disables distortion.
 
@@ -576,7 +586,9 @@ class Cameras(TensorDataclass):
         assert coords.shape == num_rays_shape + (2,)
         assert coords.shape[-1] == 2
         assert camera_opt_to_camera is None or camera_opt_to_camera.shape == num_rays_shape + (3, 4)
-        assert distortion_params_delta is None or distortion_params_delta.shape == num_rays_shape + (6,)
+        assert distortion_params_delta is None or distortion_params_delta.shape == num_rays_shape + (
+            distortion_params_delta.shape[-1],
+        )
 
         # Here, we've broken our indices down along the num_cameras_batch_dims dimension allowing us to index by all
         # of our output rays at each dimension of our cameras object
@@ -631,10 +643,35 @@ class Cameras(TensorDataclass):
 
             # Do not apply distortion for equirectangular images
             if distortion_params is not None:
-                mask = (self.camera_type[true_indices] != CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
+                mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
                 coord_mask = torch.stack([mask, mask, mask], dim=0)
                 if mask.any():
-                    coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
+                    if distortion_params_delta is not None:
+                        # if we need to optimize distortion params, we need to use the gradient version
+                        coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
+                            coord_stack[coord_mask, :].reshape(3, -1, 2),
+                            distortion_params[mask, :],
+                        ).reshape(-1, 2)
+                    else:
+                        # try to use nerfacc to accelerate if we don't need to optimize distortion params
+                        try:
+                            coord_stack[coord_mask, :] = opencv_lens_undistortion(
+                                coord_stack[coord_mask, :].reshape(3, -1, 2),
+                                distortion_params[mask, :],
+                            ).reshape(-1, 2)
+                        except (RuntimeError, ImportError, AttributeError):
+                            coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
+                                coord_stack[coord_mask, :].reshape(3, -1, 2),
+                                distortion_params[mask, :],
+                            ).reshape(-1, 2)
+
+                mask = (self.camera_type[true_indices] == CameraType.FISHEYE.value).squeeze(-1)  # (num_rays)
+                coord_mask = torch.stack([mask, mask, mask], dim=0)
+                if mask.any():
+                    if distortion_params_delta is not None:
+                        raise NotImplementedError("Fisheye distortion optimization is not implemented")
+                    # use nerfacc which does not provide gradient
+                    coord_stack[coord_mask, :] = opencv_lens_undistortion_fisheye(
                         coord_stack[coord_mask, :].reshape(3, -1, 2),
                         distortion_params[mask, :],
                     ).reshape(-1, 2)

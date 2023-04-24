@@ -22,6 +22,8 @@ from typing import Dict, Optional, Union
 import torch
 from torchtyping import TensorType
 
+from nerfstudio.utils import profiler
+
 
 class PixelSampler:  # pylint: disable=too-few-public-methods
     """Samples 'pixel_batch's from 'image_batch's.
@@ -182,6 +184,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
 
         return collated_batch
 
+    @profiler.time_function
     def sample(self, image_batch: Dict):
         """Sample an image batch and return a pixel batch.
 

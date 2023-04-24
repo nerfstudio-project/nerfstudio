@@ -116,9 +116,9 @@ class CameraOptimizer(nn.Module):
         if self.config.mode == "off":
             pass
         elif self.config.mode == "SO3xR3":
-            outputs.append(exp_map_SO3xR3(self.pose_adjustment[indices, :]))
+            outputs.append(exp_map_SO3xR3(self.pose_adjustment)[indices])
         elif self.config.mode == "SE3":
-            outputs.append(exp_map_SE3(self.pose_adjustment[indices, :]))
+            outputs.append(exp_map_SE3(self.pose_adjustment)[indices])
         else:
             assert_never(self.config.mode)
 
