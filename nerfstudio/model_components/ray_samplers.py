@@ -390,12 +390,13 @@ class VolumetricSampler(Sampler):
         self.density_fn = density_fn
         self.occupancy_grid = occupancy_grid
 
-    def get_sigma_fn(self, origins, directions) -> Optional[Callable]:
+    def get_sigma_fn(self, origins, directions, times=None) -> Optional[Callable]:
         """Returns a function that returns the density of a point.
 
         Args:
             origins: Origins of rays
             directions: Directions of rays
+            times: Times at which rays are sampled
         Returns:
             Function that returns the density of a point or None if a density function is not provided.
         """
@@ -409,7 +410,10 @@ class VolumetricSampler(Sampler):
             t_origins = origins[ray_indices]
             t_dirs = directions[ray_indices]
             positions = t_origins + t_dirs * (t_starts + t_ends)[:, None] / 2.0
-            return density_fn(positions).squeeze(-1)
+            if times is None:
+                return density_fn(positions).squeeze(-1)
+            else:
+                return density_fn(positions, times[ray_indices]).squeeze(-1)
 
         return sigma_fn
 
@@ -446,6 +450,7 @@ class VolumetricSampler(Sampler):
 
         rays_o = ray_bundle.origins
         rays_d = ray_bundle.directions
+        times = ray_bundle.times
 
         if far_plane is None:
             far_plane = 1e10
@@ -457,7 +462,7 @@ class VolumetricSampler(Sampler):
         ray_indices, starts, ends = self.occupancy_grid.sampling(
             rays_o=rays_o,
             rays_d=rays_d,
-            sigma_fn=self.get_sigma_fn(rays_o, rays_d),
+            sigma_fn=self.get_sigma_fn(rays_o, rays_d, times),
             render_step_size=render_step_size,
             near_plane=near_plane,
             far_plane=far_plane,

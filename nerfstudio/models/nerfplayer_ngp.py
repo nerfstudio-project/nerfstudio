@@ -19,7 +19,7 @@ Implementation of NeRFPlayer (https://arxiv.org/abs/2210.15947) with InstantNGP 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Type
+from typing import List, Type
 
 import nerfacc
 import torch
@@ -30,6 +30,11 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
+from nerfstudio.engine.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.nerfplayer_ngp_field import NerfplayerNGPField
@@ -145,11 +150,26 @@ class NerfplayerNGPModel(NGPModel):
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
         self.temporal_distortion = True  # for viewer
 
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
+        def update_occupancy_grid(step: int):
+            self.occupancy_grid.update_every_n_steps(
+                step=step,
+                occ_eval_fn=lambda x: self.field.get_opacity(x, self.config.render_step_size),
+            )
+
+        return [
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
+                update_every_num_iters=1,
+                func=update_occupancy_grid,
+            ),
+        ]
+
     def get_outputs(self, ray_bundle: RayBundle):
         num_rays = len(ray_bundle)
 
-        # update the density_fn of the sampler so that the density is time aware
-        self.sampler.density_fn = lambda x: self.field.density_fn(x, ray_bundle.times)
         with torch.no_grad():
             ray_samples, ray_indices = self.sampler(
                 ray_bundle=ray_bundle,
@@ -157,7 +177,7 @@ class NerfplayerNGPModel(NGPModel):
                 far_plane=self.config.far_plane,
                 render_step_size=self.config.render_step_size,
                 cone_angle=self.config.cone_angle,
-                alpha_thre=self.config.alpha_thre
+                alpha_thre=self.config.alpha_thre,
             )
 
         field_outputs = self.field(ray_samples)
@@ -206,7 +226,7 @@ class NerfplayerNGPModel(NGPModel):
         image = batch["image"].to(self.device)
         rgb_loss = self.rgb_loss(image, outputs["rgb"])
         loss_dict = {"rgb_loss": rgb_loss}
-        if "depth_image" in batch.keys() and self.config.depth_weight > 0:
+        if "depth_image" in batch.keys() and self.config.depth_weight > 0 and self.training:
             mask = batch["depth_image"] != 0
             # First we calculate the depth value, just like most of the papers.
             loss_dict["depth_loss"] = (outputs["depth"][mask] - batch["depth_image"][mask]).abs().mean()
@@ -232,6 +252,6 @@ class NerfplayerNGPModel(NGPModel):
             density_min_mask = (gt_depth_packed - steps > margin) & (gt_depth_packed != 0)
             loss_dict["depth_loss"] += (outputs["sigmas"][density_min_mask[..., 0]].pow(2)).mean() * 1e-2
             loss_dict["depth_loss"] *= self.config.depth_weight
-        if self.config.temporal_tv_weight > 0:
+        if self.config.temporal_tv_weight > 0 and self.training:
             loss_dict["temporal_tv_loss"] = self.config.temporal_tv_weight * self.field.mlp_base.get_temporal_tv_loss()
         return loss_dict
