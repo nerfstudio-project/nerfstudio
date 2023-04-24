@@ -52,7 +52,6 @@ class ViewerControl:
 
     def set_crop(self, min_point: Tuple[float, float, float], max_point: Tuple[float, float, float]):
         assert hasattr(self, "control_panel"), "Called set_crop on uninitialized ViewerControl"
-        self.control_panel.crop_viewport = True
         self.control_panel.crop_min = min_point
         self.control_panel.crop_max = max_point
 
