@@ -448,9 +448,17 @@ class VolumetricSampler(Sampler):
             The ray_indices contains the indices of the rays that each sample belongs to.
         """
 
-        rays_o = ray_bundle.origins
-        rays_d = ray_bundle.directions
+        rays_o = ray_bundle.origins.contiguous()
+        rays_d = ray_bundle.directions.contiguous()
         times = ray_bundle.times
+
+        if ray_bundle.nears is not None and ray_bundle.fars is not None:
+            t_min = ray_bundle.nears.contiguous().reshape(-1)
+            t_max = ray_bundle.fars.contiguous().reshape(-1)
+
+        else:
+            t_min = None
+            t_max = None
 
         if far_plane is None:
             far_plane = 1e10
@@ -462,6 +470,8 @@ class VolumetricSampler(Sampler):
         ray_indices, starts, ends = self.occupancy_grid.sampling(
             rays_o=rays_o,
             rays_d=rays_d,
+            t_min=t_min,
+            t_max=t_max,
             sigma_fn=self.get_sigma_fn(rays_o, rays_d, times),
             render_step_size=render_step_size,
             near_plane=near_plane,

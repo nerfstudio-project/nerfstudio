@@ -57,6 +57,8 @@ class InstantNGPModelConfig(ModelConfig):
         default_factory=lambda: NGPModel
     )  # We can't write `NGPModel` directly, because `NGPModel` doesn't exist yet
     """target class to instantiate"""
+    enable_collider: bool = False
+    """Whether to create a scene collider to filter rays."""
     grid_resolution: int = 128
     """Resolution of the grid used for the field."""
     grid_levels: int = 4
