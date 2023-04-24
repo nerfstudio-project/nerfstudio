@@ -1,10 +1,13 @@
 import React, { useEffect, MutableRefObject, Dispatch } from 'react';
-
+import * as THREE from 'three';
 import AwaitLock from 'await-lock';
 import { pack, unpack } from 'msgpackr';
 import { useDispatch, useStore, useSelector } from 'react-redux';
 import { Store } from 'redux';
 import { Message } from './ViserMessages';
+import { get_scene_tree } from '../Scene/Scene';
+import SceneNode from '../../SceneNode';
+
 
 const ViserWebSocketContext =
   React.createContext<React.RefObject<WebSocket> | null>(null);
@@ -53,6 +56,7 @@ function handleMessage(
   message: Message,
   dispatch: Dispatch<any>,
   store: Store,
+  sceneTree: SceneNode
 ) {
   switch (message.type) {
     // Add a background image.
@@ -157,6 +161,28 @@ function handleMessage(
           },
         });
       }
+      break;
+    }
+    // Set camera position
+    case 'SetCameraMessage': {
+      if(message.fov !== null){
+        sceneTree.metadata.camera.fov = message.fov;
+      }
+      if(message.camera_type !== null){
+        dispatch({
+          type: 'write',
+          path: 'renderingState/camera_type',
+          data: message.camera_type,
+        });
+      }
+      if(message.look_at !==null){
+        const p = message.look_at;
+        sceneTree.metadata.camera_controls.setLookAt(
+          p[0],p[1],p[2],
+          p[3],p[4],p[5],
+        );
+      }
+      
       break;
     }
     // Remove a GUI input.
@@ -283,7 +309,9 @@ function handleMessage(
   }
 }
 
-export function ViserWebSocket({ children }: { children: React.ReactNode }) {
+// export function ViserWebSocket({ children }: { children: React.ReactNode }) {
+export function ViserWebSocket(props) {
+  const sceneTree = props.sceneTree;
   const dispatch = useDispatch();
   const store = useStore();
 
@@ -344,7 +372,7 @@ export function ViserWebSocket({ children }: { children: React.ReactNode }) {
             new Uint8Array(await event.data.arrayBuffer()),
           )) as Message;
           await orderLock.acquireAsync({ timeout: 1000 });
-          handleMessage(message, dispatch, store);
+          handleMessage(message, dispatch, store,sceneTree);
         } catch (error) {
           console.error(`Error handling message: ${error}`);
         } finally {
@@ -373,7 +401,7 @@ export function ViserWebSocket({ children }: { children: React.ReactNode }) {
 
   return (
     <ViserWebSocketContext.Provider value={ws}>
-      {children}
+      {props.children}
     </ViserWebSocketContext.Provider>
   );
 }

@@ -152,8 +152,8 @@ class ViewerState:
         self.viewer_elements = []
         if self.trainer is not None:
             self.viewer_elements.extend(parse_object(self.trainer, ViewerElement, "Trainer"))
-
-        self.viewer_elements.extend(parse_object(pipeline, ViewerElement, "Pipeline"))
+        else:
+            self.viewer_elements.extend(parse_object(pipeline, ViewerElement, "Pipeline"))
         for param_path, element in self.viewer_elements:
             folder_labels = param_path.split("/")[:-1]
             nested_folder_install(folder_labels, element)

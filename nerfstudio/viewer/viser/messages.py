@@ -125,6 +125,18 @@ class FilePathInfoMessage(NerfstudioMessage):
 
 
 @dataclasses.dataclass
+class SetCameraMessage(NerfstudioMessage):
+    """Set the current camera."""
+
+    fov: float
+    """ Field of view of the camera """
+    look_at: Tuple[float, float, float, float, float, float]
+    """ Camera matrix """
+    camera_type: Literal["perspective", "fisheye", "equirectangular"]
+    """ Camera type """
+
+
+@dataclasses.dataclass
 class CameraMessage(NerfstudioMessage):
     """Render camera data."""
 

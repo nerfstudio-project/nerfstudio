@@ -231,14 +231,10 @@ export default function ViewerWindow(props) {
 
   // set the threejs field of view
   // such that the rendered video will match correctly
-  if (camera_choice !== 'Main Camera') {
-    const fl = 1.0 / Math.tan((field_of_view * Math.PI) / 360);
-    const fl_new = fl * render_viewport_apsect_ratio;
-    const fov = Math.atan(1 / fl_new) / (Math.PI / 360);
-    sceneTree.metadata.camera.fov = fov;
-  } else {
-    sceneTree.metadata.camera.fov = 50;
-  }
+  const fl = 1.0 / Math.tan((field_of_view * Math.PI) / 360);
+  const fl_new = fl * render_viewport_apsect_ratio;
+  const fov = Math.atan(1 / fl_new) / (Math.PI / 360);
+  sceneTree.metadata.camera.fov = fov;
 
   let old_camera_matrix = null;
   let is_moving = false;

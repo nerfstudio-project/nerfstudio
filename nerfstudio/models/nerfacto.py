@@ -60,7 +60,7 @@ from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
-from nerfstudio.viewer.server.viewer_elements import ViewerButton, ViewerControl
+from nerfstudio.viewer.server.viewer_elements import *
 
 
 @dataclass
@@ -171,6 +171,22 @@ class NerfactoModel(Model):
 
         self.random_button = ViewerButton("Randomize Crop", cb_hook=random_crop)
 
+        def reset_camera(but):
+            self.viewer_control.set_look_at((.5,.5,.2),(0,0,0))
+
+        self.reset_button = ViewerButton("Reset cam position", cb_hook=reset_camera)
+
+        def fov_cb(slider):
+            self.viewer_control.set_fov(slider.value)
+
+        self.fov_slider = ViewerSlider("FOV", 50, 10, 120, 5, cb_hook=fov_cb)
+
+        def type_cb(select):
+            self.viewer_control.set_type(select.value)
+
+        self.cam_type = ViewerDropdown(
+            "Camera type", "perspective", ["perspective", "fisheye", "equirectangular"], cb_hook=type_cb
+        )
         self.density_fns = []
         num_prop_nets = self.config.num_proposal_iterations
         # Build the proposal network(s)
