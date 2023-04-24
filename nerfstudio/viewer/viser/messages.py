@@ -45,7 +45,7 @@ class GuiAddMessage(NerfstudioMessage):
     """Sent server->client to add a new GUI input."""
 
     name: str
-    folder_labels: Tuple[str]
+    folder_labels: Tuple[str, ...]
     leva_conf: Any
 
     @override
