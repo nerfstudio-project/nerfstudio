@@ -133,7 +133,7 @@ class NerfplayerNGPModel(NGPModel):
         # Sampler
         self.sampler = VolumetricSampler(
             occupancy_grid=self.occupancy_grid,
-            density_fn=None,  # `self.field.density_fn` might be better.`
+            density_fn=self.field.density_fn,
         )  # need to update the density_fn later during forward (for input time)
 
         # renderers

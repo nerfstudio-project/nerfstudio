@@ -59,6 +59,8 @@ class InstantNGPModelConfig(ModelConfig):
     """target class to instantiate"""
     enable_collider: bool = False
     """Whether to create a scene collider to filter rays."""
+    collider_params: Optional[Dict[str, float]] = None
+    """Instant NGP doesn't use a collider."""
     grid_resolution: int = 128
     """Resolution of the grid used for the field."""
     grid_levels: int = 4
@@ -102,9 +104,6 @@ class NGPModel(Model):
         """Set the fields and modules."""
         super().populate_modules()
 
-        # scene aabb
-        self.scene_aabb = Parameter(self.scene_box.aabb.flatten(), requires_grad=False)
-
         if self.config.disable_scene_contraction:
             scene_contraction = None
         else:
@@ -117,6 +116,8 @@ class NGPModel(Model):
             max_res=self.config.max_res,
             spatial_distortion=scene_contraction,
         )
+
+        self.scene_aabb = Parameter(self.scene_box.aabb.flatten(), requires_grad=False)
 
         if self.config.render_step_size is None:
             # auto step size: ~1000 samples in the base level grid
