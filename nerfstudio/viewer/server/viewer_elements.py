@@ -20,10 +20,6 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Generic, List, Optional, Tuple, TypeVar
 
-import torch
-
-from nerfstudio.data.scene_box import SceneBox
-
 if TYPE_CHECKING:
     from nerfstudio.viewer.server.control_panel import ControlPanel
 
