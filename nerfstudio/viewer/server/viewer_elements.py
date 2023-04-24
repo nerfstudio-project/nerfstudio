@@ -14,19 +14,36 @@
 
 """ Viewer GUI elements for the nerfstudio viewer """
 
+
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Callable, Generic, List, Optional, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, List, Optional, Tuple, TypeVar
+
+import torch
+
+from nerfstudio.data.scene_box import SceneBox
+
+if TYPE_CHECKING:
+    from nerfstudio.viewer.server.control_panel import ControlPanel
 
 from nerfstudio.viewer.viser import GuiHandle, GuiSelectHandle, ViserServer
 
 TValue = TypeVar("TValue")
 
 
-class ViewerCamera(Generic[TValue]):
+class ViewerControl:
+    """
+    class for exposing non-gui controls of the viewer to the user
+    """
+
     def __init__(self):
+        # this should be a user-facing constructor, since it will be used inside the model/pipeline class
         pass
+
+    def setup(self, control_panel: ControlPanel, viser_server: ViserServer):
+        self.control_panel = control_panel
+        self.viser_server = viser_server
 
     def set_extrinsics(self, R, t):
         pass
@@ -36,6 +53,12 @@ class ViewerCamera(Generic[TValue]):
 
     def move_relative(self, R, t):
         pass
+
+    def set_crop(self, min_point: Tuple[float, float, float], max_point: Tuple[float, float, float]):
+        assert hasattr(self, "control_panel"), "Called set_crop on uninitialized ViewerControl"
+        self.control_panel.crop_viewport = True
+        self.control_panel.crop_min = min_point
+        self.control_panel.crop_max = max_point
 
 
 class ViewerElement(Generic[TValue]):

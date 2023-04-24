@@ -60,6 +60,7 @@ from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
+from nerfstudio.viewer.server.viewer_elements import ViewerButton, ViewerControl
 
 
 @dataclass
@@ -162,6 +163,13 @@ class NerfactoModel(Model):
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
         )
+        self.viewer_control = ViewerControl()
+
+        def random_crop(button):
+            min = torch.rand(3) - 0.5
+            self.viewer_control.set_crop(tuple(min.tolist()), tuple((min + 0.5).tolist()))
+
+        self.random_button = ViewerButton("Randomize Crop", cb_hook=random_crop)
 
         self.density_fns = []
         num_prop_nets = self.config.num_proposal_iterations

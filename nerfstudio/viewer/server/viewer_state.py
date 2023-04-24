@@ -42,7 +42,7 @@ from nerfstudio.viewer.server.render_state_machine import (
     RenderAction,
     RenderStateMachine,
 )
-from nerfstudio.viewer.server.viewer_elements import ViewerElement
+from nerfstudio.viewer.server.viewer_elements import ViewerControl, ViewerElement
 from nerfstudio.viewer.viser import ViserServer
 from nerfstudio.viewer.viser.messages import (
     CameraMessage,
@@ -158,6 +158,18 @@ class ViewerState:
             folder_labels = param_path.split("/")[:-1]
             nested_folder_install(folder_labels, element)
 
+        # scrape the trainer/pipeline for any ViewerControl objects to initialize them
+        if self.trainer is not None:
+            self.viewer_controls: List[ViewerControl] = [
+                e for (_, e) in parse_object(self.trainer, ViewerControl, "Trainer")
+            ]
+        else:
+            self.viewer_controls: List[ViewerControl] = [
+                e for (_, e) in parse_object(self.trainer, ViewerControl, "Pipeline")
+            ]
+
+        for c in self.viewer_controls:
+            c.setup(self.control_panel, self.viser_server)
         self.render_statemachine = RenderStateMachine(self)
         self.render_statemachine.start()
 
@@ -171,7 +183,6 @@ class ViewerState:
 
     def _crop_params_update(self, _) -> None:
         """Update crop parameters"""
-        self.render_statemachine.action(RenderAction("rerender", self.camera_message))
         crop_min = torch.tensor(self.control_panel.crop_min, dtype=torch.float32)
         crop_max = torch.tensor(self.control_panel.crop_max, dtype=torch.float32)
         scene_box = SceneBox(aabb=torch.stack([crop_min, crop_max], dim=0))
@@ -184,6 +195,7 @@ class ViewerState:
             crop_scale=tuple(crop_scale.tolist()),
             crop_center=tuple(crop_center.tolist()),
         )
+        self.render_statemachine.action(RenderAction("rerender", self.camera_message))
 
     def _handle_training_state_message(self, message: NerfstudioMessage) -> None:
         """Handle training state message from viewer."""
