@@ -24,6 +24,20 @@ from nerfstudio.viewer.viser import GuiHandle, GuiSelectHandle, ViserServer
 TValue = TypeVar("TValue")
 
 
+class ViewerCamera(Generic[TValue]):
+    def __init__(self):
+        pass
+
+    def set_extrinsics(self, R, t):
+        pass
+
+    def set_intrinsics(self, K):
+        pass
+
+    def move_relative(self, R, t):
+        pass
+
+
 class ViewerElement(Generic[TValue]):
     """Base class for all viewer elements
 
