@@ -61,7 +61,7 @@ class ControlPanel:
         self._min = ViewerNumber("| Min", 0.0, cb_hook=rerender_cb)
         self._max = ViewerNumber("| Max", 1.0, cb_hook=rerender_cb)
         self._train_util = ViewerSlider("Train Util", 0.85, 0, 1, 0.05)
-        self._max_res = ViewerSlider("Max Res", 512, 64, 2048, 100, cb_hook=rerender_cb)
+        self._max_res = ViewerSlider("Max Resolution", 512, 64, 3840, 100, cb_hook=rerender_cb)
         self._crop_viewport = ViewerCheckbox(
             "Crop Viewport",
             False,

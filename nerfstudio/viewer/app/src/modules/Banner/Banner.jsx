@@ -3,7 +3,6 @@ import { useDispatch } from 'react-redux';
 
 import Button from '@mui/material/Button';
 import GitHubIcon from '@mui/icons-material/GitHub';
-import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
 import LandingModal from '../LandingModal';
 import ViewportControlsModal from '../ViewportControlsModal';
 
@@ -21,7 +20,8 @@ function getParam(param_name) {
 export default function Banner() {
   const dispatch = useDispatch();
 
-  let open_modal = true;
+  // NOTE: This disables the "Getting Started" screen
+  let open_modal = false;
 
   // possibly set the websocket url
   const websocket_url_from_argument = getParam('websocket_url');
@@ -42,27 +42,17 @@ export default function Banner() {
         variant="outlined"
         startIcon={<GitHubIcon />}
         target="_blank"
-        href="https://github.com/nerfstudio-project/nerfstudio"
+        href="https://github.com/netdrones/nerfstudio"
         size="small"
       >
         Github
-      </Button>
-      <Button // button with view in ar icon
-        className="banner-button"
-        variant="outlined"
-        startIcon={<DescriptionRoundedIcon />}
-        target="_blank"
-        href="https://docs.nerf.studio"
-        size="small"
-      >
-        Documentation
       </Button>
       <ViewportControlsModal />
 
       <div className="banner-logo">
         <img
           style={{ height: 30, margin: 'auto' }}
-          src="https://docs.nerf.studio/en/latest/_images/logo-dark.png"
+          src="https://storage.cloud.google.com/lucas.netdron.es/logo_big.png"
           alt="The favicon."
         />
       </div>

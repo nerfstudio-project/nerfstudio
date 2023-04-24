@@ -100,7 +100,7 @@ export default function LandingModel(props: LandingModalProps) {
           <center>
             <img
               style={{ height: 37, margin: 'auto' }}
-              src="https://docs.nerf.studio/en/latest/_images/logo-dark.png"
+              src="https://storage.cloud.google.com/lucas.netdron.es/logo_big.png"
               alt="The favicon."
             />
           </center>
