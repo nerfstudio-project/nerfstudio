@@ -633,7 +633,7 @@ class Cameras(TensorDataclass):
             if distortion_params is not None:
                 mask = (self.camera_type[true_indices] != CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
                 coord_mask = torch.stack([mask, mask, mask], dim=0)
-                if mask.any():
+                if mask.any() and (distortion_params != 0).any():
                     coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
                         coord_stack[coord_mask, :].reshape(3, -1, 2),
                         distortion_params[mask, :],
