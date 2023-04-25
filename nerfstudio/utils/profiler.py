@@ -21,12 +21,11 @@ import functools
 import os
 import time
 from collections import deque
-from contextlib import contextmanager
+from contextlib import ContextDecorator, contextmanager
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from rich.console import Console
-from torch.autograd.profiler import ContextDecorator
 from torch.profiler import ProfilerActivity, profile, record_function
 
 from nerfstudio.configs import base_config as cfg
@@ -46,7 +45,7 @@ PYTORCH_PROFILER = None
 class time_function(ContextDecorator):  # pylint: disable=invalid-name
     """Decorator/Context manager: time a function call or a block of code"""
 
-    def __init__(self, name: str):
+    def __init__(self, name):
         self.name = name
         self.start = None
         self._profiler_contexts = deque()
