@@ -90,6 +90,7 @@
     "nth-check": "^2.0.1",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.10",
     "recursive-readdir": "^2.2.3",
-    "resolve-url-loader": "^5.0.0"
+    "resolve-url-loader": "^5.0.0",
+    "yaml": "^2.2.2"
   }
 }
