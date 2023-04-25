@@ -87,6 +87,7 @@ export function get_scene_tree() {
   camera_controls.polarRotateSpeed = 0.3;
   camera_controls.dollySpeed = 0.1;
   camera_controls.infinityDolly = true;
+  camera_controls.smoothTime = 1;
   camera_controls.saveState();
 
   const keyMap = [];
@@ -107,7 +108,7 @@ export function get_scene_tree() {
       camera_controls.setTarget(
         curPos.x + diff.x,
         curPos.y + diff.y,
-        curPos.z + diff.z,
+        curPos.z + diff.z,true
       );
 
       if (keyMap.ArrowLeft === true) {
@@ -142,7 +143,7 @@ export function get_scene_tree() {
       camera_controls.setTarget(
         curPos.x + newDiff.x,
         curPos.y + newDiff.y,
-        curPos.z + newDiff.z,
+        curPos.z + newDiff.z,true
       );
       camera_controls.dolly(moveSpeed, true);
     }
@@ -162,7 +163,7 @@ export function get_scene_tree() {
       return;
     }
     if (keyMap.Space === true) {
-      camera_controls.setLookAt(0.7, -0.7, 0.3, 0, 0, 0);
+      camera_controls.setLookAt(0.7, -0.7, 0.3, 0, 0, 0,true);
     }
     translate();
     rotate();
@@ -301,7 +302,7 @@ export function get_scene_tree() {
     camera_controls.setTarget(
       curPos.x + newDiff.x,
       curPos.y + newDiff.y,
-      curPos.z + newDiff.z,
+      curPos.z + newDiff.z,true
     );
   };
 
