@@ -12,12 +12,14 @@ from typing import Dict, List, Optional, Tuple
 
 import tyro
 from rich.console import Console
+from typing_extensions import Literal
 
 import block_nerf.block_nerf as block_nerf
 from block_nerf.block_nerf import transform_camera_path
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.configs.method_configs import method_configs
 from nerfstudio.engine.trainer import TrainerConfig
+from nerfstudio.utils.render_side_by_side import RenderSideBySide
 from nerfstudio.utils.scripts import run_command
 from scripts.eval import ComputePSNR
 from scripts.render import BlockNerfRenderTrajectory, RenderTrajectory
@@ -59,7 +61,7 @@ class my_timer(ContextDecorator):
 
 
 class ExperimentPipeline:
-    def __init__(self, args: Args, writer, experiment_name: str):
+    def __init__(self, args: Args, writer, experiment_name: str, render_side_by_side: RenderSideBySide):
         self.args = args
         self.writer = writer
         self.terminal = sys.stdout
@@ -75,6 +77,8 @@ class ExperimentPipeline:
         self.trainer_config: TrainerConfig = self.setup()
         self.checkpoint_dir = self.trainer_config.get_checkpoint_dir()
         self.model_dir = self.checkpoint_dir.parent
+        
+        self.render_side_by_side = render_side_by_side
 
     def run(self) -> Dict[str, Path]:
         """
@@ -82,7 +86,7 @@ class ExperimentPipeline:
         """
         self.train()
         self.eval()
-        self.render(interpolate=True)
+        self.render(mode="side-by-side")
         # self.render(interpolate=False)
 
         return {
@@ -98,7 +102,7 @@ class ExperimentPipeline:
         config.experiment_name = self.experiment_name
         config.vis = "viewer"
         config.viewer.quit_on_train_completion = True
-        config.max_num_iterations = 100
+        config.max_num_iterations = 15000
 
         if not self.use_camera_optimizer:
             config.pipeline.datamanager.camera_optimizer.mode = "off"
@@ -146,7 +150,7 @@ class ExperimentPipeline:
         eval_config.main()
 
     @my_timer("Render")
-    def render(self, interpolate: bool = False):
+    def render(self, interpolate: bool = False, mode: Literal["interpolate", "side-by-side", "filename"] = "filename"):
         CONSOLE.print("Rendering model")
         output_name = "render"
         config_path = self.model_dir / "config.yml"
@@ -161,14 +165,34 @@ class ExperimentPipeline:
             render_path = render_dir / f"{output_name}_interpolate.mp4"
             render_config.traj = "interpolate"
             render_config.output_path = render_path
-        else:
+            render_config.main()
+        
+        elif mode == "filename":
             render_path = render_dir / f"{output_name}.mp4"
             camera_path_path = self.get_camera_path(self.model_dir)
             render_config.traj = "filename"
             render_config.camera_path_filename = camera_path_path
             render_config.output_path = render_path
+            render_config.main()
+        
+        elif mode == "side-by-side":
+            model_render_path = render_side_by_side.render_dir / f"{output_name}_model.mp4"
 
-        render_config.main()
+            # Process data and render video from input-images
+            self.render_side_by_side.copy_every_n_images()
+            self.render_side_by_side.copy_every_n_transforms()
+            input_images_render_path = self.render_side_by_side.create_video_from_images(export_dir=render_side_by_side.render_dir)
+
+            # Render the input-data camera path with the model
+            camera_path_path = self.render_side_by_side.create_camera_path_from_transforms(source_dataparser_transforms_path=self.model_dir / "dataparser_transforms.json")
+            render_config.traj = "filename"
+            render_config.camera_path_filename = camera_path_path
+            render_config.output_path = model_render_path
+            render_config.main()
+
+            # Create side-by-side video of model_render and input_images_render
+            self.render_side_by_side.create_side_by_side_video(video_paths=[input_images_render_path, model_render_path], export_path=render_side_by_side.render_dir / "side-by-side.mp4")
+        
 
     def get_camera_path(self, model_path: Path) -> Path:
         if not self.block_segments:
@@ -249,8 +273,18 @@ if __name__ == "__main__":
                 block_segments=args.block_segments,
             )
 
+            render_side_by_side = RenderSideBySide(
+                cameras_in_rig=2,
+                camera_offset=0,
+                exp_dir=new_args.input_data_dir,
+                fps=24,
+                images_dir=new_args.input_data_dir / "images",
+                render_dir=new_args.input_data_dir / "renders",
+                target_camera_path_path=new_args.input_data_dir / "camera_path_input_images.json",
+            )
+
             experiment_name = "-".join(str(run_dir).split("/")[-2:])
-            pipeline = ExperimentPipeline(new_args, writer, experiment_name)
+            pipeline = ExperimentPipeline(new_args, writer, experiment_name, render_side_by_side)
             run_path = pipeline.run()
             run_paths.append(run_path)
 
