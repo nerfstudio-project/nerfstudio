@@ -20,6 +20,7 @@ from __future__ import annotations
 import functools
 import os
 import time
+import typing
 from collections import deque
 from contextlib import ContextDecorator, contextmanager
 from pathlib import Path
@@ -45,8 +46,10 @@ PYTORCH_PROFILER = None
 class time_function(ContextDecorator):  # pylint: disable=invalid-name
     """Decorator/Context manager: time a function call or a block of code"""
 
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, name: Union[str, Callable]):
+        # NOTE: This is a workaround for the fact that the __new__ method of a ContextDecorator
+        # is not picked up by VSCode intellisense
+        self.name: str = typing.cast(str, name)
         self.start = None
         self._profiler_contexts = deque()
         self._function_call_args: Optional[Tuple[Tuple, Dict]] = None
