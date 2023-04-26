@@ -116,8 +116,7 @@ class CacheDataloader(DataLoader):
         """Returns a collated batch."""
         batch_list = self._get_batch_list()
         collated_batch = self.collate_fn(batch_list)
-        exclude = [] if "mask" in collated_batch.keys() else ["image"]  # type: ignore
-        collated_batch = get_dict_to_torch(collated_batch, device=self.device, exclude=exclude)
+        collated_batch = get_dict_to_torch(collated_batch, device=self.device, exclude=["image"])
         return collated_batch
 
     def __iter__(self):
