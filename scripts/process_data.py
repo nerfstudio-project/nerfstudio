@@ -208,8 +208,7 @@ class ProcessPolycam(BaseConverterToNerfstudioDataset):
 
 @dataclass
 class _NoDefaultProcessMetashape:
-    """Private class to order the parameters of ProcessMetashape in the right order for default values.
-    """
+    """Private class to order the parameters of ProcessMetashape in the right order for default values."""
 
     xml: Path
     """Path to the Metashape xml file."""
@@ -296,8 +295,7 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
 
 @dataclass
 class _NoDefaultProcessRealityCapture:
-    """Private class to order the parameters of ProcessRealityCapture in the right order for default values.
-    """
+    """Private class to order the parameters of ProcessRealityCapture in the right order for default values."""
 
     csv: Path
     """Path to the RealityCapture cameras CSV file."""
