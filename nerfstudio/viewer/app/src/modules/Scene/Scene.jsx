@@ -87,13 +87,14 @@ export function get_scene_tree() {
   camera_controls.polarRotateSpeed = 0.3;
   camera_controls.dollySpeed = 0.1;
   camera_controls.infinityDolly = true;
-  camera_controls.smoothTime = 1;
+  camera_controls.dampingFactor = .12;
   camera_controls.saveState();
 
   const keyMap = [];
   const moveSpeed = 0.008;
   const rotSpeed = 0.015;
   const EPS = 0.01;
+
 
   function rotate() {
     if (

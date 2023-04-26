@@ -179,7 +179,7 @@ function handleMessage(
         const p = message.look_at;
         sceneTree.metadata.camera_controls.setLookAt(
           p[0],p[1],p[2],
-          p[3],p[4],p[5],
+          p[3],p[4],p[5],true
         );
       }
       

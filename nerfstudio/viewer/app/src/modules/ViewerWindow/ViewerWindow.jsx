@@ -150,14 +150,13 @@ export default function ViewerWindow(props) {
     renderer.setSize(viewportWidth, viewportHeight);
     labelRenderer.setSize(viewportWidth, viewportHeight);
   };
-
+  const clock = new THREE.Clock();
   const render = () => {
-    const fps = 24;
-    const interval = 1000 / fps;
+    const delta = clock.getDelta();
     handleResize();
     sceneTree.metadata.camera.updateProjectionMatrix();
     sceneTree.metadata.moveCamera();
-    sceneTree.metadata.camera_controls.update(interval);
+    sceneTree.metadata.camera_controls.update(delta);
     requestAnimationFrame(render);
     renderer.render(scene, sceneTree.metadata.camera);
     labelRenderer.render(scene, sceneTree.metadata.camera);
