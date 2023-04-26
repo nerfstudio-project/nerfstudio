@@ -121,7 +121,7 @@ dependency_links = [
 include = ["nerfstudio*","scripts*"]
 
 [tool.setuptools.package-data]
-"*" = ["*.json", "py.typed", "setup.bash", "setup.zsh"]
+"*" = ["*.cu", "*.json", "py.typed", "setup.bash", "setup.zsh"]
 
 # black
 [tool.black]
