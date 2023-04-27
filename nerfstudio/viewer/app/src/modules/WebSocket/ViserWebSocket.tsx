@@ -1,11 +1,9 @@
 import React, { useEffect, MutableRefObject, Dispatch } from 'react';
-import * as THREE from 'three';
 import AwaitLock from 'await-lock';
 import { pack, unpack } from 'msgpackr';
 import { useDispatch, useStore, useSelector } from 'react-redux';
 import { Store } from 'redux';
 import { Message } from './ViserMessages';
-import { get_scene_tree } from '../Scene/Scene';
 import SceneNode from '../../SceneNode';
 
 
