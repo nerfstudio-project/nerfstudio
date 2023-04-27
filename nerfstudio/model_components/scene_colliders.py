@@ -112,8 +112,12 @@ class AABBBoxCollider(SceneCollider):
 def _intersect_with_sphere(
     rays_o: torch.Tensor, rays_d: torch.Tensor, center: torch.Tensor, radius: float = 1.0, near_plane: float = 0.0
 ):
-    a = (rays_d * rays_d).sum(dim=-1, keepdim=True)
-    b = 2 * (rays_o - center) * rays_d
+    # a = (rays_d * rays_d).sum(dim=-1, keepdim=True)
+    # b = 2 * (rays_o - center) * rays_d
+    dir = rays_d - rays_o
+    a = (dir * dir).sum(dim=-1, keepdim=True)
+    b = 2 * (rays_o - center) * dir
+
     b = b.sum(dim=-1, keepdim=True)
     c = (rays_o - center) * (rays_o - center)
     c = c.sum(dim=-1, keepdim=True) - radius**2
@@ -162,7 +166,10 @@ class SphereCollider(SceneCollider):
             radius=self.radius,
             near_plane=near_plane,
         )
-        ray_bundle.nears = nears
+        if not self.training: 
+            ray_bundle.nears = torch.ones_like(ray_bundle.origins[..., 0:1]) * 0
+        else: 
+            ray_bundle.nears = nears
         ray_bundle.fars = fars
         return ray_bundle
 

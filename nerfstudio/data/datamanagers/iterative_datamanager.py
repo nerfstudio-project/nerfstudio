@@ -19,31 +19,28 @@ Data manager for dreamfusion
 from __future__ import annotations
 
 import sys
-from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Type, Union, Optional
-from pathlib import Path
 from copy import deepcopy
+from dataclasses import dataclass, field
 from pathlib import Path, PurePath
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 import torch
 from rich.progress import Console
 from torch.nn import Parameter
 from typing_extensions import Literal
+
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
-
-from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
-from nerfstudio.model_components.ray_generators import RayGenerator
-
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig
+from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.data.utils.dataloaders import RandIndicesEvalDataloader, CacheDataloader
-
 from nerfstudio.data.pixel_samplers import PixelSampler
+from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.data.utils.dataloaders import CacheDataloader, RandIndicesEvalDataloader
+from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
+from nerfstudio.model_components.ray_generators import RayGenerator
 
 CONSOLE = Console(width=120)
 
@@ -81,6 +78,8 @@ def random_train_pose(
     focal_range: Tuple[float, float] = (0.75, 1.35),
     jitter_std: float = 0.01,
     center: Tuple[float, float, float] = (0, 0, 0),
+    vertical_rotation_given=None,
+    central_rotation_given=None,
 ):
     """generate random poses from an orbit camera
     Args:
@@ -109,6 +108,11 @@ def random_train_pose(
     central_rotation = torch.deg2rad(
         torch.rand(size) * (central_rotation_range[1] - central_rotation_range[0]) + central_rotation_range[0]
     )
+
+    if vertical_rotation_given is not None:
+        vertical_rotation = torch.deg2rad(vertical_rotation_given)
+    if central_rotation_given is not None:
+        central_rotation = torch.deg2rad(central_rotation_given)
 
     c_cos = torch.cos(central_rotation)
     c_sin = torch.sin(central_rotation)
@@ -191,7 +195,7 @@ class IterativeDataManagerConfig(DataManagerConfig):
     """Std of radius of camera orbit"""
     focal_range: Tuple[float, float] = (0.6, 1.2)
     """Range of focal length"""
-    vertical_rotation_range: Tuple[float, float] = (-90, 0)
+    vertical_rotation_range: Tuple[float, float] = (-100, 0)
     """Range of vertical rotation"""
     jitter_std: float = 0.05
     """Std of camera direction jitter, so we don't just point the cameras towards the center every time"""
@@ -240,6 +244,8 @@ class IterativeDataManager(DataManager):  # pylint: disable=abstract-method
             center=self.config.center,
         )
 
+        self.camera_angles = []
+
         self.train_dataset = TrivialDataset(cameras)
         self.eval_dataset = TrivialDataset(cameras)
 
@@ -284,26 +290,31 @@ class IterativeDataManager(DataManager):  # pylint: disable=abstract-method
             self.train_camera_optimizer,
         )
 
-    def random_train_views(self, step: int, resolution:int, num_views: int) -> InputDataset:
+    def random_train_views(self, step: int, resolution: int, num_views: int, 
+                           vertical_rotation_given=None,
+                           central_rotation_given=None, 
+                           cameras_only=False) -> InputDataset:
         """eawoijfaw"""
         cameras, vertical_rotation, central_rotation = random_train_pose(
             size=num_views,
             resolution=resolution,
-            device= self.device,
+            device=self.device,
             radius_mean=self.config.radius_mean,
             radius_std=self.config.radius_std,
             focal_range=self.config.focal_range,
-            central_rotation_range=(0, 360),
+            central_rotation_range=(-180, 180),
             vertical_rotation_range=self.config.vertical_rotation_range,
             jitter_std=self.config.jitter_std,
             center=self.config.center,
+            vertical_rotation_given=vertical_rotation_given,
+            central_rotation_given=central_rotation_given,
         )
+        if cameras_only:
+            return cameras
 
-        ray_bundle = cameras.generate_rays(
-            torch.tensor([[i] for i in range(num_views)])
-        ) 
+        ray_bundle = cameras.generate_rays(torch.tensor([[i] for i in range(num_views)]))
 
-        return ray_bundle, cameras, list(zip(vertical_rotation, central_rotation))
+        return ray_bundle, cameras, vertical_rotation, central_rotation
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
@@ -348,7 +359,7 @@ class IterativeDataManager(DataManager):  # pylint: disable=abstract-method
 
     def get_eval_rays_per_batch(self) -> int:
         return self.config.eval_resolution**2
-    
+
     def get_datapath(self) -> Optional[Path]:  # pylint:disable=no-self-use
         """Returns the path to the data. This is used to determine where to save camera paths."""
         if self.temp_save_path is None:

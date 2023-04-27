@@ -54,9 +54,11 @@ from nerfstudio.engine.schedulers import (
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.fields.sdf_field import SDFFieldConfig
+from nerfstudio.models.dreamfusion_rgb import DreamfusionRGBModelConfig
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
 from nerfstudio.models.dreamembedding import DreamEmbeddingModelConfig
 from nerfstudio.models.dreamfusion import DreamFusionModelConfig
+from nerfstudio.models.dreamfusion_ngp import DreamfusionNGPModelConfig
 from nerfstudio.models.iterative_dreamfusion import DreamFusionIterativeModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
@@ -449,7 +451,7 @@ method_configs["dreamfusion"] = TrainerConfig(
     pipeline=VanillaPipelineConfig(
         generative=True,
         datamanager=DreamFusionDataManagerConfig(
-            horizontal_rotation_warmup=4000,
+            horizontal_rotation_warmup=2000,
         ),
         model=DreamFusionModelConfig(
             eval_num_rays_per_chunk=1 << 15,
@@ -458,7 +460,7 @@ method_configs["dreamfusion"] = TrainerConfig(
             orientation_loss_mult=0.1,
             max_res=256,
             sphere_collider=True,
-            initialize_density=False,
+            initialize_density=True,
             random_background=True,
             proposal_warmup=500,
             proposal_update_every=0,
@@ -477,8 +479,100 @@ method_configs["dreamfusion"] = TrainerConfig(
         },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
+            # "scheduler": None,
             "scheduler": ExponentialDecaySchedulerConfig(
                 warmup_steps=2000, lr_final=1e-6, max_steps=20000, ramp="linear"
+            ),
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    vis="viewer",
+)
+
+method_configs["dreamngp"] = TrainerConfig(
+    method_name="dreamngp",
+    experiment_name="dreamngp",
+    steps_per_eval_batch=50,
+    steps_per_eval_image=50,
+    steps_per_save=200,
+    max_num_iterations=20000,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        generative=True,
+        datamanager=DreamFusionDataManagerConfig(
+            horizontal_rotation_warmup=0,
+        ),
+        model=DreamfusionNGPModelConfig(
+            eval_num_rays_per_chunk=8192,
+            contraction_type=ContractionType.AABB,
+            render_step_size=0.001,
+            max_num_samples_per_ray=48,
+            orientation_loss_mult=1.0,
+            sphere_collider=True,
+            initialize_density=True,
+            proposal_warmup=500,
+            proposal_update_every=0,
+            proposal_weights_anneal_max_num_iters=100,
+            opacity_loss_mult=1,
+            positional_prompting="discrete",
+            guidance_scale=50,
+        ),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
+            # "scheduler": None,
+            "scheduler": ExponentialDecaySchedulerConfig(
+                warmup_steps=2000, lr_final=1e-6, max_steps=20000, ramp="linear"
+            ),
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=32000),
+    vis="viewer",
+)
+
+method_configs["dreamrgb"] = TrainerConfig(
+    method_name="dreamrgb",
+    experiment_name="dreamrgb",
+    steps_per_eval_batch=50,
+    steps_per_eval_image=50,
+    steps_per_save=200,
+    max_num_iterations=20000,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        generative=True,
+        datamanager=DreamFusionDataManagerConfig(
+            horizontal_rotation_warmup=0,
+        ),
+        model=DreamfusionRGBModelConfig(
+            eval_num_rays_per_chunk=1 << 15,
+            distortion_loss_mult=0.1,
+            interlevel_loss_mult=100.0,
+            orientation_loss_mult=1.0,
+            max_res=128,
+            sphere_collider=True,
+            initialize_density=False,
+            proposal_warmup=500,
+            proposal_update_every=0,
+            proposal_weights_anneal_max_num_iters=100,
+            opacity_loss_mult=1,
+            positional_prompting="discrete",
+            guidance_scale=50,
+        ),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                warmup_steps=1000, lr_final=1e-6, max_steps=20000, ramp="linear"
             ),
         },
     },
@@ -496,9 +590,27 @@ method_configs["iter_test"] = TrainerConfig(
     mixed_precision=True,
     pipeline=IterativePipelineConfig(
         generative=True,
+        datamanager2=DreamFusionDataManagerConfig(
+            horizontal_rotation_warmup=0,
+        ),
         datamanager=IterativeDataManagerConfig(
         ),
-        model=DreamFusionIterativeModelConfig(),
+        model=DreamEmbeddingModelConfig(
+            eval_num_rays_per_chunk=1 << 15,
+            distortion_loss_mult=0.1,
+            interlevel_loss_mult=100.0,
+            orientation_loss_mult=1.0,
+            max_res=128,
+            sphere_collider=True,
+            initialize_density=False,
+            proposal_warmup=500,
+            proposal_update_every=0,
+            proposal_weights_anneal_max_num_iters=100,
+            opacity_loss_mult=1,
+            positional_prompting="discrete",
+            guidance_scale=50,
+        ),
+        model2=DreamFusionIterativeModelConfig(),
     ),
     optimizers={
         "proposal_networks": {

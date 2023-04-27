@@ -27,16 +27,20 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import tyro
+from PIL import Image
 from rich.console import Console
 from torch import nn
 from torch.cuda.amp import custom_bwd, custom_fwd
 from torch.cuda.amp.grad_scaler import GradScaler
 from torchtyping import TensorType
-from PIL import Image
-
 
 try:
-    from diffusers import PNDMScheduler, StableDiffusionPipeline, DDIMScheduler, DDPMScheduler
+    from diffusers import (
+        DDIMScheduler,
+        DDPMScheduler,
+        PNDMScheduler,
+        StableDiffusionPipeline,
+    )
     from transformers import logging
 
     SD_AVAILABLE = True
@@ -85,6 +89,7 @@ class StableDiffusionImg2Img(nn.Module):
         self.min_step = int(self.num_train_timesteps * 0.02)
         self.max_step = int(self.num_train_timesteps * 0.98)
 
+        # might need to change scheduler here?
         self.scheduler = PNDMScheduler(
             skip_prk_steps=True,
             beta_start=0.00085,
@@ -96,7 +101,7 @@ class StableDiffusionImg2Img(nn.Module):
 
         sd_id = SD_IDENTIFIERS[version]
         pipe = StableDiffusionPipeline.from_pretrained(sd_id, torch_dtype=torch.float16)
-        print('SD Pipe Loaded')
+        print("SD Pipe Loaded")
         assert pipe is not None
         pipe = pipe.to(self.device)
 
@@ -135,7 +140,7 @@ class StableDiffusionImg2Img(nn.Module):
         self.tokenizer = pipe.tokenizer
         self.text_encoder = pipe.text_encoder
         self.auto_encoder = pipe.vae
-        
+
         CONSOLE.print("Stable Diffusion loaded!")
 
     def get_text_embeds(
@@ -306,7 +311,7 @@ class StableDiffusionImg2Img(nn.Module):
 
                 cur_img = self.latents_to_img(latents.half())
                 cur_img = cur_img.detach().cpu().permute(0, 2, 3, 1).numpy()
-                cur_img = (cur_img * 255).round().astype("uint8")[0] # might delete this indexing
+                cur_img = (cur_img * 255).round().astype("uint8")[0]  # might delete this indexing
 
                 save_path = Path(f"normal_diffusion_image_steps/{i}.png")
                 mediapy.write_image(str(save_path), cur_img)
@@ -343,7 +348,7 @@ class StableDiffusionImg2Img(nn.Module):
         latents = posterior.sample() * CONST_SCALE
 
         return latents
-    
+
     def search_updates(self, text_embedding, image):
         self.scheduler.set_timesteps(50)  # type: ignore
         guidance_scale = 7.5
@@ -351,7 +356,7 @@ class StableDiffusionImg2Img(nn.Module):
         print(self.scheduler.timesteps)
         print(len(self.scheduler.timesteps))
 
-        noise_strength = .8
+        noise_strength = 0.8
 
         # for noise_strength in (1.0, .95, .9, 0.8, 0.7, 0.5, .4, .3, .25, 0.2, .1):
         # for noise_strength in reversed([1.0, .95, .9, 0.8, 0.7, 0.5, .4, .3, .25, 0.2, .1]):
@@ -359,7 +364,7 @@ class StableDiffusionImg2Img(nn.Module):
             latent = self.imgs_to_latent(image.half())
             # t = torch.randint(0, 1, [1], dtype=torch.long)
             # t = torch.randint(12, 13, [1], dtype=torch.long)
-            t = torch.randint(a, a+1, [1], dtype=torch.long)
+            t = torch.randint(a, a + 1, [1], dtype=torch.long)
 
             new_steps = self.scheduler.timesteps[t:]
             new_steps = torch.round(new_steps * noise_strength).type(torch.long)
@@ -369,7 +374,7 @@ class StableDiffusionImg2Img(nn.Module):
 
             noise = torch.randn_like(latent)
             latent = self.scheduler.add_noise(latent, noise, t_noise)  # type: ignore
-        
+
             for j, time in enumerate(new_steps):
                 # predict the noise residual
                 latent_model_input = torch.cat([latent] * 2)
@@ -377,37 +382,37 @@ class StableDiffusionImg2Img(nn.Module):
                 with torch.no_grad():
                     noise_pred = self.unet(
                         latent_model_input, time.to(self.device), encoder_hidden_states=text_embedding
-                    ).sample     
+                    ).sample
 
                 # perform guidance
                 noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                 noise_pred = noise_pred_text + guidance_scale * (noise_pred_text - noise_pred_uncond)
-                    
+
                 latent = self.scheduler.step(noise_pred, time, latent)["prev_sample"]  # type: ignore
 
             diffused_img = self.latents_to_img(latent.half())
             diffused_img = diffused_img.detach().cpu().permute(0, 2, 3, 1).numpy()
-            diffused_img = (diffused_img * 255).round().astype("uint8")[0] # might delete this indexing
+            diffused_img = (diffused_img * 255).round().astype("uint8")[0]  # might delete this indexing
 
-            mediapy.write_image(f'/home/terrance/nerfactory/nerfstudio/generative/img2img/7/newsched_test{a}.png', diffused_img)
+            mediapy.write_image(
+                f"/home/terrance/nerfactory/nerfstudio/generative/img2img/7/newsched_test{a}.png", diffused_img
+            )
 
         return diffused_img
-
 
     def update_img(self, text_embedding, image, step=0):
         guidance_scale = 7.5
         noise_strength = 1.0
 
-        min_step = int(self.num_train_timesteps * 0.4)
+        min_step = int(self.num_train_timesteps * 0.7)
         max_step = int(self.num_train_timesteps * 0.98)
 
         # t = torch.randint(min_step, max_step, [1], dtype=torch.long, device=self.device)
 
-        # self.scheduler.config.num_train_timesteps = t.item()        
+        # self.scheduler.config.num_train_timesteps = t.item()
         # self.scheduler.set_timesteps(20)  # type: ignore
 
         latent = self.imgs_to_latent(image.half())
-
 
         # t = torch.randint(10, 11, [1], dtype=torch.long)
         # t = torch.randint(5, 6, [1], dtype=torch.long)
@@ -417,13 +422,15 @@ class StableDiffusionImg2Img(nn.Module):
             noise_strength = 1.0
         else:
             t = torch.randint(min_step, max_step, [1], dtype=torch.long, device=self.device)
-            
-        
-        self.scheduler.config.num_train_timesteps = t.item()        
-        self.scheduler.set_timesteps(20)  # type: ignore
+            noise_strength = 0.7
+
+        t = torch.round(t * noise_strength).type(torch.long)
+
+        self.scheduler.config.num_train_timesteps = t.item()
+        self.scheduler.set_timesteps(50)  # type: ignore
 
         #     self.scheduler.set_timesteps(50)  # type: ignore
-        #     t = torch.randint(34, 35, [1], dtype=torch.long)    
+        #     t = torch.randint(34, 35, [1], dtype=torch.long)
         #     noise_strength = 0.8
 
         # new_steps = self.scheduler.timesteps[t:]
@@ -436,27 +443,26 @@ class StableDiffusionImg2Img(nn.Module):
             latent = self.scheduler.add_noise(latent, noise, t)  # type: ignore
 
         for i, time in enumerate(self.scheduler.timesteps):
-        # for i, time in enumerate(new_steps):
+            # for i, time in enumerate(new_steps):
             # predict the noise residual
             latent_model_input = torch.cat([latent] * 2)
 
             with torch.no_grad():
                 noise_pred = self.unet(
                     latent_model_input, time.to(self.device), encoder_hidden_states=text_embedding
-                ).sample     
+                ).sample
 
             # perform guidance
             noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
             noise_pred = noise_pred_text + guidance_scale * (noise_pred_text - noise_pred_uncond)
-                
+
             latent = self.scheduler.step(noise_pred, time, latent)["prev_sample"]  # type: ignore
 
         with torch.no_grad():
             diffused_img = self.latents_to_img(latent.half())
 
         diffused_img = diffused_img.detach().cpu().permute(0, 2, 3, 1).numpy()
-        diffused_img = (diffused_img * 255).round().astype("uint8")[0] # might delete this indexing
-
+        diffused_img = (diffused_img * 255).round().astype("uint8")[0]  
         return diffused_img
 
     def prompt_to_img(
@@ -513,7 +519,12 @@ class StableDiffusionImg2Img(nn.Module):
 
 
 def generate_image(
-    prompt: str, negative: str = "", image_path: str = "", seed: int = 0, steps: int = 50, save_path: Path = Path("test_sd.png")
+    prompt: str,
+    negative: str = "",
+    image_path: str = "",
+    seed: int = 0,
+    steps: int = 50,
+    save_path: Path = Path("test_sd.png"),
 ):
     """Generate an image from a prompt using Stable Diffusion.
     Args:
@@ -532,10 +543,10 @@ def generate_image(
         image = np.array(pil_image, dtype="uint8")  # shape is (h, w) or (h, w, 3 or 4)
         image = torch.from_numpy(image.astype("float32") / 255.0)
         image = image[None, :, :, :3].permute(0, 3, 1, 2).to(cuda_device)
-        
+
         text_embedding = sd.get_text_embeds(prompt, "")
 
-        num_steps=20
+        num_steps = 20
         imgs = sd.search_updates(text_embedding, image)
         # imgs = sd.update_img(text_embedding, image)
         # # imgs = sd.prompt_to_img(prompt, negative)

@@ -66,7 +66,8 @@ class DreamFusionModelConfig(ModelConfig):
 
     _target: Type = field(default_factory=lambda: DreamFusionModel)
     """target class to instantiate"""
-    prompt: str = "A high-quality photo of a tree frog on a stump"
+    prompt: str = "A high-quality photo of a realistic pineapple with green leaves"
+    # prompt: str = "a high-quality photo of a banana"
     """prompt for stable dreamfusion"""
 
     orientation_loss_mult: float = 0.0001
@@ -77,7 +78,7 @@ class DreamFusionModelConfig(ModelConfig):
     """Randomizes light source per output."""
     initialize_density: bool = True
     """Initialize density in center of scene."""
-    taper_range: Tuple[int, int] = (0, 1000)
+    taper_range: Tuple[int, int] = (0, 500)
     """Range of step values for the density tapering"""
     taper_strength: Tuple[float, float] = (1.0, 0.0)
     """Strength schedule of center density"""
@@ -198,14 +199,14 @@ class DreamFusionModel(Model):
         """Set the fields and modules"""
         super().populate_modules()
 
-        self.sd = StableDiffusion(self.sd_device, version=self.sd_version)
+        self._sd = StableDiffusion(self.sd_device, version=self.sd_version)
         self.text_embeddings = PositionalTextEmbeddings(
             base_prompt=self.cur_prompt,
             top_prompt=self.cur_prompt + self.top_prompt,
             side_prompt=self.cur_prompt + self.side_prompt,
             back_prompt=self.cur_prompt + self.back_prompt,
             front_prompt=self.cur_prompt + self.front_prompt,
-            stable_diffusion=self.sd,
+            stable_diffusion=self._sd,
             positional_prompting=self.positional_prompting,
         )
 
@@ -256,10 +257,12 @@ class DreamFusionModel(Model):
         self.rgb_loss = MSELoss()
 
         # colliders
-        if self.config.sphere_collider:
-            self.collider = SphereCollider(torch.Tensor([0, 0, 0]), 1.0)
-        else:
-            self.collider = AABBBoxCollider(scene_box=self.scene_box)
+        # if self.config.sphere_collider:
+        #     self.collider = SphereCollider(torch.Tensor([0, 0, 0]), 1.0)
+        # # else:
+        # #     self.collider = AABBBoxCollider(scene_box=self.scene_box)
+        self.collider = AABBBoxCollider(scene_box=self.scene_box)
+
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
@@ -353,8 +356,10 @@ class DreamFusionModel(Model):
 
         if self.initialize_density:
             pos = ray_samples.frustums.get_positions()
-            density_blob = self.density_strength * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
-            density = density + density_blob
+            # density_blob = self.density_strength * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
+            # density = density + density_blob
+            density_blob = (-0.05 * torch.exp(5 * torch.norm(pos, dim=-1)) + 0.2)[..., None]
+            density = torch.max(density + density_blob, torch.tensor([0.], device=self.device))
 
         weights = ray_samples.get_weights(density)
         weights_list.append(weights)
@@ -480,7 +485,7 @@ class DreamFusionModel(Model):
             .permute(0, 3, 1, 2)
         )
 
-        sds_loss = self.sd.sds_loss(
+        sds_loss = self._sd.sds_loss(
             text_embedding.to(self.sd_device),
             train_output.to(self.sd_device),
             guidance_scale=int(self.guidance_scale),

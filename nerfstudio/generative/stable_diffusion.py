@@ -187,6 +187,39 @@ class StableDiffusion(nn.Module):
         text_embeddings = torch.cat([uncond_embeddings, text_embeddings])
 
         return text_embeddings
+    
+    @torch.no_grad()
+    def sds_rgb(self,        
+        text_embeddings: TensorType["N", "max_length", "embed_dim"],
+        image: TensorType["BS", 3, "H", "W"],
+        guidance_scale: float = 100.0,
+        grad_scaler: Optional[GradScaler] = None,
+    ) -> torch.Tensor:
+
+        with torch.autocast(device_type="cuda", enabled=False):
+            image = F.interpolate(image.half(), (IMG_DIM, IMG_DIM), mode="bilinear")
+            t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
+
+            latents = self.imgs_to_latent(image)
+            # add noise
+            noise = torch.randn_like(latents)
+            latents_noisy = self.scheduler.add_noise(latents, noise, t)  # type: ignore
+            # pred noise
+            latent_model_input = torch.cat([latents_noisy] * 2)
+            noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embeddings).sample
+
+            # perform guidance
+            noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+            noise_pred = noise_pred_text + guidance_scale * (noise_pred_text - noise_pred_uncond)
+
+            # latents_unnoised = self.scheduler.step(noise_pred, t, latents)["prev_sample"]
+            latents_unnoised = latents_noisy - noise_pred
+            pred_rgb = self.latents_to_img(latents_unnoised)
+
+            pred_rgb = F.interpolate(pred_rgb, (64, 64), mode="bilinear")
+
+        return pred_rgb
+    
 
     def sds_loss_latent(
         self,

@@ -143,7 +143,8 @@ class Trainer:
                 'inference': does not load any dataset into memory
         """
         self.pipeline = self.config.pipeline.setup(
-            device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
+            device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank,
+            grad_scaler=self.grad_scaler,
         )
         self.optimizers = self.setup_optimizers()
 
@@ -165,14 +166,6 @@ class Trainer:
             banner_messages = [f"Viewer at: {self.viewer_state.viewer_url}"]
         self._check_viewer_warnings()
 
-        self.pipeline = self.config.pipeline.setup(
-            device=self.device,
-            test_mode=test_mode,
-            world_size=self.world_size,
-            local_rank=self.local_rank,
-            grad_scaler=self.grad_scaler,
-        )
-        self.optimizers = self.setup_optimizers()
 
         self._load_checkpoint()
 
