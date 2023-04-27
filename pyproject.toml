@@ -114,7 +114,7 @@ ns-dev-sync-viser-message-defs = "scripts.viewer.sync_viser_message_defs:entrypo
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision
 dependency_links = [
-    "https://download.pytorch.org/whl/cu113"
+    "https://download.pytorch.org/whl/cu117"
 ]
 
 [tool.setuptools.packages.find]
