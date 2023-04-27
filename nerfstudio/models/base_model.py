@@ -51,6 +51,12 @@ class ModelConfig(InstantiateConfig):
     eval_num_rays_per_chunk: int = 4096
     """specifies number of rays per chunk during eval"""
 
+    def setup(self, **kwargs) -> Any:
+        """Returns the instantiated object using the config."""
+        model = self._target(self, **kwargs)
+        torch.compile(model)
+        return model
+
 
 class Model(nn.Module):
     """Model class

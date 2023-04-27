@@ -17,8 +17,8 @@
 from typing import Optional, Union
 
 import torch
-from functorch import jacrev, vmap
 from torch import nn
+from torch.func import jacrev, vmap
 from torchtyping import TensorType
 
 from nerfstudio.utils.math import Gaussians

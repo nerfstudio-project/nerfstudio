@@ -109,7 +109,7 @@ class ExponentialDecayScheduler(Scheduler):
 
     config: ExponentialDecaySchedulerConfig
 
-    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> lr_scheduler._LRScheduler:
+    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> lr_scheduler.LRScheduler:
         if self.config.lr_final is None:
             lr_final = lr_init
         else:
@@ -156,7 +156,7 @@ class CosineDecayScheduler(Scheduler):
 
     config: CosineDecaySchedulerConfig
 
-    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> lr_scheduler._LRScheduler:
+    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> lr_scheduler.LRScheduler:
         def func(step):
             if step < self.config.warm_up_end:
                 learning_factor = step / self.config.warm_up_end

@@ -571,7 +571,7 @@ class ProposalNetworkSampler(Sampler):
         n = self.num_proposal_network_iterations
         weights = None
         ray_samples = None
-        updated = self._steps_since_update > self.update_sched(self._step) or self._step < 10
+        updated = self._steps_since_update >= self.update_sched(self._step) or self._step < 10
         for i_level in range(n + 1):
             is_prop = i_level < n
             num_samples = self.num_proposal_samples_per_ray[i_level] if is_prop else self.num_nerf_samples_per_ray
