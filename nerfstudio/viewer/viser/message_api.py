@@ -448,13 +448,24 @@ class MessageApi(abc.ABC):
         """
         self._queue(messages.TrainingStateMessage(training_state=training_state))
 
-    def set_camera(self, pos_and_dir:Tuple[float,float,float,float,float,float], fov, camera_type) -> None:
+    def set_camera(
+        self,
+        position: Optional[Tuple[float, float, float]] = None,
+        look_at: Optional[Tuple[float, float, float]] = None,
+        fov: Optional[int] = None,
+        camera_type: Optional[str] = None,
+        instant: bool = False,
+    ) -> None:
         """Update the camera object in the viewer.
 
         Args:
             camera: The new camera
         """
-        self._queue(messages.SetCameraMessage(look_at=pos_and_dir, fov=fov, camera_type=camera_type))
+        self._queue(
+            messages.SetCameraMessage(
+                look_at=look_at, position=position, fov=fov, camera_type=camera_type, instant=instant
+            )
+        )
 
     def send_camera_paths(self, camera_paths: Dict[str, Any]) -> None:
         """Send camera paths to the scene.

@@ -223,9 +223,9 @@ export default function ScenePanel(props) {
 
     const pos = new THREE.Vector3();
     camera_main.getWorldPosition(pos);
-    // camera_main.up.set(upVec.x, upVec.y, upVec.z);
-    // sceneTree.metadata.camera_controls.updateCameraUp();
-    // sceneTree.metadata.camera_controls.setLookAt(pos.x, pos.y, pos.z, 0, 0, 0);
+    camera_main.up.set(upVec.x, upVec.y, upVec.z);
+    sceneTree.metadata.camera_controls.updateCameraUp();
+    sceneTree.metadata.camera_controls.setLookAt(pos.x, pos.y, pos.z, 0, 0, 0);
     const points = [new THREE.Vector3(0, 0, 0), upVec.multiplyScalar(2)];
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     const material = new THREE.LineBasicMaterial({

@@ -130,10 +130,12 @@ class SetCameraMessage(NerfstudioMessage):
 
     fov: float
     """ Field of view of the camera """
-    look_at: Tuple[float, float, float, float, float, float]
+    look_at: Tuple[float, float, float]
+    position: Tuple[float, float, float]
     """ Camera matrix """
     camera_type: Literal["perspective", "fisheye", "equirectangular"]
     """ Camera type """
+    instant:bool = False
 
 
 @dataclasses.dataclass

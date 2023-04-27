@@ -27,6 +27,7 @@ from rich.panel import Panel
 from rich.table import Table
 from typing_extensions import Literal
 
+from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.scene_box import SceneBox
@@ -42,6 +43,7 @@ from nerfstudio.viewer.server.render_state_machine import (
     RenderAction,
     RenderStateMachine,
 )
+from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfstudio.viewer.server.viewer_elements import ViewerControl, ViewerElement
 from nerfstudio.viewer.viser import ViserServer
 from nerfstudio.viewer.viser.messages import (
@@ -144,7 +146,7 @@ class ViewerState:
                 element.install(self.viser_server)
                 # also rewire the hook to rerender
                 prev_cb = element.cb_hook
-                element.cb_hook = lambda element: [self._interrupt_render(element), prev_cb(element)]
+                element.cb_hook = lambda element: [prev_cb(element), self._interrupt_render(element)]
             else:
                 with self.viser_server.gui_folder(folder_labels[0]):
                     nested_folder_install(folder_labels[1:], element)
@@ -169,7 +171,7 @@ class ViewerState:
             ]
 
         for c in self.viewer_controls:
-            c.setup(self.control_panel, self.viser_server)
+            c.setup(self)
         self.render_statemachine = RenderStateMachine(self)
         self.render_statemachine.start()
 
@@ -271,6 +273,49 @@ class ViewerState:
         """Set training state flag."""
         if self.trainer is not None:
             self.trainer.training_state = training_state
+
+    def get_camera(self, image_height: int, image_width: int) -> Optional[Cameras]:
+        """
+        Return a Cameras object representing the camera for the viewer given the provided image height and width
+        """
+        cam_msg: Optional[CameraMessage] = self.camera_message
+        if cam_msg is None:
+            return None
+        intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
+            cam_msg, image_height=image_height, image_width=image_width
+        )
+
+        camera_to_world = camera_to_world_h[:3, :]
+        camera_to_world = torch.stack(
+            [
+                camera_to_world[0, :],
+                camera_to_world[2, :],
+                camera_to_world[1, :],
+            ],
+            dim=0,
+        )
+
+        camera_type_msg = cam_msg.camera_type
+        if camera_type_msg == "perspective":
+            camera_type = CameraType.PERSPECTIVE
+        elif camera_type_msg == "fisheye":
+            camera_type = CameraType.FISHEYE
+        elif camera_type_msg == "equirectangular":
+            camera_type = CameraType.EQUIRECTANGULAR
+        else:
+            camera_type = CameraType.PERSPECTIVE
+
+        camera = Cameras(
+            fx=intrinsics_matrix[0, 0],
+            fy=intrinsics_matrix[1, 1],
+            cx=intrinsics_matrix[0, 2],
+            cy=intrinsics_matrix[1, 2],
+            camera_type=camera_type,
+            camera_to_worlds=camera_to_world[None, ...],
+            times=torch.tensor([self.control_panel.time], dtype=torch.float32),
+        )
+        camera = camera.to(self.get_model().device)
+        return camera
 
     def _pick_drawn_image_idxs(self, total_num: int) -> list[int]:
         """Determine indicies of images to display in viewer.

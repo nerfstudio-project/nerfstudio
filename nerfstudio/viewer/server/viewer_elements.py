@@ -22,9 +22,9 @@ from typing import TYPE_CHECKING, Any, Callable, Generic, List, Optional, Tuple,
 
 if TYPE_CHECKING:
     from nerfstudio.viewer.server.control_panel import ControlPanel
+    from nerfstudio.viewer.server.viewer_state import ViewerState
 
-import numpy as np
-
+from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.viewer.viser import GuiHandle, GuiSelectHandle, ViserServer
 
 TValue = TypeVar("TValue")
@@ -39,26 +39,33 @@ class ViewerControl:
         # this should be a user-facing constructor, since it will be used inside the model/pipeline class
         pass
 
-    def setup(self, control_panel: ControlPanel, viser_server: ViserServer):
-        self.control_panel = control_panel
-        self.viser_server = viser_server
+    def setup(self, viewer_state: ViewerState):
+        self.viewer_state = viewer_state
+        self.control_panel: ControlPanel = viewer_state.control_panel
+        self.viser_server: ViserServer = viewer_state.viser_server
 
-    def set_look_at(self, position, look):
-        assert hasattr(self, "viser_server"), "Called set_look_at on uninitialized ViewerControl"
-        self.viser_server.set_camera(position + look, None, None)
+    def set_pose(
+        self,
+        position: Optional[Tuple[float, float, float]] = None,
+        look_at: Optional[Tuple[float, float, float]] = None,
+        instant: bool = False,
+    ):
+        assert hasattr(self, "viser_server"), "Called set_position on uninitialized ViewerControl"
+        self.viser_server.set_camera(position=position, look_at=look_at, instant=instant)
 
     def set_fov(self, fov):
         assert hasattr(self, "viser_server"), "Called set_fov on uninitialized ViewerControl"
-        self.viser_server.set_camera(None, fov, None)
-
-    def set_type(self, camera_type: str):
-        assert hasattr(self, "viser_server"), "Called set_type on uninitialized ViewerControl"
-        self.viser_server.set_camera(None, None, camera_type)
+        self.viser_server.set_camera(fov=fov)
 
     def set_crop(self, min_point: Tuple[float, float, float], max_point: Tuple[float, float, float]):
         assert hasattr(self, "viser_server"), "Called set_crop on uninitialized ViewerControl"
         self.control_panel.crop_min = min_point
         self.control_panel.crop_max = max_point
+
+    def get_camera(self, img_height: int, img_width: int) -> Optional[Cameras]:
+        """returns the Cameras object representing the current camera for the viewer, or None if the viewer
+        is not connected yet"""
+        return self.viewer_state.get_camera(img_height, img_width)
 
 
 class ViewerElement(Generic[TValue]):

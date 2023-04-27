@@ -83,16 +83,18 @@ export function get_scene_tree() {
   CameraControls.install({ THREE });
 
   const camera_controls = new CameraControls(main_camera, renderer.domElement);
-  camera_controls.azimuthRotateSpeed = 0.3;
-  camera_controls.polarRotateSpeed = 0.3;
+  camera_controls.azimuthRotateSpeed = 0.4;
+  camera_controls.polarRotateSpeed = 0.4;
   camera_controls.dollySpeed = 0.1;
   camera_controls.infinityDolly = true;
-  camera_controls.dampingFactor = .12;
+  camera_controls.smoothTime=.15;
+  camera_controls.restThreshold = .0025;
   camera_controls.saveState();
 
   const keyMap = [];
-  const moveSpeed = 0.008;
-  const rotSpeed = 0.015;
+  const moveSpeed = 0.005;
+  const upRotSpeed = 0.02;
+  const sideRotSpeed = .015;
   const EPS = 0.01;
 
 
@@ -113,16 +115,16 @@ export function get_scene_tree() {
       );
 
       if (keyMap.ArrowLeft === true) {
-        camera_controls.rotate(rotSpeed, 0, true);
+        camera_controls.rotate(sideRotSpeed, 0, true);
       }
       if (keyMap.ArrowRight === true) {
-        camera_controls.rotate(-rotSpeed, 0, true);
+        camera_controls.rotate(-sideRotSpeed, 0, true);
       }
       if (keyMap.ArrowUp === true) {
-        camera_controls.rotate(0, rotSpeed / 1.5, true);
+        camera_controls.rotate(0, upRotSpeed, true);
       }
       if (keyMap.ArrowDown === true) {
-        camera_controls.rotate(0, -rotSpeed / 1.5, true);
+        camera_controls.rotate(0, -upRotSpeed, true);
       }
     }
   }

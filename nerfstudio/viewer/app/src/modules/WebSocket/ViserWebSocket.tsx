@@ -175,14 +175,18 @@ function handleMessage(
           data: message.camera_type,
         });
       }
+      const instant=false;
+      if(message.instant){
+        instant = true;
+      }
       if(message.look_at !==null){
         const p = message.look_at;
-        sceneTree.metadata.camera_controls.setLookAt(
-          p[0],p[1],p[2],
-          p[3],p[4],p[5],true
-        );
+        sceneTree.metadata.camera_controls.setTarget(p[0],p[1],p[2],!instant);
       }
-      
+      if(message.position !==null){
+        const p = message.position;
+        sceneTree.metadata.camera_controls.setPosition(p[0],p[1],p[2],!instant);
+      }
       break;
     }
     // Remove a GUI input.
