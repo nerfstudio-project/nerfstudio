@@ -253,3 +253,11 @@ class TimeConditionMessage(NerfstudioMessage):
 
     time: float
     """ Time conditioning value """
+
+@dataclasses.dataclass
+class ClickMessage(NerfstudioMessage):
+    """Click message."""
+
+    x: float
+    y: float
+    """ Index of the clicked image """

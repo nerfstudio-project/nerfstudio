@@ -149,13 +149,33 @@ export default function ViewerWindow(props) {
     renderer.setSize(viewportWidth, viewportHeight);
     labelRenderer.setSize(viewportWidth, viewportHeight);
   };
-  const clock = new THREE.Clock();
+  const throttledClickSender = makeThrottledMessageSender(
+    viser_websocket,
+    10,
+  );
+  const onMouseDown = (event) => {
+    const BANNER_HEIGHT = 50;
+    const x = event.clientX / viewport_width;
+    const y = (event.clientY - BANNER_HEIGHT) / viewport_height;
+    if (x < 0 || x > 1 || y < 0 || y > 1) {
+      return;
+    }
+    console.log("seding msg");
+    throttledClickSender({
+      type: 'ClickMessage',
+      x: x,
+      y: y,
+    });
+  };
+  window.addEventListener('dblclick', onMouseDown, false);
+
   const render = () => {
-    const delta = clock.getDelta();
+    const fps = 24;
+    const interval = 1000 / fps;
     handleResize();
     sceneTree.metadata.camera.updateProjectionMatrix();
     sceneTree.metadata.moveCamera();
-    sceneTree.metadata.camera_controls.update(delta);
+    sceneTree.metadata.camera_controls.update(interval);
     requestAnimationFrame(render);
     renderer.render(scene, sceneTree.metadata.camera);
     labelRenderer.render(scene, sceneTree.metadata.camera);

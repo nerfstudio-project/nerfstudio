@@ -58,6 +58,11 @@ interface CameraMessage {
   is_moving: boolean;
   timestamp: number;
 }
+interface ClickMessage {
+  type: 'ClickMessage';
+  x: number;
+  y: number;
+}
 interface SceneBoxMessage {
   type: "SceneBoxMessage";
   min: [number, number, number];
@@ -128,4 +133,5 @@ export type Message =
   | StatusMessage
   | SaveCheckpointMessage
   | UseTimeConditioningMessage
-  | TimeConditionMessage;
+  | TimeConditionMessage
+  | ClickMessage;

@@ -55,6 +55,7 @@ from nerfstudio.viewer.viser.messages import (
     SaveCheckpointMessage,
     TimeConditionMessage,
     TrainingStateMessage,
+    ClickMessage,
 )
 
 if TYPE_CHECKING:
@@ -132,6 +133,7 @@ class ViewerState:
         self.viser_server.register_handler(CameraPathOptionsRequest, self._handle_camera_path_option_request)
         self.viser_server.register_handler(CameraPathPayloadMessage, self._handle_camera_path_payload)
         self.viser_server.register_handler(CropParamsMessage, self._handle_crop_params_message)
+        self.viser_server.register_handler(ClickMessage, self._handle_click_message)
         if self.include_time:
             self.viser_server.use_time_conditioning()
             self.viser_server.register_handler(TimeConditionMessage, self._handle_time_condition_message)
@@ -255,6 +257,12 @@ class ViewerState:
         crop_max = center + scale / 2.0
         self.control_panel.crop_min = tuple(crop_min.tolist())
         self.control_panel.crop_max = tuple(crop_max.tolist())
+
+    def _handle_click_message(self, message: NerfstudioMessage) -> None:
+        """Handle click message from viewer."""
+        assert isinstance(message, ClickMessage)
+        self.control_panel.click_x = message.x
+        self.control_panel.click_y = message.y
 
     def _handle_time_condition_message(self, message: NerfstudioMessage) -> None:
         """Handle time conditioning message from viewer."""

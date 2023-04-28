@@ -67,6 +67,8 @@ class ViewerControl:
         is not connected yet"""
         return self.viewer_state.get_camera(img_height, img_width)
 
+    # def get_click(self, x: float, y: float):
+    #     self.control_panel.
 
 class ViewerElement(Generic[TValue]):
     """Base class for all viewer elements
