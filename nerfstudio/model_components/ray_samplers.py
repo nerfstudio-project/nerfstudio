@@ -19,9 +19,8 @@ Collection of sampling strategies
 from abc import abstractmethod
 from typing import Callable, List, Optional, Tuple, Union
 
-import nerfacc
 import torch
-from nerfacc import OccupancyGrid
+from nerfacc import OccGridEstimator
 from torch import nn
 from torchtyping import TensorType
 
@@ -382,24 +381,22 @@ class VolumetricSampler(Sampler):
 
     def __init__(
         self,
-        occupancy_grid: Optional[OccupancyGrid] = None,
+        occupancy_grid: OccGridEstimator,
         density_fn: Optional[Callable[[TensorType[..., 3]], TensorType[..., 1]]] = None,
-        scene_aabb: Optional[TensorType[2, 3]] = None,
     ) -> None:
 
         super().__init__()
-        self.scene_aabb = scene_aabb
+        assert occupancy_grid is not None
         self.density_fn = density_fn
         self.occupancy_grid = occupancy_grid
-        if self.scene_aabb is not None:
-            self.scene_aabb = self.scene_aabb.to("cuda").flatten()
 
-    def get_sigma_fn(self, origins, directions) -> Optional[Callable]:
+    def get_sigma_fn(self, origins, directions, times=None) -> Optional[Callable]:
         """Returns a function that returns the density of a point.
 
         Args:
             origins: Origins of rays
             directions: Directions of rays
+            times: Times at which rays are sampled
         Returns:
             Function that returns the density of a point or None if a density function is not provided.
         """
@@ -412,8 +409,10 @@ class VolumetricSampler(Sampler):
         def sigma_fn(t_starts, t_ends, ray_indices):
             t_origins = origins[ray_indices]
             t_dirs = directions[ray_indices]
-            positions = t_origins + t_dirs * (t_starts + t_ends) / 2.0
-            return density_fn(positions)
+            positions = t_origins + t_dirs * (t_starts + t_ends)[:, None] / 2.0
+            if times is None:
+                return density_fn(positions).squeeze(-1)
+            return density_fn(positions, times[ray_indices]).squeeze(-1)
 
         return sigma_fn
 
@@ -429,6 +428,7 @@ class VolumetricSampler(Sampler):
         render_step_size: float,
         near_plane: float = 0.0,
         far_plane: Optional[float] = None,
+        alpha_thre: float = 0.01,
         cone_angle: float = 0.0,
     ) -> Tuple[RaySamples, TensorType["total_samples",]]:
         """Generate ray samples in a bounding box.
@@ -438,6 +438,7 @@ class VolumetricSampler(Sampler):
             render_step_size: Minimum step size to use for rendering
             near_plane: Near plane for raymarching
             far_plane: Far plane for raymarching
+            alpha_thre: Opacity threshold skipping samples.
             cone_angle: Cone angle for raymarching, set to 0 for uniform marching.
 
         Returns:
@@ -448,6 +449,7 @@ class VolumetricSampler(Sampler):
 
         rays_o = ray_bundle.origins.contiguous()
         rays_d = ray_bundle.directions.contiguous()
+        times = ray_bundle.times
 
         if ray_bundle.nears is not None and ray_bundle.fars is not None:
             t_min = ray_bundle.nears.contiguous().reshape(-1)
@@ -457,34 +459,33 @@ class VolumetricSampler(Sampler):
             t_min = None
             t_max = None
 
+        if far_plane is None:
+            far_plane = 1e10
+
         if ray_bundle.camera_indices is not None:
             camera_indices = ray_bundle.camera_indices.contiguous()
         else:
             camera_indices = None
-
-        ray_indices, starts, ends = nerfacc.ray_marching(
+        ray_indices, starts, ends = self.occupancy_grid.sampling(
             rays_o=rays_o,
             rays_d=rays_d,
             t_min=t_min,
             t_max=t_max,
-            scene_aabb=self.scene_aabb,
-            grid=self.occupancy_grid,
-            # this is a workaround - using density causes crash and damage quality. should be fixed
-            sigma_fn=None,  # self.get_sigma_fn(rays_o, rays_d),
+            sigma_fn=self.get_sigma_fn(rays_o, rays_d, times),
             render_step_size=render_step_size,
             near_plane=near_plane,
             far_plane=far_plane,
             stratified=self.training,
             cone_angle=cone_angle,
-            alpha_thre=1e-2,
+            alpha_thre=alpha_thre,
         )
         num_samples = starts.shape[0]
         if num_samples == 0:
             # create a single fake sample and update packed_info accordingly
             # this says the last ray in packed_info has 1 sample, which starts and ends at 1
             ray_indices = torch.zeros((1,), dtype=torch.long, device=rays_o.device)
-            starts = torch.ones((1, 1), dtype=starts.dtype, device=rays_o.device)
-            ends = torch.ones((1, 1), dtype=ends.dtype, device=rays_o.device)
+            starts = torch.ones((1,), dtype=starts.dtype, device=rays_o.device)
+            ends = torch.ones((1,), dtype=ends.dtype, device=rays_o.device)
 
         origins = rays_o[ray_indices]
         dirs = rays_d[ray_indices]
@@ -496,8 +497,8 @@ class VolumetricSampler(Sampler):
             frustums=Frustums(
                 origins=origins,
                 directions=dirs,
-                starts=starts,
-                ends=ends,
+                starts=starts[..., None],
+                ends=ends[..., None],
                 pixel_area=zeros,
             ),
             camera_indices=camera_indices,

@@ -453,7 +453,6 @@ class MessageApi(abc.ABC):
         position: Optional[Tuple[float, float, float]] = None,
         look_at: Optional[Tuple[float, float, float]] = None,
         fov: Optional[int] = None,
-        camera_type: Optional[str] = None,
         instant: bool = False,
     ) -> None:
         """Update the camera object in the viewer.
@@ -463,7 +462,7 @@ class MessageApi(abc.ABC):
         """
         self._queue(
             messages.SetCameraMessage(
-                look_at=look_at, position=position, fov=fov, camera_type=camera_type, instant=instant
+                look_at=look_at, position=position, fov=fov, instant=instant
             )
         )
 

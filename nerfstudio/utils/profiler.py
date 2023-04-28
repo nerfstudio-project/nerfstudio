@@ -20,13 +20,13 @@ from __future__ import annotations
 import functools
 import os
 import time
+import typing
 from collections import deque
-from contextlib import contextmanager
+from contextlib import ContextDecorator, contextmanager
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from rich.console import Console
-from torch.autograd.profiler import ContextDecorator
 from torch.profiler import ProfilerActivity, profile, record_function
 
 from nerfstudio.configs import base_config as cfg
@@ -46,8 +46,10 @@ PYTORCH_PROFILER = None
 class time_function(ContextDecorator):  # pylint: disable=invalid-name
     """Decorator/Context manager: time a function call or a block of code"""
 
-    def __init__(self, name: str):
-        self.name = name
+    def __init__(self, name: Union[str, Callable]):
+        # NOTE: This is a workaround for the fact that the __new__ method of a ContextDecorator
+        # is not picked up by VSCode intellisense
+        self.name: str = typing.cast(str, name)
         self.start = None
         self._profiler_contexts = deque()
         self._function_call_args: Optional[Tuple[Tuple, Dict]] = None

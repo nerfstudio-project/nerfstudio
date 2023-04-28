@@ -168,13 +168,6 @@ function handleMessage(
       if(message.fov !== null){
         sceneTree.metadata.camera.fov = message.fov;
       }
-      if(message.camera_type !== null){
-        dispatch({
-          type: 'write',
-          path: 'renderingState/camera_type',
-          data: message.camera_type,
-        });
-      }
       const instant=false;
       if(message.instant){
         instant = true;

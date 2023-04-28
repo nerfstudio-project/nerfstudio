@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Tuple
+from typing import Any, Tuple, Optional
 
 import viser.infra
 from typing_extensions import Literal, override
@@ -45,7 +45,7 @@ class GuiAddMessage(NerfstudioMessage):
     """Sent server->client to add a new GUI input."""
 
     name: str
-    folder_labels: Tuple[str]
+    folder_labels: Tuple[str, ...]
     leva_conf: Any
 
     @override
@@ -128,14 +128,12 @@ class FilePathInfoMessage(NerfstudioMessage):
 class SetCameraMessage(NerfstudioMessage):
     """Set the current camera."""
 
-    fov: float
+    fov: Optional[float]
     """ Field of view of the camera """
-    look_at: Tuple[float, float, float]
-    position: Tuple[float, float, float]
-    """ Camera matrix """
-    camera_type: Literal["perspective", "fisheye", "equirectangular"]
+    look_at: Optional[Tuple[float, float, float]]
+    position: Optional[Tuple[float, float, float]]
     """ Camera type """
-    instant:bool = False
+    instant: bool = False
 
 
 @dataclasses.dataclass
