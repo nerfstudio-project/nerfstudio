@@ -174,13 +174,14 @@ class NerfactoModel(Model):
 
         def zoom_camera(but):
             res = 50
+            w = 4
             curcam = self.viewer_control.get_camera(res, res)
             if curcam is None:
                 return
             mat = curcam.camera_to_worlds.squeeze()  # 3x4
             outputs = self.get_outputs_for_camera_ray_bundle(curcam.generate_rays(camera_indices=0))
             depth = outputs["depth"]
-            dist = depth[res // 2, res // 2]
+            dist = depth[res // 2 - w : res // 2 + w, res // 2 - w : res // 2 + w].min()
             amnt_to_zoom = dist - self.zoom_dist.value  # amnt to move on +z axis
             dir_to_zoom = -mat[:, 2].squeeze()  # direction of z axis
             cur_pos = mat[:, 3].squeeze()
