@@ -181,7 +181,7 @@ def get_interpolated_poses(pose_a: ArrayLike, pose_b: ArrayLike, steps: int = 10
         pose = np.identity(4)
         pose[:3, :3] = quaternion_matrix(quat)[:3, :3]
         pose[:3, 3] = tran
-        poses_ab.append(pose[:3])
+        poses_ab.append(pose)
     return poses_ab
 
 
