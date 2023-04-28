@@ -34,7 +34,7 @@ from nerfstudio.utils.io import load_from_json
 from nerfstudio.viewer.server.control_panel import ControlPanel
 
 if TYPE_CHECKING:
-    from nerfstudio.engine.trainer import Trainer
+    pass
 
 CONSOLE = Console(width=120)
 

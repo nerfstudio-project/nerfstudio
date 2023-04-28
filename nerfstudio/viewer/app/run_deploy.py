@@ -17,7 +17,6 @@ Code for deploying the built viewer folder to a server and handing versioning.
 We use the library sshconf (https://github.com/sorend/sshconf) for working with the ssh config file.
 """
 import json
-import os
 import subprocess
 from os.path import expanduser
 from pathlib import Path

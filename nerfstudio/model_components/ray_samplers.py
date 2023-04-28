@@ -111,7 +111,8 @@ class SpacedSampler(Sampler):
             bins = bin_lower + (bin_upper - bin_lower) * t_rand
 
         s_near, s_far = (self.spacing_fn(x) for x in (ray_bundle.nears, ray_bundle.fars))
-        spacing_to_euclidean_fn = lambda x: self.spacing_fn_inv(x * s_far + (1 - x) * s_near)
+        def spacing_to_euclidean_fn(x):
+            return self.spacing_fn_inv(x * s_far + (1 - x) * s_near)
         euclidean_bins = spacing_to_euclidean_fn(bins)  # [num_rays, num_samples+1]
 
         ray_samples = ray_bundle.get_ray_samples(

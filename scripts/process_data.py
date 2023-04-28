@@ -402,4 +402,5 @@ if __name__ == "__main__":
     entrypoint()
 
 # For sphinx docs
-get_parser_fn = lambda: tyro.extras.get_parser(Commands)  # type: ignore
+def get_parser_fn():
+    return tyro.extras.get_parser(Commands)  # type: ignore
