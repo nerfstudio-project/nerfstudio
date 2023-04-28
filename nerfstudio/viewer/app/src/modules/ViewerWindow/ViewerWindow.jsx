@@ -168,14 +168,14 @@ export default function ViewerWindow(props) {
     });
   };
   window.addEventListener('dblclick', onMouseDown, false);
+  const clock = new THREE.Clock();
 
   const render = () => {
-    const fps = 24;
-    const interval = 1000 / fps;
+    const delta = clock.getDelta();
     handleResize();
     sceneTree.metadata.camera.updateProjectionMatrix();
     sceneTree.metadata.moveCamera();
-    sceneTree.metadata.camera_controls.update(interval);
+    sceneTree.metadata.camera_controls.update(delta);
     requestAnimationFrame(render);
     renderer.render(scene, sceneTree.metadata.camera);
     labelRenderer.render(scene, sceneTree.metadata.camera);
@@ -210,7 +210,7 @@ export default function ViewerWindow(props) {
         const oldBackground = scene.background;
         const texture = new THREE.Texture(this);
         texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.NearestFilter;
+        texture.magFilter = THREE.LinearFilter;
         texture.needsUpdate = true;
         scene.background = texture;
         if (oldBackground) {
