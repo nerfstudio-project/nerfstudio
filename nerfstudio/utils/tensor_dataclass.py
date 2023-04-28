@@ -152,8 +152,10 @@ class TensorDataclass:
         if isinstance(indices, (int, slice, type(Ellipsis))):
             indices = (indices,)
         assert isinstance(indices, tuple)
+
         def tensor_fn(x):
             return x[indices + (slice(None),)]
+
         def dataclass_fn(x):
             return x[indices]
 
@@ -209,8 +211,10 @@ class TensorDataclass:
         """
         if isinstance(shape, int):
             shape = (shape,)
+
         def tensor_fn(x):
             return x.reshape((*shape, x.shape[-1]))
+
         def dataclass_fn(x):
             return x.reshape(shape)
 

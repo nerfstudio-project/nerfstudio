@@ -36,7 +36,8 @@ from rich.progress import (
     TextColumn,
     TimeRemainingColumn,
 )
-from torchtyping import TensorType
+from jaxtyping import Shaped
+from torch import Tensor
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.datasets.base_dataset import InputDataset
@@ -50,13 +51,13 @@ CONSOLE = Console(width=120)
 class Mesh:
     """Class for a mesh."""
 
-    vertices: TensorType["num_verts", 3]
+    vertices: Shaped[Tensor, "num_verts 3"]
     """Vertices of the mesh."""
-    faces: TensorType["num_faces", 3]
+    faces: Shaped[Tensor, "num_faces 3"]
     """Faces of the mesh."""
-    normals: TensorType["num_verts", 3]
+    normals: Shaped[Tensor, "num_verts 3"]
     """Normals of the mesh."""
-    colors: Optional[TensorType["num_verts", 3]] = None
+    colors: Optional[Shaped[Tensor, "num_verts 3"]] = None
     """Colors of the mesh."""
 
 

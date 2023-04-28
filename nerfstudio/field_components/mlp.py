@@ -19,7 +19,8 @@ from typing import Optional, Set, Tuple
 
 import torch
 from torch import nn
-from torchtyping import TensorType
+from jaxtyping import Shaped
+from torch import Tensor
 
 from nerfstudio.field_components.base_field_component import FieldComponent
 
@@ -46,7 +47,6 @@ class MLP(FieldComponent):
         activation: Optional[nn.Module] = nn.ReLU(),
         out_activation: Optional[nn.Module] = None,
     ) -> None:
-
         super().__init__()
         self.in_dim = in_dim
         assert self.in_dim > 0
@@ -77,7 +77,7 @@ class MLP(FieldComponent):
             layers.append(nn.Linear(self.layer_width, self.out_dim))
         self.layers = nn.ModuleList(layers)
 
-    def forward(self, in_tensor: TensorType["bs":..., "in_dim"]) -> TensorType["bs":..., "out_dim"]:
+    def forward(self, in_tensor: Shaped[Tensor, "*bs in_dim"]) -> Shaped[Tensor, "*bs out_dim"]:
         """Process input with a multilayer perceptron.
 
         Args:

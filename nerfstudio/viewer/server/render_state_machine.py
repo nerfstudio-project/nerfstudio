@@ -159,7 +159,7 @@ class RenderStateMachine(threading.Thread):
         )
         camera = camera.to(self.viewer.get_model().device)
 
-        with (self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext()):
+        with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
             camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
 
             with TimeWriter(None, None, write=False) as vis_t:

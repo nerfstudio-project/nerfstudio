@@ -23,7 +23,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Type
 
 import torch
-from torchtyping import TensorType
+from jaxtyping import Shaped
+from torch import Tensor
 from typing_extensions import Literal
 
 import nerfstudio.configs.base_config as cfg
@@ -55,7 +56,7 @@ class DataparserOutputs:
     """Filenames for the images."""
     cameras: Cameras
     """Camera object storing collection of camera information in dataset."""
-    alpha_color: Optional[TensorType[3]] = None
+    alpha_color: Optional[Shaped[Tensor, "3"]] = None
     """Color of dataset background."""
     scene_box: SceneBox = SceneBox()
     """Scene box of dataset. Used to bound the scene or provide the scene scale depending on model."""
@@ -65,7 +66,7 @@ class DataparserOutputs:
     """Dictionary of any metadata that be required for the given experiment.
     Will be processed by the InputDataset to create any additional tensors that may be required.
     """
-    dataparser_transform: TensorType[3, 4] = torch.eye(4)[:3, :]
+    dataparser_transform: Shaped[Tensor, "3 4"] = torch.eye(4)[:3, :]
     """Transform applied by the dataparser."""
     dataparser_scale: float = 1.0
     """Scale applied by the dataparser."""
@@ -92,9 +93,9 @@ class DataparserOutputs:
 
     def transform_poses_to_original_space(
         self,
-        poses: TensorType["num_poses", 3, 4],
+        poses: Shaped[Tensor, "num_poses 3 4"],
         camera_convention: Literal["opengl", "opencv"] = "opencv",
-    ) -> TensorType["num_poses", 3, 4]:
+    ) -> Shaped[Tensor, "num_poses 3 4"]:
         """
         Transforms the poses in the transformed space back to the original world coordinate system.
         Args:
@@ -165,11 +166,11 @@ class DataParser:
 
 
 def transform_poses_to_original_space(
-    poses: TensorType["num_poses", 3, 4],
-    applied_transform: TensorType[3, 4],
+    poses: Shaped[Tensor, "num_poses 3 4"],
+    applied_transform: Shaped[Tensor, "3 4"],
     applied_scale: float,
     camera_convention: Literal["opengl", "opencv"] = "opencv",
-) -> TensorType["num_poses", 3, 4]:
+) -> Shaped[Tensor, "num_poses 3 4"]:
     """
     Transforms the poses in the transformed space back to the original world coordinate system.
     Args:

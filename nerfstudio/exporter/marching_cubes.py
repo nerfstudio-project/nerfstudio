@@ -23,15 +23,16 @@ import numpy as np
 import torch
 import trimesh
 from skimage import measure
-from torchtyping import TensorType
+from jaxtyping import Shaped
+from torch import Tensor
 
 avg_pool_3d = torch.nn.AvgPool3d(2, stride=2)
 upsample = torch.nn.Upsample(scale_factor=2, mode="nearest")
 
 
 def create_point_pyramid(
-    points: TensorType[3, "height", "width", "depth"]
-) -> List[TensorType[3, "height", "width", "depth"]]:
+    points: Shaped[Tensor, "3 height width depth"]
+) -> List[Shaped[Tensor, "3 height width depth"]]:
     """
     Create a point pyramid for multi-resolution evaluation.
 
@@ -49,7 +50,7 @@ def create_point_pyramid(
     return points_pyramid
 
 
-def evaluate_sdf(sdf: Callable, points: TensorType["batch", 3]) -> TensorType["batch"]:
+def evaluate_sdf(sdf: Callable, points: Shaped[Tensor, "batch 3"]) -> Shaped[Tensor, "batch"]:
     """
     Evaluate a signed distance function (SDF) for a batch of points.
 
@@ -70,13 +71,12 @@ def evaluate_sdf(sdf: Callable, points: TensorType["batch", 3]) -> TensorType["b
 
 def evaluate_multiresolution_sdf(
     evaluate: Callable,
-    points_pyramid: List[TensorType[3, "height", "width", "depth"]],
-    coarse_mask: Union[TensorType[1, 1, "height", "width", "depth"], None],
+    points_pyramid: List[Shaped[Tensor, "3 height width depth"]],
+    coarse_mask: Union[Shaped[Tensor, "1 1 height width depth"], None],
     x_max: float,
     x_min: float,
     crop_n: int,
-) -> TensorType["batch"]:
-
+) -> Shaped[Tensor, "batch"]:
     """
     Evaluate SDF values using a multi-resolution approach with a given point pyramid.
 
@@ -136,7 +136,7 @@ def generate_mesh_with_multires_marching_cubes(
     bounding_box_min: Tuple[float, float, float] = (-1.0, -1.0, -1.0),
     bounding_box_max: Tuple[float, float, float] = (1.0, 1.0, 1.0),
     isosurface_threshold: float = 0.0,
-    coarse_mask: Union[None, TensorType["height", "width", "depth"]] = None,
+    coarse_mask: Union[None, Shaped[Tensor, "height width depth"]] = None,
 ) -> trimesh.Trimesh:
     """
     Computes the isosurface of a signed distance function (SDF) defined by the

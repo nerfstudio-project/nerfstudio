@@ -24,7 +24,8 @@ import torch
 from torch import nn
 from torch.autograd import Function
 from torch.cuda.amp import custom_bwd, custom_fwd
-from torchtyping import TensorType
+from jaxtyping import Shaped
+from torch import Tensor
 
 import nerfstudio.field_components.cuda as _C
 
@@ -37,16 +38,16 @@ class TemporalGridEncodeFunc(Function):
     @custom_fwd
     def forward(
         ctx,
-        inputs: TensorType["bs", "input_dim"],
-        temporal_row_index: TensorType["bs", "temporal_index_dim"],
-        embeddings: TensorType["table_size", "embed_dim"],
-        offsets: TensorType["num_levels+1"],
+        inputs: Shaped[Tensor, "bs input_dim"],
+        temporal_row_index: Shaped[Tensor, "bs temporal_index_dim"],
+        embeddings: Shaped[Tensor, "table_size embed_dim"],
+        offsets: Shaped[Tensor, "num_levels+1"],
         per_level_scale: float,
         base_resolution: int,
         calc_grad_inputs: bool = False,
         gridtype: int = 0,
         align_corners: bool = False,
-    ) -> TensorType["bs", "output_dim"]:
+    ) -> Shaped[Tensor, "bs output_dim"]:
         """Call forward and interpolate the feature from embeddings
 
         Args:
@@ -314,7 +315,7 @@ class TemporalGridEncoder(nn.Module):
             f"gridtype={self.gridtype} align_corners={self.align_corners}"
         )
 
-    def get_temporal_index(self, time: TensorType["bs"]) -> TensorType["bs", "temporal_index_dim"]:
+    def get_temporal_index(self, time: Shaped[Tensor, "bs"]) -> Shaped[Tensor, "bs temporal_index_dim"]:
         """Convert the time into sampling index lists."""
         row_idx_value = time * (len(self.sampling_index) - 1)
         row_idx = row_idx_value.long()
@@ -326,7 +327,9 @@ class TemporalGridEncoder(nn.Module):
         temporal_row_index[mask_b] = row_idx_value - row_idx
         return temporal_row_index
 
-    def forward(self, xyz: TensorType["bs", "input_dim"], time: TensorType["bs", 1]) -> TensorType["bs", "output_dim"]:
+    def forward(
+        self, xyz: Shaped[Tensor, "bs input_dim"], time: Shaped[Tensor, "bs 1"]
+    ) -> Shaped[Tensor, "bs output_dim"]:
         """Forward and sampling feature vectors from the embedding.
 
         Args:
@@ -346,7 +349,7 @@ class TemporalGridEncoder(nn.Module):
         )
         return outputs
 
-    def get_temporal_tv_loss(self) -> TensorType[()]:
+    def get_temporal_tv_loss(self) -> Shaped[Tensor, "()"]:
         """Apply TV loss on the temporal channels.
         Sample a random channel combination (i.e., row for the combination table),
         and then compute loss on it.

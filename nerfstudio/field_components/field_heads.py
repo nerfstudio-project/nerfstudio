@@ -20,7 +20,8 @@ from typing import Callable, Optional, Union
 
 import torch
 from torch import nn
-from torchtyping import TensorType
+from jaxtyping import Shaped
+from torch import Tensor
 
 from nerfstudio.field_components.base_field_component import FieldComponent
 
@@ -59,7 +60,6 @@ class FieldHead(FieldComponent):
         in_dim: Optional[int] = None,
         activation: Optional[Union[nn.Module, Callable]] = None,
     ) -> None:
-
         super().__init__()
         self.out_dim = out_dim
         self.activation = activation
@@ -77,7 +77,7 @@ class FieldHead(FieldComponent):
     def _construct_net(self):
         self.net = nn.Linear(self.in_dim, self.out_dim)
 
-    def forward(self, in_tensor: TensorType["bs":..., "in_dim"]) -> TensorType["bs":..., "out_dim"]:
+    def forward(self, in_tensor: Shaped[Tensor, "*bs in_dim"]) -> Shaped[Tensor, "*bs out_dim"]:
         """Process network output for renderer
 
         Args:
@@ -131,7 +131,6 @@ class SHFieldHead(FieldHead):
     def __init__(
         self, in_dim: Optional[int] = None, levels: int = 3, channels: int = 3, activation: Optional[nn.Module] = None
     ) -> None:
-
         out_dim = channels * levels**2
         super().__init__(in_dim=in_dim, out_dim=out_dim, field_head_name=FieldHeadNames.SH, activation=activation)
 
@@ -198,7 +197,7 @@ class PredNormalsFieldHead(FieldHead):
     def __init__(self, in_dim: Optional[int] = None, activation: Optional[nn.Module] = nn.Tanh()) -> None:
         super().__init__(in_dim=in_dim, out_dim=3, field_head_name=FieldHeadNames.PRED_NORMALS, activation=activation)
 
-    def forward(self, in_tensor: TensorType["bs":..., "in_dim"]) -> TensorType["bs":..., "out_dim"]:
+    def forward(self, in_tensor: Shaped[Tensor, "*bs in_dim"]) -> Shaped[Tensor, "*bs out_dim"]:
         """Needed to normalize the output into valid normals."""
         out_tensor = super().forward(in_tensor)
         out_tensor = torch.nn.functional.normalize(out_tensor, dim=-1)

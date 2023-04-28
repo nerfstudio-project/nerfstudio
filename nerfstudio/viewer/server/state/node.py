@@ -37,8 +37,10 @@ def get_tree(node_class: Callable) -> Callable:
     or the current node if it does.
     """
     assert isinstance(node_class(), Node)
+
     def tree():
         return node_class(tree)
+
     return tree()
 
 

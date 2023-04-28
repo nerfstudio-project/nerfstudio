@@ -16,7 +16,8 @@
 from typing import Optional
 
 from torch import nn
-from torchtyping import TensorType
+from jaxtyping import Shaped
+from torch import Tensor
 
 
 class LambertianShader(nn.Module):
@@ -25,9 +26,9 @@ class LambertianShader(nn.Module):
     @classmethod
     def forward(
         cls,
-        rgb: TensorType["bs":..., 3],
-        normals: TensorType["bs":..., 3],
-        light_direction: TensorType["bs":..., 3],
+        rgb: Shaped[Tensor, "*bs 3"],
+        normals: Shaped[Tensor, "*bs 3"],
+        light_direction: Shaped[Tensor, "*bs 3"],
         shading_weight: float = 1.0,
         detach_normals=True,
     ):
@@ -59,8 +60,8 @@ class NormalsShader(nn.Module):
     @classmethod
     def forward(
         cls,
-        normals: TensorType["bs":..., 3],
-        weights: Optional[TensorType["bs":..., 1]] = None,
+        normals: Shaped[Tensor, "*bs 3"],
+        weights: Optional[Shaped[Tensor, "*bs 1"]] = None,
     ):
         """Applies a rainbow colormap to the normals.
 

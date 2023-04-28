@@ -18,7 +18,8 @@ from typing import Dict, Optional, Tuple
 
 import torch
 from torch import nn
-from torchtyping import TensorType
+from jaxtyping import Shaped
+from torch import Tensor
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.field_components.embedding import Embedding
@@ -109,7 +110,7 @@ class VanillaNerfWField(Field):
         self.field_head_transient_rgb = TransientRGBFieldHead(in_dim=self.mlp_transient.get_out_dim())
         self.field_head_transient_density = TransientDensityFieldHead(in_dim=self.mlp_transient.get_out_dim())
 
-    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
         encoded_xyz = self.position_encoding(ray_samples.frustums.get_positions())
         encoded_xyz = self.position_encoding(ray_samples.frustums.get_positions())
@@ -118,16 +119,16 @@ class VanillaNerfWField(Field):
         return density, base_mlp_out
 
     def get_outputs(
-        self, ray_samples: RaySamples, density_embedding: Optional[TensorType[..., "embedding_size"]] = None
-    ) -> Dict[FieldHeadNames, TensorType]:
+        self, ray_samples: RaySamples, density_embedding: Optional[Shaped[Tensor, "*batch embedding_size"]] = None
+    ) -> Dict[FieldHeadNames, Tensor]:
         """Returns the outputs of the NeRF-W field.
 
         Args:
             ray_samples (RaySamples): Ray samples.
-            density_embedding (TensorType[..., "embedding_size"], optional): Density embedding.
+            density_embedding (Shaped[Tensor, "*batch embedding_size"], optional): Density embedding.
 
         Returns:
-            Dict[FieldHeadNames, TensorType]: Outputs of the NeRF-W field.
+            Dict[FieldHeadNames, Tensor]: Outputs of the NeRF-W field.
         """
         outputs = {}
         encoded_dir = self.direction_encoding(ray_samples.frustums.directions)

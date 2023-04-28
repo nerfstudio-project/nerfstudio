@@ -28,15 +28,20 @@ import torch
 import wandb
 from rich.console import Console
 from torch.utils.tensorboard import SummaryWriter
-from torchtyping import TensorType
+from jaxtyping import Shaped
+from torch import Tensor
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.printing import human_format
 
 CONSOLE = Console(width=120)
+
+
 def to8b(x):
     return (255 * torch.clamp(x, min=0, max=1)).to(torch.uint8)
+
+
 EVENT_WRITERS = []
 EVENT_STORAGE = []
 GLOBAL_BUFFER = {}
@@ -65,7 +70,7 @@ class EventType(enum.Enum):
 
 
 @check_main_thread
-def put_image(name, image: TensorType["H", "W", "C"], step: int):
+def put_image(name, image: Shaped[Tensor, "H W C"], step: int):
     """Setter function to place images into the queue to be written out
 
     Args:
@@ -217,7 +222,7 @@ class Writer:
     """Writer class"""
 
     @abstractmethod
-    def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
+    def write_image(self, name: str, image: Shaped[Tensor, "H W C"], step: int) -> None:
         """method to write out image
 
         Args:
@@ -291,7 +296,7 @@ class WandbWriter(Writer):
             reinit=True,
         )
 
-    def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
+    def write_image(self, name: str, image: Shaped[Tensor, "H W C"], step: int) -> None:
         image = torch.permute(image, (2, 0, 1))
         wandb.log({name: wandb.Image(image)}, step=step)
 
@@ -316,7 +321,7 @@ class TensorboardWriter(Writer):
     def __init__(self, log_dir: Path):
         self.tb_writer = SummaryWriter(log_dir=log_dir)
 
-    def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
+    def write_image(self, name: str, image: Shaped[Tensor, "H W C"], step: int) -> None:
         image = to8b(image)
         self.tb_writer.add_image(name, image, step, dataformats="HWC")
 

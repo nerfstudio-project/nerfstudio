@@ -28,7 +28,8 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 from rich.table import Table
-from torchtyping import TensorType
+from jaxtyping import Shaped
+from torch import Tensor
 from typing_extensions import Literal, assert_never
 
 from nerfstudio.cameras.camera_paths import (
@@ -235,11 +236,11 @@ xmlns:GSpherical='http://ns.google.com/videos/1.0/spherical/'>
 class CropData:
     """Data for cropping an image."""
 
-    background_color: TensorType[3] = torch.Tensor([0.0, 0.0, 0.0])
+    background_color: Shaped[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
     """background color"""
-    center: TensorType[3] = torch.Tensor([0.0, 0.0, 0.0])
+    center: Shaped[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
     """center of the crop"""
-    scale: TensorType[3] = torch.Tensor([2.0, 2.0, 2.0])
+    scale: Shaped[Tensor, "3"] = torch.Tensor([2.0, 2.0, 2.0])
     """scale of the crop"""
 
 

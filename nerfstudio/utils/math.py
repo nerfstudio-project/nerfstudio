@@ -18,13 +18,16 @@ from dataclasses import dataclass
 from typing import Tuple
 
 import torch
-from torchtyping import TensorType
+from jaxtyping import Shaped
+from torch import Tensor
 from typing_extensions import Literal
 
 _USE_NERFACC = True
 
 
-def components_from_spherical_harmonics(levels: int, directions: TensorType[..., 3]) -> TensorType[..., "components"]:
+def components_from_spherical_harmonics(
+    levels: int, directions: Shaped[Tensor, "*batch 3"]
+) -> Shaped[Tensor, "*batch components"]:
     """
     Returns value for each component of spherical harmonics.
 
@@ -97,15 +100,15 @@ class Gaussians:
         cov: Covariance of multivariate Gaussian.
     """
 
-    mean: TensorType[..., "dim"]
-    cov: TensorType[..., "dim", "dim"]
+    mean: Shaped[Tensor, "*batch dim"]
+    cov: Shaped[Tensor, "*batch dim dim"]
 
 
 def compute_3d_gaussian(
-    directions: TensorType[..., 3],
-    means: TensorType[..., 3],
-    dir_variance: TensorType[..., 1],
-    radius_variance: TensorType[..., 1],
+    directions: Shaped[Tensor, "*batch 3"],
+    means: Shaped[Tensor, "*batch 3"],
+    dir_variance: Shaped[Tensor, "*batch 1"],
+    radius_variance: Shaped[Tensor, "*batch 1"],
 ) -> Gaussians:
     """Compute gaussian along ray.
 
@@ -130,11 +133,11 @@ def compute_3d_gaussian(
 
 
 def cylinder_to_gaussian(
-    origins: TensorType[..., 3],
-    directions: TensorType[..., 3],
-    starts: TensorType[..., 1],
-    ends: TensorType[..., 1],
-    radius: TensorType[..., 1],
+    origins: Shaped[Tensor, "*batch 3"],
+    directions: Shaped[Tensor, "*batch 3"],
+    starts: Shaped[Tensor, "*batch 1"],
+    ends: Shaped[Tensor, "*batch 1"],
+    radius: Shaped[Tensor, "*batch 1"],
 ) -> Gaussians:
     """Approximates cylinders with a Gaussian distributions.
 
@@ -155,11 +158,11 @@ def cylinder_to_gaussian(
 
 
 def conical_frustum_to_gaussian(
-    origins: TensorType[..., 3],
-    directions: TensorType[..., 3],
-    starts: TensorType[..., 1],
-    ends: TensorType[..., 1],
-    radius: TensorType[..., 1],
+    origins: Shaped[Tensor, "*batch 3"],
+    directions: Shaped[Tensor, "*batch 3"],
+    starts: Shaped[Tensor, "*batch 1"],
+    ends: Shaped[Tensor, "*batch 1"],
+    radius: Shaped[Tensor, "*batch 1"],
 ) -> Gaussians:
     """Approximates conical frustums with a Gaussian distributions.
 
@@ -239,10 +242,10 @@ def _intersect_aabb(
 
 
 def intersect_aabb(
-    origins: TensorType["N", 3],
-    directions: TensorType["N", 3],
-    aabb: TensorType[6],
-) -> Tuple[TensorType["N"], TensorType["N"]]:
+    origins: Shaped[Tensor, "N 3"],
+    directions: Shaped[Tensor, "N 3"],
+    aabb: Shaped[Tensor, "6"],
+) -> Tuple[Shaped[Tensor, "N"], Shaped[Tensor, "N"]]:
     """
     Implementation of ray intersection with AABB box
 
@@ -276,9 +279,9 @@ def intersect_aabb(
 
 
 def safe_normalize(
-    vectors: TensorType["batch_dim":..., "N"],
+    vectors: Shaped[Tensor, "*batch_dim N"],
     eps: float = 1e-10,
-) -> TensorType["batch_dim":..., "N"]:
+) -> Shaped[Tensor, "*batch_dim N"]:
     """Normalizes vectors.
 
     Args:
@@ -292,7 +295,9 @@ def safe_normalize(
 
 
 def masked_reduction(
-    input_tensor: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"], reduction_type: Literal["image", "batch"]
+    input_tensor: Shaped[Tensor, "1 32 mult"],
+    mask: Shaped[Tensor, "1 32 mult"],
+    reduction_type: Literal["image", "batch"],
 ):
     """
     Whether to consolidate the input_tensor across the batch or across the image
@@ -317,7 +322,7 @@ def masked_reduction(
 
 
 def normalized_depth_scale_and_shift(
-    prediction: TensorType[1, 32, "mult"], target: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"]
+    prediction: Shaped[Tensor, "1 32 mult"], target: Shaped[Tensor, "1 32 mult"], mask: Shaped[Tensor, "1 32 mult"]
 ):
     """
     More info here: https://arxiv.org/pdf/2206.00665.pdf supplementary section A2 Depth Consistency Loss

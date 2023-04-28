@@ -182,7 +182,11 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         """
         self.absolute_colmap_path.mkdir(parents=True, exist_ok=True)
 
-        (sfm_tool, feature_type, matcher_type,) = process_data_utils.find_tool_feature_matcher_combination(
+        (
+            sfm_tool,
+            feature_type,
+            matcher_type,
+        ) = process_data_utils.find_tool_feature_matcher_combination(
             self.sfm_tool, self.feature_type, self.matcher_type
         )
         # check that sfm_tool is hloc if using refine_pixsfm

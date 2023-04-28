@@ -150,8 +150,10 @@ class NeuSFactoModel(NeuSModel):
             def set_anneal(step: int):
                 # https://arxiv.org/pdf/2111.12077.pdf eq. 18
                 train_frac = np.clip(step / N, 0, 1)
+
                 def bias(x, b):
                     return b * x / ((b - 1) * x + 1)
+
                 anneal = bias(train_frac, self.config.proposal_weights_anneal_slope)
                 self.proposal_sampler.set_anneal(anneal)
 

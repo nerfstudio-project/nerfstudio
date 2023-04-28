@@ -33,18 +33,19 @@ from typing import Generator, Optional, Union
 import nerfacc
 import torch
 from torch import nn
-from torchtyping import TensorType
+from jaxtyping import Shaped
+from torch import Tensor
 from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.utils import colors
 from nerfstudio.utils.math import components_from_spherical_harmonics, safe_normalize
 
-BACKGROUND_COLOR_OVERRIDE: Optional[TensorType[3]] = None
+BACKGROUND_COLOR_OVERRIDE: Optional[Shaped[Tensor, "3"]] = None
 
 
 @contextlib.contextmanager
-def background_color_override_context(mode: TensorType[3]) -> Generator[None, None, None]:
+def background_color_override_context(mode: Shaped[Tensor, "3"]) -> Generator[None, None, None]:
     """Context manager for setting background mode."""
     global BACKGROUND_COLOR_OVERRIDE  # pylint: disable=global-statement
     old_background_color = BACKGROUND_COLOR_OVERRIDE
@@ -62,19 +63,21 @@ class RGBRenderer(nn.Module):
         background_color: Background color as RGB. Uses random colors if None.
     """
 
-    def __init__(self, background_color: Union[Literal["random", "last_sample"], TensorType[3]] = "random") -> None:
+    def __init__(
+        self, background_color: Union[Literal["random", "last_sample"], Shaped[Tensor, "3"]] = "random"
+    ) -> None:
         super().__init__()
         self.background_color = background_color
 
     @classmethod
     def combine_rgb(
         cls,
-        rgb: TensorType["bs":..., "num_samples", 3],
-        weights: TensorType["bs":..., "num_samples", 1],
-        background_color: Union[Literal["random", "white", "black", "last_sample"], TensorType[3]] = "random",
-        ray_indices: Optional[TensorType["num_samples"]] = None,
+        rgb: Shaped[Tensor, "*bs num_samples 3"],
+        weights: Shaped[Tensor, "*bs num_samples 1"],
+        background_color: Union[Literal["random", "white", "black", "last_sample"], Shaped[Tensor, "3"]] = "random",
+        ray_indices: Optional[Shaped[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
-    ) -> TensorType["bs":..., 3]:
+    ) -> Shaped[Tensor, "*bs 3"]:
         """Composite samples along ray and render color image
 
         Args:
@@ -117,11 +120,11 @@ class RGBRenderer(nn.Module):
 
     def forward(
         self,
-        rgb: TensorType["bs":..., "num_samples", 3],
-        weights: TensorType["bs":..., "num_samples", 1],
-        ray_indices: Optional[TensorType["num_samples"]] = None,
+        rgb: Shaped[Tensor, "*bs num_samples 3"],
+        weights: Shaped[Tensor, "*bs num_samples 1"],
+        ray_indices: Optional[Shaped[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
-    ) -> TensorType["bs":..., 3]:
+    ) -> Shaped[Tensor, "*bs 3"]:
         """Composite samples along ray and render color image
 
         Args:
@@ -154,7 +157,7 @@ class SHRenderer(nn.Module):
 
     def __init__(
         self,
-        background_color: Union[Literal["random", "last_sample"], TensorType[3]] = "random",
+        background_color: Union[Literal["random", "last_sample"], Shaped[Tensor, "3"]] = "random",
         activation: Optional[nn.Module] = nn.Sigmoid(),
     ) -> None:
         super().__init__()
@@ -163,10 +166,10 @@ class SHRenderer(nn.Module):
 
     def forward(
         self,
-        sh: TensorType[..., "num_samples", "coeffs"],
-        directions: TensorType[..., "num_samples", 3],
-        weights: TensorType[..., "num_samples", 1],
-    ) -> TensorType[..., 3]:
+        sh: Shaped[Tensor, "*batch num_samples coeffs"],
+        directions: Shaped[Tensor, "*batch num_samples 3"],
+        weights: Shaped[Tensor, "*batch num_samples 1"],
+    ) -> Shaped[Tensor, "*batch 3"]:
         """Composite samples along ray and render color image
 
         Args:
@@ -204,10 +207,10 @@ class AccumulationRenderer(nn.Module):
     @classmethod
     def forward(
         cls,
-        weights: TensorType["bs":..., "num_samples", 1],
-        ray_indices: Optional[TensorType["num_samples"]] = None,
+        weights: Shaped[Tensor, "*bs num_samples 1"],
+        ray_indices: Optional[Shaped[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
-    ) -> TensorType["bs":..., 1]:
+    ) -> Shaped[Tensor, "*bs 1"]:
         """Composite samples along ray and calculate accumulation.
 
         Args:
@@ -246,11 +249,11 @@ class DepthRenderer(nn.Module):
 
     def forward(
         self,
-        weights: TensorType[..., "num_samples", 1],
+        weights: Shaped[Tensor, "*batch num_samples 1"],
         ray_samples: RaySamples,
-        ray_indices: Optional[TensorType["num_samples"]] = None,
+        ray_indices: Optional[Shaped[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
-    ) -> TensorType[..., 1]:
+    ) -> Shaped[Tensor, "*batch 1"]:
         """Composite samples along ray and calculate depths.
 
         Args:
@@ -302,8 +305,8 @@ class UncertaintyRenderer(nn.Module):
 
     @classmethod
     def forward(
-        cls, betas: TensorType["bs":..., "num_samples", 1], weights: TensorType["bs":..., "num_samples", 1]
-    ) -> TensorType["bs":..., 1]:
+        cls, betas: Shaped[Tensor, "*bs num_samples 1"], weights: Shaped[Tensor, "*bs num_samples 1"]
+    ) -> Shaped[Tensor, "*bs 1"]:
         """Calculate uncertainty along the ray.
 
         Args:
@@ -323,9 +326,9 @@ class SemanticRenderer(nn.Module):
     @classmethod
     def forward(
         cls,
-        semantics: TensorType["bs":..., "num_samples", "num_classes"],
-        weights: TensorType["bs":..., "num_samples", 1],
-    ) -> TensorType["bs":..., "num_classes"]:
+        semantics: Shaped[Tensor, "*bs num_samples num_classes"],
+        weights: Shaped[Tensor, "*bs num_samples 1"],
+    ) -> Shaped[Tensor, "*bs num_classes"]:
         """Calculate semantics along the ray."""
         sem = torch.sum(weights * semantics, dim=-2)
         return sem
@@ -337,10 +340,10 @@ class NormalsRenderer(nn.Module):
     @classmethod
     def forward(
         cls,
-        normals: TensorType["bs":..., "num_samples", 3],
-        weights: TensorType["bs":..., "num_samples", 1],
+        normals: Shaped[Tensor, "*bs num_samples 3"],
+        weights: Shaped[Tensor, "*bs num_samples 1"],
         normalize: bool = True,
-    ) -> TensorType["bs":..., 3]:
+    ) -> Shaped[Tensor, "*bs 3"]:
         """Calculate normals along the ray.
 
         Args:

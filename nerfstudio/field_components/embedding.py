@@ -18,7 +18,8 @@ Code for embeddings.
 
 
 import torch
-from torchtyping import TensorType
+from jaxtyping import Shaped
+from torch import Tensor
 
 from nerfstudio.field_components.base_field_component import FieldComponent
 
@@ -45,7 +46,7 @@ class Embedding(FieldComponent):
         """Return the mean of the embedding weights along a dim."""
         return self.embedding.weight.mean(dim)
 
-    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+    def forward(self, in_tensor: Shaped[Tensor, "*batch input_dim"]) -> Shaped[Tensor, "*batch output_dim"]:
         """Call forward
 
         Args:
