@@ -59,6 +59,7 @@ from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
 from nerfstudio.models.dreamembedding import DreamEmbeddingModelConfig
 from nerfstudio.models.dreamfusion import DreamFusionModelConfig
 from nerfstudio.models.dreamfusion_ngp import DreamfusionNGPModelConfig
+from nerfstudio.models.dreamfusion_tensor import DreamfusionTensorModelConfig
 from nerfstudio.models.iterative_dreamfusion import DreamFusionIterativeModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
@@ -529,6 +530,40 @@ method_configs["dreamngp"] = TrainerConfig(
             "scheduler": ExponentialDecaySchedulerConfig(
                 warmup_steps=2000, lr_final=1e-6, max_steps=20000, ramp="linear"
             ),
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=32000),
+    vis="viewer",
+)
+
+method_configs["dreamtensor"] = TrainerConfig(
+    method_name="dreamtensor",
+    experiment_name="dreamtensor",
+    steps_per_eval_batch=50,
+    steps_per_eval_image=50,
+    steps_per_save=200,
+    max_num_iterations=20000,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        generative=True,
+        datamanager=DreamFusionDataManagerConfig(
+            horizontal_rotation_warmup=0,
+        ),
+        model=DreamfusionTensorModelConfig(
+            initialize_density=True,
+            opacity_loss_mult=1,
+            positional_prompting="discrete",
+            guidance_scale=50,
+        ),
+    ),
+    optimizers={
+        "encodings": {
+            "optimizer": AdamOptimizerConfig(lr=0.0002),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.002, max_steps=30000),
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=0.001),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=30000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=32000),

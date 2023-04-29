@@ -128,6 +128,7 @@ class TensoRFField(Field):
                 input_rays = ray_samples[mask, :]
                 density = self.get_density(input_rays)
                 rgb = self.get_outputs(input_rays, None)
+                base_rgb = base_rgb.to(rgb.dtype) 
 
                 base_density[mask] = density
                 base_rgb[mask] = rgb
