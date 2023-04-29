@@ -12,6 +12,8 @@ import {
   TuneRounded,
   WidgetsRounded,
   ImportExportRounded,
+  FileUploadRounded,
+  StraightenRounded,
 } from '@mui/icons-material/';
 import { useDispatch, useSelector } from 'react-redux';
 import StatusPanel from './StatusPanel';
@@ -19,6 +21,8 @@ import CameraPanel from './CameraPanel';
 import ScenePanel from './ScenePanel';
 import { RenderControls } from '../ConfigPanel/ConfigPanel';
 import ExportPanel from './ExportPanel';
+import ImportPanel from './ImportPanel/ImportPanel';
+import MeasurementPanel from './MeasurementPanel/MeasurementPanel';
 
 export const snap_to_camera = (sceneTree, camera, matrix) => {
   const mat = new THREE.Matrix4();
@@ -73,7 +77,7 @@ interface PanelContentsProps {
 
 function PanelContents(props: PanelContentsProps) {
   const dispatch = useDispatch();
-  const [tabState, setTabState] = React.useState(0);
+  const [tabState, setTabState] = React.useState(5); // FIXME
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabState(newValue);
     dispatch({
@@ -95,12 +99,19 @@ function PanelContents(props: PanelContentsProps) {
 
   return (
     <>
-      <Box component="div" sx={{ borderBottom: 1, borderColor: 'divider' }}>
+      <Box
+        component="div"
+        sx={{
+          borderBottom: 1,
+          borderColor: 'divider',
+        }}
+      >
         <Tabs
           value={tabState}
           onChange={handleChange}
           aria-label="panel tabs"
-          centered
+          variant="scrollable"
+          scrollButtons="auto"
         >
           <Tab icon={<TuneRounded />} label="Controls" {...a11yProps(0)} />
           <Tab icon={<CameraAltRounded />} label="Render" {...a11yProps(1)} />
@@ -115,6 +126,18 @@ function PanelContents(props: PanelContentsProps) {
             label="Export"
             disabled={camera_choice === 'Render Camera'}
             {...a11yProps(3)}
+          />
+          <Tab
+            icon={<FileUploadRounded />}
+            label="Import"
+            disabled={camera_choice === 'Render Camera'}
+            {...a11yProps(4)}
+          />
+          <Tab
+            icon={<StraightenRounded />}
+            label="Measure"
+            disabled={camera_choice === 'Render Camera'}
+            {...a11yProps(5)}
           />
         </Tabs>
       </Box>
@@ -146,6 +169,8 @@ export function BasicTabs(props: BasicTabsProps) {
           <CameraPanel sceneTree={sceneTree} />
           <ScenePanel sceneTree={sceneTree} />
           <ExportPanel sceneTree={sceneTree} />
+          <ImportPanel sceneTree={sceneTree} />
+          <MeasurementPanel sceneTree={sceneTree} />
         </PanelContents>
       </Box>
     </div>

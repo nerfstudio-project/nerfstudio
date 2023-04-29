@@ -64,6 +64,16 @@ const initialState = {
     sceneBox: null,
     cameras: null,
   },
+
+  // Measurement
+  measState: {
+    scaleFactor: 1.0,
+    enabled: false,
+    fontSize: '12px',
+    color: '#00ff00',
+    markerRadius: 0.05,
+    lineWidth: 0.005,
+  },
 };
 
 // Recursive function to update the state object with new data at a given path

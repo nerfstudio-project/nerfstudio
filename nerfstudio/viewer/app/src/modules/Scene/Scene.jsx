@@ -12,6 +12,8 @@ import { CameraHelper } from '../SidePanel/CameraPanel/CameraHelper';
 import SceneNode from '../../SceneNode';
 import { subscribe_to_changes } from '../../subscriber';
 import { snap_to_camera } from '../SidePanel/SidePanel';
+import { OrbitControls, OrbitControlsGizmo } from '../OrbitControlsGizmo';
+import { render } from 'react-dom';
 
 const SCENE_BOX_NAME = 'Scene Box';
 const CAMERAS_NAME = 'Training Cameras';
@@ -88,6 +90,14 @@ export function get_scene_tree() {
   camera_controls.dollySpeed = 0.1;
   camera_controls.infinityDolly = true;
   camera_controls.saveState();
+
+  // Orbit Control Gizmo
+  const orbitControls = new OrbitControls(main_camera, renderer.domElement);
+  const orbitControlsGizmo = new OrbitControlsGizmo(orbitControls, {
+    size: 100,
+    padding: 8,
+  });
+  document.body.appendChild(orbitControlsGizmo.domElement);
 
   const keyMap = [];
   const moveSpeed = 0.008;
@@ -375,5 +385,6 @@ export function get_scene_tree() {
   window.addEventListener('mousedown', onMouseDown, false);
   window.addEventListener('mousemove', onMouseMove, false);
   window.addEventListener('mouseup', onMouseUp, false);
+
   return sceneTree;
 }

@@ -453,3 +453,61 @@ $viewer_button_size: 50px;
   // margin: 15px;
   padding: 20px;
 }
+
+// ------------------------------------
+// Import Panel sytling
+
+.ImportPanel-props {
+  padding-top: 10px;
+}
+
+// ------------------------------------
+// Measurement Panel sytling
+
+.MeasPanel {
+  padding: 0.5em 0.5em;
+}
+
+.MeasPanel-props {
+}
+
+.MeasPanel-controls {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  width: 280px;
+  padding-top: 30px;
+  padding-left: 100px;
+}
+
+// ------------------------------------
+// Orbit Control Gizmo
+
+
+.obit-controls-gizmo {
+	position: absolute;
+	top: 4em;
+	right: 25em;
+  z-index: 1000;
+  background-color: #FFF0;
+  border-radius: 100%;
+  transition: background-color .15s linear;
+  cursor: pointer;
+}
+
+.obit-controls-gizmo.dragging, .obit-controls-gizmo:hover  {
+    background-color: #FFF3;
+
+}
+
+.obit-controls-gizmo.inactive {
+    pointer-events: none;
+    background-color: #FFF0 !important;
+}
+
+.dg.a {
+    float: left !important;
+    margin-left: 2em !important;
+}
+
+
