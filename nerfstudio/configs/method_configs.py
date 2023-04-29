@@ -247,7 +247,7 @@ method_configs["instant-ngp"] = TrainerConfig(
             "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
         }
     },
-    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 12),
     vis="viewer",
 )
 
@@ -265,7 +265,6 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
             grid_levels=1,
             alpha_thre=0.0,
             cone_angle=0.0,
-            render_step_size=0.001,
             disable_scene_contraction=True,
             near_plane=0.01,
             background_color="black",
@@ -277,7 +276,7 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
             "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
         }
     },
-    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 12),
     vis="viewer",
 )
 
