@@ -447,7 +447,7 @@ method_configs["dreamfusion"] = TrainerConfig(
     steps_per_eval_batch=50,
     steps_per_eval_image=50,
     steps_per_save=200,
-    max_num_iterations=30000,
+    max_num_iterations=20000,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         generative=True,
@@ -501,7 +501,7 @@ method_configs["dreamngp"] = TrainerConfig(
     pipeline=VanillaPipelineConfig(
         generative=True,
         datamanager=DreamFusionDataManagerConfig(
-            horizontal_rotation_warmup=0,
+            horizontal_rotation_warmup=2000,
         ),
         model=DreamfusionNGPModelConfig(
             eval_num_rays_per_chunk=8192,
@@ -547,7 +547,7 @@ method_configs["dreamtensor"] = TrainerConfig(
     pipeline=VanillaPipelineConfig(
         generative=True,
         datamanager=DreamFusionDataManagerConfig(
-            horizontal_rotation_warmup=0,
+            horizontal_rotation_warmup=2000,
         ),
         model=DreamfusionTensorModelConfig(
             initialize_density=True,
@@ -557,14 +557,23 @@ method_configs["dreamtensor"] = TrainerConfig(
         ),
     ),
     optimizers={
-        "encodings": {
-            "optimizer": AdamOptimizerConfig(lr=0.0002),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.002, max_steps=30000),
-        },
+        # "fields": {
+        #     "optimizer": AdamOptimizerConfig(lr=5e-5),
+        #     "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-5, max_steps=20000),
+        # },        
+        # "encodings": {
+        #     "optimizer": AdamOptimizerConfig(lr=0.0002),
+        #     "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.002, max_steps=20000),
+        # },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=0.001),
             "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=30000),
         },
+        "encodings": {
+            "optimizer": AdamOptimizerConfig(lr=0.02),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.002, max_steps=30000),
+        },
+
     },
     viewer=ViewerConfig(num_rays_per_chunk=32000),
     vis="viewer",
@@ -672,7 +681,7 @@ method_configs["dreamembed"] = TrainerConfig(
     pipeline=VanillaPipelineConfig(
         generative=True,
         datamanager=DreamFusionDataManagerConfig(
-            horizontal_rotation_warmup=0,
+            horizontal_rotation_warmup=2000,
         ),
         model=DreamEmbeddingModelConfig(
             eval_num_rays_per_chunk=1 << 15,

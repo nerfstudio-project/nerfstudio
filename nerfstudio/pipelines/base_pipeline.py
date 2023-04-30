@@ -285,16 +285,6 @@ class VanillaPipeline(Pipeline):
         """
         ray_bundle, batch = self.datamanager.next_train(step)
         model_outputs = self.model(ray_bundle)
-
-        # if step % 100 == 0:
-        #     image = model_outputs["train_output"]
-        #     image = image.view(int(image.shape[0] ** 0.5), int(image.shape[0] ** 0.5), 3)
-        #     image = image.detach().cpu().numpy()
-        #     image = (image * 255).round().astype("uint8")
-        #     mediapy.write_image(str('dreamngp.png'), image)
-        #     # mediapy.write_image(str('dreamfusion.png'), image)
-
-
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
 
         if self.config.datamanager.camera_optimizer is not None:

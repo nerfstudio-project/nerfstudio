@@ -180,7 +180,7 @@ class DreamEmbeddingModel(DreamFusionModel):
             pos = ray_samples.frustums.get_positions()
             # density_blob = self.density_strength * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
             # density = density + density_blob
-            density_blob = (-torch.exp(torch.norm(pos, dim=-1) / 0.6) + 2)[..., None]
+            density_blob = self.density_strength * (-torch.exp(torch.norm(pos, dim=-1) / 0.6) + 2)[..., None]
             density = torch.max(density + density_blob, torch.tensor([0.], device=self.device))
 
         weights = ray_samples.get_weights(density)

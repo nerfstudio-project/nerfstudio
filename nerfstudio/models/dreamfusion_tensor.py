@@ -104,12 +104,12 @@ class DreamfusionTensorModelConfig(DreamFusionModelConfig):
     transmittance_end_schedule: int = 1500
     """number of iterations to reach target_transmittance_end"""
 
-    init_resolution: int = 300
+    init_resolution: int = 128
     """initial render resolution"""
     final_resolution: int = 300
     """final render resolution"""
     # upsampling_iters: Tuple[int, ...] = (2000, 3000, 4000, 5500, 7000)
-    upsampling_iters: Tuple[int, ...] = (500, 750, 1000)
+    upsampling_iters: Tuple[int, ...] = (1000, 3000, 7000)
     """specifies a list of iteration step numbers to perform upsampling"""
     num_samples: int = 100
     """Number of samples in field evaluation"""
@@ -247,7 +247,32 @@ class DreamfusionTensorModel(DreamFusionModel):
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
         ):
             self.density_strength = np.interp(step, self.config.taper_range, self.config.taper_strength)
+        def reinitialize_optimizer(
+            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
+        ):
+            index = self.upsampling_iters.index(step)
+            resolution = self.upsampling_steps[index]
 
+            # upsample the position and direction grids
+            self.field.density_encoding.upsample_grid(resolution)
+            self.field.color_encoding.upsample_grid(resolution)
+
+            # reinitialize the encodings optimizer
+            optimizers_config = training_callback_attributes.optimizers.config
+            enc = training_callback_attributes.pipeline.get_param_groups()["encodings"]
+            lr_init = optimizers_config["encodings"]["optimizer"].lr
+
+            training_callback_attributes.optimizers.optimizers["encodings"] = optimizers_config["encodings"][
+                "optimizer"
+            ].setup(params=enc)
+            if optimizers_config["encodings"]["scheduler"]:
+                training_callback_attributes.optimizers.schedulers["encodings"] = (
+                    optimizers_config["encodings"]["scheduler"]
+                    .setup()
+                    .get_scheduler(
+                        optimizer=training_callback_attributes.optimizers.optimizers["encodings"], lr_init=lr_init
+                    )
+                )
         return [
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
@@ -255,6 +280,12 @@ class DreamfusionTensorModel(DreamFusionModel):
                 update_every_num_iters=1,
                 args=[self, training_callback_attributes],
             ),
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                iters=self.upsampling_iters,
+                func=reinitialize_optimizer,
+                args=[self, training_callback_attributes],
+            )
         ]
         
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
@@ -292,7 +323,7 @@ class DreamfusionTensorModel(DreamFusionModel):
 
         if self.initialize_density:
             pos = ray_samples_pdf.frustums.get_positions()
-            density_blob = (-0.05 * torch.exp(5 * torch.norm(pos, dim=-1)) + 1.0)[..., None]
+            density_blob = self.density_strength * (-0.05 * torch.exp(5 * torch.norm(pos, dim=-1)) + 1.0)[..., None]
             density = torch.max(density + density_blob, torch.tensor([0.], device=self.device))
 
         weights_fine = ray_samples_pdf.get_weights(density)
@@ -312,14 +343,24 @@ class DreamfusionTensorModel(DreamFusionModel):
         accum_mask_inv = 1.0 - accum_mask
         background = accum_mask_inv * background_rgb
 
+        samp = np.random.random_sample()
+        if samp < 0.4:
+            rand_bg = torch.ones_like(background) * torch.rand(3, device=self.device)
+            train_output = accum_mask * rgb + rand_bg * accum_mask_inv
+        else:
+            train_output = accum_mask * rgb + background
+
         outputs = {
             "rgb_only": rgb,
             "background_rgb": background_rgb,
             "background": background,
             "accumulation": accum_mask,
             "depth": depth,
-            "train_output": accum_mask * rgb + background
+            "train_output": train_output
         } 
+
+        outputs["opacity_loss"] = torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01) * 0.5
+
         return outputs
 
 
@@ -358,6 +399,8 @@ class DreamfusionTensorModel(DreamFusionModel):
             guidance_scale=int(self.guidance_scale),
             grad_scaler=self.grad_scaler,
         )
+
+        loss_dict["opacity_loss"] = outputs["opacity_loss"].mean()
 
         loss_dict["sds_loss"] = sds_loss.to(self.device)
         return loss_dict

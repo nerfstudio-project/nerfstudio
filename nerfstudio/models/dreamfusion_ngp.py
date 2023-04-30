@@ -224,13 +224,7 @@ class DreamfusionNGPModel(DreamFusionModel):
                 where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
                 update_every_num_iters=1,
                 func=update_occupancy_grid,
-            ),            
-            TrainingCallback(
-                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-                iters=(self.config.start_normals_training,),
-                func=start_training_normals,
-                args=[self, training_callback_attributes],
-            ),
+            ),   
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                 func=taper_density,
@@ -263,7 +257,7 @@ class DreamfusionNGPModel(DreamFusionModel):
 
         if self.initialize_density:
             pos = ray_samples.frustums.get_positions()
-            density_blob = (-0.05 * torch.exp(5 * torch.norm(pos, dim=-1)) + 0.5)[..., None]
+            density_blob = self.density_strength * (-0.05 * torch.exp(5 * torch.norm(pos, dim=-1)) + 0.5)[..., None]
             density = torch.max(density + density_blob, torch.tensor([0.], device=self.device))
 
         packed_info = nerfacc.pack_info(ray_indices, num_rays)
@@ -303,48 +297,54 @@ class DreamfusionNGPModel(DreamFusionModel):
             "rgb": accum_mask * rgb + background
         }
 
-        normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
-        outputs["normals"] = self.shader_normals(normals, weights=accum_mask)
-
-        # lambertian shading
-        if self.config.random_light_source:  # and self.training:
-            light_d = ray_bundle.origins[0] + torch.randn(3, dtype=torch.float).to(normals)
+        samp = np.random.random_sample()
+        if samp < 0.4:
+            rand_bg = torch.ones_like(background) * torch.rand(3, device=self.device)
+            train_output = accum_mask * rgb + rand_bg * accum_mask_inv
         else:
-            light_d = ray_bundle.origins[0]
-        light_d = math.safe_normalize(light_d)
+            train_output = accum_mask * rgb + background
+        
+        outputs["train_output"] = train_output
 
-        if (self.train_shaded and np.random.random_sample() > 0.75) or not self.training:
-            shading_weight = 0.9
-        else:
-            shading_weight = 0.0
+        # normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
+        # outputs["normals"] = self.shader_normals(normals, weights=accum_mask)
 
-        shaded, shaded_albedo = self.shader_lambertian(
-            rgb=rgb, normals=normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=False
-        )
+        # # lambertian shading
+        # if self.config.random_light_source:  # and self.training:
+        #     light_d = ray_bundle.origins[0] + torch.randn(3, dtype=torch.float).to(normals)
+        # else:
+        #     light_d = ray_bundle.origins[0]
+        # light_d = math.safe_normalize(light_d)
 
-        outputs["shaded"] = accum_mask * shaded
+        # if (self.train_shaded and np.random.random_sample() > 0.75) or not self.training:
+        #     shading_weight = 0.9
+        # else:
+        #     shading_weight = 0.0
 
-        if shading_weight > 0:
-            samp = np.random.random_sample()
-            if samp > 0.5 and not self.training:
-                outputs["train_output"] = outputs["shaded"]
-            elif samp < 0.2 and self.random_background:
-                rand_bg = torch.ones_like(background) * torch.rand(3, device=self.device)
-                outputs["train_output"] = accum_mask * shaded_albedo + rand_bg * accum_mask_inv
-            else:
-                outputs["train_output"] = accum_mask * shaded_albedo + background
-        else:
-            outputs["train_output"] = outputs["rgb"]
+        # shaded, shaded_albedo = self.shader_lambertian(
+        #     rgb=rgb, normals=normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=False
+        # )
 
-        # print(outputs["rgb"].shape)
-        # outputs["train_output"] = outputs["rgb"]
+        # outputs["shaded"] = accum_mask * shaded
+
+        # if shading_weight > 0:
+        #     samp = np.random.random_sample()
+        #     if samp > 0.5 and not self.training:
+        #         outputs["train_output"] = outputs["shaded"]
+        #     elif samp < 0.2 and self.random_background:
+        #         rand_bg = torch.ones_like(background) * torch.rand(3, device=self.device)
+        #         outputs["train_output"] = accum_mask * shaded_albedo + rand_bg * accum_mask_inv
+        #     else:
+        #         outputs["train_output"] = accum_mask * shaded_albedo + background
+        # else:
+        #     outputs["train_output"] = outputs["rgb"]
 
 
-        outputs["rendered_orientation_loss"] = orientation_loss(
-            weights.detach(),
-            field_outputs[FieldHeadNames.NORMALS],
-            ray_bundle.directions,
-        )
+        # outputs["rendered_orientation_loss"] = orientation_loss(
+        #     weights.detach(),
+        #     field_outputs[FieldHeadNames.NORMALS],
+        #     ray_bundle.directions,
+        # )
 
         assert weights.shape[-1] == 1
         if self.config.opacity_penalty:
