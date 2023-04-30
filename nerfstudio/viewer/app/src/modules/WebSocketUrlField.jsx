@@ -29,6 +29,8 @@ export default function WebSocketUrlField() {
     }
   };
 
+  const currentHost = `${window.location.protocol}//${window.location.host}`;
+
   return (
     <div>
       <TextField
@@ -42,7 +44,7 @@ export default function WebSocketUrlField() {
         helperText={testWebSocket(websocket_url) ? 'Invalid websocket URL' : ''}
       />
       <Link href={`/?websocket_url=${websocket_url}`}>
-        viewer.nerf.studio?websocket_url={websocket_url}
+        {currentHost}?websocket_url={websocket_url}
       </Link>
     </div>
   );

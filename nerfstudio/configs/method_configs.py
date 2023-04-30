@@ -21,7 +21,6 @@ from __future__ import annotations
 from typing import Dict
 
 import tyro
-from nerfacc import ContractionType
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import ViewerConfig
@@ -247,16 +246,20 @@ method_configs["instant-ngp"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=True,
     pipeline=DynamicBatchPipelineConfig(
-        datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=8192),
+        datamanager=VanillaDataManagerConfig(
+            dataparser=NerfstudioDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+        ),
         model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
     ),
     optimizers={
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
         }
     },
-    viewer=ViewerConfig(num_rays_per_chunk=64000),
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 12),
     vis="viewer",
 )
 
@@ -271,9 +274,10 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
         datamanager=VanillaDataManagerConfig(dataparser=InstantNGPDataParserConfig(), train_num_rays_per_batch=8192),
         model=InstantNGPModelConfig(
             eval_num_rays_per_chunk=8192,
-            contraction_type=ContractionType.AABB,
-            render_step_size=0.001,
-            max_num_samples_per_ray=48,
+            grid_levels=1,
+            alpha_thre=0.0,
+            cone_angle=0.0,
+            disable_scene_contraction=True,
             near_plane=0.01,
             background_color="black",
         ),
@@ -281,10 +285,10 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
     optimizers={
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
         }
     },
-    viewer=ViewerConfig(num_rays_per_chunk=64000),
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 12),
     vis="viewer",
 )
 
@@ -752,9 +756,10 @@ method_configs["nerfplayer-ngp"] = TrainerConfig(
         datamanager=DepthDataManagerConfig(dataparser=DycheckDataParserConfig(), train_num_rays_per_batch=8192),
         model=NerfplayerNGPModelConfig(
             eval_num_rays_per_chunk=8192,
-            contraction_type=ContractionType.AABB,
+            grid_levels=1,
+            alpha_thre=0.0,
             render_step_size=0.001,
-            max_num_samples_per_ray=48,
+            disable_scene_contraction=True,
             near_plane=0.01,
         ),
     ),

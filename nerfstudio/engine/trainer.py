@@ -75,6 +75,8 @@ class TrainerConfig(ExperimentConfig):
     """Maximum number of iterations to run."""
     mixed_precision: bool = False
     """Whether or not to use mixed precision for training."""
+    use_grad_scaler: bool = False
+    """Use gradient scaler even if the automatic mixed precision is disabled."""
     save_only_latest_checkpoint: bool = True
     """Whether to only save the latest checkpoint or all checkpoints."""
     # optional parameters if we want to resume training
@@ -104,7 +106,7 @@ class Trainer:
         pipeline: The pipeline object.
         optimizers: The optimizers object.
         callbacks: The callbacks object.
-        is_training: Whether the model is training.
+        training_state: Current model training state.
     """
 
     pipeline: VanillaPipeline
@@ -118,13 +120,15 @@ class Trainer:
         self.world_size = world_size
         self.device: TORCH_DEVICE = "cpu" if world_size == 0 else f"cuda:{local_rank}"
         self.mixed_precision: bool = self.config.mixed_precision
-        self.is_training: bool = True
+        self.use_grad_scaler: bool = self.mixed_precision or self.config.use_grad_scaler
+        self.training_state: Literal["training", "paused", "completed"] = "training"
+
         if self.device == "cpu":
             self.mixed_precision = False
             CONSOLE.print("Mixed precision is disabled for CPU training.")
         self._start_step: int = 0
         # optimizers
-        self.grad_scaler = GradScaler(enabled=self.mixed_precision)
+        self.grad_scaler = GradScaler(enabled=self.use_grad_scaler)
 
         self.base_dir: Path = config.get_base_dir()
         # directory to save checkpoints
@@ -186,7 +190,7 @@ class Trainer:
             self.config.logging, max_iter=self.config.max_num_iterations, banner_messages=banner_messages
         )
         writer.put_config(name="config", config_dict=dataclasses.asdict(self.config), step=0)
-        profiler.setup_profiler(self.config.logging)
+        profiler.setup_profiler(self.config.logging, writer_log_path)
 
     def setup_optimizers(self) -> Optimizers:
         """Helper to set up the optimizers
@@ -219,7 +223,7 @@ class Trainer:
             num_iterations = self.config.max_num_iterations
             step = 0
             for step in range(self._start_step, self._start_step + num_iterations):
-                while not self.is_training:
+                while self.training_state == "paused":
                     time.sleep(0.01)
                 with self.train_lock:
                     with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
@@ -283,6 +287,8 @@ class Trainer:
         CONSOLE.rule()
         CONSOLE.print("[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:", justify="center")
         if not self.config.viewer.quit_on_train_completion:
+            self.training_state = "completed"
+            self._train_complete_viewer()
             CONSOLE.print("Use ctrl+c to quit", justify="center")
             while True:
                 time.sleep(0.01)
@@ -307,7 +313,7 @@ class Trainer:
         assert self.viewer_state and self.pipeline.datamanager.train_dataset
         self.viewer_state.init_scene(
             dataset=self.pipeline.datamanager.train_dataset,
-            start_train=True,
+            train_state="training",
         )
 
     @check_viewer_enabled
@@ -322,6 +328,16 @@ class Trainer:
         num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
         try:
             self.viewer_state.update_scene(step, num_rays_per_batch)
+        except RuntimeError:
+            time.sleep(0.03)  # sleep to allow buffer to reset
+            CONSOLE.log("Viewer failed. Continuing training.")
+
+    @check_viewer_enabled
+    def _train_complete_viewer(self) -> None:
+        """Let the viewer know that the training is complete"""
+        assert self.viewer_state is not None
+        try:
+            self.viewer_state.training_complete()
         except RuntimeError:
             time.sleep(0.03)  # sleep to allow buffer to reset
             CONSOLE.log("Viewer failed. Continuing training.")

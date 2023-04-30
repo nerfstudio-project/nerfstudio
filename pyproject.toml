@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "0.2.0"
+version = "0.2.1"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -30,7 +30,7 @@ dependencies = [
     "mediapy>=1.1.0",
     "msgpack>=1.0.4",
     "msgpack_numpy>=0.4.8",
-    "nerfacc==0.3.5",
+    "nerfacc==0.5.2",
     "open3d>=0.16.0",
     "opencv-python==4.6.0.66",
     "Pillow>=9.3.0",
@@ -51,6 +51,7 @@ dependencies = [
     "torchmetrics[image]>=0.9.3",
     "torchtyping>=0.1.4",
     "torchvision>=0.13.0",
+    "typing_extensions>=4.4.0",
     "viser>=0.0.5",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
@@ -121,7 +122,7 @@ dependency_links = [
 include = ["nerfstudio*","scripts*"]
 
 [tool.setuptools.package-data]
-"*" = ["*.json", "py.typed", "setup.bash", "setup.zsh"]
+"*" = ["*.cu", "*.json", "py.typed", "setup.bash", "setup.zsh"]
 
 # black
 [tool.black]
@@ -144,6 +145,7 @@ disable = [
   "too-many-branches",
   "too-many-instance-attributes",
   "too-many-locals",
+  "too-many-statements",
   "unnecessary-ellipsis",
 ]
 

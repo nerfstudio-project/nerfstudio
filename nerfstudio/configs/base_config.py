@@ -119,9 +119,11 @@ class LoggingConfig(PrintableConfig):
      e.g. if 20, averages will be computed over past 20 occurrences."""
     local_writer: LocalWriterConfig = LocalWriterConfig(enable=True)
     """if provided, will print stats locally. if None, will disable printing"""
-    enable_profiler: bool = True
-    """whether to enable profiling code; prints speed of functions at the end of a program.
-    profiler logs run times of functions and prints at end of training"""
+    profiler: Literal["none", "basic", "pytorch"] = "basic"
+    """how to profile the code;
+        "basic" - prints speed of all decorated functions at the end of a program.
+        "pytorch" - same as basic, but it also traces few training steps.
+    """
 
 
 # Viewer related configs
@@ -135,6 +137,8 @@ class ViewerConfig(PrintableConfig):
     """The websocket port to connect to. If None, find an available port."""
     websocket_port_default: int = 7007
     """The default websocket port to connect to if websocket_port is not specified"""
+    websocket_host: str = "0.0.0.0"
+    """The host address to bind the websocket server to."""
     num_rays_per_chunk: int = 32768
     """number of rays per chunk to render with viewer"""
     max_num_display_images: int = 512

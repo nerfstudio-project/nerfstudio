@@ -127,9 +127,14 @@ class DataParser:
 
     Args:
         config: datasetparser config containing all information needed to instantiate dataset
+
+    Attributes:
+        config: datasetparser config containing all information needed to instantiate dataset
+        includes_time: Does the dataset include time information in the camera poses.
     """
 
     config: DataParserConfig
+    includes_time: bool = False
 
     def __init__(self, config: DataParserConfig):
         super().__init__()

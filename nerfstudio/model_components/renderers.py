@@ -91,8 +91,12 @@ class RGBRenderer(nn.Module):
             # Necessary for packed samples from volumetric ray sampler
             if background_color == "last_sample":
                 raise NotImplementedError("Background color 'last_sample' not implemented for packed samples.")
-            comp_rgb = nerfacc.accumulate_along_rays(weights, ray_indices, rgb, num_rays)
-            accumulated_weight = nerfacc.accumulate_along_rays(weights, ray_indices, None, num_rays)
+            comp_rgb = nerfacc.accumulate_along_rays(
+                weights[..., 0], values=rgb, ray_indices=ray_indices, n_rays=num_rays
+            )
+            accumulated_weight = nerfacc.accumulate_along_rays(
+                weights[..., 0], values=None, ray_indices=ray_indices, n_rays=num_rays
+            )
         else:
             comp_rgb = torch.sum(weights * rgb, dim=-2)
             accumulated_weight = torch.sum(weights, dim=-2)
@@ -217,7 +221,9 @@ class AccumulationRenderer(nn.Module):
 
         if ray_indices is not None and num_rays is not None:
             # Necessary for packed samples from volumetric ray sampler
-            accumulation = nerfacc.accumulate_along_rays(weights, ray_indices, None, num_rays)
+            accumulation = nerfacc.accumulate_along_rays(
+                weights[..., 0], values=None, ray_indices=ray_indices, n_rays=num_rays
+            )
         else:
             accumulation = torch.sum(weights, dim=-2)
         return accumulation
@@ -274,8 +280,12 @@ class DepthRenderer(nn.Module):
 
             if ray_indices is not None and num_rays is not None:
                 # Necessary for packed samples from volumetric ray sampler
-                depth = nerfacc.accumulate_along_rays(weights, ray_indices, steps, num_rays)
-                accumulation = nerfacc.accumulate_along_rays(weights, ray_indices, None, num_rays)
+                depth = nerfacc.accumulate_along_rays(
+                    weights[..., 0], values=steps, ray_indices=ray_indices, n_rays=num_rays
+                )
+                accumulation = nerfacc.accumulate_along_rays(
+                    weights[..., 0], values=None, ray_indices=ray_indices, n_rays=num_rays
+                )
                 depth = depth / (accumulation + eps)
             else:
                 depth = torch.sum(weights * steps, dim=-2) / (torch.sum(weights, -2) + eps)
