@@ -259,17 +259,7 @@ ns-train nerfacto --data {output directory}
 
 ## Metashape
 
-All images must use the same sensor type. If the images are using an equirectangular/spherical sensor, first convert those to
-planar projections using:
-```bash
-ns-process-data images --camera-type equirectangular --data {data directory} --output-dir {output directory} \
-  --skip-colmap --skip-image-processing 
-```
-
-This will create `{data directory}/planar_projections`, containing planar projections of the equirectangular images.
-In the following (including aligning images using Metashape), only use images from that directory, i.e. use
-`{data directory}/planar_projections` as the `{data_directory}`.  See the section on processing equirectangular images
-for other useful options, such as `--images-per-equirect {8, or 14}`.
+All images must use the same sensor type (but multiple sensors are supported).
 
 1. Align your images using Metashape. `File -> Workflow -> Align Photos...`
 
