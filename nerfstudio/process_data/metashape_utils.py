@@ -61,19 +61,19 @@ def metashape_to_json(  # pylint: disable=too-many-statements
     if sensors is None:
         raise ValueError("No sensors found")
 
-    calibrated_sensors = [sensor for sensor in sensors if sensor.find("calibration")]
+    calibrated_sensors = [sensor for sensor in sensors if sensor.get("type") == "spherical" or sensor.find("calibration")]
     if not calibrated_sensors:
         raise ValueError("No calibrated sensor found in Metashape XML")
     sensor_type = [s.get("type") for s in calibrated_sensors]
     if sensor_type.count(sensor_type[0]) != len(sensor_type):
-        raise ValueError("All Metashape sensors do not have the same sensor type")
+        raise ValueError("All Metashape sensors do not have the same sensor type. nerfstudio does not support per-frame camera_model.")
     data = {}
     if sensor_type[0] == "frame":
         data["camera_model"] = CAMERA_MODELS["perspective"].value
     elif sensor_type[0] == "fisheye":
         data["camera_model"] = CAMERA_MODELS["fisheye"].value
     elif sensor_type[0] == "spherical":
-        data["camera_model"] = CAMERA_MODELS["equirectangular"].value
+        raise ValueError("Spherical/equirectangular sensor not supported. Generate planar projections first, see documentation.")
     else:
         # Cylindrical and RPC sensor types are not supported
         raise ValueError(f"Unsupported Metashape sensor type '{sensor_type[0]}'")

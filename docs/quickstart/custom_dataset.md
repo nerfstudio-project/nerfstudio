@@ -259,6 +259,18 @@ ns-train nerfacto --data {output directory}
 
 ## Metashape
 
+All images must use the same sensor type. If the images are using an equirectangular/spherical sensor, first convert those to
+planar projections using:
+```bash
+ns-process-data images --camera-type equirectangular --data {data directory} --output-dir {output directory} \
+  --skip-colmap --skip-image-processing 
+```
+
+This will create `{data directory}/planar_projections`, containing planar projections of the equirectangular images.
+In the following (including aligning images using Metashape), only use images from that directory, i.e. use
+`{data directory}/planar_projections` as the `{data_directory}`.  See the section on processing equirectangular images
+for other useful options, such as `--images-per-equirect {8, or 14}`.
+
 1. Align your images using Metashape. `File -> Workflow -> Align Photos...`
 
 ```{image} https://user-images.githubusercontent.com/3310961/203389662-12760210-2b52-49d4-ab21-4f23bfa4a2b3.png
@@ -280,6 +292,8 @@ ns-train nerfacto --data {output directory}
 ```bash
 ns-process-data metashape --data {data directory} --xml {xml file} --output-dir {output directory}
 ```
+
+Add `--max-dataset-size -1` to use all images from the dataset, especially if using equiractangular images, which generate 8x or 14x more planar projections.
 
 4. Train with nerfstudio!
 
