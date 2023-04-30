@@ -283,8 +283,6 @@ All images must use the same sensor type (but multiple sensors are supported).
 ns-process-data metashape --data {data directory} --xml {xml file} --output-dir {output directory}
 ```
 
-Add `--max-dataset-size -1` to use all images from the dataset, especially if using equiractangular images, which generate 8x or 14x more planar projections.
-
 4. Train with nerfstudio!
 
 ```bash
