@@ -91,6 +91,8 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
             # remove the temp_images folder
             shutil.rmtree(self.output_dir / "temp_images", ignore_errors=True)
 
+            self.camera_type = "perspective"
+
         # # Create mask
         mask_path = process_data_utils.save_mask(
             image_dir=self.image_dir,

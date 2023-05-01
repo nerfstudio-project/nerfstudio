@@ -61,12 +61,17 @@ def metashape_to_json(  # pylint: disable=too-many-statements
     if sensors is None:
         raise ValueError("No sensors found")
 
-    calibrated_sensors = [sensor for sensor in sensors if sensor.find("calibration")]
+    calibrated_sensors = [
+        sensor for sensor in sensors if sensor.get("type") == "spherical" or sensor.find("calibration")
+    ]
     if not calibrated_sensors:
         raise ValueError("No calibrated sensor found in Metashape XML")
     sensor_type = [s.get("type") for s in calibrated_sensors]
     if sensor_type.count(sensor_type[0]) != len(sensor_type):
-        raise ValueError("All Metashape sensors do not have the same sensor type")
+        raise ValueError(
+            "All Metashape sensors do not have the same sensor type. "
+            "nerfstudio does not support per-frame camera_model."
+        )
     data = {}
     if sensor_type[0] == "frame":
         data["camera_model"] = CAMERA_MODELS["perspective"].value
@@ -87,18 +92,25 @@ def metashape_to_json(  # pylint: disable=too-many-statements
         s["h"] = int(resolution.get("height"))  # type: ignore
 
         calib = sensor.find("calibration")
-        f = calib.find("f")
-        if f is not None:
+        if calib is None:
+            assert sensor_type[0] == "spherical", "Only spherical sensors should have no intrinsics"
+            s["fl_x"] = s["w"] / 2.0
+            s["fl_y"] = s["h"]
+            s["cx"] = s["w"] / 2.0
+            s["cy"] = s["h"] / 2.0
+        else:
+            f = calib.find("f")
+            assert f is not None, "Focal length not found in Metashape xml"
             s["fl_x"] = s["fl_y"] = float(f.text)  # type: ignore
-        s["cx"] = _find_param(calib, "cx") + s["w"] / 2.0  # type: ignore
-        s["cy"] = _find_param(calib, "cy") + s["h"] / 2.0  # type: ignore
+            s["cx"] = _find_param(calib, "cx") + s["w"] / 2.0  # type: ignore
+            s["cy"] = _find_param(calib, "cy") + s["h"] / 2.0  # type: ignore
 
-        s["k1"] = _find_param(calib, "k1")
-        s["k2"] = _find_param(calib, "k2")
-        s["k3"] = _find_param(calib, "k3")
-        s["k4"] = _find_param(calib, "k4")
-        s["p1"] = _find_param(calib, "p1")
-        s["p2"] = _find_param(calib, "p2")
+            s["k1"] = _find_param(calib, "k1")
+            s["k2"] = _find_param(calib, "k2")
+            s["k3"] = _find_param(calib, "k3")
+            s["k4"] = _find_param(calib, "k4")
+            s["p1"] = _find_param(calib, "p1")
+            s["p2"] = _find_param(calib, "p2")
 
         sensor_dict[sensor.get("id")] = s
 
