@@ -14,6 +14,7 @@
 
 """ Math Helper Functions """
 
+import os
 from dataclasses import dataclass
 from typing import Tuple
 
@@ -21,7 +22,9 @@ import torch
 from torchtyping import TensorType
 from typing_extensions import Literal
 
-_USE_NERFACC = True
+from nerfstudio.utils.misc import strtobool
+
+_USE_NERFACC = strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "TRUE"))
 
 
 def components_from_spherical_harmonics(levels: int, directions: TensorType[..., 3]) -> TensorType[..., "components"]:
