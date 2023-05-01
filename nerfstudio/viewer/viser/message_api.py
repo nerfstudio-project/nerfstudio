@@ -485,6 +485,14 @@ class MessageApi(abc.ABC):
         """
         self._queue(messages.StatusMessage(eval_res=eval_res, step=step))
 
+    def send_output_options_message(self, options: List[str]):
+        """Send output options message
+
+        Args:
+            options: The list of output options
+        """
+        self._queue(messages.OutputOptionsMessage(options=options))
+
     def _add_gui_impl(
         self,
         name: str,

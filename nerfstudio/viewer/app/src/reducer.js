@@ -58,6 +58,9 @@ const initialState = {
 
     // Time options
     use_time_conditioning: false,
+
+    // Currently just used for mesh panel, should be removed
+    output_options: [],
   },
   // the scene state
   sceneState: {

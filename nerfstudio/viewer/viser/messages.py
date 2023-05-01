@@ -241,3 +241,13 @@ class TimeConditionMessage(NerfstudioMessage):
 
     time: float
     """ Time conditioning value """
+
+
+@dataclasses.dataclass
+class OutputOptionsMessage(NerfstudioMessage):
+    """Output options message which are used in the export panel.
+    TODO: remove when export panel is becomes python defined.
+    """
+
+    options: Any
+    """ List of output option strings"""
