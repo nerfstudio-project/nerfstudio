@@ -177,7 +177,7 @@ class ViewerState:
         scene_box = SceneBox(aabb=torch.stack([crop_min, crop_max], dim=0))
         self.viser_server.update_scene_box(scene_box)
         crop_scale = crop_max - crop_min
-        crop_center = crop_max + crop_min
+        crop_center = (crop_max + crop_min) / 2.0
         self.viser_server.send_crop_params(
             crop_enabled=self.control_panel.crop_viewport,
             crop_bg_color=self.control_panel.background_color,
