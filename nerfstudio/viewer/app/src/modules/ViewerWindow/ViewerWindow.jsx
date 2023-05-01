@@ -149,25 +149,6 @@ export default function ViewerWindow(props) {
     renderer.setSize(viewportWidth, viewportHeight);
     labelRenderer.setSize(viewportWidth, viewportHeight);
   };
-  const throttledClickSender = makeThrottledMessageSender(
-    viser_websocket,
-    10,
-  );
-  const onMouseDown = (event) => {
-    const BANNER_HEIGHT = 50;
-    const x = event.clientX / viewport_width;
-    const y = (event.clientY - BANNER_HEIGHT) / viewport_height;
-    if (x < 0 || x > 1 || y < 0 || y > 1) {
-      return;
-    }
-    console.log("seding msg");
-    throttledClickSender({
-      type: 'ClickMessage',
-      x: x,
-      y: y,
-    });
-  };
-  window.addEventListener('dblclick', onMouseDown, false);
   const clock = new THREE.Clock();
 
   const render = () => {
@@ -331,6 +312,44 @@ export default function ViewerWindow(props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isWebsocketConnected]);
+
+  const throttledClickSender = makeThrottledMessageSender(
+    viser_websocket,
+    10,
+  );
+  const onMouseDown = (e) => {
+    const BANNER_HEIGHT = 50;
+
+    const mouseVector = new THREE.Vector2();
+    mouseVector.x = 2 * (e.clientX / size.x) - 1;
+    mouseVector.y = 1 - 2 * ((e.clientY - BANNER_HEIGHT) / size.y);
+
+    const mouse_in_scene = !(
+      mouseVector.x > 1 ||
+      mouseVector.x < -1 ||
+      mouseVector.y > 1 ||
+      mouseVector.y < -1
+    );
+    if (!mouse_in_scene) { return; } 
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouseVector, sceneTree.metadata.camera);
+
+    throttledClickSender({
+      type: 'ClickMessage',
+      origin: [
+        raycaster.ray.origin.x, 
+        raycaster.ray.origin.y, 
+        raycaster.ray.origin.z
+      ],
+      direction: [
+        raycaster.ray.direction.x, 
+        raycaster.ray.direction.y, 
+        raycaster.ray.direction.z
+      ],
+    });
+  };
+  window.addEventListener('dblclick', onMouseDown, false);
 
   return (
     <>

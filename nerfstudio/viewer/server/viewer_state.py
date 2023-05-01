@@ -57,6 +57,7 @@ from nerfstudio.viewer.viser.messages import (
     TrainingStateMessage,
     ClickMessage,
 )
+from nerfstudio.cameras.rays import RayBundle
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
@@ -261,8 +262,8 @@ class ViewerState:
     def _handle_click_message(self, message: NerfstudioMessage) -> None:
         """Handle click message from viewer."""
         assert isinstance(message, ClickMessage)
-        self.control_panel.click_x = message.x
-        self.control_panel.click_y = message.y
+        for controls in self.viewer_controls:
+            controls._on_click(message.origin, message.direction)
 
     def _handle_time_condition_message(self, message: NerfstudioMessage) -> None:
         """Handle time conditioning message from viewer."""

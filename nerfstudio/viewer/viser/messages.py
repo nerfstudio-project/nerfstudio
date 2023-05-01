@@ -259,6 +259,5 @@ class TimeConditionMessage(NerfstudioMessage):
 class ClickMessage(NerfstudioMessage):
     """Click message."""
 
-    x: float
-    y: float
-    """ Index of the clicked image """
+    origin: Tuple[float, float, float]
+    direction: Tuple[float, float, float]

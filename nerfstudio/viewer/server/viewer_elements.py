@@ -37,7 +37,7 @@ class ViewerControl:
 
     def __init__(self):
         # this should be a user-facing constructor, since it will be used inside the model/pipeline class
-        pass
+        self.click_cbs = []
 
     def setup(self, viewer_state: ViewerState):
         self.viewer_state = viewer_state
@@ -67,8 +67,13 @@ class ViewerControl:
         is not connected yet"""
         return self.viewer_state.get_camera(img_height, img_width)
 
-    # def get_click(self, x: float, y: float):
-    #     self.control_panel.
+    def register_click_cb(self, cb:Callable):
+        self.click_cbs.append(cb)
+
+    def _on_click(self, origin: Tuple[float, float, float], direction: Tuple[float, float, float]):
+        for c in self.click_cbs:
+            c(origin, direction)
+    
 
 class ViewerElement(Generic[TValue]):
     """Base class for all viewer elements

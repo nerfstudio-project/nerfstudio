@@ -60,8 +60,8 @@ interface CameraMessage {
 }
 interface ClickMessage {
   type: 'ClickMessage';
-  x: number;
-  y: number;
+  origin: [number, number, number];
+  direction: [number, number, number];
 }
 interface SceneBoxMessage {
   type: "SceneBoxMessage";
@@ -134,4 +134,4 @@ export type Message =
   | SaveCheckpointMessage
   | UseTimeConditioningMessage
   | TimeConditionMessage
-  | ClickMessage;
+  | ClickMessage

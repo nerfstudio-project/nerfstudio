@@ -63,6 +63,7 @@ const initialState = {
   sceneState: {
     sceneBox: null,
     cameras: null,
+    clicks: null,
   },
 };
 
