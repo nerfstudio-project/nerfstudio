@@ -170,13 +170,24 @@ function handleMessage(
       if(message.instant){
         instant = true;
       }
-      if(message.look_at !==null){
-        const p = message.look_at;
-        sceneTree.metadata.camera_controls.setTarget(p[0],p[1],p[2],!instant);
+      if(message.look_at !==null && message.position !== null){
+        sceneTree.metadata.camera_controls.setLookAt(message.position[0],
+          message.position[1],
+          message.position[2],
+          message.look_at[0],
+          message.look_at[1],
+          message.look_at[2],
+          !instant);
       }
-      if(message.position !==null){
-        const p = message.position;
-        sceneTree.metadata.camera_controls.setPosition(p[0],p[1],p[2],!instant);
+      else{
+        if(message.look_at !==null){
+          const p = message.look_at;
+          sceneTree.metadata.camera_controls.setTarget(p[0],p[1],p[2],!instant);
+        }
+        if(message.position !==null){
+          const p = message.position;
+          sceneTree.metadata.camera_controls.setPosition(p[0],p[1],p[2],!instant);
+        }
       }
       break;
     }

@@ -131,8 +131,9 @@ class SetCameraMessage(NerfstudioMessage):
     fov: Optional[float]
     """ Field of view of the camera """
     look_at: Optional[Tuple[float, float, float]]
+    """Point in 3D the camera is looking at"""
     position: Optional[Tuple[float, float, float]]
-    """ Camera type """
+    """ Position of the camera"""
     instant: bool = False
 
 
