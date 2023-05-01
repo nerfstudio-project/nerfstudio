@@ -3,7 +3,7 @@ import glob
 import json
 import shutil
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import torch
@@ -89,7 +89,7 @@ def transform_camera_path_to_original_space(camera_path_path: Path, pipeline):
     return export_path
 
 
-def transform_camera_path(camera_path_path: Path, dataparser_transform_path: Path, export_path: Path = None):
+def transform_camera_path(camera_path_path: Path, dataparser_transform_path: Path, export_path: Optional[Path] = None):
     """
     Transform a un-transformed camera path to a transformed camera path, in the respective transform's coordinate system.
     """
@@ -217,12 +217,11 @@ def _test_block_nerf():
     )
 
 
-def get_block_lookup(exp_path: Path, block_transforms: Dict[str, Path]) -> Dict[str, str]:
+def get_block_lookup(exp_path: Path, block_transforms: Dict[str, Path], camera_path_path: Path) -> Dict[str, str]:
     lookup_path = exp_path / "lookup_table.json"
     if not lookup_path.exists():
         print("⚠️ Warning: Lookup table does not exist. Creating one now.")
-        original_camera_path = Path("block_nerf/camera_path_nerf_coordinates.json")
-        create_block_lookup(exp_path, original_camera_path, block_transforms=block_transforms)
+        create_block_lookup(exp_path, camera_path_path=camera_path_path, block_transforms=block_transforms)
     return load_json(lookup_path)
 
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import fnmatch
 import glob
 import os
 import sys
@@ -77,7 +78,7 @@ class ExperimentPipeline:
         self.trainer_config: TrainerConfig = self.setup()
         self.checkpoint_dir = self.trainer_config.get_checkpoint_dir()
         self.model_dir = self.checkpoint_dir.parent
-        
+
         self.render_side_by_side = render_side_by_side
 
     def run(self) -> Dict[str, Path]:
@@ -86,8 +87,8 @@ class ExperimentPipeline:
         """
         self.train()
         self.eval()
-        self.render(mode="side-by-side")
-        # self.render(interpolate=False)
+        # self.render(mode="side-by-side")
+        # self.render(mode="interpolate")
 
         return {
             "model_dir": self.model_dir,
@@ -150,7 +151,7 @@ class ExperimentPipeline:
         eval_config.main()
 
     @my_timer("Render")
-    def render(self, interpolate: bool = False, mode: Literal["interpolate", "side-by-side", "filename"] = "filename"):
+    def render(self, mode: Literal["filename", "interpolate", "side-by-side"] = "filename"):
         CONSOLE.print("Rendering model")
         output_name = "render"
         config_path = self.model_dir / "config.yml"
@@ -161,12 +162,12 @@ class ExperimentPipeline:
             load_config=config_path,
         )
 
-        if interpolate:
+        if mode == "interpolate":
             render_path = render_dir / f"{output_name}_interpolate.mp4"
             render_config.traj = "interpolate"
             render_config.output_path = render_path
             render_config.main()
-        
+
         elif mode == "filename":
             render_path = render_dir / f"{output_name}.mp4"
             camera_path_path = self.get_camera_path(self.model_dir)
@@ -174,42 +175,51 @@ class ExperimentPipeline:
             render_config.camera_path_filename = camera_path_path
             render_config.output_path = render_path
             render_config.main()
-        
+
         elif mode == "side-by-side":
             model_render_path = render_side_by_side.render_dir / f"{output_name}_model.mp4"
 
             # Process data and render video from input-images
             self.render_side_by_side.copy_every_n_images()
             self.render_side_by_side.copy_every_n_transforms()
-            input_images_render_path = self.render_side_by_side.create_video_from_images(export_dir=render_side_by_side.render_dir)
+            input_images_render_path = self.render_side_by_side.create_video_from_images(
+                export_dir=render_side_by_side.render_dir
+            )
 
             # Render the input-data camera path with the model
-            camera_path_path = self.render_side_by_side.create_camera_path_from_transforms(source_dataparser_transforms_path=self.model_dir / "dataparser_transforms.json")
+            camera_path_path = self.render_side_by_side.create_camera_path_from_transforms(
+                source_dataparser_transforms_path=self.model_dir / "dataparser_transforms.json"
+            )
             render_config.traj = "filename"
             render_config.camera_path_filename = camera_path_path
             render_config.output_path = model_render_path
             render_config.main()
 
             # Create side-by-side video of model_render and input_images_render
-            self.render_side_by_side.create_side_by_side_video(video_paths=[input_images_render_path, model_render_path], export_path=render_side_by_side.render_dir / "side-by-side.mp4")
-        
+            self.render_side_by_side.create_side_by_side_video(
+                video_paths=[input_images_render_path, model_render_path],
+                export_path=render_side_by_side.render_dir / "side-by-side.mp4",
+            )
 
     def get_camera_path(self, model_path: Path) -> Path:
         if not self.block_segments:
-            return Path("camera_paths/camera_path_nerf_coordinates.json") # TODO: Rename this file to: camera_path_one_lap_nerf_coordinates.json
+            return Path(
+                "camera_paths/camera_path_nerf_coordinates.json"
+            )  # TODO: Rename this file to: camera_path_one_lap_nerf_coordinates.json
 
         export_path = self.output_dir / "camera_path_transformed.json"
         if export_path.exists():
             return export_path
 
-        original_camera_path_path = Path("camera_paths/camera_path_one_lap_carla_coordinates.json") 
+        original_camera_path_path = Path("camera_paths/camera_path_one_lap_carla_coordinates.json")
         target_dataparser_transforms_path = model_path / "dataparser_transforms.json"
 
         return transform_camera_path(
             original_camera_path_path, target_dataparser_transforms_path, export_path=export_path
         )
 
-def render_blocknerf(output_dir: Path, run_paths: List[Dict[str, Path]]):
+
+def render_blocknerf(output_dir: Path, run_paths: List[Dict[str, Path]], camera_path_path: Path) -> Path:
     CONSOLE.print("Block NeRF Rendering model")
     transforms_paths = {run_path["base_dir"].name: run_path["base_dir"] / "transforms.json" for run_path in run_paths}
     config_paths = {run_path["base_dir"].name: run_path["model_dir"] / "config.yml" for run_path in run_paths}
@@ -221,12 +231,10 @@ def render_blocknerf(output_dir: Path, run_paths: List[Dict[str, Path]]):
     render_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     render_path = render_dir / f"{timestamp}-blocknerf.mp4"
-    block_lookup = block_nerf.get_block_lookup(output_dir, block_transforms=transforms_paths)
+    block_lookup = block_nerf.get_block_lookup(output_dir, camera_path_path=camera_path_path, block_transforms=transforms_paths)
 
     combined_transformed_camera_path = block_nerf.transform_to_single_camera_path(
-        camera_path_path=Path(
-            "camera_paths/camera_path_one_lap_carla_coordinates.json" # TODO: Rename this file to: camera_path_carla_coordinates.json
-        ),  # This is the original camera path transformed to the original CARLA coordinate system
+        camera_path_path=camera_path_path,
         block_lookup=block_lookup,
         dataparser_transform_paths=dataparser_transforms_paths,
         export_dir=output_dir,
@@ -241,6 +249,9 @@ def render_blocknerf(output_dir: Path, run_paths: List[Dict[str, Path]]):
         eval_num_rays_per_chunk=1 << 15,
         block_lookup=block_lookup,
     ).main()
+
+    return render_path
+
 
 if __name__ == "__main__":
     """
@@ -260,10 +271,10 @@ if __name__ == "__main__":
         block_nerf.write_transforms(new_transforms, image_indexes, args.input_data_dir)
 
     run_paths: List[Dict[str, Path]] = []
-    ignore_dirs = ["images", "renders", "camera_paths"]
+    ignore_dirs = ["images*", "renders", "camera_paths"]
     # Run the pipeline for all the experiment/blocks in the input_data_dir
     for run_dir in args.input_data_dir.iterdir():
-        if run_dir.is_dir() and run_dir.name not in ignore_dirs:
+        if run_dir.is_dir() and not any(fnmatch.fnmatch(run_dir.name, ignore_dir) for ignore_dir in ignore_dirs):
 
             new_args = Args(
                 model=args.model,
@@ -288,11 +299,41 @@ if __name__ == "__main__":
             run_path = pipeline.run()
             run_paths.append(run_path)
 
-    
     print(f"RUN_PATHS:\n {run_paths}")
 
     # Run the render_blocknerf after all blocks have been trained
     if args.block_segments:
-        render_blocknerf(output_dir=args.output_dir, run_paths=run_paths)
+
+        # target_camera_path_path = Path(
+        #     "camera_paths/camera_path_one_lap_carla_coordinates.json"
+        # )  # This is the one_lap camera path. Leave it to be able to switch between the two
+        target_camera_path_path = args.input_data_dir / "camera_path_input_images.json"
+
+        # Generate a camera_path from the input_images and transforms
+        render_side_by_side = RenderSideBySide(
+            cameras_in_rig=2,
+            camera_offset=0,
+            exp_dir=args.input_data_dir,
+            fps=24,
+            images_dir=args.input_data_dir / "images",
+            render_dir=args.input_data_dir / "renders",
+            target_camera_path_path=target_camera_path_path,
+        )
+
+        render_side_by_side.copy_every_n_images()
+        render_side_by_side.copy_every_n_transforms()
+        input_images_render_path = render_side_by_side.create_video_from_images(
+            export_dir=render_side_by_side.render_dir
+        )
+        render_side_by_side.create_camera_path_from_transforms()
+        model_render_path = render_blocknerf(
+            output_dir=args.output_dir,
+            run_paths=run_paths,
+            camera_path_path=target_camera_path_path,
+        )
+        render_side_by_side.create_side_by_side_video(
+            video_paths=[input_images_render_path, model_render_path],
+            export_path=render_side_by_side.render_dir / "side-by-side.mp4",
+        )
 
     terminal.close()

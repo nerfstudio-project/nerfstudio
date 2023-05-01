@@ -51,7 +51,7 @@ class RenderSideBySide:
         count = 0
         self.new_images_dir.mkdir(exist_ok=True)
         # Copy every n image from images_path to self.new_images_dir and rename it to be in the format %04d.png, the copy needs to be sorted by name
-        for image_path in sorted(self.images_dir.glob("*.png"))[self.camera_offset::self.cameras_in_rig]:
+        for image_path in sorted(self.images_dir.glob("*.png"))[self.camera_offset :: self.cameras_in_rig]:
             new_image_path = self.new_images_dir / f"{count:04d}.png"
             cmd = ["cp", str(image_path), str(new_image_path)]
             subprocess.run(cmd, check=True)
@@ -66,10 +66,11 @@ class RenderSideBySide:
 
         write_json(self.new_transforms_path, new_transforms)
 
-    def create_camera_path_from_transforms(self, source_dataparser_transforms_path: Path) -> Path:
+    def create_camera_path_from_transforms(self, source_dataparser_transforms_path: Optional[Path] = None) -> Path:
         transforms = load_json(self.new_transforms_path)
         frames = transforms["frames"]
-        flattened_frames = [np.array(frame["transform_matrix"]).flatten().tolist() for frame in frames]
+        sorted_frames = sorted(frames, key=lambda x: x["file_path"])
+        flattened_frames = [np.array(frame["transform_matrix"]).flatten().tolist() for frame in sorted_frames]
 
         new_camera_path = {
             "keyframes": [],
@@ -98,11 +99,17 @@ class RenderSideBySide:
         export_path = self.target_camera_path_path.parent / self.target_camera_path_path.name.replace(
             ".json", "_scaled.json"
         )
-        transform_camera_path(
-            camera_path_path=self.target_camera_path_path,
-            dataparser_transform_path=source_dataparser_transforms_path,
-            export_path=export_path,
-        )
+
+        if source_dataparser_transforms_path is None:
+            with open(export_path, "w") as f:
+                json.dump(new_camera_path, f, indent=4)
+        else:
+            transform_camera_path(
+                camera_path_path=self.target_camera_path_path,
+                dataparser_transform_path=source_dataparser_transforms_path,
+                export_path=export_path,
+            )
+
         return export_path
 
     def create_video_from_images(self, export_dir: Path) -> Path:
