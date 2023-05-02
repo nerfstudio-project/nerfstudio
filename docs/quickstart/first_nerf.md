@@ -114,20 +114,20 @@ We also provide a train and evaluation script that allows you to do benchmarking
 
 ## Multi-GPU Training
 
-Here we explain how to use multi-GPU training. This is the command to train the nerfacto model with 4 GPUs. We are using [PyTorch Distributed Data Parallel (DDP)](https://pytorch.org/tutorials/beginner/dist_overview.html), so we scale the learning rate with the number of GPUs used. Plotting will only be done for the first process. Note that you may want to play around with both learning rate and `<X>_num_rays_per_batch` when using DDP. Below is a simple example for how you'd run the vanilla-nerf method with either 1 or 4 GPUs. We don't see much value at the moment for running the fast methods like nerfacto with more than one GPU.
+Here we explain how to use multi-GPU training. This is the command to train the nerfacto model with 4 GPUs. We are using [PyTorch Distributed Data Parallel (DDP)](https://pytorch.org/tutorials/beginner/dist_overview.html), so gradients are averaged over devices. If the loss scales depend on sample size (usually not the case in our implementation), we need to scale the learning rate with the number of GPUs used. Plotting will only be done for the first process. Note that you may want to play around with both learning rate and `<X>_num_rays_per_batch` when using DDP. Below is a simple example for how you'd run the vanilla-nerf method with either 1 or 4 GPUs.
 
 ```python
 # 1 GPU (1x LR)
 export CUDA_VISIBLE_DEVICES=0
 ns-train vanilla-nerf \
   --machine.num-gpus 1 \
-  --vis wandb \
-  --optimizers.fields.optimizer.lr 5e-4
+  --vis wandb
 
 # 4 GPUs (4x LR)
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 ns-train vanilla-nerf \
   --machine.num-gpus 4 \
-  --vis wandb \
-  --optimizers.fields.optimizer.lr 20e-4
+  --vis wandb
 ```
+
+During training, the "Train Rays / Sec" throughput represents the total number of training rays it processes per second, gradually increase the number of GPUs and observe how this throughput improves and eventually saturates. For example, when training with nerfacto on multiple Nvidia A100 GPUs, the throughputs are ~150k rays/sec one GPU and ~250 rays/sec two GPUs. Further increasing the number of GPUs significantly slows down the throughtput due to communication overhead. This however might not be the case for other methods such as vanilla-nerf (e.g., 11k rays/sec one GPU, 18k two GPUs, and 23k four GPUs).
