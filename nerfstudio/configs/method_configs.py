@@ -39,7 +39,6 @@ from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
 from nerfstudio.data.dataparsers.sdfstudio_dataparser import SDFStudioDataParserConfig
-from nerfstudio.data.dataparsers.sitcoms3d_dataparser import Sitcoms3DDataParserConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
 from nerfstudio.engine.schedulers import (
     CosineDecaySchedulerConfig,
@@ -309,9 +308,9 @@ method_configs["semantic-nerfw"] = TrainerConfig(
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=SemanticDataManagerConfig(
-            dataparser=Sitcoms3DDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
+            dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
         ),
-        model=SemanticNerfWModelConfig(eval_num_rays_per_chunk=1 << 16),
+        model=SemanticNerfWModelConfig(eval_num_rays_per_chunk=1 << 15),
     ),
     optimizers={
         "proposal_networks": {
@@ -323,7 +322,7 @@ method_configs["semantic-nerfw"] = TrainerConfig(
             "scheduler": None,
         },
     },
-    viewer=ViewerConfig(num_rays_per_chunk=1 << 16),
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",
 )
 
