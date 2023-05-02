@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Tools supporting the execution of COLMAP and preparation of COLMAP-based datasets for nerstudio training.
+Tools supporting the execution of COLMAP and preparation of COLMAP-based datasets for nerfstudio training.
 """
 
 import json
