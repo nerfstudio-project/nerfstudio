@@ -56,6 +56,7 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
             self.data = equirect_utils.generate_planar_projections_from_equirectangular(
                 self.data, pers_size, self.images_per_equirect, crop_factor=self.crop_factor
             )
+            self.camera_type = "perspective"
 
         summary_log = []
 

@@ -39,12 +39,13 @@ class CameraModel(Enum):
 
     OPENCV = "OPENCV"
     OPENCV_FISHEYE = "OPENCV_FISHEYE"
+    EQUIRECTANGULAR = "EQUIRECTANGULAR"
 
 
 CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
-    "equirectangular": CameraModel.OPENCV,
+    "equirectangular": CameraModel.EQUIRECTANGULAR,
 }
 
 

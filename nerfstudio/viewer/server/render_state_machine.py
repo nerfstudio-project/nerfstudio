@@ -79,6 +79,7 @@ class RenderStateMachine(threading.Thread):
         self.viewer = viewer
         self.interrupt_render_flag = False
         self.daemon = True
+        self.output_keys = {}
 
     def action(self, action: RenderAction):
         """Takes an action and updates the state machine
@@ -227,7 +228,11 @@ class RenderStateMachine(threading.Thread):
         Args:
             outputs: the dictionary of outputs to choose from, from the model
         """
-        self.viewer.control_panel.update_output_options(list(outputs.keys()))
+        output_keys = set(outputs.keys())
+        if self.output_keys != output_keys:
+            self.output_keys = output_keys
+            self.viewer.viser_server.send_output_options_message(list(outputs.keys()))
+            self.viewer.control_panel.update_output_options(list(outputs.keys()))
 
         output_render = self.viewer.control_panel.output_render
         self.viewer.update_colormap_options(
