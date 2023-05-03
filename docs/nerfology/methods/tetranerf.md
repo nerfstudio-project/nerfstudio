@@ -53,6 +53,7 @@ Three following variants of Tetra-NeRF are provided:
 | --------------------- | -------------------------------------- | ------- | ------- |
 | `tetra-nerf-original` | Official implementation from the paper | ~18GB*  | Good    |
 | `tetra-nerf`          | Different sampler - faster and better  | ~16GB*  | Best    |
+
 *Depends on the size of the input pointcloud, estimate is given for a larger scene (1M points)
 
 ## Method
