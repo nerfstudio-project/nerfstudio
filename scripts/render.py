@@ -38,9 +38,9 @@ from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components import renderers
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import install_checks
+from nerfstudio.utils.colormaps import apply_depth_colormap
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
-from nerfstudio.utils.colormaps import apply_depth_colormap
 
 CONSOLE = Console(width=120)
 
