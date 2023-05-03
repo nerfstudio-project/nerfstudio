@@ -80,13 +80,13 @@ class SDFFieldConfig(FieldConfig):
     appearance_embedding_dim: int = 32
     """Dimension of appearance embedding"""
     use_appearance_embedding: bool = False
-    """Dimension of appearance embedding"""
+    """Whether to use appearance embedding"""
     bias: float = 0.8
-    """sphere size of geometric initializaion"""
+    """Sphere size of geometric initialization"""
     geometric_init: bool = True
     """Whether to use geometric initialization"""
     inside_outside: bool = True
-    """whether to revert signed distance value, set to True for indoor scene"""
+    """Whether to revert signed distance value, set to True for indoor scene"""
     weight_norm: bool = True
     """Whether to use weight norm for linear layer"""
     use_grid_feature: bool = False
