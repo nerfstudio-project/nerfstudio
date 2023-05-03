@@ -101,7 +101,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
             key: value[c, y, x] for key, value in batch.items() if key != "image_idx" and value is not None
         }
 
-        assert collated_batch["image"].shape == (num_rays_per_batch, 3), collated_batch["image"].shape
+        assert collated_batch["image"].shape[0] == num_rays_per_batch
 
         # Needed to correct the random indices to their actual camera idx locations.
         indices[:, 0] = batch["image_idx"][c]
@@ -172,7 +172,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
 
         collated_batch["image"] = torch.cat(all_images, dim=0)
 
-        assert collated_batch["image"].shape == (num_rays_per_batch, 3), collated_batch["image"].shape
+        assert collated_batch["image"].shape[0] == num_rays_per_batch
 
         # Needed to correct the random indices to their actual camera idx locations.
         indices[:, 0] = batch["image_idx"][c]
