@@ -60,7 +60,6 @@ from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
-from nerfstudio.viewer.server.viewer_elements import *
 
 
 @dataclass
@@ -163,38 +162,6 @@ class NerfactoModel(Model):
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
         )
-        self.viewer_control = ViewerControl()
-
-        def random_crop(button):
-            min = torch.rand(3) - 0.5
-            self.viewer_control.set_crop(tuple(min.tolist()), tuple((min + 0.5).tolist()))
-
-        self.random_button = ViewerButton("Randomize Crop", cb_hook=random_crop)
-        self.zoom_dist = ViewerSlider("Zoom dist", 0.1, 0.01, 1, 0.01)
-
-        def zoom_camera(but):
-            res = 50
-            w = 4
-            curcam = self.viewer_control.get_camera(res, res)
-            if curcam is None:
-                return
-            mat = curcam.camera_to_worlds.squeeze()  # 3x4
-            outputs = self.get_outputs_for_camera_ray_bundle(curcam.generate_rays(camera_indices=0))
-            depth = outputs["depth"]
-            dist = depth[res // 2 - w : res // 2 + w, res // 2 - w : res // 2 + w].min()
-            amnt_to_zoom = dist - self.zoom_dist.value  # amnt to move on +z axis
-            dir_to_zoom = -mat[:, 2].squeeze()  # direction of z axis
-            cur_pos = mat[:, 3].squeeze()
-            new_pos = (cur_pos + dir_to_zoom * amnt_to_zoom).tolist()
-            new_look = (cur_pos + dir_to_zoom * dist).tolist()
-            self.viewer_control.set_pose(new_pos, new_look)
-
-        self.reset_button = ViewerButton("Move zoom to dist", cb_hook=zoom_camera)
-
-        def fov_cb(slider):
-            self.viewer_control.set_fov(slider.value)
-
-        self.fov_slider = ViewerSlider("FOV", 50, 10, 120, 5, cb_hook=fov_cb)
 
         self.density_fns = []
         num_prop_nets = self.config.num_proposal_iterations
