@@ -47,6 +47,14 @@ python -m tetranerf.scripts.triangulate --pointcloud <data folder>/sparse.ply --
 ns-train tetra-nerf --pipeline.model.tetranerf-path <data folder>/sparse.th minimal-parser --data <data folder>
 ```
 
+Three following variants of Tetra-NeRF are provided:
+
+| Method                | Description                            | Memory  | Quality |
+| --------------------- | -------------------------------------- | ------- | ------- |
+| `tetra-nerf-original` | Official implementation from the paper | ~18GB*  | Good    |
+| `tetra-nerf`          | Different sampler - faster and better  | ~16GB*  | Best    |
+*Depends on the size of the input pointcloud, estimate is given for a larger scene (1M points)
+
 ## Method
 ![method overview](https://jkulhanek.com/tetra-nerf/resources/overview-white.svg)<br>
 The input to Tetra-NeRF is a point cloud which is triangulated to get a set of tetrahedra used to represent the radiance field. Rays are sampled, and the field is queried. The barycentric interpolation is used to interpolate tetrahedra vertices, and the resulting features are passed to a shallow MLP to get the density and colours for volumetric rendering.<br>
