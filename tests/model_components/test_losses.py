@@ -6,6 +6,7 @@ import torch
 
 from nerfstudio.model_components.losses import tv_loss
 
+
 def test_tv_loss():
     """Test total variation loss"""
 
@@ -21,6 +22,7 @@ def test_tv_loss():
     
     # TV_row = 1, TV_col = 1. Totol tv should be 2 * (TV_row + TV_col)
     assert tv_loss(grids).item() == 4.0
+
 
 if __name__ == "__main__":
     test_tv_loss()
