@@ -25,11 +25,11 @@ Code
 First, make sure to install the following:
 ```
 CUDA (>=11.3)
-torch (>=1.12.1)
-nerfstudio (==0.2.0)
+PyTorch (>=1.12.1)
+Nerfstudio (>=0.2.0)
 OptiX (>=7.2, preferably 7.6)
-CGAL (we used 5.5.1)
-CMake (>=3.25)
+CGAL
+CMake (>=3.22.1)
 ```
 Follow the [installation section](https://github.com/jkulhanek/tetra-nerf/blob/master/README.md#installation) in the tetra-nerf repository
 
@@ -53,6 +53,7 @@ Three following variants of Tetra-NeRF are provided:
 | --------------------- | -------------------------------------- | ------- | ------- |
 | `tetra-nerf-original` | Official implementation from the paper | ~18GB*  | Good    |
 | `tetra-nerf`          | Different sampler - faster and better  | ~16GB*  | Best    |
+
 *Depends on the size of the input pointcloud, estimate is given for a larger scene (1M points)
 
 ## Method
