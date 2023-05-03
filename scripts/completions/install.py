@@ -31,6 +31,7 @@ HEADER_LINE = "# Source nerfstudio autocompletions."
 
 
 def _get_all_entry_points() -> List[str]:
+    # TODO: we should filter out entrypoints that are not tyro CLIs.
     entry_points = importlib_metadata.distribution("nerfstudio").entry_points
     return [x.name for x in entry_points]
 
@@ -399,3 +400,6 @@ def entrypoint():
 
 if __name__ == "__main__":
     entrypoint()
+
+# For sphinx docs
+get_parser_fn = lambda: tyro.extras.get_parser(main)  # noqa

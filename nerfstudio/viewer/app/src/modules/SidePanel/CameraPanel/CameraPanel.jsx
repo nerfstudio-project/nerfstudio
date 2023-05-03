@@ -45,13 +45,15 @@ import Tooltip from '@mui/material/Tooltip';
 import VideoCameraBackIcon from '@mui/icons-material/VideoCameraBack';
 import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
-import { WebSocketContext } from '../../WebSocket/WebSocket';
+import {
+  ViserWebSocketContext,
+  sendWebsocketMessage,
+  makeThrottledMessageSender,
+} from '../../WebSocket/ViserWebSocket';
 import RenderModal from '../../RenderModal';
 import LoadPathModal from '../../LoadPathModal';
 import CameraPropPanel from './CameraPropPanel';
 import LevaTheme from '../../../themes/leva_theme.json';
-
-const msgpack = require('msgpack-lite');
 
 const FOV_LABELS = {
   FOV: '°',
@@ -65,14 +67,13 @@ function set_camera_position(camera, matrix) {
 }
 
 function RenderTimeSelector(props) {
+  const throttled_time_message_sender = props.throttled_time_message_sender;
   const disabled = props.disabled;
   const isGlobal = props.isGlobal;
   const camera = props.camera;
-  const dispatch = props.dispatch;
   const globalRenderTime = props.globalRenderTime;
   const setGlobalRenderTime = props.setGlobalRenderTime;
   const applyAll = props.applyAll;
-  const changeMain = props.changeMain;
   const setAllCameraRenderTime = props.setAllCameraRenderTime;
 
   const getRenderTimeLabel = () => {
@@ -89,10 +90,14 @@ function RenderTimeSelector(props) {
 
   const [valid, setValid] = React.useState(true);
 
-  useEffect(
-    () => setUIRenderTime(getRenderTimeLabel()),
-    [camera, globalRenderTime],
-  );
+  useEffect(() => {
+    setUIRenderTime(getRenderTimeLabel());
+    throttled_time_message_sender({
+      type: 'TimeConditionMessage',
+      time: camera.renderTime,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [camera, globalRenderTime]);
 
   const setRndrTime = (val) => {
     if (!isGlobal) {
@@ -105,14 +110,10 @@ function RenderTimeSelector(props) {
     if (applyAll) {
       setAllCameraRenderTime(val);
     }
-
-    if (changeMain) {
-      dispatch({
-        type: 'write',
-        path: 'renderingState/render_time',
-        data: camera.renderTime,
-      });
-    }
+    throttled_time_message_sender({
+      type: 'TimeConditionMessage',
+      time: camera.renderTime,
+    });
   };
 
   const handleValidation = (e) => {
@@ -147,9 +148,7 @@ function RenderTimeSelector(props) {
       disabled={disabled}
       sx={{
         input: {
-          '-webkit-text-fill-color': `${
-            disabled ? '#24B6FF' : '#EBEBEB'
-          } !important`,
+          WebkitTextFillColor: `${disabled ? '#24B6FF' : '#EBEBEB'} !important`,
           color: `${disabled ? '#24B6FF' : '#EBEBEB'} !important`,
         },
       }}
@@ -199,6 +198,7 @@ function FovSelector(props) {
 
   useEffect(
     () => setUIFieldOfView(getFovLabel()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [camera, fovLabel, globalFov],
   );
 
@@ -282,9 +282,7 @@ function FovSelector(props) {
       }}
       sx={{
         input: {
-          '-webkit-text-fill-color': `${
-            disabled ? '#24B6FF' : '#EBEBEB'
-          } !important`,
+          WebkitTextFillColor: `${disabled ? '#24B6FF' : '#EBEBEB'} !important`,
           color: `${disabled ? '#24B6FF' : '#EBEBEB'} !important`,
         },
       }}
@@ -297,6 +295,7 @@ function FovSelector(props) {
 }
 
 function CameraList(props) {
+  const throttled_time_message_sender = props.throttled_time_message_sender;
   const sceneTree = props.sceneTree;
   const cameras = props.cameras;
   const camera_main = props.camera_main;
@@ -308,7 +307,6 @@ function CameraList(props) {
   const cameraProperties = props.cameraProperties;
   const setCameraProperties = props.setCameraProperties;
   const isAnimated = props.isAnimated;
-  const dispatch = props.dispatch;
   // eslint-disable-next-line no-unused-vars
   const slider_value = props.slider_value;
   const set_slider_value = props.set_slider_value;
@@ -508,19 +506,16 @@ function CameraList(props) {
               fovLabel={fovLabel}
               setFovLabel={setFovLabel}
               camera={camera}
-              dispatch={dispatch}
               disabled={!isAnimated('FOV')}
               isGlobal={false}
-              changeMain={false}
             />
           )}
           {isAnimated('RenderTime') && (
             <RenderTimeSelector
+              throttled_time_message_sender={throttled_time_message_sender}
               camera={camera}
-              dispatch={dispatch}
               disabled={!isAnimated('RenderTime')}
               isGlobal={false}
-              changeMain={false}
             />
           )}
           {!isAnimated('FOV') && !isAnimated('RenderTime') && (
@@ -556,9 +551,13 @@ export default function CameraPanel(props) {
   ]);
 
   // redux store state
-  const export_path = useSelector((state) => state.renderingState.export_path);
+  const export_path = useSelector(
+    (state) => state.file_path_info.export_path_name,
+  );
 
-  const websocket = useContext(WebSocketContext).socket;
+  const viser_websocket = useContext(ViserWebSocketContext);
+  const throttled_time_message_sender =
+    makeThrottledMessageSender(viser_websocket);
   const DEFAULT_FOV = 50;
   const DEFAULT_RENDER_TIME = 0.0;
 
@@ -592,6 +591,7 @@ export default function CameraPanel(props) {
       (value) => setMouseInScene(value),
       'mouse_in_scene',
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const dispatch = useDispatch();
@@ -612,16 +612,9 @@ export default function CameraPanel(props) {
   const crop_center = useSelector((state) => state.renderingState.crop_center);
   const crop_scale = useSelector((state) => state.renderingState.crop_scale);
 
-  const [display_render_time, set_display_render_time] = React.useState(false);
-
-  const receive_temporal_dist = (e) => {
-    const msg = msgpack.decode(new Uint8Array(e.data));
-    if (msg.path === '/model/has_temporal_distortion') {
-      set_display_render_time(msg.data === 'true');
-      websocket.removeEventListener('message', receive_temporal_dist);
-    }
-  };
-  websocket.addEventListener('message', receive_temporal_dist);
+  const display_render_time = useSelector(
+    (state) => state.renderingState.use_time_conditioning,
+  );
 
   const setRenderHeight = (value) => {
     dispatch({
@@ -654,48 +647,6 @@ export default function CameraPanel(props) {
     });
   };
 
-  const setCropEnabled = (value) => {
-    console.log('setting the crop enabled value to: ', value);
-    dispatch({
-      type: 'write',
-      path: 'renderingState/crop_enabled',
-      data: value,
-    });
-    console.log('crop enabled value is now: ', crop_enabled);
-  };
-
-  const serCropBgColor = (value) => {
-    dispatch({
-      type: 'write',
-      path: 'renderingState/crop_bg_color',
-      data: value,
-    });
-  };
-
-  const setCropCenter = (value) => {
-    dispatch({
-      type: 'write',
-      path: 'renderingState/crop_center',
-      data: value,
-    });
-  };
-
-  const setCropScale = (value) => {
-    dispatch({
-      type: 'write',
-      path: 'renderingState/crop_scale',
-      data: value,
-    });
-  };
-
-  const setRenderTime = (value) => {
-    dispatch({
-      type: 'write',
-      path: 'renderingState/render_time',
-      data: parseFloat(value),
-    });
-  };
-
   // ui state
   const [fovLabel, setFovLabel] = React.useState(FOV_LABELS.FOV);
 
@@ -712,7 +663,6 @@ export default function CameraPanel(props) {
     if (new_camera_list.length >= 1) {
       set_camera_position(camera_render, new_camera_list[0].matrix);
       setFieldOfView(new_camera_list[0].fov);
-      setRenderTime(new_camera_list[0].renderTime);
       set_slider_value(slider_min);
     }
   };
@@ -851,6 +801,7 @@ export default function CameraPanel(props) {
         camera_helper,
       );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameras, cameraProperties, render_width, render_height]);
 
   // update the camera curve
@@ -959,15 +910,20 @@ export default function CameraPanel(props) {
       let lookat = null;
       let up = null;
       let fov = null;
+      let render_time = null;
       position = curve_object.curve_positions.getPoint(point);
       lookat = curve_object.curve_lookats.getPoint(point);
       up = curve_object.curve_ups.getPoint(point);
       fov = curve_object.curve_fovs.getPoint(point).z;
+      render_time = curve_object.curve_render_times.getPoint(point).z;
+      render_time = Math.max(Math.min(render_time, 1.0), 0.0); // clamp time values to [0, 1]
       const mat = get_transform_matrix(position, lookat, up);
       set_camera_position(camera_render, mat);
       setFieldOfView(fov);
       setGlobalFov(fov);
+      setGlobalRenderTime(render_time);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slider_value, render_height, render_width]);
 
   // call this function whenever slider state changes
@@ -979,6 +935,7 @@ export default function CameraPanel(props) {
       return () => clearInterval(interval);
     }
     return () => {};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [is_playing]);
 
   // make sure to pause if the slider reaches the end
@@ -1035,7 +992,11 @@ export default function CameraPanel(props) {
     let crop = null;
     if (crop_enabled) {
       crop = {
-        crop_bg_color,
+        crop_bg_color: {
+          r: crop_bg_color[0],
+          g: crop_bg_color[1],
+          b: crop_bg_color[2],
+        },
         crop_center,
         crop_scale,
       };
@@ -1061,6 +1022,8 @@ export default function CameraPanel(props) {
     // export the camera path
     // inspired by:
     // https://stackoverflow.com/questions/55613438/reactwrite-to-json-file-or-export-download-no-server
+
+    sendWebsocketMessage(viser_websocket, { type: 'SaveCheckpointMessage' });
 
     const camera_path_object = get_camera_path();
     console.log(camera_render.toJSON());
@@ -1121,11 +1084,14 @@ export default function CameraPanel(props) {
     reset_slider_render_on_add(new_camera_list);
 
     if ('crop' in camera_path_object && camera_path_object.crop !== null) {
-      console.log('crop' in camera_path_object);
-      setCropEnabled(true);
-      serCropBgColor(camera_path_object.crop.crop_bg_color);
-      setCropCenter(camera_path_object.crop.crop_center);
-      setCropScale(camera_path_object.crop.crop_scale);
+      const bg_color = camera_path_object.crop.crop_bg_color;
+      sendWebsocketMessage(viser_websocket, {
+        type: 'crop_params',
+        crop_enabled: true,
+        crop_bg_color: [bg_color.r, bg_color.g, bg_color.b],
+        crop_center: camera_path_object.crop.crop_center,
+        crop_scale: camera_path_object.crop.crop_scale,
+      });
     }
   };
 
@@ -1145,33 +1111,17 @@ export default function CameraPanel(props) {
     setRenderModalOpen(true);
 
     const camera_path_object = get_camera_path();
-    const camera_path_payload = {
+
+    sendWebsocketMessage(viser_websocket, {
+      type: 'CameraPathPayloadMessage',
       camera_path_filename: export_path,
       camera_path: camera_path_object,
-    };
-
-    // send a command of the websocket to save the trajectory somewhere!
-    if (websocket.readyState === WebSocket.OPEN) {
-      const data = {
-        type: 'write',
-        path: 'camera_path_payload',
-        data: camera_path_payload,
-      };
-      const message = msgpack.encode(data);
-      websocket.send(message);
-    }
+    });
+    sendWebsocketMessage(viser_websocket, { type: 'SaveCheckpointMessage' });
   };
 
   const open_load_path_modal = () => {
-    if (websocket.readyState === WebSocket.OPEN) {
-      const data = {
-        type: 'write',
-        path: 'populate_paths_payload',
-        data: true,
-      };
-      const message = msgpack.encode(data);
-      websocket.send(message);
-    }
+    sendWebsocketMessage(viser_websocket, { type: 'CameraPathOptionsRequest' });
     setLoadPathModalOpen(true);
   };
 
@@ -1303,6 +1253,7 @@ export default function CameraPanel(props) {
             </Button>
           </Tooltip>
           <RenderTimeSelector
+            throttled_time_message_sender={throttled_time_message_sender}
             disabled={false}
             isGlobal
             camera={camera_main}
@@ -1570,6 +1521,7 @@ export default function CameraPanel(props) {
       </div>
       <div className="CameraList-container">
         <CameraList
+          throttled_time_message_sender={throttled_time_message_sender}
           sceneTree={sceneTree}
           transform_controls={transform_controls}
           camera_main={camera_render}

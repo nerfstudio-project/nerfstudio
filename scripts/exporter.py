@@ -27,6 +27,9 @@ from nerfstudio.exporter.exporter_utils import (
     generate_point_cloud,
     get_mesh_from_filename,
 )
+from nerfstudio.exporter.marching_cubes import (
+    generate_mesh_with_multires_marching_cubes,
+)
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 
@@ -74,7 +77,7 @@ class ExportPointCloud(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _, _ = eval_setup(self.load_config)
 
         # Increase the batchsize to speed up the evaluation.
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
@@ -144,7 +147,7 @@ class ExportTSDFMesh(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _, _ = eval_setup(self.load_config)
 
         tsdf_utils.export_tsdf_mesh(
             pipeline,
@@ -250,7 +253,7 @@ class ExportPoissonMesh(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _, _ = eval_setup(self.load_config)
         self.validate_pipeline(pipeline)
 
         # Increase the batchsize to speed up the evaluation.
@@ -313,14 +316,68 @@ class ExportPoissonMesh(Exporter):
 
 @dataclass
 class ExportMarchingCubesMesh(Exporter):
-    """
-    NOT YET IMPLEMENTED
-    Export a mesh using marching cubes.
-    """
+    """Export a mesh using marching cubes."""
+
+    isosurface_threshold: float = 0.0
+    """The isosurface threshold for extraction. For SDF based methods the surface is the zero level set."""
+    resolution: int = 1024
+    """Marching cube resolution."""
+    simplify_mesh: bool = False
+    """Whether to simplify the mesh."""
+    bounding_box_min: Tuple[float, float, float] = (-1.0, -1.0, -1.0)
+    """Minimum of the bounding box."""
+    bounding_box_max: Tuple[float, float, float] = (1.0, 1.0, 1.0)
+    """Maximum of the bounding box."""
+    px_per_uv_triangle: int = 4
+    """Number of pixels per UV triangle."""
+    unwrap_method: Literal["xatlas", "custom"] = "xatlas"
+    """The method to use for unwrapping the mesh."""
+    num_pixels_per_side: int = 2048
+    """If using xatlas for unwrapping, the pixels per side of the texture image."""
+    target_num_faces: Optional[int] = 50000
+    """Target number of faces for the mesh to texture."""
 
     def main(self) -> None:
-        """Export mesh"""
-        raise NotImplementedError("Marching cubes not implemented yet.")
+        """Main function."""
+        if not self.output_dir.exists():
+            self.output_dir.mkdir(parents=True)
+
+        _, pipeline, _, _ = eval_setup(self.load_config)
+
+        # TODO: Make this work with Density Field
+        assert hasattr(pipeline.model.config, "sdf_field"), "Model must have an SDF field."
+
+        CONSOLE.print("Extracting mesh with marching cubes... which may take a while")
+
+        assert (
+            self.resolution % 512 == 0
+        ), f"""resolution must be divisible by 512, got {self.resolution}.
+        This is important because the algorithm uses a multi-resolution approach
+        to evaluate the SDF where the mimimum resolution is 512."""
+
+        # Extract mesh using marching cubes for sdf at a multi-scale resolution.
+        multi_res_mesh = generate_mesh_with_multires_marching_cubes(
+            geometry_callable_field=lambda x: pipeline.model.field.forward_geonetwork(x)[:, 0].contiguous(),
+            resolution=self.resolution,
+            bounding_box_min=self.bounding_box_min,
+            bounding_box_max=self.bounding_box_max,
+            isosurface_threshold=self.isosurface_threshold,
+            coarse_mask=None,
+        )
+        filename = self.output_dir / "sdf_marching_cubes_mesh.ply"
+        multi_res_mesh.export(filename)
+
+        # load the mesh from the marching cubes export
+        mesh = get_mesh_from_filename(str(filename), target_num_faces=self.target_num_faces)
+        CONSOLE.print("Texturing mesh with NeRF...")
+        texture_utils.export_textured_mesh(
+            mesh,
+            pipeline,
+            self.output_dir,
+            px_per_uv_triangle=self.px_per_uv_triangle if self.unwrap_method == "custom" else None,
+            unwrap_method=self.unwrap_method,
+            num_pixels_per_side=self.num_pixels_per_side,
+        )
 
 
 @dataclass
@@ -334,7 +391,7 @@ class ExportCameraPoses(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _, _ = eval_setup(self.load_config)
         assert isinstance(pipeline, VanillaPipeline)
         train_frames, eval_frames = collect_camera_poses(pipeline)
 

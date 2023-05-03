@@ -112,5 +112,42 @@
         "--include_mono_prior=True"
       ]
     },
+    {
+      "name": "Python: NeuS-facto on Replica",
+      "type": "python",
+      "request": "launch",
+      "program": "scripts/train.py",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {"CUDA_VISIBLE_DEVICES":"0"},
+      "args": [
+        "neus-facto",
+        "--pipeline.model.sdf-field.inside-outside=True",
+        "--pipeline.model.mono-depth-loss-mult=0.1",
+        "--pipeline.model.mono-normal-loss-mult=0.05",
+        "--vis=wandb",
+        "sdfstudio-data",
+        "--data=data/sdfstudio-demo-data/replica-room0",
+        "--include_mono_prior=True"
+      ]
+    },
+    {
+      "name": "Python: NeuS-facto on DTU (no mono-prior)",
+      "type": "python",
+      "request": "launch",
+      "program": "scripts/train.py",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {"CUDA_VISIBLE_DEVICES":"0"},
+      "args": [
+        "neus-facto",
+        "--pipeline.model.sdf-field.inside-outside=False",
+        "--vis=wandb",
+        "sdfstudio-data",
+        "--data=data/sdfstudio-demo-data/dtu-scan65",
+        "--include_mono_prior=False",
+        "--auto-orient=True"
+      ]
+    },
   ]
 }

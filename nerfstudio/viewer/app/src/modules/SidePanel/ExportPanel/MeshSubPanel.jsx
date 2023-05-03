@@ -33,7 +33,7 @@ export default function MeshSubPanel(props) {
 
   // redux store state
   const config_base_dir = useSelector(
-    (state) => state.renderingState.config_base_dir,
+    (state) => state.file_path_info.config_base_dir,
   );
   const clippingEnabled = useSelector(
     (state) => state.renderingState.clipping_enabled,
@@ -132,9 +132,6 @@ export default function MeshSubPanel(props) {
     return boolean ? 'True' : 'False';
   };
 
-  console.log(controlValues.outputDir);
-  console.log(getPythonBool(controlValues.removeOutliers));
-
   const bbox_min = [
     clippingCenter[0] - clippingScale[0] / 2,
     clippingCenter[1] - clippingScale[1] / 2,
@@ -147,7 +144,6 @@ export default function MeshSubPanel(props) {
   ];
 
   const mesh_method_choice = controlValues.mesh_method_options;
-  console.log(mesh_method_choice);
   let cmd = '';
   if (mesh_method_choice === 'tsdf') {
     cmd =
@@ -192,7 +188,7 @@ export default function MeshSubPanel(props) {
     inner_html = (
       <div className="ExportModal-text">
         You need to train a model with normals to use poisson meshing. Try tsdf
-        or retrain the model with normals. You can use nerfacto with <br/>
+        or retrain the model with normals. You can use nerfacto with <br />
         <b>--pipeline.model.predict-normals True</b>
       </div>
     );

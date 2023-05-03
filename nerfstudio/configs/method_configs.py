@@ -21,7 +21,6 @@ from __future__ import annotations
 from typing import Dict
 
 import tyro
-from nerfacc import ContractionType
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import ViewerConfig
@@ -29,9 +28,6 @@ from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConf
 from nerfstudio.data.datamanagers.depth_datamanager import DepthDataManagerConfig
 from nerfstudio.data.datamanagers.sdf_datamanager import SDFDataManagerConfig
 from nerfstudio.data.datamanagers.semantic_datamanager import SemanticDataManagerConfig
-from nerfstudio.data.datamanagers.variable_res_datamanager import (
-    VariableResDataManagerConfig,
-)
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
 from nerfstudio.data.dataparsers.dycheck_dataparser import DycheckDataParserConfig
@@ -48,9 +44,11 @@ from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConf
 from nerfstudio.engine.schedulers import (
     CosineDecaySchedulerConfig,
     ExponentialDecaySchedulerConfig,
+    MultiStepSchedulerConfig,
 )
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
+from nerfstudio.fields.sdf_field import SDFFieldConfig
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
@@ -58,6 +56,7 @@ from nerfstudio.models.nerfacto import NerfactoModelConfig
 from nerfstudio.models.nerfplayer_nerfacto import NerfplayerNerfactoModelConfig
 from nerfstudio.models.nerfplayer_ngp import NerfplayerNGPModelConfig
 from nerfstudio.models.neus import NeuSModelConfig
+from nerfstudio.models.neus_facto import NeuSFactoModelConfig
 from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
 from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
@@ -95,7 +94,9 @@ method_configs["nerfacto"] = TrainerConfig(
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+                mode="SO3xR3",
+                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
+                scheduler=ExponentialDecaySchedulerConfig(lr_final=6e-6, max_steps=200000),
             ),
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
@@ -103,11 +104,51 @@ method_configs["nerfacto"] = TrainerConfig(
     optimizers={
         "proposal_networks": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
         },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    vis="viewer",
+)
+method_configs["nerfacto-big"] = TrainerConfig(
+    method_name="nerfacto",
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    max_num_iterations=100000,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            dataparser=NerfstudioDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+            camera_optimizer=CameraOptimizerConfig(
+                mode="SO3xR3", optimizer=RAdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-3)
+            ),
+        ),
+        model=NerfactoModelConfig(
+            eval_num_rays_per_chunk=1 << 15,
+            num_nerf_samples_per_ray=128,
+            num_proposal_samples_per_ray=(512, 256),
+            hidden_dim=128,
+            hidden_dim_color=128,
+            hidden_dim_transient=128,
+            max_res=3000,
+            proposal_weights_anneal_max_num_iters=5000,
+            log2_hashmap_size=21,
+        ),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": RAdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
+        },
+        "fields": {
+            "optimizer": RAdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-4, max_steps=100000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
@@ -193,16 +234,20 @@ method_configs["instant-ngp"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=True,
     pipeline=DynamicBatchPipelineConfig(
-        datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=8192),
+        datamanager=VanillaDataManagerConfig(
+            dataparser=NerfstudioDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+        ),
         model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
     ),
     optimizers={
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
         }
     },
-    viewer=ViewerConfig(num_rays_per_chunk=64000),
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 12),
     vis="viewer",
 )
 
@@ -217,9 +262,10 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
         datamanager=VanillaDataManagerConfig(dataparser=InstantNGPDataParserConfig(), train_num_rays_per_batch=8192),
         model=InstantNGPModelConfig(
             eval_num_rays_per_chunk=8192,
-            contraction_type=ContractionType.AABB,
-            render_step_size=0.001,
-            max_num_samples_per_ray=48,
+            grid_levels=1,
+            alpha_thre=0.0,
+            cone_angle=0.0,
+            disable_scene_contraction=True,
             near_plane=0.01,
             background_color="black",
         ),
@@ -227,10 +273,10 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
     optimizers={
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
         }
     },
-    viewer=ViewerConfig(num_rays_per_chunk=64000),
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 12),
     vis="viewer",
 )
 
@@ -358,13 +404,18 @@ method_configs["phototourism"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
-        datamanager=VariableResDataManagerConfig(  # NOTE: one of the only differences with nerfacto
+        datamanager=VanillaDataManagerConfig(
             dataparser=PhototourismDataParserConfig(),  # NOTE: one of the only differences with nerfacto
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
                 mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),
+            # Large dataset, so using prior values from VariableResDataManager.
+            train_num_images_to_sample_from=40,
+            train_num_times_to_repeat_images=100,
+            eval_num_images_to_sample_from=40,
+            eval_num_times_to_repeat_images=100,
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
     ),
@@ -423,9 +474,10 @@ method_configs["nerfplayer-ngp"] = TrainerConfig(
         datamanager=DepthDataManagerConfig(dataparser=DycheckDataParserConfig(), train_num_rays_per_batch=8192),
         model=NerfplayerNGPModelConfig(
             eval_num_rays_per_chunk=8192,
-            contraction_type=ContractionType.AABB,
+            grid_levels=1,
+            alpha_thre=0.0,
             render_step_size=0.001,
-            max_num_samples_per_ray=48,
+            disable_scene_contraction=True,
             near_plane=0.01,
         ),
     ),
@@ -466,6 +518,56 @@ method_configs["neus"] = TrainerConfig(
         "field_background": {
             "optimizer": AdamOptimizerConfig(lr=5e-4, eps=1e-15),
             "scheduler": CosineDecaySchedulerConfig(warm_up_end=5000, learning_rate_alpha=0.05, max_steps=300000),
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    vis="viewer",
+)
+
+method_configs["neus-facto"] = TrainerConfig(
+    method_name="neus-facto",
+    steps_per_eval_image=5000,
+    steps_per_eval_batch=5000,
+    steps_per_save=2000,
+    steps_per_eval_all_images=1000000,  # set to a very large model so we don't eval with all images
+    max_num_iterations=20001,
+    mixed_precision=False,
+    pipeline=VanillaPipelineConfig(
+        datamanager=SDFDataManagerConfig(
+            dataparser=SDFStudioDataParserConfig(),
+            train_num_rays_per_batch=2048,
+            eval_num_rays_per_batch=2048,
+            camera_optimizer=CameraOptimizerConfig(
+                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+            ),
+        ),
+        model=NeuSFactoModelConfig(
+            # proposal network allows for signifanctly smaller sdf/color network
+            sdf_field=SDFFieldConfig(
+                use_grid_feature=True,
+                num_layers=2,
+                num_layers_color=2,
+                hidden_dim=256,
+                bias=0.5,
+                beta_init=0.8,
+                use_appearance_embedding=False,
+            ),
+            background_model="none",
+            eval_num_rays_per_chunk=2048,
+        ),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": MultiStepSchedulerConfig(max_steps=20001, milestones=(10000, 1500, 18000)),
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=5e-4, eps=1e-15),
+            "scheduler": CosineDecaySchedulerConfig(warm_up_end=500, learning_rate_alpha=0.05, max_steps=20001),
+        },
+        "field_background": {
+            "optimizer": AdamOptimizerConfig(lr=5e-4, eps=1e-15),
+            "scheduler": CosineDecaySchedulerConfig(warm_up_end=500, learning_rate_alpha=0.05, max_steps=20001),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),

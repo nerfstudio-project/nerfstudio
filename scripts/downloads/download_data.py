@@ -359,6 +359,65 @@ class SDFstudioDemoDownload(DatasetDownload):
         os.remove(download_path)
 
 
+# pylint: disable=line-too-long
+nerfosr_downloads = {
+    "europa": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=europa&downloadStartSecret=0k2r95c1fdej",
+    "lk2": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=lk2&downloadStartSecret=w8kuvjzmchc",
+    "lwp": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=lwp&downloadStartSecret=gtnc4vmkcjq",
+    "rathaus": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=rathaus&downloadStartSecret=7372aewy6rr",
+    "schloss": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=schloss&downloadStartSecret=y8t00nqx0h",
+    "st": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=st&downloadStartSecret=kl9ptuxe8v",
+    "stjacob": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=stjacob&downloadStartSecret=sntsim6ebvm",
+    "stjohann": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=stjohann&downloadStartSecret=g80ug1fsbmh",
+    "trevi": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=trevi&downloadStartSecret=ot1483bigjm",
+    "all": None,
+}
+
+
+NeRFOSRCaptureName = tyro.extras.literal_type_from_choices(nerfosr_downloads.keys())
+
+
+@dataclass
+class NeRFOSRDownload(DatasetDownload):
+    """Download the NeRF-OSR dataset."""
+
+    capture_name: NeRFOSRCaptureName = "europa"
+
+    def download(self, save_dir: Path):
+        """Download the NeRF-OSR dataset: https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk"""
+
+        if self.capture_name == "all":
+            for capture_name in nerfosr_downloads:
+                if capture_name != "all":
+                    NeRFOSRDownload(capture_name=capture_name).download(save_dir)
+            return
+
+        assert (
+            self.capture_name in nerfosr_downloads
+        ), f"Capture name {self.capture_name} not found in {nerfosr_downloads.keys()}"
+        url = nerfosr_downloads[self.capture_name]
+        target_path = str(save_dir / f"NeRF-OSR/Data/{self.capture_name}")
+        os.makedirs(target_path, exist_ok=True)
+        download_path = Path(f"{target_path}.zip")
+        tmp_path = str(save_dir / ".temp")
+        shutil.rmtree(tmp_path, ignore_errors=True)
+        os.makedirs(tmp_path, exist_ok=True)
+
+        os.system(f"curl -L '{url}' > {download_path}")
+
+        # Extract the zip file
+        with zipfile.ZipFile(download_path, "r") as zip_ref:
+            zip_ref.extractall(tmp_path)
+
+        inner_folders = os.listdir(tmp_path)
+        assert len(inner_folders) == 1, "There is more than one folder inside this zip file."
+        folder = os.path.join(tmp_path, inner_folders[0])
+        shutil.rmtree(target_path)
+        shutil.move(folder, target_path)
+        shutil.rmtree(tmp_path)
+        os.remove(download_path)
+
+
 Commands = Union[
     Annotated[BlenderDownload, tyro.conf.subcommand(name="blender")],
     Annotated[Sitcoms3DDownload, tyro.conf.subcommand(name="sitcoms3d")],
@@ -367,6 +426,7 @@ Commands = Union[
     Annotated[DNerfDownload, tyro.conf.subcommand(name="dnerf")],
     Annotated[PhototourismDownload, tyro.conf.subcommand(name="phototourism")],
     Annotated[SDFstudioDemoDownload, tyro.conf.subcommand(name="sdfstudio")],
+    Annotated[NeRFOSRDownload, tyro.conf.subcommand(name="nerfosr")],
 ]
 
 

@@ -53,6 +53,7 @@ class DNeRF(DataParser):
     """DNeRF Dataset"""
 
     config: DNeRFDataParserConfig
+    includes_time: bool = True
 
     def __init__(self, config: DNeRFDataParserConfig):
         super().__init__(config=config)

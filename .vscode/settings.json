@@ -121,5 +121,6 @@
     "__node_handle": "cpp"
   },
   "python.analysis.typeCheckingMode": "basic",
-  "python.analysis.diagnosticMode": "workspace"
+  "python.analysis.diagnosticMode": "workspace",
+  "eslint.packageManager": "yarn"
 }
