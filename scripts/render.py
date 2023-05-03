@@ -17,9 +17,7 @@ import mediapy as media
 import numpy as np
 import torch
 import tyro
-from rich import box, style
 from rich.console import Console
-from rich.panel import Panel
 from rich.progress import (
     BarColumn,
     Progress,
@@ -27,7 +25,6 @@ from rich.progress import (
     TextColumn,
     TimeRemainingColumn,
 )
-from rich.table import Table
 from torchtyping import TensorType
 from typing_extensions import Literal, assert_never
 
@@ -43,6 +40,7 @@ from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import install_checks
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
+from nerfstudio.utils.colormaps import apply_depth_colormap
 
 CONSOLE = Console(width=120)
 
@@ -55,6 +53,8 @@ def _render_trajectory_video(
     crop_data: Optional[CropData] = None,
     rendered_resolution_scaling_factor: float = 1.0,
     seconds: float = 5.0,
+    near_plane: float = 0.0,
+    far_plane: float = 15.0,
     output_format: Literal["images", "video"] = "video",
     camera_type: CameraType = CameraType.PERSPECTIVE,
 ) -> None:
@@ -68,6 +68,8 @@ def _render_trajectory_video(
         crop_data: Crop data to apply to the rendered images.
         rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
         seconds: Length of output video.
+        near_plane: The near plane for depth visualization.
+        far_plane: The far plane for depth visualization.
         output_format: How to save output data.
         camera_type: Camera projection format type.
     """
@@ -83,8 +85,8 @@ def _render_trajectory_video(
         ItersPerSecColumn(suffix="fps"),
         TimeRemainingColumn(elapsed_when_finished=True, compact=True),
     )
-    output_image_dir = output_filename.parent / output_filename.stem
     if output_format == "images":
+        output_image_dir = output_filename.parent / output_filename.stem
         output_image_dir.mkdir(parents=True, exist_ok=True)
     if output_format == "video":
         # make the folder if it doesn't exist
@@ -126,7 +128,10 @@ def _render_trajectory_video(
                             f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center"
                         )
                         sys.exit(1)
-                    output_image = outputs[rendered_output_name].cpu().numpy()
+                    output_image = outputs[rendered_output_name].cpu()
+                    if rendered_output_name == 'depth':
+                        output_image = apply_depth_colormap(output_image, near_plane=near_plane, far_plane=far_plane, cmap='turbo') 
+                    output_image = output_image.numpy()
                     if output_image.shape[-1] == 1:
                         output_image = np.concatenate((output_image,) * 3, axis=-1)
                     render_image.append(output_image)
@@ -146,19 +151,9 @@ def _render_trajectory_video(
                         )
                     writer.add_image(render_image)
 
-    table = Table(
-        title=None,
-        show_header=False,
-        box=box.MINIMAL,
-        title_style=style.Style(bold=True),
-    )
     if output_format == "video":
         if camera_type == CameraType.EQUIRECTANGULAR:
             insert_spherical_metadata_into_file(output_filename)
-        table.add_row("Video", str(output_filename))
-    else:
-        table.add_row("Images", str(output_image_dir))
-    CONSOLE.print(Panel(table, title="[bold][green]:tada: Render Complete :tada:[/bold]", expand=False))
 
 
 def insert_spherical_metadata_into_file(
@@ -293,6 +288,10 @@ class RenderTrajectory:
     """Number of interpolation steps between eval dataset cameras."""
     eval_num_rays_per_chunk: Optional[int] = None
     """Specifies number of rays per chunk during eval."""
+    near_plane: float = 0.0
+    """Specifies the near plane for the depth visualisation (if applicable)"""
+    far_plane: float = 15.0
+    """Specifies the far plane for the depth visualization (if applicable)"""
 
     def main(self) -> None:
         """Main function."""
@@ -343,6 +342,8 @@ class RenderTrajectory:
             rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
             crop_data=crop_data,
             seconds=seconds,
+            near_plane=self.near_plane,
+            far_plane=self.far_plane,
             output_format=self.output_format,
             camera_type=camera_type,
         )
