@@ -447,16 +447,16 @@ method_configs["phototourism"] = TrainerConfig(
 
 method_configs["dreamfusion"] = TrainerConfig(
     method_name="dreamfusion",
-    experiment_name="",
+    experiment_name="dreamfusion",
     steps_per_eval_batch=50,
     steps_per_eval_image=50,
     steps_per_save=200,
-    max_num_iterations=20000,
+    max_num_iterations=15000,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         generative=True,
         datamanager=DreamFusionDataManagerConfig(
-            horizontal_rotation_warmup=2000,
+            horizontal_rotation_warmup=4000,
         ),
         model=DreamFusionModelConfig(
             eval_num_rays_per_chunk=1 << 15,
@@ -480,11 +480,11 @@ method_configs["dreamfusion"] = TrainerConfig(
     optimizers={
         "proposal_networks": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            # "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
             "scheduler": None,
         },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
-            # "scheduler": None,
             "scheduler": ExponentialDecaySchedulerConfig(
                 warmup_steps=2000, lr_final=1e-6, max_steps=20000, ramp="linear"
             ),
@@ -500,37 +500,32 @@ method_configs["dreamngp"] = TrainerConfig(
     steps_per_eval_batch=50,
     steps_per_eval_image=50,
     steps_per_save=200,
-    max_num_iterations=20000,
+    max_num_iterations=15000,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         generative=True,
         datamanager=DreamFusionDataManagerConfig(
-            horizontal_rotation_warmup=2000,
+            horizontal_rotation_warmup=4000,
         ),
         model=DreamfusionNGPModelConfig(
             eval_num_rays_per_chunk=8192,
-            contraction_type=ContractionType.AABB,
-            render_step_size=0.001,
-            max_num_samples_per_ray=48,
             orientation_loss_mult=1.0,
-            sphere_collider=True,
             initialize_density=True,
-            proposal_warmup=500,
-            proposal_update_every=0,
-            proposal_weights_anneal_max_num_iters=100,
-            opacity_loss_mult=1,
             positional_prompting="discrete",
             guidance_scale=50,
+            grid_levels=1,
+            alpha_thre=0.0,
+            cone_angle=0.0,
         ),
     ),
     optimizers={
         "proposal_networks": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            # "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
             "scheduler": None,
         },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
-            # "scheduler": None,
             "scheduler": ExponentialDecaySchedulerConfig(
                 warmup_steps=2000, lr_final=1e-6, max_steps=20000, ramp="linear"
             ),
@@ -546,12 +541,12 @@ method_configs["dreamtensor"] = TrainerConfig(
     steps_per_eval_batch=50,
     steps_per_eval_image=50,
     steps_per_save=200,
-    max_num_iterations=20000,
+    max_num_iterations=15000,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         generative=True,
         datamanager=DreamFusionDataManagerConfig(
-            horizontal_rotation_warmup=2000,
+            horizontal_rotation_warmup=4000,
         ),
         model=DreamfusionTensorModelConfig(
             initialize_density=True,
@@ -561,14 +556,6 @@ method_configs["dreamtensor"] = TrainerConfig(
         ),
     ),
     optimizers={
-        # "fields": {
-        #     "optimizer": AdamOptimizerConfig(lr=5e-5),
-        #     "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-5, max_steps=20000),
-        # },        
-        # "encodings": {
-        #     "optimizer": AdamOptimizerConfig(lr=0.0002),
-        #     "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.002, max_steps=20000),
-        # },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=0.001),
             "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=30000),
@@ -680,12 +667,12 @@ method_configs["dreamembed"] = TrainerConfig(
     steps_per_eval_batch=50,
     steps_per_eval_image=50,
     steps_per_save=200,
-    max_num_iterations=20000,
+    max_num_iterations=15000,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         generative=True,
         datamanager=DreamFusionDataManagerConfig(
-            horizontal_rotation_warmup=2000,
+            horizontal_rotation_warmup=4000,
         ),
         model=DreamEmbeddingModelConfig(
             eval_num_rays_per_chunk=1 << 15,
@@ -706,6 +693,7 @@ method_configs["dreamembed"] = TrainerConfig(
     optimizers={
         "proposal_networks": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            # "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
             "scheduler": None,
         },
         "fields": {

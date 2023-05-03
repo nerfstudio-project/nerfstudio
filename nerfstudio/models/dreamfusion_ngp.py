@@ -22,7 +22,6 @@ import nerfacc
 import torch
 import numpy as np
 import torch.nn.functional as F
-from nerfacc import ContractionType
 from torch.nn import Parameter
 
 from typing_extensions import Literal
@@ -99,28 +98,26 @@ class DreamfusionNGPModelConfig(DreamFusionModelConfig):
     background when rendered at the end of training"""
     transmittance_end_schedule: int = 1500
     """number of iterations to reach target_transmittance_end"""
-    
-    contraction_type: ContractionType = ContractionType.UN_BOUNDED_SPHERE
-    """Contraction type used for spatial deformation of the field."""
 
-    grid_resolution: int = 64
+    grid_resolution: int = 128
     """Resolution of the grid used for the field."""
-    # max_res: int = 2048
-    max_res = 256
+    grid_levels: int = 4
+    """Levels of the grid used for the field."""
+    max_res: int = 512
     """Maximum resolution of the hashmap for the base mlp."""
     log2_hashmap_size: int = 19
     """Size of the hashmap for the base mlp"""
+    alpha_thre: float = 0.01
+    """Threshold for opacity skipping."""
     cone_angle: float = 0.0
     """Should be set to 0.0 for blender scenes but 1./256 for real scenes."""
-    render_step_size: float = 0.01
+    render_step_size: float = None
     """Minimum step size for rendering."""
     near_plane: float = 0.05
     """How far along ray to start sampling."""
     far_plane: float = 1e3
     """How far along ray to stop sampling."""
-    max_num_samples_per_ray: int = 24
     
-
     start_normals_training: int = 1000
     """Start training normals after this many iterations"""
     start_lambertian_training: int = 1000
@@ -155,25 +152,26 @@ class DreamfusionNGPModel(DreamFusionModel):
         # setting up fields
         self.field = DreamNGPField(
             aabb=self.scene_box.aabb,
-            contraction_type=self.config.contraction_type,
-            use_appearance_embedding=False,
             num_images=self.num_train_data,
             log2_hashmap_size=self.config.log2_hashmap_size,
             max_res=self.config.max_res,
+            spatial_distortion=None
         )
         self.initialize_density=self.config.initialize_density
         self.scene_aabb = Parameter(self.scene_box.aabb.flatten(), requires_grad=False)
         
-        # Occupancy Grid
-        self.occupancy_grid = nerfacc.OccupancyGrid(
+        if self.config.render_step_size is None:
+            # auto step size: ~1000 samples in the base level grid
+            self.config.render_step_size = ((self.scene_aabb[3:] - self.scene_aabb[:3]) ** 2).sum().sqrt().item() / 1000
+        # Occupancy Grid.
+        self.occupancy_grid = nerfacc.OccGridEstimator(
             roi_aabb=self.scene_aabb,
             resolution=self.config.grid_resolution,
-            contraction_type=self.config.contraction_type,
+            levels=self.config.grid_levels,
         )
 
         # samplers
         self.sampler = VolumetricSampler(
-            scene_aabb=self.scene_box.aabb,
             occupancy_grid=self.occupancy_grid,
             density_fn=self.field.density_fn,
         )
@@ -202,22 +200,25 @@ class DreamfusionNGPModel(DreamFusionModel):
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
         def update_occupancy_grid(step: int):
-            # TODO: needs to get access to the sampler, on how the step size is determinated at each x. See
-            # https://github.com/KAIR-BAIR/nerfacc/blob/127223b11401125a9fce5ce269bb0546ee4de6e8/examples/train_ngp_nerf.py#L190-L213
-            self.occupancy_grid.every_n_step(
+            self.occupancy_grid.update_every_n_steps(
                 step=step,
-                occ_eval_fn=lambda x: self.field.get_opacity(x, self.config.render_step_size),
+                occ_eval_fn=lambda x: self.field.density_fn(x) * self.config.render_step_size,
             )
-
-        def start_training_normals(
-            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
-        ):
-            self.train_normals = True
 
         def taper_density(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
         ):
             self.density_strength = np.interp(step, self.config.taper_range, self.config.taper_strength)
+        
+        def start_training_normals(
+            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
+        ):
+            self.train_normals = True
+
+        def start_shaded_training(
+            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
+        ):
+            self.train_shaded = True
 
         return [
             TrainingCallback(
@@ -225,6 +226,18 @@ class DreamfusionNGPModel(DreamFusionModel):
                 update_every_num_iters=1,
                 func=update_occupancy_grid,
             ),   
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                iters=(self.config.start_normals_training,),
+                func=start_training_normals,
+                args=[self, training_callback_attributes],
+            ),
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                iters=(self.config.start_lambertian_training,),
+                func=start_shaded_training,
+                args=[self, training_callback_attributes],
+            ),
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                 func=taper_density,
@@ -248,6 +261,7 @@ class DreamfusionNGPModel(DreamFusionModel):
                 near_plane=self.config.near_plane,
                 far_plane=self.config.far_plane,
                 render_step_size=self.config.render_step_size,
+                alpha_thre=self.config.alpha_thre,
                 cone_angle=self.config.cone_angle,
             )
         # field_outputs = self.field(ray_samples, compute_normals=True)
@@ -257,16 +271,17 @@ class DreamfusionNGPModel(DreamFusionModel):
 
         if self.initialize_density:
             pos = ray_samples.frustums.get_positions()
-            density_blob = self.density_strength * (-0.05 * torch.exp(5 * torch.norm(pos, dim=-1)) + 0.5)[..., None]
+            density_blob = self.density_strength * (-0.05 * torch.exp(5 * torch.norm(pos, dim=-1)) + 1.0)[..., None]
             density = torch.max(density + density_blob, torch.tensor([0.], device=self.device))
 
         packed_info = nerfacc.pack_info(ray_indices, num_rays)
         weights = nerfacc.render_weight_from_density(
+            t_starts=ray_samples.frustums.starts[..., 0],
+            t_ends=ray_samples.frustums.ends[..., 0],
+            sigmas=density[..., 0],
             packed_info=packed_info,
-            sigmas=density,
-            t_starts=ray_samples.frustums.starts,
-            t_ends=ray_samples.frustums.ends,
-        )
+        )[0]
+        weights = weights[..., None]
 
         rgb = self.renderer_rgb(
             rgb=field_outputs[FieldHeadNames.RGB],
@@ -281,7 +296,6 @@ class DreamfusionNGPModel(DreamFusionModel):
             weights=weights, ray_samples=ray_samples, ray_indices=ray_indices, num_rays=num_rays
         )
         accumulation = self.renderer_accumulation(weights=weights, ray_indices=ray_indices, num_rays=num_rays)
-        alive_ray_mask = accumulation.squeeze(-1) > 0
 
         accum_mask = torch.clamp((torch.nan_to_num(accumulation, nan=0.0)), min=0.0, max=1.0)
         accum_mask_inv = 1.0 - accum_mask
@@ -306,45 +320,48 @@ class DreamfusionNGPModel(DreamFusionModel):
         
         outputs["train_output"] = train_output
 
-        # normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
-        # outputs["normals"] = self.shader_normals(normals, weights=accum_mask)
+        normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
+        outputs["normals"] = self.shader_normals(normals, weights=accum_mask)
 
-        # # lambertian shading
-        # if self.config.random_light_source:  # and self.training:
-        #     light_d = ray_bundle.origins[0] + torch.randn(3, dtype=torch.float).to(normals)
-        # else:
-        #     light_d = ray_bundle.origins[0]
-        # light_d = math.safe_normalize(light_d)
+        # lambertian shading
+        if self.config.random_light_source:  # and self.training:
+            light_d = ray_bundle.origins[0] + torch.randn(3, dtype=torch.float).to(normals)
+        else:
+            light_d = ray_bundle.origins[0]
+        light_d = math.safe_normalize(light_d)
 
-        # if (self.train_shaded and np.random.random_sample() > 0.75) or not self.training:
-        #     shading_weight = 0.9
-        # else:
-        #     shading_weight = 0.0
+        if (self.train_shaded and np.random.random_sample() > 0.75) or not self.training:
+            shading_weight = 0.9
+        else:
+            shading_weight = 0.0
 
-        # shaded, shaded_albedo = self.shader_lambertian(
-        #     rgb=rgb, normals=normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=False
-        # )
+        shaded, shaded_albedo = self.shader_lambertian(
+            rgb=rgb, normals=normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=False
+        )
+        shaded, shaded_albedo = accum_mask * shaded, accum_mask * shaded_albedo
 
-        # outputs["shaded"] = accum_mask * shaded
+        outputs["shaded"] = shaded
+        outputs["other_train_output"] = shaded_albedo + background
+        outputs["shaded_albedo"] = shaded_albedo
 
-        # if shading_weight > 0:
-        #     samp = np.random.random_sample()
-        #     if samp > 0.5 and not self.training:
-        #         outputs["train_output"] = outputs["shaded"]
-        #     elif samp < 0.2 and self.random_background:
-        #         rand_bg = torch.ones_like(background) * torch.rand(3, device=self.device)
-        #         outputs["train_output"] = accum_mask * shaded_albedo + rand_bg * accum_mask_inv
-        #     else:
-        #         outputs["train_output"] = accum_mask * shaded_albedo + background
-        # else:
-        #     outputs["train_output"] = outputs["rgb"]
+        # while training 20% of the time use a random background
+        if np.random.random_sample() < 0.2 and self.random_background and self.training: 
+            background = torch.ones_like(background) * torch.rand(3, device=self.device) * accum_mask_inv 
 
+        if shading_weight > 0:
+            samp = np.random.random_sample()
+            if samp > 0.5:
+                outputs["train_output"] = outputs["shaded"]
+            else:
+                outputs["train_output"] = shaded_albedo + background
+        else:
+            outputs["train_output"] = accum_mask * rgb + background
 
-        # outputs["rendered_orientation_loss"] = orientation_loss(
-        #     weights.detach(),
-        #     field_outputs[FieldHeadNames.NORMALS],
-        #     ray_bundle.directions,
-        # )
+        outputs["rendered_orientation_loss"] = orientation_loss(
+            weights.detach(),
+            field_outputs[FieldHeadNames.NORMALS],
+            ray_bundle.directions,
+        )
 
         assert weights.shape[-1] == 1
         if self.config.opacity_penalty:
@@ -397,4 +414,25 @@ class DreamfusionNGPModel(DreamFusionModel):
 
         loss_dict["sds_loss"] = sds_loss.to(self.device)
         return loss_dict
+
+    def get_image_metrics_and_images(
+        self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
+    ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
+
+        rgb = outputs["rgb"]
+        acc = colormaps.apply_colormap(outputs["accumulation"])
+        depth = colormaps.apply_depth_colormap(
+            outputs["depth"],
+            accumulation=outputs["accumulation"],
+        )
+
+        metrics_dict = {}
+
+        images_dict = {
+            "img": rgb,
+            "accumulation": acc,
+            "depth": depth,
+        }
+
+        return metrics_dict, images_dict
     

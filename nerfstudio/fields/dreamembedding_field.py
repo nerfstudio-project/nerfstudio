@@ -77,7 +77,7 @@ class DreamEmbeddingField(Field):
 
         self.position_encoding = tcnn.Encoding(
             n_input_dims=3,
-            encoding_config={"otype": "Frequency", "n_frequencies": 2},
+            encoding_config={"otype": "Frequency", "n_frequencies": 3},
         )
 
         self.direction_encoding = tcnn.Encoding(

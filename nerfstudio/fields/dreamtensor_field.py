@@ -21,7 +21,6 @@ from typing import Dict, Optional, Tuple
 
 import numpy as np
 import torch
-from nerfacc import ContractionType, contract
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
 
@@ -111,38 +110,6 @@ class DreamFusionTensorField(TensoRFField):
                 "n_hidden_layers": 1,
             },
         )
-
-    def get_density(self, ray_samples: RaySamples) -> TensorType:
-        positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
-        positions = positions * 2 - 1
-        positions = ray_samples.frustums.get_positions()
-        density = self.density_encoding(positions)
-        density_enc = torch.sum(density, dim=-1)[:, :, None]
-        relu = torch.nn.ReLU()
-        density_enc = relu(density_enc)
-        return density_enc
-
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None) -> TensorType:
-        d = ray_samples.frustums.directions
-        positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
-        positions = positions * 2 - 1
-        positions = ray_samples.frustums.get_positions()
-
-        rgb_features = self.color_encoding(positions)
-        rgb_features = self.B(rgb_features)
-
-        d_encoded = self.direction_encoding(d)
-        rgb_features_encoded = self.feature_encoding(rgb_features)
-
-        if self.use_sh:
-            sh_mult = self.sh(d)[:, :, None]
-            rgb_sh = rgb_features.view(sh_mult.shape[0], sh_mult.shape[1], 3, sh_mult.shape[-1])
-            rgb = torch.relu(torch.sum(sh_mult * rgb_sh, dim=-1) + 0.5)
-        else:
-            out = self.mlp_head(torch.cat([rgb_features, d, rgb_features_encoded, d_encoded], dim=-1))  # type: ignore
-            rgb = self.field_output_rgb(out)
-
-        return rgb
 
     def get_background_rgb(self, ray_bundle: RayBundle):
         """Predicts background colors at infinity."""

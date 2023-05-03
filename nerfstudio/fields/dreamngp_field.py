@@ -21,7 +21,6 @@ from typing import Dict, Optional, Tuple
 
 import numpy as np
 import torch
-from nerfacc import ContractionType, contract
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
 
@@ -30,8 +29,12 @@ from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.embedding import Embedding
 from nerfstudio.field_components.field_heads import FieldHeadNames
+from nerfstudio.field_components.spatial_distortions import (
+    SceneContraction,
+    SpatialDistortion,
+)
 from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
-from nerfstudio.fields.instant_ngp_field import TCNNInstantNGPField
+from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
 try:
     import tinycudann as tcnn
 except ImportError:
@@ -47,7 +50,7 @@ def get_normalized_directions(directions: TensorType["bs":..., 3]):
     return (directions + 1.0) / 2.0
 
 
-class DreamNGPField(TCNNInstantNGPField):
+class DreamNGPField(TCNNNerfactoField):
     """TCNN implementation of the Instant-NGP field.
 
     Args:
@@ -69,34 +72,35 @@ class DreamNGPField(TCNNInstantNGPField):
     def __init__(
         self,
         aabb: TensorType,
+        num_images: int,
         num_layers: int = 2,
         hidden_dim: int = 64,
         geo_feat_dim: int = 15,
-        num_layers_color: int = 3,
-        hidden_dim_color: int = 64,
-        use_appearance_embedding: Optional[bool] = False,
-        num_images: Optional[int] = None,
-        appearance_embedding_dim: int = 32,
-        contraction_type: ContractionType = ContractionType.UN_BOUNDED_SPHERE,
         num_levels: int = 16,
-        log2_hashmap_size: int = 19,
         max_res: int = 2048,
+        log2_hashmap_size: int = 19,
+        num_layers_color: int = 3,
+        num_layers_transient: int = 2,
+        hidden_dim_color: int = 64,
+        hidden_dim_transient: int = 64,
+        appearance_embedding_dim: int = 32,
+        transient_embedding_dim: int = 16,
+        use_transient_embedding: bool = False,
+        use_semantics: bool = False,
+        num_semantic_classes: int = 100,
+        pass_semantic_gradients: bool = False,
+        use_pred_normals: bool = False,
+        use_average_appearance_embedding: bool = False,
+        spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
         super().__init__(
-            aabb,
-            num_layers,
-            hidden_dim,
-            geo_feat_dim,
-            num_layers_color,
-            hidden_dim_color,
-            use_appearance_embedding,
-            num_images,
-            appearance_embedding_dim, 
-            contraction_type,
-            num_levels,
-            log2_hashmap_size,
-            max_res
+            aabb, 
+            num_images, 
+            log2_hashmap_size=log2_hashmap_size,
+            max_res=max_res,
+            spatial_distortion=None
         )
+                    
         self.mlp_background_color = tcnn.Network(
             n_input_dims=self.direction_encoding.n_output_dims,
             n_output_dims=3,
@@ -108,32 +112,6 @@ class DreamNGPField(TCNNInstantNGPField):
                 "n_hidden_layers": 1,
             },
         )
-
-    def get_density(self, ray_samples: RaySamples):
-        """Computes and returns the densities"""
-        # positions = ray_samples.frustums.get_positions()
-        positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
-        positions_flat = positions.view(-1, 3)
-        positions_flat = contract(x=positions_flat, roi=self.aabb, type=self.contraction_type)
-
-        self._sample_locations = positions_flat
-        if not self._sample_locations.requires_grad:
-            self._sample_locations.requires_grad = True
-
-        h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
-        density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
-        self._density_before_activation = density_before_activation
-
-        # import pdb 
-        # pdb.set_trace()
-
-        # Rectifying the density with an exponential is much more stable than a ReLU or
-        # softplus, because it enables high post-activation (float32) density outputs
-        # from smaller internal (float16) parameters.
-        density = trunc_exp(density_before_activation.to(positions))
-        return density, base_mlp_out
-
-
 
     def get_background_rgb(self, ray_bundle: RayBundle):
         """Predicts background colors at infinity."""

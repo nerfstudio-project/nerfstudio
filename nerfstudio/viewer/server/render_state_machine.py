@@ -123,7 +123,7 @@ class RenderStateMachine(threading.Thread):
         )
 
         image_height, image_width = self._calculate_image_res(cam_msg.aspect)
-        # image_height, image_width = self._calculate_image_res(1.0)
+        # image_height, image_width = self._calculate_image_res(1.0) #!!!!!!!!!!!!111
 
 
         intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
@@ -253,7 +253,7 @@ class RenderStateMachine(threading.Thread):
             image_width: the maximum image width that can be rendered in the time budget
         """
         max_res = self.viewer.control_panel.max_res
-        # max_res = 128
+        # max_res = 128 #!!!!!!!!!!!!!!!!!!!111111
         if self.state == "high":
             # high res is always static
             image_height = max_res

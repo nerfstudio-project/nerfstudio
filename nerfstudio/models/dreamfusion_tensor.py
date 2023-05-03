@@ -22,7 +22,6 @@ import nerfacc
 import torch
 import numpy as np
 import torch.nn.functional as F
-from nerfacc import ContractionType
 from torch.nn import Parameter
 
 from typing_extensions import Literal
@@ -77,7 +76,6 @@ class DreamfusionTensorModelConfig(DreamFusionModelConfig):
 
     _target: Type = field(default_factory=lambda: DreamfusionTensorModel)
     """target class to instantiate"""
-    # prompt: str = "A high quality zoomed out photo of a teddy bear"
     prompt: str = "A high-quality photo of a pineapple"
     """prompt for stable dreamfusion"""
 
@@ -356,7 +354,8 @@ class DreamfusionTensorModel(DreamFusionModel):
             "background": background,
             "accumulation": accum_mask,
             "depth": depth,
-            "train_output": train_output
+            "train_output": train_output,
+            "rgb": accum_mask * rgb + background
         } 
 
         outputs["opacity_loss"] = torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01) * 0.5
@@ -404,4 +403,25 @@ class DreamfusionTensorModel(DreamFusionModel):
 
         loss_dict["sds_loss"] = sds_loss.to(self.device)
         return loss_dict
+    
+    def get_image_metrics_and_images(
+        self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
+    ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
+
+        rgb = outputs["rgb"]
+        acc = colormaps.apply_colormap(outputs["accumulation"])
+        depth = colormaps.apply_depth_colormap(
+            outputs["depth"],
+            accumulation=outputs["accumulation"],
+        )
+
+        metrics_dict = {}
+
+        images_dict = {
+            "img": rgb,
+            "accumulation": acc,
+            "depth": depth,
+        }
+
+        return metrics_dict, images_dict
     

@@ -18,6 +18,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Type
 
+import numpy as np
 import imageio
 import torch
 import torch.nn.functional as F
@@ -51,7 +52,8 @@ class DreamEmbeddingModelConfig(DreamFusionModelConfig):
 
     _target: Type = field(default_factory=lambda: DreamEmbeddingModel)
     """target class to instantiate"""
-    prompt: str = "A high quality zoomed out photo of a teddy bear"
+    # prompt: str = "A high quality zoomed out photo of a teddy bear"
+    prompt: str = "a high-quality photo of a pineapple"
     """prompt for stable dreamfusion"""
 
     orientation_loss_mult: float = 0.0001
@@ -124,26 +126,6 @@ class DreamEmbeddingModelConfig(DreamFusionModelConfig):
     max_res: int = 256
     """Maximum resolution of the density field."""
 
-    location_based_prompting: bool = True
-    """enables location based prompting"""
-    interpolated_prompting: bool = False
-    """enables interpolated location prompting"""
-    positional_prompting: Literal["discrete", "interpolated", "off"] = "discrete"
-    """ how to incorporate position into prompt"""
-    top_prompt: str = ", overhead view"
-    """appended to prompt for overhead view"""
-    side_prompt: str = ", side view"
-    """appended to prompt for side view"""
-    front_prompt: str = ", front view"
-    """appended to prompt for front view"""
-    back_prompt: str = ", back view"
-    """appended to prompt for back view"""
-    guidance_scale: float = 100
-    """guidance scale for sds loss"""
-    stablediffusion_device: Optional[str] = None
-    """device for stable diffusion"""
-    sd_version: str = "1-5"
-
 
 class DreamEmbeddingModel(DreamFusionModel):
     """DreamEmbeddingModel Model
@@ -165,6 +147,10 @@ class DreamEmbeddingModel(DreamFusionModel):
         """Set the fields and modules"""
         super().populate_modules()
 
+        self.feature_to_rgb_matrix = torch.tensor([[0.298, 0.187, -0.158, -0.184],
+                                                    [0.207, 0.286, 0.189, -0.271],
+                                                    [0.208, 0.173, 0.264, -0.473]]).to(self.sd_device)
+
         # setting up fields
         self.field = DreamEmbeddingField(self.scene_box.aabb, max_res=self.config.max_res)
         self.renderer_feature = FeatureRenderer()
@@ -178,9 +164,7 @@ class DreamEmbeddingModel(DreamFusionModel):
 
         if self.initialize_density:
             pos = ray_samples.frustums.get_positions()
-            # density_blob = self.density_strength * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
-            # density = density + density_blob
-            density_blob = self.density_strength * (-torch.exp(torch.norm(pos, dim=-1) / 0.6) + 2)[..., None]
+            density_blob = self.density_strength * (-torch.exp(torch.norm(pos, dim=-1) / 0.6) + 1.0)[..., None]
             density = torch.max(density + density_blob, torch.tensor([0.], device=self.device))
 
         weights = ray_samples.get_weights(density)
@@ -196,16 +180,23 @@ class DreamEmbeddingModel(DreamFusionModel):
 
         background = accum_mask_inv * background_feature
 
+        feature_to_rgb = features @ self.feature_to_rgb_matrix.T
+
+        samp = np.random.random_sample()
+        if samp < 0.2:
+            rand_bg = torch.ones_like(background) * torch.rand(4, device=self.device)
+            latents = accum_mask * features + rand_bg * accum_mask_inv
+        else:
+            latents = accum_mask * features + background
+
         outputs = {
-            "feature_only": features,
+            "feature_to_rgb": feature_to_rgb,
             "background_feature": background_feature,
             "background": background,
             "accumulation": accum_mask,
             "depth": depth,
+            "latents": latents
         }
-
-        latents = accum_mask * features + background
-        outputs["latents"] = latents
 
         if ray_dims:
             height = ray_dims[0]
@@ -219,9 +210,7 @@ class DreamEmbeddingModel(DreamFusionModel):
             white_bg = torch.tensor([1.0, 1.0, 1.0], device=self.device)
 
             a_mask = accum_mask.reshape(1, 1, height, width)
-
             a_mask = torch.nn.functional.interpolate(a_mask, size=(height * 8, width * 8), mode="bilinear")
-
             a_mask = torch.flatten(a_mask.permute(0, 2, 3, 1), end_dim=-2)
             a_mask_inv = 1 - a_mask
 
@@ -229,8 +218,6 @@ class DreamEmbeddingModel(DreamFusionModel):
             rgb = torch.flatten(rgb, end_dim=-2)
             rgb = a_mask * rgb + (a_mask_inv * white_bg)
             rgb = rgb.to(torch.float32)
-            # print("rgb", rgb)
-            # print(rgb.shape)
 
             outputs["rgb"] = rgb
 
@@ -314,8 +301,6 @@ class DreamEmbeddingModel(DreamFusionModel):
             loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
             )
-            # if 45 < batch["central"] <= 135:
-            #     loss_dict["input_latent_loss"] = self.l2_loss(self.input_latent.detach(), outputs["latents"])
         return loss_dict
 
     def forward(self, ray_bundle: RayBundle, ray_dims: Tuple = ()) -> Dict[str, torch.Tensor]:
@@ -378,16 +363,19 @@ class DreamEmbeddingModel(DreamFusionModel):
             accumulation=outputs["accumulation"],
         )
 
-        size = outputs["latents"].shape[0]
+        # print(outputs.keys())
 
-        latents_input = outputs["latents"].view(1, size, size, 4).half()
-        latents_input = latents_input.permute(0, 3, 1, 2)
-        rgb = self._sd.latents_to_img(latents_input)
-        rgb = rgb.permute(0, 2, 3, 1)[0].reshape(512, 512, 3).cpu().to(torch.float32)
+        # size = outputs["latents"].shape[0]
+
+        # latents_input = outputs["latents"].view(1, size, size, 4).half()
+        # latents_input = latents_input.permute(0, 3, 1, 2)
+        # rgb = self._sd.latents_to_img(latents_input)
+        # rgb = rgb.permute(0, 2, 3, 1)[0].reshape(512, 512, 3).cpu().to(torch.float32)
 
         metrics_dict = {}
         images_dict = {
-            "img": rgb,
+            "img": outputs["rgb"],
+            "features": outputs["feature_to_rgb"],
             "accumulation": acc,
             "depth": depth,
             "prop_depth_0": prop_depth_0,

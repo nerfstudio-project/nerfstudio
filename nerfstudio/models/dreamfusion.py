@@ -134,10 +134,6 @@ class DreamFusionModelConfig(ModelConfig):
     max_res: int = 256
     """Maximum resolution of the density field."""
 
-    location_based_prompting: bool = True
-    """enables location based prompting"""
-    interpolated_prompting: bool = False
-    """enables interpolated location prompting"""
     positional_prompting: Literal["discrete", "interpolated", "off"] = "discrete"
     """ how to incorporate position into prompt"""
     top_prompt: str = ", overhead view"
@@ -153,6 +149,11 @@ class DreamFusionModelConfig(ModelConfig):
     stablediffusion_device: Optional[str] = None
     """device for stable diffusion"""
     sd_version: str = "1-5"
+
+    t_taper_range: Tuple[int, int] = (0, 10000)
+    """Range of step values for the density tapering"""
+    t_taper_to: float = 1.0
+    """Strength schedule of center density"""
 
 
 class DreamFusionModel(Model):
@@ -274,6 +275,11 @@ class DreamFusionModel(Model):
         ):
             self.density_strength = np.interp(step, self.config.taper_range, self.config.taper_strength)
 
+        def taper_sds( 
+            self, training_callback_attributes: TrainingCallbackAttributes, step: int 
+        ):
+            self.sds_t_max_step = np.interp(step, self.config.t_taper_range, (1.0, self.config.t_taper_to))
+
         def start_training_normals(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
         ):
@@ -307,6 +313,12 @@ class DreamFusionModel(Model):
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                 func=taper_density,
+                update_every_num_iters=1,
+                args=[self, training_callback_attributes],
+            ),
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                func=taper_sds,
                 update_every_num_iters=1,
                 args=[self, training_callback_attributes],
             ),
@@ -356,10 +368,10 @@ class DreamFusionModel(Model):
 
         if self.initialize_density:
             pos = ray_samples.frustums.get_positions()
-            # density_blob = self.density_strength * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
-            # density = density + density_blob
-            density_blob = self.density_strength * (-0.05 * torch.exp(5 * torch.norm(pos, dim=-1)) + 1.0)[..., None]
-            density = torch.max(density + density_blob, torch.tensor([1e-15], device=self.device))
+            density_blob = self.density_strength * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
+            density = density + density_blob
+            # density_blob = self.density_strength * (-torch.exp(torch.norm(pos, dim=-1) / 0.6) + 2)[..., None]
+            # density = torch.max(density + density_blob, torch.tensor([1e-15], device=self.device))
 
         weights = ray_samples.get_weights(density)
         weights_list.append(weights)
@@ -391,7 +403,6 @@ class DreamFusionModel(Model):
             outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
 
         normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
-        # pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
 
         # lambertian shading
         if self.config.random_light_source:  # and self.training:
@@ -408,44 +419,30 @@ class DreamFusionModel(Model):
         shaded, shaded_albedo = self.shader_lambertian(
             rgb=rgb, normals=normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=False
         )
+        shaded, shaded_albedo = accum_mask * shaded, accum_mask * shaded_albedo
 
         outputs["normals"] = self.shader_normals(normals, weights=accum_mask)
-        # outputs["pred_normals"] = self.shader_normals(pred_normals, weights=accum_mask)
-        outputs["shaded"] = accum_mask * shaded
-        outputs["other_train_output"] = accum_mask * shaded_albedo + background
-        outputs["shaded_albedo"] = accum_mask * shaded_albedo
+        outputs["shaded"] = shaded
+        outputs["other_train_output"] = shaded_albedo + background
+        outputs["shaded_albedo"] = shaded_albedo
         outputs["rgb"] = accum_mask * rgb + background
 
-        # if shading_weight > 0:
-        #     samp = np.random.random_sample()
-        #     if samp > 0.5 and self.training:
-        #         outputs["train_output"] = outputs["shaded"]
-        #     elif samp < 0.2 and self.random_background and self.training:
-        #         rand_bg = torch.ones_like(background) * torch.rand(3, device=self.device)
-        #         outputs["train_output"] = accum_mask * shaded_albedo + rand_bg * accum_mask_inv
-        #     else:
-        #         outputs["train_output"] = accum_mask * shaded_albedo + background
-        # else:
-        #     outputs["train_output"] = outputs["rgb"]
+        # while training 20% of the time use a random background
+        if np.random.random_sample() < 0.2 and self.random_background and self.training: 
+            background = torch.ones_like(background) * torch.rand(3, device=self.device) * accum_mask_inv 
 
-        samp = np.random.random_sample()
-        if samp < 0.4:
-            rand_bg = torch.ones_like(background) * torch.rand(3, device=self.device)
-            train_output = accum_mask * rgb + rand_bg * accum_mask_inv
+        if shading_weight > 0:
+            samp = np.random.random_sample()
+            if samp > 0.5:
+                outputs["train_output"] = outputs["shaded"]
+            else:
+                outputs["train_output"] = shaded_albedo + background
         else:
-            train_output = accum_mask * rgb + background
-
-        outputs["train_output"] = train_output
+            outputs["train_output"] = accum_mask * rgb + background
 
         outputs["rendered_orientation_loss"] = orientation_loss(
             weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
         )
-
-        # outputs["rendered_pred_normal_loss"] = pred_normal_loss(
-        #     weights.detach(),
-        #     field_outputs[FieldHeadNames.NORMALS].detach(),
-        #     field_outputs[FieldHeadNames.PRED_NORMALS],
-        # )
 
         assert weights.shape[-1] == 1
         if self.config.opacity_penalty:
@@ -463,10 +460,6 @@ class DreamFusionModel(Model):
             loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
                 outputs["rendered_orientation_loss"]
             )
-            # ground truth supervision for normals
-            # loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
-            #     outputs["rendered_pred_normal_loss"]
-            # )
         else:
             loss_dict["orientation_loss"] = 0
             loss_dict["pred_normal_loss"] = 0
@@ -537,6 +530,5 @@ class DreamFusionModel(Model):
             "prop_depth_0": prop_depth_0,
             "prop_depth_1": prop_depth_1,
             "normals": outputs["normals"],
-            # "pred_normals": outputs["pred_normals"],
         }
         return metrics_dict, images_dict

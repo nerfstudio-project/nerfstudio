@@ -20,6 +20,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Union
+from PIL import Image
+
 
 import appdirs
 import mediapy
@@ -46,6 +48,7 @@ CONSOLE = Console(width=120)
 IMG_DIM = 512
 CONST_SCALE = 0.18215
 SD_IDENTIFIERS = {
+    "1-4": "CompVis/stable-diffusion-v1-4",
     "1-5": "runwayml/stable-diffusion-v1-5",
     "2-0": "stabilityai/stable-diffusion-2-base",
     "2-1": "stabilityai/stable-diffusion-2-1-base",
@@ -263,6 +266,7 @@ class StableDiffusion(nn.Module):
         image: TensorType["BS", 3, "H", "W"],
         guidance_scale: float = 100.0,
         grad_scaler: Optional[GradScaler] = None,
+        max_step_scale: float = 1.0
     ) -> torch.Tensor:
         """Score Distilation Sampling loss proposed in DreamFusion paper (https://dreamfusion3d.github.io/)
         Args:
@@ -276,7 +280,8 @@ class StableDiffusion(nn.Module):
         # Disable autocast when using diffusers pipeline.
         with torch.autocast(device_type="cuda", enabled=False):
             image = F.interpolate(image.half(), (IMG_DIM, IMG_DIM), mode="bilinear")
-            t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
+            max_step = int((self.max_step + 1) * max_step_scale)
+            t = torch.randint(self.min_step, max_step, [1], dtype=torch.long, device=self.device)
             latents = self.imgs_to_latent(image)
 
             # predict the noise residual with unet, NO grad!
