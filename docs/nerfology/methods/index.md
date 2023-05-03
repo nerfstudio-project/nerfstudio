@@ -33,6 +33,7 @@ The following methods are supported in nerfstudio:
     Instruct-NeRF2NeRF<in2n.md>
     LERF<lerf.md>
     Semantic NeRF-W<semantic_nerfw.md>
+    Tetra-NeRF <tetranerf.md>
 ```
 
 (own_method_docs)=
