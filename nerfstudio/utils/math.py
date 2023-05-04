@@ -21,8 +21,6 @@ import torch
 from torchtyping import TensorType
 from typing_extensions import Literal
 
-_USE_NERFACC = True
-
 
 def components_from_spherical_harmonics(levels: int, directions: TensorType[..., 3]) -> TensorType[..., "components"]:
     """
@@ -198,7 +196,7 @@ def expected_sin(x_means: torch.Tensor, x_vars: torch.Tensor) -> torch.Tensor:
 
 
 @torch.jit.script
-def _intersect_aabb(
+def intersect_aabb(
     origins: torch.Tensor,
     directions: torch.Tensor,
     aabb: torch.Tensor,
@@ -234,43 +232,6 @@ def _intersect_aabb(
     cond = t_max <= t_min
     t_min = torch.where(cond, invalid_value, t_min)
     t_max = torch.where(cond, invalid_value, t_max)
-
-    return t_min, t_max
-
-
-def intersect_aabb(
-    origins: TensorType["N", 3],
-    directions: TensorType["N", 3],
-    aabb: TensorType[6],
-) -> Tuple[TensorType["N"], TensorType["N"]]:
-    """
-    Implementation of ray intersection with AABB box
-
-    Args:
-        origins: 3d positions
-        directions: Normalized directions
-        aabb: array of aabb box in the form of [x_min, y_min, z_min, x_max, y_max, z_max]
-        max_bound: Maximum value of t_max
-        invalid_value: Value to return in case of no intersection
-
-    Returns:
-        t_min, t_max - two tensors of shapes N representing distance of intersection from the origin.
-    """
-
-    global _USE_NERFACC  # pylint: disable=global-statement
-    if _USE_NERFACC:
-        try:
-            import nerfacc  # pylint: disable=import-outside-toplevel
-
-            t_min, t_max, _ = nerfacc.ray_aabb_intersect(
-                origins, directions, aabb[None, :], near_plane=0, far_plane=1e10, miss_value=1e10
-            )
-            t_min, t_max = t_min.squeeze(-1), t_max.squeeze(-1)
-        except:  # pylint: disable=bare-except
-            t_min, t_max = _intersect_aabb(origins, directions, aabb, max_bound=1e10, invalid_value=1e10)
-            _USE_NERFACC = False
-    else:
-        t_min, t_max = _intersect_aabb(origins, directions, aabb, max_bound=1e10, invalid_value=1e10)
 
     return t_min, t_max
 
