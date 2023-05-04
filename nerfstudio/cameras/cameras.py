@@ -150,8 +150,6 @@ class Cameras(TensorDataclass):
 
         self.__post_init__()  # This will do the dataclass post_init and broadcast all the tensors
 
-        self._use_nerfacc = strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "TRUE"))
-
     def _init_get_fc_xy(self, fc_xy: Union[float, torch.Tensor], name: str) -> torch.Tensor:
         """
         Parses the input focal length / principle point x or y and returns a tensor of the correct shape
