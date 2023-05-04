@@ -21,7 +21,18 @@ from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Dict,
+    ForwardRef,
+    Generic,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 import torch
 import tyro
@@ -30,7 +41,7 @@ from torch import nn
 from torch.nn import Parameter
 from torch.utils.data import Dataset
 from torch.utils.data.distributed import DistributedSampler
-from typing_extensions import Literal
+from typing_extensions import Literal, TypeVar
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.cameras.cameras import CameraType
@@ -70,7 +81,7 @@ from nerfstudio.data.utils.dataloaders import (
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
-from nerfstudio.utils.misc import IterableWrapper
+from nerfstudio.utils.misc import IterableWrapper, get_orig_class
 
 CONSOLE = Console(width=120)
 
@@ -367,7 +378,10 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """Size of patch to sample from. If >1, patch-based sampling will be used."""
 
 
-class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
+TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
+
+
+class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abstract-method
     """Basic stored data manager implementation.
 
     This is pretty much a port over from our old dataloading utilities, and is a little jank
@@ -381,8 +395,8 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     """
 
     config: VanillaDataManagerConfig
-    train_dataset: InputDataset
-    eval_dataset: InputDataset
+    train_dataset: TDataset
+    eval_dataset: TDataset
     train_dataparser_outputs: DataparserOutputs
     train_pixel_sampler: Optional[PixelSampler] = None
     eval_pixel_sampler: Optional[PixelSampler] = None
@@ -426,22 +440,44 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
         super().__init__()
 
-    def create_train_dataset(self) -> InputDataset:
+    def get_dataset_type(self) -> Type[TDataset]:
+        """Returns the dataset type passed as the generic argument"""
+        orig_class = get_orig_class(self, default_to__class__=True)
+        if orig_class is VanillaDataManager:
+            return TDataset.__default__  # typing: ignore
+        if hasattr(orig_class, "__origin__") and orig_class.__origin__ is VanillaDataManager:
+            return orig_class.__args__[0]
+        # For inherited classes, we need to find the correct type to instantiate
+        for base in getattr(self, "__orig_bases__", []):
+            if hasattr(base, "__origin__") and base.__origin__ is VanillaDataManager:
+                for value in base.__args__:
+                    if isinstance(value, ForwardRef):
+                        if value.__forward_evaluated__:
+                            value = value.__forward_value__
+                        elif value.__forward_module__ is None:
+                            value.__forward_module__ = type(self).__module__
+                            value = getattr(value, "_evaluate")(None, None, set())
+                    assert isinstance(value, type)
+                    if issubclass(value, InputDataset):
+                        return cast(Type[TDataset], value)
+            return TDataset.__default__  # typing: ignore
+
+    def create_train_dataset(self) -> TDataset:
         """Sets up the data loaders for training"""
-        return InputDataset(
+        return self.get_dataset_type()(
             dataparser_outputs=self.train_dataparser_outputs,
             scale_factor=self.config.camera_res_scale_factor,
         )
 
-    def create_eval_dataset(self) -> InputDataset:
+    def create_eval_dataset(self) -> TDataset:
         """Sets up the data loaders for evaluation"""
-        return InputDataset(
+        return self.get_dataset_type()(
             dataparser_outputs=self.dataparser.get_dataparser_outputs(split=self.test_split),
             scale_factor=self.config.camera_res_scale_factor,
         )
 
     def _get_pixel_sampler(  # pylint: disable=no-self-use
-        self, dataset: InputDataset, *args: Any, **kwargs: Any
+        self, dataset: TDataset, *args: Any, **kwargs: Any
     ) -> PixelSampler:
         """Infer pixel sampler to use."""
         if self.config.patch_size > 1:
