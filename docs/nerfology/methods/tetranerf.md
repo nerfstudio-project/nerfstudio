@@ -44,7 +44,7 @@ Details for running Tetra-NeRF can be found [here](https://github.com/jkulhanek/
 ```bash
 python -m tetranerf.scripts.process_images --path <data folder>
 python -m tetranerf.scripts.triangulate --pointcloud <data folder>/sparse.ply --output <data folder>/sparse.th
-ns-train tetra-nerf --pipeline.model.tetranerf-path <data folder>/sparse.th minimal-parser --data <data folder>
+ns-train tetra-nerf --pipeline.model.tetrahedra-path <data folder>/sparse.th minimal-parser --data <data folder>
 ```
 
 Three following variants of Tetra-NeRF are provided:
