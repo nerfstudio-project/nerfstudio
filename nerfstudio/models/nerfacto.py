@@ -38,7 +38,7 @@ from nerfstudio.engine.callbacks import (
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
-from nerfstudio.fields.nerfacto_field import TCNNNerfactoField, TorchNerfactoField
+from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
 from nerfstudio.model_components.losses import (
     MSELoss,
     distortion_loss,
@@ -149,22 +149,20 @@ class NerfactoModel(Model):
             scene_contraction = SceneContraction(order=float("inf"))
 
         # Fields
-        # self.field = TCNNNerfactoField(
-        #     self.scene_box.aabb,
-        #     hidden_dim=self.config.hidden_dim,
-        #     num_levels=self.config.num_levels,
-        #     max_res=self.config.max_res,
-        #     log2_hashmap_size=self.config.log2_hashmap_size,
-        #     hidden_dim_color=self.config.hidden_dim_color,
-        #     hidden_dim_transient=self.config.hidden_dim_transient,
-        #     spatial_distortion=scene_contraction,
-        #     num_images=self.num_train_data,
-        #     use_pred_normals=self.config.predict_normals,
-        #     use_average_appearance_embedding=self.config.use_average_appearance_embedding,
-        # )
-        self.field = TorchNerfactoField(
-            self.scene_box.aabb, spatial_distortion=scene_contraction, num_images=self.num_train_data
+        self.field = TCNNNerfactoField(
+            self.scene_box.aabb,
+            hidden_dim=self.config.hidden_dim,
+            num_levels=self.config.num_levels,
+            max_res=self.config.max_res,
+            log2_hashmap_size=self.config.log2_hashmap_size,
+            hidden_dim_color=self.config.hidden_dim_color,
+            hidden_dim_transient=self.config.hidden_dim_transient,
+            spatial_distortion=scene_contraction,
+            num_images=self.num_train_data,
+            use_pred_normals=self.config.predict_normals,
+            use_average_appearance_embedding=self.config.use_average_appearance_embedding,
         )
+
         self.density_fns = []
         num_prop_nets = self.config.num_proposal_iterations
         # Build the proposal network(s)
