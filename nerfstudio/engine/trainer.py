@@ -27,7 +27,10 @@ from threading import Lock
 from typing import Dict, List, Optional, Tuple, Type, Union
 
 import torch
+from rich import box, style
 from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 from torch.cuda.amp.grad_scaler import GradScaler
 from typing_extensions import Literal
 
@@ -281,14 +284,17 @@ class Trainer:
         # write out any remaining events (e.g., total train time)
         writer.write_out_storage()
 
-        CONSOLE.rule()
-        CONSOLE.print("[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:", justify="center")
-        if not self.config.viewer.quit_on_train_completion:
-            self.training_state = "completed"
-            self._train_complete_viewer()
-            CONSOLE.print("Use ctrl+c to quit", justify="center")
-            while True:
-                time.sleep(0.01)
+        table = Table(
+            title=None,
+            show_header=False,
+            box=box.MINIMAL,
+            title_style=style.Style(bold=True),
+        )
+        table.add_row("Config File", str(self.config.get_base_dir() / "config.yml"))
+        table.add_row("Checkpoint Directory", str(self.checkpoint_dir))
+        CONSOLE.print(Panel(table, title="[bold][green]:tada: Training Finished :tada:[/bold]", expand=False))
+
+        self._train_complete_viewer()
 
     @check_main_thread
     def _check_viewer_warnings(self) -> None:
@@ -333,11 +339,16 @@ class Trainer:
     def _train_complete_viewer(self) -> None:
         """Let the viewer know that the training is complete"""
         assert self.viewer_state is not None
+        if not self.config.viewer.quit_on_train_completion:
+            self.training_state = "completed"
         try:
             self.viewer_state.training_complete()
         except RuntimeError:
             time.sleep(0.03)  # sleep to allow buffer to reset
             CONSOLE.log("Viewer failed. Continuing training.")
+        CONSOLE.print("Use ctrl+c to quit", justify="center")
+        while True:
+            time.sleep(0.01)
 
     @check_viewer_enabled
     def _update_viewer_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int) -> None:
