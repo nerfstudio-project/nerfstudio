@@ -81,7 +81,8 @@ from nerfstudio.data.utils.dataloaders import (
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
-from nerfstudio.utils.misc import IterableWrapper, get_orig_class
+from nerfstudio.utils.misc import IterableWrapper
+from nerfstudio.utils.typing import get_args, get_orig_class, get_origin
 
 CONSOLE = Console(width=120)
 
@@ -442,21 +443,16 @@ class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abs
 
     def get_dataset_type(self) -> Type[TDataset]:
         """Returns the dataset type passed as the generic argument"""
-        orig_class = get_orig_class(self, default_to__class__=True)
+        orig_class = get_orig_class(self)
         if orig_class is VanillaDataManager:
             return TDataset.__default__  # typing: ignore
-        if hasattr(orig_class, "__origin__") and orig_class.__origin__ is VanillaDataManager:
-            return orig_class.__args__[0]
+        if get_origin(orig_class) is VanillaDataManager:
+            return get_args(orig_class)[0]
         # For inherited classes, we need to find the correct type to instantiate
         for base in getattr(self, "__orig_bases__", []):
-            if hasattr(base, "__origin__") and base.__origin__ is VanillaDataManager:
-                for value in base.__args__:
-                    if isinstance(value, ForwardRef):
-                        if value.__forward_evaluated__:
-                            value = value.__forward_value__
-                        elif value.__forward_module__ is None:
-                            value.__forward_module__ = type(self).__module__
-                            value = getattr(value, "_evaluate")(None, None, set())
+            if get_origin(base) is VanillaDataManager:
+                for value in get_args(base):
+                    assert not isinstance(value, ForwardRef), "ForwardRef is not supported"
                     assert isinstance(value, type)
                     if issubclass(value, InputDataset):
                         return cast(Type[TDataset], value)

@@ -17,20 +17,9 @@ Miscellaneous helper code.
 """
 
 
-import sys
-import typing
-from inspect import currentframe
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import torch
-
-_TYPING_3_7 = False
-try:
-    from typing import ForwardRef  # pylint: disable=unused-import
-
-    _TYPING_3_7 = True
-except ImportError:
-    pass
 
 
 def get_dict_to_torch(stuff: Any, device: Union[torch.device, str] = "cpu", exclude: Optional[List[str]] = None):
@@ -166,87 +155,3 @@ def strtobool(val) -> bool:
     FMI https://stackoverflow.com/a/715468
     """
     return val.lower() in ("yes", "y", "true", "t", "on", "1")
-
-
-# The following was taken from https://github.com/Stewori/pytypes
-#
-# Copyright 2017, 2018, 2021 Stefan Richthofer
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-def _type_is_generic(tp):
-    try:
-        return isinstance(tp, typing.GenericMeta)  # type: ignore
-    except AttributeError:
-        try:
-            return issubclass(tp, typing.Generic)
-        except AttributeError:
-            return False
-        except TypeError:
-            # Shall we accept _GenericAlias, i.e. Tuple, Union, etc?
-            return isinstance(tp, typing._GenericAlias)  # type: ignore, pylint: disable=protected-access
-
-
-def get_orig_class(obj, default_to__class__=False):
-    """Robust way to access `obj.__orig_class__`. Compared to a direct access this has the
-    following advantages:
-    1) It works around https://github.com/python/typing/issues/658.
-    2) It prevents infinite recursion when wrapping a method (`obj` is `self` or `cls`) and either
-       - the object's class defines `__getattribute__`
-       or
-       - the object has no `__orig_class__` attribute and the object's class defines `__getattr__`.
-       See discussion at https://github.com/Stewori/pytypes/pull/53.
-    If `default_to__class__` is `True` it returns `obj.__class__` as final fallback.
-    Otherwise, `AttributeError` is raised  in failure case (default behavior).
-    """
-    try:
-        # See https://github.com/Stewori/pytypes/pull/53:
-        # Returns  `obj.__orig_class__` protecting from infinite recursion in `__getattr[ibute]__`
-        # wrapped in a `checker_tp`.
-        # (See `checker_tp` in `typechecker._typeinspect_func for context)
-        # Necessary if:
-        # - we're wrapping a method (`obj` is `self`/`cls`) and either
-        #     - the object's class defines __getattribute__
-        # or
-        #     - the object doesn't have an `__orig_class__` attribute
-        #       and the object's class defines __getattr__.
-        # In such a situation, `parent_class = obj.__orig_class__`
-        # would call `__getattr[ibute]__`. But that method is wrapped in a `checker_tp` too,
-        # so then we'd go into the wrapped `__getattr[ibute]__` and do
-        # `parent_class = obj.__orig_class__`, which would call `__getattr[ibute]__`
-        # again, and so on. So to bypass `__getattr[ibute]__` we do this:
-        return object.__getattribute__(obj, "__orig_class__")
-    except AttributeError:
-        if sys.version_info.major >= 3:
-            cls = object.__getattribute__(obj, "__class__")
-        else:
-            # Python 2 may return instance objects from object.__getattribute__.
-            cls = obj.__class__
-        if _TYPING_3_7 and _type_is_generic(cls):
-            # Workaround for https://github.com/python/typing/issues/658
-            # Searching from index 2 is sufficient: At 0 is get_orig_class, at 1 is the caller.
-            # We assume the caller is not typing._GenericAlias.__call__ which we are after.
-            frame = currentframe().f_back.f_back  # type: ignore
-            try:
-                while frame:
-                    try:
-                        res = frame.f_locals["self"]
-                        if res.__origin__ is cls:
-                            return res
-                    except (KeyError, AttributeError):
-                        frame = frame.f_back
-            finally:
-                del frame
-
-        if default_to__class__:
-            return cls  # Fallback
-        raise
