@@ -291,6 +291,8 @@ class RenderTrajectory:
     """How to save output data."""
     interpolation_steps: int = 10
     """Number of interpolation steps between eval dataset cameras."""
+    adjust_speed: bool = False
+    """Whether to adjust the camera speed to distance between poses"""
     eval_num_rays_per_chunk: Optional[int] = None
     """Specifies number of rays per chunk during eval."""
 
@@ -330,7 +332,8 @@ class RenderTrajectory:
         elif self.traj == "interpolate":
             camera_type = CameraType.PERSPECTIVE
             camera_path = get_interpolated_camera_path(
-                cameras=pipeline.datamanager.eval_dataloader.cameras, steps=self.interpolation_steps
+                cameras=pipeline.datamanager.eval_dataloader.cameras, steps=self.interpolation_steps,
+                adjust_speed = self.adjust_speed
             )
         else:
             assert_never(self.traj)
