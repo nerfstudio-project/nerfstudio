@@ -16,10 +16,9 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Literal, Optional, Tuple
 
 from rich.console import Console
-from typing import Literal
 
 from nerfstudio.process_data import colmap_utils, hloc_utils, process_data_utils
 from nerfstudio.process_data.base_converter_to_nerfstudio_dataset import (

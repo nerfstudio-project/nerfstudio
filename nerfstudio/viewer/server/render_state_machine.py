@@ -18,10 +18,9 @@ from __future__ import annotations
 import contextlib
 import threading
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 
 import torch
-from typing import Literal, get_args
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.model_components.renderers import background_color_override_context
