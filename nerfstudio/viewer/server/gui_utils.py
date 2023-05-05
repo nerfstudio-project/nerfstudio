@@ -53,7 +53,7 @@ def parse_object(
     ret = []
     # get a list of the properties of the object, sorted by whether things are instances of type_check
     obj_props = [(k, getattr(obj, k)) for k in dir(obj)]
-    for (k, v) in obj_props:
+    for k, v in obj_props:
         if k[0] == "_":
             continue
         new_tree_stub = f"{tree_stub}/{k}"

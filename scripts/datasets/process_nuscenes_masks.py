@@ -10,7 +10,7 @@ from nuscenes.nuscenes import NuScenes as NuScenesDatabase
 from nuscenes.utils.data_classes import Box
 from nuscenes.utils.geometry_utils import BoxVisibility, view_points
 from tqdm import tqdm
-from typing_extensions import Literal
+from typing import Literal
 
 
 @dataclass

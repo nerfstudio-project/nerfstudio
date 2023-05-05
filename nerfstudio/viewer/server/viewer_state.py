@@ -25,7 +25,7 @@ from rich import box, style
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset

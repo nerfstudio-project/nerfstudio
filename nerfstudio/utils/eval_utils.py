@@ -25,7 +25,7 @@ from typing import Optional, Tuple
 import torch
 import yaml
 from rich.console import Console
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline

@@ -27,7 +27,7 @@ import requests
 import torch
 from rich.console import Console
 from rich.progress import track
-from typing_extensions import Literal
+from typing import Literal
 
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
 # import pycolmap

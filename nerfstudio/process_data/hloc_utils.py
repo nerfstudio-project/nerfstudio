@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 from rich.console import Console
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.process_data.process_data_utils import CameraModel
 

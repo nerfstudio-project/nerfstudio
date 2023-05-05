@@ -23,7 +23,7 @@ import numpy as np
 import torch
 from numpy.typing import ArrayLike
 from torchtyping import TensorType
-from typing_extensions import Literal
+from typing import Literal
 
 _EPS = np.finfo(float).eps * 4.0
 

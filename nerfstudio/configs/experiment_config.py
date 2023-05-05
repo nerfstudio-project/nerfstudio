@@ -23,7 +23,7 @@ from typing import Any, Dict, Optional
 
 import yaml
 from rich.console import Console
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.configs.base_config import (
     InstantiateConfig,

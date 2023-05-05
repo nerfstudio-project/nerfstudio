@@ -35,7 +35,7 @@ from rich.progress import (
 from torch import nn
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datamanagers.base_datamanager import (

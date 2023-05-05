@@ -26,7 +26,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.field_components.embedding import Embedding

@@ -27,7 +27,7 @@ from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.engine.callbacks import (

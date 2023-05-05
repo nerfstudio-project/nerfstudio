@@ -21,7 +21,7 @@ import dataclasses
 from typing import Any, Tuple
 
 import viser.infra
-from typing_extensions import Literal, override
+from typing import Literal, override
 
 
 class NerfstudioMessage(viser.infra.Message):

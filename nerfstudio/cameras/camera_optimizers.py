@@ -26,7 +26,8 @@ import torch
 import tyro
 from torch import nn
 from torchtyping import TensorType
-from typing_extensions import Literal, assert_never
+from typing import Literal
+from typing_extensions import assert_never
 
 from nerfstudio.cameras.lie_groups import exp_map_SE3, exp_map_SO3xR3
 from nerfstudio.configs.base_config import InstantiateConfig

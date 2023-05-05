@@ -41,7 +41,8 @@ from typing import (
 import imageio.v3 as iio
 import numpy as onp
 import numpy.typing as onpt
-from typing_extensions import Literal, LiteralString, ParamSpec, assert_never
+from typing import Literal
+from typing_extensions import LiteralString, ParamSpec, assert_never
 
 from nerfstudio.data.scene_box import SceneBox
 

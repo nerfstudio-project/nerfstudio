@@ -29,7 +29,8 @@ from rich.progress import (
 )
 from rich.table import Table
 from torchtyping import TensorType
-from typing_extensions import Literal, assert_never
+from typing import Literal
+from typing_extensions import assert_never
 
 from nerfstudio.cameras.camera_paths import (
     get_interpolated_camera_path,

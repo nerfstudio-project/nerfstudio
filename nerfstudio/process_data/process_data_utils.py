@@ -25,7 +25,7 @@ from typing import List, Optional, Tuple
 import cv2
 import numpy as np
 from rich.console import Console
-from typing_extensions import Literal, OrderedDict
+from typing import Literal, OrderedDict
 
 from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command

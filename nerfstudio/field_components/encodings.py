@@ -25,7 +25,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from torchtyping import TensorType
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.field_components.base_field_component import FieldComponent
 from nerfstudio.utils.math import components_from_spherical_harmonics, expected_sin

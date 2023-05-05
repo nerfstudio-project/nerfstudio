@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from typing import Type
 
 import torch
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline, VanillaPipelineConfig

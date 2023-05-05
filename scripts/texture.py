@@ -10,7 +10,7 @@ from typing import Optional
 
 import tyro
 from rich.console import Console
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.exporter import texture_utils
 from nerfstudio.exporter.exporter_utils import get_mesh_from_filename

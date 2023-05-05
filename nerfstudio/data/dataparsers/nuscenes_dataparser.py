@@ -23,7 +23,7 @@ import numpy as np
 import pyquaternion
 import torch
 from nuscenes.nuscenes import NuScenes as NuScenesDatabase
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (

@@ -32,7 +32,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from torch.cuda.amp.grad_scaler import GradScaler
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.engine.callbacks import (

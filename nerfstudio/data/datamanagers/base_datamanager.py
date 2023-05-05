@@ -30,7 +30,7 @@ from torch import nn
 from torch.nn import Parameter
 from torch.utils.data import Dataset
 from torch.utils.data.distributed import DistributedSampler
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.cameras.cameras import CameraType

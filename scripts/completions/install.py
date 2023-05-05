@@ -15,7 +15,8 @@ from typing import List, Optional, Union
 import tyro
 from rich.console import Console
 from rich.prompt import Confirm
-from typing_extensions import Literal, assert_never
+from typing import Literal
+form typing_extensions import assert_never
 from typing_extensions import get_args as typing_get_args
 
 if sys.version_info < (3, 10):

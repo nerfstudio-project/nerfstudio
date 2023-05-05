@@ -30,7 +30,7 @@ import torch
 import xatlas
 from rich.console import Console
 from torchtyping import TensorType
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.exporter.exporter_utils import Mesh

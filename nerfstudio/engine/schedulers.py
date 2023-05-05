@@ -22,7 +22,7 @@ from typing import Optional, Tuple, Type
 
 import numpy as np
 from torch.optim import Optimizer, lr_scheduler
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.configs.base_config import InstantiateConfig
 

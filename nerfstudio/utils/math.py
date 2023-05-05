@@ -19,7 +19,7 @@ from typing import Tuple
 
 import torch
 from torchtyping import TensorType
-from typing_extensions import Literal
+from typing import Literal
 
 
 def components_from_spherical_harmonics(levels: int, directions: TensorType[..., 3]) -> TensorType[..., "components"]:

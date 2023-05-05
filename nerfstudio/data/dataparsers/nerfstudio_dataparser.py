@@ -24,7 +24,7 @@ import numpy as np
 import torch
 from PIL import Image
 from rich.console import Console
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
