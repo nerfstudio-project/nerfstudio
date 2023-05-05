@@ -1,9 +1,16 @@
 # pylint: disable=all
 from copy import copy
+from typing import Any
 
+import torch
+
+from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.datamanagers.base_datamanager import (
     DataManager,
+    DataparserOutputs,
     VanillaDataManager,
+    VanillaDataManagerConfig,
 )
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.datasets.depth_dataset import DepthDataset
@@ -11,18 +18,41 @@ from nerfstudio.data.datasets.depth_dataset import DepthDataset
 
 def test_data_manager_type_inference():
     # Mock for a faster test
-    _VanillaDataManager = copy(VanillaDataManager)
-    _VanillaDataManager.__init__ = lambda self: DataManager.__init__(self)
+    class DummyDataParser:
+        def __init__(self, *args, **kwargs):
+            pass
 
-    assert _VanillaDataManager().get_dataset_type() is InputDataset
-    assert _VanillaDataManager[DepthDataset]().get_dataset_type() is DepthDataset
+        def __getattr__(self, __name: str) -> Any:
+            return None
 
-    class tmp(_VanillaDataManager):
+        def get_dataparser_outputs(self, *args, **kwargs):
+            return DataparserOutputs(
+                [],
+                Cameras(
+                    torch.ones((0, 4, 4)),
+                    torch.ones((0, 1)),
+                    torch.ones((0, 1)),
+                    torch.ones((0, 1)),
+                    torch.ones((0, 1)),
+                    10,
+                    10,
+                ),
+                metadata={"depth_filenames": [], "depth_unit_scale_factor": 1.0},
+            )
+
+    config = VanillaDataManagerConfig()
+    setattr(config, "dataparser", InstantiateConfig(_target=DummyDataParser))
+    setattr(config.dataparser, "data", None)
+
+    assert VanillaDataManager(config).dataset_type is InputDataset
+    assert VanillaDataManager[DepthDataset](config).dataset_type is DepthDataset
+
+    class tmp(VanillaDataManager):
         pass
 
-    assert tmp().get_dataset_type() is InputDataset
+    assert tmp(config).dataset_type is InputDataset
 
-    class tmp2(_VanillaDataManager[DepthDataset]):
+    class tmp2(VanillaDataManager[DepthDataset]):
         pass
 
-    assert tmp2().get_dataset_type() is DepthDataset
+    assert tmp2(config).dataset_type is DepthDataset

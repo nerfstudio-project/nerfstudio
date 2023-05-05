@@ -18,21 +18,11 @@ Datamanager.
 
 from __future__ import annotations
 
+import functools
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import (
-    Any,
-    Dict,
-    ForwardRef,
-    Generic,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-    cast,
-)
+from typing import Any, Dict, Generic, List, Optional, Tuple, Type, Union
 
 import torch
 import tyro
@@ -82,7 +72,6 @@ from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
-from nerfstudio.utils.typing import get_args, get_orig_class, get_origin
 
 CONSOLE = Console(width=120)
 
@@ -411,6 +400,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abs
         local_rank: int = 0,
         **kwargs,  # pylint: disable=unused-argument
     ):
+        self.dataset_type: Type[TDataset] = kwargs.get("_dataset_type", TDataset.__default__)
         self.config = config
         self.device = device
         self.world_size = world_size
@@ -441,33 +431,23 @@ class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abs
 
         super().__init__()
 
-    def get_dataset_type(self) -> Type[TDataset]:
-        """Returns the dataset type passed as the generic argument"""
-        orig_class = get_orig_class(self)
-        if orig_class is VanillaDataManager:
-            return TDataset.__default__  # typing: ignore
-        if get_origin(orig_class) is VanillaDataManager:
-            return get_args(orig_class)[0]
-        # For inherited classes, we need to find the correct type to instantiate
-        for base in getattr(self, "__orig_bases__", []):
-            if get_origin(base) is VanillaDataManager:
-                for value in get_args(base):
-                    assert not isinstance(value, ForwardRef), "ForwardRef is not supported"
-                    assert isinstance(value, type)
-                    if issubclass(value, InputDataset):
-                        return cast(Type[TDataset], value)
-            return TDataset.__default__  # typing: ignore
+    def __class_getitem__(cls, item):
+        return type(
+            cls.__name__,
+            (cls,),
+            {"__module__": cls.__module__, "__init__": functools.partialmethod(cls.__init__, _dataset_type=item)},
+        )
 
     def create_train_dataset(self) -> TDataset:
         """Sets up the data loaders for training"""
-        return self.get_dataset_type()(
+        return self.dataset_type(
             dataparser_outputs=self.train_dataparser_outputs,
             scale_factor=self.config.camera_res_scale_factor,
         )
 
     def create_eval_dataset(self) -> TDataset:
         """Sets up the data loaders for evaluation"""
-        return self.get_dataset_type()(
+        return self.dataset_type(
             dataparser_outputs=self.dataparser.get_dataparser_outputs(split=self.test_split),
             scale_factor=self.config.camera_res_scale_factor,
         )
