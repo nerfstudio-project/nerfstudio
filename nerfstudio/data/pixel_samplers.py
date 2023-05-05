@@ -137,7 +137,6 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         if "mask" in batch:
             num_rays_in_batch = num_rays_per_batch // num_images
             for i in range(num_images):
-
                 image_height, image_width, _ = batch["image"][i].shape
 
                 if i == num_images - 1:
@@ -222,7 +221,6 @@ class EquirectangularPixelSampler(PixelSampler):  # pylint: disable=too-few-publ
         mask: Optional[TensorType] = None,
         device: Union[torch.device, str] = "cpu",
     ) -> TensorType["batch_size", 3]:
-
         if isinstance(mask, torch.Tensor):
             # Note: if there is a mask, sampling reduces back to uniform sampling, which gives more
             # sampling weight to the poles of the image than the equators.
@@ -230,7 +228,6 @@ class EquirectangularPixelSampler(PixelSampler):  # pylint: disable=too-few-publ
 
             indices = super().sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)
         else:
-
             # We sample theta uniformly in [0, 2*pi]
             # We sample phi in [0, pi] according to the PDF f(phi) = sin(phi) / 2.
             # This is done by inverse transform sampling.
@@ -280,7 +277,6 @@ class PatchPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
         mask: Optional[TensorType] = None,
         device: Union[torch.device, str] = "cpu",
     ) -> TensorType["batch_size", 3]:
-
         if mask:
             # Note: if there is a mask, sampling reduces back to uniform sampling
             indices = super().sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)
