@@ -83,6 +83,7 @@ descriptions = {
     "nerfplayer-nerfacto": "NeRFPlayer with nerfacto backbone.",
     "nerfplayer-ngp": "NeRFPlayer with InstantNGP backbone.",
     "neus": "Implementation of NeuS. (slow)",
+    "neus-facto": "Implementation of NeuS-Facto. (slow)",
 }
 
 method_configs["nerfacto"] = TrainerConfig(
@@ -589,12 +590,12 @@ method_configs["neus-facto"] = TrainerConfig(
 )
 
 external_methods, external_descriptions = discover_methods()
-method_configs.update(external_methods)
-descriptions.update(external_descriptions)
+all_methods = {**method_configs, **external_methods}
+all_descriptions = {**descriptions, **external_descriptions}
 
 AnnotatedBaseConfigUnion = tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
     tyro.conf.FlagConversionOff[
-        tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
+        tyro.extras.subcommand_type_from_defaults(defaults=all_methods, descriptions=all_descriptions)
     ]
 ]
 """Union[] type over config types, annotated with default instances for use with
