@@ -18,7 +18,7 @@ Tools supporting the execution of COLMAP and preparation of COLMAP-based dataset
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 import appdirs
 import cv2
@@ -27,7 +27,6 @@ import requests
 import torch
 from rich.console import Console
 from rich.progress import track
-from typing_extensions import Literal
 
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
 # import pycolmap
@@ -115,9 +114,7 @@ def run_colmap(
     colmap_version = get_colmap_version(colmap_cmd)
 
     colmap_database_path = colmap_dir / "database.db"
-    if colmap_database_path.exists():
-        # Can't use missing_ok argument because of Python 3.7 compatibility.
-        colmap_database_path.unlink()
+    colmap_database_path.unlink(missing_ok=True)
 
     # Feature extraction
     feature_extractor_cmd = [

@@ -19,11 +19,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 import yaml
 from rich.console import Console
-from typing_extensions import Literal
 
 from nerfstudio.configs.base_config import (
     InstantiateConfig,

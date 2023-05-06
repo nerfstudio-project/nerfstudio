@@ -141,7 +141,6 @@ class CreateJSONCameraPath(bpy.types.Operator):
         keyframe_list = []
 
         for i, transformed_camera_path_mat_val in enumerate(self.transformed_camera_path_mat):
-
             curr_properties = (
                 '[["FOV",'
                 + str(self.fov_list[i])
@@ -361,7 +360,7 @@ class NerfstudioBgPanel(bpy.types.Panel):  # pylint: disable=too-few-public-meth
         self.layout.label(text="Camera path for Nerfstudio")
 
         col = self.layout.column()
-        for (prop_name, _) in INPUT_PROPERTIES:
+        for prop_name, _ in INPUT_PROPERTIES:
             row = col.row()
             row.prop(context.scene, prop_name)
 
@@ -385,7 +384,7 @@ class NerfstudioInputPanel(bpy.types.Panel):  # pylint: disable=too-few-public-m
         self.layout.label(text="Create Blender Camera From Nerfstudio JSON")
         col = self.layout.column()
 
-        for (prop_name, _) in INPUT_PROPERTIES_NS_CAMERA:
+        for prop_name, _ in INPUT_PROPERTIES_NS_CAMERA:
             row = col.row()
             row.prop(context.scene, prop_name)
 
@@ -425,10 +424,10 @@ OBJ_PROPERTIES = ["NeRF", "RenderCamera"]
 def register():
     """Register classes for UI panel."""
 
-    for (prop_name, prop_value) in INPUT_PROPERTIES:
+    for prop_name, prop_value in INPUT_PROPERTIES:
         setattr(bpy.types.Scene, prop_name, prop_value)
 
-    for (prop_name, prop_value) in INPUT_PROPERTIES_NS_CAMERA:
+    for prop_name, prop_value in INPUT_PROPERTIES_NS_CAMERA:
         setattr(bpy.types.Scene, prop_name, prop_value)
 
     bpy.types.Scene.NeRF = bpy.props.PointerProperty(type=bpy.types.Object)
@@ -440,10 +439,10 @@ def register():
 def unregister():
     """Unregister classes for UI panel."""
 
-    for (prop_name, _) in INPUT_PROPERTIES:
+    for prop_name, _ in INPUT_PROPERTIES:
         delattr(bpy.types.Scene, prop_name)
 
-    for (prop_name, _) in INPUT_PROPERTIES_NS_CAMERA:
+    for prop_name, _ in INPUT_PROPERTIES_NS_CAMERA:
         delattr(bpy.types.Scene, prop_name)
 
     del bpy.types.Scene.NeRF

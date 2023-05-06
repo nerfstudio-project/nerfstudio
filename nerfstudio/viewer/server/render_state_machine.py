@@ -18,10 +18,9 @@ from __future__ import annotations
 import contextlib
 import threading
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 
 import torch
-from typing_extensions import Literal, get_args
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.model_components.renderers import background_color_override_context
@@ -160,7 +159,7 @@ class RenderStateMachine(threading.Thread):
         )
         camera = camera.to(self.viewer.get_model().device)
 
-        with (self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext()):
+        with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
             camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
 
             with TimeWriter(None, None, write=False) as vis_t:
