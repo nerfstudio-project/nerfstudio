@@ -288,7 +288,6 @@ class WandbWriter(Writer):
     """WandDB Writer Class"""
 
     def __init__(self, log_dir: Path, experiment_name: str, project_name: str = "nerfstudio-project"):
-        wandb.init(project=project_name, dir=str(log_dir), reinit=True, name=experiment_name)
         wandb.init(
             project=os.environ.get("WANDB_PROJECT", project_name),
             dir=os.environ.get("WANDB_DIR", str(log_dir)),
