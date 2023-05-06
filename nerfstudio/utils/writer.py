@@ -18,6 +18,7 @@ Generic Writer class
 from __future__ import annotations
 
 import enum
+import os
 from abc import abstractmethod
 from pathlib import Path
 from time import time
@@ -287,7 +288,12 @@ class WandbWriter(Writer):
     """WandDB Writer Class"""
 
     def __init__(self, log_dir: Path, experiment_name: str, project_name: str = "nerfstudio-project"):
-        wandb.init(project=project_name, dir=str(log_dir), reinit=True, name=experiment_name)
+        wandb.init(
+            project=os.environ.get("WANDB_PROJECT", project_name),
+            dir=os.environ.get("WANDB_DIR", str(log_dir)),
+            name=os.environ.get("WANDB_NAME", experiment_name),
+            reinit=True,
+        )
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         image = torch.permute(image, (2, 0, 1))
