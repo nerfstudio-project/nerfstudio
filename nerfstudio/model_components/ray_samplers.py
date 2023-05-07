@@ -262,7 +262,7 @@ class PDFSampler(Sampler):
         train_stratified: bool = True,
         single_jitter: bool = False,
         include_original: bool = True,
-        histogram_padding: float = 0.01,
+        histogram_padding: float = 0.00,
     ) -> None:
         super().__init__(num_samples=num_samples)
         self.train_stratified = train_stratified
@@ -384,7 +384,6 @@ class VolumetricSampler(Sampler):
         occupancy_grid: OccGridEstimator,
         density_fn: Optional[Callable[[TensorType[..., 3]], TensorType[..., 1]]] = None,
     ) -> None:
-
         super().__init__()
         assert occupancy_grid is not None
         self.density_fn = density_fn
@@ -651,7 +650,6 @@ class NeuSSampler(Sampler):
         base_variance = self.base_variance
 
         while total_iters < self.num_upsample_steps:
-
             with torch.no_grad():
                 new_sdf = sdf_fn(new_samples)
 

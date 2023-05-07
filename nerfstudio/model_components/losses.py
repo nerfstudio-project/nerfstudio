@@ -120,6 +120,66 @@ def interlevel_loss(weights_list, ray_samples_list):
     return loss_interlevel
 
 
+def blur_stepfun(x, y, r):
+    xr, xr_idx = torch.sort(torch.cat([x - r, x + r], dim=-1))
+    y1 = (
+        torch.cat([y, torch.zeros_like(y[..., :1])], dim=-1) - torch.cat([torch.zeros_like(y[..., :1]), y], dim=-1)
+    ) / (2 * r)
+    y2 = torch.cat([y1, -y1], dim=-1).take_along_dim(xr_idx[..., :-1], dim=-1)
+    yr = torch.cumsum((xr[..., 1:] - xr[..., :-1]) * torch.cumsum(y2, dim=-1), dim=-1).clamp_min(0)
+    yr = torch.cat([torch.zeros_like(yr[..., :1]), yr], dim=-1)
+    return xr, yr
+
+
+def sorted_interp_quad(x, xp, fpdf, fcdf):
+    """interp in quadratic"""
+
+    # Identify the location in `xp` that corresponds to each `x`.
+    # The final `True` index in `mask` is the start of the matching interval.
+    mask = x[..., None, :] >= xp[..., :, None]
+
+    def find_interval(x):
+        # Grab the value where `mask` switches from True to False, and vice versa.
+        # This approach takes advantage of the fact that `x` is sorted.
+        x0 = torch.max(torch.where(mask, x[..., None], x[..., :1, None]), -2).values
+        x1 = torch.min(torch.where(~mask, x[..., None], x[..., -1:, None]), -2).values
+        return x0, x1
+
+    fpdf0, fpdf1 = find_interval(fpdf)
+    fcdf0, fcdf1 = find_interval(fcdf)
+    xp0, xp1 = find_interval(xp)
+
+    offset = torch.clip(torch.nan_to_num((x - xp0) / (xp1 - xp0), 0), 0, 1)
+    ret = fcdf0 + (x - xp0) * (fpdf0 + fpdf1 * offset + fpdf0 * (1 - offset)) / 2
+    return ret
+
+
+def zipnerf_loss(weights_list, ray_samples_list):
+    # ground truth s and w (real nerf samples)
+    pulse_widths = [0.003, 0.03]
+    c = ray_samples_to_sdist(ray_samples_list[-1]).detach()
+    w = weights_list[-1][..., 0].detach()
+
+    w_norm = w / (c[..., 1:] - c[..., :-1])
+    loss = 0
+    for i, (ray_samples, weights) in enumerate(zip(ray_samples_list[:-1], weights_list[:-1])):
+        cp = ray_samples_to_sdist(ray_samples)
+        wp = weights[..., 0]  # (num_rays, num_samples)
+        c_, w_ = blur_stepfun(c, w_norm, pulse_widths[i])
+
+        # piecewise linear pdf to piecewise quadratic cdf
+        area = 0.5 * (w_[..., 1:] + w_[..., :-1]) * (c_[..., 1:] - c_[..., :-1])
+        cdf = torch.cat([torch.zeros_like(area[..., :1]), torch.cumsum(area, dim=-1)], dim=-1)
+
+        # query piecewise quadratic interpolation
+        cdf_interp = sorted_interp_quad(cp, c_, w_, cdf)
+
+        # difference between adjacent interpolated values
+        w_s = torch.diff(cdf_interp, dim=-1)
+        loss += ((w_s - wp).clamp_min(0) ** 2 / (wp + 1e-5)).mean()
+    return loss
+
+
 # Verified
 def lossfun_distortion(t, w):
     """
