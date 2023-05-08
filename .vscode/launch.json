@@ -162,7 +162,7 @@
           "--traj=interpolate",
           "--downscale-factor=4",
           "--eval-num-rays-per-chunk=65536",
-          "--output-path=../workspace/datasets/volinga/renders/dron_abades.mp4",
+          "--output-path=../workspace/datasets/volinga/renders/dron_abades_min_steps.mp4",
           "--interpolation-steps=40",
           "--seconds=40",
           "--adjust_speed"

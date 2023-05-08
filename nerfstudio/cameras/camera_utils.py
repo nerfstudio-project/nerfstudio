@@ -229,6 +229,7 @@ def get_interpolated_poses_many(
             translation = position_a - position_b
             distance = np.linalg.norm(translation)
             adjusted_steps = round(steps_per_transition * distance)
+            if adjusted_steps < steps_per_transition//2: adjusted_steps = steps_per_transition//2
         else:
             adjusted_steps = steps_per_transition
         poses_ab = get_interpolated_poses(pose_a, pose_b, steps=adjusted_steps)
