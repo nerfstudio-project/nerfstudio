@@ -3,7 +3,7 @@ import glob
 import json
 import shutil
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -16,14 +16,32 @@ def load_json(path: Union[Path, str]):
         return json.load(f)
 
 
-def split_transforms(path: Path, splits: int):
+def split_transforms(path: Path, splits: int, overlap: int = 10):
     transforms = load_json(path)
     frames = transforms["frames"]
     split_frames = np.array_split(frames, splits)
+    image_indexes: List[Tuple[int, int]] = []
 
-    image_indexes = []
+    # Add overlap to the split_frames
+    assert overlap < len(split_frames[0])
+    for i, split in enumerate(split_frames):
+        if i == 0:
+            split_frames[i] = np.concatenate((split, split_frames[i + 1][:overlap]))
+            image_indexes.append((0, len(split) + overlap))
+        elif i == len(split_frames) - 1:
+            split_frames[i] = np.concatenate((split_frames[i - 1][-overlap * 2 : -overlap], split))
+            start_index = image_indexes[-1][1] - 2 * overlap
+            image_indexes.append((start_index, start_index + len(split) + overlap))
+        else:
+            split_frames[i] = np.concatenate(
+                (split_frames[i - 1][-overlap * 2 : -overlap], split, split_frames[i + 1][:overlap])
+            )
+            start_index = image_indexes[-1][1] - 2 * overlap
+            image_indexes.append((start_index, start_index + len(split) + 2 * overlap))
+
     new_transforms = []
     for split in split_frames:
+
         new_transforms.append(
             {
                 "camera_model": transforms["camera_model"],
@@ -40,14 +58,10 @@ def split_transforms(path: Path, splits: int):
                 "frames": split.tolist(),
             }
         )
-        if len(image_indexes) == 0:
-            image_indexes.append(len(split))
-        else:
-            image_indexes.append(image_indexes[-1] + len(split))
     return new_transforms, image_indexes
 
 
-def write_transforms(transforms: list, image_indexes: list, path: Path):
+def write_transforms(transforms: list, image_indexes: List[Tuple[int, int]], path: Path):
     original_images_path = path / "images"
     images = glob.glob(f"{original_images_path}/*.png")
     images.sort()
@@ -61,7 +75,7 @@ def write_transforms(transforms: list, image_indexes: list, path: Path):
         image_path = split_path / "images"
         image_path.mkdir(parents=True, exist_ok=True)
 
-        for j in range(0 if i == 0 else image_indexes[i - 1], image_indexes[i]):
+        for j in range(image_indexes[i][0], image_indexes[i][1]):
             shutil.copyfile(f"{images[j]}", f"{image_path}/{images[j].split('/')[-1]}")
 
 
@@ -150,9 +164,7 @@ def transform_to_single_camera_path(
 
 
 def create_block_lookup(exp_path: Path, camera_path_path: Path, block_transforms: Dict[str, Path]):
-    transforms = {
-        block_name: load_json(transform_path) for block_name, transform_path in block_transforms.items()
-    }
+    transforms = {block_name: load_json(transform_path) for block_name, transform_path in block_transforms.items()}
     camera_path = load_json(camera_path_path)
 
     # Define a function to compute the Euclidean distance between two 4x4 homogeneous matrices

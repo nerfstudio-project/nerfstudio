@@ -75,8 +75,8 @@ class RenderSideBySide:
         new_camera_path = {
             "keyframes": [],
             "camera_type": "perspective",
-            "render_height": 1080,
-            "render_width": 1920,
+            "render_height": 1600, # This is the resolution of the input images scaled by 4
+            "render_width": 1200, # This is the resolution of the input images scaled by 4
             "camera_path": [],  # "camera_to_world"-dict with 16 double values in a 1D list.
             "fps": self.fps,
             "seconds": len(frames) / self.fps,
@@ -89,7 +89,7 @@ class RenderSideBySide:
                 {
                     "camera_to_world": c2w,
                     "fov": 90,
-                    "aspect": 1.6678200692041523,  # TODO: Should I get this somewhere else?
+                    "aspect": 400 / 300,  # Heigh/width. Should I get this somewhere else? 
                 }
             )
 
@@ -126,11 +126,11 @@ class RenderSideBySide:
         rescaled_paths = []
         for video_path in video_paths:
             rescaled_video_path = video_path.parent / f"rescaled-{video_path.name}"
-            cmd = f'ffmpeg -n -i {video_path} -vf "scale=w=960:h=540:force_original_aspect_ratio=1,pad=960:540:(ow-iw)/2:(oh-ih)/2" -c:v libx264 {rescaled_video_path}'
+            cmd = f'ffmpeg -n -i {video_path} -vf "scale=w=800:h=600:force_original_aspect_ratio=1,pad=800:600:(ow-iw)/2:(oh-ih)/2" -c:v libx264 {rescaled_video_path}'
             print(cmd)
             subprocess.run(cmd, shell=True, check=True)
             rescaled_paths.append(rescaled_video_path)
-        print("✅ Rescaled videos to 1080p")
+        print("✅ Rescaled videos to 800x600")
 
         # Create side-by-side videoP
         cmd = f"ffmpeg -n {' '.join([f'-i {video_path}' for video_path in rescaled_paths])} -filter_complex hstack=inputs={len(rescaled_paths)} {export_path}"

@@ -107,7 +107,7 @@ class ExperimentPipeline:
         config.data = self.input_data_dir
         config.output_dir = self.output_dir
         config.experiment_name = self.experiment_name
-        config.vis = "viewer"
+        config.vis = "wandb"
         config.viewer.quit_on_train_completion = True
         config.max_num_iterations = 15000
 
@@ -274,7 +274,7 @@ if __name__ == "__main__":
     block_paths = []
     if args.block_segments:
         new_transforms, image_indexes = block_nerf.split_transforms(
-            args.input_data_dir / "transforms.json", args.block_segments
+            args.input_data_dir / "transforms.json", args.block_segments, overlap=20
         )
         block_nerf.write_transforms(new_transforms, image_indexes, args.input_data_dir)
 
