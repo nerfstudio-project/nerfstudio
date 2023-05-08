@@ -43,6 +43,8 @@ class Args:
     output_dir: Path
     use_camera_optimizer: bool = True
     block_segments: Optional[int] = None
+    num_cameras: int = 2
+    camera_offset: int = 0
 
 
 class my_timer(ContextDecorator):
@@ -87,8 +89,12 @@ class ExperimentPipeline:
         """
         self.train()
         self.eval()
-        # self.render(mode="side-by-side")
-        # self.render(mode="interpolate")
+
+        if self.block_segments:
+            self.render(mode="interpolate")
+        else:
+            self.render(mode="interpolate")
+            self.render(mode="side-by-side")
 
         return {
             "model_dir": self.model_dir,
@@ -231,7 +237,9 @@ def render_blocknerf(output_dir: Path, run_paths: List[Dict[str, Path]], camera_
     render_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     render_path = render_dir / f"{timestamp}-blocknerf.mp4"
-    block_lookup = block_nerf.get_block_lookup(output_dir, camera_path_path=camera_path_path, block_transforms=transforms_paths)
+    block_lookup = block_nerf.get_block_lookup(
+        output_dir, camera_path_path=camera_path_path, block_transforms=transforms_paths
+    )
 
     combined_transformed_camera_path = block_nerf.transform_to_single_camera_path(
         camera_path_path=camera_path_path,
@@ -285,8 +293,8 @@ if __name__ == "__main__":
             )
 
             render_side_by_side = RenderSideBySide(
-                cameras_in_rig=2,
-                camera_offset=0,
+                cameras_in_rig=args.num_cameras,
+                camera_offset=args.camera_offset,
                 exp_dir=new_args.input_data_dir,
                 fps=24,
                 images_dir=new_args.input_data_dir / "images",
@@ -311,8 +319,8 @@ if __name__ == "__main__":
 
         # Generate a camera_path from the input_images and transforms
         render_side_by_side = RenderSideBySide(
-            cameras_in_rig=2,
-            camera_offset=0,
+            cameras_in_rig=args.num_cameras,
+            camera_offset=args.camera_offset,
             exp_dir=args.input_data_dir,
             fps=24,
             images_dir=args.input_data_dir / "images",
