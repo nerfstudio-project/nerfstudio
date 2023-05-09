@@ -322,7 +322,7 @@ class Trainer:
         assert self.viewer_state and self.pipeline.datamanager.train_dataset
         self.viewer_state.init_scene(
             dataset=self.pipeline.datamanager.train_dataset,
-            train_state="training",
+            train_state="training" if self.config.viewer.start_train else "paused",
         )
 
     @check_viewer_enabled
