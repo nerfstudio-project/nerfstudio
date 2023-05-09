@@ -26,6 +26,7 @@ from rich.progress import (
     TaskProgressColumn,
     TextColumn,
     TimeRemainingColumn,
+    TimeElapsedColumn,
 )
 from rich.table import Table
 from torchtyping import TensorType
@@ -55,7 +56,7 @@ def _render_trajectory_video(
     crop_data: Optional[CropData] = None,
     rendered_resolution_scaling_factor: float = 1.0,
     seconds: float = 5.0,
-    output_format: Literal["images", "video"] = "video",
+    output_format: Literal["images", "video", "jpg", "png"] = "video",
     camera_type: CameraType = CameraType.PERSPECTIVE,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
@@ -79,9 +80,10 @@ def _render_trajectory_video(
     progress = Progress(
         TextColumn(":movie_camera: Rendering :movie_camera:"),
         BarColumn(),
-        TaskProgressColumn(show_speed=True),
+        TaskProgressColumn(text_format="[progress.percentage]{task.completed}/{task.total:>.0f}({task.percentage:>3.1f}%)",show_speed=True),
         ItersPerSecColumn(suffix="fps"),
-        TimeRemainingColumn(elapsed_when_finished=True, compact=True),
+        TimeRemainingColumn(elapsed_when_finished=False, compact=False),
+        TimeElapsedColumn()
     )
     output_image_dir = output_filename.parent / output_filename.stem
     if output_format == "images":
@@ -131,8 +133,10 @@ def _render_trajectory_video(
                         output_image = np.concatenate((output_image,) * 3, axis=-1)
                     render_image.append(output_image)
                 render_image = np.concatenate(render_image, axis=1)
-                if output_format == "images":
-                    media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
+                if output_format == "images" or output_format == "png":
+                    media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image, fmt="png")
+                if output_format == "jpg":
+                    media.write_image(output_image_dir / f"{camera_idx:05d}.jpg", render_image, fmt="jpeg")
                 if output_format == "video":
                     if writer is None:
                         render_width = int(render_image.shape[1])
@@ -287,7 +291,7 @@ class RenderTrajectory:
     """Name of the output file."""
     seconds: float = 5.0
     """How long the video should be."""
-    output_format: Literal["images", "video"] = "video"
+    output_format: Literal["images", "video", "jpg", "png"] = "video"
     """How to save output data."""
     interpolation_steps: int = 10
     """Number of interpolation steps between eval dataset cameras."""
