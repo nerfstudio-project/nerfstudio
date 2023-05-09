@@ -19,7 +19,7 @@ def test_tv_loss():
             grid_location = (i + j) % 2
             for k in range(10):
                 grids[0, k, i, j] = grid_location
-    
+
     # TV_row = 1, TV_col = 1. Totol tv should be 2 * (TV_row + TV_col)
     assert tv_loss(grids).item() == 4.0
 

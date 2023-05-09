@@ -67,10 +67,14 @@ class TensoRFModelConfig(ModelConfig):
     """final render resolution"""
     upsampling_iters: Tuple[int, ...] = (2000, 3000, 4000, 5500, 7000)
     """specifies a list of iteration step numbers to perform upsampling"""
-    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0, 
-                                                             "tv_reg_density": 1e-3,
-                                                             "tv_reg_color": 1e-4,
-                                                             "l1_reg": 5e-4,})
+    loss_coefficients: Dict[str, float] = to_immutable_dict(
+        {
+            "rgb_loss": 1.0,
+            "tv_reg_density": 1e-3,
+            "tv_reg_color": 1e-4,
+            "l1_reg": 5e-4,
+        }
+    )
     """Loss specific weights."""
     num_samples: int = 50
     """Number of samples in field evaluation"""
@@ -85,6 +89,7 @@ class TensoRFModelConfig(ModelConfig):
     tensorf_encoding: Literal["triplane", "vm", "cp"] = "vm"
     regularization: Literal["none", "l1", "tv"] = "l1"
     """Regularization method used in tensorf paper"""
+
 
 class TensoRFModel(Model):
     """TensoRF Model
@@ -244,7 +249,7 @@ class TensoRFModel(Model):
         # colliders
         if self.config.enable_collider:
             self.collider = AABBBoxCollider(scene_box=self.scene_box)
-        
+
         # regularizations
         if self.config.tensorf_encoding == "cp" and self.config.regularization == "tv":
             raise RuntimeError("TV reg not supported for CP decomposition")
@@ -303,7 +308,7 @@ class TensoRFModel(Model):
         rgb_loss = self.rgb_loss(image, outputs["rgb"])
 
         loss_dict = {"rgb_loss": rgb_loss}
-        
+
         if self.config.regularization == "l1":
             l1_parameters = []
             for parameter in self.field.density_encoding.parameters():

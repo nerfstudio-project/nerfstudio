@@ -486,9 +486,8 @@ class ScaleAndShiftInvariantLoss(nn.Module):
 
     prediction_ssi = property(__get_prediction_ssi)
 
-def tv_loss(
-    grids: TensorType["grids", "feature_dim", "row", "column"]
-) -> TensorType[0]:
+
+def tv_loss(grids: TensorType["grids", "feature_dim", "row", "column"]) -> TensorType[()]:
     """
     https://github.com/apchenstu/TensoRF/blob/4ec894dc1341a2201fe13ae428631b58458f105d/utils.py#L139
 
@@ -500,7 +499,6 @@ def tv_loss(
     number_of_grids = grids.shape[0]
     h_tv_count = grids[:, :, 1:, :].shape[1] * grids[:, :, 1:, :].shape[2] * grids[:, :, 1:, :].shape[3]
     w_tv_count = grids[:, :, :, 1:].shape[1] * grids[:, :, :, 1:].shape[2] * grids[:, :, :, 1:].shape[3]
-    h_tv = torch.pow((grids[:, :, 1:, :] - grids[:, :, :-1, :]),2).sum()
-    w_tv = torch.pow((grids[:, :, :, 1:] - grids[:, :, :, :-1]),2).sum()
+    h_tv = torch.pow((grids[:, :, 1:, :] - grids[:, :, :-1, :]), 2).sum()
+    w_tv = torch.pow((grids[:, :, :, 1:] - grids[:, :, :, :-1]), 2).sum()
     return 2 * (h_tv / h_tv_count + w_tv / w_tv_count) / number_of_grids
-
