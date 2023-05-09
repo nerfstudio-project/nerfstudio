@@ -12,12 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=too-few-public-methods,access-member-before-definition,attribute-defined-outside-init
+
 """ Viewer GUI elements for the nerfstudio viewer """
 
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Callable, Generic, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, Generic, List, Optional, Tuple
+
+from typing_extensions import TypeVar
 
 from nerfstudio.viewer.viser import GuiHandle, GuiSelectHandle, ViserServer
 
@@ -266,7 +270,10 @@ class ViewerCheckbox(ViewerParameter[bool]):
         self.gui_handle.set_disabled(self.disabled)
 
 
-class ViewerDropdown(ViewerParameter[str]):
+TString = TypeVar("TString", default=str)
+
+
+class ViewerDropdown(ViewerParameter[TString], Generic[TString]):
     """A dropdown in the viewer
 
     Args:
@@ -282,8 +289,8 @@ class ViewerDropdown(ViewerParameter[str]):
     def __init__(
         self,
         name: str,
-        default_value: str,
-        options: List[str],
+        default_value: TString,
+        options: List[TString],
         disabled: bool = False,
         cb_hook: Callable[[ViewerDropdown], Any] = lambda element: None,
     ):

@@ -14,11 +14,11 @@
 
 """ Control panel for the viewer """
 from collections import defaultdict
-from typing import Callable, DefaultDict, List, Tuple
+from typing import Callable, DefaultDict, List, Tuple, get_args
 
 import torch
 
-from nerfstudio.viewer.server import viewer_utils
+from nerfstudio.utils.colormaps import Colormaps
 from nerfstudio.viewer.server.viewer_elements import (
     ViewerCheckbox,
     ViewerDropdown,
@@ -55,7 +55,7 @@ class ControlPanel:
             ["not set"],
             cb_hook=lambda han: [self.update_control_panel(), update_output_cb(han), rerender_cb(han)],
         )
-        self._colormap = ViewerDropdown("Colormap", "default", ["default"], cb_hook=rerender_cb)
+        self._colormap = ViewerDropdown[Colormaps]("Colormap", "default", ["default"], cb_hook=rerender_cb)
         self._invert = ViewerCheckbox("| Invert", False, cb_hook=rerender_cb)
         self._normalize = ViewerCheckbox("| Normalize", False, cb_hook=rerender_cb)
         self._min = ViewerNumber("| Min", 0.0, cb_hook=rerender_cb)
@@ -150,11 +150,11 @@ class ControlPanel:
             dimensions: the number of dimensions of the render
             dtype: the data type of the render
         """
-        colormap_options = []
+        colormap_options: List[Colormaps] = []
         if dimensions == 3:
-            colormap_options = [viewer_utils.ColormapTypes.DEFAULT.value]
+            colormap_options = ["default"]
         if dimensions == 1 and dtype == torch.float:
-            colormap_options = [c.value for c in list(viewer_utils.ColormapTypes)[1:]]
+            colormap_options = [c for c in list(get_args(Colormaps)) if c != "default"]
 
         self._colormap.set_options(colormap_options)
 
@@ -169,9 +169,10 @@ class ControlPanel:
         return self._output_render.value
 
     @property
-    def colormap(self) -> str:
+    def colormap(self) -> Colormaps:
         """Returns the current colormap"""
-        return self._colormap.value
+        colormap = self._colormap.value
+        return colormap
 
     @property
     def colormap_invert(self) -> bool:
