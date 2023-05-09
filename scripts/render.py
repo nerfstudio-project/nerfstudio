@@ -11,7 +11,7 @@ import sys
 from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import mediapy as media
 import numpy as np
@@ -29,7 +29,7 @@ from rich.progress import (
 )
 from rich.table import Table
 from torchtyping import TensorType
-from typing_extensions import Literal, assert_never
+from typing_extensions import assert_never
 
 from nerfstudio.cameras.camera_paths import (
     get_interpolated_camera_path,

@@ -17,13 +17,12 @@ import math
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Tuple, Type
+from typing import Literal, Optional, Tuple, Type
 
 import numpy as np
 import pyquaternion
 import torch
 from nuscenes.nuscenes import NuScenes as NuScenesDatabase
-from typing_extensions import Literal
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (

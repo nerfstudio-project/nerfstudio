@@ -188,9 +188,14 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
 
 
 @check_main_thread
-def setup_event_writer(is_wandb_enabled: bool, is_tensorboard_enabled: bool, log_dir: Path) -> None:
+def setup_event_writer(
+    is_wandb_enabled: bool,
+    is_tensorboard_enabled: bool,
+    log_dir: Path,
+    experiment_name: str,
+    project_name: str = "nerfstudio-project",
+) -> None:
     """Initialization of all event writers specified in config
-
     Args:
         config: configuration to instantiate loggers
         max_iter: maximum number of train iterations
@@ -198,7 +203,7 @@ def setup_event_writer(is_wandb_enabled: bool, is_tensorboard_enabled: bool, log
     """
     using_event_writer = False
     if is_wandb_enabled:
-        curr_writer = WandbWriter(log_dir=log_dir)
+        curr_writer = WandbWriter(log_dir=log_dir, experiment_name=experiment_name, project_name=project_name)
         EVENT_WRITERS.append(curr_writer)
         using_event_writer = True
     if is_tensorboard_enabled:
@@ -282,11 +287,11 @@ class TimeWriter:
 class WandbWriter(Writer):
     """WandDB Writer Class"""
 
-    def __init__(self, log_dir: Path):
+    def __init__(self, log_dir: Path, experiment_name: str, project_name: str = "nerfstudio-project"):
         wandb.init(
-            project=os.environ.get("WANDB_PROJECT", "nerfstudio-project"),
+            project=os.environ.get("WANDB_PROJECT", project_name),
             dir=os.environ.get("WANDB_DIR", str(log_dir)),
-            name=os.environ.get("WANDB_NAME", log_dir.name),
+            name=os.environ.get("WANDB_NAME", experiment_name),
             reinit=True,
         )
 

@@ -46,7 +46,6 @@ class MLP(FieldComponent):
         activation: Optional[nn.Module] = nn.ReLU(),
         out_activation: Optional[nn.Module] = None,
     ) -> None:
-
         super().__init__()
         self.in_dim = in_dim
         assert self.in_dim > 0
