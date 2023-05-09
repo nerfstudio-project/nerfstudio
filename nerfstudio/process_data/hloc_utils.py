@@ -21,9 +21,9 @@ Requires hloc module from : https://github.com/cvg/Hierarchical-Localization
 
 import sys
 from pathlib import Path
+from typing import Literal
 
 from rich.console import Console
-from typing_extensions import Literal
 
 from nerfstudio.process_data.process_data_utils import CameraModel
 

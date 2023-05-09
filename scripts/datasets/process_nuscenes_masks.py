@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple
+from typing import Literal, Tuple
 
 import cv2
 import numpy as np
@@ -10,7 +10,6 @@ from nuscenes.nuscenes import NuScenes as NuScenesDatabase
 from nuscenes.utils.data_classes import Box
 from nuscenes.utils.geometry_utils import BoxVisibility, view_points
 from tqdm import tqdm
-from typing_extensions import Literal
 
 
 @dataclass

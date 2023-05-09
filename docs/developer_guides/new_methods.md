@@ -70,6 +70,12 @@ finally run the following to register the method,
 pip install -e .
 ```
 
+When developing a new method you don't always want to install your code as a package.
+Instead, you may use the `NERFSTUDIO_METHOD_CONFIGS` environment variable to temporarily register your custom method.
+```
+export NERFSTUDIO_METHOD_CONFIGS="my-method=my_method.my_config:MyMethod"
+```
+
 ## Running custom method
 
 After registering your method you should be able to run the method with,

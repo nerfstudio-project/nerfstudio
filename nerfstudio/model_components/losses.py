@@ -16,11 +16,11 @@
 Collection of Losses.
 """
 from enum import Enum
+from typing import Literal
 
 import torch
 from torch import nn
 from torchtyping import TensorType
-from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.utils.math import masked_reduction, normalized_depth_scale_and_shift

@@ -76,7 +76,6 @@ def evaluate_multiresolution_sdf(
     x_min: float,
     crop_n: int,
 ) -> TensorType["batch"]:
-
     """
     Evaluate SDF values using a multi-resolution approach with a given point pyramid.
 

@@ -17,13 +17,12 @@ Camera transformation helper code.
 """
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
 from numpy.typing import ArrayLike
 from torchtyping import TensorType
-from typing_extensions import Literal
 
 _EPS = np.finfo(float).eps * 4.0
 
