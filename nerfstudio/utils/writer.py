@@ -188,6 +188,9 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
 
 
 def is_initialized():
+    """
+    Returns True after setup_local_writer was called
+    """
     return "events" in GLOBAL_BUFFER
 
 
