@@ -8,7 +8,7 @@ You may also want to install [hloc](https://github.com/cvg/Hierarchical-Localiza
 
 ```{eval-rst}
 .. argparse::
-    :module: scripts.process_data
+    :module: nerfstudio.scripts.process_data
     :func: get_parser_fn
     :prog: ns-process-data
     :nodefault:
