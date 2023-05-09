@@ -182,9 +182,10 @@ class RenderStateMachine(threading.Thread):
                 self.viewer.get_model().train()
         num_rays = len(camera_ray_bundle)
         render_time = vis_t.duration
-        writer.put_time(
-            name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=step, avg_over_steps=True
-        )
+        if writer.is_initialized():
+            writer.put_time(
+                name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=step, avg_over_steps=True
+            )
         self.viewer.viser_server.send_status_message(eval_res=f"{image_height}x{image_width}px", step=step)
         return outputs
 
@@ -263,7 +264,7 @@ class RenderStateMachine(threading.Thread):
                 image_width = max_res
                 image_height = int(image_width / aspect_ratio)
         elif self.state in ("low_move", "low_static"):
-            if EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
+            if writer.is_initialized() and EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
                 vis_rays_per_sec = GLOBAL_BUFFER["events"][EventName.VIS_RAYS_PER_SEC.value]["avg"]
             else:
                 vis_rays_per_sec = 100000
