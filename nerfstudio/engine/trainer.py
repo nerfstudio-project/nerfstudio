@@ -461,8 +461,11 @@ class Trainer:
 
             metrics_dict["Gradients/Total"] = total_grad
 
+        scale = self.grad_scaler.get_scale()
         self.grad_scaler.update()
-        self.optimizers.scheduler_step_all(step)
+        # If the gradient scaler is decreased, no optimization step is performed so we should not step the scheduler.
+        if scale <= self.grad_scaler.get_scale():
+            self.optimizers.scheduler_step_all(step)
 
         # Merging loss and metrics dict into a single output.
         return loss, loss_dict, metrics_dict
