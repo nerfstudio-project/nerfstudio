@@ -16,8 +16,8 @@
 
 from typing import Literal, Optional
 
+import matplotlib
 import torch
-from matplotlib import cm
 from torchtyping import TensorType
 
 from nerfstudio.utils import colors
@@ -88,7 +88,7 @@ def apply_float_colormap(
     if colormap == "default":
         colormap = "turbo"
 
-    colormap = cm.get_cmap(colormap)
+    colormap = matplotlib.colormaps[colormap]
     colormap = torch.tensor(colormap.colors).to(image.device)  # type: ignore
     image = torch.nan_to_num(image, 0)
     image_long = (image * 255).long()

@@ -46,7 +46,7 @@ dependencies = [
     "requests",
     "rich>=12.5.1",
     "scikit-image>=0.19.3",
-    "tensorboard==2.9.0",
+    "tensorboard>=2.13.0",
     "torch>=1.12.1,<2.0.0",
     "torchmetrics[image]>=0.9.3",
     "torchtyping>=0.1.4",
