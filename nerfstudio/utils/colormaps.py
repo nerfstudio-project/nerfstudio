@@ -14,7 +14,7 @@
 
 """ Helper functions for visualizing outputs """
 
-from typing import Optional
+from typing import Literal, Optional
 
 import torch
 from matplotlib import cm
@@ -22,19 +22,73 @@ from torchtyping import TensorType
 
 from nerfstudio.utils import colors
 
+Colormaps = Literal["default", "turbo", "viridis", "magma", "inferno", "cividis"]
 
-def apply_colormap(image: TensorType["bs":..., 1], cmap="viridis") -> TensorType["bs":..., "rgb":3]:
+
+def apply_colormap(
+    image: TensorType["bs":..., 1],
+    colormap: Colormaps = "turbo",
+    normalize: bool = False,
+    colormap_min: float = 0,
+    colormap_max: float = 1,
+    invert: bool = False,
+    eps: float = 1e-9,
+) -> TensorType["bs":..., "rgb":3]:
+    """
+    Applies a colormap to a tensor image. Currently only supports 1 and 3 channel inputs
+
+    Args:
+        image: Input tensor image.
+        colormap: Colormap to apply.
+        normalize: Whether to normalize the input tensor image.
+        colormap_min: Minimum value for the output colormap.
+        colormap_max: Maximum value for the output colormap.
+        invert: Whether to invert the output colormap.
+        eps: Epsilon value for numerical stability.
+
+    Returns:
+        Tensor with the colormap applied.
+    """
+
+    # default for rgb images
+    if image.shape[-1] == 3:
+        return image
+
+    # rendering depth outputs
+    if image.shape[-1] == 1 and torch.is_floating_point(image):
+        output = image
+        if normalize:
+            output = output - torch.min(output)
+            output = output / (torch.max(output) + eps)
+        output = output * (colormap_max - colormap_min) + colormap_min
+        output = torch.clip(output, 0, 1)
+        if invert:
+            output = 1 - output
+        return apply_float_colormap(output, colormap=colormap)
+
+    # rendering boolean outputs
+    if image.dtype == torch.bool:
+        return apply_boolean_colormap(image)
+
+    raise NotImplementedError
+
+
+def apply_float_colormap(
+    image: TensorType["bs":..., 1], colormap: Colormaps = "viridis"
+) -> TensorType["bs":..., "rgb":3]:
     """Convert single channel to a color image.
 
     Args:
         image: Single channel image.
-        cmap: Colormap for image.
+        colormap: Colormap for image.
 
     Returns:
         TensorType: Colored image with colors in [0, 1]
     """
+    if colormap == "default":
+        colormap = "turbo"
 
-    colormap = cm.get_cmap(cmap)
+    colormap = cm.get_cmap(colormap)
     colormap = torch.tensor(colormap.colors).to(image.device)  # type: ignore
     image = torch.nan_to_num(image, 0)
     image_long = (image * 255).long()
@@ -50,7 +104,7 @@ def apply_depth_colormap(
     accumulation: Optional[TensorType["bs":..., 1]] = None,
     near_plane: Optional[float] = None,
     far_plane: Optional[float] = None,
-    cmap="turbo",
+    colormap: Colormaps = "turbo",
 ) -> TensorType["bs":..., "rgb":3]:
     """Converts a depth image to color for easier analysis.
 
@@ -59,7 +113,7 @@ def apply_depth_colormap(
         accumulation: Ray accumulation used for masking vis.
         near_plane: Closest depth to consider. If None, use min image value.
         far_plane: Furthest depth to consider. If None, use max image value.
-        cmap: Colormap to apply.
+        colormap: Colormap to apply.
 
     Returns:
         Colored depth image with colors in [0, 1]
@@ -72,7 +126,7 @@ def apply_depth_colormap(
     depth = torch.clip(depth, 0, 1)
     # depth = torch.nan_to_num(depth, nan=0.0) # TODO(ethan): remove this
 
-    colored_image = apply_colormap(depth, cmap=cmap)
+    colored_image = apply_colormap(depth, colormap=colormap)
 
     if accumulation is not None:
         colored_image = colored_image * accumulation + (1 - accumulation)
