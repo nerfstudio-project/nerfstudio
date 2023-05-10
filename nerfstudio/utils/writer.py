@@ -187,6 +187,13 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
     GLOBAL_BUFFER["events"] = {}
 
 
+def is_initialized():
+    """
+    Returns True after setup_local_writer was called
+    """
+    return "events" in GLOBAL_BUFFER
+
+
 @check_main_thread
 def setup_event_writer(
     is_wandb_enabled: bool,
@@ -273,7 +280,7 @@ class TimeWriter:
     def __exit__(self, *args):
         self.duration = time() - self.start
         update_step = self.step is not None
-        if self.write:
+        if self.write and is_initialized():
             self.writer.put_time(
                 name=self.name,
                 duration=self.duration,

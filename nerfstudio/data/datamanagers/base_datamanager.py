@@ -89,7 +89,7 @@ def variable_res_collate(batch: List[Dict]) -> Dict:
         image = data.pop("image")
         mask = data.pop("mask", None)
         images.append(image)
-        if mask:
+        if mask is not None:
             masks.append(mask)
 
     new_batch: dict = nerfstudio_collate(batch)

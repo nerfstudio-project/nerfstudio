@@ -168,7 +168,13 @@ It is possible to load a pretrained model by running
 ns-train nerfacto --data data/nerfstudio/poster --load-dir {outputs/.../nerfstudio_models}
 ```
 
-This will automatically start training. If you do not want it to train, add `--viewer.start-train False` to your training command.
+## Visualize existing run
+
+Given a pretrained model checkpoint, you can start the viewer by running
+
+```bash
+ns-viewer --load-config {outputs/.../config.yml}
+```
 
 ## 3. Exporting Results
 
