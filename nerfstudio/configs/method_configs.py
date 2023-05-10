@@ -454,25 +454,40 @@ method_configs["dreamfusion"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            _target=VanillaDataManager[DepthDataset],
-            dataparser=DycheckDataParserConfig(),
-            train_num_rays_per_batch=4096,
-            eval_num_rays_per_batch=4096,
-            camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
-            ),
+        generative=True,
+        datamanager=DreamFusionDataManagerConfig(
+            horizontal_rotation_warmup=4000,
         ),
-        model=NerfplayerNerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
+        model=DreamFusionModelConfig(
+            eval_num_rays_per_chunk=1 << 15,
+            distortion_loss_mult=0.02,
+            interlevel_loss_mult=100.0,
+            orientation_loss_mult=0.1,
+            max_res=256,
+            sphere_collider=True,
+            initialize_density=True,
+            random_background=True,
+            proposal_warmup=500,
+            proposal_update_every=0,
+            proposal_weights_anneal_max_num_iters=100,
+            start_lambertian_training=500,
+            start_normals_training=1000,
+            opacity_loss_mult=0.001,
+            positional_prompting="discrete",
+            guidance_scale=100,
+        ),
     ),
     optimizers={
         "proposal_networks": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
             "scheduler": None,
         },
         "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
+            "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                warmup_steps=2000, lr_final=1e-6, max_steps=20000, ramp="linear"
+            ),
         },
     },
     viewer=ViewerConfig(),
