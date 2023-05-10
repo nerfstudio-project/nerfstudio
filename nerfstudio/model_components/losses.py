@@ -513,17 +513,18 @@ class GradientScaler(torch.autograd.Function):  # typing: ignore, pylint: disabl
     """
 
     @staticmethod
-    def forward(ctx, field_outputs, ray_dist):  # pylint: disable=arguments-differ
+    def forward(ctx, field_outputs, ray_samples):  # pylint: disable=arguments-differ
+        ray_dist = ray_samples.frustums.starts + ray_samples.frustums.ends / 2
         ctx.save_for_backward(ray_dist)
         return field_outputs, ray_dist
 
     @staticmethod
-    def backward(ctx, grad_field_outputs, grad_output_ray_dist):  # pylint: disable=arguments-differ
+    def backward(ctx, grad_field_outputs, grad_output_ray_samples):  # pylint: disable=arguments-differ
         (ray_dist,) = ctx.saved_tensors
         scaling = torch.square(ray_dist).clamp(0, 1)
         output_grad = dict(grad_field_outputs.items())
         for key in output_grad.keys():
             output_grad[key] = output_grad[key] * scaling
-        return output_grad, grad_output_ray_dist
+        return output_grad, grad_output_ray_samples
 
     vjp = backward

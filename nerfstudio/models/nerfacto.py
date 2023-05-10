@@ -269,9 +269,7 @@ class NerfactoModel(Model):
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
         if self.config.use_gradient_scaling:
-            field_outputs, _ = GradientScaler.apply(
-                field_outputs, (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
-            )
+            field_outputs, _ = GradientScaler.apply(field_outputs, ray_samples)
 
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
         weights_list.append(weights)
