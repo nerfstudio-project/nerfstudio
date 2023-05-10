@@ -502,3 +502,23 @@ def tv_loss(grids: TensorType["grids", "feature_dim", "row", "column"]) -> Tenso
     h_tv = torch.pow((grids[:, :, 1:, :] - grids[:, :, :-1, :]), 2).sum()
     w_tv = torch.pow((grids[:, :, :, 1:] - grids[:, :, :, :-1]), 2).sum()
     return 2 * (h_tv / h_tv_count + w_tv / w_tv_count) / number_of_grids
+
+
+class GradientScaler(torch.autograd.Function):
+    """
+    Scale gradients by the ray distance to the pixel
+    as suggested in `Radiance Field Gradient Scaling for Unbiased Near-Camera Training` paper
+
+    Note, the scaling is applied on the interval of [0, 1] along the ray!
+    """
+
+    @staticmethod
+    def forward(ctx, colors, sigmas, ray_dist):
+        ctx.save_for_backward(ray_dist)
+        return colors, sigmas, ray_dist
+
+    @staticmethod
+    def backward(ctx, grad_output_colors, grad_output_sigmas, grad_output_ray_dist):
+        (ray_dist,) = ctx.saved_tensors
+        scaling = torch.square(ray_dist).clamp(0, 1)
+        return grad_output_colors * scaling, grad_output_sigmas * scaling, grad_output_ray_dist
