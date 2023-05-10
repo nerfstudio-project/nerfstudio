@@ -29,13 +29,10 @@ from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.embedding import Embedding
 from nerfstudio.field_components.field_heads import FieldHeadNames
-<<<<<<< HEAD
-=======
 from nerfstudio.field_components.spatial_distortions import (
     SceneContraction,
     SpatialDistortion,
 )
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
 
 try:
@@ -78,10 +75,7 @@ class TCNNInstantNGPField(Field):
         num_levels: int = 16,
         log2_hashmap_size: int = 19,
         max_res: int = 2048,
-<<<<<<< HEAD
-=======
         spatial_distortion: Optional[SpatialDistortion] = SceneContraction(),
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
     ) -> None:
         super().__init__()
 
@@ -97,12 +91,8 @@ class TCNNInstantNGPField(Field):
 
         # TODO: set this properly based on the aabb
         base_res: int = 16
-<<<<<<< HEAD
-        per_level_scale = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
-=======
         features_per_level: int = 2
         growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
         self.direction_encoding = tcnn.Encoding(
             n_input_dims=3,
@@ -121,11 +111,7 @@ class TCNNInstantNGPField(Field):
                 "n_features_per_level": features_per_level,
                 "log2_hashmap_size": log2_hashmap_size,
                 "base_resolution": base_res,
-<<<<<<< HEAD
-                "per_level_scale": per_level_scale,
-=======
                 "per_level_scale": growth_factor,
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
             },
             network_config={
                 "otype": "FullyFusedMLP",
@@ -176,10 +162,7 @@ class TCNNInstantNGPField(Field):
     def get_outputs(
         self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
     ) -> Dict[FieldHeadNames, TensorType]:
-<<<<<<< HEAD
-=======
         assert density_embedding is not None
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
         directions = shift_directions_for_tcnn(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
         d = self.direction_encoding(directions_flat)

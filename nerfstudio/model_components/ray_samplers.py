@@ -645,10 +645,7 @@ class NeuSSampler(Sampler):
         # Start with uniform sampling
         if ray_samples is None:
             ray_samples = self.uniform_sampler(ray_bundle, num_samples=self.num_samples)
-<<<<<<< HEAD
-=======
         assert ray_samples is not None
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
         total_iters = 0
         sorted_index = None
@@ -657,10 +654,6 @@ class NeuSSampler(Sampler):
         base_variance = self.base_variance
 
         while total_iters < self.num_upsample_steps:
-<<<<<<< HEAD
-
-=======
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
             with torch.no_grad():
                 new_sdf = sdf_fn(new_samples)
 
@@ -708,10 +701,7 @@ class NeuSSampler(Sampler):
         """
         batch_size = ray_samples.shape[0]
         prev_sdf, next_sdf = sdf[:, :-1], sdf[:, 1:]
-<<<<<<< HEAD
-=======
         assert ray_samples.deltas is not None
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
         deltas = ray_samples.deltas[:, :-1, 0]
         mid_sdf = (prev_sdf + next_sdf) * 0.5
         cos_val = (next_sdf - prev_sdf) / (deltas + 1e-5)
@@ -753,12 +743,9 @@ class NeuSSampler(Sampler):
             ray_samples_2 : ray_samples to merge
         """
 
-<<<<<<< HEAD
-=======
         assert ray_samples_1.spacing_starts is not None and ray_samples_2.spacing_starts is not None
         assert ray_samples_1.spacing_ends is not None and ray_samples_2.spacing_ends is not None
         assert ray_samples_1.spacing_to_euclidean_fn is not None
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
         starts_1 = ray_samples_1.spacing_starts[..., 0]
         starts_2 = ray_samples_2.spacing_starts[..., 0]
 

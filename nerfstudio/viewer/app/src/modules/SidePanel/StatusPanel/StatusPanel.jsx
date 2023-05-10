@@ -27,10 +27,7 @@ export default function StatusPanel(props: StatusPanelProps) {
   const isWebsocketConnected = useSelector(
     (state) => state.websocketState.isConnected,
   );
-<<<<<<< HEAD
-=======
   const step = useSelector((state) => state.renderingState.step);
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
   const eval_res = useSelector((state) => state.renderingState.eval_res);
   const camera_choice = useSelector(
     (state) => state.renderingState.camera_choice,
@@ -77,15 +74,6 @@ export default function StatusPanel(props: StatusPanelProps) {
       training_state: new_state,
     });
   };
-<<<<<<< HEAD
-  const is_training_text = isTraining ? 'Pause Training' : 'Resume Training';
-  const training_icon = isTraining ? <PauseIcon /> : <PlayArrowIcon />;
-
-  const websocket_connected_text = isWebsocketConnected
-    ? 'Renderer Connected'
-    : 'Renderer Disconnected';
-  const websocket_connected_color = isWebsocketConnected ? 'success' : 'error';
-=======
   let is_training_text = '';
   let training_icon = null;
   let color = 'secondary';
@@ -100,7 +88,6 @@ export default function StatusPanel(props: StatusPanelProps) {
     color = 'success';
     training_icon = <CelebrationOutlinedIcon />;
   }
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
   return (
     <div className="StatusPanel">
@@ -159,16 +146,6 @@ export default function StatusPanel(props: StatusPanelProps) {
           <b>Resolution:</b> {eval_res}
         </div>
       </div>
-<<<<<<< HEAD
-      <Button
-        className="StatusPanel-button"
-        color={websocket_connected_color}
-        style={{ textTransform: 'none' }}
-      >
-        {websocket_connected_text}
-      </Button>
-=======
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
     </div>
   );
 }

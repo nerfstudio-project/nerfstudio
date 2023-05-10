@@ -21,11 +21,7 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-<<<<<<< HEAD
-from typing import Any, List, Optional, Tuple, Type
-=======
 from typing import Any, List, Literal, Optional, Tuple, Type
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
 # model instances
 from nerfstudio.utils import writer
@@ -148,10 +144,7 @@ class ViewerConfig(PrintableConfig):
     actually used in training/evaluation. If -1, display all."""
     quit_on_train_completion: bool = False
     """Whether to kill the training job when it has completed. Note this will stop rendering in the viewer."""
-<<<<<<< HEAD
-=======
     image_format: Literal["jpeg", "png"] = "jpeg"
     """Image format viewer should use; jpeg is lossy compression, while png is lossless."""
     jpeg_quality: int = 90
     """Quality tradeoff to use for jpeg compression."""
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb

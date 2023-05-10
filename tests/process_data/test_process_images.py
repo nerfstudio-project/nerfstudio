@@ -12,12 +12,6 @@ from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataPars
 from nerfstudio.data.utils.colmap_parsing_utils import Camera
 from nerfstudio.data.utils.colmap_parsing_utils import Image as ColmapImage
 from nerfstudio.data.utils.colmap_parsing_utils import (
-<<<<<<< HEAD
-    write_cameras_binary,
-    write_images_binary,
-)
-from scripts.process_data import ProcessImages
-=======
     qvec2rotmat,
     write_cameras_binary,
     write_images_binary,
@@ -42,7 +36,6 @@ def random_quaternion(num_poses: int):
         -1,
     )
     return quaternion
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
 
 def test_process_images_skip_colmap(tmp_path: Path):
@@ -61,23 +54,6 @@ def test_process_images_skip_colmap(tmp_path: Path):
     )
     frames = {}
     num_frames = 10
-<<<<<<< HEAD
-    qvecs = np.random.uniform(size=(num_frames, 4))
-    tvecs = np.random.uniform(size=(num_frames, 3))
-    # original_poses = np.concatenate(
-    #     (
-    #         np.concatenate(
-    #             (
-    #                 np.stack(list(map(qvec2rotmat, qvecs))),
-    #                 tvecs[:, :, None],
-    #             ),
-    #             -1,
-    #         ),
-    #         np.array([[[0, 0, 0, 1]]], dtype=qvecs.dtype).repeat(num_frames, 0),
-    #     ),
-    #     -2,
-    # )
-=======
     qvecs = random_quaternion(num_frames)
     tvecs = np.random.uniform(size=(num_frames, 3))
     original_poses = np.concatenate(
@@ -93,7 +69,6 @@ def test_process_images_skip_colmap(tmp_path: Path):
         ),
         -2,
     )
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
     for i in range(num_frames):
         frames[i + 1] = ColmapImage(i + 1, qvecs[i], tvecs[i], 1, f"image_{i}.png", [], [])
         Image.new("RGB", (width, height)).save(tmp_path / "images" / f"image_{i}.png")
@@ -106,15 +81,10 @@ def test_process_images_skip_colmap(tmp_path: Path):
     (tmp_path / "mocked_bin" / "colmap").touch(mode=0o777)
     (tmp_path / "mocked_bin" / "ffmpeg").touch(mode=0o777)
 
-<<<<<<< HEAD
-    # Run ProcessImages
-    cmd = ProcessImages(tmp_path / "images", tmp_path / "nerfstudio", colmap_model_path=sparse_path, skip_colmap=True)
-=======
     # Convert images into a NerfStudio dataset
     cmd = ImagesToNerfstudioDataset(
         data=tmp_path / "images", output_dir=tmp_path / "nerfstudio", colmap_model_path=sparse_path, skip_colmap=True
     )
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
     cmd.main()
     os.environ["PATH"] = old_path
 
@@ -129,9 +99,6 @@ def test_process_images_skip_colmap(tmp_path: Path):
     outputs = parser.get_dataparser_outputs("train")
     assert len(outputs.image_filenames) == 9
     assert torch.is_tensor(outputs.dataparser_transform)
-<<<<<<< HEAD
-    # TODO @jkulhanek: Add tests if the loaded poses are the same
-=======
 
     # Test if the original poses can be obtained back
     gt_poses = original_poses[[0, 1, 2, 3, 4, 5, 6, 7, 9]]
@@ -141,4 +108,3 @@ def test_process_images_skip_colmap(tmp_path: Path):
     )
     dataparser_poses = np.linalg.inv(dataparser_poses)
     np.testing.assert_allclose(gt_poses, dataparser_poses, rtol=0, atol=1e-5)
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb

@@ -97,17 +97,10 @@
       "name": "Python: NeuS on Replica",
       "type": "python",
       "request": "launch",
-<<<<<<< HEAD
-      "program": "scripts/train.py",
-      "console": "integratedTerminal",
-      "justMyCode": false,
-      "env": {"CUDA_VISIBLE_DEVICES":"0"},
-=======
       "program": "nerfstudio/scripts/train.py",
       "console": "integratedTerminal",
       "justMyCode": false,
       "env": { "CUDA_VISIBLE_DEVICES": "0" },
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
       "args": [
         "neus",
         "--pipeline.model.sdf-field.inside-outside=True",
@@ -119,8 +112,6 @@
         "--include_mono_prior=True"
       ]
     },
-<<<<<<< HEAD
-=======
     {
       "name": "Python: NeuS-facto on Replica",
       "type": "python",
@@ -158,6 +149,5 @@
         "--auto-orient=True"
       ]
     }
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
   ]
 }

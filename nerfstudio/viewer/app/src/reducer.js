@@ -13,8 +13,6 @@ const initialState = {
 
   render_img: null, // The rendered images
 
-<<<<<<< HEAD
-=======
   show_export_box: false, // whether to show the export box
 
   custom_gui: {
@@ -31,7 +29,6 @@ const initialState = {
 
   all_camera_paths: null, // object containing camera paths and names
 
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
   // the rendering state
   renderingState: {
     // cameras
@@ -72,13 +69,9 @@ const initialState = {
   },
 };
 
-<<<<<<< HEAD
-function setData(newState, state, path, data) {
-=======
 // Recursive function to update the state object with new data at a given path
 function setData(state, path, data) {
   // If we've reached the final level of the path, update the property with the new data
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
   if (path.length === 1) {
     // Use the spread operator to create a shallow copy of the state object
     // and update the property with the new data

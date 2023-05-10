@@ -11,18 +11,11 @@ import PublicSharpIcon from '@mui/icons-material/PublicSharp';
 import SyncOutlinedIcon from '@mui/icons-material/SyncOutlined';
 import ThreeDRotationIcon from '@mui/icons-material/ThreeDRotation';
 import VideoCameraBackIcon from '@mui/icons-material/VideoCameraBackOutlined';
-<<<<<<< HEAD
-import { WebSocketContext } from '../WebSocket/WebSocket';
-import RenderWindow from '../RenderWindow/RenderWindow';
-
-const msgpack = require('msgpack-lite');
-=======
 import { isEqual } from 'lodash';
 import {
   makeThrottledMessageSender,
   ViserWebSocketContext,
 } from '../WebSocket/ViserWebSocket';
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
 function CameraToggle() {
   const dispatch = useDispatch();
@@ -322,9 +315,6 @@ export default function ViewerWindow(props) {
 
   return (
     <>
-<<<<<<< HEAD
-      <RenderWindow />
-=======
       <div className="RenderWindow">
         <div id="not-connected-overlay" hidden={isWebsocketConnected}>
           <div id="not-connected-overlay-text">Renderer Disconnected</div>
@@ -336,7 +326,6 @@ export default function ViewerWindow(props) {
         z-index="1"
         hidden
       />
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
       <div className="canvas-container-main" ref={myRef}>
         <div className="ViewerWindow-camera-toggle">
           <CameraToggle />

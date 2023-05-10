@@ -45,11 +45,7 @@ class NerfstudioDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: Nerfstudio)
     """target class to instantiate"""
-<<<<<<< HEAD
-    data: Path = Path("data/nerfstudio")
-=======
     data: Path = Path()
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
     """Directory or explicit json file path specifying location of data."""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""

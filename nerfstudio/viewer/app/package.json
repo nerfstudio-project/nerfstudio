@@ -1,11 +1,7 @@
 {
   "name": "viewer",
   "homepage": ".",
-<<<<<<< HEAD
-  "version": "23-03-9-0",
-=======
   "version": "23-05-01-0",
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.10.4",

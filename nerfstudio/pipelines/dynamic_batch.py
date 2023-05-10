@@ -17,17 +17,9 @@ A pipeline that dynamically chooses the number of rays to sample.
 """
 
 from dataclasses import dataclass, field
-<<<<<<< HEAD
-from typing import Optional, Type
-
-import torch
-from torch.cuda.amp.grad_scaler import GradScaler
-from typing_extensions import Literal
-=======
 from typing import Literal, Type
 
 import torch
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline, VanillaPipelineConfig

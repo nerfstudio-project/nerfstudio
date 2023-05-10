@@ -62,22 +62,14 @@ class InstantNGPModelConfig(ModelConfig):
     """Instant NGP doesn't use a collider."""
     grid_resolution: int = 128
     """Resolution of the grid used for the field."""
-<<<<<<< HEAD
-=======
     grid_levels: int = 4
     """Levels of the grid used for the field."""
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
     max_res: int = 2048
     """Maximum resolution of the hashmap for the base mlp."""
     log2_hashmap_size: int = 19
     """Size of the hashmap for the base mlp"""
-<<<<<<< HEAD
-    contraction_type: ContractionType = ContractionType.UN_BOUNDED_SPHERE
-    """Contraction type used for spatial deformation of the field."""
-=======
     alpha_thre: float = 0.01
     """Threshold for opacity skipping."""
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
     cone_angle: float = 0.004
     """Should be set to 0.0 for blender scenes but 1./256 for real scenes."""
     render_step_size: Optional[float] = None
@@ -121,10 +113,7 @@ class NGPModel(Model):
             num_images=self.num_train_data,
             log2_hashmap_size=self.config.log2_hashmap_size,
             max_res=self.config.max_res,
-<<<<<<< HEAD
-=======
             spatial_distortion=scene_contraction,
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
         )
 
         self.scene_aabb = Parameter(self.scene_box.aabb.flatten(), requires_grad=False)

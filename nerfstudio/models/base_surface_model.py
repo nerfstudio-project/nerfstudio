@@ -20,11 +20,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass, field
-<<<<<<< HEAD
-from typing import Dict, List, Tuple, Type
-=======
 from typing import Dict, List, Literal, Tuple, Type
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
 import torch
 import torch.nn.functional as F
@@ -32,10 +28,6 @@ from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-<<<<<<< HEAD
-from typing_extensions import Literal
-=======
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.field_components.encodings import NeRFEncoding

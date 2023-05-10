@@ -174,10 +174,7 @@ class NerfplayerNGPField(Field):
     def get_outputs(
         self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
     ) -> Dict[FieldHeadNames, TensorType]:
-<<<<<<< HEAD
-=======
         assert density_embedding is not None
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
         directions = shift_directions_for_tcnn(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
 

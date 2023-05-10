@@ -289,8 +289,6 @@ ns-process-data metashape --data {data directory} --xml {xml file} --output-dir 
 ns-train nerfacto --data {output directory}
 ```
 
-<<<<<<< HEAD
-=======
 (realitycapture)=
 
 ## RealityCapture
@@ -311,7 +309,6 @@ ns-process-data realitycapture --data {data directory} --csv {csv file} --output
 ns-train nerfacto --data {output directory}
 ```
 
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 (360_data)=
 
 ## 360 Data (Equirectangular)
@@ -323,17 +320,10 @@ Equirectangular data is data that has been taken by a 360 camera such as Insta36
 For a set of equirectangular images, process the data using the following command:
 
 ```bash
-<<<<<<< HEAD
-ns-process-data images --camera-type equirectangular --images-per-equirect {8, or 14} --data {data directory} --output-dir {output directory}
-```
-
-The images-per-equirect argument is the number of images that will be sampled from each equirectangular image. We have found that 8 images per equirectangular image is sufficient for most use cases so it defaults to that. However, if you find that there isn't enough detail in the nerf or that colmap is having trouble aligning the images, you can try increasing the number of images per equirectangular image to 14.
-=======
 ns-process-data images --camera-type equirectangular --images-per-equirect {8, or 14} --crop-factor {top bottom left right} --data {data directory} --output-dir {output directory}
 ```
 
 The images-per-equirect argument is the number of images that will be sampled from each equirectangular image. We have found that 8 images per equirectangular image is sufficient for most use cases so it defaults to that. However, if you find that there isn't enough detail in the nerf or that colmap is having trouble aligning the images, you can try increasing the number of images per equirectangular image to 14. See the video section below for details on cropping.
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
 ### Videos
 
@@ -353,10 +343,6 @@ The `crop-factor` argument is optional but often very helpful. This is because e
 
   <img src="imgs/equirect_crop.jpg">
 
-<<<<<<< HEAD
-This obscene mesh of human is obviously not helpful in training a nerf so we can remove it by cropping the bottom 20% of the image. This can be done by using the `--crop-factor 0 0.2 0 0` argument.
-=======
 The pixels representing the distorted hand and head are obviously not useful in training a nerf so we can remove it by cropping the bottom 20% of the image. This can be done by using the `--crop-factor 0 0.2 0 0` argument.
 
 If cropping only needs to be done from the bottom, you can use the `--crop-bottom [num]` argument which would be the same as doing `--crop-factor 0.0 [num] 0.0 0.0`
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb

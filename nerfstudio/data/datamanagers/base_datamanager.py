@@ -414,10 +414,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abs
         else:
             self.config.data = self.config.dataparser.data
         self.dataparser = self.dataparser_config.setup()
-<<<<<<< HEAD
-=======
         self.includes_time = self.dataparser.includes_time
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
         self.train_dataparser_outputs = self.dataparser.get_dataparser_outputs(split="train")
 
         self.train_dataset = self.create_train_dataset()

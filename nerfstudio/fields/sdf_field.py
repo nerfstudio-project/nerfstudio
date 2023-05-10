@@ -18,11 +18,7 @@ a signed distance function (SDF) for surface representation is used to help with
 """
 
 from dataclasses import dataclass, field
-<<<<<<< HEAD
-from typing import Dict, Optional, Type
-=======
 from typing import Dict, Literal, Optional, Type
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
 import numpy as np
 import torch
@@ -30,10 +26,6 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
-<<<<<<< HEAD
-from typing_extensions import Literal
-=======
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.field_components.embedding import Embedding
@@ -87,15 +79,6 @@ class SDFFieldConfig(FieldConfig):
     appearance_embedding_dim: int = 32
     """Dimension of appearance embedding"""
     use_appearance_embedding: bool = False
-<<<<<<< HEAD
-    """Dimension of appearance embedding"""
-    bias: float = 0.8
-    """sphere size of geometric initializaion"""
-    geometric_init: bool = True
-    """Whether to use geometric initialization"""
-    inside_outside: bool = True
-    """whether to revert signed distance value, set to True for indoor scene"""
-=======
     """Whether to use appearance embedding"""
     bias: float = 0.8
     """Sphere size of geometric initialization"""
@@ -103,7 +86,6 @@ class SDFFieldConfig(FieldConfig):
     """Whether to use geometric initialization"""
     inside_outside: bool = True
     """Whether to revert signed distance value, set to True for indoor scene"""
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
     weight_norm: bool = True
     """Whether to use weight norm for linear layer"""
     use_grid_feature: bool = False
@@ -274,13 +256,8 @@ class SDFField(Field):
         """forward the geonetwork"""
         if self.use_grid_feature:
             positions = self.spatial_distortion(inputs)
-<<<<<<< HEAD
-
-            positions = (positions + 1.0) / 2.0
-=======
             # map range [-2, 2] to [0, 1]
             positions = (positions + 2.0) / 4.0
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
             feature = self.encoding(positions)
         else:
             feature = torch.zeros_like(inputs[:, :1].repeat(1, self.encoding.n_output_dims))

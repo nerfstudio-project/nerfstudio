@@ -19,12 +19,8 @@ from typing import Callable, List, Optional, Tuple
 
 import numpy as np
 import torch
-<<<<<<< HEAD
-import zmq
-=======
 
 from nerfstudio.viewer.viser.messages import CameraMessage
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
 
 def get_chunks(

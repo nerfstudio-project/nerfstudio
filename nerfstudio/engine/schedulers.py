@@ -138,11 +138,7 @@ class ExponentialDecayScheduler(Scheduler):
 
 @dataclass
 class CosineDecaySchedulerConfig(SchedulerConfig):
-<<<<<<< HEAD
-    """Basic scheduler config with self-defined exponential decay schedule"""
-=======
     """Config for cosine decay schedule"""
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
     _target: Type = field(default_factory=lambda: CosineDecayScheduler)
     """target class to instantiate"""
@@ -155,11 +151,7 @@ class CosineDecaySchedulerConfig(SchedulerConfig):
 
 
 class CosineDecayScheduler(Scheduler):
-<<<<<<< HEAD
-    """Starts with a flat lr schedule until it reaches N epochs then applies a given scheduler"""
-=======
     """Cosine decay scheduler with linear warmup"""
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
     config: CosineDecaySchedulerConfig
 
