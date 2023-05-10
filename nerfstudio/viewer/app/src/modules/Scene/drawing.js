@@ -1,10 +1,9 @@
 /* eslint-disable no-restricted-syntax */
 // ---- code for drawing with three.js ----
 import * as THREE from 'three';
+import { SceneBoxMessage } from '../WebSocket/ViserMessages';
 
-export function drawSceneBox(sceneBox): THREE.Object3D {
-  console.assert(sceneBox.type === 'aabb', 'The scene box must be an AABB');
-
+export function drawSceneBox(sceneBox: SceneBoxMessage): THREE.Object3D {
   const box = sceneBox;
 
   const w = 1.0;
@@ -20,8 +19,8 @@ export function drawSceneBox(sceneBox): THREE.Object3D {
   points = points.concat([baa, bab, baa, bba, bab, bbb, bba, bbb]);
   points = points.concat([aaa, baa, aab, bab, aba, bba, abb, bbb]);
 
-  const maxPoint = new THREE.Vector3(...box.max_point);
-  const minPoint = new THREE.Vector3(...box.min_point);
+  const maxPoint = new THREE.Vector3(...box.max);
+  const minPoint = new THREE.Vector3(...box.min);
 
   const lengths = maxPoint.clone();
   lengths.sub(minPoint);

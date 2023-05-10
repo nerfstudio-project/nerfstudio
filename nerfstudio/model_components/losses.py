@@ -16,11 +16,11 @@
 Collection of Losses.
 """
 from enum import Enum
+from typing import Literal
 
 import torch
 from torch import nn
 from torchtyping import TensorType
-from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.utils.math import masked_reduction, normalized_depth_scale_and_shift
@@ -338,7 +338,7 @@ class MiDaSMSELoss(nn.Module):
     def __init__(self, reduction_type: Literal["image", "batch"] = "batch"):
         super().__init__()
 
-        self.reduction_type = reduction_type
+        self.reduction_type: Literal["image", "batch"] = reduction_type
         # reduction here is different from the image/batch-based reduction. This is either "mean" or "sum"
         self.mse_loss = MSELoss(reduction="none")
 
@@ -485,3 +485,20 @@ class ScaleAndShiftInvariantLoss(nn.Module):
         return self.__prediction_ssi
 
     prediction_ssi = property(__get_prediction_ssi)
+
+
+def tv_loss(grids: TensorType["grids", "feature_dim", "row", "column"]) -> TensorType[()]:
+    """
+    https://github.com/apchenstu/TensoRF/blob/4ec894dc1341a2201fe13ae428631b58458f105d/utils.py#L139
+
+    Args:
+        grids: stacks of explicit feature grids (stacked at dim 0)
+    Returns:
+        average total variation loss for neighbor rows and columns.
+    """
+    number_of_grids = grids.shape[0]
+    h_tv_count = grids[:, :, 1:, :].shape[1] * grids[:, :, 1:, :].shape[2] * grids[:, :, 1:, :].shape[3]
+    w_tv_count = grids[:, :, :, 1:].shape[1] * grids[:, :, :, 1:].shape[2] * grids[:, :, :, 1:].shape[3]
+    h_tv = torch.pow((grids[:, :, 1:, :] - grids[:, :, :-1, :]), 2).sum()
+    w_tv = torch.pow((grids[:, :, :, 1:] - grids[:, :, :, :-1]), 2).sum()
+    return 2 * (h_tv / h_tv_count + w_tv / w_tv_count) / number_of_grids

@@ -18,6 +18,7 @@ Generic Writer class
 from __future__ import annotations
 
 import enum
+import os
 from abc import abstractmethod
 from pathlib import Path
 from time import time
@@ -46,7 +47,6 @@ class EventName(enum.Enum):
 
     ITER_TRAIN_TIME = "Train Iter (time)"
     TOTAL_TRAIN_TIME = "Train Total (time)"
-    ITER_VIS_TIME = "Viewer Rendering (time)"
     ETA = "ETA (time)"
     TRAIN_RAYS_PER_SEC = "Train Rays / Sec"
     TEST_RAYS_PER_SEC = "Test Rays / Sec"
@@ -187,10 +187,22 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
     GLOBAL_BUFFER["events"] = {}
 
 
-@check_main_thread
-def setup_event_writer(is_wandb_enabled: bool, is_tensorboard_enabled: bool, log_dir: Path) -> None:
-    """Initialization of all event writers specified in config
+def is_initialized():
+    """
+    Returns True after setup_local_writer was called
+    """
+    return "events" in GLOBAL_BUFFER
 
+
+@check_main_thread
+def setup_event_writer(
+    is_wandb_enabled: bool,
+    is_tensorboard_enabled: bool,
+    log_dir: Path,
+    experiment_name: str,
+    project_name: str = "nerfstudio-project",
+) -> None:
+    """Initialization of all event writers specified in config
     Args:
         config: configuration to instantiate loggers
         max_iter: maximum number of train iterations
@@ -198,7 +210,7 @@ def setup_event_writer(is_wandb_enabled: bool, is_tensorboard_enabled: bool, log
     """
     using_event_writer = False
     if is_wandb_enabled:
-        curr_writer = WandbWriter(log_dir=log_dir)
+        curr_writer = WandbWriter(log_dir=log_dir, experiment_name=experiment_name, project_name=project_name)
         EVENT_WRITERS.append(curr_writer)
         using_event_writer = True
     if is_tensorboard_enabled:
@@ -268,7 +280,7 @@ class TimeWriter:
     def __exit__(self, *args):
         self.duration = time() - self.start
         update_step = self.step is not None
-        if self.write:
+        if self.write and is_initialized():
             self.writer.put_time(
                 name=self.name,
                 duration=self.duration,
@@ -282,8 +294,13 @@ class TimeWriter:
 class WandbWriter(Writer):
     """WandDB Writer Class"""
 
-    def __init__(self, log_dir: Path):
-        wandb.init(project="nerfstudio-project", dir=str(log_dir), reinit=True)
+    def __init__(self, log_dir: Path, experiment_name: str, project_name: str = "nerfstudio-project"):
+        wandb.init(
+            project=os.environ.get("WANDB_PROJECT", project_name),
+            dir=os.environ.get("WANDB_DIR", str(log_dir)),
+            name=os.environ.get("WANDB_NAME", experiment_name),
+            reinit=True,
+        )
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         image = torch.permute(image, (2, 0, 1))

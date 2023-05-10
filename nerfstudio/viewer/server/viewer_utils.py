@@ -14,33 +14,34 @@
 
 # pylint: disable=too-many-lines
 
-"""Code to interface with the `vis/` (the JS viewer).
-"""
+"""Code to interface with the `vis/` (the JS viewer)."""
 from __future__ import annotations
 
+<<<<<<< HEAD
 import base64
 import enum
 import os
+=======
+import os
+import socket
+>>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 import sys
-import threading
-import time
-import warnings
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple
 
+<<<<<<< HEAD
 import cv2
 import numpy as np
 import torch
 from cryptography.utils import CryptographyDeprecationWarning
+=======
+import torch
+>>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 from rich.console import Console
 
-from nerfstudio.cameras.cameras import Cameras, CameraType
-from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.configs import base_config as cfg
-from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.model_components import renderers
 from nerfstudio.models.base_model import Model
+<<<<<<< HEAD
 from nerfstudio.utils import colormaps, profiler, writer
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
@@ -48,52 +49,34 @@ from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
 from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfstudio.viewer.server.visualizer import Viewer
+=======
+from nerfstudio.utils.io import load_from_json
+>>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
-warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
+if TYPE_CHECKING:
+    from nerfstudio.engine.trainer import Trainer
 
 CONSOLE = Console(width=120)
 
 
 def get_viewer_version() -> str:
-    """Get the version of the viewer."""
+    """Return the version of the viewer."""
     json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
     version = load_from_json(Path(json_filename))["version"]
     return version
 
 
-@check_main_thread
-def setup_viewer(config: cfg.ViewerConfig, log_filename: Path, datapath: Path):
-    """Sets up the viewer if enabled
+def get_viewer_url(websocket_port: int) -> str:
+    """Generate URL for the viewer.
 
     Args:
-        config: the configuration to instantiate viewer
-        log_filename: the log filename to write to
-        datapath: the path to the dataset
+        websocket_port: port to connect to the viewer
+    Returns:
+        URL to the viewer
     """
-    viewer_state = ViewerState(config, log_filename=log_filename, datapath=datapath)
-    banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
-    return viewer_state, banner_messages
-
-
-class OutputTypes(str, enum.Enum):
-    """Noncomprehensive list of output render types"""
-
-    INIT = "init"
-    RGB = "rgb"
-    RGB_FINE = "rgb_fine"
-    ACCUMULATION = "accumulation"
-    ACCUMULATION_FINE = "accumulation_fine"
-
-
-class ColormapTypes(str, enum.Enum):
-    """List of colormap render types"""
-
-    DEFAULT = "default"
-    TURBO = "turbo"
-    VIRIDIS = "viridis"
-    MAGMA = "magma"
-    INFERNO = "inferno"
-    CIVIDIS = "cividis"
+    version = get_viewer_version()
+    websocket_url = f"ws://localhost:{websocket_port}"
+    return f"https://viewer.nerf.studio/versions/{version}/?websocket_url={websocket_url}"
 
 
 class IOChangeException(Exception):
@@ -114,140 +97,57 @@ class SetTrace:
         sys.settrace(None)
 
 
-class RenderThread(threading.Thread):
-    """Thread that does all the rendering calls while listening for interrupts
+def is_port_open(port: int):
+    """Returns True if the port is open.
 
     Args:
-        state: current viewer state object
-        graph: current checkpoint of model
-        camera_ray_bundle: input rays to pass through the graph to render out
+        port: Port to check.
+
+    Returns:
+        True if the port is open, False otherwise.
     """
-
-    def __init__(self, state: "ViewerState", graph: Model, camera_ray_bundle: RayBundle):
-        threading.Thread.__init__(self)
-        self.state = state
-        self.graph = graph
-        self.camera_ray_bundle = camera_ray_bundle
-        self.exc = None
-        self.vis_outputs = None
-
-    def run(self):
-        """run function that renders out images given the current graph and ray bundles.
-        Interlaced with a trace function that checks to see if any I/O changes were registered.
-        Exits and continues program if IOChangeException thrown.
-        """
-        outputs = None
-        try:
-            with SetTrace(self.state.check_interrupt):
-                if self.state.prev_crop_enabled:
-                    color = self.state.prev_crop_bg_color
-                    if color is None:
-                        background_color = torch.tensor([0.0, 0.0, 0.0], device=self.graph.device)
-                    else:
-                        background_color = torch.tensor(
-                            [color["r"] / 255.0, color["g"] / 255.0, color["b"] / 255.0], device=self.graph.device
-                        )
-                    with renderers.background_color_override_context(background_color), torch.no_grad():
-                        outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
-                else:
-                    with torch.no_grad():
-                        outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
-        except Exception as e:  # pylint: disable=broad-except
-            self.exc = e
-
-        if outputs:
-            self.vis_outputs = outputs
-
-        self.state.check_done_render = True
-        self.state.check_interrupt_vis = False
-
-    def join(self, timeout=None):
-        threading.Thread.join(self)
-        if self.exc:
-            raise self.exc
+    try:
+        sock = socket.socket()
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        _ = sock.bind(("", port))
+        sock.close()
+        return True
+    except OSError:
+        return False
 
 
-class CheckThread(threading.Thread):
-    """Thread the constantly checks for io changes and sets a flag indicating interrupt
+def get_free_port(default_port: Optional[int] = None):
+    """Returns a free port on the local machine. Try to use default_port if possible.
 
     Args:
-        state: current viewer state object
+        default_port: Port to try to use.
+
+    Returns:
+        A free port on the local machine.
     """
-
-    def __init__(self, state):
-        threading.Thread.__init__(self)
-        self.state = state
-
-    def run(self):
-        """Run function that checks to see if any of the existing state has changed
-        (e.g. camera pose/output type/resolutions).
-        Sets the viewer state flag to true to signal
-        to render thread that an interrupt was registered.
-        """
-        self.state.check_done_render = False
-        while not self.state.check_done_render:
-            # check camera
-            data = self.state.vis["renderingState/camera"].read()
-            render_time = self.state.vis["renderingState/render_time"].read()
-            if data is not None:
-                camera_object = data["object"]
-                if (
-                    self.state.prev_camera_matrix is None
-                    or (
-                        not np.allclose(camera_object["matrix"], self.state.prev_camera_matrix)
-                        and not self.state.prev_moving
-                    )
-                    or (render_time is not None and render_time != self.state.prev_render_time)
-                ):
-                    self.state.check_interrupt_vis = True
-                    self.state.prev_moving = True
-                    return
-                self.state.prev_moving = False
-
-            # check output type
-            output_type = self.state.vis["renderingState/output_choice"].read()
-            if output_type is None:
-                output_type = OutputTypes.INIT
-            if self.state.prev_output_type != output_type:
-                self.state.check_interrupt_vis = True
-                return
-
-            # check colormap type
-            colormap_type = self.state.vis["renderingState/colormap_choice"].read()
-            if self.state.prev_colormap_type != colormap_type:
-                self.state.check_interrupt_vis = True
-                return
-
-            colormap_range = self.state.vis["renderingState/colormap_range"].read()
-            if self.state.prev_colormap_range != colormap_range:
-                self.state.check_interrupt_vis = True
-                return
-
-            # check max render
-            max_resolution = self.state.vis["renderingState/maxResolution"].read()
-            if max_resolution is not None:
-                if self.state.max_resolution != max_resolution:
-                    self.state.check_interrupt_vis = True
-                    return
-
-            # check crop changes
-            crop_enabled = self.state.vis["renderingState/crop_enabled"].read()
-            if crop_enabled is not None:
-                if self.state.prev_crop_enabled != crop_enabled:
-                    self.state.check_interrupt_vis = True
-                    return
+    if default_port is not None:
+        if is_port_open(default_port):
+            return default_port
+    sock = socket.socket()
+    sock.bind(("", 0))
+    port = sock.getsockname()[1]
+    return port
 
 
-@decorate_all([check_main_thread])
-class ViewerState:
-    """Class to hold state for viewer variables
+def update_render_aabb(
+    crop_viewport: bool, crop_min: Tuple[float, float, float], crop_max: Tuple[float, float, float], model: Model
+):
+    """
+    update the render aabb box for the viewer:
 
     Args:
-        config: viewer setup configuration
-        log_filename: filename to log viewer output to
-        datapath: path to data
+        crop_viewport: whether to crop the viewport
+        crop_min: min of the crop box
+        crop_max: max of the crop box
+        model: the model to render
     """
 
+<<<<<<< HEAD
     def __init__(self, config: cfg.ViewerConfig, log_filename: Path, datapath: Path):
         self.config = config
         self.vis = None
@@ -917,3 +817,16 @@ class ViewerState:
             self._update_viewer_stats(
                 vis_t.duration, num_rays=len(camera_ray_bundle), image_height=image_height, image_width=image_width
             )
+=======
+    if crop_viewport:
+        crop_min = torch.tensor(crop_min, dtype=torch.float32)
+        crop_max = torch.tensor(crop_max, dtype=torch.float32)
+
+        if isinstance(model.render_aabb, SceneBox):
+            model.render_aabb.aabb[0] = crop_min
+            model.render_aabb.aabb[1] = crop_max
+        else:
+            model.render_aabb = SceneBox(aabb=torch.stack([crop_min, crop_max], dim=0))
+    else:
+        model.render_aabb = None
+>>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb

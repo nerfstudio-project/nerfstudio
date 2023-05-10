@@ -4,11 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
+<<<<<<< HEAD
 version = "0.1.19"
+=======
+version = "0.2.2"
+>>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
-requires-python = ">=3.7.3"
+requires-python = ">=3.8.0"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python",
@@ -30,7 +34,7 @@ dependencies = [
     "mediapy>=1.1.0",
     "msgpack>=1.0.4",
     "msgpack_numpy>=0.4.8",
-    "nerfacc==0.3.5",
+    "nerfacc==0.5.2",
     "open3d>=0.16.0",
     "opencv-python==4.6.0.66",
     "Pillow>=9.3.0",
@@ -46,15 +50,17 @@ dependencies = [
     "requests",
     "rich>=12.5.1",
     "scikit-image>=0.19.3",
-    "tensorboard==2.9.0",
-    "torch>=1.12.1",
+    "tensorboard>=2.13.0",
+    "torch>=1.12.1,<2.0.0",
     "torchmetrics[image]>=0.9.3",
     "torchtyping>=0.1.4",
     "torchvision>=0.13.0",
-    "u-msgpack-python>=2.4.1",
+    "typing_extensions>=4.4.0",
+    "viser>=0.0.5",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
-    "xatlas"
+    "xatlas",
+    "trimesh>=3.20.2"
 ]
 
 [project.urls]
@@ -72,11 +78,11 @@ gen = [
 
 # Development packages
 dev = [
-    "black[jupyter]==22.3.0",
+    "black[jupyter]==23.3.0",
     "pylint==2.13.4",
     "pytest==7.1.2",
     "pytest-xdist==2.5.0",
-    "typeguard>=2.13.3",
+    "typeguard==2.13.3",
 ]
 
 # Documentation related packages
@@ -97,6 +103,7 @@ docs = [
 ]
 
 [project.scripts]
+<<<<<<< HEAD
 # Note, add entrypoint name to scripts/completions/install.py to include CLI completion
 ns-install-cli = "scripts.completions.install:entrypoint"
 ns-process-data = "scripts.process_data:entrypoint"
@@ -109,6 +116,19 @@ ns-render = "scripts.render:entrypoint"
 ns-export = "scripts.exporter:entrypoint"
 ns-dev-test = "scripts.github.run_actions:entrypoint"
 ns-bridge-server = "nerfstudio.viewer.server.server:entrypoint"
+=======
+# Note, add entrypoint name to nerfstudio/scripts/completions/install.py to include CLI completion
+ns-install-cli = "nerfstudio.scripts.completions.install:entrypoint"
+ns-process-data = "nerfstudio.scripts.process_data:entrypoint"
+ns-download-data = "nerfstudio.scripts.downloads.download_data:entrypoint"
+ns-train = "nerfstudio.scripts.train:entrypoint"
+ns-viewer = "nerfstudio.scripts.viewer.run_viewer:entrypoint"
+ns-eval = "nerfstudio.scripts.eval:entrypoint"
+ns-render = "nerfstudio.scripts.render:entrypoint"
+ns-export = "nerfstudio.scripts.exporter:entrypoint"
+ns-dev-test = "nerfstudio.scripts.github.run_actions:entrypoint"
+ns-dev-sync-viser-message-defs = "nerfstudio.scripts.viewer.sync_viser_message_defs:entrypoint"
+>>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision
@@ -117,10 +137,10 @@ dependency_links = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["nerfstudio*","scripts*"]
+include = ["nerfstudio*"]
 
 [tool.setuptools.package-data]
-"*" = ["*.json", "py.typed", "setup.bash", "setup.zsh"]
+"*" = ["*.cu", "*.json", "py.typed", "setup.bash", "setup.zsh"]
 
 # black
 [tool.black]
@@ -131,7 +151,6 @@ line-length = 120
 max-line-length = 120
 generated-members = ["numpy.*", "torch.*", "cv2.*", "cv.*"]
 good-names-rgxs = "^[_a-zA-Z][_a-z0-9]?$"
-ignore-paths = ["scripts/colmap2nerf.py"]
 jobs = 0
 ignored-classes = ["TensorDataclass"]
 
@@ -143,6 +162,7 @@ disable = [
   "too-many-branches",
   "too-many-instance-attributes",
   "too-many-locals",
+  "too-many-statements",
   "unnecessary-ellipsis",
 ]
 
@@ -159,7 +179,6 @@ include = ["nerfstudio"]
 exclude = ["**/node_modules",
     "**/__pycache__",
 ]
-ignore = ["nerfstudio/viewer"]
 defineConstant = { DEBUG = true }
 
 reportMissingImports = true
@@ -167,5 +186,5 @@ reportMissingTypeStubs = false
 reportPrivateImportUsage = false
 reportUndefinedVariable = false
 
-pythonVersion = "3.7"
+pythonVersion = "3.8"
 pythonPlatform = "Linux"

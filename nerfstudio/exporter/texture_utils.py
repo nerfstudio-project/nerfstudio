@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Literal, Optional, Tuple, Union
 
 import mediapy as media
 import numpy as np
@@ -30,7 +30,6 @@ import torch
 import xatlas
 from rich.console import Console
 from torchtyping import TensorType
-from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.exporter.exporter_utils import Mesh
@@ -401,6 +400,7 @@ def export_textured_mesh(
     camera_indices = torch.zeros_like(origins[..., 0:1])
     nears = torch.zeros_like(origins[..., 0:1])
     fars = torch.ones_like(origins[..., 0:1]) * raylen
+    directions_norm = torch.ones_like(origins[..., 0:1])  # for surface model
     camera_ray_bundle = RayBundle(
         origins=origins,
         directions=directions,
@@ -408,6 +408,7 @@ def export_textured_mesh(
         camera_indices=camera_indices,
         nears=nears,
         fars=fars,
+        metadata={"directions_norm": directions_norm},
     )
 
     CONSOLE.print("Creating texture image by rendering with NeRF...")

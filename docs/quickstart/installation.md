@@ -33,7 +33,7 @@ Install CUDA 11.7. You can find CUDA download links [here](https://developer.nvi
 
 ## Create environment
 
-Nerfstudio requires `python >= 3.7`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
+Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 ```bash
 conda create --name nerfstudio -y python=3.8
@@ -71,7 +71,7 @@ pip uninstall torch torchvision functorch
 Install pytorch 1.13.1 with CUDA and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
 
 ```bash
-pip install torch torchvision functorch --extra-index-url https://download.pytorch.org/whl/cu117
+pip install torch==1.13.1 torchvision functorch --extra-index-url https://download.pytorch.org/whl/cu117
 ```
 
 :::
@@ -79,10 +79,10 @@ pip install torch torchvision functorch --extra-index-url https://download.pytor
 
 ### tinycudann
 
-After pytorch, install the torch bindings for tinycudann:
+After pytorch and ninja, install the torch bindings for tinycudann:
 
 ```bash
-pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
 ## Installing nerfstudio

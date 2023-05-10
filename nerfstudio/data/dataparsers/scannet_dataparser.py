@@ -16,7 +16,7 @@
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Type
+from typing import Literal, Type
 
 import cv2
 import numpy as np
@@ -39,10 +39,14 @@ class ScanNetDataParserConfig(DataParserConfig):
     ScanNet dataset (https://www.scan-net.org/) is a large-scale 3D dataset of indoor scenes.
     This dataparser assumes that the dense stream was extracted from .sens files.
     Expected structure of scene directory:
-     - color/
-     - depth/
-     - intrinsic/
-     - pose/
+
+    .. code-block:: text
+
+        root/
+        ├── color/
+        ├── depth/
+        ├── intrinsic/
+        ├── pose/
     """
 
     _target: Type = field(default_factory=lambda: ScanNet)

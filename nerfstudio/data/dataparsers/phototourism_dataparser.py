@@ -18,12 +18,11 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Type
+from typing import Literal, Type
 
 import numpy as np
 import torch
 from rich.progress import Console
-from typing_extensions import Literal
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -136,8 +135,8 @@ class Phototourism(DataParser):
         )  # equally spaced training images starting and ending at 0 and num_images-1
         i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
         i_all = torch.tensor(i_all)
-        i_train = torch.tensor(i_train)
-        i_eval = torch.tensor(i_eval)
+        i_train = torch.tensor(i_train, dtype=torch.long)
+        i_eval = torch.tensor(i_eval, dtype=torch.long)
         assert len(i_eval) == num_eval_images
         if split == "train":
             indices = i_train

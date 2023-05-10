@@ -13,7 +13,7 @@ from nerfstudio.configs.method_configs import method_configs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.minimal_dataparser import MinimalDataParserConfig
 from nerfstudio.engine.trainer import TrainerConfig
-from scripts.train import train_loop
+from nerfstudio.scripts.train import train_loop
 
 BLACKLIST = [
     "base",
@@ -21,13 +21,18 @@ BLACKLIST = [
     "instant-ngp",
     "instant-ngp-bounded",
     "nerfacto",
+    "nerfacto-big",
     "volinga",
     "phototourism",
     "depth-nerfacto",
     "nerfplayer-ngp",
     "nerfplayer-nerfacto",
     "neus",
+<<<<<<< HEAD
     "dreamfusion",
+=======
+    "neus-facto",
+>>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 ]
 
 
@@ -50,11 +55,7 @@ def set_reduced_config(config: TrainerConfig):
     if hasattr(config.pipeline.model, "num_importance_samples"):
         config.pipeline.model.num_importance_samples = 4
     # remove viewer
-    config.viewer.enable = False
-
-    # model specific config settings
-    if config.method_name == "instant-ngp":
-        config.pipeline.model.field_implementation = "torch"
+    config.viewer.quit_on_train_completion = True
 
     return config
 

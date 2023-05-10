@@ -21,9 +21,9 @@ Requires hloc module from : https://github.com/cvg/Hierarchical-Localization
 
 import sys
 from pathlib import Path
+from typing import Literal
 
 from rich.console import Console
-from typing_extensions import Literal
 
 from nerfstudio.process_data.process_data_utils import CameraModel
 
@@ -75,6 +75,11 @@ def run_hloc(
         camera_model: Camera model to use.
         gpu: If True, use GPU.
         verbose: If True, logs the output of the command.
+        matching_method: Method to use for matching images.
+        feature_type: Type of visual features to use.
+        matcher_type: Type of feature matcher to use.
+        num_matched: Number of image pairs for loc.
+        refine_pixsfm: If True, refine the reconstruction using pixel-perfect-sfm.
     """
     if not _HAS_HLOC:
         CONSOLE.print(
@@ -112,7 +117,17 @@ def run_hloc(
         camera_model=camera_model.value
     )
     if refine_pixsfm:
+<<<<<<< HEAD
         sfm = PixSfM({"dense_features": {"max_edge": 1024}})
+=======
+        sfm = PixSfM(
+            conf={
+                "dense_features": {"use_cache": True},
+                "KA": {"dense_features": {"use_cache": True}, "max_kps_per_problem": 1000},
+                "BA": {"strategy": "costmaps"},
+            }
+        )
+>>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
         refined, _ = sfm.reconstruction(
             sfm_dir,
             image_dir,

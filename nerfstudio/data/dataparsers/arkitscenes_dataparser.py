@@ -16,7 +16,7 @@
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Type
+from typing import Literal, Type
 
 import cv2
 import numpy as np

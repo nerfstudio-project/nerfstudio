@@ -60,7 +60,6 @@ class FieldHead(FieldComponent):
         in_dim: Optional[int] = None,
         activation: Optional[Union[nn.Module, Callable]] = None,
     ) -> None:
-
         super().__init__()
         self.out_dim = out_dim
         self.activation = activation
@@ -132,7 +131,6 @@ class SHFieldHead(FieldHead):
     def __init__(
         self, in_dim: Optional[int] = None, levels: int = 3, channels: int = 3, activation: Optional[nn.Module] = None
     ) -> None:
-
         out_dim = channels * levels**2
         super().__init__(in_dim=in_dim, out_dim=out_dim, field_head_name=FieldHeadNames.SH, activation=activation)
 
