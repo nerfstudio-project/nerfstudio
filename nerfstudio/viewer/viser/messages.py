@@ -18,10 +18,10 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Tuple
+from typing import Any, Literal, Tuple
 
 import viser.infra
-from typing_extensions import Literal, override
+from typing_extensions import override
 
 
 class NerfstudioMessage(viser.infra.Message):

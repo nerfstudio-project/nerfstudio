@@ -2,7 +2,7 @@
 
 ```{eval-rst}
 .. argparse::
-    :module: scripts.eval
+    :module: nerfstudio.scripts.eval
     :func: get_parser_fn
     :prog: ns-eval
     :nodefault:

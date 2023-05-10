@@ -16,7 +16,7 @@ This Blender add-on allows for compositing with a Nerfstudio render as a backgro
 
 1. The add-on requires Blender 3.0 or newer, install Blender [here](https://www.blender.org/).
 
-2. Download <a href="https://raw.githubusercontent.com/nerfstudio-project/nerfstudio/main/scripts/blender/nerfstudio_blender.py" download="nerfstudio_blender.py">Blender Add-on Script</a>
+2. Download <a href="https://raw.githubusercontent.com/nerfstudio-project/nerfstudio/main/nerfstudio/scripts/blender/nerfstudio_blender.py" download="nerfstudio_blender.py">Blender Add-on Script</a>
 
 3. Install and enable the add-on in Blender in `Edit → Preferences → Add-Ons`. The add-on will be visible in the Render Properties tab on the right panel.
     <center>
@@ -136,34 +136,34 @@ You can composite NeRF objects into a scene with a NeRF background by rendering 
 1. Import the background NeRF scene as a point cloud (or mesh, but point cloud is preferred for large scenes).
 
 2. Export a cropped NeRF mesh of the NeRF object(s)
-    - Open the NeRF object from the Nerfstudio viewer and select "Crop Viewport" and accordingly adjust the Scale and Center values of the bounding box to crop the NeRF scene to around the bounds of the object of interest. 
 
-    <center>
-    <img width="300" alt="image" src="https://user-images.githubusercontent.com/9502341/232264554-26357747-6f09-4084-9710-dabf60c61909.jpg">
-    </center>
-    
-    - Copy over the scale and center values into the Export panel and export the NeRF object as a mesh (point cloud will also work but shadows can be rendered if the object is a mesh)
+   - Open the NeRF object from the Nerfstudio viewer and select "Crop Viewport" and accordingly adjust the Scale and Center values of the bounding box to crop the NeRF scene to around the bounds of the object of interest.
 
-    - Keep note of the scale and center values for the crop. This can be done by creating a new JSON camera path in the editor which will add a crop section towards the end of the file.
+   <center>
+   <img width="300" alt="image" src="https://user-images.githubusercontent.com/9502341/232264554-26357747-6f09-4084-9710-dabf60c61909.jpg">
+   </center>
 
-    <center>
-    <img width="200" alt="image" src="https://user-images.githubusercontent.com/9502341/232264430-0b991e20-838f-4e06-9834-7d1d8c1d0042.png">
-    </center>
-    
+   - Copy over the scale and center values into the Export panel and export the NeRF object as a mesh (point cloud will also work but shadows can be rendered if the object is a mesh)
+
+   - Keep note of the scale and center values for the crop. This can be done by creating a new JSON camera path in the editor which will add a crop section towards the end of the file.
+
+   <center>
+   <img width="200" alt="image" src="https://user-images.githubusercontent.com/9502341/232264430-0b991e20-838f-4e06-9834-7d1d8c1d0042.png">
+   </center>
 
 3. Import the NeRF object representation. Rescale and position the scene and NeRF object and background environment. You can also animate either of them.
 
 4. (Optional) To add shadows of the NeRF object(s)
-    - Add a plane representing the ground of the environment. In object properties, select "Shadow Catcher" under Visibility. You may have to switch to the cycles renderer to see the shadow catcher option.
 
-    - In the object properties of the NeRF object, go to the Ray Visibility section and deselect the "Camera" option. This will hide the mesh in the Blender render, but keep its shadow.
-    
+   - Add a plane representing the ground of the environment. In object properties, select "Shadow Catcher" under Visibility. You may have to switch to the cycles renderer to see the shadow catcher option.
 
-    <center>
-    <img width="200" alt="image" src="https://user-images.githubusercontent.com/9502341/232265212-ca077af8-fb3a-491f-8d60-304cb9fae57e.png">
-    </center>
-    
-    - Render the Blender animation with only the shadow of the object on the shadow catcher visible. Render with a transparent background by selecting "Transparent" under the Film Settings in the Render Properties.
+   - In the object properties of the NeRF object, go to the Ray Visibility section and deselect the "Camera" option. This will hide the mesh in the Blender render, but keep its shadow.
+
+   <center>
+   <img width="200" alt="image" src="https://user-images.githubusercontent.com/9502341/232265212-ca077af8-fb3a-491f-8d60-304cb9fae57e.png">
+   </center>
+
+   - Render the Blender animation with only the shadow of the object on the shadow catcher visible. Render with a transparent background by selecting "Transparent" under the Film Settings in the Render Properties.
 
 5. Go to the Nerfstudio Add-on in Render Properties and expand the "Nerfstudio Path Generator" tab in the panel. Use the object selector to select the NeRF environment representation. Then, select the file path for the output JSON camera path file. Click "Generate JSON file". The output JSON file is named `camera_path_blender.json`. It is recommended to rename this JSON file to keep track of the multiple camera paths that will be used to construct the full render.
 
@@ -172,29 +172,32 @@ You can composite NeRF objects into a scene with a NeRF background by rendering 
 7. Render the NeRF of the background environment using the generated camera path for the environment using the Nerfstudio in the command line or terminal.
 
 8. Render the NeRF object
-    - Open the recently generated blender Nerfstudio JSON camera path and add the crop parameters to the camera path. This section will be placed towards the end of the Blender Nerfstudio camera path after the `is_cycle` field. This can be done by copying over the crop section from the JSON camera path with the scene crop which was exported earlier. Alternatively, you can enter the crop values manually in this format. 
-    <center>
-    <img width="200" alt="image" src="https://user-images.githubusercontent.com/9502341/232264689-d2e7747c-ce53-425b-810b-1b2954eceb62.png">
-    </center>
 
-    - Render the NeRF object using Nerfstudio and the edited camera path in the command line or terminal. This will be the RGB render.
+   - Open the recently generated blender Nerfstudio JSON camera path and add the crop parameters to the camera path. This section will be placed towards the end of the Blender Nerfstudio camera path after the `is_cycle` field. This can be done by copying over the crop section from the JSON camera path with the scene crop which was exported earlier. Alternatively, you can enter the crop values manually in this format.
+   <center>
+   <img width="200" alt="image" src="https://user-images.githubusercontent.com/9502341/232264689-d2e7747c-ce53-425b-810b-1b2954eceb62.png">
+   </center>
 
-    - Next, render the accumulation render as an alpha mask of the NeRF object by adding the command line argument `--rendered-output-names accumulation` to the render command.
+   - Render the NeRF object using Nerfstudio and the edited camera path in the command line or terminal. This will be the RGB render.
 
-    <center>
-    <img width="450" alt="image" src="https://user-images.githubusercontent.com/9502341/232264813-195c970f-b194-4761-843b-983123f128f7.jpg">
-    </center>
+   - Next, render the accumulation render as an alpha mask of the NeRF object by adding the command line argument `--rendered-output-names accumulation` to the render command.
+
+   <center>
+   <img width="450" alt="image" src="https://user-images.githubusercontent.com/9502341/232264813-195c970f-b194-4761-843b-983123f128f7.jpg">
+   </center>
 
 9. Convert each of the Nerfstudio render videos into an image sequence of frames as PNG or JPG files. This will ensure that the frames will be aligned when compositing. You can convert the video mp4 to an image sequence by creating a Blender Video Editing file and rendering the mp4 as JPGs or PNGs.
 
-10. Composite the NeRF renders in a video editing software such as Adobe Premiere Pro. 
+10. Composite the NeRF renders in a video editing software such as Adobe Premiere Pro.
+
     - Place the render of the Nerfstudio background environment at the lowest layer, then place the shadow render of the NeRF object if created.
 
-    - Place the RGB NeRF render of the NeRF object over the environment (and shadow if present) layers and then place the accumulation NeRF object render over the RGB NeRF object render. 
+    - Place the RGB NeRF render of the NeRF object over the environment (and shadow if present) layers and then place the accumulation NeRF object render over the RGB NeRF object render.
 
     - Apply a filter to use the accumulation render as an alpha mask. In Premiere Pro, apply the effect "Track Matte Key" to the RGB render and select the "Matte" as the video track of the accumulation render and under "Composite Using" select "Matte Luma".
 
 ### Additional Details
+
 - The RGB and accumulation renders will need to be rendered for each NeRF cropped object in the scene, but not for the NeRF environment if it is not cropped.
 - If you will composite a shadow layer, the quality of the exported mesh of the NeRF object should have enough fidelity to cast a shadow, but the texture doesn't need to be clear.
 - If motion tracking or compositing over real camera footage, you can add planes or cubes to represent walls or doorways as shadow catcher or holdout objects. This will composite the shadow layer over the NeRF environment and help create alpha masks.
@@ -202,6 +205,7 @@ You can composite NeRF objects into a scene with a NeRF background by rendering 
 - A walkthrough of this section is included in the tutorial video.
 
 ### Examples
+
 <p align="center">
     <img width="300" alt="image" src="https://user-images.githubusercontent.com/9502341/232274012-27fb912c-3d3e-47b2-bb6b-68abf8f0692a.gif">
     <img width="225" alt="image" src="https://user-images.githubusercontent.com/9502341/232274049-d03e9768-8905-4668-b41b-d8ad4f122829.gif">

@@ -28,13 +28,12 @@ Example:
 """
 import contextlib
 import math
-from typing import Generator, Optional, Union
+from typing import Generator, Literal, Optional, Union
 
 import nerfacc
 import torch
 from torch import nn
 from torchtyping import TensorType
-from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.utils import colors

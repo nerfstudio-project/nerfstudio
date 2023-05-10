@@ -9,7 +9,7 @@ To launch training jobs automatically on each of these items, you can call:
 
 ```bash
 
-./scripts/benchmarking/launch_train_blender.sh -m {METHOD_NAME} [-s] [-v {VIS}] [{GPU_LIST}]
+./nerfstudio/scripts/benchmarking/launch_train_blender.sh -m {METHOD_NAME} [-s] [-v {VIS}] [{GPU_LIST}]
 ```
 
 Simply replace the arguments in brackets with the correct arguments.
@@ -18,31 +18,31 @@ Simply replace the arguments in brackets with the correct arguments.
 - `-s`: Launch a single job per GPU.
 - `-v {VIS}`: Use another visualization than wandb, which is the default. Only other option is tensorboard.
 - `{GPU_LIST}`: (optional) Specify the list of gpus you want to use on your machine space separated. for instance, if you want to use GPU's 0-3, you will need to pass in `0 1 2 3`. If left empty, the script will automatically find available GPU's and distribute training jobs on the available GPUs.
-  
+
 :::{admonition} Tip
 :class: info
 
-To view all the arguments and annotations, you can run `./scripts/benchmarking/launch_train_blender.sh --help`
-  :::
-
+To view all the arguments and annotations, you can run `./nerfstudio/scripts/benchmarking/launch_train_blender.sh --help`
+:::
 
 A full example would be:
 
 - Specifying gpus
-    ```bash
-    ./scripts/benchmarking/launch_train_blender.sh -m nerfacto 0 1 2 3
-    ```
+
+  ```bash
+  ./nerfstudio/scripts/benchmarking/launch_train_blender.sh -m nerfacto 0 1 2 3
+  ```
 
 - Automatically find available gpus
-    ```bash
-    ./scripts/benchmarking/launch_train_blender.sh -m nerfacto
-    ```
+  ```bash
+  ./nerfstudio/scripts/benchmarking/launch_train_blender.sh -m nerfacto
+  ```
 
 The script will automatically launch training on all of the items and save the checkpoints in an output directory with the experiment name and current timestamp.
 
 ## Evaluating trained Blender models
 
-Once you have launched training, and training converges, you can test your method with `scripts/benchmarking/launch_eval_blender.sh`.
+Once you have launched training, and training converges, you can test your method with `nerfstudio/scripts/benchmarking/launch_eval_blender.sh`.
 
 Say we ran a benchmark on 08-10-2022 for `instant-ngp`. By default, the train script will save the benchmarks in the following format:
 
@@ -65,7 +65,7 @@ If we wanted to run the benchmark on all the blender data for the above example,
 
 ```bash
 
-./scripts/benchmarking/launch_eval_blender.sh -m instant-ngp -o outputs/ -t 2022-08-10_172517 [{GPU_LIST}]
+./nerfstudio/scripts/benchmarking/launch_eval_blender.sh -m instant-ngp -o outputs/ -t 2022-08-10_172517 [{GPU_LIST}]
 ```
 
 The flags used in the benchmarking script are defined as follows:
@@ -90,4 +90,4 @@ outputs
 :class: warning
 
 Since we are running multiple backgrounded processes concurrently with this script, please note the terminal logs may be messy.
-  :::
+:::
