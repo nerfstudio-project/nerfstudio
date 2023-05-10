@@ -504,7 +504,7 @@ def tv_loss(grids: TensorType["grids", "feature_dim", "row", "column"]) -> Tenso
     return 2 * (h_tv / h_tv_count + w_tv / w_tv_count) / number_of_grids
 
 
-class GradientScaler(torch.autograd.Function):
+class GradientScaler(torch.autograd.Function):  # typing: ignore, pylint: disable=abstract-method
     """
     Scale gradients by the ray distance to the pixel
     as suggested in `Radiance Field Gradient Scaling for Unbiased Near-Camera Training` paper
@@ -513,15 +513,17 @@ class GradientScaler(torch.autograd.Function):
     """
 
     @staticmethod
-    def forward(ctx, field_outputs, ray_dist):
+    def forward(ctx, field_outputs, ray_dist):  # pylint: disable=arguments-differ
         ctx.save_for_backward(ray_dist)
         return field_outputs, ray_dist
 
     @staticmethod
-    def backward(ctx, grad_field_outputs, grad_output_ray_dist):
+    def backward(ctx, grad_field_outputs, grad_output_ray_dist):  # pylint: disable=arguments-differ
         (ray_dist,) = ctx.saved_tensors
         scaling = torch.square(ray_dist).clamp(0, 1)
         output_grad = dict(grad_field_outputs.items())
         for key in output_grad.keys():
             output_grad[key] = output_grad[key] * scaling
         return output_grad, grad_output_ray_dist
+
+    vjp = backward
