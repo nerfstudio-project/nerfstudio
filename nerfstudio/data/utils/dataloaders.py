@@ -211,6 +211,7 @@ class FixedIndicesEvalDataloader(EvalDataloader):
         self.count = 0
 
     def __iter__(self):
+        self.count = 0
         return self
 
     def __next__(self):
