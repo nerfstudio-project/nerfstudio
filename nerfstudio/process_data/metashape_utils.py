@@ -115,30 +115,31 @@ def metashape_to_json(  # pylint: disable=too-many-statements
         sensor_dict[sensor.get("id")] = s
 
     components = chunk.find("components")
-    component_dict = {}
-    for component in components:
-        transform = component.find("transform")
-        if transform is not None:
-            rotation = transform.find("rotation")
-            if rotation is None:
-                r = np.eye(3)
-            else:
-                r = np.array([float(x) for x in rotation.text.split()]).reshape((3, 3))
-            translation = transform.find("translation")
-            if translation is None:
-                t = np.zeros(3)
-            else:
-                t = np.array([float(x) for x in translation.text.split()])
-            scale = transform.find("scale")
-            if scale is None:
-                s = 1.0
-            else:
-                s = float(scale.text)
+    if components is not None:
+        component_dict = {}
+        for component in components:
+            transform = component.find("transform")
+            if transform is not None:
+                rotation = transform.find("rotation")
+                if rotation is None:
+                    r = np.eye(3)
+                else:
+                    r = np.array([float(x) for x in rotation.text.split()]).reshape((3, 3))
+                translation = transform.find("translation")
+                if translation is None:
+                    t = np.zeros(3)
+                else:
+                    t = np.array([float(x) for x in translation.text.split()])
+                scale = transform.find("scale")
+                if scale is None:
+                    s = 1.0
+                else:
+                    s = float(scale.text)
 
-            m = np.eye(4)
-            m[:3, :3] = r
-            m[:3, 3] = t / s
-            component_dict[component.get("id")] = m
+                m = np.eye(4)
+                m[:3, :3] = r
+                m[:3, 3] = t / s
+                component_dict[component.get("id")] = m
 
     frames = []
     cameras = chunk.find("cameras")
@@ -171,9 +172,10 @@ def metashape_to_json(  # pylint: disable=too-many-statements
             num_skipped += 1
             continue
         transform = np.array([float(x) for x in camera.find("transform").text.split()]).reshape((4, 4))
-        component_id = camera.get("component_id")
-        if component_id in component_dict:
-            transform = component_dict[component_id] @ transform
+        if components is not None:
+            component_id = camera.get("component_id")
+            if component_id in component_dict:
+                transform = component_dict[component_id] @ transform
         transform = transform[[2, 0, 1, 3], :]
         transform[:, 1:3] *= -1
         frame["transform_matrix"] = transform.tolist()
