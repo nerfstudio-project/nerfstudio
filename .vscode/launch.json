@@ -160,12 +160,13 @@
       "args": [
           "--load-config=outputs/dron_abades/volinga/2023-05-04_122517/config.yml",
           "--traj=interpolate",
-          "--downscale-factor=4",
+          "--downscale-factor=2",
           "--eval-num-rays-per-chunk=65536",
-          "--output-path=../workspace/datasets/volinga/renders/dron_abades_min_steps.mp4",
+          "--output-path=../workspace/datasets/volinga/renders/dron_abades_ordered_poses.mp4",
           "--interpolation-steps=40",
           "--seconds=40",
-          "--adjust_speed"
+          "--order_poses",
+          "--adjust_frame_rate"
       ]
     },
   ]

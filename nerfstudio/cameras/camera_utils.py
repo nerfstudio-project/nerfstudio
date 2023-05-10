@@ -202,11 +202,40 @@ def get_interpolated_k(k_a, k_b, steps: int = 10) -> TensorType[3, 4]:
     return Ks
 
 
+def get_ordered_poses_and_k(poses, Ks):
+    """
+    Returns ordered poses and intrinsics by euclidian distance between poses.
+
+    Args:
+        poses: list of camera poses
+        Ks: list of camera intrinsics
+    """
+
+    poses_num = len(poses)
+
+    ordered_poses = np.expand_dims(poses[0], 0)
+    ordered_Ks = np.expand_dims(Ks[0], 0)
+
+    # remove the first pose from poses
+    poses = np.delete(poses, 0, axis=0)
+    Ks = np.delete(Ks, 0, axis=0)
+
+    for i in range(poses_num - 1):
+        distances = np.linalg.norm(ordered_poses[-1][:, 3] - poses[:, :, 3], axis=1)
+        idx = np.argmin(distances)
+        ordered_poses = np.concatenate((ordered_poses, np.expand_dims(poses[idx], 0)), axis=0)
+        ordered_Ks = np.concatenate((ordered_Ks, np.expand_dims(Ks[idx], 0)), axis=0)
+        poses = np.delete(poses, idx, axis=0)
+        Ks = np.delete(Ks, idx, axis=0)
+
+    return ordered_poses, ordered_Ks
+
+
 def get_interpolated_poses_many(
     poses: TensorType["num_poses", 3, 4],
     Ks: TensorType["num_poses", 3, 3],
     steps_per_transition=10,
-    adjust_speed=False,
+    order_poses=False,
 ) -> Tuple[TensorType["num_poses", 3, 4], TensorType["num_poses", 3, 3]]:
     """Return interpolated poses for many camera poses.
 
@@ -220,21 +249,16 @@ def get_interpolated_poses_many(
     """
     traj = []
     k_interp = []
+
+    if order_poses:
+        poses, Ks = get_ordered_poses_and_k(poses, Ks)
+
     for idx in range(poses.shape[0] - 1):
         pose_a = poses[idx]
         pose_b = poses[idx + 1]
-        if adjust_speed:
-            position_a = pose_a[:, 3]
-            position_b = pose_b[:, 3]
-            translation = position_a - position_b
-            distance = np.linalg.norm(translation)
-            adjusted_steps = round(steps_per_transition * distance)
-            if adjusted_steps < steps_per_transition//2: adjusted_steps = steps_per_transition//2
-        else:
-            adjusted_steps = steps_per_transition
-        poses_ab = get_interpolated_poses(pose_a, pose_b, steps=adjusted_steps)
+        poses_ab = get_interpolated_poses(pose_a, pose_b, steps=steps_per_transition)
         traj += poses_ab
-        k_interp += get_interpolated_k(Ks[idx], Ks[idx + 1], steps=adjusted_steps)
+        k_interp += get_interpolated_k(Ks[idx], Ks[idx + 1], steps=steps_per_transition)
 
     traj = np.stack(traj, axis=0)
     k_interp = np.stack(k_interp, axis=0)
@@ -508,7 +532,6 @@ def auto_orient_and_center_poses(
     Returns:
         Tuple of the oriented poses and the transform matrix.
     """
-
     origins = poses[..., :3, 3]
 
     mean_origin = torch.mean(origins, dim=0)
