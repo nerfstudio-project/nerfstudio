@@ -71,11 +71,7 @@ def _render_trajectory_video(
     seconds: float = 5.0,
     output_format: Literal["images", "video"] = "video",
     camera_type: CameraType = CameraType.PERSPECTIVE,
-    colormap: colormaps.Colormaps = "turbo",
-    normalize: bool = True,
-    colormap_min: float = 0.0,
-    colormap_max: float = 1.0,
-    invert: bool = False,
+    colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions(),
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -89,11 +85,7 @@ def _render_trajectory_video(
         seconds: Length of output video.
         output_format: How to save output data.
         camera_type: Camera projection format type.
-        colormap: Colormap to use if single channel output.
-        normalize: Whether to normalize the output images, only works with colormaps.
-        colormap_min: Minimum colormap value.
-        colormap_max: Maximum colormap value.
-        invert: Whether to invert the colormap.
+        colormap_options: Options for colormap.
     """
     CONSOLE.print("[bold green]Creating trajectory " + output_format)
     cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
@@ -154,11 +146,7 @@ def _render_trajectory_video(
                     output_image = (
                         colormaps.apply_colormap(
                             image=output_image,
-                            colormap=colormap,
-                            normalize=normalize,
-                            colormap_min=colormap_min,
-                            colormap_max=colormap_max,
-                            invert=invert,
+                            colormap_options=colormap_options,
                         )
                         .cpu()
                         .numpy()
@@ -327,15 +315,8 @@ class RenderTrajectory:
     """Number of interpolation steps between eval dataset cameras."""
     eval_num_rays_per_chunk: Optional[int] = None
     """Specifies number of rays per chunk during eval."""
-    colormap: colormaps.Colormaps = "turbo"
-    normalize: bool = False
-    """Whether to normalize the output if using a colormap."""
-    colormap_min: float = 0.0
-    """Minimum value of the colormap."""
-    colormap_max: float = 1.0
-    """Maximum value of the colormap."""
-    invert: bool = False
-    """Whether to invert the colormap."""
+    colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions()
+    """Colormap options."""
 
     def main(self) -> None:
         """Main function."""
@@ -388,11 +369,7 @@ class RenderTrajectory:
             seconds=seconds,
             output_format=self.output_format,
             camera_type=camera_type,
-            colormap=self.colormap,
-            normalize=self.normalize,
-            colormap_min=self.colormap_min,
-            colormap_max=self.colormap_max,
-            invert=self.invert,
+            colormap_options=self.colormap_options,
         )
 
 

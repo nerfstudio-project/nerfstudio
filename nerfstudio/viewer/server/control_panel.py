@@ -18,7 +18,7 @@ from typing import Callable, DefaultDict, List, Tuple, get_args
 
 import torch
 
-from nerfstudio.utils.colormaps import Colormaps
+from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
 from nerfstudio.viewer.server.viewer_elements import (
     ViewerCheckbox,
     ViewerDropdown,
@@ -42,8 +42,17 @@ class ControlPanel:
         update_output_cb: a callback that will be called when the user changes the output render
     """
 
-    def __init__(self, time_enabled: bool, rerender_cb: Callable, crop_update_cb: Callable, update_output_cb: Callable):
+    def __init__(
+        self,
+        viser_server: ViserServer,
+        time_enabled: bool,
+        rerender_cb: Callable,
+        crop_update_cb: Callable,
+        update_output_cb: Callable,
+        update_split_output_cb: Callable,
+    ):
         # elements holds a mapping from tag: [elements]
+        self.viser_server = viser_server
         self._elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
 
         self._train_speed = ViewerDropdown(
@@ -56,39 +65,74 @@ class ControlPanel:
             cb_hook=lambda han: [self.update_control_panel(), update_output_cb(han), rerender_cb(han)],
         )
         self._colormap = ViewerDropdown[Colormaps]("Colormap", "default", ["default"], cb_hook=rerender_cb)
-        self._invert = ViewerCheckbox("| Invert", False, cb_hook=rerender_cb)
-        self._normalize = ViewerCheckbox("| Normalize", False, cb_hook=rerender_cb)
-        self._min = ViewerNumber("| Min", 0.0, cb_hook=rerender_cb)
-        self._max = ViewerNumber("| Max", 1.0, cb_hook=rerender_cb)
+        self._invert = ViewerCheckbox("Invert", False, cb_hook=rerender_cb)
+        self._normalize = ViewerCheckbox("Normalize", False, cb_hook=rerender_cb)
+        self._min = ViewerNumber("Min", 0.0, cb_hook=rerender_cb)
+        self._max = ViewerNumber("Max", 1.0, cb_hook=rerender_cb)
+
+        self._split = ViewerCheckbox(
+            "Enable", False, cb_hook=lambda han: [self.update_control_panel(), rerender_cb(han)]
+        )
+        self._split_percentage = ViewerSlider("Split Percentage", 0.5, 0.0, 1.0, 0.01, cb_hook=rerender_cb)
+        self._split_output_render = ViewerDropdown(
+            "Output Render Split",
+            "not set",
+            ["not set"],
+            cb_hook=lambda han: [self.update_control_panel(), update_split_output_cb(han), rerender_cb(han)],
+        )
+        # Hack: spaces are after at the end of the names to make them unique
+        self._split_colormap = ViewerDropdown[Colormaps]("Colormap ", "default", ["default"], cb_hook=rerender_cb)
+        self._split_invert = ViewerCheckbox("Invert ", False, cb_hook=rerender_cb)
+        self._split_normalize = ViewerCheckbox("Normalize ", True, cb_hook=rerender_cb)
+        self._split_min = ViewerNumber("Min ", 0.0, cb_hook=rerender_cb)
+        self._split_max = ViewerNumber("Max ", 1.0, cb_hook=rerender_cb)
+
         self._train_util = ViewerSlider("Train Util", 0.85, 0, 1, 0.05)
         self._max_res = ViewerSlider("Max Res", 512, 64, 2048, 100, cb_hook=rerender_cb)
         self._crop_viewport = ViewerCheckbox(
-            "Crop Viewport",
+            "Enable ",
             False,
             cb_hook=lambda han: [self.update_control_panel(), crop_update_cb(han), rerender_cb(han)],
         )
-        self._background_color = ViewerRGB("| Background color", (38, 42, 55), cb_hook=crop_update_cb)
-        self._crop_min = ViewerVec3("| Crop Min", (-1, -1, -1), 0.05, cb_hook=crop_update_cb)
-        self._crop_max = ViewerVec3("| Crop Max", (1, 1, 1), 0.05, cb_hook=crop_update_cb)
+        self._background_color = ViewerRGB("Background color", (38, 42, 55), cb_hook=crop_update_cb)
+        self._crop_min = ViewerVec3("Crop Min", (-1, -1, -1), 0.05, cb_hook=crop_update_cb)
+        self._crop_max = ViewerVec3("Crop Max", (1, 1, 1), 0.05, cb_hook=crop_update_cb)
         self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=rerender_cb)
         self._time_enabled = time_enabled
 
         self.add_element(self._train_speed)
-        self.add_element(self._output_render)
-        self.add_element(self._colormap)
-        # colormap options
-        self.add_element(self._invert, additional_tags=("colormap",))
-        self.add_element(self._normalize, additional_tags=("colormap",))
-        self.add_element(self._min, additional_tags=("colormap",))
-        self.add_element(self._max, additional_tags=("colormap",))
-
         self.add_element(self._train_util)
-        self.add_element(self._max_res)
-        self.add_element(self._crop_viewport)
-        # Crop options
-        self.add_element(self._background_color, additional_tags=("crop",))
-        self.add_element(self._crop_min, additional_tags=("crop",))
-        self.add_element(self._crop_max, additional_tags=("crop",))
+        with self.viser_server.gui_folder("Render Options"):
+            self.add_element(self._max_res)
+            self.add_element(self._output_render)
+            self.add_element(self._colormap)
+            # colormap options
+            with self.viser_server.gui_folder(" "):
+                self.add_element(self._invert, additional_tags=("colormap",))
+                self.add_element(self._normalize, additional_tags=("colormap",))
+                self.add_element(self._min, additional_tags=("colormap",))
+                self.add_element(self._max, additional_tags=("colormap",))
+
+        # split options
+        with self.viser_server.gui_folder("Split Screen"):
+            self.add_element(self._split)
+
+            self.add_element(self._split_percentage, additional_tags=("split",))
+            self.add_element(self._split_output_render, additional_tags=("split",))
+            self.add_element(self._split_colormap, additional_tags=("split",))
+            with self.viser_server.gui_folder("  "):
+                self.add_element(self._split_invert, additional_tags=("split_colormap",))
+                self.add_element(self._split_normalize, additional_tags=("split_colormap",))
+                self.add_element(self._split_min, additional_tags=("split_colormap",))
+                self.add_element(self._split_max, additional_tags=("split_colormap",))
+
+        with self.viser_server.gui_folder("Crop Viewport"):
+            self.add_element(self._crop_viewport)
+
+            # Crop options
+            self.add_element(self._background_color, additional_tags=("crop",))
+            self.add_element(self._crop_min, additional_tags=("crop",))
+            self.add_element(self._crop_max, additional_tags=("crop",))
 
         self.add_element(self._time, additional_tags=("time",))
 
@@ -104,22 +148,14 @@ class ControlPanel:
             self._train_util.value = 0.5
             self._max_res.value = 1024
 
-    def install(self, viser_server: ViserServer) -> None:
-        """Installs the control panel on the viser server
-
-        Args:
-            viser_server: the viser server
-        """
-        for e in self._elements_by_tag["all"]:
-            e.install(viser_server)
-        self.update_control_panel()
-
     def update_output_options(self, new_options: List[str]):
         """
         Args:
             new_options: a list of new output options
         """
         self._output_render.set_options(new_options)
+        self._split_output_render.set_options(new_options)
+        self._split_output_render.value = new_options[-1]
 
     def add_element(self, e: ViewerElement, additional_tags: Tuple[str] = tuple()) -> None:
         """Adds an element to the control panel
@@ -131,6 +167,7 @@ class ControlPanel:
         self._elements_by_tag["all"].append(e)
         for t in additional_tags:
             self._elements_by_tag[t].append(e)
+        e.install(self.viser_server)
 
     def update_control_panel(self) -> None:
         """
@@ -139,9 +176,15 @@ class ControlPanel:
         self._colormap.set_disabled(self.output_render == "rgb")
         for e in self._elements_by_tag["colormap"]:
             e.set_hidden(self.output_render == "rgb")
+        for e in self._elements_by_tag["split_colormap"]:
+            e.set_hidden(not self._split.value or self.split_output_render == "rgb")
         for e in self._elements_by_tag["crop"]:
             e.set_hidden(not self.crop_viewport)
         self._time.set_hidden(not self._time_enabled)
+        self._split_percentage.set_hidden(not self._split.value)
+        self._split_output_render.set_hidden(not self._split.value)
+        self._split_colormap.set_hidden(not self._split.value)
+        self._split_colormap.set_disabled(self.split_output_render == "rgb")
 
     def update_colormap_options(self, dimensions: int, dtype: type) -> None:
         """update the colormap options based on the current render
@@ -150,13 +193,16 @@ class ControlPanel:
             dimensions: the number of dimensions of the render
             dtype: the data type of the render
         """
-        colormap_options: List[Colormaps] = []
-        if dimensions == 3:
-            colormap_options = ["default"]
-        if dimensions == 1 and dtype == torch.float:
-            colormap_options = [c for c in list(get_args(Colormaps)) if c != "default"]
+        self._colormap.set_options(_get_colormap_options(dimensions, dtype))
 
-        self._colormap.set_options(colormap_options)
+    def update_split_colormap_options(self, dimensions: int, dtype: type) -> None:
+        """update the split colormap options based on the current render
+
+        Args:
+            dimensions: the number of dimensions of the render
+            dtype: the data type of the render
+        """
+        self._split_colormap.set_options(_get_colormap_options(dimensions, dtype))
 
     @property
     def train_speed(self) -> str:
@@ -169,30 +215,19 @@ class ControlPanel:
         return self._output_render.value
 
     @property
-    def colormap(self) -> Colormaps:
-        """Returns the current colormap"""
-        colormap = self._colormap.value
-        return colormap
+    def split_output_render(self) -> str:
+        """Returns the current output for the split render"""
+        return self._split_output_render.value
 
     @property
-    def colormap_invert(self) -> bool:
-        """Returns the current colormap invert setting"""
-        return self._invert.value
+    def split(self) -> bool:
+        """Returns whether the split is enabled"""
+        return self._split.value
 
     @property
-    def colormap_normalize(self) -> bool:
-        """Returns the current colormap normalize setting"""
-        return self._normalize.value
-
-    @property
-    def colormap_min(self) -> float:
-        """Returns the current colormap min setting"""
-        return self._min.value
-
-    @property
-    def colormap_max(self) -> float:
-        """Returns the current colormap max setting"""
-        return self._max.value
+    def split_percentage(self) -> float:
+        """Returns the percentage of the screen to split"""
+        return self._split_percentage.value
 
     @property
     def train_util(self) -> float:
@@ -253,3 +288,44 @@ class ControlPanel:
     def time(self, value: float):
         """Sets the background color"""
         self._time.value = value
+
+    @property
+    def colormap_options(self) -> ColormapOptions:
+        """Returns the current colormap options"""
+        return ColormapOptions(
+            colormap=self._colormap.value,
+            normalize=self._normalize.value,
+            colormap_min=self._min.value,
+            colormap_max=self._max.value,
+            invert=self._invert.value,
+        )
+
+    @property
+    def split_colormap_options(self) -> ColormapOptions:
+        """Returns the current colormap options"""
+        return ColormapOptions(
+            colormap=self._split_colormap.value,
+            normalize=self._split_normalize.value,
+            colormap_min=self._split_min.value,
+            colormap_max=self._split_max.value,
+            invert=self._split_invert.value,
+        )
+
+
+def _get_colormap_options(dimensions: int, dtype: type) -> List[Colormaps]:
+    """
+    Given the number of dimensions and data type, returns a list of available colormap options
+    to use with the visualize() function.
+
+    Args:
+        dimensions: the number of dimensions of the render
+        dtype: the data type of the render
+    Returns:
+        a list of available colormap options
+    """
+    colormap_options: List[Colormaps] = []
+    if dimensions == 3:
+        colormap_options = ["default"]
+    if dimensions == 1 and dtype == torch.float:
+        colormap_options = [c for c in list(get_args(Colormaps)) if c != "default"]
+    return colormap_options

@@ -240,12 +240,25 @@ class RenderStateMachine(threading.Thread):
         )
         selected_output = colormaps.apply_colormap(
             image=outputs[self.viewer.control_panel.output_render],
-            colormap=self.viewer.control_panel.colormap,
-            normalize=self.viewer.control_panel.colormap_normalize,
-            colormap_min=self.viewer.control_panel.colormap_min,
-            colormap_max=self.viewer.control_panel.colormap_max,
-            invert=self.viewer.control_panel.colormap_invert,
+            colormap_options=self.viewer.control_panel.colormap_options,
         )
+
+        if self.viewer.control_panel.split:
+            split_output_render = self.viewer.control_panel.split_output_render
+            self.viewer.update_colormap_options(
+                dimensions=outputs[split_output_render].shape[-1], dtype=outputs[split_output_render].dtype
+            )
+            split_output = colormaps.apply_colormap(
+                image=outputs[self.viewer.control_panel.split_output_render],
+                colormap_options=self.viewer.control_panel.split_colormap_options,
+            )
+            split_index = min(
+                int(self.viewer.control_panel.split_percentage * selected_output.shape[1]),
+                selected_output.shape[1] - 1,
+            )
+            selected_output = torch.cat([selected_output[:, :split_index], split_output[:, split_index:]], dim=1)
+            selected_output[:, split_index] = torch.tensor([0.133, 0.157, 0.192], device=selected_output.device)
+
         selected_output = (selected_output * 255).type(torch.uint8)
 
         self.viewer.viser_server.set_background_image(
