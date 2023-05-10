@@ -115,6 +115,7 @@ class ViewerState:
 
         # viewer specific variables
         self.output_type_changed = True
+        self.output_split_type_changed = True
         self.step = 0
         self.train_btn_state: Literal["training", "paused", "completed"] = "training"
         self._prev_train_state: Literal["training", "paused", "completed"] = "training"
@@ -139,6 +140,7 @@ class ViewerState:
             self._interrupt_render,
             self._crop_params_update,
             self._output_type_change,
+            self._output_split_type_change,
         )
 
         def nested_folder_install(folder_labels: List[str], element: ViewerElement):
@@ -165,6 +167,9 @@ class ViewerState:
 
     def _output_type_change(self, _):
         self.output_type_changed = True
+
+    def _output_split_type_change(self, _):
+        self.output_split_type_changed = True
 
     def _interrupt_render(self, _) -> None:
         """Interrupt current render."""
@@ -342,17 +347,27 @@ class ViewerState:
                 self.last_step = step
                 self.render_statemachine.action(RenderAction("step", self.camera_message))
 
-    def update_colormap_options(self, dimensions: int, dtype: type, split: bool = False) -> None:
+    def update_colormap_options(self, dimensions: int, dtype: type) -> None:
         """update the colormap options based on the current render
 
         Args:
             dimensions: the number of dimensions of the render
             dtype: the data type of the render
-            split: whether to update the split colormap options
         """
         if self.output_type_changed:
-            self.control_panel.update_colormap_options(dimensions, dtype, split)
+            self.control_panel.update_colormap_options(dimensions, dtype)
             self.output_type_changed = False
+
+    def update_split_colormap_options(self, dimensions: int, dtype: type) -> None:
+        """update the colormap options based on the current render
+
+        Args:
+            dimensions: the number of dimensions of the render
+            dtype: the data type of the render
+        """
+        if self.output_split_type_changed:
+            self.control_panel.update_split_colormap_options(dimensions, dtype)
+            self.output_split_type_changed = False
 
     def get_model(self) -> Model:
         """Returns the model."""

@@ -49,6 +49,7 @@ class ControlPanel:
         rerender_cb: Callable,
         crop_update_cb: Callable,
         update_output_cb: Callable,
+        update_split_output_cb: Callable,
     ):
         # elements holds a mapping from tag: [elements]
         self.viser_server = viser_server
@@ -72,17 +73,17 @@ class ControlPanel:
         self._split = ViewerCheckbox(
             "Enable", False, cb_hook=lambda han: [self.update_control_panel(), rerender_cb(han)]
         )
-        self._split_percentage = ViewerSlider("Split Percentage", 0.5, 0.0, 1.0, cb_hook=rerender_cb)
+        self._split_percentage = ViewerSlider("Split Percentage", 0.5, 0.0, 1.0, 0.01, cb_hook=rerender_cb)
         self._split_output_render = ViewerDropdown(
             "Output Render Split",
             "not set",
             ["not set"],
-            cb_hook=lambda han: [self.update_control_panel(), update_output_cb(han), rerender_cb(han)],
+            cb_hook=lambda han: [self.update_control_panel(), update_split_output_cb(han), rerender_cb(han)],
         )
         # Hack: spaces are after at the end of the names to make them unique
         self._split_colormap = ViewerDropdown[Colormaps]("Colormap ", "default", ["default"], cb_hook=rerender_cb)
         self._split_invert = ViewerCheckbox("Invert ", False, cb_hook=rerender_cb)
-        self._split_normalize = ViewerCheckbox("Normalize ", False, cb_hook=rerender_cb)
+        self._split_normalize = ViewerCheckbox("Normalize ", True, cb_hook=rerender_cb)
         self._split_min = ViewerNumber("Min ", 0.0, cb_hook=rerender_cb)
         self._split_max = ViewerNumber("Max ", 1.0, cb_hook=rerender_cb)
 
@@ -154,6 +155,7 @@ class ControlPanel:
         """
         self._output_render.set_options(new_options)
         self._split_output_render.set_options(new_options)
+        self._split_output_render.value = new_options[-1]
 
     def add_element(self, e: ViewerElement, additional_tags: Tuple[str] = tuple()) -> None:
         """Adds an element to the control panel
@@ -184,24 +186,23 @@ class ControlPanel:
         self._split_colormap.set_hidden(not self._split.value)
         self._split_colormap.set_disabled(self.split_output_render == "rgb")
 
-    def update_colormap_options(self, dimensions: int, dtype: type, split: bool = False) -> None:
+    def update_colormap_options(self, dimensions: int, dtype: type) -> None:
         """update the colormap options based on the current render
 
         Args:
             dimensions: the number of dimensions of the render
             dtype: the data type of the render
-            split: whether to update the split colormap options
         """
-        colormap_options: List[Colormaps] = []
-        if dimensions == 3:
-            colormap_options = ["default"]
-        if dimensions == 1 and dtype == torch.float:
-            colormap_options = [c for c in list(get_args(Colormaps)) if c != "default"]
+        self._colormap.set_options(_get_colormap_options(dimensions, dtype))
 
-        if split:
-            self._split_colormap.set_options(colormap_options)
-        else:
-            self._colormap.set_options(colormap_options)
+    def update_split_colormap_options(self, dimensions: int, dtype: type) -> None:
+        """update the split colormap options based on the current render
+
+        Args:
+            dimensions: the number of dimensions of the render
+            dtype: the data type of the render
+        """
+        self._split_colormap.set_options(_get_colormap_options(dimensions, dtype))
 
     @property
     def train_speed(self) -> str:
@@ -309,3 +310,22 @@ class ControlPanel:
             colormap_max=self._split_max.value,
             invert=self._split_invert.value,
         )
+
+
+def _get_colormap_options(dimensions: int, dtype: type) -> List[Colormaps]:
+    """
+    Given the number of dimensions and data type, returns a list of available colormap options
+    to use with the visualize() function.
+
+    Args:
+        dimensions: the number of dimensions of the render
+        dtype: the data type of the render
+    Returns:
+        a list of available colormap options
+    """
+    colormap_options: List[Colormaps] = []
+    if dimensions == 3:
+        colormap_options = ["default"]
+    if dimensions == 1 and dtype == torch.float:
+        colormap_options = [c for c in list(get_args(Colormaps)) if c != "default"]
+    return colormap_options
