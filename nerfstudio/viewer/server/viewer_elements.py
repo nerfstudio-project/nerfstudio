@@ -315,6 +315,38 @@ class ViewerDropdown(ViewerParameter[TString], Generic[TString]):
             self.gui_handle.set_options(new_options)
 
 
+class ViewerButtonGroup(ViewerParameter[TString], Generic[TString]):
+    """A button group in the viewer
+
+    Args:
+        name: The name of the button group
+        default_value: The default value of the button group
+        options: The options of the button group
+        disabled: If the button group is disabled
+        cb_hook: Callback to call on update
+    """
+
+    gui_handle: Optional[GuiSelectHandle[str]]
+
+    def __init__(
+        self,
+        name: str,
+        default_value: TString,
+        options: List[TString],
+        disabled: bool = False,
+        cb_hook: Callable[[ViewerDropdown], Any] = lambda element: None,
+    ):
+        assert default_value in options
+        super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
+        self.options = options
+
+    def _create_gui_handle(self, viser_server: ViserServer) -> None:
+        assert self.gui_handle is None, "gui_handle should be initialized once"
+        # self.gui_handle = viser_server.add_button_group(self.name, self.options, self.default_value)
+        self.gui_handle = viser_server.add_button_group(self.name, self.options, self.default_value)
+        self.gui_handle.set_disabled(self.disabled)
+
+
 class ViewerRGB(ViewerParameter[Tuple[int, int, int]]):
     """
     An RGB color picker for the viewer

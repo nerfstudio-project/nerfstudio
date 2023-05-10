@@ -20,6 +20,7 @@ import torch
 
 from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
 from nerfstudio.viewer.server.viewer_elements import (
+    ViewerButtonGroup,
     ViewerCheckbox,
     ViewerDropdown,
     ViewerElement,
@@ -55,8 +56,11 @@ class ControlPanel:
         self.viser_server = viser_server
         self._elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
 
-        self._train_speed = ViewerDropdown(
-            "Train Speed", "Balanced", ["Fast", "Balanced", "Slow"], cb_hook=lambda han: self._train_speed_cb()
+        self._train_speed = ViewerButtonGroup(
+            name="Train Speed  ",
+            default_value="Balanced",
+            options=["Slow", "Balanced", "Fast"],
+            cb_hook=lambda han: self._train_speed_cb(),
         )
         self._output_render = ViewerDropdown(
             "Output Render",
@@ -138,13 +142,13 @@ class ControlPanel:
 
     def _train_speed_cb(self) -> None:
         """Callback for when the train speed is changed"""
-        if self.train_speed == "Fast":
+        if self._train_speed.value == "Fast":
             self._train_util.value = 0.95
             self._max_res.value = 256
-        elif self.train_speed == "Balanced":
+        elif self._train_speed.value == "Balanced":
             self._train_util.value = 0.85
             self._max_res.value = 512
-        elif self.train_speed == "Slow":
+        elif self._train_speed.value == "Slow":
             self._train_util.value = 0.5
             self._max_res.value = 1024
 
@@ -203,11 +207,6 @@ class ControlPanel:
             dtype: the data type of the render
         """
         self._split_colormap.set_options(_get_colormap_options(dimensions, dtype))
-
-    @property
-    def train_speed(self) -> str:
-        """Returns the current train speed setting"""
-        return self._train_speed.value
 
     @property
     def output_render(self) -> str:
