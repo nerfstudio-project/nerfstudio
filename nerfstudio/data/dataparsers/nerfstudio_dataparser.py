@@ -18,13 +18,12 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath
-from typing import Optional, Type
+from typing import Literal, Optional, Type
 
 import numpy as np
 import torch
 from PIL import Image
 from rich.console import Console
-from typing_extensions import Literal
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
@@ -46,7 +45,7 @@ class NerfstudioDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: Nerfstudio)
     """target class to instantiate"""
-    data: Path = Path("data/nerfstudio/poster")
+    data: Path = Path()
     """Directory or explicit json file path specifying location of data."""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
@@ -75,6 +74,8 @@ class Nerfstudio(DataParser):
 
     def _generate_dataparser_outputs(self, split="train"):
         # pylint: disable=too-many-statements
+
+        assert self.config.data.exists(), f"Data directory {self.config.data} does not exist."
 
         if self.config.data.suffix == ".json":
             meta = load_from_json(self.config.data)
