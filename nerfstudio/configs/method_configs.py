@@ -24,21 +24,9 @@ import tyro
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import ViewerConfig
-<<<<<<< HEAD
-from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
-from nerfstudio.data.datamanagers.depth_datamanager import DepthDataManagerConfig
-from nerfstudio.data.datamanagers.sdf_datamanager import SDFDataManagerConfig
-from nerfstudio.data.datamanagers.dreamfusion_datamanager import (
-    DreamFusionDataManagerConfig,
-)
-from nerfstudio.data.datamanagers.semantic_datamanager import SemanticDataManagerConfig
-from nerfstudio.data.datamanagers.variable_res_datamanager import (
-    VariableResDataManagerConfig,
-=======
 from nerfstudio.data.datamanagers.base_datamanager import (
     VanillaDataManager,
     VanillaDataManagerConfig,
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 )
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
@@ -59,10 +47,7 @@ from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConf
 from nerfstudio.engine.schedulers import (
     CosineDecaySchedulerConfig,
     ExponentialDecaySchedulerConfig,
-<<<<<<< HEAD
-=======
     MultiStepSchedulerConfig,
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 )
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
@@ -75,10 +60,7 @@ from nerfstudio.models.nerfacto import NerfactoModelConfig
 from nerfstudio.models.nerfplayer_nerfacto import NerfplayerNerfactoModelConfig
 from nerfstudio.models.nerfplayer_ngp import NerfplayerNGPModelConfig
 from nerfstudio.models.neus import NeuSModelConfig
-<<<<<<< HEAD
-=======
 from nerfstudio.models.neus_facto import NeuSFactoModelConfig
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
 from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
@@ -103,10 +85,7 @@ descriptions = {
     "nerfplayer-nerfacto": "NeRFPlayer with nerfacto backbone.",
     "nerfplayer-ngp": "NeRFPlayer with InstantNGP backbone.",
     "neus": "Implementation of NeuS. (slow)",
-<<<<<<< HEAD
-=======
     "neus-facto": "Implementation of NeuS-Facto. (slow)",
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 }
 
 method_configs["nerfacto"] = TrainerConfig(
@@ -475,54 +454,8 @@ method_configs["dreamfusion"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
-<<<<<<< HEAD
-        generative=True,
-        datamanager=DreamFusionDataManagerConfig(
-            horizontal_rotation_warmup=4000,
-        ),
-        model=DreamFusionModelConfig(
-            eval_num_rays_per_chunk=1 << 15,
-            distortion_loss_mult=0.02,
-            interlevel_loss_mult=100.0,
-            orientation_loss_mult=0.1,
-            max_res=256,
-            sphere_collider=True,
-            initialize_density=False,
-            random_background=True,
-            proposal_warmup=500,
-            proposal_update_every=0,
-            proposal_weights_anneal_max_num_iters=100,
-            start_lambertian_training=500,
-            start_normals_training=1000,
-            opacity_loss_mult=0.001,
-            positional_prompting="discrete",
-            guidance_scale=100,
-        ),
-    ),
-    optimizers={
-        "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
-        },
-        "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(
-                warmup_steps=2000, lr_final=1e-6, max_steps=20000, ramp="linear"
-            ),
-        },
-    },
-    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
-    vis="viewer",
-)
-
-method_configs["nerfplayer-nerfacto"] = TrainerConfig(
-    method_name="nerfplayer-nerfacto",
-    pipeline=VanillaPipelineConfig(
-        datamanager=DepthDataManagerConfig(
-=======
         datamanager=VanillaDataManagerConfig(
             _target=VanillaDataManager[DepthDataset],
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
             dataparser=DycheckDataParserConfig(),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
@@ -586,12 +519,8 @@ method_configs["neus"] = TrainerConfig(
     max_num_iterations=100000,
     mixed_precision=False,
     pipeline=VanillaPipelineConfig(
-<<<<<<< HEAD
-        datamanager=SDFDataManagerConfig(
-=======
         datamanager=VanillaDataManagerConfig(
             _target=VanillaDataManager[SDFDataset],
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
             dataparser=SDFStudioDataParserConfig(),
             train_num_rays_per_batch=1024,
             eval_num_rays_per_batch=1024,
@@ -615,8 +544,6 @@ method_configs["neus"] = TrainerConfig(
     vis="viewer",
 )
 
-<<<<<<< HEAD
-=======
 method_configs["neus-facto"] = TrainerConfig(
     method_name="neus-facto",
     steps_per_eval_image=5000,
@@ -668,7 +595,6 @@ method_configs["neus-facto"] = TrainerConfig(
     vis="viewer",
 )
 
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 external_methods, external_descriptions = discover_methods()
 all_methods = {**method_configs, **external_methods}
 all_descriptions = {**descriptions, **external_descriptions}

@@ -4,11 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-<<<<<<< HEAD
-version = "0.1.19"
-=======
 version = "0.2.2"
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -103,20 +99,6 @@ docs = [
 ]
 
 [project.scripts]
-<<<<<<< HEAD
-# Note, add entrypoint name to scripts/completions/install.py to include CLI completion
-ns-install-cli = "scripts.completions.install:entrypoint"
-ns-process-data = "scripts.process_data:entrypoint"
-ns-download-data = "scripts.downloads.download_data:entrypoint"
-ns-train = "scripts.train:entrypoint"
-ns-trace-sd = "scripts.generative.trace_stable_diffusion:entrypoint"
-ns-viewer = "scripts.viewer.run_viewer:entrypoint"
-ns-eval = "scripts.eval:entrypoint"
-ns-render = "scripts.render:entrypoint"
-ns-export = "scripts.exporter:entrypoint"
-ns-dev-test = "scripts.github.run_actions:entrypoint"
-ns-bridge-server = "nerfstudio.viewer.server.server:entrypoint"
-=======
 # Note, add entrypoint name to nerfstudio/scripts/completions/install.py to include CLI completion
 ns-install-cli = "nerfstudio.scripts.completions.install:entrypoint"
 ns-process-data = "nerfstudio.scripts.process_data:entrypoint"
@@ -128,7 +110,6 @@ ns-render = "nerfstudio.scripts.render:entrypoint"
 ns-export = "nerfstudio.scripts.exporter:entrypoint"
 ns-dev-test = "nerfstudio.scripts.github.run_actions:entrypoint"
 ns-dev-sync-viser-message-defs = "nerfstudio.scripts.viewer.sync_viser_message_defs:entrypoint"
->>>>>>> b1ddb9e695b789fae47e0f760a5c7f59f25af0bb
 
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision
