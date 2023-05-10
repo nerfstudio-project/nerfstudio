@@ -134,9 +134,12 @@ class ViewerState:
             self.viser_server.register_handler(TimeConditionMessage, self._handle_time_condition_message)
 
         self.control_panel = ControlPanel(
-            self.include_time, self._interrupt_render, self._crop_params_update, self._output_type_change
+            self.viser_server,
+            self.include_time,
+            self._interrupt_render,
+            self._crop_params_update,
+            self._output_type_change,
         )
-        self.control_panel.install(self.viser_server)
 
         def nested_folder_install(folder_labels: List[str], element: ViewerElement):
             if len(folder_labels) == 0:
@@ -339,15 +342,16 @@ class ViewerState:
                 self.last_step = step
                 self.render_statemachine.action(RenderAction("step", self.camera_message))
 
-    def update_colormap_options(self, dimensions: int, dtype: type) -> None:
+    def update_colormap_options(self, dimensions: int, dtype: type, split: bool = False) -> None:
         """update the colormap options based on the current render
 
         Args:
             dimensions: the number of dimensions of the render
             dtype: the data type of the render
+            split: whether to update the split colormap options
         """
         if self.output_type_changed:
-            self.control_panel.update_colormap_options(dimensions, dtype)
+            self.control_panel.update_colormap_options(dimensions, dtype, split)
             self.output_type_changed = False
 
     def get_model(self) -> Model:
