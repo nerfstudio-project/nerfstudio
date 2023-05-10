@@ -28,17 +28,17 @@ jobs:
           pip install --upgrade --upgrade-strategy eager -e .[dev]
       - name: Run license checks
         run: |
-          ./scripts/licensing/license_headers.sh --check
+          ./nerfstudio/scripts/licensing/license_headers.sh --check
       - name: Check notebook cell metadata
         run: |
-          python ./scripts/docs/add_nb_tags.py --check
+          python ./nerfstudio/scripts/docs/add_nb_tags.py --check
       - name: Run isort
-        run: isort docs/ nerfstudio/ scripts/ tests/ --profile black --check
+        run: isort docs/ nerfstudio/ tests/ --profile black --check
       - name: Run Black
-        run: black docs/ nerfstudio/ scripts/ tests/ --check
+        run: black docs/ nerfstudio/ tests/ --check
       - name: Python Pylint
         run: |
-          pylint nerfstudio tests scripts
+          pylint nerfstudio tests
       - name: Test with pytest
         run: |
           pytest
