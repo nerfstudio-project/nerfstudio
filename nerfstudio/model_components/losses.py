@@ -513,12 +513,15 @@ class GradientScaler(torch.autograd.Function):
     """
 
     @staticmethod
-    def forward(ctx, colors, sigmas, ray_dist):
+    def forward(ctx, field_outputs, ray_dist):
         ctx.save_for_backward(ray_dist)
-        return colors, sigmas, ray_dist
+        return field_outputs, ray_dist
 
     @staticmethod
-    def backward(ctx, grad_output_colors, grad_output_sigmas, grad_output_ray_dist):
+    def backward(ctx, grad_field_outputs, grad_output_ray_dist):
         (ray_dist,) = ctx.saved_tensors
         scaling = torch.square(ray_dist).clamp(0, 1)
-        return grad_output_colors * scaling, grad_output_sigmas * scaling, grad_output_ray_dist
+        output_grad = dict(grad_field_outputs.items())
+        for key in output_grad.keys():
+            output_grad[key] = output_grad[key] * scaling
+        return output_grad, grad_output_ray_dist

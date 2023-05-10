@@ -268,18 +268,16 @@ class NerfactoModel(Model):
         ray_samples: RaySamples
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
-        sigmas = field_outputs[FieldHeadNames.DENSITY]
-        colors = field_outputs[FieldHeadNames.RGB]
         if self.config.use_gradient_scaling:
-            sigmas, colors, _ = GradientScaler.apply(
-                sigmas, colors, (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
+            field_outputs, _ = GradientScaler.apply(
+                field_outputs, (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
             )
 
-        weights = ray_samples.get_weights(sigmas)
+        weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
 
-        rgb = self.renderer_rgb(rgb=colors, weights=weights)
+        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 
