@@ -23,7 +23,8 @@ from typing import Any, Callable, Generic, List, Optional, Tuple
 
 from typing_extensions import TypeVar
 
-from nerfstudio.viewer.viser import GuiHandle, GuiSelectHandle, ViserServer
+from nerfstudio.viewer.viser.message_api import GuiHandle, GuiSelectHandle
+from nerfstudio.viewer.viser.server import ViserServer
 
 TValue = TypeVar("TValue")
 

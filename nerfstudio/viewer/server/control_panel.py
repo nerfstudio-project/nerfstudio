@@ -28,7 +28,7 @@ from nerfstudio.viewer.server.viewer_elements import (
     ViewerSlider,
     ViewerVec3,
 )
-from nerfstudio.viewer.viser import ViserServer
+from nerfstudio.viewer.viser.server import ViserServer
 
 
 class ControlPanel:
