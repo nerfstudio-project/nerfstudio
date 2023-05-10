@@ -256,9 +256,17 @@ def get_interpolated_poses_many(
     for idx in range(poses.shape[0] - 1):
         pose_a = poses[idx]
         pose_b = poses[idx + 1]
-        poses_ab = get_interpolated_poses(pose_a, pose_b, steps=steps_per_transition)
+        if adjust_speed:
+            position_a = pose_a[:, 3]
+            position_b = pose_b[:, 3]
+            translation = position_a - position_b
+            distance = np.linalg.norm(translation)
+            adjusted_steps = round(steps_per_transition * distance)
+        else:
+            adjusted_steps = steps_per_transition
+        poses_ab = get_interpolated_poses(pose_a, pose_b, steps=adjusted_steps)
         traj += poses_ab
-        k_interp += get_interpolated_k(Ks[idx], Ks[idx + 1], steps=steps_per_transition)
+        k_interp += get_interpolated_k(Ks[idx], Ks[idx + 1], steps=adjusted_steps)
 
     traj = np.stack(traj, axis=0)
     k_interp = np.stack(k_interp, axis=0)
