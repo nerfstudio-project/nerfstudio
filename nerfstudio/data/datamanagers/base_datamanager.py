@@ -25,7 +25,6 @@ from pathlib import Path
 from typing import Any, Dict, Generic, List, Literal, Optional, Tuple, Type, Union
 
 import torch
-import tyro
 from rich.progress import Console
 from torch import nn
 from torch.nn import Parameter

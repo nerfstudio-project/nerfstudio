@@ -16,20 +16,19 @@
 Module that keeps all registered plugins and allows for plugin discovery.
 """
 
-import importlib
-import os
 import sys
 import typing as t
 from dataclasses import dataclass
 
 from rich.progress import Console
 
+from nerfstudio.data.dataparsers.base_dataparser import DataParserConfig
+
 if sys.version_info < (3, 10):
     from importlib_metadata import entry_points
 else:
     from importlib.metadata import entry_points
 CONSOLE = Console(width=120)
-from nerfstudio.data.dataparsers.base_dataparser import DataParserConfig
 
 
 @dataclass
