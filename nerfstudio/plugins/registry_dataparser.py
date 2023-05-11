@@ -42,7 +42,7 @@ class DataParserSpecification:
     """Dataparser configuration"""
 
 
-def discover_dataparsers() -> t.Tuple[t.Dict[str, DataParserConfig]]:
+def discover_dataparsers() -> t.Dict[str, DataParserConfig]:
     """
     Discovers all dataparsers registered using the `nerfstudio.data_configs` entrypoint.
     """
