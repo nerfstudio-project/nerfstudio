@@ -20,7 +20,7 @@
   "space": {
     "sm": "6px",
     "md": "5px",
-    "rowGap": "6px",
+    "rowGap": "3px",
     "colGap": "7px"
   },
   "fontSizes": {
@@ -31,15 +31,15 @@
     "controlWidth": "170px",
     "scrubberWidth": "8px",
     "scrubberHeight": "16px",
-    "rowHeight": "24px",
-    "folderHeight": "20px",
+    "rowHeight": "22px",
+    "folderHeight": "10px",
     "checkboxSize": "16px",
     "joystickWidth": "100px",
     "joystickHeight": "100px",
     "colorPickerWidth": "160px",
     "colorPickerHeight": "100px",
     "monitorHeight": "60px",
-    "titleBarHeight": "39px"
+    "titleBarHeight": "20px"
   },
   "borderWidths": {
     "root": "0px",
