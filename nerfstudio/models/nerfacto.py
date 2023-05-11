@@ -39,12 +39,12 @@ from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
 from nerfstudio.model_components.losses import (
-    GradientScaler,
     MSELoss,
     distortion_loss,
     interlevel_loss,
     orientation_loss,
     pred_normal_loss,
+    scale_gradients_by_distance_squared,
 )
 from nerfstudio.model_components.ray_samplers import (
     ProposalNetworkSampler,
@@ -269,7 +269,7 @@ class NerfactoModel(Model):
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
         if self.config.use_gradient_scaling:
-            field_outputs, _ = GradientScaler.apply(field_outputs, ray_samples)
+            field_outputs = scale_gradients_by_distance_squared(field_outputs, ray_samples)
 
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
         weights_list.append(weights)

@@ -16,7 +16,7 @@
 Collection of Losses.
 """
 from enum import Enum
-from typing import Literal
+from typing import Dict, Literal
 
 import torch
 from torch import nn
@@ -504,27 +504,36 @@ def tv_loss(grids: TensorType["grids", "feature_dim", "row", "column"]) -> Tenso
     return 2 * (h_tv / h_tv_count + w_tv / w_tv_count) / number_of_grids
 
 
-class GradientScaler(torch.autograd.Function):  # typing: ignore, pylint: disable=abstract-method
+class _GradientScaler(torch.autograd.Function):  # typing: ignore, pylint: disable=abstract-method
+    """
+    Scale gradients by a constant factor.
+    """
+
+    @staticmethod
+    def forward(ctx, value, scaling):  # pylint: disable=arguments-differ
+        ctx.save_for_backward(scaling)
+        return value, scaling
+
+    @staticmethod
+    def backward(ctx, output_grad, grad_scaling):  # pylint: disable=arguments-differ
+        (scaling,) = ctx.saved_tensors
+        return output_grad * scaling, grad_scaling
+
+
+def scale_gradients_by_distance_squared(field_outputs: Dict[str, torch.Tensor], ray_samples: RaySamples) -> Dict[str, torch.Tensor]:
     """
     Scale gradients by the ray distance to the pixel
     as suggested in `Radiance Field Gradient Scaling for Unbiased Near-Camera Training` paper
 
-    Note, the scaling is applied on the interval of [0, 1] along the ray!
+    Note: The scaling is applied on the interval of [0, 1] along the ray!
+
+    Example:
+        GradientLoss should be called right after obtaining the densities and colors from the field. ::
+            >>> field_outputs = scale_gradient_by_distance_squared(field_outputs, ray_samples)
     """
-
-    @staticmethod
-    def forward(ctx, field_outputs, ray_samples):  # pylint: disable=arguments-differ
-        ray_dist = ray_samples.frustums.starts + ray_samples.frustums.ends / 2
-        ctx.save_for_backward(ray_dist)
-        return field_outputs, ray_dist
-
-    @staticmethod
-    def backward(ctx, grad_field_outputs, grad_output_ray_samples):  # pylint: disable=arguments-differ
-        (ray_dist,) = ctx.saved_tensors
-        scaling = torch.square(ray_dist).clamp(0, 1)
-        output_grad = dict(grad_field_outputs.items())
-        for key in output_grad.keys():
-            output_grad[key] = output_grad[key] * scaling
-        return output_grad, grad_output_ray_samples
-
-    vjp = backward
+    out = {}
+    ray_dist = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
+    scaling = torch.square(ray_dist).clamp(0, 1)
+    for key, value in field_outputs.items():
+        out[key], _ = _GradientScaler.apply(value, scaling)
+    return out
