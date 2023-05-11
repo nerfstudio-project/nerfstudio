@@ -213,21 +213,21 @@ def get_ordered_poses_and_k(poses, Ks):
     poses_num = len(poses)
 
     ordered_poses = np.expand_dims(poses[0], 0)
-    ordered_Ks = np.expand_dims(Ks[0], 0)
+    ordered_ks = np.expand_dims(Ks[0], 0)
 
     # remove the first pose from poses
     poses = np.delete(poses, 0, axis=0)
     Ks = np.delete(Ks, 0, axis=0)
 
-    for i in range(poses_num - 1):
+    for _ in range(poses_num - 1):
         distances = np.linalg.norm(ordered_poses[-1][:, 3] - poses[:, :, 3], axis=1)
         idx = np.argmin(distances)
         ordered_poses = np.concatenate((ordered_poses, np.expand_dims(poses[idx], 0)), axis=0)
-        ordered_Ks = np.concatenate((ordered_Ks, np.expand_dims(Ks[idx], 0)), axis=0)
+        ordered_ks = np.concatenate((ordered_ks, np.expand_dims(Ks[idx], 0)), axis=0)
         poses = np.delete(poses, idx, axis=0)
         Ks = np.delete(Ks, idx, axis=0)
 
-    return ordered_poses, ordered_Ks
+    return ordered_poses, ordered_ks
 
 
 def get_interpolated_poses_many(
