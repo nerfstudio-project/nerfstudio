@@ -520,7 +520,9 @@ class _GradientScaler(torch.autograd.Function):  # typing: ignore, pylint: disab
         return output_grad * scaling, grad_scaling
 
 
-def scale_gradients_by_distance_squared(field_outputs: Dict[str, torch.Tensor], ray_samples: RaySamples) -> Dict[str, torch.Tensor]:
+def scale_gradients_by_distance_squared(
+    field_outputs: Dict[str, torch.Tensor], ray_samples: RaySamples
+) -> Dict[str, torch.Tensor]:
     """
     Scale gradients by the ray distance to the pixel
     as suggested in `Radiance Field Gradient Scaling for Unbiased Near-Camera Training` paper
