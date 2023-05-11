@@ -531,6 +531,7 @@ def auto_orient_and_center_poses(
     Returns:
         Tuple of the oriented poses and the transform matrix.
     """
+
     origins = poses[..., :3, 3]
 
     mean_origin = torch.mean(origins, dim=0)
