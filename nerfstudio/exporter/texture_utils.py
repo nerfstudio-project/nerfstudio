@@ -22,22 +22,18 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Literal, Optional, Tuple, Union
 
 import mediapy as media
 import numpy as np
 import torch
 import xatlas
-from rich.console import Console
 from torchtyping import TensorType
-from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.exporter.exporter_utils import Mesh
 from nerfstudio.pipelines.base_pipeline import Pipeline
-from nerfstudio.utils.rich_utils import get_progress
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE, get_progress
 
 TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 

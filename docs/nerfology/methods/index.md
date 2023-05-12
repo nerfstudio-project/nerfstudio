@@ -31,7 +31,9 @@ The following methods are supported in nerfstudio:
     Nerfacto<nerfacto.md>
     Instant-NGP<instant_ngp.md>
     Instruct-NeRF2NeRF<in2n.md>
+    LERF<lerf.md>
     Semantic NeRF-W<semantic_nerfw.md>
+    Tetra-NeRF <tetranerf.md>
 ```
 
 (own_method_docs)=

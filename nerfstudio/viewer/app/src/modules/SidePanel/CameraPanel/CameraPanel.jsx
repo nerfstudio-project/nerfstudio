@@ -1086,7 +1086,7 @@ export default function CameraPanel(props) {
     if ('crop' in camera_path_object && camera_path_object.crop !== null) {
       const bg_color = camera_path_object.crop.crop_bg_color;
       sendWebsocketMessage(viser_websocket, {
-        type: 'crop_params',
+        type: 'CropParamsMessage',
         crop_enabled: true,
         crop_bg_color: [bg_color.r, bg_color.g, bg_color.b],
         crop_center: camera_path_object.crop.crop_center,

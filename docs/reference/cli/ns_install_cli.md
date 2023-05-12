@@ -2,7 +2,7 @@
 
 ```{eval-rst}
 .. argparse::
-    :module: scripts.completions.install
+    :module: nerfstudio.scripts.completions.install
     :func: get_parser_fn
     :prog: ns-install-cli
     :nodefault:

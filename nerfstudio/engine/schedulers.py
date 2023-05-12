@@ -18,11 +18,10 @@
 
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Optional, Tuple, Type
+from typing import Literal, Optional, Tuple, Type
 
 import numpy as np
 from torch.optim import Optimizer, lr_scheduler
-from typing_extensions import Literal
 
 from nerfstudio.configs.base_config import InstantiateConfig
 

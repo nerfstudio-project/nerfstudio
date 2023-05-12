@@ -23,7 +23,6 @@ import cv2
 import numpy as np
 import torch
 from equilib import Equi2Pers
-from rich.console import Console
 from rich.progress import (
     BarColumn,
     Progress,
@@ -32,9 +31,7 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
-from nerfstudio.utils.rich_utils import ItersPerSecColumn
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
 
 
 def _crop_bottom(bound_arr: list, fov: int, crop_factor: float) -> List[float]:

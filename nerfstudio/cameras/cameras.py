@@ -17,7 +17,6 @@ Camera Models
 """
 import base64
 import math
-import os
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Dict, List, Optional, Tuple, Union
@@ -33,7 +32,6 @@ import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.utils.misc import strtobool
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
 TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
@@ -149,8 +147,6 @@ class Cameras(TensorDataclass):
         self.metadata = metadata
 
         self.__post_init__()  # This will do the dataclass post_init and broadcast all the tensors
-
-        self._use_nerfacc = strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "TRUE"))
 
     def _init_get_fc_xy(self, fc_xy: Union[float, torch.Tensor], name: str) -> torch.Tensor:
         """
@@ -633,7 +629,7 @@ class Cameras(TensorDataclass):
             if distortion_params is not None:
                 mask = (self.camera_type[true_indices] != CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
                 coord_mask = torch.stack([mask, mask, mask], dim=0)
-                if mask.any():
+                if mask.any() and (distortion_params != 0).any():
                     coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
                         coord_stack[coord_mask, :].reshape(3, -1, 2),
                         distortion_params[mask, :],

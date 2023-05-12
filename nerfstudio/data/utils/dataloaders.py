@@ -24,7 +24,7 @@ from abc import abstractmethod
 from typing import Dict, Optional, Tuple, Union
 
 import torch
-from rich.progress import Console, track
+from rich.progress import track
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 
@@ -33,8 +33,7 @@ from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.utils.misc import get_dict_to_torch
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 class CacheDataloader(DataLoader):
@@ -225,30 +224,16 @@ class FixedIndicesEvalDataloader(EvalDataloader):
 
 class RandIndicesEvalDataloader(EvalDataloader):
     """Dataloader that returns random images.
-
     Args:
         input_dataset: InputDataset to load data from
         device: Device to load data to
     """
 
-    def __init__(
-        self,
-        input_dataset: InputDataset,
-        device: Union[torch.device, str] = "cpu",
-        **kwargs,
-    ):
-        super().__init__(input_dataset, device, **kwargs)
-        self.count = 0
-
     def __iter__(self):
-        self.count = 0
         return self
 
     def __next__(self):
-        if self.count < 1:
-            image_indices = range(self.cameras.size)
-            image_idx = random.choice(image_indices)
-            ray_bundle, batch = self.get_data_from_image_idx(image_idx)
-            self.count += 1
-            return ray_bundle, batch
-        raise StopIteration
+        # choose a random image index
+        image_idx = random.randint(0, len(self.cameras) - 1)
+        ray_bundle, batch = self.get_data_from_image_idx(image_idx)
+        return ray_bundle, batch

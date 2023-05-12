@@ -276,6 +276,14 @@ function handleMessage(
       });
       break;
     }
+    case 'OutputOptionsMessage': {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/output_options',
+        data: message.options,
+      });
+      break;
+    }
     default: {
       console.log('Received message did not match any known types:', message);
       break;
@@ -287,7 +295,7 @@ export function ViserWebSocket({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
   const store = useStore();
 
-  const ws = React.useRef<WebSocket>();
+  const ws = React.useRef<WebSocket | null>(null);
 
   const websocket_url = useSelector(
     (state) => state.websocketState.websocket_url,
@@ -304,8 +312,19 @@ export function ViserWebSocket({ children }: { children: React.ReactNode }) {
 
       ws.current = new WebSocket(websocket_url);
 
+      const connecting_timeout = setTimeout(() => {
+        if (
+          ws.current != null &&
+          ws.current.readyState === WebSocket.CONNECTING
+        ) {
+          ws.current.close();
+          console.log('WebSocket connection timed out');
+        }
+      }, 5000); // timeout after 5 seconds
+
       ws.current.onopen = () => {
         console.log(`Viser connected! ${websocket_url}`);
+        clearTimeout(connecting_timeout);
         dispatch({
           type: 'write',
           path: 'websocketState/isConnected',
@@ -341,6 +360,11 @@ export function ViserWebSocket({ children }: { children: React.ReactNode }) {
             orderLock.release();
           }
         }
+      };
+
+      // add websocket error handling
+      ws.current.onerror = (err) => {
+        console.log('Websocket error: ', err);
       };
     }
 

@@ -16,9 +16,7 @@
 
 from math import floor, log
 
-from rich.console import Console
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def print_tcnn_speed_warning(method_name: str):

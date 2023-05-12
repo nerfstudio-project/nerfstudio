@@ -259,6 +259,8 @@ ns-train nerfacto --data {output directory}
 
 ## Metashape
 
+All images must use the same sensor type (but multiple sensors are supported).
+
 1. Align your images using Metashape. `File -> Workflow -> Align Photos...`
 
 ```{image} https://user-images.githubusercontent.com/3310961/203389662-12760210-2b52-49d4-ab21-4f23bfa4a2b3.png
@@ -341,4 +343,6 @@ The `crop-factor` argument is optional but often very helpful. This is because e
 
   <img src="imgs/equirect_crop.jpg">
 
-This obscene mesh of human is obviously not helpful in training a nerf so we can remove it by cropping the bottom 20% of the image. This can be done by using the `--crop-factor 0 0.2 0 0` argument.
+The pixels representing the distorted hand and head are obviously not useful in training a nerf so we can remove it by cropping the bottom 20% of the image. This can be done by using the `--crop-factor 0 0.2 0 0` argument.
+
+If cropping only needs to be done from the bottom, you can use the `--crop-bottom [num]` argument which would be the same as doing `--crop-factor 0.0 [num] 0.0 0.0`

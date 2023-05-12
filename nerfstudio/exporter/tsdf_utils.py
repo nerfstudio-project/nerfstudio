@@ -28,14 +28,12 @@ import numpy as np
 import pymeshlab
 import torch
 import torch.nn.functional as F
-from rich.console import Console
 from skimage import measure
 from torchtyping import TensorType
 
 from nerfstudio.exporter.exporter_utils import Mesh, render_trajectory
 from nerfstudio.pipelines.base_pipeline import Pipeline
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 
