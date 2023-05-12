@@ -201,10 +201,47 @@ def get_interpolated_k(k_a, k_b, steps: int = 10) -> TensorType[3, 4]:
     return Ks
 
 
+def get_ordered_poses_and_k(
+    poses: TensorType["num_poses", 3, 4],
+    Ks: TensorType["num_poses", 3, 3],
+) -> Tuple[TensorType["num_poses", 3, 4], TensorType["num_poses", 3, 3]]:
+    """
+    Returns ordered poses and intrinsics by euclidian distance between poses.
+
+    Args:
+        poses: list of camera poses
+        Ks: list of camera intrinsics
+
+    Returns:
+        tuple of ordered poses and intrinsics
+
+    """
+
+    poses_num = len(poses)
+
+    ordered_poses = np.expand_dims(poses[0], 0)
+    ordered_ks = np.expand_dims(Ks[0], 0)
+
+    # remove the first pose from poses
+    poses = np.delete(poses, 0, axis=0)
+    Ks = np.delete(Ks, 0, axis=0)
+
+    for _ in range(poses_num - 1):
+        distances = np.linalg.norm(ordered_poses[-1][:, 3] - poses[:, :, 3], axis=1)
+        idx = np.argmin(distances)
+        ordered_poses = np.concatenate((ordered_poses, np.expand_dims(poses[idx], 0)), axis=0)
+        ordered_ks = np.concatenate((ordered_ks, np.expand_dims(Ks[idx], 0)), axis=0)
+        poses = np.delete(poses, idx, axis=0)
+        Ks = np.delete(Ks, idx, axis=0)
+
+    return ordered_poses, ordered_ks
+
+
 def get_interpolated_poses_many(
     poses: TensorType["num_poses", 3, 4],
     Ks: TensorType["num_poses", 3, 3],
-    steps_per_transition=10,
+    steps_per_transition: int = 10,
+    order_poses: bool = False,
 ) -> Tuple[TensorType["num_poses", 3, 4], TensorType["num_poses", 3, 3]]:
     """Return interpolated poses for many camera poses.
 
@@ -212,12 +249,17 @@ def get_interpolated_poses_many(
         poses: list of camera poses
         Ks: list of camera intrinsics
         steps_per_transition: number of steps per transition
+        order_poses: whether to order poses by euclidian distance
 
     Returns:
         tuple of new poses and intrinsics
     """
     traj = []
     k_interp = []
+
+    if order_poses:
+        poses, Ks = get_ordered_poses_and_k(poses, Ks)
+
     for idx in range(poses.shape[0] - 1):
         pose_a = poses[idx]
         pose_b = poses[idx + 1]
