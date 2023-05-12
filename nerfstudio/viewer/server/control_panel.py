@@ -66,7 +66,7 @@ class ControlPanel:
         )
         self._colormap = ViewerDropdown[Colormaps]("Colormap", "default", ["default"], cb_hook=rerender_cb)
         self._invert = ViewerCheckbox("Invert", False, cb_hook=rerender_cb)
-        self._normalize = ViewerCheckbox("Normalize", False, cb_hook=rerender_cb)
+        self._normalize = ViewerCheckbox("Normalize", True, cb_hook=rerender_cb)
         self._min = ViewerNumber("Min", 0.0, cb_hook=rerender_cb)
         self._max = ViewerNumber("Max", 1.0, cb_hook=rerender_cb)
 

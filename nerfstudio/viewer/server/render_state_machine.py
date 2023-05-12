@@ -245,7 +245,7 @@ class RenderStateMachine(threading.Thread):
 
         if self.viewer.control_panel.split:
             split_output_render = self.viewer.control_panel.split_output_render
-            self.viewer.update_colormap_options(
+            self.viewer.update_split_colormap_options(
                 dimensions=outputs[split_output_render].shape[-1], dtype=outputs[split_output_render].dtype
             )
             split_output = colormaps.apply_colormap(
