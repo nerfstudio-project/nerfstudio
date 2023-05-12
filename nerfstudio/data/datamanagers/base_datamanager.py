@@ -25,7 +25,6 @@ from pathlib import Path
 from typing import Any, Dict, Generic, List, Literal, Optional, Tuple, Type, Union
 
 import torch
-import tyro
 from torch import nn
 from torch.nn import Parameter
 from torch.utils.data import Dataset
@@ -36,26 +35,9 @@ from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
-from nerfstudio.data.dataparsers.arkitscenes_dataparser import (
-    ARKitScenesDataParserConfig,
-)
+from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
-from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
-from nerfstudio.data.dataparsers.dycheck_dataparser import DycheckDataParserConfig
-from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
-    InstantNGPDataParserConfig,
-)
-from nerfstudio.data.dataparsers.minimal_dataparser import MinimalDataParserConfig
-from nerfstudio.data.dataparsers.nerfosr_dataparser import NeRFOSRDataParserConfig
-from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
-from nerfstudio.data.dataparsers.nuscenes_dataparser import NuScenesDataParserConfig
-from nerfstudio.data.dataparsers.phototourism_dataparser import (
-    PhototourismDataParserConfig,
-)
-from nerfstudio.data.dataparsers.scannet_dataparser import ScanNetDataParserConfig
-from nerfstudio.data.dataparsers.sdfstudio_dataparser import SDFStudioDataParserConfig
-from nerfstudio.data.dataparsers.sitcoms3d_dataparser import Sitcoms3DDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import (
     EquirectangularPixelSampler,
@@ -96,30 +78,6 @@ def variable_res_collate(batch: List[Dict]) -> Dict:
         new_batch["mask"] = masks
 
     return new_batch
-
-
-AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of flags in subcommands.
-    tyro.extras.subcommand_type_from_defaults(
-        {
-            "nerfstudio-data": NerfstudioDataParserConfig(),
-            "minimal-parser": MinimalDataParserConfig(),
-            "arkit-data": ARKitScenesDataParserConfig(),
-            "blender-data": BlenderDataParserConfig(),
-            "instant-ngp-data": InstantNGPDataParserConfig(),
-            "nuscenes-data": NuScenesDataParserConfig(),
-            "dnerf-data": DNeRFDataParserConfig(),
-            "phototourism-data": PhototourismDataParserConfig(),
-            "dycheck-data": DycheckDataParserConfig(),
-            "scannet-data": ScanNetDataParserConfig(),
-            "sdfstudio-data": SDFStudioDataParserConfig(),
-            "nerfosr-data": NeRFOSRDataParserConfig(),
-            "sitcoms3d-data": Sitcoms3DDataParserConfig(),
-        },
-        prefix_names=False,  # Omit prefixes in subcommands themselves.
-    )
-]
-"""Union over possible dataparser types, annotated with metadata for tyro. This is the
-same as the vanilla union, but results in shorter subcommand names."""
 
 
 @dataclass
