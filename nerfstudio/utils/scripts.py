@@ -17,9 +17,7 @@ import subprocess
 import sys
 from typing import Optional
 
-from rich.console import Console
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def run_command(cmd: str, verbose=False) -> Optional[str]:

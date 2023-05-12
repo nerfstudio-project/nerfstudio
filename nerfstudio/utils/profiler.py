@@ -26,7 +26,6 @@ from contextlib import ContextDecorator, contextmanager
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
-from rich.console import Console
 from torch.profiler import ProfilerActivity, profile, record_function
 
 from nerfstudio.configs import base_config as cfg
@@ -36,8 +35,7 @@ from nerfstudio.utils.decorators import (
     check_profiler_enabled,
     decorate_all,
 )
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 PROFILER = []
 PYTORCH_PROFILER = None

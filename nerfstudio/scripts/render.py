@@ -32,7 +32,6 @@ import numpy as np
 import torch
 import tyro
 from rich import box, style
-from rich.console import Console
 from rich.panel import Panel
 from rich.progress import (
     BarColumn,
@@ -56,9 +55,7 @@ from nerfstudio.model_components import renderers
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import colormaps, install_checks
 from nerfstudio.utils.eval_utils import eval_setup
-from nerfstudio.utils.rich_utils import ItersPerSecColumn
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
 
 
 def _render_trajectory_video(

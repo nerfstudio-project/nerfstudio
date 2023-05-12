@@ -24,7 +24,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Tuple
 
 import torch
-from rich.console import Console
 
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.models.base_model import Model
@@ -32,8 +31,6 @@ from nerfstudio.utils.io import load_from_json
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
-
-CONSOLE = Console(width=120)
 
 
 def get_viewer_version() -> str:

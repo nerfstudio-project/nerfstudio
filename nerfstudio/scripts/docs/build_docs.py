@@ -18,10 +18,9 @@ import subprocess
 import sys
 
 import tyro
-from rich.console import Console
 from rich.style import Style
 
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 LOCAL_TESTS = ["Run license checks", "Run Black", "Python Pylint", "Test with pytest"]
 

@@ -28,9 +28,10 @@ from typing import List, Literal, Optional, Union
 from typing import get_args as typing_get_args
 
 import tyro
-from rich.console import Console
 from rich.prompt import Confirm
 from typing_extensions import assert_never
+
+from nerfstudio.utils.rich_utils import CONSOLE
 
 if sys.version_info < (3, 10):
     import importlib_metadata
@@ -40,7 +41,6 @@ else:
 ConfigureMode = Literal["install", "uninstall"]
 ShellType = Literal["zsh", "bash"]
 
-CONSOLE = Console(width=120)
 HEADER_LINE = "# Source nerfstudio autocompletions."
 
 
