@@ -26,7 +26,6 @@ from typing import Any, Dict, Generic, List, Literal, Optional, Tuple, Type, Uni
 
 import torch
 import tyro
-from rich.progress import Console
 from torch import nn
 from torch.nn import Parameter
 from torch.utils.data import Dataset
@@ -72,8 +71,7 @@ from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def variable_res_collate(batch: List[Dict]) -> Dict:

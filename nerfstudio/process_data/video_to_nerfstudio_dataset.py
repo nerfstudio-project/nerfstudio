@@ -17,14 +17,11 @@
 import shutil
 from dataclasses import dataclass
 
-from rich.console import Console
-
 from nerfstudio.process_data import equirect_utils, process_data_utils
 from nerfstudio.process_data.colmap_converter_to_nerfstudio_dataset import (
     ColmapConverterToNerfstudioDataset,
 )
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 @dataclass
