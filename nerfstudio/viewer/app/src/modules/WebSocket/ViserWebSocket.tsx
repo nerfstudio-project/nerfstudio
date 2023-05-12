@@ -276,6 +276,14 @@ function handleMessage(
       });
       break;
     }
+    case 'OutputOptionsMessage': {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/output_options',
+        data: message.options,
+      });
+      break;
+    }
     default: {
       console.log('Received message did not match any known types:', message);
       break;

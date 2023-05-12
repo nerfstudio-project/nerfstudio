@@ -21,7 +21,7 @@ import typing
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from time import time
-from typing import Any, Dict, List, Mapping, Optional, Type, Union, cast
+from typing import Any, Dict, List, Literal, Mapping, Optional, Type, Union, cast
 
 import mediapy
 import torch
@@ -37,7 +37,6 @@ from torch import nn
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
-from typing_extensions import Literal
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datamanagers.base_datamanager import (

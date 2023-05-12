@@ -17,7 +17,6 @@ Camera Models
 """
 import base64
 import math
-import os
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Dict, List, Optional, Tuple, Union
@@ -33,7 +32,6 @@ import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.utils.misc import strtobool
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
 TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
@@ -149,8 +147,6 @@ class Cameras(TensorDataclass):
         self.metadata = metadata
 
         self.__post_init__()  # This will do the dataclass post_init and broadcast all the tensors
-
-        self._use_nerfacc = strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "TRUE"))
 
     def _init_get_fc_xy(self, fc_xy: Union[float, torch.Tensor], name: str) -> torch.Tensor:
         """

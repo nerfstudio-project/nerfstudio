@@ -87,7 +87,7 @@ You must have an NVIDIA video card with CUDA installed on the system. This libra
 
 ### Create environment
 
-Nerfstudio requires `python >= 3.7`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
+Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 ```bash
 conda create --name nerfstudio -y python=3.8
@@ -168,7 +168,13 @@ It is possible to load a pretrained model by running
 ns-train nerfacto --data data/nerfstudio/poster --load-dir {outputs/.../nerfstudio_models}
 ```
 
-This will automatically start training. If you do not want it to train, add `--viewer.start-train False` to your training command.
+## Visualize existing run
+
+Given a pretrained model checkpoint, you can start the viewer by running
+
+```bash
+ns-viewer --load-config {outputs/.../config.yml}
+```
 
 ## 3. Exporting Results
 
@@ -230,9 +236,9 @@ Each model contains many parameters that can be changed, too many to list here. 
 ns-train nerfacto --help
 ```
 
-### Tensorboard / WandB
+### Tensorboard / WandB / Viewer
 
-We support three different methods to track training progress, using the viewer, [tensorboard](https://www.tensorflow.org/tensorboard), and [Weights and Biases](https://wandb.ai/site). You can specify which visualizer to use by appending `--vis {viewer, tensorboard, wandb}` to the training command. Note that only one may be used at a time. Additionally the viewer only works for methods that are fast (ie. nerfacto, instant-ngp), for slower methods like NeRF, use the other loggers.
+We support three different methods to track training progress, using the viewer, [tensorboard](https://www.tensorflow.org/tensorboard), and [Weights and Biases](https://wandb.ai/site). You can specify which visualizer to use by appending `--vis {viewer, tensorboard, wandb, viewer+wandb, viewer+tensorboard}` to the training command. Simultaneously utilizing the viewer alongside wandb or tensorboard may cause stuttering issues during evaluation steps. The viewer only works for methods that are fast (ie. nerfacto, instant-ngp), for slower methods like NeRF, use the other loggers.
 
 # Learn More
 

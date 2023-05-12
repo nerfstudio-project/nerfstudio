@@ -26,6 +26,7 @@ from rich.console import Console
 CONSOLE = Console()
 # pylint: disable=import-outside-toplevel
 
+
 # cannot use mutable types directly within dataclass; abstracting default factory calls
 def to_immutable_dict(d: Dict[str, Any]):
     """Method to convert mutable dict to default factory dict

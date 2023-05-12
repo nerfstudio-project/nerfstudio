@@ -77,7 +77,7 @@ class Blender(DataParser):
             poses.append(np.array(frame["transform_matrix"]))
         poses = np.array(poses).astype(np.float32)
 
-        img_0 = imageio.imread(image_filenames[0])
+        img_0 = imageio.v2.imread(image_filenames[0])
         image_height, image_width = img_0.shape[:2]
         camera_angle_x = float(meta["camera_angle_x"])
         focal_length = 0.5 * image_width / np.tan(0.5 * camera_angle_x)
