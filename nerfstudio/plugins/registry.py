@@ -45,7 +45,7 @@ def discover_methods() -> t.Tuple[t.Dict[str, TrainerConfig], t.Dict[str, str]]:
         specification = discovered_entry_points[name].load()
         if not isinstance(specification, MethodSpecification):
             CONSOLE.print(
-                "[bold yellow]Warning: Could not entry point {n} as it is not an instance of MethodSpecification"
+                f"[bold yellow]Warning: Could not entry point {specification} as it is not an instance of MethodSpecification"
             )
             continue
         specification = t.cast(MethodSpecification, specification)

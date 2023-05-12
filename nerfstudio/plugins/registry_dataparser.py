@@ -52,7 +52,7 @@ def discover_dataparsers() -> t.Dict[str, DataParserConfig]:
         specification = discovered_entry_points[name].load()
         if not isinstance(specification, DataParserSpecification):
             CONSOLE.print(
-                f"[bold yellow]Warning: Could not entry point {n} as it is not an instance of DataParserSpecification"
+                f"[bold yellow]Warning: Could not entry point {specification} as it is not an instance of DataParserSpecification"
             )
             continue
         specification = t.cast(DataParserSpecification, specification)
