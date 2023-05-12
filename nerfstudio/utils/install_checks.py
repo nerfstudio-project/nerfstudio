@@ -17,9 +17,7 @@
 import shutil
 import sys
 
-from rich.console import Console
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def check_ffmpeg_installed():

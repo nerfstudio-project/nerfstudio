@@ -22,7 +22,6 @@ from pathlib import Path
 from typing import Any, Dict, Literal, Optional
 
 import yaml
-from rich.console import Console
 
 from nerfstudio.configs.base_config import (
     InstantiateConfig,
@@ -34,8 +33,7 @@ from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.engine.optimizers import OptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 @dataclass

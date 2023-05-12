@@ -28,7 +28,6 @@ from typing import Dict, List, Literal, Optional, Tuple, Type, Union
 
 import torch
 from rich import box, style
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from torch.cuda.amp.grad_scaler import GradScaler
@@ -48,10 +47,9 @@ from nerfstudio.utils.decorators import (
     check_viewer_enabled,
 )
 from nerfstudio.utils.misc import step_check
+from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server.viewer_state import ViewerState
-
-CONSOLE = Console(width=120)
 
 TRAIN_INTERATION_OUTPUT = Tuple[  # pylint: disable=invalid-name
     torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]

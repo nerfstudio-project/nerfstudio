@@ -27,13 +27,12 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import tyro
-from rich.console import Console
 from torch import nn
 from torch.cuda.amp import custom_bwd, custom_fwd
 from torch.cuda.amp.grad_scaler import GradScaler
 from torchtyping import TensorType
 
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 try:
     from diffusers import PNDMScheduler, StableDiffusionPipeline

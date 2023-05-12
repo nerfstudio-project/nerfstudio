@@ -28,7 +28,6 @@ import numpy as np
 import open3d as o3d
 import pymeshlab
 import torch
-from rich.console import Console
 from rich.progress import (
     BarColumn,
     Progress,
@@ -41,9 +40,7 @@ from torchtyping import TensorType
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
-from nerfstudio.utils.rich_utils import ItersPerSecColumn
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
 
 
 @dataclass
@@ -122,6 +119,7 @@ def generate_point_cloud(
         BarColumn(),
         TaskProgressColumn(show_speed=True),
         TimeRemainingColumn(elapsed_when_finished=True, compact=True),
+        console=CONSOLE,
     )
     points = []
     rgbs = []

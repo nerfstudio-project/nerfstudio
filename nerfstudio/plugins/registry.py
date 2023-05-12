@@ -21,16 +21,14 @@ import os
 import sys
 import typing as t
 
-from rich.progress import Console
-
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.plugins.types import MethodSpecification
+from nerfstudio.utils.rich_utils import CONSOLE
 
 if sys.version_info < (3, 10):
     from importlib_metadata import entry_points
 else:
     from importlib.metadata import entry_points
-CONSOLE = Console(width=120)
 
 
 def discover_methods() -> t.Tuple[t.Dict[str, TrainerConfig], t.Dict[str, str]]:

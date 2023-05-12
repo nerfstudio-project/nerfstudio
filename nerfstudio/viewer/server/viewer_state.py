@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, List, Literal, Optional
 import numpy as np
 import torch
 from rich import box, style
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
@@ -33,6 +32,7 @@ from nerfstudio.models.base_model import Model
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
+from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer.server.control_panel import ControlPanel
@@ -56,8 +56,6 @@ from nerfstudio.viewer.viser.messages import (
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
-
-CONSOLE = Console(width=120)
 
 
 @decorate_all([check_main_thread])
