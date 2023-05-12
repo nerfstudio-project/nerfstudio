@@ -40,15 +40,15 @@ def discover_methods() -> t.Tuple[t.Dict[str, TrainerConfig], t.Dict[str, str]]:
     descriptions = {}
     discovered_entry_points = entry_points(group="nerfstudio.method_configs")
     for name in discovered_entry_points.names:
-        specification = discovered_entry_points[name].load()
-        if not isinstance(specification, MethodSpecification):
+        spec = discovered_entry_points[name].load()
+        if not isinstance(spec, MethodSpecification):
             CONSOLE.print(
-                "[bold yellow]Warning: Could not entry point {n} as it is not an instance of MethodSpecification"
+                f"[bold yellow]Warning: Could not entry point {spec} as it is not an instance of MethodSpecification"
             )
             continue
-        specification = t.cast(MethodSpecification, specification)
-        methods[specification.config.method_name] = specification.config
-        descriptions[specification.config.method_name] = specification.description
+        spec = t.cast(MethodSpecification, spec)
+        methods[spec.config.method_name] = spec.config
+        descriptions[spec.config.method_name] = spec.description
 
     if "NERFSTUDIO_METHOD_CONFIGS" in os.environ:
         try:

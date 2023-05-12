@@ -27,7 +27,7 @@ from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.viewer.server.utils import three_js_perspective_camera_focal_length
 
 
-def get_interpolated_camera_path(cameras: Cameras, steps: int) -> Cameras:
+def get_interpolated_camera_path(cameras: Cameras, steps: int, order_poses: bool) -> Cameras:
     """Generate a camera path between two cameras.
 
     Args:
@@ -39,7 +39,7 @@ def get_interpolated_camera_path(cameras: Cameras, steps: int) -> Cameras:
     """
     Ks = cameras.get_intrinsics_matrices().cpu().numpy()
     poses = cameras.camera_to_worlds.cpu().numpy()
-    poses, Ks = get_interpolated_poses_many(poses, Ks, steps_per_transition=steps)
+    poses, Ks = get_interpolated_poses_many(poses, Ks, steps_per_transition=steps, order_poses=order_poses)
 
     cameras = Cameras(fx=Ks[:, 0, 0], fy=Ks[:, 1, 1], cx=Ks[0, 0, 2], cy=Ks[0, 1, 2], camera_to_worlds=poses)
     return cameras
