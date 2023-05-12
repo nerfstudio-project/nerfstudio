@@ -7,13 +7,14 @@ Below, we document the contribution pipeline and good-to-knows for when you're r
 The project is set up for development in VSCode, we recommend using it if you plan to contribute.
 
 ## Overview
+
 Below are the various tooling features our team uses to maintain this codebase.
 
-|    Tooling      |    Support    |
-| --------------- | ------------- |
-| Linter          | [Black](https://black.readthedocs.io/en/stable/)  |
-| Testing         | [PyTest](https://docs.pytest.org/en/7.1.x/) |
-| Docs            | [Sphinx](https://www.sphinx-doc.org/en/master/) |
+| Tooling         | Support                                                    |
+| --------------- | ---------------------------------------------------------- |
+| Linter          | [Black](https://black.readthedocs.io/en/stable/)           |
+| Testing         | [PyTest](https://docs.pytest.org/en/7.1.x/)                |
+| Docs            | [Sphinx](https://www.sphinx-doc.org/en/master/)            |
 | Docstring style | [Google](https://google.github.io/styleguide/pyguide.html) |
 
 ## Requirements
@@ -53,8 +54,8 @@ conda install -c conda-forge pandoc
 
    :::{admonition} Attention
    :class: attention
-      In order to merge changes to the code base, all of these checks must be passing. If you pass these tests locally, you will likely pass on github servers as well (results in a green checkmark next to your commit).
-      :::
+   In order to merge changes to the code base, all of these checks must be passing. If you pass these tests locally, you will likely pass on github servers as well (results in a green checkmark next to your commit).
+   :::
 
 3. Open pull request! 💌
 
@@ -65,7 +66,7 @@ conda install -c conda-forge pandoc
 Run the following to build the documentation:
 
 ```bash
-python scripts/docs/build_docs.py
+python nerfstudio/scripts/docs/build_docs.py
 ```
 
 :::{admonition} Tip
@@ -84,7 +85,7 @@ If you want the code to build on save you can use [sphinx autobuild](https://git
 :class: info
 
 If changes to the structure are made, the build files may be incorrect.
-  :::
+:::
 
 ```bash
 pip install sphinx-autobuild

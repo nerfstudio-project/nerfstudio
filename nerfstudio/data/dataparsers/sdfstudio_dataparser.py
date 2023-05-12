@@ -51,11 +51,11 @@ class SDFStudioDataParserConfig(DataParserConfig):
     scene_scale: float = 2.0
     """
     Sets the bounding cube to have edge length of this size.
-    The longest dimension of the Friends axis-aligned bbox will be scaled to this value.
+    The longest dimension of the axis-aligned bbox will be scaled to this value.
     """
     skip_every_for_val_split: int = 1
     """sub sampling validation images"""
-    auto_orient: bool = False
+    auto_orient: bool = True
 
 
 @dataclass
@@ -87,16 +87,17 @@ class SDFStudio(DataParser):
                 continue
 
             image_filename = self.config.data / frame["rgb_path"]
-            depth_filename = self.config.data / frame["mono_depth_path"]
-            normal_filename = self.config.data / frame["mono_normal_path"]
+            depth_filename = frame.get("mono_depth_path")
+            normal_filename = frame.get("mono_normal_path")
 
             intrinsics = torch.tensor(frame["intrinsics"])
             camtoworld = torch.tensor(frame["camtoworld"])
 
             # append data
             image_filenames.append(image_filename)
-            depth_filenames.append(depth_filename)
-            normal_filenames.append(normal_filename)
+            if depth_filename is not None and normal_filename is not None:
+                depth_filenames.append(self.config.data / depth_filename)
+                normal_filenames.append(self.config.data / normal_filename)
             fx.append(intrinsics[0, 0])
             fy.append(intrinsics[1, 1])
             cx.append(intrinsics[0, 2])
@@ -141,8 +142,8 @@ class SDFStudio(DataParser):
 
         # TODO supports downsample
         # cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
-
-        assert meta["has_mono_prior"] == self.config.include_mono_prior, f"no mono prior in {self.config.data}"
+        if self.config.include_mono_prior:
+            assert meta["has_mono_prior"], f"no mono prior in {self.config.data}"
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,

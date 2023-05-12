@@ -64,11 +64,13 @@ function MenuItems(props: ListItemProps) {
     return null;
   }
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const [open, setOpen] = React.useState(true);
   const toggleOpen = () => {
     setOpen(!open);
   };
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const [visible, setVisible] = React.useState(groupVisible);
   if (terminal) {
     scene_node.object.visible = visible;
@@ -77,16 +79,15 @@ function MenuItems(props: ListItemProps) {
   const toggleVisible = (e) => {
     e.stopPropagation();
     setVisible(!visible);
-    scene_node.object.traverse(
-      (obj) => {
-        if (obj.name === 'CAMERA_LABEL') {
-          // eslint-disable-next-line no-param-reassign
-          obj.visible = !visible;
-        }
+    scene_node.object.traverse((obj) => {
+      if (obj.name === 'CAMERA_LABEL') {
+        // eslint-disable-next-line no-param-reassign
+        obj.visible = !visible;
       }
-    );
+    });
   };
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   React.useEffect(() => {
     setVisible(groupVisible);
   }, [groupVisible]);

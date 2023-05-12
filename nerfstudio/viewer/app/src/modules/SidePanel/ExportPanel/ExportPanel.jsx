@@ -30,7 +30,7 @@ function TabPanel(props: TabPanelProps) {
     >
       {value === index && (
         <Box sx={{ p: 3 }}>
-          <Typography>{children}</Typography>
+          <Typography component="div">{children}</Typography>
         </Box>
       )}
     </div>
@@ -49,9 +49,9 @@ const CLIPPING_BOX_NAME = 'Clipping Box';
 export default function ExportPanel(props) {
   // unpack relevant information
   const sceneTree = props.sceneTree;
-  const showExportBox = props.showExportBox;
+  const showExportBox = useSelector((state) => state.show_export_box);
 
-  const [type_value, setTypeValue] = React.useState(0);
+  const [type_value, setTypeValue] = React.useState(false);
 
   const handleTypeChange = (event: React.SyntheticEvent, newValue: number) => {
     setTypeValue(newValue);

@@ -19,11 +19,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 import yaml
 from rich.console import Console
-from typing_extensions import Literal
 
 from nerfstudio.configs.base_config import (
     InstantiateConfig,
@@ -50,6 +49,8 @@ class ExperimentConfig(InstantiateConfig):
     """Method name. Required to set in python or via cli"""
     experiment_name: Optional[str] = None
     """Experiment name. If None, will automatically be set to dataset name"""
+    project_name: Optional[str] = "nerfstudio-project"
+    """Project name."""
     timestamp: str = "{timestamp}"
     """Experiment timestamp."""
     machine: MachineConfig = MachineConfig()

@@ -24,9 +24,7 @@ export default function LoadPathModal(props: LoadPathModalProps) {
   const [existingPathSelect, setExistingPathSelect] = React.useState('');
 
   // redux store state
-  const all_camera_paths = useSelector(
-    (state) => state.renderingState.all_camera_paths,
-  );
+  const all_camera_paths = useSelector((state) => state.all_camera_paths);
 
   let camera_paths_arr = [];
   if (typeof all_camera_paths === 'object' && all_camera_paths !== null) {
@@ -113,9 +111,9 @@ export default function LoadPathModal(props: LoadPathModalProps) {
                     </Button>
                   </FormControl>
                   <br />
-                  <p>
-                    <center>OR</center>
-                  </p>
+                  <center>
+                    <p>OR</p>
+                  </center>
                 </>
               )}
               {camera_paths_arr.length === 0 && (

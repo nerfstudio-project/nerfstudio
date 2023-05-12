@@ -1,7 +1,6 @@
 /* eslint-disable no-restricted-syntax */
 import * as THREE from 'three';
 
-import { useContext, useEffect } from 'react';
 import CameraControls from 'camera-controls';
 import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer';
 
@@ -11,11 +10,8 @@ import { drawCamera, drawSceneBox } from './drawing';
 
 import { CameraHelper } from '../SidePanel/CameraPanel/CameraHelper';
 import SceneNode from '../../SceneNode';
-import { WebSocketContext } from '../WebSocket/WebSocket';
 import { subscribe_to_changes } from '../../subscriber';
 import { snap_to_camera } from '../SidePanel/SidePanel';
-
-const msgpack = require('msgpack-lite');
 
 const SCENE_BOX_NAME = 'Scene Box';
 const CAMERAS_NAME = 'Training Cameras';
@@ -31,16 +27,17 @@ export function get_scene_tree() {
     },
     setValue(key, value) {
       this.value.set(key, value);
-      this.callbacks.forEach((cbk) => {
-        const i = cbk[1];
-        const callback = cbk[0];
-        return callback(this.value.get(i));
+      this.callbacks.forEach((callback, callbackKey) => {
+        if (callbackKey === key) {
+          callback(value);
+        }
       });
     },
   };
 
   const sceneTree = new SceneNode(scene, scene_state);
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const dispatch = useDispatch();
   const BANNER_HEIGHT = 50;
 
@@ -164,6 +161,9 @@ export function get_scene_tree() {
     if (!scene_state.value.get('mouse_in_scene')) {
       return;
     }
+    if (keyMap.Space === true) {
+      camera_controls.setLookAt(0.7, -0.7, 0.3, 0, 0, 0);
+    }
     translate();
     rotate();
   }
@@ -188,12 +188,6 @@ export function get_scene_tree() {
 
   window.addEventListener('keydown', onKeyDown, true);
   window.addEventListener('keyup', onKeyUp, true);
-
-  window.addEventListener('keydown', (event) => {
-    if (event.code === 'Space') {
-      camera_controls.setLookAt(0.7, -0.7, 0.3, 0, 0, 0);
-    }
-  });
 
   sceneTree.metadata.camera_controls = camera_controls;
   sceneTree.metadata.moveCamera = moveCamera;
@@ -382,25 +376,4 @@ export function get_scene_tree() {
   window.addEventListener('mousemove', onMouseMove, false);
   window.addEventListener('mouseup', onMouseUp, false);
   return sceneTree;
-}
-
-// manages setting up the scene and other logic for keeping state in sync with the server
-export function SceneTreeWebSocketListener() {
-  const socket = useContext(WebSocketContext).socket;
-  const dispatch = useDispatch();
-
-  useEffect(() => {
-    socket.addEventListener('message', (originalCmd) => {
-      // set the remote description when the offer is received
-      const cmd = msgpack.decode(new Uint8Array(originalCmd.data));
-      if (cmd.type === 'write') {
-        // write to the store
-        dispatch({
-          type: 'write',
-          path: cmd.path,
-          data: cmd.data,
-        });
-      }
-    });
-  }, [socket]); // dependency to call this whenever the websocket changes
 }
