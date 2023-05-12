@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -178,11 +178,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         """
         self.absolute_colmap_path.mkdir(parents=True, exist_ok=True)
 
-        (
-            sfm_tool,
-            feature_type,
-            matcher_type,
-        ) = process_data_utils.find_tool_feature_matcher_combination(
+        (sfm_tool, feature_type, matcher_type,) = process_data_utils.find_tool_feature_matcher_combination(
             self.sfm_tool, self.feature_type, self.matcher_type
         )
         # check that sfm_tool is hloc if using refine_pixsfm
