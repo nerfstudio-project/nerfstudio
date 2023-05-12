@@ -201,13 +201,20 @@ def get_interpolated_k(k_a, k_b, steps: int = 10) -> TensorType[3, 4]:
     return Ks
 
 
-def get_ordered_poses_and_k(poses, Ks):
+def get_ordered_poses_and_k(
+    poses: TensorType["num_poses", 3, 4],
+    Ks: TensorType["num_poses", 3, 3],
+) -> Tuple[TensorType["num_poses", 3, 4], TensorType["num_poses", 3, 3]]:
     """
     Returns ordered poses and intrinsics by euclidian distance between poses.
 
     Args:
         poses: list of camera poses
         Ks: list of camera intrinsics
+
+    Returns:
+        tuple of ordered poses and intrinsics
+
     """
 
     poses_num = len(poses)
@@ -233,8 +240,8 @@ def get_ordered_poses_and_k(poses, Ks):
 def get_interpolated_poses_many(
     poses: TensorType["num_poses", 3, 4],
     Ks: TensorType["num_poses", 3, 3],
-    steps_per_transition=10,
-    order_poses=False,
+    steps_per_transition: int = 10,
+    order_poses: bool = False,
 ) -> Tuple[TensorType["num_poses", 3, 4], TensorType["num_poses", 3, 3]]:
     """Return interpolated poses for many camera poses.
 
@@ -242,6 +249,7 @@ def get_interpolated_poses_many(
         poses: list of camera poses
         Ks: list of camera intrinsics
         steps_per_transition: number of steps per transition
+        order_poses: whether to order poses by euclidian distance
 
     Returns:
         tuple of new poses and intrinsics

@@ -314,11 +314,11 @@ class RenderTrajectory:
     interpolation_steps: int = 10
     """Number of interpolation steps between eval dataset cameras."""
     order_poses: bool = False
-    """Whether to order camera poses by proximity"""
+    """Whether to order camera poses by proximity (only for interpolate trajectory)."""
     adjust_frame_rate: bool = False
-    """Whether to adjust the frame rate of the output video."""
-    frame_rate: int = 25
-    """Frame rate of the output video."""
+    """Whether to adjust the frame rate of the output video (only for interpolate trajectory)."""
+    frame_rate: int = 24
+    """Frame rate of the output video (only for interpolate trajectory)."""
     seconds_between_poses: int = 3
     """Seconds between poses for interpolated camera paths."""
     eval_num_rays_per_chunk: Optional[int] = None
