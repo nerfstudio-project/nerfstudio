@@ -65,3 +65,5 @@ An important note is that hash collisions are not explicitly handled. At each ha
 This encoding structure creates a tradeoff betweewn quality, memory, and performance. The main parameters which can be adjusted are the size of the hash table (T), the size of the feature vectors (F), and the number of resolutions (L).
 
 For other inputs such as the viewing direction, Instant-NGP encodes them using the traditional positional encoding from the original NeRF paper.
+
+Our [`nerfacto`](https://docs.nerf.studio/en/latest/nerfology/methods/nerfacto.html) model uses both the fully-fused MLP and the hash encoder, which were inspired by Instant-NGP. Lastly, our implementation covers the major ideas from Instant-NGP, but it doesn't strictly follow every detail. Some known differences include learning rate schedulers, hyper-parameters for sampling, and how camera gradients are calculated if enabled.
