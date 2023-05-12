@@ -10,7 +10,6 @@ We recommend the following file structure:
 
 ```
 ├── my_method
-│   ├── __init__.py
 │   ├── my_config.py
 │   ├── custom_pipeline.py [optional]
 │   ├── custom_model.py [optional]
@@ -57,9 +56,6 @@ dependencies = [
     "nerfstudio" # you may want to consider pinning the version, ie "nerfstudio==0.1.19"
 ]
 
-[tool.setuptools.packages.find]
-include = ["my_method*"]
-
 [project.entry-points.'nerfstudio.method_configs']
 my-method = 'my_method.my_config:MyMethod'
 ```
@@ -68,12 +64,6 @@ finally run the following to register the method,
 
 ```
 pip install -e .
-```
-
-When developing a new method you don't always want to install your code as a package.
-Instead, you may use the `NERFSTUDIO_METHOD_CONFIGS` environment variable to temporarily register your custom method.
-```
-export NERFSTUDIO_METHOD_CONFIGS="my-method=my_method.my_config:MyMethod"
 ```
 
 ## Running custom method
