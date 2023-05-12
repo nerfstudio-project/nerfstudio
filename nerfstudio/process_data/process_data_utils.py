@@ -24,12 +24,10 @@ from typing import List, Literal, Optional, OrderedDict, Tuple
 
 import cv2
 import numpy as np
-from rich.console import Console
 
-from nerfstudio.utils.rich_utils import status
+from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
 
-CONSOLE = Console(width=120)
 POLYCAM_UPSCALING_TIMES = 2
 
 

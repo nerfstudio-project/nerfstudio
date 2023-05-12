@@ -27,7 +27,6 @@ from typing import List, Literal, Tuple, Type
 
 import numpy as np
 import torch
-from rich.console import Console
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -37,8 +36,6 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataparserOutputs,
 )
 from nerfstudio.data.scene_box import SceneBox
-
-CONSOLE = Console(width=120)
 
 
 def _find_files(directory: str, exts: List[str]):

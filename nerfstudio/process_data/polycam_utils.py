@@ -19,13 +19,10 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-from rich.console import Console
-
 from nerfstudio.process_data import process_data_utils
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils import io
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def polycam_to_json(

@@ -23,7 +23,6 @@ from dataclasses import dataclass, field, fields
 from pathlib import Path
 
 import tyro
-from rich.console import Console
 
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.engine.trainer import TrainerConfig
@@ -31,8 +30,6 @@ from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import writer
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.viewer.server.viewer_state import ViewerState
-
-CONSOLE = Console(width=120)
 
 
 @dataclass

@@ -19,9 +19,8 @@ from glob import glob
 
 import nbformat as nbf
 import tyro
-from rich.console import Console
 
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def main(check: bool = False):

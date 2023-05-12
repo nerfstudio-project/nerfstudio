@@ -21,10 +21,7 @@ from __future__ import annotations
 from dataclasses import field
 from typing import Any, Dict
 
-from rich.console import Console
-
-CONSOLE = Console()
-# pylint: disable=import-outside-toplevel
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 # cannot use mutable types directly within dataclass; abstracting default factory calls
