@@ -18,9 +18,11 @@ Stable diffusion utils
 
 from torchtyping import TensorType
 from typing_extensions import Literal
+from typing import Union
 import torch
 
 from nerfstudio.generative.stable_diffusion import StableDiffusion
+from nerfstudio.generative.deepfloyd import DeepFloyd
 
 
 class PositionalTextEmbeddings:
@@ -35,7 +37,7 @@ class PositionalTextEmbeddings:
         side_prompt: Prompt for side view
         back_prompt: Prompt for back view
         front_prompt: Prompt for front view
-        stable_diffusion: Instance of StableDiffusion
+        diffusion_model: Instance of StableDiffusion
         positional_prompting: how to incorporate position into prompt.
     """
 
@@ -46,12 +48,12 @@ class PositionalTextEmbeddings:
         side_prompt: str,
         back_prompt: str,
         front_prompt: str,
-        stable_diffusion: StableDiffusion,
+        diffusion_model: Union[StableDiffusion, DeepFloyd],
         positional_prompting: Literal["discrete", "interpolated", "off"] = "discrete",
     ):
         self.positional_prompting = positional_prompting
-        self.sd_device = stable_diffusion.device
-        self.sd = stable_diffusion
+        self.diffusion_device = diffusion_model.device
+        self.diffusion = diffusion_model
         self.update_prompt(base_prompt, top_prompt, side_prompt, back_prompt, front_prompt)
 
     def update_prompt(self, base_prompt: str, top_prompt: str, side_prompt: str, back_prompt: str, front_prompt: str):
@@ -63,12 +65,15 @@ class PositionalTextEmbeddings:
             side_prompt: Prompt for side view
             back_prompt: Prompt for back view
             front_prompt: Prompt for front view
-        """
-        self.base_embed = self.sd.get_text_embeds(base_prompt, "")
-        self.top_embed = self.sd.get_text_embeds(top_prompt, "")
-        self.side_embed = self.sd.get_text_embeds(side_prompt, "")
-        self.back_embed = self.sd.get_text_embeds(back_prompt, "")
-        self.front_embed = self.sd.get_text_embeds(front_prompt, "")
+        """        
+        self.base_embed = self.diffusion.get_text_embeds(base_prompt, "")
+        self.top_embed = self.diffusion.get_text_embeds(top_prompt, "")
+        self.side_embed = self.diffusion.get_text_embeds(side_prompt, "")
+        self.back_embed = self.diffusion.get_text_embeds(back_prompt, "")
+        self.front_embed = self.diffusion.get_text_embeds(front_prompt, "")
+
+        if isinstance(self.diffusion, DeepFloyd):
+            self.diffusion.delete_text_encoder()
 
     def get_text_embedding(self, vertical_angle: TensorType[1], horizontal_angle: TensorType[1]):
         """Get text embedding based on the position of the camera relative to the scene.
@@ -94,8 +99,8 @@ class PositionalTextEmbeddings:
             else:  # horizontal_angle > 225 and horizontal_angle <= 315:
                 text_embedding = self.side_embed
         elif self.positional_prompting == "interpolated":
-            horiz = horizontal_angle.to(self.sd_device)
-            vert = max(vertical_angle.to(self.sd_device), 0)
+            horiz = horizontal_angle.to(self.diffusion_device)
+            vert = max(vertical_angle.to(self.diffusion_device), 0)
 
             if 0 < horizontal_angle <= 90:
                 text_embedding = (horiz) * self.side_embed + (90 - horiz) * self.front_embed
@@ -109,7 +114,6 @@ class PositionalTextEmbeddings:
             text_embedding = text_embedding / 90.0
             text_embedding = (vert * text_embedding + (90 - vert) * self.top_embed) / 90.0
         else:
-            print("here")
             text_embedding = self.base_embed
 
         return text_embedding

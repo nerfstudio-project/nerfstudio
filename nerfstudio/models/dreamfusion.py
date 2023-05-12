@@ -67,7 +67,10 @@ class DreamFusionModelConfig(ModelConfig):
 
     _target: Type = field(default_factory=lambda: DreamFusionModel)
     """target class to instantiate"""
-    prompt: str = "A high-quality photo of a tree frog on a stump"
+    # prompt: str = "A high-quality photo of a pineapple"
+    # prompt: str = "A DSLR photo of an orangutan making a clay bowl on a throwing wheel"
+    # prompt: str = "A DSLR photo of a tiger dressed as a doctor"
+    prompt: str = "a high quality photo of an all utility vehicle driving across a stream"
     """prompt for stable dreamfusion"""
 
     orientation_loss_mult: float = 0.0001
@@ -86,6 +89,7 @@ class DreamFusionModelConfig(ModelConfig):
     """Use spherical collider instead of box"""
     random_background: bool = True
     """Randomly choose between using background mlp and random color for background"""
+
     target_transmittance_start: float = 0.4
     """target transmittance for opacity penalty. This is the percent of the scene that is
     background when rendered at the start of training"""
@@ -94,6 +98,7 @@ class DreamFusionModelConfig(ModelConfig):
     background when rendered at the end of training"""
     transmittance_end_schedule: int = 1500
     """number of iterations to reach target_transmittance_end"""
+
     num_proposal_samples_per_ray: Tuple[int, ...] = (256, 96)
     """Number of samples per ray for each proposal network."""
     num_nerf_samples_per_ray: int = 48
@@ -148,7 +153,7 @@ class DreamFusionModelConfig(ModelConfig):
     """appended to prompt for front view"""
     back_prompt: str = ", back view"
     """appended to prompt for back view"""
-    guidance_scale: float = 100
+    guidance_scale: float = 20
     """guidance scale for sds loss"""
     stablediffusion_device: Optional[str] = None
     """device for stable diffusion"""
@@ -200,7 +205,7 @@ class DreamFusionModel(Model):
         super().populate_modules()
 
         # self.sd = StableDiffusion(self.sd_device, version=self.sd_version)
-        self.df = DeepFloyd(self.sd_device)
+        self._df = DeepFloyd(self.sd_device)
         self.text_embeddings = PositionalTextEmbeddings(
             base_prompt=self.cur_prompt,
             top_prompt=self.cur_prompt + self.top_prompt,
@@ -208,7 +213,7 @@ class DreamFusionModel(Model):
             back_prompt=self.cur_prompt + self.back_prompt,
             front_prompt=self.cur_prompt + self.front_prompt,
             # stable_diffusion=self.sd,
-            stable_diffusion=self.df,
+            diffusion_model=self._df,
             positional_prompting=self.positional_prompting,
         )
 
@@ -407,12 +412,27 @@ class DreamFusionModel(Model):
             rgb=rgb, normals=normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=False
         )
 
+        shaded, shaded_albedo = accum_mask * shaded, accum_mask * shaded_albedo
+
         outputs["normals"] = self.shader_normals(normals, weights=accum_mask)
         outputs["pred_normals"] = self.shader_normals(pred_normals, weights=accum_mask)
-        outputs["shaded"] = accum_mask * shaded
-        outputs["other_train_output"] = accum_mask * shaded_albedo + background
-        outputs["shaded_albedo"] = accum_mask * shaded_albedo
+        outputs["shaded"] = shaded
+        outputs["other_train_output"] = shaded_albedo + background
+        outputs["shaded_albedo"] = shaded_albedo
         outputs["rgb"] = accum_mask * rgb + background
+
+        # while training 20% of the time use a random background
+        if np.random.random_sample() < 0.2 and self.random_background and self.training: 
+            background = torch.ones_like(background) * torch.rand(3, device=self.device) * accum_mask_inv 
+
+        if shading_weight > 0:
+            samp = np.random.random_sample()
+            if samp > 0.5:
+                outputs["train_output"] = outputs["shaded"]
+            else:
+                outputs["train_output"] = shaded_albedo + background
+        else:
+            outputs["train_output"] = accum_mask * rgb + background
 
         if shading_weight > 0:
             samp = np.random.random_sample()
@@ -490,7 +510,7 @@ class DreamFusionModel(Model):
         #     grad_scaler=self.grad_scaler,
         # )
 
-        sds_loss = self.df.sds_loss(
+        sds_loss = self._df.sds_loss(
             text_embedding.to(self.sd_device),
             train_output.to(self.sd_device),
             guidance_scale=int(self.guidance_scale),

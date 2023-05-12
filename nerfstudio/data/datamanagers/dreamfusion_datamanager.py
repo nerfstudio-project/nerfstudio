@@ -54,7 +54,10 @@ class TrivialDataset(InputDataset):
         return self.size
 
     def __getitem__(self, index: int) -> Dict:
-        return {"image": torch.cat([torch.ones(128, 256, 3), torch.zeros(128, 256, 3)], dim=0), "image_idx": index}
+        return {
+            "image": torch.cat([torch.ones(128, 256, 3), torch.zeros(128, 256, 3)], dim=0),
+            "image_idx": index,
+        }
 
 
 def random_train_pose(
@@ -84,7 +87,10 @@ def random_train_pose(
         poses: [size, 4, 4]
     """
 
-    vertical_rotation_range = [vertical_rotation_range[0] + 90, vertical_rotation_range[1] + 90]
+    vertical_rotation_range = (
+        vertical_rotation_range[0] + 90,
+        vertical_rotation_range[1] + 90,
+    )
     # This is the uniform sample on the part of the sphere we care about where 0 = 0 degrees and 1 = 360 degrees
     sampled_uniform = (
         torch.rand(size) * (vertical_rotation_range[1] - vertical_rotation_range[0]) + vertical_rotation_range[0]
@@ -158,7 +164,7 @@ class DreamFusionDataManagerConfig(DataManagerConfig):
     """Number of images per batch for training"""
     eval_images_per_batch: int = 1
     """Number of images per batch for evaluation"""
-    radius_mean: float = 2.2
+    radius_mean: float = 2.5
     """Mean radius of camera orbit"""
     radius_std: float = 0.1
     """Std of radius of camera orbit"""
@@ -218,6 +224,7 @@ class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
             radius_mean=self.config.radius_mean,
             radius_std=self.config.radius_std,
             focal_range=self.config.focal_range,
+            central_rotation_range=(-180, 180),
             vertical_rotation_range=self.config.vertical_rotation_range,
             jitter_std=self.config.jitter_std,
             center=self.config.center,
@@ -251,7 +258,7 @@ class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
         #     ).flatten()
         #     return ray_bundle, {"initialization": False}
 
-        horizontal_range = min((step / self.config.horizontal_rotation_warmup), 1) * 180
+        horizontal_range = min((step / max(1, self.config.horizontal_rotation_warmup)), 1) * 180
 
         cameras, vertical_rotation, central_rotation = random_train_pose(
             self.config.train_images_per_batch,
@@ -266,9 +273,6 @@ class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
             central_rotation_range=(-horizontal_range, horizontal_range),
         )
         ray_bundle = cameras.generate_rays(torch.tensor(list(range(self.config.train_images_per_batch)))).flatten()
-
-        # camera_idx = torch.randint(0, self.eval_cameras.shape[0], [1], dtype=torch.long, device=self.device)
-        # ray_bundle = self.eval_cameras.generate_rays(camera_idx).flatten()
 
         return ray_bundle, {
             "vertical": vertical_rotation,
@@ -310,7 +314,9 @@ class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
     def get_eval_rays_per_batch(self) -> int:
         return self.config.eval_resolution**2
 
-    def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
+    def get_param_groups(
+        self,
+    ) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
         """Get the param groups for the data manager.
         Returns:
             A list of dictionaries containing the data manager's param groups.

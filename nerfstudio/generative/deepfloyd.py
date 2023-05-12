@@ -1,4 +1,5 @@
 import sys
+import gc 
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Union
@@ -15,10 +16,29 @@ from torch.cuda.amp import custom_bwd, custom_fwd
 from torch.cuda.amp.grad_scaler import GradScaler
 from torchtyping import TensorType
 
-
-
 from diffusers import IFPipeline
 from transformers import T5EncoderModel, T5Tokenizer
+
+IMG_DIM = 64
+
+class _SDSGradient(torch.autograd.Function):  # pylint: disable=abstract-method
+    """Custom gradient function for SDS loss. Since it is already computed, we can just return it."""
+
+    @staticmethod
+    @custom_fwd
+    def forward(ctx, input_tensor, gt_grad):  # pylint: disable=arguments-differ
+        del input_tensor
+        ctx.save_for_backward(gt_grad)
+        # Return magniture of gradient, not the actual loss.
+        return torch.mean(gt_grad**2) ** 0.5
+
+    @staticmethod
+    @custom_bwd
+    def backward(ctx, grad):  # pylint: disable=arguments-differ
+        del grad
+        (gt_grad,) = ctx.saved_tensors
+        batch_size = len(gt_grad)
+        return gt_grad / batch_size, None
 
 class DeepFloyd(nn.Module):
 
@@ -28,7 +48,7 @@ class DeepFloyd(nn.Module):
         self.device = device
 
         self.text_encoder = T5EncoderModel.from_pretrained(
-            "DeepFloyd/IF-I-M-v1.0",
+            "DeepFloyd/IF-I-L-v1.0",
             subfolder="text_encoder",
             load_in_8bit=True,
             variant="8bit",
@@ -36,7 +56,7 @@ class DeepFloyd(nn.Module):
         )
 
         self.pipe = IFPipeline.from_pretrained(
-            "DeepFloyd/IF-I-M-v1.0",
+            "DeepFloyd/IF-I-L-v1.0",
             text_encoder=self.text_encoder,
             safety_checker=None,
             watermarker=None,
@@ -64,9 +84,35 @@ class DeepFloyd(nn.Module):
             self.device
         )
 
+    def delete_text_encoder(self): 
+        del self.text_encoder
+        del self.pipe
+        gc.collect()
+        torch.cuda.empty_cache()
+
+        self.pipe = IFPipeline.from_pretrained(
+            "DeepFloyd/IF-I-L-v1.0",
+            text_encoder=None,
+            safety_checker=None,
+            watermarker=None,
+            feature_extractor=None,
+            requires_safety_checker=False,
+            variant="fp16",
+            torch_dtype=torch.float16,
+        ).to(self.device)
+        
+        self.pipe.enable_attention_slicing(1)
+        self.pipe.unet.to(memory_format=torch.channels_last)
+
+        self.unet = self.pipe.unet
+        for p in self.unet.parameters():
+            p.requires_grad_(False)
+
+        self.scheduler = self.pipe.scheduler
+
     def get_text_embeds(
         self, prompt: Union[str, List[str]], negative_prompt: Union[str, List[str]]
-    ) -> TensorType[2, "max_length", "embed_dim"]:        
+    ) -> TensorType[2, "max_length", "embed_dim"]: 
         prompt = [prompt] if isinstance(prompt, str) else prompt
         negative_prompt = [negative_prompt] if isinstance(negative_prompt, str) else negative_prompt
         prompt_embeds, negative_embeds = self.pipe.encode_prompt(prompt, negative_prompt=negative_prompt)
@@ -107,8 +153,8 @@ class DeepFloyd(nn.Module):
             grad = torch.nan_to_num(grad)
 
             if grad_scaler is not None:
-                latents = grad_scaler.scale(latents)
-            loss = _SDSGradient.apply(latents, grad)
+                image = grad_scaler.scale(image)
+            loss = _SDSGradient.apply(image, grad)
 
         return loss
 
