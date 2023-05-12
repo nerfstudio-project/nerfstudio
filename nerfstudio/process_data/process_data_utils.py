@@ -20,11 +20,12 @@ import shutil
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import List, Literal, Optional, OrderedDict, Tuple
+from typing import List, Optional, Tuple
 
 import cv2
 import numpy as np
 from rich.console import Console
+from typing_extensions import Literal, OrderedDict
 
 from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command
@@ -38,13 +39,12 @@ class CameraModel(Enum):
 
     OPENCV = "OPENCV"
     OPENCV_FISHEYE = "OPENCV_FISHEYE"
-    EQUIRECTANGULAR = "EQUIRECTANGULAR"
 
 
 CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
-    "equirectangular": CameraModel.EQUIRECTANGULAR,
+    "equirectangular": CameraModel.OPENCV,
 }
 
 

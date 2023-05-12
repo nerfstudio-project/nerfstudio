@@ -13,12 +13,12 @@
 # limitations under the License.
 
 """
-Tools supporting the execution of COLMAP and preparation of COLMAP-based datasets for nerfstudio training.
+Tools supporting the execution of COLMAP and preparation of COLMAP-based datasets for nerstudio training.
 """
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Optional
 
 import appdirs
 import cv2
@@ -27,6 +27,7 @@ import requests
 import torch
 from rich.console import Console
 from rich.progress import track
+from typing_extensions import Literal
 
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
 # import pycolmap
@@ -114,7 +115,9 @@ def run_colmap(
     colmap_version = get_colmap_version(colmap_cmd)
 
     colmap_database_path = colmap_dir / "database.db"
-    colmap_database_path.unlink(missing_ok=True)
+    if colmap_database_path.exists():
+        # Can't use missing_ok argument because of Python 3.7 compatibility.
+        colmap_database_path.unlink()
 
     # Feature extraction
     feature_extractor_cmd = [
