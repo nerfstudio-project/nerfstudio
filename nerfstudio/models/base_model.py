@@ -219,3 +219,6 @@ class Model(nn.Module):
         Args:
             step: training step of the loaded checkpoint
         """
+
+    def on_train_end(self) -> None:
+        """Optional method called at the end of training"""

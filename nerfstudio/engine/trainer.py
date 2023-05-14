@@ -284,6 +284,9 @@ class Trainer:
         # save checkpoint at the end of training
         self.save_checkpoint(step)
 
+        # optional model method called at the end of training
+        self.on_train_end()
+
         # write out any remaining events (e.g., total train time)
         writer.write_out_storage()
 
@@ -503,3 +506,11 @@ class Trainer:
         if step_check(step, self.config.steps_per_eval_all_images):
             metrics_dict = self.pipeline.get_average_eval_image_metrics(step=step)
             writer.put_dict(name="Eval Images Metrics Dict (all images)", scalar_dict=metrics_dict, step=step)
+
+    def on_train_end(self) -> None:
+        """Calls optional on_train_end() model method at training end"""
+        if callable(self.pipeline.model.on_train_end()):
+            try:
+                self.pipeline.model.on_train_end()
+            except RuntimeError:
+                CONSOLE.log("Optional on_train_end() method failed in model class.")
