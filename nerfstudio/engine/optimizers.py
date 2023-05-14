@@ -127,7 +127,8 @@ class Optimizers:
             if max_norm is not None:
                 grad_scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(self.parameters[param_group], max_norm)
-            grad_scaler.step(optimizer)
+            if optimizer.param_groups[0]["params"][0].grad is not None:
+                grad_scaler.step(optimizer)
 
     def optimizer_step_all(self) -> None:
         """Run step for all optimizers."""
