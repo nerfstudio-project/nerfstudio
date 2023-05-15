@@ -16,6 +16,7 @@ import {
   makeThrottledMessageSender,
   ViserWebSocketContext,
 } from '../WebSocket/ViserWebSocket';
+import { convertLength } from '@mui/material/styles/cssUtils';
 
 function CameraToggle() {
   const dispatch = useDispatch();
@@ -317,39 +318,44 @@ export default function ViewerWindow(props) {
     viser_websocket,
     10,
   );
-  const onMouseDown = (e) => {
-    const BANNER_HEIGHT = 50;
+  useEffect(() => {
+    const onMouseDouble = (e) => {
+      const BANNER_HEIGHT = 50;
 
-    const mouseVector = new THREE.Vector2();
-    mouseVector.x = 2 * (e.clientX / size.x) - 1;
-    mouseVector.y = 1 - 2 * ((e.clientY - BANNER_HEIGHT) / size.y);
+      const mouseVector = new THREE.Vector2();
+      mouseVector.x = 2 * (e.clientX / size.x) - 1;
+      mouseVector.y = 1 - 2 * ((e.clientY - BANNER_HEIGHT) / size.y);
 
-    const mouse_in_scene = !(
-      mouseVector.x > 1 ||
-      mouseVector.x < -1 ||
-      mouseVector.y > 1 ||
-      mouseVector.y < -1
-    );
-    if (!mouse_in_scene) { return; } 
+      const mouse_in_scene = !(
+        mouseVector.x > 1 ||
+        mouseVector.x < -1 ||
+        mouseVector.y > 1 ||
+        mouseVector.y < -1
+      );
+      if (!mouse_in_scene) { return; } 
 
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouseVector, sceneTree.metadata.camera);
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouseVector, sceneTree.metadata.camera);
 
-    throttledClickSender({
-      type: 'ClickMessage',
-      origin: [
-        raycaster.ray.origin.x, 
-        raycaster.ray.origin.y, 
-        raycaster.ray.origin.z
-      ],
-      direction: [
-        raycaster.ray.direction.x, 
-        raycaster.ray.direction.y, 
-        raycaster.ray.direction.z
-      ],
-    });
-  };
-  window.addEventListener('dblclick', onMouseDown, false);
+      throttledClickSender({
+        type: 'ClickMessage',
+        origin: [
+          raycaster.ray.origin.x, 
+          raycaster.ray.origin.y, 
+          raycaster.ray.origin.z
+        ],
+        direction: [
+          raycaster.ray.direction.x, 
+          raycaster.ray.direction.y, 
+          raycaster.ray.direction.z
+        ],
+      });
+    };
+    window.addEventListener('dblclick', onMouseDouble, false);
+    return () => {
+      window.removeEventListener('dblclick', onMouseDouble, false);
+    };
+  }, [size, sceneTree.metadata.camera, throttledClickSender]);
 
   return (
     <>
