@@ -166,7 +166,7 @@ function handleMessage(
       if(message.fov !== null){
         sceneTree.metadata.camera.fov = message.fov;
       }
-      const instant=false;
+      var instant = false;
       if(message.instant){
         instant = true;
       }

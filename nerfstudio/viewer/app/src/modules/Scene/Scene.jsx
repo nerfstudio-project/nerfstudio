@@ -15,7 +15,6 @@ import { snap_to_camera } from '../SidePanel/SidePanel';
 
 const SCENE_BOX_NAME = 'Scene Box';
 const CAMERAS_NAME = 'Training Cameras';
-const CLICKS_NAME = 'Clicks';
 
 export function get_scene_tree() {
   const scene = new THREE.Scene();
