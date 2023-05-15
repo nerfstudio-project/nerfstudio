@@ -25,7 +25,6 @@ export const snap_to_camera = (sceneTree, camera, matrix) => {
   mat.decompose(camera.position, camera.quaternion, camera.scale);
   const unit = new THREE.Vector3(0, 0, -1);
   const viewDirection = unit.applyMatrix4(mat);
-  console.log("scenepanel snap_to_camera")
   sceneTree.metadata.camera_controls.setLookAt(
     camera.position.x,
     camera.position.y,

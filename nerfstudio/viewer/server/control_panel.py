@@ -289,6 +289,7 @@ class ControlPanel:
         """Sets the background color"""
         self._time.value = value
 
+    @property
     def colormap_options(self) -> ColormapOptions:
         """Returns the current colormap options"""
         return ColormapOptions(
