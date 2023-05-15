@@ -303,9 +303,31 @@ class MessageApi(abc.ABC):
             )._impl
         )
 
-    def add_button_group(
-        self, name: str, options: List[TLiteralString] | List[str], initial_value: Optional[TLiteralString | str] = None
+    # Resolve type of value to a Literal whenever possible.
+    @overload
+    def add_gui_button_group(
+        self,
+        name: str,
+        options: List[TLiteralString],
+        initial_value: Optional[TLiteralString] = None,
+    ) -> GuiHandle[TLiteralString]:
+        ...
+
+    @overload
+    def add_gui_button_group(
+        self,
+        name: str,
+        options: List[str],
+        initial_value: Optional[str] = None,
     ) -> GuiHandle[str]:
+        ...
+
+    def add_gui_button_group(
+        self,
+        name: str,
+        options: List[TLiteralString] | List[str],
+        initial_value: Optional[TLiteralString | str] = None,
+    ) -> GuiHandle[TLiteralString] | GuiHandle[str]:
         """Add a button group to the GUI.
 
         Args:
