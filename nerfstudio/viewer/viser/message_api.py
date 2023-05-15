@@ -303,6 +303,47 @@ class MessageApi(abc.ABC):
             )._impl
         )
 
+    # Resolve type of value to a Literal whenever possible.
+    @overload
+    def add_gui_button_group(
+        self,
+        name: str,
+        options: List[TLiteralString],
+        initial_value: Optional[TLiteralString] = None,
+    ) -> GuiHandle[TLiteralString]:
+        ...
+
+    @overload
+    def add_gui_button_group(
+        self,
+        name: str,
+        options: List[str],
+        initial_value: Optional[str] = None,
+    ) -> GuiHandle[str]:
+        ...
+
+    def add_gui_button_group(
+        self,
+        name: str,
+        options: List[TLiteralString] | List[str],
+        initial_value: Optional[TLiteralString | str] = None,
+    ) -> GuiHandle[TLiteralString] | GuiHandle[str]:
+        """Add a button group to the GUI.
+
+        Args:
+            name: The name of the button group.
+            options: The options to choose from.
+            initial_value: The initial value of the button group.
+        """
+        assert len(options) > 0
+        if initial_value is None:
+            initial_value = options[0]
+        return self._add_gui_impl(
+            name,
+            initial_value,
+            leva_conf={"type": "BUTTON_GROUP", "label": name, "options": options},
+        )
+
     def add_gui_slider(
         self,
         name: str,
