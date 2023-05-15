@@ -22,16 +22,17 @@ from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Generic, List, Optional, Tuple
-from nerfstudio.viewer.viser.messages import ClickMessage
 
 from typing_extensions import TypeVar
+
+from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.viewer.viser import GuiHandle, GuiSelectHandle, ViserServer
+from nerfstudio.viewer.viser.messages import ClickMessage
 
 if TYPE_CHECKING:
     from nerfstudio.viewer.server.control_panel import ControlPanel
     from nerfstudio.viewer.server.viewer_state import ViewerState
 
-from nerfstudio.cameras.cameras import Cameras
-from nerfstudio.viewer.viser import GuiHandle, GuiSelectHandle, ViserServer
 
 TValue = TypeVar("TValue")
 
@@ -42,7 +43,8 @@ class ViewerClick:
     Class representing a click in the viewer as a ray. Implemented as a class to support future new information possibly
     """
 
-    # the information here matches the information in the ClickMessage, but we implement a wrapper as an abstraction layer
+    # the information here matches the information in the ClickMessage,
+    # but we implement a wrapper as an abstraction layer
     origin: Tuple[float, float, float]
     direction: Tuple[float, float, float]
 
@@ -124,11 +126,12 @@ class ViewerControl:
         Add a callback which will be called when a click is detected in the viewer.
 
         Args:
-            cb: The callback to call when a click is detected. The callback should take a ViewerClick object as an argument
+            cb: The callback to call when a click is detected.
+                The callback should take a ViewerClick object as an argument
         """
         self.click_cbs.append(cb)
 
-    def _on_click(self, msg: ClickMessage):
+    def on_click(self, msg: ClickMessage):
         """
         Internal use only, register a click in the viewer which propagates to all self.click_cbs
         """

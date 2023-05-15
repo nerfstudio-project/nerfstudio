@@ -60,7 +60,6 @@ from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
-
 from nerfstudio.viewer.server.viewer_elements import ViewerControl
 
 

@@ -45,7 +45,6 @@ import numpy.typing as onpt
 from typing_extensions import LiteralString, ParamSpec, assert_never
 
 from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.viewer.viser.messages import CameraMessage
 
 from . import messages
 from .gui import GuiHandle, GuiSelectHandle, _GuiHandleState
@@ -461,11 +460,7 @@ class MessageApi(abc.ABC):
         Args:
             camera: The new camera
         """
-        self._queue(
-            messages.SetCameraMessage(
-                look_at=look_at, position=position, fov=fov, instant=instant
-            )
-        )
+        self._queue(messages.SetCameraMessage(look_at=look_at, position=position, fov=fov, instant=instant))
 
     def send_camera_paths(self, camera_paths: Dict[str, Any]) -> None:
         """Send camera paths to the scene.

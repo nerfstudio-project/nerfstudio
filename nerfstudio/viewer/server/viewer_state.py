@@ -43,20 +43,19 @@ from nerfstudio.viewer.server.render_state_machine import (
     RenderStateMachine,
 )
 from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
-from nerfstudio.viewer.server.viewer_elements import ViewerControl, ViewerElement, ViewerClick
+from nerfstudio.viewer.server.viewer_elements import ViewerControl, ViewerElement
 from nerfstudio.viewer.viser import ViserServer
 from nerfstudio.viewer.viser.messages import (
     CameraMessage,
     CameraPathOptionsRequest,
     CameraPathPayloadMessage,
+    ClickMessage,
     CropParamsMessage,
     NerfstudioMessage,
     SaveCheckpointMessage,
     TimeConditionMessage,
     TrainingStateMessage,
-    ClickMessage,
 )
-from nerfstudio.cameras.rays import RayBundle
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
@@ -268,7 +267,7 @@ class ViewerState:
         """Handle click message from viewer."""
         assert isinstance(message, ClickMessage)
         for controls in self.viewer_controls:
-            controls._on_click(message)
+            controls.on_click(message)
 
     def _handle_time_condition_message(self, message: NerfstudioMessage) -> None:
         """Handle time conditioning message from viewer."""

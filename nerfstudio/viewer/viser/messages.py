@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Tuple, Optional, Literal
+from typing import Any, Literal, Optional, Tuple
 
 import viser.infra
 from typing_extensions import override
