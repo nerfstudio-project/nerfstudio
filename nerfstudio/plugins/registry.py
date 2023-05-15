@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,16 +21,14 @@ import os
 import sys
 import typing as t
 
-from rich.progress import Console
-
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.plugins.types import MethodSpecification
+from nerfstudio.utils.rich_utils import CONSOLE
 
 if sys.version_info < (3, 10):
     from importlib_metadata import entry_points
 else:
     from importlib.metadata import entry_points
-CONSOLE = Console(width=120)
 
 
 def discover_methods() -> t.Tuple[t.Dict[str, TrainerConfig], t.Dict[str, str]]:
@@ -42,15 +40,15 @@ def discover_methods() -> t.Tuple[t.Dict[str, TrainerConfig], t.Dict[str, str]]:
     descriptions = {}
     discovered_entry_points = entry_points(group="nerfstudio.method_configs")
     for name in discovered_entry_points.names:
-        specification = discovered_entry_points[name].load()
-        if not isinstance(specification, MethodSpecification):
+        spec = discovered_entry_points[name].load()
+        if not isinstance(spec, MethodSpecification):
             CONSOLE.print(
-                "[bold yellow]Warning: Could not entry point {n} as it is not an instance of MethodSpecification"
+                f"[bold yellow]Warning: Could not entry point {spec} as it is not an instance of MethodSpecification"
             )
             continue
-        specification = t.cast(MethodSpecification, specification)
-        methods[specification.config.method_name] = specification.config
-        descriptions[specification.config.method_name] = specification.description
+        spec = t.cast(MethodSpecification, spec)
+        methods[spec.config.method_name] = spec.config
+        descriptions[spec.config.method_name] = spec.description
 
     if "NERFSTUDIO_METHOD_CONFIGS" in os.environ:
         try:

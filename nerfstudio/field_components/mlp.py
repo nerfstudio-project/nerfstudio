@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,7 +46,6 @@ class MLP(FieldComponent):
         activation: Optional[nn.Module] = nn.ReLU(),
         out_activation: Optional[nn.Module] = None,
     ) -> None:
-
         super().__init__()
         self.in_dim = in_dim
         assert self.in_dim > 0

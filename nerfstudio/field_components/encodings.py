@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,14 +18,13 @@ Encoding functions
 
 import itertools
 from abc import abstractmethod
-from typing import Optional, Sequence
+from typing import Literal, Optional, Sequence
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
 from torchtyping import TensorType
-from typing_extensions import Literal
 
 from nerfstudio.field_components.base_field_component import FieldComponent
 from nerfstudio.utils.math import components_from_spherical_harmonics, expected_sin

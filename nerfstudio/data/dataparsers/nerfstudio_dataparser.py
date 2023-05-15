@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,13 +18,11 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath
-from typing import Optional, Type
+from typing import Literal, Optional, Type
 
 import numpy as np
 import torch
 from PIL import Image
-from rich.console import Console
-from typing_extensions import Literal
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
@@ -35,8 +33,8 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 )
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
+from nerfstudio.utils.rich_utils import CONSOLE
 
-CONSOLE = Console(width=120)
 MAX_AUTO_RESOLUTION = 1600
 
 

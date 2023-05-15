@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ a signed distance function (SDF) for surface representation is used to help with
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Type
+from typing import Dict, Literal, Optional, Type
 
 import numpy as np
 import torch
@@ -26,7 +26,6 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
-from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.field_components.embedding import Embedding

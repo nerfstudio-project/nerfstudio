@@ -1,4 +1,4 @@
-# Copyright 2022 The nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -258,7 +258,6 @@ class SemanticNerfWModel(Model):
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
-
         image = batch["image"].to(self.device)
         rgb = outputs["rgb"]
         rgb = torch.clamp(rgb, min=0, max=1)

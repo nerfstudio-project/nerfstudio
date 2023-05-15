@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,11 +15,10 @@
 """ Math Helper Functions """
 
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Literal, Tuple
 
 import torch
 from torchtyping import TensorType
-from typing_extensions import Literal
 
 
 def components_from_spherical_harmonics(levels: int, directions: TensorType[..., 3]) -> TensorType[..., "components"]:
