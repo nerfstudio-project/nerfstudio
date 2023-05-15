@@ -55,8 +55,6 @@ function CustomLeva() {
     } else if (levaConf.type === 'BUTTON_GROUP') {
       // Add a button group.
       leafFolder[key] = buttonGroup({
-        label: `Train Speed`,
-        hint: 'Select the training speed, affects viewer render quality, not final render quality',
         opts: levaConf.options.reduce((acc, opt) => {
           acc[opt] = () =>
             sendWebsocketMessage(viser_websocket, {
