@@ -73,14 +73,17 @@ pip install -e .
 
 When developing a new method you don't always want to install your code as a package.
 Instead, you may use the `NERFSTUDIO_METHOD_CONFIGS` environment variable to temporarily register your custom method.
+
 ```
 export NERFSTUDIO_METHOD_CONFIGS="my-method=my_method.my_config:MyMethod"
 ```
 
 ## Registering custom dataparser with nerfstudio
+
 We also support adding new dataparsers in a similar way. In order to extend the NeRFstudio and register a customized dataparser, you can register it with Nerfstudio as a `nerfstudio.dataparser_configs` entrypoint in the `pyproject.toml` file. Nerfstudio will automatically look for all registered dataparsers and will register them to be used by methods such as `ns-train`.
 
 You can declare the dataparser in the same config file:
+
 ```python
 """my_method/my_config.py"""
 
@@ -97,16 +100,19 @@ Then add the following lines in the `pyproject.toml` file, where the entrypoint 
 [project]
 name = "my_method"
 
-# ...
+```
 
 [project.entry-points.'nerfstudio.dataparser_configs']
 custom-dataparser = 'my_method.my_config:MyDataparser'
+
 ```
 
 finally run the following to register the dataparser.
 
 ```
+
 pip install -e .
+
 ```
 
 ## Running custom method
@@ -114,7 +120,9 @@ pip install -e .
 After registering your method you should be able to run the method with,
 
 ```
+
 ns-train my-method --data DATA_DIR
+
 ```
 
 ## Adding to the _nerf.studio_ documentation
