@@ -80,7 +80,7 @@ def apply_colormap(
     if image.dtype == torch.bool:
         return apply_boolean_colormap(image)
 
-    if image.shape[-1] != 1:
+    if image.shape[-1] > 3:
         return apply_pca_colormap(image)
 
     raise NotImplementedError
