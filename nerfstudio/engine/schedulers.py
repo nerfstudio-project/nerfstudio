@@ -26,7 +26,9 @@ from torch.optim import Optimizer, lr_scheduler
 from nerfstudio.configs.base_config import InstantiateConfig
 
 try:
-    from torch.optim.lr_scheduler import LRScheduler
+    from torch.optim.lr_scheduler import (  # pylint: disable=ungrouped-imports
+        LRScheduler,
+    )
 except ImportError:
     # Backward compatibility for PyTorch 1.x
     from torch.optim.lr_scheduler import _LRScheduler as LRScheduler
