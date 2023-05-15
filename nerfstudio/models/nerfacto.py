@@ -60,7 +60,6 @@ from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
-from nerfstudio.viewer.server.viewer_elements import ViewerControl
 
 
 @dataclass
@@ -227,25 +226,6 @@ class NerfactoModel(Model):
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
-
-        self.viewercontrol = ViewerControl()
-        self.viewercontrol.register_click_cb(
-            lambda click: print(f"Click at {click.origin} in direction {click.direction}")
-        )
-        # def default_click(origin, direction):
-        #     camera_ray = RayBundle(
-        #         origins=torch.Tensor([origin])[None].to(self.pipeline.model.device),
-        #         directions=torch.Tensor([direction])[None].to(self.pipeline.model.device),
-        #         pixel_area=torch.Tensor([1.0])[None].to(self.pipeline.model.device),
-        #         camera_indices=torch.Tensor([0])[None].long().to(self.pipeline.model.device)
-        #         )
-
-        #     with torch.no_grad():
-        #         outputs = self.pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray)
-        #     depth = outputs["depth"]
-
-        #     world_point = camera_ray.origins[0,...] + camera_ray.directions[0,...] * depth
-        #     self.viser_server.add_click_3d(0, world_point.squeeze().tolist())
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
