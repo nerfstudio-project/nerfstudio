@@ -168,8 +168,10 @@ def apply_boolean_colormap(
     colored_image[~image[..., 0], :] = false_color
     return colored_image
 
-def apply_pca_colormap(image):
-    """Convert feature image to 3-channel RGB via PCA
+
+def apply_pca_colormap(image: TensorType["bs":..., "dim"]):
+    """Convert feature image to 3-channel RGB via PCA. The first three principle
+    components are used for the color channels, with outlier rejection per-channel
 
     Args:
         image: image of arbitrary vectors
