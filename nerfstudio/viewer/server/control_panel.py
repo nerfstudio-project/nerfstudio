@@ -100,9 +100,6 @@ class ControlPanel:
         self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=rerender_cb)
         self._time_enabled = time_enabled
 
-        self._click_x = ViewerNumber("Click (x)", 0.0, disabled=True)
-        self._click_y = ViewerNumber("Click (y)", 0.0, disabled=True)
-
         self.add_element(self._train_speed)
         self.add_element(self._train_util)
         with self.viser_server.gui_folder("Render Options"):
@@ -138,8 +135,6 @@ class ControlPanel:
             self.add_element(self._crop_max, additional_tags=("crop",))
 
         self.add_element(self._time, additional_tags=("time",))
-        self.add_element(self._click_x, additional_tags=("click",))
-        self.add_element(self._click_y, additional_tags=("click",))
 
     def _train_speed_cb(self) -> None:
         """Callback for when the train speed is changed"""

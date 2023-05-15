@@ -88,7 +88,7 @@ export function get_scene_tree() {
   camera_controls.polarRotateSpeed = 0.4;
   camera_controls.dollySpeed = 0.1;
   camera_controls.infinityDolly = true;
-  camera_controls.smoothTime=.15;
+  camera_controls.smoothTime=.1;
   camera_controls.restThreshold = .0025;
   camera_controls.saveState();
 

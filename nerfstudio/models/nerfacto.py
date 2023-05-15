@@ -63,6 +63,7 @@ from nerfstudio.utils import colormaps
 
 from nerfstudio.viewer.server.viewer_elements import ViewerControl
 
+
 @dataclass
 class NerfactoModelConfig(ModelConfig):
     """Nerfacto Model Config"""
@@ -230,7 +231,7 @@ class NerfactoModel(Model):
 
         self.viewercontrol = ViewerControl()
         self.viewercontrol.register_click_cb(
-            lambda origin, direction: print(f"Click at {origin} in direction {direction}")
+            lambda click: print(f"Click at {click.origin} in direction {click.direction}")
         )
         # def default_click(origin, direction):
         #     camera_ray = RayBundle(
