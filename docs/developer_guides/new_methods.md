@@ -95,24 +95,20 @@ MyDataparser = DataParserSpecification(config=CustomDataparserConfig)
 
 Then add the following lines in the `pyproject.toml` file, where the entrypoint to the new dataparser is set.
 
+```python
 """pyproject.toml"""
 
 [project]
 name = "my_method"
 
-```
-
 [project.entry-points.'nerfstudio.dataparser_configs']
 custom-dataparser = 'my_method.my_config:MyDataparser'
-
 ```
 
 finally run the following to register the dataparser.
 
 ```
-
 pip install -e .
-
 ```
 
 ## Running custom method
@@ -120,9 +116,7 @@ pip install -e .
 After registering your method you should be able to run the method with,
 
 ```
-
 ns-train my-method --data DATA_DIR
-
 ```
 
 ## Adding to the _nerf.studio_ documentation
