@@ -67,13 +67,16 @@ class ViewerControl:
         is not connected yet"""
         return self.viewer_state.get_camera(img_height, img_width)
 
-    def register_click_cb(self, cb:Callable):
+    def register_click_cb(self, cb: Callable):
+        """
+        Add a callback which will be called when a click is detected in the viewer
+        """
         self.click_cbs.append(cb)
 
     def _on_click(self, origin: Tuple[float, float, float], direction: Tuple[float, float, float]):
         for c in self.click_cbs:
             c(origin, direction)
-    
+
 
 class ViewerElement(Generic[TValue]):
     """Base class for all viewer elements
