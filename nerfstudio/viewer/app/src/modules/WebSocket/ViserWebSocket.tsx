@@ -3,6 +3,7 @@ import AwaitLock from 'await-lock';
 import { pack, unpack } from 'msgpackr';
 import { useDispatch, useStore, useSelector } from 'react-redux';
 import { Store } from 'redux';
+import {MathUtils} from 'three';
 import { Message } from './ViserMessages';
 import SceneNode from '../../SceneNode';
 
@@ -54,7 +55,7 @@ function handleMessage(
   message: Message,
   dispatch: Dispatch<any>,
   store: Store,
-  sceneTree: SceneNode
+  sceneTree: SceneNode,
 ) {
   switch (message.type) {
     // Add a background image.
@@ -164,10 +165,15 @@ function handleMessage(
     // Set camera position
     case 'SetCameraMessage': {
       if(message.fov !== null){
-        sceneTree.metadata.camera.fov = message.fov;
+        // sceneTree.current.metadata.camera.fov = message.fov;
+        const cam = sceneTree.current.metadata.camera;
+        const vExtentSlope = Math.tan( MathUtils.DEG2RAD * 0.5 * cam.fov );
+
+        const newFocalLength = 0.5 * cam.getFilmHeight() / vExtentSlope;
+        cam.setFocalLength(newFocalLength);
       }
       if(message.look_at !==null && message.position !== null){
-        sceneTree.metadata.camera_controls.setLookAt(message.position[0],
+        sceneTree.current.metadata.camera_controls.setLookAt(message.position[0],
           message.position[1],
           message.position[2],
           message.look_at[0],
@@ -178,11 +184,11 @@ function handleMessage(
       else{
         if(message.look_at !==null){
           const p = message.look_at;
-          sceneTree.metadata.camera_controls.setTarget(p[0],p[1],p[2],!message.instant);
+          sceneTree.current.metadata.camera_controls.setTarget(p[0],p[1],p[2],!message.instant);
         }
         if(message.position !==null){
           const p = message.position;
-          sceneTree.metadata.camera_controls.setPosition(p[0],p[1],p[2],!message.instant);
+          sceneTree.current.metadata.camera_controls.setPosition(p[0],p[1],p[2],!message.instant);
         }
       }
       break;
@@ -320,8 +326,8 @@ function handleMessage(
 }
 
 // export function ViserWebSocket({ children }: { children: React.ReactNode }) {
-export function ViserWebSocket(props) {
-  const sceneTree = props.sceneTree;
+export function ViserWebSocket({sceneTree, children}: {sceneTree: SceneNode, children: React.ReactNode}) {
+  // const sceneTree = props.sceneTree;
   const dispatch = useDispatch();
   const store = useStore();
 
@@ -382,7 +388,7 @@ export function ViserWebSocket(props) {
             new Uint8Array(await event.data.arrayBuffer()),
           )) as Message;
           await orderLock.acquireAsync({ timeout: 1000 });
-          handleMessage(message, dispatch, store,sceneTree);
+          handleMessage(message, dispatch, store, sceneTree);
         } catch (error) {
           console.error(`Error handling message: ${error}`);
         } finally {
@@ -411,7 +417,7 @@ export function ViserWebSocket(props) {
 
   return (
     <ViserWebSocketContext.Provider value={ws}>
-      {props.children}
+      {children}
     </ViserWebSocketContext.Provider>
   );
 }
