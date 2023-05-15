@@ -341,7 +341,7 @@ class ViewerButtonGroup(ViewerParameter[TString], Generic[TString]):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_button_group(self.name, self.options, self.default_value) # type: ignore
+        self.gui_handle = viser_server.add_gui_button_group(self.name, self.options, self.default_value)  # type: ignore
 
 
 class ViewerRGB(ViewerParameter[Tuple[int, int, int]]):
