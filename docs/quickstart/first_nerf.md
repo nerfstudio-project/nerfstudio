@@ -6,9 +6,9 @@ The following will train a _nerfacto_ model, our recommended model for real worl
 
 ```bash
 # Download some test data:
-ns-download-data nerfstudio --capture-name=aspen
+ns-download-data nerfstudio --capture-name=poster
 # Train model
-ns-train nerfacto --data data/nerfstudio/aspen
+ns-train nerfacto --data data/nerfstudio/poster
 ```
 
 If everything works, you should see training progress like the following:
@@ -35,7 +35,7 @@ Navigating to the link at the end of the terminal will load the webviewer. If yo
 It is possible to load a pretrained model by running
 
 ```bash
-ns-train nerfacto --data data/nerfstudio/aspen --load-dir {outputs/.../nerfstudio_models}
+ns-train nerfacto --data data/nerfstudio/poster --load-dir {outputs/.../nerfstudio_models}
 ```
 
 ## Visualize existing run
@@ -113,6 +113,12 @@ We also provide a train and evaluation script that allows you to do benchmarking
 ## Multi-GPU Training
 
 Here we explain how to use multi-GPU training. We are using [PyTorch Distributed Data Parallel (DDP)](https://pytorch.org/tutorials/beginner/dist_overview.html), so gradients are averaged over devices. If the loss scales depend on sample size (usually not the case in our implementation), we need to scale the learning rate with the number of GPUs used. Plotting will only be done for the first process. Note that you may want to play around with both learning rate and `<X>_num_rays_per_batch` when using DDP. Below is a simple example for how you'd run the `nerfacto-big` method on the aspen scene (see above to download the data), with either 1 or 2 GPUs. The `nerfacto-big` method uses a larger model size than the `nerfacto` method, so it benefits more from multi-GPU training.
+
+First, download the aspen scene.
+
+```python
+ns-download-data nerfstudio --capture-name=aspen
+```
 
 ```python
 # 1 GPU (8192 rays per GPU per batch)
