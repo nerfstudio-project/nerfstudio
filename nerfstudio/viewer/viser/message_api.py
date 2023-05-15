@@ -358,6 +358,7 @@ class MessageApi(abc.ABC):
             name,
             initial_value,
             leva_conf={"type": "BUTTON_GROUP", "label": name, "options": options},
+            is_button=True,
         )
 
     def add_gui_slider(
@@ -577,6 +578,7 @@ class MessageApi(abc.ABC):
         """Private helper for adding a simple GUI element."""
 
         if hint is not None:
+            assert not is_button
             leva_conf["hint"] = hint
 
         handle_state = _GuiHandleState(
