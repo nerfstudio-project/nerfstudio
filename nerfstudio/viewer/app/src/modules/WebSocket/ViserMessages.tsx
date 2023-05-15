@@ -111,6 +111,10 @@ interface TimeConditionMessage {
   type: "TimeConditionMessage";
   time: number;
 }
+interface OutputOptionsMessage {
+  type: "OutputOptionsMessage";
+  options: any;
+}
 
 export type Message = 
   | BackgroundImageMessage
@@ -135,3 +139,4 @@ export type Message =
   | UseTimeConditioningMessage
   | TimeConditionMessage
   | ClickMessage
+  | OutputOptionsMessage;

@@ -12,7 +12,7 @@ build/
 develop-eggs/
 dist/
 downloads/
-!scripts/downloads/
+!nerfstudio/scripts/downloads/
 eggs/
 .eggs/
 lib/

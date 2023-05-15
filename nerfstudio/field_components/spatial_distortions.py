@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ class SceneContraction(SpatialDistortion):
             \\end{cases}
 
         If the order is not specified, we use the Frobenius norm, this will contract the space to a sphere of
-        radius 1. If the order is L_inf (order=float("inf")), we will contract the space to a cube of side length 2.
+        radius 2. If the order is L_inf (order=float("inf")), we will contract the space to a cube of side length 4.
         If using voxel based encodings such as the Hash encoder, we recommend using the L_inf norm.
 
         Args:

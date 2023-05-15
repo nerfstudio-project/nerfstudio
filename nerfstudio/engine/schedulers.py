@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,11 +18,10 @@
 
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Optional, Tuple, Type
+from typing import Literal, Optional, Tuple, Type
 
 import numpy as np
 from torch.optim import Optimizer, lr_scheduler
-from typing_extensions import Literal
 
 from nerfstudio.configs.base_config import InstantiateConfig
 

@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -119,7 +119,6 @@ def main(
 
     # update the symlink of latest
     if branch_name == "main":
-
         # move the build folder to the correct location
         run_cmd(f"""ssh {host} 'rm -rf {remote_folder}/{version}'""")
         run_cmd(f"""ssh {host} 'cp -R /home/eweb0124/build {remote_folder}/{version}'""")
