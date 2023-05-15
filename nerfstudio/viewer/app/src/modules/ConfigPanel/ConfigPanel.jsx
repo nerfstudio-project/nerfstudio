@@ -55,6 +55,7 @@ function CustomLeva() {
     } else if (levaConf.type === 'BUTTON_GROUP') {
       // Add a button group.
       leafFolder[key] = buttonGroup({
+        label: levaConf.label,
         opts: levaConf.options.reduce((acc, opt) => {
           acc[opt] = () =>
             sendWebsocketMessage(viser_websocket, {
