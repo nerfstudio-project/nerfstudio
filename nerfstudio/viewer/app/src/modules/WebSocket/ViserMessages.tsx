@@ -58,11 +58,6 @@ interface CameraMessage {
   is_moving: boolean;
   timestamp: number;
 }
-interface ClickMessage {
-  type: 'ClickMessage';
-  origin: [number, number, number];
-  direction: [number, number, number];
-}
 interface SceneBoxMessage {
   type: "SceneBoxMessage";
   min: [number, number, number];
@@ -110,6 +105,11 @@ interface UseTimeConditioningMessage {
 interface TimeConditionMessage {
   type: "TimeConditionMessage";
   time: number;
+}
+interface ClickMessage {
+  type: "ClickMessage";
+  origin: [number, number, number];
+  direction: [number, number, number];
 }
 interface OutputOptionsMessage {
   type: "OutputOptionsMessage";

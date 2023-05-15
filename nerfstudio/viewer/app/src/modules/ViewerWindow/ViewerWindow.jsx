@@ -16,7 +16,6 @@ import {
   makeThrottledMessageSender,
   ViserWebSocketContext,
 } from '../WebSocket/ViserWebSocket';
-import { convertLength } from '@mui/material/styles/cssUtils';
 
 function CameraToggle() {
   const dispatch = useDispatch();
