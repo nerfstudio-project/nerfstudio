@@ -99,16 +99,23 @@ This documentation is organized into 3 parts:
 
 ## Supported Methods
 
-- [**Nerfacto**](https://github.com/nerfstudio-project/nerfstudio/blob/master/nerfstudio/models/nerfacto.py): our de facto NeRF method combines modules focused on quality with modules focused on faster rendering. Nerfstudio easily lets us experiment with the best of both worlds!
-- [NeRF](https://www.matthewtancik.com/nerf): Representing Scenes as Neural Radiance Fields for View Synthesis
-- [Instant NGP](https://nvlabs.github.io/instant-ngp/): Instant Neural Graphics Primitives with a Multiresolution Hash Encoding
-- [Mipnerf](https://jonbarron.info/mipnerf/): A Multiscale Representation for Anti-Aliasing Neural Radiance Fields
-- [NerfW](https://nerf-w.github.io/): Neural Radiance Fields for Unconstrained Photo Collections
-- [Semantic NeRF](https://shuaifengzhi.com/Semantic-NeRF/): In-Place Scene Labelling and Understanding with Implicit Scene Representation
+### Included Methods
 
-We'll be constantly growing this list! So make sure to check back in to see our updates.
+- [**Nerfacto**](nerfology/methods/nerfacto.md): Recommended method, integrates mutiple methods into one.
+- [Instant-NGP](nerfology/methods/instant_ngp.md): Instant Neural Graphics Primitives with a Multiresolution Hash Encoding
+- [NeRF](nerfology/methods/nerf.md): OG Nerual Radiance Fields
+- [Mip-NeRF](nerfology/methods/mipnerf.md): A Multiscale Representation for Anti-Aliasing Neural Radiance Fields
+- [TensoRF](nerfology/methods/tensorf.md): Tensorial Radiance Fields
 
-**Eager to contribute?** We'd love to see you use nerfstudio in implementing new (or even existing) methods! Feel free to contact us directly or view our [Contributor's Guide](reference/contributing) to see how you can get your model on this list!
+(third_party_methods)=
+
+### Third-party Methods
+
+- [Instruct-NeRF2NeRF](nerfology/methods/in2n.md): Editing 3D Scenes with Instructions
+- [LERF](nerfology/methods/lerf.md): Language Embedded Radiance Fields
+- [Tetra-NeRF](nerfology/methods/tetranerf.md): Representing Neural Radiance Fields Using Tetrahedra
+
+**Eager to contribute a method?** We'd love to see you use nerfstudio in implementing new (or even existing) methods! Please view our {ref}`guide<own_method_docs>` for more details about how to add to this list!
 
 ## Quicklinks
 
