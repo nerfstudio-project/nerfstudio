@@ -140,11 +140,13 @@ class NerfplayerNerfactoModel(NerfactoModel):
             self.density_fns.extend([network.density_fn for network in self.proposal_networks])
 
         # Samplers
-        update_schedule = lambda step: np.clip(
-            np.interp(step, [0, self.config.proposal_warmup], [0, self.config.proposal_update_every]),
-            1,
-            self.config.proposal_update_every,
-        )
+        def update_schedule(step):
+            return np.clip(
+                np.interp(step, [0, self.config.proposal_warmup], [0, self.config.proposal_update_every]),
+                1,
+                self.config.proposal_update_every,
+            )
+
         self.proposal_sampler = ProposalNetworkSampler(
             num_nerf_samples_per_ray=self.config.num_nerf_samples_per_ray,
             num_proposal_samples_per_ray=self.config.num_proposal_samples_per_ray,
@@ -246,7 +248,10 @@ class NerfplayerNerfactoModel(NerfactoModel):
             if "depth_image" in batch.keys() and self.config.depth_weight > 0:
                 mask = (batch["depth_image"] != 0).view([-1])
                 loss_dict["depth_loss"] = 0
-                l = lambda x: self.config.depth_weight * (x - batch["depth_image"][mask]).pow(2).mean()
+
+                def l(x):
+                    return self.config.depth_weight * (x - batch["depth_image"][mask]).pow(2).mean()
+
                 loss_dict["depth_loss"] = l(outputs["depth"][mask])
                 for i in range(self.config.num_proposal_iterations):
                     loss_dict["depth_loss"] += l(outputs[f"prop_depth_{i}"][mask])

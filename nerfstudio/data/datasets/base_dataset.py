@@ -24,9 +24,10 @@ from typing import Dict, List
 import numpy as np
 import numpy.typing as npt
 import torch
+from jaxtyping import Float
 from PIL import Image
+from torch import Tensor
 from torch.utils.data import Dataset
-from torchtyping import TensorType
 
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.utils.data_utils import get_image_mask_tensor_from_path
@@ -73,7 +74,7 @@ class InputDataset(Dataset):
         assert image.shape[2] in [3, 4], f"Image shape of {image.shape} is in correct."
         return image
 
-    def get_image(self, image_idx: int) -> TensorType["image_height", "image_width", "num_channels"]:
+    def get_image(self, image_idx: int) -> Float[Tensor, "image_height image_width num_channels"]:
         """Returns a 3 channel image.
 
         Args:

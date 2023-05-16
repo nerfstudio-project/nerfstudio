@@ -21,8 +21,9 @@ from typing import Dict, Optional, Tuple
 
 import numpy as np
 import torch
+from jaxtyping import Float
+from torch import Tensor
 from torch.nn.parameter import Parameter
-from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import Frustums, RaySamples
 from nerfstudio.data.scene_box import SceneBox
@@ -65,7 +66,7 @@ class TemporalHashMLPDensityField(Field):
 
     def __init__(
         self,
-        aabb: TensorType,
+        aabb: Tensor,
         temporal_dim: int = 64,
         num_layers: int = 2,
         hidden_dim: int = 64,
@@ -104,7 +105,7 @@ class TemporalHashMLPDensityField(Field):
         )
 
     # pylint: disable=arguments-differ
-    def density_fn(self, positions: TensorType["bs":..., 3], times: TensorType["bs", 1]) -> TensorType["bs":..., 1]:
+    def density_fn(self, positions: Float[Tensor, "*bs 3"], times: Float[Tensor, "bs 1"]) -> Float[Tensor, "*bs 1"]:
         """Returns only the density. Used primarily with the density grid.
 
         Args:
@@ -128,7 +129,7 @@ class TemporalHashMLPDensityField(Field):
         density, _ = self.get_density(ray_samples)
         return density
 
-    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, None]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, None]:
         if self.spatial_distortion is not None:
             positions = self.spatial_distortion(ray_samples.frustums.get_positions())
             positions = (positions + 2.0) / 4.0
@@ -145,7 +146,7 @@ class TemporalHashMLPDensityField(Field):
         density = trunc_exp(density_before_activation)
         return density, None
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None) -> dict:
+    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None) -> dict:
         return {}
 
 
@@ -177,7 +178,7 @@ class NerfplayerNerfactoField(Field):
 
     def __init__(
         self,
-        aabb: TensorType,
+        aabb: Tensor,
         num_images: int,
         num_layers: int = 2,
         hidden_dim: int = 64,
@@ -309,7 +310,7 @@ class NerfplayerNerfactoField(Field):
             },
         )
 
-    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
         if self.spatial_distortion is not None:
             positions = ray_samples.frustums.get_positions()
@@ -331,8 +332,8 @@ class NerfplayerNerfactoField(Field):
         return density, base_mlp_out
 
     def get_outputs(
-        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
-    ) -> Dict[FieldHeadNames, TensorType]:
+        self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None
+    ) -> Dict[FieldHeadNames, Tensor]:
         assert density_embedding is not None
         outputs = {}
         if ray_samples.camera_indices is None:

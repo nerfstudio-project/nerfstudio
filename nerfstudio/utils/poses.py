@@ -17,10 +17,11 @@ Common 3D pose methods
 """
 
 import torch
-from torchtyping import TensorType
+from jaxtyping import Float
+from torch import Tensor
 
 
-def to4x4(pose: TensorType[..., 3, 4]) -> TensorType[..., 4, 4]:
+def to4x4(pose: Float[Tensor, "*batch 3 4"]) -> Float[Tensor, "*batch 4 4"]:
     """Convert 3x4 pose matrices to a 4x4 with the addition of a homogeneous coordinate.
 
     Args:
@@ -34,7 +35,7 @@ def to4x4(pose: TensorType[..., 3, 4]) -> TensorType[..., 4, 4]:
     return torch.cat([pose, constants], dim=-2)
 
 
-def inverse(pose: TensorType[..., 3, 4]) -> TensorType[..., 3, 4]:
+def inverse(pose: Float[Tensor, "*batch 3 4"]) -> Float[Tensor, "*batch 3 4"]:
     """Invert provided pose matrix.
 
     Args:
@@ -50,7 +51,7 @@ def inverse(pose: TensorType[..., 3, 4]) -> TensorType[..., 3, 4]:
     return torch.cat([R_inverse, t_inverse], dim=-1)
 
 
-def multiply(pose_a: TensorType[..., 3, 4], pose_b: TensorType[..., 3, 4]) -> TensorType[..., 3, 4]:
+def multiply(pose_a: Float[Tensor, "*batch 3 4"], pose_b: Float[Tensor, "*batch 3 4"]) -> Float[Tensor, "*batch 3 4"]:
     """Multiply two pose matrices, A @ B.
 
     Args:
@@ -67,7 +68,7 @@ def multiply(pose_a: TensorType[..., 3, 4], pose_b: TensorType[..., 3, 4]) -> Te
     return torch.cat([R, t], dim=-1)
 
 
-def normalize(poses: TensorType[..., 3, 4]) -> TensorType[..., 3, 4]:
+def normalize(poses: Float[Tensor, "*batch 3 4"]) -> Float[Tensor, "*batch 3 4"]:
     """Normalize the XYZs of poses to fit within a unit cube ([-1, 1]). Note: This operation is not in-place.
 
     Args:

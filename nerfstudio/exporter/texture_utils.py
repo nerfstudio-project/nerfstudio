@@ -28,7 +28,8 @@ import mediapy as media
 import numpy as np
 import torch
 import xatlas
-from torchtyping import TensorType
+from jaxtyping import Float
+from torch import Tensor
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.exporter.exporter_utils import Mesh
@@ -39,8 +40,8 @@ TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 
 
 def get_parallelogram_area(
-    p: TensorType["bs":..., 2], v0: TensorType["bs":..., 2], v1: TensorType["bs":..., 2]
-) -> TensorType["bs":...]:
+    p: Float[Tensor, "*bs 2"], v0: Float[Tensor, "*bs 2"], v1: Float[Tensor, "*bs 2"]
+) -> Float[Tensor, "*bs"]:
     """Given three 2D points, return the area defined by the parallelogram. I.e., 2x the triangle area.
 
     Args:
@@ -56,7 +57,7 @@ def get_parallelogram_area(
 
 def get_texture_image(
     num_pixels_w: int, num_pixels_h: int, device: TORCH_DEVICE
-) -> Tuple[TensorType["num_pixels_h", "num_pixels_w", 2], TensorType["num_pixels_h", "num_pixels_w", 2]]:
+) -> Tuple[Float[Tensor, "num_pixels_h num_pixels_w 2"], Float[Tensor, "num_pixels_h num_pixels_w 2"]]:
     """Get a texture image."""
     px_w = 1.0 / num_pixels_w
     px_h = 1.0 / num_pixels_h
@@ -76,14 +77,14 @@ def get_texture_image(
 
 
 def unwrap_mesh_per_uv_triangle(
-    vertices: TensorType["num_verts", 3],
-    faces: TensorType["num_faces", 3],
-    vertex_normals: TensorType["num_verts", 3],
+    vertices: Float[Tensor, "num_verts 3"],
+    faces: Float[Tensor, "num_faces 3"],
+    vertex_normals: Float[Tensor, "num_verts 3"],
     px_per_uv_triangle: int,
 ) -> Tuple[
-    TensorType["num_faces", 3, 2],
-    TensorType["num_pixels", "num_pixels", 3],
-    TensorType["num_pixels", "num_pixels", "num_pixels"],
+    Float[Tensor, "num_faces 3 2"],
+    Float[Tensor, "num_pixels num_pixels 3"],
+    Float[Tensor, "num_pixels num_pixels num_pixels"],
 ]:
     """Unwrap a mesh to a UV texture. This is done by making a grid of rectangles in the UV texture map
     and then having two triangles per rectangle. Then the texture image is rasterized and uses barycentric
@@ -212,15 +213,15 @@ def unwrap_mesh_per_uv_triangle(
 
 
 def unwrap_mesh_with_xatlas(
-    vertices: TensorType["num_verts", 3],
-    faces: TensorType["num_faces", 3, torch.long],
-    vertex_normals: TensorType["num_verts", 3],
+    vertices: Float[Tensor, "num_verts 3"],
+    faces: Float[Tensor, "num_faces 3 torch.long"],
+    vertex_normals: Float[Tensor, "num_verts 3"],
     num_pixels_per_side=1024,
     num_faces_per_barycentric_chunk=10,
 ) -> Tuple[
-    TensorType["num_faces", 3, 2],
-    TensorType["num_pixels", "num_pixels", 3],
-    TensorType["num_pixels", "num_pixels", "num_pixels"],
+    Float[Tensor, "num_faces 3 2"],
+    Float[Tensor, "num_pixels num_pixels 3"],
+    Float[Tensor, "num_pixels num_pixels num_pixels"],
 ]:
     """Unwrap a mesh using xatlas. We use xatlas to unwrap the mesh with UV coordinates.
     Then we rasterize the mesh with a square pattern. We interpolate the XYZ and normal
