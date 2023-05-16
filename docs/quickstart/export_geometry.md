@@ -2,14 +2,6 @@
 
 Here we document how to export point clouds and meshes from nerfstudio. The main command you'll be working with is `ns-export`. Our point clouds are exported as `.ply` files and the textured meshes are exported as `.obj` files.
 
-## Install dependencies
-
-We require some extra dependencies for exporting geometry. Run the following command to install these packages.
-
-```bash
-pip install -e .[export]
-```
-
 ## Exporting a mesh
 
 ### 1. TSDF Fusion
