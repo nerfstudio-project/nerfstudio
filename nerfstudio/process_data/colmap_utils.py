@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import cv2
 import numpy as np
 import requests
 import torch
-from rich.console import Console
 from rich.progress import track
 
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
@@ -38,10 +37,8 @@ from nerfstudio.data.utils.colmap_parsing_utils import (
 )
 from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils import colormaps
-from nerfstudio.utils.rich_utils import status
+from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
-
-CONSOLE = Console(width=120)
 
 
 def get_colmap_version(colmap_cmd: str, default_version=3.8) -> float:

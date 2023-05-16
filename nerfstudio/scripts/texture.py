@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,13 +23,10 @@ from pathlib import Path
 from typing import Literal, Optional
 
 import tyro
-from rich.console import Console
 
 from nerfstudio.exporter import texture_utils
 from nerfstudio.exporter.exporter_utils import get_mesh_from_filename
 from nerfstudio.utils.eval_utils import eval_setup
-
-CONSOLE = Console(width=120)
 
 
 @dataclass

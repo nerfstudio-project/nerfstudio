@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ from abc import abstractmethod
 from typing import Dict, Optional, Tuple, Union
 
 import torch
-from rich.progress import Console, track
+from rich.progress import track
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 
@@ -33,8 +33,7 @@ from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.utils.misc import get_dict_to_torch
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 class CacheDataloader(DataLoader):
@@ -211,6 +210,7 @@ class FixedIndicesEvalDataloader(EvalDataloader):
         self.count = 0
 
     def __iter__(self):
+        self.count = 0
         return self
 
     def __next__(self):

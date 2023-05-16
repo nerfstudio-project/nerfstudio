@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import cv2
 import numpy as np
 import torch
 from equilib import Equi2Pers
-from rich.console import Console
 from rich.progress import (
     BarColumn,
     Progress,
@@ -32,9 +31,7 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
-from nerfstudio.utils.rich_utils import ItersPerSecColumn
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
 
 
 def _crop_bottom(bound_arr: list, fov: int, crop_factor: float) -> List[float]:

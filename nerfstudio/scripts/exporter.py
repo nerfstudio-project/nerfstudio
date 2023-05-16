@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,7 +31,6 @@ import numpy as np
 import open3d as o3d
 import torch
 import tyro
-from rich.console import Console
 from typing_extensions import Annotated, Literal
 
 from nerfstudio.cameras.rays import RayBundle
@@ -46,8 +45,7 @@ from nerfstudio.exporter.marching_cubes import (
 )
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 @dataclass

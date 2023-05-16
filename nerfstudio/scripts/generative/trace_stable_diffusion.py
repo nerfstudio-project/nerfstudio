@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,11 +22,9 @@ from pathlib import Path
 import appdirs
 import torch
 import tyro
-from rich.console import Console
 
 from nerfstudio.generative.stable_diffusion import SD_IDENTIFIERS
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 try:
     from diffusers import StableDiffusionPipeline

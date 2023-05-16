@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,13 +27,12 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import tyro
-from rich.console import Console
 from torch import nn
 from torch.cuda.amp import custom_bwd, custom_fwd
 from torch.cuda.amp.grad_scaler import GradScaler
 from torchtyping import TensorType
 
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 try:
     from diffusers import PNDMScheduler, StableDiffusionPipeline

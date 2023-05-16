@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,15 +28,12 @@ import mediapy as media
 import numpy as np
 import torch
 import xatlas
-from rich.console import Console
 from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.exporter.exporter_utils import Mesh
 from nerfstudio.pipelines.base_pipeline import Pipeline
-from nerfstudio.utils.rich_utils import get_progress
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE, get_progress
 
 TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 

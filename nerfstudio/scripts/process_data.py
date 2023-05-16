@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ from typing import Union
 
 import numpy as np
 import tyro
-from rich.console import Console
 from typing_extensions import Annotated
 
 from nerfstudio.process_data import (
@@ -41,8 +40,7 @@ from nerfstudio.process_data.images_to_nerfstudio_dataset import (
     ImagesToNerfstudioDataset,
 )
 from nerfstudio.process_data.video_to_nerfstudio_dataset import VideoToNerfstudioDataset
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 @dataclass
