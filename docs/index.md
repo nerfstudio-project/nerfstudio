@@ -35,7 +35,7 @@ It's as simple as plug and play with nerfstudio!
 On top of our API, we are committed to providing learning resources to help you understand the basics of (if you're just getting started), and keep up-to-date with (if you're a seasoned veteran) all things NeRF.
 As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
 
-Finally, have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all [contributions](reference/contributing)!**
+Finally, have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome [contributions](reference/contributing)!**
 Please do not hesitate to reach out to the nerfstudio team with any questions via [Discord](https://discord.gg/uMbNqcraFc).
 
 We hope nerfstudio enables you to build faster 🔨 learn together 📚 and contribute to our NeRF community 💖.
@@ -190,3 +190,13 @@ If you use this library or find the documentation useful for your research, plea
 <a href="https://github.com/nerfstudio-project/nerfstudio/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=nerfstudio-project/nerfstudio" />
 </a>
+
+## Maintainers
+
+|                                              | Nerfstudio Discord | Affiliation                          |
+| -------------------------------------------- | ------------------ | ------------------------------------ |
+| [Justin Kerr](https://kerrj.github.io/)      | justin.kerr        | UC Berkeley                          |
+| [Jonáš Kulhánek](https://jkulhanek.com/)     | jkulhanek          | Czech Technical University in Prague |
+| [Matt Tancik](https://www.matthewtancik.com) | tancik             | UC Berkeley                          |
+| [Ethan Weber](https://ethanweber.me/)        | ethanweber         | UC Berkeley                          |
+| [Brent Yi](https://github.com/brentyi)       | brent              | UC Berkeley                          |
