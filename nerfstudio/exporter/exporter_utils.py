@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,7 +28,6 @@ import numpy as np
 import open3d as o3d
 import pymeshlab
 import torch
-from rich.console import Console
 from rich.progress import (
     BarColumn,
     Progress,
@@ -42,9 +41,7 @@ from torch import Tensor
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
-from nerfstudio.utils.rich_utils import ItersPerSecColumn
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
 
 
 @dataclass
@@ -123,6 +120,7 @@ def generate_point_cloud(
         BarColumn(),
         TaskProgressColumn(show_speed=True),
         TimeRemainingColumn(elapsed_when_finished=True, compact=True),
+        console=CONSOLE,
     )
     points = []
     rgbs = []

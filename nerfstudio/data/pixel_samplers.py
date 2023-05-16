@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -102,7 +102,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
             key: value[c, y, x] for key, value in batch.items() if key != "image_idx" and value is not None
         }
 
-        assert collated_batch["image"].shape == (num_rays_per_batch, 3), collated_batch["image"].shape
+        assert collated_batch["image"].shape[0] == num_rays_per_batch
 
         # Needed to correct the random indices to their actual camera idx locations.
         indices[:, 0] = batch["image_idx"][c]
@@ -138,7 +138,6 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         if "mask" in batch:
             num_rays_in_batch = num_rays_per_batch // num_images
             for i in range(num_images):
-
                 image_height, image_width, _ = batch["image"][i].shape
 
                 if i == num_images - 1:
@@ -173,7 +172,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
 
         collated_batch["image"] = torch.cat(all_images, dim=0)
 
-        assert collated_batch["image"].shape == (num_rays_per_batch, 3), collated_batch["image"].shape
+        assert collated_batch["image"].shape[0] == num_rays_per_batch
 
         # Needed to correct the random indices to their actual camera idx locations.
         indices[:, 0] = batch["image_idx"][c]
@@ -223,7 +222,6 @@ class EquirectangularPixelSampler(PixelSampler):  # pylint: disable=too-few-publ
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
     ) -> Shaped[Tensor, "batch_size 3"]:
-
         if isinstance(mask, torch.Tensor):
             # Note: if there is a mask, sampling reduces back to uniform sampling, which gives more
             # sampling weight to the poles of the image than the equators.
@@ -231,7 +229,6 @@ class EquirectangularPixelSampler(PixelSampler):  # pylint: disable=too-few-publ
 
             indices = super().sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)
         else:
-
             # We sample theta uniformly in [0, 2*pi]
             # We sample phi in [0, pi] according to the PDF f(phi) = sin(phi) / 2.
             # This is done by inverse transform sampling.
@@ -281,7 +278,6 @@ class PatchPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
     ) -> Shaped[Tensor, "batch_size 3"]:
-
         if mask:
             # Note: if there is a mask, sampling reduces back to uniform sampling
             indices = super().sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)

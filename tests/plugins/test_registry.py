@@ -1,6 +1,7 @@
 """
 Tests for the nerfstudio.plugins.registry module.
 """
+import os
 import sys
 
 from nerfstudio.engine.trainer import TrainerConfig
@@ -49,3 +50,23 @@ def test_discover_methods():
     finally:
         # Revert mock
         registry.entry_points = entry_points_backup
+
+
+def test_discover_methods_from_environment_variable():
+    """Tests if a custom method from env variable gets properly registered using the discover_methods method"""
+    old_env = None
+    try:
+        old_env = os.environ.get("NERFSTUDIO_METHOD_CONFIGS", None)
+        os.environ["NERFSTUDIO_METHOD_CONFIGS"] = "test-method-env=test_registry:TestConfig"
+
+        # Discover plugins
+        methods, _ = registry.discover_methods()
+        assert "test-method-env" in methods
+        config = methods["test-method-env"]
+        assert isinstance(config, TrainerConfig)
+    finally:
+        # Revert mock
+        if old_env is not None:
+            os.environ["NERFSTUDIO_METHOD_CONFIGS"] = old_env
+        else:
+            del os.environ["NERFSTUDIO_METHOD_CONFIGS"]

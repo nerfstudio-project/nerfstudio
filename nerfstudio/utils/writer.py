@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,16 +26,14 @@ from typing import Any, Dict, List, Optional, Union
 
 import torch
 import wandb
-from rich.console import Console
-from torch.utils.tensorboard import SummaryWriter
 from jaxtyping import Shaped
 from torch import Tensor
+from torch.utils.tensorboard import SummaryWriter
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.printing import human_format
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def to8b(x):
@@ -193,10 +191,22 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
     GLOBAL_BUFFER["events"] = {}
 
 
-@check_main_thread
-def setup_event_writer(is_wandb_enabled: bool, is_tensorboard_enabled: bool, log_dir: Path) -> None:
-    """Initialization of all event writers specified in config
+def is_initialized():
+    """
+    Returns True after setup_local_writer was called
+    """
+    return "events" in GLOBAL_BUFFER
 
+
+@check_main_thread
+def setup_event_writer(
+    is_wandb_enabled: bool,
+    is_tensorboard_enabled: bool,
+    log_dir: Path,
+    experiment_name: str,
+    project_name: str = "nerfstudio-project",
+) -> None:
+    """Initialization of all event writers specified in config
     Args:
         config: configuration to instantiate loggers
         max_iter: maximum number of train iterations
@@ -204,7 +214,7 @@ def setup_event_writer(is_wandb_enabled: bool, is_tensorboard_enabled: bool, log
     """
     using_event_writer = False
     if is_wandb_enabled:
-        curr_writer = WandbWriter(log_dir=log_dir)
+        curr_writer = WandbWriter(log_dir=log_dir, experiment_name=experiment_name, project_name=project_name)
         EVENT_WRITERS.append(curr_writer)
         using_event_writer = True
     if is_tensorboard_enabled:
@@ -274,7 +284,7 @@ class TimeWriter:
     def __exit__(self, *args):
         self.duration = time() - self.start
         update_step = self.step is not None
-        if self.write:
+        if self.write and is_initialized():
             self.writer.put_time(
                 name=self.name,
                 duration=self.duration,
@@ -288,11 +298,11 @@ class TimeWriter:
 class WandbWriter(Writer):
     """WandDB Writer Class"""
 
-    def __init__(self, log_dir: Path):
+    def __init__(self, log_dir: Path, experiment_name: str, project_name: str = "nerfstudio-project"):
         wandb.init(
-            project=os.environ.get("WANDB_PROJECT", "nerfstudio-project"),
+            project=os.environ.get("WANDB_PROJECT", project_name),
             dir=os.environ.get("WANDB_DIR", str(log_dir)),
-            name=os.environ.get("WANDB_NAME", log_dir.name),
+            name=os.environ.get("WANDB_NAME", experiment_name),
             reinit=True,
         )
 

@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,12 +23,10 @@ import glob
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Tuple, Type
+from typing import List, Literal, Tuple, Type
 
 import numpy as np
 import torch
-from rich.console import Console
-from typing_extensions import Literal
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -38,8 +36,6 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataparserOutputs,
 )
 from nerfstudio.data.scene_box import SceneBox
-
-CONSOLE = Console(width=120)
 
 
 def _find_files(directory: str, exts: List[str]):

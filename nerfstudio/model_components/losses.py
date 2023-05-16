@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,12 +16,11 @@
 Collection of Losses.
 """
 from enum import Enum
+from typing import Dict, Literal
 
 import torch
-from torch import nn
 from jaxtyping import Shaped
-from torch import Tensor
-from typing_extensions import Literal
+from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.utils.math import masked_reduction, normalized_depth_scale_and_shift
@@ -498,3 +497,57 @@ class ScaleAndShiftInvariantLoss(nn.Module):
         return self.__prediction_ssi
 
     prediction_ssi = property(__get_prediction_ssi)
+
+
+def tv_loss(grids: Shaped[Tensor, "grids feature_dim row column"]) -> Shaped[Tensor, "()"]:
+    """
+    https://github.com/apchenstu/TensoRF/blob/4ec894dc1341a2201fe13ae428631b58458f105d/utils.py#L139
+
+    Args:
+        grids: stacks of explicit feature grids (stacked at dim 0)
+    Returns:
+        average total variation loss for neighbor rows and columns.
+    """
+    number_of_grids = grids.shape[0]
+    h_tv_count = grids[:, :, 1:, :].shape[1] * grids[:, :, 1:, :].shape[2] * grids[:, :, 1:, :].shape[3]
+    w_tv_count = grids[:, :, :, 1:].shape[1] * grids[:, :, :, 1:].shape[2] * grids[:, :, :, 1:].shape[3]
+    h_tv = torch.pow((grids[:, :, 1:, :] - grids[:, :, :-1, :]), 2).sum()
+    w_tv = torch.pow((grids[:, :, :, 1:] - grids[:, :, :, :-1]), 2).sum()
+    return 2 * (h_tv / h_tv_count + w_tv / w_tv_count) / number_of_grids
+
+
+class _GradientScaler(torch.autograd.Function):  # typing: ignore, pylint: disable=abstract-method
+    """
+    Scale gradients by a constant factor.
+    """
+
+    @staticmethod
+    def forward(ctx, value, scaling):  # pylint: disable=arguments-differ
+        ctx.save_for_backward(scaling)
+        return value, scaling
+
+    @staticmethod
+    def backward(ctx, output_grad, grad_scaling):  # pylint: disable=arguments-differ
+        (scaling,) = ctx.saved_tensors
+        return output_grad * scaling, grad_scaling
+
+
+def scale_gradients_by_distance_squared(
+    field_outputs: Dict[str, torch.Tensor], ray_samples: RaySamples
+) -> Dict[str, torch.Tensor]:
+    """
+    Scale gradients by the ray distance to the pixel
+    as suggested in `Radiance Field Gradient Scaling for Unbiased Near-Camera Training` paper
+
+    Note: The scaling is applied on the interval of [0, 1] along the ray!
+
+    Example:
+        GradientLoss should be called right after obtaining the densities and colors from the field. ::
+            >>> field_outputs = scale_gradient_by_distance_squared(field_outputs, ray_samples)
+    """
+    out = {}
+    ray_dist = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
+    scaling = torch.square(ray_dist).clamp(0, 1)
+    for key, value in field_outputs.items():
+        out[key], _ = _GradientScaler.apply(value, scaling)
+    return out

@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,10 +16,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-
-from rich.console import Console
-from typing_extensions import Literal
+from typing import Dict, List, Literal, Optional, Tuple
 
 from nerfstudio.process_data import colmap_utils, hloc_utils, process_data_utils
 from nerfstudio.process_data.base_converter_to_nerfstudio_dataset import (
@@ -27,8 +24,7 @@ from nerfstudio.process_data.base_converter_to_nerfstudio_dataset import (
 )
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils import install_checks
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 @dataclass

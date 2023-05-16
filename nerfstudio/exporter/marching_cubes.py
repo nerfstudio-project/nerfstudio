@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@ from typing import Callable, List, Tuple, Union
 import numpy as np
 import torch
 import trimesh
-from skimage import measure
 from jaxtyping import Shaped
+from skimage import measure
 from torch import Tensor
 
 avg_pool_3d = torch.nn.AvgPool3d(2, stride=2)

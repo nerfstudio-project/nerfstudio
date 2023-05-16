@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,14 +28,12 @@ Example:
 """
 import contextlib
 import math
-from typing import Generator, Optional, Union
+from typing import Generator, Literal, Optional, Union
 
 import nerfacc
 import torch
-from torch import nn
 from jaxtyping import Shaped
-from torch import Tensor
-from typing_extensions import Literal
+from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.utils import colors

@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,10 +18,10 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Tuple
+from typing import Any, Literal, Tuple
 
 import viser.infra
-from typing_extensions import Literal, override
+from typing_extensions import override
 
 
 class NerfstudioMessage(viser.infra.Message):
@@ -241,3 +241,13 @@ class TimeConditionMessage(NerfstudioMessage):
 
     time: float
     """ Time conditioning value """
+
+
+@dataclasses.dataclass
+class OutputOptionsMessage(NerfstudioMessage):
+    """Output options message which are used in the export panel.
+    TODO: remove when export panel is becomes python defined.
+    """
+
+    options: Any
+    """ List of output option strings"""

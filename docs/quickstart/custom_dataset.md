@@ -259,6 +259,8 @@ ns-train nerfacto --data {output directory}
 
 ## Metashape
 
+All images must use the same sensor type (but multiple sensors are supported).
+
 1. Align your images using Metashape. `File -> Workflow -> Align Photos...`
 
 ```{image} https://user-images.githubusercontent.com/3310961/203389662-12760210-2b52-49d4-ab21-4f23bfa4a2b3.png
