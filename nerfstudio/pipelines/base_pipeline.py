@@ -197,6 +197,10 @@ class Pipeline(nn.Module):
             A list of dictionaries containing the pipeline's param groups.
         """
 
+    @profiler.time_function
+    def at_train_end(self) -> None:
+        """Called at the end of training."""
+
 
 @dataclass
 class VanillaPipelineConfig(cfg.InstantiateConfig):
