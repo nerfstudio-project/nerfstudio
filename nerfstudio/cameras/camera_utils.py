@@ -21,8 +21,9 @@ from typing import List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
+from jaxtyping import Float
 from numpy.typing import ArrayLike
-from torchtyping import TensorType
+from torch import Tensor
 
 _EPS = np.finfo(float).eps * 4.0
 
@@ -184,7 +185,7 @@ def get_interpolated_poses(pose_a: ArrayLike, pose_b: ArrayLike, steps: int = 10
     return poses_ab
 
 
-def get_interpolated_k(k_a, k_b, steps: int = 10) -> TensorType[3, 4]:
+def get_interpolated_k(k_a, k_b, steps: int = 10) -> Float[Tensor, "3 4"]:
     """
     Returns interpolated path between two camera poses with specified number of steps.
 
@@ -202,9 +203,9 @@ def get_interpolated_k(k_a, k_b, steps: int = 10) -> TensorType[3, 4]:
 
 
 def get_ordered_poses_and_k(
-    poses: TensorType["num_poses", 3, 4],
-    Ks: TensorType["num_poses", 3, 3],
-) -> Tuple[TensorType["num_poses", 3, 4], TensorType["num_poses", 3, 3]]:
+    poses: Float[Tensor, "num_poses 3 4"],
+    Ks: Float[Tensor, "num_poses 3 3"],
+) -> Tuple[Float[Tensor, "num_poses 3 4"], Float[Tensor, "num_poses 3 3"]]:
     """
     Returns ordered poses and intrinsics by euclidian distance between poses.
 
@@ -238,11 +239,11 @@ def get_ordered_poses_and_k(
 
 
 def get_interpolated_poses_many(
-    poses: TensorType["num_poses", 3, 4],
-    Ks: TensorType["num_poses", 3, 3],
+    poses: Float[Tensor, "num_poses 3 4"],
+    Ks: Float[Tensor, "num_poses 3 3"],
     steps_per_transition: int = 10,
     order_poses: bool = False,
-) -> Tuple[TensorType["num_poses", 3, 4], TensorType["num_poses", 3, 3]]:
+) -> Tuple[Float[Tensor, "num_poses 3 4"], Float[Tensor, "num_poses 3 3"]]:
     """Return interpolated poses for many camera poses.
 
     Args:
@@ -273,7 +274,7 @@ def get_interpolated_poses_many(
     return torch.tensor(traj, dtype=torch.float32), torch.tensor(k_interp, dtype=torch.float32)
 
 
-def normalize(x: torch.Tensor) -> TensorType[...]:
+def normalize(x: torch.Tensor) -> Float[Tensor, "*batch"]:
     """Returns a normalized vector."""
     return x / torch.linalg.norm(x)
 
@@ -293,7 +294,7 @@ def normalize_with_norm(x: torch.Tensor, dim: int) -> Tuple[torch.Tensor, torch.
     return x / norm, norm
 
 
-def viewmatrix(lookat: torch.Tensor, up: torch.Tensor, pos: torch.Tensor) -> TensorType[...]:
+def viewmatrix(lookat: torch.Tensor, up: torch.Tensor, pos: torch.Tensor) -> Float[Tensor, "*batch"]:
     """Returns a camera transformation matrix.
 
     Args:
@@ -319,7 +320,7 @@ def get_distortion_params(
     k4: float = 0.0,
     p1: float = 0.0,
     p2: float = 0.0,
-) -> TensorType[...]:
+) -> Float[Tensor, "*batch"]:
     """Returns a distortion parameters matrix.
 
     Args:
@@ -442,7 +443,7 @@ def radial_and_tangential_undistort(
     return torch.stack([x, y], dim=-1)
 
 
-def rotation_matrix(a: TensorType[3], b: TensorType[3]) -> TensorType[3, 3]:
+def rotation_matrix(a: Float[Tensor, "3"], b: Float[Tensor, "3"]) -> Float[Tensor, "3 3"]:
     """Compute the rotation matrix that rotates vector a to vector b.
 
     Args:
@@ -470,7 +471,7 @@ def rotation_matrix(a: TensorType[3], b: TensorType[3]) -> TensorType[3, 3]:
     return torch.eye(3) + skew_sym_mat + skew_sym_mat @ skew_sym_mat * ((1 - c) / (s**2 + 1e-8))
 
 
-def focus_of_attention(poses: TensorType["num_poses":..., 4, 4], initial_focus: TensorType[3]) -> TensorType[3]:
+def focus_of_attention(poses: Float[Tensor, "*num_poses 4 4"], initial_focus: Float[Tensor, "3"]) -> Float[Tensor, "3"]:
     """Compute the focus of attention of a set of cameras. Only cameras
     that have the focus of attention in front of them are considered.
 
@@ -509,10 +510,10 @@ def focus_of_attention(poses: TensorType["num_poses":..., 4, 4], initial_focus: 
 
 
 def auto_orient_and_center_poses(
-    poses: TensorType["num_poses":..., 4, 4],
+    poses: Float[Tensor, "*num_poses 4 4"],
     method: Literal["pca", "up", "vertical", "none"] = "up",
     center_method: Literal["poses", "focus", "none"] = "poses",
-) -> Tuple[TensorType["num_poses":..., 3, 4], TensorType[3, 4]]:
+) -> Tuple[Float[Tensor, "*num_poses 3 4"], Float[Tensor, "3 4"]]:
     """Orients and centers the poses. We provide two methods for orientation: pca and up.
 
     pca: Orient the poses so that the principal directions of the camera centers are aligned

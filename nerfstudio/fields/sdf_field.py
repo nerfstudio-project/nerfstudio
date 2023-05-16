@@ -23,9 +23,9 @@ from typing import Dict, Literal, Optional, Type
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch import nn
+from jaxtyping import Float
+from torch import Tensor, nn
 from torch.nn.parameter import Parameter
-from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.field_components.embedding import Embedding
@@ -52,11 +52,11 @@ class LearnedVariance(nn.Module):
         super().__init__()
         self.register_parameter("variance", nn.Parameter(init_val * torch.ones(1), requires_grad=True))
 
-    def forward(self, x: TensorType[1]) -> TensorType[1]:
+    def forward(self, x: Float[Tensor, "1"]) -> Float[Tensor, "1"]:
         """Returns current variance value"""
         return torch.ones([len(x), 1], device=x.device) * torch.exp(self.variance * 10.0)
 
-    def get_variance(self) -> TensorType[1]:
+    def get_variance(self) -> Float[Tensor, "1"]:
         """return current variance value"""
         return torch.exp(self.variance * 10.0).clip(1e-6, 1e6)
 
@@ -128,7 +128,7 @@ class SDFField(Field):
     def __init__(
         self,
         config: SDFFieldConfig,
-        aabb: TensorType[2, 3],
+        aabb: Float[Tensor, "2 3"],
         num_images: int,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
@@ -252,7 +252,7 @@ class SDFField(Field):
         """Set the anneal value for the proposal network."""
         self._cos_anneal_ratio = anneal
 
-    def forward_geonetwork(self, inputs: TensorType[..., 3]) -> TensorType[..., "geo-features+1"]:
+    def forward_geonetwork(self, inputs: Float[Tensor, "*batch 3"]) -> Float[Tensor, "*batch geo_features+1"]:
         """forward the geonetwork"""
         if self.use_grid_feature:
             positions = self.spatial_distortion(inputs)
@@ -281,7 +281,8 @@ class SDFField(Field):
                 outputs = self.softplus(outputs)
         return outputs
 
-    def get_sdf(self, ray_samples: RaySamples) -> TensorType["num_samples", -1, 1]:
+    # TODO: fix ... in shape annotations.
+    def get_sdf(self, ray_samples: RaySamples) -> Float[Tensor, "num_samples ... 1"]:
         """predict the sdf value for ray samples"""
         positions = ray_samples.frustums.get_start_positions()
         positions_flat = positions.view(-1, 3)
@@ -292,9 +293,9 @@ class SDFField(Field):
     def get_alpha(
         self,
         ray_samples: RaySamples,
-        sdf: Optional[TensorType["num_samples", -1, 1]] = None,
-        gradients: Optional[TensorType["num_samples", -1, 1]] = None,
-    ) -> TensorType["num_samples", -1, 1]:
+        sdf: Optional[Float[Tensor, "num_samples ... 1"]] = None,
+        gradients: Optional[Float[Tensor, "num_samples ... 1"]] = None,
+    ) -> Float[Tensor, "num_samples ... 1"]:
         """compute alpha from sdf as in NeuS"""
         if sdf is None or gradients is None:
             inputs = ray_samples.frustums.get_start_positions()
@@ -344,12 +345,12 @@ class SDFField(Field):
 
     def get_colors(
         self,
-        points: TensorType[..., 3],
-        directions: TensorType[..., 3],
-        normals: TensorType[..., 3],
-        geo_features: TensorType[..., "geo-feat-dim"],
-        camera_indices: TensorType,
-    ) -> TensorType[..., 3]:
+        points: Float[Tensor, "*batch 3"],
+        directions: Float[Tensor, "*batch 3"],
+        normals: Float[Tensor, "*batch 3"],
+        geo_features: Float[Tensor, "*batch geo_feat_dim"],
+        camera_indices: Tensor,
+    ) -> Float[Tensor, "*batch 3"]:
         """compute colors"""
         d = self.direction_encoding(directions)
 
@@ -395,9 +396,9 @@ class SDFField(Field):
     def get_outputs(
         self,
         ray_samples: RaySamples,
-        density_embedding: Optional[TensorType] = None,
+        density_embedding: Optional[Tensor] = None,
         return_alphas: bool = False,
-    ) -> Dict[FieldHeadNames, TensorType]:
+    ) -> Dict[FieldHeadNames, Tensor]:
         """compute output of ray samples"""
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
@@ -445,7 +446,7 @@ class SDFField(Field):
 
     def forward(
         self, ray_samples: RaySamples, compute_normals: bool = False, return_alphas: bool = False
-    ) -> Dict[FieldHeadNames, TensorType]:
+    ) -> Dict[FieldHeadNames, Tensor]:
         """Evaluates the field at points along the ray.
 
         Args:

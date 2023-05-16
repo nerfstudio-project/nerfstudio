@@ -21,16 +21,13 @@ import os
 import socket
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import Optional, Tuple
 
 import torch
 
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.models.base_model import Model
 from nerfstudio.utils.io import load_from_json
-
-if TYPE_CHECKING:
-    from nerfstudio.engine.trainer import Trainer
 
 
 def get_viewer_version() -> str:

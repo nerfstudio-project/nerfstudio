@@ -18,8 +18,8 @@ from typing import Optional, Union
 
 import torch
 from functorch import jacrev, vmap
-from torch import nn
-from torchtyping import TensorType
+from jaxtyping import Float
+from torch import Tensor, nn
 
 from nerfstudio.utils.math import Gaussians
 
@@ -27,9 +27,7 @@ from nerfstudio.utils.math import Gaussians
 class SpatialDistortion(nn.Module):
     """Apply spatial distortions"""
 
-    def forward(
-        self, positions: Union[TensorType["bs":..., 3], Gaussians]
-    ) -> Union[TensorType["bs":..., 3], Gaussians]:
+    def forward(self, positions: Union[Float[Tensor, "*bs 3"], Gaussians]) -> Union[Float[Tensor, "*bs 3"], Gaussians]:
         """
         Args:
             positions: Sample to distort
@@ -71,10 +69,12 @@ class SceneContraction(SpatialDistortion):
         if isinstance(positions, Gaussians):
             means = contract(positions.mean.clone())
 
-            contract = lambda x: (2 - (1 / torch.linalg.norm(x, ord=self.order, dim=-1, keepdim=True))) * (
-                x / torch.linalg.norm(x, ord=self.order, dim=-1, keepdim=True)
-            )
-            jc_means = vmap(jacrev(contract))(positions.mean.view(-1, positions.mean.shape[-1]))
+            def contract_gauss(x):
+                return (2 - 1 / torch.linalg.norm(x, ord=self.order, dim=-1, keepdim=True)) * (
+                    x / torch.linalg.norm(x, ord=self.order, dim=-1, keepdim=True)
+                )
+
+            jc_means = vmap(jacrev(contract_gauss))(positions.mean.view(-1, positions.mean.shape[-1]))
             jc_means = jc_means.view(list(positions.mean.shape) + [positions.mean.shape[-1]])
 
             # Only update covariances on positions outside the unit sphere

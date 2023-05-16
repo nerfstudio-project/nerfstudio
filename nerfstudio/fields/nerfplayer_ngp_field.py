@@ -20,8 +20,9 @@ NeRFPlayer (https://arxiv.org/abs/2210.15947) field implementations with Instant
 from typing import Dict, Optional, Tuple
 
 import torch
+from jaxtyping import Float
+from torch import Tensor
 from torch.nn.parameter import Parameter
-from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import Frustums, RaySamples
 from nerfstudio.data.scene_box import SceneBox
@@ -70,7 +71,7 @@ class NerfplayerNGPField(Field):
 
     def __init__(
         self,
-        aabb: TensorType,
+        aabb: Tensor,
         temporal_dim: int = 16,
         num_levels: int = 16,
         features_per_level: int = 2,
@@ -146,7 +147,7 @@ class NerfplayerNGPField(Field):
             },
         )
 
-    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         if self.spatial_distortion is not None:
             positions = ray_samples.frustums.get_positions()
             positions = self.spatial_distortion(positions)
@@ -172,8 +173,8 @@ class NerfplayerNGPField(Field):
         return density, base_mlp_out
 
     def get_outputs(
-        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
-    ) -> Dict[FieldHeadNames, TensorType]:
+        self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None
+    ) -> Dict[FieldHeadNames, Tensor]:
         assert density_embedding is not None
         directions = shift_directions_for_tcnn(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
@@ -201,7 +202,7 @@ class NerfplayerNGPField(Field):
         return {FieldHeadNames.RGB: rgb}
 
     # pylint: disable=arguments-differ
-    def density_fn(self, positions: TensorType["bs":..., 3], times: TensorType["bs":..., 1]) -> TensorType["bs":..., 1]:
+    def density_fn(self, positions: Float[Tensor, "*bs 3"], times: Float[Tensor, "*bs 1"]) -> Float[Tensor, "*bs 1"]:
         """Returns only the density. Used primarily with the density grid.
         Overwrite this function since density is time dependent now.
 
@@ -222,7 +223,7 @@ class NerfplayerNGPField(Field):
         density, _ = self.get_density(ray_samples)
         return density
 
-    def get_opacity(self, positions: TensorType["bs":..., 3], step_size, time_intervals=10) -> TensorType["bs":..., 1]:
+    def get_opacity(self, positions: Float[Tensor, "*bs 3"], step_size, time_intervals=10) -> Float[Tensor, "*bs 1"]:
         """Returns the opacity for a position and time. Used primarily by the occupancy grid.
         This will return the maximum opacity of the points in the space in a dynamic sequence.
 

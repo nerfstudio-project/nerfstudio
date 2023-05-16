@@ -45,7 +45,7 @@ class HashMLPDensityField(Field):
 
     def __init__(
         self,
-        aabb: TensorType,
+        aabb: Tensor,
         num_layers: int = 2,
         hidden_dim: int = 64,
         spatial_distortion: Optional[SpatialDistortion] = None,
@@ -89,7 +89,7 @@ class HashMLPDensityField(Field):
         else:
             self.linear = torch.nn.Linear(self.encoding.get_out_dim(), 1)
 
-    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, None]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, None]:
         if self.spatial_distortion is not None:
             positions = self.spatial_distortion(ray_samples.frustums.get_positions())
             positions = (positions + 2.0) / 4.0
@@ -114,5 +114,5 @@ class HashMLPDensityField(Field):
         density = density * selector[..., None]
         return density, None
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None) -> dict:
+    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None) -> dict:
         return {}

@@ -18,8 +18,8 @@ Multi Layer Perceptron
 from typing import Literal, Optional, Set, Tuple
 
 import torch
-from torch import nn
-from torchtyping import TensorType
+from jaxtyping import Float
+from torch import Tensor, nn
 
 from nerfstudio.field_components.base_field_component import FieldComponent
 from nerfstudio.utils.printing import print_tcnn_speed_warning
