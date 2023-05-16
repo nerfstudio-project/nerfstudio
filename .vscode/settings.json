@@ -24,25 +24,19 @@
   "typescript.suggestionActions.enabled": false,
   "javascript.suggestionActions.enabled": false,
   "[python]": {
-    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.defaultFormatter": "ms-python.python",
     "editor.codeActionsOnSave": {
       "source.organizeImports": true
     }
   },
   "editor.formatOnSave": true,
   "python.envFile": "${workspaceFolder}/.env",
-  "python.formatting.provider": "none",
-  "python.formatting.blackArgs": [
-    "--line-length=120"
-  ],
+  "python.formatting.provider": "black",
+  "python.formatting.blackArgs": ["--line-length=120"],
   "python.linting.pylintEnabled": true,
   "python.linting.flake8Enabled": false,
   "python.linting.enabled": true,
-  "python.sortImports.args": [
-    "--src=${workspaceFolder}",
-    "--profile",
-    "black"
-  ],
+  "python.sortImports.args": ["--src=${workspaceFolder}", "--profile", "black"],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
   "python.linting.ignorePatterns": [
