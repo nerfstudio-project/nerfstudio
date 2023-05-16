@@ -167,6 +167,7 @@ class ViewerSlider(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
         step: The step size of the slider
         disabled: If the slider is disabled
         cb_hook: Callback to call on update
+        hint: The hint text
     """
 
     def __init__(
@@ -178,16 +179,20 @@ class ViewerSlider(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
         step: IntOrFloat = 0.1,
         disabled: bool = False,
         cb_hook: Callable[[ViewerSlider], Any] = lambda element: None,
+        hint: Optional[str] = None,
     ):
         assert isinstance(default_value, (float, int))
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
         self.min = min_value
         self.max = max_value
         self.step = step
+        self.hint = hint
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_slider(self.name, self.min, self.max, self.step, self.default_value)
+        self.gui_handle = viser_server.add_gui_slider(
+            self.name, self.min, self.max, self.step, self.default_value, hint=self.hint
+        )
         self.gui_handle.set_disabled(self.disabled)
 
 
@@ -199,6 +204,7 @@ class ViewerText(ViewerParameter[str]):
         default_value: The default value of the text field
         disabled: If the text field is disabled
         cb_hook: Callback to call on update
+        hint: The hint text
     """
 
     def __init__(
@@ -207,13 +213,15 @@ class ViewerText(ViewerParameter[str]):
         default_value: str,
         disabled: bool = False,
         cb_hook: Callable[[ViewerText], Any] = lambda element: None,
+        hint: Optional[str] = None,
     ):
         assert isinstance(default_value, str)
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
+        self.hint = hint
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_text(self.name, self.default_value)
+        self.gui_handle = viser_server.add_gui_text(self.name, self.default_value, hint=self.hint)
         self.gui_handle.set_disabled(self.disabled)
 
 
@@ -225,6 +233,7 @@ class ViewerNumber(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
         default_value: The default value of the number field
         disabled: If the number field is disabled
         cb_hook: Callback to call on update
+        hint: The hint text
     """
 
     default_value: IntOrFloat
@@ -235,13 +244,15 @@ class ViewerNumber(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
         default_value: IntOrFloat,
         disabled: bool = False,
         cb_hook: Callable[[ViewerNumber], Any] = lambda element: None,
+        hint: Optional[str] = None,
     ):
         assert isinstance(default_value, (float, int))
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
+        self.hint = hint
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_number(self.name, self.default_value)
+        self.gui_handle = viser_server.add_gui_number(self.name, self.default_value, hint=self.hint)
 
 
 class ViewerCheckbox(ViewerParameter[bool]):
@@ -252,6 +263,7 @@ class ViewerCheckbox(ViewerParameter[bool]):
         default_value: The default value of the checkbox
         disabled: If the checkbox is disabled
         cb_hook: Callback to call on update
+        hint: The hint text
     """
 
     def __init__(
@@ -260,13 +272,15 @@ class ViewerCheckbox(ViewerParameter[bool]):
         default_value: bool,
         disabled: bool = False,
         cb_hook: Callable[[ViewerCheckbox], Any] = lambda element: None,
+        hint: Optional[str] = None,
     ):
         assert isinstance(default_value, bool)
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
+        self.hint = hint
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_checkbox(self.name, self.default_value)
+        self.gui_handle = viser_server.add_gui_checkbox(self.name, self.default_value, hint=self.hint)
         self.gui_handle.set_disabled(self.disabled)
 
 
@@ -282,6 +296,7 @@ class ViewerDropdown(ViewerParameter[TString], Generic[TString]):
         options: The options of the dropdown
         disabled: If the dropdown is disabled
         cb_hook: Callback to call on update
+        hint: The hint text
     """
 
     gui_handle: Optional[GuiSelectHandle[str]]
@@ -293,14 +308,16 @@ class ViewerDropdown(ViewerParameter[TString], Generic[TString]):
         options: List[TString],
         disabled: bool = False,
         cb_hook: Callable[[ViewerDropdown], Any] = lambda element: None,
+        hint: Optional[str] = None,
     ):
         assert default_value in options
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
         self.options = options
+        self.hint = hint
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_select(self.name, self.options, self.default_value)
+        self.gui_handle = viser_server.add_gui_select(self.name, self.options, self.default_value, hint=self.hint)
         self.gui_handle.set_disabled(self.disabled)
 
     def set_options(self, new_options: List[str]) -> None:
@@ -347,6 +364,13 @@ class ViewerButtonGroup(ViewerParameter[TString], Generic[TString]):
 class ViewerRGB(ViewerParameter[Tuple[int, int, int]]):
     """
     An RGB color picker for the viewer
+
+    Args:
+        name: The name of the color picker
+        default_value: The default value of the color picker
+        disabled: If the color picker is disabled
+        cb_hook: Callback to call on update
+        hint: The hint text
     """
 
     def __init__(
@@ -355,18 +379,28 @@ class ViewerRGB(ViewerParameter[Tuple[int, int, int]]):
         default_value: Tuple[int, int, int],
         disabled=False,
         cb_hook: Callable[[ViewerRGB], Any] = lambda element: None,
+        hint: Optional[str] = None,
     ):
         assert len(default_value) == 3
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
+        self.hint = hint
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        self.gui_handle = viser_server.add_gui_rgb(self.name, self.default_value)
+        self.gui_handle = viser_server.add_gui_rgb(self.name, self.default_value, hint=self.hint)
         self.gui_handle.set_disabled(self.disabled)
 
 
 class ViewerVec3(ViewerParameter[Tuple[float, float, float]]):
     """
     3 number boxes in a row to input a vector
+
+    Args:
+        name: The name of the vector
+        default_value: The default value of the vector
+        step: The step of the vector
+        disabled: If the vector is disabled
+        cb_hook: Callback to call on update
+        hint: The hint text
     """
 
     def __init__(
@@ -376,11 +410,13 @@ class ViewerVec3(ViewerParameter[Tuple[float, float, float]]):
         step=0.1,
         disabled=False,
         cb_hook: Callable[[ViewerVec3], Any] = lambda element: None,
+        hint: Optional[str] = None,
     ):
         assert len(default_value) == 3
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
         self.step = step
+        self.hint = hint
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        self.gui_handle = viser_server.add_gui_vector3(self.name, self.default_value, self.step)
+        self.gui_handle = viser_server.add_gui_vector3(self.name, self.default_value, self.step, hint=self.hint)
         self.gui_handle.set_disabled(self.disabled)
