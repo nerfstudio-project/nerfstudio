@@ -21,11 +21,19 @@ from typing import Literal, Optional, Tuple
 
 import numpy as np
 import torch
+from torch import nn
 from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
+from nerfstudio.field_components.encodings import (
+    Encoding,
+    HashEncoding,
+    NeRFEncoding,
+    SHEncoding,
+)
+from nerfstudio.field_components.mlp import MLP
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.base_field import Field
 
@@ -53,57 +61,39 @@ class HashMLPDensityField(Field):
         base_res: int = 16,
         log2_hashmap_size: int = 18,
         features_per_level: int = 2,
-        implementation: Literal["pytorch", "nvidia", "graphcore"] = "nvidia",
+        implementation: Literal["tcnn", "torch"] = "tcnn",
     ) -> None:
         super().__init__()
         self.register_buffer("aabb", aabb)
         self.spatial_distortion = spatial_distortion
         self.use_linear = use_linear
-        growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
         self.register_buffer("max_res", torch.tensor(max_res))
         self.register_buffer("num_levels", torch.tensor(num_levels))
         self.register_buffer("log2_hashmap_size", torch.tensor(log2_hashmap_size))
 
-        config = {
-            "encoding": {
-                "otype": "HashGrid",
-                "n_levels": num_levels,
-                "n_features_per_level": features_per_level,
-                "log2_hashmap_size": log2_hashmap_size,
-                "base_resolution": base_res,
-                "per_level_scale": growth_factor,
-            },
-            "network": {
-                "otype": "FullyFusedMLP",
-                "activation": "ReLU",
-                "output_activation": "None",
-                "n_neurons": hidden_dim,
-                "n_hidden_layers": num_layers - 1,
-            },
-        }
-
-        if implementation == "pytorch":
-            import nerfstudio.fields.tinytorchnn as ttnn
-
-            self.tiny_api = ttnn
-        elif implementation == "nvidia":
-            import tinycudann as tcnn
-
-            self.tiny_api = tcnn
-        elif implementation == "graphcore":
-            raise NotImplementedError("Graphcore mode not implemented yet")
+        self.encoding = HashEncoding(
+            num_levels=num_levels,
+            min_res=base_res,
+            max_res=max_res,
+            log2_hashmap_size=log2_hashmap_size,
+            features_per_level=features_per_level,
+            implementation=implementation,
+        )
 
         if not self.use_linear:
-            self.mlp_base = self.tiny_api.NetworkWithInputEncoding(
-                n_input_dims=3,
-                n_output_dims=1,
-                encoding_config=config["encoding"],
-                network_config=config["network"],
+            network = MLP(
+                in_dim=self.encoding.get_out_dim(),
+                num_layers=num_layers,
+                layer_width=hidden_dim,
+                out_dim=1,
+                activation=nn.ReLU(),
+                out_activation=None,
+                implementation=implementation,
             )
+            self.mlp_base = torch.nn.Sequential(self.encoding, network)
         else:
-            self.encoding = self.tiny_api.Encoding(n_input_dims=3, encoding_config=config["encoding"])
-            self.linear = torch.nn.Linear(self.encoding.n_output_dims, 1)
+            self.linear = torch.nn.Linear(self.encoding.get_out_dim(), 1)
 
     def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, None]:
         if self.spatial_distortion is not None:

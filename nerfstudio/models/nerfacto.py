@@ -130,7 +130,7 @@ class NerfactoModelConfig(ModelConfig):
     """Whether to disable scene contraction or not."""
     use_gradient_scaling: bool = False
     """Use gradient scaler where the gradients are lower for points closer to the camera."""
-    implementation: Literal["pytorch", "nvidia", "graphcore"] = "nvidia"
+    implementation: Literal["tcnn", "torch"] = ("tcnn",)
     """Which implementation to use for the model."""
 
 
@@ -175,7 +175,12 @@ class NerfactoModel(Model):
         if self.config.use_same_proposal_network:
             assert len(self.config.proposal_net_args_list) == 1, "Only one proposal network is allowed."
             prop_net_args = self.config.proposal_net_args_list[0]
-            network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction, **prop_net_args)
+            network = HashMLPDensityField(
+                self.scene_box.aabb,
+                spatial_distortion=scene_contraction,
+                **prop_net_args,
+                implementation=self.config.implementation,
+            )
             self.proposal_networks.append(network)
             self.density_fns.extend([network.density_fn for _ in range(num_prop_nets)])
         else:
