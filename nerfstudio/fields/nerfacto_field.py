@@ -17,7 +17,7 @@ Field for compound nerf model, adds scene contraction and image embeddings to in
 """
 
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, Literal, Optional, Tuple
 
 import numpy as np
 import torch
@@ -48,14 +48,8 @@ from nerfstudio.field_components.spatial_distortions import (
 )
 from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
 
-try:
-    import tinycudann as tcnn
-except ImportError:
-    # tinycudann module doesn't exist
-    pass
 
-
-class TCNNNerfactoField(Field):
+class NerfactoField(Field):
     """Compound Field that uses TCNN
 
     Args:
@@ -104,6 +98,7 @@ class TCNNNerfactoField(Field):
         use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
+        implementation: Literal["pytorch", "nvidia", "graphcore"] = "nvidia",
     ) -> None:
         super().__init__()
 
@@ -128,7 +123,18 @@ class TCNNNerfactoField(Field):
         features_per_level: int = 2
         growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
-        self.direction_encoding = tcnn.Encoding(
+        if implementation == "pytorch":
+            import nerfstudio.fields.tinytorchnn as ttnn
+
+            self.tiny_api = ttnn
+        elif implementation == "nvidia":
+            import tinycudann as tcnn
+
+            self.tiny_api = tcnn
+        elif implementation == "graphcore":
+            raise NotImplementedError("Graphcore mode not implemented yet")
+
+        self.direction_encoding = self.tiny_api.Encoding(
             n_input_dims=3,
             encoding_config={
                 "otype": "SphericalHarmonics",
@@ -136,12 +142,12 @@ class TCNNNerfactoField(Field):
             },
         )
 
-        self.position_encoding = tcnn.Encoding(
+        self.position_encoding = self.tiny_api.Encoding(
             n_input_dims=3,
             encoding_config={"otype": "Frequency", "n_frequencies": 2},
         )
 
-        self.mlp_base = tcnn.NetworkWithInputEncoding(
+        self.mlp_base = self.tiny_api.NetworkWithInputEncoding(
             n_input_dims=3,
             n_output_dims=1 + self.geo_feat_dim,
             encoding_config={
@@ -165,7 +171,7 @@ class TCNNNerfactoField(Field):
         if self.use_transient_embedding:
             self.transient_embedding_dim = transient_embedding_dim
             self.embedding_transient = Embedding(self.num_images, self.transient_embedding_dim)
-            self.mlp_transient = tcnn.Network(
+            self.mlp_transient = self.tiny_api.Network(
                 n_input_dims=self.geo_feat_dim + self.transient_embedding_dim,
                 n_output_dims=hidden_dim_transient,
                 network_config={
@@ -182,7 +188,7 @@ class TCNNNerfactoField(Field):
 
         # semantics
         if self.use_semantics:
-            self.mlp_semantics = tcnn.Network(
+            self.mlp_semantics = self.tiny_api.Network(
                 n_input_dims=self.geo_feat_dim,
                 n_output_dims=hidden_dim_transient,
                 network_config={
@@ -199,7 +205,7 @@ class TCNNNerfactoField(Field):
 
         # predicted normals
         if self.use_pred_normals:
-            self.mlp_pred_normals = tcnn.Network(
+            self.mlp_pred_normals = self.tiny_api.Network(
                 n_input_dims=self.geo_feat_dim + self.position_encoding.n_output_dims,
                 n_output_dims=hidden_dim_transient,
                 network_config={
@@ -212,7 +218,7 @@ class TCNNNerfactoField(Field):
             )
             self.field_head_pred_normals = PredNormalsFieldHead(in_dim=self.mlp_pred_normals.n_output_dims)
 
-        self.mlp_head = tcnn.Network(
+        self.mlp_head = self.tiny_api.Network(
             n_input_dims=self.direction_encoding.n_output_dims + self.geo_feat_dim + self.appearance_embedding_dim,
             n_output_dims=3,
             network_config={
@@ -421,4 +427,4 @@ class TorchNerfactoField(Field):
         return outputs
 
 
-field_implementation_to_class: Dict[str, Field] = {"tcnn": TCNNNerfactoField, "torch": TorchNerfactoField}
+field_implementation_to_class: Dict[str, Field] = {"tcnn": NerfactoField, "torch": TorchNerfactoField}

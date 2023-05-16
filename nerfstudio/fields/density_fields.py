@@ -17,7 +17,7 @@ Proposal network field.
 """
 
 
-from typing import Optional, Tuple
+from typing import Literal, Optional, Tuple
 
 import numpy as np
 import torch
@@ -28,12 +28,6 @@ from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.base_field import Field
-
-try:
-    import tinycudann as tcnn
-except ImportError:
-    # tinycudann module doesn't exist
-    pass
 
 
 class HashMLPDensityField(Field):
@@ -59,6 +53,7 @@ class HashMLPDensityField(Field):
         base_res: int = 16,
         log2_hashmap_size: int = 18,
         features_per_level: int = 2,
+        implementation: Literal["pytorch", "nvidia", "graphcore"] = "nvidia",
     ) -> None:
         super().__init__()
         self.register_buffer("aabb", aabb)
@@ -88,15 +83,26 @@ class HashMLPDensityField(Field):
             },
         }
 
+        if implementation == "pytorch":
+            import nerfstudio.fields.tinytorchnn as ttnn
+
+            self.tiny_api = ttnn
+        elif implementation == "nvidia":
+            import tinycudann as tcnn
+
+            self.tiny_api = tcnn
+        elif implementation == "graphcore":
+            raise NotImplementedError("Graphcore mode not implemented yet")
+
         if not self.use_linear:
-            self.mlp_base = tcnn.NetworkWithInputEncoding(
+            self.mlp_base = self.tiny_api.NetworkWithInputEncoding(
                 n_input_dims=3,
                 n_output_dims=1,
                 encoding_config=config["encoding"],
                 network_config=config["network"],
             )
         else:
-            self.encoding = tcnn.Encoding(n_input_dims=3, encoding_config=config["encoding"])
+            self.encoding = self.tiny_api.Encoding(n_input_dims=3, encoding_config=config["encoding"])
             self.linear = torch.nn.Linear(self.encoding.n_output_dims, 1)
 
     def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, None]:
