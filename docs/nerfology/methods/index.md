@@ -26,14 +26,14 @@ The following methods are supported in nerfstudio:
 
 ```{toctree}
     :maxdepth: 1
-    NeRF<nerf.md>
-    Mip-NeRF<mipnerf.md>
-    Nerfacto<nerfacto.md>
     Instant-NGP<instant_ngp.md>
     Instruct-NeRF2NeRF<in2n.md>
     LERF<lerf.md>
-    Semantic NeRF-W<semantic_nerfw.md>
-    Tetra-NeRF <tetranerf.md>
+    Mip-NeRF<mipnerf.md>
+    NeRF<nerf.md>
+    Nerfacto<nerfacto.md>
+    Tetra-NeRF<tetranerf.md>
+    TensoRF<tensorf.md>
 ```
 
 (own_method_docs)=
@@ -42,7 +42,13 @@ The following methods are supported in nerfstudio:
 
 If you're a researcher looking to develop new NeRF-related methods, we hope that you find nerfstudio to be a useful tool. We've provided documentation about integrating with the nerfstudio codebase, which you can find [here](../../developer_guides/new_methods.md).
 
-We also welcome additions to the list of methods above. To do this, simply create a pull request that adds a markdown file describing the model to the docs/nerfology/methods folder, and update the list in this file. For reference on the layout, you can check out the [Instruct-NeRF2NeRF](in2n) page. Please try to include the following information:
+We also welcome additions to the list of methods above. To do this, simply create a pull request with the following changes,
+
+1. Add a markdown file describing the model to the `docs/nerfology/methods` folder
+2. Update the above list of implement methods in this file.
+3. Add the method to the {ref}`this<third_party_methods>` list in `docs/index.md`.
+
+For the method description, please refer to the [Instruct-NeRF2NeRF](in2n) page as an example of the layout. Please try to include the following information:
 
 - Installation instructions
 - Instructions for running the method

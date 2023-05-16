@@ -251,7 +251,9 @@ class Trainer:
                 if step > 1:
                     writer.put_time(
                         name=EventName.TRAIN_RAYS_PER_SEC,
-                        duration=self.pipeline.datamanager.get_train_rays_per_batch() / train_t.duration,
+                        duration=self.world_size
+                        * self.pipeline.datamanager.get_train_rays_per_batch()
+                        / train_t.duration,
                         step=step,
                         avg_over_steps=True,
                     )
@@ -365,7 +367,7 @@ class Trainer:
         train_num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
         writer.put_time(
             name=EventName.TRAIN_RAYS_PER_SEC,
-            duration=train_num_rays_per_batch / (train_t.duration - vis_t.duration),
+            duration=self.world_size * train_num_rays_per_batch / (train_t.duration - vis_t.duration),
             step=step,
             avg_over_steps=True,
         )
