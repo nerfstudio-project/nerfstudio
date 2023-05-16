@@ -626,7 +626,9 @@ all_methods, all_descriptions = merge_methods(all_methods, all_descriptions, *di
 all_methods, all_descriptions = sort_methods(all_methods, all_descriptions)
 
 # Register all possible external methods which can be installed with Nerfstudio
-all_methods, all_descriptions = merge_methods(all_methods, all_descriptions, *sort_methods(*get_external_methods()))
+all_methods, all_descriptions = merge_methods(
+    all_methods, all_descriptions, *sort_methods(*get_external_methods()), overwrite=False
+)
 
 AnnotatedBaseConfigUnion = tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
     tyro.conf.FlagConversionOff[

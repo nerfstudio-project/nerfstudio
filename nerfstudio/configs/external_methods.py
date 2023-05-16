@@ -18,7 +18,7 @@
 import subprocess
 import sys
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Tuple, cast
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 from rich.prompt import Confirm
 
@@ -30,89 +30,61 @@ from nerfstudio.utils.rich_utils import CONSOLE
 class ExternalMethod:
     """External method class. Represents a link to a nerfstudio-compatible method not included in this repository."""
 
-    slug: str
-    model_description: str
     instructions: str
-    install_commands: Optional[str] = None
+    configurations: List[Tuple[str, str]]
+    pip_package: Optional[str] = None
 
 
-pip = f"{sys.executable} -m pip"
 external_methods = []
 
 # Instruct-NeRF2NeRF
-in2n_install_instructions = """
-[bold yellow]Instruct-NeRF2NeRF[/bold yellow]
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]Instruct-NeRF2NeRF[/bold yellow]
 For more information visit: https://docs.nerf.studio/en/latest/nerfology/methods/in2n.html
 
 To enable Instruct-NeRF2NeRF, you must install it first by running:
-  [grey]pip install git+https://github.com/ayaanzhaque/instruct-nerf2nerf[/grey]
-""".strip()
-in2n_install_script = f"""{pip} install git+https://github.com/ayaanzhaque/instruct-nerf2nerf"""
-external_methods.extend(
-    [
-        ExternalMethod(
-            "in2n", "Instruct-NeRF2NeRF. Full model, used in paper", in2n_install_instructions, in2n_install_script
-        ),
-        ExternalMethod(
-            "in2n-small", "Instruct-NeRF2NeRF. Half precision model", in2n_install_instructions, in2n_install_script
-        ),
-        ExternalMethod(
-            "in2n-tiny",
-            "Instruct-NeRF2NeRF. Half prevision with no LPIPS",
-            in2n_install_instructions,
-            in2n_install_script,
-        ),
-        ExternalMethod(
-            "in2n-tiny",
-            "Instruct-NeRF2NeRF. Half prevision with no LPIPS",
-            in2n_install_instructions,
-            in2n_install_script,
-        ),
-    ]
+  [grey]pip install git+https://github.com/ayaanzhaque/instruct-nerf2nerf[/grey]""",
+        configurations=[
+            ("in2n", "Instruct-NeRF2NeRF. Full model, used in paper"),
+            ("in2n-small", "Instruct-NeRF2NeRF. Half precision model"),
+            ("in2n-tiny", "Instruct-NeRF2NeRF. Half prevision with no LPIPS"),
+        ],
+        pip_package="git+https://github.com/ayaanzhaque/instruct-nerf2nerf",
+    )
 )
 
+
 # LERF
-lerf_install_instructions = """
-[bold yellow]LERF[/bold yellow]
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]LERF[/bold yellow]
 For more information visit: https://docs.nerf.studio/en/latest/nerfology/methods/lerf.html
 
 To enable LERF, you must install it first by running:
-  [grey]pip install git+https://github.com/kerrj/lerf[/grey]
-""".strip()
-lerf_install_script = f"""{pip} install git+https://github.com/kerrj/lerf"""
-external_methods.extend(
-    [
-        ExternalMethod("lerf-big", "LERF with OpenCLIP ViT-L/14", lerf_install_instructions, lerf_install_script),
-        ExternalMethod(
-            "lerf", "LERF with OpenCLIP ViT-B/16, used in paper", lerf_install_instructions, lerf_install_script
-        ),
-        ExternalMethod(
-            "lerf-lite",
-            "LERF with smaller network and less LERF samples",
-            lerf_install_instructions,
-            lerf_install_script,
-        ),
-    ]
+  [grey]pip install git+https://github.com/kerrj/lerf[/grey]""",
+        configurations=[
+            ("lerf-big", "LERF with OpenCLIP ViT-L/14"),
+            ("lerf", "LERF with OpenCLIP ViT-B/16, used in paper"),
+            ("lerf-lite", "LERF with smaller network and less LERF samples"),
+        ],
+        pip_package="git+https://github.com/kerrj/lerf",
+    )
 )
 
-
 # Tetra-NeRF
-tetranerf_install_instructions = """
-[bold yellow]Tetra-NeRF[/bold yellow]
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]Tetra-NeRF[/bold yellow]
 For more information visit: https://docs.nerf.studio/en/latest/nerfology/methods/tetranerf.html
 
 To enable Tetra-NeRF, you must install it first. Please follow the instructions here:
-  https://github.com/jkulhanek/tetra-nerf/blob/master/README.md#installation
-""".strip()
-external_methods.extend(
-    [
-        ExternalMethod(
-            "tetra-nerf-original", "Tetra-NeRF. Official implementation from the paper", tetranerf_install_instructions
-        ),
-        ExternalMethod(
-            "tetra-nerf", "Tetra-NeRF. Different sampler - faster and better", tetranerf_install_instructions
-        ),
-    ]
+  https://github.com/jkulhanek/tetra-nerf/blob/master/README.md#installation""",
+        configurations=[
+            ("tetra-nerf-original", "Tetra-NeRF. Official implementation from the paper"),
+            ("tetra-nerf", "Tetra-NeRF. Different sampler - faster and better"),
+        ],
+    )
 )
 
 
@@ -124,18 +96,16 @@ class ExternalMethodTrainerConfig(TrainerConfig):
 
     _method: ExternalMethod = field(default=cast(ExternalMethod, None))
 
-    def __post_init__(self):
-        self.method_name = self._method.slug
-
     def handle_print_information(self, *_args, **_kwargs):
         """Prints the method information and exits."""
         CONSOLE.print(self._method.instructions)
-        if self._method.install_commands and Confirm.ask(
+        if self._method.pip_package and Confirm.ask(
             "\nWould you like to run the install it now?", default=False, console=CONSOLE
         ):
             # Install the method
-            CONSOLE.print(f"Running: [cyan]{self._method.install_commands}[/cyan]")
-            result = subprocess.run(self._method.install_commands, shell=True, check=False)
+            install_command = f"{sys.executable} -m pip install {self._method.pip_package}"
+            CONSOLE.print(f"Running: [cyan]{install_command}[/cyan]")
+            result = subprocess.run(install_command, shell=True, check=False)
             if result.returncode != 0:
                 CONSOLE.print("[bold red]Error installing method.[/bold red]")
                 sys.exit(1)
@@ -155,6 +125,7 @@ def get_external_methods() -> Tuple[Dict[str, TrainerConfig], Dict[str, str]]:
     method_configs = {}
     descriptions = {}
     for external_method in external_methods:
-        method_configs[external_method.slug] = ExternalMethodTrainerConfig(_method=external_method)
-        descriptions[external_method.slug] = f"""[External] {external_method.model_description}"""
+        for config_slug, config_description in external_method.configurations:
+            method_configs[config_slug] = ExternalMethodTrainerConfig(method_name=config_slug, _method=external_method)
+            descriptions[config_slug] = f"""[External] {config_description}"""
     return method_configs, descriptions
