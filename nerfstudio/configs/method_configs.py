@@ -18,12 +18,14 @@ Put all the method implementations in one location.
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from typing import Dict
 
 import tyro
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import ViewerConfig
+from nerfstudio.configs.external_methods import get_external_methods
 from nerfstudio.data.datamanagers.base_datamanager import (
     VanillaDataManager,
     VanillaDataManagerConfig,
@@ -591,9 +593,42 @@ method_configs["neus-facto"] = TrainerConfig(
     vis="viewer",
 )
 
-external_methods, external_descriptions = discover_methods()
-all_methods = {**method_configs, **external_methods}
-all_descriptions = {**descriptions, **external_descriptions}
+
+def merge_methods(methods, method_descriptions, new_methods, new_descriptions, overwrite=True):
+    """Merge new methods and descriptions into existing methods and descriptions.
+    Args:
+        methods: Existing methods.
+        method_descriptions: Existing descriptions.
+        new_methods: New methods to merge in.
+        new_descriptions: New descriptions to merge in.
+    Returns:
+        Merged methods and descriptions.
+    """
+    methods = OrderedDict(**methods)
+    method_descriptions = OrderedDict(**method_descriptions)
+    for k, v in new_methods.items():
+        if overwrite or k not in methods:
+            methods[k] = v
+            method_descriptions[k] = new_descriptions.get(k, "")
+    return methods, method_descriptions
+
+
+def sort_methods(methods, method_descriptions):
+    """Sort methods and descriptions by method name."""
+    methods = OrderedDict(sorted(methods.items(), key=lambda x: x[0]))
+    method_descriptions = OrderedDict(sorted(method_descriptions.items(), key=lambda x: x[0]))
+    return methods, method_descriptions
+
+
+all_methods, all_descriptions = method_configs, descriptions
+# Add discovered external methods
+all_methods, all_descriptions = merge_methods(all_methods, all_descriptions, *discover_methods())
+all_methods, all_descriptions = sort_methods(all_methods, all_descriptions)
+
+# Register all possible external methods which can be installed with Nerfstudio
+all_methods, all_descriptions = merge_methods(
+    all_methods, all_descriptions, *sort_methods(*get_external_methods()), overwrite=False
+)
 
 AnnotatedBaseConfigUnion = tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
     tyro.conf.FlagConversionOff[
