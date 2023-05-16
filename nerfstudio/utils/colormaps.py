@@ -48,7 +48,10 @@ def apply_colormap(
     eps: float = 1e-9,
 ) -> TensorType["bs":..., "rgb":3]:
     """
-    Applies a colormap to a tensor image. Currently only supports 1 and 3 channel inputs
+    Applies a colormap to a tensor image.
+    If single channel, applies a colormap to the image.
+    If 3 channel, treats the channels as RGB.
+    If more than 3 channel, applies a PCA reduction on the dimensions to 3 channels
 
     Args:
         image: Input tensor image.
@@ -79,6 +82,9 @@ def apply_colormap(
     # rendering boolean outputs
     if image.dtype == torch.bool:
         return apply_boolean_colormap(image)
+
+    if image.shape[-1] > 3:
+        return apply_pca_colormap(image)
 
     raise NotImplementedError
 
@@ -164,3 +170,42 @@ def apply_boolean_colormap(
     colored_image[image[..., 0], :] = true_color
     colored_image[~image[..., 0], :] = false_color
     return colored_image
+
+
+def apply_pca_colormap(image: TensorType["bs":..., "dim"]) -> TensorType["bs":..., "rgb":3]:
+    """Convert feature image to 3-channel RGB via PCA. The first three principle
+    components are used for the color channels, with outlier rejection per-channel
+
+    Args:
+        image: image of arbitrary vectors
+
+    Returns:
+        TensorType: Colored image
+    """
+    original_shape = image.shape
+    image = image.view(-1, image.shape[-1])
+    _, _, v = torch.pca_lowrank(image)
+    image = torch.matmul(image, v[..., :3])
+    d = torch.abs(image - torch.median(image, dim=0).values)
+    mdev = torch.median(d, dim=0).values
+    s = d / mdev
+    m = 3.0  # this is a hyperparam controlling how many std dev outside for outliers
+    rins = image[s[:, 0] < m, 0]
+    gins = image[s[:, 1] < m, 1]
+    bins = image[s[:, 2] < m, 2]
+
+    image[:, 0] -= rins.min()
+    image[:, 1] -= gins.min()
+    image[:, 2] -= bins.min()
+
+    image[:, 0] /= rins.max() - rins.min()
+    image[:, 1] /= gins.max() - gins.min()
+    image[:, 2] /= bins.max() - bins.min()
+
+    image = torch.clamp(image, 0, 1)
+    image_long = (image * 255).long()
+    image_long_min = torch.min(image_long)
+    image_long_max = torch.max(image_long)
+    assert image_long_min >= 0, f"the min value is {image_long_min}"
+    assert image_long_max <= 255, f"the max value is {image_long_max}"
+    return image.view(*original_shape[:-1], 3)
