@@ -21,7 +21,7 @@ import os
 import socket
 import sys
 from pathlib import Path
-from typing import, Optional, Tuple
+from typing import Optional, Tuple
 
 import torch
 

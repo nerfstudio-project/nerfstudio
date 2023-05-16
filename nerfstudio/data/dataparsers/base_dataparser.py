@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Literal, Optional, Type
 
 import torch
 from jaxtyping import Shaped
+from torch import Tensor
 
 import nerfstudio.configs.base_config as cfg
 from nerfstudio.cameras.cameras import Cameras
@@ -39,7 +40,7 @@ class Semantics:
     """filenames to load semantic data"""
     classes: List[str]
     """class labels for data"""
-    colors: torch.Tensor
+    colors: Tensor
     """color mapping for classes"""
     mask_classes: List[str] = field(default_factory=lambda: [])
     """classes to mask out from training for all modalities"""
