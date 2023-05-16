@@ -499,7 +499,7 @@ class ScaleAndShiftInvariantLoss(nn.Module):
     prediction_ssi = property(__get_prediction_ssi)
 
 
-def tv_loss(grids: Float[Tensor, "grids feature_dim row column"]) -> Float[Tensor, "()"]:
+def tv_loss(grids: Float[Tensor, "grids feature_dim row column"]) -> Float[Tensor, ""]:
     """
     https://github.com/apchenstu/TensoRF/blob/4ec894dc1341a2201fe13ae428631b58458f105d/utils.py#L139
 

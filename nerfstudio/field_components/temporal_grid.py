@@ -38,9 +38,9 @@ class TemporalGridEncodeFunc(Function):
     def forward(
         ctx,
         inputs: Float[Tensor, "bs input_dim"],
-        temporal_row_index: Int[Tensor, "bs temporal_index_dim"],
+        temporal_row_index: Float[Tensor, "bs temporal_index_dim"],
         embeddings: Float[Tensor, "table_size embed_dim"],
-        offsets: Float[Tensor, "num_levels+1"],
+        offsets: Int[Tensor, "num_levels_plus_1"],
         per_level_scale: float,
         base_resolution: int,
         calc_grad_inputs: bool = False,
