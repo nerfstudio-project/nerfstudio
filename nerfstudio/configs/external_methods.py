@@ -31,8 +31,13 @@ class ExternalMethod:
     """External method class. Represents a link to a nerfstudio-compatible method not included in this repository."""
 
     instructions: str
+    """Instructions for installing the method. This will be printed to
+    the console when the user tries to use the method."""
     configurations: List[Tuple[str, str]]
+    """List of configurations for the method. Each configuration is a tuple of (registered slug, description)
+    as it will be printed in --help."""
     pip_package: Optional[str] = None
+    """Specifies a pip package if the method can be installed by running `pip install <pip_package>`."""
 
 
 external_methods = []
