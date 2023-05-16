@@ -281,7 +281,8 @@ class SDFField(Field):
                 outputs = self.softplus(outputs)
         return outputs
 
-    def get_sdf(self, ray_samples: RaySamples) -> Float[Tensor, "num_samples _1 1"]:
+    # TODO: fix ... in shape annotations.
+    def get_sdf(self, ray_samples: RaySamples) -> Float[Tensor, "num_samples ... 1"]:
         """predict the sdf value for ray samples"""
         positions = ray_samples.frustums.get_start_positions()
         positions_flat = positions.view(-1, 3)
@@ -292,9 +293,9 @@ class SDFField(Field):
     def get_alpha(
         self,
         ray_samples: RaySamples,
-        sdf: Optional[Float[Tensor, "num_samples _1 1"]] = None,
-        gradients: Optional[Float[Tensor, "num_samples _1 1"]] = None,
-    ) -> Float[Tensor, "num_samples _1 1"]:
+        sdf: Optional[Float[Tensor, "num_samples ... 1"]] = None,
+        gradients: Optional[Float[Tensor, "num_samples ... 1"]] = None,
+    ) -> Float[Tensor, "num_samples ... 1"]:
         """compute alpha from sdf as in NeuS"""
         if sdf is None or gradients is None:
             inputs = ray_samples.frustums.get_start_positions()

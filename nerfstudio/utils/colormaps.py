@@ -19,7 +19,7 @@ from typing import Literal, Optional
 
 import matplotlib
 import torch
-from jaxtyping import Float
+from jaxtyping import Bool, Float
 from torch import Tensor
 
 from nerfstudio.utils import colors
@@ -150,7 +150,7 @@ def apply_depth_colormap(
 
 
 def apply_boolean_colormap(
-    image: Float[Tensor, "*bs 1"],
+    image: Bool[Tensor, "*bs 1"],
     true_color: Float[Tensor, "*bs rgb=3"] = colors.WHITE,
     false_color: Float[Tensor, "*bs rgb=3"] = colors.BLACK,
 ) -> Float[Tensor, "*bs rgb=3"]:
