@@ -26,14 +26,12 @@ from typing import TYPE_CHECKING, Any, Callable, Generic, List, Optional, Tuple
 from typing_extensions import TypeVar
 
 from nerfstudio.cameras.cameras import Cameras
-from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.viewer.viser import GuiHandle, GuiSelectHandle, ViserServer
 from nerfstudio.viewer.viser.messages import ClickMessage
 
 if TYPE_CHECKING:
     from nerfstudio.viewer.server.control_panel import ControlPanel
     from nerfstudio.viewer.server.viewer_state import ViewerState
-import torch
 
 
 TValue = TypeVar("TValue")
