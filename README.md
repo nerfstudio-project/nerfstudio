@@ -102,14 +102,14 @@ Install pytorch with CUDA (this repo has been tested with CUDA 11.7 and CUDA 11.
 For CUDA 11.7:
 
 ```bash
-pip install torch==2.0.1+cu116 torchvision==0.15.2+cu116 --extra-index-url https://download.pytorch.org/whl/cu117
+pip install torch==2.0.1+cu117 torchvision==0.15.2+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
 For CUDA 11.8:
 
 ```bash
-pip install torch==2.0.1+cu117 torchvision==0.15.2+cu117 --extra-index-url https://download.pytorch.org/whl/cu118
+pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
