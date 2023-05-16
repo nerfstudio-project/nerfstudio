@@ -41,24 +41,6 @@ python -m pip install --upgrade pip
 ### pytorch
 
 ::::{tab-set}
-:::{tab-item} Torch 2.0.1 with CUDA 11.7
-
-- To install 2.0.1 with CUDA 11.7:
-
-Note that if a pytorch version prior to 2.0.1 is installed, 
-it should be uninstalled first to avoid upgrade issues (e.g. with functorch)
-
-```bash
-pip uninstall torch torchvision functorch
-```
-
-Install pytorch 2.0.1 with CUDA and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
-
-```bash
-pip install torch==2.0.1+cu117 torchvision==0.15.2+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
-```
-
-:::
 :::{tab-item} Torch 2.0.1 with CUDA 11.8
 
 - To install 2.0.1 with CUDA 11.8:
@@ -74,6 +56,24 @@ Install pytorch 2.0.1 with CUDA and [tiny-cuda-nn](https://github.com/NVlabs/tin
 
 ```bash
 pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
+```
+
+:::
+:::{tab-item} Torch 2.0.1 with CUDA 11.7
+
+- To install 2.0.1 with CUDA 11.7:
+
+Note that if a pytorch version prior to 2.0.1 is installed, 
+it should be uninstalled first to avoid upgrade issues (e.g. with functorch)
+
+```bash
+pip uninstall torch torchvision functorch
+```
+
+Install pytorch 2.0.1 with CUDA and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+
+```bash
+pip install torch==2.0.1+cu117 torchvision==0.15.2+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
 ```
 
 :::
@@ -196,7 +196,6 @@ K80 | 37
 
 - [TinyCUDA installation errors out with cuda mismatch](tiny-cuda-mismatch-error)
 - [TinyCUDA installation errors out with no CUDA toolset found](tiny-cuda-integration-error)
-- [TinyCUDA installation errors out with syntax errors](tiny-cuda-syntax-error)
 - [Installation errors, File "setup.py" not found](pip-install-error)
 - [Runtime errors, "len(sources) > 0".](cuda-sources-error)
 
