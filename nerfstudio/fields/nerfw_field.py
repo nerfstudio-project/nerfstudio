@@ -17,7 +17,7 @@
 from typing import Dict, Optional, Tuple
 
 import torch
-from jaxtyping import Shaped
+from jaxtyping import Float
 from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import RaySamples
@@ -118,13 +118,13 @@ class VanillaNerfWField(Field):
         return density, base_mlp_out
 
     def get_outputs(
-        self, ray_samples: RaySamples, density_embedding: Optional[Shaped[Tensor, "*batch embedding_size"]] = None
+        self, ray_samples: RaySamples, density_embedding: Optional[Float[Tensor, "*batch embedding_size"]] = None
     ) -> Dict[FieldHeadNames, Tensor]:
         """Returns the outputs of the NeRF-W field.
 
         Args:
             ray_samples (RaySamples): Ray samples.
-            density_embedding (Shaped[Tensor, "*batch embedding_size"], optional): Density embedding.
+            density_embedding (Float[Tensor, "*batch embedding_size"], optional): Density embedding.
 
         Returns:
             Dict[FieldHeadNames, Tensor]: Outputs of the NeRF-W field.

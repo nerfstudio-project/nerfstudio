@@ -12,7 +12,7 @@ def test_temporal_grid():
         print("Unable to test temporal grid without GPU, since CUDA kernels involved.")
         return
 
-    params = dict(
+    model = temporal_grid.TemporalGridEncoder(
         temporal_dim=2,
         input_dim=1,
         num_levels=1,
@@ -23,8 +23,7 @@ def test_temporal_grid():
         desired_resolution=None,
         gridtype="tiled",
         align_corners=False,
-    )
-    model = temporal_grid.TemporalGridEncoder(**params).cuda()
+    ).cuda()
     random_embedding = torch.rand_like(model.embeddings)
     random_embedding[:, 0] = torch.arange(8).to(model.embeddings)
     model.embeddings = torch.nn.Parameter(random_embedding, requires_grad=True)

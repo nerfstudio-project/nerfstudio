@@ -19,7 +19,7 @@ Scene Colliders
 from __future__ import annotations
 
 import torch
-from jaxtyping import Shaped
+from jaxtyping import Float
 from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import RayBundle
@@ -57,7 +57,7 @@ class AABBBoxCollider(SceneCollider):
         self.near_plane = near_plane
 
     def _intersect_with_aabb(
-        self, rays_o: Shaped[Tensor, "num_rays 3"], rays_d: Shaped[Tensor, "num_rays 3"], aabb: Shaped[Tensor, "2 3"]
+        self, rays_o: Float[Tensor, "num_rays 3"], rays_d: Float[Tensor, "num_rays 3"], aabb: Float[Tensor, "2 3"]
     ):
         """Returns collection of valid rays within a specified near/far bounding box along with a mask
         specifying which rays are valid

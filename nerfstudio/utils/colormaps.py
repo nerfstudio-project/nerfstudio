@@ -19,7 +19,7 @@ from typing import Literal, Optional
 
 import matplotlib
 import torch
-from jaxtyping import Shaped
+from jaxtyping import Float
 from torch import Tensor
 
 from nerfstudio.utils import colors
@@ -44,10 +44,10 @@ class ColormapOptions:
 
 
 def apply_colormap(
-    image: Shaped[Tensor, "*bs 1"],
+    image: Float[Tensor, "*bs channels"],
     colormap_options: ColormapOptions = ColormapOptions(),
     eps: float = 1e-9,
-) -> Shaped[Tensor, "*bs rgb:3"]:
+) -> Float[Tensor, "*bs rgb=3"]:
     """
     Applies a colormap to a tensor image.
     If single channel, applies a colormap to the image.
@@ -90,9 +90,7 @@ def apply_colormap(
     raise NotImplementedError
 
 
-def apply_float_colormap(
-    image: Shaped[Tensor, "*bs 1"], colormap: Colormaps = "viridis"
-) -> Shaped[Tensor, "*bs rgb:3"]:
+def apply_float_colormap(image: Float[Tensor, "*bs 1"], colormap: Colormaps = "viridis") -> Float[Tensor, "*bs rgb=3"]:
     """Convert single channel to a color image.
 
     Args:
@@ -117,12 +115,12 @@ def apply_float_colormap(
 
 
 def apply_depth_colormap(
-    depth: Shaped[Tensor, "*bs 1"],
-    accumulation: Optional[Shaped[Tensor, "*bs 1"]] = None,
+    depth: Float[Tensor, "*bs 1"],
+    accumulation: Optional[Float[Tensor, "*bs 1"]] = None,
     near_plane: Optional[float] = None,
     far_plane: Optional[float] = None,
     colormap_options: ColormapOptions = ColormapOptions(),
-) -> Shaped[Tensor, "*bs rgb:3"]:
+) -> Float[Tensor, "*bs rgb=3"]:
     """Converts a depth image to color for easier analysis.
 
     Args:
@@ -152,10 +150,10 @@ def apply_depth_colormap(
 
 
 def apply_boolean_colormap(
-    image: Shaped[Tensor, "*bs 1 bool"],
-    true_color: Shaped[Tensor, "*bs rgb:3"] = colors.WHITE,
-    false_color: Shaped[Tensor, "*bs rgb:3"] = colors.BLACK,
-) -> Shaped[Tensor, "*bs rgb:3"]:
+    image: Float[Tensor, "*bs 1"],
+    true_color: Float[Tensor, "*bs rgb=3"] = colors.WHITE,
+    false_color: Float[Tensor, "*bs rgb=3"] = colors.BLACK,
+) -> Float[Tensor, "*bs rgb=3"]:
     """Converts a depth image to color for easier analysis.
 
     Args:
@@ -173,7 +171,7 @@ def apply_boolean_colormap(
     return colored_image
 
 
-def apply_pca_colormap(image: Shaped[Tensor, "*bs dim"]) -> Shaped[Tensor, "*bs rgb:3"]:
+def apply_pca_colormap(image: Float[Tensor, "*bs dim"]) -> Float[Tensor, "*bs rgb=3"]:
     """Convert feature image to 3-channel RGB via PCA. The first three principle
     components are used for the color channels, with outlier rejection per-channel
 

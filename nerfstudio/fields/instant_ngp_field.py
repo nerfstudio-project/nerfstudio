@@ -21,7 +21,7 @@ from typing import Dict, Optional, Tuple
 
 import numpy as np
 import torch
-from jaxtyping import Shaped
+from jaxtyping import Float
 from torch import Tensor
 from torch.nn.parameter import Parameter
 
@@ -185,7 +185,7 @@ class TCNNInstantNGPField(Field):
         rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
         return {FieldHeadNames.RGB: rgb}
 
-    def get_opacity(self, positions: Shaped[Tensor, "*bs 3"], step_size) -> Shaped[Tensor, "*bs 1"]:
+    def get_opacity(self, positions: Float[Tensor, "*bs 3"], step_size) -> Float[Tensor, "*bs 1"]:
         """Returns the opacity for a position. Used primarily by the occupancy grid.
 
         Args:

@@ -20,7 +20,7 @@ import random
 from typing import Dict, Optional, Union
 
 import torch
-from jaxtyping import Shaped
+from jaxtyping import Float
 from torch import Tensor
 
 
@@ -53,7 +53,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         image_width: int,
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
-    ) -> Shaped[Tensor, "batch_size 3"]:
+    ) -> Float[Tensor, "batch_size 3"]:
         """
         Naive pixel sampler, uniformly samples across all possible pixels of all possible images.
 
@@ -221,7 +221,7 @@ class EquirectangularPixelSampler(PixelSampler):  # pylint: disable=too-few-publ
         image_width: int,
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
-    ) -> Shaped[Tensor, "batch_size 3"]:
+    ) -> Float[Tensor, "batch_size 3"]:
         if isinstance(mask, torch.Tensor):
             # Note: if there is a mask, sampling reduces back to uniform sampling, which gives more
             # sampling weight to the poles of the image than the equators.
@@ -277,7 +277,7 @@ class PatchPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
         image_width: int,
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
-    ) -> Shaped[Tensor, "batch_size 3"]:
+    ) -> Float[Tensor, "batch_size 3"]:
         if mask:
             # Note: if there is a mask, sampling reduces back to uniform sampling
             indices = super().sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)

@@ -18,7 +18,7 @@ from typing import Optional, Union
 
 import torch
 from functorch import jacrev, vmap
-from jaxtyping import Shaped
+from jaxtyping import Float
 from torch import Tensor, nn
 
 from nerfstudio.utils.math import Gaussians
@@ -27,9 +27,7 @@ from nerfstudio.utils.math import Gaussians
 class SpatialDistortion(nn.Module):
     """Apply spatial distortions"""
 
-    def forward(
-        self, positions: Union[Shaped[Tensor, "*bs 3"], Gaussians]
-    ) -> Union[Shaped[Tensor, "*bs 3"], Gaussians]:
+    def forward(self, positions: Union[Float[Tensor, "*bs 3"], Gaussians]) -> Union[Float[Tensor, "*bs 3"], Gaussians]:
         """
         Args:
             positions: Sample to distort

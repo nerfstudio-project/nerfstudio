@@ -31,7 +31,7 @@ import mediapy as media
 import numpy as np
 import torch
 import tyro
-from jaxtyping import Shaped
+from jaxtyping import Float
 from rich import box, style
 from rich.panel import Panel
 from rich.progress import (
@@ -254,11 +254,11 @@ xmlns:GSpherical='http://ns.google.com/videos/1.0/spherical/'>
 class CropData:
     """Data for cropping an image."""
 
-    background_color: Shaped[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
+    background_color: Float[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
     """background color"""
-    center: Shaped[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
+    center: Float[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
     """center of the crop"""
-    scale: Shaped[Tensor, "3"] = torch.Tensor([2.0, 2.0, 2.0])
+    scale: Float[Tensor, "3"] = torch.Tensor([2.0, 2.0, 2.0])
     """scale of the crop"""
 
 

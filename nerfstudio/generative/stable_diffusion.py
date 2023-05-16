@@ -27,7 +27,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import tyro
-from jaxtyping import Shaped
+from jaxtyping import Float
 from torch import Tensor, nn
 from torch.cuda.amp import custom_bwd, custom_fwd
 from torch.cuda.amp.grad_scaler import GradScaler
@@ -148,7 +148,7 @@ class StableDiffusion(nn.Module):
 
     def get_text_embeds(
         self, prompt: Union[str, List[str]], negative_prompt: Union[str, List[str]]
-    ) -> Shaped[Tensor, "2 max_length embed_dim"]:
+    ) -> Float[Tensor, "2 max_length embed_dim"]:
         """Get text embeddings for prompt and negative prompt
         Args:
             prompt: Prompt text
@@ -184,8 +184,8 @@ class StableDiffusion(nn.Module):
 
     def sds_loss(
         self,
-        text_embeddings: Shaped[Tensor, "N max_length embed_dim"],
-        image: Shaped[Tensor, "BS 3 H W"],
+        text_embeddings: Float[Tensor, "N max_length embed_dim"],
+        image: Float[Tensor, "BS 3 H W"],
         guidance_scale: float = 100.0,
         grad_scaler: Optional[GradScaler] = None,
     ) -> torch.Tensor:
@@ -229,13 +229,13 @@ class StableDiffusion(nn.Module):
 
     def produce_latents(
         self,
-        text_embeddings: Shaped[Tensor, "N max_length embed_dim"],
+        text_embeddings: Float[Tensor, "N max_length embed_dim"],
         height: int = IMG_DIM,
         width: int = IMG_DIM,
         num_inference_steps: int = 50,
         guidance_scale: float = 7.5,
-        latents: Optional[Shaped[Tensor, "BS 4 H W"]] = None,
-    ) -> Shaped[Tensor, "BS 4 H W"]:
+        latents: Optional[Float[Tensor, "BS 4 H W"]] = None,
+    ) -> Float[Tensor, "BS 4 H W"]:
         """Produce latents for a given text embedding
         Args:
             text_embeddings: Text embeddings
@@ -275,7 +275,7 @@ class StableDiffusion(nn.Module):
                 latents = self.scheduler.step(noise_pred, t, latents)["prev_sample"]  # type: ignore
         return latents
 
-    def latents_to_img(self, latents: Shaped[Tensor, "BS 4 H W"]) -> Shaped[Tensor, "BS 3 H W"]:
+    def latents_to_img(self, latents: Float[Tensor, "BS 4 H W"]) -> Float[Tensor, "BS 3 H W"]:
         """Convert latents to images
         Args:
             latents: Latents to convert
@@ -292,7 +292,7 @@ class StableDiffusion(nn.Module):
 
         return imgs
 
-    def imgs_to_latent(self, imgs: Shaped[Tensor, "BS 3 H W"]) -> Shaped[Tensor, "BS 4 H W"]:
+    def imgs_to_latent(self, imgs: Float[Tensor, "BS 3 H W"]) -> Float[Tensor, "BS 4 H W"]:
         """Convert images to latents
         Args:
             imgs: Images to convert

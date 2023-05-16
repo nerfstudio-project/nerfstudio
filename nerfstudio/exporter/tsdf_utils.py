@@ -28,7 +28,7 @@ import numpy as np
 import pymeshlab
 import torch
 import torch.nn.functional as F
-from jaxtyping import Shaped
+from jaxtyping import Bool, Float
 from skimage import measure
 from torch import Tensor
 
@@ -45,17 +45,17 @@ class TSDF:
     Class for creating TSDFs.
     """
 
-    voxel_coords: Shaped[Tensor, "3 xdim ydim zdim"]
+    voxel_coords: Float[Tensor, "3 xdim ydim zdim"]
     """Coordinates of each voxel in the TSDF."""
-    values: Shaped[Tensor, "xdim ydim zdim"]
+    values: Float[Tensor, "xdim ydim zdim"]
     """TSDF values for each voxel."""
-    weights: Shaped[Tensor, "xdim ydim zdim"]
+    weights: Float[Tensor, "xdim ydim zdim"]
     """TSDF weights for each voxel."""
-    colors: Shaped[Tensor, "xdim ydim zdim 3"]
+    colors: Float[Tensor, "xdim ydim zdim 3"]
     """TSDF colors for each voxel."""
-    voxel_size: Shaped[Tensor, "3"]
+    voxel_size: Float[Tensor, "3"]
     """Size of each voxel in the TSDF. [x, y, z] size."""
-    origin: Shaped[Tensor, "3"]
+    origin: Float[Tensor, "3"]
     """Origin of the TSDF [xmin, ymin, zmin]."""
     truncation_margin: float = 5.0
     """Margin for truncation."""
@@ -87,7 +87,7 @@ class TSDF:
         return truncation
 
     @staticmethod
-    def from_aabb(aabb: Shaped[Tensor, "2 3"], volume_dims: Shaped[Tensor, "3"]):
+    def from_aabb(aabb: Float[Tensor, "2 3"], volume_dims: Float[Tensor, "3"]):
         """Returns an instance of TSDF from an axis-aligned bounding box and volume dimensions.
 
         Args:
@@ -168,11 +168,11 @@ class TSDF:
 
     def integrate_tsdf(
         self,
-        c2w: Shaped[Tensor, "batch 4 4"],
-        K: Shaped[Tensor, "batch 3 3"],
-        depth_images: Shaped[Tensor, "batch 1 height width"],
-        color_images: Optional[Shaped[Tensor, "batch 3 height width"]] = None,
-        mask_images: Optional[Shaped[Tensor, "batch 1 height width"]] = None,
+        c2w: Float[Tensor, "batch 4 4"],
+        K: Float[Tensor, "batch 3 3"],
+        depth_images: Float[Tensor, "batch 1 height width"],
+        color_images: Optional[Float[Tensor, "batch 3 height width"]] = None,
+        mask_images: Optional[Bool[Tensor, "batch 1 height width"]] = None,
     ) -> None:
         """Integrates a batch of depth images into the TSDF.
 
@@ -328,11 +328,11 @@ def export_tsdf_mesh(
     )
 
     # camera extrinsics and intrinsics
-    c2w: Shaped[Tensor, "N 3 4"] = cameras.camera_to_worlds.to(device)
+    c2w: Float[Tensor, "N 3 4"] = cameras.camera_to_worlds.to(device)
     # make c2w homogeneous
     c2w = torch.cat([c2w, torch.zeros(c2w.shape[0], 1, 4, device=device)], dim=1)
     c2w[:, 3, 3] = 1
-    K: Shaped[Tensor, "N 3 3"] = cameras.get_intrinsics_matrices().to(device)
+    K: Float[Tensor, "N 3 3"] = cameras.get_intrinsics_matrices().to(device)
     color_images = torch.tensor(np.array(color_images), device=device).permute(0, 3, 1, 2)  # shape (N, 3, H, W)
     depth_images = torch.tensor(np.array(depth_images), device=device).permute(0, 3, 1, 2)  # shape (N, 1, H, W)
 

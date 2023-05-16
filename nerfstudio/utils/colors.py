@@ -16,7 +16,7 @@
 from typing import Union
 
 import torch
-from jaxtyping import Shaped
+from jaxtyping import Float
 from torch import Tensor
 
 WHITE = torch.tensor([1.0, 1.0, 1.0])
@@ -34,13 +34,13 @@ COLORS_DICT = {
 }
 
 
-def get_color(color: Union[str, list]) -> Shaped[Tensor, "3"]:
+def get_color(color: Union[str, list]) -> Float[Tensor, "3"]:
     """
     Args:
-        color (Union[str, list]): Color as a string or a rgb list
+        Color as a string or a rgb list
 
     Returns:
-        Shaped[Tensor, "3"]: Parsed color
+        Parsed color
     """
     if isinstance(color, str):
         color = color.lower()

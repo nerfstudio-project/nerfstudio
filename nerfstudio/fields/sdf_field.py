@@ -23,7 +23,7 @@ from typing import Dict, Literal, Optional, Type
 import numpy as np
 import torch
 import torch.nn.functional as F
-from jaxtyping import Shaped
+from jaxtyping import Float
 from torch import Tensor, nn
 from torch.nn.parameter import Parameter
 
@@ -52,11 +52,11 @@ class LearnedVariance(nn.Module):
         super().__init__()
         self.register_parameter("variance", nn.Parameter(init_val * torch.ones(1), requires_grad=True))
 
-    def forward(self, x: Shaped[Tensor, "1"]) -> Shaped[Tensor, "1"]:
+    def forward(self, x: Float[Tensor, "1"]) -> Float[Tensor, "1"]:
         """Returns current variance value"""
         return torch.ones([len(x), 1], device=x.device) * torch.exp(self.variance * 10.0)
 
-    def get_variance(self) -> Shaped[Tensor, "1"]:
+    def get_variance(self) -> Float[Tensor, "1"]:
         """return current variance value"""
         return torch.exp(self.variance * 10.0).clip(1e-6, 1e6)
 
@@ -128,7 +128,7 @@ class SDFField(Field):
     def __init__(
         self,
         config: SDFFieldConfig,
-        aabb: Shaped[Tensor, "2 3"],
+        aabb: Float[Tensor, "2 3"],
         num_images: int,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
@@ -252,7 +252,7 @@ class SDFField(Field):
         """Set the anneal value for the proposal network."""
         self._cos_anneal_ratio = anneal
 
-    def forward_geonetwork(self, inputs: Shaped[Tensor, "*batch 3"]) -> Shaped[Tensor, "*batch geo_features+1"]:
+    def forward_geonetwork(self, inputs: Float[Tensor, "*batch 3"]) -> Float[Tensor, "*batch geo_features+1"]:
         """forward the geonetwork"""
         if self.use_grid_feature:
             positions = self.spatial_distortion(inputs)
@@ -281,7 +281,7 @@ class SDFField(Field):
                 outputs = self.softplus(outputs)
         return outputs
 
-    def get_sdf(self, ray_samples: RaySamples) -> Shaped[Tensor, "num_samples _1 1"]:
+    def get_sdf(self, ray_samples: RaySamples) -> Float[Tensor, "num_samples _1 1"]:
         """predict the sdf value for ray samples"""
         positions = ray_samples.frustums.get_start_positions()
         positions_flat = positions.view(-1, 3)
@@ -292,9 +292,9 @@ class SDFField(Field):
     def get_alpha(
         self,
         ray_samples: RaySamples,
-        sdf: Optional[Shaped[Tensor, "num_samples _1 1"]] = None,
-        gradients: Optional[Shaped[Tensor, "num_samples _1 1"]] = None,
-    ) -> Shaped[Tensor, "num_samples _1 1"]:
+        sdf: Optional[Float[Tensor, "num_samples _1 1"]] = None,
+        gradients: Optional[Float[Tensor, "num_samples _1 1"]] = None,
+    ) -> Float[Tensor, "num_samples _1 1"]:
         """compute alpha from sdf as in NeuS"""
         if sdf is None or gradients is None:
             inputs = ray_samples.frustums.get_start_positions()
@@ -344,12 +344,12 @@ class SDFField(Field):
 
     def get_colors(
         self,
-        points: Shaped[Tensor, "*batch 3"],
-        directions: Shaped[Tensor, "*batch 3"],
-        normals: Shaped[Tensor, "*batch 3"],
-        geo_features: Shaped[Tensor, "*batch geo_feat_dim"],
+        points: Float[Tensor, "*batch 3"],
+        directions: Float[Tensor, "*batch 3"],
+        normals: Float[Tensor, "*batch 3"],
+        geo_features: Float[Tensor, "*batch geo_feat_dim"],
         camera_indices: Tensor,
-    ) -> Shaped[Tensor, "*batch 3"]:
+    ) -> Float[Tensor, "*batch 3"]:
         """compute colors"""
         d = self.direction_encoding(directions)
 

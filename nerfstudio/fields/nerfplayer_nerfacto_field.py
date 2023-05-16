@@ -21,7 +21,7 @@ from typing import Dict, Optional, Tuple
 
 import numpy as np
 import torch
-from jaxtyping import Shaped
+from jaxtyping import Float
 from torch import Tensor
 from torch.nn.parameter import Parameter
 
@@ -105,7 +105,7 @@ class TemporalHashMLPDensityField(Field):
         )
 
     # pylint: disable=arguments-differ
-    def density_fn(self, positions: Shaped[Tensor, "*bs 3"], times: Shaped[Tensor, "bs 1"]) -> Shaped[Tensor, "*bs 1"]:
+    def density_fn(self, positions: Float[Tensor, "*bs 3"], times: Float[Tensor, "bs 1"]) -> Float[Tensor, "*bs 1"]:
         """Returns only the density. Used primarily with the density grid.
 
         Args:

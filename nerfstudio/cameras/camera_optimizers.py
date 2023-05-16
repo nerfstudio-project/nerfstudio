@@ -24,7 +24,7 @@ from typing import Literal, Type, Union
 
 import torch
 import tyro
-from jaxtyping import Shaped
+from jaxtyping import Float, Int
 from torch import Tensor, nn
 from typing_extensions import assert_never
 
@@ -101,8 +101,8 @@ class CameraOptimizer(nn.Module):
 
     def forward(
         self,
-        indices: Shaped[Tensor, "num_cameras"],
-    ) -> Shaped[Tensor, "num_cameras 3 4"]:
+        indices: Int[Tensor, "num_cameras"],
+    ) -> Float[Tensor, "num_cameras 3 4"]:
         """Indexing into camera adjustments.
         Args:
             indices: indices of Cameras to optimize.

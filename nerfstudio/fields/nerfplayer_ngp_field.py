@@ -20,7 +20,7 @@ NeRFPlayer (https://arxiv.org/abs/2210.15947) field implementations with Instant
 from typing import Dict, Optional, Tuple
 
 import torch
-from jaxtyping import Shaped
+from jaxtyping import Float
 from torch import Tensor
 from torch.nn.parameter import Parameter
 
@@ -202,7 +202,7 @@ class NerfplayerNGPField(Field):
         return {FieldHeadNames.RGB: rgb}
 
     # pylint: disable=arguments-differ
-    def density_fn(self, positions: Shaped[Tensor, "*bs 3"], times: Shaped[Tensor, "*bs 1"]) -> Shaped[Tensor, "*bs 1"]:
+    def density_fn(self, positions: Float[Tensor, "*bs 3"], times: Float[Tensor, "*bs 1"]) -> Float[Tensor, "*bs 1"]:
         """Returns only the density. Used primarily with the density grid.
         Overwrite this function since density is time dependent now.
 
@@ -223,7 +223,7 @@ class NerfplayerNGPField(Field):
         density, _ = self.get_density(ray_samples)
         return density
 
-    def get_opacity(self, positions: Shaped[Tensor, "*bs 3"], step_size, time_intervals=10) -> Shaped[Tensor, "*bs 1"]:
+    def get_opacity(self, positions: Float[Tensor, "*bs 3"], step_size, time_intervals=10) -> Float[Tensor, "*bs 1"]:
         """Returns the opacity for a position and time. Used primarily by the occupancy grid.
         This will return the maximum opacity of the points in the space in a dynamic sequence.
 

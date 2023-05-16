@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple, Type
 
 import torch
-from jaxtyping import Shaped
+from jaxtyping import Float, Shaped
 from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import Frustums, RaySamples
@@ -67,14 +67,14 @@ class Field(nn.Module):
     @abstractmethod
     def get_density(
         self, ray_samples: RaySamples
-    ) -> Tuple[Shaped[Tensor, "*batch 1"], Shaped[Tensor, "*batch num_features"]]:
+    ) -> Tuple[Shaped[Tensor, "*batch 1"], Float[Tensor, "*batch num_features"]]:
         """Computes and returns the densities. Returns a tensor of densities and a tensor of features.
 
         Args:
             ray_samples: Samples locations to compute density.
         """
 
-    def get_normals(self) -> Shaped[Tensor, "*batch 3"]:
+    def get_normals(self) -> Float[Tensor, "*batch 3"]:
         """Computes and returns a tensor of normals.
 
         Args:
@@ -130,7 +130,7 @@ class Field(nn.Module):
         return field_outputs
 
 
-def shift_directions_for_tcnn(directions: Shaped[Tensor, "*bs 3"]) -> Shaped[Tensor, "*bs 3"]:
+def shift_directions_for_tcnn(directions: Float[Tensor, "*bs 3"]) -> Float[Tensor, "*bs 3"]:
     """Shift directions from [-1, 1] to [0, 1]
 
     Args:

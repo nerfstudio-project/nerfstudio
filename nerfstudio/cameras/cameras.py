@@ -24,7 +24,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import cv2
 import torch
 import torchvision
-from jaxtyping import Shaped
+from jaxtyping import Float, Int, Shaped
 from torch import Tensor
 from torch.nn import Parameter
 
@@ -78,37 +78,37 @@ class Cameras(TensorDataclass):
             and will be broadcasted to the rays generated from any derivative RaySamples we create with this
     """
 
-    camera_to_worlds: Shaped[Tensor, "*num_cameras 3 4"]
-    fx: Shaped[Tensor, "*num_cameras 1"]
-    fy: Shaped[Tensor, "*num_cameras 1"]
-    cx: Shaped[Tensor, "*num_cameras 1"]
-    cy: Shaped[Tensor, "*num_cameras 1"]
+    camera_to_worlds: Float[Tensor, "*num_cameras 3 4"]
+    fx: Float[Tensor, "*num_cameras 1"]
+    fy: Float[Tensor, "*num_cameras 1"]
+    cx: Float[Tensor, "*num_cameras 1"]
+    cy: Float[Tensor, "*num_cameras 1"]
     width: Shaped[Tensor, "*num_cameras 1"]
     height: Shaped[Tensor, "*num_cameras 1"]
-    distortion_params: Optional[Shaped[Tensor, "*num_cameras 6"]]
-    camera_type: Shaped[Tensor, "*num_cameras 1"]
-    times: Optional[Shaped[Tensor, "num_cameras 1"]]
+    distortion_params: Optional[Float[Tensor, "*num_cameras 6"]]
+    camera_type: Int[Tensor, "*num_cameras 1"]
+    times: Optional[Float[Tensor, "num_cameras 1"]]
     metadata: Optional[Dict]
 
     def __init__(
         self,
-        camera_to_worlds: Shaped[Tensor, "*batch_c2ws 3 4"],
-        fx: Union[Shaped[Tensor, "*batch_fxs 1"], float],
-        fy: Union[Shaped[Tensor, "*batch_fys 1"], float],
-        cx: Union[Shaped[Tensor, "*batch_cxs 1"], float],
-        cy: Union[Shaped[Tensor, "*batch_cys 1"], float],
+        camera_to_worlds: Float[Tensor, "*batch_c2ws 3 4"],
+        fx: Union[Float[Tensor, "*batch_fxs 1"], float],
+        fy: Union[Float[Tensor, "*batch_fys 1"], float],
+        cx: Union[Float[Tensor, "*batch_cxs 1"], float],
+        cy: Union[Float[Tensor, "*batch_cys 1"], float],
         width: Optional[Union[Shaped[Tensor, "*batch_ws 1"], int]] = None,
         height: Optional[Union[Shaped[Tensor, "*batch_hs 1"], int]] = None,
-        distortion_params: Optional[Shaped[Tensor, "*batch_dist_params 6"]] = None,
+        distortion_params: Optional[Float[Tensor, "*batch_dist_params 6"]] = None,
         camera_type: Optional[
             Union[
-                Shaped[Tensor, "*batch_cam_types 1"],
+                Int[Tensor, "*batch_cam_types 1"],
                 int,
                 List[CameraType],
                 CameraType,
             ]
         ] = CameraType.PERSPECTIVE,
-        times: Optional[Shaped[Tensor, "num_cameras"]] = None,
+        times: Optional[Float[Tensor, "num_cameras"]] = None,
         metadata: Optional[Dict] = None,
     ) -> None:
         """Initializes the Cameras object.
@@ -173,9 +173,9 @@ class Cameras(TensorDataclass):
     def _init_get_camera_type(
         self,
         camera_type: Union[
-            Shaped[Tensor, "*batch_cam_types 1"], Shaped[Tensor, "*batch_cam_types"], int, List[CameraType], CameraType
+            Int[Tensor, "*batch_cam_types 1"], Int[Tensor, "*batch_cam_types"], int, List[CameraType], CameraType
         ],
-    ) -> Shaped[Tensor, "*num_cameras 1"]:
+    ) -> Int[Tensor, "*num_cameras 1"]:
         """
         Parses the __init__() argument camera_type
 
@@ -282,7 +282,7 @@ class Cameras(TensorDataclass):
 
     def get_image_coords(
         self, pixel_offset: float = 0.5, index: Optional[Tuple] = None
-    ) -> Shaped[Tensor, "height width 2"]:
+    ) -> Float[Tensor, "height width 2"]:
         """This gets the image coordinates of one of the cameras in this object.
 
         If no index is specified, it will return the maximum possible sized height / width image coordinate map,
@@ -310,10 +310,10 @@ class Cameras(TensorDataclass):
 
     def generate_rays(  # pylint: disable=too-many-statements
         self,
-        camera_indices: Union[Shaped[Tensor, "*num_rays num_cameras_batch_dims"], int],
-        coords: Optional[Shaped[Tensor, "*num_rays 2"]] = None,
-        camera_opt_to_camera: Optional[Shaped[Tensor, "*num_rays 3 4"]] = None,
-        distortion_params_delta: Optional[Shaped[Tensor, "*num_rays 6"]] = None,
+        camera_indices: Union[Int[Tensor, "*num_rays num_cameras_batch_dims"], int],
+        coords: Optional[Float[Tensor, "*num_rays 2"]] = None,
+        camera_opt_to_camera: Optional[Float[Tensor, "*num_rays 3 4"]] = None,
+        distortion_params_delta: Optional[Float[Tensor, "*num_rays 6"]] = None,
         keep_shape: Optional[bool] = None,
         disable_distortion: bool = False,
         aabb_box: Optional[SceneBox] = None,
@@ -488,10 +488,10 @@ class Cameras(TensorDataclass):
     # pylint: disable=too-many-statements
     def _generate_rays_from_coords(
         self,
-        camera_indices: Shaped[Tensor, "*num_rays num_cameras_batch_dims"],
-        coords: Shaped[Tensor, "*num_rays 2"],
-        camera_opt_to_camera: Optional[Shaped[Tensor, "*num_rays 3 4"]] = None,
-        distortion_params_delta: Optional[Shaped[Tensor, "*num_rays 6"]] = None,
+        camera_indices: Int[Tensor, "*num_rays num_cameras_batch_dims"],
+        coords: Float[Tensor, "*num_rays 2"],
+        camera_opt_to_camera: Optional[Float[Tensor, "*num_rays 3 4"]] = None,
+        distortion_params_delta: Optional[Float[Tensor, "*num_rays 6"]] = None,
         disable_distortion: bool = False,
     ) -> RayBundle:
         """Generates rays for the given camera indices and coords where self isn't jagged
@@ -735,7 +735,7 @@ class Cameras(TensorDataclass):
         )
 
     def to_json(
-        self, camera_idx: int, image: Optional[Shaped[Tensor, "height width 2"]] = None, max_size: Optional[int] = None
+        self, camera_idx: int, image: Optional[Float[Tensor, "height width 2"]] = None, max_size: Optional[int] = None
     ) -> Dict:
         """Convert a camera to a json dictionary.
 
@@ -769,7 +769,7 @@ class Cameras(TensorDataclass):
             json_["image"] = str("data:image/jpeg;base64," + base64.b64encode(data).decode("ascii"))
         return json_
 
-    def get_intrinsics_matrices(self) -> Shaped[Tensor, "*num_cameras 3 3"]:
+    def get_intrinsics_matrices(self) -> Float[Tensor, "*num_cameras 3 3"]:
         """Returns the intrinsic matrices for each camera.
 
         Returns:

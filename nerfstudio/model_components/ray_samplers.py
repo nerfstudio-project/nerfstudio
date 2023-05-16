@@ -20,7 +20,7 @@ from abc import abstractmethod
 from typing import Callable, List, Optional, Tuple, Union
 
 import torch
-from jaxtyping import Shaped
+from jaxtyping import Float
 from nerfacc import OccGridEstimator
 from torch import Tensor, nn
 
@@ -277,7 +277,7 @@ class PDFSampler(Sampler):
         self,
         ray_bundle: Optional[RayBundle] = None,
         ray_samples: Optional[RaySamples] = None,
-        weights: Shaped[Tensor, "*batch num_samples 1"] = None,
+        weights: Float[Tensor, "*batch num_samples 1"] = None,
         num_samples: Optional[int] = None,
         eps: float = 1e-5,
     ) -> RaySamples:
@@ -385,7 +385,7 @@ class VolumetricSampler(Sampler):
     def __init__(
         self,
         occupancy_grid: OccGridEstimator,
-        density_fn: Optional[Callable[[Shaped[Tensor, "*batch 3"]], Shaped[Tensor, "*batch 1"]]] = None,
+        density_fn: Optional[Callable[[Float[Tensor, "*batch 3"]], Float[Tensor, "*batch 1"]]] = None,
     ) -> None:
         super().__init__()
         assert occupancy_grid is not None
@@ -432,7 +432,7 @@ class VolumetricSampler(Sampler):
         far_plane: Optional[float] = None,
         alpha_thre: float = 0.01,
         cone_angle: float = 0.0,
-    ) -> Tuple[RaySamples, Shaped[Tensor, "total_samples "]]:
+    ) -> Tuple[RaySamples, Float[Tensor, "total_samples "]]:
         """Generate ray samples in a bounding box.
 
         Args:
@@ -686,8 +686,8 @@ class NeuSSampler(Sampler):
 
     @staticmethod
     def rendering_sdf_with_fixed_inv_s(
-        ray_samples: RaySamples, sdf: Shaped[Tensor, "num_samples _1"], inv_s: int
-    ) -> Shaped[Tensor, "num_samples _1"]:
+        ray_samples: RaySamples, sdf: Float[Tensor, "num_samples _1"], inv_s: int
+    ) -> Float[Tensor, "num_samples _1"]:
         """
         rendering given a fixed inv_s as NeuS
 
