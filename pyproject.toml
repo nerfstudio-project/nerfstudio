@@ -31,7 +31,6 @@ dependencies = [
     "msgpack>=1.0.4",
     "msgpack_numpy>=0.4.8",
     "nerfacc==0.5.2",
-    "open3d>=0.16.0",
     "opencv-python==4.6.0.66",
     "Pillow>=9.3.0",
     "plotly>=5.7.0",
@@ -39,7 +38,6 @@ dependencies = [
     # TODO(1480) enable when pycolmap windows wheels are available
     # "pycolmap==0.3.0",
     "pyequilib>=0.5.6",
-    "pymeshlab>=2022.2.post2",
     "pyngrok>=5.1.0",
     "python-socketio>=5.7.1",
     "pyquaternion>=0.9.9",
@@ -54,9 +52,7 @@ dependencies = [
     "typing_extensions>=4.4.0",
     "viser>=0.0.5",
     "nuscenes-devkit>=1.1.1",
-    "wandb>=0.13.3",
-    "xatlas",
-    "trimesh>=3.20.2"
+    "wandb>=0.13.3"
 ]
 
 [project.urls]
@@ -71,6 +67,13 @@ gen = [
     "transformers==4.24.0",
 ]
 
+# Geometry export related dependencies
+export = [
+    "open3d>=0.16.0",
+    "pymeshlab>=2022.2.post2",
+    "trimesh>=3.20.2"
+    "xatlas",
+]
 
 # Development packages
 dev = [
