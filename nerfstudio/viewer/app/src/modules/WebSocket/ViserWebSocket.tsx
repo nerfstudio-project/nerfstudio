@@ -165,9 +165,8 @@ function handleMessage(
     // Set camera position
     case 'SetCameraMessage': {
       if(message.fov !== null){
-        // sceneTree.current.metadata.camera.fov = message.fov;
-        const cam = sceneTree.current.metadata.camera;
-        const vExtentSlope = Math.tan( MathUtils.DEG2RAD * 0.5 * cam.fov );
+        const cam = sceneTree.metadata.camera;
+        const vExtentSlope = Math.tan( MathUtils.DEG2RAD * 0.5 * message.fov );
 
         const newFocalLength = 0.5 * cam.getFilmHeight() / vExtentSlope;
         cam.setFocalLength(newFocalLength);
@@ -325,9 +324,7 @@ function handleMessage(
   }
 }
 
-// export function ViserWebSocket({ children }: { children: React.ReactNode }) {
 export function ViserWebSocket({sceneTree, children}: {sceneTree: SceneNode, children: React.ReactNode}) {
-  // const sceneTree = props.sceneTree;
   const dispatch = useDispatch();
   const store = useStore();
 

@@ -455,10 +455,15 @@ class MessageApi(abc.ABC):
         fov: Optional[int] = None,
         instant: bool = False,
     ) -> None:
-        """Update the camera object in the viewer.
+        """Update the camera object in the viewer. If any of the arguments are None, the corresponding value will not
+        be set in the viewer. For example, setting position only will maintain the same look-at point while moving
+        the origin of the camera
 
         Args:
-            camera: The new camera
+            position: The position in world coordinates of the camera
+            look_at: The position in world coordinates of the new look at point
+            fov: The new field of view
+            instant: Whether to move the camera instantly or animate
         """
         self._queue(messages.SetCameraMessage(look_at=look_at, position=position, fov=fov, instant=instant))
 

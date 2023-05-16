@@ -1,6 +1,6 @@
 # Python Viewer Control
 
-Similar to `ViewerElements`, Nerfstudio includes supports a pythonic interface to the viewer through which you can:
+Similar to [`ViewerElements`](./custom_gui.md), Nerfstudio includes supports a Python interface to the viewer through which you can:
 
 * Set viewer camera pose and FOV
 * Set viewer scene crop
@@ -16,7 +16,7 @@ and is contained within the `Pipeline` object (for example the `Model`)
 ```python
 from nerfstudio.viewer.server.viewer_elements import ViewerControl
 
-class MyModel(nn.Module):#must inherit from nn.Module
+class MyModel(nn.Module):  # Must inherit from nn.Module
     def __init__(self):
         # Must be a class variable
         self.viewer_control = ViewerControl()#no arguments
@@ -27,20 +27,21 @@ To get the current camera intrinsics and extrinsics, use the `get_camera` functi
 ```python
 from nerfstudio.viewer.server.viewer_elements import ViewerControl,ViewerButton
 
-class MyModel(nn.Module):#must inherit from nn.Module
+class MyModel(nn.Module): #  Must inherit from nn.Module
     def __init__(self):
         ...
         def button_cb(button):
-            #example of using the get_camera function, pass img width and height
-            #returns a Cameras object with 1 camera
+            # example of using the get_camera function, pass img width and height
+            # returns a Cameras object with 1 camera
             camera = self.viewer_control.get_camera(100,100)
             if camera is None:
-                #returns None when the viewer is not connected yet
+                # returns None when the viewer is not connected yet
                 return
-            #get the camera pose
-            camera_extrinsics_matrix = camera.camera_to_worlds[0,...]#3x4 matrix
-            #generate image RayBundle
+            # get the camera pose
+            camera_extrinsics_matrix = camera.camera_to_worlds[0,...]  # 3x4 matrix
+            # generate image RayBundle
             bundle = camera.generate_rays(camera_indices=0)
+            # Compute depth, move camera, etc
         self.viewer_button = ViewerButton(name="Dummy Button",cb_hook=button_cb)
 ```
 
@@ -50,12 +51,12 @@ To set position, you must define a new camera position as well as a 3D "look at"
 ```python
 from nerfstudio.viewer.server.viewer_elements import ViewerControl,ViewerButton
 
-class MyModel(nn.Module):#must inherit from nn.Module
+class MyModel(nn.Module):  # Must inherit from nn.Module
     def __init__(self):
         ...
         def aim_at_origin(button):
-            #instant=False means the camera smoothly animates
-            #instant=True means the camera jumps instantly to the pose
+            # instant=False means the camera smoothly animates
+            # instant=True means the camera jumps instantly to the pose
             self.viewer_control.set_pose(position=(1,1,1),look_at=(0,0,0),instant=False)
         self.viewer_button = ViewerButton(name="Dummy Button",cb_hook=button_cb)
 ```
@@ -66,15 +67,15 @@ We forward *double* clicks inside the viewer to the ViewerControl object, which 
 ```python
 from nerfstudio.viewer.server.viewer_elements import ViewerControl,ViewerClick
 
-class MyModel(nn.Module):#must inherit from nn.Module
+class MyModel(nn.Module):  # must inherit from nn.Module
     def __init__(self):
         # Must be a class variable
-        self.viewer_control = ViewerControl()#no arguments
+        self.viewer_control = ViewerControl()  # no arguments
         def click_cb(click:ViewerClick):
             print(f"Click at {click.origin} in direction {click.direction}")
         self.viewer_control.register_click_cb(click_cb)
 ```
 
 ### Thread safety
-Keep in mind that, just like `ViewerElement` callbacks, click callbacks are asynchronous to training and can potentially interrupt a call to get_outputs.
+Just like `ViewerElement` callbacks, click callbacks are asynchronous to training and can potentially interrupt a call to `get_outputs()`.
 

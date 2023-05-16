@@ -93,9 +93,9 @@ export function get_scene_tree() {
 
   const keyMap = [];
   const moveSpeed = 0.005;
-  const upRotSpeed = 0.02;
-  const sideRotSpeed = .015;
-  const EPS = 0.01;
+  const upRotSpeed = 0.04;
+  const sideRotSpeed = .01;
+  const EPS = 0.005;
 
 
   function rotate() {

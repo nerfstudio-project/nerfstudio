@@ -261,7 +261,9 @@ class ClickMessage(NerfstudioMessage):
     """Click message."""
 
     origin: Tuple[float, float, float]
+    """The origin of the click in world coords (center of camera)"""
     direction: Tuple[float, float, float]
+    """The direction of the click if projected through the clicked pixel (world coords)"""
 
 
 @dataclasses.dataclass

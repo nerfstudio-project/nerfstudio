@@ -40,13 +40,18 @@ TValue = TypeVar("TValue")
 @dataclass
 class ViewerClick:
     """
-    Class representing a click in the viewer as a ray. Implemented as a class to support future new information possibly
+    Class representing a click in the viewer as a ray.
     """
 
     # the information here matches the information in the ClickMessage,
     # but we implement a wrapper as an abstraction layer
     origin: Tuple[float, float, float]
+    """The origin of the click in world coordinates (center of camera)"""
     direction: Tuple[float, float, float]
+    """
+    The direction of the click if projected from the camera through the clicked pixel,
+    in world coordinates
+    """
 
 
 class ViewerControl:
