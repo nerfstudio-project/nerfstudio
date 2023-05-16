@@ -348,7 +348,7 @@ class TemporalGridEncoder(nn.Module):
         )
         return outputs
 
-    def get_temporal_tv_loss(self) -> Float[Tensor, "()"]:
+    def get_temporal_tv_loss(self) -> Float[Tensor, ""]:
         """Apply TV loss on the temporal channels.
         Sample a random channel combination (i.e., row for the combination table),
         and then compute loss on it.
