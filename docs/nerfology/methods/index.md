@@ -34,6 +34,7 @@ The following methods are supported in nerfstudio:
     Nerfacto<nerfacto.md>
     Tetra-NeRF<tetranerf.md>
     TensoRF<tensorf.md>
+    K-Planes<kplanes.md>
 ```
 
 (own_method_docs)=
