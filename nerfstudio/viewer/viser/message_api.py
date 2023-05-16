@@ -165,46 +165,52 @@ class MessageApi(abc.ABC):
             is_button=True,
         )
 
-    def add_gui_checkbox(self, name: str, initial_value: bool) -> GuiHandle[bool]:
+    def add_gui_checkbox(self, name: str, initial_value: bool, hint: Optional[str] = None) -> GuiHandle[bool]:
         """Add a checkbox to the GUI.
 
         Args:
             name: The name of the checkbox.
             initial_value: The initial value of the checkbox.
+            hint: A hint for the checkbox.
         """
         assert isinstance(initial_value, bool)
         return self._add_gui_impl(
             "/".join(self._gui_folder_labels + [name]),
             initial_value,
             leva_conf={"value": initial_value, "label": name},
+            hint=hint,
         )
 
-    def add_gui_text(self, name: str, initial_value: str) -> GuiHandle[str]:
+    def add_gui_text(self, name: str, initial_value: str, hint: Optional[str] = None) -> GuiHandle[str]:
         """Add a text input to the GUI.
 
         Args:
             name: The name of the text input.
             initial_value: The initial value of the text input.
+            hint: A hint for the text input.
         """
         assert isinstance(initial_value, str)
         return self._add_gui_impl(
             "/".join(self._gui_folder_labels + [name]),
             initial_value,
             leva_conf={"value": initial_value, "label": name},
+            hint=hint,
         )
 
-    def add_gui_number(self, name: str, initial_value: IntOrFloat) -> GuiHandle[IntOrFloat]:
+    def add_gui_number(self, name: str, initial_value: IntOrFloat, hint: Optional[str] = None) -> GuiHandle[IntOrFloat]:
         """Add a number input to the GUI.
 
         Args:
             name: The name of the number.
             initial_value: The initial value of the number.
+            hint: A hint for the number.
         """
         assert isinstance(initial_value, (int, float))
         return self._add_gui_impl(
             "/".join(self._gui_folder_labels + [name]),
             initial_value,
             leva_conf={"value": initial_value, "label": name},
+            hint=hint,
         )
 
     def add_gui_vector2(
@@ -212,6 +218,7 @@ class MessageApi(abc.ABC):
         name: str,
         initial_value: Tuple[float, float] | onp.ndarray,
         step: Optional[float] = None,
+        hint: Optional[str] = None,
     ) -> GuiHandle[Tuple[float, float]]:
         """Add a length-2 vector input to the GUI.
 
@@ -219,6 +226,7 @@ class MessageApi(abc.ABC):
             name: The name of the vector.
             initial_value: The initial value of the vector.
             step: The step size for the vector.
+            hint: A hint for the vector.
         """
         return self._add_gui_impl(
             "/".join(self._gui_folder_labels + [name]),
@@ -228,6 +236,7 @@ class MessageApi(abc.ABC):
                 "label": name,
                 "step": step,
             },
+            hint=hint,
         )
 
     def add_gui_vector3(
@@ -236,6 +245,7 @@ class MessageApi(abc.ABC):
         initial_value: Tuple[float, float, float] | onp.ndarray,
         step: Optional[float] = None,
         lock: bool = False,
+        hint: Optional[str] = None,
     ) -> GuiHandle[Tuple[float, float, float]]:
         """Add a length-3 vector input to the GUI.
 
@@ -254,6 +264,7 @@ class MessageApi(abc.ABC):
                 "step": step,
                 "lock": lock,
             },
+            hint=hint,
         )
 
     # Resolve type of value to a Literal whenever possible.
@@ -263,6 +274,7 @@ class MessageApi(abc.ABC):
         name: str,
         options: List[TLiteralString],
         initial_value: Optional[TLiteralString] = None,
+        hint: Optional[str] = None,
     ) -> GuiSelectHandle[TLiteralString]:
         ...
 
@@ -272,6 +284,7 @@ class MessageApi(abc.ABC):
         name: str,
         options: List[str],
         initial_value: Optional[str] = None,
+        hint: Optional[str] = None,
     ) -> GuiSelectHandle[str]:
         ...
 
@@ -280,6 +293,7 @@ class MessageApi(abc.ABC):
         name: str,
         options: List[TLiteralString] | List[str],
         initial_value: Optional[TLiteralString | str] = None,
+        hint: Optional[str] = None,
     ) -> GuiSelectHandle[TLiteralString] | GuiSelectHandle[str]:
         """Add a dropdown to the GUI.
 
@@ -287,6 +301,7 @@ class MessageApi(abc.ABC):
             name: The name of the dropdown.
             options: The options to choose from.
             initial_value: The initial value of the dropdown.
+            hint: A hint for the dropdown.
         """
         assert len(options) > 0
         if initial_value is None:
@@ -300,6 +315,7 @@ class MessageApi(abc.ABC):
                     "label": name,
                     "options": options,
                 },
+                hint=hint,
             )._impl
         )
 
@@ -342,6 +358,7 @@ class MessageApi(abc.ABC):
             name,
             initial_value,
             leva_conf={"type": "BUTTON_GROUP", "label": name, "options": options},
+            is_button=True,
         )
 
     def add_gui_slider(
@@ -351,6 +368,7 @@ class MessageApi(abc.ABC):
         high: IntOrFloat,
         step: Optional[IntOrFloat],
         initial_value: IntOrFloat,
+        hint: Optional[str] = None,
     ) -> GuiHandle[IntOrFloat]:
         """Add a slider to the GUI.
 
@@ -360,6 +378,7 @@ class MessageApi(abc.ABC):
             high: The maximum value of the slider.
             step: The step size of the slider.
             initial_value: The initial value of the slider.
+            hint: A hint for the slider.
         """
         assert high >= low
         if step is not None:
@@ -376,19 +395,21 @@ class MessageApi(abc.ABC):
                 "max": high,
                 "step": step,
             },
+            hint=hint,
         )
 
     def add_gui_rgb(
         self,
         name: str,
         initial_value: Tuple[int, int, int],
+        hint: Optional[str] = None,
     ) -> GuiHandle[Tuple[int, int, int]]:
         """Add an RGB picker to the GUI.
 
         Args:
-            image: The image to set as the background. Must be a 3D numpy array of shape (H, W, 3).
-            file_format: The file format to use for the image.
-            quality: The quality of the image, if using jpeg. Must be an integer between 0 and 100.
+            name: The name of the color picker.
+            initial_value: The initial value of the color picker.
+            hint: A hint for color picker.
         """
         return self._add_gui_impl(
             "/".join(self._gui_folder_labels + [name]),
@@ -403,14 +424,22 @@ class MessageApi(abc.ABC):
             },
             encoder=lambda rgb: dict(zip("rgb", rgb)),
             decoder=lambda rgb_dict: (rgb_dict["r"], rgb_dict["g"], rgb_dict["b"]),
+            hint=hint,
         )
 
     def add_gui_rgba(
         self,
         name: str,
         initial_value: Tuple[int, int, int, int],
+        hint: Optional[str] = None,
     ) -> GuiHandle[Tuple[int, int, int, int]]:
-        """Add an RGBA picker to the GUI."""
+        """Add an RGBA picker to the GUI.
+
+        Args:
+            name: The name of the color picker.
+            initial_value: The initial value of the color picker.
+            hint: A hint for color picker.
+        """
         return self._add_gui_impl(
             "/".join(self._gui_folder_labels + [name]),
             initial_value,
@@ -430,6 +459,7 @@ class MessageApi(abc.ABC):
                 rgba_dict["b"],
                 rgba_dict["a"],
             ),
+            hint=hint,
         )
 
     def set_background_image(
@@ -543,8 +573,13 @@ class MessageApi(abc.ABC):
         is_button: bool = False,
         encoder: Callable[[T], Any] = lambda x: x,
         decoder: Callable[[Any], T] = lambda x: x,
+        hint: Optional[str] = None,
     ) -> GuiHandle[T]:
         """Private helper for adding a simple GUI element."""
+
+        if hint is not None:
+            assert not is_button
+            leva_conf["hint"] = hint
 
         handle_state = _GuiHandleState(
             name,
