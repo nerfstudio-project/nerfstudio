@@ -20,8 +20,7 @@ Field for compound nerf model, adds scene contraction and image embeddings to in
 from typing import Dict, Literal, Optional, Tuple
 
 import torch
-from torch import nn
-from torchtyping import TensorType
+from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
@@ -155,9 +154,9 @@ class NerfactoField(Field):
                 out_activation=None,
                 implementation=implementation,
             )
-            self.field_head_transient_uncertainty = UncertaintyFieldHead(in_dim=self.mlp_transient.n_output_dims)
-            self.field_head_transient_rgb = TransientRGBFieldHead(in_dim=self.mlp_transient.n_output_dims)
-            self.field_head_transient_density = TransientDensityFieldHead(in_dim=self.mlp_transient.n_output_dims)
+            self.field_head_transient_uncertainty = UncertaintyFieldHead(in_dim=self.mlp_transient.get_out_dim())
+            self.field_head_transient_rgb = TransientRGBFieldHead(in_dim=self.mlp_transient.get_out_dim())
+            self.field_head_transient_density = TransientDensityFieldHead(in_dim=self.mlp_transient.get_out_dim())
 
         # semantics
         if self.use_semantics:
@@ -171,7 +170,7 @@ class NerfactoField(Field):
                 implementation=implementation,
             )
             self.field_head_semantics = SemanticFieldHead(
-                in_dim=self.mlp_semantics.n_output_dims, num_classes=num_semantic_classes
+                in_dim=self.mlp_semantics.get_out_dim(), num_classes=num_semantic_classes
             )
 
         # predicted normals
@@ -185,7 +184,7 @@ class NerfactoField(Field):
                 out_activation=None,
                 implementation=implementation,
             )
-            self.field_head_pred_normals = PredNormalsFieldHead(in_dim=self.mlp_pred_normals.n_output_dims)
+            self.field_head_pred_normals = PredNormalsFieldHead(in_dim=self.mlp_pred_normals.get_out_dim())
 
         self.mlp_head = MLP(
             in_dim=self.direction_encoding.get_out_dim() + self.geo_feat_dim + self.appearance_embedding_dim,

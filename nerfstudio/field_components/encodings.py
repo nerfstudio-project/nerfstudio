@@ -694,11 +694,11 @@ class SHEncoding(Encoding):
         return self.levels**2
 
     @torch.no_grad()
-    def pytorch_fwd(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
+    def pytorch_fwd(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
         """Forward pass using pytorch. Significantly slower than TCNN implementation."""
         return components_from_spherical_harmonics(levels=self.levels, directions=in_tensor)
 
-    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
+    def forward(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
         if TCNN_EXISTS and self.tcnn_encoding is not None:
             return self.tcnn_encoding(in_tensor)
         return self.pytorch_fwd(in_tensor)

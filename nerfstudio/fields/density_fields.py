@@ -20,8 +20,7 @@ Proposal network field.
 from typing import Literal, Optional, Tuple
 
 import torch
-from torch import nn
-from torchtyping import TensorType
+from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
