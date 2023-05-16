@@ -83,7 +83,7 @@ For more complex changes (e.g., running with your own data/setting up a new NeRF
 
 ### Prerequisites
 
-You must have an NVIDIA video card with CUDA installed on the system. This library has been tested with version 11.7 of CUDA. You can find more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html)
+You must have an NVIDIA video card with CUDA installed on the system. This library has been tested with version 11.8 of CUDA. You can find more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html)
 
 ### Create environment
 
@@ -102,14 +102,14 @@ Install pytorch with CUDA (this repo has been tested with CUDA 11.7 and CUDA 11.
 For CUDA 11.7:
 
 ```bash
-pip install torch==1.13.1 torchvision functorch --extra-index-url https://download.pytorch.org/whl/cu117
+pip install torch==2.0.1+cu116 torchvision==0.15.2+cu116 --extra-index-url https://download.pytorch.org/whl/cu117
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
 For CUDA 11.8:
 
 ```bash
-pip3 install torch==2.0.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+pip install torch==2.0.1+cu117 torchvision==0.15.2+cu117 --extra-index-url https://download.pytorch.org/whl/cu118
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 

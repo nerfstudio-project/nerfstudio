@@ -4,7 +4,7 @@
 ::::::{tab-set}
 :::::{tab-item} Linux
 
-Install CUDA. This library has been tested with version 11.7. You can find CUDA download links [here](https://developer.nvidia.com/cuda-toolkit-archive) and more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html).
+Install CUDA. This library has been tested with version 11.8. You can find CUDA download links [here](https://developer.nvidia.com/cuda-toolkit-archive) and more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html).
 
 :::::
 :::::{tab-item} Windows
@@ -41,12 +41,21 @@ python -m pip install --upgrade pip
 ### pytorch
 
 ::::{tab-set}
-:::{tab-item} Torch 1.13.1 with CUDA 11.7
+:::{tab-item} Torch 2.0.1 with CUDA 11.7
 
-- To install 1.13.1 with CUDA 11.7:
+- To install 2.0.1 with CUDA 11.7:
+
+Note that if a pytorch version prior to 2.0.1 is installed, 
+it should be uninstalled first to avoid upgrade issues (e.g. with functorch)
 
 ```bash
 pip uninstall torch torchvision functorch
+```
+
+Install pytorch 2.0.1 with CUDA and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+
+```bash
+pip install torch==2.0.1+cu116 torchvision==0.15.2+cu116 --extra-index-url https://download.pytorch.org/whl/cu117
 ```
 
 :::
@@ -64,7 +73,7 @@ pip uninstall torch torchvision functorch
 Install pytorch 2.0.1 with CUDA and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
 
 ```bash
-pip install torch==2.0.1 torchvision functorch --extra-index-url https://download.pytorch.org/whl/cu118
+pip install torch==2.0.1+cu117 torchvision==0.15.2+cu117 --extra-index-url https://download.pytorch.org/whl/cu118
 ```
 
 :::
@@ -224,7 +233,7 @@ Make sure CUDA Visual Studio integration is enabled. This should be done automat
 To manually enable integration for Visual Studio 2019, copy all 4 files from
 
 ```
-C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.7\extras\visual_studio_integration\MSBuildExtensions
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\extras\visual_studio_integration\MSBuildExtensions
 ```
 
 to
@@ -239,7 +248,7 @@ C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Microsoft
 To manually enable integration for Visual Studio 2022, copy all 4 files from
 
 ```
-C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.7\extras\visual_studio_integration\MSBuildExtensions
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\extras\visual_studio_integration\MSBuildExtensions
 ```
 
 to
