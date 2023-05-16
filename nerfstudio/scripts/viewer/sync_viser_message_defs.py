@@ -34,8 +34,8 @@ def main() -> None:
     # - nerfstudio/scripts/viewer/
     # - nerfstudio/scripts/
     # - nerfstudio/
-    target_path = pathlib.Path(__file__).absolute().parent.parent.parent.parent / pathlib.Path(
-        "nerfstudio/viewer/app/src/modules/WebSocket/ViserMessages.tsx"
+    target_path = pathlib.Path(__file__).absolute().parent.parent.parent / pathlib.Path(
+        "viewer/app/src/modules/WebSocket/ViserMessages.tsx"
     )
     assert target_path.exists()
 
