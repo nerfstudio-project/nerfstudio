@@ -28,6 +28,7 @@ import numpy as np
 import open3d as o3d
 import pymeshlab
 import torch
+from jaxtyping import Shaped
 from rich.progress import (
     BarColumn,
     Progress,
@@ -35,7 +36,6 @@ from rich.progress import (
     TextColumn,
     TimeRemainingColumn,
 )
-from jaxtyping import Shaped
 from torch import Tensor
 
 from nerfstudio.cameras.cameras import Cameras

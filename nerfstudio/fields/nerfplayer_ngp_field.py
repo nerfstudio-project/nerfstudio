@@ -20,9 +20,9 @@ NeRFPlayer (https://arxiv.org/abs/2210.15947) field implementations with Instant
 from typing import Dict, Optional, Tuple
 
 import torch
-from torch.nn.parameter import Parameter
 from jaxtyping import Shaped
 from torch import Tensor
+from torch.nn.parameter import Parameter
 
 from nerfstudio.cameras.rays import Frustums, RaySamples
 from nerfstudio.data.scene_box import SceneBox

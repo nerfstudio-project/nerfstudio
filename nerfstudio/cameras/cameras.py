@@ -24,9 +24,9 @@ from typing import Dict, List, Optional, Tuple, Union
 import cv2
 import torch
 import torchvision
-from torch.nn import Parameter
 from jaxtyping import Shaped
 from torch import Tensor
+from torch.nn import Parameter
 
 import nerfstudio.utils.math
 import nerfstudio.utils.poses as pose_utils

@@ -18,9 +18,8 @@
 from typing import Dict, Optional
 
 import torch
-from torch import nn
+from torch import Tensor, nn
 from torch.nn.parameter import Parameter
-from torch import Tensor
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox

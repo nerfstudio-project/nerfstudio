@@ -15,9 +15,8 @@
 """
 Ray generator.
 """
-from torch import nn
 from jaxtyping import Shaped
-from torch import Tensor
+from torch import Tensor, nn
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.cameras.cameras import Cameras

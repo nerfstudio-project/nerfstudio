@@ -28,8 +28,8 @@ import numpy as np
 import pymeshlab
 import torch
 import torch.nn.functional as F
-from skimage import measure
 from jaxtyping import Shaped
+from skimage import measure
 from torch import Tensor
 
 from nerfstudio.exporter.exporter_utils import Mesh, render_trajectory

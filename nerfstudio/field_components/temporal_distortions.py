@@ -18,9 +18,8 @@ from enum import Enum
 from typing import Any, Dict, Optional, Tuple
 
 import torch
-from torch import nn
 from jaxtyping import Shaped
-from torch import Tensor
+from torch import Tensor, nn
 
 from nerfstudio.field_components.encodings import Encoding, NeRFEncoding
 from nerfstudio.field_components.mlp import MLP

@@ -18,9 +18,8 @@ from typing import Optional, Union
 
 import torch
 from functorch import jacrev, vmap
-from torch import nn
 from jaxtyping import Shaped
-from torch import Tensor
+from torch import Tensor, nn
 
 from nerfstudio.utils.math import Gaussians
 

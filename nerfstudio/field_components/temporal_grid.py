@@ -21,11 +21,10 @@ from typing import Optional
 
 import numpy as np
 import torch
-from torch import nn
+from jaxtyping import Shaped
+from torch import Tensor, nn
 from torch.autograd import Function
 from torch.cuda.amp import custom_bwd, custom_fwd
-from jaxtyping import Shaped
-from torch import Tensor
 
 import nerfstudio.field_components.cuda as _C
 

@@ -31,6 +31,7 @@ import mediapy as media
 import numpy as np
 import torch
 import tyro
+from jaxtyping import Shaped
 from rich import box, style
 from rich.panel import Panel
 from rich.progress import (
@@ -41,7 +42,6 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 from rich.table import Table
-from jaxtyping import Shaped
 from torch import Tensor
 from typing_extensions import Annotated
 

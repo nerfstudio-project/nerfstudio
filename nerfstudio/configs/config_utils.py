@@ -24,7 +24,6 @@ from typing import Any, Dict
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
-
 # cannot use mutable types directly within dataclass; abstracting default factory calls
 def to_immutable_dict(d: Dict[str, Any]):
     """Method to convert mutable dict to default factory dict

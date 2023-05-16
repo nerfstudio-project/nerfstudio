@@ -21,9 +21,8 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple, Type
 
 import torch
-from torch import nn
 from jaxtyping import Shaped
-from torch import Tensor
+from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import Frustums, RaySamples
 from nerfstudio.configs.base_config import InstantiateConfig

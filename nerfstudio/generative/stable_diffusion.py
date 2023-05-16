@@ -27,11 +27,10 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import tyro
-from torch import nn
+from jaxtyping import Shaped
+from torch import Tensor, nn
 from torch.cuda.amp import custom_bwd, custom_fwd
 from torch.cuda.amp.grad_scaler import GradScaler
-from jaxtyping import Shaped
-from torch import Tensor
 
 from nerfstudio.utils.rich_utils import CONSOLE
 

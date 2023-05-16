@@ -18,9 +18,8 @@ The field module baseclass.
 from abc import abstractmethod
 from typing import Optional
 
-from torch import nn
 from jaxtyping import Shaped
-from torch import Tensor
+from torch import Tensor, nn
 
 
 class FieldComponent(nn.Module):

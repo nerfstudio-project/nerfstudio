@@ -27,8 +27,8 @@ import numpy as np
 import plotly.graph_objects as go
 import torch
 import torch.nn.functional as F
-from plotly import express as ex
 from jaxtyping import Shaped
+from plotly import express as ex
 from torch import Tensor
 
 from nerfstudio.cameras.cameras import Cameras

@@ -24,10 +24,10 @@ from typing import Dict, List
 import numpy as np
 import numpy.typing as npt
 import torch
-from PIL import Image
-from torch.utils.data import Dataset
 from jaxtyping import Shaped
+from PIL import Image
 from torch import Tensor
+from torch.utils.data import Dataset
 
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.utils.data_utils import get_image_mask_tensor_from_path

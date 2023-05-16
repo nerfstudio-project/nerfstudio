@@ -21,9 +21,9 @@ from typing import Dict, Optional, Tuple
 
 import numpy as np
 import torch
-from torch.nn.parameter import Parameter
 from jaxtyping import Shaped
 from torch import Tensor
+from torch.nn.parameter import Parameter
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox

@@ -19,9 +19,8 @@ Scene Colliders
 from __future__ import annotations
 
 import torch
-from torch import nn
 from jaxtyping import Shaped
-from torch import Tensor
+from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.scene_box import SceneBox

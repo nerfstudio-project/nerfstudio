@@ -20,10 +20,9 @@ from abc import abstractmethod
 from typing import Callable, List, Optional, Tuple, Union
 
 import torch
-from nerfacc import OccGridEstimator
-from torch import nn
 from jaxtyping import Shaped
-from torch import Tensor
+from nerfacc import OccGridEstimator
+from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import Frustums, RayBundle, RaySamples
 

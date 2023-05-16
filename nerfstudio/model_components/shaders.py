@@ -15,9 +15,8 @@
 """Shaders for rendering."""
 from typing import Optional
 
-from torch import nn
 from jaxtyping import Shaped
-from torch import Tensor
+from torch import Tensor, nn
 
 
 class LambertianShader(nn.Module):
