@@ -172,7 +172,7 @@ function handleMessage(
         cam.setFocalLength(newFocalLength);
       }
       if(message.look_at !==null && message.position !== null){
-        sceneTree.current.metadata.camera_controls.setLookAt(message.position[0],
+        sceneTree.metadata.camera_controls.setLookAt(message.position[0],
           message.position[1],
           message.position[2],
           message.look_at[0],
@@ -183,11 +183,11 @@ function handleMessage(
       else{
         if(message.look_at !==null){
           const p = message.look_at;
-          sceneTree.current.metadata.camera_controls.setTarget(p[0],p[1],p[2],!message.instant);
+          sceneTree.metadata.camera_controls.setTarget(p[0],p[1],p[2],!message.instant);
         }
         if(message.position !==null){
           const p = message.position;
-          sceneTree.current.metadata.camera_controls.setPosition(p[0],p[1],p[2],!message.instant);
+          sceneTree.metadata.camera_controls.setPosition(p[0],p[1],p[2],!message.instant);
         }
       }
       break;
