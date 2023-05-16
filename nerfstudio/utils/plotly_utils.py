@@ -100,7 +100,7 @@ def get_line_segments_from_lines(
     return data
 
 
-def vis_dataset(camera_origins: Shaped[Tensor, "num_cameras 3"], ray_bundle: RayBundle) -> go.FigureWidget:  # type: ignore
+def vis_dataset(camera_origins: Shaped[Tensor, "num_cameras 3"], ray_bundle: RayBundle) -> go.FigureWidget:
     """Visualize a dataset with plotly using our cameras and generated rays.
 
     Args:

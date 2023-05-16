@@ -119,7 +119,7 @@ class NeuSFactoModel(NeuSModel):
             self.density_fns.extend([network.density_fn for network in self.proposal_networks])
 
         # update proposal network every iterations
-        def update_schedule(step):
+        def update_schedule(_):
             return -1
 
         initial_sampler = UniformSampler(single_jitter=self.config.use_single_jitter)

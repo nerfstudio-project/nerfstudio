@@ -37,6 +37,7 @@ from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def to8b(x):
+    """Converts a torch tensor to 8 bit"""
     return (255 * torch.clamp(x, min=0, max=1)).to(torch.uint8)
 
 
