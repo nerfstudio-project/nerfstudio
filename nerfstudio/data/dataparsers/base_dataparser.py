@@ -24,7 +24,6 @@ from typing import Any, Dict, List, Literal, Optional, Type
 
 import torch
 from jaxtyping import Shaped
-from torch import Tensor
 
 import nerfstudio.configs.base_config as cfg
 from nerfstudio.cameras.cameras import Cameras
