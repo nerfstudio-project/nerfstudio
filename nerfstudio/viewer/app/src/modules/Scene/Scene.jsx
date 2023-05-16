@@ -111,30 +111,31 @@ export function get_scene_tree() {
       camera_controls.setTarget(
         curPos.x + diff.x,
         curPos.y + diff.y,
-        curPos.z + diff.z,true
+        curPos.z + diff.z,
+        {enableTransition:true}
       );
 
       if (keyMap.ArrowLeft === true) {
-        camera_controls.rotate(sideRotSpeed, 0, true);
+        camera_controls.rotate(sideRotSpeed, 0, {enableTransition:true});
       }
       if (keyMap.ArrowRight === true) {
-        camera_controls.rotate(-sideRotSpeed, 0, true);
+        camera_controls.rotate(-sideRotSpeed, 0, {enableTransition:true});
       }
       if (keyMap.ArrowUp === true) {
-        camera_controls.rotate(0, upRotSpeed, true);
+        camera_controls.rotate(0, upRotSpeed, {enableTransition:true});
       }
       if (keyMap.ArrowDown === true) {
-        camera_controls.rotate(0, -upRotSpeed, true);
+        camera_controls.rotate(0, -upRotSpeed, {enableTransition:true});
       }
     }
   }
 
   function translate() {
     if (keyMap.KeyD === true) {
-      camera_controls.truck(moveSpeed, 0, true);
+      camera_controls.truck(moveSpeed, 0, {enableTransition:true});
     }
     if (keyMap.KeyA === true) {
-      camera_controls.truck(-moveSpeed, 0, true);
+      camera_controls.truck(-moveSpeed, 0, {enableTransition:true});
     }
     if (keyMap.KeyW === true) {
       const curPos = camera_controls.getPosition();
@@ -146,18 +147,19 @@ export function get_scene_tree() {
       camera_controls.setTarget(
         curPos.x + newDiff.x,
         curPos.y + newDiff.y,
-        curPos.z + newDiff.z,true
+        curPos.z + newDiff.z,
+        {enableTransition:true}
       );
-      camera_controls.dolly(moveSpeed, true);
+      camera_controls.dolly(moveSpeed, {enableTransition:true});
     }
     if (keyMap.KeyS === true) {
-      camera_controls.dolly(-moveSpeed, true);
+      camera_controls.dolly(-moveSpeed, {enableTransition:true});
     }
     if (keyMap.KeyQ === true) {
-      camera_controls.truck(0, moveSpeed, true);
+      camera_controls.truck(0, moveSpeed, {enableTransition:true});
     }
     if (keyMap.KeyE === true) {
-      camera_controls.truck(0, -moveSpeed, true);
+      camera_controls.truck(0, -moveSpeed, {enableTransition:true});
     }
   }
 
@@ -166,7 +168,7 @@ export function get_scene_tree() {
       return;
     }
     if (keyMap.Space === true) {
-      camera_controls.setLookAt(0.7, -0.7, 0.3, 0, 0, 0,true);
+      camera_controls.setLookAt(0.7, -0.7, 0.3, 0, 0, 0, {enableTransition:true});
     }
     translate();
     rotate();
@@ -305,7 +307,8 @@ export function get_scene_tree() {
     camera_controls.setTarget(
       curPos.x + newDiff.x,
       curPos.y + newDiff.y,
-      curPos.z + newDiff.z,true
+      curPos.z + newDiff.z,
+      {enableTransition:true}
     );
   };
 
