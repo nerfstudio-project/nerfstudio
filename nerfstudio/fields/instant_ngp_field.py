@@ -35,6 +35,12 @@ from nerfstudio.field_components.spatial_distortions import (
 )
 from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
 
+try:
+    import tinycudann as tcnn
+except ImportError:
+    # tinycudann module doesn't exist
+    pass
+
 
 class TCNNInstantNGPField(Field):
     """TCNN implementation of the Instant-NGP field.

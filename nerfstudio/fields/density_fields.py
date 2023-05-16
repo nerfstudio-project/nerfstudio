@@ -19,7 +19,6 @@ Proposal network field.
 
 from typing import Literal, Optional, Tuple
 
-import numpy as np
 import torch
 from torch import nn
 from torchtyping import TensorType
@@ -27,12 +26,7 @@ from torchtyping import TensorType
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
-from nerfstudio.field_components.encodings import (
-    Encoding,
-    HashEncoding,
-    NeRFEncoding,
-    SHEncoding,
-)
+from nerfstudio.field_components.encodings import HashEncoding
 from nerfstudio.field_components.mlp import MLP
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.base_field import Field
