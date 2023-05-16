@@ -48,7 +48,10 @@ def apply_colormap(
     eps: float = 1e-9,
 ) -> TensorType["bs":..., "rgb":3]:
     """
-    Applies a colormap to a tensor image. Currently only supports 1 and 3 channel inputs
+    Applies a colormap to a tensor image.
+    If single channel, applies a colormap to the image.
+    If 3 channel, treats the channels as RGB.
+    If more than 3 channel, applies a PCA reduction on the dimensions to 3 channels
 
     Args:
         image: Input tensor image.
