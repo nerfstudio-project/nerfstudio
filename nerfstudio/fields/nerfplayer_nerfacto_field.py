@@ -136,6 +136,7 @@ class TemporalHashMLPDensityField(Field):
         else:
             positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
+        assert ray_samples.times is not None
         time_flat = ray_samples.times.reshape(-1, 1)
         x = self.encoding(positions_flat, time_flat).to(positions)
         density_before_activation = self.linear(x).view(*ray_samples.frustums.shape, -1)
@@ -233,7 +234,7 @@ class NerfplayerNerfactoField(Field):
             num_levels=num_levels,
             level_dim=features_per_level,
             log2_hashmap_size=log2_hashmap_size,
-            desired_resolution=1024 * (self.aabb.max() - self.aabb.min()),
+            desired_resolution=int(1024 * (self.aabb.max().item() - self.aabb.min().item())),
         )
         self.mlp_base_decode = tcnn.Network(
             n_input_dims=num_levels * features_per_level,
