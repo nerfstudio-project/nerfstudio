@@ -21,8 +21,9 @@ from typing import Dict, Optional, Tuple
 
 import numpy as np
 import torch
+from jaxtyping import Float
+from torch import Tensor
 from torch.nn.parameter import Parameter
-from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
@@ -63,7 +64,7 @@ class TCNNInstantNGPField(Field):
 
     def __init__(
         self,
-        aabb: TensorType,
+        aabb: Tensor,
         num_layers: int = 2,
         hidden_dim: int = 64,
         geo_feat_dim: int = 15,
@@ -137,7 +138,7 @@ class TCNNInstantNGPField(Field):
             },
         )
 
-    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         if self.spatial_distortion is not None:
             positions = ray_samples.frustums.get_positions()
             positions = self.spatial_distortion(positions)
@@ -160,8 +161,8 @@ class TCNNInstantNGPField(Field):
         return density, base_mlp_out
 
     def get_outputs(
-        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
-    ) -> Dict[FieldHeadNames, TensorType]:
+        self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None
+    ) -> Dict[FieldHeadNames, Tensor]:
         assert density_embedding is not None
         directions = shift_directions_for_tcnn(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
@@ -184,7 +185,7 @@ class TCNNInstantNGPField(Field):
         rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
         return {FieldHeadNames.RGB: rgb}
 
-    def get_opacity(self, positions: TensorType["bs":..., 3], step_size) -> TensorType["bs":..., 1]:
+    def get_opacity(self, positions: Float[Tensor, "*bs 3"], step_size) -> Float[Tensor, "*bs 1"]:
         """Returns the opacity for a position. Used primarily by the occupancy grid.
 
         Args:

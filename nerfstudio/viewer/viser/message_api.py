@@ -13,8 +13,7 @@
 # limitations under the License.
 
 """ This module contains the MessageApi class, which is the interface for sending messages to the Viewer"""
-# pylint: disable=protected-access
-# pylint: disable=too-many-public-methods
+
 
 from __future__ import annotations
 
@@ -500,7 +499,12 @@ class MessageApi(abc.ABC):
         Args:
             scene_box: The scene box.
         """
-        self._queue(messages.SceneBoxMessage(min=scene_box.aabb[0].tolist(), max=scene_box.aabb[1].tolist()))
+        self._queue(
+            messages.SceneBoxMessage(
+                min=tuple(scene_box.aabb[0].tolist()),
+                max=tuple(scene_box.aabb[1].tolist()),
+            )
+        )
 
     def add_dataset_image(self, idx: str, json: Dict) -> None:
         """Add a dataset image to the scene.

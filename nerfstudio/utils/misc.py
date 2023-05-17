@@ -71,7 +71,7 @@ def get_masked_dict(d, mask):
     return masked_dict
 
 
-class IterableWrapper:  # pylint: disable=too-few-public-methods
+class IterableWrapper:
     """A helper that will allow an instance of a class to return multiple kinds of iterables bound
     to different functions of that class.
 

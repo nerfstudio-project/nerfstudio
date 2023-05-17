@@ -36,7 +36,8 @@ from nerfstudio.model_components.renderers import (
     DepthRenderer,
     RGBRenderer,
 )
-from nerfstudio.models.base_model import Model, ModelConfig
+from nerfstudio.models.base_model import Model
+from nerfstudio.models.vanilla_nerf import VanillaModelConfig
 from nerfstudio.utils import colormaps, colors, misc
 
 
@@ -47,12 +48,15 @@ class MipNerfModel(Model):
         config: MipNerf configuration to instantiate model
     """
 
+    config: VanillaModelConfig
+
     def __init__(
         self,
-        config: ModelConfig,
+        config: VanillaModelConfig,
         **kwargs,
     ) -> None:
         self.field = None
+        assert config.collider_params is not None, "MipNeRF model requires bounding box collider parameters."
         super().__init__(config=config, **kwargs)
 
     def populate_modules(self):
@@ -151,6 +155,8 @@ class MipNerfModel(Model):
         rgb_fine = outputs["rgb_fine"]
         acc_coarse = colormaps.apply_colormap(outputs["accumulation_coarse"])
         acc_fine = colormaps.apply_colormap(outputs["accumulation_fine"])
+
+        assert self.config.collider_params is not None
         depth_coarse = colormaps.apply_depth_colormap(
             outputs["depth_coarse"],
             accumulation=outputs["accumulation_coarse"],
@@ -180,6 +186,7 @@ class MipNerfModel(Model):
         fine_ssim = self.ssim(image, rgb_fine)
         fine_lpips = self.lpips(image, rgb_fine)
 
+        assert isinstance(fine_ssim, torch.Tensor)
         metrics_dict = {
             "psnr": float(fine_psnr.item()),
             "coarse_psnr": float(coarse_psnr.item()),

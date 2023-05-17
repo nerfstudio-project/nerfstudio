@@ -36,9 +36,9 @@ def test_init():
 
         dummy_vals: torch.Tensor = None
 
-    dummy = Dummy(dummy_vals=torch.ones(1))
+    Dummy(dummy_vals=torch.ones(1))
     with pytest.raises(ValueError):
-        dummy = Dummy()
+        Dummy()
 
 
 def test_broadcasting():
@@ -61,7 +61,7 @@ def test_broadcasting():
         tensor_dataclass = DummyTensorDataclass(a=a, b=b)
 
 
-def test_tensor_ops():  # pylint: disable=(too-many-statements)
+def test_tensor_ops():
     """Test tensor operations"""
 
     a = torch.ones((4, 6, 3))

@@ -31,6 +31,7 @@ import mediapy as media
 import numpy as np
 import torch
 import tyro
+from jaxtyping import Float
 from rich import box, style
 from rich.panel import Panel
 from rich.progress import (
@@ -41,7 +42,7 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 from rich.table import Table
-from torchtyping import TensorType
+from torch import Tensor
 from typing_extensions import Annotated
 
 from nerfstudio.cameras.camera_paths import (
@@ -253,11 +254,11 @@ xmlns:GSpherical='http://ns.google.com/videos/1.0/spherical/'>
 class CropData:
     """Data for cropping an image."""
 
-    background_color: TensorType[3] = torch.Tensor([0.0, 0.0, 0.0])
+    background_color: Float[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
     """background color"""
-    center: TensorType[3] = torch.Tensor([0.0, 0.0, 0.0])
+    center: Float[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
     """center of the crop"""
-    scale: TensorType[3] = torch.Tensor([2.0, 2.0, 2.0])
+    scale: Float[Tensor, "3"] = torch.Tensor([2.0, 2.0, 2.0])
     """scale of the crop"""
 
 
@@ -365,8 +366,10 @@ class RenderInterpolated(BaseRender):
         install_checks.check_ffmpeg_installed()
 
         if self.pose_source == "eval":
+            assert pipeline.datamanager.eval_dataset is not None
             cameras = pipeline.datamanager.eval_dataset.cameras
         else:
+            assert pipeline.datamanager.train_dataset is not None
             cameras = pipeline.datamanager.train_dataset.cameras
 
         seconds = self.interpolation_steps * len(cameras) / self.frame_rate
@@ -447,5 +450,7 @@ def entrypoint():
 if __name__ == "__main__":
     entrypoint()
 
-# For sphinx docs
-get_parser_fn = lambda: tyro.extras.get_parser(Commands)  # noqa
+
+def get_parser_fn():
+    """Get the parser function for the sphinx docs."""
+    return tyro.extras.get_parser(Commands)  # noqa

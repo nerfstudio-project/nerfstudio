@@ -18,8 +18,8 @@ The field module baseclass.
 from abc import abstractmethod
 from typing import Optional
 
-from torch import nn
-from torchtyping import TensorType
+from jaxtyping import Shaped
+from torch import Tensor, nn
 
 
 class FieldComponent(nn.Module):
@@ -56,7 +56,7 @@ class FieldComponent(nn.Module):
         return self.out_dim
 
     @abstractmethod
-    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
+    def forward(self, in_tensor: Shaped[Tensor, "*bs input_dim"]) -> Shaped[Tensor, "*bs output_dim"]:
         """
         Returns processed tensor
 

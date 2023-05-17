@@ -37,7 +37,7 @@ class BaseConverterToNerfstudioDataset(ABC):
         self.image_dir.mkdir(parents=True, exist_ok=True)
 
     @property
-    def image_dir(self) -> Path:  # pylint: disable=missing-function-docstring
+    def image_dir(self) -> Path:
         return self.output_dir / "images"
 
     @abstractmethod

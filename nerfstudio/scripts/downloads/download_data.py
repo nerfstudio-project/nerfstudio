@@ -21,7 +21,7 @@ import tarfile
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 import gdown
 import tyro
@@ -135,7 +135,10 @@ nerfstudio_file_ids = {
     "nerfstudio-dataset": nerfstudio_dataset,
 }
 
-NerfstudioCaptureName = tyro.extras.literal_type_from_choices(nerfstudio_file_ids.keys())
+if TYPE_CHECKING:
+    NerfstudioCaptureName = str
+else:
+    NerfstudioCaptureName = tyro.extras.literal_type_from_choices(nerfstudio_file_ids.keys())
 
 
 def download_capture_name(save_dir: Path, dataset_name: str, capture_name: str, capture_name_to_file_id: dict):
@@ -206,7 +209,10 @@ record3d_file_ids = {
     "bear": grab_file_id("https://drive.google.com/file/d/1WRZohWMRj0nNlYFIEBwkddDoGPvLTzkR/view?usp=sharing")
 }
 
-Record3dCaptureName = tyro.extras.literal_type_from_choices(record3d_file_ids.keys())
+if TYPE_CHECKING:
+    Record3dCaptureName = str
+else:
+    Record3dCaptureName = tyro.extras.literal_type_from_choices(record3d_file_ids.keys())
 
 
 @dataclass
@@ -242,7 +248,6 @@ class DNerfDownload(DatasetDownload):
             download_path.unlink()
 
 
-# pylint: disable=line-too-long
 phototourism_downloads = {
     "brandenburg-gate": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/brandenburg_gate.tar.gz",
     "buckingham-palace": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/buckingham_palace.tar.gz",
@@ -257,7 +262,10 @@ phototourism_downloads = {
     "all": None,
 }
 
-PhototourismCaptureName = tyro.extras.literal_type_from_choices(phototourism_downloads.keys())
+if TYPE_CHECKING:
+    PhototourismCaptureName = str
+else:
+    PhototourismCaptureName = tyro.extras.literal_type_from_choices(phototourism_downloads.keys())
 
 
 @dataclass
@@ -302,7 +310,7 @@ class PhototourismDownload(DatasetDownload):
 
 
 # credit to https://autonomousvision.github.io/sdfstudio/
-# pylint: disable=line-too-long
+
 sdfstudio_downloads = {
     "sdfstudio-demo-data": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/sdfstudio-demo-data.tar",
     "dtu": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/DTU.tar",
@@ -315,7 +323,10 @@ sdfstudio_downloads = {
     "all": None,
 }
 
-SDFstudioCaptureName = tyro.extras.literal_type_from_choices(sdfstudio_downloads.keys())
+if TYPE_CHECKING:
+    SDFstudioCaptureName = str
+else:
+    SDFstudioCaptureName = tyro.extras.literal_type_from_choices(sdfstudio_downloads.keys())
 
 
 @dataclass
@@ -370,7 +381,6 @@ class SDFstudioDemoDownload(DatasetDownload):
         os.remove(download_path)
 
 
-# pylint: disable=line-too-long
 nerfosr_downloads = {
     "europa": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=europa&downloadStartSecret=0k2r95c1fdej",
     "lk2": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=lk2&downloadStartSecret=w8kuvjzmchc",
@@ -385,7 +395,10 @@ nerfosr_downloads = {
 }
 
 
-NeRFOSRCaptureName = tyro.extras.literal_type_from_choices(nerfosr_downloads.keys())
+if TYPE_CHECKING:
+    NeRFOSRCaptureName = str
+else:
+    NeRFOSRCaptureName = tyro.extras.literal_type_from_choices(nerfosr_downloads.keys())
 
 
 @dataclass
