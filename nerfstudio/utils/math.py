@@ -258,7 +258,7 @@ def masked_reduction(
     input_tensor: Float[Tensor, "1 32 mult"],
     mask: Bool[Tensor, "1 32 mult"],
     reduction_type: Literal["image", "batch"],
-):
+) -> Tensor:
     """
     Whether to consolidate the input_tensor across the batch or across the image
     Args:
@@ -271,7 +271,9 @@ def masked_reduction(
     if reduction_type == "batch":
         # avoid division by 0 (if sum(M) = sum(sum(mask)) = 0: sum(image_loss) = 0)
         divisor = torch.sum(mask)
-        input_tensor = 0 if divisor == 0 else torch.sum(input_tensor) / divisor
+        if divisor == 0:
+            return torch.tensor(0, device=input_tensor.device)
+        input_tensor = torch.sum(input_tensor) / divisor
     elif reduction_type == "image":
         # avoid division by 0 (if M = sum(mask) = 0: image_loss = 0)
         valid = mask.nonzero()

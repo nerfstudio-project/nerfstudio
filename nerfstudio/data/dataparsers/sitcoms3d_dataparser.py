@@ -111,11 +111,12 @@ class Sitcoms3D(DataParser):
         lengths = scene_box.aabb[1] - scene_box.aabb[0]
         longest_dim = torch.argmax(lengths)
         longest_length = lengths[longest_dim]
-        scale = scene_scale / longest_length
+        scale = scene_scale / longest_length.item()
         scene_box.aabb = scene_box.aabb * scale  # box
         camera_to_worlds[..., 3] *= scale  # cameras
 
         # --- semantics ---
+        semantics = None
         if self.config.include_semantics:
             empty_path = Path()
             replace_this_path = str(empty_path / images_folder / empty_path)

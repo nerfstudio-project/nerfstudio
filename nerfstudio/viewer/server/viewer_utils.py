@@ -119,13 +119,13 @@ def update_render_aabb(
     """
 
     if crop_viewport:
-        crop_min = torch.tensor(crop_min, dtype=torch.float32)
-        crop_max = torch.tensor(crop_max, dtype=torch.float32)
+        crop_min_tensor = torch.tensor(crop_min, dtype=torch.float32)
+        crop_max_tensor = torch.tensor(crop_max, dtype=torch.float32)
 
         if isinstance(model.render_aabb, SceneBox):
-            model.render_aabb.aabb[0] = crop_min
-            model.render_aabb.aabb[1] = crop_max
+            model.render_aabb.aabb[0] = crop_min_tensor
+            model.render_aabb.aabb[1] = crop_max_tensor
         else:
-            model.render_aabb = SceneBox(aabb=torch.stack([crop_min, crop_max], dim=0))
+            model.render_aabb = SceneBox(aabb=torch.stack([crop_min_tensor, crop_max_tensor], dim=0))
     else:
         model.render_aabb = None

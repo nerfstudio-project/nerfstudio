@@ -57,7 +57,6 @@ class MinimalDataParser(DataParser):
         if "mask_filenames" in data.keys():
             mask_filenames = [filepath.parent / path for path in data["mask_filenames"].tolist()]
 
-        metadata = None
         if "semantics" in data.keys():
             semantics = data["semantics"].item()
             metadata = {
@@ -68,6 +67,8 @@ class MinimalDataParser(DataParser):
                     mask_classes=semantics["mask_classes"].tolist(),
                 )
             }
+        else:
+            metadata = {}
 
         scene_box_aabb = torch.from_numpy(data["scene_box"])
         scene_box = SceneBox(aabb=scene_box_aabb)
@@ -90,7 +91,7 @@ class MinimalDataParser(DataParser):
         )
 
         applied_scale = 1.0
-        applied_transform = np.eye(4, dtype=np.float32)[:3, :]
+        applied_transform = torch.eye(4, dtype=torch.float32)[:3, :]
         if "applied_scale" in data.keys():
             applied_scale = float(data["applied_scale"])
         if "applied_transform" in data.keys():

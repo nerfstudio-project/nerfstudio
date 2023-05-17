@@ -87,7 +87,11 @@ class NuScenes(DataParser):
     def _generate_dataparser_outputs(self, split="train"):
         # pylint: disable=too-many-statements
 
-        nusc = NuScenesDatabase(version=self.config.version, dataroot=self.config.data_dir, verbose=self.config.verbose)
+        nusc = NuScenesDatabase(
+            version=self.config.version,
+            dataroot=str(self.config.data_dir.absolute()),
+            verbose=self.config.verbose,
+        )
         cameras = ["CAM_" + camera for camera in self.config.cameras]
 
         assert (

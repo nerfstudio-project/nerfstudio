@@ -53,7 +53,11 @@ class ProcessNuScenesMasks:
     def main(self) -> None:
         """Generate NuScenes dynamic object masks."""
 
-        nusc = NuScenesDatabase(version=self.version, dataroot=self.data_dir, verbose=self.verbose)
+        nusc = NuScenesDatabase(
+            version=self.version,
+            dataroot=str(self.data_dir.absolute()),
+            verbose=self.verbose,
+        )
         cameras = ["CAM_" + camera for camera in self.cameras]
 
         for camera in cameras:
@@ -105,18 +109,18 @@ class ProcessNuScenesMasks:
                     corners_3d = box.corners()
                     corners = view_points(corners_3d, intrinsics, normalize=True)[:2, :]
                     corners = np.round(corners).astype(int).T
-                    cv2.fillPoly(mask, [corners[[0, 1, 2, 3]]], 0)  # front
-                    cv2.fillPoly(mask, [corners[[4, 5, 6, 7]]], 0)  # back
-                    cv2.fillPoly(mask, [corners[[0, 1, 5, 4]]], 0)  # top
-                    cv2.fillPoly(mask, [corners[[2, 3, 7, 6]]], 0)  # bottom
-                    cv2.fillPoly(mask, [corners[[0, 3, 7, 4]]], 0)  # left
-                    cv2.fillPoly(mask, [corners[[1, 2, 6, 5]]], 0)  # right
+                    cv2.fillPoly(mask, [corners[[0, 1, 2, 3]]], 0)  # front # type: ignore
+                    cv2.fillPoly(mask, [corners[[4, 5, 6, 7]]], 0)  # back # type: ignore
+                    cv2.fillPoly(mask, [corners[[0, 1, 5, 4]]], 0)  # top # type: ignore
+                    cv2.fillPoly(mask, [corners[[2, 3, 7, 6]]], 0)  # bottom # type: ignore
+                    cv2.fillPoly(mask, [corners[[0, 3, 7, 4]]], 0)  # left # type: ignore
+                    cv2.fillPoly(mask, [corners[[1, 2, 6, 5]]], 0)  # right # type: ignore
 
                 maskname = os.path.split(camera_data["filename"])[1].replace("jpg", "png")
-                cv2.imwrite(str(self.output_dir / "masks" / camera / maskname), mask * 255)
+                cv2.imwrite(str(self.output_dir / "masks" / camera / maskname), mask * 255)  # type: ignore
 
                 if self.verbose:
-                    img = cv2.imread(str(self.data_dir / camera_data["filename"]))
+                    img = cv2.imread(str(self.data_dir / camera_data["filename"]))  # type: ignore
                     mask = ~mask.astype(bool)
                     img[mask, :] -= np.minimum(img[mask, :], 100)
                     viz.append(img)
@@ -124,16 +128,16 @@ class ProcessNuScenesMasks:
             if self.verbose:
                 if len(viz) == 6:
                     viz = np.vstack((np.hstack(viz[:3]), np.hstack(viz[3:])))
-                    viz = cv2.resize(viz, (int(1600 * 3 / 3), int(900 * 2 / 3)))
+                    viz = cv2.resize(viz, (int(1600 * 3 / 3), int(900 * 2 / 3)))  # type: ignore
                 elif len(viz) == 3:
                     viz = np.hstack(viz[:3])
-                    viz = cv2.resize(viz, (int(1600 * 3 / 3), int(900 / 3)))
+                    viz = cv2.resize(viz, (int(1600 * 3 / 3), int(900 / 3)))  # type: ignore
                 elif len(viz) == 1:
                     viz = viz[0]
                 else:
                     raise ValueError("Only support 1 or 3 or 6 cameras for viz")
-                cv2.imshow("", viz)
-                cv2.waitKey(1)
+                cv2.imshow("", viz)  # type: ignore
+                cv2.waitKey(1)  # type: ignore
 
 
 def entrypoint():

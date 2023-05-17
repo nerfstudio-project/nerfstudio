@@ -284,7 +284,7 @@ class ViewerCheckbox(ViewerParameter[bool]):
         self.gui_handle.set_disabled(self.disabled)
 
 
-TString = TypeVar("TString", default=str)
+TString = TypeVar("TString", default=str, bound=str)
 
 
 class ViewerDropdown(ViewerParameter[TString], Generic[TString]):
@@ -317,10 +317,15 @@ class ViewerDropdown(ViewerParameter[TString], Generic[TString]):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_select(self.name, self.options, self.default_value, hint=self.hint)
+        self.gui_handle = viser_server.add_gui_select(
+            self.name,
+            self.options,  # type: ignore
+            self.default_value,  # type: ignore
+            hint=self.hint,
+        )
         self.gui_handle.set_disabled(self.disabled)
 
-    def set_options(self, new_options: List[str]) -> None:
+    def set_options(self, new_options: List[TString]) -> None:
         """
         Sets the options of the dropdown,
 
@@ -329,7 +334,7 @@ class ViewerDropdown(ViewerParameter[TString], Generic[TString]):
         """
         self.options = new_options
         if self.gui_handle is not None:
-            self.gui_handle.set_options(new_options)
+            self.gui_handle.set_options(new_options)  # type: ignore
 
 
 class ViewerButtonGroup(ViewerParameter[TString], Generic[TString]):

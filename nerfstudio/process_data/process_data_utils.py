@@ -20,7 +20,7 @@ import shutil
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import List, Literal, Optional, OrderedDict, Tuple
+from typing import List, Literal, Optional, OrderedDict, Tuple, Union
 
 import cv2
 import numpy as np
@@ -381,7 +381,23 @@ def find_tool_feature_matcher_combination(
     matcher_type: Literal[
         "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
     ],
-):
+) -> Union[
+    Tuple[None, None, None],
+    Tuple[
+        Literal["colmap", "hloc"],
+        Literal[
+            "sift",
+            "superpoint_aachen",
+            "superpoint_max",
+            "superpoint_inloc",
+            "r2d2",
+            "d2net-ss",
+            "sosnet",
+            "disk",
+        ],
+        Literal["superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"],
+    ],
+]:
     """Find a valid combination of sfm tool, feature type, and matcher type.
     Basically, replace the default parameters 'any' by usable value
 
@@ -436,7 +452,7 @@ def generate_circle_mask(height: int, width: int, percent_radius) -> Optional[np
     mask = np.zeros((height, width), dtype=np.uint8)
     center = (width // 2, height // 2)
     radius = int(percent_radius * np.sqrt(width**2 + height**2) / 2.0)
-    cv2.circle(mask, center, radius, 1, -1)
+    cv2.circle(mask, center, radius, 1, -1)  # type: ignore
     return mask
 
 
@@ -507,7 +523,7 @@ def save_mask(
         The path to the mask file or None if no mask is needed.
     """
     image_path = next(image_dir.glob("frame_*"))
-    image = cv2.imread(str(image_path))
+    image = cv2.imread(str(image_path))  # type: ignore
     height, width = image.shape[:2]
     mask = generate_mask(height, width, crop_factor, percent_radius)
     if mask is None:
@@ -515,13 +531,17 @@ def save_mask(
     mask *= 255
     mask_path = image_dir.parent / "masks"
     mask_path.mkdir(exist_ok=True)
-    cv2.imwrite(str(mask_path / "mask.png"), mask)
+    cv2.imwrite(str(mask_path / "mask.png"), mask)  # type: ignore
     downscale_factors = [2**i for i in range(num_downscales + 1)[1:]]
     for downscale in downscale_factors:
         mask_path_i = image_dir.parent / f"masks_{downscale}"
         mask_path_i.mkdir(exist_ok=True)
         mask_path_i = mask_path_i / "mask.png"
-        mask_i = cv2.resize(mask, (width // downscale, height // downscale), interpolation=cv2.INTER_NEAREST)
-        cv2.imwrite(str(mask_path_i), mask_i)
+        mask_i = cv2.resize(  # type: ignore
+            mask,
+            (width // downscale, height // downscale),
+            interpolation=cv2.INTER_NEAREST,  # type: ignore
+        )
+        cv2.imwrite(str(mask_path_i), mask_i)  # type: ignore
     CONSOLE.log(":tada: Generated and saved masks.")
     return mask_path / "mask.png"

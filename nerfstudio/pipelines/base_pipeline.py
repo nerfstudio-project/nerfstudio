@@ -186,11 +186,13 @@ class Pipeline(nn.Module):
             step: training step of the loaded checkpoint
         """
 
+    @abstractmethod
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
         """Returns the training callbacks from both the Dataloader and the Model."""
 
+    @abstractmethod
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Get the param groups for the pipeline.
 

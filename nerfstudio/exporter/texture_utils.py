@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Literal, Optional, Tuple, Union
+from typing import Literal, Tuple, Union
 
 import mediapy as media
 import numpy as np
@@ -332,7 +332,7 @@ def export_textured_mesh(
     mesh: Mesh,
     pipeline: Pipeline,
     output_dir: Path,
-    px_per_uv_triangle: Optional[int] = None,
+    px_per_uv_triangle: int,
     unwrap_method: Literal["xatlas", "custom"] = "xatlas",
     raylen_method: Literal["edge", "none"] = "edge",
     num_pixels_per_side=1024,

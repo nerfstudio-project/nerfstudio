@@ -17,7 +17,7 @@ This module implements the Marching Cubes algorithm for extracting
 isosurfaces
 """
 
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -48,7 +48,7 @@ def create_point_pyramid(points: Float[Tensor, "3 height width depth"]) -> List[
     return points_pyramid
 
 
-def evaluate_sdf(sdf: Callable, points: Float[Tensor, "batch 3"]) -> Float[Tensor, "batch"]:
+def evaluate_sdf(sdf: Callable[[Tensor], Tensor], points: Float[Tensor, "batch 3"]) -> Float[Tensor, "batch"]:
     """
     Evaluate a signed distance function (SDF) for a batch of points.
 
@@ -60,11 +60,10 @@ def evaluate_sdf(sdf: Callable, points: Float[Tensor, "batch 3"]) -> Float[Tenso
     Returns:
         A torch tensor with the SDF values evaluated at the given points.
     """
-    z = []
+    z: List[Tensor] = []
     for _, pnts in enumerate(torch.split(points, 100000, dim=0)):
         z.append(sdf(pnts))
-    z = torch.cat(z, axis=0)
-    return z
+    return torch.cat(z, dim=0)
 
 
 def evaluate_multiresolution_sdf(
@@ -91,6 +90,7 @@ def evaluate_multiresolution_sdf(
         A torch tensor with the SDF values evaluated at the given points.
     """
     mask = None
+    pts_sdf: Optional[Tensor] = None
     threshold = 2 * (x_max - x_min) / crop_n * 8
     for pid, pts in enumerate(points_pyramid):
         coarse_n = pts.shape[-1]
@@ -111,19 +111,24 @@ def evaluate_multiresolution_sdf(
 
             if pts_to_eval.shape[0] > 0:
                 pts_sdf_eval = evaluate(pts_to_eval.contiguous())
-                pts_sdf[mask] = pts_sdf_eval
+                assert pts_sdf is not None
+                pts_sdf[mask] = pts_sdf_eval  # pylint: disable=unsupported-assignment-operation
 
         if pid < 3:
             # Update mask
+            assert pts_sdf is not None
             mask = torch.abs(pts_sdf) < threshold
             mask = mask.reshape(coarse_n, coarse_n, coarse_n)[None, None]
             mask = upsample(mask.float()).bool()
 
             pts_sdf = pts_sdf.reshape(coarse_n, coarse_n, coarse_n)[None, None]
             pts_sdf = upsample(pts_sdf)
+            assert pts_sdf is not None
             pts_sdf = pts_sdf.reshape(-1)
 
         threshold /= 2.0
+
+    assert pts_sdf is not None
     return pts_sdf
 
 
@@ -232,7 +237,7 @@ def generate_mesh_with_multires_marching_cubes(
 
                 if not (np.min(z) > isosurface_threshold or np.max(z) < isosurface_threshold):
                     z = z.astype(np.float32)
-                    verts, faces, normals, _ = measure.marching_cubes(
+                    verts, faces, normals, _ = measure.marching_cubes(  # type: ignore
                         volume=z.reshape(crop_n, crop_n, crop_n),
                         level=isosurface_threshold,
                         spacing=(
@@ -247,5 +252,5 @@ def generate_mesh_with_multires_marching_cubes(
                     meshcrop = trimesh.Trimesh(verts, faces, normals)
                     meshes.append(meshcrop)
 
-    combined_mesh: trimesh.Trimesh = trimesh.util.concatenate(meshes)
+    combined_mesh: trimesh.Trimesh = trimesh.util.concatenate(meshes)  # type: ignore
     return combined_mesh
