@@ -76,23 +76,23 @@ class TensorDataclass:
                     isinstance(v, int) and v > 1
                 ), f"Custom dimensions must be an integer greater than 1, since 1 is the default, received {k}: {v}"
 
-        if not dataclasses.is_dataclass(self):
+        # Shim to prevent pyright from narrowing `self` to DataclassInstance.
+        self_dc = self
+        if not dataclasses.is_dataclass(self_dc):
             raise TypeError("TensorDataclass must be a dataclass")
 
-        batch_shapes = self._get_dict_batch_shapes(
-            {f.name: self.__getattribute__(f.name) for f in dataclasses.fields(self)}
-        )
+        batch_shapes = self._get_dict_batch_shapes({f.name: getattr(self, f.name) for f in dataclasses.fields(self_dc)})
         if len(batch_shapes) == 0:
             raise ValueError("TensorDataclass must have at least one tensor")
         batch_shape = torch.broadcast_shapes(*batch_shapes)
 
         broadcasted_fields = self._broadcast_dict_fields(
-            {f.name: self.__getattribute__(f.name) for f in dataclasses.fields(self)}, batch_shape
+            {f.name: getattr(self, f.name) for f in dataclasses.fields(self_dc)}, batch_shape
         )
         for f, v in broadcasted_fields.items():
-            self.__setattr__(f, v)
+            object.__setattr__(self, f, v)
 
-        self.__setattr__("_shape", batch_shape)
+        object.__setattr__(self, "_shape", batch_shape)
 
     def _get_dict_batch_shapes(self, dict_: Dict) -> List:
         """Returns batch shapes of all tensors in a dictionary
@@ -289,14 +289,17 @@ class TensorDataclass:
             A new TensorDataclass with the same data but with a new shape.
         """
 
+        self_dc = self
+        assert dataclasses.is_dataclass(self_dc)
+
         new_fields = self._apply_fn_to_dict(
-            {f.name: self.__getattribute__(f.name) for f in dataclasses.fields(self)},
+            {f.name: getattr(self, f.name) for f in dataclasses.fields(self_dc)},
             fn,
             dataclass_fn,
             custom_tensor_dims_fn,
         )
 
-        return dataclasses.replace(self, **new_fields)
+        return dataclasses.replace(self_dc, **new_fields)
 
     def _apply_fn_to_dict(
         self,

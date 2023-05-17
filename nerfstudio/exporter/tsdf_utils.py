@@ -83,7 +83,7 @@ class TSDF:
     def truncation(self) -> float:
         """Returns the truncation distance."""
         # TODO: clean this up
-        truncation = self.voxel_size[0] * self.truncation_margin
+        truncation = self.voxel_size[0].item() * self.truncation_margin
         return truncation
 
     @staticmethod
@@ -99,9 +99,9 @@ class TSDF:
         voxel_size = (aabb[1] - aabb[0]) / volume_dims
 
         # create the voxel coordinates
-        xdim = torch.arange(volume_dims[0])
-        ydim = torch.arange(volume_dims[1])
-        zdim = torch.arange(volume_dims[2])
+        xdim = torch.arange(volume_dims[0].item())
+        ydim = torch.arange(volume_dims[1].item())
+        zdim = torch.arange(volume_dims[2].item())
         grid = torch.stack(torch.meshgrid([xdim, ydim, zdim], indexing="ij"), dim=0)
         voxel_coords = origin.view(3, 1, 1, 1) + grid * voxel_size.view(3, 1, 1, 1)
 
@@ -121,7 +121,11 @@ class TSDF:
 
         # run marching cubes on CPU
         tsdf_values_np = self.values.clamp(-1, 1).cpu().numpy()
-        vertices, faces, normals, _ = measure.marching_cubes(tsdf_values_np, level=0, allow_degenerate=False)
+        vertices, faces, normals, _ = measure.marching_cubes(  # type: ignore
+            tsdf_values_np,
+            level=0,
+            allow_degenerate=False,
+        )
 
         vertices_indices = np.round(vertices).astype(int)
         colors = self.colors[vertices_indices[:, 0], vertices_indices[:, 1], vertices_indices[:, 2]]
@@ -145,6 +149,7 @@ class TSDF:
             mesh: The mesh to export.
             filename: The filename to export the mesh to.
         """
+        assert mesh.colors is not None
         vertex_matrix = mesh.vertices.cpu().numpy().astype("float64")
         face_matrix = mesh.faces.cpu().numpy().astype("int32")
         v_normals_matrix = mesh.normals.cpu().numpy().astype("float64")
@@ -153,14 +158,14 @@ class TSDF:
         v_color_matrix = np.concatenate([v_color_matrix, np.ones((v_color_matrix.shape[0], 1))], axis=-1)
 
         # create a new Mesh
-        m = pymeshlab.Mesh(
+        m = pymeshlab.Mesh(  # type: ignore
             vertex_matrix=vertex_matrix,
             face_matrix=face_matrix,
             v_normals_matrix=v_normals_matrix,
             v_color_matrix=v_color_matrix,
         )
         # create a new MeshSet
-        ms = pymeshlab.MeshSet()
+        ms = pymeshlab.MeshSet()  # type: ignore
         # add the mesh to the MeshSet
         ms.add_mesh(m, "mesh")
         # save the current mesh
@@ -230,6 +235,7 @@ class TSDF:
         )  # [batch, N, 1]
         sampled_depth = sampled_depth.squeeze(2)  # [batch, 1, N]
         # colors
+        sampled_colors = None
         if color_images is not None:
             sampled_colors = F.grid_sample(
                 input=color_images, grid=grid, mode="nearest", padding_mode="zeros", align_corners=False
@@ -262,7 +268,7 @@ class TSDF:
             ) / total_weights
             self.weights[valid_points_i_shape] = torch.clamp(total_weights, max=1.0)
 
-            if color_images is not None:
+            if sampled_colors is not None:
                 old_colors_i = self.colors[valid_points_i_shape]  # [M, 3]
                 new_colors_i = sampled_colors[i][:, valid_points_i.squeeze(0)].permute(1, 0)  # [M, 3]
                 self.colors[valid_points_i_shape] = (

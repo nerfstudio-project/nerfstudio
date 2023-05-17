@@ -25,7 +25,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, cast
 
 import numpy as np
 import open3d as o3d
@@ -34,6 +34,7 @@ import tyro
 from typing_extensions import Annotated, Literal
 
 from nerfstudio.cameras.rays import RayBundle
+from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.exporter import texture_utils, tsdf_utils
 from nerfstudio.exporter.exporter_utils import (
     collect_camera_poses,
@@ -43,6 +44,7 @@ from nerfstudio.exporter.exporter_utils import (
 from nerfstudio.exporter.marching_cubes import (
     generate_mesh_with_multires_marching_cubes,
 )
+from nerfstudio.fields.sdf_field import SDFField
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -92,6 +94,8 @@ class ExportPointCloud(Exporter):
         _, pipeline, _, _ = eval_setup(self.load_config)
 
         # Increase the batchsize to speed up the evaluation.
+        assert isinstance(pipeline.datamanager, VanillaDataManager)
+        assert pipeline.datamanager.train_pixel_sampler is not None
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
         pcd = generate_point_cloud(
@@ -114,7 +118,7 @@ class ExportPointCloud(Exporter):
         tpcd = o3d.t.geometry.PointCloud.from_legacy(pcd)
         # The legacy PLY writer converts colors to UInt8,
         # let us do the same to save space.
-        tpcd.point.colors = (tpcd.point.colors * 255).to(o3d.core.Dtype.UInt8)
+        tpcd.point.colors = (tpcd.point.colors * 255).to(o3d.core.Dtype.UInt8)  # type: ignore
         o3d.t.io.write_point_cloud(str(self.output_dir / "point_cloud.ply"), tpcd)
         print("\033[A\033[A")
         CONSOLE.print("[bold green]:white_check_mark: Saving Point Cloud")
@@ -269,6 +273,8 @@ class ExportPoissonMesh(Exporter):
         self.validate_pipeline(pipeline)
 
         # Increase the batchsize to speed up the evaluation.
+        assert isinstance(pipeline.datamanager, VanillaDataManager)
+        assert pipeline.datamanager.train_pixel_sampler is not None
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
         # Whether the normals should be estimated based on the point cloud.
@@ -369,7 +375,9 @@ class ExportMarchingCubesMesh(Exporter):
 
         # Extract mesh using marching cubes for sdf at a multi-scale resolution.
         multi_res_mesh = generate_mesh_with_multires_marching_cubes(
-            geometry_callable_field=lambda x: pipeline.model.field.forward_geonetwork(x)[:, 0].contiguous(),
+            geometry_callable_field=lambda x: cast(SDFField, pipeline.model.field)
+            .forward_geonetwork(x)[:, 0]
+            .contiguous(),
             resolution=self.resolution,
             bounding_box_min=self.bounding_box_min,
             bounding_box_max=self.bounding_box_max,

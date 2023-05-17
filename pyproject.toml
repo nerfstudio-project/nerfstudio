@@ -79,6 +79,7 @@ dev = [
     "pytest==7.1.2",
     "pytest-xdist==2.5.0",
     "typeguard==2.13.3",
+    "sshconf==0.2.5",
 ]
 
 # Documentation related packages
@@ -165,7 +166,6 @@ defineConstant = { DEBUG = true }
 reportMissingImports = true
 reportMissingTypeStubs = false
 reportPrivateImportUsage = false
-reportUndefinedVariable = false
 
 pythonVersion = "3.8"
 pythonPlatform = "Linux"

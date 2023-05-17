@@ -113,8 +113,8 @@ def metashape_to_json(  # pylint: disable=too-many-statements
         sensor_dict[sensor.get("id")] = s
 
     components = chunk.find("components")
+    component_dict = {}
     if components is not None:
-        component_dict = {}
         for component in components:
             transform = component.find("transform")
             if transform is not None:
@@ -122,16 +122,19 @@ def metashape_to_json(  # pylint: disable=too-many-statements
                 if rotation is None:
                     r = np.eye(3)
                 else:
+                    assert isinstance(rotation.text, str)
                     r = np.array([float(x) for x in rotation.text.split()]).reshape((3, 3))
                 translation = transform.find("translation")
                 if translation is None:
                     t = np.zeros(3)
                 else:
+                    assert isinstance(translation.text, str)
                     t = np.array([float(x) for x in translation.text.split()])
                 scale = transform.find("scale")
                 if scale is None:
                     s = 1.0
                 else:
+                    assert isinstance(scale.text, str)
                     s = float(scale.text)
 
                 m = np.eye(4)
@@ -146,6 +149,7 @@ def metashape_to_json(  # pylint: disable=too-many-statements
     for camera in cameras:
         frame = {}
         camera_label = camera.get("label")
+        assert isinstance(camera_label, str)
         if camera_label not in image_filename_map:
             # Labels sometimes have a file extension. Try without the extension.
             # (maybe it's just a '.' in the image name)
@@ -169,11 +173,12 @@ def metashape_to_json(  # pylint: disable=too-many-statements
                 CONSOLE.print(f"Missing transforms data for {camera.get('label')}, Skipping")
             num_skipped += 1
             continue
-        transform = np.array([float(x) for x in camera.find("transform").text.split()]).reshape((4, 4))
-        if components is not None:
-            component_id = camera.get("component_id")
-            if component_id in component_dict:
-                transform = component_dict[component_id] @ transform
+        transform = np.array([float(x) for x in camera.find("transform").text.split()]).reshape((4, 4))  # type: ignore
+
+        component_id = camera.get("component_id")
+        if component_id in component_dict:
+            transform = component_dict[component_id] @ transform
+
         transform = transform[[2, 0, 1, 3], :]
         transform[:, 1:3] *= -1
         frame["transform_matrix"] = transform.tolist()

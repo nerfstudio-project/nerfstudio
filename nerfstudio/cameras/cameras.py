@@ -423,7 +423,7 @@ class Cameras(TensorDataclass):
         if coords is None:
             index_dim = camera_indices.shape[-1]
             index = camera_indices.reshape(-1, index_dim)[0]
-            coords: torch.Tensor = cameras.get_image_coords(index=tuple(index))  # (h, w, 2)
+            coords = cameras.get_image_coords(index=tuple(index))  # (h, w, 2)
             coords = coords.reshape(coords.shape[:2] + (1,) * len(camera_indices.shape[:-1]) + (2,))  # (h, w, 1..., 2)
             coords = coords.expand(coords.shape[:2] + camera_indices.shape[:-1] + (2,))  # (h, w, num_rays, 2)
             camera_opt_to_camera = (  # (h, w, num_rays, 3, 4) or None
@@ -766,7 +766,7 @@ class Cameras(TensorDataclass):
                 image_uint8 = torchvision.transforms.functional.resize(image_uint8, max_size)  # type: ignore
                 image_uint8 = image_uint8.permute(1, 2, 0)
             image_uint8 = image_uint8.cpu().numpy()
-            data = cv2.imencode(".jpg", image_uint8)[1].tobytes()
+            data = cv2.imencode(".jpg", image_uint8)[1].tobytes()  # type: ignore
             json_["image"] = str("data:image/jpeg;base64," + base64.b64encode(data).decode("ascii"))
         return json_
 

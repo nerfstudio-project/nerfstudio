@@ -22,7 +22,18 @@ import functools
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Generic, List, Literal, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 import torch
 from torch import nn
@@ -72,7 +83,7 @@ def variable_res_collate(batch: List[Dict]) -> Dict:
         if mask is not None:
             masks.append(mask)
 
-    new_batch: dict = nerfstudio_collate(batch)
+    new_batch = nerfstudio_collate(batch)
     new_batch["image"] = images
     if masks:
         new_batch["mask"] = masks
@@ -314,7 +325,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
     Record3D."""
-    collate_fn = staticmethod(nerfstudio_collate)
+    collate_fn: Callable[[Any], Any] = staticmethod(nerfstudio_collate)
     """Specifies the collate function to use for the train and eval dataloaders."""
     camera_res_scale_factor: float = 1.0
     """The scale factor for scaling spatial data such as images, mask, semantics
@@ -356,7 +367,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abs
         local_rank: int = 0,
         **kwargs,  # pylint: disable=unused-argument
     ):
-        self.dataset_type: Type[TDataset] = kwargs.get("_dataset_type", TDataset.__default__)
+        self.dataset_type: Type[TDataset] = kwargs.get("_dataset_type", getattr(TDataset, "__default__"))
         self.config = config
         self.device = device
         self.world_size = world_size
@@ -486,6 +497,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abs
         self.train_count += 1
         image_batch = next(self.iter_train_image_dataloader)
         assert self.train_pixel_sampler is not None
+        assert isinstance(image_batch, dict)
         batch = self.train_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
         ray_bundle = self.train_ray_generator(ray_indices)
@@ -496,6 +508,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abs
         self.eval_count += 1
         image_batch = next(self.iter_eval_image_dataloader)
         assert self.eval_pixel_sampler is not None
+        assert isinstance(image_batch, dict)
         batch = self.eval_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
         ray_bundle = self.eval_ray_generator(ray_indices)

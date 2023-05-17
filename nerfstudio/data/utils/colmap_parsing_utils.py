@@ -479,7 +479,7 @@ def rotmat2qvec(R):
     Rxx, Ryx, Rzx, Rxy, Ryy, Rzy, Rxz, Ryz, Rzz = R.flat
     K = (
         np.array(
-            [
+            [  # type: ignore
                 [Rxx - Ryy - Rzz, 0, 0, 0],
                 [Ryx + Rxy, Ryy - Rxx - Rzz, 0, 0],
                 [Rzx + Rxz, Rzy + Ryz, Rzz - Rxx - Ryy, 0],

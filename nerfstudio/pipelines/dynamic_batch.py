@@ -17,9 +17,10 @@ A pipeline that dynamically chooses the number of rays to sample.
 """
 
 from dataclasses import dataclass, field
-from typing import Literal, Type
+from typing import Literal, Type, Union
 
 import torch
+from jaxtyping import Int
 
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline, VanillaPipelineConfig
@@ -68,7 +69,7 @@ class DynamicBatchPipeline(VanillaPipeline):
         if self.datamanager.eval_pixel_sampler is not None:
             self.datamanager.eval_pixel_sampler.set_num_rays_per_batch(self.dynamic_num_rays_per_batch)
 
-    def _update_dynamic_num_rays_per_batch(self, num_samples_per_batch: int):
+    def _update_dynamic_num_rays_per_batch(self, num_samples_per_batch: Union[int, Int[torch.Tensor, ""]]):
         """Updates the dynamic number of rays per batch variable,
         based on the total number of samples in the last batch of rays."""
         self.dynamic_num_rays_per_batch = int(
@@ -89,6 +90,7 @@ class DynamicBatchPipeline(VanillaPipeline):
 
         # add the number of rays
         assert "num_rays_per_batch" not in metrics_dict
+        assert self.datamanager.train_pixel_sampler is not None
         metrics_dict["num_rays_per_batch"] = torch.tensor(self.datamanager.train_pixel_sampler.num_rays_per_batch)
 
         return model_outputs, loss_dict, metrics_dict
@@ -98,6 +100,7 @@ class DynamicBatchPipeline(VanillaPipeline):
 
         # add the number of rays
         assert "num_rays_per_batch" not in metrics_dict
+        assert self.datamanager.eval_pixel_sampler is not None
         metrics_dict["num_rays_per_batch"] = torch.tensor(self.datamanager.eval_pixel_sampler.num_rays_per_batch)
 
         return model_outputs, loss_dict, metrics_dict

@@ -82,7 +82,7 @@ def get_line_segments_from_lines(
             marker_color = colors[idx]
             thiscolor = colors[idx]
         data.append(
-            go.Scatter3d(
+            go.Scatter3d(  # type: ignore
                 x=line[:, 0],
                 y=line[:, 1],
                 z=line[:, 2],
@@ -100,7 +100,10 @@ def get_line_segments_from_lines(
     return data
 
 
-def vis_dataset(camera_origins: Float[Tensor, "num_cameras 3"], ray_bundle: RayBundle) -> go.FigureWidget:
+def vis_dataset(
+    camera_origins: Float[Tensor, "num_cameras 3"],
+    ray_bundle: RayBundle,
+) -> go.FigureWidget:  # type: ignore
     """Visualize a dataset with plotly using our cameras and generated rays.
 
     Args:
@@ -117,7 +120,7 @@ def vis_dataset(camera_origins: Float[Tensor, "num_cameras 3"], ray_bundle: RayB
 
     data = []
     data += [
-        go.Scatter3d(
+        go.Scatter3d(  # type: ignore
             x=camera_origins[::skip, 0],
             y=camera_origins[::skip, 1],
             z=camera_origins[::skip, 2],
@@ -144,7 +147,7 @@ def vis_dataset(camera_origins: Float[Tensor, "num_cameras 3"], ray_bundle: RayB
             camera=dict(up=dict(x=0, y=0, z=1), center=dict(x=0, y=0, z=0), eye=dict(x=1.25, y=1.25, z=1.25)),
         ),
     )
-    fig = go.Figure(data=data, layout=layout)
+    fig = go.Figure(data=data, layout=layout)  # type: ignore
     return fig
 
 
@@ -166,7 +169,11 @@ def get_random_color(colormap: Optional[List[str]] = None, idx: Optional[int] = 
 
 
 def get_sphere(
-    radius: float, center: Float[Tensor, "3"] = None, color: str = "black", opacity: float = 1.0, resolution: int = 32
+    radius: float,
+    center: Optional[Float[Tensor, "3"]] = None,
+    color: str = "black",
+    opacity: float = 1.0,
+    resolution: int = 32,
 ) -> go.Mesh3d:  # type: ignore
     """Returns a sphere object for plotting with plotly.
 
@@ -193,7 +200,7 @@ def get_sphere(
     if center is not None:
         pts += center
 
-    return go.Mesh3d(
+    return go.Mesh3d(  # type: ignore
         {
             "x": pts[:, :, 0].flatten(),
             "y": pts[:, :, 1].flatten(),
@@ -207,7 +214,7 @@ def get_sphere(
 
 def get_cube(
     side_length: Union[float, torch.Tensor],
-    center: Float[Tensor, "3"] = None,
+    center: Optional[Float[Tensor, "3"]] = None,
     color: str = "black",
     opacity: float = 1.0,
 ) -> go.Mesh3d:  # type: ignore
@@ -241,7 +248,7 @@ def get_cube(
         pts[1] = np.add(pts[1], center[1])
         pts[2] = np.add(pts[2], center[2])
 
-    return go.Mesh3d(
+    return go.Mesh3d(  # type: ignore
         {
             "x": pts[0],
             "y": pts[1],
@@ -299,7 +306,7 @@ def get_gaussian_ellipsiod(
 
     pts += mean
 
-    return go.Mesh3d(
+    return go.Mesh3d(  # type: ignore
         {
             "x": pts[:, :, 0].flatten(),
             "y": pts[:, :, 1].flatten(),
@@ -328,7 +335,7 @@ def get_gaussian_ellipsoids_list(
     """
     data = []
 
-    vis_means = go.Scatter3d(
+    vis_means = go.Scatter3d(  # type: ignore
         x=gaussians.mean[:, 0],
         y=gaussians.mean[:, 1],
         z=gaussians.mean[:, 2],
@@ -394,7 +401,7 @@ def get_frustum_mesh(
     pts = torch.einsum("kj,ij->ki", pts, rotation)
 
     pts += frustum.origins
-    return go.Mesh3d(
+    return go.Mesh3d(  # type: ignore
         x=pts[..., 0],
         y=pts[..., 1],
         z=pts[..., 2],
@@ -448,7 +455,7 @@ def get_frustum_points(
     frustum = frustum.flatten()
     pts = frustum.get_positions()
 
-    return go.Scatter3d(
+    return go.Scatter3d(  # type: ignore
         x=pts[..., 0],
         y=pts[..., 1],
         z=pts[..., 2],
@@ -483,7 +490,7 @@ def get_ray_bundle_lines(
     lines = torch.empty((origins.shape[0] * 2, 3))
     lines[0::2] = origins
     lines[1::2] = origins + directions * length
-    return go.Scatter3d(
+    return go.Scatter3d(  # type: ignore
         x=lines[..., 0],
         y=lines[..., 1],
         z=lines[..., 2],
@@ -522,8 +529,8 @@ def vis_camera_rays(cameras: Cameras) -> go.Figure:  # type: ignore
     colors[0::2] = coords
     colors[1::2] = coords
 
-    fig = go.Figure(
-        data=go.Scatter3d(
+    fig = go.Figure(  # type: ignore
+        data=go.Scatter3d(  # type: ignore
             x=lines[:, 0],
             y=lines[:, 2],
             z=lines[:, 1],

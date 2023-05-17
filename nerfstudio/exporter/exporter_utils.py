@@ -58,7 +58,7 @@ class Mesh:
     """Colors of the mesh."""
 
 
-def get_mesh_from_pymeshlab_mesh(mesh: pymeshlab.Mesh) -> Mesh:
+def get_mesh_from_pymeshlab_mesh(mesh: pymeshlab.Mesh) -> Mesh:  # type: ignore
     """Get a Mesh from a pymeshlab mesh.
     See https://pymeshlab.readthedocs.io/en/0.1.5/classes/mesh.html for details.
     """
@@ -72,7 +72,7 @@ def get_mesh_from_pymeshlab_mesh(mesh: pymeshlab.Mesh) -> Mesh:
 
 def get_mesh_from_filename(filename: str, target_num_faces: Optional[int] = None) -> Mesh:
     """Get a Mesh from a filename."""
-    ms = pymeshlab.MeshSet()
+    ms = pymeshlab.MeshSet()  # type: ignore
     ms.load_new_mesh(filename)
     if target_num_faces is not None:
         CONSOLE.print("Running meshing decimation with quadric edge collapse")
@@ -128,6 +128,8 @@ def generate_point_cloud(
     with progress as progress_bar:
         task = progress_bar.add_task("Generating Point Cloud", total=num_points)
         while not progress_bar.finished:
+            normal = None
+
             with torch.no_grad():
                 ray_bundle, _ = pipeline.datamanager.next_train(0)
                 outputs = pipeline.model(ray_bundle)
@@ -165,12 +167,12 @@ def generate_point_cloud(
                 mask = torch.all(torch.concat([point > comp_l, point < comp_m], dim=-1), dim=-1)
                 point = point[mask]
                 rgb = rgb[mask]
-                if normal_output_name is not None:
+                if normal is not None:
                     normal = normal[mask]
 
             points.append(point)
             rgbs.append(rgb)
-            if normal_output_name is not None:
+            if normal is not None:
                 normals.append(normal)
             progress.advance(task, point.shape[0])
     points = torch.cat(points, dim=0)
