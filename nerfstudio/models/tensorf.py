@@ -129,9 +129,7 @@ class TensoRFModel(Model):
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
         # the callback that we want to run every X iterations after the training iteration
-        def reinitialize_optimizer(
-            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
-        ):
+        def reinitialize_optimizer(self, training_callback_attributes: TrainingCallbackAttributes, step: int):
             index = self.upsampling_iters.index(step)
             resolution = self.upsampling_steps[index]
 

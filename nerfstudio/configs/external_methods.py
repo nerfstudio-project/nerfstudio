@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: disable=invalid-name
 
 """This file contains the configuration for external methods which are not included in this repository."""
 import subprocess

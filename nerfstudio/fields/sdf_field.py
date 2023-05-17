@@ -191,13 +191,13 @@ class SDFField(Field):
         dims = [in_dim] + dims + [3]
         self.num_layers_color = len(dims)
 
-        for l in range(0, self.num_layers_color - 1):
-            out_dim = dims[l + 1]
-            lin = nn.Linear(dims[l], out_dim)
+        for layer in range(0, self.num_layers_color - 1):
+            out_dim = dims[layer + 1]
+            lin = nn.Linear(dims[layer], out_dim)
 
             if self.config.weight_norm:
                 lin = nn.utils.weight_norm(lin)
-            setattr(self, "clin" + str(l), lin)
+            setattr(self, "clin" + str(layer), lin)
 
         self.softplus = nn.Softplus(beta=100)
         self.relu = nn.ReLU()
@@ -216,27 +216,27 @@ class SDFField(Field):
         self.num_layers = len(dims)
         self.skip_in = [4]
 
-        for l in range(0, self.num_layers - 1):
-            if l + 1 in self.skip_in:
-                out_dim = dims[l + 1] - dims[0]
+        for layer in range(0, self.num_layers - 1):
+            if layer + 1 in self.skip_in:
+                out_dim = dims[layer + 1] - dims[0]
             else:
-                out_dim = dims[l + 1]
+                out_dim = dims[layer + 1]
 
-            lin = nn.Linear(dims[l], out_dim)
+            lin = nn.Linear(dims[layer], out_dim)
 
             if self.config.geometric_init:
-                if l == self.num_layers - 2:
+                if layer == self.num_layers - 2:
                     if not self.config.inside_outside:
-                        torch.nn.init.normal_(lin.weight, mean=np.sqrt(np.pi) / np.sqrt(dims[l]), std=0.0001)
+                        torch.nn.init.normal_(lin.weight, mean=np.sqrt(np.pi) / np.sqrt(dims[layer]), std=0.0001)
                         torch.nn.init.constant_(lin.bias, -self.config.bias)
                     else:
-                        torch.nn.init.normal_(lin.weight, mean=-np.sqrt(np.pi) / np.sqrt(dims[l]), std=0.0001)
+                        torch.nn.init.normal_(lin.weight, mean=-np.sqrt(np.pi) / np.sqrt(dims[layer]), std=0.0001)
                         torch.nn.init.constant_(lin.bias, self.config.bias)
-                elif l == 0:
+                elif layer == 0:
                     torch.nn.init.constant_(lin.bias, 0.0)
                     torch.nn.init.constant_(lin.weight[:, 3:], 0.0)
                     torch.nn.init.normal_(lin.weight[:, :3], 0.0, np.sqrt(2) / np.sqrt(out_dim))
-                elif l in self.skip_in:
+                elif layer in self.skip_in:
                     torch.nn.init.constant_(lin.bias, 0.0)
                     torch.nn.init.normal_(lin.weight, 0.0, np.sqrt(2) / np.sqrt(out_dim))
                     torch.nn.init.constant_(lin.weight[:, -(dims[0] - 3) :], 0.0)
@@ -246,7 +246,7 @@ class SDFField(Field):
 
             if self.config.weight_norm:
                 lin = nn.utils.weight_norm(lin)
-            setattr(self, "glin" + str(l), lin)
+            setattr(self, "glin" + str(layer), lin)
 
     def set_cos_anneal_ratio(self, anneal: float) -> None:
         """Set the anneal value for the proposal network."""
@@ -269,15 +269,15 @@ class SDFField(Field):
         # Pass through layers
         outputs = inputs
 
-        for l in range(0, self.num_layers - 1):
-            lin = getattr(self, "glin" + str(l))
+        for layer in range(0, self.num_layers - 1):
+            lin = getattr(self, "glin" + str(layer))
 
-            if l in self.skip_in:
+            if layer in self.skip_in:
                 outputs = torch.cat([outputs, inputs], 1) / np.sqrt(2)
 
             outputs = lin(outputs)
 
-            if l < self.num_layers - 2:
+            if layer < self.num_layers - 2:
                 outputs = self.softplus(outputs)
         return outputs
 

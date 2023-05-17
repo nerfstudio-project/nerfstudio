@@ -201,7 +201,6 @@ class NerfplayerNGPField(Field):
         rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
         return {FieldHeadNames.RGB: rgb}
 
-    # pylint: disable=arguments-differ
     def density_fn(self, positions: Float[Tensor, "*bs 3"], times: Float[Tensor, "*bs 1"]) -> Float[Tensor, "*bs 1"]:
         """Returns only the density. Used primarily with the density grid.
         Overwrite this function since density is time dependent now.

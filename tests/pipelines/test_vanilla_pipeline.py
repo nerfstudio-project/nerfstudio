@@ -3,11 +3,6 @@ Test pipeline
 """
 from pathlib import Path
 
-# pylint: disable=too-few-public-methods
-# pylint: disable=no-self-use
-# pylint: disable=missing-class-docstring
-# pylint: disable=unused-argument
-# pylint: disable=abstract-method
 import torch
 from torch import nn
 
@@ -77,13 +72,13 @@ def test_load_state_dict():
     )
     pipeline = VanillaPipeline(config, "cpu")
     state_dict = pipeline.state_dict()
-    state_dict["_model.param"].mul_(2)  # pylint: disable=unsubscriptable-object
+    state_dict["_model.param"].mul_(2)
     pipeline.load_pipeline(state_dict, 0)
     assert was_called
     assert pipeline.model.param[0].item() == 2
 
     # preparation for another test
-    state_dict["_model.param"].mul_(2)  # pylint: disable=unsubscriptable-object
+    state_dict["_model.param"].mul_(2)
     was_called = False
     # pretends to be a DDP checkpoint
     ddp_state_dict = {}

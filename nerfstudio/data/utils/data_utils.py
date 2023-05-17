@@ -45,7 +45,7 @@ def get_semantics_and_mask_tensors_from_path(
     If no mask is required - use mask_indices = []
     """
     if isinstance(mask_indices, List):
-        mask_indices = torch.tensor(mask_indices, dtype="int64").view(1, 1, -1)
+        mask_indices = torch.tensor(mask_indices, dtype=torch.int64).view(1, 1, -1)
     pil_image = Image.open(filepath)
     if scale_factor != 1.0:
         width, height = pil_image.size
@@ -61,7 +61,7 @@ def get_depth_image_from_path(
     height: int,
     width: int,
     scale_factor: float,
-    interpolation: int = cv2.INTER_NEAREST,
+    interpolation: int = cv2.INTER_NEAREST,  # type: ignore
 ) -> torch.Tensor:
     """Loads, rescales and resizes depth images.
     Filepath points to a 16-bit or 32-bit depth image, or a numpy array `*.npy`.
@@ -78,9 +78,9 @@ def get_depth_image_from_path(
     """
     if filepath.suffix == ".npy":
         image = np.load(filepath) * scale_factor
-        image = cv2.resize(image, (width, height), interpolation=interpolation)
+        image = cv2.resize(image, (width, height), interpolation=interpolation)  # type: ignore
     else:
-        image = cv2.imread(str(filepath.absolute()), cv2.IMREAD_ANYDEPTH)
+        image = cv2.imread(str(filepath.absolute()), cv2.IMREAD_ANYDEPTH)  # type: ignore
         image = image.astype(np.float64) * scale_factor
-        image = cv2.resize(image, (width, height), interpolation=interpolation)
+        image = cv2.resize(image, (width, height), interpolation=interpolation)  # type: ignore
     return torch.from_numpy(image[:, :, np.newaxis])

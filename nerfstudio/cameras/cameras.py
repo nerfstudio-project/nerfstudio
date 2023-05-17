@@ -35,7 +35,7 @@ from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
-TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
+TORCH_DEVICE = Union[torch.device, str]
 
 
 class CameraType(Enum):
@@ -306,7 +306,7 @@ class Cameras(TensorDataclass):
             image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         return image_coords
 
-    def generate_rays(  # pylint: disable=too-many-statements
+    def generate_rays(
         self,
         camera_indices: Union[Int[Tensor, "*num_rays num_cameras_batch_dims"], int],
         coords: Optional[Float[Tensor, "*num_rays 2"]] = None,
@@ -423,7 +423,7 @@ class Cameras(TensorDataclass):
         if coords is None:
             index_dim = camera_indices.shape[-1]
             index = camera_indices.reshape(-1, index_dim)[0]
-            coords: torch.Tensor = cameras.get_image_coords(index=tuple(index))  # (h, w, 2)
+            coords = cameras.get_image_coords(index=tuple(index))  # (h, w, 2)
             coords = coords.reshape(coords.shape[:2] + (1,) * len(camera_indices.shape[:-1]) + (2,))  # (h, w, 1..., 2)
             coords = coords.expand(coords.shape[:2] + camera_indices.shape[:-1] + (2,))  # (h, w, num_rays, 2)
             camera_opt_to_camera = (  # (h, w, num_rays, 3, 4) or None
@@ -448,7 +448,7 @@ class Cameras(TensorDataclass):
 
         # This will do the actual work of generating the rays now that we have standardized the inputs
         # raybundle.shape == (num_rays) when done
-        # pylint: disable=protected-access
+
         raybundle = cameras._generate_rays_from_coords(
             camera_indices, coords, camera_opt_to_camera, distortion_params_delta, disable_distortion=disable_distortion
         )
@@ -483,7 +483,6 @@ class Cameras(TensorDataclass):
         # that we haven't caught yet with tests
         return raybundle
 
-    # pylint: disable=too-many-statements
     def _generate_rays_from_coords(
         self,
         camera_indices: Int[Tensor, "*num_rays num_cameras_batch_dims"],
@@ -766,7 +765,7 @@ class Cameras(TensorDataclass):
                 image_uint8 = torchvision.transforms.functional.resize(image_uint8, max_size)  # type: ignore
                 image_uint8 = image_uint8.permute(1, 2, 0)
             image_uint8 = image_uint8.cpu().numpy()
-            data = cv2.imencode(".jpg", image_uint8)[1].tobytes()
+            data = cv2.imencode(".jpg", image_uint8)[1].tobytes()  # type: ignore
             json_["image"] = str("data:image/jpeg;base64," + base64.b64encode(data).decode("ascii"))
         return json_
 

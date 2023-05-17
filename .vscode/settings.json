@@ -33,7 +33,7 @@
   "python.envFile": "${workspaceFolder}/.env",
   "python.formatting.provider": "black",
   "python.formatting.blackArgs": ["--line-length=120"],
-  "python.linting.pylintEnabled": true,
+  "python.linting.pylintEnabled": false,
   "python.linting.flake8Enabled": false,
   "python.linting.enabled": true,
   "python.sortImports.args": ["--src=${workspaceFolder}", "--profile", "black"],
@@ -122,5 +122,6 @@
   },
   "python.analysis.typeCheckingMode": "basic",
   "python.analysis.diagnosticMode": "workspace",
-  "eslint.packageManager": "yarn"
+  "eslint.packageManager": "yarn",
+  "ruff.fixAll": true
 }
