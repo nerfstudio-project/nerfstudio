@@ -42,7 +42,11 @@ from nerfstudio.data.datamanagers.base_datamanager import (
     VanillaDataManager,
     VanillaDataManagerConfig,
 )
-from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
+from nerfstudio.engine.callbacks import (
+    OnTrainEndCallback,
+    TrainingCallback,
+    TrainingCallbackAttributes,
+)
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
 
@@ -196,10 +200,6 @@ class Pipeline(nn.Module):
         Returns:
             A list of dictionaries containing the pipeline's param groups.
         """
-
-    @profiler.time_function
-    def at_train_end(self) -> None:
-        """Called at the end of training."""
 
 
 @dataclass

@@ -34,6 +34,7 @@ from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.engine.callbacks import (
+    OnTrainEndCallback,
     TrainingCallback,
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
@@ -112,6 +113,7 @@ class Trainer:
     pipeline: VanillaPipeline
     optimizers: Optimizers
     callbacks: List[TrainingCallback]
+    on_train_end_callbacks: List[OnTrainEndCallback]
 
     def __init__(self, config: TrainerConfig, local_rank: int = 0, world_size: int = 1) -> None:
         self.train_lock = Lock()
@@ -178,6 +180,8 @@ class Trainer:
                 pipeline=self.pipeline,
             )
         )
+
+        self.on_train_end_callbacks = self.pipeline.get_on_train_end_callbacks()
 
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / self.config.logging.relative_log_dir
@@ -297,8 +301,9 @@ class Trainer:
         table.add_row("Checkpoint Directory", str(self.checkpoint_dir))
         CONSOLE.print(Panel(table, title="[bold][green]:tada: Training Finished :tada:[/bold]", expand=False))
 
-        # Call optional at_end_train() pipeline method
-        self.pipeline.at_train_end()
+        # on train end callbacks
+        for on_train_end_callback in self.on_train_end_callbacks:
+            on_train_end_callback.run_callback()
 
         if not self.config.viewer.quit_on_train_completion:
             self._train_complete_viewer()
