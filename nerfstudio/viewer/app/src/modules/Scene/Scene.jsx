@@ -13,6 +13,8 @@ import SceneNode from '../../SceneNode';
 import { subscribe_to_changes } from '../../subscriber';
 import { snap_to_camera } from '../SidePanel/SidePanel';
 
+import variables from '../../index.scss';
+
 const SCENE_BOX_NAME = 'Scene Box';
 const CAMERAS_NAME = 'Training Cameras';
 
@@ -39,7 +41,7 @@ export function get_scene_tree() {
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const dispatch = useDispatch();
-  const BANNER_HEIGHT = 50;
+  const BANNER_HEIGHT = parseInt(variables.bannerHeight);
 
   // Main camera
   const main_camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);

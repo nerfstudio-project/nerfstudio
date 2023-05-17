@@ -17,6 +17,8 @@ import {
   ViserWebSocketContext,
 } from '../WebSocket/ViserWebSocket';
 
+import variables from '../../index.scss';
+
 function CameraToggle() {
   const dispatch = useDispatch();
   const camera_choice = useSelector(
@@ -319,7 +321,7 @@ export default function ViewerWindow(props) {
   );
   useEffect(() => {
     const onMouseDouble = (e) => {
-      const BANNER_HEIGHT = 50;
+      const BANNER_HEIGHT = parseInt(variables.bannerHeight);
 
       const mouseVector = new THREE.Vector2();
       mouseVector.x = 2 * (e.clientX / size.x) - 1;
