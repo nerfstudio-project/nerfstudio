@@ -18,7 +18,7 @@ Encoding functions
 
 import itertools
 from abc import abstractmethod
-from typing import Literal, Optional, Sequence
+from typing import Literal, Optional, Sequence, cast
 
 import numpy as np
 import torch
@@ -621,7 +621,9 @@ class KPlanesEncoding(Encoding):
         """Sample features from this encoder. Expects ``in_tensor`` to be in range [-1, 1]"""
         original_shape = in_tensor.shape
 
-        output = 1.0 if self.reduce == "product" else 0.0  # identity for corresponding op
+        assert any(self.coo_combs)
+        # Typing hack: output gets converted to a tensor after the first iteration of the loop
+        output = cast(torch.Tensor, 1.0 if self.reduce == "product" else 0.0)  # identity for corresponding op
         for ci, coo_comb in enumerate(self.coo_combs):
             grid = self.plane_coefs[ci].unsqueeze(0)  # [1, feature_dim, reso1, reso2]
             coords = in_tensor[..., coo_comb].view(1, 1, -1, 2)  # [1, 1, flattened_bs, 2]

@@ -18,10 +18,10 @@ Abstracts for the Pipeline class.
 from __future__ import annotations
 
 import typing
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from time import time
-from typing import Any, Dict, List, Literal, Mapping, Optional, Type, Union, cast
+from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Type, Union, cast
 
 import torch
 import torch.distributed as dist
@@ -57,7 +57,7 @@ def module_wrapper(ddp_or_model: Union[DDP, Model]) -> Model:
     return ddp_or_model
 
 
-class Pipeline(nn.Module):
+class Pipeline(nn.Module, ABC):
     """The intent of this class is to provide a higher level interface for the Model
     that will be easy to use for our Trainer class.
 
@@ -302,7 +302,7 @@ class VanillaPipeline(Pipeline):
         raise NotImplementedError
 
     @profiler.time_function
-    def get_eval_loss_dict(self, step: int):
+    def get_eval_loss_dict(self, step: int) -> Tuple[Any, Dict[str, Any], Dict[str, Any]]:
         """This function gets your evaluation loss dict. It needs to get the data
         from the DataManager and feed it to the model's forward function
 

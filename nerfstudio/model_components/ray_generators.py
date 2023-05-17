@@ -32,6 +32,8 @@ class RayGenerator(nn.Module):
         pose_optimizer: pose optimization module, for optimizing noisy camera intrinsics/extrinsics.
     """
 
+    image_coords: Tensor
+
     def __init__(self, cameras: Cameras, pose_optimizer: CameraOptimizer) -> None:
         super().__init__()
         self.cameras = cameras

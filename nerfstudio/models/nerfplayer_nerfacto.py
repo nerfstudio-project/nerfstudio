@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Type
+from typing import Dict, List, Literal, Type, cast
 
 import numpy as np
 import torch
@@ -119,7 +119,8 @@ class NerfplayerNerfactoModel(NerfactoModel):
         self.density_fns = []
         num_prop_nets = self.config.num_proposal_iterations
         # Build the proposal network(s)
-        self.proposal_networks = torch.nn.ModuleList()
+        # The following line uses a typing workaround (may not be the best way to do this)
+        self.proposal_networks = cast(List[TemporalHashMLPDensityField], torch.nn.ModuleList())
         if self.config.use_same_proposal_network:
             assert len(self.config.proposal_net_args_list) == 1, "Only one proposal network is allowed."
             prop_net_args = self.config.proposal_net_args_list[0]

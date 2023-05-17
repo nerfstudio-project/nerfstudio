@@ -47,6 +47,8 @@ class HashMLPDensityField(Field):
         use_linear: whether to skip the MLP and use a single linear layer instead
     """
 
+    aabb: Tensor
+
     def __init__(
         self,
         aabb: Tensor,

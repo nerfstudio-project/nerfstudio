@@ -152,14 +152,14 @@ class RaySamples(TensorDataclass):
     @overload
     @staticmethod
     def get_weights_and_transmittance_from_alphas(
-        alphas: Float[Tensor, "*batch num_samples 1"], weights_only: Literal[False] = False
-    ) -> Tuple[Float[Tensor, "*batch num_samples 1"], Float[Tensor, "*batch num_samples 1"]]:
+        alphas: Float[Tensor, "*batch num_samples 1"], weights_only: Literal[True]
+    ) -> Float[Tensor, "*batch num_samples 1"]:
         ...
 
     @overload
     @staticmethod
     def get_weights_and_transmittance_from_alphas(
-        alphas: Float[Tensor, "*batch num_samples 1"], weights_only: Literal[True]
+        alphas: Float[Tensor, "*batch num_samples 1"], weights_only: Literal[False] = False
     ) -> Tuple[Float[Tensor, "*batch num_samples 1"], Float[Tensor, "*batch num_samples 1"]]:
         ...
 

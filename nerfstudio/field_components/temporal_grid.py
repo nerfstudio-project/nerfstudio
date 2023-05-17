@@ -17,7 +17,7 @@ A time conditioned sliding window is applied on the feature channels, so
 that the feature vectors become time-aware.
 (A large) Part of the code are adapted from (@ashawkey) https://github.com/ashawkey/torch-ngp/
 """
-from typing import Optional
+from typing import Optional, cast
 
 import numpy as np
 import torch
@@ -174,6 +174,11 @@ class TemporalGridEncoder(nn.Module):
         gridtype: "tiled" or "hash"
         align_corners: same as other interpolation operators
     """
+
+    sampling_index: Tensor
+    index_a_mask: Tensor
+    index_b_mask: Tensor
+    index_list: Tensor
 
     def __init__(
         self,
@@ -346,13 +351,13 @@ class TemporalGridEncoder(nn.Module):
             self.gridtype_id,
             self.align_corners,
         )
-        return outputs
+        return cast(Float[Tensor, "bs output_dim"], outputs)
 
     def get_temporal_tv_loss(self) -> Float[Tensor, ""]:
         """Apply TV loss on the temporal channels.
         Sample a random channel combination (i.e., row for the combination table),
         and then compute loss on it.
         """
-        row_idx = torch.randint(0, len(self.index_list), [1]).item()
+        row_idx = cast(int, torch.randint(0, len(self.index_list), [1]).item())
         feat_idx = self.index_list[row_idx]
         return (self.embeddings[:, feat_idx[0]] - self.embeddings[:, feat_idx[1]]).abs().mean()

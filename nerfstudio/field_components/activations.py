@@ -16,7 +16,10 @@
 Special activation functions.
 """
 
+from typing import TYPE_CHECKING, TypeVar
+
 import torch
+from jaxtyping import Shaped
 from torch.autograd import Function
 from torch.cuda.amp import custom_bwd, custom_fwd
 
@@ -37,6 +40,16 @@ class _TruncExp(Function):  # pylint: disable=abstract-method
         return g * torch.exp(x.clamp(-15, 15))
 
 
-trunc_exp = _TruncExp.apply
-"""Same as torch.exp, but with the backward pass clipped to prevent vanishing/exploding
-gradients."""
+if TYPE_CHECKING:
+    T = TypeVar("T", bound=Shaped[torch.Tensor, "*bs ..."])
+
+    def trunc_exp(inp: T) -> T:
+        """Same as torch.exp, but with the backward pass clipped to prevent vanishing/exploding
+        gradients."""
+        ...
+        return inp
+
+else:
+    trunc_exp = _TruncExp.apply
+    """Same as torch.exp, but with the backward pass clipped to prevent vanishing/exploding
+    gradients."""

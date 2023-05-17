@@ -48,6 +48,8 @@ class LearnedVariance(nn.Module):
         init_val: initial value in NeuS variance network
     """
 
+    variance: Tensor
+
     def __init__(self, init_val):
         super().__init__()
         self.register_parameter("variance", nn.Parameter(init_val * torch.ones(1), requires_grad=True))
@@ -205,6 +207,9 @@ class SDFField(Field):
 
         self._cos_anneal_ratio = 1.0
 
+        if self.use_grid_feature:
+            assert self.spatial_distortion is not None, "spatial distortion must be provided when using grid feature"
+
     def initialize_geo_layers(self) -> None:
         """
         Initialize layers for geometric network (sdf)
@@ -255,6 +260,7 @@ class SDFField(Field):
     def forward_geonetwork(self, inputs: Float[Tensor, "*batch 3"]) -> Float[Tensor, "*batch geo_features+1"]:
         """forward the geonetwork"""
         if self.use_grid_feature:
+            assert self.spatial_distortion is not None, "spatial distortion must be provided when using grid feature"
             positions = self.spatial_distortion(inputs)
             # map range [-2, 2] to [0, 1]
             positions = (positions + 2.0) / 4.0

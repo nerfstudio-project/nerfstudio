@@ -22,6 +22,9 @@ from enum import Enum, auto
 from inspect import signature
 from typing import Callable, Dict, List, Optional, Tuple
 
+from nerfstudio.engine.optimizers import Optimizers
+from nerfstudio.pipelines.base_pipeline import Pipeline
+
 
 @dataclass
 class TrainingCallbackAttributes:
@@ -31,11 +34,11 @@ class TrainingCallbackAttributes:
     This should be least prone to errors and fairly clean from a user perspective."""
 
     # TODO(ethan): type this without circular imports
-    optimizers: Optional[InitVar]
+    optimizers: Optional[InitVar[Optimizers]]
     """optimizers for training"""
     grad_scaler: Optional[InitVar]
     """gradient scalers"""
-    pipeline: Optional[InitVar]
+    pipeline: Optional[InitVar[Pipeline]]
     """reference to training pipeline"""
 
 
