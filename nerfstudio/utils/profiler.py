@@ -53,12 +53,11 @@ PROFILER = []
 PYTORCH_PROFILER = None
 
 
-P = ParamSpec("P")
-T = TypeVar("T")
+CallableT = TypeVar("CallableT", bound=Callable)
 
 
 @overload
-def time_function(name_or_func: Callable[P, T]) -> Callable[P, T]:
+def time_function(name_or_func: CallableT) -> CallableT:
     ...
 
 
@@ -67,7 +66,7 @@ def time_function(name_or_func: str) -> ContextManager[Any]:
     ...
 
 
-def time_function(name_or_func: Union[Callable[P, T], str]) -> Union[Callable[P, T], ContextManager[Any]]:
+def time_function(name_or_func: Union[CallableT, str]) -> Union[CallableT, ContextManager[Any]]:
     """Profile a function or block of code. Can be used either to create a context or to wrap a function.
 
     Args:
