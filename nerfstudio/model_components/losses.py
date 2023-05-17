@@ -16,7 +16,7 @@
 Collection of Losses.
 """
 from enum import Enum
-from typing import Dict, Literal, Optional, TypeVar, Union, cast
+from typing import Dict, Literal, Optional, TypeVar, cast
 
 import torch
 from jaxtyping import Bool, Float

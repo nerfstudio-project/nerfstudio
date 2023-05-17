@@ -15,7 +15,7 @@
 """ Math Helper Functions """
 
 from dataclasses import dataclass
-from typing import Literal, Tuple, Union
+from typing import Literal, Tuple
 
 import torch
 from jaxtyping import Bool, Float
