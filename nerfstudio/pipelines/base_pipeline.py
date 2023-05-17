@@ -18,7 +18,7 @@ Abstracts for the Pipeline class.
 from __future__ import annotations
 
 import typing
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from dataclasses import dataclass, field
 from time import time
 from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Type, Union, cast
@@ -57,7 +57,7 @@ def module_wrapper(ddp_or_model: Union[DDP, Model]) -> Model:
     return ddp_or_model
 
 
-class Pipeline(nn.Module, ABC):
+class Pipeline(nn.Module):
     """The intent of this class is to provide a higher level interface for the Model
     that will be easy to use for our Trainer class.
 
