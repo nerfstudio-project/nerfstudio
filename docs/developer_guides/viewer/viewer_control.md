@@ -19,15 +19,15 @@ from nerfstudio.viewer.server.viewer_elements import ViewerControl
 class MyModel(nn.Module):  # Must inherit from nn.Module
     def __init__(self):
         # Must be a class variable
-        self.viewer_control = ViewerControl()#no arguments
+        self.viewer_control = ViewerControl()  # no arguments
 ```
 ## Get Camera Matrix
 To get the current camera intrinsics and extrinsics, use the `get_camera` function. This returns a `nerfstudio.cameras.cameras.Cameras` object. This object can be used to generate `RayBundles`, retrieve intrinsics and extrinsics, and more.
 
 ```python
-from nerfstudio.viewer.server.viewer_elements import ViewerControl,ViewerButton
+from nerfstudio.viewer.server.viewer_elements import ViewerControl, ViewerButton
 
-class MyModel(nn.Module): #  Must inherit from nn.Module
+class MyModel(nn.Module):  # Must inherit from nn.Module
     def __init__(self):
         ...
         def button_cb(button):
@@ -41,7 +41,8 @@ class MyModel(nn.Module): #  Must inherit from nn.Module
             camera_extrinsics_matrix = camera.camera_to_worlds[0,...]  # 3x4 matrix
             # generate image RayBundle
             bundle = camera.generate_rays(camera_indices=0)
-            # Compute depth, move camera, etc
+            # Compute depth, move camera, or whatever you want
+            ...
         self.viewer_button = ViewerButton(name="Dummy Button",cb_hook=button_cb)
 ```
 
@@ -71,7 +72,7 @@ class MyModel(nn.Module):  # must inherit from nn.Module
     def __init__(self):
         # Must be a class variable
         self.viewer_control = ViewerControl()  # no arguments
-        def click_cb(click:ViewerClick):
+        def click_cb(click: ViewerClick):
             print(f"Click at {click.origin} in direction {click.direction}")
         self.viewer_control.register_click_cb(click_cb)
 ```
