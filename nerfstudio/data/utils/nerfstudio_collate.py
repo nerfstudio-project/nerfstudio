@@ -19,7 +19,7 @@ Custom collate function that includes cases for nerfstudio types.
 import collections
 import collections.abc
 import re
-from typing import Callable, Dict, Union
+from typing import Any, Callable, Dict, Union
 
 import torch
 import torch.utils.data
@@ -32,7 +32,7 @@ NERFSTUDIO_COLLATE_ERR_MSG_FORMAT = (
 np_str_obj_array_pattern = re.compile(r"[SaUO]")
 
 
-def nerfstudio_collate(batch, extra_mappings: Union[Dict[type, Callable], None] = None):  # noqa: PLR0911
+def nerfstudio_collate(batch: Any, extra_mappings: Union[Dict[type, Callable], None] = None) -> Any:
     r"""
     This is the default pytorch collate function, but with support for nerfstudio types. All documentation
     below is copied straight over from pytorch's default_collate function, python version 3.8.13,

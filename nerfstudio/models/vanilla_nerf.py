@@ -67,6 +67,8 @@ class NeRFModel(Model):
         config: Basic NeRF configuration to instantiate model
     """
 
+    config: VanillaModelConfig
+
     def __init__(
         self,
         config: VanillaModelConfig,
@@ -227,6 +229,7 @@ class NeRFModel(Model):
         fine_psnr = self.psnr(image, rgb_fine)
         fine_ssim = self.ssim(image, rgb_fine)
         fine_lpips = self.lpips(image, rgb_fine)
+        assert isinstance(fine_ssim, torch.Tensor)
 
         metrics_dict = {
             "psnr": float(fine_psnr.item()),

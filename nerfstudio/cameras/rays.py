@@ -16,8 +16,8 @@
 Some ray datastructures.
 """
 import random
-from dataclasses import dataclass
-from typing import Callable, Dict, Optional, Tuple, Union
+from dataclasses import dataclass, field
+from typing import Callable, Dict, Literal, Optional, Tuple, Union, overload
 
 import torch
 from jaxtyping import Float, Int, Shaped
@@ -149,10 +149,27 @@ class RaySamples(TensorDataclass):
 
         return weights
 
+    @overload
+    @staticmethod
+    def get_weights_and_transmittance_from_alphas(
+        alphas: Float[Tensor, "*batch num_samples 1"], weights_only: Literal[False] = False
+    ) -> Tuple[Float[Tensor, "*batch num_samples 1"], Float[Tensor, "*batch num_samples 1"]]:
+        ...
+
+    @overload
+    @staticmethod
+    def get_weights_and_transmittance_from_alphas(
+        alphas: Float[Tensor, "*batch num_samples 1"], weights_only: Literal[True]
+    ) -> Tuple[Float[Tensor, "*batch num_samples 1"], Float[Tensor, "*batch num_samples 1"]]:
+        ...
+
     @staticmethod
     def get_weights_and_transmittance_from_alphas(
         alphas: Float[Tensor, "*batch num_samples 1"], weights_only: bool = False
-    ) -> Tuple[Float[Tensor, "*batch num_samples 1"], Float[Tensor, "*batch num_samples 1"]]:
+    ) -> Union[
+        Float[Tensor, "*batch num_samples 1"],
+        Tuple[Float[Tensor, "*batch num_samples 1"], Float[Tensor, "*batch num_samples 1"]],
+    ]:
         """Return weights based on predicted alphas
         Args:
             alphas: Predicted alphas (maybe from sdf) for samples along ray
@@ -188,7 +205,7 @@ class RayBundle(TensorDataclass):
     """Distance along ray to start sampling"""
     fars: Optional[Float[Tensor, "*batch 1"]] = None
     """Rays Distance along ray to stop sampling"""
-    metadata: Optional[Dict[str, Shaped[Tensor, "num_rays latent_dims"]]] = None
+    metadata: Dict[str, Shaped[Tensor, "num_rays latent_dims"]] = field(default_factory=dict)
     """Additional metadata or data needed for interpolation, will mimic shape of rays"""
     times: Optional[Float[Tensor, "*batch 1"]] = None
     """Times at which rays are sampled"""

@@ -14,6 +14,7 @@
 
 """Space distortions which occur as a function of time."""
 
+import abc
 from enum import Enum
 from typing import Any, Dict, Optional, Tuple
 
@@ -28,6 +29,7 @@ from nerfstudio.field_components.mlp import MLP
 class TemporalDistortion(nn.Module):
     """Apply spatial distortions as a function of time"""
 
+    @abc.abstractmethod
     def forward(self, positions: Float[Tensor, "*bs 3"], times: Optional[Float[Tensor, "1"]]) -> Float[Tensor, "*bs 3"]:
         """
         Args:

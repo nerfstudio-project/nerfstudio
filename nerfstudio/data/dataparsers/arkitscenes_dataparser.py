@@ -50,7 +50,7 @@ def traj_string_to_matrix(traj_string: str):
     ts = tokens[0]
     # Rotation in angle axis
     angle_axis = [float(tokens[1]), float(tokens[2]), float(tokens[3])]
-    r_w_to_p, _ = cv2.Rodrigues(np.asarray(angle_axis))
+    r_w_to_p, _ = cv2.Rodrigues(np.asarray(angle_axis))  # type: ignore
     # Translation
     t_w_to_p = np.asarray([float(tokens[4]), float(tokens[5]), float(tokens[6])])
     extrinsics = np.eye(4, 4)
@@ -213,6 +213,7 @@ class ARKitScenes(DataParser):
 
     @staticmethod
     def _get_pose(frame_id: str, poses_from_traj: dict):
+        frame_pose = None
         if str(frame_id) in poses_from_traj:
             frame_pose = np.array(poses_from_traj[str(frame_id)])
         else:
@@ -220,6 +221,7 @@ class ARKitScenes(DataParser):
                 if abs(float(frame_id) - float(my_key)) < 0.005:
                     frame_pose = np.array(poses_from_traj[str(my_key)])
 
+        assert frame_pose is not None
         frame_pose[0:3, 1:3] *= -1
         frame_pose = frame_pose[np.array([1, 0, 2, 3]), :]
         frame_pose[2, :] *= -1

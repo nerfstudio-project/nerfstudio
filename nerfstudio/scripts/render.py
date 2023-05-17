@@ -366,8 +366,10 @@ class RenderInterpolated(BaseRender):
         install_checks.check_ffmpeg_installed()
 
         if self.pose_source == "eval":
+            assert pipeline.datamanager.eval_dataset is not None
             cameras = pipeline.datamanager.eval_dataset.cameras
         else:
+            assert pipeline.datamanager.train_dataset is not None
             cameras = pipeline.datamanager.train_dataset.cameras
 
         seconds = self.interpolation_steps * len(cameras) / self.frame_rate

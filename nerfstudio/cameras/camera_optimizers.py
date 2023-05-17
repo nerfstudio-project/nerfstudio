@@ -30,7 +30,7 @@ from typing_extensions import assert_never
 
 from nerfstudio.cameras.lie_groups import exp_map_SE3, exp_map_SO3xR3
 from nerfstudio.configs.base_config import InstantiateConfig
-from nerfstudio.engine.optimizers import AdamOptimizerConfig
+from nerfstudio.engine.optimizers import AdamOptimizerConfig, OptimizerConfig
 from nerfstudio.engine.schedulers import (
     ExponentialDecaySchedulerConfig,
     SchedulerConfig,
@@ -53,7 +53,7 @@ class CameraOptimizerConfig(InstantiateConfig):
     orientation_noise_std: float = 0.0
     """Noise to add to initial orientations. Useful for debugging."""
 
-    optimizer: AdamOptimizerConfig = AdamOptimizerConfig(lr=6e-4, eps=1e-15)
+    optimizer: OptimizerConfig = AdamOptimizerConfig(lr=6e-4, eps=1e-15)
     """ADAM parameters for camera optimization."""
 
     scheduler: SchedulerConfig = ExponentialDecaySchedulerConfig(max_steps=10000)

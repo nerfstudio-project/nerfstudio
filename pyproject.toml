@@ -79,6 +79,7 @@ dev = [
     "pytest-xdist==2.5.0",
     "typeguard==2.13.3",
     "ruff==0.0.267",
+    "sshconf==0.2.5",
 ]
 
 # Documentation related packages

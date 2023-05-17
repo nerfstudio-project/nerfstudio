@@ -39,6 +39,7 @@ from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.utils import colors
 from nerfstudio.utils.math import components_from_spherical_harmonics, safe_normalize
 
+BackgroundColor = Union[Literal["random", "last_sample", "black", "white"], Float[Tensor, "3"]]
 BACKGROUND_COLOR_OVERRIDE: Optional[Float[Tensor, "3"]] = None
 
 
@@ -61,18 +62,16 @@ class RGBRenderer(nn.Module):
         background_color: Background color as RGB. Uses random colors if None.
     """
 
-    def __init__(
-        self, background_color: Union[Literal["random", "last_sample"], Float[Tensor, "3"]] = "random"
-    ) -> None:
+    def __init__(self, background_color: BackgroundColor = "random") -> None:
         super().__init__()
-        self.background_color = background_color
+        self.background_color: BackgroundColor = background_color
 
     @classmethod
     def combine_rgb(
         cls,
         rgb: Float[Tensor, "*bs num_samples 3"],
         weights: Float[Tensor, "*bs num_samples 1"],
-        background_color: Union[Literal["random", "white", "black", "last_sample"], Float[Tensor, "3"]] = "random",
+        background_color: BackgroundColor = "random",
         ray_indices: Optional[Int[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
     ) -> Float[Tensor, "*bs 3"]:
@@ -155,11 +154,11 @@ class SHRenderer(nn.Module):
 
     def __init__(
         self,
-        background_color: Union[Literal["random", "last_sample"], Float[Tensor, "3"]] = "random",
+        background_color: BackgroundColor = "random",
         activation: Optional[nn.Module] = nn.Sigmoid(),
     ) -> None:
         super().__init__()
-        self.background_color = background_color
+        self.background_color: BackgroundColor = background_color
         self.activation = activation
 
     def forward(
