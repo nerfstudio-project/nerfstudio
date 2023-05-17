@@ -69,7 +69,7 @@ class DynamicBatchPipeline(VanillaPipeline):
         if self.datamanager.eval_pixel_sampler is not None:
             self.datamanager.eval_pixel_sampler.set_num_rays_per_batch(self.dynamic_num_rays_per_batch)
 
-    def _update_dynamic_num_rays_per_batch(self, num_samples_per_batch: Union[int, Int[torch.Tensor, ""]]):
+    def _update_dynamic_num_rays_per_batch(self, num_samples_per_batch: int):
         """Updates the dynamic number of rays per batch variable,
         based on the total number of samples in the last batch of rays."""
         self.dynamic_num_rays_per_batch = int(
@@ -85,7 +85,7 @@ class DynamicBatchPipeline(VanillaPipeline):
                 "'num_samples_per_batch' is not in metrics_dict."
                 "Please return 'num_samples_per_batch' in the models get_metrics_dict function to use this method."
             )
-        self._update_dynamic_num_rays_per_batch(metrics_dict["num_samples_per_batch"])
+        self._update_dynamic_num_rays_per_batch(int(metrics_dict["num_samples_per_batch"]))
         self._update_pixel_samplers()
 
         # add the number of rays

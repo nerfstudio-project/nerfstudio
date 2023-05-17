@@ -158,7 +158,7 @@ class TSDF:
         v_color_matrix = np.concatenate([v_color_matrix, np.ones((v_color_matrix.shape[0], 1))], axis=-1)
 
         # create a new Mesh
-        m = pymeshlab.Mesh(  # type: ignore
+        m = pymeshlab.Mesh(
             vertex_matrix=vertex_matrix,
             face_matrix=face_matrix,
             v_normals_matrix=v_normals_matrix,

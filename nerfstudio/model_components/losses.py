@@ -165,10 +165,12 @@ def nerfstudio_distortion_loss(
     """
     if torch.is_tensor(densities):
         assert not torch.is_tensor(weights), "Cannot use both densities and weights"
+        assert densities is not None
         # Compute the weight at each sample location
         weights = ray_samples.get_weights(densities)
     if torch.is_tensor(weights):
         assert not torch.is_tensor(densities), "Cannot use both densities and weights"
+    assert weights is not None
 
     starts = ray_samples.spacing_starts
     ends = ray_samples.spacing_ends
@@ -347,7 +349,7 @@ class MiDaSMSELoss(nn.Module):
         prediction: Float[Tensor, "1 32 mult"],
         target: Float[Tensor, "1 32 mult"],
         mask: Bool[Tensor, "1 32 mult"],
-    ) -> Union[Float[Tensor, "0"], float]:
+    ) -> Float[Tensor, "0"]:
         """
         Args:
             prediction: predicted depth map
@@ -415,7 +417,7 @@ class GradientLoss(nn.Module):
         prediction: Float[Tensor, "1 32 mult"],
         target: Float[Tensor, "1 32 mult"],
         mask: Bool[Tensor, "1 32 mult"],
-    ) -> Union[Float[Tensor, "0"], float]:
+    ) -> Float[Tensor, "0"]:
         """
         multiscale, scale-invariant gradient matching term to the disparity space.
         This term biases discontinuities to be sharp and to coincide with discontinuities in the ground truth
