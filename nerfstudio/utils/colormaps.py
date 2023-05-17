@@ -24,7 +24,7 @@ from torch import Tensor
 
 from nerfstudio.utils import colors
 
-Colormaps = Literal["default", "turbo", "viridis", "magma", "inferno", "cividis"]
+Colormaps = Literal["default", "turbo", "viridis", "magma", "inferno", "cividis", "pca"]
 
 
 @dataclass(frozen=True)
@@ -103,15 +103,13 @@ def apply_float_colormap(image: Float[Tensor, "*bs 1"], colormap: Colormaps = "v
     if colormap == "default":
         colormap = "turbo"
 
-    colormap = matplotlib.colormaps[colormap]
-    colormap = torch.tensor(colormap.colors).to(image.device)  # type: ignore
     image = torch.nan_to_num(image, 0)
     image_long = (image * 255).long()
     image_long_min = torch.min(image_long)
     image_long_max = torch.max(image_long)
     assert image_long_min >= 0, f"the min value is {image_long_min}"
     assert image_long_max <= 255, f"the max value is {image_long_max}"
-    return colormap[image_long[..., 0]]
+    return torch.tensor(matplotlib.colormaps[colormap].colors, device=image.device)[image_long[..., 0]]
 
 
 def apply_depth_colormap(

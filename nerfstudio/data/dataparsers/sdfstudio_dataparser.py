@@ -61,7 +61,7 @@ class SDFStudio(DataParser):
 
     config: SDFStudioDataParserConfig
 
-    def _generate_dataparser_outputs(self, split="train"):  # pylint: disable=unused-argument,too-many-statements
+    def _generate_dataparser_outputs(self, split="train"):
         # load meta data
         meta = load_from_json(self.config.data / "meta_data.json")
 

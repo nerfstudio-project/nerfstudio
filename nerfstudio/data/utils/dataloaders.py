@@ -21,7 +21,7 @@ import concurrent.futures
 import multiprocessing
 import random
 from abc import abstractmethod
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Sized, Tuple, Union
 
 import torch
 from rich.progress import track
@@ -58,6 +58,8 @@ class CacheDataloader(DataLoader):
         **kwargs,
     ):
         self.dataset = dataset
+        assert isinstance(self.dataset, Sized)
+
         super().__init__(dataset=dataset, **kwargs)  # This will set self.dataset
         self.num_times_to_repeat_images = num_times_to_repeat_images
         self.cache_all_images = (num_images_to_sample_from == -1) or (num_images_to_sample_from >= len(self.dataset))
@@ -93,6 +95,7 @@ class CacheDataloader(DataLoader):
     def _get_batch_list(self):
         """Returns a list of batches from the dataset attribute."""
 
+        assert isinstance(self.dataset, Sized)
         indices = random.sample(range(len(self.dataset)), k=self.num_images_to_sample_from)
         batch_list = []
         results = []
@@ -183,6 +186,7 @@ class EvalDataloader(DataLoader):
         ray_bundle = self.cameras.generate_rays(camera_indices=image_idx, keep_shape=True)
         batch = self.input_dataset[image_idx]
         batch = get_dict_to_torch(batch, device=self.device, exclude=["image"])
+        assert isinstance(batch, dict)
         return ray_bundle, batch
 
 

@@ -366,8 +366,10 @@ class RenderInterpolated(BaseRender):
         install_checks.check_ffmpeg_installed()
 
         if self.pose_source == "eval":
+            assert pipeline.datamanager.eval_dataset is not None
             cameras = pipeline.datamanager.eval_dataset.cameras
         else:
+            assert pipeline.datamanager.train_dataset is not None
             cameras = pipeline.datamanager.train_dataset.cameras
 
         seconds = self.interpolation_steps * len(cameras) / self.frame_rate
@@ -448,5 +450,7 @@ def entrypoint():
 if __name__ == "__main__":
     entrypoint()
 
-# For sphinx docs
-get_parser_fn = lambda: tyro.extras.get_parser(Commands)  # noqa
+
+def get_parser_fn():
+    """Get the parser function for the sphinx docs."""
+    return tyro.extras.get_parser(Commands)  # noqa

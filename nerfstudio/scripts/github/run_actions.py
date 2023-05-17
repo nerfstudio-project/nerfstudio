@@ -23,7 +23,7 @@ from rich.style import Style
 
 from nerfstudio.utils.rich_utils import CONSOLE
 
-LOCAL_TESTS = ["Run license checks", "Run isort", "Run Black", "Python Pylint", "Test with pytest"]
+LOCAL_TESTS = ["Run license checks", "Run Ruff", "Run Black", "Test with pytest"]
 
 
 def run_command(command: str, continue_on_fail: bool = False) -> bool:
@@ -57,8 +57,10 @@ def run_github_actions_file(filename: str, continue_on_fail: bool = False):
     for step in steps:
         if "name" in step and step["name"] in LOCAL_TESTS:
             compressed = step["run"].replace("\n", ";").replace("\\", "")
-            compressed = compressed.replace("--check", "")
-            curr_command = f"{compressed}"
+            if "ruff" in compressed:
+                curr_command = f"{compressed} --fix"
+            else:
+                curr_command = compressed.replace("--check", "")
 
             CONSOLE.line()
             CONSOLE.rule(f"[bold green]Running: {curr_command}")

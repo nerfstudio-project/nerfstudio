@@ -20,7 +20,6 @@ def _make_lazy_cuda_func(name: str) -> Callable:
     """_make_lazy_cuda_func from nerfacc.cuda"""
 
     def call_cuda(*args, **kwargs):
-        # pylint: disable=import-outside-toplevel
         from ._backend import _C
 
         return getattr(_C, name)(*args, **kwargs)

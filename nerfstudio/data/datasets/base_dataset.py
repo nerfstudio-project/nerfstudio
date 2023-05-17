@@ -44,7 +44,6 @@ class InputDataset(Dataset):
     def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0):
         super().__init__()
         self._dataparser_outputs = dataparser_outputs
-        self.has_masks = dataparser_outputs.mask_filenames is not None
         self.scale_factor = scale_factor
         self.scene_box = deepcopy(dataparser_outputs.scene_box)
         self.metadata = deepcopy(dataparser_outputs.metadata)
@@ -95,9 +94,8 @@ class InputDataset(Dataset):
             image_idx: The image index in the dataset.
         """
         image = self.get_image(image_idx)
-        data = {"image_idx": image_idx}
-        data["image"] = image
-        if self.has_masks:
+        data = {"image_idx": image_idx, "image": image}
+        if self._dataparser_outputs.mask_filenames is not None:
             mask_filepath = self._dataparser_outputs.mask_filenames[image_idx]
             data["mask"] = get_image_mask_tensor_from_path(filepath=mask_filepath, scale_factor=self.scale_factor)
             assert (
@@ -107,7 +105,6 @@ class InputDataset(Dataset):
         data.update(metadata)
         return data
 
-    # pylint: disable=no-self-use
     def get_metadata(self, data: Dict) -> Dict:
         """Method that can be used to process any additional metadata that may be part of the model inputs.
 

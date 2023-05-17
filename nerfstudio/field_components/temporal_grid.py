@@ -29,7 +29,6 @@ from torch.cuda.amp import custom_bwd, custom_fwd
 import nerfstudio.field_components.cuda as _C
 
 
-# pylint: disable=abstract-method, arguments-differ
 class TemporalGridEncodeFunc(Function):
     """Class for autograd in pytorch."""
 

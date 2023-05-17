@@ -8,8 +8,7 @@ from nerfstudio.field_components.temporal_distortions import DNeRFDistortion
 
 def test_dnerf_distortion():
     """Test dnerf distortion"""
-    # pylint: disable=import-outside-toplevel
-    # pylint: disable=unused-import
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     distortion = DNeRFDistortion().to(device)
 

@@ -46,7 +46,7 @@ def inverse(pose: Float[Tensor, "*batch 3 4"]) -> Float[Tensor, "*batch 3 4"]:
     """
     R = pose[..., :3, :3]
     t = pose[..., :3, 3:]
-    R_inverse = R.transpose(-2, -1)  #  pylint: disable=invalid-name
+    R_inverse = R.transpose(-2, -1)
     t_inverse = -R_inverse.matmul(t)
     return torch.cat([R_inverse, t_inverse], dim=-1)
 
