@@ -28,6 +28,7 @@ The following methods are supported in nerfstudio:
     :maxdepth: 1
     Instant-NGP<instant_ngp.md>
     Instruct-NeRF2NeRF<in2n.md>
+    K-Planes<kplanes.md>
     LERF<lerf.md>
     Mip-NeRF<mipnerf.md>
     NeRF<nerf.md>

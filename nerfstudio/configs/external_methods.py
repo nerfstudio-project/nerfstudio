@@ -58,6 +58,21 @@ To enable Instruct-NeRF2NeRF, you must install it first by running:
     )
 )
 
+# K-Planes
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]K-Planes[/bold yellow]
+For more information visit https://docs.nerf.studio/en/latest/nerfology/methods/kplanes.html
+
+To enable K-Planes, you must install it first by running:
+  [grey]pip install kplanes-nerfstudio[/grey]""",
+        configurations=[
+            ("kplanes", "K-Planes model tuned to static blender scenes"),
+            ("kplanes-dynamic", "K-Planes model tuned to dynamic DNeRF scenes"),
+        ],
+        pip_package="kplanes-nerfstudio",
+    )
+)
 
 # LERF
 external_methods.append(
