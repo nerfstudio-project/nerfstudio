@@ -38,7 +38,6 @@ from typing import (
 )
 
 from torch.profiler import ProfilerActivity, profile, record_function
-from typing_extensions import ParamSpec
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.utils import comms
@@ -75,7 +74,7 @@ def time_function(name_or_func: Union[CallableT, str]) -> Union[CallableT, Conte
     Returns:
         A wrapped function or context to use in a `with` statement.
     """
-    return _TimeFunction(name_or_func)  # type: ignore
+    return _TimeFunction(name_or_func)
 
 
 class _TimeFunction(ContextDecorator):  # pylint: disable=invalid-name
