@@ -162,4 +162,6 @@ if hasattr(torch, "compile"):
     torch_compile = torch.compile
 else:
     # PyTorch 1.x
-    torch_compile = lambda *args, **kwargs: torch.jit.script
+    def torch_compile(*args, **kwargs):
+        """Fall back to jit script if using pytorch 1.x, args ignored"""
+        return torch.jit.script
