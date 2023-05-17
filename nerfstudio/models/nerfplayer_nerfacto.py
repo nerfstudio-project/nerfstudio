@@ -249,12 +249,12 @@ class NerfplayerNerfactoModel(NerfactoModel):
                 mask = (batch["depth_image"] != 0).view([-1])
                 loss_dict["depth_loss"] = 0
 
-                def l(x):
+                def compute_depth_loss(x):
                     return self.config.depth_weight * (x - batch["depth_image"][mask]).pow(2).mean()
 
-                loss_dict["depth_loss"] = l(outputs["depth"][mask])
+                loss_dict["depth_loss"] = compute_depth_loss(outputs["depth"][mask])
                 for i in range(self.config.num_proposal_iterations):
-                    loss_dict["depth_loss"] += l(outputs[f"prop_depth_{i}"][mask])
+                    loss_dict["depth_loss"] += compute_depth_loss(outputs[f"prop_depth_{i}"][mask])
             if self.config.temporal_tv_weight > 0:
                 loss_dict["temporal_tv_loss"] = self.field.mlp_base.get_temporal_tv_loss()
                 for net in self.proposal_networks:

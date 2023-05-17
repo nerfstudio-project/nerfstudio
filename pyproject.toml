@@ -75,10 +75,10 @@ gen = [
 # Development packages
 dev = [
     "black[jupyter]==23.3.0",
-    "pylint==2.13.4",
     "pytest==7.1.2",
     "pytest-xdist==2.5.0",
     "typeguard==2.13.3",
+    "ruff==0.0.267",
     "sshconf==0.2.5",
 ]
 
@@ -124,38 +124,15 @@ include = ["nerfstudio*"]
 [tool.setuptools.package-data]
 "*" = ["*.cu", "*.json", "py.typed", "setup.bash", "setup.zsh"]
 
-# black
 [tool.black]
 line-length = 120
 
-# pylint
-[tool.pylint.messages_control]
-max-line-length = 120
-generated-members = ["numpy.*", "torch.*", "cv2.*", "cv.*"]
-good-names-rgxs = "^[_a-zA-Z][_a-z0-9]?$"
-jobs = 0
-ignored-classes = ["TensorDataclass"]
-
-disable = [
-  "duplicate-code",
-  "fixme",
-  "logging-fstring-interpolation",
-  "too-many-arguments",
-  "too-many-branches",
-  "too-many-instance-attributes",
-  "too-many-locals",
-  "too-many-statements",
-  "unnecessary-ellipsis",
-]
-
-#pytest
 [tool.pytest.ini_options]
 addopts = "-n=4 --typeguard-packages=nerfstudio --disable-warnings"
 testpaths = [
     "tests",
 ]
 
-# pyright
 [tool.pyright]
 include = ["nerfstudio"]
 exclude = ["**/node_modules",
@@ -169,3 +146,28 @@ reportPrivateImportUsage = false
 
 pythonVersion = "3.8"
 pythonPlatform = "Linux"
+
+[tool.ruff]
+select = [
+    "E",  # pycodestyle errors.
+    "F",  # Pyflakes rules.
+    "PLC",  # Pylint convention warnings.
+    "PLE",  # Pylint errors.
+    "PLR",  # Pylint refactor recommendations.
+    "PLW",  # Pylint warnings.
+]
+ignore = [
+    "E501",  # Line too long.
+    "F722",  # Forward annotation false positive from jaxtyping. Should be caught by pyright.
+    "F821",  # Forward annotation false positive from jaxtyping. Should be caught by pyright.
+    "PLR2004",  # Magic value used in comparison.
+    "PLR0915",  # Too many statements.
+    "PLR0913",  # Too many arguments.
+    "PLC0414",  # Import alias does not rename variable. (this is used for exporting names)
+    "PLC1901",  # Use falsey strings.
+    "PLR5501",  # Use `elif` instead of `else if`.
+    "PLR0911",  # Too many return statements.
+    "PLR0912",  # Too many branches.
+    "PLW0603",  # Globa statement updates are discouraged.
+    "PLW2901",  # For loop variable overwritten.
+]

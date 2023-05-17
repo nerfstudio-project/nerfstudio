@@ -51,10 +51,8 @@ from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server.viewer_state import ViewerState
 
-TRAIN_INTERATION_OUTPUT = Tuple[  # pylint: disable=invalid-name
-    torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]
-]
-TORCH_DEVICE = str  # pylint: disable=invalid-name
+TRAIN_INTERATION_OUTPUT = Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
+TORCH_DEVICE = str
 
 
 @dataclass

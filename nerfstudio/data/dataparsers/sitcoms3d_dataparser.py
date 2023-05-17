@@ -61,7 +61,7 @@ class Sitcoms3D(DataParser):
 
     config: Sitcoms3DDataParserConfig
 
-    def _generate_dataparser_outputs(self, split="train"):  # pylint: disable=unused-argument,too-many-statements
+    def _generate_dataparser_outputs(self, split="train"):
         cameras_json = load_from_json(self.config.data / "cameras.json")
         frames = cameras_json["frames"]
         bbox = torch.tensor(cameras_json["bbox"])

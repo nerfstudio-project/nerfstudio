@@ -278,18 +278,18 @@ class DataManager(nn.Module):
         """Returns the number of rays per batch for evaluation."""
         raise NotImplementedError
 
-    def get_datapath(self) -> Optional[Path]:  # pylint:disable=no-self-use
+    def get_datapath(self) -> Optional[Path]:
         """Returns the path to the data. This is used to determine where to save camera paths."""
         return None
 
-    def get_training_callbacks(  # pylint:disable=no-self-use
-        self, training_callback_attributes: TrainingCallbackAttributes  # pylint: disable=unused-argument
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
         """Returns a list of callbacks to be used during training."""
         return []
 
     @abstractmethod
-    def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
+    def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Get the param groups for the data manager.
 
         Returns:
@@ -338,7 +338,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
 
 
-class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abstract-method
+class VanillaDataManager(DataManager, Generic[TDataset]):
     """Basic stored data manager implementation.
 
     This is pretty much a port over from our old dataloading utilities, and is a little jank
@@ -365,7 +365,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abs
         test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
-        **kwargs,  # pylint: disable=unused-argument
+        **kwargs,
     ):
         self.dataset_type: Type[TDataset] = kwargs.get("_dataset_type", getattr(TDataset, "__default__"))
         self.config = config
@@ -419,9 +419,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abs
             scale_factor=self.config.camera_res_scale_factor,
         )
 
-    def _get_pixel_sampler(  # pylint: disable=no-self-use
-        self, dataset: TDataset, *args: Any, **kwargs: Any
-    ) -> PixelSampler:
+    def _get_pixel_sampler(self, dataset: TDataset, *args: Any, **kwargs: Any) -> PixelSampler:
         """Infer pixel sampler to use."""
         if self.config.patch_size > 1:
             return PatchPixelSampler(*args, **kwargs, patch_size=self.config.patch_size)
@@ -530,7 +528,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abs
     def get_datapath(self) -> Path:
         return self.config.dataparser.data
 
-    def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
+    def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Get the param groups for the data manager.
         Returns:
             A list of dictionaries containing the data manager's param groups.

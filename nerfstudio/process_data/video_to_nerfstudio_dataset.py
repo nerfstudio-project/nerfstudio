@@ -40,7 +40,7 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
     percent_radius_crop: float = 1.0
     """Create circle crop mask. The radius is the percent of the image diagonal."""
 
-    def main(self) -> None:  # pylint: disable=R0915
+    def main(self) -> None:
         """Process video into a nerfstudio dataset."""
 
         summary_log = []

@@ -61,7 +61,7 @@ def test_broadcasting():
         tensor_dataclass = DummyTensorDataclass(a=a, b=b)
 
 
-def test_tensor_ops():  # pylint: disable=(too-many-statements)
+def test_tensor_ops():
     """Test tensor operations"""
 
     a = torch.ones((4, 6, 3))

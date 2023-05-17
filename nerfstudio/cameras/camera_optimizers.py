@@ -74,7 +74,7 @@ class CameraOptimizer(nn.Module):
         config: CameraOptimizerConfig,
         num_cameras: int,
         device: Union[torch.device, str],
-        **kwargs,  # pylint: disable=unused-argument
+        **kwargs,
     ) -> None:
         super().__init__()
         self.config = config

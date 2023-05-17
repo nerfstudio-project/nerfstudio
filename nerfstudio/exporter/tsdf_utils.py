@@ -16,7 +16,6 @@
 TSDF utils.
 """
 
-# pylint: disable=no-member
 
 from __future__ import annotations
 
@@ -36,7 +35,7 @@ from nerfstudio.exporter.exporter_utils import Mesh, render_trajectory
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.rich_utils import CONSOLE
 
-TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
+TORCH_DEVICE = Union[torch.device, str]
 
 
 @dataclass
@@ -305,7 +304,7 @@ def export_tsdf_mesh(
 
     device = pipeline.device
 
-    dataparser_outputs = pipeline.datamanager.train_dataset._dataparser_outputs  # pylint: disable=protected-access
+    dataparser_outputs = pipeline.datamanager.train_dataset._dataparser_outputs
 
     # initialize the TSDF volume
     if not use_bounding_box:

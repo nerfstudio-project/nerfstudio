@@ -248,7 +248,6 @@ class DNerfDownload(DatasetDownload):
             download_path.unlink()
 
 
-# pylint: disable=line-too-long
 phototourism_downloads = {
     "brandenburg-gate": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/brandenburg_gate.tar.gz",
     "buckingham-palace": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/buckingham_palace.tar.gz",
@@ -311,7 +310,7 @@ class PhototourismDownload(DatasetDownload):
 
 
 # credit to https://autonomousvision.github.io/sdfstudio/
-# pylint: disable=line-too-long
+
 sdfstudio_downloads = {
     "sdfstudio-demo-data": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/sdfstudio-demo-data.tar",
     "dtu": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/DTU.tar",
@@ -382,7 +381,6 @@ class SDFstudioDemoDownload(DatasetDownload):
         os.remove(download_path)
 
 
-# pylint: disable=line-too-long
 nerfosr_downloads = {
     "europa": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=europa&downloadStartSecret=0k2r95c1fdej",
     "lk2": "https://nextcloud.mpi-klsb.mpg.de/index.php/s/mGXYKpD8raQ8nMk/download?path=%2FData&files=lk2&downloadStartSecret=w8kuvjzmchc",

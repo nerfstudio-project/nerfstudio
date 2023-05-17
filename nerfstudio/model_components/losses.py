@@ -518,18 +518,18 @@ def tv_loss(grids: Float[Tensor, "grids feature_dim row column"]) -> Float[Tenso
     return 2 * (h_tv / h_tv_count + w_tv / w_tv_count) / number_of_grids
 
 
-class _GradientScaler(torch.autograd.Function):  # typing: ignore, pylint: disable=abstract-method
+class _GradientScaler(torch.autograd.Function):  # typing: ignore
     """
     Scale gradients by a constant factor.
     """
 
     @staticmethod
-    def forward(ctx, value, scaling):  # pylint: disable=arguments-differ
+    def forward(ctx, value, scaling):
         ctx.save_for_backward(scaling)
         return value, scaling
 
     @staticmethod
-    def backward(ctx, output_grad, grad_scaling):  # pylint: disable=arguments-differ
+    def backward(ctx, output_grad, grad_scaling):
         (scaling,) = ctx.saved_tensors
         return output_grad * scaling, grad_scaling
 

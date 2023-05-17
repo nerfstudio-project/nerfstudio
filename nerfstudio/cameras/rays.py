@@ -26,7 +26,7 @@ from torch import Tensor
 from nerfstudio.utils.math import Gaussians, conical_frustum_to_gaussian
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
-TORCH_DEVICE = Union[str, torch.device]  # pylint: disable=invalid-name
+TORCH_DEVICE = Union[str, torch.device]
 
 
 @dataclass

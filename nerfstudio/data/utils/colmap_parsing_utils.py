@@ -6,8 +6,6 @@ TODO(1480) Delete this file when moving to pycolmap.
 
 
 """
-# pylint: disable-all
-# Disabling all pylinting since this file is copy-pasted over from COLMAP
 
 # Copyright (c) 2023, ETH Zurich and UNC Chapel Hill.
 # All rights reserved.
