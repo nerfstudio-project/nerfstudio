@@ -27,8 +27,9 @@ import numpy as np
 import plotly.graph_objects as go
 import torch
 import torch.nn.functional as F
+from jaxtyping import Float
 from plotly import express as ex
-from torchtyping import TensorType
+from torch import Tensor
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import Frustums, RayBundle
@@ -49,7 +50,7 @@ def color_str(color):
 
 
 def get_line_segments_from_lines(
-    lines: TensorType["num_rays", 2, 3],
+    lines: Float[Tensor, "num_rays 2 3"],
     color: str = color_str((1, 0, 0)),
     marker_color: str = color_str((1, 0, 0)),
     colors: Optional[List[str]] = None,
@@ -99,7 +100,7 @@ def get_line_segments_from_lines(
     return data
 
 
-def vis_dataset(camera_origins: TensorType["num_cameras", 3], ray_bundle: RayBundle) -> go.FigureWidget:  # type: ignore
+def vis_dataset(camera_origins: Float[Tensor, "num_cameras 3"], ray_bundle: RayBundle) -> go.FigureWidget:
     """Visualize a dataset with plotly using our cameras and generated rays.
 
     Args:
@@ -165,7 +166,7 @@ def get_random_color(colormap: Optional[List[str]] = None, idx: Optional[int] = 
 
 
 def get_sphere(
-    radius: float, center: TensorType[3] = None, color: str = "black", opacity: float = 1.0, resolution: int = 32
+    radius: float, center: Float[Tensor, "3"] = None, color: str = "black", opacity: float = 1.0, resolution: int = 32
 ) -> go.Mesh3d:  # type: ignore
     """Returns a sphere object for plotting with plotly.
 
@@ -206,7 +207,7 @@ def get_sphere(
 
 def get_cube(
     side_length: Union[float, torch.Tensor],
-    center: TensorType[3] = None,
+    center: Float[Tensor, "3"] = None,
     color: str = "black",
     opacity: float = 1.0,
 ) -> go.Mesh3d:  # type: ignore
@@ -253,8 +254,8 @@ def get_cube(
 
 
 def get_gaussian_ellipsiod(
-    mean: TensorType[3],
-    cov: TensorType[3, 3],
+    mean: Float[Tensor, "3"],
+    cov: Float[Tensor, "3 3"],
     n_std: int = 2,
     color="lightblue",
     opacity: float = 0.5,

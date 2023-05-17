@@ -18,8 +18,7 @@ Semantic NeRF field implementation.
 from typing import Dict, Optional, Tuple
 
 import torch
-from torch import nn
-from torchtyping import TensorType
+from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.field_components.encodings import Encoding, Identity
@@ -88,15 +87,15 @@ class SemanticNerfField(Field):
             in_dim=self.mlp_semantic.get_out_dim(), num_classes=self.num_semantic_classes
         )
 
-    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         encoded_xyz = self.position_encoding(ray_samples.frustums.get_positions())
         base_mlp_out = self.mlp_base(encoded_xyz)
         density = self.field_head_density(base_mlp_out)
         return density, base_mlp_out
 
     def get_outputs(
-        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
-    ) -> Dict[FieldHeadNames, TensorType]:
+        self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None
+    ) -> Dict[FieldHeadNames, Tensor]:
         encoded_dir = self.direction_encoding(ray_samples.frustums.directions)
         mlp_out = self.mlp_head(torch.cat([encoded_dir, density_embedding], dim=-1))  # type: ignore
         outputs = {}

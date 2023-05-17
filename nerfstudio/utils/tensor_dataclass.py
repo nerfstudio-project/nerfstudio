@@ -152,8 +152,12 @@ class TensorDataclass:
         if isinstance(indices, (int, slice, type(Ellipsis))):
             indices = (indices,)
         assert isinstance(indices, tuple)
-        tensor_fn = lambda x: x[indices + (slice(None),)]
-        dataclass_fn = lambda x: x[indices]
+
+        def tensor_fn(x):
+            return x[indices + (slice(None),)]
+
+        def dataclass_fn(x):
+            return x[indices]
 
         def custom_tensor_dims_fn(k, v):
             custom_dims = self._field_custom_dimensions[k]  # pylint: disable=unsubscriptable-object
@@ -207,8 +211,12 @@ class TensorDataclass:
         """
         if isinstance(shape, int):
             shape = (shape,)
-        tensor_fn = lambda x: x.reshape((*shape, x.shape[-1]))
-        dataclass_fn = lambda x: x.reshape(shape)
+
+        def tensor_fn(x):
+            return x.reshape((*shape, x.shape[-1]))
+
+        def dataclass_fn(x):
+            return x.reshape(shape)
 
         def custom_tensor_dims_fn(k, v):
             custom_dims = self._field_custom_dimensions[k]  # pylint: disable=unsubscriptable-object

@@ -187,11 +187,12 @@ class NerfactoModel(Model):
             self.density_fns.extend([network.density_fn for network in self.proposal_networks])
 
         # Samplers
-        update_schedule = lambda step: np.clip(
-            np.interp(step, [0, self.config.proposal_warmup], [0, self.config.proposal_update_every]),
-            1,
-            self.config.proposal_update_every,
-        )
+        def update_schedule(step):
+            return np.clip(
+                np.interp(step, [0, self.config.proposal_warmup], [0, self.config.proposal_update_every]),
+                1,
+                self.config.proposal_update_every,
+            )
 
         # Change proposal network initial sampler if uniform
         initial_sampler = None  # None is for piecewise as default (see ProposalNetworkSampler)
@@ -244,7 +245,10 @@ class NerfactoModel(Model):
             def set_anneal(step):
                 # https://arxiv.org/pdf/2111.12077.pdf eq. 18
                 train_frac = np.clip(step / N, 0, 1)
-                bias = lambda x, b: (b * x) / ((b - 1) * x + 1)
+
+                def bias(x, b):
+                    return b * x / ((b - 1) * x + 1)
+
                 anneal = bias(train_frac, self.config.proposal_weights_anneal_slope)
                 self.proposal_sampler.set_anneal(anneal)
 
