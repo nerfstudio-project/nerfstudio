@@ -155,3 +155,13 @@ def strtobool(val) -> bool:
     FMI https://stackoverflow.com/a/715468
     """
     return val.lower() in ("yes", "y", "true", "t", "on", "1")
+
+
+if hasattr(torch, "compile"):
+    # PyTorch 2.0+
+    torch_compile = torch.compile
+else:
+    # PyTorch 1.x
+    def torch_compile(*args, **kwargs):
+        """Fall back to jit script if using pytorch 1.x, args ignored"""
+        return torch.jit.script

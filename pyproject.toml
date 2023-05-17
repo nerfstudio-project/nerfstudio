@@ -20,7 +20,6 @@ dependencies = [
     "tyro>=0.3.31",
     "gdown>=4.6.0",
     "ninja>=1.10",
-    "functorch>=0.2.1",
     "h5py>=2.9.0",
     "imageio>=2.21.1",
     'importlib-metadata>=6.0.0; python_version < "3.10"',
@@ -48,9 +47,9 @@ dependencies = [
     "rich>=12.5.1",
     "scikit-image>=0.19.3",
     "tensorboard>=2.13.0",
-    "torch>=1.12.1,<2.0.0",
+    "torch>=1.13.1",
+    "torchvision>=0.14.1",
     "torchmetrics[image]>=0.9.3",
-    "torchvision>=0.13.0",
     "typing_extensions>=4.4.0",
     "viser>=0.0.5",
     "nuscenes-devkit>=1.1.1",
@@ -115,7 +114,7 @@ ns-dev-sync-viser-message-defs = "nerfstudio.scripts.viewer.sync_viser_message_d
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision
 dependency_links = [
-    "https://download.pytorch.org/whl/cu113"
+    "https://download.pytorch.org/whl/cu118"
 ]
 
 [tool.setuptools.packages.find]
