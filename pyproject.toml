@@ -166,6 +166,7 @@ ignore = [
     "PLC0414",  # Import alias does not rename variable. (this is used for exporting names)
     "PLC1901",  # Use falsey strings.
     "PLR5501",  # Use `elif` instead of `else if`.
+    "PLR0911",  # Too many return statements.
     "PLR0912",  # Too many branches.
     "PLW0603",  # Globa statement updates are discouraged.
     "PLW2901",  # For loop variable overwritten.
