@@ -23,6 +23,7 @@ import numpy as np
 import torch
 from numpy.typing import ArrayLike
 from torchtyping import TensorType
+from nerfstudio.utils.misc import torch_compile
 
 _EPS = np.finfo(float).eps * 4.0
 
@@ -335,7 +336,6 @@ def get_distortion_params(
     return torch.Tensor([k1, k2, k3, k4, p1, p2])
 
 
-@torch.jit.script
 def _compute_residual_and_jacobian(
     x: torch.Tensor,
     y: torch.Tensor,
@@ -401,7 +401,7 @@ def _compute_residual_and_jacobian(
     return fx, fy, fx_x, fx_y, fy_x, fy_y
 
 
-@torch.jit.script
+@torch_compile(dynamic=True, mode="reduce-overhead", backend="eager")
 def radial_and_tangential_undistort(
     coords: torch.Tensor,
     distortion_params: torch.Tensor,

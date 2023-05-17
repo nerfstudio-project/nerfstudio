@@ -19,6 +19,7 @@ from typing import Literal, Tuple
 
 import torch
 from torchtyping import TensorType
+from nerfstudio.utils.misc import torch_compile
 
 
 def components_from_spherical_harmonics(levels: int, directions: TensorType[..., 3]) -> TensorType[..., "components"]:
@@ -194,7 +195,7 @@ def expected_sin(x_means: torch.Tensor, x_vars: torch.Tensor) -> torch.Tensor:
     return torch.exp(-0.5 * x_vars) * torch.sin(x_means)
 
 
-@torch.jit.script
+@torch_compile(dynamic=True, mode="reduce-overhead")
 def intersect_aabb(
     origins: torch.Tensor,
     directions: torch.Tensor,
