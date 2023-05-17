@@ -31,7 +31,6 @@ bl_info = {
 import json  # noqa: E402
 from math import atan, degrees, radians, tan  # noqa: E402
 
-
 import bpy  # noqa: E402
 from mathutils import Matrix  # noqa: E402
 
