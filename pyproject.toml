@@ -25,6 +25,7 @@ dependencies = [
     "imageio>=2.21.1",
     'importlib-metadata>=6.0.0; python_version < "3.10"',
     "ipywidgets>=7.6",
+    "jaxtyping>=0.2.15",
     "jupyterlab>=3.3.4",
     "matplotlib>=3.5.3",
     "mediapy>=1.1.0",
@@ -49,7 +50,6 @@ dependencies = [
     "tensorboard>=2.13.0",
     "torch>=1.12.1,<2.0.0",
     "torchmetrics[image]>=0.9.3",
-    "torchtyping>=0.1.4",
     "torchvision>=0.13.0",
     "typing_extensions>=4.4.0",
     "viser>=0.0.5",
@@ -149,7 +149,7 @@ disable = [
 
 #pytest
 [tool.pytest.ini_options]
-addopts = "-n=4 --typeguard-packages=nerfstudio --torchtyping-patch-typeguard --disable-warnings"
+addopts = "-n=4 --typeguard-packages=nerfstudio --disable-warnings"
 testpaths = [
     "tests",
 ]

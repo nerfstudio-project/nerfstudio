@@ -18,8 +18,8 @@ Multi Layer Perceptron
 from typing import Optional, Set, Tuple
 
 import torch
-from torch import nn
-from torchtyping import TensorType
+from jaxtyping import Float
+from torch import Tensor, nn
 
 from nerfstudio.field_components.base_field_component import FieldComponent
 
@@ -76,7 +76,7 @@ class MLP(FieldComponent):
             layers.append(nn.Linear(self.layer_width, self.out_dim))
         self.layers = nn.ModuleList(layers)
 
-    def forward(self, in_tensor: TensorType["bs":..., "in_dim"]) -> TensorType["bs":..., "out_dim"]:
+    def forward(self, in_tensor: Float[Tensor, "*bs in_dim"]) -> Float[Tensor, "*bs out_dim"]:
         """Process input with a multilayer perceptron.
 
         Args:

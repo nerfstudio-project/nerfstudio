@@ -18,9 +18,8 @@
 from typing import Dict, Optional
 
 import torch
-from torch import nn
+from torch import Tensor, nn
 from torch.nn.parameter import Parameter
-from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
@@ -35,7 +34,7 @@ class TensoRFField(Field):
 
     def __init__(
         self,
-        aabb: TensorType,
+        aabb: Tensor,
         # the aabb bounding box of the dataset
         feature_encoding: Encoding = Identity(in_dim=3),
         # the encoding method used for appearance encoding outputs
@@ -83,7 +82,7 @@ class TensoRFField(Field):
 
         self.field_output_rgb = RGBFieldHead(in_dim=self.mlp_head.get_out_dim(), activation=nn.Sigmoid())
 
-    def get_density(self, ray_samples: RaySamples) -> TensorType:
+    def get_density(self, ray_samples: RaySamples) -> Tensor:
         positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions = positions * 2 - 1
         density = self.density_encoding(positions)
@@ -92,7 +91,7 @@ class TensoRFField(Field):
         density_enc = relu(density_enc)
         return density_enc
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None) -> TensorType:
+    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None) -> Tensor:
         d = ray_samples.frustums.directions
         positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions = positions * 2 - 1
@@ -116,9 +115,9 @@ class TensoRFField(Field):
         self,
         ray_samples: RaySamples,
         compute_normals: bool = False,
-        mask: Optional[TensorType] = None,
-        bg_color: Optional[TensorType] = None,
-    ) -> Dict[FieldHeadNames, TensorType]:
+        mask: Optional[Tensor] = None,
+        bg_color: Optional[Tensor] = None,
+    ) -> Dict[FieldHeadNames, Tensor]:
         if compute_normals is True:
             raise ValueError("Surface normals are not currently supported with TensoRF")
         if mask is not None and bg_color is not None:
