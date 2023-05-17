@@ -50,6 +50,7 @@ class TrainingCallbackLocation(Enum):
 
     BEFORE_TRAIN_ITERATION = auto()
     AFTER_TRAIN_ITERATION = auto()
+    ON_TRAIN_END = auto()
 
 
 class TrainingCallback:
@@ -97,6 +98,8 @@ class TrainingCallback:
         elif self.iters is not None:
             if step in self.iters:
                 self.func(*self.args, **self.kwargs, step=step)
+        elif step is None:
+            self.func(*self.args, **self.kwargs, step=step)
 
     def run_callback_at_location(self, step: int, location: TrainingCallbackLocation) -> None:
         """Runs the callback if it's supposed to be run at the given location.
@@ -107,27 +110,3 @@ class TrainingCallback:
         """
         if location in self.where_to_run:
             self.run_callback(step=step)
-
-
-class OnTrainEndCallback:  # pylint: disable=too-few-public-methods
-    """Callback class used at end of training.
-
-    Args:
-        func: The function that will be called.
-        args: args for the function 'func'.
-        kwargs: kwargs for the function 'func'.
-    """
-
-    def __init__(
-        self,
-        func: Callable,
-        args: Optional[List] = None,
-        kwargs: Optional[Dict] = None,
-    ):
-        self.func = func
-        self.args = args if args is not None else []
-        self.kwargs = kwargs if kwargs is not None else {}
-
-    def run_callback(self) -> None:
-        """Run callback on train end"""
-        self.func(*self.args, **self.kwargs)

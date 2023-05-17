@@ -42,11 +42,7 @@ from nerfstudio.data.datamanagers.base_datamanager import (
     VanillaDataManager,
     VanillaDataManagerConfig,
 )
-from nerfstudio.engine.callbacks import (
-    OnTrainEndCallback,
-    TrainingCallback,
-    TrainingCallbackAttributes,
-)
+from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
 
@@ -193,14 +189,7 @@ class Pipeline(nn.Module):
     ) -> List[TrainingCallback]:
         """Returns the training callbacks from both the Dataloader and the Model."""
 
-<<<<<<< HEAD
     @abstractmethod
-=======
-    def get_on_train_end_callbacks(self) -> List[OnTrainEndCallback]:  # pylint: disable=no-self-use
-        """Returns on train end callbacks from pipeline."""
-        return []
-
->>>>>>> return empty list as default
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Get the param groups for the pipeline.
 
