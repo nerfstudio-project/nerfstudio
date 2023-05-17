@@ -104,7 +104,6 @@ class TemporalHashMLPDensityField(Field):
             },
         )
 
-    # pylint: disable=arguments-differ
     def density_fn(
         self, positions: Float[Tensor, "*bs 3"], times: Optional[Float[Tensor, "bs 1"]] = None
     ) -> Float[Tensor, "*bs 1"]:

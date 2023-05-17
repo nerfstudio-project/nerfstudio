@@ -89,8 +89,8 @@ class Model(nn.Module):
         """Returns the device that the model is on."""
         return self.device_indicator_param.device
 
-    def get_training_callbacks(  # pylint:disable=no-self-use
-        self, training_callback_attributes: TrainingCallbackAttributes  # pylint: disable=unused-argument
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
         """Returns a list of callbacks that run functions at the specified training iterations."""
         return []
@@ -146,8 +146,7 @@ class Model(nn.Module):
             outputs: the output to compute loss dict to
             batch: ground truth batch corresponding to outputs
         """
-        # pylint: disable=unused-argument
-        # pylint: disable=no-self-use
+
         return {}
 
     @abstractmethod

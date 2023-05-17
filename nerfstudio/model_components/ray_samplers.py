@@ -435,7 +435,6 @@ class VolumetricSampler(Sampler):
             "The VolumetricSampler fuses sample generation and density check together. Please call forward() directly."
         )
 
-    # pylint: disable=arguments-differ
     def forward(
         self,
         ray_bundle: RayBundle,

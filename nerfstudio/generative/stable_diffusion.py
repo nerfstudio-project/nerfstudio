@@ -61,12 +61,12 @@ class UNet2DConditionOutput:
     sample: torch.FloatTensor
 
 
-class _SDSGradient(torch.autograd.Function):  # pylint: disable=abstract-method
+class _SDSGradient(torch.autograd.Function):
     """Custom gradient function for SDS loss. Since it is already computed, we can just return it."""
 
     @staticmethod
     @custom_fwd
-    def forward(ctx, input_tensor, gt_grad):  # pylint: disable=arguments-differ
+    def forward(ctx, input_tensor, gt_grad):
         del input_tensor
         ctx.save_for_backward(gt_grad)
         # Return magniture of gradient, not the actual loss.
@@ -74,7 +74,7 @@ class _SDSGradient(torch.autograd.Function):  # pylint: disable=abstract-method
 
     @staticmethod
     @custom_bwd
-    def backward(ctx, grad):  # pylint: disable=arguments-differ
+    def backward(ctx, grad):
         del grad
         (gt_grad,) = ctx.saved_tensors
         batch_size = len(gt_grad)
@@ -127,7 +127,7 @@ class StableDiffusion(nn.Module):
                     self.in_channels = pipe.unet.in_channels
                     self.device = pipe.unet.device
 
-                def forward(self, latent_model_input, t, encoder_hidden_states):  # pylint: disable=no-self-use
+                def forward(self, latent_model_input, t, encoder_hidden_states):
                     """Forward pass"""
                     sample = unet_traced(latent_model_input, t, encoder_hidden_states)[0]
                     return UNet2DConditionOutput(sample=sample)

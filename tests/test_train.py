@@ -1,4 +1,3 @@
-# pylint: disable=protected-access
 """
 Default test to make sure train runs
 """

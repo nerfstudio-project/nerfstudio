@@ -22,8 +22,6 @@ from rich.style import Style
 
 from nerfstudio.utils.rich_utils import CONSOLE
 
-LOCAL_TESTS = ["Run license checks", "Run Black", "Python Pylint", "Test with pytest"]
-
 
 def run_command(command: str) -> None:
     """Run a command kill actions if it fails

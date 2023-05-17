@@ -17,8 +17,8 @@ Below are the various tooling features our team uses to maintain this codebase.
 | Tooling         | Support                                                    |
 | --------------- | ---------------------------------------------------------- |
 | Formatting      | [Black](https://black.readthedocs.io/en/stable/)           |
-| Linter          | [Pylint](https://readthedocs.org/projects/pylint/)         |
-| Testing         | [PyTest](https://docs.pytest.org/en/7.1.x/)                |
+| Linter          | [Ruff](https://beta.ruff.rs/docs/)                         |
+| Testing         | [pytest](https://docs.pytest.org/en/7.1.x/)                |
 | Docs            | [Sphinx](https://www.sphinx-doc.org/en/master/)            |
 | Docstring style | [Google](https://google.github.io/styleguide/pyguide.html) |
 | JS Linting      | [eslint](https://eslint.org/)                              |

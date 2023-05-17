@@ -21,7 +21,7 @@ from torch import Tensor
 
 
 # We make an exception on snake case conventions because SO3 != so3.
-def exp_map_SO3xR3(tangent_vector: Float[Tensor, "b 6"]) -> Float[Tensor, "b 3 4"]:  # pylint: disable=invalid-name
+def exp_map_SO3xR3(tangent_vector: Float[Tensor, "b 6"]) -> Float[Tensor, "b 3 4"]:
     """Compute the exponential map of the direct product group `SO(3) x R^3`.
 
     This can be used for learning pose deltas on SE(3), and is generally faster than `exp_map_SE3`.
@@ -59,7 +59,7 @@ def exp_map_SO3xR3(tangent_vector: Float[Tensor, "b 6"]) -> Float[Tensor, "b 3 4
     return ret
 
 
-def exp_map_SE3(tangent_vector: Float[Tensor, "b 6"]) -> Float[Tensor, "b 3 4"]:  # pylint: disable=invalid-name
+def exp_map_SE3(tangent_vector: Float[Tensor, "b 6"]) -> Float[Tensor, "b 3 4"]:
     """Compute the exponential map `se(3) -> SE(3)`.
 
     This can be used for learning pose deltas on `SE(3)`.

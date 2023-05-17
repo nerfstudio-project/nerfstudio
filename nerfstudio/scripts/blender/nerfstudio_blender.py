@@ -29,13 +29,12 @@ bl_info = {
     "category": "Nerfstudio",
 }
 
-# pylint: disable=wrong-import-position
-import json
-from math import atan, degrees, radians, tan
 
-# pylint: disable=import-error
-import bpy
-from mathutils import Matrix
+import json  # noqa: E402
+from math import atan, degrees, radians, tan  # noqa: E402
+
+import bpy  # noqa: E402
+from mathutils import Matrix  # noqa: E402
 
 
 class CreateJSONCameraPath(bpy.types.Operator):
@@ -100,12 +99,12 @@ class CreateJSONCameraPath(bpy.types.Operator):
         for i, org_cam_path_mat_val in enumerate(org_camera_path_mat):
             self.transformed_camera_path_mat += [nerf_mesh_mat_list[i].inverted() @ org_cam_path_mat_val]
 
-    def get_list_from_matrix_path(self, input_mat):  # pylint: disable=no-self-use
+    def get_list_from_matrix_path(self, input_mat):
         """Flatten matrix to list for camera path."""
         full_arr = list(input_mat.row[0]) + list(input_mat.row[1]) + list(input_mat.row[2]) + list(input_mat.row[3])
         return full_arr
 
-    def get_list_from_matrix_keyframe(self, input_mat):  # pylint: disable=no-self-use
+    def get_list_from_matrix_keyframe(self, input_mat):
         """Flatten matrix to list for keyframes."""
         full_arr = list(input_mat.col[0]) + list(input_mat.col[1]) + list(input_mat.col[2]) + list(input_mat.col[3])
         return full_arr
@@ -343,7 +342,7 @@ class ReadJSONinputCameraPath(bpy.types.Operator):
 # --- Blender UI Panel --- #
 
 
-class NerfstudioMainPanel(bpy.types.Panel):  # pylint: disable=too-few-public-methods
+class NerfstudioMainPanel(bpy.types.Panel):
     """Blender UI main panel for the add-on."""
 
     bl_idname = "NERFSTUDIO_PT_NerfstudioMainPanel"
@@ -360,7 +359,7 @@ class NerfstudioMainPanel(bpy.types.Panel):  # pylint: disable=too-few-public-me
         _ = self.layout.column()
 
 
-class NerfstudioBgPanel(bpy.types.Panel):  # pylint: disable=too-few-public-methods
+class NerfstudioBgPanel(bpy.types.Panel):
     """Blender UI sub-panel for the camera path creation."""
 
     bl_idname = "NERFSTUDIO_PT_NerfstudioBgPanel"
@@ -383,7 +382,7 @@ class NerfstudioBgPanel(bpy.types.Panel):  # pylint: disable=too-few-public-meth
         col.operator("opr.create_json_camera_path", text="Generate JSON File")
 
 
-class NerfstudioInputPanel(bpy.types.Panel):  # pylint: disable=too-few-public-methods
+class NerfstudioInputPanel(bpy.types.Panel):
     """Blender UI sub-panel for the Blender camera creation."""
 
     bl_idname = "NERFSTUDIO_PT_NerfstudioInputPanel"

@@ -212,7 +212,7 @@ class RenderStateMachine(threading.Thread):
             if self.state == "low_static":
                 self.action(RenderAction("static", action.cam_msg))
 
-    def check_interrupt(self, frame, event, arg):  # pylint: disable=unused-argument
+    def check_interrupt(self, frame, event, arg):
         """Raises interrupt when flag has been set and not already on lowest resolution.
         Used in conjunction with SetTrace.
         """

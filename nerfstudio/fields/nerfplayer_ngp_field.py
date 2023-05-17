@@ -201,7 +201,6 @@ class NerfplayerNGPField(Field):
         rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
         return {FieldHeadNames.RGB: rgb}
 
-    # pylint: disable=arguments-differ
     def density_fn(
         self, positions: Float[Tensor, "*bs 3"], times: Optional[Float[Tensor, "*bs 1"]] = None
     ) -> Float[Tensor, "*bs 1"]:

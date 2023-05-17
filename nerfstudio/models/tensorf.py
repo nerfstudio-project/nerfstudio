@@ -130,7 +130,7 @@ class TensoRFModel(Model):
     ) -> List[TrainingCallback]:
         # the callback that we want to run every X iterations after the training iteration
         def reinitialize_optimizer(
-            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
+            self, training_callback_attributes: TrainingCallbackAttributes, step: int
         ):
             assert training_callback_attributes.optimizers is not None
             assert training_callback_attributes.pipeline is not None

@@ -21,6 +21,8 @@ import torch
 from jaxtyping import Bool, Float
 from torch import Tensor
 
+from nerfstudio.utils.misc import torch_compile
+
 
 def components_from_spherical_harmonics(
     levels: int, directions: Float[Tensor, "*batch 3"]
@@ -197,7 +199,7 @@ def expected_sin(x_means: torch.Tensor, x_vars: torch.Tensor) -> torch.Tensor:
     return torch.exp(-0.5 * x_vars) * torch.sin(x_means)
 
 
-@torch.jit.script
+@torch_compile(dynamic=True, mode="reduce-overhead", backend="eager")
 def intersect_aabb(
     origins: torch.Tensor,
     directions: torch.Tensor,
@@ -222,11 +224,11 @@ def intersect_aabb(
     tx_min = (aabb[:3] - origins) / directions
     tx_max = (aabb[3:] - origins) / directions
 
-    t_min = torch.min(tx_min, tx_max)
-    t_max = torch.max(tx_min, tx_max)
+    t_min = torch.stack((tx_min, tx_max)).amin(dim=0)
+    t_max = torch.stack((tx_min, tx_max)).amax(dim=0)
 
-    t_min = torch.max(t_min, dim=-1).values
-    t_max = torch.min(t_max, dim=-1).values
+    t_min = t_min.amax(dim=-1)
+    t_max = t_max.amin(dim=-1)
 
     t_min = torch.clamp(t_min, min=0, max=max_bound)
     t_max = torch.clamp(t_max, min=0, max=max_bound)
@@ -321,4 +323,5 @@ def normalized_depth_scale_and_shift(
     scale[valid] = (a_11[valid] * b_0[valid] - a_01[valid] * b_1[valid]) / det[valid]
     shift[valid] = (-a_01[valid] * b_0[valid] + a_00[valid] * b_1[valid]) / det[valid]
 
+    return scale, shift
     return scale, shift

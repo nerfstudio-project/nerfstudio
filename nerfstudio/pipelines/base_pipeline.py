@@ -90,8 +90,6 @@ class Pipeline(nn.Module):
         model: The model that will be used
     """
 
-    # pylint: disable=abstract-method
-
     datamanager: DataManager
     _model: Model
     world_size: int
