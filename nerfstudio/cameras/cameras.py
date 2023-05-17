@@ -35,7 +35,7 @@ from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
-TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
+TORCH_DEVICE = Union[torch.device, str]
 
 
 class CameraType(Enum):
@@ -306,7 +306,7 @@ class Cameras(TensorDataclass):
             image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         return image_coords
 
-    def generate_rays(  # pylint: disable=too-many-statements
+    def generate_rays(
         self,
         camera_indices: Union[Int[Tensor, "*num_rays num_cameras_batch_dims"], int],
         coords: Optional[Float[Tensor, "*num_rays 2"]] = None,
@@ -448,7 +448,7 @@ class Cameras(TensorDataclass):
 
         # This will do the actual work of generating the rays now that we have standardized the inputs
         # raybundle.shape == (num_rays) when done
-        # pylint: disable=protected-access
+
         raybundle = cameras._generate_rays_from_coords(
             camera_indices, coords, camera_opt_to_camera, distortion_params_delta, disable_distortion=disable_distortion
         )
@@ -483,7 +483,6 @@ class Cameras(TensorDataclass):
         # that we haven't caught yet with tests
         return raybundle
 
-    # pylint: disable=too-many-statements
     def _generate_rays_from_coords(
         self,
         camera_indices: Int[Tensor, "*num_rays num_cameras_batch_dims"],

@@ -63,7 +63,7 @@ def discover_methods() -> t.Tuple[t.Dict[str, TrainerConfig], t.Dict[str, str]]:
                 assert isinstance(method_config, MethodSpecification)
                 methods[name] = method_config.config
                 descriptions[name] = method_config.description
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             CONSOLE.print_exception()
             CONSOLE.print("[bold red]Error: Could not load methods from environment variable NERFSTUDIO_METHOD_CONFIGS")
 

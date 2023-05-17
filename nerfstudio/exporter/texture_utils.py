@@ -16,7 +16,6 @@
 Texture utils.
 """
 
-# pylint: disable=no-member
 
 from __future__ import annotations
 
@@ -36,7 +35,7 @@ from nerfstudio.exporter.exporter_utils import Mesh
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.rich_utils import CONSOLE, get_progress
 
-TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
+TORCH_DEVICE = Union[torch.device, str]
 
 
 def get_parallelogram_area(
@@ -96,8 +95,6 @@ def unwrap_mesh_per_uv_triangle(
         vertex_normals: The vertex normals of the mesh.
         px_per_uv_triangle: The number of pixels per UV triangle.
     """
-
-    # pylint: disable=too-many-statements
 
     assert len(vertices) == len(vertex_normals), "Number of vertices and vertex normals must be equal"
     device = vertices.device
@@ -241,18 +238,13 @@ def unwrap_mesh_with_xatlas(
         directions: Tensor of directions for every pixel.
     """
 
-    # pylint: disable=unused-variable
-    # pylint: disable=too-many-statements
-
     device = vertices.device
 
     # unwrap the mesh
     vertices_np = vertices.cpu().numpy()
     faces_np = faces.cpu().numpy()
     vertex_normals_np = vertex_normals.cpu().cpu().numpy()
-    vmapping, indices, uvs = xatlas.parametrize(  # pylint: disable=c-extension-no-member
-        vertices_np, faces_np, vertex_normals_np
-    )
+    vmapping, indices, uvs = xatlas.parametrize(vertices_np, faces_np, vertex_normals_np)
 
     # vertices texture coordinates
     vertices_tc = torch.from_numpy(uvs.astype(np.float32)).to(device)
@@ -352,8 +344,6 @@ def export_textured_mesh(
         num_pixels_per_side: The number of pixels per side of the texture image.
     """
 
-    # pylint: disable=too-many-statements
-
     device = pipeline.device
 
     vertices = mesh.vertices.to(device)
@@ -431,14 +421,14 @@ def export_textured_mesh(
         "map_Kd material_0.png",
     ]
     lines_mtl = [line + "\n" for line in lines_mtl]
-    file_mtl = open(output_dir / "material_0.mtl", "w", encoding="utf-8")  # pylint: disable=consider-using-with
+    file_mtl = open(output_dir / "material_0.mtl", "w", encoding="utf-8")
     file_mtl.writelines(lines_mtl)
     file_mtl.close()
 
     # create the .obj file
     lines_obj = ["# Generated with nerfstudio", "mtllib material_0.mtl", "usemtl material_0"]
     lines_obj = [line + "\n" for line in lines_obj]
-    file_obj = open(output_dir / "mesh.obj", "w", encoding="utf-8")  # pylint: disable=consider-using-with
+    file_obj = open(output_dir / "mesh.obj", "w", encoding="utf-8")
     file_obj.writelines(lines_obj)
 
     # write the geometric vertices

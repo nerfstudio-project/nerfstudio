@@ -98,15 +98,15 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     """If --use-sfm-depth and this flag is True, also export debug images showing Sf overlaid upon input images."""
 
     @staticmethod
-    def default_colmap_path() -> Path:  # pylint: disable=missing-function-docstring
+    def default_colmap_path() -> Path:
         return Path("colmap/sparse/0")
 
     @property
-    def absolute_colmap_model_path(self) -> Path:  # pylint: disable=missing-function-docstring
+    def absolute_colmap_model_path(self) -> Path:
         return self.output_dir / self.colmap_model_path
 
     @property
-    def absolute_colmap_path(self) -> Path:  # pylint: disable=missing-function-docstring
+    def absolute_colmap_path(self) -> Path:
         return self.output_dir / "colmap"
 
     def _save_transforms(

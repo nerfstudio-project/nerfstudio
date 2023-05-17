@@ -32,10 +32,9 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
     2. Calculates the camera poses for each image using `COLMAP <https://colmap.github.io/>`_.
     """
 
-    def main(self) -> None:  # pylint: disable=R0915
+    def main(self) -> None:
         """Process images into a nerfstudio dataset."""
 
-        # pylint: disable=too-many-statements
         require_cameras_exist = False
         if self.colmap_model_path != ColmapConverterToNerfstudioDataset.default_colmap_path():
             if not self.skip_colmap:

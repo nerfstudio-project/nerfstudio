@@ -176,7 +176,7 @@ def run_colmap(
     CONSOLE.log("[bold green]:tada: Done refining intrinsics.")
 
 
-def parse_colmap_camera_params(camera) -> Dict[str, Any]:  # pylint: disable=too-many-statements
+def parse_colmap_camera_params(camera) -> Dict[str, Any]:
     """
     Parses all currently supported COLMAP cameras into the transforms.json metadata
 
@@ -514,7 +514,7 @@ def create_sfm_depth(
     im_id_to_image = read_images_binary(recon_dir / "images.bin")
 
     # Only support first camera
-    CAMERA_ID = 1  # pylint: disable=invalid-name
+    CAMERA_ID = 1
     W = cam_id_to_camera[CAMERA_ID].width
     H = cam_id_to_camera[CAMERA_ID].height
 

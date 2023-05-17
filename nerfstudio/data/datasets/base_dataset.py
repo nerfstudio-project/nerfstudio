@@ -107,7 +107,7 @@ class InputDataset(Dataset):
         data.update(metadata)
         return data
 
-    # pylint: disable=no-self-use
+    
     def get_metadata(self, data: Dict) -> Dict:
         """Method that can be used to process any additional metadata that may be part of the model inputs.
 

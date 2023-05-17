@@ -1,4 +1,4 @@
-# pylint: disable=all
+
 from typing import Any
 
 import pytest

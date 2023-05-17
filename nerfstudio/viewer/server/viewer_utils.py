@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: disable=too-many-lines
 
 """Code to interface with the `vis/` (the JS viewer)."""
 from __future__ import annotations

@@ -52,7 +52,6 @@ class TextureMesh:
 
     def main(self) -> None:
         """Export textured mesh"""
-        # pylint: disable=too-many-statements
 
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)

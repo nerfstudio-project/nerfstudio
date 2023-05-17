@@ -32,7 +32,7 @@ def _find_param(calib_xml: ET.Element, param_name: str):
     return 0.0
 
 
-def metashape_to_json(  # pylint: disable=too-many-statements
+def metashape_to_json(
     image_filename_map: Dict[str, Path],
     xml_filename: Path,
     output_dir: Path,

@@ -75,7 +75,6 @@ gen = [
 # Development packages
 dev = [
     "black[jupyter]==23.3.0",
-    "pylint==2.13.4",
     "pytest==7.1.2",
     "pytest-xdist==2.5.0",
     "typeguard==2.13.3",
@@ -127,25 +126,6 @@ include = ["nerfstudio*"]
 [tool.black]
 line-length = 120
 
-[tool.pylint.messages_control]
-max-line-length = 120
-generated-members = ["numpy.*", "torch.*", "cv2.*", "cv.*"]
-good-names-rgxs = "^[_a-zA-Z][_a-z0-9]?$"
-jobs = 0
-ignored-classes = ["TensorDataclass"]
-
-disable = [
-  "duplicate-code",
-  "fixme",
-  "logging-fstring-interpolation",
-  "too-many-arguments",
-  "too-many-branches",
-  "too-many-instance-attributes",
-  "too-many-locals",
-  "too-many-statements",
-  "unnecessary-ellipsis",
-]
-
 [tool.pytest.ini_options]
 addopts = "-n=4 --typeguard-packages=nerfstudio --disable-warnings"
 testpaths = [
@@ -167,9 +147,18 @@ pythonVersion = "3.8"
 pythonPlatform = "Linux"
 
 [tool.ruff]
-select = ["E", "F"]
+select = ["E", "F", "PL", "PLC", "PLE", "PLR", "PLW"]
 ignore = [
     "E501",  # Line too long.
     "F722",  # Forward annotation false positive from jaxtyping. Should be caught by pyright.
     "F821",  # Forward annotation false positive from jaxtyping. Should be caught by pyright.
+    "PLR2004",  # Magic value used in comparison.
+    "PLR0915",  # Too many statements.
+    "PLR0913",  # Too many arguments.
+    "PLC0414",  # Import alias does not rename variable. (this is used for exporting names)
+    "PLC1901",  # Use falsey strings.
+    "PLR5501",  # Use `elif` instead of `else if`.
+    "PLR0912",  # Too many branches.
+    "PLW0603",  # Globa statement updates are discouraged.
+    "PLW2901",  # For loop variable overwritten.
 ]

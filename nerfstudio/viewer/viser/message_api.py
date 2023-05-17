@@ -13,8 +13,7 @@
 # limitations under the License.
 
 """ This module contains the MessageApi class, which is the interface for sending messages to the Viewer"""
-# pylint: disable=protected-access
-# pylint: disable=too-many-public-methods
+
 
 from __future__ import annotations
 

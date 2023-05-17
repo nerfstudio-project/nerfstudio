@@ -129,7 +129,7 @@ class DepthNerfactoModel(NerfactoModel):
         if not self.config.should_decay_sigma:
             return self.depth_sigma
 
-        self.depth_sigma = torch.maximum(  # pylint: disable=attribute-defined-outside-init
+        self.depth_sigma = torch.maximum(
             self.config.sigma_decay_rate * self.depth_sigma, torch.tensor([self.config.depth_sigma])
         )
         return self.depth_sigma

@@ -39,8 +39,6 @@ class DynamicBatchPipelineConfig(VanillaPipelineConfig):
 class DynamicBatchPipeline(VanillaPipeline):
     """Pipeline with logic for changing the number of rays per batch."""
 
-    # pylint: disable=abstract-method
-
     config: DynamicBatchPipelineConfig
     datamanager: VanillaDataManager
     dynamic_num_rays_per_batch: int

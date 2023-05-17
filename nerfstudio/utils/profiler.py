@@ -41,7 +41,7 @@ PROFILER = []
 PYTORCH_PROFILER = None
 
 
-class time_function(ContextDecorator):  # pylint: disable=invalid-name
+class time_function(ContextDecorator):
     """Decorator/Context manager: time a function call or a block of code"""
 
     def __init__(self, name: Union[str, Callable]):
@@ -69,7 +69,7 @@ class time_function(ContextDecorator):  # pylint: disable=invalid-name
             if self._function_call_args is not None:
                 args, kwargs = self._function_call_args
             ctx = PYTORCH_PROFILER.record_function(self.name, *args, **kwargs)
-            ctx.__enter__()  # pylint: disable=no-member
+            ctx.__enter__()
             self._profiler_contexts.append(ctx)
             if self._function_call_args is None:
                 ctx = record_function(self.name)
@@ -103,14 +103,14 @@ def flush_profiler(config: cfg.LoggingConfig):
 
 def setup_profiler(config: cfg.LoggingConfig, log_dir: Path):
     """Initialization of profilers"""
-    global PYTORCH_PROFILER  # pylint: disable=global-statement
+    global PYTORCH_PROFILER
     if comms.is_main_process():
         PROFILER.append(Profiler(config))
         if config.profiler == "pytorch":
             PYTORCH_PROFILER = PytorchProfiler(log_dir)
 
 
-class PytorchProfiler:  # pylint: disable=too-few-public-methods
+class PytorchProfiler:
     """
     Wrapper for Pytorch Profiler
     """
