@@ -78,7 +78,7 @@ class TrainingCallback:
     ):
         assert (
             "step" in signature(func).parameters.keys()
-        ), f"'step: int' must be an argument in the callback function 'func': {func.__name__}"
+        ), f"'step: Union[int, None]' must be an argument in the callback function 'func': {func.__name__}"
         self.where_to_run = where_to_run
         self.update_every_num_iters = update_every_num_iters
         self.iters = iters
