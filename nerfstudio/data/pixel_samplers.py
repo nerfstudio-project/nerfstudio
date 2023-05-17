@@ -24,7 +24,7 @@ from jaxtyping import Int
 from torch import Tensor
 
 
-class PixelSampler:  
+class PixelSampler:
     """Samples 'pixel_batch's from 'image_batch's.
 
     Args:
@@ -45,7 +45,7 @@ class PixelSampler:
         """
         self.num_rays_per_batch = num_rays_per_batch
 
-    def sample_method(  
+    def sample_method(
         self,
         batch_size: int,
         num_images: int,
@@ -203,7 +203,7 @@ class PixelSampler:
         return pixel_batch
 
 
-class EquirectangularPixelSampler(PixelSampler):  
+class EquirectangularPixelSampler(PixelSampler):
     """Samples 'pixel_batch's from 'image_batch's. Assumes images are
     equirectangular and the sampling is done uniformly on the sphere.
 
@@ -213,7 +213,7 @@ class EquirectangularPixelSampler(PixelSampler):
     """
 
     # overrides base method
-    def sample_method(  
+    def sample_method(
         self,
         batch_size: int,
         num_images: int,
@@ -244,7 +244,7 @@ class EquirectangularPixelSampler(PixelSampler):
         return indices
 
 
-class PatchPixelSampler(PixelSampler):  
+class PatchPixelSampler(PixelSampler):
     """Samples 'pixel_batch's from 'image_batch's. Samples square patches
     from the images randomly. Useful for patch-based losses.
 
@@ -269,7 +269,7 @@ class PatchPixelSampler(PixelSampler):
         self.num_rays_per_batch = (num_rays_per_batch // (self.patch_size**2)) * (self.patch_size**2)
 
     # overrides base method
-    def sample_method(  
+    def sample_method(
         self,
         batch_size: int,
         num_images: int,

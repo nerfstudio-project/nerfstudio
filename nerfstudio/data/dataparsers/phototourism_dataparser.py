@@ -77,7 +77,6 @@ class Phototourism(DataParser):
         super().__init__(config=config)
         self.data: Path = config.data
 
-    
     def _generate_dataparser_outputs(self, split="train"):
         image_filenames = []
         poses = []
