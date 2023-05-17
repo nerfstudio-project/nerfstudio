@@ -147,7 +147,14 @@ pythonVersion = "3.8"
 pythonPlatform = "Linux"
 
 [tool.ruff]
-select = ["E", "F", "PL", "PLC", "PLE", "PLR", "PLW"]
+select = [
+    "E",  # pycodestyle errors.
+    "F",  # Pyflakes rules.
+    "PLC",  # Pylint convention warnings.
+    "PLE",  # Pylint errors.
+    "PLR",  # Pylint refactor recommendations.
+    "PLW",  # Pylint warnings.
+]
 ignore = [
     "E501",  # Line too long.
     "F722",  # Forward annotation false positive from jaxtyping. Should be caught by pyright.
