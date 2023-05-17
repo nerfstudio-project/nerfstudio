@@ -56,6 +56,7 @@ class MipNerfModel(Model):
         **kwargs,
     ) -> None:
         self.field = None
+        assert config.collider_params is not None, "MipNeRF model requires bounding box collider parameters."
         super().__init__(config=config, **kwargs)
 
     def populate_modules(self):
