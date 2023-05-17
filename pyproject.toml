@@ -79,6 +79,7 @@ dev = [
     "pytest==7.1.2",
     "pytest-xdist==2.5.0",
     "typeguard==2.13.3",
+    "ruff==0.0.267",
 ]
 
 # Documentation related packages
@@ -123,11 +124,9 @@ include = ["nerfstudio*"]
 [tool.setuptools.package-data]
 "*" = ["*.cu", "*.json", "py.typed", "setup.bash", "setup.zsh"]
 
-# black
 [tool.black]
 line-length = 120
 
-# pylint
 [tool.pylint.messages_control]
 max-line-length = 120
 generated-members = ["numpy.*", "torch.*", "cv2.*", "cv.*"]
@@ -147,14 +146,12 @@ disable = [
   "unnecessary-ellipsis",
 ]
 
-#pytest
 [tool.pytest.ini_options]
 addopts = "-n=4 --typeguard-packages=nerfstudio --disable-warnings"
 testpaths = [
     "tests",
 ]
 
-# pyright
 [tool.pyright]
 include = ["nerfstudio"]
 exclude = ["**/node_modules",
@@ -165,7 +162,14 @@ defineConstant = { DEBUG = true }
 reportMissingImports = true
 reportMissingTypeStubs = false
 reportPrivateImportUsage = false
-reportUndefinedVariable = false
 
 pythonVersion = "3.8"
 pythonPlatform = "Linux"
+
+[tool.ruff]
+select = ["E", "F"]
+ignore = [
+    "E501",  # Line too long.
+    "F722",  # Forward annotation false positive from jaxtyping. Should be caught by pyright.
+    "F821",  # Forward annotation false positive from jaxtyping. Should be caught by pyright.
+]

@@ -28,12 +28,12 @@ bl_info = {
 }
 
 # pylint: disable=wrong-import-position
-import json
-from math import atan, degrees, radians, tan
+import json  # noqa: E402
+from math import atan, degrees, radians, tan  # noqa: E402
 
 # pylint: disable=import-error
-import bpy
-from mathutils import Matrix
+import bpy  # noqa: E402
+from mathutils import Matrix  # noqa: E402
 
 
 class CreateJSONCameraPath(bpy.types.Operator):
