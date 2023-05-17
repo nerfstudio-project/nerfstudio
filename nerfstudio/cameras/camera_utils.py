@@ -22,13 +22,13 @@ from typing import List, Literal, Optional, Tuple
 import numpy as np
 import torch
 from jaxtyping import Float
-from numpy.typing import ArrayLike
+from numpy.typing import NDArray
 from torch import Tensor
 
 _EPS = np.finfo(float).eps * 4.0
 
 
-def unit_vector(data: ArrayLike, axis: Optional[int] = None) -> np.ndarray:
+def unit_vector(data: NDArray, axis: Optional[int] = None) -> np.ndarray:
     """Return ndarray normalized by length, i.e. Euclidean norm, along axis.
 
     Args:
@@ -47,7 +47,7 @@ def unit_vector(data: ArrayLike, axis: Optional[int] = None) -> np.ndarray:
     return data
 
 
-def quaternion_from_matrix(matrix: ArrayLike, isprecise: bool = False) -> np.ndarray:
+def quaternion_from_matrix(matrix: NDArray, isprecise: bool = False) -> np.ndarray:
     """Return quaternion from rotation matrix.
 
     Args:
@@ -86,14 +86,13 @@ def quaternion_from_matrix(matrix: ArrayLike, isprecise: bool = False) -> np.nda
         m21 = M[2, 1]
         m22 = M[2, 2]
         # symmetric matrix K
-        K = np.array(
-            [
-                [m00 - m11 - m22, 0.0, 0.0, 0.0],
-                [m01 + m10, m11 - m00 - m22, 0.0, 0.0],
-                [m02 + m20, m12 + m21, m22 - m00 - m11, 0.0],
-                [m21 - m12, m02 - m20, m10 - m01, m00 + m11 + m22],
-            ]
-        )
+        K = [
+            [m00 - m11 - m22, 0.0, 0.0, 0.0],
+            [m01 + m10, m11 - m00 - m22, 0.0, 0.0],
+            [m02 + m20, m12 + m21, m22 - m00 - m11, 0.0],
+            [m21 - m12, m02 - m20, m10 - m01, m00 + m11 + m22],
+        ]
+        K = np.array(K)
         K /= 3.0
         # quaternion is eigenvector of K that corresponds to largest eigenvalue
         w, V = np.linalg.eigh(K)
@@ -104,7 +103,7 @@ def quaternion_from_matrix(matrix: ArrayLike, isprecise: bool = False) -> np.nda
 
 
 def quaternion_slerp(
-    quat0: ArrayLike, quat1: ArrayLike, fraction: float, spin: int = 0, shortestpath: bool = True
+    quat0: NDArray, quat1: NDArray, fraction: float, spin: int = 0, shortestpath: bool = True
 ) -> np.ndarray:
     """Return spherical linear interpolation between two quaternions.
     Args:
@@ -139,7 +138,7 @@ def quaternion_slerp(
     return q0
 
 
-def quaternion_matrix(quaternion: ArrayLike) -> np.ndarray:
+def quaternion_matrix(quaternion: NDArray) -> np.ndarray:
     """Return homogeneous rotation matrix from quaternion.
 
     Args:
@@ -161,7 +160,7 @@ def quaternion_matrix(quaternion: ArrayLike) -> np.ndarray:
     )
 
 
-def get_interpolated_poses(pose_a: ArrayLike, pose_b: ArrayLike, steps: int = 10) -> List[float]:
+def get_interpolated_poses(pose_a: NDArray, pose_b: NDArray, steps: int = 10) -> List[float]:
     """Return interpolation of poses with specified number of steps.
     Args:
         pose_a: first pose
@@ -185,7 +184,9 @@ def get_interpolated_poses(pose_a: ArrayLike, pose_b: ArrayLike, steps: int = 10
     return poses_ab
 
 
-def get_interpolated_k(k_a, k_b, steps: int = 10) -> Float[Tensor, "3 4"]:
+def get_interpolated_k(
+    k_a: Float[Tensor, "3 3"], k_b: Float[Tensor, "3 3"], steps: int = 10
+) -> List[Float[Tensor, "3 4"]]:
     """
     Returns interpolated path between two camera poses with specified number of steps.
 
@@ -193,8 +194,11 @@ def get_interpolated_k(k_a, k_b, steps: int = 10) -> Float[Tensor, "3 4"]:
         k_a: camera matrix 1
         k_b: camera matrix 2
         steps: number of steps the interpolated pose path should contain
+
+    Returns:
+        List of interpolated camera poses
     """
-    Ks = []
+    Ks: List[Float[Tensor, "3 3"]] = []
     ts = np.linspace(0, 1, steps)
     for t in ts:
         new_k = k_a * (1.0 - t) + k_b * t
@@ -220,20 +224,20 @@ def get_ordered_poses_and_k(
 
     poses_num = len(poses)
 
-    ordered_poses = np.expand_dims(poses[0], 0)
-    ordered_ks = np.expand_dims(Ks[0], 0)
+    ordered_poses = torch.unsqueeze(poses[0], 0)
+    ordered_ks = torch.unsqueeze(Ks[0], 0)
 
     # remove the first pose from poses
-    poses = np.delete(poses, 0, axis=0)
-    Ks = np.delete(Ks, 0, axis=0)
+    poses = poses[1:]
+    Ks = Ks[1:]
 
     for _ in range(poses_num - 1):
-        distances = np.linalg.norm(ordered_poses[-1][:, 3] - poses[:, :, 3], axis=1)
-        idx = np.argmin(distances)
-        ordered_poses = np.concatenate((ordered_poses, np.expand_dims(poses[idx], 0)), axis=0)
-        ordered_ks = np.concatenate((ordered_ks, np.expand_dims(Ks[idx], 0)), axis=0)
-        poses = np.delete(poses, idx, axis=0)
-        Ks = np.delete(Ks, idx, axis=0)
+        distances = torch.norm(ordered_poses[-1][:, 3] - poses[:, :, 3], dim=1)
+        idx = torch.argmin(distances)
+        ordered_poses = torch.cat((ordered_poses, torch.unsqueeze(poses[idx], 0)), dim=0)
+        ordered_ks = torch.cat((ordered_ks, torch.unsqueeze(Ks[idx], 0)), dim=0)
+        poses = torch.cat((poses[0:idx], poses[idx + 1 :]), dim=0)
+        Ks = torch.cat((Ks[0:idx], Ks[idx + 1 :]), dim=0)
 
     return ordered_poses, ordered_ks
 
@@ -262,14 +266,14 @@ def get_interpolated_poses_many(
         poses, Ks = get_ordered_poses_and_k(poses, Ks)
 
     for idx in range(poses.shape[0] - 1):
-        pose_a = poses[idx]
-        pose_b = poses[idx + 1]
+        pose_a = poses[idx].cpu().numpy()
+        pose_b = poses[idx + 1].cpu().numpy()
         poses_ab = get_interpolated_poses(pose_a, pose_b, steps=steps_per_transition)
         traj += poses_ab
         k_interp += get_interpolated_k(Ks[idx], Ks[idx + 1], steps=steps_per_transition)
 
     traj = np.stack(traj, axis=0)
-    k_interp = np.stack(k_interp, axis=0)
+    k_interp = torch.stack(k_interp, dim=0)
 
     return torch.tensor(traj, dtype=torch.float32), torch.tensor(k_interp, dtype=torch.float32)
 
@@ -565,7 +569,7 @@ def auto_orient_and_center_poses(
         transform = torch.cat([eigvec, eigvec @ -translation[..., None]], dim=-1)
         oriented_poses = transform @ poses
 
-        if oriented_poses.mean(axis=0)[2, 1] < 0:
+        if oriented_poses.mean(dim=0)[2, 1] < 0:
             oriented_poses[:, 1:3] = -1 * oriented_poses[:, 1:3]
     elif method in ("up", "vertical"):
         up = torch.mean(poses[:, :3, 1], dim=0)

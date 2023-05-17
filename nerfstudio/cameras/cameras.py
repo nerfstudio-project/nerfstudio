@@ -100,13 +100,11 @@ class Cameras(TensorDataclass):
         width: Optional[Union[Shaped[Tensor, "*batch_ws 1"], int]] = None,
         height: Optional[Union[Shaped[Tensor, "*batch_hs 1"], int]] = None,
         distortion_params: Optional[Float[Tensor, "*batch_dist_params 6"]] = None,
-        camera_type: Optional[
-            Union[
-                Int[Tensor, "*batch_cam_types 1"],
-                int,
-                List[CameraType],
-                CameraType,
-            ]
+        camera_type: Union[
+            Int[Tensor, "*batch_cam_types 1"],
+            int,
+            List[CameraType],
+            CameraType,
         ] = CameraType.PERSPECTIVE,
         times: Optional[Float[Tensor, "num_cameras"]] = None,
         metadata: Optional[Dict] = None,
@@ -297,8 +295,8 @@ class Cameras(TensorDataclass):
             Grid of image coordinates.
         """
         if index is None:
-            image_height = torch.max(self.image_height.view(-1))
-            image_width = torch.max(self.image_width.view(-1))
+            image_height = torch.max(self.image_height.view(-1)).item()
+            image_width = torch.max(self.image_width.view(-1)).item()
             image_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
             image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         else:
@@ -748,6 +746,9 @@ class Cameras(TensorDataclass):
             A JSON representation of the camera
         """
         flattened = self.flatten()
+        times = flattened[camera_idx].times
+        if times is not None:
+            times = times.item()
         json_ = {
             "type": "PinholeCamera",
             "cx": flattened[camera_idx].cx.item(),
@@ -756,7 +757,7 @@ class Cameras(TensorDataclass):
             "fy": flattened[camera_idx].fy.item(),
             "camera_to_world": self.camera_to_worlds[camera_idx].tolist(),
             "camera_index": camera_idx,
-            "times": flattened[camera_idx].times.item() if self.times is not None else None,
+            "times": times,
         }
         if image is not None:
             image_uint8 = (image * 255).detach().type(torch.uint8)
