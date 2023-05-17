@@ -33,7 +33,7 @@ BLACKLIST = [
 
 def set_reduced_config(config: TrainerConfig):
     """Reducing the config settings to speedup test"""
-    config.machine.num_gpus = 0
+    config.machine.num_devices = 0
     config.max_num_iterations = 2
     # reduce dataset factors; set dataset to test
     config.pipeline.datamanager.dataparser = BlenderDataParserConfig(data=Path("tests/data/lego_test"))
