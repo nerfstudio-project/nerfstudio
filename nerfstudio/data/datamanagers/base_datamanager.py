@@ -296,9 +296,6 @@ class DataManager(nn.Module):
         """
         return {}
 
-    def at_train_end(self, **kwargs: Any) -> Optional[Any]:  # pylint: disable=unused-argument disable=no-self-use
-        """Called at end of training for optional datamanager outputs."""
-
 
 @dataclass
 class VanillaDataManagerConfig(DataManagerConfig):
