@@ -21,7 +21,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Union, cast
 
-import appdirs
 import mediapy
 import numpy as np
 import torch
@@ -107,38 +106,13 @@ class StableDiffusion(nn.Module):
 
         sd_id = SD_IDENTIFIERS[version]
         pipe = StableDiffusionPipeline.from_pretrained(sd_id, torch_dtype=torch.float16)
-        assert pipe is not None
+        assert isinstance(pipe, StableDiffusionPipeline)
         pipe = pipe.to(self.device)
 
         pipe.enable_attention_slicing()
 
-        # use jitted unet
-        filename_sd_id = sd_id.split("/")[-1]
-        unet_traced_filename = Path(appdirs.user_data_dir("nerfstudio")) / f"{filename_sd_id}_unet_traced.pt"
-        if unet_traced_filename.exists():
-            CONSOLE.print("Loading traced UNet.")
-            unet_traced = torch.jit.load(unet_traced_filename)
-
-            class TracedUNet(torch.nn.Module):
-                """Jitted version of UNet"""
-
-                def __init__(self):
-                    super().__init__()
-                    self.in_channels = pipe.unet.in_channels
-                    self.device = pipe.unet.device
-
-                def forward(self, latent_model_input, t, encoder_hidden_states):
-                    """Forward pass"""
-                    sample = unet_traced(latent_model_input, t, encoder_hidden_states)[0]
-                    return UNet2DConditionOutput(sample=sample)
-
-            self.unet = TracedUNet()
-            del pipe.unet
-        else:
-            CONSOLE.print("[bold yellow] Warning: Loading UNet without JIT acceleration.")
-            CONSOLE.print(f"Run [yellow]ns-trace-sd --sd-version {version} [/yellow] for a speedup!")
-            self.unet = pipe.unet
-            self.unet.to(memory_format=torch.channels_last)
+        self.unet = pipe.unet
+        self.unet.to(memory_format=torch.channels_last)
 
         self.tokenizer = pipe.tokenizer
         self.text_encoder = pipe.text_encoder
@@ -208,7 +182,7 @@ class StableDiffusion(nn.Module):
             noise = torch.randn_like(latents)
             latents_noisy = self.scheduler.add_noise(latents, noise, t)  # type: ignore
             # pred noise
-            latent_model_input = torch.cat([latents_noisy] * 2)
+            latent_model_input = torch.cat((latents_noisy,) * 2)
             noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embeddings).sample
 
         # perform guidance

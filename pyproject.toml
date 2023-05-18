@@ -66,8 +66,8 @@ dependencies = [
 
 # Generative related dependencies
 gen = [
-    "diffusers==0.9.0",
-    "transformers==4.24.0",
+    "diffusers==0.16.1",
+    "transformers==4.29.2",
 ]
 
 
