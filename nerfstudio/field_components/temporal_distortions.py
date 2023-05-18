@@ -31,7 +31,7 @@ class TemporalDistortion(nn.Module):
 
     @abc.abstractmethod
     def forward(
-        self, positions: Float[Tensor, "*bs 3"], times: Optional[Float[Tensor, "1"]] = None
+        self, positions: Float[Tensor, "*bs 3"], times: Optional[Float[Tensor, "*bs 1"]] = None
     ) -> Optional[Float[Tensor, "*bs 3"]]:
         """
         Args:
@@ -89,7 +89,7 @@ class DNeRFDistortion(TemporalDistortion):
         )
 
     def forward(
-        self, positions: Float[Tensor, "*bs 3"], times: Optional[Float[Tensor, "1"]] = None
+        self, positions: Float[Tensor, "*bs 3"], times: Optional[Float[Tensor, "*bs 1"]] = None
     ) -> Optional[Float[Tensor, "*bs 3"]]:
         if times is None:
             return None

@@ -121,7 +121,7 @@ class ProcessNuScenesMasks:
                 maskname = os.path.split(camera_data["filename"])[1].replace("jpg", "png")
                 cv2.imwrite(
                     str(self.output_dir / "masks" / camera / maskname),
-                    mask * 255, # type: ignore
+                    mask * 255,  # type: ignore
                 )
 
                 if self.verbose:
