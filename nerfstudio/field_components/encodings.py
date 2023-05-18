@@ -28,6 +28,7 @@ from torch import Tensor, nn
 
 from nerfstudio.field_components.base_field_component import FieldComponent
 from nerfstudio.utils.math import components_from_spherical_harmonics, expected_sin
+from nerfstudio.utils.printing import print_tcnn_speed_warning
 
 try:
     import tinycudann as tcnn
@@ -126,8 +127,9 @@ class NeRFEncoding(Encoding):
         self.tcnn_encoding = None
         if implementation == "torch":
             pass
+        elif implementation == "tcnn" and not TCNN_EXISTS:
+            print_tcnn_speed_warning("NeRFEncoding")
         elif implementation == "tcnn":
-            assert TCNN_EXISTS, "tcnn is not installed"
             encoding_config = {"otype": "Frequency", "n_frequencies": num_frequencies}
             assert min_freq_exp == 0, "tcnn only supports min_freq_exp = 0"
             assert max_freq_exp == num_frequencies - 1, "tcnn only supports max_freq_exp = num_frequencies - 1"
@@ -285,8 +287,9 @@ class HashEncoding(Encoding):
         self.tcnn_encoding = None
         if implementation == "torch":
             pass
+        elif implementation == "tcnn" and not TCNN_EXISTS:
+            print_tcnn_speed_warning("HashEncoding")
         elif implementation == "tcnn":
-            assert TCNN_EXISTS, "tcnn is not installed"
             encoding_config = {
                 "otype": "HashGrid",
                 "n_levels": self.num_levels,
@@ -684,8 +687,9 @@ class SHEncoding(Encoding):
         self.tcnn_encoding = None
         if implementation == "torch":
             pass
+        elif implementation == "tcnn" and not TCNN_EXISTS:
+            print_tcnn_speed_warning("SHEncoding")
         elif implementation == "tcnn":
-            assert TCNN_EXISTS, "tcnn is not installed"
             encoding_config = {
                 "otype": "SphericalHarmonics",
                 "degree": levels,

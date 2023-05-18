@@ -22,6 +22,7 @@ from jaxtyping import Float
 from torch import Tensor, nn
 
 from nerfstudio.field_components.base_field_component import FieldComponent
+from nerfstudio.utils.printing import print_tcnn_speed_warning
 
 try:
     import tinycudann as tcnn
@@ -87,8 +88,9 @@ class MLP(FieldComponent):
         self.tcnn_encoding = None
         if implementation == "torch":
             self.build_nn_modules()
+        elif implementation == "tcnn" and not TCNN_EXISTS:
+            print_tcnn_speed_warning("MLP")
         elif implementation == "tcnn":
-            assert TCNN_EXISTS, "tcnn is not installed"
             activation_str = activation_to_tcnn_string(activation)
             output_activation_str = activation_to_tcnn_string(out_activation)
             network_config = {
