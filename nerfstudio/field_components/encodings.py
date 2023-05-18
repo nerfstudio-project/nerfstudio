@@ -673,7 +673,7 @@ class SHEncoding(Encoding):
         levels: Number of spherical harmonic levels to encode.
     """
 
-    def __init__(self, levels: int = 4, implementation: Literal["tcnn", "torch"] = "tcnn") -> None:
+    def __init__(self, levels: int = 4, implementation: Literal["tcnn", "torch"] = "torch") -> None:
         super().__init__(in_dim=3)
 
         if levels <= 0 or levels > 4:

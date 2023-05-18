@@ -91,7 +91,7 @@ class NerfactoField(Field):
         use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
-        implementation: Literal["tcnn", "torch"] = "tcnn",
+        implementation: Literal["tcnn", "torch"] = "torch",
     ) -> None:
         super().__init__()
 
