@@ -33,7 +33,7 @@ BLACKLIST = [
 def set_reduced_config(config: TrainerConfig):
     """Reducing the config settings to speedup test"""
     config.machine.device_type = "cpu"
-    if getattr(config.pipeline.model, "implementation", False):
+    if getattr(config.pipeline.model, "implementation", True):
         setattr(config.pipeline.model, "implementation", "torch")
     config.mixed_precision = False
     config.use_grad_scaler = False

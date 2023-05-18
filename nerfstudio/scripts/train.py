@@ -239,7 +239,7 @@ def main(config: TrainerConfig) -> None:
 
     print_speed_warning = False
     if (
-        getattr(config.pipeline.model, "implementation", False) == "tcnn"
+        getattr(config.pipeline.model, "implementation", "") == "tcnn"
         and importlib.util.find_spec("tinycudann") is None
     ):
         print_speed_warning = True
