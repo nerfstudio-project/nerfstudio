@@ -19,7 +19,8 @@ Special activation functions.
 from typing import TYPE_CHECKING, TypeVar
 
 import torch
-from jaxtyping import Shaped
+from jaxtyping import Float
+from torch import Tensor
 from torch.autograd import Function
 from torch.cuda.amp import custom_bwd, custom_fwd
 
@@ -41,9 +42,8 @@ class _TruncExp(Function):
 
 
 if TYPE_CHECKING:
-    T = TypeVar("T", bound=Shaped[torch.Tensor, "*bs ..."])
 
-    def trunc_exp(inp: T) -> T:
+    def trunc_exp(_: Float[Tensor, "*bs"], /) -> Float[Tensor, "*bs"]:
         """Same as torch.exp, but with the backward pass clipped to prevent vanishing/exploding
         gradients."""
         raise NotImplementedError()

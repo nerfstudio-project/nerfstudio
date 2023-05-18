@@ -350,7 +350,8 @@ class TemporalGridEncoder(nn.Module):
             self.gridtype_id,
             self.align_corners,
         )
-        return cast(Float[Tensor, "bs output_dim"], outputs)
+        assert isinstance(outputs, Tensor)
+        return outputs
 
     def get_temporal_tv_loss(self) -> Float[Tensor, ""]:
         """Apply TV loss on the temporal channels.
