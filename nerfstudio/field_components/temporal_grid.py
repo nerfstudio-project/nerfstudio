@@ -17,7 +17,7 @@ A time conditioned sliding window is applied on the feature channels, so
 that the feature vectors become time-aware.
 (A large) Part of the code are adapted from (@ashawkey) https://github.com/ashawkey/torch-ngp/
 """
-from typing import Optional, cast
+from typing import Optional
 
 import numpy as np
 import torch

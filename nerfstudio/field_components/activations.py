@@ -16,7 +16,7 @@
 Special activation functions.
 """
 
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 
 import torch
 from jaxtyping import Float

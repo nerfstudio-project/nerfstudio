@@ -18,7 +18,7 @@ Encoding functions
 
 import itertools
 from abc import abstractmethod
-from typing import Literal, Optional, Sequence, cast
+from typing import Literal, Optional, Sequence
 
 import numpy as np
 import torch

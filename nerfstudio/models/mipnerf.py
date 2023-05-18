@@ -17,7 +17,7 @@ Implementation of mip-NeRF.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Tuple, cast
+from typing import Dict, List, Tuple
 
 import torch
 from torch.nn import Parameter
