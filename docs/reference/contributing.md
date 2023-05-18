@@ -26,14 +26,16 @@ Below are the various tooling features our team uses to maintain this codebase.
 
 ## Requirements
 
-To install the required packages:
+To install the required packages and register the pre-commit hook:
 
 ```bash
 pip install -e .[dev]
 pip install -e .[docs]
+pre-commit install
 ```
 
 This will ensure you have the required packages to run the tests, linter, build the docs, etc.
+The pre-commit hook will ensure your commits comply with the repository's code style rules.
 
 You may also need to install [pandoc](https://pandoc.org/). If you are using `conda` you can run the following:
 
