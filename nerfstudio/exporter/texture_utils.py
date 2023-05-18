@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Literal, Tuple, Union
+from typing import Literal, Optional, Tuple, Union
 
 import mediapy as media
 import numpy as np
@@ -324,7 +324,7 @@ def export_textured_mesh(
     mesh: Mesh,
     pipeline: Pipeline,
     output_dir: Path,
-    px_per_uv_triangle: int,
+    px_per_uv_triangle: Optional[int],
     unwrap_method: Literal["xatlas", "custom"] = "xatlas",
     raylen_method: Literal["edge", "none"] = "edge",
     num_pixels_per_side=1024,
@@ -338,7 +338,7 @@ def export_textured_mesh(
         mesh: The mesh to texture.
         pipeline: The pipeline to use for texturing.
         output_dir: The directory to write the textured mesh to.
-        px_per_uv_triangle: The number of pixels per side of UV triangle.
+        px_per_uv_triangle: The number of pixels per side of UV triangle. Required for "custom" unwrapping.
         unwrap_method: The method to use for unwrapping the mesh.
         offset_method: The method to use for computing the ray length to render.
         num_pixels_per_side: The number of pixels per side of the texture image.
@@ -363,6 +363,7 @@ def export_textured_mesh(
         CONSOLE.print("[bold green]:white_check_mark: Unwrapped mesh with xatlas method")
     elif unwrap_method == "custom":
         CONSOLE.print("Unwrapping mesh with custom method...")
+        assert px_per_uv_triangle is not None
         texture_coordinates, origins, directions = unwrap_mesh_per_uv_triangle(
             vertices, faces, vertex_normals, px_per_uv_triangle
         )

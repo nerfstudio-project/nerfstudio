@@ -304,6 +304,7 @@ def export_tsdf_mesh(
 
     device = pipeline.device
 
+    assert pipeline.datamanager.train_dataset is not None
     dataparser_outputs = pipeline.datamanager.train_dataset._dataparser_outputs
 
     # initialize the TSDF volume

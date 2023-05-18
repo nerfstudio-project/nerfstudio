@@ -39,7 +39,6 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datamanagers.base_datamanager import (
     DataManager,
-    DataManagerConfig,
     VanillaDataManager,
     VanillaDataManagerConfig,
 )
@@ -205,7 +204,7 @@ class VanillaPipelineConfig(cfg.InstantiateConfig):
 
     _target: Type = field(default_factory=lambda: VanillaPipeline)
     """target class to instantiate"""
-    datamanager: DataManagerConfig = VanillaDataManagerConfig()
+    datamanager: VanillaDataManagerConfig = VanillaDataManagerConfig()
     """specifies the datamanager config"""
     model: ModelConfig = ModelConfig()
     """specifies the model config"""

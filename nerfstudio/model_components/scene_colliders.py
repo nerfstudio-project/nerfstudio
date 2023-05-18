@@ -33,7 +33,7 @@ class SceneCollider(nn.Module):
         self.kwargs = kwargs
         super().__init__()
 
-    def set_nears_and_fars(self, ray_bundle) -> RayBundle:
+    def set_nears_and_fars(self, ray_bundle: RayBundle) -> RayBundle:
         """To be implemented."""
         raise NotImplementedError
 
