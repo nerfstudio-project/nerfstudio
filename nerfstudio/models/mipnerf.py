@@ -185,7 +185,7 @@ class MipNerfModel(Model):
 
         coarse_psnr = self.psnr(image, rgb_coarse)
         fine_psnr = self.psnr(image, rgb_fine)
-        fine_ssim = cast(torch.Tensor, self.ssim(image, rgb_fine))
+        fine_ssim = self.ssim(image, rgb_fine)
         fine_lpips = self.lpips(image, rgb_fine)
 
         assert isinstance(fine_ssim, torch.Tensor)

@@ -372,7 +372,7 @@ class PDFSampler(Sampler):
         return ray_samples
 
 
-class DensityFn(Protocol):  # pylint: disable=too-few-public-methods
+class DensityFn(Protocol):
     """
     Function that evaluates density at a given point.
     """

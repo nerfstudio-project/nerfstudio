@@ -622,8 +622,7 @@ class KPlanesEncoding(Encoding):
         original_shape = in_tensor.shape
 
         assert any(self.coo_combs)
-        # Typing hack: output gets converted to a tensor after the first iteration of the loop
-        output = cast(torch.Tensor, 1.0 if self.reduce == "product" else 0.0)  # identity for corresponding op
+        output = 1.0 if self.reduce == "product" else 0.0  # identity for corresponding op
         for ci, coo_comb in enumerate(self.coo_combs):
             grid = self.plane_coefs[ci].unsqueeze(0)  # [1, feature_dim, reso1, reso2]
             coords = in_tensor[..., coo_comb].view(1, 1, -1, 2)  # [1, 1, flattened_bs, 2]
@@ -636,6 +635,8 @@ class KPlanesEncoding(Encoding):
             else:
                 output = output + interp
 
+        # Typing: output gets converted to a tensor after the first iteration of the loop
+        assert isinstance(output, Tensor)
         return output.reshape(*original_shape[:-1], self.num_components)
 
 

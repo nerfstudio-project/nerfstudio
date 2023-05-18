@@ -127,9 +127,8 @@ class TensorDataclass:
         new_dict = {}
         for k, v in dict_.items():
             if isinstance(v, torch.Tensor):
-                # If custom dimension key, then we need to
+                # Apply field-specific custom dimensions.
                 if isinstance(self._field_custom_dimensions, dict) and k in self._field_custom_dimensions:
-                    # pylint: disable=unsubscriptable-object
                     new_dict[k] = v.broadcast_to(
                         (
                             *batch_shape,

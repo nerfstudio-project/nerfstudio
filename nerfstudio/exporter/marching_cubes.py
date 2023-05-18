@@ -112,7 +112,7 @@ def evaluate_multiresolution_sdf(
             if pts_to_eval.shape[0] > 0:
                 pts_sdf_eval = evaluate(pts_to_eval.contiguous())
                 assert pts_sdf is not None
-                pts_sdf[mask] = pts_sdf_eval  # pylint: disable=unsupported-assignment-operation
+                pts_sdf[mask] = pts_sdf_eval
 
         if pid < 3:
             # Update mask

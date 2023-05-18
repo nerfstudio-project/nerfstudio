@@ -46,8 +46,7 @@ if TYPE_CHECKING:
     def trunc_exp(inp: T) -> T:
         """Same as torch.exp, but with the backward pass clipped to prevent vanishing/exploding
         gradients."""
-        ...
-        return inp
+        raise NotImplementedError()
 
 else:
     trunc_exp = _TruncExp.apply

@@ -112,18 +112,16 @@ def interlevel_loss(weights_list, ray_samples_list) -> torch.Tensor:
     """
     c = ray_samples_to_sdist(ray_samples_list[-1]).detach()
     w = weights_list[-1][..., 0].detach()
-    if len(ray_samples_list) > 0:
-        # Fast typing hack: loss_interlevel gets
-        # replaced in first iteration of the loop
-        loss_interlevel = cast(torch.Tensor, 0.0)
-    else:
-        loss_interlevel = torch.zeros(tuple(), dtype=torch.float32)
+    assert len(ray_samples_list) > 0
 
+    loss_interlevel = 0.0
     for ray_samples, weights in zip(ray_samples_list[:-1], weights_list[:-1]):
         sdist = ray_samples_to_sdist(ray_samples)
         cp = sdist  # (num_rays, num_samples + 1)
         wp = weights[..., 0]  # (num_rays, num_samples)
         loss_interlevel += torch.mean(lossfun_outer(c, w, cp, wp))
+
+    assert isinstance(loss_interlevel, Tensor)
     return loss_interlevel
 
 
@@ -405,11 +403,8 @@ class GradientLoss(nn.Module):
         Returns:
             gradient loss based on reduction function
         """
-        if self.__scales < 1:
-            # This is a minor optimization hack
-            total = torch.tensor(0, dtype=torch.float32, device=prediction.device)
-        else:
-            total: Float[Tensor, "0"] = cast(Float[Tensor, "0"], 0)
+        assert self.__scales >= 1
+        total = 0.0
 
         for scale in range(self.__scales):
             step = pow(2, scale)
@@ -421,7 +416,8 @@ class GradientLoss(nn.Module):
             )
             total += grad_loss
 
-        return cast(Tensor, total)
+        assert isinstance(total, Tensor)
+        return total
 
     def gradient_loss(
         self,

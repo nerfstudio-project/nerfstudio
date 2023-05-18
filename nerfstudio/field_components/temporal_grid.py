@@ -357,6 +357,6 @@ class TemporalGridEncoder(nn.Module):
         Sample a random channel combination (i.e., row for the combination table),
         and then compute loss on it.
         """
-        row_idx = cast(int, torch.randint(0, len(self.index_list), [1]).item())
+        row_idx = torch.randint(0, len(self.index_list), [1])
         feat_idx = self.index_list[row_idx]
         return (self.embeddings[:, feat_idx[0]] - self.embeddings[:, feat_idx[1]]).abs().mean()
