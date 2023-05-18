@@ -1,5 +1,3 @@
-# pylint: disable=all
-from copy import copy
 from typing import Any
 
 import pytest
@@ -9,7 +7,6 @@ import yaml
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.datamanagers.base_datamanager import (
-    DataManager,
     DataparserOutputs,
     VanillaDataManager,
     VanillaDataManagerConfig,

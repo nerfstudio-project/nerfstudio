@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Tuple, Type
+from typing import Any, Dict, List, Literal, Tuple, Type, cast
 
 import torch
 import torch.nn.functional as F
@@ -173,14 +173,15 @@ class SurfaceModel(Model):
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
         param_groups["fields"] = list(self.field.parameters())
-        if self.config.background_model != "none":
-            param_groups["field_background"] = list(self.field_background.parameters())
-        else:
-            param_groups["field_background"] = list(self.field_background)
+        param_groups["field_background"] = (
+            [self.field_background]
+            if isinstance(self.field_background, Parameter)
+            else list(self.field_background.parameters())
+        )
         return param_groups
 
     @abstractmethod
-    def sample_and_forward_field(self, ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
+    def sample_and_forward_field(self, ray_bundle: RayBundle) -> Dict[str, Any]:
         """Takes in a Ray Bundle and returns a dictionary of samples and field output.
 
         Args:
@@ -201,10 +202,16 @@ class SurfaceModel(Model):
         Returns:
             Outputs of model. (ie. rendered colors)
         """
+        assert (
+            ray_bundle.metadata is not None and "directions_norm" in ray_bundle.metadata
+        ), "directions_norm is required in ray_bundle.metadata"
+
         samples_and_field_outputs = self.sample_and_forward_field(ray_bundle=ray_bundle)
 
         # shortcuts
-        field_outputs = samples_and_field_outputs["field_outputs"]
+        field_outputs: Dict[FieldHeadNames, torch.Tensor] = cast(
+            Dict[FieldHeadNames, torch.Tensor], samples_and_field_outputs["field_outputs"]
+        )
         ray_samples = samples_and_field_outputs["ray_samples"]
         weights = samples_and_field_outputs["weights"]
         bg_transmittance = samples_and_field_outputs["bg_transmittance"]
@@ -219,12 +226,16 @@ class SurfaceModel(Model):
 
         # background model
         if self.config.background_model != "none":
+            assert isinstance(self.field_background, torch.nn.Module), "field_background should be a module"
+            assert ray_bundle.fars is not None, "fars is required in ray_bundle"
             # sample inversely from far to 1000 and points and forward the bg model
             ray_bundle.nears = ray_bundle.fars
+            assert ray_bundle.fars is not None
             ray_bundle.fars = torch.ones_like(ray_bundle.fars) * self.config.far_plane_bg
 
             ray_samples_bg = self.sampler_bg(ray_bundle)
             # use the same background model for both density field and occupancy field
+            assert not isinstance(self.field_background, Parameter)
             field_outputs_bg = self.field_background(ray_samples_bg)
             weights_bg = ray_samples_bg.get_weights(field_outputs_bg[FieldHeadNames.DENSITY])
 
@@ -261,8 +272,8 @@ class SurfaceModel(Model):
             outputs.update(samples_and_field_outputs)
 
         if "weights_list" in samples_and_field_outputs:
-            weights_list = samples_and_field_outputs["weights_list"]
-            ray_samples_list = samples_and_field_outputs["ray_samples_list"]
+            weights_list = cast(List[torch.Tensor], samples_and_field_outputs["weights_list"])
+            ray_samples_list = cast(List[torch.Tensor], samples_and_field_outputs["ray_samples_list"])
 
             for i in range(len(weights_list) - 1):
                 outputs[f"prop_depth_{i}"] = self.renderer_depth(

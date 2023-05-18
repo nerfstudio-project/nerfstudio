@@ -37,8 +37,8 @@ def get_interpolated_camera_path(cameras: Cameras, steps: int, order_poses: bool
     Returns:
         A new set of cameras along a path.
     """
-    Ks = cameras.get_intrinsics_matrices().cpu().numpy()
-    poses = cameras.camera_to_worlds.cpu().numpy()
+    Ks = cameras.get_intrinsics_matrices()
+    poses = cameras.camera_to_worlds
     poses, Ks = get_interpolated_poses_many(poses, Ks, steps_per_transition=steps, order_poses=order_poses)
 
     cameras = Cameras(

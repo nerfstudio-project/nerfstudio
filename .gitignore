@@ -169,9 +169,7 @@ renders/
 events.out.*
 
 # Data
-data
-!*/data
-!docs/reference/api/data/
+/data
 
 # Misc
 old/
