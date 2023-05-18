@@ -39,6 +39,7 @@ from rich.progress import (
     Progress,
     TaskProgressColumn,
     TextColumn,
+    TimeElapsedColumn,
     TimeRemainingColumn,
 )
 from rich.table import Table
@@ -69,6 +70,8 @@ def _render_trajectory_video(
     rendered_resolution_scaling_factor: float = 1.0,
     seconds: float = 5.0,
     output_format: Literal["images", "video"] = "video",
+    image_format: Literal["jpeg", "png"] = "jpeg",
+    jpeg_quality: int = 100,
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions(),
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
@@ -92,9 +95,13 @@ def _render_trajectory_video(
     progress = Progress(
         TextColumn(":movie_camera: Rendering :movie_camera:"),
         BarColumn(),
-        TaskProgressColumn(show_speed=True),
+        TaskProgressColumn(
+            text_format="[progress.percentage]{task.completed}/{task.total:>.0f}({task.percentage:>3.1f}%)",
+            show_speed=True,
+        ),
         ItersPerSecColumn(suffix="fps"),
-        TimeRemainingColumn(elapsed_when_finished=True, compact=True),
+        TimeRemainingColumn(elapsed_when_finished=False, compact=False),
+        TimeElapsedColumn(),
     )
     output_image_dir = output_filename.parent / output_filename.stem
     if output_format == "images":
@@ -151,7 +158,12 @@ def _render_trajectory_video(
                     render_image.append(output_image)
                 render_image = np.concatenate(render_image, axis=1)
                 if output_format == "images":
-                    media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
+                    if image_format == "png":
+                        media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image, fmt="png")
+                    if image_format == "jpeg":
+                        media.write_image(
+                            output_image_dir / f"{camera_idx:05d}.jpg", render_image, fmt="jpeg", quality=jpeg_quality
+                        )
                 if output_format == "video":
                     if writer is None:
                         render_width = int(render_image.shape[1])
@@ -291,6 +303,10 @@ class BaseRender:
     """Path to config YAML file."""
     output_path: Path = Path("renders/output.mp4")
     """Path to output video file."""
+    image_format: Literal["jpeg", "png"] = "jpeg"
+    """Image format"""
+    jpeg_quality: int = 100
+    """JPEG quality"""
     downscale_factor: float = 1.0
     """Scaling factor to apply to the camera image resolution."""
     eval_num_rays_per_chunk: Optional[int] = None
@@ -335,6 +351,8 @@ class RenderCameraPath(BaseRender):
             crop_data=crop_data,
             seconds=seconds,
             output_format=self.output_format,
+            image_format=self.image_format,
+            jpeg_quality=self.jpeg_quality,
             colormap_options=self.colormap_options,
         )
 
