@@ -130,7 +130,7 @@ class NerfactoModelConfig(ModelConfig):
     """Whether to disable scene contraction or not."""
     use_gradient_scaling: bool = False
     """Use gradient scaler where the gradients are lower for points closer to the camera."""
-    implementation: Literal["tcnn", "torch"] = ("tcnn",)
+    implementation: Literal["tcnn", "torch"] = "tcnn"
     """Which implementation to use for the model."""
 
 

@@ -15,14 +15,13 @@
 """
 Multi Layer Perceptron
 """
-from typing import Literal, Optional, Set, Tuple
+from typing import Literal, Optional, Set, Tuple, Union
 
 import torch
 from jaxtyping import Float
 from torch import Tensor, nn
 
 from nerfstudio.field_components.base_field_component import FieldComponent
-from nerfstudio.utils.printing import print_tcnn_speed_warning
 
 try:
     import tinycudann as tcnn
@@ -32,7 +31,7 @@ except ImportError:
     TCNN_EXISTS = False
 
 
-def activation_to_tcnn_string(activation: nn.Module) -> str:
+def activation_to_tcnn_string(activation: Union[nn.Module, None]) -> str:
     """Converts a torch.nn activation function to a string that can be used to
     initialize a TCNN activation function.
 
@@ -88,9 +87,8 @@ class MLP(FieldComponent):
         self.tcnn_encoding = None
         if implementation == "torch":
             self.build_nn_modules()
-        elif not TCNN_EXISTS and implementation == "tcnn":
-            print_tcnn_speed_warning("MLP")
         elif implementation == "tcnn":
+            assert TCNN_EXISTS, "tcnn is not installed"
             activation_str = activation_to_tcnn_string(activation)
             output_activation_str = activation_to_tcnn_string(out_activation)
             network_config = {
@@ -145,6 +143,6 @@ class MLP(FieldComponent):
         return x
 
     def forward(self, in_tensor: Float[Tensor, "*bs in_dim"]) -> Float[Tensor, "*bs out_dim"]:
-        if TCNN_EXISTS and self.tcnn_encoding is not None:
+        if self.tcnn_encoding is not None:
             return self.tcnn_encoding(in_tensor)
         return self.pytorch_fwd(in_tensor)

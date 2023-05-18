@@ -65,7 +65,7 @@ class MachineConfig(PrintableConfig):
     seed: int = 42
     """random seed initialization"""
     num_devices: int = 1
-    """total number of gpus available for train/eval"""
+    """total number of devices (e.g., gpus) available for train/eval"""
     num_machines: int = 1
     """total number of distributed machines available (for DDP)"""
     machine_rank: int = 0

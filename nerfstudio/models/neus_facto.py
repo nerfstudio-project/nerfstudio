@@ -48,7 +48,7 @@ class NeuSFactoModelConfig(NeuSModelConfig):
     """NeusFacto Model Config"""
 
     _target: Type = field(default_factory=lambda: NeuSFactoModel)
-    num_proposal_samples_per_ray: Tuple[int, int] = (256, 96)
+    num_proposal_samples_per_ray: Tuple[int, ...] = (256, 96)
     """Number of samples per ray for the proposal network."""
     num_neus_samples_per_ray: int = 48
     """Number of samples per ray for the nerf network."""

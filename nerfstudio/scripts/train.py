@@ -51,6 +51,7 @@ import traceback
 from datetime import timedelta
 from typing import Any, Callable, Literal, Optional
 
+import importlib.util
 import numpy as np
 import torch
 import torch.distributed as dist
@@ -63,6 +64,7 @@ from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.utils import comms, profiler
 from nerfstudio.utils.rich_utils import CONSOLE
+from nerfstudio.utils.printing import print_tcnn_speed_warning
 
 DEFAULT_TIMEOUT = timedelta(minutes=30)
 
@@ -183,8 +185,8 @@ def launch(
     if world_size == 0:
         raise ValueError("world_size cannot be 0")
     elif world_size == 1:
-        # if using CPUs, then world_size=1 uses CPU
-        # if using GPUs, then world_size=1 uses one GPU in one process.
+        # if using CPUs, then world_size=1 uses one CPU in one process
+        # if using GPUs, then world_size=1 uses one GPU in one process
         try:
             main_func(local_rank=0, world_size=world_size, config=config)
         except KeyboardInterrupt:
@@ -235,9 +237,17 @@ def main(config: TrainerConfig) -> None:
         CONSOLE.log(f"Loading pre-set config from: {config.load_config}")
         config = yaml.load(config.load_config.read_text(), Loader=yaml.Loader)
 
+    print_speed_warning = False
+    if getattr(config.pipeline.model, "implementation") == "tcnn" and importlib.util.find_spec("tinycudann") is None:
+        print_speed_warning = True
+        setattr(config.pipeline.model, "implementation", "torch")
+
     # print and save config
     config.print_to_terminal()
     config.save_config()
+
+    if print_speed_warning:
+        print_tcnn_speed_warning()
 
     launch(
         main_func=train_loop,
