@@ -45,12 +45,15 @@ class Field(nn.Module):
         self._sample_locations = None
         self._density_before_activation = None
 
-    def density_fn(self, positions: Shaped[Tensor, "*bs 3"]) -> Shaped[Tensor, "*bs 1"]:
+    def density_fn(
+        self, positions: Shaped[Tensor, "*bs 3"], times: Optional[Shaped[Tensor, "*bs 1"]] = None
+    ) -> Shaped[Tensor, "*bs 1"]:
         """Returns only the density. Used primarily with the density grid.
 
         Args:
             positions: the origin of the samples/frustums
         """
+        del times
         # Need to figure out a better way to describe positions with a ray.
         ray_samples = RaySamples(
             frustums=Frustums(

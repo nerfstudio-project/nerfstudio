@@ -17,7 +17,7 @@ Collection of sampling strategies
 """
 
 from abc import abstractmethod
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Protocol, Tuple, Union
 
 import torch
 from jaxtyping import Float
@@ -277,7 +277,7 @@ class PDFSampler(Sampler):
         self,
         ray_bundle: Optional[RayBundle] = None,
         ray_samples: Optional[RaySamples] = None,
-        weights: Float[Tensor, "*batch num_samples 1"] = None,
+        weights: Optional[Float[Tensor, "*batch num_samples 1"]] = None,
         num_samples: Optional[int] = None,
         eps: float = 1e-5,
     ) -> RaySamples:
@@ -296,6 +296,7 @@ class PDFSampler(Sampler):
 
         if ray_samples is None or ray_bundle is None:
             raise ValueError("ray_samples and ray_bundle must be provided")
+        assert weights is not None, "weights must be provided"
 
         num_samples = num_samples or self.num_samples
         assert num_samples is not None
@@ -371,6 +372,17 @@ class PDFSampler(Sampler):
         return ray_samples
 
 
+class DensityFn(Protocol):
+    """
+    Function that evaluates density at a given point.
+    """
+
+    def __call__(
+        self, positions: Float[Tensor, "*batch 3"], times: Optional[Float[Tensor, "*batch 1"]] = None
+    ) -> Float[Tensor, "*batch 1"]:
+        ...
+
+
 class VolumetricSampler(Sampler):
     """Sampler inspired by the one proposed in the Instant-NGP paper.
     Generates samples along a ray by sampling the occupancy field.
@@ -385,8 +397,8 @@ class VolumetricSampler(Sampler):
     def __init__(
         self,
         occupancy_grid: OccGridEstimator,
-        density_fn: Optional[Callable[[Float[Tensor, "*batch 3"]], Float[Tensor, "*batch 1"]]] = None,
-    ) -> None:
+        density_fn: Optional[DensityFn] = None,
+    ):
         super().__init__()
         assert occupancy_grid is not None
         self.density_fn = density_fn
@@ -523,7 +535,7 @@ class ProposalNetworkSampler(Sampler):
 
     def __init__(
         self,
-        num_proposal_samples_per_ray: Tuple[int] = (64,),
+        num_proposal_samples_per_ray: Tuple[int, ...] = (64,),
         num_nerf_samples_per_ray: int = 32,
         num_proposal_network_iterations: int = 2,
         single_jitter: bool = False,
@@ -634,7 +646,7 @@ class NeuSSampler(Sampler):
     def generate_ray_samples(
         self,
         ray_bundle: Optional[RayBundle] = None,
-        sdf_fn: Optional[Callable] = None,
+        sdf_fn: Optional[Callable[[RaySamples], torch.Tensor]] = None,
         ray_samples: Optional[RaySamples] = None,
     ) -> Union[Tuple[RaySamples, torch.Tensor], RaySamples]:
         assert ray_bundle is not None
@@ -647,6 +659,7 @@ class NeuSSampler(Sampler):
 
         total_iters = 0
         sorted_index = None
+        sdf: Optional[torch.Tensor] = None
         new_samples = ray_samples
 
         base_variance = self.base_variance
@@ -657,6 +670,7 @@ class NeuSSampler(Sampler):
 
             # merge sdf predictions
             if sorted_index is not None:
+                assert sdf is not None
                 sdf_merge = torch.cat([sdf.squeeze(-1), new_sdf.squeeze(-1)], -1)
                 sdf = torch.gather(sdf_merge, 1, sorted_index).unsqueeze(-1)
             else:

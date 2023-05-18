@@ -19,7 +19,7 @@
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Union, cast
 
 import appdirs
 import mediapy
@@ -223,7 +223,7 @@ class StableDiffusion(nn.Module):
 
         if grad_scaler is not None:
             latents = grad_scaler.scale(latents)
-        loss = _SDSGradient.apply(latents, grad)
+        loss = cast(Tensor, _SDSGradient.apply(latents, grad))
 
         return loss
 

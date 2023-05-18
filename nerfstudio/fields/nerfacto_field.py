@@ -17,7 +17,7 @@ Field for compound nerf model, adds scene contraction and image embeddings to in
 """
 
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Type
 
 import numpy as np
 import torch
@@ -79,6 +79,8 @@ class TCNNNerfactoField(Field):
         use_average_appearance_embedding: whether to use average appearance embedding or zeros for inference
         spatial_distortion: spatial distortion to apply to the scene
     """
+
+    aabb: Tensor
 
     def __init__(
         self,
@@ -420,4 +422,4 @@ class TorchNerfactoField(Field):
         return outputs
 
 
-field_implementation_to_class: Dict[str, Field] = {"tcnn": TCNNNerfactoField, "torch": TorchNerfactoField}
+field_implementation_to_class: Dict[str, Type[Field]] = {"tcnn": TCNNNerfactoField, "torch": TorchNerfactoField}

@@ -19,7 +19,7 @@ TensorRF implementation.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Tuple, Type
+from typing import Dict, List, Literal, Tuple, Type, cast
 
 import numpy as np
 import torch
@@ -130,6 +130,8 @@ class TensoRFModel(Model):
     ) -> List[TrainingCallback]:
         # the callback that we want to run every X iterations after the training iteration
         def reinitialize_optimizer(self, training_callback_attributes: TrainingCallbackAttributes, step: int):
+            assert training_callback_attributes.optimizers is not None
+            assert training_callback_attributes.pipeline is not None
             index = self.upsampling_iters.index(step)
             resolution = self.upsampling_steps[index]
 
@@ -313,8 +315,13 @@ class TensoRFModel(Model):
                 l1_parameters.append(parameter.view(-1))
             loss_dict["l1_reg"] = torch.abs(torch.cat(l1_parameters)).mean()
         elif self.config.regularization == "tv":
-            loss_dict["tv_reg_density"] = tv_loss(self.field.density_encoding.plane_coef)
-            loss_dict["tv_reg_color"] = tv_loss(self.field.color_encoding.plane_coef)
+            density_plane_coef = self.field.density_encoding.plane_coef
+            color_plane_coef = self.field.color_encoding.plane_coef
+            assert isinstance(color_plane_coef, torch.Tensor) and isinstance(
+                density_plane_coef, torch.Tensor
+            ), "TV reg only supported for TensoRF encoding types with plane_coef attribute"
+            loss_dict["tv_reg_density"] = tv_loss(density_plane_coef)
+            loss_dict["tv_reg_color"] = tv_loss(color_plane_coef)
         elif self.config.regularization == "none":
             pass
         else:
@@ -344,7 +351,7 @@ class TensoRFModel(Model):
         rgb = torch.moveaxis(rgb, -1, 0)[None, ...]
 
         psnr = self.psnr(image, rgb)
-        ssim = self.ssim(image, rgb)
+        ssim = cast(torch.Tensor, self.ssim(image, rgb))
         lpips = self.lpips(image, rgb)
 
         metrics_dict = {

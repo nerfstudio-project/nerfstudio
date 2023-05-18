@@ -173,9 +173,9 @@ class Trainer:
 
         self.callbacks = self.pipeline.get_training_callbacks(
             TrainingCallbackAttributes(
-                optimizers=self.optimizers,  # type: ignore
-                grad_scaler=self.grad_scaler,  # type: ignore
-                pipeline=self.pipeline,  # type: ignore
+                optimizers=self.optimizers,
+                grad_scaler=self.grad_scaler,
+                pipeline=self.pipeline,
             )
         )
 

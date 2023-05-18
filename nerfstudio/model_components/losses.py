@@ -16,13 +16,14 @@
 Collection of Losses.
 """
 from enum import Enum
-from typing import Dict, Literal, Optional, TypeVar, cast
+from typing import Dict, Literal, Optional, Tuple, cast
 
 import torch
 from jaxtyping import Bool, Float
 from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import RaySamples
+from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.utils.math import masked_reduction, normalized_depth_scale_and_shift
 
 L1Loss = nn.L1Loss
@@ -103,7 +104,7 @@ def ray_samples_to_sdist(ray_samples):
     return sdist
 
 
-def interlevel_loss(weights_list, ray_samples_list):
+def interlevel_loss(weights_list, ray_samples_list) -> torch.Tensor:
     """Calculates the proposal loss in the MipNeRF-360 paper.
 
     https://github.com/kakaobrain/NeRF-Factory/blob/f61bb8744a5cb4820a4d968fb3bfbed777550f4a/src/model/mipnerf360/model.py#L515
@@ -111,12 +112,16 @@ def interlevel_loss(weights_list, ray_samples_list):
     """
     c = ray_samples_to_sdist(ray_samples_list[-1]).detach()
     w = weights_list[-1][..., 0].detach()
+    assert len(ray_samples_list) > 0
+
     loss_interlevel = 0.0
     for ray_samples, weights in zip(ray_samples_list[:-1], weights_list[:-1]):
         sdist = ray_samples_to_sdist(ray_samples)
         cp = sdist  # (num_rays, num_samples + 1)
         wp = weights[..., 0]  # (num_rays, num_samples)
         loss_interlevel += torch.mean(lossfun_outer(c, w, cp, wp))
+
+    assert isinstance(loss_interlevel, Tensor)
     return loss_interlevel
 
 
@@ -398,7 +403,8 @@ class GradientLoss(nn.Module):
         Returns:
             gradient loss based on reduction function
         """
-        total = 0
+        assert self.__scales >= 1
+        total = 0.0
 
         for scale in range(self.__scales):
             step = pow(2, scale)
@@ -410,7 +416,8 @@ class GradientLoss(nn.Module):
             )
             total += grad_loss
 
-        return cast(Tensor, total)
+        assert isinstance(total, Tensor)
+        return total
 
     def gradient_loss(
         self,
@@ -534,12 +541,9 @@ class _GradientScaler(torch.autograd.Function):  # typing: ignore
         return output_grad * scaling, grad_scaling
 
 
-K = TypeVar("K")
-
-
 def scale_gradients_by_distance_squared(
-    field_outputs: Dict[K, torch.Tensor], ray_samples: RaySamples
-) -> Dict[K, torch.Tensor]:
+    field_outputs: Dict[FieldHeadNames, torch.Tensor], ray_samples: RaySamples
+) -> Dict[FieldHeadNames, torch.Tensor]:
     """
     Scale gradients by the ray distance to the pixel
     as suggested in `Radiance Field Gradient Scaling for Unbiased Near-Camera Training` paper
@@ -554,5 +558,5 @@ def scale_gradients_by_distance_squared(
     ray_dist = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
     scaling = torch.square(ray_dist).clamp(0, 1)
     for key, value in field_outputs.items():
-        out[key], _ = _GradientScaler.apply(value, scaling)
+        out[key], _ = cast(Tuple[Tensor, Tensor], _GradientScaler.apply(value, scaling))
     return out

@@ -17,12 +17,15 @@ Miscellaneous helper code.
 """
 
 
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 import torch
 
+T = TypeVar("T")
+TKey = TypeVar("TKey")
 
-def get_dict_to_torch(stuff: Any, device: Union[torch.device, str] = "cpu", exclude: Optional[List[str]] = None):
+
+def get_dict_to_torch(stuff: T, device: Union[torch.device, str] = "cpu", exclude: Optional[List[str]] = None) -> T:
     """Set everything in the dict to the specified torch device.
 
     Args:
@@ -42,7 +45,7 @@ def get_dict_to_torch(stuff: Any, device: Union[torch.device, str] = "cpu", excl
     return stuff
 
 
-def get_dict_to_cpu(stuff: Any):
+def get_dict_to_cpu(stuff: T) -> T:
     """Set everything in the dict to CPU.
 
     Args:
@@ -57,7 +60,7 @@ def get_dict_to_cpu(stuff: Any):
     return stuff
 
 
-def get_masked_dict(d, mask):
+def get_masked_dict(d: Dict[TKey, torch.Tensor], mask) -> Dict[TKey, torch.Tensor]:
     """Return a masked dictionary.
     TODO(ethan): add more asserts/checks so this doesn't have unpredictable behavior.
 
