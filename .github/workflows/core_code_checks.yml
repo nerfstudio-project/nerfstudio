@@ -36,6 +36,9 @@ jobs:
         run: ruff docs/ nerfstudio/ tests/
       - name: Run Black
         run: black docs/ nerfstudio/ tests/ --check
+      - name: Run Pyright
+        run: |
+          pyright
       - name: Test with pytest
         run: |
           pytest

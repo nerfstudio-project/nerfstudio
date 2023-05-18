@@ -16,7 +16,7 @@
 
 import abc
 from enum import Enum
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 import torch
 from jaxtyping import Float
@@ -30,7 +30,7 @@ class TemporalDistortion(nn.Module):
     """Apply spatial distortions as a function of time"""
 
     @abc.abstractmethod
-    def forward(self, positions: Float[Tensor, "*bs 3"], times: Optional[Float[Tensor, "1"]]) -> Float[Tensor, "*bs 3"]:
+    def forward(self, positions: Float[Tensor, "*bs 3"], times: Float[Tensor, "*bs 1"]) -> Float[Tensor, "*bs 3"]:
         """
         Args:
             positions: Samples to translate as a function of time
@@ -86,9 +86,7 @@ class DNeRFDistortion(TemporalDistortion):
             skip_connections=skip_connections,
         )
 
-    def forward(self, positions, times=None):
-        if times is None:
-            return None
+    def forward(self, positions: Float[Tensor, "*bs 3"], times: Float[Tensor, "*bs 1"]) -> Float[Tensor, "*bs 3"]:
         p = self.position_encoding(positions)
         t = self.temporal_encoding(times)
         return self.mlp_deform(torch.cat([p, t], dim=-1))

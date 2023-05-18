@@ -75,7 +75,7 @@ def test_load_state_dict():
     state_dict["_model.param"].mul_(2)
     pipeline.load_pipeline(state_dict, 0)
     assert was_called
-    assert pipeline.model.param[0].item() == 2
+    assert getattr(pipeline.model, "param")[0].item() == 2
 
     # preparation for another test
     state_dict["_model.param"].mul_(2)
@@ -91,4 +91,4 @@ def test_load_state_dict():
     # load DDP checkpoint
     pipeline.load_pipeline(ddp_state_dict, 0)
     assert was_called
-    assert pipeline.model.param[0].item() == 4
+    assert getattr(pipeline.model, "param")[0].item() == 4

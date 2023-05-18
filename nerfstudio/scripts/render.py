@@ -51,6 +51,7 @@ from nerfstudio.cameras.camera_paths import (
     get_spiral_path,
 )
 from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components import renderers
 from nerfstudio.pipelines.base_pipeline import Pipeline
@@ -416,6 +417,7 @@ class SpiralRender(BaseRender):
 
         install_checks.check_ffmpeg_installed()
 
+        assert isinstance(pipeline.datamanager, VanillaDataManager)
         steps = int(self.frame_rate * self.seconds)
         camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
         camera_path = get_spiral_path(camera_start, steps=steps, radius=self.radius)

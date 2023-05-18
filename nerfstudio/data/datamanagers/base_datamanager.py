@@ -38,7 +38,6 @@ from typing import (
 import torch
 from torch import nn
 from torch.nn import Parameter
-from torch.utils.data import Dataset
 from torch.utils.data.distributed import DistributedSampler
 from typing_extensions import TypeVar
 
@@ -154,8 +153,8 @@ class DataManager(nn.Module):
 
     """
 
-    train_dataset: Optional[Dataset] = None
-    eval_dataset: Optional[Dataset] = None
+    train_dataset: Optional[InputDataset] = None
+    eval_dataset: Optional[InputDataset] = None
     train_sampler: Optional[DistributedSampler] = None
     eval_sampler: Optional[DistributedSampler] = None
     includes_time: bool = False
@@ -278,9 +277,9 @@ class DataManager(nn.Module):
         """Returns the number of rays per batch for evaluation."""
         raise NotImplementedError
 
-    def get_datapath(self) -> Optional[Path]:
+    @abstractmethod
+    def get_datapath(self) -> Path:
         """Returns the path to the data. This is used to determine where to save camera paths."""
-        return None
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
@@ -325,7 +324,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
     Record3D."""
-    collate_fn: Callable[[Any], Any] = staticmethod(nerfstudio_collate)
+    collate_fn: Callable[[Any], Any] = nerfstudio_collate
     """Specifies the collate function to use for the train and eval dataloaders."""
     camera_res_scale_factor: float = 1.0
     """The scale factor for scaling spatial data such as images, mask, semantics

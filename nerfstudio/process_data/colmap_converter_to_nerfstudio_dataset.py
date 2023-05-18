@@ -203,6 +203,10 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         elif sfm_tool == "hloc":
             if mask_path is not None:
                 raise RuntimeError("Cannot use a mask with hloc. Please remove the cropping options " "and try again.")
+
+            assert feature_type is not None
+            assert matcher_type is not None
+            assert matcher_type != "NN"  # Only used for colmap.
             hloc_utils.run_hloc(
                 image_dir=self.image_dir,
                 colmap_dir=self.absolute_colmap_path,
