@@ -497,6 +497,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         assert isinstance(image_batch, dict)
         batch = self.train_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
+        # this takes some time to run
         ray_bundle = self.train_ray_generator(ray_indices)
         return ray_bundle, batch
 
