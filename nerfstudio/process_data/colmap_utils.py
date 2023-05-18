@@ -582,7 +582,7 @@ def create_sfm_depth(
 
         out_name = str(im_data.name)
         depth_path = output_dir / out_name
-        cv2.imwrite(str(depth_path), depth_img)
+        cv2.imwrite(str(depth_path), depth_img)  # type: ignore
 
         image_id_to_depth_path[im_id] = depth_path
 
@@ -594,13 +594,13 @@ def create_sfm_depth(
             overlay = 255.0 * colormaps.apply_depth_colormap(torch.from_numpy(depth_flat)).numpy()
             overlay = overlay.reshape([H, W, 3])
             input_image_path = input_images_dir / im_data.name
-            input_image = cv2.imread(str(input_image_path))
+            input_image = cv2.imread(str(input_image_path))  # type: ignore
             debug = 0.3 * input_image + 0.7 + overlay
 
             out_name = out_name + ".debug.jpg"
             output_path = output_dir / "debug_depth" / out_name
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            cv2.imwrite(str(output_path), debug.astype(np.uint8))
+            cv2.imwrite(str(output_path), debug.astype(np.uint8))  # type: ignore
 
     return image_id_to_depth_path
 

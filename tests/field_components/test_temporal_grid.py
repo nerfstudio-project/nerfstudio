@@ -34,6 +34,7 @@ def test_temporal_grid():
     weight = torch.randn_like(out)
     (out * weight).sum().backward()
     assert torch.all(out == 0.5)
+    assert model.embeddings.grad is not None
     assert model.embeddings.grad.sum() - weight.sum() < 0.01
     assert torch.all(model.embeddings.grad[2:, :] == 0)
     assert torch.all(model.embeddings.grad[:, 1:] == 0)

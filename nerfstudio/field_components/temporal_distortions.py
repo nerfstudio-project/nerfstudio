@@ -30,7 +30,9 @@ class TemporalDistortion(nn.Module):
     """Apply spatial distortions as a function of time"""
 
     @abc.abstractmethod
-    def forward(self, positions: Float[Tensor, "*bs 3"], times: Optional[Float[Tensor, "1"]]) -> Float[Tensor, "*bs 3"]:
+    def forward(
+        self, positions: Float[Tensor, "*bs 3"], times: Optional[Float[Tensor, "1"]] = None
+    ) -> Optional[Float[Tensor, "*bs 3"]]:
         """
         Args:
             positions: Samples to translate as a function of time
@@ -86,7 +88,9 @@ class DNeRFDistortion(TemporalDistortion):
             skip_connections=skip_connections,
         )
 
-    def forward(self, positions, times=None):
+    def forward(
+        self, positions: Float[Tensor, "*bs 3"], times: Optional[Float[Tensor, "1"]] = None
+    ) -> Optional[Float[Tensor, "*bs 3"]]:
         if times is None:
             return None
         p = self.position_encoding(positions)

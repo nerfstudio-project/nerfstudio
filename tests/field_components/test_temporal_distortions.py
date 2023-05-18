@@ -17,7 +17,9 @@ def test_dnerf_distortion():
     positions = torch.rand((num_rays, num_samples, 3), dtype=torch.float32, device=device)
     assert distortion.forward(positions, None) is None
     times = torch.rand_like(positions[..., :1])
-    assert distortion.forward(positions, times).shape == positions.shape
+    out = distortion.forward(positions, times)
+    assert out is not None
+    assert out.shape == positions.shape
 
 
 if __name__ == "__main__":
