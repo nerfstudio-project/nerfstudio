@@ -177,6 +177,7 @@ def launch(
         dist_url (str, optional): url to connect to for distributed jobs.
         config (TrainerConfig, optional): config file specifying training regimen.
         timeout (timedelta, optional): timeout of the distributed workers.
+        device_type: type of device to use for training.
     """
     assert config is not None
     world_size = num_machines * num_devices_per_machine
