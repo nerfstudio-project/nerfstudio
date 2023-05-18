@@ -2,7 +2,7 @@
 Test tensor dataclass
 """
 from dataclasses import dataclass, field
-from typing import Dict, Generic, Optional, TypeVar
+from typing import Generic, Optional, TypeVar
 
 import pytest
 import torch

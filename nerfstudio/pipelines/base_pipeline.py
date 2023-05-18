@@ -39,7 +39,6 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datamanagers.base_datamanager import (
     DataManager,
-    DataManagerConfig,
     VanillaDataManager,
     VanillaDataManagerConfig,
 )

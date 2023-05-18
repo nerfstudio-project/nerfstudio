@@ -84,6 +84,7 @@ dev = [
     "diffusers==0.16.1",
     "opencv-stubs==0.0.7",
     "transformers==4.29.2",
+    "pyright==1.1.308",
 ]
 
 # Documentation related packages
