@@ -17,13 +17,16 @@ Callback code used for training iterations
 """
 from __future__ import annotations
 
-from dataclasses import InitVar, dataclass
+from dataclasses import dataclass
 from enum import Enum, auto
 from inspect import signature
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
 
+from torch.cuda.amp.grad_scaler import GradScaler
+
+from nerfstudio.engine.optimizers import Optimizers
+
 if TYPE_CHECKING:
-    from nerfstudio.engine.optimizers import Optimizers
     from nerfstudio.pipelines.base_pipeline import Pipeline
 
 
@@ -34,12 +37,11 @@ class TrainingCallbackAttributes:
     Instead of providing access to the entire Trainer object, we only provide these attributes.
     This should be least prone to errors and fairly clean from a user perspective."""
 
-    # TODO(ethan): type this without circular imports
-    optimizers: Optional[InitVar["Optimizers"]]
+    optimizers: Optional[Optimizers]
     """optimizers for training"""
-    grad_scaler: Optional[InitVar]
+    grad_scaler: Optional[GradScaler]
     """gradient scalers"""
-    pipeline: Optional[InitVar["Pipeline"]]
+    pipeline: Optional["Pipeline"]  # Prevent circular import.
     """reference to training pipeline"""
 
 
