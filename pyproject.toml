@@ -145,7 +145,7 @@ exclude = ["**/node_modules",
 ]
 defineConstant = { DEBUG = true }
 
-reportMissingImports = true
+reportMissingImports = "warning"
 reportMissingTypeStubs = false
 reportPrivateImportUsage = false
 
