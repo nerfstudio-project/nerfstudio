@@ -24,7 +24,18 @@ import typing
 from collections import deque
 from contextlib import ContextDecorator, contextmanager
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    ContextManager,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+    overload,
+)
 
 from torch.profiler import ProfilerActivity, profile, record_function
 
@@ -41,7 +52,32 @@ PROFILER = []
 PYTORCH_PROFILER = None
 
 
-class time_function(ContextDecorator):  # pylint: disable=invalid-name
+CallableT = TypeVar("CallableT", bound=Callable)
+
+
+@overload
+def time_function(name_or_func: CallableT) -> CallableT:
+    ...
+
+
+@overload
+def time_function(name_or_func: str) -> ContextManager[Any]:
+    ...
+
+
+def time_function(name_or_func: Union[CallableT, str]) -> Union[CallableT, ContextManager[Any]]:
+    """Profile a function or block of code. Can be used either to create a context or to wrap a function.
+
+    Args:
+        name_or_func: Either the name of a context or function to profile.
+
+    Returns:
+        A wrapped function or context to use in a `with` statement.
+    """
+    return _TimeFunction(name_or_func)
+
+
+class _TimeFunction(ContextDecorator):
     """Decorator/Context manager: time a function call or a block of code"""
 
     def __init__(self, name: Union[str, Callable]):
@@ -69,7 +105,7 @@ class time_function(ContextDecorator):  # pylint: disable=invalid-name
             if self._function_call_args is not None:
                 args, kwargs = self._function_call_args
             ctx = PYTORCH_PROFILER.record_function(self.name, *args, **kwargs)
-            ctx.__enter__()  # pylint: disable=no-member
+            ctx.__enter__()
             self._profiler_contexts.append(ctx)
             if self._function_call_args is None:
                 ctx = record_function(self.name)
@@ -103,14 +139,14 @@ def flush_profiler(config: cfg.LoggingConfig):
 
 def setup_profiler(config: cfg.LoggingConfig, log_dir: Path):
     """Initialization of profilers"""
-    global PYTORCH_PROFILER  # pylint: disable=global-statement
+    global PYTORCH_PROFILER
     if comms.is_main_process():
         PROFILER.append(Profiler(config))
         if config.profiler == "pytorch":
             PYTORCH_PROFILER = PytorchProfiler(log_dir)
 
 
-class PytorchProfiler:  # pylint: disable=too-few-public-methods
+class PytorchProfiler:
     """
     Wrapper for Pytorch Profiler
     """

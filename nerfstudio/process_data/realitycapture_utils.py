@@ -17,7 +17,7 @@
 import csv
 import json
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 import numpy as np
 from PIL import Image
@@ -27,7 +27,7 @@ from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def realitycapture_to_json(
-    image_filename_map: List[Path],
+    image_filename_map: Dict[str, Path],
     csv_filename: Path,
     output_dir: Path,
     verbose: bool = False,

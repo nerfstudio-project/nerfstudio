@@ -20,7 +20,7 @@ import shutil
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import List, Literal, Optional, OrderedDict, Tuple
+from typing import List, Literal, Optional, OrderedDict, Tuple, Union
 
 import cv2
 import numpy as np
@@ -381,7 +381,23 @@ def find_tool_feature_matcher_combination(
     matcher_type: Literal[
         "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
     ],
-):
+) -> Union[
+    Tuple[None, None, None],
+    Tuple[
+        Literal["colmap", "hloc"],
+        Literal[
+            "sift",
+            "superpoint_aachen",
+            "superpoint_max",
+            "superpoint_inloc",
+            "r2d2",
+            "d2net-ss",
+            "sosnet",
+            "disk",
+        ],
+        Literal["NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"],
+    ],
+]:
     """Find a valid combination of sfm tool, feature type, and matcher type.
     Basically, replace the default parameters 'any' by usable value
 
@@ -521,7 +537,11 @@ def save_mask(
         mask_path_i = image_dir.parent / f"masks_{downscale}"
         mask_path_i.mkdir(exist_ok=True)
         mask_path_i = mask_path_i / "mask.png"
-        mask_i = cv2.resize(mask, (width // downscale, height // downscale), interpolation=cv2.INTER_NEAREST)
+        mask_i = cv2.resize(
+            mask,
+            (width // downscale, height // downscale),
+            interpolation=cv2.INTER_NEAREST,
+        )
         cv2.imwrite(str(mask_path_i), mask_i)
     CONSOLE.log(":tada: Generated and saved masks.")
     return mask_path / "mask.png"

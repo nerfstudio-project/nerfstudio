@@ -39,8 +39,6 @@ class DynamicBatchPipelineConfig(VanillaPipelineConfig):
 class DynamicBatchPipeline(VanillaPipeline):
     """Pipeline with logic for changing the number of rays per batch."""
 
-    # pylint: disable=abstract-method
-
     config: DynamicBatchPipelineConfig
     datamanager: VanillaDataManager
     dynamic_num_rays_per_batch: int
@@ -84,11 +82,12 @@ class DynamicBatchPipeline(VanillaPipeline):
                 "'num_samples_per_batch' is not in metrics_dict."
                 "Please return 'num_samples_per_batch' in the models get_metrics_dict function to use this method."
             )
-        self._update_dynamic_num_rays_per_batch(metrics_dict["num_samples_per_batch"])
+        self._update_dynamic_num_rays_per_batch(int(metrics_dict["num_samples_per_batch"]))
         self._update_pixel_samplers()
 
         # add the number of rays
         assert "num_rays_per_batch" not in metrics_dict
+        assert self.datamanager.train_pixel_sampler is not None
         metrics_dict["num_rays_per_batch"] = torch.tensor(self.datamanager.train_pixel_sampler.num_rays_per_batch)
 
         return model_outputs, loss_dict, metrics_dict
@@ -98,6 +97,7 @@ class DynamicBatchPipeline(VanillaPipeline):
 
         # add the number of rays
         assert "num_rays_per_batch" not in metrics_dict
+        assert self.datamanager.eval_pixel_sampler is not None
         metrics_dict["num_rays_per_batch"] = torch.tensor(self.datamanager.eval_pixel_sampler.num_rays_per_batch)
 
         return model_outputs, loss_dict, metrics_dict

@@ -14,7 +14,6 @@
 
 """Base Configs"""
 
-# pylint: disable=wrong-import-position
 
 from __future__ import annotations
 
@@ -30,7 +29,7 @@ warnings.filterwarnings("ignore", module="torchvision")
 
 
 # Pretty printing class
-class PrintableConfig:  # pylint: disable=too-few-public-methods
+class PrintableConfig:
     """Printable Config defining str function"""
 
     def __str__(self):
@@ -48,7 +47,7 @@ class PrintableConfig:  # pylint: disable=too-few-public-methods
 
 # Base instantiate configs
 @dataclass
-class InstantiateConfig(PrintableConfig):  # pylint: disable=too-few-public-methods
+class InstantiateConfig(PrintableConfig):
     """Config class for instantiating an the class specified in the _target attribute."""
 
     _target: Type

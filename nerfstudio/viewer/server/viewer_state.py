@@ -204,7 +204,8 @@ class ViewerState:
             crop_scale=tuple(crop_scale.tolist()),
             crop_center=tuple(crop_center.tolist()),
         )
-        self.render_statemachine.action(RenderAction("rerender", self.camera_message))
+        if self.camera_message is not None:
+            self.render_statemachine.action(RenderAction("rerender", self.camera_message))
 
     def _handle_training_state_message(self, message: NerfstudioMessage) -> None:
         """Handle training state message from viewer."""
@@ -346,7 +347,7 @@ class ViewerState:
         # draw indices, roughly evenly spaced
         return np.linspace(0, total_num - 1, num_display_images, dtype=np.int32).tolist()
 
-    def init_scene(self, dataset: InputDataset, train_state=Literal["training", "paused", "completed"]) -> None:
+    def init_scene(self, dataset: InputDataset, train_state: Literal["training", "paused", "completed"]) -> None:
         """Draw some images and the scene aabb in the viewer.
 
         Args:

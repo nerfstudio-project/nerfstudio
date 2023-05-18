@@ -112,6 +112,7 @@ This documentation is organized into 3 parts:
 ### Third-party Methods
 
 - [Instruct-NeRF2NeRF](nerfology/methods/in2n.md): Editing 3D Scenes with Instructions
+- [K-Planes](nerfology/methods/kplanes.md): Unified 3D and 4D Radiance Fields
 - [LERF](nerfology/methods/lerf.md): Language Embedded Radiance Fields
 - [Tetra-NeRF](nerfology/methods/tetranerf.md): Representing Neural Radiance Fields Using Tetrahedra
 

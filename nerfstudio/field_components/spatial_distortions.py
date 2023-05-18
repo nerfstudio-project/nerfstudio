@@ -14,6 +14,7 @@
 
 """Space distortions."""
 
+import abc
 from typing import Optional, Union
 
 import torch
@@ -27,6 +28,7 @@ from nerfstudio.utils.math import Gaussians
 class SpatialDistortion(nn.Module):
     """Apply spatial distortions"""
 
+    @abc.abstractmethod
     def forward(self, positions: Union[Float[Tensor, "*bs 3"], Gaussians]) -> Union[Float[Tensor, "*bs 3"], Gaussians]:
         """
         Args:
