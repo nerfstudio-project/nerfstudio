@@ -16,7 +16,11 @@
 Special activation functions.
 """
 
+from typing import TYPE_CHECKING
+
 import torch
+from jaxtyping import Float
+from torch import Tensor
 from torch.autograd import Function
 from torch.cuda.amp import custom_bwd, custom_fwd
 
@@ -37,6 +41,14 @@ class _TruncExp(Function):
         return g * torch.exp(x.clamp(-15, 15))
 
 
-trunc_exp = _TruncExp.apply
-"""Same as torch.exp, but with the backward pass clipped to prevent vanishing/exploding
-gradients."""
+if TYPE_CHECKING:
+
+    def trunc_exp(_: Float[Tensor, "*bs"], /) -> Float[Tensor, "*bs"]:
+        """Same as torch.exp, but with the backward pass clipped to prevent vanishing/exploding
+        gradients."""
+        raise NotImplementedError()
+
+else:
+    trunc_exp = _TruncExp.apply
+    """Same as torch.exp, but with the backward pass clipped to prevent vanishing/exploding
+    gradients."""

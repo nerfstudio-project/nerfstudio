@@ -21,6 +21,7 @@ from typing import Literal, Optional, Tuple, Type
 
 import numpy as np
 from torch.optim import Optimizer, lr_scheduler
+from torch.optim.lr_scheduler import LRScheduler
 
 from nerfstudio.configs.base_config import InstantiateConfig
 
@@ -43,7 +44,7 @@ class Scheduler:
         self.config = config
 
     @abstractmethod
-    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> lr_scheduler._LRScheduler:
+    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> LRScheduler:
         """Abstract method that returns a scheduler object.
 
         Args:
@@ -73,7 +74,7 @@ class MultiStepScheduler(Scheduler):
 
     config: MultiStepSchedulerConfig
 
-    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> lr_scheduler._LRScheduler:
+    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> LRScheduler:
         scheduler = lr_scheduler.MultiStepLR(
             optimizer=optimizer,
             milestones=self.config.milestones,
@@ -107,7 +108,7 @@ class ExponentialDecayScheduler(Scheduler):
 
     config: ExponentialDecaySchedulerConfig
 
-    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> lr_scheduler._LRScheduler:
+    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> LRScheduler:
         if self.config.lr_final is None:
             lr_final = lr_init
         else:
@@ -154,7 +155,7 @@ class CosineDecayScheduler(Scheduler):
 
     config: CosineDecaySchedulerConfig
 
-    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> lr_scheduler._LRScheduler:
+    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> LRScheduler:
         def func(step):
             if step < self.config.warm_up_end:
                 learning_factor = step / self.config.warm_up_end

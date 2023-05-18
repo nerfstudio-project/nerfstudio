@@ -104,13 +104,16 @@ class TemporalHashMLPDensityField(Field):
             },
         )
 
-    def density_fn(self, positions: Float[Tensor, "*bs 3"], times: Float[Tensor, "bs 1"]) -> Float[Tensor, "*bs 1"]:
+    def density_fn(
+        self, positions: Float[Tensor, "*bs 3"], times: Optional[Float[Tensor, "bs 1"]] = None
+    ) -> Float[Tensor, "*bs 1"]:
         """Returns only the density. Used primarily with the density grid.
 
         Args:
             positions: the origin of the samples/frustums
             times: the time of rays
         """
+        assert times is not None, "TemporalHashMLPDensityField requires times to be specified"
         if len(positions.shape) == 3 and len(times.shape) == 2:
             # position is [ray, sample, 3]; times is [ray, 1]
             times = times[:, None]  # RaySamples can handle the shape

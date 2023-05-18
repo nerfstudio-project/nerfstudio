@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Type
+from typing import Dict, List, Literal, Sequence, Type, cast
 
 import numpy as np
 import torch
@@ -118,15 +118,16 @@ class NerfplayerNerfactoModel(NerfactoModel):
 
         self.density_fns = []
         num_prop_nets = self.config.num_proposal_iterations
+
         # Build the proposal network(s)
-        self.proposal_networks = torch.nn.ModuleList()
+        proposal_networks: List[TemporalHashMLPDensityField] = []
         if self.config.use_same_proposal_network:
             assert len(self.config.proposal_net_args_list) == 1, "Only one proposal network is allowed."
             prop_net_args = self.config.proposal_net_args_list[0]
             network = TemporalHashMLPDensityField(
                 self.scene_box.aabb, spatial_distortion=scene_contraction, **prop_net_args
             )
-            self.proposal_networks.append(network)
+            proposal_networks.append(network)
             self.density_fns.extend([network.density_fn for _ in range(num_prop_nets)])
         else:
             for i in range(num_prop_nets):
@@ -136,8 +137,9 @@ class NerfplayerNerfactoModel(NerfactoModel):
                     spatial_distortion=scene_contraction,
                     **prop_net_args,
                 )
-                self.proposal_networks.append(network)
-            self.density_fns.extend([network.density_fn for network in self.proposal_networks])
+                proposal_networks.append(network)
+            self.density_fns.extend([network.density_fn for network in proposal_networks])
+        self.proposal_networks = cast(Sequence[TemporalHashMLPDensityField], torch.nn.ModuleList(proposal_networks))
 
         # Samplers
         def update_schedule(step):

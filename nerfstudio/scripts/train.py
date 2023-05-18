@@ -238,7 +238,10 @@ def main(config: TrainerConfig) -> None:
         config = yaml.load(config.load_config.read_text(), Loader=yaml.Loader)
 
     print_speed_warning = False
-    if getattr(config.pipeline.model, "implementation") == "tcnn" and importlib.util.find_spec("tinycudann") is None:
+    if (
+        getattr(config.pipeline.model, "implementation", False) == "tcnn"
+        and importlib.util.find_spec("tinycudann") is None
+    ):
         print_speed_warning = True
         setattr(config.pipeline.model, "implementation", "torch")
 

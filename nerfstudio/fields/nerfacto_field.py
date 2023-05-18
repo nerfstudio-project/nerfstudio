@@ -66,6 +66,8 @@ class NerfactoField(Field):
         spatial_distortion: spatial distortion to apply to the scene
     """
 
+    aabb: Tensor
+
     def __init__(
         self,
         aabb: Tensor,
