@@ -18,6 +18,7 @@ Below are the various tooling features our team uses to maintain this codebase.
 | --------------- | ---------------------------------------------------------- |
 | Formatting      | [Black](https://black.readthedocs.io/en/stable/)           |
 | Linter          | [Ruff](https://beta.ruff.rs/docs/)                         |
+| Type checking   | [Pyright](https://github.com/microsoft/pyright)            |
 | Testing         | [pytest](https://docs.pytest.org/en/7.1.x/)                |
 | Docs            | [Sphinx](https://www.sphinx-doc.org/en/master/)            |
 | Docstring style | [Google](https://google.github.io/styleguide/pyguide.html) |
@@ -53,7 +54,8 @@ conda install -c conda-forge pandoc
 
    This will perform the following checks and actions:
 
-   - Black/ Linting style check: Ensures code is consistently and properly formatted.
+   - Formatting and linting: Ensures code is consistently and properly formatted.
+   - Type checking: Ensures static type safety.
    - Pytests: Runs pytests locally to make sure added code does not break existing logic.
    - Documentation build: Builds docs locally. Ensures changes do not result in warnings/errors.
    - Licensing: Automatically adds licensing headers to the correct files.
