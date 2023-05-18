@@ -457,13 +457,12 @@ method_configs["dreamfusion"] = TrainerConfig(
     pipeline=VanillaPipelineConfig(
         generative=True,
         datamanager=DreamFusionDataManagerConfig(
-            horizontal_rotation_warmup=0,
+            horizontal_rotation_warmup=2000,
         ),
         model=DreamFusionModelConfig(
             eval_num_rays_per_chunk=1 << 15,
             distortion_loss_mult=0.02,
             interlevel_loss_mult=100.0,
-            orientation_loss_mult=0.1,
             max_res=256,
             sphere_collider=True,
             initialize_density=True,

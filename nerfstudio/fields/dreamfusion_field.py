@@ -113,20 +113,6 @@ class DreamFusionField(Field):
             },
         )
 
-        # predicted normals
-        self.mlp_pred_normals = tcnn.Network(
-            n_input_dims=self.geo_feat_dim + self.position_encoding.n_output_dims,
-            n_output_dims=hidden_dim_normal,
-            network_config={
-                "otype": "FullyFusedMLP",
-                "activation": "ReLU",
-                "output_activation": "None",
-                "n_neurons": 64,
-                "n_hidden_layers": 2,
-            },
-        )
-        self.field_head_pred_normals = PredNormalsFieldHead(in_dim=self.mlp_pred_normals.n_output_dims)
-
         self.mlp_background_color = tcnn.Network(
             n_input_dims=self.direction_encoding.n_output_dims,
             n_output_dims=3,
@@ -185,15 +171,6 @@ class DreamFusionField(Field):
         directions = get_normalized_directions(ray_samples.frustums.directions)
 
         outputs_shape = ray_samples.frustums.directions.shape[:-1]
-
-        # predicted normals
-        positions = ray_samples.frustums.get_positions()
-
-        positions_flat = self.position_encoding(positions.view(-1, 3))
-        pred_normals_inp = torch.cat([positions_flat, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
-
-        x = self.mlp_pred_normals(pred_normals_inp).view(*outputs_shape, -1).to(directions)
-        outputs[FieldHeadNames.PRED_NORMALS] = self.field_head_pred_normals(x)
 
         h = density_embedding.view(-1, self.geo_feat_dim)
 

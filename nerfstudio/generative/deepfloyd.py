@@ -117,7 +117,7 @@ class DeepFloyd(nn.Module):
         negative_prompt = [negative_prompt] if isinstance(negative_prompt, str) else negative_prompt
         prompt_embeds, negative_embeds = self.pipe.encode_prompt(prompt, negative_prompt=negative_prompt)
 
-        return torch.cat([prompt_embeds, negative_embeds])
+        return torch.cat([negative_embeds, prompt_embeds])
 
     def sds_loss(
         self,
@@ -140,7 +140,7 @@ class DeepFloyd(nn.Module):
                 noise_pred = self.unet(image_model_input, t, encoder_hidden_states=text_embeddings).sample
 
             # perform guidance
-            noise_pred_text, noise_pred_uncond = noise_pred.chunk(2)
+            noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
             noise_pred_text, predicted_variance = noise_pred_text.split(3, dim=1)
             noise_pred_uncond, _ = noise_pred_uncond.split(3, dim=1)
 
@@ -202,7 +202,6 @@ def generate_image(
         df = DeepFloyd(cuda_device)
         imgs = df.prompt_to_img(prompt, negative, generator, steps)
         imgs[0].save(save_path)
-        # mediapy.write_image(str(save_path), imgs[0])
 
 if __name__ == "__main__":
     tyro.cli(generate_image)

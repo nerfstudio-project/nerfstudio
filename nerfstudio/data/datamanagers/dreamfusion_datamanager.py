@@ -168,7 +168,7 @@ class DreamFusionDataManagerConfig(DataManagerConfig):
     """Mean radius of camera orbit"""
     radius_std: float = 0.1
     """Std of radius of camera orbit"""
-    focal_range: Tuple[float, float] = (0.6, 1.2)
+    focal_range: Tuple[float, float] = (0.7, 1.35)
     """Range of focal length"""
     vertical_rotation_range: Tuple[float, float] = (-90, 0)
     """Range of vertical rotation"""

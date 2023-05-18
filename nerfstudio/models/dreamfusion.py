@@ -67,14 +67,13 @@ class DreamFusionModelConfig(ModelConfig):
 
     _target: Type = field(default_factory=lambda: DreamFusionModel)
     """target class to instantiate"""
-    # prompt: str = "A high-quality photo of a pineapple"
-    # prompt: str = "A DSLR photo of an orangutan making a clay bowl on a throwing wheel"
-    # prompt: str = "A DSLR photo of a tiger dressed as a doctor"
-    prompt: str = "a high quality photo of an all utility vehicle driving across a stream"
+    prompt: str = "a high quality photo of a tree frog"
     """prompt for stable dreamfusion"""
 
-    orientation_loss_mult: float = 0.0001
+    orientation_loss_mult: Tuple[float, float] = (0.01, 100.0)
     """Orientation loss multipier on computed normals."""
+    orientation_loss_mult_end: int = 10000
+    """number of iterations to reach last orientation_loss_mult value"""
     pred_normal_loss_mult: float = 0.001
     """Predicted normal loss multiplier."""
     random_light_source: bool = True
@@ -155,8 +154,10 @@ class DreamFusionModelConfig(ModelConfig):
     """appended to prompt for back view"""
     guidance_scale: float = 20
     """guidance scale for sds loss"""
-    stablediffusion_device: Optional[str] = None
-    """device for stable diffusion"""
+    diffusion_device: Optional[str] = None
+    """device for diffusion model"""
+    diffusion_model: Literal["stablediffusion", "deepfloyd"] = "deepfloyd"
+    """diffusion model for SDS loss"""
     sd_version: str = "1-5"
 
 
@@ -192,10 +193,10 @@ class DreamFusionModel(Model):
         self.back_prompt = config.back_prompt
         self.front_prompt = config.front_prompt
 
-        self.sd_device = (
+        self.diffusion_device = (
             torch.device(kwargs["device"])
-            if config.stablediffusion_device is None
-            else torch.device(config.stablediffusion_device)
+            if config.diffusion_device is None
+            else torch.device(config.diffusion_device)
         )
 
         super().__init__(config=config, **kwargs)
@@ -204,16 +205,18 @@ class DreamFusionModel(Model):
         """Set the fields and modules"""
         super().populate_modules()
 
-        # self.sd = StableDiffusion(self.sd_device, version=self.sd_version)
-        self._df = DeepFloyd(self.sd_device)
+        if self.config.diffusion_model == "stablediffusion":
+            self._diffusion_model = StableDiffusion(self.diffusion_device, version=self.sd_version)
+        elif self.config.diffusion_model == "deepfloyd":
+            self._diffusion_model = DeepFloyd(self.diffusion_device)
+
         self.text_embeddings = PositionalTextEmbeddings(
             base_prompt=self.cur_prompt,
             top_prompt=self.cur_prompt + self.top_prompt,
             side_prompt=self.cur_prompt + self.side_prompt,
             back_prompt=self.cur_prompt + self.back_prompt,
             front_prompt=self.cur_prompt + self.front_prompt,
-            # stable_diffusion=self.sd,
-            diffusion_model=self._df,
+            diffusion_model=self._diffusion_model,
             positional_prompting=self.positional_prompting,
         )
 
@@ -289,17 +292,15 @@ class DreamFusionModel(Model):
         ):
             self.train_shaded = True
 
-        def update_target_transmittance(
+        def update_orientation_loss_mult(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
         ):
-            if (
-                step < self.config.transmittance_end_schedule
-                and self.target_transmittance > self.config.target_transmittance_end
-            ):
-                self.target_transmittance -= (1 / self.config.transmittance_end_schedule) * (
-                    self.config.target_transmittance_start - self.config.target_transmittance_end
-                )
-
+            if step <= self.config.start_normals_training:
+                self.orientation_loss_mult = 0
+            else: 
+                self.orientation_loss_mult = np.interp(step, self.config.orientation_loss_mult, 
+                (self.config.start_normals_training, self.config.orientation_loss_mult_end))
+            
         # anneal the weights of the proposal network before doing PDF sampling
         def set_anneal(step):
             # https://arxiv.org/pdf/2111.12077.pdf eq. 18
@@ -330,7 +331,7 @@ class DreamFusionModel(Model):
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                 update_every_num_iters=1,
-                func=update_target_transmittance,
+                func=update_orientation_loss_mult,
                 args=[self, training_callback_attributes],
             ),
             TrainingCallback(
@@ -361,8 +362,8 @@ class DreamFusionModel(Model):
 
         if self.initialize_density:
             pos = ray_samples.frustums.get_positions()
-            density_blob = self.density_strength * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
-            density = density + density_blob
+            density_blob = self.density_strength * (-torch.exp(torch.norm(pos, dim=-1) / 0.4) + 2)[..., None]
+            density = torch.max(density + density_blob, torch.tensor([0.0], device=self.device))
 
         weights = ray_samples.get_weights(density)
         weights_list.append(weights)
@@ -394,7 +395,6 @@ class DreamFusionModel(Model):
             outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
 
         normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
-        pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
 
         # lambertian shading
         if self.config.random_light_source:  # and self.training:
@@ -415,7 +415,6 @@ class DreamFusionModel(Model):
         shaded, shaded_albedo = accum_mask * shaded, accum_mask * shaded_albedo
 
         outputs["normals"] = self.shader_normals(normals, weights=accum_mask)
-        outputs["pred_normals"] = self.shader_normals(pred_normals, weights=accum_mask)
         outputs["shaded"] = shaded
         outputs["other_train_output"] = shaded_albedo + background
         outputs["shaded_albedo"] = shaded_albedo
@@ -450,12 +449,6 @@ class DreamFusionModel(Model):
             weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
         )
 
-        outputs["rendered_pred_normal_loss"] = pred_normal_loss(
-            weights.detach(),
-            field_outputs[FieldHeadNames.NORMALS].detach(),
-            field_outputs[FieldHeadNames.PRED_NORMALS],
-        )
-
         assert weights.shape[-1] == 1
         if self.config.opacity_penalty:
             outputs["opacity_loss"] = torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01) * self.config.opacity_loss_mult
@@ -469,16 +462,11 @@ class DreamFusionModel(Model):
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         if self.train_normals:
             # orientation loss for computed normals
-            loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
+            loss_dict["orientation_loss"] = self.orientation_loss_mult * torch.mean(
                 outputs["rendered_orientation_loss"]
-            )
-            # ground truth supervision for normals
-            loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
-                outputs["rendered_pred_normal_loss"]
             )
         else:
             loss_dict["orientation_loss"] = 0
-            loss_dict["pred_normal_loss"] = 0
 
         if self.config.opacity_penalty:
             loss_dict["opacity_loss"] = self.config.opacity_loss_mult * outputs["opacity_loss"].mean()
@@ -503,16 +491,9 @@ class DreamFusionModel(Model):
             .permute(0, 3, 1, 2)
         )
 
-        # sds_loss = self.sd.sds_loss(
-        #     text_embedding.to(self.sd_device),
-        #     train_output.to(self.sd_device),
-        #     guidance_scale=int(self.guidance_scale),
-        #     grad_scaler=self.grad_scaler,
-        # )
-
-        sds_loss = self._df.sds_loss(
-            text_embedding.to(self.sd_device),
-            train_output.to(self.sd_device),
+        sds_loss = self._diffusion_model.sds_loss(
+            text_embedding.to(self.diffusion_device),
+            train_output.to(self.diffusion_device),
             guidance_scale=int(self.guidance_scale),
             grad_scaler=self.grad_scaler,        
         )
@@ -553,6 +534,5 @@ class DreamFusionModel(Model):
             "prop_depth_0": prop_depth_0,
             "prop_depth_1": prop_depth_1,
             "normals": outputs["normals"],
-            "pred_normals": outputs["pred_normals"],
         }
         return metrics_dict, images_dict
