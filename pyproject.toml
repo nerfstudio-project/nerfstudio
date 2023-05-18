@@ -74,6 +74,7 @@ gen = [
 # Development packages
 dev = [
     "black[jupyter]==23.3.0",
+    "pre-commit==3.3.2",
     "pytest==7.1.2",
     "pytest-xdist==2.5.0",
     "typeguard==2.13.3",
