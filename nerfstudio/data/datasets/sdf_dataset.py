@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -81,7 +81,7 @@ class SDFDataset(InputDataset):
         normal = normal * 2.0 - 1.0  # omnidata output is normalized so we convert it back to normal here
         normal = torch.from_numpy(normal).float()
 
-        rot = camtoworld[:3, :3]
+        rot = torch.from_numpy(camtoworld[:3, :3])
 
         normal_map = normal.reshape(3, -1)
         normal_map = torch.nn.functional.normalize(normal_map, p=2, dim=0)

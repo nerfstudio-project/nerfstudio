@@ -1,4 +1,3 @@
-# pylint: disable=protected-access
 """
 Default test to make sure train runs
 """
@@ -13,7 +12,8 @@ from nerfstudio.configs.method_configs import method_configs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.minimal_dataparser import MinimalDataParserConfig
 from nerfstudio.engine.trainer import TrainerConfig
-from scripts.train import train_loop
+from nerfstudio.models.vanilla_nerf import VanillaModelConfig
+from nerfstudio.scripts.train import train_loop
 
 BLACKLIST = [
     "base",
@@ -47,8 +47,10 @@ def set_reduced_config(config: TrainerConfig):
 
     # reduce model factors
     if hasattr(config.pipeline.model, "num_coarse_samples"):
+        assert isinstance(config.pipeline.model, VanillaModelConfig)
         config.pipeline.model.num_coarse_samples = 4
     if hasattr(config.pipeline.model, "num_importance_samples"):
+        assert isinstance(config.pipeline.model, VanillaModelConfig)
         config.pipeline.model.num_importance_samples = 4
     # remove viewer
     config.viewer.quit_on_train_completion = True

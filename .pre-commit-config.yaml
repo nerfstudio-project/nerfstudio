@@ -1,0 +1,27 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+default_language_version:
+    python: python3
+repos:
+-   repo: local
+    hooks:
+    -   id: add-license-headers
+        name: add-license-headers
+        entry: nerfstudio/scripts/licensing/license_headers.sh
+        language: script
+        files: '.*'
+        pass_filenames: false
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.2.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+-   repo: https://github.com/charliermarsh/ruff-pre-commit
+    # Ruff version.
+    rev: 'v0.0.267'
+    hooks:
+    -   id: ruff
+-   repo: https://github.com/psf/black
+    rev: '23.3.0'
+    hooks:
+    -   id: black

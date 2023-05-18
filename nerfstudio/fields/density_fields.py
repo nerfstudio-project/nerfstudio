@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 import torch
-from torchtyping import TensorType
+from torch import Tensor
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
@@ -47,9 +47,11 @@ class HashMLPDensityField(Field):
         use_linear: whether to skip the MLP and use a single linear layer instead
     """
 
+    aabb: Tensor
+
     def __init__(
         self,
-        aabb: TensorType,
+        aabb: Tensor,
         num_layers: int = 2,
         hidden_dim: int = 64,
         spatial_distortion: Optional[SpatialDistortion] = None,
@@ -99,7 +101,7 @@ class HashMLPDensityField(Field):
             self.encoding = tcnn.Encoding(n_input_dims=3, encoding_config=config["encoding"])
             self.linear = torch.nn.Linear(self.encoding.n_output_dims, 1)
 
-    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, None]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, None]:
         if self.spatial_distortion is not None:
             positions = self.spatial_distortion(ray_samples.frustums.get_positions())
             positions = (positions + 2.0) / 4.0
@@ -124,5 +126,5 @@ class HashMLPDensityField(Field):
         density = density * selector[..., None]
         return density, None
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None) -> dict:
+    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None) -> dict:
         return {}

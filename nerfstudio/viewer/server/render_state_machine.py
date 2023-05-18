@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,14 +18,13 @@ from __future__ import annotations
 import contextlib
 import threading
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 
 import torch
-from typing_extensions import Literal, get_args
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.model_components.renderers import background_color_override_context
-from nerfstudio.utils import writer
+from nerfstudio.utils import colormaps, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
@@ -79,6 +78,7 @@ class RenderStateMachine(threading.Thread):
         self.viewer = viewer
         self.interrupt_render_flag = False
         self.daemon = True
+        self.output_keys = {}
 
     def action(self, action: RenderAction):
         """Takes an action and updates the state machine
@@ -159,7 +159,7 @@ class RenderStateMachine(threading.Thread):
         )
         camera = camera.to(self.viewer.get_model().device)
 
-        with (self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext()):
+        with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
             camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
 
             with TimeWriter(None, None, write=False) as vis_t:
@@ -182,9 +182,10 @@ class RenderStateMachine(threading.Thread):
                 self.viewer.get_model().train()
         num_rays = len(camera_ray_bundle)
         render_time = vis_t.duration
-        writer.put_time(
-            name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=step, avg_over_steps=True
-        )
+        if writer.is_initialized():
+            writer.put_time(
+                name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=step, avg_over_steps=True
+            )
         self.viewer.viser_server.send_status_message(eval_res=f"{image_height}x{image_width}px", step=step)
         return outputs
 
@@ -211,7 +212,7 @@ class RenderStateMachine(threading.Thread):
             if self.state == "low_static":
                 self.action(RenderAction("static", action.cam_msg))
 
-    def check_interrupt(self, frame, event, arg):  # pylint: disable=unused-argument
+    def check_interrupt(self, frame, event, arg):
         """Raises interrupt when flag has been set and not already on lowest resolution.
         Used in conjunction with SetTrace.
         """
@@ -227,13 +228,38 @@ class RenderStateMachine(threading.Thread):
         Args:
             outputs: the dictionary of outputs to choose from, from the model
         """
-        self.viewer.control_panel.update_output_options(list(outputs.keys()))
+        output_keys = set(outputs.keys())
+        if self.output_keys != output_keys:
+            self.output_keys = output_keys
+            self.viewer.viser_server.send_output_options_message(list(outputs.keys()))
+            self.viewer.control_panel.update_output_options(list(outputs.keys()))
 
         output_render = self.viewer.control_panel.output_render
         self.viewer.update_colormap_options(
             dimensions=outputs[output_render].shape[-1], dtype=outputs[output_render].dtype
         )
-        selected_output = (viewer_utils.apply_colormap(self.viewer.control_panel, outputs) * 255).type(torch.uint8)
+        selected_output = colormaps.apply_colormap(
+            image=outputs[self.viewer.control_panel.output_render],
+            colormap_options=self.viewer.control_panel.colormap_options,
+        )
+
+        if self.viewer.control_panel.split:
+            split_output_render = self.viewer.control_panel.split_output_render
+            self.viewer.update_split_colormap_options(
+                dimensions=outputs[split_output_render].shape[-1], dtype=outputs[split_output_render].dtype
+            )
+            split_output = colormaps.apply_colormap(
+                image=outputs[self.viewer.control_panel.split_output_render],
+                colormap_options=self.viewer.control_panel.split_colormap_options,
+            )
+            split_index = min(
+                int(self.viewer.control_panel.split_percentage * selected_output.shape[1]),
+                selected_output.shape[1] - 1,
+            )
+            selected_output = torch.cat([selected_output[:, :split_index], split_output[:, split_index:]], dim=1)
+            selected_output[:, split_index] = torch.tensor([0.133, 0.157, 0.192], device=selected_output.device)
+
+        selected_output = (selected_output * 255).type(torch.uint8)
 
         self.viewer.viser_server.set_background_image(
             selected_output.cpu().numpy(),
@@ -259,7 +285,7 @@ class RenderStateMachine(threading.Thread):
                 image_width = max_res
                 image_height = int(image_width / aspect_ratio)
         elif self.state in ("low_move", "low_static"):
-            if EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
+            if writer.is_initialized() and EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
                 vis_rays_per_sec = GLOBAL_BUFFER["events"][EventName.VIS_RAYS_PER_SEC.value]["avg"]
             else:
                 vis_rays_per_sec = 100000

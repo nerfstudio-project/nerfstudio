@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,15 +17,13 @@ from __future__ import annotations
 
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Literal, Optional
 
 import numpy as np
 import torch
 from rich import box, style
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from typing_extensions import Literal
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
@@ -34,6 +32,7 @@ from nerfstudio.models.base_model import Model
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
+from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer.server.control_panel import ControlPanel
@@ -57,8 +56,6 @@ from nerfstudio.viewer.viser.messages import (
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
-
-CONSOLE = Console(width=120)
 
 
 @decorate_all([check_main_thread])
@@ -116,6 +113,7 @@ class ViewerState:
 
         # viewer specific variables
         self.output_type_changed = True
+        self.output_split_type_changed = True
         self.step = 0
         self.train_btn_state: Literal["training", "paused", "completed"] = "training"
         self._prev_train_state: Literal["training", "paused", "completed"] = "training"
@@ -135,9 +133,13 @@ class ViewerState:
             self.viser_server.register_handler(TimeConditionMessage, self._handle_time_condition_message)
 
         self.control_panel = ControlPanel(
-            self.include_time, self._interrupt_render, self._crop_params_update, self._output_type_change
+            self.viser_server,
+            self.include_time,
+            self._interrupt_render,
+            self._crop_params_update,
+            self._output_type_change,
+            self._output_split_type_change,
         )
-        self.control_panel.install(self.viser_server)
 
         def nested_folder_install(folder_labels: List[str], element: ViewerElement):
             if len(folder_labels) == 0:
@@ -164,6 +166,9 @@ class ViewerState:
     def _output_type_change(self, _):
         self.output_type_changed = True
 
+    def _output_split_type_change(self, _):
+        self.output_split_type_changed = True
+
     def _interrupt_render(self, _) -> None:
         """Interrupt current render."""
         if self.camera_message is not None:
@@ -171,13 +176,14 @@ class ViewerState:
 
     def _crop_params_update(self, _) -> None:
         """Update crop parameters"""
-        self.render_statemachine.action(RenderAction("rerender", self.camera_message))
+        if self.camera_message is not None:
+            self.render_statemachine.action(RenderAction("rerender", self.camera_message))
         crop_min = torch.tensor(self.control_panel.crop_min, dtype=torch.float32)
         crop_max = torch.tensor(self.control_panel.crop_max, dtype=torch.float32)
         scene_box = SceneBox(aabb=torch.stack([crop_min, crop_max], dim=0))
         self.viser_server.update_scene_box(scene_box)
         crop_scale = crop_max - crop_min
-        crop_center = crop_max + crop_min
+        crop_center = (crop_max + crop_min) / 2.0
         self.viser_server.send_crop_params(
             crop_enabled=self.control_panel.crop_viewport,
             crop_bg_color=self.control_panel.background_color,
@@ -276,7 +282,7 @@ class ViewerState:
         # draw indices, roughly evenly spaced
         return np.linspace(0, total_num - 1, num_display_images, dtype=np.int32).tolist()
 
-    def init_scene(self, dataset: InputDataset, train_state=Literal["training", "paused", "completed"]) -> None:
+    def init_scene(self, dataset: InputDataset, train_state: Literal["training", "paused", "completed"]) -> None:
         """Draw some images and the scene aabb in the viewer.
 
         Args:
@@ -350,6 +356,17 @@ class ViewerState:
         if self.output_type_changed:
             self.control_panel.update_colormap_options(dimensions, dtype)
             self.output_type_changed = False
+
+    def update_split_colormap_options(self, dimensions: int, dtype: type) -> None:
+        """update the colormap options based on the current render
+
+        Args:
+            dimensions: the number of dimensions of the render
+            dtype: the data type of the render
+        """
+        if self.output_split_type_changed:
+            self.control_panel.update_split_colormap_options(dimensions, dtype)
+            self.output_split_type_changed = False
 
     def get_model(self) -> Model:
         """Returns the model."""
