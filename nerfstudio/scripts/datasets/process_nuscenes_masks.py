@@ -122,7 +122,7 @@ class ProcessNuScenesMasks:
                 if self.verbose:
                     img = cv2.imread(str(self.data_dir / camera_data["filename"]))  # type: ignore
                     mask = ~mask.astype(bool)
-                    img[mask, :] -= np.minimum(img[mask, :], 100)
+                    img[mask, :] = img[mask, :] - np.minimum(img[mask, :], 100)
                     viz.append(img)
 
             if self.verbose:
