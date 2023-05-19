@@ -81,7 +81,6 @@ dev = [
     "ruff==0.0.267",
     "sshconf==0.2.5",
     "pycolmap==0.3.0",
-    "hloc@git+https://github.com/cvg/Hierarchical-Localization.git",
     "diffusers==0.16.1",
     "opencv-stubs==0.0.7",
     "transformers==4.29.2",
