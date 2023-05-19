@@ -321,7 +321,7 @@ export default function ViewerWindow(props) {
   );
   useEffect(() => {
     const onMouseDouble = (e) => {
-      const BANNER_HEIGHT = parseInt(variables.bannerHeight);
+      const BANNER_HEIGHT = parseInt(variables.bannerHeight,10);
 
       const mouseVector = new THREE.Vector2();
       mouseVector.x = 2 * (e.clientX / size.x) - 1;
