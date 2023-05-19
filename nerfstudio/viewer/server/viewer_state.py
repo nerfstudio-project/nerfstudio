@@ -25,6 +25,7 @@ from rich import box, style
 from rich.panel import Panel
 from rich.table import Table
 
+from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.scene_box import SceneBox
@@ -41,12 +42,14 @@ from nerfstudio.viewer.server.render_state_machine import (
     RenderAction,
     RenderStateMachine,
 )
-from nerfstudio.viewer.server.viewer_elements import ViewerElement
+from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
+from nerfstudio.viewer.server.viewer_elements import ViewerControl, ViewerElement
 from nerfstudio.viewer.viser import ViserServer
 from nerfstudio.viewer.viser.messages import (
     CameraMessage,
     CameraPathOptionsRequest,
     CameraPathPayloadMessage,
+    ClickMessage,
     CropParamsMessage,
     NerfstudioMessage,
     SaveCheckpointMessage,
@@ -128,6 +131,7 @@ class ViewerState:
         self.viser_server.register_handler(CameraPathOptionsRequest, self._handle_camera_path_option_request)
         self.viser_server.register_handler(CameraPathPayloadMessage, self._handle_camera_path_payload)
         self.viser_server.register_handler(CropParamsMessage, self._handle_crop_params_message)
+        self.viser_server.register_handler(ClickMessage, self._handle_click_message)
         if self.include_time:
             self.viser_server.use_time_conditioning()
             self.viser_server.register_handler(TimeConditionMessage, self._handle_time_condition_message)
@@ -146,7 +150,7 @@ class ViewerState:
                 element.install(self.viser_server)
                 # also rewire the hook to rerender
                 prev_cb = element.cb_hook
-                element.cb_hook = lambda element: [self._interrupt_render(element), prev_cb(element)]
+                element.cb_hook = lambda element: [prev_cb(element), self._interrupt_render(element)]
             else:
                 with self.viser_server.gui_folder(folder_labels[0]):
                     nested_folder_install(folder_labels[1:], element)
@@ -160,6 +164,18 @@ class ViewerState:
             folder_labels = param_path.split("/")[:-1]
             nested_folder_install(folder_labels, element)
 
+        # scrape the trainer/pipeline for any ViewerControl objects to initialize them
+        if self.trainer is not None:
+            self.viewer_controls: List[ViewerControl] = [
+                e for (_, e) in parse_object(self.trainer, ViewerControl, "Trainer")
+            ]
+        else:
+            self.viewer_controls: List[ViewerControl] = [
+                e for (_, e) in parse_object(self.trainer, ViewerControl, "Pipeline")
+            ]
+
+        for c in self.viewer_controls:
+            c._setup(self)
         self.render_statemachine = RenderStateMachine(self)
         self.render_statemachine.start()
 
@@ -176,8 +192,6 @@ class ViewerState:
 
     def _crop_params_update(self, _) -> None:
         """Update crop parameters"""
-        if self.camera_message is not None:
-            self.render_statemachine.action(RenderAction("rerender", self.camera_message))
         crop_min = torch.tensor(self.control_panel.crop_min, dtype=torch.float32)
         crop_max = torch.tensor(self.control_panel.crop_max, dtype=torch.float32)
         scene_box = SceneBox(aabb=torch.stack([crop_min, crop_max], dim=0))
@@ -190,6 +204,8 @@ class ViewerState:
             crop_scale=tuple(crop_scale.tolist()),
             crop_center=tuple(crop_center.tolist()),
         )
+        if self.camera_message is not None:
+            self.render_statemachine.action(RenderAction("rerender", self.camera_message))
 
     def _handle_training_state_message(self, message: NerfstudioMessage) -> None:
         """Handle training state message from viewer."""
@@ -248,6 +264,12 @@ class ViewerState:
         self.control_panel.crop_min = tuple(crop_min.tolist())
         self.control_panel.crop_max = tuple(crop_max.tolist())
 
+    def _handle_click_message(self, message: NerfstudioMessage) -> None:
+        """Handle click message from viewer."""
+        assert isinstance(message, ClickMessage)
+        for controls in self.viewer_controls:
+            controls.on_click(message)
+
     def _handle_time_condition_message(self, message: NerfstudioMessage) -> None:
         """Handle time conditioning message from viewer."""
         assert isinstance(message, TimeConditionMessage)
@@ -265,6 +287,49 @@ class ViewerState:
         """Set training state flag."""
         if self.trainer is not None:
             self.trainer.training_state = training_state
+
+    def get_camera(self, image_height: int, image_width: int) -> Optional[Cameras]:
+        """
+        Return a Cameras object representing the camera for the viewer given the provided image height and width
+        """
+        cam_msg: Optional[CameraMessage] = self.camera_message
+        if cam_msg is None:
+            return None
+        intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
+            cam_msg, image_height=image_height, image_width=image_width
+        )
+
+        camera_to_world = camera_to_world_h[:3, :]
+        camera_to_world = torch.stack(
+            [
+                camera_to_world[0, :],
+                camera_to_world[2, :],
+                camera_to_world[1, :],
+            ],
+            dim=0,
+        )
+
+        camera_type_msg = cam_msg.camera_type
+        if camera_type_msg == "perspective":
+            camera_type = CameraType.PERSPECTIVE
+        elif camera_type_msg == "fisheye":
+            camera_type = CameraType.FISHEYE
+        elif camera_type_msg == "equirectangular":
+            camera_type = CameraType.EQUIRECTANGULAR
+        else:
+            camera_type = CameraType.PERSPECTIVE
+
+        camera = Cameras(
+            fx=intrinsics_matrix[0, 0],
+            fy=intrinsics_matrix[1, 1],
+            cx=intrinsics_matrix[0, 2],
+            cy=intrinsics_matrix[1, 2],
+            camera_type=camera_type,
+            camera_to_worlds=camera_to_world[None, ...],
+            times=torch.tensor([self.control_panel.time], dtype=torch.float32),
+        )
+        camera = camera.to(self.get_model().device)
+        return camera
 
     def _pick_drawn_image_idxs(self, total_num: int) -> list[int]:
         """Determine indicies of images to display in viewer.

@@ -15,16 +15,133 @@
 
 """ Viewer GUI elements for the nerfstudio viewer """
 
+
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Callable, Generic, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Callable, Generic, List, Optional, Tuple
 
 from typing_extensions import TypeVar
 
+from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.viewer.viser import GuiHandle, GuiSelectHandle, ViserServer
+from nerfstudio.viewer.viser.messages import ClickMessage
+
+if TYPE_CHECKING:
+    from nerfstudio.viewer.server.control_panel import ControlPanel
+    from nerfstudio.viewer.server.viewer_state import ViewerState
+
 
 TValue = TypeVar("TValue")
+
+
+@dataclass
+class ViewerClick:
+    """
+    Class representing a click in the viewer as a ray.
+    """
+
+    # the information here matches the information in the ClickMessage,
+    # but we implement a wrapper as an abstraction layer
+    origin: Tuple[float, float, float]
+    """The origin of the click in world coordinates (center of camera)"""
+    direction: Tuple[float, float, float]
+    """
+    The direction of the click if projected from the camera through the clicked pixel,
+    in world coordinates
+    """
+
+
+class ViewerControl:
+    """
+    class for exposing non-gui controls of the viewer to the user
+    """
+
+    def __init__(self):
+        # this should be a user-facing constructor, since it will be used inside the model/pipeline class
+        self.click_cbs = []
+
+    def _setup(self, viewer_state: ViewerState):
+        """
+        Internal use only, setup the viewer control with the viewer state object
+
+        Args:
+            viewer_state: The viewer state object (viewer_state.py)
+        """
+        self.viewer_state = viewer_state
+        self.control_panel: ControlPanel = viewer_state.control_panel
+        self.viser_server: ViserServer = viewer_state.viser_server
+
+    def set_pose(
+        self,
+        position: Optional[Tuple[float, float, float]] = None,
+        look_at: Optional[Tuple[float, float, float]] = None,
+        instant: bool = False,
+    ):
+        """
+        Set the camera position of the viewer camera.
+
+        Args:
+            position: The new position of the camera in world coordinates
+            look_at: The new look_at point of the camera in world coordinates
+            instant: If the camera should move instantly or animate to the new position
+        """
+        assert hasattr(self, "viser_server"), "Called set_position on uninitialized ViewerControl"
+        self.viser_server.set_camera(position=position, look_at=look_at, instant=instant)
+
+    def set_fov(self, fov):
+        """
+        Set the FOV of the viewer camera
+
+        Args:
+            fov: The new FOV of the camera in degrees
+
+        """
+        assert hasattr(self, "viser_server"), "Called set_fov on uninitialized ViewerControl"
+        self.viser_server.set_camera(fov=fov)
+
+    def set_crop(self, min_point: Tuple[float, float, float], max_point: Tuple[float, float, float]):
+        """
+        Set the scene crop box of the viewer to the specified min,max point
+
+        Args:
+            min_point: The minimum point of the crop box
+            max_point: The maximum point of the crop box
+
+        """
+        assert hasattr(self, "viser_server"), "Called set_crop on uninitialized ViewerControl"
+        self.control_panel.crop_min = min_point
+        self.control_panel.crop_max = max_point
+
+    def get_camera(self, img_height: int, img_width: int) -> Optional[Cameras]:
+        """
+        Returns the Cameras object representing the current camera for the viewer, or None if the viewer
+        is not connected yet
+
+        Args:
+            img_height: The height of the image to get camera intrinsics for
+            img_width: The width of the image to get camera intrinsics for
+        """
+        return self.viewer_state.get_camera(img_height, img_width)
+
+    def register_click_cb(self, cb: Callable):
+        """
+        Add a callback which will be called when a click is detected in the viewer.
+
+        Args:
+            cb: The callback to call when a click is detected.
+                The callback should take a ViewerClick object as an argument
+        """
+        self.click_cbs.append(cb)
+
+    def on_click(self, msg: ClickMessage):
+        """
+        Internal use only, register a click in the viewer which propagates to all self.click_cbs
+        """
+        click = ViewerClick(origin=msg.origin, direction=msg.direction)
+        for c in self.click_cbs:
+            c(click)
 
 
 class ViewerElement(Generic[TValue]):
