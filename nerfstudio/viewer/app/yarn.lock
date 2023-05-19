@@ -3599,10 +3599,10 @@ camelcase@^6.2.0, camelcase@^6.2.1:
   resolved "https://registry.npmjs.org/camelcase/-/camelcase-6.3.0.tgz"
   integrity sha512-Gmy6FhYlCY7uOElZUSbxo2UCDH8owEk996gkbrpsgGtrJLM3J7jGxl9Ic7Qwwj4ivOE5AWZWRMecDdF7hqGjFA==
 
-camera-controls@^1.37.2:
-  version "1.37.2"
-  resolved "https://registry.npmjs.org/camera-controls/-/camera-controls-1.37.2.tgz"
-  integrity sha512-b+8DYJc/honm3b/PzjTQbVjsnkdgiDnI44/PRAWKlLhF0lzggGtaU9ZSGRM/lll2HkF0KN+OHx/ZN80wJmEbqA==
+camera-controls@^2.0:
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/camera-controls/-/camera-controls-2.3.4.tgz#f372b5a4012b474df0ed0c67da7a3198d7efee0b"
+  integrity sha512-swhc87YVHf9te0glBI7Oa/QBgsSCL4ZxtoR4V3vE6l7mEebsYRNL8y7Y2m2E6MrT0UTphM1S7mQqs0Sp7QTZ2g==
 
 caniuse-api@^3.0.0:
   version "3.0.0"

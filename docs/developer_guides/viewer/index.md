@@ -8,6 +8,7 @@ The viewer is built on [Viser](https://github.com/brentyi/viser/tree/main/viser)
 :titlesonly:
 
 custom_gui
+viewer_control
 local_viewer
 ```
 
