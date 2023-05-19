@@ -65,6 +65,7 @@ class InstantNGP(DataParser):
             data_dir = self.config.data
 
         image_filenames = []
+        mask_filenames = []
         poses = []
         num_skipped_image_filenames = 0
         for frame in meta["frames"]:
@@ -87,6 +88,9 @@ class InstantNGP(DataParser):
                         meta["h"] = h
                 image_filenames.append(fname)
                 poses.append(np.array(frame["transform_matrix"]))
+                if "mask_path" in frame:
+                    mask_fname = data_dir / Path(frame["mask_path"])
+                    mask_filenames.append(mask_fname)
         if num_skipped_image_filenames >= 0:
             CONSOLE.print(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
         assert (
@@ -144,6 +148,7 @@ class InstantNGP(DataParser):
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
+            mask_filenames=mask_filenames if len(mask_filenames) > 0 else None,
             dataparser_scale=self.config.scene_scale,
         )
 

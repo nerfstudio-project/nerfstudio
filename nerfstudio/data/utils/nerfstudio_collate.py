@@ -23,7 +23,6 @@ from typing import Callable, Dict, Union
 
 import torch
 import torch.utils.data
-from torch._six import string_classes
 
 from nerfstudio.cameras.cameras import Cameras
 
@@ -119,7 +118,7 @@ def nerfstudio_collate(
         return torch.tensor(batch, dtype=torch.float64)
     elif isinstance(elem, int):
         return torch.tensor(batch)
-    elif isinstance(elem, string_classes):
+    elif isinstance(elem, (str, bytes)):
         return batch
     elif isinstance(elem, collections.abc.Mapping):
         try:
