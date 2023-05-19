@@ -39,11 +39,11 @@ function CustomLeva() {
 
   guiNames.forEach((key) => {
     const { levaConf, folderLabels, hidden } = guiConfigFromName[key];
-    if (hidden) return;
     const leafFolder = getFolderContainer(folderLabels);
 
     // Hacky stuff that lives outside of TypeScript...
     if (levaConf.type === 'BUTTON') {
+      if (hidden) return;
       // Add a button.
       leafFolder[key] = button(() => {
         sendWebsocketMessage(viser_websocket, {
@@ -79,6 +79,7 @@ function CustomLeva() {
             value,
           });
         },
+        render: () => !hidden,
       };
     }
   });

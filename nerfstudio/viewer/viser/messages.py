@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Literal, Tuple
+from typing import Any, Literal, Optional, Tuple
 
 import viser.infra
 from typing_extensions import override
@@ -122,6 +122,20 @@ class FilePathInfoMessage(NerfstudioMessage):
     """ Base directory for data files """
     export_path_name: str
     """ Name of the export folder """
+
+
+@dataclasses.dataclass
+class SetCameraMessage(NerfstudioMessage):
+    """Set the current camera."""
+
+    fov: Optional[float]
+    """ Field of view of the camera """
+    look_at: Optional[Tuple[float, float, float]]
+    """Point in 3D the camera is looking at"""
+    position: Optional[Tuple[float, float, float]]
+    """ Position of the camera"""
+    instant: bool = False
+    """ Whether to move the camera instantly or animate it"""
 
 
 @dataclasses.dataclass
@@ -241,6 +255,16 @@ class TimeConditionMessage(NerfstudioMessage):
 
     time: float
     """ Time conditioning value """
+
+
+@dataclasses.dataclass
+class ClickMessage(NerfstudioMessage):
+    """Click message."""
+
+    origin: Tuple[float, float, float]
+    """The origin of the click in world coords (center of camera)"""
+    direction: Tuple[float, float, float]
+    """The direction of the click if projected through the clicked pixel (world coords)"""
 
 
 @dataclasses.dataclass
