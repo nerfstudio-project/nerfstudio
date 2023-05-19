@@ -135,6 +135,7 @@ class SetCameraMessage(NerfstudioMessage):
     position: Optional[Tuple[float, float, float]]
     """ Position of the camera"""
     instant: bool = False
+    """ Whether to move the camera instantly or animate it"""
 
 
 @dataclasses.dataclass
