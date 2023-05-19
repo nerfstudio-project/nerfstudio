@@ -14,17 +14,17 @@
 
 """Helper utils for processing data into the nerfstudio format."""
 
+import math
 import os
 import shutil
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Literal, Optional, OrderedDict, Tuple
 
 import cv2
 import numpy as np
 from rich.console import Console
-from typing_extensions import Literal, OrderedDict
 
 from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command
@@ -38,12 +38,13 @@ class CameraModel(Enum):
 
     OPENCV = "OPENCV"
     OPENCV_FISHEYE = "OPENCV_FISHEYE"
+    EQUIRECTANGULAR = "EQUIRECTANGULAR"
 
 
 CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
-    "equirectangular": CameraModel.OPENCV,
+    "equirectangular": CameraModel.EQUIRECTANGULAR,
 }
 
 
@@ -141,7 +142,7 @@ def convert_video_to_images(
         if num_frames == 0:
             CONSOLE.print(f"[bold red]Error: Video has no frames: {video_path}")
             sys.exit(1)
-        print("Number of frames in video:", num_frames)
+        CONSOLE.print("Number of frames in video:", num_frames)
 
         out_filename = image_dir / "frame_%05d.png"
         ffmpeg_cmd = f'ffmpeg -i "{video_path}"'
@@ -157,6 +158,7 @@ def convert_video_to_images(
         spacing = num_frames // num_frames_target
         if spacing > 1:
             ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB{crop_cmd} -r 1"
+            CONSOLE.print("Number of frames to extract:", math.ceil(num_frames / spacing))
         else:
             CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
             ffmpeg_cmd += " -pix_fmt bgr8"

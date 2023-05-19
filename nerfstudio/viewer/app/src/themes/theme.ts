@@ -4,6 +4,7 @@ export const appTheme = createTheme({
   palette: {
     primary: { main: '#EEEEEE' },
     secondary: { main: '#FFD369' },
+    success: { main: '#5daf5d' },
     text: {
       primary: '#EEEEEE',
       secondary: '#FFD369',
