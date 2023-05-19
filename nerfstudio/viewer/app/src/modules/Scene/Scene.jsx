@@ -41,7 +41,7 @@ export function get_scene_tree() {
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const dispatch = useDispatch();
-  const BANNER_HEIGHT = parseInt(variables.bannerHeight);
+  const BANNER_HEIGHT = parseInt(variables.bannerHeight,10);
 
   // Main camera
   const main_camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
