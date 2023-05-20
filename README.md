@@ -99,6 +99,14 @@ python -m pip install --upgrade pip
 
 Install pytorch with CUDA (this repo has been tested with CUDA 11.7 and CUDA 11.8) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
 
+NOTE: On Windows, PyTorch 2.0 is not currently supported; please install PyTorch 1.13.1 with CUDA 11.7:
+```bash
+pip install torch==1.13.1 torchvision --extra-index-url https://download.pytorch.org/whl/cu117
+pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+```
+
+Otherwise, PyTorch 2.0.1 is recommended and tested.
+
 For CUDA 11.7:
 
 ```bash
