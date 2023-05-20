@@ -21,6 +21,8 @@ import torch
 from jaxtyping import Bool, Float
 from torch import Tensor
 
+from nerfstudio.utils.misc import torch_compile
+
 
 def components_from_spherical_harmonics(
     levels: int, directions: Float[Tensor, "*batch 3"]
@@ -197,7 +199,7 @@ def expected_sin(x_means: torch.Tensor, x_vars: torch.Tensor) -> torch.Tensor:
     return torch.exp(-0.5 * x_vars) * torch.sin(x_means)
 
 
-@torch.compile(dynamic=True, mode="reduce-overhead", backend="eager")
+@torch_compile(dynamic=True, mode="reduce-overhead", backend="eager")
 def intersect_aabb(
     origins: torch.Tensor,
     directions: torch.Tensor,
