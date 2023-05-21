@@ -3,9 +3,7 @@ import { useControls, useStoreContext } from 'leva';
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
-
 import { Button } from '@mui/material';
-
 import { get_normal_methods } from '../../../utils';
 
 export default function MeshSubPanel(props) {
@@ -151,11 +149,11 @@ export default function MeshSubPanel(props) {
       ` --num-pixels-per-side ${controlValues.textureResolution}` +
       ` --normal-method ${
         controlValues.normal_options === 'open3d' ? 'open3d' : 'model_output'
-      }` +
-      (controlValues.normal_options !== 'open3d'
-        ? ` --normal-output-name ${controlValues.normal_options}`
-        : '') +
-      ` --num-points ${controlValues.numPoints}` +
+      }${
+        controlValues.normal_options !== 'open3d'
+          ? ` --normal-output-name ${controlValues.normal_options}`
+          : ''
+      } --num-points ${controlValues.numPoints}` +
       ` --remove-outliers ${getPythonBool(controlValues.removeOutliers)}` +
       ` --use-bounding-box ${getPythonBool(clippingEnabled)}` +
       ` --bounding-box-min ${bbox_min[0]} ${bbox_min[1]} ${bbox_min[2]}` +

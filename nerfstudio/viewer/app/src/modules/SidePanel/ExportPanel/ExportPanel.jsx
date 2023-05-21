@@ -7,7 +7,9 @@ import { Box, Typography, Tab, Tabs } from '@mui/material';
 import { LevaPanel, LevaStoreProvider, useCreateStore } from 'leva';
 import BlurOnIcon from '@mui/icons-material/BlurOn';
 import CategoryIcon from '@mui/icons-material/Category';
+// eslint-disable-next-line import/no-named-as-default, import/no-named-as-default-member
 import PointcloudSubPanel from './PointcloudSubPanel';
+// eslint-disable-next-line import/no-named-as-default, import/no-named-as-default-member
 import MeshSubPanel from './MeshSubPanel';
 import LevaTheme from '../../../themes/leva_theme.json';
 

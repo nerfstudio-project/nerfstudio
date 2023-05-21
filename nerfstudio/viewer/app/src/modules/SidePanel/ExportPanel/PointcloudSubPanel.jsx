@@ -3,9 +3,7 @@ import { useControls, useStoreContext } from 'leva';
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
-
 import { Button } from '@mui/material';
-
 import { get_normal_methods } from '../../../utils';
 
 export default function PointcloudSubPanel(props) {
@@ -117,12 +115,12 @@ export default function PointcloudSubPanel(props) {
     ` --remove-outliers ${getPythonBool(controlValues.removeOutliers)}` +
     ` --normal-method ${
       controlValues.normal_options === 'open3d' ? 'open3d' : 'model_output'
-    }` +
-    (controlValues.normal_options !== 'open3d' &&
-    controlValues.normal_options !== 'none'
-      ? ` --normal-output-name ${controlValues.normal_options}`
-      : '') +
-    ` --use-bounding-box ${getPythonBool(clippingEnabled)}` +
+    }${
+      controlValues.normal_options !== 'open3d' &&
+      controlValues.normal_options !== 'none'
+        ? ` --normal-output-name ${controlValues.normal_options}`
+        : ''
+    } --use-bounding-box ${getPythonBool(clippingEnabled)}` +
     ` --bounding-box-min ${bbox_min[0]} ${bbox_min[1]} ${bbox_min[2]}` +
     ` --bounding-box-max ${bbox_max[0]} ${bbox_max[1]} ${bbox_max[2]}`;
 
