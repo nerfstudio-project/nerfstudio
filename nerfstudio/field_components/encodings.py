@@ -34,7 +34,7 @@ try:
     import tinycudann as tcnn
 
     TCNN_EXISTS = True
-except ImportError:
+except ModuleNotFoundError:
     TCNN_EXISTS = False
 
 

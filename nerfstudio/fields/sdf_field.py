@@ -36,7 +36,7 @@ from nerfstudio.fields.base_field import Field, FieldConfig
 
 try:
     import tinycudann as tcnn
-except ImportError:
+except ModuleNotFoundError:
     # tinycudann module doesn't exist
     pass
 
