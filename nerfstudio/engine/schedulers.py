@@ -21,7 +21,12 @@ from typing import Literal, Optional, Tuple, Type
 
 import numpy as np
 from torch.optim import Optimizer, lr_scheduler
-from torch.optim.lr_scheduler import LRScheduler
+
+try:
+    from torch.optim.lr_scheduler import LRScheduler
+except ImportError:
+    # Backwards compatibility for PyTorch 1.x
+    from torch.optim.lr_scheduler import _LRScheduler as LRScheduler
 
 from nerfstudio.configs.base_config import InstantiateConfig
 
