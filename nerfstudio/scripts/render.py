@@ -310,7 +310,7 @@ class BaseRender:
     downscale_factor: float = 1.0
     """Scaling factor to apply to the camera image resolution."""
     eval_num_rays_per_chunk: Optional[int] = None
-    """Specifies number of rays per chunk during eval."""
+    """Specifies number of rays per chunk during eval. If None, use the value in the config file."""
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions()
     """Colormap options."""
 
