@@ -50,7 +50,7 @@ class TrainingCallbackLocation(Enum):
 
     BEFORE_TRAIN_ITERATION = auto()
     AFTER_TRAIN_ITERATION = auto()
-    ON_TRAIN_END = auto()
+    AFTER_TRAIN = auto()
 
 
 class TrainingCallback:
@@ -78,7 +78,7 @@ class TrainingCallback:
     ):
         assert (
             "step" in signature(func).parameters.keys()
-        ), f"'step: Union[int, None]' must be an argument in the callback function 'func': {func.__name__}"
+        ), f"'step: int' must be an argument in the callback function 'func': {func.__name__}"
         self.where_to_run = where_to_run
         self.update_every_num_iters = update_every_num_iters
         self.iters = iters
@@ -98,7 +98,7 @@ class TrainingCallback:
         elif self.iters is not None:
             if step in self.iters:
                 self.func(*self.args, **self.kwargs, step=step)
-        elif step is None:
+        else:
             self.func(*self.args, **self.kwargs, step=step)
 
     def run_callback_at_location(self, step: int, location: TrainingCallbackLocation) -> None:

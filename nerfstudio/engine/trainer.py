@@ -297,9 +297,9 @@ class Trainer:
         table.add_row("Checkpoint Directory", str(self.checkpoint_dir))
         CONSOLE.print(Panel(table, title="[bold][green]:tada: Training Finished :tada:[/bold]", expand=False))
 
-        # on train end callbacks
+        # after train end callbacks
         for callback in self.callbacks:
-            callback.run_callback_at_location(step=None, location=TrainingCallbackLocation.ON_TRAIN_END)
+            callback.run_callback_at_location(step=step, location=TrainingCallbackLocation.AFTER_TRAIN)
 
         if not self.config.viewer.quit_on_train_completion:
             self._train_complete_viewer()
