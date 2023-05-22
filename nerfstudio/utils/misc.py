@@ -17,6 +17,7 @@ Miscellaneous helper code.
 """
 
 
+import platform
 from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 import torch
@@ -158,3 +159,19 @@ def strtobool(val) -> bool:
     FMI https://stackoverflow.com/a/715468
     """
     return val.lower() in ("yes", "y", "true", "t", "on", "1")
+
+
+def torch_compile(*args, **kwargs):
+    """
+    Safe torch.compile with backward compatibility for PyTorch 1.x
+    """
+    if not hasattr(torch, "compile"):
+        # Backward compatibility for PyTorch 1.x
+        return torch.jit.script
+    elif platform.system() == "Windows":
+        # torch.compile is not supported on Windows
+        # https://github.com/orgs/pytorch/projects/27
+        # TODO: @jkulhanek, remove this once torch.compile is supported on Windows
+        return lambda x: x
+    else:
+        return torch.compile(*args, **kwargs)
