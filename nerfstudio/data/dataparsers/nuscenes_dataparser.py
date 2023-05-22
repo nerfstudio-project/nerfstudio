@@ -85,8 +85,6 @@ class NuScenes(DataParser):
     config: NuScenesDataParserConfig
 
     def _generate_dataparser_outputs(self, split="train"):
-        # pylint: disable=too-many-statements
-
         nusc = NuScenesDatabase(
             version=self.config.version,
             dataroot=str(self.config.data_dir.absolute()),

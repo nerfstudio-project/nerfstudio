@@ -315,8 +315,6 @@ class WandbWriter(Writer):
         wandb.log({name: scalar}, step=step)
 
     def write_config(self, name: str, config_dict: Dict[str, Any], step: int):
-        # pylint: disable=unused-argument
-        # pylint: disable=no-self-use
         """Function that writes out the config to wandb
 
         Args:
@@ -339,7 +337,7 @@ class TensorboardWriter(Writer):
     def write_scalar(self, name: str, scalar: Union[float, torch.Tensor], step: int) -> None:
         self.tb_writer.add_scalar(name, scalar, step)
 
-    def write_config(self, name: str, config_dict: Dict[str, Any], step: int):  # pylint: disable=unused-argument
+    def write_config(self, name: str, config_dict: Dict[str, Any], step: int):
         """Function that writes out the config to tensorboard
 
         Args:

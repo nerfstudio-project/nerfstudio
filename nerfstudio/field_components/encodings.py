@@ -621,6 +621,7 @@ class KPlanesEncoding(Encoding):
         """Sample features from this encoder. Expects ``in_tensor`` to be in range [-1, 1]"""
         original_shape = in_tensor.shape
 
+        assert any(self.coo_combs)
         output = 1.0 if self.reduce == "product" else 0.0  # identity for corresponding op
         for ci, coo_comb in enumerate(self.coo_combs):
             grid = self.plane_coefs[ci].unsqueeze(0)  # [1, feature_dim, reso1, reso2]
@@ -634,6 +635,8 @@ class KPlanesEncoding(Encoding):
             else:
                 output = output + interp
 
+        # Typing: output gets converted to a tensor after the first iteration of the loop
+        assert isinstance(output, Tensor)
         return output.reshape(*original_shape[:-1], self.num_components)
 
 

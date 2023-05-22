@@ -98,15 +98,15 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     """If --use-sfm-depth and this flag is True, also export debug images showing Sf overlaid upon input images."""
 
     @staticmethod
-    def default_colmap_path() -> Path:  # pylint: disable=missing-function-docstring
+    def default_colmap_path() -> Path:
         return Path("colmap/sparse/0")
 
     @property
-    def absolute_colmap_model_path(self) -> Path:  # pylint: disable=missing-function-docstring
+    def absolute_colmap_model_path(self) -> Path:
         return self.output_dir / self.colmap_model_path
 
     @property
-    def absolute_colmap_path(self) -> Path:  # pylint: disable=missing-function-docstring
+    def absolute_colmap_path(self) -> Path:
         return self.output_dir / "colmap"
 
     def _save_transforms(
@@ -203,6 +203,10 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         elif sfm_tool == "hloc":
             if mask_path is not None:
                 raise RuntimeError("Cannot use a mask with hloc. Please remove the cropping options " "and try again.")
+
+            assert feature_type is not None
+            assert matcher_type is not None
+            assert matcher_type != "NN"  # Only used for colmap.
             hloc_utils.run_hloc(
                 image_dir=self.image_dir,
                 colmap_dir=self.absolute_colmap_path,

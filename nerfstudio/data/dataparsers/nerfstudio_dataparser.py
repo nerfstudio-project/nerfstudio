@@ -72,8 +72,6 @@ class Nerfstudio(DataParser):
     downscale_factor: Optional[int] = None
 
     def _generate_dataparser_outputs(self, split="train"):
-        # pylint: disable=too-many-statements
-
         assert self.config.data.exists(), f"Data directory {self.config.data} does not exist."
 
         if self.config.data.suffix == ".json":

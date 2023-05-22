@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "0.2.2"
+version = "0.3.0"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -20,7 +20,6 @@ dependencies = [
     "tyro>=0.3.31",
     "gdown>=4.6.0",
     "ninja>=1.10",
-    "functorch>=0.2.1",
     "h5py>=2.9.0",
     "imageio>=2.21.1",
     'importlib-metadata>=6.0.0; python_version < "3.10"',
@@ -48,9 +47,9 @@ dependencies = [
     "rich>=12.5.1",
     "scikit-image>=0.19.3",
     "tensorboard>=2.13.0",
-    "torch>=1.12.1,<2.0.0",
+    "torch>=2.0.1",
+    "torchvision>=0.15.2",
     "torchmetrics[image]>=0.9.3",
-    "torchvision>=0.13.0",
     "typing_extensions>=4.4.0",
     "viser>=0.0.5",
     "nuscenes-devkit>=1.1.1",
@@ -67,19 +66,25 @@ dependencies = [
 
 # Generative related dependencies
 gen = [
-    "diffusers==0.9.0",
-    "transformers==4.24.0",
+    "diffusers==0.16.1",
+    "transformers==4.29.2",
 ]
 
 
 # Development packages
 dev = [
     "black[jupyter]==23.3.0",
-    "pylint==2.13.4",
+    "pre-commit==3.3.2",
     "pytest==7.1.2",
     "pytest-xdist==2.5.0",
     "typeguard==2.13.3",
+    "ruff==0.0.267",
     "sshconf==0.2.5",
+    "pycolmap==0.3.0",
+    "diffusers==0.16.1",
+    "opencv-stubs==0.0.7",
+    "transformers==4.29.2",
+    "pyright==1.1.308",
 ]
 
 # Documentation related packages
@@ -115,7 +120,7 @@ ns-dev-sync-viser-message-defs = "nerfstudio.scripts.viewer.sync_viser_message_d
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision
 dependency_links = [
-    "https://download.pytorch.org/whl/cu113"
+    "https://download.pytorch.org/whl/cu118"
 ]
 
 [tool.setuptools.packages.find]
@@ -124,38 +129,15 @@ include = ["nerfstudio*"]
 [tool.setuptools.package-data]
 "*" = ["*.cu", "*.json", "py.typed", "setup.bash", "setup.zsh"]
 
-# black
 [tool.black]
 line-length = 120
 
-# pylint
-[tool.pylint.messages_control]
-max-line-length = 120
-generated-members = ["numpy.*", "torch.*", "cv2.*", "cv.*"]
-good-names-rgxs = "^[_a-zA-Z][_a-z0-9]?$"
-jobs = 0
-ignored-classes = ["TensorDataclass"]
-
-disable = [
-  "duplicate-code",
-  "fixme",
-  "logging-fstring-interpolation",
-  "too-many-arguments",
-  "too-many-branches",
-  "too-many-instance-attributes",
-  "too-many-locals",
-  "too-many-statements",
-  "unnecessary-ellipsis",
-]
-
-#pytest
 [tool.pytest.ini_options]
 addopts = "-n=4 --typeguard-packages=nerfstudio --disable-warnings"
 testpaths = [
     "tests",
 ]
 
-# pyright
 [tool.pyright]
 include = ["nerfstudio"]
 exclude = ["**/node_modules",
@@ -163,9 +145,34 @@ exclude = ["**/node_modules",
 ]
 defineConstant = { DEBUG = true }
 
-reportMissingImports = true
+reportMissingImports = "warning"
 reportMissingTypeStubs = false
 reportPrivateImportUsage = false
 
 pythonVersion = "3.8"
 pythonPlatform = "Linux"
+
+[tool.ruff]
+select = [
+    "E",  # pycodestyle errors.
+    "F",  # Pyflakes rules.
+    "PLC",  # Pylint convention warnings.
+    "PLE",  # Pylint errors.
+    "PLR",  # Pylint refactor recommendations.
+    "PLW",  # Pylint warnings.
+]
+ignore = [
+    "E501",  # Line too long.
+    "F722",  # Forward annotation false positive from jaxtyping. Should be caught by pyright.
+    "F821",  # Forward annotation false positive from jaxtyping. Should be caught by pyright.
+    "PLR2004",  # Magic value used in comparison.
+    "PLR0915",  # Too many statements.
+    "PLR0913",  # Too many arguments.
+    "PLC0414",  # Import alias does not rename variable. (this is used for exporting names)
+    "PLC1901",  # Use falsey strings.
+    "PLR5501",  # Use `elif` instead of `else if`.
+    "PLR0911",  # Too many return statements.
+    "PLR0912",  # Too many branches.
+    "PLW0603",  # Globa statement updates are discouraged.
+    "PLW2901",  # For loop variable overwritten.
+]

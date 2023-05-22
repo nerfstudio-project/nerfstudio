@@ -26,7 +26,7 @@ from torch import Tensor
 from nerfstudio.utils.math import Gaussians, conical_frustum_to_gaussian
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
-TORCH_DEVICE = Union[str, torch.device]  # pylint: disable=invalid-name
+TORCH_DEVICE = Union[str, torch.device]
 
 
 @dataclass
@@ -152,14 +152,14 @@ class RaySamples(TensorDataclass):
     @overload
     @staticmethod
     def get_weights_and_transmittance_from_alphas(
-        alphas: Float[Tensor, "*batch num_samples 1"], weights_only: Literal[False] = False
-    ) -> Tuple[Float[Tensor, "*batch num_samples 1"], Float[Tensor, "*batch num_samples 1"]]:
+        alphas: Float[Tensor, "*batch num_samples 1"], weights_only: Literal[True]
+    ) -> Float[Tensor, "*batch num_samples 1"]:
         ...
 
     @overload
     @staticmethod
     def get_weights_and_transmittance_from_alphas(
-        alphas: Float[Tensor, "*batch num_samples 1"], weights_only: Literal[True]
+        alphas: Float[Tensor, "*batch num_samples 1"], weights_only: Literal[False] = False
     ) -> Tuple[Float[Tensor, "*batch num_samples 1"], Float[Tensor, "*batch num_samples 1"]]:
         ...
 

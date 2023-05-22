@@ -29,6 +29,7 @@ from PIL import Image
 from torch import Tensor
 from torch.utils.data import Dataset
 
+from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.utils.data_utils import get_image_mask_tensor_from_path
 
@@ -40,6 +41,8 @@ class InputDataset(Dataset):
         dataparser_outputs: description of where and how to read input images.
         scale_factor: The scaling factor for the dataparser outputs
     """
+
+    cameras: Cameras
 
     def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0):
         super().__init__()
@@ -105,7 +108,6 @@ class InputDataset(Dataset):
         data.update(metadata)
         return data
 
-    # pylint: disable=no-self-use
     def get_metadata(self, data: Dict) -> Dict:
         """Method that can be used to process any additional metadata that may be part of the model inputs.
 

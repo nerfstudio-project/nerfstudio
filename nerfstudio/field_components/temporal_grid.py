@@ -29,7 +29,6 @@ from torch.cuda.amp import custom_bwd, custom_fwd
 import nerfstudio.field_components.cuda as _C
 
 
-# pylint: disable=abstract-method, arguments-differ
 class TemporalGridEncodeFunc(Function):
     """Class for autograd in pytorch."""
 
@@ -174,6 +173,11 @@ class TemporalGridEncoder(nn.Module):
         gridtype: "tiled" or "hash"
         align_corners: same as other interpolation operators
     """
+
+    sampling_index: Tensor
+    index_a_mask: Tensor
+    index_b_mask: Tensor
+    index_list: Tensor
 
     def __init__(
         self,
@@ -346,6 +350,7 @@ class TemporalGridEncoder(nn.Module):
             self.gridtype_id,
             self.align_corners,
         )
+        assert isinstance(outputs, Tensor)
         return outputs
 
     def get_temporal_tv_loss(self) -> Float[Tensor, ""]:
@@ -353,6 +358,6 @@ class TemporalGridEncoder(nn.Module):
         Sample a random channel combination (i.e., row for the combination table),
         and then compute loss on it.
         """
-        row_idx = torch.randint(0, len(self.index_list), [1]).item()
+        row_idx = torch.randint(0, len(self.index_list), [1])
         feat_idx = self.index_list[row_idx]
         return (self.embeddings[:, feat_idx[0]] - self.embeddings[:, feat_idx[1]]).abs().mean()

@@ -1,7 +1,7 @@
 {
   "name": "viewer",
   "homepage": ".",
-  "version": "23-05-15-0",
+  "version": "23-05-15-1",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.10.4",
@@ -16,7 +16,7 @@
     "@testing-library/react": "^13.3.0",
     "@testing-library/user-event": "^14.2.0",
     "await-lock": "^2.2.2",
-    "camera-controls": "^1.37.2",
+    "camera-controls": "^2.0",
     "classnames": "^2.3.1",
     "dat.gui": "^0.7.9",
     "dayjs": "^1.11.5",

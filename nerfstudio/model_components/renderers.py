@@ -46,7 +46,7 @@ BACKGROUND_COLOR_OVERRIDE: Optional[Float[Tensor, "3"]] = None
 @contextlib.contextmanager
 def background_color_override_context(mode: Float[Tensor, "3"]) -> Generator[None, None, None]:
     """Context manager for setting background mode."""
-    global BACKGROUND_COLOR_OVERRIDE  # pylint: disable=global-statement
+    global BACKGROUND_COLOR_OVERRIDE
     old_background_color = BACKGROUND_COLOR_OVERRIDE
     try:
         BACKGROUND_COLOR_OVERRIDE = mode

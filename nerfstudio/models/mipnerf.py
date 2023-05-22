@@ -58,6 +58,7 @@ class MipNerfModel(Model):
         self.field = None
         assert config.collider_params is not None, "MipNeRF model requires bounding box collider parameters."
         super().__init__(config=config, **kwargs)
+        assert self.config.collider_params is not None, "mip-NeRF requires collider parameters to be set."
 
     def populate_modules(self):
         """Set the fields and modules"""
@@ -150,6 +151,7 @@ class MipNerfModel(Model):
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
+        assert self.config.collider_params is not None, "mip-NeRF requires collider parameters to be set."
         image = batch["image"].to(outputs["rgb_coarse"].device)
         rgb_coarse = outputs["rgb_coarse"]
         rgb_fine = outputs["rgb_fine"]

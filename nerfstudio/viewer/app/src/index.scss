@@ -30,12 +30,14 @@ $highlight-color1: #606980;
 $highlight-color2: #eeeeee;
 $highlight-color3: #ffffff;
 
+$bannerHeight: 50;
+
 .banner {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 50px;
+  height: $bannerHeight + 0px;
   width: 100%;
   z-index: 1000;
   background-color: $base-color2;
@@ -50,6 +52,10 @@ $highlight-color3: #ffffff;
     margin-right: 120px;
     float: right;
   }
+}
+
+:export {
+  bannerHeight: $bannerHeight;
 }
 
 .App-body {

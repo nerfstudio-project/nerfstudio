@@ -148,7 +148,7 @@ def vis_dataset(
         ),
     )
     fig = go.Figure(data=data, layout=layout)  # type: ignore
-    return fig
+    return fig  # type: ignore
 
 
 def get_random_color(colormap: Optional[List[str]] = None, idx: Optional[int] = None) -> str:

@@ -26,16 +26,13 @@ import torch.utils.data
 
 from nerfstudio.cameras.cameras import Cameras
 
-# pylint: disable=implicit-str-concat
 NERFSTUDIO_COLLATE_ERR_MSG_FORMAT = (
     "default_collate: batch must contain tensors, numpy arrays, numbers, " "dicts, lists or anything in {}; found {}"
 )
 np_str_obj_array_pattern = re.compile(r"[SaUO]")
 
 
-def nerfstudio_collate(  # pylint: disable=too-many-return-statements
-    batch: Any, extra_mappings: Union[Dict[type, Callable], None] = None
-) -> Any:
+def nerfstudio_collate(batch: Any, extra_mappings: Union[Dict[type, Callable], None] = None) -> Any:
     r"""
     This is the default pytorch collate function, but with support for nerfstudio types. All documentation
     below is copied straight over from pytorch's default_collate function, python version 3.8.13,
@@ -95,17 +92,16 @@ def nerfstudio_collate(  # pylint: disable=too-many-return-statements
         extra_mappings = {}
     elem = batch[0]
     elem_type = type(elem)
-    if isinstance(elem, torch.Tensor):  # pylint: disable=no-else-return
+    if isinstance(elem, torch.Tensor):
         out = None
         if torch.utils.data.get_worker_info() is not None:
             # If we're in a background process, concatenate directly into a
             # shared memory tensor to avoid an extra copy
             numel = sum(x.numel() for x in batch)
-            storage = elem.storage()._new_shared(numel, device=elem.device)  # pylint: disable=protected-access
+            storage = elem.storage()._new_shared(numel, device=elem.device)
             out = elem.new(storage).resize_(len(batch), *list(elem.size()))
         return torch.stack(batch, 0, out=out)
     elif elem_type.__module__ == "numpy" and elem_type.__name__ != "str_" and elem_type.__name__ != "string_":
-        # pylint: disable=no-else-return, consider-using-in
         if elem_type.__name__ == "ndarray" or elem_type.__name__ == "memmap":
             # array of string classes and object
             if np_str_obj_array_pattern.search(elem.dtype.str) is not None:

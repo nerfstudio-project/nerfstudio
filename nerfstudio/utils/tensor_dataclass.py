@@ -70,11 +70,10 @@ class TensorDataclass:
         This will 1) find the broadcasted shape and 2) broadcast all fields to this shape 3)
         set _shape to be the broadcasted shape.
         """
-        if self._field_custom_dimensions is not None:
-            for k, v in self._field_custom_dimensions.items():
-                assert (
-                    isinstance(v, int) and v > 1
-                ), f"Custom dimensions must be an integer greater than 1, since 1 is the default, received {k}: {v}"
+        for k, v in self._field_custom_dimensions.items():
+            assert (
+                isinstance(v, int) and v > 1
+            ), f"Custom dimensions must be an integer greater than 1, since 1 is the default, received {k}: {v}"
 
         # Shim to prevent pyright from narrowing `self` to DataclassInstance.
         self_dc = self
@@ -107,7 +106,6 @@ class TensorDataclass:
         for k, v in dict_.items():
             if isinstance(v, torch.Tensor):
                 if isinstance(self._field_custom_dimensions, dict) and k in self._field_custom_dimensions:
-                    # pylint: disable=unsubscriptable-object
                     batch_shapes.append(v.shape[: -self._field_custom_dimensions[k]])
                 else:
                     batch_shapes.append(v.shape[:-1])
@@ -129,9 +127,8 @@ class TensorDataclass:
         new_dict = {}
         for k, v in dict_.items():
             if isinstance(v, torch.Tensor):
-                # If custom dimension key, then we need to
+                # Apply field-specific custom dimensions.
                 if isinstance(self._field_custom_dimensions, dict) and k in self._field_custom_dimensions:
-                    # pylint: disable=unsubscriptable-object
                     new_dict[k] = v.broadcast_to(
                         (
                             *batch_shape,
@@ -160,7 +157,7 @@ class TensorDataclass:
             return x[indices]
 
         def custom_tensor_dims_fn(k, v):
-            custom_dims = self._field_custom_dimensions[k]  # pylint: disable=unsubscriptable-object
+            custom_dims = self._field_custom_dimensions[k]
             return v[indices + ((slice(None),) * custom_dims)]
 
         return self._apply_fn_to_fields(tensor_fn, dataclass_fn, custom_tensor_dims_fn=custom_tensor_dims_fn)
@@ -219,7 +216,7 @@ class TensorDataclass:
             return x.reshape(shape)
 
         def custom_tensor_dims_fn(k, v):
-            custom_dims = self._field_custom_dimensions[k]  # pylint: disable=unsubscriptable-object
+            custom_dims = self._field_custom_dimensions[k]
             return v.reshape((*shape, *v.shape[-custom_dims:]))
 
         return self._apply_fn_to_fields(tensor_fn, dataclass_fn, custom_tensor_dims_fn=custom_tensor_dims_fn)
@@ -246,7 +243,7 @@ class TensorDataclass:
         """
 
         def custom_tensor_dims_fn(k, v):
-            custom_dims = self._field_custom_dimensions[k]  # pylint: disable=unsubscriptable-object
+            custom_dims = self._field_custom_dimensions[k]
             return v.broadcast_to((*shape, *v.shape[-custom_dims:]))
 
         return self._apply_fn_to_fields(
@@ -328,7 +325,6 @@ class TensorDataclass:
                 # This is the case when we have a custom dimensions tensor
                 elif (
                     isinstance(v, torch.Tensor)
-                    and isinstance(self._field_custom_dimensions, dict)
                     and f in self._field_custom_dimensions
                     and custom_tensor_dims_fn is not None
                 ):
