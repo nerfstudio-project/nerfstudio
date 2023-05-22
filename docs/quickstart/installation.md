@@ -41,10 +41,10 @@ python -m pip install --upgrade pip
 - To install 2.0.1 with CUDA 11.8:
 
 Note that if a pytorch version prior to 2.0.1 is installed,
-it should be uninstalled first to avoid upgrade issues (e.g. with functorch)
+the previous version of pytorch, functorch, and tiny-cuda-nn should be uninstalled.
 
 ```bash
-pip uninstall torch torchvision functorch
+pip uninstall torch torchvision functorch tinycudann
 ```
 
 Install pytorch 2.0.1 with CUDA and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
@@ -59,10 +59,10 @@ pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 --extra-index-url https
 - To install 2.0.1 with CUDA 11.7:
 
 Note that if a pytorch version prior to 2.0.1 is installed,
-it should be uninstalled first to avoid upgrade issues (e.g. with functorch)
+the previous version of pytorch, functorch, and tiny-cuda-nn should be uninstalled.
 
 ```bash
-pip uninstall torch torchvision functorch
+pip uninstall torch torchvision functorch tinycudann
 ```
 
 Install pytorch 2.0.1 with CUDA and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
@@ -217,15 +217,29 @@ docker run --gpus all -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.
 
 **ImportError: DLL load failed while importing \_89_C**
 
-tiny-cuda-nn was installed for the wrong hardware architecture.
+This occurs with certain GPUs that have CUDA architecture versions (89 in the example above) for which TinyCUDA does not automatically compile support.
 
 **Solution**:
 
 Reinstall tiny-cuda with the following command:
 
+::::::{tab-set}
+:::::{tab-item} Linux
+
 ```bash
 TCNN_CUDA_ARCHITECTURES=XX pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
+
+:::::
+:::::{tab-item} Windows
+
+```bash
+set TCNN_CUDA_ARCHITECTURES=XX
+pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+```
+
+:::::
+::::::
 
 Where XX is the architecture version listed [here](tiny-cuda-arch-list). Ie. for a 4090 GPU use `TCNN_CUDA_ARCHITECTURES=89`
 
