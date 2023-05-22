@@ -278,7 +278,7 @@ class PatchPixelSampler(PixelSampler):
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
     ) -> Int[Tensor, "batch_size 3"]:
-        if mask:
+        if isinstance(mask, Tensor):
             # Note: if there is a mask, sampling reduces back to uniform sampling
             indices = super().sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)
         else:
