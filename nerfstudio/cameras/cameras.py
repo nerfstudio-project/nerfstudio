@@ -357,7 +357,7 @@ class Cameras(TensorDataclass):
                 keeping dimensions. If False, we flatten at the end. If True, then we keep the shape of the
                 camera_indices and coords tensors (if we can).
             disable_distortion: If True, disables distortion.
-            aabb_box: if not None will calculate nears and fars of the ray according to aabb box intesection
+            aabb_box: if not None will calculate nears and fars of the ray according to aabb box intersection
 
         Returns:
             Rays for the given camera indices and coords.

@@ -98,7 +98,7 @@ class RenderStateMachine(threading.Thread):
             # never overwrite rerenders
             pass
         else:
-            #  monimal use case, just set the next action
+            #  minimal use case, just set the next action
             self.next_action = action
 
         # handle interrupt logic
@@ -107,7 +107,7 @@ class RenderStateMachine(threading.Thread):
         self.render_trigger.set()
 
     def _render_img(self, cam_msg: CameraMessage):
-        """Takes the current camera, generates rays, and renders the iamge
+        """Takes the current camera, generates rays, and renders the image
 
         Args:
             cam_msg: the camera message to render
@@ -238,7 +238,7 @@ class RenderStateMachine(threading.Thread):
         """Calculate the maximum image height that can be rendered in the time budget
 
         Args:
-            apect_ratio: the aspect ratio of the current view
+            aspect_ratio: the aspect ratio of the current view
         Returns:
             image_height: the maximum image height that can be rendered in the time budget
             image_width: the maximum image width that can be rendered in the time budget

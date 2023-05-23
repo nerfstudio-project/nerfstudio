@@ -246,7 +246,7 @@ class DataManager(nn.Module):
             step: the step number of the eval image to retrieve
         Returns:
             A tuple of the ray bundle for the image, and a dictionary of additional batch information
-            such as the groudtruth image.
+            such as the groundtruth image.
         """
         raise NotImplementedError
 
@@ -258,19 +258,19 @@ class DataManager(nn.Module):
             step: the step number of the eval image to retrieve
         Returns:
             A tuple of the ray bundle for the image, and a dictionary of additional batch information
-            such as the groudtruth image.
+            such as the groundtruth image.
         """
         raise NotImplementedError
 
     @abstractmethod
     def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
-        """Retreive the next eval image.
+        """Retrieve the next eval image.
 
         Args:
             step: the step number of the eval image to retrieve
         Returns:
             A tuple of the step number, the ray bundle for the image, and a dictionary of
-            additional batch information such as the groudtruth image.
+            additional batch information such as the groundtruth image.
         """
         raise NotImplementedError
 
