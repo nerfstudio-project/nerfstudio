@@ -64,6 +64,7 @@ from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttrib
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
 from nerfstudio.utils.rich_utils import CONSOLE
+from collections import defaultdict
 
 
 def variable_res_collate(batch: List[Dict]) -> Dict:
@@ -74,18 +75,24 @@ def variable_res_collate(batch: List[Dict]) -> Dict:
         Collated batch.
     """
     images = []
-    masks = []
+    imgdata_lists = defaultdict(list)
     for data in batch:
         image = data.pop("image")
-        mask = data.pop("mask", None)
         images.append(image)
-        if mask is not None:
-            masks.append(mask)
+        topop = []
+        for key, val in data.items():
+            if isinstance(val, torch.Tensor):
+                # if the value has same height and width as the image, assume that it should be collated accordingly.
+                if len(val.shape) >= 2 and val.shape[:2] == image.shape[:2]:
+                    imgdata_lists[key].append(val)
+                    topop.append(key)
+        # now that iteration is complete, the image data items can be removed from the batch
+        for key in topop:
+            del data[key]
 
     new_batch = nerfstudio_collate(batch)
     new_batch["image"] = images
-    if masks:
-        new_batch["mask"] = masks
+    new_batch.update(imgdata_lists)
 
     return new_batch
 
@@ -239,7 +246,7 @@ class DataManager(nn.Module):
             step: the step number of the eval image to retrieve
         Returns:
             A tuple of the ray bundle for the image, and a dictionary of additional batch information
-            such as the groudtruth image.
+            such as the groundtruth image.
         """
         raise NotImplementedError
 
@@ -251,19 +258,19 @@ class DataManager(nn.Module):
             step: the step number of the eval image to retrieve
         Returns:
             A tuple of the ray bundle for the image, and a dictionary of additional batch information
-            such as the groudtruth image.
+            such as the groundtruth image.
         """
         raise NotImplementedError
 
     @abstractmethod
     def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
-        """Retreive the next eval image.
+        """Retrieve the next eval image.
 
         Args:
             step: the step number of the eval image to retrieve
         Returns:
             A tuple of the step number, the ray bundle for the image, and a dictionary of
-            additional batch information such as the groudtruth image.
+            additional batch information such as the groundtruth image.
         """
         raise NotImplementedError
 

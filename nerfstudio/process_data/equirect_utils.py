@@ -199,7 +199,7 @@ def generate_planar_projections_from_equirectangular(
 
 
 def compute_resolution_from_equirect(image_dir: Path, num_images: int) -> Tuple[int, int]:
-    """Compute the resolution of the persepctive projections of equirectangular images
+    """Compute the resolution of the perspective projections of equirectangular images
        from the heuristic: num_image * res**2 = orig_height * orig_width.
 
     Args:

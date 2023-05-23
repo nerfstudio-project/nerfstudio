@@ -11,11 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-""" Viser is used for the nerfstudio viewer backend """
-
-
-from .message_api import GuiHandle as GuiHandle
-from .message_api import GuiSelectHandle as GuiSelectHandle
-from .messages import NerfstudioMessage as NerfstudioMessage
-from .server import ViserServer as ViserServer

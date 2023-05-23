@@ -332,7 +332,7 @@ class ViewerState:
         return camera
 
     def _pick_drawn_image_idxs(self, total_num: int) -> list[int]:
-        """Determine indicies of images to display in viewer.
+        """Determine indices of images to display in viewer.
 
         Args:
             total_num: total number of training images.

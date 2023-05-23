@@ -370,7 +370,7 @@ class ExportMarchingCubesMesh(Exporter):
             self.resolution % 512 == 0
         ), f"""resolution must be divisible by 512, got {self.resolution}.
         This is important because the algorithm uses a multi-resolution approach
-        to evaluate the SDF where the mimimum resolution is 512."""
+        to evaluate the SDF where the minimum resolution is 512."""
 
         # Extract mesh using marching cubes for sdf at a multi-scale resolution.
         multi_res_mesh = generate_mesh_with_multires_marching_cubes(
