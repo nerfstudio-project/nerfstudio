@@ -21,14 +21,15 @@ from typing import TYPE_CHECKING, Literal, Optional
 
 import numpy as np
 import torch
+import torchvision
 import viser
 
+from nerfstudio.cameras.camera_utils import quaternion_from_matrix, quaternion_matrix
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.models.base_model import Model
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
-from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer_beta.render_state_machine import RenderAction, RenderStateMachine
@@ -99,13 +100,12 @@ class ViewerState:
         self.camera_state: Optional[CameraState] = None
 
     def handle_new_client(self, client: viser.ClientHandle) -> None:
-        CONSOLE.print("new client!")
-
-        # This will run whenever we get a new camera!
         @client.camera.on_update
         def _(_: viser.CameraHandle) -> None:
-            # TODO generate camera matrix
             c2w = torch.eye(4, dtype=torch.float32)[:3, :]
+            pos = torch.tensor(client.camera.position, dtype=torch.float32) / 20
+            R = torch.tensor(quaternion_matrix(client.camera.wxyz))
+            c2w = torch.concatenate([R[:3, :3], pos[:, None]], dim=1)
             self.camera_state = CameraState(fov=client.camera.fov, aspect=client.camera.aspect, c2w=c2w)
             self.render_statemachine.action(RenderAction("move", self.camera_state))
 
@@ -138,12 +138,27 @@ class ViewerState:
         for idx in image_indices:
             image = dataset[idx]["image"]
             bgr = image[..., [2, 1, 0]]
+            camera = dataset.cameras[idx]
             dataset.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
-            # self.viser_server.add_dataset_image(idx=f"{idx:06d}", json=camera_json)
+            image_uint8 = (image * 255).detach().type(torch.uint8)
+            image_uint8 = image_uint8.permute(2, 0, 1)
+            image_uint8 = torchvision.transforms.functional.resize(image_uint8, 100)  # type: ignore
+            image_uint8 = image_uint8.permute(1, 2, 0)
+            image_uint8 = image_uint8.cpu().numpy()
+            c2w = camera.camera_to_worlds.cpu().numpy()
+            wxyz = quaternion_from_matrix(c2w)
+            self.viser_server.add_camera_frustum(
+                name=f"Camera {idx}",
+                fov=float(camera.fx[0]),
+                aspect=1.0,
+                image=image_uint8,
+                wxyz=wxyz,
+                position=c2w[:3, 3] * 20,
+            )
 
         self.train_state = train_state
         self.train_util = 0.9
-        self.max_res = 256
+        self.max_res = 512
 
     def update_scene(self, step: int, num_rays_per_batch: Optional[int] = None) -> None:
         """updates the scene based on the graph weights
