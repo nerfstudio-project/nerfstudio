@@ -211,8 +211,8 @@ class VanillaPipelineConfig(cfg.InstantiateConfig):
     """specifies the datamanager config"""
     model: ModelConfig = ModelConfig()
     """specifies the model config"""
-    generative: bool = False
-    """specifies whether the pipeline is for generative models"""
+    no_input_data: bool = False
+    """specifies whether the pipeline is expects an input dataset"""
 
 
 class VanillaPipeline(Pipeline):
