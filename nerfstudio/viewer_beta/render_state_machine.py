@@ -41,7 +41,7 @@ class RenderAction:
     action: RenderActions
     """The action to take """
     camera_state: CameraState
-    """The aspect ratio of the image"""
+    """The current camera state """
 
 
 class RenderStateMachine(threading.Thread):

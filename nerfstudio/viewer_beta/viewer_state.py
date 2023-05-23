@@ -23,8 +23,8 @@ import numpy as np
 import torch
 import torchvision
 import viser
+import viser.transforms as vtf
 
-from nerfstudio.cameras.camera_utils import quaternion_from_matrix, quaternion_matrix
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.models.base_model import Model
@@ -37,6 +37,8 @@ from nerfstudio.viewer_beta.utils import CameraState
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
+
+VISER_NERFSTUDIO_SCALE_RATIO: int = 10
 
 
 @decorate_all([check_main_thread])
@@ -102,10 +104,11 @@ class ViewerState:
     def handle_new_client(self, client: viser.ClientHandle) -> None:
         @client.camera.on_update
         def _(_: viser.CameraHandle) -> None:
-            c2w = torch.eye(4, dtype=torch.float32)[:3, :]
-            pos = torch.tensor(client.camera.position, dtype=torch.float32) / 20
-            R = torch.tensor(quaternion_matrix(client.camera.wxyz))
-            c2w = torch.concatenate([R[:3, :3], pos[:, None]], dim=1)
+            R = vtf.SO3(wxyz=client.camera.wxyz)
+            R = R @ vtf.SO3.from_x_radians(np.pi)
+            R = torch.tensor(R.as_matrix())
+            pos = torch.tensor(client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
+            c2w = torch.concatenate([R, pos[:, None]], dim=1)
             self.camera_state = CameraState(fov=client.camera.fov, aspect=client.camera.aspect, c2w=c2w)
             self.render_statemachine.action(RenderAction("move", self.camera_state))
 
@@ -137,23 +140,23 @@ class ViewerState:
         image_indices = self._pick_drawn_image_idxs(len(dataset))
         for idx in image_indices:
             image = dataset[idx]["image"]
-            bgr = image[..., [2, 1, 0]]
             camera = dataset.cameras[idx]
-            dataset.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
             image_uint8 = (image * 255).detach().type(torch.uint8)
             image_uint8 = image_uint8.permute(2, 0, 1)
             image_uint8 = torchvision.transforms.functional.resize(image_uint8, 100)  # type: ignore
             image_uint8 = image_uint8.permute(1, 2, 0)
             image_uint8 = image_uint8.cpu().numpy()
             c2w = camera.camera_to_worlds.cpu().numpy()
-            wxyz = quaternion_from_matrix(c2w)
+            R = vtf.SO3.from_matrix(c2w[:3, :3])
+            R = R @ vtf.SO3.from_x_radians(np.pi)
             self.viser_server.add_camera_frustum(
                 name=f"Camera {idx}",
                 fov=float(camera.fx[0]),
-                aspect=1.0,
+                scale=0.2,
+                aspect=float(camera.cx[0] / camera.cy[0]),
                 image=image_uint8,
-                wxyz=wxyz,
-                position=c2w[:3, 3] * 20,
+                wxyz=R.wxyz,
+                position=c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO,
             )
 
         self.train_state = train_state
