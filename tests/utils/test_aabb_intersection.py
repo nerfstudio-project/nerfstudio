@@ -48,7 +48,7 @@ def _get_random_aabb_box(max_box, device):
 
 def _get_random_rays(num_rays, max_box, aabb, device):
     """
-    genrate random rays that distribute in the general direction of the box.
+    generate random rays that distribute in the general direction of the box.
     The implementation is naive for now.
     :param num_rays:
     :param max_box:

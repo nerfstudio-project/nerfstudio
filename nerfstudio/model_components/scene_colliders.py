@@ -137,7 +137,7 @@ class SphereCollider(SceneCollider):
 
     Args:
         center: center of sphere to intersect [3]
-        redius: radius of sphere to intersect
+        radius: radius of sphere to intersect
         near_plane: near plane to clamp to
     """
 

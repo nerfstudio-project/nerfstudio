@@ -36,7 +36,7 @@ The core idea behind the improved sampling technique is that sampling over empty
 
 Nerfstudio uses [NerfAcc](https://www.nerfacc.com/en/latest/index.html) as the sampling algorithm implementation. The details on NerfAcc's sampling and occupancy grid is discussed [here](https://www.nerfacc.com/en/stable/methodology/sampling.html#occupancy-grid-estimator).
 
-Another major bottleneck for NeRF's training speed has been querying the neural network. The authors of this work implement the network such that it runs entirely on a single CUDA kernal. The network is also shrunk down to be just 4 layers with 64 neurons in each layer. They show that their fully-fused neural network is 5-10x faster than a Tensorflow implementation.
+Another major bottleneck for NeRF's training speed has been querying the neural network. The authors of this work implement the network such that it runs entirely on a single CUDA kernel. The network is also shrunk down to be just 4 layers with 64 neurons in each layer. They show that their fully-fused neural network is 5-10x faster than a Tensorflow implementation.
 
 Nerfstudio uses the [tinycudann](https://github.com/NVlabs/tiny-cuda-nn) framework to utilize the fully-fused neural networks.
 
@@ -62,8 +62,8 @@ Steps 1-3 are done independently at each resolution level. Thus, since these fea
 
 An important note is that hash collisions are not explicitly handled. At each hash index, there may be multiple vertices which index to that feature vector, but because these vectors are trainable, the vertices that are most important to the specific output will have the highest gradient, and therefore automatically dominate the optimization of that feature.
 
-This encoding structure creates a tradeoff betweewn quality, memory, and performance. The main parameters which can be adjusted are the size of the hash table (T), the size of the feature vectors (F), and the number of resolutions (L).
+This encoding structure creates a tradeoff between quality, memory, and performance. The main parameters which can be adjusted are the size of the hash table (T), the size of the feature vectors (F), and the number of resolutions (L).
 
-Instant-NGP encodes the vieweing direction using spherical harmonic encodings.
+Instant-NGP encodes the viewing direction using spherical harmonic encodings.
 
 Our [`nerfacto`](./nerfacto.md) model uses both the fully-fused MLP and the hash encoder, which were inspired by Instant-NGP. Lastly, our implementation covers the major ideas from Instant-NGP, but it doesn't strictly follow every detail. Some known differences include learning rate schedulers, hyper-parameters for sampling, and how camera gradients are calculated if enabled.

@@ -261,7 +261,7 @@ class PatchPixelSampler(PixelSampler):
         super().__init__(num_rays, keep_full_image, **kwargs)
 
     def set_num_rays_per_batch(self, num_rays_per_batch: int):
-        """Set the number of rays to sample per batch. Overrided to deal with patch-based sampling.
+        """Set the number of rays to sample per batch. Overridden to deal with patch-based sampling.
 
         Args:
             num_rays_per_batch: number of rays to sample per batch
