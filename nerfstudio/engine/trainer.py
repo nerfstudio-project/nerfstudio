@@ -50,6 +50,7 @@ from nerfstudio.utils.misc import step_check
 from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server.viewer_state import ViewerState
+from nerfstudio.viewer_beta.viewer_state import ViewerState as ViewerBetaState
 
 TRAIN_INTERATION_OUTPUT = Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
 TORCH_DEVICE = str
@@ -167,6 +168,16 @@ class Trainer:
                 train_lock=self.train_lock,
             )
             banner_messages = [f"Viewer at: {self.viewer_state.viewer_url}"]
+        if self.config.is_viewer_beta_enabled() and self.local_rank == 0:
+            self.viewer_state = ViewerBetaState(
+                self.config.viewer,
+                log_filename=viewer_log_path,
+                datapath=self.base_dir,
+                pipeline=self.pipeline,
+                trainer=self,
+                train_lock=self.train_lock,
+            )
+            banner_messages = [f"Viewer Beta at: {self.viewer_state.viewer_url}"]
         self._check_viewer_warnings()
 
         self._load_checkpoint()
@@ -304,7 +315,7 @@ class Trainer:
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
         if (
-            self.config.is_viewer_enabled()
+            (self.config.is_viewer_enabled() or self.config.is_viewer_beta_enabled())
             and not self.config.is_tensorboard_enabled()
             and not self.config.is_wandb_enabled()
         ):
