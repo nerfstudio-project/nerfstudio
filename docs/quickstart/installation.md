@@ -74,9 +74,9 @@ pip install torch==2.0.1+cu117 torchvision==0.15.2+cu117 --extra-index-url https
 :::
 ::::
 
-### tinycudann
+### tiny-cuda-nn
 
-After pytorch and ninja, install the torch bindings for tinycudann:
+After pytorch and ninja, install the torch bindings for tiny-cuda-nn:
 
 ```bash
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
@@ -206,8 +206,8 @@ docker run --gpus all -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.
 ## Installation FAQ
 
 - [ImportError: DLL load failed while importing \_89_C](tiny-cuda-mismatch-arch)
-- [TinyCUDA installation errors out with cuda mismatch](tiny-cuda-mismatch-error)
-- [TinyCUDA installation errors out with no CUDA toolset found](tiny-cuda-integration-error)
+- [tiny-cuda-nn installation errors out with cuda mismatch](tiny-cuda-mismatch-error)
+- [tiny-cuda-nn installation errors out with no CUDA toolset found](tiny-cuda-integration-error)
 - [Installation errors, File "setup.py" not found](pip-install-error)
 - [Runtime errors, "len(sources) > 0".](cuda-sources-error)
 
@@ -217,11 +217,11 @@ docker run --gpus all -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.
 
 **ImportError: DLL load failed while importing \_89_C**
 
-This occurs with certain GPUs that have CUDA architecture versions (89 in the example above) for which TinyCUDA does not automatically compile support.
+This occurs with certain GPUs that have CUDA architecture versions (89 in the example above) for which tiny-cuda-nn does not automatically compile support.
 
 **Solution**:
 
-Reinstall tiny-cuda with the following command:
+Reinstall tiny-cuda-nn with the following command:
 
 ::::::{tab-set}
 :::::{tab-item} Linux
@@ -247,7 +247,7 @@ Where XX is the architecture version listed [here](tiny-cuda-arch-list). Ie. for
 
 (tiny-cuda-mismatch-error)=
 
-**TinyCUDA installation errors out with cuda mismatch**
+**tiny-cuda-nn installation errors out with cuda mismatch**
 
 While installing tiny-cuda, you run into: `The detected CUDA version mismatches the version that was used to compile PyTorch (10.2). Please make sure to use the same CUDA versions.`
 
@@ -260,7 +260,7 @@ See [pytorch](pytorch) under Dependencies, above.
 
 (tiny-cuda-integration-error)=
 
-**(Windows) TinyCUDA installation errors out with no CUDA toolset found**
+**(Windows) tiny-cuda-nn installation errors out with no CUDA toolset found**
 
 While installing tiny-cuda on Windows, you run into: `No CUDA toolset found.`
 
