@@ -33,16 +33,19 @@ from torch.cuda.amp import custom_bwd, custom_fwd
 from torch.cuda.amp.grad_scaler import GradScaler
 from torchtyping import TensorType
 
+CONSOLE = Console(width=120)
+
 try:
     from diffusers import PNDMScheduler, StableDiffusionPipeline
     from transformers import logging
 
-    SD_AVAILABLE = True
-
 except ImportError:
-    SD_AVAILABLE = False
+    CONSOLE.print("[bold red]Missing Stable Diffusion packages.")
+    CONSOLE.print(r"Install using [yellow]pip install nerfstudio\[gen][/yellow]")
+    CONSOLE.print(r"or [yellow]pip install -e .\[gen][/yellow] if installing from source.")
+    sys.exit(1)
 
-CONSOLE = Console(width=120)
+logging.set_verbosity_error()
 IMG_DIM = 512
 CONST_SCALE = 0.18215
 SD_IDENTIFIERS = {
@@ -88,14 +91,6 @@ class StableDiffusion(nn.Module):
 
     def __init__(self, device: Union[torch.device, str], num_train_timesteps: int = 1000, version="1-5") -> None:
         super().__init__()
-
-        if not SD_AVAILABLE:
-            CONSOLE.print("[bold red]Missing Stable Diffusion packages.")
-            CONSOLE.print(r"Install using [yellow]pip install nerfstudio\[gen][/yellow]")
-            CONSOLE.print(r"or [yellow]pip install -e .\[gen][/yellow] if installing from source.")
-            sys.exit(1)
-
-        logging.set_verbosity_error()
 
         self.device = device
         self.num_train_timesteps = num_train_timesteps
@@ -204,34 +199,32 @@ class StableDiffusion(nn.Module):
         Returns:
             The loss
         """
-        # Disable autocast when using diffusers pipeline.
-        with torch.autocast(device_type="cuda", enabled=False):
-            image = F.interpolate(image.half(), (IMG_DIM, IMG_DIM), mode="bilinear")
-            t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
-            latents = self.imgs_to_latent(image)
+        image = F.interpolate(image, (IMG_DIM, IMG_DIM), mode="bilinear")
+        t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
+        latents = self.imgs_to_latent(image)
 
-            # predict the noise residual with unet, NO grad!
-            with torch.no_grad():
-                # add noise
-                noise = torch.randn_like(latents)
-                latents_noisy = self.scheduler.add_noise(latents, noise, t)  # type: ignore
-                # pred noise
-                latent_model_input = torch.cat([latents_noisy] * 2)
-                noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embeddings).sample
+        # predict the noise residual with unet, NO grad!
+        with torch.no_grad():
+            # add noise
+            noise = torch.randn_like(latents)
+            latents_noisy = self.scheduler.add_noise(latents, noise, t)  # type: ignore
+            # pred noise
+            latent_model_input = torch.cat([latents_noisy] * 2)
+            noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embeddings).sample
 
-            # perform guidance
-            noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-            noise_pred = noise_pred_text + guidance_scale * (noise_pred_text - noise_pred_uncond)
+        # perform guidance
+        noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+        noise_pred = noise_pred_text + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
-            # w(t), sigma_t^2
-            w = 1 - self.alphas[t]
+        # w(t), sigma_t^2
+        w = 1 - self.alphas[t]
 
-            grad = w * (noise_pred - noise)
-            grad = torch.nan_to_num(grad)
+        grad = w * (noise_pred - noise)
+        grad = torch.nan_to_num(grad)
 
-            if grad_scaler is not None:
-                latents = grad_scaler.scale(latents)
-            loss = _SDSGradient.apply(latents, grad)
+        if grad_scaler is not None:
+            latents = grad_scaler.scale(latents)
+        loss = _SDSGradient.apply(latents, grad)
 
         return loss
 

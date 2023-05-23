@@ -250,7 +250,6 @@ class DreamFusionModel(Model):
             single_jitter=self.config.use_single_jitter,
             update_sched=update_schedule,
             initial_sampler=UniformSampler(single_jitter=self.config.use_single_jitter),
-            pdf_histogram_padding=0.005,
         )
 
         # renderers

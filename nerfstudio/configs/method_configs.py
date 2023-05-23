@@ -455,7 +455,7 @@ method_configs["dreamfusion"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
-        generative=True,
+        no_input_data=True,
         datamanager=DreamFusionDataManagerConfig(
             horizontal_rotation_warmup=2000,
         ),
