@@ -212,6 +212,7 @@ class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
         self.sampler = None
         self.test_mode = test_mode
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
+        self.input_data = False
 
         if self.config.data is not None:
             CONSOLE.print("[red] --data should not be used with the DreamFusionDataManager[/red]")
