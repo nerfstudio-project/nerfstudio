@@ -174,7 +174,7 @@ class DeepFloyd(nn.Module):
 
             if grad_scaler is not None:
                 image = grad_scaler.scale(image)
-            loss = _SDSGradient.apply(image, grad)
+            loss = cast(Tensor, _SDSGradient.apply(latents, grad))
 
         return loss
 
