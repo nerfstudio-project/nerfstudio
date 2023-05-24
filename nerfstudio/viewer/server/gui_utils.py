@@ -60,6 +60,10 @@ def parse_object(
         if isinstance(v, type_check):
             add(ret, new_tree_stub, v)
         elif isinstance(v, nn.Module):
+            if v is obj:
+                # some nn.Modules might contain infinite references, e.g. consider foo = nn.Module(), foo.bar = foo
+                # to stop infinite recursion, we skip such attributes
+                continue
             lower_rets = parse_object(v, type_check, new_tree_stub)
             # check that the values aren't already in the tree
             for ts, o in lower_rets:
