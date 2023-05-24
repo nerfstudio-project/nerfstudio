@@ -332,7 +332,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
     Record3D."""
-    collate_fn: Callable[[Any], Any] = cast(Any, staticmethod(nerfstudio_collate))
+    collate_fn: Callable[[Any], Any] = nerfstudio_collate  # cast(Any, staticmethod(nerfstudio_collate))
     """Specifies the collate function to use for the train and eval dataloaders."""
     camera_res_scale_factor: float = 1.0
     """The scale factor for scaling spatial data such as images, mask, semantics
