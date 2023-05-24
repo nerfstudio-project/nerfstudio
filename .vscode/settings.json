@@ -26,7 +26,8 @@
   "[python]": {
     "editor.defaultFormatter": "ms-python.python",
     "editor.codeActionsOnSave": {
-      "source.organizeImports": true
+      "source.organizeImports": true,
+      "source.fixAll": true
     }
   },
   "editor.formatOnSave": true,
@@ -36,7 +37,6 @@
   "python.linting.pylintEnabled": false,
   "python.linting.flake8Enabled": false,
   "python.linting.enabled": true,
-  "python.sortImports.args": ["--src=${workspaceFolder}", "--profile", "black"],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
   "python.linting.ignorePatterns": [
@@ -123,5 +123,4 @@
   "python.analysis.typeCheckingMode": "basic",
   "python.analysis.diagnosticMode": "workspace",
   "eslint.packageManager": "yarn",
-  "ruff.fixAll": true
 }

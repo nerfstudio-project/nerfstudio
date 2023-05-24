@@ -54,7 +54,7 @@ def check_viewer_enabled(func: Callable) -> Callable:
 
     def wrapper(self, *args, **kwargs):
         ret = None
-        if (self.config.is_viewer_beta_enabled() or self.config.is_viewer_beta_enabled()) and comms.is_main_process():
+        if (self.config.is_viewer_enabled() or self.config.is_viewer_beta_enabled()) and comms.is_main_process():
             ret = func(self, *args, **kwargs)
         return ret
 
