@@ -32,7 +32,7 @@ from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.utils.rich_utils import CONSOLE
 
-from nerfstudio.generative.gradient_utils import _SDSGradient
+from nerfstudio.generative.utils import _SDSGradient
 
 
 try:

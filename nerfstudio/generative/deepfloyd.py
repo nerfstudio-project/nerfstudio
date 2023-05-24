@@ -14,7 +14,7 @@
 
 import gc
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Optional, cast
 from PIL import Image
 
 import torch
@@ -28,7 +28,7 @@ from diffusers import IFPipeline
 from diffusers.pipelines.deepfloyd_if import IFPipelineOutput
 from transformers import T5EncoderModel
 
-from nerfstudio.generative.gradient_utils import _SDSGradient
+from nerfstudio.generative.utils import _SDSGradient
 
 IMG_DIM = 64
 
@@ -174,7 +174,7 @@ class DeepFloyd(nn.Module):
 
             if grad_scaler is not None:
                 image = grad_scaler.scale(image)
-            loss = cast(Tensor, _SDSGradient.apply(latents, grad))
+            loss = cast(Tensor, _SDSGradient.apply(image, grad))
 
         return loss
 
