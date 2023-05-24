@@ -20,7 +20,7 @@ from PIL import Image
 import torch
 import torch.nn.functional as F
 import tyro
-from torch import nn, Tensor, FloatTensor
+from torch import nn, Tensor, FloatTensor, Generator
 
 from jaxtyping import Float
 
@@ -182,15 +182,15 @@ class DeepFloyd(nn.Module):
         self,
         prompts: Union[str, List[str]],
         negative_prompts: Union[str, List[str]] = "",
-        generator=None,
+        generator: Union[Generator, None] = None,
         num_inference_steps: int = 50,
         guidance_scale: float = 7.5,
     ) -> Image.Image:
-        """Generate an images from a prompts.
+        """Generate an image from a prompt.
         Args:
             prompts: The prompt to generate an image from.
             negative_prompts: The negative prompt to generate an image from.
-            generator: Random seed
+            generator: Random seed.
             num_inference_steps: The number of inference steps to perform.
             guidance_scale: The scale of the guidance.
             latents: The latents to start from, defaults to random.
@@ -208,7 +208,7 @@ class DeepFloyd(nn.Module):
         )
         assert isinstance(model_output, IFPipelineOutput)
         image = model_output.images[0]
-        assert isinstance(image, Image.Image)
+
         return image
 
 
