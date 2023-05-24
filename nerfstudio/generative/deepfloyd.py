@@ -182,7 +182,7 @@ class DeepFloyd(nn.Module):
         self,
         prompts: Union[str, List[str]],
         negative_prompts: Union[str, List[str]] = "",
-        generator: Union[Generator, None] = None,
+        generator: Optional[Generator] = None,
         num_inference_steps: int = 50,
         guidance_scale: float = 7.5,
     ) -> Image.Image:
