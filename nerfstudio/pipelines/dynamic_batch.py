@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from typing import Literal, Type, Optional
 
 import torch
-from toch.cuda.amp.grad_scaler import GradScaler
+from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline, VanillaPipelineConfig
