@@ -15,45 +15,30 @@
 import gc
 from pathlib import Path
 from typing import List, Union
+from PIL import Image
 
-import numpy as np
 import torch
 import torch.nn.functional as F
 import tyro
 from torch import nn, Tensor, FloatTensor
-from torch.cuda.amp import custom_bwd, custom_fwd
 
 from jaxtyping import Float
 
-from diffusers import IFPipeline, ConfigMixin
+from diffusers import IFPipeline
 from diffusers.pipelines.deepfloyd_if import IFPipelineOutput
 from transformers import T5EncoderModel
+
+from nerfstudio.generative.gradient_utils import _SDSGradient
 
 IMG_DIM = 64
 
 
-class _SDSGradient(torch.autograd.Function):  # pylint: disable=abstract-method
-    """Custom gradient function for SDS loss. Since it is already computed, we can just return it."""
-
-    @staticmethod
-    @custom_fwd
-    def forward(ctx, input_tensor, gt_grad):  # pylint: disable=arguments-differ
-        del input_tensor
-        ctx.save_for_backward(gt_grad)
-        # Return magniture of gradient, not the actual loss.
-        return torch.mean(gt_grad**2) ** 0.5
-
-    @staticmethod
-    @custom_bwd
-    def backward(ctx, grad):  # pylint: disable=arguments-differ
-        del grad
-        (gt_grad,) = ctx.saved_tensors
-        batch_size = len(gt_grad)
-        return gt_grad / batch_size, None
-
-
 class DeepFloyd(nn.Module):
-    # load in model
+    """DeepFloyd diffusion model
+    Args:
+        device: device to use
+    """
+
     def __init__(self, device: Union[torch.device, str]):
         super().__init__()
         self.device = device
@@ -88,7 +73,6 @@ class DeepFloyd(nn.Module):
 
         self.scheduler = self.pipe.scheduler
 
-        assert isinstance(self.scheduler.config, ConfigMixin)
         self.num_train_timesteps = self.scheduler.config.num_train_timesteps
         self.min_step = int(self.num_train_timesteps * 0.02)
         self.max_step = int(self.num_train_timesteps * 0.98)
@@ -96,6 +80,7 @@ class DeepFloyd(nn.Module):
         self.alphas: Float[Tensor, "..."] = self.scheduler.alphas_cumprod.to(self.device)
 
     def delete_text_encoder(self):
+        """Delete text encoder from pipeline. T5 text encoder uses a lot of memory."""
         del self.text_encoder
         del self.pipe
         gc.collect()
@@ -127,6 +112,13 @@ class DeepFloyd(nn.Module):
     def get_text_embeds(
         self, prompt: Union[str, List[str]], negative_prompt: Union[str, List[str]]
     ) -> Float[Tensor, "2 max_length embed_dim"]:
+        """Get text embeddings for prompt and negative prompt
+        Args:
+            prompt: Prompt text
+            negative_prompt: Negative prompt text
+        Returns:
+            Text embeddings
+        """
         prompt = [prompt] if isinstance(prompt, str) else prompt
         negative_prompt = [negative_prompt] if isinstance(negative_prompt, str) else negative_prompt
 
@@ -145,6 +137,15 @@ class DeepFloyd(nn.Module):
         guidance_scale,
         grad_scaler,
     ) -> torch.Tensor:
+        """Score Distilation Sampling loss proposed in DreamFusion paper (https://dreamfusion3d.github.io/)
+        Args:
+            text_embeddings: Text embeddings
+            image: Rendered image
+            guidance_scale: How much to weigh the guidance
+            grad_scaler: Grad scaler
+        Returns:
+            The loss
+        """
         with torch.autocast(device_type="cuda", enabled=False):
             image = F.interpolate(image.half(), (IMG_DIM, IMG_DIM), mode="bilinear", align_corners=False)
             t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
@@ -184,11 +185,12 @@ class DeepFloyd(nn.Module):
         generator=None,
         num_inference_steps: int = 50,
         guidance_scale: float = 7.5,
-    ) -> np.ndarray:
+    ) -> Image.Image:
         """Generate an images from a prompts.
         Args:
             prompts: The prompt to generate an image from.
             negative_prompts: The negative prompt to generate an image from.
+            generator: Random seed
             num_inference_steps: The number of inference steps to perform.
             guidance_scale: The scale of the guidance.
             latents: The latents to start from, defaults to random.
@@ -205,8 +207,8 @@ class DeepFloyd(nn.Module):
             prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_embeds, generator=generator
         )
         assert isinstance(model_output, IFPipelineOutput)
-        image = model_output.images
-        assert isinstance(image, np.ndarray)
+        image = model_output.images[0]
+        assert isinstance(image, Image.Image)
         return image
 
 
@@ -225,8 +227,8 @@ def generate_image(
     cuda_device = torch.device("cuda")
     with torch.no_grad():
         df = DeepFloyd(cuda_device)
-        imgs = df.prompt_to_img(prompt, negative, generator, steps)
-        imgs[0].save(save_path)
+        img = df.prompt_to_img(prompt, negative, generator, steps)
+        img.save(save_path)
 
 
 if __name__ == "__main__":
