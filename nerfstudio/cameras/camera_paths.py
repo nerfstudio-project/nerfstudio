@@ -139,6 +139,8 @@ def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
         camera_type = CameraType.FISHEYE
     elif camera_path["camera_type"] == "equirectangular":
         camera_type = CameraType.EQUIRECTANGULAR
+    elif camera_path["camera_type"].lower() == "omnidirectional":
+        camera_type = CameraType.OMNIDIRECTIONALSTEREO_L
     else:
         camera_type = CameraType.PERSPECTIVE
 
@@ -149,7 +151,11 @@ def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
         # pose
         c2w = torch.tensor(camera["camera_to_world"]).view(4, 4)[:3]
         c2ws.append(c2w)
-        if camera_type == CameraType.EQUIRECTANGULAR:
+        if (
+            camera_type == CameraType.EQUIRECTANGULAR
+            or camera_type == CameraType.OMNIDIRECTIONALSTEREO_L
+            or camera_type == CameraType.OMNIDIRECTIONALSTEREO_R
+        ):
             fxs.append(image_width / 2)
             fys.append(image_height)
         else:
