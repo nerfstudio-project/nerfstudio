@@ -218,6 +218,8 @@ class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
             CONSOLE.print("[red] --data should not be used with the DreamFusionDataManager[/red]")
             sys.exit(1)
 
+        print(type(config))
+
         cameras, _, _ = random_train_pose(
             self.config.num_eval_angles,
             self.config.eval_resolution,

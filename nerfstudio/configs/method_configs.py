@@ -482,7 +482,9 @@ method_configs["dreamfusion"] = TrainerConfig(
     optimizers={
         "proposal_networks": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                warmup_steps=2000, lr_final=1e-6, max_steps=20000, ramp="linear"
+            ),
         },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
