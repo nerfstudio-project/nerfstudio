@@ -28,10 +28,12 @@ import torch.nn.functional as F
 import tyro
 from jaxtyping import Float
 from torch import Tensor, nn
-from torch.cuda.amp import custom_bwd, custom_fwd
 from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.utils.rich_utils import CONSOLE
+
+from nerfstudio.generative.utils import _SDSGradient
+
 
 try:
     from diffusers import PNDMScheduler, StableDiffusionPipeline
@@ -58,26 +60,6 @@ class UNet2DConditionOutput:
     """Class to hold traced model"""
 
     sample: torch.FloatTensor
-
-
-class _SDSGradient(torch.autograd.Function):
-    """Custom gradient function for SDS loss. Since it is already computed, we can just return it."""
-
-    @staticmethod
-    @custom_fwd
-    def forward(ctx, input_tensor, gt_grad):
-        del input_tensor
-        ctx.save_for_backward(gt_grad)
-        # Return magniture of gradient, not the actual loss.
-        return torch.mean(gt_grad**2) ** 0.5
-
-    @staticmethod
-    @custom_bwd
-    def backward(ctx, grad):
-        del grad
-        (gt_grad,) = ctx.saved_tensors
-        batch_size = len(gt_grad)
-        return gt_grad / batch_size, None
 
 
 class StableDiffusion(nn.Module):
@@ -224,7 +206,8 @@ class StableDiffusion(nn.Module):
 
         if latents is None:
             latents = torch.randn(
-                (text_embeddings.shape[0] // 2, self.unet.in_channels, height // 8, width // 8), device=self.device
+                (text_embeddings.shape[0] // 2, self.unet.config.in_channels, height // 8, width // 8),
+                device=self.device,
             )
 
         self.scheduler.set_timesteps(num_inference_steps)  # type: ignore
