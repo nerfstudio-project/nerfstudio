@@ -122,7 +122,7 @@ class ExponentialDecayScheduler(Scheduler):
         def func(step):
             if step < self.config.warmup_steps:
                 if self.config.ramp == "cosine":
-                    lr = self.config.lr_pre_warmup + (1 - self.config.lr_pre_warmup) * np.sin(
+                    lr = self.config.lr_pre_warmup + (lr_init - self.config.lr_pre_warmup) * np.sin(
                         0.5 * np.pi * np.clip(step / self.config.warmup_steps, 0, 1)
                     )
                 else:
