@@ -56,10 +56,10 @@ class TCNNInstantNGPField(Field):
         use_appearance_embedding: whether to use appearance embedding
         num_images: number of images, required if use_appearance_embedding is True
         appearance_embedding_dim: dimension of appearance embedding
-        contraction_type: type of contraction
         num_levels: number of levels of the hashmap for the base mlp
         log2_hashmap_size: size of the hashmap for the base mlp
         max_res: maximum resolution of the hashmap for the base mlp
+        spatial_distortion: spatial distortion to apply to the scene
     """
 
     def __init__(
