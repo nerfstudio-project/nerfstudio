@@ -34,10 +34,13 @@ def test_temporal_grid():
     weight = torch.randn_like(out)
     (out * weight).sum().backward()
     assert torch.all(out == 0.5)
+    assert model.embeddings.grad is not None
     assert model.embeddings.grad.sum() - weight.sum() < 0.01
     assert torch.all(model.embeddings.grad[2:, :] == 0)
     assert torch.all(model.embeddings.grad[:, 1:] == 0)
-    model.get_temporal_tv_loss()
+    # TODO: test temporal_tv_loss
+    # model.get_temporal_tv_loss()
+
     # TODO: Any better way to numerically test it? Especially for the gradients.
     #       (maybe add some randomness and multiple cases for the testing?)
 

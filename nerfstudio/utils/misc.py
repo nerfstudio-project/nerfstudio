@@ -17,7 +17,9 @@ Miscellaneous helper code.
 """
 
 
+import platform
 from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+import warnings
 
 import torch
 
@@ -160,11 +162,23 @@ def strtobool(val) -> bool:
     return val.lower() in ("yes", "y", "true", "t", "on", "1")
 
 
-if hasattr(torch, "compile"):
-    # PyTorch 2.0+
-    torch_compile = torch.compile
-else:
-    # PyTorch 1.x
-    def torch_compile(*args, **kwargs):
-        """Fall back to jit script if using pytorch 1.x, args ignored"""
+def torch_compile(*args, **kwargs):
+    """
+    Safe torch.compile with backward compatibility for PyTorch 1.x
+    """
+    if not hasattr(torch, "compile"):
+        # Backward compatibility for PyTorch 1.x
+        warnings.warn(
+            "PyTorch 1.x will no longer be supported by Nerstudio. Please upgrade to PyTorch 2.x.", DeprecationWarning
+        )
         return torch.jit.script
+    elif platform.system() == "Windows":
+        # torch.compile is not supported on Windows
+        # https://github.com/orgs/pytorch/projects/27
+        # TODO: @jkulhanek, remove this once torch.compile is supported on Windows
+        warnings.warn(
+            "Windows does not yet support torch.compile and the performance will be affected.", RuntimeWarning
+        )
+        return lambda x: x
+    else:
+        return torch.compile(*args, **kwargs)

@@ -90,7 +90,7 @@ You can declare the dataparser in the same config file:
 from nerfstudio.plugins.registry_dataparser import DataParserSpecification
 from my_method.custom_dataparser import CustomDataparserConfig
 
-MyDataparser = DataParserSpecification(config=CustomDataparserConfig)
+MyDataparser = DataParserSpecification(config=CustomDataparserConfig())
 ```
 
 Then add the following lines in the `pyproject.toml` file, where the entrypoint to the new dataparser is set.

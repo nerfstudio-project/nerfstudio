@@ -244,7 +244,7 @@ class ReadJSONinputCameraPath(bpy.types.Operator):
     transformed_camera_path_mat = []  # final transformed world matrix of the camera at each frame
     input_json = None
 
-    def read_camera_coodinates(self):
+    def read_camera_coordinates(self):
         """Read the camera coordinates (world matrix and fov) from the json camera path."""
 
         json_cam_path = self.input_json["camera_path"]
@@ -333,7 +333,7 @@ class ReadJSONinputCameraPath(bpy.types.Operator):
             self.input_json = json.load(json_ns_file)
 
         # call methods to read cam path and create camera
-        self.read_camera_coodinates()
+        self.read_camera_coordinates()
         self.generate_camera()
 
         return {"FINISHED"}

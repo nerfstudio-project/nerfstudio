@@ -50,6 +50,7 @@ class TrainingCallbackLocation(Enum):
 
     BEFORE_TRAIN_ITERATION = auto()
     AFTER_TRAIN_ITERATION = auto()
+    AFTER_TRAIN = auto()
 
 
 class TrainingCallback:
@@ -97,6 +98,8 @@ class TrainingCallback:
         elif self.iters is not None:
             if step in self.iters:
                 self.func(*self.args, **self.kwargs, step=step)
+        else:
+            self.func(*self.args, **self.kwargs, step=step)
 
     def run_callback_at_location(self, step: int, location: TrainingCallbackLocation) -> None:
         """Runs the callback if it's supposed to be run at the given location.

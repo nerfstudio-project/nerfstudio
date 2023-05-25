@@ -562,7 +562,7 @@ method_configs["neus-facto"] = TrainerConfig(
             ),
         ),
         model=NeuSFactoModelConfig(
-            # proposal network allows for signifanctly smaller sdf/color network
+            # proposal network allows for significantly smaller sdf/color network
             sdf_field=SDFFieldConfig(
                 use_grid_feature=True,
                 num_layers=2,

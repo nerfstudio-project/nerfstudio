@@ -42,7 +42,7 @@ else:
     _HAS_HLOC = True
 
 try:
-    from pixsfm.refine_hloc import PixSfM
+    from pixsfm.refine_hloc import PixSfM  # type: ignore
 except ImportError:
     _HAS_PIXSFM = False
 else:

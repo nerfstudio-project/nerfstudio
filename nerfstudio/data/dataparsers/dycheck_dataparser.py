@@ -74,7 +74,7 @@ def upscale(img, scale: int) -> np.ndarray:
     return resized
 
 
-def rescale(img, scale_factor: float, interpolation=cv2.INTER_AREA) -> np.ndarray:  # type: ignore
+def rescale(img, scale_factor: float, interpolation: int = cv2.INTER_AREA) -> np.ndarray:
     """Function from DyCheck's repo. Rescale an image.
 
     Args:
@@ -316,13 +316,13 @@ class Dycheck(DataParser):
         d = self.config.downscale_factor
         if not image_filenames[0].exists():
             CONSOLE.print(f"downscale factor {d}x not exist, converting")
-            ori_h, ori_w = cv2.imread(str(self.data / f"rgb/1x/{frame_names[0]}.png")).shape[:2]  # type: ignore
+            ori_h, ori_w = cv2.imread(str(self.data / f"rgb/1x/{frame_names[0]}.png")).shape[:2]
             (self.data / f"rgb/{d}x").mkdir(exist_ok=True)
             h, w = ori_h // d, ori_w // d
             for frame in frame_names:
-                cv2.imwrite(  # type: ignore
+                cv2.imwrite(
                     str(self.data / f"rgb/{d}x/{frame}.png"),
-                    cv2.resize(cv2.imread(str(self.data / f"rgb/1x/{frame}.png")), [h, w]),  # type: ignore
+                    cv2.resize(cv2.imread(str(self.data / f"rgb/1x/{frame}.png")), (h, w)),
                 )
             CONSOLE.print("finished")
 
@@ -331,8 +331,8 @@ class Dycheck(DataParser):
             (self.data / f"processed_depth/{d}x").mkdir(exist_ok=True, parents=True)
             for idx, frame in enumerate(frame_names):
                 depth = np.load(self.data / f"depth/1x/{frame}.npy")
-                mask = rescale((depth != 0).astype(np.uint8) * 255, 1 / d, cv2.INTER_AREA)  # type: ignore
-                depth = rescale(depth, 1 / d, cv2.INTER_AREA)  # type: ignore
+                mask = rescale((depth != 0).astype(np.uint8) * 255, 1 / d, cv2.INTER_AREA)
+                depth = rescale(depth, 1 / d, cv2.INTER_AREA)
                 depth[mask != 255] = 0
                 depth = _rescale_depth(depth, cams[idx])
                 np.save(str(self.data / f"processed_depth/{d}x/{frame}.npy"), depth)

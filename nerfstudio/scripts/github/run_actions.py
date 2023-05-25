@@ -23,7 +23,7 @@ from rich.style import Style
 
 from nerfstudio.utils.rich_utils import CONSOLE
 
-LOCAL_TESTS = ["Run license checks", "Run Ruff", "Run Black", "Test with pytest"]
+LOCAL_TESTS = ["Run license checks", "Run Ruff", "Run Black", "Run Pyright", "Test with pytest"]
 
 
 def run_command(command: str, continue_on_fail: bool = False) -> bool:

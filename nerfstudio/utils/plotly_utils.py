@@ -16,7 +16,7 @@
 Visualization code for plotly.
 The function use prefix conventions in the following way:
     - 'get_*' functions (e.g., 'get_camera_frustums')
-        return data that can be ploted with plotly
+        return data that can be plotted with plotly
     - 'vis_*' functions (e.g., 'vis_camera_rays')
         return 'go.Figure' objects which are the plots. Go Figure! :')
 """

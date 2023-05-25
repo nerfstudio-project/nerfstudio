@@ -21,7 +21,7 @@ import concurrent.futures
 import multiprocessing
 import random
 from abc import abstractmethod
-from typing import Dict, Optional, Sized, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Sized, Tuple, Union
 
 import torch
 from rich.progress import track
@@ -54,7 +54,7 @@ class CacheDataloader(DataLoader):
         num_images_to_sample_from: int = -1,
         num_times_to_repeat_images: int = -1,
         device: Union[torch.device, str] = "cpu",
-        collate_fn=nerfstudio_collate,
+        collate_fn: Callable[[Any], Any] = nerfstudio_collate,
         **kwargs,
     ):
         self.dataset = dataset

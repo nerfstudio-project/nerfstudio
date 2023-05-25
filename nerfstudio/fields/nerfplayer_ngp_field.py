@@ -38,7 +38,7 @@ from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
 
 try:
     import tinycudann as tcnn
-except ImportError:
+except ModuleNotFoundError:
     # tinycudann module doesn't exist
     pass
 
@@ -64,7 +64,7 @@ class NerfplayerNGPField(Field):
             Sometimes we need to disable viewing dependent effects in a dynamic scene, because there is
             ambiguity between being dynamic and viewing dependent effects. For example, the shadow of the camera
             should be a dynamic effect, but may be reconstructed as viewing dependent effects.
-        num_images: number of images, requried if use_appearance_embedding is True
+        num_images: number of images, required if use_appearance_embedding is True
         appearance_embedding_dim: dimension of appearance embedding
         contraction_type: type of contraction
     """

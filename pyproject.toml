@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "0.2.2"
+version = "0.3.1"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -47,11 +47,11 @@ dependencies = [
     "rich>=12.5.1",
     "scikit-image>=0.19.3",
     "tensorboard>=2.13.0",
-    "torch>=2.0.1",
+    "torch>=1.13.1",
     "torchvision>=0.14.1",
     "torchmetrics[image]>=0.9.3",
     "typing_extensions>=4.4.0",
-    "viser>=0.0.5",
+    "viser>=0.0.10",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
     "xatlas",
@@ -66,19 +66,25 @@ dependencies = [
 
 # Generative related dependencies
 gen = [
-    "diffusers==0.9.0",
-    "transformers==4.24.0",
+    "diffusers==0.16.1",
+    "transformers==4.29.2",
 ]
 
 
 # Development packages
 dev = [
     "black[jupyter]==23.3.0",
+    "pre-commit==3.3.2",
     "pytest==7.1.2",
     "pytest-xdist==2.5.0",
     "typeguard==2.13.3",
     "ruff==0.0.267",
     "sshconf==0.2.5",
+    "pycolmap==0.3.0",
+    "diffusers==0.16.1",
+    "opencv-stubs==0.0.7",
+    "transformers==4.29.2",
+    "pyright==1.1.308",
 ]
 
 # Documentation related packages
@@ -139,7 +145,7 @@ exclude = ["**/node_modules",
 ]
 defineConstant = { DEBUG = true }
 
-reportMissingImports = true
+reportMissingImports = "warning"
 reportMissingTypeStubs = false
 reportPrivateImportUsage = false
 

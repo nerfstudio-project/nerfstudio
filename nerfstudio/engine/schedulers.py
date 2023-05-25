@@ -21,7 +21,12 @@ from typing import Literal, Optional, Tuple, Type
 
 import numpy as np
 from torch.optim import Optimizer, lr_scheduler
-from torch.optim.lr_scheduler import LRScheduler
+
+try:
+    from torch.optim.lr_scheduler import LRScheduler
+except ImportError:
+    # Backwards compatibility for PyTorch 1.x
+    from torch.optim.lr_scheduler import _LRScheduler as LRScheduler
 
 from nerfstudio.configs.base_config import InstantiateConfig
 
@@ -117,7 +122,7 @@ class ExponentialDecayScheduler(Scheduler):
         def func(step):
             if step < self.config.warmup_steps:
                 if self.config.ramp == "cosine":
-                    lr = self.config.lr_pre_warmup + (1 - self.config.lr_pre_warmup) * np.sin(
+                    lr = self.config.lr_pre_warmup + (lr_init - self.config.lr_pre_warmup) * np.sin(
                         0.5 * np.pi * np.clip(step / self.config.warmup_steps, 0, 1)
                     )
                 else:

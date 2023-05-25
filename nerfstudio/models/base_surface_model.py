@@ -84,9 +84,9 @@ class SurfaceModelConfig(ModelConfig):
     background_model: Literal["grid", "mlp", "none"] = "mlp"
     """background models"""
     num_samples_outside: int = 32
-    """Number of samples outside the bounding sphere for backgound"""
+    """Number of samples outside the bounding sphere for background"""
     periodic_tvl_mult: float = 0.0
-    """Total variational loss mutliplier"""
+    """Total variational loss multiplier"""
     overwrite_near_far_plane: bool = False
     """whether to use near and far collider from command line"""
 
@@ -243,7 +243,7 @@ class SurfaceModel(Model):
             depth_bg = self.renderer_depth(weights=weights_bg, ray_samples=ray_samples_bg)
             accumulation_bg = self.renderer_accumulation(weights=weights_bg)
 
-            # merge background color to forgound color
+            # merge background color to foregound color
             rgb = rgb + bg_transmittance * rgb_bg
 
             bg_outputs = {

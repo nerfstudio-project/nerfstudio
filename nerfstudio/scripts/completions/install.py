@@ -395,7 +395,7 @@ def main(mode: ConfigureMode = "install") -> None:
         assert_never(mode)
 
     if conda_path is not None:
-        # In conda environment we add the completitions activation scripts.
+        # In conda environment we add the completions activation scripts.
         commands = _get_all_entry_points()
         _update_conda_scripts(commands, completions_dir, mode)
     else:

@@ -103,7 +103,7 @@ This documentation is organized into 3 parts:
 
 - [**Nerfacto**](nerfology/methods/nerfacto.md): Recommended method, integrates mutiple methods into one.
 - [Instant-NGP](nerfology/methods/instant_ngp.md): Instant Neural Graphics Primitives with a Multiresolution Hash Encoding
-- [NeRF](nerfology/methods/nerf.md): OG Nerual Radiance Fields
+- [NeRF](nerfology/methods/nerf.md): OG Neural Radiance Fields
 - [Mip-NeRF](nerfology/methods/mipnerf.md): A Multiscale Representation for Anti-Aliasing Neural Radiance Fields
 - [TensoRF](nerfology/methods/tensorf.md): Tensorial Radiance Fields
 
@@ -176,13 +176,17 @@ You can find a paper writeup of the framework on [arXiv](https://arxiv.org/abs/2
 If you use this library or find the documentation useful for your research, please consider citing:
 
 ```none
-@article{nerfstudio,
-    author = {Tancik, Matthew and Weber, Ethan and Ng, Evonne and Li, Ruilong and Yi,
-            Brent and Kerr, Justin and Wang, Terrance and Kristoffersen, Alexander and Austin,
-            Jake and Salahi, Kamyar and Ahuja, Abhik and McAllister, David and Kanazawa, Angjoo},
-    title = {Nerfstudio: A Modular Framework for Neural Radiance Field Development},
-    journal = {arXiv preprint arXiv:2302.04264},
-    year = {2023},
+@inproceedings{nerfstudio,
+	title        = {Nerfstudio: A Modular Framework for Neural Radiance Field Development},
+	author       = {
+		Tancik, Matthew and Weber, Ethan and Ng, Evonne and Li, Ruilong and Yi, Brent
+		and Kerr, Justin and Wang, Terrance and Kristoffersen, Alexander and Austin,
+		Jake and Salahi, Kamyar and Ahuja, Abhik and McAllister, David and Kanazawa,
+		Angjoo
+	},
+	year         = 2023,
+	booktitle    = {ACM SIGGRAPH 2023 Conference Proceedings},
+	series       = {SIGGRAPH '23}
 }
 ```
 
