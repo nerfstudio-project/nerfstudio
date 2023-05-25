@@ -223,6 +223,7 @@ class VanillaPipeline(Pipeline):
             'inference': does not load any dataset into memory
         world_size: total number of machines available
         local_rank: rank of current machine
+        grad_scaler: gradient scaler used in the trainer
 
     Attributes:
         datamanager: The data manager that will be used
