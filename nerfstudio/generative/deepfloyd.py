@@ -14,18 +14,16 @@
 
 import gc
 from pathlib import Path
-from typing import List, Union, Optional, cast
-from PIL import Image
+from typing import List, Optional, Union, cast
 
 import torch
 import torch.nn.functional as F
 import tyro
-from torch import nn, Tensor, FloatTensor, Generator
-
-from jaxtyping import Float
-
 from diffusers import IFPipeline
 from diffusers.pipelines.deepfloyd_if import IFPipelineOutput
+from jaxtyping import Float
+from PIL import Image
+from torch import FloatTensor, Generator, Tensor, nn
 from transformers import T5EncoderModel
 
 from nerfstudio.generative.utils import _SDSGradient
@@ -67,13 +65,13 @@ class DeepFloyd(nn.Module):
         self.pipe.enable_attention_slicing(1)
 
         self.unet = self.pipe.unet
-        self.unet.to(memory_format=torch.channels_last)
+        self.unet.to(memory_format=torch.channels_last)  # type: ignore
         for p in self.unet.parameters():
             p.requires_grad_(False)
 
         self.scheduler = self.pipe.scheduler
 
-        self.num_train_timesteps = self.scheduler.config.num_train_timesteps
+        self.num_train_timesteps = self.scheduler.config["num_train_timesteps"]
         self.min_step = int(self.num_train_timesteps * 0.02)
         self.max_step = int(self.num_train_timesteps * 0.98)
 
@@ -102,7 +100,7 @@ class DeepFloyd(nn.Module):
         self.pipe.enable_attention_slicing(1)
 
         self.unet = self.pipe.unet
-        self.unet.to(memory_format=torch.channels_last)
+        self.unet.to(memory_format=torch.channels_last)  # type: ignore
 
         for p in self.unet.parameters():
             p.requires_grad_(False)
