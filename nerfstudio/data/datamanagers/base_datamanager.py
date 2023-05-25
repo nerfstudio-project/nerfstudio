@@ -382,7 +382,6 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         self.test_mode = test_mode
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
         self.dataparser_config = self.config.dataparser
-        self.input_data = True
         if self.config.data is not None:
             self.config.dataparser.data = Path(self.config.data)
         else:

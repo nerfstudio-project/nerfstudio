@@ -71,7 +71,7 @@ def random_train_pose(
     focal_range: Tuple[float, float] = (0.75, 1.35),
     jitter_std: float = 0.01,
     center: Tuple[float, float, float] = (0, 0, 0),
-):
+) -> Tuple[Cameras, Tensor, Tensor]:
     """generate random poses from an orbit camera
     Args:
         size: batch size of generated poses.
@@ -212,13 +212,10 @@ class RandomCamerasDataManager(DataManager):  # pylint: disable=abstract-method
         self.sampler = None
         self.test_mode = test_mode
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
-        self.input_data = False
 
         if self.config.data is not None:
             CONSOLE.print("[red] --data should not be used with the RandomCamerasDataManager[/red]")
             sys.exit(1)
-
-        print(type(config))
 
         cameras, _, _ = random_train_pose(
             self.config.num_eval_angles,

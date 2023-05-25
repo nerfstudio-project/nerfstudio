@@ -231,8 +231,7 @@ class Trainer:
         """Train the model."""
         assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
 
-        if self.pipeline.datamanager.input_data:
-            assert isinstance(self.pipeline.datamanager, VanillaDataManager)
+        if isinstance(self.pipeline.datamanager, VanillaDataManager):
             self.pipeline.datamanager.train_dataparser_outputs.save_dataparser_transform(
                 self.base_dir / "dataparser_transforms.json"
             )
