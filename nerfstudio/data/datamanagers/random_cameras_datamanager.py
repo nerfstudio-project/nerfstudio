@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Data manager for dreamfusion
+Data manager without input images, only random camera poses
 """
 
 from __future__ import annotations
@@ -150,10 +150,10 @@ def random_train_pose(
 
 
 @dataclass
-class DreamFusionDataManagerConfig(DataManagerConfig):
+class RandomCamerasDataManagerConfig(DataManagerConfig):
     """Configuration for data manager that does not load from a dataset. Instead, it generates random poses."""
 
-    _target: Type = field(default_factory=lambda: DreamFusionDataManager)
+    _target: Type = field(default_factory=lambda: RandomCamerasDataManager)
     train_resolution: int = 64
     """Training resolution"""
     eval_resolution: int = 64
@@ -180,7 +180,7 @@ class DreamFusionDataManagerConfig(DataManagerConfig):
     """How many steps until the full horizontal rotation range is used"""
 
 
-class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
+class RandomCamerasDataManager(DataManager):  # pylint: disable=abstract-method
     """Basic stored data manager implementation.
 
     This is pretty much a port over from our old dataloading utilities, and is a little jank
@@ -193,12 +193,12 @@ class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
         config: the DataManagerConfig used to instantiate class
     """
 
-    config: DreamFusionDataManagerConfig
+    config: RandomCamerasDataManagerConfig
 
     # pylint: disable=super-init-not-called
     def __init__(
         self,
-        config: DreamFusionDataManagerConfig,
+        config: RandomCamerasDataManagerConfig,
         device: Union[torch.device, str] = "cpu",
         test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
@@ -215,7 +215,7 @@ class DreamFusionDataManager(DataManager):  # pylint: disable=abstract-method
         self.input_data = False
 
         if self.config.data is not None:
-            CONSOLE.print("[red] --data should not be used with the DreamFusionDataManager[/red]")
+            CONSOLE.print("[red] --data should not be used with the RandomCamerasDataManager[/red]")
             sys.exit(1)
 
         print(type(config))

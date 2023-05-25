@@ -38,6 +38,7 @@ from nerfstudio.engine.callbacks import (
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
+from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline
 from nerfstudio.utils import profiler, writer
@@ -231,6 +232,7 @@ class Trainer:
         assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
 
         if self.pipeline.datamanager.input_data:
+            assert isinstance(self.pipeline.datamanager, VanillaDataManager)
             self.pipeline.datamanager.train_dataparser_outputs.save_dataparser_transform(
                 self.base_dir / "dataparser_transforms.json"
             )
