@@ -24,6 +24,8 @@ from diffusers.pipelines.deepfloyd_if import IFPipelineOutput
 from jaxtyping import Float
 from PIL import Image
 from torch import FloatTensor, Generator, Tensor, nn
+from torch.cuda.amp.grad_scaler import GradScaler
+
 from transformers import T5EncoderModel
 
 from nerfstudio.generative.utils import _SDSGradient
@@ -130,10 +132,10 @@ class DeepFloyd(nn.Module):
 
     def sds_loss(
         self,
-        text_embeddings,
-        image,
-        guidance_scale,
-        grad_scaler,
+        text_embeddings: Float[Tensor, "N max_length embed_dim"],
+        image: Float[Tensor, "BS 3 H W"],
+        guidance_scale: float = 100.0,
+        grad_scaler: Optional[GradScaler] = None,
     ) -> torch.Tensor:
         """Score Distilation Sampling loss proposed in DreamFusion paper (https://dreamfusion3d.github.io/)
         Args:
@@ -171,8 +173,9 @@ class DeepFloyd(nn.Module):
             grad = torch.nan_to_num(grad)
 
             if grad_scaler is not None:
-                image = grad_scaler.scale(image)
-            loss = cast(Tensor, _SDSGradient.apply(image, grad))
+                loss = cast(Tensor, _SDSGradient.apply(grad_scaler.scale(image), grad))
+            else:
+                loss = cast(Tensor, _SDSGradient.apply(image, grad))
 
         return loss
 
