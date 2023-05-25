@@ -49,7 +49,7 @@ import random
 import socket
 import traceback
 from datetime import timedelta
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Literal, Optional
 
 import numpy as np
 import torch
@@ -104,11 +104,12 @@ def _distributed_worker(
     local_rank: int,
     main_func: Callable,
     world_size: int,
-    num_gpus_per_machine: int,
+    num_devices_per_machine: int,
     machine_rank: int,
     dist_url: str,
     config: TrainerConfig,
     timeout: timedelta = DEFAULT_TIMEOUT,
+    device_type: Literal["cpu", "cuda", "mps"] = "cuda",
 ) -> Any:
     """Spawned distributed worker that handles the initialization of process group and handles the
        training process on multiple processes.
@@ -117,7 +118,7 @@ def _distributed_worker(
         local_rank: Current rank of process.
         main_func: Function that will be called by the distributed workers.
         world_size: Total number of gpus available.
-        num_gpus_per_machine: Number of GPUs per machine.
+        num_devices_per_machine: Number of GPUs per machine.
         machine_rank: Rank of this machine.
         dist_url: URL to connect to for distributed jobs, including protocol
             E.g., "tcp://127.0.0.1:8686".
@@ -132,24 +133,24 @@ def _distributed_worker(
         Any: TODO: determine the return type
     """
     assert torch.cuda.is_available(), "cuda is not available. Please check your installation."
-    global_rank = machine_rank * num_gpus_per_machine + local_rank
+    global_rank = machine_rank * num_devices_per_machine + local_rank
 
     dist.init_process_group(
-        backend="nccl",
+        backend="nccl" if device_type == "cuda" else "gloo",
         init_method=dist_url,
         world_size=world_size,
         rank=global_rank,
         timeout=timeout,
     )
     assert comms.LOCAL_PROCESS_GROUP is None
-    num_machines = world_size // num_gpus_per_machine
+    num_machines = world_size // num_devices_per_machine
     for i in range(num_machines):
-        ranks_on_i = list(range(i * num_gpus_per_machine, (i + 1) * num_gpus_per_machine))
+        ranks_on_i = list(range(i * num_devices_per_machine, (i + 1) * num_devices_per_machine))
         pg = dist.new_group(ranks_on_i)
         if i == machine_rank:
             comms.LOCAL_PROCESS_GROUP = pg
 
-    assert num_gpus_per_machine <= torch.cuda.device_count()
+    assert num_devices_per_machine <= torch.cuda.device_count()
     output = main_func(local_rank, world_size, config, global_rank)
     comms.synchronize()
     dist.destroy_process_group()
@@ -158,29 +159,32 @@ def _distributed_worker(
 
 def launch(
     main_func: Callable,
-    num_gpus_per_machine: int,
+    num_devices_per_machine: int,
     num_machines: int = 1,
     machine_rank: int = 0,
     dist_url: str = "auto",
     config: Optional[TrainerConfig] = None,
     timeout: timedelta = DEFAULT_TIMEOUT,
+    device_type: Literal["cpu", "cuda", "mps"] = "cuda",
 ) -> None:
     """Function that spawns multiple processes to call on main_func
 
     Args:
         main_func (Callable): function that will be called by the distributed workers
-        num_gpus_per_machine (int): number of GPUs per machine
+        num_devices_per_machine (int): number of GPUs per machine
         num_machines (int, optional): total number of machines
         machine_rank (int, optional): rank of this machine.
         dist_url (str, optional): url to connect to for distributed jobs.
         config (TrainerConfig, optional): config file specifying training regimen.
         timeout (timedelta, optional): timeout of the distributed workers.
+        device_type: type of device to use for training.
     """
     assert config is not None
-    world_size = num_machines * num_gpus_per_machine
-    if world_size <= 1:
-        # world_size=0 uses one CPU in one process.
-        # world_size=1 uses one GPU in one process.
+    world_size = num_machines * num_devices_per_machine
+    if world_size == 0:
+        raise ValueError("world_size cannot be 0")
+    elif world_size == 1:
+        # uses one process
         try:
             main_func(local_rank=0, world_size=world_size, config=config)
         except KeyboardInterrupt:
@@ -199,17 +203,9 @@ def launch(
 
         process_context = mp.spawn(
             _distributed_worker,
-            nprocs=num_gpus_per_machine,
+            nprocs=num_devices_per_machine,
             join=False,
-            args=(
-                main_func,
-                world_size,
-                num_gpus_per_machine,
-                machine_rank,
-                dist_url,
-                config,
-                timeout,
-            ),
+            args=(main_func, world_size, num_devices_per_machine, machine_rank, dist_url, config, timeout, device_type),
         )
         # process_context won't be None because join=False, so it's okay to assert this
         # for Pylance reasons
@@ -245,7 +241,8 @@ def main(config: TrainerConfig) -> None:
 
     launch(
         main_func=train_loop,
-        num_gpus_per_machine=config.machine.num_gpus,
+        num_devices_per_machine=config.machine.num_devices,
+        device_type=config.machine.device_type,
         num_machines=config.machine.num_machines,
         machine_rank=config.machine.machine_rank,
         dist_url=config.machine.dist_url,

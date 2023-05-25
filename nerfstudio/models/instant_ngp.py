@@ -36,7 +36,7 @@ from nerfstudio.engine.callbacks import (
 )
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
-from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
+from nerfstudio.fields.nerfacto_field import NerfactoField
 from nerfstudio.model_components.losses import MSELoss
 from nerfstudio.model_components.ray_samplers import VolumetricSampler
 from nerfstudio.model_components.renderers import (
@@ -94,7 +94,7 @@ class NGPModel(Model):
     """
 
     config: InstantNGPModelConfig
-    field: TCNNNerfactoField
+    field: NerfactoField
 
     def __init__(self, config: InstantNGPModelConfig, **kwargs) -> None:
         super().__init__(config=config, **kwargs)
@@ -108,7 +108,7 @@ class NGPModel(Model):
         else:
             scene_contraction = SceneContraction(order=float("inf"))
 
-        self.field = TCNNNerfactoField(
+        self.field = NerfactoField(
             aabb=self.scene_box.aabb,
             num_images=self.num_train_data,
             log2_hashmap_size=self.config.log2_hashmap_size,
