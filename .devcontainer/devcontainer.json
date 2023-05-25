@@ -8,6 +8,7 @@
         "mutantdino.resourcemonitor",
         "ms-azuretools.vscode-docker",
         "nvidia.nsight-vscode-edition",
-        "ms-python.python"
+        "ms-python.python",
+        "charliermarsh.ruff"
     ]
 }
