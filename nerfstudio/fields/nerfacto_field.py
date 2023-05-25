@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,13 +17,12 @@ Field for compound nerf model, adds scene contraction and image embeddings to in
 """
 
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Type
 
 import numpy as np
 import torch
-from torch import nn
+from torch import Tensor, nn
 from torch.nn.parameter import Parameter
-from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
@@ -50,7 +49,7 @@ from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
 
 try:
     import tinycudann as tcnn
-except ImportError:
+except ModuleNotFoundError:
     # tinycudann module doesn't exist
     pass
 
@@ -81,9 +80,11 @@ class TCNNNerfactoField(Field):
         spatial_distortion: spatial distortion to apply to the scene
     """
 
+    aabb: Tensor
+
     def __init__(
         self,
-        aabb: TensorType,
+        aabb: Tensor,
         num_images: int,
         num_layers: int = 2,
         hidden_dim: int = 64,
@@ -224,7 +225,7 @@ class TCNNNerfactoField(Field):
             },
         )
 
-    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
         if self.spatial_distortion is not None:
             positions = ray_samples.frustums.get_positions()
@@ -251,8 +252,8 @@ class TCNNNerfactoField(Field):
         return density, base_mlp_out
 
     def get_outputs(
-        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
-    ) -> Dict[FieldHeadNames, TensorType]:
+        self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None
+    ) -> Dict[FieldHeadNames, Tensor]:
         assert density_embedding is not None
         outputs = {}
         if ray_samples.camera_indices is None:
@@ -332,7 +333,7 @@ class TorchNerfactoField(Field):
 
     def __init__(
         self,
-        aabb: TensorType,
+        aabb: Tensor,
         num_images: int,
         position_encoding: Encoding = HashEncoding(),
         direction_encoding: Encoding = SHEncoding(),
@@ -375,7 +376,7 @@ class TorchNerfactoField(Field):
         for field_head in self.field_heads:
             field_head.set_in_dim(self.mlp_head.get_out_dim())  # type: ignore
 
-    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         if self.spatial_distortion is not None:
             positions = ray_samples.frustums.get_positions()
             positions = self.spatial_distortion(positions)
@@ -387,8 +388,8 @@ class TorchNerfactoField(Field):
         return density, base_mlp_out
 
     def get_outputs(
-        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
-    ) -> Dict[FieldHeadNames, TensorType]:
+        self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None
+    ) -> Dict[FieldHeadNames, Tensor]:
         outputs_shape = ray_samples.frustums.directions.shape[:-1]
 
         if ray_samples.camera_indices is None:
@@ -421,4 +422,4 @@ class TorchNerfactoField(Field):
         return outputs
 
 
-field_implementation_to_class: Dict[str, Field] = {"tcnn": TCNNNerfactoField, "torch": TorchNerfactoField}
+field_implementation_to_class: Dict[str, Type[Field]] = {"tcnn": TCNNNerfactoField, "torch": TorchNerfactoField}

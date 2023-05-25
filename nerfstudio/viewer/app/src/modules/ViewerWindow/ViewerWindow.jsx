@@ -17,6 +17,8 @@ import {
   ViserWebSocketContext,
 } from '../WebSocket/ViserWebSocket';
 
+import variables from '../../index.scss';
+
 function CameraToggle() {
   const dispatch = useDispatch();
   const camera_choice = useSelector(
@@ -149,14 +151,14 @@ export default function ViewerWindow(props) {
     renderer.setSize(viewportWidth, viewportHeight);
     labelRenderer.setSize(viewportWidth, viewportHeight);
   };
+  const clock = new THREE.Clock();
 
   const render = () => {
-    const fps = 24;
-    const interval = 1000 / fps;
+    const delta = clock.getDelta();
     handleResize();
     sceneTree.metadata.camera.updateProjectionMatrix();
     sceneTree.metadata.moveCamera();
-    sceneTree.metadata.camera_controls.update(interval);
+    sceneTree.metadata.camera_controls.update(delta);
     requestAnimationFrame(render);
     renderer.render(scene, sceneTree.metadata.camera);
     labelRenderer.render(scene, sceneTree.metadata.camera);
@@ -191,7 +193,7 @@ export default function ViewerWindow(props) {
         const oldBackground = scene.background;
         const texture = new THREE.Texture(this);
         texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.NearestFilter;
+        texture.magFilter = THREE.LinearFilter;
         texture.needsUpdate = true;
         scene.background = texture;
         if (oldBackground) {
@@ -312,6 +314,49 @@ export default function ViewerWindow(props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isWebsocketConnected]);
+
+  const throttledClickSender = makeThrottledMessageSender(
+    viser_websocket,
+    10,
+  );
+  useEffect(() => {
+    const onMouseDouble = (e) => {
+      const BANNER_HEIGHT = parseInt(variables.bannerHeight,10);
+
+      const mouseVector = new THREE.Vector2();
+      mouseVector.x = 2 * (e.clientX / size.x) - 1;
+      mouseVector.y = 1 - 2 * ((e.clientY - BANNER_HEIGHT) / size.y);
+
+      const mouse_in_scene = !(
+        mouseVector.x > 1 ||
+        mouseVector.x < -1 ||
+        mouseVector.y > 1 ||
+        mouseVector.y < -1
+      );
+      if (!mouse_in_scene) { return; } 
+
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouseVector, sceneTree.metadata.camera);
+
+      throttledClickSender({
+        type: 'ClickMessage',
+        origin: [
+          raycaster.ray.origin.x, 
+          raycaster.ray.origin.y, 
+          raycaster.ray.origin.z
+        ],
+        direction: [
+          raycaster.ray.direction.x, 
+          raycaster.ray.direction.y, 
+          raycaster.ray.direction.z
+        ],
+      });
+    };
+    window.addEventListener('dblclick', onMouseDouble, false);
+    return () => {
+      window.removeEventListener('dblclick', onMouseDouble, false);
+    };
+  }, [size, sceneTree.metadata.camera, throttledClickSender]);
 
   return (
     <>

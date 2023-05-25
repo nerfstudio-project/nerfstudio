@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import torch
 
 from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
 from nerfstudio.viewer.server.viewer_elements import (
+    ViewerButtonGroup,
     ViewerCheckbox,
     ViewerDropdown,
     ViewerElement,
@@ -55,49 +56,87 @@ class ControlPanel:
         self.viser_server = viser_server
         self._elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
 
-        self._train_speed = ViewerDropdown(
-            "Train Speed", "Balanced", ["Fast", "Balanced", "Slow"], cb_hook=lambda han: self._train_speed_cb()
+        self._train_speed = ViewerButtonGroup(
+            name="Train Speed  ",
+            default_value="Balanced",
+            options=["Slow", "Balanced", "Fast"],
+            cb_hook=lambda han: self._train_speed_cb(),
         )
         self._output_render = ViewerDropdown(
             "Output Render",
             "not set",
             ["not set"],
             cb_hook=lambda han: [self.update_control_panel(), update_output_cb(han), rerender_cb(han)],
+            hint="The output to render",
         )
-        self._colormap = ViewerDropdown[Colormaps]("Colormap", "default", ["default"], cb_hook=rerender_cb)
-        self._invert = ViewerCheckbox("Invert", False, cb_hook=rerender_cb)
-        self._normalize = ViewerCheckbox("Normalize", False, cb_hook=rerender_cb)
-        self._min = ViewerNumber("Min", 0.0, cb_hook=rerender_cb)
-        self._max = ViewerNumber("Max", 1.0, cb_hook=rerender_cb)
+        self._colormap = ViewerDropdown[Colormaps](
+            "Colormap", "default", ["default"], cb_hook=rerender_cb, hint="The colormap to use"
+        )
+        self._invert = ViewerCheckbox("Invert", False, cb_hook=rerender_cb, hint="Invert the colormap")
+        self._normalize = ViewerCheckbox("Normalize", True, cb_hook=rerender_cb, hint="Normalize the colormap")
+        self._min = ViewerNumber("Min", 0.0, cb_hook=rerender_cb, hint="Min value of the colormap")
+        self._max = ViewerNumber("Max", 1.0, cb_hook=rerender_cb, hint="Max value of the colormap")
 
         self._split = ViewerCheckbox(
-            "Enable", False, cb_hook=lambda han: [self.update_control_panel(), rerender_cb(han)]
+            "Enable",
+            False,
+            cb_hook=lambda han: [self.update_control_panel(), rerender_cb(han)],
+            hint="Render two outputs",
         )
-        self._split_percentage = ViewerSlider("Split Percentage", 0.5, 0.0, 1.0, 0.01, cb_hook=rerender_cb)
+        self._split_percentage = ViewerSlider(
+            "Split Percentage", 0.5, 0.0, 1.0, 0.01, cb_hook=rerender_cb, hint="Where to split"
+        )
         self._split_output_render = ViewerDropdown(
             "Output Render Split",
             "not set",
             ["not set"],
             cb_hook=lambda han: [self.update_control_panel(), update_split_output_cb(han), rerender_cb(han)],
+            hint="The second output",
         )
         # Hack: spaces are after at the end of the names to make them unique
-        self._split_colormap = ViewerDropdown[Colormaps]("Colormap ", "default", ["default"], cb_hook=rerender_cb)
-        self._split_invert = ViewerCheckbox("Invert ", False, cb_hook=rerender_cb)
-        self._split_normalize = ViewerCheckbox("Normalize ", True, cb_hook=rerender_cb)
-        self._split_min = ViewerNumber("Min ", 0.0, cb_hook=rerender_cb)
-        self._split_max = ViewerNumber("Max ", 1.0, cb_hook=rerender_cb)
+        self._split_colormap = ViewerDropdown[Colormaps](
+            "Colormap ", "default", ["default"], cb_hook=rerender_cb, hint="Colormap of the second output"
+        )
+        self._split_invert = ViewerCheckbox(
+            "Invert ", False, cb_hook=rerender_cb, hint="Invert the colormap of the second output"
+        )
+        self._split_normalize = ViewerCheckbox(
+            "Normalize ", True, cb_hook=rerender_cb, hint="Normalize the colormap of the second output"
+        )
+        self._split_min = ViewerNumber(
+            "Min ", 0.0, cb_hook=rerender_cb, hint="Min value of the colormap of the second output"
+        )
+        self._split_max = ViewerNumber(
+            "Max ", 1.0, cb_hook=rerender_cb, hint="Max value of the colormap of the second output"
+        )
 
-        self._train_util = ViewerSlider("Train Util", 0.85, 0, 1, 0.05)
-        self._max_res = ViewerSlider("Max Res", 512, 64, 2048, 100, cb_hook=rerender_cb)
+        self._train_util = ViewerSlider(
+            "Train Util",
+            default_value=0.85,
+            min_value=0.0,
+            max_value=1,
+            step=0.05,
+            hint="Target training utilization, 0.0 is slow, 1.0 is fast. Doesn't affect final render quality",
+        )
+        self._max_res = ViewerSlider(
+            "Max Res", 512, 64, 2048, 100, cb_hook=rerender_cb, hint="Maximum resolution to render in viewport"
+        )
         self._crop_viewport = ViewerCheckbox(
             "Enable ",
             False,
             cb_hook=lambda han: [self.update_control_panel(), crop_update_cb(han), rerender_cb(han)],
+            hint="Crop the scene to a specified box",
         )
-        self._background_color = ViewerRGB("Background color", (38, 42, 55), cb_hook=crop_update_cb)
-        self._crop_min = ViewerVec3("Crop Min", (-1, -1, -1), 0.05, cb_hook=crop_update_cb)
-        self._crop_max = ViewerVec3("Crop Max", (1, 1, 1), 0.05, cb_hook=crop_update_cb)
-        self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=rerender_cb)
+        self._background_color = ViewerRGB(
+            "Background color", (38, 42, 55), cb_hook=crop_update_cb, hint="Color of the background"
+        )
+        self._crop_min = ViewerVec3(
+            "Crop Min", (-1, -1, -1), 0.05, cb_hook=crop_update_cb, hint="Minimum value of the crop"
+        )
+        self._crop_max = ViewerVec3(
+            "Crop Max", (1, 1, 1), 0.05, cb_hook=crop_update_cb, hint="Maximum value of the crop"
+        )
+        self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=rerender_cb, hint="Time to render")
         self._time_enabled = time_enabled
 
         self.add_element(self._train_speed)
@@ -138,13 +177,13 @@ class ControlPanel:
 
     def _train_speed_cb(self) -> None:
         """Callback for when the train speed is changed"""
-        if self.train_speed == "Fast":
+        if self._train_speed.value == "Fast":
             self._train_util.value = 0.95
             self._max_res.value = 256
-        elif self.train_speed == "Balanced":
+        elif self._train_speed.value == "Balanced":
             self._train_util.value = 0.85
             self._max_res.value = 512
-        elif self.train_speed == "Slow":
+        elif self._train_speed.value == "Slow":
             self._train_util.value = 0.5
             self._max_res.value = 1024
 
@@ -203,11 +242,6 @@ class ControlPanel:
             dtype: the data type of the render
         """
         self._split_colormap.set_options(_get_colormap_options(dimensions, dtype))
-
-    @property
-    def train_speed(self) -> str:
-        """Returns the current train speed setting"""
-        return self._train_speed.value
 
     @property
     def output_render(self) -> str:
@@ -328,4 +362,6 @@ def _get_colormap_options(dimensions: int, dtype: type) -> List[Colormaps]:
         colormap_options = ["default"]
     if dimensions == 1 and dtype == torch.float:
         colormap_options = [c for c in list(get_args(Colormaps)) if c != "default"]
+    if dimensions > 3:
+        colormap_options = ["pca"]
     return colormap_options

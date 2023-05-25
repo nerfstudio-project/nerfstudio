@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -57,14 +57,13 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 import tyro
 import yaml
-from rich.console import Console
 
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.utils import comms, profiler
+from nerfstudio.utils.rich_utils import CONSOLE
 
-CONSOLE = Console(width=120)
 DEFAULT_TIMEOUT = timedelta(minutes=30)
 
 # speedup for when input size to model doesn't change (much)

@@ -35,7 +35,7 @@ export default function RenderModal(props: RenderModalProps) {
   const config_filename = `${config_base_dir}/config.yml`;
   const camera_path_filename = `${export_path}.json`;
   const data_base_dir_leaf = data_base_dir.split('/').pop();
-  const cmd = `ns-render --load-config ${config_filename} --traj filename --camera-path-filename ${data_base_dir}/camera_paths/${camera_path_filename} --output-path renders/${data_base_dir_leaf}/${export_path}.mp4`;
+  const cmd = `ns-render camera-path --load-config ${config_filename} --camera-path-filename ${data_base_dir}/camera_paths/${camera_path_filename} --output-path renders/${data_base_dir_leaf}/${export_path}.mp4`;
 
   const text_intro = `To render a full resolution video, run the following command in a terminal.`;
 

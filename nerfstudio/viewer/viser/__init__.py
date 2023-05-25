@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" Viser is used for the nerfstudio viewr backend """
-# pylint: disable=useless-import-alias
+""" Viser is used for the nerfstudio viewer backend """
+
 
 from .message_api import GuiHandle as GuiHandle
 from .message_api import GuiSelectHandle as GuiSelectHandle

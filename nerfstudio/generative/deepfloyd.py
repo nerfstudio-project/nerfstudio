@@ -23,6 +23,7 @@ from diffusers import IFPipeline
 from diffusers.pipelines.deepfloyd_if import IFPipelineOutput
 from jaxtyping import Float
 from PIL import Image
+
 from torch import Generator, Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
 

@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,12 +22,11 @@ from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 
 import torch
 
-from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.model_components.renderers import background_color_override_context
 from nerfstudio.utils import colormaps, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
-from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfstudio.viewer.viser.messages import CameraMessage
 
 if TYPE_CHECKING:
@@ -99,7 +98,7 @@ class RenderStateMachine(threading.Thread):
             # never overwrite rerenders
             pass
         else:
-            #  monimal use case, just set the next action
+            #  minimal use case, just set the next action
             self.next_action = action
 
         # handle interrupt logic
@@ -108,7 +107,7 @@ class RenderStateMachine(threading.Thread):
         self.render_trigger.set()
 
     def _render_img(self, cam_msg: CameraMessage):
-        """Takes the current camera, generates rays, and renders the iamge
+        """Takes the current camera, generates rays, and renders the image
 
         Args:
             cam_msg: the camera message to render
@@ -124,40 +123,8 @@ class RenderStateMachine(threading.Thread):
 
         image_height, image_width = self._calculate_image_res(cam_msg.aspect)
 
-        intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
-            cam_msg, image_height=image_height, image_width=image_width
-        )
-
-        camera_to_world = camera_to_world_h[:3, :]
-        camera_to_world = torch.stack(
-            [
-                camera_to_world[0, :],
-                camera_to_world[2, :],
-                camera_to_world[1, :],
-            ],
-            dim=0,
-        )
-
-        camera_type_msg = cam_msg.camera_type
-        if camera_type_msg == "perspective":
-            camera_type = CameraType.PERSPECTIVE
-        elif camera_type_msg == "fisheye":
-            camera_type = CameraType.FISHEYE
-        elif camera_type_msg == "equirectangular":
-            camera_type = CameraType.EQUIRECTANGULAR
-        else:
-            camera_type = CameraType.PERSPECTIVE
-
-        camera = Cameras(
-            fx=intrinsics_matrix[0, 0],
-            fy=intrinsics_matrix[1, 1],
-            cx=intrinsics_matrix[0, 2],
-            cy=intrinsics_matrix[1, 2],
-            camera_type=camera_type,
-            camera_to_worlds=camera_to_world[None, ...],
-            times=torch.tensor([self.viewer.control_panel.time], dtype=torch.float32),
-        )
-        camera = camera.to(self.viewer.get_model().device)
+        camera: Optional[Cameras] = self.viewer.get_camera(image_height, image_width)
+        assert camera is not None, "render called before viewer connected"
 
         with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
             camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
@@ -212,7 +179,7 @@ class RenderStateMachine(threading.Thread):
             if self.state == "low_static":
                 self.action(RenderAction("static", action.cam_msg))
 
-    def check_interrupt(self, frame, event, arg):  # pylint: disable=unused-argument
+    def check_interrupt(self, frame, event, arg):
         """Raises interrupt when flag has been set and not already on lowest resolution.
         Used in conjunction with SetTrace.
         """
@@ -245,7 +212,7 @@ class RenderStateMachine(threading.Thread):
 
         if self.viewer.control_panel.split:
             split_output_render = self.viewer.control_panel.split_output_render
-            self.viewer.update_colormap_options(
+            self.viewer.update_split_colormap_options(
                 dimensions=outputs[split_output_render].shape[-1], dtype=outputs[split_output_render].dtype
             )
             split_output = colormaps.apply_colormap(
@@ -271,7 +238,7 @@ class RenderStateMachine(threading.Thread):
         """Calculate the maximum image height that can be rendered in the time budget
 
         Args:
-            apect_ratio: the aspect ratio of the current view
+            aspect_ratio: the aspect ratio of the current view
         Returns:
             image_height: the maximum image height that can be rendered in the time budget
             image_width: the maximum image width that can be rendered in the time budget
