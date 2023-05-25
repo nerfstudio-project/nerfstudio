@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -76,7 +76,7 @@ class Model(nn.Module):
         super().__init__()
         self.config = config
         self.scene_box = scene_box
-        self.render_aabb = None  # the box that we want to render - should be a subset of scene_box
+        self.render_aabb: Optional[SceneBox] = None  # the box that we want to render - should be a subset of scene_box
         self.num_train_data = num_train_data
         self.kwargs = kwargs
         self.collider = None
@@ -91,8 +91,8 @@ class Model(nn.Module):
         """Returns the device that the model is on."""
         return self.device_indicator_param.device
 
-    def get_training_callbacks(  # pylint:disable=no-self-use
-        self, training_callback_attributes: TrainingCallbackAttributes  # pylint: disable=unused-argument
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
         """Returns a list of callbacks that run functions at the specified training iterations."""
         return []
@@ -148,8 +148,7 @@ class Model(nn.Module):
             outputs: the output to compute loss dict to
             batch: ground truth batch corresponding to outputs
         """
-        # pylint: disable=unused-argument
-        # pylint: disable=no-self-use
+
         return {}
 
     @abstractmethod

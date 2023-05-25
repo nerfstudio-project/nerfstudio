@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import cv2
 import numpy as np
 import tyro
 from nuscenes.nuscenes import NuScenes as NuScenesDatabase
-from nuscenes.utils.data_classes import Box
 from nuscenes.utils.geometry_utils import BoxVisibility, view_points
 from tqdm import tqdm
 
@@ -54,7 +53,11 @@ class ProcessNuScenesMasks:
     def main(self) -> None:
         """Generate NuScenes dynamic object masks."""
 
-        nusc = NuScenesDatabase(version=self.version, dataroot=self.data_dir, verbose=self.verbose)
+        nusc = NuScenesDatabase(
+            version=self.version,
+            dataroot=str(self.data_dir.absolute()),
+            verbose=self.verbose,
+        )
         cameras = ["CAM_" + camera for camera in self.cameras]
 
         for camera in cameras:
@@ -97,29 +100,34 @@ class ProcessNuScenesMasks:
                     mask[-100:] = 0
 
                 for box in boxes:
-                    # Dont mask out static objects (static in all frames)
+                    # Dont' mask out static objects (static in all frames)
                     instance_token = nusc.get("sample_annotation", box.token)["instance_token"]
                     if not instances_is_dynamic[instance_token]:
                         continue
 
-                    # project box to image plane and rasterize each face
+                    # Project box to image plane and rasterize each face
                     corners_3d = box.corners()
                     corners = view_points(corners_3d, intrinsics, normalize=True)[:2, :]
                     corners = np.round(corners).astype(int).T
-                    cv2.fillPoly(mask, [corners[[0, 1, 2, 3]]], 0)  # front
-                    cv2.fillPoly(mask, [corners[[4, 5, 6, 7]]], 0)  # back
-                    cv2.fillPoly(mask, [corners[[0, 1, 5, 4]]], 0)  # top
-                    cv2.fillPoly(mask, [corners[[2, 3, 7, 6]]], 0)  # bottom
-                    cv2.fillPoly(mask, [corners[[0, 3, 7, 4]]], 0)  # left
-                    cv2.fillPoly(mask, [corners[[1, 2, 6, 5]]], 0)  # right
+
+                    # Type ignores needed because fillPoly expects cv2.Mat
+                    cv2.fillPoly(mask, [corners[[0, 1, 2, 3]]], 0)  # front # type: ignore
+                    cv2.fillPoly(mask, [corners[[4, 5, 6, 7]]], 0)  # back # type: ignore
+                    cv2.fillPoly(mask, [corners[[0, 1, 5, 4]]], 0)  # top # type: ignore
+                    cv2.fillPoly(mask, [corners[[2, 3, 7, 6]]], 0)  # bottom # type: ignore
+                    cv2.fillPoly(mask, [corners[[0, 3, 7, 4]]], 0)  # left # type: ignore
+                    cv2.fillPoly(mask, [corners[[1, 2, 6, 5]]], 0)  # right # type: ignore
 
                 maskname = os.path.split(camera_data["filename"])[1].replace("jpg", "png")
-                cv2.imwrite(str(self.output_dir / "masks" / camera / maskname), mask * 255)
+                cv2.imwrite(
+                    str(self.output_dir / "masks" / camera / maskname),
+                    mask * 255,  # type: ignore
+                )
 
                 if self.verbose:
                     img = cv2.imread(str(self.data_dir / camera_data["filename"]))
                     mask = ~mask.astype(bool)
-                    img[mask, :] -= np.minimum(img[mask, :], 100)
+                    img[mask, :] = img[mask, :] - np.minimum(img[mask, :], 100)
                     viz.append(img)
 
             if self.verbose:
