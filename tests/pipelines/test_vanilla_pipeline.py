@@ -14,7 +14,7 @@ from nerfstudio.pipelines.base_pipeline import (
     VanillaPipeline,
     VanillaPipelineConfig,
 )
-from nerfstudio.data.base_datamanager import VanillaDataManagerConfig
+from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
 
 
 class MockedDataManager:
