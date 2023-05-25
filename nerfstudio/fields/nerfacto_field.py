@@ -154,7 +154,7 @@ class TCNNNerfactoField(Field):
                 "per_level_scale": growth_factor,
             },
             network_config={
-                "otype": "CutlassMLP",
+                "otype": "CutlassMLP" if hidden_dim>128 else "FullyFusedMLP",
                 "activation": "ReLU",
                 "output_activation": "None",
                 "n_neurons": hidden_dim,
@@ -170,7 +170,7 @@ class TCNNNerfactoField(Field):
                 n_input_dims=self.geo_feat_dim + self.transient_embedding_dim,
                 n_output_dims=hidden_dim_transient,
                 network_config={
-                    "otype": "CutlassMLP",
+                    "otype": "CutlassMLP" if hidden_dim_transient>128 else "FullyFusedMLP",
                     "activation": "ReLU",
                     "output_activation": "None",
                     "n_neurons": hidden_dim_transient,
@@ -217,7 +217,7 @@ class TCNNNerfactoField(Field):
             n_input_dims=self.direction_encoding.n_output_dims + self.geo_feat_dim + self.appearance_embedding_dim,
             n_output_dims=3,
             network_config={
-                "otype": "CutlassMLP",
+                "otype": "CutlassMLP" if hidden_dim_color>128 else "FullyFusedMLP",
                 "activation": "ReLU",
                 "output_activation": "Sigmoid",
                 "n_neurons": hidden_dim_color,
