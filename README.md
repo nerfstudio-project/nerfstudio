@@ -1,3 +1,9 @@
+<hr>
+
+*This branch exists for historical purposes. It was used to generate the numbers in the [SIGGRAPH paper](https://arxiv.org/abs/2302.04264). We don't plan on integrating this code into the main branch, but it can exist here as a reference or for reproducing our results. We view nerfstudio as an active repo with continual contributions, and some of these changes are undesirable for the main branch (e.g., how we deal with appearance embeddings for evaluation). This is done in an effort to keep our repo extensible for further changes.*
+
+<hr>
+
 <p align="center">
     <!-- community badges -->
     <a href="https://discord.gg/uMbNqcraFc"><img src="https://img.shields.io/badge/Join-Discord-blue.svg"/></a>
