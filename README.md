@@ -323,7 +323,7 @@ If you use this library or find the documentation useful for your research, plea
             Brent and Kerr, Justin and Wang, Terrance and Kristoffersen, Alexander and Austin,
             Jake and Salahi, Kamyar and Ahuja, Abhik and McAllister, David and Kanazawa, Angjoo},
 	booktitle = {ACM SIGGRAPH 2023 Conference Proceedings},
-    series = {SIGGRAPH '23}
+    series = {SIGGRAPH '23},
 	year = {2023}
 }
 ```
