@@ -64,7 +64,7 @@ def traj_string_to_matrix(traj_string: str):
 class ARKitScenesDataParserConfig(DataParserConfig):
     """ARKitScenes dataset config.
     ARKitScenes dataset (http://github.com/apple/ARKitScenes) is a large-scale 3D dataset of indoor scenes.
-    This dataparser uses 3D deteciton subset of the ARKitScenes dataset.
+    This dataparser uses 3D detection subset of the ARKitScenes dataset.
     """
 
     _target: Type = field(default_factory=lambda: ARKitScenes)

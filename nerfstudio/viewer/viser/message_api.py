@@ -124,7 +124,7 @@ class MessageApi(abc.ABC):
     """Interface for all commands we can use to send messages over a websocket connection.
 
     Should be implemented by both our global server object (for broadcasting) and by
-    invidividual clients."""
+    individual clients."""
 
     def __init__(self) -> None:
         self._handle_state_from_gui_name: Dict[str, _GuiHandleState[Any]] = {}

@@ -72,7 +72,7 @@ class InstantNGP(DataParser):
             if not fname.exists():
                 fname = data_dir / Path(frame["file_path"] + ".png")
             if not fname.exists():
-                CONSOLE.log(f"couldnt find {fname} image")
+                CONSOLE.log(f"couldn't find {fname} image")
                 num_skipped_image_filenames += 1
             else:
                 if "w" not in meta:
