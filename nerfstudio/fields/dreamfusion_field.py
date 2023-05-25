@@ -17,17 +17,18 @@ Field for dreamfusion model
 """
 
 
-from typing import Optional
+from typing import Optional, Tuple, Dict
 
 import numpy as np
 import torch
 from torch.nn.parameter import Parameter
-from torchtyping import TensorType
+from jaxtyping import Float
+from torch import Tensor
 
 from nerfstudio.cameras.rays import RayBundle, RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
-from nerfstudio.field_components.field_heads import FieldHeadNames, PredNormalsFieldHead
+from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.base_field import Field
 
 try:
@@ -37,7 +38,7 @@ except ImportError:
     pass
 
 
-def get_normalized_directions(directions: TensorType["bs":..., 3]):
+def get_normalized_directions(directions: Float[Tensor, "bs 3"]):
     """SH encoding must be in the range [0, 1]
 
     Args:
@@ -54,13 +55,16 @@ class DreamFusionField(Field):
         num_layers: number of hidden layers
         hidden_dim: dimension of hidden layers
         geo_feat_dim: output geo feat dimensions
+        num_levels: number of levels of the hashmap for the base mlp
+        max_res: maximum resolution of the hashmap for the base mlp
+        log2_hashmap_size: size of the hashmap for the base mlp
         num_layers_color: number of hidden layers for color network
         hidden_dim_color: dimension of hidden layers for color network
     """
 
     def __init__(
         self,
-        aabb,
+        aabb: Tensor,
         num_layers: int = 2,
         hidden_dim: int = 64,
         geo_feat_dim: int = 15,
@@ -69,7 +73,6 @@ class DreamFusionField(Field):
         log2_hashmap_size: int = 19,
         num_layers_color: int = 3,
         hidden_dim_color: int = 64,
-        hidden_dim_normal: int = 32,
     ) -> None:
         super().__init__()
 
@@ -137,7 +140,7 @@ class DreamFusionField(Field):
             },
         )
 
-    def get_density(self, ray_samples: RaySamples):
+    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
         positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         self._sample_locations = positions
@@ -154,7 +157,7 @@ class DreamFusionField(Field):
         density = trunc_exp(density_before_activation.to(positions))
         return density, base_mlp_out
 
-    def get_background_rgb(self, ray_bundle: RayBundle):
+    def get_background_rgb(self, ray_bundle: RayBundle) -> Tensor:
         """Predicts background colors at infinity."""
         directions = get_normalized_directions(ray_bundle.directions)
 
@@ -164,7 +167,9 @@ class DreamFusionField(Field):
 
         return background_rgb
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
+    def get_outputs(
+        self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None
+    ) -> Dict[FieldHeadNames, Tensor]:
         assert density_embedding is not None
         outputs = {}
 

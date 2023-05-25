@@ -37,13 +37,12 @@ from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.dreamfusion_field import DreamFusionField
 from nerfstudio.generative.stable_diffusion import StableDiffusion
 from nerfstudio.generative.deepfloyd import DeepFloyd
-from nerfstudio.generative.stable_diffusion_utils import PositionalTextEmbeddings
+from nerfstudio.generative.dreamfusion_utils import PositionalTextEmbeddings
 from nerfstudio.model_components.losses import (
     MSELoss,
     distortion_loss,
     interlevel_loss,
     orientation_loss,
-    pred_normal_loss,
 )
 from nerfstudio.model_components.ray_samplers import (
     ProposalNetworkSampler,
@@ -159,6 +158,7 @@ class DreamFusionModelConfig(ModelConfig):
     diffusion_model: Literal["stablediffusion", "deepfloyd"] = "deepfloyd"
     """diffusion model for SDS loss"""
     sd_version: str = "1-5"
+    """model version when using stable diffusion"""
 
 
 class DreamFusionModel(Model):
@@ -186,7 +186,6 @@ class DreamFusionModel(Model):
         self.target_transmittance = config.target_transmittance_start
         self.grad_scaler = kwargs["grad_scaler"]
 
-        self.positional_prompting = config.positional_prompting
         self.guidance_scale = config.guidance_scale
         self.top_prompt = config.top_prompt
         self.side_prompt = config.side_prompt
@@ -194,9 +193,7 @@ class DreamFusionModel(Model):
         self.front_prompt = config.front_prompt
 
         self.diffusion_device = (
-            torch.device(kwargs["device"])
-            if config.diffusion_device is None
-            else torch.device(config.diffusion_device)
+            torch.device(kwargs["device"]) if config.diffusion_device is None else torch.device(config.diffusion_device)
         )
 
         super().__init__(config=config, **kwargs)
@@ -217,7 +214,7 @@ class DreamFusionModel(Model):
             back_prompt=self.cur_prompt + self.back_prompt,
             front_prompt=self.cur_prompt + self.front_prompt,
             diffusion_model=self._diffusion_model,
-            positional_prompting=self.positional_prompting,
+            positional_prompting=self.config.positional_prompting,
         )
 
         # setting up fields
@@ -238,11 +235,13 @@ class DreamFusionModel(Model):
             self.proposal_networks.append(network)
         self.density_fns.extend([network.density_fn for network in self.proposal_networks])
 
-        update_schedule = lambda step: np.clip(
-            np.interp(step, [0, self.config.proposal_warmup], [0, self.config.proposal_update_every]),
-            1,
-            self.config.proposal_update_every,
-        )
+        def update_schedule(step):
+            return np.clip(
+                np.interp(step, [0, self.config.proposal_warmup], [0, self.config.proposal_update_every]),
+                1,
+                self.config.proposal_update_every,
+            )
+
         self.proposal_sampler = ProposalNetworkSampler(
             num_nerf_samples_per_ray=self.config.num_nerf_samples_per_ray,
             num_proposal_samples_per_ray=self.config.num_proposal_samples_per_ray,
@@ -274,7 +273,6 @@ class DreamFusionModel(Model):
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
-
         # the callback that we want to run every X iterations after the training iteration
         def taper_density(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
@@ -296,15 +294,21 @@ class DreamFusionModel(Model):
         ):
             if step <= self.config.start_normals_training:
                 self.orientation_loss_mult = 0
-            else: 
-                self.orientation_loss_mult = np.interp(step, self.config.orientation_loss_mult, 
-                (self.config.start_normals_training, self.config.orientation_loss_mult_end))
-            
+            else:
+                self.orientation_loss_mult = np.interp(
+                    step,
+                    self.config.orientation_loss_mult,
+                    (self.config.start_normals_training, self.config.orientation_loss_mult_end),
+                )
+
         # anneal the weights of the proposal network before doing PDF sampling
         def set_anneal(step):
             # https://arxiv.org/pdf/2111.12077.pdf eq. 18
             train_frac = np.clip(step / self.config.proposal_weights_anneal_max_num_iters, 0, 1)
-            bias = lambda x, b: (b * x) / ((b - 1) * x + 1)
+
+            def bias(x, b):
+                return b * x / ((b - 1) * x + 1)
+
             anneal = bias(train_frac, self.config.proposal_weights_anneal_slope)
             self.proposal_sampler.set_anneal(anneal)
 
@@ -420,8 +424,8 @@ class DreamFusionModel(Model):
         outputs["rgb"] = accum_mask * rgb + background
 
         # while training 20% of the time use a random background
-        if np.random.random_sample() < 0.2 and self.random_background and self.training: 
-            background = torch.ones_like(background) * torch.rand(3, device=self.device) * accum_mask_inv 
+        if np.random.random_sample() < 0.2 and self.random_background and self.training:
+            background = torch.ones_like(background) * torch.rand(3, device=self.device) * accum_mask_inv
 
         if shading_weight > 0:
             samp = np.random.random_sample()
@@ -494,7 +498,7 @@ class DreamFusionModel(Model):
             text_embedding.to(self.diffusion_device),
             train_output.to(self.diffusion_device),
             guidance_scale=int(self.guidance_scale),
-            grad_scaler=self.grad_scaler,        
+            grad_scaler=self.grad_scaler,
         )
 
         loss_dict["sds_loss"] = sds_loss.to(self.device)

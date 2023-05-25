@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Stable diffusion utils
-"""
+"""Utility helper functions for generative 3D models"""
 
-from torchtyping import TensorType
+import torch
+from torch import Tensor
+from jaxtyping import Float
 from typing_extensions import Literal
 from typing import Union
-import torch
 
 from nerfstudio.generative.stable_diffusion import StableDiffusion
 from nerfstudio.generative.deepfloyd import DeepFloyd
@@ -65,7 +64,7 @@ class PositionalTextEmbeddings:
             side_prompt: Prompt for side view
             back_prompt: Prompt for back view
             front_prompt: Prompt for front view
-        """        
+        """
         self.base_embed = self.diffusion.get_text_embeds(base_prompt, "")
         self.top_embed = self.diffusion.get_text_embeds(top_prompt, "")
         self.side_embed = self.diffusion.get_text_embeds(side_prompt, "")
@@ -75,7 +74,9 @@ class PositionalTextEmbeddings:
         if isinstance(self.diffusion, DeepFloyd):
             self.diffusion.delete_text_encoder()
 
-    def get_text_embedding(self, vertical_angle: TensorType[1], horizontal_angle: TensorType[1]):
+    def get_text_embedding(
+        self, vertical_angle: Float[Tensor, "1"], horizontal_angle: Float[Tensor, "1"]
+    ) -> Float[Tensor, "2 max_length embed_dim"]:
         """Get text embedding based on the position of the camera relative to the scene.
         This trick is used in Dreamfusion (https://dreamfusion3d.github.io/).
 
@@ -99,8 +100,8 @@ class PositionalTextEmbeddings:
             else:  # horizontal_angle > 225 and horizontal_angle <= 315:
                 text_embedding = self.side_embed
         elif self.positional_prompting == "interpolated":
-            horiz = horizontal_angle.to(self.diffusion_device)
-            vert = max(vertical_angle.to(self.diffusion_device), 0)
+            horiz = horizontal_angle.detach().numpy()[0]
+            vert = max(vertical_angle.detach().numpy()[0], 0)
 
             if 0 < horizontal_angle <= 90:
                 text_embedding = (horiz) * self.side_embed + (90 - horiz) * self.front_embed
