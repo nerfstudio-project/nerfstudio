@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import struct
+import shutil
 import sys
 from contextlib import ExitStack
 from dataclasses import dataclass, field
@@ -35,15 +35,23 @@ import tyro
 from jaxtyping import Float
 from rich import box, style
 from rich.panel import Panel
-from rich.progress import (BarColumn, Progress, TaskProgressColumn, TextColumn,
-                           TimeElapsedColumn, TimeRemainingColumn)
+from rich.progress import (
+    BarColumn,
+    Progress,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 from rich.table import Table
 from torch import Tensor
 from typing_extensions import Annotated
 
-from nerfstudio.cameras.camera_paths import (get_interpolated_camera_path,
-                                             get_path_from_json,
-                                             get_spiral_path)
+from nerfstudio.cameras.camera_paths import (
+    get_interpolated_camera_path,
+    get_path_from_json,
+    get_spiral_path,
+)
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.data.scene_box import SceneBox
