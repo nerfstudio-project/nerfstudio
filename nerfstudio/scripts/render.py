@@ -35,23 +35,15 @@ import tyro
 from jaxtyping import Float
 from rich import box, style
 from rich.panel import Panel
-from rich.progress import (
-    BarColumn,
-    Progress,
-    TaskProgressColumn,
-    TextColumn,
-    TimeElapsedColumn,
-    TimeRemainingColumn,
-)
+from rich.progress import (BarColumn, Progress, TaskProgressColumn, TextColumn,
+                           TimeElapsedColumn, TimeRemainingColumn)
 from rich.table import Table
 from torch import Tensor
 from typing_extensions import Annotated
 
-from nerfstudio.cameras.camera_paths import (
-    get_interpolated_camera_path,
-    get_path_from_json,
-    get_spiral_path,
-)
+from nerfstudio.cameras.camera_paths import (get_interpolated_camera_path,
+                                             get_path_from_json,
+                                             get_spiral_path)
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.data.scene_box import SceneBox
@@ -346,13 +338,19 @@ class RenderCameraPath(BaseRender):
 
         if camera_path.camera_type[0] == CameraType.OMNIDIRECTIONALSTEREO_L.value:
             # temp folder for writing left and right view renders
-            temp_folder_path = os.path.splitext(str(self.output_path))[0] + "_temp"
+            temp_folder_path = self.output_path.parent / (self.output_path.stem + "_temp")
+
             Path(temp_folder_path).mkdir(parents=True, exist_ok=True)
-            left_eye_path = Path(str(temp_folder_path) + "//ods_render_Left.mp4")
+            left_eye_path = temp_folder_path / "ods_render_Left.mp4"
+
             self.output_path = left_eye_path
 
-            CONSOLE.print(":goggles: Omni-directional Stereo VR :goggles:")
-            CONSOLE.print("[bold green]Rendering left eye view")
+            CONSOLE.print("[bold green]:goggles: Omni-directional Stereo VR :goggles:")
+            CONSOLE.print("Rendering left eye view")
+
+        # add mp4 suffix to video output if none is specified
+        if self.output_format == "video" and str(self.output_path.suffix) == "":
+            self.output_path = self.output_path.with_suffix(".mp4")
 
         _render_trajectory_video(
             pipeline,
@@ -372,12 +370,12 @@ class RenderCameraPath(BaseRender):
             # declare paths for left and right renders
 
             left_eye_path = self.output_path
-            right_eye_path = Path(str(left_eye_path.parent) + "//ods_render_Right.mp4")
+            right_eye_path = left_eye_path.parent / "ods_render_Right.mp4"
 
             self.output_path = right_eye_path
             camera_path.camera_type[0] = CameraType.OMNIDIRECTIONALSTEREO_R.value
 
-            CONSOLE.print("[bold green]Rendering right eye view")
+            CONSOLE.print("Rendering right eye view")
             _render_trajectory_video(
                 pipeline,
                 camera_path,
@@ -403,9 +401,9 @@ class RenderCameraPath(BaseRender):
                 self.output_path = Path(str(left_eye_path.parent)[:-5])
                 self.output_path.mkdir(parents=True, exist_ok=True)
                 if self.image_format == "png":
-                    ffmpeg_ods_command = f'ffmpeg -y -pattern_type glob -i "{str(left_eye_path).replace(".mp4","")+"//*.png"}"  -pattern_type glob -i "{str(right_eye_path).replace(".mp4","")+"//*.png"}" -filter_complex vstack "{str(self.output_path)+"//%05d.png"}"'
+                    ffmpeg_ods_command = f'ffmpeg -y -pattern_type glob -i "{str(left_eye_path.with_suffix("") / "*.png")}"  -pattern_type glob -i "{str(right_eye_path.with_suffix("") / "*.png")}" -filter_complex vstack -start_number 0 "{str(self.output_path)+"//%05d.png"}"'
                 elif self.image_format == "jpeg":
-                    ffmpeg_ods_command = f'ffmpeg -y -pattern_type glob -i "{str(left_eye_path).replace(".mp4","")+"//*.jpg"}"  -pattern_type glob -i "{str(right_eye_path).replace(".mp4","")+"//*.jpg"}" -filter_complex vstack "{str(self.output_path)+"//%05d.jpg"}"'
+                    ffmpeg_ods_command = f'ffmpeg -y -pattern_type glob -i "{str(left_eye_path.with_suffix("") / "*.jpg")}"  -pattern_type glob -i "{str(right_eye_path.with_suffix("") / "*.jpg")}" -filter_complex vstack -start_number 0 "{str(self.output_path)+"//%05d.jpg"}"'
                 run_command(ffmpeg_ods_command, verbose=False)
 
             # remove the temp files directory

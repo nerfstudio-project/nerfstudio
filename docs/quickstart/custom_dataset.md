@@ -384,11 +384,11 @@ To render with the ODS camera:
 
 :::{admonition} Note
 :class: info
-If the depth of the scene is unviewable and looks too close or expanded when viewing the render in VR, the scale of the NeRF may be set too small. If there is almost no discernable depth, the scale of the NeRF may be too large. Getting the right scale may take some experimentation, so it is recommended to either render at a much lower resolution or just one frame to ensure the depth and render is viewable in the VR headset.
+If the depth of the scene is unviewable and looks too close or expanded when viewing the render in VR, the scale of the NeRF may be set too small. If there is almost no discernible depth, the scale of the NeRF may be too large. Getting the right scale may take some experimentation, so it is recommended to either render at a much lower resolution or just one frame to ensure the depth and render is viewable in the VR headset.
 :::
 
 ### Additional Notes
-- Rendering with ODS can take significantly longer than traditional renders due to higher resolutions and needing to render a left and right eye view for each frame.
+- Rendering with ODS can take significantly longer than traditional renders due to higher resolutions and needing to render a left and right eye view for each frame. Render times may grow exponentially with larger resolutions.
 - When rendering ODS content, Nerfstudio will first render the left eye, then the right eye, and finally vertically stack the renders. During this process, Nerfstudio will create a temporary folder to store the left and right eye renders and delete this folder once the final renders are stacked.
 - If rendering content where the camera is stationary for many frames, it is recommended to only render once at that position and extend the time in a video editor since ODS renders can take a lot of time to render.
 - It is recommended to render a preliminary render at a much lower resolution or frame rate to test and ensure that the depth and camera position look accurate in VR.

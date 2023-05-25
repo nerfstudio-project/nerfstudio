@@ -651,6 +651,53 @@ class Cameras(TensorDataclass):
         c2w = self.camera_to_worlds[true_indices]
         assert c2w.shape == num_rays_shape + (3, 4)
 
+        def omni_directional_stereo_camera(eye):
+            # Directions calculated similarly to equirectangular
+            ods_cam_type = (
+                CameraType.OMNIDIRECTIONALSTEREO_R.value if eye == "right" else CameraType.OMNIDIRECTIONALSTEREO_L.value
+            )
+            mask = (self.camera_type[true_indices] == ods_cam_type).squeeze(-1)
+            mask = torch.stack([mask, mask, mask], dim=0)
+            theta = -torch.pi * coord_stack[..., 0]
+            phi = torch.pi * (0.5 - coord_stack[..., 1])
+
+            directions_stack[..., 0][mask] = torch.masked_select(-torch.sin(theta) * torch.sin(phi), mask).float()
+            directions_stack[..., 1][mask] = torch.masked_select(torch.cos(phi), mask).float()
+            directions_stack[..., 2][mask] = torch.masked_select(-torch.cos(theta) * torch.sin(phi), mask).float()
+
+            vr_ipd = 0.064  # IPD in meters (note: scale of NeRF must be true to life and can be adjusted with the Blender add-on)
+            isRightEye = 1 if eye == "right" else -1
+
+            # find ODS camera position
+            c2w = self.camera_to_worlds[true_indices]
+            assert c2w.shape == num_rays_shape + (3, 4)
+            transposedC2W = c2w[0][0].t()
+            ods_cam_position = transposedC2W[3].repeat(c2w.shape[1], 1)
+
+            rotation = c2w[..., :3, :3]
+
+            ods_theta = -torch.pi * ((x - cx) / fx)[0]
+
+            # local axes of ODS camera
+            ods_x_axis = torch.tensor([1, 0, 0], device=c2w.device)
+            ods_z_axis = torch.tensor([0, 0, -1], device=c2w.device)
+
+            # circle of ODS ray origins
+            ods_origins_circle = (
+                ods_cam_position
+                + isRightEye * (vr_ipd / 2.0) * (ods_x_axis.repeat(c2w.shape[1], 1)) * (torch.cos(ods_theta))[:, None]
+                + isRightEye * (vr_ipd / 2.0) * (ods_z_axis.repeat(c2w.shape[1], 1)) * (torch.sin(ods_theta))[:, None]
+            )
+
+            # rotate origins to match the camera rotation
+            for i in range(ods_origins_circle.shape[0]):
+                ods_origins_circle[i] = rotation[0][0] @ ods_origins_circle[i] + ods_cam_position[0]
+            ods_origins_circle = ods_origins_circle.unsqueeze(0).repeat(c2w.shape[0], 1, 1)
+
+            # assign final camera origins
+            c2w[..., :3, 3] = ods_origins_circle
+            return ods_origins_circle, directions_stack
+
         if CameraType.PERSPECTIVE.value in cam_types:
             mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
             mask = torch.stack([mask, mask, mask], dim=0)
@@ -685,94 +732,25 @@ class Cameras(TensorDataclass):
             directions_stack[..., 2][mask] = torch.masked_select(-torch.cos(theta) * torch.sin(phi), mask).float()
 
         if CameraType.OMNIDIRECTIONALSTEREO_L.value in cam_types:
-            # Directions calculated similarly to equirectangular
-            mask = (self.camera_type[true_indices] == CameraType.OMNIDIRECTIONALSTEREO_L.value).squeeze(-1)
-            mask = torch.stack([mask, mask, mask], dim=0)
-            theta = -torch.pi * coord_stack[..., 0]
-            phi = torch.pi * (0.5 - coord_stack[..., 1])
-
-            directions_stack[..., 0][mask] = torch.masked_select(-torch.sin(theta) * torch.sin(phi), mask).float()
-            directions_stack[..., 1][mask] = torch.masked_select(torch.cos(phi), mask).float()
-            directions_stack[..., 2][mask] = torch.masked_select(-torch.cos(theta) * torch.sin(phi), mask).float()
-
-            vr_ipd = 0.064  # IPD in meters (note: scale of NeRF must be true to life and can be adjusted with the Blender add-on)
-
-            # find ODS camera position
-            transposedC2W = c2w[0][0].t()
-            ods_cam_position = transposedC2W[3].repeat(c2w.shape[1], 1)
-
-            rotation = c2w[..., :3, :3]
-
-            ods_theta = -torch.pi * ((x - cx) / fx)[0]
-
-            # local axes of ODS camera
-            ods_x_axis = torch.tensor([1, 0, 0]).to("cuda")
-            ods_z_axis = torch.tensor([0, 0, -1]).to("cuda")
-
-            # circle of ODS ray origins
-            ods_origins_circle = (
-                ods_cam_position
-                - (vr_ipd / 2.0) * (ods_x_axis.repeat(c2w.shape[1], 1)) * (torch.cos(ods_theta))[:, None]
-                - (vr_ipd / 2.0) * (ods_z_axis.repeat(c2w.shape[1], 1)) * (torch.sin(ods_theta))[:, None]
-            )
-
-            # rotate origins to match the camera rotation
-            for i in range(ods_origins_circle.shape[0]):
-                ods_origins_circle[i] = rotation[0][0] @ ods_origins_circle[i] + ods_cam_position[0]
-            ods_origins_circle = ods_origins_circle.unsqueeze(0).repeat(c2w.shape[0], 1, 1)
-
+            ods_origins_circle, directions_stack = omni_directional_stereo_camera("left")
             # assign final camera origins
             c2w[..., :3, 3] = ods_origins_circle
 
         if CameraType.OMNIDIRECTIONALSTEREO_R.value in cam_types:
-            # Directions calculated similarly to equirectangular
-            mask = (self.camera_type[true_indices] == CameraType.OMNIDIRECTIONALSTEREO_R.value).squeeze(-1)
-            mask = torch.stack([mask, mask, mask], dim=0)
-            theta = -torch.pi * coord_stack[..., 0]
-            phi = torch.pi * (0.5 - coord_stack[..., 1])
-
-            directions_stack[..., 0][mask] = torch.masked_select(-torch.sin(theta) * torch.sin(phi), mask).float()
-            directions_stack[..., 1][mask] = torch.masked_select(torch.cos(phi), mask).float()
-            directions_stack[..., 2][mask] = torch.masked_select(-torch.cos(theta) * torch.sin(phi), mask).float()
-
-            vr_ipd = 0.064  # IPD in meters (note: scale of NeRF must be true to life and can be adjusted with the Blender add-on)
-
-            # find ODS camera position
-            transposedC2W = c2w[0][0].t()
-            ods_cam_position = transposedC2W[3].repeat(c2w.shape[1], 1)
-
-            rotation = c2w[..., :3, :3]
-
-            ods_theta = -torch.pi * ((x - cx) / fx)[0]
-
-            # local axes of ODS camera
-            ods_x_axis = torch.tensor([1, 0, 0]).to("cuda")
-            ods_z_axis = torch.tensor([0, 0, -1]).to("cuda")
-
-            # circle of ODS ray origins
-            ods_origins_circle = (
-                ods_cam_position
-                + (vr_ipd / 2.0) * (ods_x_axis.repeat(c2w.shape[1], 1)) * (torch.cos(ods_theta))[:, None]
-                + (vr_ipd / 2.0) * (ods_z_axis.repeat(c2w.shape[1], 1)) * (torch.sin(ods_theta))[:, None]
-            )
-
-            # rotate origins to match the camera rotation
-            for i in range(ods_origins_circle.shape[0]):
-                ods_origins_circle[i] = rotation[0][0] @ ods_origins_circle[i] + ods_cam_position[0]
-            ods_origins_circle = ods_origins_circle.unsqueeze(0).repeat(c2w.shape[0], 1, 1)
-
+            ods_origins_circle, directions_stack = omni_directional_stereo_camera("right")
             # assign final camera origins
             c2w[..., :3, 3] = ods_origins_circle
 
-        for value in cam_types:
-            if value not in [
-                CameraType.PERSPECTIVE.value,
-                CameraType.FISHEYE.value,
-                CameraType.EQUIRECTANGULAR.value,
-                CameraType.OMNIDIRECTIONALSTEREO_L.value,
-                CameraType.OMNIDIRECTIONALSTEREO_R.value,
-            ]:
-                raise ValueError(f"Camera type {value} not supported.")
+        for cam_type in cam_types:
+            if cam_type == CameraType.PERSPECTIVE.value:
+                continue
+            if cam_type == CameraType.EQUIRECTANGULAR.value:
+                continue
+            if cam_type == CameraType.OMNIDIRECTIONALSTEREO_L.value:
+                continue
+            if cam_type == CameraType.OMNIDIRECTIONALSTEREO_R.value:
+                continue
+            raise ValueError(f"Camera type {cam_type} not supported.")
 
         assert directions_stack.shape == (3,) + num_rays_shape + (3,)
 
