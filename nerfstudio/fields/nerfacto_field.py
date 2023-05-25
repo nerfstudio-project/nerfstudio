@@ -39,12 +39,6 @@ from nerfstudio.field_components.mlp import MLP
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
 
-try:
-    import tinycudann as tcnn
-except ModuleNotFoundError:
-    # tinycudann module doesn't exist
-    pass
-
 
 class NerfactoField(Field):
     """Compound Field that uses TCNN
