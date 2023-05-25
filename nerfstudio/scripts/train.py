@@ -184,8 +184,7 @@ def launch(
     if world_size == 0:
         raise ValueError("world_size cannot be 0")
     elif world_size == 1:
-        # if using CPUs, then world_size=1 uses one CPU in one process
-        # if using GPUs, then world_size=1 uses one GPU in one process
+        # uses one process
         try:
             main_func(local_rank=0, world_size=world_size, config=config)
         except KeyboardInterrupt:

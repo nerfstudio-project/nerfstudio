@@ -24,6 +24,8 @@ from torch import Tensor, nn
 from nerfstudio.field_components.base_field_component import FieldComponent
 from nerfstudio.utils.printing import print_tcnn_speed_warning
 
+from nerfstudio.utils.rich_utils import CONSOLE
+
 try:
     import tinycudann as tcnn
 
@@ -41,13 +43,23 @@ def activation_to_tcnn_string(activation: Union[nn.Module, None]) -> str:
     Returns:
         str: TCNN activation function string
     """
+
     if isinstance(activation, nn.ReLU):
         return "ReLU"
+    if isinstance(activation, nn.LeakyReLU):
+        return "Leaky ReLU"
     if isinstance(activation, nn.Sigmoid):
         return "Sigmoid"
+    if isinstance(activation, nn.Softplus):
+        return "Softplus"
+    if isinstance(activation, nn.Tanh):
+        return "Tanh"
     if isinstance(activation, type(None)):
         return "None"
-    raise ValueError(f"TCNN activation {activation} not supported for now.")
+    tcnn_documentation_url = "https://github.com/NVlabs/tiny-cuda-nn/blob/master/DOCUMENTATION.md#activation-functions"
+    raise ValueError(
+        f"TCNN activation {activation} not supported for now.\nSee {tcnn_documentation_url} for TCNN documentation."
+    )
 
 
 class MLP(FieldComponent):
@@ -93,13 +105,29 @@ class MLP(FieldComponent):
         elif implementation == "tcnn":
             activation_str = activation_to_tcnn_string(activation)
             output_activation_str = activation_to_tcnn_string(out_activation)
-            network_config = {
-                "otype": "FullyFusedMLP",
-                "activation": activation_str,
-                "output_activation": output_activation_str,
-                "n_neurons": layer_width,
-                "n_hidden_layers": num_layers - 1,
-            }
+            if layer_width in [16, 32, 64, 128]:
+                network_config = {
+                    "otype": "FullyFusedMLP",
+                    "activation": activation_str,
+                    "output_activation": output_activation_str,
+                    "n_neurons": layer_width,
+                    "n_hidden_layers": num_layers - 1,
+                }
+            else:
+                CONSOLE.line()
+                CONSOLE.print("[bold yellow]WARNING: Using slower TCNN CutlassMLP instead of TCNN FullyFusedMLP")
+                CONSOLE.print(
+                    "[bold yellow]Use layer width of 16, 32, 64, or 128 to use the faster TCNN FullyFusedMLP."
+                )
+                CONSOLE.line()
+                network_config = {
+                    "otype": "CutlassMLP",
+                    "activation": activation_str,
+                    "output_activation": output_activation_str,
+                    "n_neurons": layer_width,
+                    "n_hidden_layers": num_layers - 1,
+                }
+
             self.tcnn_encoding = tcnn.Network(
                 n_input_dims=in_dim,
                 n_output_dims=out_dim,

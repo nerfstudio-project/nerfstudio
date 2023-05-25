@@ -125,9 +125,7 @@ class NeRFEncoding(Encoding):
         self.include_input = include_input
 
         self.tcnn_encoding = None
-        if implementation == "torch":
-            pass
-        elif implementation == "tcnn" and not TCNN_EXISTS:
+        if implementation == "tcnn" and not TCNN_EXISTS:
             print_tcnn_speed_warning("NeRFEncoding")
         elif implementation == "tcnn":
             encoding_config = {"otype": "Frequency", "n_frequencies": num_frequencies}
@@ -285,9 +283,7 @@ class HashEncoding(Encoding):
         self.hash_table = nn.Parameter(self.hash_table)
 
         self.tcnn_encoding = None
-        if implementation == "torch":
-            pass
-        elif implementation == "tcnn" and not TCNN_EXISTS:
+        if implementation == "tcnn" and not TCNN_EXISTS:
             print_tcnn_speed_warning("HashEncoding")
         elif implementation == "tcnn":
             encoding_config = {
@@ -685,9 +681,7 @@ class SHEncoding(Encoding):
         self.levels = levels
 
         self.tcnn_encoding = None
-        if implementation == "torch":
-            pass
-        elif implementation == "tcnn" and not TCNN_EXISTS:
+        if implementation == "tcnn" and not TCNN_EXISTS:
             print_tcnn_speed_warning("SHEncoding")
         elif implementation == "tcnn":
             encoding_config = {
