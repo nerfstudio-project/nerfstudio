@@ -168,7 +168,7 @@ method_configs["nerfacto-huge"] = TrainerConfig(
             camera_optimizer=CameraOptimizerConfig(
                 mode="SO3xR3",
                 optimizer=RAdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-3),
-                scheduler=ExponentialDecaySchedulerConfig(lr_final=6e-5, max_steps=50000, warmup_steps=1000),
+                scheduler=ExponentialDecaySchedulerConfig(lr_final=6e-5, max_steps=50000),
             ),
         ),
         model=NerfactoModelConfig(
@@ -186,12 +186,12 @@ method_configs["nerfacto-huge"] = TrainerConfig(
     ),
     optimizers={
         "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "optimizer": RAdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
         },
         "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-4, max_steps=50000, warmup_steps=1000),
+            "optimizer": RAdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-4, max_steps=50000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
