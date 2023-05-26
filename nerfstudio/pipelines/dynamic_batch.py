@@ -17,9 +17,10 @@ A pipeline that dynamically chooses the number of rays to sample.
 """
 
 from dataclasses import dataclass, field
-from typing import Literal, Type
+from typing import Literal, Type, Optional
 
 import torch
+from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline, VanillaPipelineConfig
@@ -50,6 +51,7 @@ class DynamicBatchPipeline(VanillaPipeline):
         test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
+        grad_scaler: Optional[GradScaler] = None,
     ):
         super().__init__(config, device, test_mode, world_size, local_rank)
         assert isinstance(

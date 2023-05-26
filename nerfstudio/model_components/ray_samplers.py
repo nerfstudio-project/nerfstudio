@@ -17,7 +17,7 @@ Collection of sampling strategies
 """
 
 from abc import abstractmethod
-from typing import Callable, List, Optional, Protocol, Tuple, Union
+from typing import Any, Callable, List, Optional, Protocol, Tuple, Union
 
 import torch
 from jaxtyping import Float
@@ -42,10 +42,10 @@ class Sampler(nn.Module):
         self.num_samples = num_samples
 
     @abstractmethod
-    def generate_ray_samples(self) -> RaySamples:
+    def generate_ray_samples(self) -> Any:
         """Generate Ray Samples"""
 
-    def forward(self, *args, **kwargs) -> RaySamples:
+    def forward(self, *args, **kwargs) -> Any:
         """Generate ray samples"""
         return self.generate_ray_samples(*args, **kwargs)
 
