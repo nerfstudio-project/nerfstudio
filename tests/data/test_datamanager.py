@@ -1,6 +1,5 @@
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import pytest
 import torch
@@ -108,18 +107,6 @@ def test_data_manager_type_can_be_serialized(config):
 
 def _dummy_function():
     return True
-
-
-@dataclass
-class Test:
-    func: Callable = _dummy_function
-
-
-def test_serialize_dataclass_with_callable():
-    assert Test().func()
-    print(yaml.dump(Test()))
-    obj = yaml.load(yaml.dump(Test()), Loader=yaml.Loader)
-    assert obj.func()
 
 
 def test_deserialize_config1():
