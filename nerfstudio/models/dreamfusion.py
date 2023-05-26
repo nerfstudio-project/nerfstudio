@@ -37,7 +37,7 @@ from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.dreamfusion_field import DreamFusionField
 from nerfstudio.generative.stable_diffusion import StableDiffusion
 from nerfstudio.generative.deepfloyd import DeepFloyd
-from nerfstudio.generative.dreamfusion_utils import PositionalTextEmbeddings
+from nerfstudio.generative.positional_text_embeddings import PositionalTextEmbeddings
 from nerfstudio.model_components.losses import (
     MSELoss,
     distortion_loss,

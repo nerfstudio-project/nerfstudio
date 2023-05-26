@@ -247,18 +247,6 @@ class RandomCamerasDataManager(DataManager):  # pylint: disable=abstract-method
         """Returns the next batch of data from the train dataloader."""
 
         self.train_count += 1
-
-        # # TODO Reimplement when cameras are fully working
-        # if step > 2000:
-        #     cameras, _, _ = random_train_pose(
-        #         self.config.train_images_per_batch, self.config.train_resolution, device=self.device
-        #     )
-
-        #     ray_bundle = cameras.generate_rays(
-        #         torch.tensor(list(range(self.config.train_images_per_batch)))
-        #     ).flatten()
-        #     return ray_bundle, {"initialization": False}
-
         horizontal_range = min((step / max(1, self.config.horizontal_rotation_warmup)), 1) * 180
 
         cameras, vertical_rotation, central_rotation = random_train_pose(
