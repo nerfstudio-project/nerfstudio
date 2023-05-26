@@ -64,14 +64,16 @@ class MachineConfig(PrintableConfig):
 
     seed: int = 42
     """random seed initialization"""
-    num_gpus: int = 1
-    """total number of gpus available for train/eval"""
+    num_devices: int = 1
+    """total number of devices (e.g., gpus) available for train/eval"""
     num_machines: int = 1
     """total number of distributed machines available (for DDP)"""
     machine_rank: int = 0
     """current machine's rank (for DDP)"""
     dist_url: str = "auto"
     """distributed connection point (for DDP)"""
+    device_type: Literal["cpu", "cuda", "mps"] = "cuda"
+    """device type to use for training"""
 
 
 @dataclass

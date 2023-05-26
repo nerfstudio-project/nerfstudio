@@ -20,7 +20,6 @@ BLACKLIST = [
     "semantic-nerfw",
     "instant-ngp",
     "instant-ngp-bounded",
-    "nerfacto",
     "nerfacto-big",
     "volinga",
     "phototourism",
@@ -34,7 +33,11 @@ BLACKLIST = [
 
 def set_reduced_config(config: TrainerConfig):
     """Reducing the config settings to speedup test"""
-    config.machine.num_gpus = 0
+    config.machine.device_type = "cpu"
+    if hasattr(config.pipeline.model, "implementation"):
+        setattr(config.pipeline.model, "implementation", "torch")
+    config.mixed_precision = False
+    config.use_grad_scaler = False
     config.max_num_iterations = 2
     # reduce dataset factors; set dataset to test
     config.pipeline.datamanager.dataparser = BlenderDataParserConfig(data=Path("tests/data/lego_test"))
