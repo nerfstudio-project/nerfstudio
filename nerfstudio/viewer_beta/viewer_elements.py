@@ -22,9 +22,16 @@ from abc import abstractmethod
 from typing import Any, Callable, Generic, List, Optional, Tuple, Union
 
 from typing_extensions import LiteralString, TypeVar
-from viser import GuiButtonHandle, GuiHandle, GuiSelectHandle, ViserServer
+from viser import (
+    GuiButtonGroupHandle,
+    GuiButtonHandle,
+    GuiDropdownHandle,
+    GuiHandle,
+    ViserServer,
+)
 
 TValue = TypeVar("TValue")
+TString = TypeVar("TString", default=str, bound=str)
 
 
 class ViewerElement(Generic[TValue]):
@@ -42,7 +49,7 @@ class ViewerElement(Generic[TValue]):
         cb_hook: Callable = lambda element: None,
     ) -> None:
         self.name = name
-        self.gui_handle: Optional[Union[GuiHandle[TValue], GuiButtonHandle]] = None
+        self.gui_handle: Optional[Union[GuiHandle[TValue], GuiButtonHandle, GuiButtonGroupHandle]] = None
         self.disabled = disabled
         self.cb_hook = cb_hook
 
@@ -289,7 +296,6 @@ class ViewerCheckbox(ViewerParameter[bool]):
         )
 
 
-TString = TypeVar("TString", default=str, bound=str)
 TLiteralString = TypeVar("TLiteralString", bound=LiteralString)
 
 
@@ -305,7 +311,7 @@ class ViewerDropdown(ViewerParameter[TString], Generic[TString]):
         hint: The hint text
     """
 
-    gui_handle: Optional[GuiSelectHandle[TString]]
+    gui_handle: Optional[GuiDropdownHandle[TString]]
 
     def __init__(
         self,
@@ -323,8 +329,8 @@ class ViewerDropdown(ViewerParameter[TString], Generic[TString]):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_select(
-            self.name, self.options, self.default_value, disabled=self.disabled, hint=self.hint
+        self.gui_handle = viser_server.add_gui_dropdown(
+            self.name, self.options, self.default_value, disabled=self.disabled, hint=self.hint  # type: ignore
         )
 
     def set_options(self, new_options: List[TString]) -> None:
@@ -344,13 +350,11 @@ class ViewerButtonGroup(ViewerParameter[TString], Generic[TString]):
 
     Args:
         name: The name of the button group
-        default_value: The default value of the button group
         options: The options of the button group
         cb_hook: Callback to call on update
     """
 
-    gui_handle: Optional[GuiHandle[TString]]
-    default_value: TString
+    gui_handle: GuiButtonGroupHandle
 
     def __init__(
         self,
@@ -359,13 +363,18 @@ class ViewerButtonGroup(ViewerParameter[TString], Generic[TString]):
         options: List[TString],
         cb_hook: Callable[[ViewerDropdown], Any] = lambda element: None,
     ):
-        assert default_value in options
-        super().__init__(name, default_value, disabled=False, cb_hook=cb_hook)
+        super().__init__(name, disabled=False, default_value=default_value, cb_hook=cb_hook)
         self.options = options
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_button_group(self.name, self.options, self.default_value)
+        self.gui_handle = viser_server.add_gui_button_group(self.name, self.options)
+
+    def install(self, viser_server: ViserServer) -> None:
+        self._create_gui_handle(viser_server)
+
+        assert self.gui_handle is not None
+        self.gui_handle.on_click(lambda _: self.cb_hook(self))
 
 
 class ViewerRGB(ViewerParameter[Tuple[int, int, int]]):

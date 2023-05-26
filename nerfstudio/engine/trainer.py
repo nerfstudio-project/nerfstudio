@@ -517,11 +517,3 @@ class Trainer:
         if step_check(step, self.config.steps_per_eval_all_images):
             metrics_dict = self.pipeline.get_average_eval_image_metrics(step=step)
             writer.put_dict(name="Eval Images Metrics Dict (all images)", scalar_dict=metrics_dict, step=step)
-            group = "Eval Images"
-            for image_name, image in images_dict.items():
-                writer.put_image(name=group + "/" + image_name, image=image, step=step)
-
-        # all eval images
-        if step_check(step, self.config.steps_per_eval_all_images):
-            metrics_dict = self.pipeline.get_average_eval_image_metrics(step=step)
-            writer.put_dict(name="Eval Images Metrics Dict (all images)", scalar_dict=metrics_dict, step=step)

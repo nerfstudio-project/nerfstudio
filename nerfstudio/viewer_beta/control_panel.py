@@ -176,6 +176,8 @@ class ControlPanel:
         self.add_element(self._time, additional_tags=("time",))
 
     def _train_speed_cb(self) -> None:
+        pass
+
         """Callback for when the train speed is changed"""
         if self._train_speed.value == "Fast":
             self._train_util.value = 0.95
