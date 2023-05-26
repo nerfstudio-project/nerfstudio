@@ -33,24 +33,16 @@ from rich.table import Table
 from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.configs.experiment_config import ExperimentConfig
-from nerfstudio.engine.callbacks import (
-    TrainingCallback,
-    TrainingCallbackAttributes,
-    TrainingCallbackLocation,
-)
+from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline
 from nerfstudio.utils import profiler, writer
-from nerfstudio.utils.decorators import (
-    check_eval_enabled,
-    check_main_thread,
-    check_viewer_enabled,
-)
+from nerfstudio.utils.decorators import check_eval_enabled, check_main_thread, check_viewer_enabled
 from nerfstudio.utils.misc import step_check
 from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server.viewer_state import ViewerState
-from nerfstudio.viewer_beta.viewer_state import ViewerState as ViewerBetaState
+from nerfstudio.viewer_beta.viewer import Viewer as ViewerBetaState
 
 TRAIN_INTERATION_OUTPUT = Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
 TORCH_DEVICE = str
