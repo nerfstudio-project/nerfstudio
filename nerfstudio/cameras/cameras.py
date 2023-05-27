@@ -19,7 +19,7 @@ import base64
 import math
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import cv2
 import torch
@@ -44,6 +44,8 @@ class CameraType(Enum):
     PERSPECTIVE = auto()
     FISHEYE = auto()
     EQUIRECTANGULAR = auto()
+    OMNIDIRECTIONALSTEREO_L = auto()
+    OMNIDIRECTIONALSTEREO_R = auto()
 
 
 CAMERA_MODEL_TO_TYPE = {
@@ -54,6 +56,8 @@ CAMERA_MODEL_TO_TYPE = {
     "OPENCV": CameraType.PERSPECTIVE,
     "OPENCV_FISHEYE": CameraType.FISHEYE,
     "EQUIRECTANGULAR": CameraType.EQUIRECTANGULAR,
+    "OMNIDIRECTIONALSTEREO_L": CameraType.OMNIDIRECTIONALSTEREO_L,
+    "OMNIDIRECTIONALSTEREO_R": CameraType.OMNIDIRECTIONALSTEREO_R,
 }
 
 
@@ -643,47 +647,119 @@ class Cameras(TensorDataclass):
         # directions_stack[2] is the direction for ray in camera coordinates offset by 1 in y
         cam_types = torch.unique(self.camera_type, sorted=False)
         directions_stack = torch.empty((3,) + num_rays_shape + (3,), device=self.device)
-        if CameraType.PERSPECTIVE.value in cam_types:
-            mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
+
+        c2w = self.camera_to_worlds[true_indices]
+        assert c2w.shape == num_rays_shape + (3, 4)
+
+        def _compute_rays_for_omnidirectional_stereo(
+            eye: Literal["left", "right"]
+        ) -> Tuple[Float[Tensor, "num_rays_shape 3"], Float[Tensor, "3 num_rays_shape 3"]]:
+            """Compute the rays for an omnidirectional stereo camera
+
+            Args:
+                eye: Which eye to compute rays for.
+
+            Returns:
+                A tuple containing the origins and the directions of the rays.
+            """
+            # Directions calculated similarly to equirectangular
+            ods_cam_type = (
+                CameraType.OMNIDIRECTIONALSTEREO_R.value if eye == "right" else CameraType.OMNIDIRECTIONALSTEREO_L.value
+            )
+            mask = (self.camera_type[true_indices] == ods_cam_type).squeeze(-1)
             mask = torch.stack([mask, mask, mask], dim=0)
-            directions_stack[..., 0][mask] = torch.masked_select(coord_stack[..., 0], mask).float()
-            directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1], mask).float()
-            directions_stack[..., 2][mask] = -1.0
-
-        if CameraType.FISHEYE.value in cam_types:
-            mask = (self.camera_type[true_indices] == CameraType.FISHEYE.value).squeeze(-1)  # (num_rays)
-            mask = torch.stack([mask, mask, mask], dim=0)
-
-            theta = torch.sqrt(torch.sum(coord_stack**2, dim=-1))
-            theta = torch.clip(theta, 0.0, math.pi)
-
-            sin_theta = torch.sin(theta)
-
-            directions_stack[..., 0][mask] = torch.masked_select(coord_stack[..., 0] * sin_theta / theta, mask).float()
-            directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1] * sin_theta / theta, mask).float()
-            directions_stack[..., 2][mask] = -torch.masked_select(torch.cos(theta), mask).float()
-
-        if CameraType.EQUIRECTANGULAR.value in cam_types:
-            mask = (self.camera_type[true_indices] == CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
-            mask = torch.stack([mask, mask, mask], dim=0)
-
-            # For equirect, fx = fy = height = width/2
-            # Then coord[..., 0] goes from -1 to 1 and coord[..., 1] goes from -1/2 to 1/2
-            theta = -torch.pi * coord_stack[..., 0]  # minus sign for right-handed
+            theta = -torch.pi * coord_stack[..., 0]
             phi = torch.pi * (0.5 - coord_stack[..., 1])
-            # use spherical in local camera coordinates (+y up, x=0 and z<0 is theta=0)
+
             directions_stack[..., 0][mask] = torch.masked_select(-torch.sin(theta) * torch.sin(phi), mask).float()
             directions_stack[..., 1][mask] = torch.masked_select(torch.cos(phi), mask).float()
             directions_stack[..., 2][mask] = torch.masked_select(-torch.cos(theta) * torch.sin(phi), mask).float()
 
-        for value in cam_types:
-            if value not in [CameraType.PERSPECTIVE.value, CameraType.FISHEYE.value, CameraType.EQUIRECTANGULAR.value]:
-                raise ValueError(f"Camera type {value} not supported.")
+            vr_ipd = 0.064  # IPD in meters (note: scale of NeRF must be true to life and can be adjusted with the Blender add-on)
+            isRightEye = 1 if eye == "right" else -1
+
+            # find ODS camera position
+            c2w = self.camera_to_worlds[true_indices]
+            assert c2w.shape == num_rays_shape + (3, 4)
+            transposedC2W = c2w[0][0].t()
+            ods_cam_position = transposedC2W[3].repeat(c2w.shape[1], 1)
+
+            rotation = c2w[..., :3, :3]
+
+            ods_theta = -torch.pi * ((x - cx) / fx)[0]
+
+            # local axes of ODS camera
+            ods_x_axis = torch.tensor([1, 0, 0], device=c2w.device)
+            ods_z_axis = torch.tensor([0, 0, -1], device=c2w.device)
+
+            # circle of ODS ray origins
+            ods_origins_circle = (
+                ods_cam_position
+                + isRightEye * (vr_ipd / 2.0) * (ods_x_axis.repeat(c2w.shape[1], 1)) * (torch.cos(ods_theta))[:, None]
+                + isRightEye * (vr_ipd / 2.0) * (ods_z_axis.repeat(c2w.shape[1], 1)) * (torch.sin(ods_theta))[:, None]
+            )
+
+            # rotate origins to match the camera rotation
+            for i in range(ods_origins_circle.shape[0]):
+                ods_origins_circle[i] = rotation[0][0] @ ods_origins_circle[i] + ods_cam_position[0]
+            ods_origins_circle = ods_origins_circle.unsqueeze(0).repeat(c2w.shape[0], 1, 1)
+
+            # assign final camera origins
+            c2w[..., :3, 3] = ods_origins_circle
+
+            return ods_origins_circle, directions_stack
+
+        for cam in cam_types:
+            if CameraType.PERSPECTIVE.value in cam_types:
+                mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
+                mask = torch.stack([mask, mask, mask], dim=0)
+                directions_stack[..., 0][mask] = torch.masked_select(coord_stack[..., 0], mask).float()
+                directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1], mask).float()
+                directions_stack[..., 2][mask] = -1.0
+
+            elif CameraType.FISHEYE.value in cam_types:
+                mask = (self.camera_type[true_indices] == CameraType.FISHEYE.value).squeeze(-1)  # (num_rays)
+                mask = torch.stack([mask, mask, mask], dim=0)
+
+                theta = torch.sqrt(torch.sum(coord_stack**2, dim=-1))
+                theta = torch.clip(theta, 0.0, math.pi)
+
+                sin_theta = torch.sin(theta)
+
+                directions_stack[..., 0][mask] = torch.masked_select(
+                    coord_stack[..., 0] * sin_theta / theta, mask
+                ).float()
+                directions_stack[..., 1][mask] = torch.masked_select(
+                    coord_stack[..., 1] * sin_theta / theta, mask
+                ).float()
+                directions_stack[..., 2][mask] = -torch.masked_select(torch.cos(theta), mask).float()
+
+            elif CameraType.EQUIRECTANGULAR.value in cam_types:
+                mask = (self.camera_type[true_indices] == CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
+                mask = torch.stack([mask, mask, mask], dim=0)
+
+                # For equirect, fx = fy = height = width/2
+                # Then coord[..., 0] goes from -1 to 1 and coord[..., 1] goes from -1/2 to 1/2
+                theta = -torch.pi * coord_stack[..., 0]  # minus sign for right-handed
+                phi = torch.pi * (0.5 - coord_stack[..., 1])
+                # use spherical in local camera coordinates (+y up, x=0 and z<0 is theta=0)
+                directions_stack[..., 0][mask] = torch.masked_select(-torch.sin(theta) * torch.sin(phi), mask).float()
+                directions_stack[..., 1][mask] = torch.masked_select(torch.cos(phi), mask).float()
+                directions_stack[..., 2][mask] = torch.masked_select(-torch.cos(theta) * torch.sin(phi), mask).float()
+
+            elif CameraType.OMNIDIRECTIONALSTEREO_L.value in cam_types:
+                ods_origins_circle, directions_stack = _compute_rays_for_omnidirectional_stereo("left")
+                # assign final camera origins
+                c2w[..., :3, 3] = ods_origins_circle
+
+            elif CameraType.OMNIDIRECTIONALSTEREO_R.value in cam_types:
+                ods_origins_circle, directions_stack = _compute_rays_for_omnidirectional_stereo("right")
+                # assign final camera origins
+                c2w[..., :3, 3] = ods_origins_circle
+            else:
+                raise ValueError(f"Camera type {cam} not supported.")
 
         assert directions_stack.shape == (3,) + num_rays_shape + (3,)
-
-        c2w = self.camera_to_worlds[true_indices]
-        assert c2w.shape == num_rays_shape + (3, 4)
 
         if camera_opt_to_camera is not None:
             c2w = pose_utils.multiply(c2w, camera_opt_to_camera)
