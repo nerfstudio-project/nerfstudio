@@ -32,6 +32,7 @@ from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
 from nerfstudio.viewer.server import viewer_utils
+from nerfstudio.viewer_beta.control_panel import ControlPanel
 from nerfstudio.viewer_beta.render_state_machine import RenderAction, RenderStateMachine
 from nerfstudio.viewer_beta.utils import CameraState
 
@@ -42,7 +43,7 @@ VISER_NERFSTUDIO_SCALE_RATIO: int = 10
 
 
 @decorate_all([check_main_thread])
-class ViewerState:
+class Viewer:
     """Class to hold state for viewer variables
 
     Args:
@@ -54,9 +55,12 @@ class ViewerState:
 
     Attributes:
         viewer_url: url to open viewer
+        viser_server: the viser server
     """
 
     viewer_url: str
+    viser_server: viser.ViserServer
+    camera_state: Optional[CameraState] = None
 
     def __init__(
         self,
@@ -74,6 +78,7 @@ class ViewerState:
         self.pipeline = pipeline
         self.log_filename = log_filename
         self.datapath = datapath.parent if datapath.is_file() else datapath
+        self.include_time = self.pipeline.datamanager.includes_time
 
         if self.config.websocket_port is None:
             websocket_port = viewer_utils.get_free_port(default_port=self.config.websocket_port_default)
@@ -94,12 +99,19 @@ class ViewerState:
 
         self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
 
-        self.render_statemachine = RenderStateMachine(self)
-        self.render_statemachine.start()
-
         self.viser_server.on_client_connect(self.handle_new_client)
 
-        self.camera_state: Optional[CameraState] = None
+        self.control_panel = ControlPanel(
+            self.viser_server,
+            self.include_time,
+            self._interrupt_render,
+            self._crop_params_update,
+            self._output_type_change,
+            self._output_split_type_change,
+        )
+
+        self.render_statemachine = RenderStateMachine(self)
+        self.render_statemachine.start()
 
     def handle_new_client(self, client: viser.ClientHandle) -> None:
         @client.camera.on_update
@@ -111,6 +123,35 @@ class ViewerState:
             c2w = torch.concatenate([R, pos[:, None]], dim=1)
             self.camera_state = CameraState(fov=client.camera.fov, aspect=client.camera.aspect, c2w=c2w)
             self.render_statemachine.action(RenderAction("move", self.camera_state))
+
+    def _interrupt_render(self, _) -> None:
+        """Interrupt current render."""
+        if self.camera_message is not None:
+            self.render_statemachine.action(RenderAction("rerender", self.camera_message))
+
+    def _crop_params_update(self, _) -> None:
+        """Update crop parameters"""
+        print("Crop params not set up")
+        # crop_min = torch.tensor(self.control_panel.crop_min, dtype=torch.float32)
+        # crop_max = torch.tensor(self.control_panel.crop_max, dtype=torch.float32)
+        # scene_box = SceneBox(aabb=torch.stack([crop_min, crop_max], dim=0))
+        # self.viser_server.update_scene_box(scene_box)
+        # crop_scale = crop_max - crop_min
+        # crop_center = (crop_max + crop_min) / 2.0
+        # self.viser_server.send_crop_params(
+        #     crop_enabled=self.control_panel.crop_viewport,
+        #     crop_bg_color=self.control_panel.background_color,
+        #     crop_scale=tuple(crop_scale.tolist()),
+        #     crop_center=tuple(crop_center.tolist()),
+        # )
+        # if self.camera_message is not None:
+        #     self.render_statemachine.action(RenderAction("rerender", self.camera_message))
+
+    def _output_type_change(self, _):
+        self.output_type_changed = True
+
+    def _output_split_type_change(self, _):
+        self.output_split_type_changed = True
 
     def _pick_drawn_image_idxs(self, total_num: int) -> list[int]:
         """Determine indicies of images to display in viewer.
@@ -161,7 +202,6 @@ class ViewerState:
 
         self.train_state = train_state
         self.train_util = 0.9
-        self.max_res = 512
 
     def update_scene(self, step: int, num_rays_per_batch: Optional[int] = None) -> None:
         """updates the scene based on the graph weights
@@ -183,7 +223,7 @@ class ViewerState:
                 train_s = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
                 vis_s = GLOBAL_BUFFER["events"][EventName.VIS_RAYS_PER_SEC.value]["avg"]
                 train_util = self.train_util
-                vis_n = self.max_res**2
+                vis_n = self.control_panel.max_res**2
                 train_n = num_rays_per_batch
                 train_time = train_n / train_s
                 vis_time = vis_n / vis_s
@@ -194,6 +234,28 @@ class ViewerState:
             if step > self.last_step + render_freq:
                 self.last_step = step
                 self.render_statemachine.action(RenderAction("step", self.camera_state))
+
+    def update_colormap_options(self, dimensions: int, dtype: type) -> None:
+        """update the colormap options based on the current render
+
+        Args:
+            dimensions: the number of dimensions of the render
+            dtype: the data type of the render
+        """
+        if self.output_type_changed:
+            self.control_panel.update_colormap_options(dimensions, dtype)
+            self.output_type_changed = False
+
+    def update_split_colormap_options(self, dimensions: int, dtype: type) -> None:
+        """update the colormap options based on the current render
+
+        Args:
+            dimensions: the number of dimensions of the render
+            dtype: the data type of the render
+        """
+        if self.output_split_type_changed:
+            self.control_panel.update_split_colormap_options(dimensions, dtype)
+            self.output_split_type_changed = False
 
     def get_model(self) -> Model:
         """Returns the model."""

@@ -320,7 +320,7 @@ class WandbWriter(Writer):
         Args:
             config: config dictionary to write out
         """
-        wandb.config.update(config_dict)
+        wandb.config.update(config_dict, allow_val_change=True)
 
 
 @decorate_all([check_main_thread])

@@ -22,13 +22,15 @@ from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 
 import torch
 
-from nerfstudio.utils import writer
+from nerfstudio.model_components.renderers import background_color_override_context
+from nerfstudio.utils import colormaps, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
+from nerfstudio.viewer_beta import utils
 from nerfstudio.viewer_beta.utils import CameraState, get_camera
 
 if TYPE_CHECKING:
-    from nerfstudio.viewer_beta.viewer_state import ViewerState
+    from nerfstudio.viewer_beta.viewer import Viewer
 
 RenderStates = Literal["low_move", "low_static", "high"]
 RenderActions = Literal["rerender", "move", "static", "step"]
@@ -52,7 +54,7 @@ class RenderStateMachine(threading.Thread):
         viewer: the viewer state
     """
 
-    def __init__(self, viewer: ViewerState):
+    def __init__(self, viewer: Viewer):
         threading.Thread.__init__(self)
         self.transitions: Dict[RenderStates, Dict[RenderActions, RenderStates]] = {
             s: {} for s in get_args(RenderStates)
@@ -111,6 +113,14 @@ class RenderStateMachine(threading.Thread):
             camera_state: the current camera state
         """
 
+        # initialize the camera ray bundle
+        utils.update_render_aabb(
+            crop_viewport=self.viewer.control_panel.crop_viewport,
+            crop_min=self.viewer.control_panel.crop_min,
+            crop_max=self.viewer.control_panel.crop_max,
+            model=self.viewer.get_model(),
+        )
+
         image_height, image_width = self._calculate_image_res(camera_state.aspect)
 
         camera = get_camera(camera_state, image_height, image_width)
@@ -123,8 +133,20 @@ class RenderStateMachine(threading.Thread):
             with TimeWriter(None, None, write=False) as vis_t:
                 self.viewer.get_model().eval()
                 step = self.viewer.step
-                with torch.no_grad():
-                    outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                if self.viewer.control_panel.crop_viewport:
+                    color = self.viewer.control_panel.background_color
+                    if color is None:
+                        background_color = torch.tensor([0.0, 0.0, 0.0], device=self.viewer.pipeline.model.device)
+                    else:
+                        background_color = torch.tensor(
+                            [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0],
+                            device=self.viewer.get_model().device,
+                        )
+                    with background_color_override_context(background_color), torch.no_grad():
+                        outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                else:
+                    with torch.no_grad():
+                        outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                 self.viewer.get_model().train()
         num_rays = len(camera_ray_bundle)
         render_time = vis_t.duration
@@ -173,7 +195,37 @@ class RenderStateMachine(threading.Thread):
         Args:
             outputs: the dictionary of outputs to choose from, from the model
         """
-        selected_output = (outputs["rgb"] * 255).type(torch.uint8)
+        output_keys = set(outputs.keys())
+        if self.output_keys != output_keys:
+            self.output_keys = output_keys
+            self.viewer.control_panel.update_output_options(list(outputs.keys()))
+
+        output_render = self.viewer.control_panel.output_render
+        self.viewer.update_colormap_options(
+            dimensions=outputs[output_render].shape[-1], dtype=outputs[output_render].dtype
+        )
+        selected_output = colormaps.apply_colormap(
+            image=outputs[self.viewer.control_panel.output_render],
+            colormap_options=self.viewer.control_panel.colormap_options,
+        )
+
+        if self.viewer.control_panel.split:
+            split_output_render = self.viewer.control_panel.split_output_render
+            self.viewer.update_split_colormap_options(
+                dimensions=outputs[split_output_render].shape[-1], dtype=outputs[split_output_render].dtype
+            )
+            split_output = colormaps.apply_colormap(
+                image=outputs[self.viewer.control_panel.split_output_render],
+                colormap_options=self.viewer.control_panel.split_colormap_options,
+            )
+            split_index = min(
+                int(self.viewer.control_panel.split_percentage * selected_output.shape[1]),
+                selected_output.shape[1] - 1,
+            )
+            selected_output = torch.cat([selected_output[:, :split_index], split_output[:, split_index:]], dim=1)
+            selected_output[:, split_index] = torch.tensor([0.133, 0.157, 0.192], device=selected_output.device)
+
+        selected_output = (selected_output * 255).type(torch.uint8)
 
         self.viewer.viser_server.set_background_image(
             selected_output.cpu().numpy(),
@@ -190,7 +242,7 @@ class RenderStateMachine(threading.Thread):
             image_height: the maximum image height that can be rendered in the time budget
             image_width: the maximum image width that can be rendered in the time budget
         """
-        max_res = self.viewer.max_res
+        max_res = self.viewer.control_panel.max_res
         if self.state == "high":
             # high res is always static
             image_height = max_res

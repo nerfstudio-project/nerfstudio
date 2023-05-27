@@ -77,9 +77,9 @@ def outer(
 
 
 def lossfun_outer(
-    t: Float[Tensor, "*batch num_samples+1"],
+    t: Float[Tensor, "*batch num_samples_1"],
     w: Float[Tensor, "*batch num_samples"],
-    t_env: Float[Tensor, "*batch num_samples+1"],
+    t_env: Float[Tensor, "*batch num_samples_1"],
     w_env: Float[Tensor, "*batch num_samples"],
 ):
     """
