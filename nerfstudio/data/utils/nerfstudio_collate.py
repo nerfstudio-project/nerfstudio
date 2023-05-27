@@ -161,12 +161,14 @@ def nerfstudio_collate(batch: Any, extra_mappings: Union[Dict[type, Callable], N
         # If batch dimension exists, then we need to concatenate along the 0th dimension
         else:
             op = torch.cat
-        
+
         # Create metadata dictionary
         metadata_keys = batch[0].metadata.keys()
-        assert all((cam.metadata.keys() == metadata_keys for cam in batch)), "All cameras must have the same metadata keys."
+        assert all(
+            (cam.metadata.keys() == metadata_keys for cam in batch)
+        ), "All cameras must have the same metadata keys."
         metadata = {key: op([cam.metadata[key] for cam in batch], dim=0) for key in metadata_keys}
-            
+
         return Cameras(
             op([cameras.camera_to_worlds for cameras in batch], dim=0),
             op([cameras.fx for cameras in batch], dim=0),
