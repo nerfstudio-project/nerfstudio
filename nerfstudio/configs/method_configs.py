@@ -19,7 +19,8 @@ Put all the method implementations in one location.
 from __future__ import annotations
 
 from collections import OrderedDict
-from typing import Dict
+from dataclasses import field
+from typing import Dict, List
 
 import tyro
 
@@ -175,11 +176,15 @@ method_configs["nerfacto-huge"] = TrainerConfig(
             eval_num_rays_per_chunk=1 << 15,
             num_nerf_samples_per_ray=64,
             num_proposal_samples_per_ray=(512, 512),
+            proposal_net_args_list=[
+                {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 512, "use_linear": False},
+                {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 7, "max_res": 2048, "use_linear": False},
+            ],
             hidden_dim=256,
             hidden_dim_color=256,
             hidden_dim_transient=256,
             features_per_level=4,
-            max_res=4096,
+            max_res=8000,
             proposal_weights_anneal_max_num_iters=5000,
             log2_hashmap_size=21,
         ),
