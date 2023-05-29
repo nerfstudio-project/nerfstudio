@@ -12,7 +12,7 @@ build/
 develop-eggs/
 dist/
 downloads/
-!scripts/downloads/
+!nerfstudio/scripts/downloads/
 eggs/
 .eggs/
 lib/
@@ -171,6 +171,7 @@ events.out.*
 # Data
 data
 !*/data
+!docs/reference/api/data/
 
 # Misc
 old/

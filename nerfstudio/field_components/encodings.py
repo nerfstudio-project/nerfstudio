@@ -18,14 +18,13 @@ Encoding functions
 
 import itertools
 from abc import abstractmethod
-from typing import Optional, Sequence
+from typing import Literal, Optional, Sequence
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
 from torchtyping import TensorType
-from typing_extensions import Literal
 
 from nerfstudio.field_components.base_field_component import FieldComponent
 from nerfstudio.utils.math import components_from_spherical_harmonics, expected_sin
@@ -141,9 +140,9 @@ class NeRFEncoding(Encoding):
         Returns:
             Output values will be between -1 and 1
         """
-        in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
+        scaled_in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
         freqs = 2 ** torch.linspace(self.min_freq, self.max_freq, self.num_frequencies).to(in_tensor.device)
-        scaled_inputs = in_tensor[..., None] * freqs  # [..., "input_dim", "num_scales"]
+        scaled_inputs = scaled_in_tensor[..., None] * freqs  # [..., "input_dim", "num_scales"]
         scaled_inputs = scaled_inputs.view(*scaled_inputs.shape[:-2], -1)  # [..., "input_dim" * "num_scales"]
 
         if covs is None:
@@ -201,8 +200,8 @@ class RFFEncoding(Encoding):
         Returns:
             Output values will be between -1 and 1
         """
-        in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
-        scaled_inputs = in_tensor @ self.b_matrix  # [..., "num_frequencies"]
+        scaled_in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
+        scaled_inputs = scaled_in_tensor @ self.b_matrix  # [..., "num_frequencies"]
 
         if covs is None:
             encoded_inputs = torch.sin(torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1))

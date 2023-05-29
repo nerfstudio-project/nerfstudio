@@ -20,11 +20,10 @@ import json
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Literal, Optional, Type
 
 import torch
 from torchtyping import TensorType
-from typing_extensions import Literal
 
 import nerfstudio.configs.base_config as cfg
 from nerfstudio.cameras.cameras import Cameras
@@ -127,9 +126,14 @@ class DataParser:
 
     Args:
         config: datasetparser config containing all information needed to instantiate dataset
+
+    Attributes:
+        config: datasetparser config containing all information needed to instantiate dataset
+        includes_time: Does the dataset include time information in the camera poses.
     """
 
     config: DataParserConfig
+    includes_time: bool = False
 
     def __init__(self, config: DataParserConfig):
         super().__init__()

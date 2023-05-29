@@ -21,7 +21,7 @@ import typing
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from time import time
-from typing import Any, Dict, List, Mapping, Optional, Type, Union, cast
+from typing import Any, Dict, List, Literal, Mapping, Optional, Type, Union, cast
 
 import torch
 import torch.distributed as dist
@@ -35,7 +35,6 @@ from rich.progress import (
 from torch import nn
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
-from typing_extensions import Literal
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datamanagers.base_datamanager import (
@@ -108,9 +107,22 @@ class Pipeline(nn.Module):
         return self.model.device
 
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
-        model_state = {key[len("_model.") :]: value for key, value in state_dict.items() if key.startswith("_model.")}
+        is_ddp_model_state = True
+        model_state = {}
+        for key, value in state_dict.items():
+            if key.startswith("_model."):
+                # remove the "_model." prefix from key
+                model_state[key[len("_model.") :]] = value
+                # make sure that the "module." prefix comes from DDP,
+                # rather than an attribute of the model named "module"
+                if not key.startswith("_model.module."):
+                    is_ddp_model_state = False
+        # remove "module." prefix added by DDP
+        if is_ddp_model_state:
+            model_state = {key[len("module.") :]: value for key, value in model_state.items()}
+
         pipeline_state = {key: value for key, value in state_dict.items() if not key.startswith("_model.")}
-        self._model.load_state_dict(model_state, strict=strict)
+        self.model.load_state_dict(model_state, strict=strict)
         super().load_state_dict(pipeline_state, strict=False)
 
     @profiler.time_function
@@ -373,7 +385,7 @@ class VanillaPipeline(Pipeline):
         state = {
             (key[len("module.") :] if key.startswith("module.") else key): value for key, value in loaded_state.items()
         }
-        self._model.update_to_step(step)
+        self.model.update_to_step(step)
         self.load_state_dict(state, strict=True)
 
     def get_training_callbacks(
