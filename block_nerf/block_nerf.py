@@ -41,6 +41,13 @@ def split_transforms(path: Path, splits: int, overlap: int = 10):
 
     new_transforms = []
     for split in split_frames:
+        # Check if transforms["fl_x"] exists, if not, only append the frames
+        if "fl_x" not in transforms:
+            new_transforms.append({
+                "camera_model": transforms["camera_model"],
+                "frames": split.tolist()
+            })
+            continue
 
         new_transforms.append(
             {
@@ -103,7 +110,7 @@ def transform_camera_path_to_original_space(camera_path_path: Path, pipeline):
     return export_path
 
 
-def transform_camera_path(camera_path_path: Path, dataparser_transform_path: Path, export_path: Optional[Path] = None):
+def transform_camera_path(camera_path_path: Path, dataparser_transform_path: Path, export_path: Optional[Path] = None, colmap_transform: Optional[np.ndarray] = None):
     """
     Transform a un-transformed camera path to a transformed camera path, in the respective transform's coordinate system.
     """
@@ -115,6 +122,12 @@ def transform_camera_path(camera_path_path: Path, dataparser_transform_path: Pat
 
     for i, camera in enumerate(camera_path["camera_path"]):
         c2w = np.array(camera["camera_to_world"]).reshape(4, 4)
+        if colmap_transform is not None:
+            if colmap_transform.shape != (4, 4):
+                colmap_transform = np.vstack((colmap_transform, np.array([0, 0, 0, 1])))
+                assert colmap_transform.shape == (4, 4)
+                
+            c2w = colmap_transform @ c2w
         c2w = (t @ c2w) * s
         c2w = np.vstack((c2w, np.array([0, 0, 0, 1])))
         camera["camera_to_world"] = c2w.reshape(16).tolist()

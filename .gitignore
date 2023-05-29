@@ -194,3 +194,10 @@ package-lock.json
 # Slurm outputs
 *srun.out
 *.slurm
+
+# Testing files
+ffmpeg_test/**/*.png
+ffmpeg_test/**/*.json
+
+scripts/completions/zsh/*
+copy_data.sh
