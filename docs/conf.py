@@ -1,4 +1,3 @@
-# pylint: skip-file
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full
@@ -16,7 +15,6 @@ import sys
 
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.append(os.path.abspath("./_pygments"))
-import nerfstudio.configs.base_config
 
 # -- Project information -----------------------------------------------------
 

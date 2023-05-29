@@ -737,7 +737,7 @@ export default function CameraPanel(props) {
   transform_controls.addEventListener('mouseDown', (event) => {
     // prevent multiple loops
     if (update_cameras_interval === null) {
-      // hardcoded for 100 ms per udpate
+      // hardcoded for 100 ms per update
       update_cameras_interval = setInterval(() => {}, 100);
     }
   });
