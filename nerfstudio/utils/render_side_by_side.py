@@ -99,7 +99,7 @@ class RenderSideBySide:
             "keyframes": [],
             "camera_type": "perspective",
             "render_height": height * render_scale,
-            "render_width": height * render_scale,
+            "render_width": width * render_scale,
             "camera_path": [],  # "camera_to_world"-dict with 16 double values in a 1D list.
             "fps": self.fps,
             "seconds": len(frames) / self.fps,
