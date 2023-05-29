@@ -21,7 +21,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import torch
 from torch import nn
@@ -115,7 +115,7 @@ class Model(nn.Module):
         """
 
     @abstractmethod
-    def get_outputs(self, ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
+    def get_outputs(self, ray_bundle: RayBundle) -> Dict[str, Union[torch.Tensor, List]]:
         """Takes in a Ray Bundle and returns a dictionary of outputs.
 
         Args:
@@ -126,7 +126,7 @@ class Model(nn.Module):
             Outputs of model. (ie. rendered colors)
         """
 
-    def forward(self, ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
+    def forward(self, ray_bundle: RayBundle) -> Dict[str, Union[torch.Tensor, List]]:
         """Run forward starting with a ray bundle. This outputs different things depending on the configuration
         of the model and whether or not the batch is provided (whether or not we are training basically)
 

@@ -109,7 +109,13 @@ class NeRFEncoding(Encoding):
     """
 
     def __init__(
-        self, in_dim: int, num_frequencies: int, min_freq_exp: float, max_freq_exp: float, include_input: bool = False
+        self,
+        in_dim: int,
+        num_frequencies: int,
+        min_freq_exp: float,
+        max_freq_exp: float,
+        include_input: bool = False,
+        implementation: Literal["tcnn", "torch"] = "torch",
     ) -> None:
         super().__init__(in_dim)
 
@@ -117,6 +123,18 @@ class NeRFEncoding(Encoding):
         self.min_freq = min_freq_exp
         self.max_freq = max_freq_exp
         self.include_input = include_input
+
+        self.tcnn_encoding = None
+        if implementation == "tcnn" and not TCNN_EXISTS:
+            print_tcnn_speed_warning("NeRFEncoding")
+        elif implementation == "tcnn":
+            encoding_config = {"otype": "Frequency", "n_frequencies": num_frequencies}
+            assert min_freq_exp == 0, "tcnn only supports min_freq_exp = 0"
+            assert max_freq_exp == num_frequencies - 1, "tcnn only supports max_freq_exp = num_frequencies - 1"
+            self.tcnn_encoding = tcnn.Encoding(
+                n_input_dims=in_dim,
+                encoding_config=encoding_config,
+            )
 
     def get_out_dim(self) -> int:
         if self.in_dim is None:
@@ -126,7 +144,7 @@ class NeRFEncoding(Encoding):
             out_dim += self.in_dim
         return out_dim
 
-    def forward(
+    def pytorch_fwd(
         self,
         in_tensor: Float[Tensor, "*bs input_dim"],
         covs: Optional[Float[Tensor, "*bs input_dim input_dim"]] = None,
@@ -157,6 +175,13 @@ class NeRFEncoding(Encoding):
         if self.include_input:
             encoded_inputs = torch.cat([encoded_inputs, in_tensor], dim=-1)
         return encoded_inputs
+
+    def forward(
+        self, in_tensor: Float[Tensor, "*bs input_dim"], covs: Optional[Float[Tensor, "*bs input_dim input_dim"]] = None
+    ) -> Float[Tensor, "*bs output_dim"]:
+        if self.tcnn_encoding is not None:
+            return self.tcnn_encoding(in_tensor)
+        return self.pytorch_fwd(in_tensor, covs)
 
 
 class RFFEncoding(Encoding):
@@ -239,7 +264,7 @@ class HashEncoding(Encoding):
         log2_hashmap_size: int = 19,
         features_per_level: int = 2,
         hash_init_scale: float = 0.001,
-        implementation: Literal["tcnn", "torch"] = "tcnn",
+        implementation: Literal["tcnn", "torch"] = "torch",
         interpolation: Optional[Literal["Nearest", "Linear", "Smoothstep"]] = None,
     ) -> None:
         super().__init__(in_dim=3)
@@ -258,7 +283,7 @@ class HashEncoding(Encoding):
         self.hash_table = nn.Parameter(self.hash_table)
 
         self.tcnn_encoding = None
-        if not TCNN_EXISTS and implementation == "tcnn":
+        if implementation == "tcnn" and not TCNN_EXISTS:
             print_tcnn_speed_warning("HashEncoding")
         elif implementation == "tcnn":
             encoding_config = {
@@ -277,7 +302,7 @@ class HashEncoding(Encoding):
                 encoding_config=encoding_config,
             )
 
-        if not TCNN_EXISTS or self.tcnn_encoding is None:
+        if self.tcnn_encoding is None:
             assert (
                 interpolation is None or interpolation == "Linear"
             ), f"interpolation '{interpolation}' is not supported for torch encoding backend"
@@ -348,7 +373,7 @@ class HashEncoding(Encoding):
         return torch.flatten(encoded_value, start_dim=-2, end_dim=-1)  # [..., num_levels * features_per_level]
 
     def forward(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
-        if TCNN_EXISTS and self.tcnn_encoding is not None:
+        if self.tcnn_encoding is not None:
             return self.tcnn_encoding(in_tensor)
         return self.pytorch_fwd(in_tensor)
 
@@ -647,7 +672,7 @@ class SHEncoding(Encoding):
         levels: Number of spherical harmonic levels to encode.
     """
 
-    def __init__(self, levels: int = 4) -> None:
+    def __init__(self, levels: int = 4, implementation: Literal["tcnn", "torch"] = "torch") -> None:
         super().__init__(in_dim=3)
 
         if levels <= 0 or levels > 4:
@@ -655,9 +680,28 @@ class SHEncoding(Encoding):
 
         self.levels = levels
 
+        self.tcnn_encoding = None
+        if implementation == "tcnn" and not TCNN_EXISTS:
+            print_tcnn_speed_warning("SHEncoding")
+        elif implementation == "tcnn":
+            encoding_config = {
+                "otype": "SphericalHarmonics",
+                "degree": levels,
+            }
+            self.tcnn_encoding = tcnn.Encoding(
+                n_input_dims=3,
+                encoding_config=encoding_config,
+            )
+
     def get_out_dim(self) -> int:
         return self.levels**2
 
     @torch.no_grad()
-    def forward(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
+    def pytorch_fwd(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
+        """Forward pass using pytorch. Significantly slower than TCNN implementation."""
         return components_from_spherical_harmonics(levels=self.levels, directions=in_tensor)
+
+    def forward(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
+        if self.tcnn_encoding is not None:
+            return self.tcnn_encoding(in_tensor)
+        return self.pytorch_fwd(in_tensor)

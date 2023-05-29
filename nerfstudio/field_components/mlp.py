@@ -15,13 +15,51 @@
 """
 Multi Layer Perceptron
 """
-from typing import Optional, Set, Tuple
+from typing import Literal, Optional, Set, Tuple, Union
 
 import torch
 from jaxtyping import Float
 from torch import Tensor, nn
 
 from nerfstudio.field_components.base_field_component import FieldComponent
+from nerfstudio.utils.printing import print_tcnn_speed_warning
+
+from nerfstudio.utils.rich_utils import CONSOLE
+
+try:
+    import tinycudann as tcnn
+
+    TCNN_EXISTS = True
+except ModuleNotFoundError:
+    TCNN_EXISTS = False
+
+
+def activation_to_tcnn_string(activation: Union[nn.Module, None]) -> str:
+    """Converts a torch.nn activation function to a string that can be used to
+    initialize a TCNN activation function.
+
+    Args:
+        activation: torch.nn activation function
+    Returns:
+        str: TCNN activation function string
+    """
+
+    if isinstance(activation, nn.ReLU):
+        return "ReLU"
+    if isinstance(activation, nn.LeakyReLU):
+        return "Leaky ReLU"
+    if isinstance(activation, nn.Sigmoid):
+        return "Sigmoid"
+    if isinstance(activation, nn.Softplus):
+        return "Softplus"
+    if isinstance(activation, nn.Tanh):
+        return "Tanh"
+    if isinstance(activation, type(None)):
+        return "None"
+    tcnn_documentation_url = "https://github.com/NVlabs/tiny-cuda-nn/blob/master/DOCUMENTATION.md#activation-functions"
+    raise ValueError(
+        f"TCNN activation {activation} not supported for now.\nSee {tcnn_documentation_url} for TCNN documentation."
+    )
 
 
 class MLP(FieldComponent):
@@ -45,6 +83,7 @@ class MLP(FieldComponent):
         skip_connections: Optional[Tuple[int]] = None,
         activation: Optional[nn.Module] = nn.ReLU(),
         out_activation: Optional[nn.Module] = None,
+        implementation: Literal["tcnn", "torch"] = "torch",
     ) -> None:
         super().__init__()
         self.in_dim = in_dim
@@ -57,7 +96,43 @@ class MLP(FieldComponent):
         self.activation = activation
         self.out_activation = out_activation
         self.net = None
-        self.build_nn_modules()
+
+        self.tcnn_encoding = None
+        if implementation == "torch":
+            self.build_nn_modules()
+        elif implementation == "tcnn" and not TCNN_EXISTS:
+            print_tcnn_speed_warning("MLP")
+        elif implementation == "tcnn":
+            activation_str = activation_to_tcnn_string(activation)
+            output_activation_str = activation_to_tcnn_string(out_activation)
+            if layer_width in [16, 32, 64, 128]:
+                network_config = {
+                    "otype": "FullyFusedMLP",
+                    "activation": activation_str,
+                    "output_activation": output_activation_str,
+                    "n_neurons": layer_width,
+                    "n_hidden_layers": num_layers - 1,
+                }
+            else:
+                CONSOLE.line()
+                CONSOLE.print("[bold yellow]WARNING: Using slower TCNN CutlassMLP instead of TCNN FullyFusedMLP")
+                CONSOLE.print(
+                    "[bold yellow]Use layer width of 16, 32, 64, or 128 to use the faster TCNN FullyFusedMLP."
+                )
+                CONSOLE.line()
+                network_config = {
+                    "otype": "CutlassMLP",
+                    "activation": activation_str,
+                    "output_activation": output_activation_str,
+                    "n_neurons": layer_width,
+                    "n_hidden_layers": num_layers - 1,
+                }
+
+            self.tcnn_encoding = tcnn.Network(
+                n_input_dims=in_dim,
+                n_output_dims=out_dim,
+                network_config=network_config,
+            )
 
     def build_nn_modules(self) -> None:
         """Initialize multi-layer perceptron."""
@@ -76,7 +151,7 @@ class MLP(FieldComponent):
             layers.append(nn.Linear(self.layer_width, self.out_dim))
         self.layers = nn.ModuleList(layers)
 
-    def forward(self, in_tensor: Float[Tensor, "*bs in_dim"]) -> Float[Tensor, "*bs out_dim"]:
+    def pytorch_fwd(self, in_tensor: Float[Tensor, "*bs in_dim"]) -> Float[Tensor, "*bs out_dim"]:
         """Process input with a multilayer perceptron.
 
         Args:
@@ -96,3 +171,8 @@ class MLP(FieldComponent):
         if self.out_activation is not None:
             x = self.out_activation(x)
         return x
+
+    def forward(self, in_tensor: Float[Tensor, "*bs in_dim"]) -> Float[Tensor, "*bs out_dim"]:
+        if self.tcnn_encoding is not None:
+            return self.tcnn_encoding(in_tensor)
+        return self.pytorch_fwd(in_tensor)
