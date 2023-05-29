@@ -46,6 +46,12 @@ class RenderSideBySide:
         self.new_transforms_path = self.transforms_path.parent / f"transforms_{get_timestamp()}.json"
         self.target_camera_path_path = target_camera_path_path
         self.render_dir = render_dir
+        self.colmap_applied_transforms = self.get_colmap_applied_transforms()
+    
+    def get_colmap_applied_transforms(self) -> Optional[np.ndarray]:
+        transforms = load_json(self.transforms_path)
+        colmap_applied_transform = transforms.get("applied_transform", None)
+        return np.array(colmap_applied_transform) if colmap_applied_transform else None
 
     def copy_every_n_images(self):
         count = 0
@@ -57,8 +63,8 @@ class RenderSideBySide:
             subprocess.run(cmd, check=True)
             count += 1
 
-    def copy_every_n_transforms(self):
-        transforms = load_json(self.transforms_path)
+    def copy_every_n_transforms(self, transforms_path: Optional[Path] = None):
+        transforms = load_json(transforms_path) if transforms_path else load_json(self.transforms_path)
         frames = transforms["frames"]
         new_frames = [frame for i, frame in enumerate(frames) if (i + self.camera_offset) % self.cameras_in_rig == 0]
         new_transforms = copy.deepcopy(transforms)
@@ -66,17 +72,34 @@ class RenderSideBySide:
 
         write_json(self.new_transforms_path, new_transforms)
 
-    def create_camera_path_from_transforms(self, source_dataparser_transforms_path: Optional[Path] = None) -> Path:
+    def create_camera_path_from_transforms(
+        self, source_dataparser_transforms_path: Optional[Path] = None) -> Path:
         transforms = load_json(self.new_transforms_path)
         frames = transforms["frames"]
         sorted_frames = sorted(frames, key=lambda x: x["file_path"])
         flattened_frames = [np.array(frame["transform_matrix"]).flatten().tolist() for frame in sorted_frames]
 
+        # If the intrinsics are per-frame
+        width = 0
+        height = 0
+        if 'w' not in transforms:
+            widths = [frame['w'] for frame in sorted_frames[:10]]
+            index = widths.index(max(widths))
+            width = sorted_frames[index]['w']
+            height = sorted_frames[index]['h']
+        else:
+            width = transforms['w']
+            height = transforms['h']
+
+        render_scale = 1
+        while width * render_scale < 1600:
+            render_scale += 1
+        
         new_camera_path = {
             "keyframes": [],
             "camera_type": "perspective",
-            "render_height": 1600, # This is the resolution of the input images scaled by 4
-            "render_width": 1200, # This is the resolution of the input images scaled by 4
+            "render_height": height * render_scale,
+            "render_width": width * render_scale,
             "camera_path": [],  # "camera_to_world"-dict with 16 double values in a 1D list.
             "fps": self.fps,
             "seconds": len(frames) / self.fps,
@@ -89,7 +112,7 @@ class RenderSideBySide:
                 {
                     "camera_to_world": c2w,
                     "fov": 90,
-                    "aspect": 400 / 300,  # Heigh/width. Should I get this somewhere else? 
+                    "aspect": width / height,
                 }
             )
 
@@ -108,6 +131,7 @@ class RenderSideBySide:
                 camera_path_path=self.target_camera_path_path,
                 dataparser_transform_path=source_dataparser_transforms_path,
                 export_path=export_path,
+                colmap_transform=self.colmap_applied_transforms,
             )
 
         return export_path

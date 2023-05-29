@@ -20,11 +20,11 @@ from block_nerf.block_nerf import transform_camera_path
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.configs.method_configs import method_configs
 from nerfstudio.engine.trainer import TrainerConfig
+from nerfstudio.scripts.eval import ComputePSNR
+from nerfstudio.scripts.render import BlockNerfRenderTrajectory, RenderTrajectory
+from nerfstudio.scripts.train import launch, train_loop
 from nerfstudio.utils.render_side_by_side import RenderSideBySide
 from nerfstudio.utils.scripts import run_command
-from scripts.eval import ComputePSNR
-from scripts.render import BlockNerfRenderTrajectory, RenderTrajectory
-from scripts.train import launch, train_loop
 
 CONSOLE = Console(width=120)
 
@@ -35,6 +35,8 @@ camera_paths = {
     "one_lap_carla_coordinates": Path("camera_paths/camera_path_one_lap_carla_coordinates.json"),
 }
 
+def get_timestamp():
+    return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 @dataclass
 class Args:
@@ -45,6 +47,8 @@ class Args:
     block_segments: Optional[int] = None
     num_cameras: int = 2
     camera_offset: int = 0
+    block_overlap: int = 0
+    custom_transforms_path: Optional[Path] = None
 
 
 class my_timer(ContextDecorator):
@@ -82,6 +86,7 @@ class ExperimentPipeline:
         self.model_dir = self.checkpoint_dir.parent
 
         self.render_side_by_side = render_side_by_side
+        self.custom_transforms_path = args.custom_transforms_path
 
     def run(self) -> Dict[str, Path]:
         """
@@ -107,7 +112,7 @@ class ExperimentPipeline:
         config.data = self.input_data_dir
         config.output_dir = self.output_dir
         config.experiment_name = self.experiment_name
-        config.vis = "wandb"
+        config.vis = "viewer"
         config.viewer.quit_on_train_completion = True
         config.max_num_iterations = 15000
 
@@ -183,18 +188,18 @@ class ExperimentPipeline:
             render_config.main()
 
         elif mode == "side-by-side":
-            model_render_path = render_side_by_side.render_dir / f"{output_name}_model.mp4"
+            model_render_path = render_side_by_side.render_dir / f"{get_timestamp()}_model.mp4"
 
             # Process data and render video from input-images
             self.render_side_by_side.copy_every_n_images()
-            self.render_side_by_side.copy_every_n_transforms()
             input_images_render_path = self.render_side_by_side.create_video_from_images(
                 export_dir=render_side_by_side.render_dir
             )
 
             # Render the input-data camera path with the model
+            self.render_side_by_side.copy_every_n_transforms(transforms_path=self.custom_transforms_path)
             camera_path_path = self.render_side_by_side.create_camera_path_from_transforms(
-                source_dataparser_transforms_path=self.model_dir / "dataparser_transforms.json"
+                source_dataparser_transforms_path=self.model_dir / "dataparser_transforms.json",
             )
             render_config.traj = "filename"
             render_config.camera_path_filename = camera_path_path
@@ -274,12 +279,12 @@ if __name__ == "__main__":
     block_paths = []
     if args.block_segments:
         new_transforms, image_indexes = block_nerf.split_transforms(
-            args.input_data_dir / "transforms.json", args.block_segments, overlap=20
+            args.input_data_dir / "transforms.json", args.block_segments, overlap=args.block_overlap
         )
         block_nerf.write_transforms(new_transforms, image_indexes, args.input_data_dir)
 
     run_paths: List[Dict[str, Path]] = []
-    ignore_dirs = ["images*", "renders", "camera_paths"]
+    ignore_dirs = ["images*", "renders", "camera_paths", "colmap"]
     # Run the pipeline for all the experiment/blocks in the input_data_dir
     for run_dir in args.input_data_dir.iterdir():
         if run_dir.is_dir() and not any(fnmatch.fnmatch(run_dir.name, ignore_dir) for ignore_dir in ignore_dirs):
@@ -290,6 +295,7 @@ if __name__ == "__main__":
                 output_dir=run_dir,
                 use_camera_optimizer=args.use_camera_optimizer,
                 block_segments=args.block_segments,
+                custom_transforms_path=(run_dir.parent / args.custom_transforms_path) if args.custom_transforms_path else None,
             )
 
             render_side_by_side = RenderSideBySide(
