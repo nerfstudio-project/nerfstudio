@@ -86,7 +86,7 @@ class ExperimentPipeline:
             self.write(f"Num frames: {num_frames}/{total}\n")
             cmd = f"ns-process-data {self.args.data_source} --data {self.args.input_data_dir} --output-dir {self.args.output_dir} --num-frames-target {num_frames} --matching-method sequential --verbose"
 
-        if os.environ["SLURM_JOB"]:
+        if "SLURM_JOB" in os.environ:
             cmd += f" --colmap-cmd 'singularity exec --nv  /cluster/apps/dev/colmap/colmap_latest.sif colmap'"
 
         print(cmd)
