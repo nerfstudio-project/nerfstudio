@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -102,3 +103,21 @@ def test_data_manager_type_can_be_serialized(config):
         assert isinstance(obj, tmp2)
     finally:
         globals().pop("tmp2")
+
+
+def _dummy_function():
+    return True
+
+
+def test_deserialize_config1():
+    with open(Path(__file__).parent / "configs" / "test_config1.yml", "r") as f:
+        config_str = f.read()
+    obj = yaml.load(config_str, Loader=yaml.Loader)
+    obj.pipeline.datamanager.collate_fn([1, 2, 3])
+
+
+def test_deserialize_config2():
+    with open(Path(__file__).parent / "configs" / "test_config2.yml", "r") as f:
+        config_str = f.read()
+    obj = yaml.load(config_str, Loader=yaml.Loader)
+    obj.pipeline.datamanager.collate_fn([1, 2, 3])
