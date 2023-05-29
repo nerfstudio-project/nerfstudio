@@ -59,8 +59,14 @@ class Exporter:
     """Path to the output directory."""
 
 
-def validate_pipeline(normal_method, normal_output_name, pipeline: Pipeline) -> None:
-    """Check that the pipeline is valid for this exporter."""
+def validate_pipeline(normal_method: str, normal_output_name: str, pipeline: Pipeline) -> None:
+    """Check that the pipeline is valid for this exporter.
+
+    Args:
+        normal_method: Method to estimate normals with. Either "open3d" or "model_output".
+        normal_output_name: Name of the normal output.
+        pipeline: Pipeline to evaluate with.
+    """
     if normal_method == "model_output":
         CONSOLE.print("Checking that the pipeline has a normal output.")
         origins = torch.zeros((1, 3), device=pipeline.device)
