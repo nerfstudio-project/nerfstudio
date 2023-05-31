@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,9 +28,10 @@ from typing import List, Literal, Optional, Union
 from typing import get_args as typing_get_args
 
 import tyro
-from rich.console import Console
 from rich.prompt import Confirm
 from typing_extensions import assert_never
+
+from nerfstudio.utils.rich_utils import CONSOLE
 
 if sys.version_info < (3, 10):
     import importlib_metadata
@@ -40,7 +41,6 @@ else:
 ConfigureMode = Literal["install", "uninstall"]
 ShellType = Literal["zsh", "bash"]
 
-CONSOLE = Console(width=120)
 HEADER_LINE = "# Source nerfstudio autocompletions."
 
 
@@ -395,7 +395,7 @@ def main(mode: ConfigureMode = "install") -> None:
         assert_never(mode)
 
     if conda_path is not None:
-        # In conda environment we add the completitions activation scripts.
+        # In conda environment we add the completions activation scripts.
         commands = _get_all_entry_points()
         _update_conda_scripts(commands, completions_dir, mode)
     else:

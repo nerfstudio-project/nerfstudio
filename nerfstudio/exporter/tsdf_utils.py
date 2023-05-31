@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 TSDF utils.
 """
 
-# pylint: disable=no-member
 
 from __future__ import annotations
 
@@ -28,16 +27,15 @@ import numpy as np
 import pymeshlab
 import torch
 import torch.nn.functional as F
-from rich.console import Console
+from jaxtyping import Bool, Float
 from skimage import measure
-from torchtyping import TensorType
+from torch import Tensor
 
 from nerfstudio.exporter.exporter_utils import Mesh, render_trajectory
 from nerfstudio.pipelines.base_pipeline import Pipeline
+from nerfstudio.utils.rich_utils import CONSOLE
 
-CONSOLE = Console(width=120)
-
-TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
+TORCH_DEVICE = Union[torch.device, str]
 
 
 @dataclass
@@ -46,17 +44,17 @@ class TSDF:
     Class for creating TSDFs.
     """
 
-    voxel_coords: TensorType[3, "xdim", "ydim", "zdim"]
+    voxel_coords: Float[Tensor, "3 xdim ydim zdim"]
     """Coordinates of each voxel in the TSDF."""
-    values: TensorType["xdim", "ydim", "zdim"]
+    values: Float[Tensor, "xdim ydim zdim"]
     """TSDF values for each voxel."""
-    weights: TensorType["xdim", "ydim", "zdim"]
+    weights: Float[Tensor, "xdim ydim zdim"]
     """TSDF weights for each voxel."""
-    colors: TensorType["xdim", "ydim", "zdim", 3]
+    colors: Float[Tensor, "xdim ydim zdim 3"]
     """TSDF colors for each voxel."""
-    voxel_size: TensorType[3]
+    voxel_size: Float[Tensor, "3"]
     """Size of each voxel in the TSDF. [x, y, z] size."""
-    origin: TensorType[3]
+    origin: Float[Tensor, "3"]
     """Origin of the TSDF [xmin, ymin, zmin]."""
     truncation_margin: float = 5.0
     """Margin for truncation."""
@@ -84,11 +82,11 @@ class TSDF:
     def truncation(self) -> float:
         """Returns the truncation distance."""
         # TODO: clean this up
-        truncation = self.voxel_size[0] * self.truncation_margin
+        truncation = self.voxel_size[0].item() * self.truncation_margin
         return truncation
 
     @staticmethod
-    def from_aabb(aabb: TensorType[2, 3], volume_dims: TensorType[3]):
+    def from_aabb(aabb: Float[Tensor, "2 3"], volume_dims: Float[Tensor, "3"]):
         """Returns an instance of TSDF from an axis-aligned bounding box and volume dimensions.
 
         Args:
@@ -100,9 +98,9 @@ class TSDF:
         voxel_size = (aabb[1] - aabb[0]) / volume_dims
 
         # create the voxel coordinates
-        xdim = torch.arange(volume_dims[0])
-        ydim = torch.arange(volume_dims[1])
-        zdim = torch.arange(volume_dims[2])
+        xdim = torch.arange(volume_dims[0].item())
+        ydim = torch.arange(volume_dims[1].item())
+        zdim = torch.arange(volume_dims[2].item())
         grid = torch.stack(torch.meshgrid([xdim, ydim, zdim], indexing="ij"), dim=0)
         voxel_coords = origin.view(3, 1, 1, 1) + grid * voxel_size.view(3, 1, 1, 1)
 
@@ -122,7 +120,11 @@ class TSDF:
 
         # run marching cubes on CPU
         tsdf_values_np = self.values.clamp(-1, 1).cpu().numpy()
-        vertices, faces, normals, _ = measure.marching_cubes(tsdf_values_np, level=0, allow_degenerate=False)
+        vertices, faces, normals, _ = measure.marching_cubes(  # type: ignore
+            tsdf_values_np,
+            level=0,
+            allow_degenerate=False,
+        )
 
         vertices_indices = np.round(vertices).astype(int)
         colors = self.colors[vertices_indices[:, 0], vertices_indices[:, 1], vertices_indices[:, 2]]
@@ -146,6 +148,7 @@ class TSDF:
             mesh: The mesh to export.
             filename: The filename to export the mesh to.
         """
+        assert mesh.colors is not None
         vertex_matrix = mesh.vertices.cpu().numpy().astype("float64")
         face_matrix = mesh.faces.cpu().numpy().astype("int32")
         v_normals_matrix = mesh.normals.cpu().numpy().astype("float64")
@@ -154,14 +157,14 @@ class TSDF:
         v_color_matrix = np.concatenate([v_color_matrix, np.ones((v_color_matrix.shape[0], 1))], axis=-1)
 
         # create a new Mesh
-        m = pymeshlab.Mesh(
+        m = pymeshlab.Mesh(  # type: ignore
             vertex_matrix=vertex_matrix,
             face_matrix=face_matrix,
             v_normals_matrix=v_normals_matrix,
             v_color_matrix=v_color_matrix,
         )
         # create a new MeshSet
-        ms = pymeshlab.MeshSet()
+        ms = pymeshlab.MeshSet()  # type: ignore
         # add the mesh to the MeshSet
         ms.add_mesh(m, "mesh")
         # save the current mesh
@@ -169,11 +172,11 @@ class TSDF:
 
     def integrate_tsdf(
         self,
-        c2w: TensorType["batch", 4, 4],
-        K: TensorType["batch", 3, 3],
-        depth_images: TensorType["batch", 1, "height", "width"],
-        color_images: Optional[TensorType["batch", 3, "height", "width"]] = None,
-        mask_images: Optional[TensorType["batch", 1, "height", "width"]] = None,
+        c2w: Float[Tensor, "batch 4 4"],
+        K: Float[Tensor, "batch 3 3"],
+        depth_images: Float[Tensor, "batch 1 height width"],
+        color_images: Optional[Float[Tensor, "batch 3 height width"]] = None,
+        mask_images: Optional[Bool[Tensor, "batch 1 height width"]] = None,
     ) -> None:
         """Integrates a batch of depth images into the TSDF.
 
@@ -231,6 +234,7 @@ class TSDF:
         )  # [batch, N, 1]
         sampled_depth = sampled_depth.squeeze(2)  # [batch, 1, N]
         # colors
+        sampled_colors = None
         if color_images is not None:
             sampled_colors = F.grid_sample(
                 input=color_images, grid=grid, mode="nearest", padding_mode="zeros", align_corners=False
@@ -263,7 +267,7 @@ class TSDF:
             ) / total_weights
             self.weights[valid_points_i_shape] = torch.clamp(total_weights, max=1.0)
 
-            if color_images is not None:
+            if sampled_colors is not None:
                 old_colors_i = self.colors[valid_points_i_shape]  # [M, 3]
                 new_colors_i = sampled_colors[i][:, valid_points_i.squeeze(0)].permute(1, 0)  # [M, 3]
                 self.colors[valid_points_i_shape] = (
@@ -300,7 +304,8 @@ def export_tsdf_mesh(
 
     device = pipeline.device
 
-    dataparser_outputs = pipeline.datamanager.train_dataset._dataparser_outputs  # pylint: disable=protected-access
+    assert pipeline.datamanager.train_dataset is not None
+    dataparser_outputs = pipeline.datamanager.train_dataset._dataparser_outputs
 
     # initialize the TSDF volume
     if not use_bounding_box:
@@ -329,11 +334,11 @@ def export_tsdf_mesh(
     )
 
     # camera extrinsics and intrinsics
-    c2w: TensorType["N", 3, 4] = cameras.camera_to_worlds.to(device)
+    c2w: Float[Tensor, "N 3 4"] = cameras.camera_to_worlds.to(device)
     # make c2w homogeneous
     c2w = torch.cat([c2w, torch.zeros(c2w.shape[0], 1, 4, device=device)], dim=1)
     c2w[:, 3, 3] = 1
-    K: TensorType["N", 3, 3] = cameras.get_intrinsics_matrices().to(device)
+    K: Float[Tensor, "N 3 3"] = cameras.get_intrinsics_matrices().to(device)
     color_images = torch.tensor(np.array(color_images), device=device).permute(0, 3, 1, 2)  # shape (N, 3, H, W)
     depth_images = torch.tensor(np.array(depth_images), device=device).permute(0, 3, 1, 2)  # shape (N, 1, H, W)
 

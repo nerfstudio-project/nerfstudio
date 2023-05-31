@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: disable=too-many-lines
 
 """Code to interface with the `vis/` (the JS viewer)."""
 from __future__ import annotations
@@ -21,19 +20,13 @@ import os
 import socket
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import Optional, Tuple
 
 import torch
-from rich.console import Console
 
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.models.base_model import Model
 from nerfstudio.utils.io import load_from_json
-
-if TYPE_CHECKING:
-    from nerfstudio.engine.trainer import Trainer
-
-CONSOLE = Console(width=120)
 
 
 def get_viewer_version() -> str:
@@ -125,13 +118,13 @@ def update_render_aabb(
     """
 
     if crop_viewport:
-        crop_min = torch.tensor(crop_min, dtype=torch.float32)
-        crop_max = torch.tensor(crop_max, dtype=torch.float32)
+        crop_min_tensor = torch.tensor(crop_min, dtype=torch.float32)
+        crop_max_tensor = torch.tensor(crop_max, dtype=torch.float32)
 
         if isinstance(model.render_aabb, SceneBox):
-            model.render_aabb.aabb[0] = crop_min
-            model.render_aabb.aabb[1] = crop_max
+            model.render_aabb.aabb[0] = crop_min_tensor
+            model.render_aabb.aabb[1] = crop_max_tensor
         else:
-            model.render_aabb = SceneBox(aabb=torch.stack([crop_min, crop_max], dim=0))
+            model.render_aabb = SceneBox(aabb=torch.stack([crop_min_tensor, crop_max_tensor], dim=0))
     else:
         model.render_aabb = None

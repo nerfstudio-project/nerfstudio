@@ -6,8 +6,6 @@ TODO(1480) Delete this file when moving to pycolmap.
 
 
 """
-# pylint: disable-all
-# Disabling all pylinting since this file is copy-pasted over from COLMAP
 
 # Copyright (c) 2023, ETH Zurich and UNC Chapel Hill.
 # All rights reserved.
@@ -40,7 +38,6 @@ TODO(1480) Delete this file when moving to pycolmap.
 #
 # Author: Johannes L. Schoenberger (jsch-at-demuc-dot-de)
 
-import argparse
 import collections
 import os
 import struct
@@ -480,7 +477,7 @@ def rotmat2qvec(R):
     Rxx, Ryx, Rzx, Rxy, Ryy, Rzy, Rxz, Ryz, Rzz = R.flat
     K = (
         np.array(
-            [
+            [  # type: ignore
                 [Rxx - Ryy - Rzz, 0, 0, 0],
                 [Ryx + Rxy, Ryy - Rxx - Rzz, 0, 0],
                 [Rzx + Rxz, Rzy + Ryz, Rzz - Rxx - Ryy, 0],

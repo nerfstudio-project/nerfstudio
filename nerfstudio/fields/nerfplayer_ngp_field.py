@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,8 +20,9 @@ NeRFPlayer (https://arxiv.org/abs/2210.15947) field implementations with Instant
 from typing import Dict, Optional, Tuple
 
 import torch
+from jaxtyping import Float
+from torch import Tensor
 from torch.nn.parameter import Parameter
-from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import Frustums, RaySamples
 from nerfstudio.data.scene_box import SceneBox
@@ -37,7 +38,7 @@ from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
 
 try:
     import tinycudann as tcnn
-except ImportError:
+except ModuleNotFoundError:
     # tinycudann module doesn't exist
     pass
 
@@ -63,14 +64,14 @@ class NerfplayerNGPField(Field):
             Sometimes we need to disable viewing dependent effects in a dynamic scene, because there is
             ambiguity between being dynamic and viewing dependent effects. For example, the shadow of the camera
             should be a dynamic effect, but may be reconstructed as viewing dependent effects.
-        num_images: number of images, requried if use_appearance_embedding is True
+        num_images: number of images, required if use_appearance_embedding is True
         appearance_embedding_dim: dimension of appearance embedding
         contraction_type: type of contraction
     """
 
     def __init__(
         self,
-        aabb: TensorType,
+        aabb: Tensor,
         temporal_dim: int = 16,
         num_levels: int = 16,
         features_per_level: int = 2,
@@ -114,7 +115,7 @@ class NerfplayerNGPField(Field):
             level_dim=features_per_level,
             base_resolution=base_resolution,
             log2_hashmap_size=log2_hashmap_size,
-            desired_resolution=1024 * (self.aabb.max() - self.aabb.min()),
+            desired_resolution=int(1024 * (self.aabb.max() - self.aabb.min())),
         )
         self.mlp_base_decode = tcnn.Network(
             n_input_dims=num_levels * features_per_level,
@@ -146,7 +147,7 @@ class NerfplayerNGPField(Field):
             },
         )
 
-    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         if self.spatial_distortion is not None:
             positions = ray_samples.frustums.get_positions()
             positions = self.spatial_distortion(positions)
@@ -172,8 +173,8 @@ class NerfplayerNGPField(Field):
         return density, base_mlp_out
 
     def get_outputs(
-        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
-    ) -> Dict[FieldHeadNames, TensorType]:
+        self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None
+    ) -> Dict[FieldHeadNames, Tensor]:
         assert density_embedding is not None
         directions = shift_directions_for_tcnn(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
@@ -200,8 +201,9 @@ class NerfplayerNGPField(Field):
         rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
         return {FieldHeadNames.RGB: rgb}
 
-    # pylint: disable=arguments-differ
-    def density_fn(self, positions: TensorType["bs":..., 3], times: TensorType["bs":..., 1]) -> TensorType["bs":..., 1]:
+    def density_fn(
+        self, positions: Float[Tensor, "*bs 3"], times: Optional[Float[Tensor, "*bs 1"]] = None
+    ) -> Float[Tensor, "*bs 1"]:
         """Returns only the density. Used primarily with the density grid.
         Overwrite this function since density is time dependent now.
 
@@ -222,7 +224,7 @@ class NerfplayerNGPField(Field):
         density, _ = self.get_density(ray_samples)
         return density
 
-    def get_opacity(self, positions: TensorType["bs":..., 3], step_size, time_intervals=10) -> TensorType["bs":..., 1]:
+    def get_opacity(self, positions: Float[Tensor, "*bs 3"], step_size, time_intervals=10) -> Float[Tensor, "*bs 1"]:
         """Returns the opacity for a position and time. Used primarily by the occupancy grid.
         This will return the maximum opacity of the points in the space in a dynamic sequence.
 

@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ from typing import Dict, Tuple, Type
 import imageio
 import numpy as np
 import torch
-from rich.console import Console
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -34,8 +33,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 )
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 @dataclass
@@ -74,7 +72,7 @@ class InstantNGP(DataParser):
             if not fname.exists():
                 fname = data_dir / Path(frame["file_path"] + ".png")
             if not fname.exists():
-                CONSOLE.log(f"couldnt find {fname} image")
+                CONSOLE.log(f"couldn't find {fname} image")
                 num_skipped_image_filenames += 1
             else:
                 if "w" not in meta:

@@ -26,7 +26,7 @@ export default function ControlsModal() {
         aria-labelledby="modal-modal-title"
         aria-describedby="modal-modal-description"
       >
-        <Box className="ViewportConstrolsModal-box">
+        <Box className="ViewportControlsModal-box">
           <center>
             <img
               style={{ height: 37, margin: 'auto' }}

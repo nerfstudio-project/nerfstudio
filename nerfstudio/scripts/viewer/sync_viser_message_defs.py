@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ def main() -> None:
     # - nerfstudio/scripts/
     # - nerfstudio/
     target_path = pathlib.Path(__file__).absolute().parent.parent.parent / pathlib.Path(
-        "nerfstudio/viewer/app/src/modules/WebSocket/ViserMessages.tsx"
+        "viewer/app/src/modules/WebSocket/ViserMessages.tsx"
     )
     assert target_path.exists()
 
