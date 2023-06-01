@@ -29,11 +29,7 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle, RaySamples
-from nerfstudio.engine.callbacks import (
-    TrainingCallback,
-    TrainingCallbackAttributes,
-    TrainingCallbackLocation,
-)
+from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
@@ -46,16 +42,8 @@ from nerfstudio.model_components.losses import (
     pred_normal_loss,
     scale_gradients_by_distance_squared,
 )
-from nerfstudio.model_components.ray_samplers import (
-    ProposalNetworkSampler,
-    UniformSampler,
-)
-from nerfstudio.model_components.renderers import (
-    AccumulationRenderer,
-    DepthRenderer,
-    NormalsRenderer,
-    RGBRenderer,
-)
+from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler, UniformSampler
+from nerfstudio.model_components.renderers import AccumulationRenderer, DepthRenderer, NormalsRenderer, RGBRenderer
 from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
@@ -288,7 +276,13 @@ class NerfactoModel(Model):
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
 
-        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+        if self.kwargs["metadata"].get("use_alpha_channel", False) and self.training:
+            background_color = torch.rand((1, 3))
+        else:
+            background_color = None
+        rgb = self.renderer_rgb(
+            rgb=field_outputs[FieldHeadNames.RGB], weights=weights, background_color=background_color
+        )
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 
@@ -296,6 +290,7 @@ class NerfactoModel(Model):
             "rgb": rgb,
             "accumulation": accumulation,
             "depth": depth,
+            "background_color": background_color,
         }
 
         if self.config.predict_normals:
@@ -327,7 +322,7 @@ class NerfactoModel(Model):
     def get_metrics_dict(self, outputs, batch):
         metrics_dict = {}
         image = batch["image"].to(self.device)
-        metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
+        metrics_dict["psnr"] = self.psnr(outputs["rgb"], image[:, :3])
         if self.training:
             metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
         return metrics_dict
@@ -335,7 +330,12 @@ class NerfactoModel(Model):
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = {}
         image = batch["image"].to(self.device)
-        loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
+        if outputs.get("background_color", None) is not None and image.shape[-1] == 4:
+            background_color = outputs["background_color"]
+            image_ = image[:, :3] * image[:, 3:] + background_color.to(image.device) * (1 - image[:, 3:])
+        else:
+            image_ = image[:, :3]
+        loss_dict["rgb_loss"] = self.rgb_loss(image_, outputs["rgb"])
         if self.training:
             loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]

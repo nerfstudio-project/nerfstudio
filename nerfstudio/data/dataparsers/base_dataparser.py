@@ -57,6 +57,8 @@ class DataparserOutputs:
     """Camera object storing collection of camera information in dataset."""
     alpha_color: Optional[Float[Tensor, "3"]] = None
     """Color of dataset background."""
+    use_alpha_channel: bool = False
+    """Keep the alpha channel if present (or add one) when loading image data"""
     scene_box: SceneBox = SceneBox(aabb=torch.tensor([[-1, -1, -1], [1, 1, 1]]))
     """Scene box of dataset. Used to bound the scene or provide the scene scale depending on model."""
     mask_filenames: Optional[List[Path]] = None

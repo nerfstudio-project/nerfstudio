@@ -121,6 +121,7 @@ class RGBRenderer(nn.Module):
         weights: Float[Tensor, "*bs num_samples 1"],
         ray_indices: Optional[Int[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
+        background_color: Union[Float[Tensor, "3"], BackgroundColor, None] = None,
     ) -> Float[Tensor, "*bs 3"]:
         """Composite samples along ray and render color image
 
@@ -133,11 +134,13 @@ class RGBRenderer(nn.Module):
         Returns:
             Outputs of rgb values.
         """
+        if background_color is None:
+            background_color = self.background_color
 
         if not self.training:
             rgb = torch.nan_to_num(rgb)
         rgb = self.combine_rgb(
-            rgb, weights, background_color=self.background_color, ray_indices=ray_indices, num_rays=num_rays
+            rgb, weights, background_color=background_color, ray_indices=ray_indices, num_rays=num_rays
         )
         if not self.training:
             torch.clamp_(rgb, min=0.0, max=1.0)

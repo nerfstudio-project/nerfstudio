@@ -26,11 +26,7 @@ from PIL import Image
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
-from nerfstudio.data.dataparsers.base_dataparser import (
-    DataParser,
-    DataParserConfig,
-    DataparserOutputs,
-)
+from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -296,9 +292,15 @@ class Nerfstudio(DataParser):
             applied_scale = float(meta["applied_scale"])
             scale_factor *= applied_scale
 
+        if "use_alpha_channel" in meta:
+            use_alpha_channel = bool(meta["use_alpha_channel"])
+        else:
+            use_alpha_channel = False
+
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
+            use_alpha_channel=use_alpha_channel,
             scene_box=scene_box,
             mask_filenames=mask_filenames if len(mask_filenames) > 0 else None,
             dataparser_scale=scale_factor,
@@ -306,6 +308,7 @@ class Nerfstudio(DataParser):
             metadata={
                 "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
+                "use_alpha_channel": use_alpha_channel,
             },
         )
         return dataparser_outputs

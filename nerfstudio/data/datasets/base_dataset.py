@@ -83,11 +83,19 @@ class InputDataset(Dataset):
             image_idx: The image index in the dataset.
         """
         image = torch.from_numpy(self.get_numpy_image(image_idx).astype("float32") / 255.0)
+
         if self._dataparser_outputs.alpha_color is not None and image.shape[-1] == 4:
+            alpha_color = self._dataparser_outputs.alpha_color
+            image[:, :, :3] = image[:, :, :3] * image[:, :, -1:] + alpha_color * (1.0 - image[:, :, :-1])
+
+        if self._dataparser_outputs.use_alpha_channel:
+            if image.shape[-1] == 3:
+                alpha_channel = torch.ones(size=(*image.shape[:2], 1), dtype=image.dtype)
+                image = torch.concatenate([image, alpha_channel], axis=2)
             assert image.shape[-1] == 4
-            image = image[:, :, :3] * image[:, :, -1:] + self._dataparser_outputs.alpha_color * (1.0 - image[:, :, -1:])
         else:
             image = image[:, :, :3]
+
         return image
 
     def get_data(self, image_idx: int) -> Dict:
