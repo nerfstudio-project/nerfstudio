@@ -39,7 +39,10 @@ RUN apt-get update && \
     python3.10-dev \
     python3-pip \
     qtbase5-dev \
-    wget && \
+    wget \
+    htop \
+    vim \
+    sudo && \
     rm -rf /var/lib/apt/lists/*
 
 # Install GLOG (required by ceres).
