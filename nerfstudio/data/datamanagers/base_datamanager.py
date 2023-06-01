@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import functools
 from abc import abstractmethod
+from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import (
@@ -33,6 +34,7 @@ from typing import (
     Tuple,
     Type,
     Union,
+    cast,
 )
 
 import torch
@@ -64,7 +66,6 @@ from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttrib
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
 from nerfstudio.utils.rich_utils import CONSOLE
-from collections import defaultdict
 
 
 def variable_res_collate(batch: List[Dict]) -> Dict:
@@ -331,7 +332,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
     Record3D."""
-    collate_fn: Callable[[Any], Any] = nerfstudio_collate
+    collate_fn: Callable[[Any], Any] = cast(Any, staticmethod(nerfstudio_collate))
     """Specifies the collate function to use for the train and eval dataloaders."""
     camera_res_scale_factor: float = 1.0
     """The scale factor for scaling spatial data such as images, mask, semantics
