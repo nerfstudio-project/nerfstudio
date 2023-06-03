@@ -66,7 +66,7 @@ class DreamFusionModelConfig(ModelConfig):
 
     _target: Type = field(default_factory=lambda: DreamFusionModel)
     """target class to instantiate"""
-    prompt: str = "a high quality photo of a tree frog"
+    prompt: str = "a high quality zoomed out photo of an orange tabby cat sitting on a box"
     """prompt for stable dreamfusion"""
 
     orientation_loss_mult: Tuple[float, float] = (0.01, 100.0)
@@ -159,6 +159,8 @@ class DreamFusionModelConfig(ModelConfig):
     """diffusion model for SDS loss"""
     sd_version: str = "1-5"
     """model version when using stable diffusion"""
+    implementation: Literal["tcnn", "torch"] = "tcnn"
+    """Which implementation to use for the model."""
 
 
 class DreamFusionModel(Model):
@@ -229,8 +231,7 @@ class DreamFusionModel(Model):
         for i in range(num_prop_nets):
             prop_net_args = self.config.proposal_net_args_list[min(i, len(self.config.proposal_net_args_list) - 1)]
             network = HashMLPDensityField(
-                self.scene_box.aabb,
-                **prop_net_args,
+                self.scene_box.aabb, **prop_net_args, implementation=self.config.implementation
             )
             self.proposal_networks.append(network)
         self.density_fns.extend([network.density_fn for network in self.proposal_networks])

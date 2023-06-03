@@ -481,15 +481,15 @@ method_configs["dreamfusion"] = TrainerConfig(
     ),
     optimizers={
         "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=5e-3, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
-                warmup_steps=2000, lr_final=1e-6, max_steps=20000, ramp="linear"
+                warmup_steps=4000, lr_final=5e-7, max_steps=20000, ramp="linear"
             ),
         },
         "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=5e-3, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
-                warmup_steps=2000, lr_final=1e-6, max_steps=20000, ramp="linear"
+                warmup_steps=4000, lr_final=5e-7, max_steps=20000, ramp="linear"
             ),
         },
     },
