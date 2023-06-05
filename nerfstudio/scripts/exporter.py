@@ -59,6 +59,36 @@ class Exporter:
     """Path to the output directory."""
 
 
+def validate_pipeline(normal_method: str, normal_output_name: str, pipeline: Pipeline) -> None:
+    """Check that the pipeline is valid for this exporter.
+
+    Args:
+        normal_method: Method to estimate normals with. Either "open3d" or "model_output".
+        normal_output_name: Name of the normal output.
+        pipeline: Pipeline to evaluate with.
+    """
+    if normal_method == "model_output":
+        CONSOLE.print("Checking that the pipeline has a normal output.")
+        origins = torch.zeros((1, 3), device=pipeline.device)
+        directions = torch.ones_like(origins)
+        pixel_area = torch.ones_like(origins[..., :1])
+        camera_indices = torch.zeros_like(origins[..., :1])
+        ray_bundle = RayBundle(
+            origins=origins, directions=directions, pixel_area=pixel_area, camera_indices=camera_indices
+        )
+        outputs = pipeline.model(ray_bundle)
+        if normal_output_name not in outputs:
+            CONSOLE.print(f"[bold yellow]Warning: Normal output '{normal_output_name}' not found in pipeline outputs.")
+            CONSOLE.print(f"Available outputs: {list(outputs.keys())}")
+            CONSOLE.print(
+                "[bold yellow]Warning: Please train a model with normals "
+                "(e.g., nerfacto with predicted normals turned on)."
+            )
+            CONSOLE.print("[bold yellow]Warning: Or change --normal-method")
+            CONSOLE.print("[bold yellow]Exiting early.")
+            sys.exit(1)
+
+
 @dataclass
 class ExportPointCloud(Exporter):
     """Export NeRF as a point cloud."""
@@ -67,8 +97,10 @@ class ExportPointCloud(Exporter):
     """Number of points to generate. May result in less if outlier removal is used."""
     remove_outliers: bool = True
     """Remove outliers from the point cloud."""
-    estimate_normals: bool = False
-    """Estimate normals for the point cloud."""
+    normal_method: Literal["open3d", "model_output"] = "model_output"
+    """Method to estimate normals with."""
+    normal_output_name: str = "normals"
+    """Name of the normal output."""
     depth_output_name: str = "depth"
     """Name of the depth output."""
     rgb_output_name: str = "rgb"
@@ -92,19 +124,24 @@ class ExportPointCloud(Exporter):
 
         _, pipeline, _, _ = eval_setup(self.load_config)
 
+        validate_pipeline(self.normal_method, self.normal_output_name, pipeline)
+
         # Increase the batchsize to speed up the evaluation.
         assert isinstance(pipeline.datamanager, VanillaDataManager)
         assert pipeline.datamanager.train_pixel_sampler is not None
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
+        # Whether the normals should be estimated based on the point cloud.
+        estimate_normals = self.normal_method == "open3d"
+
         pcd = generate_point_cloud(
             pipeline=pipeline,
             num_points=self.num_points,
             remove_outliers=self.remove_outliers,
-            estimate_normals=self.estimate_normals,
+            estimate_normals=estimate_normals,
             rgb_output_name=self.rgb_output_name,
             depth_output_name=self.depth_output_name,
-            normal_output_name=None,
+            normal_output_name=self.normal_output_name if self.normal_method == "model_output" else None,
             use_bounding_box=self.use_bounding_box,
             bounding_box_min=self.bounding_box_min,
             bounding_box_max=self.bounding_box_max,
@@ -237,31 +274,6 @@ class ExportPoissonMesh(Exporter):
     std_ratio: float = 10.0
     """Threshold based on STD of the average distances across the point cloud to remove outliers."""
 
-    def validate_pipeline(self, pipeline: Pipeline) -> None:
-        """Check that the pipeline is valid for this exporter."""
-        if self.normal_method == "model_output":
-            CONSOLE.print("Checking that the pipeline has a normal output.")
-            origins = torch.zeros((1, 3), device=pipeline.device)
-            directions = torch.ones_like(origins)
-            pixel_area = torch.ones_like(origins[..., :1])
-            camera_indices = torch.zeros_like(origins[..., :1])
-            ray_bundle = RayBundle(
-                origins=origins, directions=directions, pixel_area=pixel_area, camera_indices=camera_indices
-            )
-            outputs = pipeline.model(ray_bundle)
-            if self.normal_output_name not in outputs:
-                CONSOLE.print(
-                    f"[bold yellow]Warning: Normal output '{self.normal_output_name}' not found in pipeline outputs."
-                )
-                CONSOLE.print(f"Available outputs: {list(outputs.keys())}")
-                CONSOLE.print(
-                    "[bold yellow]Warning: Please train a model with normals "
-                    "(e.g., nerfacto with predicted normals turned on)."
-                )
-                CONSOLE.print("[bold yellow]Warning: Or change --normal-method")
-                CONSOLE.print("[bold yellow]Exiting early.")
-                sys.exit(1)
-
     def main(self) -> None:
         """Export mesh"""
 
@@ -269,7 +281,8 @@ class ExportPoissonMesh(Exporter):
             self.output_dir.mkdir(parents=True)
 
         _, pipeline, _, _ = eval_setup(self.load_config)
-        self.validate_pipeline(pipeline)
+
+        validate_pipeline(self.normal_method, self.normal_output_name, pipeline)
 
         # Increase the batchsize to speed up the evaluation.
         assert isinstance(pipeline.datamanager, VanillaDataManager)
