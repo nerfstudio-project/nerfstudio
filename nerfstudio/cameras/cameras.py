@@ -331,7 +331,7 @@ class Cameras(TensorDataclass):
         disable_distortion: bool = False,
         aabb_box: Optional[SceneBox] = None,
         return_coords: bool = False,
-    ) -> RayBundle:
+    ) -> Union[Tuple[RayBundle], Tuple[RayBundle, Float[Tensor, "*num_rays 2"]]]:
         """Generates rays for the given camera indices.
 
         This function will standardize the input arguments and then call the _generate_rays_from_coords function
@@ -508,7 +508,7 @@ class Cameras(TensorDataclass):
         camera_opt_to_camera: Optional[Float[Tensor, "*num_rays 3 4"]] = None,
         distortion_params_delta: Optional[Float[Tensor, "*num_rays 6"]] = None,
         disable_distortion: bool = False,
-    ) -> RayBundle:
+    ) -> Tuple[RayBundle, Float[Tensor, "*num_rays 2"]]:
         """Generates rays for the given camera indices and coords where self isn't jagged
 
         This is a fairly complex function, so let's break this down slowly.
@@ -750,65 +750,63 @@ class Cameras(TensorDataclass):
 
         base_areas = 1 / (fx * fy)
         cam_types = torch.unique(self.camera_type, sorted=False)
-        if CameraType.PERSPECTIVE.value in cam_types:
-            mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
+        for cam in cam_types:
+            if cam == CameraType.PERSPECTIVE.value:
+                mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
 
-            directions[..., 0][mask] = torch.masked_select(coord[..., 0], mask).float()
-            directions[..., 1][mask] = torch.masked_select(coord[..., 1], mask).float()
-            directions[..., 2][mask] = -1.0
+                directions[..., 0][mask] = torch.masked_select(coord[..., 0], mask).float()
+                directions[..., 1][mask] = torch.masked_select(coord[..., 1], mask).float()
+                directions[..., 2][mask] = -1.0
 
-            hypotenuse_sqr = 1 + torch.sum(torch.square(coord[mask]), dim=-1)
-            pixel_area[mask] = area_multipliers[mask] * base_areas[mask] / (hypotenuse_sqr * torch.sqrt(hypotenuse_sqr))
+                hypotenuse_sqr = 1 + torch.sum(torch.square(coord[mask]), dim=-1)
+                pixel_area[mask] = area_multipliers[mask] * base_areas[mask] / (hypotenuse_sqr * torch.sqrt(hypotenuse_sqr))
 
-        if CameraType.FISHEYE.value in cam_types:
-            mask = (self.camera_type[true_indices] == CameraType.FISHEYE.value).squeeze(-1)  # (num_rays)
+            elif cam == CameraType.FISHEYE.value:
+                mask = (self.camera_type[true_indices] == CameraType.FISHEYE.value).squeeze(-1)  # (num_rays)
 
-            theta = torch.sqrt(torch.sum(coord[mask]**2, dim=-1))
-            theta = torch.clip(theta, 0.0, math.pi)
+                theta = torch.sqrt(torch.sum(coord[mask]**2, dim=-1))
+                theta = torch.clip(theta, 0.0, math.pi)
 
-            sin_theta = torch.sin(theta)
+                sin_theta = torch.sin(theta)
 
-            directions[..., 0][mask] = torch.masked_select(coord[..., 0] * sin_theta / theta, mask).float()
-            directions[..., 1][mask] = torch.masked_select(coord[..., 1] * sin_theta / theta, mask).float()
-            directions[..., 2][mask] = -torch.masked_select(torch.cos(theta), mask).float()
+                directions[..., 0][mask] = torch.masked_select(coord[..., 0] * sin_theta / theta, mask).float()
+                directions[..., 1][mask] = torch.masked_select(coord[..., 1] * sin_theta / theta, mask).float()
+                directions[..., 2][mask] = -torch.masked_select(torch.cos(theta), mask).float()
 
-            # pixel area is proportional to sin(theta) / theta
-            # but can't divide by zero so approximate as 1 near zero
-            area_scale = torch.where(theta > 1e-2, 2 * torch.pi * sin_theta / theta, 1)
-            pixel_area[mask] = area_multipliers[mask] * base_areas[mask] * area_scale
+                # pixel area is proportional to sin(theta) / theta
+                # but can't divide by zero so approximate as 1 near zero
+                area_scale = torch.where(theta > 1e-2, 2 * torch.pi * sin_theta / theta, 1)
+                pixel_area[mask] = area_multipliers[mask] * base_areas[mask] * area_scale
 
-        if CameraType.EQUIRECTANGULAR.value in cam_types:
-            mask = (self.camera_type[true_indices] == CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
+            elif cam == CameraType.EQUIRECTANGULAR.value:
+                mask = (self.camera_type[true_indices] == CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
 
-            # For equirect, fx = fy = height = width/2
-            # Then coord[..., 0] goes from -1 to 1 and coord[..., 1] goes from -1/2 to 1/2
-            theta = -torch.pi * torch.masked_select(coord[..., 0], mask)  # minus sign for right-handed
-            phi = torch.pi * (0.5 - torch.masked_select(coord[..., 1], mask))
-            sin_phi = torch.sin(phi)
-            # use spherical in local camera coordinates (+y up, x=0 and z<0 is theta=0)
-            directions[..., 0][mask] = (-torch.sin(theta) * sin_phi).float()
-            directions[..., 1][mask] = (torch.cos(phi)).float()
-            directions[..., 2][mask] = (-torch.cos(theta) * sin_phi).float()
-            # total area integrates to 4pi steradians
-            pixel_area[mask] = 2 * torch.pi * torch.pi * sin_phi * base_areas[msak]
+                # For equirect, fx = fy = height = width/2
+                # Then coord[..., 0] goes from -1 to 1 and coord[..., 1] goes from -1/2 to 1/2
+                theta = -torch.pi * torch.masked_select(coord[..., 0], mask)  # minus sign for right-handed
+                phi = torch.pi * (0.5 - torch.masked_select(coord[..., 1], mask))
+                sin_phi = torch.sin(phi)
+                # use spherical in local camera coordinates (+y up, x=0 and z<0 is theta=0)
+                directions[..., 0][mask] = (-torch.sin(theta) * sin_phi).float()
+                directions[..., 1][mask] = (torch.cos(phi)).float()
+                directions[..., 2][mask] = (-torch.cos(theta) * sin_phi).float()
+                # total area integrates to 4pi steradians
+                pixel_area[mask] = 2 * torch.pi * torch.pi * sin_phi * base_areas[msak]
 
-        elif CameraType.OMNIDIRECTIONALSTEREO_L.value in cam_types:
-            mask = (self.camera_type[true_indices] == CameraType.OMNIDIRECTIONALSTEREO_L.value).squeeze(-1)
-            ods_origins_circle, directions, ods_pixel_areas_l = _compute_rays_for_omnidirectional_stereo("left")
-            # assign final camera origins
-            c2w[..., :3, 3] = ods_origins_circle
-            
-            pixel_area[mask] = ods_pixel_areas_l
+            elif cam == CameraType.OMNIDIRECTIONALSTEREO_L.value:
+                mask = (self.camera_type[true_indices] == CameraType.OMNIDIRECTIONALSTEREO_L.value).squeeze(-1)
+                ods_origins_circle, directions, pixel_area = _compute_rays_for_omnidirectional_stereo("left")
+                # assign final camera origins
+                c2w[..., :3, 3] = ods_origins_circle
 
-        elif CameraType.OMNIDIRECTIONALSTEREO_R.value in cam_types:
-            mask = (self.camera_type[true_indices] == CameraType.OMNIDIRECTIONALSTEREO_R.value).squeeze(-1)
-            ods_origins_circle, directions, ods_pixel_areas_r = _compute_rays_for_omnidirectional_stereo("right")
-            # assign final camera origins
-            c2w[..., :3, 3] = ods_origins_circle
-            
-            pixel_area[mask] = ods_pixel_areas_l
-        else:
-            raise ValueError(f"Camera type {cam} not supported.")
+            elif cam == CameraType.OMNIDIRECTIONALSTEREO_R.value:
+                mask = (self.camera_type[true_indices] == CameraType.OMNIDIRECTIONALSTEREO_R.value).squeeze(-1)
+                ods_origins_circle, directions, pixel_area = _compute_rays_for_omnidirectional_stereo("right")
+                # assign final camera origins
+                c2w[..., :3, 3] = ods_origins_circle
+
+            else:
+                raise ValueError(f"Camera type {cam} not supported.")
 
         pixel_area = pixel_area.unsqueeze(-1)
 
@@ -847,7 +845,7 @@ class Cameras(TensorDataclass):
             camera_indices=camera_indices,
             times=times,
             metadata=metadata,
-        )
+        ), resample
 
     def to_json(
         self, camera_idx: int, image: Optional[Float[Tensor, "height width 2"]] = None, max_size: Optional[int] = None

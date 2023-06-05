@@ -24,6 +24,7 @@ import torch
 from jaxtyping import Float
 from numpy.typing import NDArray
 from torch import Tensor
+from torch.nn import functional as F
 
 from nerfstudio.utils.misc import torch_compile
 

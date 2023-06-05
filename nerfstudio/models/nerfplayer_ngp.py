@@ -109,11 +109,7 @@ class NerfplayerNGPModel(NGPModel):
 
         self.field = NerfplayerNGPField(
             aabb=self.scene_box.aabb,
-<<<<<<< HEAD
-            use_appearance_embedding=False,
-=======
             use_appearance_embedding=self.config.use_appearance_embedding,
->>>>>>> 42081b7ad43f5d9a11a72bbdff2e877d5dd9bee3
             num_images=self.num_train_data,
             temporal_dim=self.config.temporal_dim,
             num_levels=self.config.num_levels,
@@ -189,18 +185,11 @@ class NerfplayerNGPModel(NGPModel):
         packed_info = nerfacc.pack_info(ray_indices, num_rays)
         weights = nerfacc.render_weight_from_density(
             packed_info=packed_info,
-<<<<<<< HEAD
-            sigmas=field_outputs[FieldHeadNames.DENSITY],
-            t_starts=ray_samples.frustums.starts.squeeze(-1),
-            t_ends=ray_samples.frustums.ends.squeeze(-1),
-        )
-=======
             sigmas=field_outputs[FieldHeadNames.DENSITY][..., 0],
             t_starts=ray_samples.frustums.starts[..., 0],
             t_ends=ray_samples.frustums.ends[..., 0],
         )[0]
         weights = weights[..., None]
->>>>>>> 42081b7ad43f5d9a11a72bbdff2e877d5dd9bee3
 
         # update bgcolor in the renderer; usually random color for training and fixed color for inference
         if self.training:
