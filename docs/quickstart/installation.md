@@ -94,7 +94,7 @@ pip install nerfstudio
 Optional, use this command if you want the latest development version.
 
 ```bash
-git clone git@github.com:nerfstudio-project/nerfstudio.git
+git clone https://github.com/nerfstudio-project/nerfstudio.git
 cd nerfstudio
 pip install --upgrade pip setuptools
 pip install -e .
