@@ -464,8 +464,13 @@ class VolumetricSampler(Sampler):
         rays_d = ray_bundle.directions.contiguous()
         times = ray_bundle.times
 
-        if far_plane is None:
-            far_plane = 1e10
+        if ray_bundle.nears is not None and ray_bundle.fars is not None:
+            t_min = ray_bundle.nears.contiguous().reshape(-1)
+            t_max = ray_bundle.fars.contiguous().reshape(-1)
+
+        else:
+            t_min = None
+            t_max = None
 
         if far_plane is None:
             far_plane = 1e10

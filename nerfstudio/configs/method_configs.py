@@ -275,7 +275,7 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
             cone_angle=0.0,
             disable_scene_contraction=True,
             near_plane=0.01,
-            background_color="white",
+            background_color="black",
         ),
     ),
     optimizers={

@@ -24,6 +24,7 @@ import imageio
 import numpy as np
 import torch
 
+from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
@@ -101,17 +102,13 @@ class InstantNGP(DataParser):
 
         camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
 
-        distortion_params = torch.tensor(
-            [
-                float(meta.get("k1", 0)),
-                float(meta.get("k2", 0)),
-                float(meta.get("p1", 0)),
-                float(meta.get("p2", 0)),
-                float(meta.get("k3", 0)),
-                float(meta.get("k4", 0)),
-                float(meta.get("k5", 0)),
-                float(meta.get("k6", 0)),
-            ]
+        distortion_params = camera_utils.get_distortion_params(
+            k1=float(meta.get("k1", 0)),
+            k2=float(meta.get("k2", 0)),
+            k3=float(meta.get("k3", 0)),
+            k4=float(meta.get("k4", 0)),
+            p1=float(meta.get("p1", 0)),
+            p2=float(meta.get("p2", 0)),
         )
 
         # in x,y,z order

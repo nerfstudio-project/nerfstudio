@@ -106,13 +106,12 @@ class RGBRenderer(nn.Module):
         if background_color == "last_sample":
             background_color = rgb[..., -1, :]
         if background_color == "random":
-            background_color = torch.rand_like(comp_rgb)
+            background_color = torch.rand_like(comp_rgb).to(rgb.device)
         if isinstance(background_color, str) and background_color in colors.COLORS_DICT:
-            # TODO(ruilongli): Avoid to(device) by moving it to the constructor.
             background_color = colors.COLORS_DICT[background_color].to(rgb.device)
 
         assert isinstance(background_color, torch.Tensor)
-        comp_rgb = comp_rgb + background_color * (1.0 - accumulated_weight)
+        comp_rgb = comp_rgb + background_color.to(weights.device) * (1.0 - accumulated_weight)
 
         return comp_rgb
 

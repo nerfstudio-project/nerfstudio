@@ -59,7 +59,7 @@ from nerfstudio.model_components.renderers import (
 from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
-from nerfstudio.utils import colormaps, profiler
+from nerfstudio.utils import colormaps
 
 
 @dataclass
@@ -277,7 +277,6 @@ class NerfactoModel(Model):
             )
         return callbacks
 
-    @profiler.time_function
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples: RaySamples
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
@@ -325,7 +324,6 @@ class NerfactoModel(Model):
 
         return outputs
 
-    @profiler.time_function
     def get_metrics_dict(self, outputs, batch):
         metrics_dict = {}
         image = batch["image"].to(self.device)
@@ -334,7 +332,6 @@ class NerfactoModel(Model):
             metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
         return metrics_dict
 
-    @profiler.time_function
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = {}
         image = batch["image"].to(self.device)

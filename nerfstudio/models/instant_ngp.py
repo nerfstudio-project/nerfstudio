@@ -24,8 +24,6 @@ from typing import Dict, List, Literal, Optional, Tuple, Type
 import nerfacc
 import torch
 from torch.nn import Parameter
-
-# from torch_efficient_distloss import flatten_eff_distloss
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
@@ -80,6 +78,8 @@ class InstantNGPModelConfig(ModelConfig):
     """How far along ray to start sampling."""
     far_plane: float = 1e3
     """How far along ray to stop sampling."""
+    use_appearance_embedding: bool = False
+    """Whether to use an appearance embedding."""
     background_color: Literal["random", "black", "white"] = "random"
     """The color that is given to untrained areas."""
     disable_scene_contraction: bool = False
@@ -116,9 +116,7 @@ class NGPModel(Model):
             spatial_distortion=scene_contraction,
         )
 
-        if self.config.render_step_size is None:
-            # auto step size: ~1000 samples in the base level grid
-            self.config.render_step_size = ((self.scene_aabb[3:] - self.scene_aabb[:3]) ** 2).sum().sqrt().item() / 1000
+        self.scene_aabb = Parameter(self.scene_box.aabb.flatten(), requires_grad=False)
 
         if self.config.render_step_size is None:
             # auto step size: ~1000 samples in the base level grid
@@ -216,13 +214,6 @@ class NGPModel(Model):
             "depth": depth,
             "num_samples_per_ray": packed_info[:, 1],
         }
-        # if self.training:
-        #     steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
-        #     intervals = ray_samples.frustums.ends - ray_samples.frustums.starts
-        #     outputs["weights"] = weights.flatten()
-        #     outputs["steps"] = steps.flatten()
-        #     outputs["intervals"] = intervals.flatten()
-        #     outputs["ray_indices"] = ray_indices.flatten()
         return outputs
 
     def get_metrics_dict(self, outputs, batch):
@@ -236,10 +227,6 @@ class NGPModel(Model):
         image = batch["image"].to(self.device)
         rgb_loss = self.rgb_loss(image, outputs["rgb"])
         loss_dict = {"rgb_loss": rgb_loss}
-        # if self.training:
-        #     loss_dict["distortion_loss"] = self.config.distortion_loss_mult * flatten_eff_distloss(
-        #         outputs["weights"], outputs["steps"], outputs["intervals"], outputs["ray_indices"]
-        #     )
         return loss_dict
 
     def get_image_metrics_and_images(

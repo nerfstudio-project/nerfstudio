@@ -25,12 +25,7 @@ import torch
 from PIL import Image
 
 from nerfstudio.cameras import camera_utils
-from nerfstudio.cameras.cameras import (
-    CAMERA_MODEL_DISTORTION_PARAMETERS,
-    CAMERA_MODEL_TO_TYPE,
-    Cameras,
-    CameraType,
-)
+from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
     DataParserConfig,
@@ -86,8 +81,6 @@ class Nerfstudio(DataParser):
             meta = load_from_json(self.config.data / "transforms.json")
             data_dir = self.config.data
 
-        distortion_keys = CAMERA_MODEL_DISTORTION_PARAMETERS[meta.get("camera_model", "OPENCV")]
-
         image_filenames = []
         mask_filenames = []
         depth_filenames = []
@@ -101,8 +94,8 @@ class Nerfstudio(DataParser):
         height_fixed = "h" in meta
         width_fixed = "w" in meta
         distort_fixed = False
-        for key in distortion_keys:
-            if key in meta:
+        for distort_key in ["k1", "k2", "k3", "p1", "p2"]:
+            if distort_key in meta:
                 distort_fixed = True
                 break
         fx = []
@@ -139,7 +132,16 @@ class Nerfstudio(DataParser):
                 assert "w" in frame, "width not specified in frame"
                 width.append(int(frame["w"]))
             if not distort_fixed:
-                distort.append(torch.tensor([float(frame.get(key, 0.0)) for key in distortion_keys]))
+                distort.append(
+                    camera_utils.get_distortion_params(
+                        k1=float(frame["k1"]) if "k1" in frame else 0.0,
+                        k2=float(frame["k2"]) if "k2" in frame else 0.0,
+                        k3=float(frame["k3"]) if "k3" in frame else 0.0,
+                        k4=float(frame["k4"]) if "k4" in frame else 0.0,
+                        p1=float(frame["p1"]) if "p1" in frame else 0.0,
+                        p2=float(frame["p2"]) if "p2" in frame else 0.0,
+                    )
+                )
 
             image_filenames.append(fname)
             poses.append(np.array(frame["transform_matrix"]))
@@ -259,7 +261,14 @@ class Nerfstudio(DataParser):
         height = int(meta["h"]) if height_fixed else torch.tensor(height, dtype=torch.int32)[idx_tensor]
         width = int(meta["w"]) if width_fixed else torch.tensor(width, dtype=torch.int32)[idx_tensor]
         if distort_fixed:
-            distortion_params = torch.tensor([float(meta.get(key, 0.0)) for key in distortion_keys])
+            distortion_params = camera_utils.get_distortion_params(
+                k1=float(meta["k1"]) if "k1" in meta else 0.0,
+                k2=float(meta["k2"]) if "k2" in meta else 0.0,
+                k3=float(meta["k3"]) if "k3" in meta else 0.0,
+                k4=float(meta["k4"]) if "k4" in meta else 0.0,
+                p1=float(meta["p1"]) if "p1" in meta else 0.0,
+                p2=float(meta["p2"]) if "p2" in meta else 0.0,
+            )
         else:
             distortion_params = torch.stack(distort, dim=0)[idx_tensor]
 

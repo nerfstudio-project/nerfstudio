@@ -23,6 +23,7 @@ import numpy as np
 import torch
 from jaxtyping import Float
 from torch import Tensor
+from torch.nn.parameter import Parameter
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
@@ -80,7 +81,7 @@ class TCNNInstantNGPField(Field):
     ) -> None:
         super().__init__()
 
-        self.register_buffer("aabb", aabb)
+        self.aabb = Parameter(aabb, requires_grad=False)
         self.geo_feat_dim = geo_feat_dim
         self.spatial_distortion = spatial_distortion
 

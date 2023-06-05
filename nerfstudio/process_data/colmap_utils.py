@@ -200,6 +200,10 @@ def parse_colmap_camera_params(camera) -> Dict[str, Any]:
         out["fl_y"] = float(camera_params[0])
         out["cx"] = float(camera_params[1])
         out["cy"] = float(camera_params[2])
+        out["k1"] = 0.0
+        out["k2"] = 0.0
+        out["p1"] = 0.0
+        out["p2"] = 0.0
         camera_model = CameraModel.OPENCV
     elif camera.model == "PINHOLE":
         # f, cx, cy, k
@@ -210,6 +214,10 @@ def parse_colmap_camera_params(camera) -> Dict[str, Any]:
         out["fl_y"] = float(camera_params[1])
         out["cx"] = float(camera_params[2])
         out["cy"] = float(camera_params[3])
+        out["k1"] = 0.0
+        out["k2"] = 0.0
+        out["p1"] = 0.0
+        out["p2"] = 0.0
         camera_model = CameraModel.OPENCV
     elif camera.model == "SIMPLE_RADIAL":
         # f, cx, cy, k
@@ -223,6 +231,9 @@ def parse_colmap_camera_params(camera) -> Dict[str, Any]:
         out["cx"] = float(camera_params[1])
         out["cy"] = float(camera_params[2])
         out["k1"] = float(camera_params[3])
+        out["k2"] = 0.0
+        out["p1"] = 0.0
+        out["p2"] = 0.0
         camera_model = CameraModel.OPENCV
     elif camera.model == "RADIAL":
         # f, cx, cy, k1, k2
@@ -237,6 +248,8 @@ def parse_colmap_camera_params(camera) -> Dict[str, Any]:
         out["cy"] = float(camera_params[2])
         out["k1"] = float(camera_params[3])
         out["k2"] = float(camera_params[4])
+        out["p1"] = 0.0
+        out["p2"] = 0.0
         camera_model = CameraModel.OPENCV
     elif camera.model == "OPENCV":
         # fx, fy, cx, cy, k1, k2, p1, p2
@@ -331,6 +344,9 @@ def parse_colmap_camera_params(camera) -> Dict[str, Any]:
         out["cx"] = float(camera_params[1])
         out["cy"] = float(camera_params[2])
         out["k1"] = float(camera_params[3])
+        out["k2"] = 0.0
+        out["k3"] = 0.0
+        out["k4"] = 0.0
         camera_model = CameraModel.OPENCV_FISHEYE
     elif camera.model == "RADIAL_FISHEYE":
         # f, cx, cy, k1, k2
@@ -352,6 +368,8 @@ def parse_colmap_camera_params(camera) -> Dict[str, Any]:
         out["cy"] = float(camera_params[2])
         out["k1"] = float(camera_params[3])
         out["k2"] = float(camera_params[4])
+        out["k3"] = 0
+        out["k4"] = 0
         camera_model = CameraModel.OPENCV_FISHEYE
     else:
         # THIN_PRISM_FISHEYE not supported!

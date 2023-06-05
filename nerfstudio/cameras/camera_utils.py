@@ -496,7 +496,7 @@ def radial_and_tangential_undistort(
         j_inv = j_inv[not_converged]
 
         residual = residual[not_converged].reshape(-1, 2, 1)
-        step = (j_inv @ residual).squeeze().to(torch.float32)
+        step = (j_inv @ residual).squeeze(-1).float()
 
         # careful: index_add_ (with underscore) is in-place, index_add (no underscore) is not in-place
         x = x.index_add(dim=0, index=next_upd, source=step[:, 0], alpha=-1)
@@ -614,8 +614,8 @@ def fisheye_undistort(
 
         converged = f < resolution[next_upd] * tol
 
-        not_converged = torch.argwhere(~converged).squeeze()
-        converged = torch.argwhere(converged).squeeze()
+        not_converged = torch.argwhere(~converged).squeeze(-1)
+        converged = torch.argwhere(converged).squeeze(-1)
 
         # print(f"{converged.shape[0]} points converged")
 
