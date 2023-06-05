@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,15 +18,14 @@ a signed distance function (SDF) for surface representation is used to help with
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Type
+from typing import Dict, Literal, Optional, Type
 
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch import nn
+from jaxtyping import Float
+from torch import Tensor, nn
 from torch.nn.parameter import Parameter
-from torchtyping import TensorType
-from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.field_components.embedding import Embedding
@@ -37,7 +36,7 @@ from nerfstudio.fields.base_field import Field, FieldConfig
 
 try:
     import tinycudann as tcnn
-except ImportError:
+except ModuleNotFoundError:
     # tinycudann module doesn't exist
     pass
 
@@ -49,15 +48,17 @@ class LearnedVariance(nn.Module):
         init_val: initial value in NeuS variance network
     """
 
+    variance: Tensor
+
     def __init__(self, init_val):
         super().__init__()
         self.register_parameter("variance", nn.Parameter(init_val * torch.ones(1), requires_grad=True))
 
-    def forward(self, x: TensorType[1]) -> TensorType[1]:
+    def forward(self, x: Float[Tensor, "1"]) -> Float[Tensor, "1"]:
         """Returns current variance value"""
         return torch.ones([len(x), 1], device=x.device) * torch.exp(self.variance * 10.0)
 
-    def get_variance(self) -> TensorType[1]:
+    def get_variance(self) -> Float[Tensor, "1"]:
         """return current variance value"""
         return torch.exp(self.variance * 10.0).clip(1e-6, 1e6)
 
@@ -80,13 +81,13 @@ class SDFFieldConfig(FieldConfig):
     appearance_embedding_dim: int = 32
     """Dimension of appearance embedding"""
     use_appearance_embedding: bool = False
-    """Dimension of appearance embedding"""
+    """Whether to use appearance embedding"""
     bias: float = 0.8
-    """sphere size of geometric initializaion"""
+    """Sphere size of geometric initialization"""
     geometric_init: bool = True
     """Whether to use geometric initialization"""
     inside_outside: bool = True
-    """whether to revert signed distance value, set to True for indoor scene"""
+    """Whether to revert signed distance value, set to True for indoor scene"""
     weight_norm: bool = True
     """Whether to use weight norm for linear layer"""
     use_grid_feature: bool = False
@@ -129,7 +130,7 @@ class SDFField(Field):
     def __init__(
         self,
         config: SDFFieldConfig,
-        aabb: TensorType[2, 3],
+        aabb: Float[Tensor, "2 3"],
         num_images: int,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
@@ -192,19 +193,22 @@ class SDFField(Field):
         dims = [in_dim] + dims + [3]
         self.num_layers_color = len(dims)
 
-        for l in range(0, self.num_layers_color - 1):
-            out_dim = dims[l + 1]
-            lin = nn.Linear(dims[l], out_dim)
+        for layer in range(0, self.num_layers_color - 1):
+            out_dim = dims[layer + 1]
+            lin = nn.Linear(dims[layer], out_dim)
 
             if self.config.weight_norm:
                 lin = nn.utils.weight_norm(lin)
-            setattr(self, "clin" + str(l), lin)
+            setattr(self, "clin" + str(layer), lin)
 
         self.softplus = nn.Softplus(beta=100)
         self.relu = nn.ReLU()
         self.sigmoid = torch.nn.Sigmoid()
 
         self._cos_anneal_ratio = 1.0
+
+        if self.use_grid_feature:
+            assert self.spatial_distortion is not None, "spatial distortion must be provided when using grid feature"
 
     def initialize_geo_layers(self) -> None:
         """
@@ -217,27 +221,27 @@ class SDFField(Field):
         self.num_layers = len(dims)
         self.skip_in = [4]
 
-        for l in range(0, self.num_layers - 1):
-            if l + 1 in self.skip_in:
-                out_dim = dims[l + 1] - dims[0]
+        for layer in range(0, self.num_layers - 1):
+            if layer + 1 in self.skip_in:
+                out_dim = dims[layer + 1] - dims[0]
             else:
-                out_dim = dims[l + 1]
+                out_dim = dims[layer + 1]
 
-            lin = nn.Linear(dims[l], out_dim)
+            lin = nn.Linear(dims[layer], out_dim)
 
             if self.config.geometric_init:
-                if l == self.num_layers - 2:
+                if layer == self.num_layers - 2:
                     if not self.config.inside_outside:
-                        torch.nn.init.normal_(lin.weight, mean=np.sqrt(np.pi) / np.sqrt(dims[l]), std=0.0001)
+                        torch.nn.init.normal_(lin.weight, mean=np.sqrt(np.pi) / np.sqrt(dims[layer]), std=0.0001)
                         torch.nn.init.constant_(lin.bias, -self.config.bias)
                     else:
-                        torch.nn.init.normal_(lin.weight, mean=-np.sqrt(np.pi) / np.sqrt(dims[l]), std=0.0001)
+                        torch.nn.init.normal_(lin.weight, mean=-np.sqrt(np.pi) / np.sqrt(dims[layer]), std=0.0001)
                         torch.nn.init.constant_(lin.bias, self.config.bias)
-                elif l == 0:
+                elif layer == 0:
                     torch.nn.init.constant_(lin.bias, 0.0)
                     torch.nn.init.constant_(lin.weight[:, 3:], 0.0)
                     torch.nn.init.normal_(lin.weight[:, :3], 0.0, np.sqrt(2) / np.sqrt(out_dim))
-                elif l in self.skip_in:
+                elif layer in self.skip_in:
                     torch.nn.init.constant_(lin.bias, 0.0)
                     torch.nn.init.normal_(lin.weight, 0.0, np.sqrt(2) / np.sqrt(out_dim))
                     torch.nn.init.constant_(lin.weight[:, -(dims[0] - 3) :], 0.0)
@@ -247,18 +251,19 @@ class SDFField(Field):
 
             if self.config.weight_norm:
                 lin = nn.utils.weight_norm(lin)
-            setattr(self, "glin" + str(l), lin)
+            setattr(self, "glin" + str(layer), lin)
 
     def set_cos_anneal_ratio(self, anneal: float) -> None:
         """Set the anneal value for the proposal network."""
         self._cos_anneal_ratio = anneal
 
-    def forward_geonetwork(self, inputs: TensorType[..., 3]) -> TensorType[..., "geo-features+1"]:
+    def forward_geonetwork(self, inputs: Float[Tensor, "*batch 3"]) -> Float[Tensor, "*batch geo_features+1"]:
         """forward the geonetwork"""
         if self.use_grid_feature:
+            assert self.spatial_distortion is not None, "spatial distortion must be provided when using grid feature"
             positions = self.spatial_distortion(inputs)
-
-            positions = (positions + 1.0) / 2.0
+            # map range [-2, 2] to [0, 1]
+            positions = (positions + 2.0) / 4.0
             feature = self.encoding(positions)
         else:
             feature = torch.zeros_like(inputs[:, :1].repeat(1, self.encoding.n_output_dims))
@@ -270,19 +275,20 @@ class SDFField(Field):
         # Pass through layers
         outputs = inputs
 
-        for l in range(0, self.num_layers - 1):
-            lin = getattr(self, "glin" + str(l))
+        for layer in range(0, self.num_layers - 1):
+            lin = getattr(self, "glin" + str(layer))
 
-            if l in self.skip_in:
+            if layer in self.skip_in:
                 outputs = torch.cat([outputs, inputs], 1) / np.sqrt(2)
 
             outputs = lin(outputs)
 
-            if l < self.num_layers - 2:
+            if layer < self.num_layers - 2:
                 outputs = self.softplus(outputs)
         return outputs
 
-    def get_sdf(self, ray_samples: RaySamples) -> TensorType["num_samples", -1, 1]:
+    # TODO: fix ... in shape annotations.
+    def get_sdf(self, ray_samples: RaySamples) -> Float[Tensor, "num_samples ... 1"]:
         """predict the sdf value for ray samples"""
         positions = ray_samples.frustums.get_start_positions()
         positions_flat = positions.view(-1, 3)
@@ -293,9 +299,9 @@ class SDFField(Field):
     def get_alpha(
         self,
         ray_samples: RaySamples,
-        sdf: Optional[TensorType["num_samples", -1, 1]] = None,
-        gradients: Optional[TensorType["num_samples", -1, 1]] = None,
-    ) -> TensorType["num_samples", -1, 1]:
+        sdf: Optional[Float[Tensor, "num_samples ... 1"]] = None,
+        gradients: Optional[Float[Tensor, "num_samples ... 1"]] = None,
+    ) -> Float[Tensor, "num_samples ... 1"]:
         """compute alpha from sdf as in NeuS"""
         if sdf is None or gradients is None:
             inputs = ray_samples.frustums.get_start_positions()
@@ -345,12 +351,12 @@ class SDFField(Field):
 
     def get_colors(
         self,
-        points: TensorType[..., 3],
-        directions: TensorType[..., 3],
-        normals: TensorType[..., 3],
-        geo_features: TensorType[..., "geo-feat-dim"],
-        camera_indices: TensorType,
-    ) -> TensorType[..., 3]:
+        points: Float[Tensor, "*batch 3"],
+        directions: Float[Tensor, "*batch 3"],
+        normals: Float[Tensor, "*batch 3"],
+        geo_features: Float[Tensor, "*batch geo_feat_dim"],
+        camera_indices: Tensor,
+    ) -> Float[Tensor, "*batch 3"]:
         """compute colors"""
         d = self.direction_encoding(directions)
 
@@ -396,9 +402,9 @@ class SDFField(Field):
     def get_outputs(
         self,
         ray_samples: RaySamples,
-        density_embedding: Optional[TensorType] = None,
+        density_embedding: Optional[Tensor] = None,
         return_alphas: bool = False,
-    ) -> Dict[FieldHeadNames, TensorType]:
+    ) -> Dict[FieldHeadNames, Tensor]:
         """compute output of ray samples"""
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
@@ -446,7 +452,7 @@ class SDFField(Field):
 
     def forward(
         self, ray_samples: RaySamples, compute_normals: bool = False, return_alphas: bool = False
-    ) -> Dict[FieldHeadNames, TensorType]:
+    ) -> Dict[FieldHeadNames, Tensor]:
         """Evaluates the field at points along the ray.
 
         Args:

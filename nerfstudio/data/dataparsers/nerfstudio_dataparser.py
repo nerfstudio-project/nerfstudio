@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,14 +17,12 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from pathlib import Path, PurePath
-from typing import Optional, Type
+from pathlib import Path
+from typing import Literal, Optional, Type
 
 import numpy as np
 import torch
 from PIL import Image
-from rich.console import Console
-from typing_extensions import Literal
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import (
@@ -40,8 +38,8 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 )
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
+from nerfstudio.utils.rich_utils import CONSOLE
 
-CONSOLE = Console(width=120)
 MAX_AUTO_RESOLUTION = 1600
 
 
@@ -79,8 +77,6 @@ class Nerfstudio(DataParser):
     downscale_factor: Optional[int] = None
 
     def _generate_dataparser_outputs(self, split="train"):
-        # pylint: disable=too-many-statements
-
         assert self.config.data.exists(), f"Data directory {self.config.data} does not exist."
 
         if self.config.data.suffix == ".json":
@@ -118,7 +114,7 @@ class Nerfstudio(DataParser):
         distort = []
 
         for frame in meta["frames"]:
-            filepath = PurePath(frame["file_path"])
+            filepath = Path(frame["file_path"])
             fname = self._get_fname(filepath, data_dir)
             if not fname.exists():
                 num_skipped_image_filenames += 1
@@ -148,7 +144,7 @@ class Nerfstudio(DataParser):
             image_filenames.append(fname)
             poses.append(np.array(frame["transform_matrix"]))
             if "mask_path" in frame:
-                mask_filepath = PurePath(frame["mask_path"])
+                mask_filepath = Path(frame["mask_path"])
                 mask_fname = self._get_fname(
                     mask_filepath,
                     data_dir,
@@ -157,7 +153,7 @@ class Nerfstudio(DataParser):
                 mask_filenames.append(mask_fname)
 
             if "depth_file_path" in frame:
-                depth_filepath = PurePath(frame["depth_file_path"])
+                depth_filepath = Path(frame["depth_file_path"])
                 depth_fname = self._get_fname(depth_filepath, data_dir, downsample_folder_prefix="depths_")
                 depth_filenames.append(depth_fname)
 
@@ -185,7 +181,7 @@ class Nerfstudio(DataParser):
         has_split_files_spec = any(f"{split}_filenames" in meta for split in ("train", "val", "test"))
         if f"{split}_filenames" in meta:
             # Validate split first
-            split_filenames = set(self._get_fname(PurePath(x), data_dir) for x in meta[f"{split}_filenames"])
+            split_filenames = set(self._get_fname(Path(x), data_dir) for x in meta[f"{split}_filenames"])
             unmatched_filenames = split_filenames.difference(image_filenames)
             if unmatched_filenames:
                 raise RuntimeError(f"Some filenames for split {split} were not found: {unmatched_filenames}.")
@@ -238,7 +234,9 @@ class Nerfstudio(DataParser):
         image_filenames = [image_filenames[i] for i in indices]
         mask_filenames = [mask_filenames[i] for i in indices] if len(mask_filenames) > 0 else []
         depth_filenames = [depth_filenames[i] for i in indices] if len(depth_filenames) > 0 else []
-        poses = poses[indices]
+
+        idx_tensor = torch.tensor(indices, dtype=torch.long)
+        poses = poses[idx_tensor]
 
         # in x,y,z order
         # assumes that the scene is centered at the origin
@@ -254,7 +252,6 @@ class Nerfstudio(DataParser):
         else:
             camera_type = CameraType.PERSPECTIVE
 
-        idx_tensor = torch.tensor(indices, dtype=torch.long)
         fx = float(meta["fl_x"]) if fx_fixed else torch.tensor(fx, dtype=torch.float32)[idx_tensor]
         fy = float(meta["fl_y"]) if fy_fixed else torch.tensor(fy, dtype=torch.float32)[idx_tensor]
         cx = float(meta["cx"]) if cx_fixed else torch.tensor(cx, dtype=torch.float32)[idx_tensor]
@@ -304,7 +301,7 @@ class Nerfstudio(DataParser):
         )
         return dataparser_outputs
 
-    def _get_fname(self, filepath: PurePath, data_dir: PurePath, downsample_folder_prefix="images_") -> Path:
+    def _get_fname(self, filepath: Path, data_dir: Path, downsample_folder_prefix="images_") -> Path:
         """Get the filename of the image file.
         downsample_folder_prefix can be used to point to auxiliary image data, e.g. masks
 

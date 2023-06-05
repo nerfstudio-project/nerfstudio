@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,15 +21,14 @@ from typing import Optional
 
 import numpy as np
 import torch
-from torch import nn
+from jaxtyping import Float, Int
+from torch import Tensor, nn
 from torch.autograd import Function
 from torch.cuda.amp import custom_bwd, custom_fwd
-from torchtyping import TensorType
 
 import nerfstudio.field_components.cuda as _C
 
 
-# pylint: disable=abstract-method, arguments-differ
 class TemporalGridEncodeFunc(Function):
     """Class for autograd in pytorch."""
 
@@ -37,16 +36,16 @@ class TemporalGridEncodeFunc(Function):
     @custom_fwd
     def forward(
         ctx,
-        inputs: TensorType["bs", "input_dim"],
-        temporal_row_index: TensorType["bs", "temporal_index_dim"],
-        embeddings: TensorType["table_size", "embed_dim"],
-        offsets: TensorType["num_levels+1"],
+        inputs: Float[Tensor, "bs input_dim"],
+        temporal_row_index: Float[Tensor, "bs temporal_index_dim"],
+        embeddings: Float[Tensor, "table_size embed_dim"],
+        offsets: Int[Tensor, "num_levels_plus_1"],
         per_level_scale: float,
         base_resolution: int,
         calc_grad_inputs: bool = False,
         gridtype: int = 0,
         align_corners: bool = False,
-    ) -> TensorType["bs", "output_dim"]:
+    ) -> Float[Tensor, "bs output_dim"]:
         """Call forward and interpolate the feature from embeddings
 
         Args:
@@ -174,6 +173,11 @@ class TemporalGridEncoder(nn.Module):
         gridtype: "tiled" or "hash"
         align_corners: same as other interpolation operators
     """
+
+    sampling_index: Tensor
+    index_a_mask: Tensor
+    index_b_mask: Tensor
+    index_list: Tensor
 
     def __init__(
         self,
@@ -314,7 +318,7 @@ class TemporalGridEncoder(nn.Module):
             f"gridtype={self.gridtype} align_corners={self.align_corners}"
         )
 
-    def get_temporal_index(self, time: TensorType["bs"]) -> TensorType["bs", "temporal_index_dim"]:
+    def get_temporal_index(self, time: Float[Tensor, "bs"]) -> Float[Tensor, "bs temporal_index_dim"]:
         """Convert the time into sampling index lists."""
         row_idx_value = time * (len(self.sampling_index) - 1)
         row_idx = row_idx_value.long()
@@ -326,7 +330,9 @@ class TemporalGridEncoder(nn.Module):
         temporal_row_index[mask_b] = row_idx_value - row_idx
         return temporal_row_index
 
-    def forward(self, xyz: TensorType["bs", "input_dim"], time: TensorType["bs", 1]) -> TensorType["bs", "output_dim"]:
+    def forward(
+        self, xyz: Float[Tensor, "bs input_dim"], time: Float[Tensor, "bs 1"]
+    ) -> Float[Tensor, "bs output_dim"]:
         """Forward and sampling feature vectors from the embedding.
 
         Args:
@@ -344,13 +350,14 @@ class TemporalGridEncoder(nn.Module):
             self.gridtype_id,
             self.align_corners,
         )
+        assert isinstance(outputs, Tensor)
         return outputs
 
-    def get_temporal_tv_loss(self) -> TensorType[()]:
+    def get_temporal_tv_loss(self) -> Float[Tensor, ""]:
         """Apply TV loss on the temporal channels.
         Sample a random channel combination (i.e., row for the combination table),
         and then compute loss on it.
         """
-        row_idx = torch.randint(0, len(self.index_list), [1]).item()
+        row_idx = torch.randint(0, len(self.index_list), [1])
         feat_idx = self.index_list[row_idx]
         return (self.embeddings[:, feat_idx[0]] - self.embeddings[:, feat_idx[1]]).abs().mean()

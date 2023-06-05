@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,12 +17,17 @@ Miscellaneous helper code.
 """
 
 
-from typing import Any, Callable, Dict, List, Optional, Union
+import platform
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+import warnings
 
 import torch
 
+T = TypeVar("T")
+TKey = TypeVar("TKey")
 
-def get_dict_to_torch(stuff: Any, device: Union[torch.device, str] = "cpu", exclude: Optional[List[str]] = None):
+
+def get_dict_to_torch(stuff: T, device: Union[torch.device, str] = "cpu", exclude: Optional[List[str]] = None) -> T:
     """Set everything in the dict to the specified torch device.
 
     Args:
@@ -42,7 +47,7 @@ def get_dict_to_torch(stuff: Any, device: Union[torch.device, str] = "cpu", excl
     return stuff
 
 
-def get_dict_to_cpu(stuff: Any):
+def get_dict_to_cpu(stuff: T) -> T:
     """Set everything in the dict to CPU.
 
     Args:
@@ -57,7 +62,7 @@ def get_dict_to_cpu(stuff: Any):
     return stuff
 
 
-def get_masked_dict(d, mask):
+def get_masked_dict(d: Dict[TKey, torch.Tensor], mask) -> Dict[TKey, torch.Tensor]:
     """Return a masked dictionary.
     TODO(ethan): add more asserts/checks so this doesn't have unpredictable behavior.
 
@@ -71,7 +76,7 @@ def get_masked_dict(d, mask):
     return masked_dict
 
 
-class IterableWrapper:  # pylint: disable=too-few-public-methods
+class IterableWrapper:
     """A helper that will allow an instance of a class to return multiple kinds of iterables bound
     to different functions of that class.
 
@@ -155,3 +160,25 @@ def strtobool(val) -> bool:
     FMI https://stackoverflow.com/a/715468
     """
     return val.lower() in ("yes", "y", "true", "t", "on", "1")
+
+
+def torch_compile(*args, **kwargs):
+    """
+    Safe torch.compile with backward compatibility for PyTorch 1.x
+    """
+    if not hasattr(torch, "compile"):
+        # Backward compatibility for PyTorch 1.x
+        warnings.warn(
+            "PyTorch 1.x will no longer be supported by Nerstudio. Please upgrade to PyTorch 2.x.", DeprecationWarning
+        )
+        return torch.jit.script
+    elif platform.system() == "Windows":
+        # torch.compile is not supported on Windows
+        # https://github.com/orgs/pytorch/projects/27
+        # TODO: @jkulhanek, remove this once torch.compile is supported on Windows
+        warnings.warn(
+            "Windows does not yet support torch.compile and the performance will be affected.", RuntimeWarning
+        )
+        return lambda x: x
+    else:
+        return torch.compile(*args, **kwargs)

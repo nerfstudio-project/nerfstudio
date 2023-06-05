@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,12 +14,13 @@
 
 """Space distortions."""
 
+import abc
 from typing import Optional, Union
 
 import torch
 from functorch import jacrev, vmap
-from torch import nn
-from torchtyping import TensorType
+from jaxtyping import Float
+from torch import Tensor, nn
 
 from nerfstudio.utils.math import Gaussians
 
@@ -27,9 +28,8 @@ from nerfstudio.utils.math import Gaussians
 class SpatialDistortion(nn.Module):
     """Apply spatial distortions"""
 
-    def forward(
-        self, positions: Union[TensorType["bs":..., 3], Gaussians]
-    ) -> Union[TensorType["bs":..., 3], Gaussians]:
+    @abc.abstractmethod
+    def forward(self, positions: Union[Float[Tensor, "*bs 3"], Gaussians]) -> Union[Float[Tensor, "*bs 3"], Gaussians]:
         """
         Args:
             positions: Sample to distort
@@ -51,7 +51,7 @@ class SceneContraction(SpatialDistortion):
             \\end{cases}
 
         If the order is not specified, we use the Frobenius norm, this will contract the space to a sphere of
-        radius 1. If the order is L_inf (order=float("inf")), we will contract the space to a cube of side length 2.
+        radius 2. If the order is L_inf (order=float("inf")), we will contract the space to a cube of side length 4.
         If using voxel based encodings such as the Hash encoder, we recommend using the L_inf norm.
 
         Args:
@@ -71,10 +71,12 @@ class SceneContraction(SpatialDistortion):
         if isinstance(positions, Gaussians):
             means = contract(positions.mean.clone())
 
-            contract = lambda x: (2 - (1 / torch.linalg.norm(x, ord=self.order, dim=-1, keepdim=True))) * (
-                x / torch.linalg.norm(x, ord=self.order, dim=-1, keepdim=True)
-            )
-            jc_means = vmap(jacrev(contract))(positions.mean.view(-1, positions.mean.shape[-1]))
+            def contract_gauss(x):
+                return (2 - 1 / torch.linalg.norm(x, ord=self.order, dim=-1, keepdim=True)) * (
+                    x / torch.linalg.norm(x, ord=self.order, dim=-1, keepdim=True)
+                )
+
+            jc_means = vmap(jacrev(contract_gauss))(positions.mean.view(-1, positions.mean.shape[-1]))
             jc_means = jc_means.view(list(positions.mean.shape) + [positions.mean.shape[-1]])
 
             # Only update covariances on positions outside the unit sphere

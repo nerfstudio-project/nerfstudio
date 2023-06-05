@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,16 +15,17 @@
 """Generic utility functions
 """
 
-import sys
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-import zmq
+from typing_extensions import assert_never
+
+from nerfstudio.viewer.viser.messages import CameraMessage
 
 
 def get_chunks(
-    lst: List[float], num_chunks: Optional[int] = None, size_of_chunk: Optional[int] = None
+    lst: Union[List[float], Tuple[float, ...]], num_chunks: Optional[int] = None, size_of_chunk: Optional[int] = None
 ) -> List[List[float]]:
     """Returns list of n elements, containing a sublist.
 
@@ -36,9 +37,12 @@ def get_chunks(
     if num_chunks:
         assert not size_of_chunk
         size = len(lst) // num_chunks
-    if size_of_chunk:
+    elif size_of_chunk:
         assert not num_chunks
         size = size_of_chunk
+    else:
+        assert False, "Either `num_chunks` or `size_of_chunk` must be set"
+
     chunks = []
     for i in range(0, len(lst), size):
         chunks.append(lst[i : i + size])
@@ -61,7 +65,7 @@ def three_js_perspective_camera_focal_length(fov: float, image_height: int):
 
 
 def get_intrinsics_matrix_and_camera_to_world_h(
-    camera_object: Dict[str, Any], image_height: int, image_width: Optional[int] = None
+    camera_message: CameraMessage, image_height: int, image_width: Optional[Union[int, float]] = None
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Returns the camera intrinsics matrix and the camera to world homogeneous matrix.
 
@@ -70,17 +74,17 @@ def get_intrinsics_matrix_and_camera_to_world_h(
         image_size: the size of the image (height, width)
     """
     # intrinsics
-    fov = camera_object["fov"]
-    aspect = camera_object["aspect"]
+    fov = camera_message.fov
+    aspect = camera_message.aspect
     if image_width is None:
         image_width = aspect * image_height
     pp_w = image_width / 2.0
     pp_h = image_height / 2.0
-    if (camera_object["camera_type"] == "perspective") | (camera_object["camera_type"] == "fisheye"):
+    if camera_message.camera_type in ("perspective", "fisheye"):
         focal_length = three_js_perspective_camera_focal_length(fov, image_height)
         intrinsics_matrix = torch.tensor([[focal_length, 0, pp_w], [0, focal_length, pp_h], [0, 0, 1]]).float()
-    elif camera_object["camera_type"] == "equirectangular":
-        render_aspect = camera_object["render_aspect"]
+    elif camera_message.camera_type == "equirectangular":
+        render_aspect = camera_message.render_aspect
         if aspect < render_aspect:
             intrinsics_matrix = torch.tensor(
                 [[pp_w, 0, pp_w], [0, image_width / render_aspect, pp_h], [0, 0, 1]]
@@ -89,9 +93,11 @@ def get_intrinsics_matrix_and_camera_to_world_h(
             intrinsics_matrix = torch.tensor(
                 [[image_height * render_aspect / 2, 0, pp_w], [0, pp_h * 2, pp_h], [0, 0, 1]]
             ).float()
+    else:
+        assert_never(camera_message.camera_type)
 
     # extrinsics
-    camera_to_world_h = torch.tensor(get_chunks(camera_object["matrix"], size_of_chunk=4)).T.float()
+    camera_to_world_h = torch.tensor(get_chunks(camera_message.matrix, size_of_chunk=4)).T.float()
     camera_to_world_h = torch.stack(
         [
             camera_to_world_h[0, :],
@@ -103,25 +109,3 @@ def get_intrinsics_matrix_and_camera_to_world_h(
     )
 
     return intrinsics_matrix, camera_to_world_h
-
-
-def find_available_port(func: Callable, default_port: int, max_attempts: int = 1000, **kwargs) -> None:
-    """Finds and attempts to connect to a port
-
-    Args:
-        func: function used on connecting to port
-        default_port: the default port
-        max_attempts: max number of attempts to try connection. Defaults to MAX_ATTEMPTS.
-    """
-    for i in range(max_attempts):
-        port = default_port + i
-        try:
-            return func(port, **kwargs), port
-        except (OSError, zmq.error.ZMQError):
-            print(f"Port: {port:d} in use, trying another...", file=sys.stderr)
-        except Exception as e:
-            print(type(e))
-            raise
-    raise (
-        Exception(f"Could not find an available port in the range: [{default_port:d}, {max_attempts + default_port:d})")
-    )

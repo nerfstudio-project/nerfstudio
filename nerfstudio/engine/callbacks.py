@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,10 +17,17 @@ Callback code used for training iterations
 """
 from __future__ import annotations
 
-from dataclasses import InitVar, dataclass
+from dataclasses import dataclass
 from enum import Enum, auto
 from inspect import signature
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
+
+from torch.cuda.amp.grad_scaler import GradScaler
+
+from nerfstudio.engine.optimizers import Optimizers
+
+if TYPE_CHECKING:
+    from nerfstudio.pipelines.base_pipeline import Pipeline
 
 
 @dataclass
@@ -30,12 +37,11 @@ class TrainingCallbackAttributes:
     Instead of providing access to the entire Trainer object, we only provide these attributes.
     This should be least prone to errors and fairly clean from a user perspective."""
 
-    # TODO(ethan): type this without circular imports
-    optimizers: Optional[InitVar]
+    optimizers: Optional[Optimizers]
     """optimizers for training"""
-    grad_scaler: Optional[InitVar]
+    grad_scaler: Optional[GradScaler]
     """gradient scalers"""
-    pipeline: Optional[InitVar]
+    pipeline: Optional["Pipeline"]  # Prevent circular import.
     """reference to training pipeline"""
 
 
@@ -44,6 +50,7 @@ class TrainingCallbackLocation(Enum):
 
     BEFORE_TRAIN_ITERATION = auto()
     AFTER_TRAIN_ITERATION = auto()
+    AFTER_TRAIN = auto()
 
 
 class TrainingCallback:
@@ -91,6 +98,8 @@ class TrainingCallback:
         elif self.iters is not None:
             if step in self.iters:
                 self.func(*self.args, **self.kwargs, step=step)
+        else:
+            self.func(*self.args, **self.kwargs, step=step)
 
     def run_callback_at_location(self, step: int, location: TrainingCallbackLocation) -> None:
         """Runs the callback if it's supposed to be run at the given location.

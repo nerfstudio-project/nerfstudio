@@ -154,10 +154,9 @@ def test_tensor_hash_encoder():
     )
     assert encoder.get_out_dim() == out_dim
 
-    in_tensor = torch.zeros((10, 3))
-    in_tensor[..., 1] = 1
-    encoded = encoder(in_tensor)
-    assert encoded.shape == (10, out_dim)
+    in_tensor = torch.rand((10, 3))
+    encoded_torch = encoder(in_tensor)
+    assert encoded_torch.shape == (10, out_dim)
 
     encoder = encodings.HashEncoding(
         num_levels=num_levels,
@@ -165,10 +164,8 @@ def test_tensor_hash_encoder():
         log2_hashmap_size=5,
         implementation="tcnn",
     )
-    in_tensor = torch.zeros((10, 3))
-    in_tensor[..., 1] = 1
-    encoded = encoder(in_tensor)
-    assert encoded.shape == (10, out_dim)
+    encoded_tcnn = encoder(in_tensor).float().cpu()
+    assert encoded_tcnn.shape == (10, out_dim)
 
 
 def test_kplane_encoder():

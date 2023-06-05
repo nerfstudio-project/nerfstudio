@@ -9,11 +9,9 @@ from nerfstudio.fields.instant_ngp_field import TCNNInstantNGPField
 
 def test_tcnn_instant_ngp_field():
     """Test the tiny-cuda-nn field"""
-    # pylint: disable=import-outside-toplevel
-    # pylint: disable=unused-import
     try:
-        import tinycudann as tcnn
-    except ImportError as e:
+        import tinycudann as tcnn  # noqa: F401
+    except ModuleNotFoundError as e:
         # tinycudann module doesn't exist
         print(e)
         return

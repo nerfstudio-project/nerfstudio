@@ -39,7 +39,7 @@ def test_scalar_first_scalar_last_quaternions():
 
     # Expected Rotation matrix
     # fmt: off
-    R_expected = np.array( # pylint: disable=invalid-name
+    R_expected = np.array( 
         [
             [ 0.81379768, -0.44096961,  0.37852231],
             [ 0.46984631,  0.88256412,  0.01802831],

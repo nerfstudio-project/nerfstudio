@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,13 +17,12 @@ import math
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Tuple, Type
+from typing import Literal, Optional, Tuple, Type
 
 import numpy as np
 import pyquaternion
 import torch
 from nuscenes.nuscenes import NuScenes as NuScenesDatabase
-from typing_extensions import Literal
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (
@@ -56,7 +55,7 @@ class NuScenesDataParserConfig(DataParserConfig):
     Each clip was recorded with a suite of sensors including 6 surround cameras.
     It also includes 3D cuboid annotations around objects.
     We optionally use these cuboids to mask dynamic objects by specifying the mask_dir flag.
-    To create these masks use scripts/datasets/process_nuscenes_masks.py.
+    To create these masks use nerfstudio/scripts/datasets/process_nuscenes_masks.py.
     """
 
     _target: Type = field(default_factory=lambda: NuScenes)
@@ -86,9 +85,11 @@ class NuScenes(DataParser):
     config: NuScenesDataParserConfig
 
     def _generate_dataparser_outputs(self, split="train"):
-        # pylint: disable=too-many-statements
-
-        nusc = NuScenesDatabase(version=self.config.version, dataroot=self.config.data_dir, verbose=self.config.verbose)
+        nusc = NuScenesDatabase(
+            version=self.config.version,
+            dataroot=str(self.config.data_dir.absolute()),
+            verbose=self.config.verbose,
+        )
         cameras = ["CAM_" + camera for camera in self.config.cameras]
 
         assert (

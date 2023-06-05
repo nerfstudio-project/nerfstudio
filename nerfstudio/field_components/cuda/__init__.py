@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ def _make_lazy_cuda_func(name: str) -> Callable:
     """_make_lazy_cuda_func from nerfacc.cuda"""
 
     def call_cuda(*args, **kwargs):
-        # pylint: disable=import-outside-toplevel
         from ._backend import _C
 
         return getattr(_C, name)(*args, **kwargs)

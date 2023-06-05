@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ Implementation of Instant NGP.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Dict, List, Literal, Optional, Tuple, Type
 
 import nerfacc
 import torch
@@ -29,7 +29,6 @@ from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.engine.callbacks import (
@@ -39,7 +38,11 @@ from nerfstudio.engine.callbacks import (
 )
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
+<<<<<<< HEAD
 from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
+=======
+from nerfstudio.fields.nerfacto_field import NerfactoField
+>>>>>>> 42081b7ad43f5d9a11a72bbdff2e877d5dd9bee3
 from nerfstudio.model_components.losses import MSELoss
 from nerfstudio.model_components.ray_samplers import VolumetricSampler
 from nerfstudio.model_components.renderers import (
@@ -59,6 +62,13 @@ class InstantNGPModelConfig(ModelConfig):
         default_factory=lambda: NGPModel
     )  # We can't write `NGPModel` directly, because `NGPModel` doesn't exist yet
     """target class to instantiate"""
+<<<<<<< HEAD
+=======
+    enable_collider: bool = False
+    """Whether to create a scene collider to filter rays."""
+    collider_params: Optional[Dict[str, float]] = None
+    """Instant NGP doesn't use a collider."""
+>>>>>>> 42081b7ad43f5d9a11a72bbdff2e877d5dd9bee3
     grid_resolution: int = 128
     """Resolution of the grid used for the field."""
     grid_levels: int = 4
@@ -81,8 +91,11 @@ class InstantNGPModelConfig(ModelConfig):
     """The color that is given to untrained areas."""
     disable_scene_contraction: bool = False
     """Whether to disable scene contraction or not."""
+<<<<<<< HEAD
     # distortion_loss_mult: float = 0.002
     # """Distortion loss multiplier."""
+=======
+>>>>>>> 42081b7ad43f5d9a11a72bbdff2e877d5dd9bee3
 
 
 class NGPModel(Model):
@@ -93,7 +106,11 @@ class NGPModel(Model):
     """
 
     config: InstantNGPModelConfig
+<<<<<<< HEAD
     field: TCNNNerfactoField
+=======
+    field: NerfactoField
+>>>>>>> 42081b7ad43f5d9a11a72bbdff2e877d5dd9bee3
 
     def __init__(self, config: InstantNGPModelConfig, **kwargs) -> None:
         super().__init__(config=config, **kwargs)
@@ -102,15 +119,22 @@ class NGPModel(Model):
         """Set the fields and modules."""
         super().populate_modules()
 
+<<<<<<< HEAD
         # scene aabb
         self.scene_aabb = Parameter(self.scene_box.aabb.flatten(), requires_grad=False)
 
+=======
+>>>>>>> 42081b7ad43f5d9a11a72bbdff2e877d5dd9bee3
         if self.config.disable_scene_contraction:
             scene_contraction = None
         else:
             scene_contraction = SceneContraction(order=float("inf"))
 
+<<<<<<< HEAD
         self.field = TCNNNerfactoField(
+=======
+        self.field = NerfactoField(
+>>>>>>> 42081b7ad43f5d9a11a72bbdff2e877d5dd9bee3
             aabb=self.scene_box.aabb,
             num_images=self.num_train_data,
             log2_hashmap_size=self.config.log2_hashmap_size,
@@ -122,6 +146,12 @@ class NGPModel(Model):
             # auto step size: ~1000 samples in the base level grid
             self.config.render_step_size = ((self.scene_aabb[3:] - self.scene_aabb[:3]) ** 2).sum().sqrt().item() / 1000
 
+<<<<<<< HEAD
+=======
+        if self.config.render_step_size is None:
+            # auto step size: ~1000 samples in the base level grid
+            self.config.render_step_size = ((self.scene_aabb[3:] - self.scene_aabb[:3]) ** 2).sum().sqrt().item() / 1000
+>>>>>>> 42081b7ad43f5d9a11a72bbdff2e877d5dd9bee3
         # Occupancy Grid.
         self.occupancy_grid = nerfacc.OccGridEstimator(
             roi_aabb=self.scene_aabb,
@@ -191,12 +221,20 @@ class NGPModel(Model):
         # accumulation
         packed_info = nerfacc.pack_info(ray_indices, num_rays)
         weights = nerfacc.render_weight_from_density(
+            t_starts=ray_samples.frustums.starts[..., 0],
+            t_ends=ray_samples.frustums.ends[..., 0],
+            sigmas=field_outputs[FieldHeadNames.DENSITY][..., 0],
             packed_info=packed_info,
+<<<<<<< HEAD
             sigmas=field_outputs[FieldHeadNames.DENSITY].squeeze(-1),
             t_starts=ray_samples.frustums.starts.squeeze(-1),
             t_ends=ray_samples.frustums.ends.squeeze(-1),
         )[0]
         weights = weights.unsqueeze(-1)
+=======
+        )[0]
+        weights = weights[..., None]
+>>>>>>> 42081b7ad43f5d9a11a72bbdff2e877d5dd9bee3
 
         rgb = self.renderer_rgb(
             rgb=field_outputs[FieldHeadNames.RGB],
@@ -244,7 +282,6 @@ class NGPModel(Model):
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
-
         image = batch["image"].to(self.device)
         rgb = outputs["rgb"]
         acc = colormaps.apply_colormap(outputs["accumulation"])

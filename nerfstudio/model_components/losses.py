@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,13 +16,14 @@
 Collection of Losses.
 """
 from enum import Enum
+from typing import Dict, Literal, Optional, Tuple, cast
 
 import torch
-from torch import nn
-from torchtyping import TensorType
-from typing_extensions import Literal
+from jaxtyping import Bool, Float
+from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import RaySamples
+from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.utils.math import masked_reduction, normalized_depth_scale_and_shift
 
 L1Loss = nn.L1Loss
@@ -44,12 +45,12 @@ class DepthLossType(Enum):
 
 
 def outer(
-    t0_starts: TensorType[..., "num_samples_0"],
-    t0_ends: TensorType[..., "num_samples_0"],
-    t1_starts: TensorType[..., "num_samples_1"],
-    t1_ends: TensorType[..., "num_samples_1"],
-    y1: TensorType[..., "num_samples_1"],
-) -> TensorType[..., "num_samples_0"]:
+    t0_starts: Float[Tensor, "*batch num_samples_0"],
+    t0_ends: Float[Tensor, "*batch num_samples_0"],
+    t1_starts: Float[Tensor, "*batch num_samples_1"],
+    t1_ends: Float[Tensor, "*batch num_samples_1"],
+    y1: Float[Tensor, "*batch num_samples_1"],
+) -> Float[Tensor, "*batch num_samples_0"]:
     """Faster version of
 
     https://github.com/kakaobrain/NeRF-Factory/blob/f61bb8744a5cb4820a4d968fb3bfbed777550f4a/src/model/mipnerf360/helper.py#L117
@@ -76,10 +77,10 @@ def outer(
 
 
 def lossfun_outer(
-    t: TensorType[..., "num_samples+1"],
-    w: TensorType[..., "num_samples"],
-    t_env: TensorType[..., "num_samples+1"],
-    w_env: TensorType[..., "num_samples"],
+    t: Float[Tensor, "*batch num_samples_1"],
+    w: Float[Tensor, "*batch num_samples"],
+    t_env: Float[Tensor, "*batch num_samples_1"],
+    w_env: Float[Tensor, "*batch num_samples"],
 ):
     """
     https://github.com/kakaobrain/NeRF-Factory/blob/f61bb8744a5cb4820a4d968fb3bfbed777550f4a/src/model/mipnerf360/helper.py#L136
@@ -103,7 +104,7 @@ def ray_samples_to_sdist(ray_samples):
     return sdist
 
 
-def interlevel_loss(weights_list, ray_samples_list):
+def interlevel_loss(weights_list, ray_samples_list) -> torch.Tensor:
     """Calculates the proposal loss in the MipNeRF-360 paper.
 
     https://github.com/kakaobrain/NeRF-Factory/blob/f61bb8744a5cb4820a4d968fb3bfbed777550f4a/src/model/mipnerf360/model.py#L515
@@ -111,12 +112,16 @@ def interlevel_loss(weights_list, ray_samples_list):
     """
     c = ray_samples_to_sdist(ray_samples_list[-1]).detach()
     w = weights_list[-1][..., 0].detach()
+    assert len(ray_samples_list) > 0
+
     loss_interlevel = 0.0
     for ray_samples, weights in zip(ray_samples_list[:-1], weights_list[:-1]):
         sdist = ray_samples_to_sdist(ray_samples)
         cp = sdist  # (num_rays, num_samples + 1)
         wp = weights[..., 0]  # (num_rays, num_samples)
         loss_interlevel += torch.mean(lossfun_outer(c, w, cp, wp))
+
+    assert isinstance(loss_interlevel, Tensor)
     return loss_interlevel
 
 
@@ -145,9 +150,9 @@ def distortion_loss(weights_list, ray_samples_list):
 
 def nerfstudio_distortion_loss(
     ray_samples: RaySamples,
-    densities: TensorType["bs":..., "num_samples", 1] = None,
-    weights: TensorType["bs":..., "num_samples", 1] = None,
-) -> TensorType["bs":..., 1]:
+    densities: Optional[Float[Tensor, "*bs num_samples 1"]] = None,
+    weights: Optional[Float[Tensor, "*bs num_samples 1"]] = None,
+) -> Float[Tensor, "*bs 1"]:
     """Ray based distortion loss proposed in MipNeRF-360. Returns distortion Loss.
 
     .. math::
@@ -165,10 +170,12 @@ def nerfstudio_distortion_loss(
     """
     if torch.is_tensor(densities):
         assert not torch.is_tensor(weights), "Cannot use both densities and weights"
+        assert densities is not None
         # Compute the weight at each sample location
         weights = ray_samples.get_weights(densities)
     if torch.is_tensor(weights):
         assert not torch.is_tensor(densities), "Cannot use both densities and weights"
+    assert weights is not None
 
     starts = ray_samples.spacing_starts
     ends = ray_samples.spacing_ends
@@ -186,9 +193,9 @@ def nerfstudio_distortion_loss(
 
 
 def orientation_loss(
-    weights: TensorType["bs":..., "num_samples", 1],
-    normals: TensorType["bs":..., "num_samples", 3],
-    viewdirs: TensorType["bs":..., 3],
+    weights: Float[Tensor, "*bs num_samples 1"],
+    normals: Float[Tensor, "*bs num_samples 3"],
+    viewdirs: Float[Tensor, "*bs 3"],
 ):
     """Orientation loss proposed in Ref-NeRF.
     Loss that encourages that all visible normals are facing towards the camera.
@@ -196,26 +203,26 @@ def orientation_loss(
     w = weights
     n = normals
     v = viewdirs * -1
-    n_dot_v = (n * v[..., None, :]).sum(axis=-1)
+    n_dot_v = (n * v[..., None, :]).sum(dim=-1)
     return (w[..., 0] * torch.fmin(torch.zeros_like(n_dot_v), n_dot_v) ** 2).sum(dim=-1)
 
 
 def pred_normal_loss(
-    weights: TensorType["bs":..., "num_samples", 1],
-    normals: TensorType["bs":..., "num_samples", 3],
-    pred_normals: TensorType["bs":..., "num_samples", 3],
+    weights: Float[Tensor, "*bs num_samples 1"],
+    normals: Float[Tensor, "*bs num_samples 3"],
+    pred_normals: Float[Tensor, "*bs num_samples 3"],
 ):
     """Loss between normals calculated from density and normals from prediction network."""
     return (weights[..., 0] * (1.0 - torch.sum(normals * pred_normals, dim=-1))).sum(dim=-1)
 
 
 def ds_nerf_depth_loss(
-    weights: TensorType[..., "num_samples", 1],
-    termination_depth: TensorType[..., 1],
-    steps: TensorType[..., "num_samples", 1],
-    lengths: TensorType[..., "num_samples", 1],
-    sigma: TensorType[0],
-) -> TensorType[..., 1]:
+    weights: Float[Tensor, "*batch num_samples 1"],
+    termination_depth: Float[Tensor, "*batch 1"],
+    steps: Float[Tensor, "*batch num_samples 1"],
+    lengths: Float[Tensor, "*batch num_samples 1"],
+    sigma: Float[Tensor, "0"],
+) -> Float[Tensor, "*batch 1"]:
     """Depth loss from Depth-supervised NeRF (Deng et al., 2022).
 
     Args:
@@ -235,12 +242,12 @@ def ds_nerf_depth_loss(
 
 
 def urban_radiance_field_depth_loss(
-    weights: TensorType[..., "num_samples", 1],
-    termination_depth: TensorType[..., 1],
-    predicted_depth: TensorType[..., 1],
-    steps: TensorType[..., "num_samples", 1],
-    sigma: TensorType[0],
-) -> TensorType[..., 1]:
+    weights: Float[Tensor, "*batch num_samples 1"],
+    termination_depth: Float[Tensor, "*batch 1"],
+    predicted_depth: Float[Tensor, "*batch 1"],
+    steps: Float[Tensor, "*batch num_samples 1"],
+    sigma: Float[Tensor, "0"],
+) -> Float[Tensor, "*batch 1"]:
     """Lidar losses from Urban Radiance Fields (Rematas et al., 2022).
 
     Args:
@@ -274,15 +281,15 @@ def urban_radiance_field_depth_loss(
 
 
 def depth_loss(
-    weights: TensorType[..., "num_samples", 1],
+    weights: Float[Tensor, "*batch num_samples 1"],
     ray_samples: RaySamples,
-    termination_depth: TensorType[..., 1],
-    predicted_depth: TensorType[..., 1],
-    sigma: TensorType[0],
-    directions_norm: TensorType[..., 1],
+    termination_depth: Float[Tensor, "*batch 1"],
+    predicted_depth: Float[Tensor, "*batch 1"],
+    sigma: Float[Tensor, "0"],
+    directions_norm: Float[Tensor, "*batch 1"],
     is_euclidean: bool,
     depth_loss_type: DepthLossType,
-) -> TensorType[0]:
+) -> Float[Tensor, "0"]:
     """Implementation of depth losses.
 
     Args:
@@ -313,8 +320,8 @@ def depth_loss(
 
 
 def monosdf_normal_loss(
-    normal_pred: TensorType["num_samples", 3], normal_gt: TensorType["num_samples", 3]
-) -> TensorType[0]:
+    normal_pred: Float[Tensor, "num_samples 3"], normal_gt: Float[Tensor, "num_samples 3"]
+) -> Float[Tensor, "0"]:
     """
     Normal consistency loss proposed in monosdf - https://niujinshuchong.github.io/monosdf/
     Enforces consistency between the volume rendered normal and the predicted monocular normal.
@@ -343,8 +350,11 @@ class MiDaSMSELoss(nn.Module):
         self.mse_loss = MSELoss(reduction="none")
 
     def forward(
-        self, prediction: TensorType[1, 32, "mult"], target: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"]
-    ) -> TensorType[0]:
+        self,
+        prediction: Float[Tensor, "1 32 mult"],
+        target: Float[Tensor, "1 32 mult"],
+        mask: Bool[Tensor, "1 32 mult"],
+    ) -> Float[Tensor, "0"]:
         """
         Args:
             prediction: predicted depth map
@@ -376,12 +386,15 @@ class GradientLoss(nn.Module):
             reduction_type: either "batch" or "image"
         """
         super().__init__()
-        self.reduction_type = reduction_type
+        self.reduction_type: Literal["image", "batch"] = reduction_type
         self.__scales = scales
 
     def forward(
-        self, prediction: TensorType[1, 32, "mult"], target: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"]
-    ) -> TensorType[0]:
+        self,
+        prediction: Float[Tensor, "1 32 mult"],
+        target: Float[Tensor, "1 32 mult"],
+        mask: Bool[Tensor, "1 32 mult"],
+    ) -> Float[Tensor, "0"]:
         """
         Args:
             prediction: predicted depth map
@@ -390,7 +403,8 @@ class GradientLoss(nn.Module):
         Returns:
             gradient loss based on reduction function
         """
-        total = 0
+        assert self.__scales >= 1
+        total = 0.0
 
         for scale in range(self.__scales):
             step = pow(2, scale)
@@ -402,11 +416,15 @@ class GradientLoss(nn.Module):
             )
             total += grad_loss
 
+        assert isinstance(total, Tensor)
         return total
 
     def gradient_loss(
-        self, prediction: TensorType[1, 32, "mult"], target: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"]
-    ) -> TensorType[0]:
+        self,
+        prediction: Float[Tensor, "1 32 mult"],
+        target: Float[Tensor, "1 32 mult"],
+        mask: Bool[Tensor, "1 32 mult"],
+    ) -> Float[Tensor, "0"]:
         """
         multiscale, scale-invariant gradient matching term to the disparity space.
         This term biases discontinuities to be sharp and to coincide with discontinuities in the ground truth
@@ -458,8 +476,11 @@ class ScaleAndShiftInvariantLoss(nn.Module):
         self.__prediction_ssi = None
 
     def forward(
-        self, prediction: TensorType[1, 32, "mult"], target: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"]
-    ) -> TensorType[0]:
+        self,
+        prediction: Float[Tensor, "1 32 mult"],
+        target: Float[Tensor, "1 32 mult"],
+        mask: Bool[Tensor, "1 32 mult"],
+    ) -> Float[Tensor, "0"]:
         """
         Args:
             prediction: predicted depth map (unnormalized)
@@ -485,3 +506,57 @@ class ScaleAndShiftInvariantLoss(nn.Module):
         return self.__prediction_ssi
 
     prediction_ssi = property(__get_prediction_ssi)
+
+
+def tv_loss(grids: Float[Tensor, "grids feature_dim row column"]) -> Float[Tensor, ""]:
+    """
+    https://github.com/apchenstu/TensoRF/blob/4ec894dc1341a2201fe13ae428631b58458f105d/utils.py#L139
+
+    Args:
+        grids: stacks of explicit feature grids (stacked at dim 0)
+    Returns:
+        average total variation loss for neighbor rows and columns.
+    """
+    number_of_grids = grids.shape[0]
+    h_tv_count = grids[:, :, 1:, :].shape[1] * grids[:, :, 1:, :].shape[2] * grids[:, :, 1:, :].shape[3]
+    w_tv_count = grids[:, :, :, 1:].shape[1] * grids[:, :, :, 1:].shape[2] * grids[:, :, :, 1:].shape[3]
+    h_tv = torch.pow((grids[:, :, 1:, :] - grids[:, :, :-1, :]), 2).sum()
+    w_tv = torch.pow((grids[:, :, :, 1:] - grids[:, :, :, :-1]), 2).sum()
+    return 2 * (h_tv / h_tv_count + w_tv / w_tv_count) / number_of_grids
+
+
+class _GradientScaler(torch.autograd.Function):  # typing: ignore
+    """
+    Scale gradients by a constant factor.
+    """
+
+    @staticmethod
+    def forward(ctx, value, scaling):
+        ctx.save_for_backward(scaling)
+        return value, scaling
+
+    @staticmethod
+    def backward(ctx, output_grad, grad_scaling):
+        (scaling,) = ctx.saved_tensors
+        return output_grad * scaling, grad_scaling
+
+
+def scale_gradients_by_distance_squared(
+    field_outputs: Dict[FieldHeadNames, torch.Tensor], ray_samples: RaySamples
+) -> Dict[FieldHeadNames, torch.Tensor]:
+    """
+    Scale gradients by the ray distance to the pixel
+    as suggested in `Radiance Field Gradient Scaling for Unbiased Near-Camera Training` paper
+
+    Note: The scaling is applied on the interval of [0, 1] along the ray!
+
+    Example:
+        GradientLoss should be called right after obtaining the densities and colors from the field. ::
+            >>> field_outputs = scale_gradient_by_distance_squared(field_outputs, ray_samples)
+    """
+    out = {}
+    ray_dist = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
+    scaling = torch.square(ray_dist).clamp(0, 1)
+    for key, value in field_outputs.items():
+        out[key], _ = cast(Tuple[Tensor, Tensor], _GradientScaler.apply(value, scaling))
+    return out

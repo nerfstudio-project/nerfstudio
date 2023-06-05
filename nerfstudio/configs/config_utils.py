@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,10 +21,8 @@ from __future__ import annotations
 from dataclasses import field
 from typing import Any, Dict
 
-from rich.console import Console
+from nerfstudio.utils.rich_utils import CONSOLE
 
-CONSOLE = Console()
-# pylint: disable=import-outside-toplevel
 
 # cannot use mutable types directly within dataclass; abstracting default factory calls
 def to_immutable_dict(d: Dict[str, Any]):

@@ -1,7 +1,7 @@
 {
   "name": "viewer",
   "homepage": ".",
-  "version": "23-03-9-0",
+  "version": "23-05-15-1",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.10.4",
@@ -15,15 +15,18 @@
     "@testing-library/jest-dom": "^5.16.4",
     "@testing-library/react": "^13.3.0",
     "@testing-library/user-event": "^14.2.0",
-    "camera-controls": "^1.37.2",
+    "await-lock": "^2.2.2",
+    "camera-controls": "^2.0",
     "classnames": "^2.3.1",
     "dat.gui": "^0.7.9",
     "dayjs": "^1.11.5",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-unused-imports": "^2.0.0",
     "leva": "^0.9.29",
+    "lodash": "^4.17.21",
     "meshline": "^2.0.4",
     "msgpack-lite": "^0.1.26",
+    "msgpackr": "^1.8.5",
     "prop-types": "^15.8.1",
     "re-resizable": "^6.9.9",
     "react": "^18.1.0",
@@ -77,10 +80,17 @@
     "eslint-plugin-react-hooks": "^4.3.0",
     "prettier": "2.7.1",
     "react-scripts": "^5.0.1",
-    "typescript": "^4.7.3",
+    "typescript": "^5.0.3",
     "wait-on": "^6.0.1"
   },
   "resolutions": {
-    "nth-check": "^2.0.1"
+    "babel-loader": "^9.1.2",
+    "json5": "^2.2.3",
+    "loader-utils": "^3.2.1",
+    "nth-check": "^2.0.1",
+    "@pmmmwh/react-refresh-webpack-plugin": "^0.5.10",
+    "recursive-readdir": "^2.2.3",
+    "resolve-url-loader": "^5.0.0",
+    "yaml": "^2.2.2"
   }
 }

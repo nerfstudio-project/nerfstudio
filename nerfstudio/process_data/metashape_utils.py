@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,11 +20,9 @@ from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
-from rich.console import Console
 
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def _find_param(calib_xml: ET.Element, param_name: str):
@@ -34,7 +32,7 @@ def _find_param(calib_xml: ET.Element, param_name: str):
     return 0.0
 
 
-def metashape_to_json(  # pylint: disable=too-many-statements
+def metashape_to_json(
     image_filename_map: Dict[str, Path],
     xml_filename: Path,
     output_dir: Path,
@@ -61,12 +59,17 @@ def metashape_to_json(  # pylint: disable=too-many-statements
     if sensors is None:
         raise ValueError("No sensors found")
 
-    calibrated_sensors = [sensor for sensor in sensors if sensor.find("calibration")]
+    calibrated_sensors = [
+        sensor for sensor in sensors if sensor.get("type") == "spherical" or sensor.find("calibration")
+    ]
     if not calibrated_sensors:
         raise ValueError("No calibrated sensor found in Metashape XML")
     sensor_type = [s.get("type") for s in calibrated_sensors]
     if sensor_type.count(sensor_type[0]) != len(sensor_type):
-        raise ValueError("All Metashape sensors do not have the same sensor type")
+        raise ValueError(
+            "All Metashape sensors do not have the same sensor type. "
+            "nerfstudio does support per-frame camera intrinsics, but at this current time the utility does not account for this."
+        )
     data = {}
     if sensor_type[0] == "frame":
         data["camera_model"] = CAMERA_MODELS["perspective"].value
@@ -87,46 +90,57 @@ def metashape_to_json(  # pylint: disable=too-many-statements
         s["h"] = int(resolution.get("height"))  # type: ignore
 
         calib = sensor.find("calibration")
-        f = calib.find("f")
-        if f is not None:
+        if calib is None:
+            assert sensor_type[0] == "spherical", "Only spherical sensors should have no intrinsics"
+            s["fl_x"] = s["w"] / 2.0
+            s["fl_y"] = s["h"]
+            s["cx"] = s["w"] / 2.0
+            s["cy"] = s["h"] / 2.0
+        else:
+            f = calib.find("f")
+            assert f is not None, "Focal length not found in Metashape xml"
             s["fl_x"] = s["fl_y"] = float(f.text)  # type: ignore
-        s["cx"] = _find_param(calib, "cx") + s["w"] / 2.0  # type: ignore
-        s["cy"] = _find_param(calib, "cy") + s["h"] / 2.0  # type: ignore
+            s["cx"] = _find_param(calib, "cx") + s["w"] / 2.0  # type: ignore
+            s["cy"] = _find_param(calib, "cy") + s["h"] / 2.0  # type: ignore
 
-        s["k1"] = _find_param(calib, "k1")
-        s["k2"] = _find_param(calib, "k2")
-        s["k3"] = _find_param(calib, "k3")
-        s["k4"] = _find_param(calib, "k4")
-        s["p1"] = _find_param(calib, "p1")
-        s["p2"] = _find_param(calib, "p2")
+            s["k1"] = _find_param(calib, "k1")
+            s["k2"] = _find_param(calib, "k2")
+            s["k3"] = _find_param(calib, "k3")
+            s["k4"] = _find_param(calib, "k4")
+            s["p1"] = _find_param(calib, "p1")
+            s["p2"] = _find_param(calib, "p2")
 
         sensor_dict[sensor.get("id")] = s
 
     components = chunk.find("components")
     component_dict = {}
-    for component in components:
-        transform = component.find("transform")
-        if transform is not None:
-            rotation = transform.find("rotation")
-            if rotation is None:
-                r = np.eye(3)
-            else:
-                r = np.array([float(x) for x in rotation.text.split()]).reshape((3, 3))
-            translation = transform.find("translation")
-            if translation is None:
-                t = np.zeros(3)
-            else:
-                t = np.array([float(x) for x in translation.text.split()])
-            scale = transform.find("scale")
-            if scale is None:
-                s = 1.0
-            else:
-                s = float(scale.text)
+    if components is not None:
+        for component in components:
+            transform = component.find("transform")
+            if transform is not None:
+                rotation = transform.find("rotation")
+                if rotation is None:
+                    r = np.eye(3)
+                else:
+                    assert isinstance(rotation.text, str)
+                    r = np.array([float(x) for x in rotation.text.split()]).reshape((3, 3))
+                translation = transform.find("translation")
+                if translation is None:
+                    t = np.zeros(3)
+                else:
+                    assert isinstance(translation.text, str)
+                    t = np.array([float(x) for x in translation.text.split()])
+                scale = transform.find("scale")
+                if scale is None:
+                    s = 1.0
+                else:
+                    assert isinstance(scale.text, str)
+                    s = float(scale.text)
 
-            m = np.eye(4)
-            m[:3, :3] = r
-            m[:3, 3] = t / s
-            component_dict[component.get("id")] = m
+                m = np.eye(4)
+                m[:3, :3] = r
+                m[:3, 3] = t / s
+                component_dict[component.get("id")] = m
 
     frames = []
     cameras = chunk.find("cameras")
@@ -135,6 +149,7 @@ def metashape_to_json(  # pylint: disable=too-many-statements
     for camera in cameras:
         frame = {}
         camera_label = camera.get("label")
+        assert isinstance(camera_label, str)
         if camera_label not in image_filename_map:
             # Labels sometimes have a file extension. Try without the extension.
             # (maybe it's just a '.' in the image name)
@@ -158,10 +173,12 @@ def metashape_to_json(  # pylint: disable=too-many-statements
                 CONSOLE.print(f"Missing transforms data for {camera.get('label')}, Skipping")
             num_skipped += 1
             continue
-        transform = np.array([float(x) for x in camera.find("transform").text.split()]).reshape((4, 4))
+        transform = np.array([float(x) for x in camera.find("transform").text.split()]).reshape((4, 4))  # type: ignore
+
         component_id = camera.get("component_id")
         if component_id in component_dict:
             transform = component_dict[component_id] @ transform
+
         transform = transform[[2, 0, 1, 3], :]
         transform[:, 1:3] *= -1
         frame["transform_matrix"] = transform.tolist()

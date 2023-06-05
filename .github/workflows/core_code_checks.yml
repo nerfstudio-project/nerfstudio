@@ -15,10 +15,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python 3.7.13
+      - name: Set up Python 3.8.13
         uses: actions/setup-python@v4
         with:
-          python-version: '3.7.13'
+          python-version: '3.8.13'
       - uses: actions/cache@v2
         with:
           path: ${{ env.pythonLocation }}
@@ -28,17 +28,17 @@ jobs:
           pip install --upgrade --upgrade-strategy eager -e .[dev]
       - name: Run license checks
         run: |
-          ./scripts/licensing/license_headers.sh --check
+          ./nerfstudio/scripts/licensing/license_headers.sh --check
       - name: Check notebook cell metadata
         run: |
-          python ./scripts/docs/add_nb_tags.py --check
-      - name: Run isort
-        run: isort docs/ nerfstudio/ scripts/ tests/ --profile black --check
+          python ./nerfstudio/scripts/docs/add_nb_tags.py --check
+      - name: Run Ruff
+        run: ruff docs/ nerfstudio/ tests/
       - name: Run Black
-        run: black docs/ nerfstudio/ scripts/ tests/ --check
-      - name: Python Pylint
+        run: black docs/ nerfstudio/ tests/ --check
+      - name: Run Pyright
         run: |
-          pylint nerfstudio tests scripts
+          pyright
       - name: Test with pytest
         run: |
           pytest

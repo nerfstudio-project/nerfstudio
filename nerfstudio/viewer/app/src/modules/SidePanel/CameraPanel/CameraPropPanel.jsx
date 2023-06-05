@@ -21,12 +21,14 @@ export default function CameraPropPanel(props) {
   );
   const camera_type = useSelector((state) => state.renderingState.camera_type);
 
-  const export_path = useSelector((state) => state.renderingState.export_path);
+  const export_path = useSelector(
+    (state) => state.file_path_info.export_path_name,
+  );
 
   const setExportPath = (value) => {
     dispatch({
       type: 'write',
-      path: 'renderingState/export_path',
+      path: 'file_path_info/export_path_name',
       data: value,
     });
   };
@@ -59,14 +61,12 @@ export default function CameraPropPanel(props) {
         value: export_path,
         onChange: (v) => {
           const valid_filename_reg = /^([a-z]|[A-Z]|[0-9]|-|_)+$/g;
-          if(!valid_filename_reg.test(v)){
-            alert("Please only use letters, numbers, and hyphens");
-          }
-          else {
+          if (!valid_filename_reg.test(v)) {
+            alert('Please only use letters, numbers, and hyphens');
+          } else {
             setExportPath(v);
           }
         },
-        
       },
       camera_resolution: {
         label: 'Resolution',
@@ -109,7 +109,7 @@ export default function CameraPropPanel(props) {
     { store },
   );
 
-  setControls({path: export_path});
+  setControls({ path: export_path });
   setControls({ video_fps: fps });
   setControls({ video_duration: seconds });
   setControls({

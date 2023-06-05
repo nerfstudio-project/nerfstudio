@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,16 +15,18 @@
 """ Math Helper Functions """
 
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Literal, Tuple
 
 import torch
-from torchtyping import TensorType
-from typing_extensions import Literal
+from jaxtyping import Bool, Float
+from torch import Tensor
 
-_USE_NERFACC = True
+from nerfstudio.utils.misc import torch_compile
 
 
-def components_from_spherical_harmonics(levels: int, directions: TensorType[..., 3]) -> TensorType[..., "components"]:
+def components_from_spherical_harmonics(
+    levels: int, directions: Float[Tensor, "*batch 3"]
+) -> Float[Tensor, "*batch components"]:
     """
     Returns value for each component of spherical harmonics.
 
@@ -97,15 +99,15 @@ class Gaussians:
         cov: Covariance of multivariate Gaussian.
     """
 
-    mean: TensorType[..., "dim"]
-    cov: TensorType[..., "dim", "dim"]
+    mean: Float[Tensor, "*batch dim"]
+    cov: Float[Tensor, "*batch dim dim"]
 
 
 def compute_3d_gaussian(
-    directions: TensorType[..., 3],
-    means: TensorType[..., 3],
-    dir_variance: TensorType[..., 1],
-    radius_variance: TensorType[..., 1],
+    directions: Float[Tensor, "*batch 3"],
+    means: Float[Tensor, "*batch 3"],
+    dir_variance: Float[Tensor, "*batch 1"],
+    radius_variance: Float[Tensor, "*batch 1"],
 ) -> Gaussians:
     """Compute gaussian along ray.
 
@@ -130,11 +132,11 @@ def compute_3d_gaussian(
 
 
 def cylinder_to_gaussian(
-    origins: TensorType[..., 3],
-    directions: TensorType[..., 3],
-    starts: TensorType[..., 1],
-    ends: TensorType[..., 1],
-    radius: TensorType[..., 1],
+    origins: Float[Tensor, "*batch 3"],
+    directions: Float[Tensor, "*batch 3"],
+    starts: Float[Tensor, "*batch 1"],
+    ends: Float[Tensor, "*batch 1"],
+    radius: Float[Tensor, "*batch 1"],
 ) -> Gaussians:
     """Approximates cylinders with a Gaussian distributions.
 
@@ -155,11 +157,11 @@ def cylinder_to_gaussian(
 
 
 def conical_frustum_to_gaussian(
-    origins: TensorType[..., 3],
-    directions: TensorType[..., 3],
-    starts: TensorType[..., 1],
-    ends: TensorType[..., 1],
-    radius: TensorType[..., 1],
+    origins: Float[Tensor, "*batch 3"],
+    directions: Float[Tensor, "*batch 3"],
+    starts: Float[Tensor, "*batch 1"],
+    ends: Float[Tensor, "*batch 1"],
+    radius: Float[Tensor, "*batch 1"],
 ) -> Gaussians:
     """Approximates conical frustums with a Gaussian distributions.
 
@@ -197,8 +199,8 @@ def expected_sin(x_means: torch.Tensor, x_vars: torch.Tensor) -> torch.Tensor:
     return torch.exp(-0.5 * x_vars) * torch.sin(x_means)
 
 
-@torch.jit.script
-def _intersect_aabb(
+@torch_compile(dynamic=True, mode="reduce-overhead", backend="eager")
+def intersect_aabb(
     origins: torch.Tensor,
     directions: torch.Tensor,
     aabb: torch.Tensor,
@@ -222,11 +224,11 @@ def _intersect_aabb(
     tx_min = (aabb[:3] - origins) / directions
     tx_max = (aabb[3:] - origins) / directions
 
-    t_min = torch.min(tx_min, tx_max)
-    t_max = torch.max(tx_min, tx_max)
+    t_min = torch.stack((tx_min, tx_max)).amin(dim=0)
+    t_max = torch.stack((tx_min, tx_max)).amax(dim=0)
 
-    t_min = torch.max(t_min, dim=-1).values
-    t_max = torch.min(t_max, dim=-1).values
+    t_min = t_min.amax(dim=-1)
+    t_max = t_max.amin(dim=-1)
 
     t_min = torch.clamp(t_min, min=0, max=max_bound)
     t_max = torch.clamp(t_max, min=0, max=max_bound)
@@ -238,6 +240,7 @@ def _intersect_aabb(
     return t_min, t_max
 
 
+<<<<<<< HEAD
 def intersect_aabb(
     origins: TensorType["N", 3],
     directions: TensorType["N", 3],
@@ -275,10 +278,12 @@ def intersect_aabb(
     return t_min, t_max
 
 
+=======
+>>>>>>> 42081b7ad43f5d9a11a72bbdff2e877d5dd9bee3
 def safe_normalize(
-    vectors: TensorType["batch_dim":..., "N"],
+    vectors: Float[Tensor, "*batch_dim N"],
     eps: float = 1e-10,
-) -> TensorType["batch_dim":..., "N"]:
+) -> Float[Tensor, "*batch_dim N"]:
     """Normalizes vectors.
 
     Args:
@@ -292,8 +297,10 @@ def safe_normalize(
 
 
 def masked_reduction(
-    input_tensor: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"], reduction_type: Literal["image", "batch"]
-):
+    input_tensor: Float[Tensor, "1 32 mult"],
+    mask: Bool[Tensor, "1 32 mult"],
+    reduction_type: Literal["image", "batch"],
+) -> Tensor:
     """
     Whether to consolidate the input_tensor across the batch or across the image
     Args:
@@ -306,7 +313,9 @@ def masked_reduction(
     if reduction_type == "batch":
         # avoid division by 0 (if sum(M) = sum(sum(mask)) = 0: sum(image_loss) = 0)
         divisor = torch.sum(mask)
-        input_tensor = 0 if divisor == 0 else torch.sum(input_tensor) / divisor
+        if divisor == 0:
+            return torch.tensor(0, device=input_tensor.device)
+        input_tensor = torch.sum(input_tensor) / divisor
     elif reduction_type == "image":
         # avoid division by 0 (if M = sum(mask) = 0: image_loss = 0)
         valid = mask.nonzero()
@@ -317,7 +326,7 @@ def masked_reduction(
 
 
 def normalized_depth_scale_and_shift(
-    prediction: TensorType[1, 32, "mult"], target: TensorType[1, 32, "mult"], mask: TensorType[1, 32, "mult"]
+    prediction: Float[Tensor, "1 32 mult"], target: Float[Tensor, "1 32 mult"], mask: Bool[Tensor, "1 32 mult"]
 ):
     """
     More info here: https://arxiv.org/pdf/2206.00665.pdf supplementary section A2 Depth Consistency Loss
@@ -354,4 +363,5 @@ def normalized_depth_scale_and_shift(
     scale[valid] = (a_11[valid] * b_0[valid] - a_01[valid] * b_1[valid]) / det[valid]
     shift[valid] = (-a_01[valid] * b_0[valid] + a_00[valid] * b_1[valid]) / det[valid]
 
+    return scale, shift
     return scale, shift

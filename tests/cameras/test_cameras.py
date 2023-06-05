@@ -13,7 +13,6 @@ BATCH_SIZE = 2
 H_W = 800
 FX_Y = 10.0
 CX_Y = H_W / 2.0
-# pylint: disable=unnecessary-comprehension
 C2W_FLAT = torch.eye(4)[:3, :]
 CAMERA_TO_WORLDS = [
     C2W_FLAT,
