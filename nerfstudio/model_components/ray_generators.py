@@ -42,7 +42,7 @@ class RayGenerator(nn.Module):
         self.register_buffer("image_coords", cameras.get_image_coords(), persistent=False)
 
     @profiler.time_function
-    def forward(self, ray_indices: Int[Tensor, "num_rays 3"], return_coords: bool=False) -> RayBundle:
+    def forward(self, ray_indices: Int[Tensor, "num_rays 3"], resample: bool=False) -> RayBundle:
         """Index into the cameras to generate the rays.
 
         Args:
@@ -62,6 +62,6 @@ class RayGenerator(nn.Module):
             camera_indices=c.unsqueeze(-1),
             coords=coords,
             camera_opt_to_camera=camera_opt_to_camera,
-            return_coords=return_coords,
+            resample=resample,
         )
         return ray_bundle_and_coords

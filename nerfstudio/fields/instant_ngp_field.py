@@ -23,7 +23,6 @@ import numpy as np
 import torch
 from jaxtyping import Float
 from torch import Tensor
-from torch.nn.parameter import Parameter
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox

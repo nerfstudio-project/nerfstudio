@@ -418,6 +418,7 @@ def radial_and_tangential_undistort(
     eps: float = 1e-3,
     max_iterations: int = 10,
     resolution: torch.Tensor = torch.tensor([1e-3, 1e-3]),
+    tol: float = 0.5,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Computes undistorted coords given opencv distortion parameters.
     Adapted from MultiNeRF
@@ -472,7 +473,7 @@ def radial_and_tangential_undistort(
         # max_y = torch.max(torch.abs(fy / resolution[next_upd, 1])).item()
         # print(f"iteration {i}, max residual {max_x}, {max_y}")
 
-        converged = (fx < resolution[next_upd, 0] / 2) & (fy < resolution[next_upd, 1] / 2)
+        converged = (fx < resolution[next_upd, 0] * tol) & (fy < resolution[next_upd, 1] * tol)
 
         not_converged = torch.argwhere(~converged).squeeze(-1)
         converged = torch.argwhere(converged).squeeze(-1)
@@ -558,6 +559,7 @@ def fisheye_undistort(
     eps: float = 1e-3,
     max_iterations: int = 10,
     resolution: torch.Tensor = torch.tensor([1e-3, 1e-3]),
+    tol: float = 0.5,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Computes undistorted coords given opencv distortion parameters. Based on OpenCV fisheye camera model.
 
@@ -610,7 +612,7 @@ def fisheye_undistort(
         # max_y = torch.max(torch.abs(fy * resolution[..., 1])).item()
         # print(f"iteration {i}, max residual {max_x}, {max_y}")
 
-        converged = f < resolution[next_upd]
+        converged = f < resolution[next_upd] * tol
 
         not_converged = torch.argwhere(~converged).squeeze()
         converged = torch.argwhere(converged).squeeze()

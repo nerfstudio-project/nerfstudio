@@ -330,7 +330,7 @@ class Cameras(TensorDataclass):
         keep_shape: Optional[bool] = None,
         disable_distortion: bool = False,
         aabb_box: Optional[SceneBox] = None,
-        return_coords: bool = False,
+        resample: bool = False,
     ) -> Union[Tuple[RayBundle], Tuple[RayBundle, Float[Tensor, "*num_rays 2"]]]:
         """Generates rays for the given camera indices.
 
@@ -466,7 +466,7 @@ class Cameras(TensorDataclass):
         # raybundle.shape == (num_rays) when done
         # pylint: disable=protected-access
         raybundle, coords = cameras._generate_rays_from_coords(
-            camera_indices, coords, camera_opt_to_camera, distortion_params_delta, disable_distortion=disable_distortion
+            camera_indices, coords, camera_opt_to_camera, distortion_params_delta, disable_distortion=disable_distortion, tol=0.5 if resample else 1e-4
         )
 
         # If we have mandated that we don't keep the shape, then we flatten
@@ -497,7 +497,7 @@ class Cameras(TensorDataclass):
         # TODO: We should have to squeeze the last dimension here if we started with zero batch dims, but never have to,
         # so there might be a rogue squeeze happening somewhere, and this may cause some unintended behaviour
         # that we haven't caught yet with tests
-        if return_coords:
+        if resample:
             return raybundle, coords
         return raybundle
 
@@ -508,6 +508,7 @@ class Cameras(TensorDataclass):
         camera_opt_to_camera: Optional[Float[Tensor, "*num_rays 3 4"]] = None,
         distortion_params_delta: Optional[Float[Tensor, "*num_rays 6"]] = None,
         disable_distortion: bool = False,
+        tol: float = 0.5,
     ) -> Tuple[RayBundle, Float[Tensor, "*num_rays 2"]]:
         """Generates rays for the given camera indices and coords where self isn't jagged
 
@@ -649,6 +650,7 @@ class Cameras(TensorDataclass):
                         coord[mask],
                         distortion_params[mask],
                         resolution=resolutions[mask],
+                        tol=tol
                     )
 
                     ja, jb, jc, jd = torch.unbind(jacobian.reshape(-1, 4), dim=1)
@@ -662,6 +664,7 @@ class Cameras(TensorDataclass):
                         coord[mask],
                         distortion_params[mask],
                         resolution=resolutions[mask],
+                        tol=tol
                     )
 
                     r = torch.sqrt(torch.sum(coord**2, dim=-1))

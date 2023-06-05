@@ -517,7 +517,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         c = indices[:, 0]
         ray_indices = indices.clone()
         ray_indices[:, 0] = image_batch['image_idx'][c]
-        ray_bundle, coords = self.train_ray_generator(ray_indices, return_coords=True)
+        ray_bundle, coords = self.train_ray_generator(ray_indices, resample=True)
         sample_coords = torch.column_stack((c.to(coords.device), coords))
         batch = self.train_pixel_sampler.sample(image_batch, sample_coords)
         return ray_bundle, batch
@@ -532,7 +532,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         c = indices[:, 0]
         ray_indices = indices.clone()
         ray_indices[:, 0] = image_batch['image_idx'][c]
-        ray_bundle, coords = self.eval_ray_generator(ray_indices, return_coords=True)
+        ray_bundle, coords = self.eval_ray_generator(ray_indices, resample=True)
         sample_coords = torch.column_stack((c.to(coords.device), coords))
         batch = self.eval_pixel_sampler.sample(image_batch, sample_coords)
         return ray_bundle, batch

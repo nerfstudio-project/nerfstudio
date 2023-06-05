@@ -378,7 +378,6 @@ class PatchPixelSampler(PixelSampler):
 
         return indices
 
-@profiler.time_function
 def _multiple_bilinear_sample(im, c, y, x):
     y_max = im.shape[1] - 1
     x_max = im.shape[2] - 1
