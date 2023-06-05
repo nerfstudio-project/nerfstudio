@@ -838,7 +838,7 @@ class Cameras(TensorDataclass):
             image_uint8 = (image * 255).detach().type(torch.uint8)
             if max_size is not None:
                 image_uint8 = image_uint8.permute(2, 0, 1)
-                image_uint8 = torchvision.transforms.functional.resize(image_uint8, max_size)  # type: ignore
+                image_uint8 = torchvision.transforms.functional.resize(image_uint8, max_size, antialias=None)  # type: ignore
                 image_uint8 = image_uint8.permute(1, 2, 0)
             image_uint8 = image_uint8.cpu().numpy()
             data = cv2.imencode(".jpg", image_uint8)[1].tobytes()  # type: ignore
