@@ -33,9 +33,6 @@ from torch.utils.data.distributed import DistributedSampler
 from typing_extensions import Literal
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
-from nerfstudio.cameras.camera_utils import (  # radial_and_tangential_distort,
-    radial_and_tangential_undistort,
-)
 from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
@@ -483,7 +480,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             self.train_dataset.cameras.to(self.device),
             self.train_camera_optimizer,
         )
-        
+
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
@@ -530,9 +527,13 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         assert self.train_pixel_sampler is not None
         batch = self.train_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
-        #indices = self.train_pixel_sampler.sample_indices(image_batch)
+        indices = self.train_pixel_sampler.sample_indices(image_batch)
+        c = indices[:, 0]
+        ray_indices = indices.clone()
+        ray_indices[:, 0] = image_batch['image_idx'][c]
         ray_bundle, coords = self.train_ray_generator(ray_indices, return_coords=True)
-        #batch = self.train_pixel_sampler.sample(image_batch, coords)
+        sample_coords = torch.column_stack((c.to(coords.device), coords))
+        batch = self.train_pixel_sampler.sample(image_batch, sample_coords)
         return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
@@ -540,11 +541,16 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.eval_count += 1
         image_batch = next(self.iter_eval_image_dataloader)
         assert self.eval_pixel_sampler is not None
-        #indices = self.eval_pixel_sample.sample_indices(image_batch)
-        batch = self.eval_pixel_sampler.sample(image_batch)
-        ray_indices = batch["indices"]
+        # batch = self.eval_pixel_sampler.sample(image_batch)
+        # ray_indices = batch["indices"]
+        indices = self.eval_pixel_sampler.sample_indices(image_batch)
+        c = indices[:, 0]
+        ray_indices = indices.clone()
+        ray_indices[:, 0] = image_batch['image_idx'][c]
         ray_bundle, coords = self.eval_ray_generator(ray_indices, return_coords=True)
-        #batch = self.eval_pixel_sampler.sample(image_batch, coords)
+        # need to undo or skip preprocessing done by cameras.generate_rays_from_coords 
+        sample_coords = torch.column_stack((c.to(coords.device), coords))
+        batch = self.eval_pixel_sampler.sample(image_batch, sample_coords)
         return ray_bundle, batch
 
     def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:

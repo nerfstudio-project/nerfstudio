@@ -89,10 +89,10 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
 
         if indices is None:
             indices = self.collate_image_dataset_indices(batch, num_rays_per_batch)
-        indices = indices.long()
         need_interp = torch.is_floating_point(indices)
 
         c, y, x = torch.unbind(indices, dim=-1)
+        c = c.long()
         if need_interp:
             collated_batch = {
                 key: _multiple_bilinear_sample(value, c, y, x)
@@ -108,6 +108,8 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
 
         assert collated_batch["image"].shape == (num_rays_per_batch, 3), collated_batch["image"].shape
 
+        # Needed to correct the random indices to their actual camera idx locations.
+        indices[:, 0] = batch["image_idx"][c]
         collated_batch["indices"] = indices  # with the abs camera indices
 
         if keep_full_image:
@@ -149,6 +151,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
                 all_images.append(batch["image"][i, idx[:, 1], idx[:, 2]])
 
         c, y, x = torch.unbind(indices, dim=-1)
+        c = c.long()
         if need_interp:
             collated_batch = {
                 key: _multiple_bilinear_sample(value, c, y, x)
@@ -166,6 +169,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
 
         assert collated_batch["image"].shape == (num_rays_per_batch, 3), collated_batch["image"].shape
 
+        indices[:, 0] = batch["image_idx"][c]
         collated_batch["indices"] = indices  # with the abs camera indices
 
         if keep_full_image:
@@ -175,8 +179,10 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
 
     def collate_image_dataset_indices(self, batch: Dict, num_rays_per_batch: int):
         """
-        Does the same as collate_image_dataset_batch, except it only produces indices (equivalent to
-        batch["indices"] where batch is produced by collate_image_dataset_batch).
+        Does the same as collate_image_dataset_batch, except it only produces indices.
+        
+        Warning: camera indices are based on ordering in batch. Use batch["image_idx"][indices[:, 0]]
+        to get corrected indices (fully equivalent to batch['indices']).
 
         Args:
             batch: batch of images to sample from
@@ -186,12 +192,15 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         device = batch["image"].device
         num_images, image_height, image_width, _ = batch["image"].shape
 
-        indices = self.sample_method(
-            num_rays_per_batch, num_images, image_height, image_width, mask=batch.get("mask"), device=device
-        )
+        if "mask" in batch:
+            indices = self.sample_method(
+                num_rays_per_batch, num_images, image_height, image_width, mask=batch["mask"], device=device
+            )
+        else:
+            indices = self.sample_method(
+                num_rays_per_batch, num_images, image_height, image_width, device=device
+            )
 
-        # Needed to correct the random indices to their actual camera idx locations.
-        indices[:, 0] = batch["image_idx"][indices[:, 0]]
         return indices
 
     def collate_image_dataset_indices_list(self, batch: Dict, num_rays_per_batch: int):
@@ -226,8 +235,6 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
 
         indices = torch.cat(all_indices, dim=0)
 
-        # Needed to correct the random indices to their actual camera idx locations.
-        indices[:, 0] = batch["image_idx"][indices[:, 0]]
         return indices
 
     @profiler.time_function

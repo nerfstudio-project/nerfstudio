@@ -61,14 +61,10 @@ class RayGenerator(nn.Module):
         else:
             camera_opt_to_camera = None
 
-        ray_bundle = self.cameras.generate_rays(
+        ray_bundle_and_coords = self.cameras.generate_rays(
             camera_indices=c.unsqueeze(-1),
             coords=coords,
             camera_opt_to_camera=camera_opt_to_camera,
             return_coords=return_coords,
         )
-        if return_coords:
-            ray_bundle, new_coords = ray_bundle
-            new_coords = torch.column_stack((c.to(new_coords.device), new_coords))
-            return ray_bundle, new_coords
-        return ray_bundle
+        return ray_bundle_and_coords

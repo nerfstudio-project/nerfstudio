@@ -272,7 +272,7 @@ def viewmatrix(lookat: torch.Tensor, up: torch.Tensor, pos: torch.Tensor) -> Ten
     return m
 
 
-#@torch.jit.script
+@torch.jit.script
 def _compute_residual_and_jacobian(
     x: torch.Tensor,
     y: torch.Tensor,
@@ -341,7 +341,7 @@ def _compute_residual_and_jacobian(
     return fx, fy, fx_x, fx_y, fy_x, fy_y
 
 
-#@torch.jit.script
+@torch.jit.script
 def radial_and_tangential_undistort(
     coords: torch.Tensor,
     distortion_params: torch.Tensor,
@@ -359,7 +359,7 @@ def radial_and_tangential_undistort(
             the order of [k1, k2, p1, p2, k3, k4, k5, k6].
         eps: The smallest determinant magnitude for a matrix to be considered invertible (for Newton's method).
         max_iterations: The maximum number of iterations to perform.
-        resolution: The resolution [w, h] of the cameras
+        resolution: The resolution (w, h of each pixel, in units of multiples of focal length)
 
     Returns:
         The undistorted coordinates.
@@ -385,7 +385,7 @@ def radial_and_tangential_undistort(
 
     next_upd = torch.arange(coords.shape[0], device=coords.device)
 
-    for i in range(max_iterations):
+    for _ in range(max_iterations):
         # n_iters += next_upd.shape[0]
 
         x_upd = x[next_upd]
@@ -398,9 +398,9 @@ def radial_and_tangential_undistort(
             distortion_params=distortion_params[next_upd]
         )
 
-        max_x = torch.max(torch.abs(fx / resolution[next_upd, 0])).item()
-        max_y = torch.max(torch.abs(fy / resolution[next_upd, 1])).item()
-        print(f"iteration {i}, max residual {max_x}, {max_y}")
+        # max_x = torch.max(torch.abs(fx / resolution[next_upd, 0])).item()
+        # max_y = torch.max(torch.abs(fy / resolution[next_upd, 1])).item()
+        # print(f"iteration {i}, max residual {max_x}, {max_y}")
 
         converged = (fx < resolution[next_upd, 0] / 2) & (fy < resolution[next_upd, 1] / 2)
 
@@ -436,125 +436,6 @@ def radial_and_tangential_undistort(
     undistort = torch.stack([x, y], dim=-1)
 
     return undistort, all_jacobian, coords + all_residual
-
-
-@torch.jit.script
-def _compute_residual_and_jacobian_old(
-    x: torch.Tensor,
-    y: torch.Tensor,
-    xd: torch.Tensor,
-    yd: torch.Tensor,
-    distortion_params: torch.Tensor,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor,]:
-    """Auxiliary function of radial_and_tangential_undistort() that computes residuals and jacobians.
-    Adapted from MultiNeRF:
-    https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L427-L474
-
-    Args:
-        x: The updated x coordinates.
-        y: The updated y coordinates.
-        xd: The distorted x coordinates.
-        yd: The distorted y coordinates.
-        distortion_params: The distortion parameters [k1, k2, p1, p2, k3, k4, k5, k6].
-
-    Returns:
-        The residuals (fx, fy) and jacobians (fx_x, fx_y, fy_x, fy_y).
-    """
-    assert distortion_params.shape[-1] == 8
-
-    k1, k2, p1, p2, k3, k4, k5, k6 = torch.unbind(distortion_params, dim=-1)
-
-    # let r(x, y) = x^2 + y^2;
-    #     alpha(x, y) = 1 + k1 * r(x, y) + k2 * r(x, y) ^2 + k3 * r(x, y)^3;
-    #     beta(x, y) = 1 + k4 * r(x, y) + k5 * r(x, y) ^2 + k6 * r(x, y)^3;
-    #     d(x, y) = alpha(x, y) / beta(x, y);
-    r = x * x + y * y
-    alpha = 1.0 + r * (k1 + r * (k2 + r * k3))
-    beta = 1.0 + r * (k4 + r * (k5 + r * k6))
-    d = alpha / beta
-
-    # The perfect projection is:
-    # xd = x * d(x, y) + 2 * p1 * x * y + p2 * (r(x, y) + 2 * x^2);
-    # yd = y * d(x, y) + 2 * p2 * x * y + p1 * (r(x, y) + 2 * y^2);
-    #
-    # Let's define
-    #
-    # fx(x, y) = x * d(x, y) + 2 * p1 * x * y + p2 * (r(x, y) + 2 * x^2) - xd;
-    # fy(x, y) = y * d(x, y) + 2 * p2 * x * y + p1 * (r(x, y) + 2 * y^2) - yd;
-    #
-    # We are looking for a solution that satisfies
-    # fx(x, y) = fy(x, y) = 0;
-    fx = d * x + 2 * p1 * x * y + p2 * (r + 2 * x * x) - xd
-    fy = d * y + 2 * p2 * x * y + p1 * (r + 2 * y * y) - yd
-
-    # Compute derivative of alpha, beta over r.
-    alpha_r = k1 + r * (2.0 * k2 + r * (3.0 * k3))
-    beta_r = k4 + r * (2.0 * k5 + r * (3.0 * k6))
-
-    # Compute derivative of d over [x, y]
-    d_r = (alpha_r * beta - alpha * beta_r) / (beta * beta)
-    d_x = 2.0 * x * d_r
-    d_y = 2.0 * y * d_r
-
-    # Compute derivative of fx over x and y.
-    fx_x = d + d_x * x + 2.0 * p1 * y + 6.0 * p2 * x
-    fx_y = d_y * x + 2.0 * p1 * x + 2.0 * p2 * y
-
-    # Compute derivative of fy over x and y.
-    fy_x = d_x * y + 2.0 * p2 * y + 2.0 * p1 * x
-    fy_y = d + d_y * y + 2.0 * p2 * x + 6.0 * p1 * y
-
-    return fx, fy, fx_x, fx_y, fy_x, fy_y
-
-
-@torch.jit.script
-def radial_and_tangential_undistort_old(
-    coords: torch.Tensor,
-    distortion_params: torch.Tensor,
-    eps: float = 1e-3,
-    max_iterations: int = 10,
-) -> torch.Tensor:
-    """Computes undistorted coords given opencv distortion parameters.
-    Adapted from MultiNeRF
-    https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L477-L509
-
-    Args:
-        coords: The distorted coordinates.
-        distortion_params: The distortion parameters. Supports 0, 1, 2, 4, 8 parameters, in
-            the order of [k1, k2, p1, p2, k3, k4, k5, k6].
-        eps: The epsilon for the convergence.
-        max_iterations: The maximum number of iterations to perform.
-
-    Returns:
-        The undistorted coordinates.
-    """
-    assert distortion_params.shape[-1] in [0, 1, 2, 4, 8]
-
-    if distortion_params.shape[-1] == 0:
-        return coords
-
-    if distortion_params.shape[-1] < 8:
-        distortion_params = F.pad(distortion_params, (0, 8 - distortion_params.shape[-1]), "constant", 0.0)
-    assert distortion_params.shape[-1] == 8
-
-    # Initialize from the distorted point.
-    x = coords[..., 0]
-    y = coords[..., 1]
-
-    for _ in range(max_iterations):
-        fx, fy, fx_x, fx_y, fy_x, fy_y = _compute_residual_and_jacobian(
-            x=x, y=y, xd=coords[..., 0], yd=coords[..., 1], distortion_params=distortion_params
-        )
-        denominator = fy_x * fx_y - fx_x * fy_y
-        x_numerator = fx * fy_y - fy * fx_y
-        y_numerator = fy * fx_x - fx * fy_x
-        step_x = torch.where(torch.abs(denominator) > eps, x_numerator / denominator, torch.zeros_like(denominator))
-        step_y = torch.where(torch.abs(denominator) > eps, y_numerator / denominator, torch.zeros_like(denominator))
-
-        x = x + step_x
-        y = y + step_y
-
-    return torch.stack([x, y], dim=-1)
 
 
 @torch.jit.script

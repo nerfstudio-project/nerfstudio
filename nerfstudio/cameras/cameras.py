@@ -625,11 +625,11 @@ class Cameras(TensorDataclass):
         )
 
         pixel_area = torch.empty(num_rays_shape, device=self.device)
-        resample = torch.empty_like(coords)
 
         # Undistorts our images according to our distortion parameters
         area_multipliers = torch.ones(num_rays_shape, device=self.device)
         if not disable_distortion:
+            resample = torch.empty_like(coords)
             distortion_params = None
             if self.distortion_params is not None:
                 distortion_params = self.distortion_params[true_indices]
@@ -667,7 +667,17 @@ class Cameras(TensorDataclass):
 
                     area_multipliers[mask] = torch.where(r_d > 1e-2, r / r_d, 1) / dtheta
 
-                print(area_multipliers)
+
+            # go back to pixel coordinates, remembering to flip axis order
+            mask = (self.camera_type[true_indices] == CameraType.EQUIRECTANGULAR.value).squeeze(-1)
+            if mask.any():
+                resample[mask] = coords[mask]
+            if not mask.all():
+                x_r, y_r = torch.unbind(resample[~mask], dim=-1)
+                resample[~mask] = torch.stack([-fy[~mask] * y_r + cy[~mask], fx[~mask] * x_r + cx[~mask]], dim=-1)   
+        else:
+            resample = coords.clone()
+
         # Make sure after we have undistorted our images, the shapes are still correct
         assert coord.shape == num_rays_shape + (2,)
 
@@ -709,8 +719,8 @@ class Cameras(TensorDataclass):
 
             # For equirect, fx = fy = height = width/2
             # Then coord[..., 0] goes from -1 to 1 and coord[..., 1] goes from -1/2 to 1/2
-            theta = -torch.pi * torch.masked_select(coords[..., 0], mask)  # minus sign for right-handed
-            phi = torch.pi * (0.5 - torch.masked_select(coords[..., 1], mask))
+            theta = -torch.pi * torch.masked_select(coord[..., 0], mask)  # minus sign for right-handed
+            phi = torch.pi * (0.5 - torch.masked_select(coord[..., 1], mask))
             sin_phi = torch.sin(phi)
             # use spherical in local camera coordinates (+y up, x=0 and z<0 is theta=0)
             directions[..., 0][mask] = (-torch.sin(theta) * sin_phi).float()
@@ -718,8 +728,6 @@ class Cameras(TensorDataclass):
             directions[..., 2][mask] = (-torch.cos(theta) * sin_phi).float()
             # total area integrates to 4pi steradians
             pixel_area[mask] = 2 * torch.pi * torch.pi * sin_phi * base_areas
-
-        print(torch.max(pixel_area / base_areas), torch.mean(pixel_area / base_areas))
 
         pixel_area = pixel_area.unsqueeze(-1)
 
@@ -755,7 +763,7 @@ class Cameras(TensorDataclass):
             camera_indices=camera_indices,
             times=times,
             metadata={"directions_norm": directions_norm[0].detach()},
-        ), coord
+        ), resample
 
     def to_json(
         self, camera_idx: int, image: Optional[TensorType["height", "width", 2]] = None, max_size: Optional[int] = None
