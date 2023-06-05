@@ -375,11 +375,11 @@ class PatchPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
 def _multiple_bilinear_sample(im, c, y, x):
     y_max = im.shape[1] - 1
     x_max = im.shape[2] - 1
-    c = c.int()
-    y_floor = y.int()
-    y_ceil = torch.minimum(y_floor + 1, y_max)
-    x_floor = x.int()
-    x_ceil = torch.minimum(x_floor + 1, x_max)
+    c = c.long()
+    y_floor = y.long()
+    y_ceil = torch.clamp(y_floor + 1, max=y_max)
+    x_floor = x.long()
+    x_ceil = torch.clamp(x_floor + 1, max=x_max)
     corners = torch.stack([
         im[c, y_floor, x_floor],
         im[c, y_ceil, x_floor],
@@ -395,5 +395,5 @@ def _multiple_bilinear_sample(im, c, y, x):
         remain_x * remain_comp_y,
         remain_comp_x * remain_y,
         remain_x * remain_y,
-    ], dim=1).reshape(-1, 4, 1)
+    ], dim=1).reshape(-1, 4, 1).to(im.device)
     return torch.sum(corners * multipliers, dim=1)

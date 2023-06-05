@@ -528,8 +528,8 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.train_count += 1
         image_batch = next(self.iter_train_image_dataloader)
         assert self.train_pixel_sampler is not None
-        indices = self.train_pixel_sample.sample_indices(image_batch)
-        ray_bundle, coords = self.train_ray_generator(indices)
+        indices = self.train_pixel_sampler.sample_indices(image_batch)
+        ray_bundle, coords = self.train_ray_generator(indices, return_coords=True)
         batch = self.train_pixel_sampler.sample(image_batch, coords)
         return ray_bundle, batch
 

@@ -374,19 +374,19 @@ def radial_and_tangential_undistort(
     assert distortion_params.shape[-1] == 8
 
     resolution = resolution.to(coords.device)
-    # n_samples = coords.shape[0]
-    # n_iters = 0
+    n_samples = coords.shape[0]
+    n_iters = 0
 
     # Initialize from the distorted point.
     x = coords[..., 0]
     y = coords[..., 1]
-    all_jacobian = torch.empty(x.shape + (2, 2), device=x.device)
+    all_jacobian = torch.empty(x.shape + (2, 2), device=coords.device)
     all_residual = torch.empty_like(coords)
 
     next_upd = torch.arange(coords.shape[0], device=coords.device)
 
     for _ in range(max_iterations):
-        # n_iters += next_upd.shape[0]
+        n_iters += next_upd.shape[0]
 
         x_upd = x[next_upd]
         y_upd = y[next_upd]
@@ -402,7 +402,7 @@ def radial_and_tangential_undistort(
         # max_y = torch.max(torch.abs(fy * resolution[..., 1])).item()
         # print(f"iteration {i}, max residual {max_x}, {max_y}")
 
-        converged = (resolution[0] * fx) ** 2 + (resolution[1] * fy) ** 2 < 0.01
+        converged = (fx < resolution[next_upd, 0] / 2) & (fy < resolution[next_upd, 1] / 2)
 
         not_converged = torch.argwhere(~converged).squeeze()
         converged = torch.argwhere(converged).squeeze()
@@ -430,10 +430,10 @@ def radial_and_tangential_undistort(
         x.index_add(dim=0, index=next_upd, source=step[:, 0], alpha=-1)
         y.index_add(dim=0, index=next_upd, source=step[:, 1], alpha=-1)
 
-    # print(f"average number of newton iterations per sample: {n_iters / n_samples}")
+    print(f"average number of newton iterations per sample: {n_iters / n_samples}")
 
     undistort = torch.stack([x, y], dim=-1)
-    
+
     return undistort, all_jacobian, coords + all_residual
 
 
@@ -442,7 +442,7 @@ def _compute_residual_and_jacobian_fisheye(
     theta: torch.Tensor,
     thetad: torch.Tensor,
     distortion_params: torch.Tensor,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor,]:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """Auxiliary function of radial_and_tangential_undistort() that computes residuals and jacobians.
     Adapted from MultiNeRF:
     https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L427-L474
@@ -455,7 +455,7 @@ def _compute_residual_and_jacobian_fisheye(
     Returns:
         The residuals (ftheta) and derivatives (ftheta_theta).
     """
-    assert distortion_params.shape[-1] == 8
+    assert distortion_params.shape[-1] == 4
 
     k1, k2, k3, k4 = torch.unbind(distortion_params, dim=-1)
 
@@ -481,7 +481,7 @@ def _compute_residual_and_jacobian_fisheye(
     return f, f_theta
 
 
-@torch.jit.script
+#@torch.jit.script
 def fisheye_undistort(
     coords: torch.Tensor,
     distortion_params: torch.Tensor,
@@ -490,7 +490,7 @@ def fisheye_undistort(
     resolution: torch.Tensor = torch.tensor([1e-3, 1e-3]),
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Computes undistorted coords given opencv distortion parameters. Based on OpenCV fisheye camera model.
-    
+
     Args:
         coords: The distorted coordinates.
         distortion_params: The distortion parameters. Supports 0, 1, 2, 4 parameters, in
@@ -511,7 +511,7 @@ def fisheye_undistort(
         distortion_params = F.pad(distortion_params, (0, 4 - distortion_params.shape[-1]), "constant", 0.0)
     assert distortion_params.shape[-1] == 4
 
-    resolution = torch.min(resolution.to(coords.device), dim=-1)
+    resolution, _ = torch.min(resolution.to(coords.device), dim=-1)
     # n_samples = coords.shape[0]
     # n_iters = 0
 
@@ -563,7 +563,7 @@ def fisheye_undistort(
         theta.index_add(dim=0, index=next_upd, source=step[:, 0], alpha=-1)
 
     # print(f"average number of newton iterations per sample: {n_iters / n_samples}")
-    return (theta / r_d) * coords, all_derivative, coords + all_residual
+    return (theta / r_d).unsqueeze(-1) * coords, all_derivative, coords * (1 + all_residual / r_d).unsqueeze(-1)
 
 def rotation_matrix(a: TensorType[3], b: TensorType[3]) -> TensorType[3, 3]:
     """Compute the rotation matrix that rotates vector a to vector b.

@@ -17,6 +17,7 @@ Ray generator.
 """
 from typing import Optional
 
+import torch
 from torch import nn
 from torchtyping import TensorType
 
@@ -44,7 +45,7 @@ class RayGenerator(nn.Module):
         self.register_buffer("image_coords", cameras.get_image_coords(), persistent=False)
 
     @profiler.time_function
-    def forward(self, ray_indices: TensorType["num_rays", 3]) -> RayBundle:
+    def forward(self, ray_indices: TensorType["num_rays", 3], return_coords: bool=False) -> RayBundle:
         """Index into the cameras to generate the rays.
 
         Args:
@@ -64,5 +65,10 @@ class RayGenerator(nn.Module):
             camera_indices=c.unsqueeze(-1),
             coords=coords,
             camera_opt_to_camera=camera_opt_to_camera,
+            return_coords=return_coords,
         )
+        if return_coords:
+            ray_bundle, new_coords = ray_bundle
+            new_coords = torch.column_stack((c.to(new_coords.device), new_coords))
+            return ray_bundle, new_coords
         return ray_bundle
