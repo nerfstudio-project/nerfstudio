@@ -89,6 +89,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
 
         if indices is None:
             indices = self.collate_image_dataset_indices(batch, num_rays_per_batch)
+        indices = indices.long()
         need_interp = torch.is_floating_point(indices)
 
         c, y, x = torch.unbind(indices, dim=-1)

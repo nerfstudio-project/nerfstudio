@@ -528,9 +528,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.train_count += 1
         image_batch = next(self.iter_train_image_dataloader)
         assert self.train_pixel_sampler is not None
-        indices = self.train_pixel_sampler.sample_indices(image_batch)
-        ray_bundle, coords = self.train_ray_generator(indices, return_coords=True)
-        batch = self.train_pixel_sampler.sample(image_batch, coords)
+        batch = self.train_pixel_sampler.sample(image_batch)
+        ray_indices = batch["indices"]
+        #indices = self.train_pixel_sampler.sample_indices(image_batch)
+        ray_bundle, coords = self.train_ray_generator(ray_indices, return_coords=True)
+        #batch = self.train_pixel_sampler.sample(image_batch, coords)
         return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
@@ -538,9 +540,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.eval_count += 1
         image_batch = next(self.iter_eval_image_dataloader)
         assert self.eval_pixel_sampler is not None
-        indices = self.eval_pixel_sample.sample_indices(image_batch)
-        ray_bundle, coords = self.eval_ray_generator(indices)
-        batch = self.eval_pixel_sampler.sample(image_batch, coords)
+        #indices = self.eval_pixel_sample.sample_indices(image_batch)
+        batch = self.eval_pixel_sampler.sample(image_batch)
+        ray_indices = batch["indices"]
+        ray_bundle, coords = self.eval_ray_generator(ray_indices, return_coords=True)
+        #batch = self.eval_pixel_sampler.sample(image_batch, coords)
         return ray_bundle, batch
 
     def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:

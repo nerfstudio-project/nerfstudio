@@ -667,6 +667,7 @@ class Cameras(TensorDataclass):
 
                     area_multipliers[mask] = torch.where(r_d > 1e-2, r / r_d, 1) / dtheta
 
+                print(area_multipliers)
         # Make sure after we have undistorted our images, the shapes are still correct
         assert coord.shape == num_rays_shape + (2,)
 
@@ -683,7 +684,7 @@ class Cameras(TensorDataclass):
             directions[..., 2][mask] = -1.0
 
             hypotenuse_sqr = 1 + torch.sum(torch.square(coord[mask]), dim=-1)
-            pixel_area[mask] = area_multipliers[mask] / (base_areas[mask] * hypotenuse_sqr * torch.sqrt(hypotenuse_sqr))
+            pixel_area[mask] = area_multipliers[mask] * base_areas[mask] / (hypotenuse_sqr * torch.sqrt(hypotenuse_sqr))
 
         if CameraType.FISHEYE.value in cam_types:
             mask = (self.camera_type[true_indices] == CameraType.FISHEYE.value).squeeze(-1)  # (num_rays)
@@ -717,6 +718,8 @@ class Cameras(TensorDataclass):
             directions[..., 2][mask] = (-torch.cos(theta) * sin_phi).float()
             # total area integrates to 4pi steradians
             pixel_area[mask] = 2 * torch.pi * torch.pi * sin_phi * base_areas
+
+        print(torch.max(pixel_area / base_areas), torch.mean(pixel_area / base_areas))
 
         pixel_area = pixel_area.unsqueeze(-1)
 
