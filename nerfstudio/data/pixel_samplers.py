@@ -383,7 +383,9 @@ class PatchPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
 def _multiple_bilinear_sample(im, c, y, x):
     y_max = im.shape[1] - 1
     x_max = im.shape[2] - 1
-    c = c.long()
+    c = c.long().to(im.device)
+    y = y.to(im.device)
+    x = x.to(im.device)
     y_floor = y.long()
     y_ceil = torch.clamp(y_floor + 1, max=y_max)
     x_floor = x.long()
