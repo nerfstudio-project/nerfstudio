@@ -16,7 +16,6 @@
 Export utils such as structs, point cloud generation, and rendering code.
 """
 
-# pylint: disable=no-member
 
 from __future__ import annotations
 
@@ -28,6 +27,7 @@ import numpy as np
 import open3d as o3d
 import pymeshlab
 import torch
+from jaxtyping import Float
 from rich.progress import (
     BarColumn,
     Progress,
@@ -35,7 +35,7 @@ from rich.progress import (
     TextColumn,
     TimeRemainingColumn,
 )
-from torchtyping import TensorType
+from torch import Tensor
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.datasets.base_dataset import InputDataset
@@ -47,17 +47,17 @@ from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
 class Mesh:
     """Class for a mesh."""
 
-    vertices: TensorType["num_verts", 3]
+    vertices: Float[Tensor, "num_verts 3"]
     """Vertices of the mesh."""
-    faces: TensorType["num_faces", 3]
+    faces: Float[Tensor, "num_faces 3"]
     """Faces of the mesh."""
-    normals: TensorType["num_verts", 3]
+    normals: Float[Tensor, "num_verts 3"]
     """Normals of the mesh."""
-    colors: Optional[TensorType["num_verts", 3]] = None
+    colors: Optional[Float[Tensor, "num_verts 3"]] = None
     """Colors of the mesh."""
 
 
-def get_mesh_from_pymeshlab_mesh(mesh: pymeshlab.Mesh) -> Mesh:
+def get_mesh_from_pymeshlab_mesh(mesh: pymeshlab.Mesh) -> Mesh:  # type: ignore
     """Get a Mesh from a pymeshlab mesh.
     See https://pymeshlab.readthedocs.io/en/0.1.5/classes/mesh.html for details.
     """
@@ -71,7 +71,7 @@ def get_mesh_from_pymeshlab_mesh(mesh: pymeshlab.Mesh) -> Mesh:
 
 def get_mesh_from_filename(filename: str, target_num_faces: Optional[int] = None) -> Mesh:
     """Get a Mesh from a filename."""
-    ms = pymeshlab.MeshSet()
+    ms = pymeshlab.MeshSet()  # type: ignore
     ms.load_new_mesh(filename)
     if target_num_faces is not None:
         CONSOLE.print("Running meshing decimation with quadric edge collapse")
@@ -112,8 +112,6 @@ def generate_point_cloud(
         Point cloud.
     """
 
-    # pylint: disable=too-many-statements
-
     progress = Progress(
         TextColumn(":cloud: Computing Point Cloud :cloud:"),
         BarColumn(),
@@ -127,6 +125,8 @@ def generate_point_cloud(
     with progress as progress_bar:
         task = progress_bar.add_task("Generating Point Cloud", total=num_points)
         while not progress_bar.finished:
+            normal = None
+
             with torch.no_grad():
                 ray_bundle, _ = pipeline.datamanager.next_train(0)
                 outputs = pipeline.model(ray_bundle)
@@ -164,12 +164,12 @@ def generate_point_cloud(
                 mask = torch.all(torch.concat([point > comp_l, point < comp_m], dim=-1), dim=-1)
                 point = point[mask]
                 rgb = rgb[mask]
-                if normal_output_name is not None:
+                if normal is not None:
                     normal = normal[mask]
 
             points.append(point)
             rgbs.append(rgb)
-            if normal_output_name is not None:
+            if normal is not None:
                 normals.append(normal)
             progress.advance(task, point.shape[0])
     points = torch.cat(points, dim=0)

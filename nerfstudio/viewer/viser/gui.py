@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: disable=protected-access
+
 """ Manages GUI communication.
 
 Should be almost identical to: https://github.com/brentyi/viser/blob/main/viser/_gui.py

@@ -13,8 +13,7 @@
 # limitations under the License.
 
 """ This module contains the MessageApi class, which is the interface for sending messages to the Viewer"""
-# pylint: disable=protected-access
-# pylint: disable=too-many-public-methods
+
 
 from __future__ import annotations
 
@@ -125,7 +124,7 @@ class MessageApi(abc.ABC):
     """Interface for all commands we can use to send messages over a websocket connection.
 
     Should be implemented by both our global server object (for broadcasting) and by
-    invidividual clients."""
+    individual clients."""
 
     def __init__(self) -> None:
         self._handle_state_from_gui_name: Dict[str, _GuiHandleState[Any]] = {}
@@ -500,7 +499,12 @@ class MessageApi(abc.ABC):
         Args:
             scene_box: The scene box.
         """
-        self._queue(messages.SceneBoxMessage(min=scene_box.aabb[0].tolist(), max=scene_box.aabb[1].tolist()))
+        self._queue(
+            messages.SceneBoxMessage(
+                min=tuple(scene_box.aabb[0].tolist()),
+                max=tuple(scene_box.aabb[1].tolist()),
+            )
+        )
 
     def add_dataset_image(self, idx: str, json: Dict) -> None:
         """Add a dataset image to the scene.
@@ -518,6 +522,25 @@ class MessageApi(abc.ABC):
             training_state: The training mode.
         """
         self._queue(messages.TrainingStateMessage(training_state=training_state))
+
+    def set_camera(
+        self,
+        position: Optional[Tuple[float, float, float]] = None,
+        look_at: Optional[Tuple[float, float, float]] = None,
+        fov: Optional[int] = None,
+        instant: bool = False,
+    ) -> None:
+        """Update the camera object in the viewer. If any of the arguments are None, the corresponding value will not
+        be set in the viewer. For example, setting position only will maintain the same look-at point while moving
+        the origin of the camera
+
+        Args:
+            position: The position in world coordinates of the camera
+            look_at: The position in world coordinates of the new look at point
+            fov: The new field of view
+            instant: Whether to move the camera instantly or animate
+        """
+        self._queue(messages.SetCameraMessage(look_at=look_at, position=position, fov=fov, instant=instant))
 
     def send_camera_paths(self, camera_paths: Dict[str, Any]) -> None:
         """Send camera paths to the scene.

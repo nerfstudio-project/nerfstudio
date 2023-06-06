@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 import struct
+import shutil
 import sys
 from contextlib import ExitStack
 from dataclasses import dataclass, field
@@ -31,6 +32,7 @@ import mediapy as media
 import numpy as np
 import torch
 import tyro
+from jaxtyping import Float
 from rich import box, style
 from rich.panel import Panel
 from rich.progress import (
@@ -38,10 +40,11 @@ from rich.progress import (
     Progress,
     TaskProgressColumn,
     TextColumn,
+    TimeElapsedColumn,
     TimeRemainingColumn,
 )
 from rich.table import Table
-from torchtyping import TensorType
+from torch import Tensor
 from typing_extensions import Annotated
 
 from nerfstudio.cameras.camera_paths import (
@@ -50,12 +53,14 @@ from nerfstudio.cameras.camera_paths import (
     get_spiral_path,
 )
 from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components import renderers
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import colormaps, install_checks
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
+from nerfstudio.utils.scripts import run_command
 
 
 def _render_trajectory_video(
@@ -67,6 +72,8 @@ def _render_trajectory_video(
     rendered_resolution_scaling_factor: float = 1.0,
     seconds: float = 5.0,
     output_format: Literal["images", "video"] = "video",
+    image_format: Literal["jpeg", "png"] = "jpeg",
+    jpeg_quality: int = 100,
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions(),
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
@@ -90,9 +97,13 @@ def _render_trajectory_video(
     progress = Progress(
         TextColumn(":movie_camera: Rendering :movie_camera:"),
         BarColumn(),
-        TaskProgressColumn(show_speed=True),
+        TaskProgressColumn(
+            text_format="[progress.percentage]{task.completed}/{task.total:>.0f}({task.percentage:>3.1f}%)",
+            show_speed=True,
+        ),
         ItersPerSecColumn(suffix="fps"),
-        TimeRemainingColumn(elapsed_when_finished=True, compact=True),
+        TimeRemainingColumn(elapsed_when_finished=False, compact=False),
+        TimeElapsedColumn(),
     )
     output_image_dir = output_filename.parent / output_filename.stem
     if output_format == "images":
@@ -149,7 +160,12 @@ def _render_trajectory_video(
                     render_image.append(output_image)
                 render_image = np.concatenate(render_image, axis=1)
                 if output_format == "images":
-                    media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
+                    if image_format == "png":
+                        media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image, fmt="png")
+                    if image_format == "jpeg":
+                        media.write_image(
+                            output_image_dir / f"{camera_idx:05d}.jpg", render_image, fmt="jpeg", quality=jpeg_quality
+                        )
                 if output_format == "video":
                     if writer is None:
                         render_width = int(render_image.shape[1])
@@ -253,11 +269,11 @@ xmlns:GSpherical='http://ns.google.com/videos/1.0/spherical/'>
 class CropData:
     """Data for cropping an image."""
 
-    background_color: TensorType[3] = torch.Tensor([0.0, 0.0, 0.0])
+    background_color: Float[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
     """background color"""
-    center: TensorType[3] = torch.Tensor([0.0, 0.0, 0.0])
+    center: Float[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
     """center of the crop"""
-    scale: TensorType[3] = torch.Tensor([2.0, 2.0, 2.0])
+    scale: Float[Tensor, "3"] = torch.Tensor([2.0, 2.0, 2.0])
     """scale of the crop"""
 
 
@@ -289,10 +305,14 @@ class BaseRender:
     """Path to config YAML file."""
     output_path: Path = Path("renders/output.mp4")
     """Path to output video file."""
+    image_format: Literal["jpeg", "png"] = "jpeg"
+    """Image format"""
+    jpeg_quality: int = 100
+    """JPEG quality"""
     downscale_factor: float = 1.0
     """Scaling factor to apply to the camera image resolution."""
     eval_num_rays_per_chunk: Optional[int] = None
-    """Specifies number of rays per chunk during eval."""
+    """Specifies number of rays per chunk during eval. If None, use the value in the config file."""
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions()
     """Colormap options."""
 
@@ -324,6 +344,22 @@ class RenderCameraPath(BaseRender):
         crop_data = get_crop_from_json(camera_path)
         camera_path = get_path_from_json(camera_path)
 
+        if camera_path.camera_type[0] == CameraType.OMNIDIRECTIONALSTEREO_L.value:
+            # temp folder for writing left and right view renders
+            temp_folder_path = self.output_path.parent / (self.output_path.stem + "_temp")
+
+            Path(temp_folder_path).mkdir(parents=True, exist_ok=True)
+            left_eye_path = temp_folder_path / "ods_render_Left.mp4"
+
+            self.output_path = left_eye_path
+
+            CONSOLE.print("[bold green]:goggles: Omni-directional Stereo VR :goggles:")
+            CONSOLE.print("Rendering left eye view")
+
+        # add mp4 suffix to video output if none is specified
+        if self.output_format == "video" and str(self.output_path.suffix) == "":
+            self.output_path = self.output_path.with_suffix(".mp4")
+
         _render_trajectory_video(
             pipeline,
             camera_path,
@@ -333,8 +369,55 @@ class RenderCameraPath(BaseRender):
             crop_data=crop_data,
             seconds=seconds,
             output_format=self.output_format,
+            image_format=self.image_format,
+            jpeg_quality=self.jpeg_quality,
             colormap_options=self.colormap_options,
         )
+
+        if camera_path.camera_type[0] == CameraType.OMNIDIRECTIONALSTEREO_L.value:
+            # declare paths for left and right renders
+
+            left_eye_path = self.output_path
+            right_eye_path = left_eye_path.parent / "ods_render_Right.mp4"
+
+            self.output_path = right_eye_path
+            camera_path.camera_type[0] = CameraType.OMNIDIRECTIONALSTEREO_R.value
+
+            CONSOLE.print("Rendering right eye view")
+            _render_trajectory_video(
+                pipeline,
+                camera_path,
+                output_filename=self.output_path,
+                rendered_output_names=self.rendered_output_names,
+                rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
+                crop_data=crop_data,
+                seconds=seconds,
+                output_format=self.output_format,
+                image_format=self.image_format,
+                jpeg_quality=self.jpeg_quality,
+                colormap_options=self.colormap_options,
+            )
+
+            # stack the left and right eye renders for final output
+            self.output_path = Path(str(left_eye_path.parent)[:-5] + ".mp4")
+            ffmpeg_ods_command = ""
+            if self.output_format == "video":
+                ffmpeg_ods_command = f'ffmpeg -y -i "{left_eye_path}" -i "{right_eye_path}" -filter_complex "[0:v]pad=iw:2*ih[int];[int][1:v]overlay=0:h" -c:v libx264 -crf 23 -preset veryfast "{self.output_path}"'
+                run_command(ffmpeg_ods_command, verbose=False)
+            if self.output_format == "images":
+                # create a folder for the stacked renders
+                self.output_path = Path(str(left_eye_path.parent)[:-5])
+                self.output_path.mkdir(parents=True, exist_ok=True)
+                if self.image_format == "png":
+                    ffmpeg_ods_command = f'ffmpeg -y -pattern_type glob -i "{str(left_eye_path.with_suffix("") / "*.png")}"  -pattern_type glob -i "{str(right_eye_path.with_suffix("") / "*.png")}" -filter_complex vstack -start_number 0 "{str(self.output_path)+"//%05d.png"}"'
+                elif self.image_format == "jpeg":
+                    ffmpeg_ods_command = f'ffmpeg -y -pattern_type glob -i "{str(left_eye_path.with_suffix("") / "*.jpg")}"  -pattern_type glob -i "{str(right_eye_path.with_suffix("") / "*.jpg")}" -filter_complex vstack -start_number 0 "{str(self.output_path)+"//%05d.jpg"}"'
+                run_command(ffmpeg_ods_command, verbose=False)
+
+            # remove the temp files directory
+            if str(left_eye_path.parent)[-5:] == "_temp":
+                shutil.rmtree(left_eye_path.parent, ignore_errors=True)
+            CONSOLE.print("[bold green]Final ODS Render Complete")
 
 
 @dataclass
@@ -365,8 +448,10 @@ class RenderInterpolated(BaseRender):
         install_checks.check_ffmpeg_installed()
 
         if self.pose_source == "eval":
+            assert pipeline.datamanager.eval_dataset is not None
             cameras = pipeline.datamanager.eval_dataset.cameras
         else:
+            assert pipeline.datamanager.train_dataset is not None
             cameras = pipeline.datamanager.train_dataset.cameras
 
         seconds = self.interpolation_steps * len(cameras) / self.frame_rate
@@ -413,6 +498,7 @@ class SpiralRender(BaseRender):
 
         install_checks.check_ffmpeg_installed()
 
+        assert isinstance(pipeline.datamanager, VanillaDataManager)
         steps = int(self.frame_rate * self.seconds)
         camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
         camera_path = get_spiral_path(camera_start, steps=steps, radius=self.radius)
@@ -447,5 +533,7 @@ def entrypoint():
 if __name__ == "__main__":
     entrypoint()
 
-# For sphinx docs
-get_parser_fn = lambda: tyro.extras.get_parser(Commands)  # noqa
+
+def get_parser_fn():
+    """Get the parser function for the sphinx docs."""
+    return tyro.extras.get_parser(Commands)  # noqa

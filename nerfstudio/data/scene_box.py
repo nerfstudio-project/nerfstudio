@@ -20,14 +20,15 @@ from dataclasses import dataclass
 from typing import Union
 
 import torch
-from torchtyping import TensorType
+from jaxtyping import Float
+from torch import Tensor
 
 
 @dataclass
 class SceneBox:
     """Data to represent the scene box."""
 
-    aabb: TensorType[2, 3] = None
+    aabb: Float[Tensor, "2 3"]
     """aabb: axis-aligned bounding box.
     aabb[0] is the minimum (x,y,z) point.
     aabb[1] is the maximum (x,y,z) point."""
@@ -53,7 +54,7 @@ class SceneBox:
         return SceneBox(aabb=(self.aabb - self.get_center()) * scale_factor)
 
     @staticmethod
-    def get_normalized_positions(positions: TensorType[..., 3], aabb: TensorType[2, 3]):
+    def get_normalized_positions(positions: Float[Tensor, "*batch 3"], aabb: Float[Tensor, "2 3"]):
         """Return normalized positions in range [0, 1] based on the aabb axis-aligned bounding box.
 
         Args:
@@ -65,7 +66,7 @@ class SceneBox:
         return normalized_positions
 
     @staticmethod
-    def from_camera_poses(poses: TensorType[..., 3, 4], scale_factor: float) -> "SceneBox":
+    def from_camera_poses(poses: Float[Tensor, "*batch 3 4"], scale_factor: float) -> "SceneBox":
         """Returns the instance of SceneBox that fully envelopes a set of poses
 
         Args:

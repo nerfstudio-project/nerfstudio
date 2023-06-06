@@ -20,14 +20,26 @@ from __future__ import annotations
 
 import functools
 from abc import abstractmethod
+from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Generic, List, Literal, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 import torch
 from torch import nn
 from torch.nn import Parameter
-from torch.utils.data import Dataset
 from torch.utils.data.distributed import DistributedSampler
 from typing_extensions import TypeVar
 
@@ -64,18 +76,24 @@ def variable_res_collate(batch: List[Dict]) -> Dict:
         Collated batch.
     """
     images = []
-    masks = []
+    imgdata_lists = defaultdict(list)
     for data in batch:
         image = data.pop("image")
-        mask = data.pop("mask", None)
         images.append(image)
-        if mask is not None:
-            masks.append(mask)
+        topop = []
+        for key, val in data.items():
+            if isinstance(val, torch.Tensor):
+                # if the value has same height and width as the image, assume that it should be collated accordingly.
+                if len(val.shape) >= 2 and val.shape[:2] == image.shape[:2]:
+                    imgdata_lists[key].append(val)
+                    topop.append(key)
+        # now that iteration is complete, the image data items can be removed from the batch
+        for key in topop:
+            del data[key]
 
-    new_batch: dict = nerfstudio_collate(batch)
+    new_batch = nerfstudio_collate(batch)
     new_batch["image"] = images
-    if masks:
-        new_batch["mask"] = masks
+    new_batch.update(imgdata_lists)
 
     return new_batch
 
@@ -143,8 +161,8 @@ class DataManager(nn.Module):
 
     """
 
-    train_dataset: Optional[Dataset] = None
-    eval_dataset: Optional[Dataset] = None
+    train_dataset: Optional[InputDataset] = None
+    eval_dataset: Optional[InputDataset] = None
     train_sampler: Optional[DistributedSampler] = None
     eval_sampler: Optional[DistributedSampler] = None
     includes_time: bool = False
@@ -229,7 +247,7 @@ class DataManager(nn.Module):
             step: the step number of the eval image to retrieve
         Returns:
             A tuple of the ray bundle for the image, and a dictionary of additional batch information
-            such as the groudtruth image.
+            such as the groundtruth image.
         """
         raise NotImplementedError
 
@@ -241,19 +259,19 @@ class DataManager(nn.Module):
             step: the step number of the eval image to retrieve
         Returns:
             A tuple of the ray bundle for the image, and a dictionary of additional batch information
-            such as the groudtruth image.
+            such as the groundtruth image.
         """
         raise NotImplementedError
 
     @abstractmethod
     def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
-        """Retreive the next eval image.
+        """Retrieve the next eval image.
 
         Args:
             step: the step number of the eval image to retrieve
         Returns:
             A tuple of the step number, the ray bundle for the image, and a dictionary of
-            additional batch information such as the groudtruth image.
+            additional batch information such as the groundtruth image.
         """
         raise NotImplementedError
 
@@ -267,18 +285,18 @@ class DataManager(nn.Module):
         """Returns the number of rays per batch for evaluation."""
         raise NotImplementedError
 
-    def get_datapath(self) -> Optional[Path]:  # pylint:disable=no-self-use
+    @abstractmethod
+    def get_datapath(self) -> Path:
         """Returns the path to the data. This is used to determine where to save camera paths."""
-        return None
 
-    def get_training_callbacks(  # pylint:disable=no-self-use
-        self, training_callback_attributes: TrainingCallbackAttributes  # pylint: disable=unused-argument
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
         """Returns a list of callbacks to be used during training."""
         return []
 
     @abstractmethod
-    def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
+    def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Get the param groups for the data manager.
 
         Returns:
@@ -314,7 +332,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
     Record3D."""
-    collate_fn = staticmethod(nerfstudio_collate)
+    collate_fn: Callable[[Any], Any] = cast(Any, staticmethod(nerfstudio_collate))
     """Specifies the collate function to use for the train and eval dataloaders."""
     camera_res_scale_factor: float = 1.0
     """The scale factor for scaling spatial data such as images, mask, semantics
@@ -327,7 +345,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
 
 
-class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abstract-method
+class VanillaDataManager(DataManager, Generic[TDataset]):
     """Basic stored data manager implementation.
 
     This is pretty much a port over from our old dataloading utilities, and is a little jank
@@ -354,9 +372,9 @@ class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abs
         test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
-        **kwargs,  # pylint: disable=unused-argument
+        **kwargs,
     ):
-        self.dataset_type: Type[TDataset] = kwargs.get("_dataset_type", TDataset.__default__)
+        self.dataset_type: Type[TDataset] = kwargs.get("_dataset_type", getattr(TDataset, "__default__"))
         self.config = config
         self.device = device
         self.world_size = world_size
@@ -409,9 +427,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abs
             scale_factor=self.config.camera_res_scale_factor,
         )
 
-    def _get_pixel_sampler(  # pylint: disable=no-self-use
-        self, dataset: TDataset, *args: Any, **kwargs: Any
-    ) -> PixelSampler:
+    def _get_pixel_sampler(self, dataset: TDataset, *args: Any, **kwargs: Any) -> PixelSampler:
         """Infer pixel sampler to use."""
         if self.config.patch_size > 1:
             return PatchPixelSampler(*args, **kwargs, patch_size=self.config.patch_size)
@@ -489,6 +505,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abs
         self.train_count += 1
         image_batch = next(self.iter_train_image_dataloader)
         assert self.train_pixel_sampler is not None
+        assert isinstance(image_batch, dict)
         batch = self.train_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
         ray_bundle = self.train_ray_generator(ray_indices)
@@ -499,6 +516,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abs
         self.eval_count += 1
         image_batch = next(self.iter_eval_image_dataloader)
         assert self.eval_pixel_sampler is not None
+        assert isinstance(image_batch, dict)
         batch = self.eval_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
         ray_bundle = self.eval_ray_generator(ray_indices)
@@ -520,7 +538,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abs
     def get_datapath(self) -> Path:
         return self.config.dataparser.data
 
-    def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
+    def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Get the param groups for the data manager.
         Returns:
             A list of dictionaries containing the data manager's param groups.
