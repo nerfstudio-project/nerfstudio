@@ -262,11 +262,7 @@ def copy_and_upscale_polycam_depth_maps_list(
     depth_dir.mkdir(parents=True, exist_ok=True)
 
     # copy and upscale them to new directory
-    with status(
-        msg="[bold yellow] Upscaling depth maps...",
-        spinner="growVertical",
-        verbose=verbose,
-    ):
+    with status(msg="[bold yellow] Upscaling depth maps...", spinner="growVertical", verbose=verbose):
         upscale_factor = 2**POLYCAM_UPSCALING_TIMES
         assert upscale_factor > 1
         assert isinstance(upscale_factor, int)
@@ -295,10 +291,7 @@ def copy_and_upscale_polycam_depth_maps_list(
 
 
 def copy_images(
-    data: Path,
-    image_dir: Path,
-    verbose,
-    crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    data: Path, image_dir: Path, verbose, crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
 ) -> OrderedDict[Path, Path]:
     """Copy images from a directory to a new directory.
 
@@ -318,10 +311,7 @@ def copy_images(
             sys.exit(1)
 
         copied_images = copy_images_list(
-            image_paths=image_paths,
-            image_dir=image_dir,
-            crop_factor=crop_factor,
-            verbose=verbose,
+            image_paths=image_paths, image_dir=image_dir, crop_factor=crop_factor, verbose=verbose
         )
         return OrderedDict((original_path, new_path) for original_path, new_path in zip(image_paths, copied_images))
 
@@ -351,11 +341,7 @@ def downscale_images(
     if num_downscales == 0:
         return "No downscaling performed."
 
-    with status(
-        msg="[bold yellow]Downscaling images...",
-        spinner="growVertical",
-        verbose=verbose,
-    ):
+    with status(msg="[bold yellow]Downscaling images...", spinner="growVertical", verbose=verbose):
         downscale_factors = [2**i for i in range(num_downscales + 1)[1:]]
         for downscale_factor in downscale_factors:
             assert downscale_factor > 1
@@ -398,14 +384,7 @@ def find_tool_feature_matcher_combination(
         "disk",
     ],
     matcher_type: Literal[
-        "any",
-        "NN",
-        "superglue",
-        "superglue-fast",
-        "NN-superpoint",
-        "NN-ratio",
-        "NN-mutual",
-        "adalam",
+        "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
     ],
 ) -> Union[
     Tuple[None, None, None],
@@ -421,15 +400,7 @@ def find_tool_feature_matcher_combination(
             "sosnet",
             "disk",
         ],
-        Literal[
-            "NN",
-            "superglue",
-            "superglue-fast",
-            "NN-superpoint",
-            "NN-ratio",
-            "NN-mutual",
-            "adalam",
-        ],
+        Literal["NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"],
     ],
 ]:
     """Find a valid combination of sfm tool, feature type, and matcher type.
@@ -517,10 +488,7 @@ def generate_crop_mask(height: int, width: int, crop_factor: Tuple[float, float,
 
 
 def generate_mask(
-    height: int,
-    width: int,
-    crop_factor: Tuple[float, float, float, float],
-    percent_radius: float,
+    height: int, width: int, crop_factor: Tuple[float, float, float, float], percent_radius: float
 ) -> Optional[np.ndarray]:
     """generate a mask of the given size.
 
