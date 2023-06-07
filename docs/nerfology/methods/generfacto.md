@@ -13,23 +13,20 @@ pip install -e .[gen]
 ```
 
 Two options for text to image diffusion models are provided: Stable Diffusion and DeepFloyd IF.
-We use Deepfloyd IF by default because it trains faster and produces better results. However this model
-requires users to sign a license agreement on the model card of DeepFloyd IF, and login with
+We use Deepfloyd IF by default because it trains faster and produces better results. Using this model requires users to sign a license agreement for the model card of DeepFloyd IF, which can be found [here](https://huggingface.co/DeepFloyd/IF-I-XL-v1.0). Once the licensed is signed, log into Huggingface locally by running the following command:
 
 ```bash
 huggingface-cli login
 ```
 
-More instructions can be found on the Hugging Face website [here](https://huggingface.co/DeepFloyd/IF-I-XL-v1.0).
-
-If you do not want to sign the license agreement, you can use the Stable Diffusion model instead by specifying in the command line.
+If you do not want to sign the license agreement, you can use the Stable Diffusion model (instructions below).
 
 ## Running Generfacto
 
 Once installed, run:
 
 ```bash
-ns-train generfacto
+ns-train generfacto --prompt "a high quality photo of a pineapple"
 ```
 
 The first time you run this method, the diffusion model weights will be downloaded and cached
@@ -39,10 +36,4 @@ Specify which diffusion model to use with the diffusion_model flag:
 
 ```bash
 ns-train generfacto --pipeline.model.diffusion_model ["stablediffusion", "deepfloyd"]
-```
-
-Train using different prompts with the prompt flag:
-
-```bash
-ns-train generfacto --prompt "a high quality photo of a pineapple"
 ```
