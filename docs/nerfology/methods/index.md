@@ -35,6 +35,7 @@ The following methods are supported in nerfstudio:
     Nerfacto<nerfacto.md>
     Tetra-NeRF<tetranerf.md>
     TensoRF<tensorf.md>
+    Generfacto<generfacto.md>
 ```
 
 (own_method_docs)=
