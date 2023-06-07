@@ -471,7 +471,7 @@ class Cameras(TensorDataclass):
             camera_opt_to_camera,
             distortion_params_delta,
             disable_distortion=disable_distortion,
-            tol=0.5 if resample else 1e-4,
+            tolerance=0.5 if resample else 1e-4,
         )
 
         # If we have mandated that we don't keep the shape, then we flatten
@@ -513,7 +513,7 @@ class Cameras(TensorDataclass):
         camera_opt_to_camera: Optional[Float[Tensor, "*num_rays 3 4"]] = None,
         distortion_params_delta: Optional[Float[Tensor, "*num_rays 6"]] = None,
         disable_distortion: bool = False,
-        tol: float = 0.5,
+        tolerance: float = 0.5,
     ) -> Tuple[RayBundle, Float[Tensor, "*num_rays 2"]]:
         """Generates rays for the given camera indices and coords where self isn't jagged
 
@@ -650,7 +650,7 @@ class Cameras(TensorDataclass):
                 mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
                 if mask.any():
                     coord[mask], jacobian, resample[mask] = camera_utils.radial_and_tangential_undistort(
-                        coord[mask], distortion_params[mask], resolution=resolutions[mask], tol=tol
+                        coord[mask], distortion_params[mask], resolution=resolutions[mask], tolerance=tolerance
                     )
 
                     ja, jb, jc, jd = torch.unbind(jacobian.reshape(-1, 4), dim=1)
@@ -661,7 +661,7 @@ class Cameras(TensorDataclass):
                     r_d = torch.sqrt(torch.sum(coord**2, dim=-1))
 
                     coord[mask], dtheta, resample[mask] = camera_utils.fisheye_undistort(
-                        coord[mask], distortion_params[mask], resolution=resolutions[mask], tol=tol
+                        coord[mask], distortion_params[mask], resolution=resolutions[mask], tolerance=tolerance
                     )
 
                     r = torch.sqrt(torch.sum(coord**2, dim=-1))
