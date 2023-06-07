@@ -49,7 +49,7 @@ class DreamFusionModelConfig(ModelConfig):
 
     _target: Type = field(default_factory=lambda: DreamFusionModel)
     """target class to instantiate"""
-    prompt: str = "a high quality photo of a pineapple"  # "a high quality zoomed out photo of an orange tabby cat sitting on a box"
+    prompt: str = "a high quality zoomed out photo of an orange tabby cat sitting on a box"
     """prompt for stable dreamfusion"""
 
     orientation_loss_mult: Tuple[float, float] = (0.01, 100.0)
