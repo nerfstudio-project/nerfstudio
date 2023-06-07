@@ -27,33 +27,16 @@ from torch.nn import Parameter
 from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.engine.callbacks import (
-    TrainingCallback,
-    TrainingCallbackAttributes,
-    TrainingCallbackLocation,
-)
+from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.dreamfusion_field import DreamFusionField
-from nerfstudio.generative.stable_diffusion import StableDiffusion
 from nerfstudio.generative.deepfloyd import DeepFloyd
 from nerfstudio.generative.positional_text_embeddings import PositionalTextEmbeddings
-from nerfstudio.model_components.losses import (
-    MSELoss,
-    distortion_loss,
-    interlevel_loss,
-    orientation_loss,
-)
-from nerfstudio.model_components.ray_samplers import (
-    ProposalNetworkSampler,
-    UniformSampler,
-)
-from nerfstudio.model_components.renderers import (
-    AccumulationRenderer,
-    DepthRenderer,
-    NormalsRenderer,
-    RGBRenderer,
-)
+from nerfstudio.generative.stable_diffusion import StableDiffusion
+from nerfstudio.model_components.losses import MSELoss, distortion_loss, interlevel_loss, orientation_loss
+from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler, UniformSampler
+from nerfstudio.model_components.renderers import AccumulationRenderer, DepthRenderer, NormalsRenderer, RGBRenderer
 from nerfstudio.model_components.scene_colliders import AABBBoxCollider, SphereCollider
 from nerfstudio.model_components.shaders import LambertianShader, NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
@@ -66,7 +49,7 @@ class DreamFusionModelConfig(ModelConfig):
 
     _target: Type = field(default_factory=lambda: DreamFusionModel)
     """target class to instantiate"""
-    prompt: str = "a high quality zoomed out photo of an orange tabby cat sitting on a box"
+    prompt: str = "a high quality photo of a pineapple"  # "a high quality zoomed out photo of an orange tabby cat sitting on a box"
     """prompt for stable dreamfusion"""
 
     orientation_loss_mult: Tuple[float, float] = (0.01, 100.0)
@@ -151,11 +134,11 @@ class DreamFusionModelConfig(ModelConfig):
     """appended to prompt for front view"""
     back_prompt: str = ", back view"
     """appended to prompt for back view"""
-    guidance_scale: float = 20
+    guidance_scale: float = 7.0
     """guidance scale for sds loss"""
     diffusion_device: Optional[str] = None
     """device for diffusion model"""
-    diffusion_model: Literal["stablediffusion", "deepfloyd"] = "deepfloyd"
+    diffusion_model: Literal["stablediffusion", "deepfloyd"] = "stablediffusion"
     """diffusion model for SDS loss"""
     sd_version: str = "1-5"
     """model version when using stable diffusion"""
@@ -354,7 +337,13 @@ class DreamFusionModel(Model):
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
         param_groups["proposal_networks"] = list(self.proposal_networks.parameters())
-        param_groups["fields"] = list(self.field.parameters())
+        param_groups["fields"] = list(self.field.parameters())  # + list(self._diffusion_model.parameters())
+        param_groups["diffusion_model"] = list(self._diffusion_model.parameters())
+        print("PARAMETERS:")
+        for name, param in self._diffusion_model.named_parameters():
+            if param.requires_grad:
+                print(name)  # , param.data)
+        # print(list(self._diffusion_model.parameters()))
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):  # pylint: disable=too-many-statements
@@ -495,14 +484,29 @@ class DreamFusionModel(Model):
             .permute(0, 3, 1, 2)
         )
 
-        sds_loss = self._diffusion_model.sds_loss(
+        # sds_loss = self._diffusion_model.sds_loss(
+        #     text_embedding.to(self.diffusion_device),
+        #     train_output.to(self.diffusion_device),
+        #     guidance_scale=int(self.guidance_scale),
+        #     grad_scaler=self.grad_scaler,
+        # )
+
+        sds_loss = self._diffusion_model.vsd_loss(
             text_embedding.to(self.diffusion_device),
             train_output.to(self.diffusion_device),
             guidance_scale=int(self.guidance_scale),
             grad_scaler=self.grad_scaler,
         )
 
+        lora_loss = self._diffusion_model.lora_loss(
+            text_embedding.to(self.diffusion_device),
+            train_output.to(self.diffusion_device),
+            guidance_scale=int(1.0),
+            grad_scaler=self.grad_scaler,
+        )
+
         loss_dict["sds_loss"] = sds_loss.to(self.device)
+        loss_dict["lora_loss"] = lora_loss.to(self.device)
 
         if self.training:
             loss_dict["distortion_loss"] = self.config.distortion_loss_mult * distortion_loss(

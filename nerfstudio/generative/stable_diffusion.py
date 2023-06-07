@@ -17,6 +17,7 @@
 # Modified from https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py
 
 import sys
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Union, cast
@@ -30,13 +31,14 @@ from jaxtyping import Float
 from torch import Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
 
+from nerfstudio.generative.utils import _SDSGradient
 from nerfstudio.utils.rich_utils import CONSOLE
 
-from nerfstudio.generative.utils import _SDSGradient
-
-
 try:
-    from diffusers import PNDMScheduler, StableDiffusionPipeline
+    from diffusers import PNDMScheduler, StableDiffusionPipeline, UNet2DConditionModel
+    from diffusers.loaders import AttnProcsLayers
+    from diffusers.models.attention_processor import LoRAAttnProcessor
+    from diffusers.models.embeddings import TimestepEmbedding
     from transformers import logging
 
 except ImportError:
@@ -95,12 +97,58 @@ class StableDiffusion(nn.Module):
 
         self.unet = pipe.unet
         self.unet.to(memory_format=torch.channels_last)
+        self.unet_lora = self.unet
 
         self.tokenizer = pipe.tokenizer
         self.text_encoder = pipe.text_encoder
         self.auto_encoder = pipe.vae
 
+        for p in self.auto_encoder.parameters():
+            p.requires_grad_(False)
+        for p in self.unet.parameters():
+            p.requires_grad_(False)
+        for p in self.unet_lora.parameters():
+            p.requires_grad_(False)
+        for p in self.text_encoder.parameters():
+            p.requires_grad_(False)
+
+        # # from https://github.com/threestudio-project/threestudio/commit/12d8f1c52f6ef4379db4e23261b274d36e12a531
+        self.camera_embedding = TimestepEmbedding(16, 1280)
+        self.unet.class_embedding = self.camera_embedding
+
+        lora_attn_procs = {}
+        for name in self.unet_lora.attn_processors.keys():
+            cross_attention_dim = (
+                None if name.endswith("attn1.processor") else self.unet_lora.config.cross_attention_dim
+            )
+            hidden_size = 0
+            if name.startswith("mid_block"):
+                hidden_size = self.unet_lora.config.block_out_channels[-1]
+            elif name.startswith("up_blocks"):
+                block_id = int(name[len("up_blocks.")])
+                hidden_size = list(reversed(self.unet_lora.config.block_out_channels))[block_id]
+            elif name.startswith("down_blocks"):
+                block_id = int(name[len("down_blocks.")])
+                hidden_size = self.unet_lora.config.block_out_channels[block_id]
+
+            lora_attn_procs[name] = LoRAAttnProcessor(hidden_size=hidden_size, cross_attention_dim=cross_attention_dim)
+
+        self.unet_lora.set_attn_processor(lora_attn_procs)
+
+        self.lora_layers = AttnProcsLayers(self.unet_lora.attn_processors)
+        self.lora_layers._load_state_dict_pre_hooks.clear()
+        self.lora_layers._state_dict_hooks.clear()
+
         CONSOLE.print("Stable Diffusion loaded!")
+
+    @contextmanager
+    def disable_unet_class_embedding(self, unet: UNet2DConditionModel):
+        class_embedding = unet.class_embedding
+        try:
+            unet.class_embedding = None
+            yield unet
+        finally:
+            unet.class_embedding = class_embedding
 
     def get_text_embeds(
         self, prompt: Union[str, List[str]], negative_prompt: Union[str, List[str]]
@@ -137,6 +185,100 @@ class StableDiffusion(nn.Module):
         text_embeddings = torch.cat([uncond_embeddings, text_embeddings])
 
         return text_embeddings
+
+    def lora_loss(
+        self,
+        text_embeddings: Float[Tensor, "N max_length embed_dim"],
+        image: Float[Tensor, "BS 3 H W"],
+        guidance_scale: float = 100.0,
+        grad_scaler: Optional[GradScaler] = None,
+    ) -> torch.Tensor:
+        B = image.shape[0]
+        image = F.interpolate(image.half(), (IMG_DIM, IMG_DIM), mode="bilinear")
+        t = torch.randint(self.min_step, self.max_step + 1, [B], dtype=torch.long, device=self.device)
+        latents = self.imgs_to_latent(image)
+
+        noise = torch.randn_like(latents)
+        latents_noisy = self.scheduler.add_noise(latents, noise, t)  # type: ignore
+        text_embeddings, _ = text_embeddings.chunk(2)
+        camera_condition = torch.zeros((B, 4, 4), device=self.device)
+
+        noise_pred = self.unet(
+            latents_noisy,
+            t,
+            encoder_hidden_states=text_embeddings,
+            class_labels=camera_condition.view(B, -1),
+            cross_attention_kwargs={"scale": 1.0},
+        ).sample
+
+        return F.mse_loss(noise_pred.float(), noise.float(), reduction="mean")
+
+    def vsd_loss(
+        self,
+        text_embeddings: Float[Tensor, "N max_length embed_dim"],
+        image: Float[Tensor, "BS 3 H W"],
+        guidance_scale: float = 100.0,
+        grad_scaler: Optional[GradScaler] = None,
+    ) -> torch.Tensor:
+        B = image.shape[0]
+        image = F.interpolate(image.half(), (IMG_DIM, IMG_DIM), mode="bilinear")
+        t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
+        latents = self.imgs_to_latent(image)
+
+        with torch.no_grad():
+            # add noise
+            noise = torch.randn_like(latents)
+            latents_noisy = self.scheduler.add_noise(latents, noise, t)  # type: ignore
+            # pred noise
+            latent_model_input = torch.cat((latents_noisy,) * 2)
+            # noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embeddings).sample
+
+            with self.disable_unet_class_embedding(self.unet) as unet:
+                cross_attention_kwargs = {"scale": 0.0}
+                noise_pred_pretrain = unet(
+                    latent_model_input,
+                    t,
+                    encoder_hidden_states=text_embeddings,
+                    cross_attention_kwargs=cross_attention_kwargs,
+                ).sample
+            camera_condition = torch.zeros((B, 4, 4), device=self.device)
+            noise_pred_lora = self.unet(
+                latent_model_input,
+                t,
+                encoder_hidden_states=text_embeddings,
+                class_labels=torch.cat(
+                    [
+                        camera_condition.view(B, -1),
+                        torch.zeros_like(camera_condition.view(B, -1)),
+                    ],
+                    dim=0,
+                ),
+                cross_attention_kwargs={"scale": 1.0},
+            ).sample
+
+        noise_pred_pretrain_text, noise_pred_pretrain_uncond = noise_pred_pretrain.chunk(2)
+
+        # NOTE: guidance scale definition here is aligned with diffusers, but different from other guidance
+        noise_pred_pretrain = noise_pred_pretrain_uncond + guidance_scale * (
+            noise_pred_pretrain_text - noise_pred_pretrain_uncond
+        )
+
+        noise_pred_lora_text, noise_pred_lora_uncond = noise_pred_lora.chunk(2)
+
+        # TODO: move to config
+        guidance_scale_lora = 1.0
+        noise_pred_lora = noise_pred_lora_uncond + guidance_scale_lora * (noise_pred_lora_text - noise_pred_lora_uncond)
+
+        w = 1 - self.alphas[t]
+
+        grad = w * (noise_pred_pretrain - noise_pred_lora)
+        grad = torch.nan_to_num(grad)
+
+        if grad_scaler is not None:
+            latents = grad_scaler.scale(latents)
+        loss = cast(Tensor, _SDSGradient.apply(latents, grad))
+
+        return loss
 
     def sds_loss(
         self,
