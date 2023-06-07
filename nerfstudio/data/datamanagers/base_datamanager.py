@@ -389,10 +389,11 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             self.config.data = self.config.dataparser.data
         self.dataparser = self.dataparser_config.setup()
         self.includes_time = self.dataparser.includes_time
-        self.train_dataparser_outputs = self.dataparser.get_dataparser_outputs(split="train")
+        self.train_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split="train")
 
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
+        self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
 
         if self.train_dataparser_outputs is not None:
             cameras = self.train_dataparser_outputs.cameras
@@ -452,6 +453,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             num_workers=self.world_size * 4,
             pin_memory=True,
             collate_fn=self.config.collate_fn,
+            exclude_batch_keys_from_device=self.exclude_batch_keys_from_device,
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
@@ -475,6 +477,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             num_workers=self.world_size * 4,
             pin_memory=True,
             collate_fn=self.config.collate_fn,
+            exclude_batch_keys_from_device=self.exclude_batch_keys_from_device,
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
