@@ -56,7 +56,7 @@ from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.fields.sdf_field import SDFFieldConfig
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
-from nerfstudio.models.dreamfusion import DreamFusionModelConfig
+from nerfstudio.nerfstudio.models.generfacto import GenerfactoModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.nerfacto import NerfactoModelConfig
@@ -84,7 +84,7 @@ descriptions = {
     "tensorf": "tensorf",
     "dnerf": "Dynamic-NeRF model. (slow)",
     "phototourism": "Uses the Phototourism data.",
-    "dreamfusion": "Generative Text to NeRF model",
+    "generfacto": "Generative Text to NeRF model",
     "nerfplayer-nerfacto": "NeRFPlayer with nerfacto backbone.",
     "nerfplayer-ngp": "NeRFPlayer with InstantNGP backbone.",
     "neus": "Implementation of NeuS. (slow)",
@@ -449,8 +449,8 @@ method_configs["phototourism"] = TrainerConfig(
     vis="viewer",
 )
 
-method_configs["dreamfusion"] = TrainerConfig(
-    method_name="dreamfusion",
+method_configs["generfacto"] = TrainerConfig(
+    method_name="generfacto",
     experiment_name="",
     steps_per_eval_batch=50,
     steps_per_eval_image=50,
@@ -461,7 +461,7 @@ method_configs["dreamfusion"] = TrainerConfig(
         datamanager=RandomCamerasDataManagerConfig(
             horizontal_rotation_warmup=2000,
         ),
-        model=DreamFusionModelConfig(
+        model=GenerfactoModelConfig(
             eval_num_rays_per_chunk=1 << 15,
             distortion_loss_mult=0.02,
             interlevel_loss_mult=100.0,

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-DreamFusion implementation.
+Nerfstudio's Text to 3D model.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from nerfstudio.engine.callbacks import (
 )
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.density_fields import HashMLPDensityField
-from nerfstudio.fields.dreamfusion_field import DreamFusionField
+from nerfstudio.fields.generfacto_field import GenerfactoField
 from nerfstudio.generative.stable_diffusion import StableDiffusion
 from nerfstudio.generative.deepfloyd import DeepFloyd
 from nerfstudio.generative.positional_text_embeddings import PositionalTextEmbeddings
@@ -61,10 +61,10 @@ from nerfstudio.utils import colormaps, colors, math, misc
 
 
 @dataclass
-class DreamFusionModelConfig(ModelConfig):
-    """DreamFusion model config"""
+class GenerfactoModelConfig(ModelConfig):
+    """Generfacto model config"""
 
-    _target: Type = field(default_factory=lambda: DreamFusionModel)
+    _target: Type = field(default_factory=lambda: GenerfactoModel)
     """target class to instantiate"""
     prompt: str = "a high quality zoomed out photo of an orange tabby cat sitting on a box"
     """prompt for stable dreamfusion"""
@@ -163,18 +163,18 @@ class DreamFusionModelConfig(ModelConfig):
     """Which implementation to use for the model."""
 
 
-class DreamFusionModel(Model):
-    """DreamFusionModel Model
+class GenerfactoModel(Model):
+    """Generfacto Model
 
     Args:
-        config: DreamFusion configuration to instantiate model
+        config: Generfacto configuration to instantiate model
     """
 
-    config: DreamFusionModelConfig
+    config: GenerfactoModelConfig
 
     def __init__(
         self,
-        config: DreamFusionModelConfig,
+        config: GenerfactoModelConfig,
         **kwargs,
     ) -> None:
         self.prompt = config.prompt
@@ -220,7 +220,7 @@ class DreamFusionModel(Model):
         )
 
         # setting up fields
-        self.field = DreamFusionField(self.scene_box.aabb, max_res=self.config.max_res)
+        self.field = GenerfactoField(self.scene_box.aabb, max_res=self.config.max_res)
 
         # samplers
         self.density_fns = []

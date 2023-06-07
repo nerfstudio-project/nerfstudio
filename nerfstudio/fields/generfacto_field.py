@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Field for dreamfusion model
+Field for Generfacto model
 """
 
 
@@ -43,8 +43,8 @@ def get_normalized_directions(directions: Float[Tensor, "bs 3"]):
     return (directions + 1.0) / 2.0
 
 
-class DreamFusionField(Field):
-    """DreamFusion Field that uses TCNN
+class GenerfactoField(Field):
+    """Generfacto Field that uses TCNN
 
     Args:
         aabb: parameters of scene aabb bounds
