@@ -33,12 +33,6 @@ from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.encodings import HashEncoding, SHEncoding
 from nerfstudio.fields.base_field import Field
 
-try:
-    pass
-except ImportError:
-    # tinycudann module doesn't exist
-    pass
-
 
 def get_normalized_directions(directions: Float[Tensor, "bs 3"]):
     """SH encoding must be in the range [0, 1]
@@ -110,38 +104,6 @@ class DreamFusionField(Field):
         )
         self.mlp_base = torch.nn.Sequential(encoder, network)
 
-        # self.mlp_base = tcnn.NetworkWithInputEncoding(
-        #     n_input_dims=3,
-        #     n_output_dims=1 + self.geo_feat_dim,
-        #     encoding_config={
-        #         "otype": "HashGrid",
-        #         "n_levels": num_levels,
-        #         "n_features_per_level": features_per_level,
-        #         "log2_hashmap_size": log2_hashmap_size,
-        #         "base_resolution": base_res,
-        #         "per_level_scale": growth_factor,
-        #     },
-        #     network_config={
-        #         "otype": "FullyFusedMLP",
-        #         "activation": "ReLU",
-        #         "output_activation": "None",
-        #         "n_neurons": hidden_dim,
-        #         "n_hidden_layers": num_layers - 1,
-        #     },
-        # )
-
-        # self.mlp_background_color = tcnn.Network(
-        #     n_input_dims=self.direction_encoding.n_output_dims,
-        #     n_output_dims=3,
-        #     network_config={
-        #         "otype": "FullyFusedMLP",
-        #         "activation": "ReLU",
-        #         "output_activation": "Sigmoid",
-        #         "n_neurons": 32,
-        #         "n_hidden_layers": 1,
-        #     },
-        # )
-
         self.mlp_background_color = MLP(
             in_dim=self.direction_encoding.get_out_dim(),
             num_layers=2,
@@ -161,17 +123,6 @@ class DreamFusionField(Field):
             out_activation=nn.Sigmoid(),
             implementation=implementation,
         )
-        # self.mlp_head = tcnn.Network(
-        #     n_input_dims=self.geo_feat_dim,
-        #     n_output_dims=3,
-        #     network_config={
-        #         "otype": "FullyFusedMLP",
-        #         "activation": "ReLU",
-        #         "output_activation": "Sigmoid",
-        #         "n_neurons": hidden_dim_color,
-        #         "n_hidden_layers": num_layers_color - 1,
-        #     },
-        # )
 
     def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
