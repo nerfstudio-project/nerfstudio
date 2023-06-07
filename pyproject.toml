@@ -68,6 +68,9 @@ dependencies = [
 gen = [
     "diffusers==0.16.1",
     "transformers==4.29.2",
+    "accelerate",
+    "bitsandbytes",
+    "sentencepiece",
 ]
 
 
