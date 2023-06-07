@@ -35,7 +35,7 @@ from nerfstudio.generative.utils import _SDSGradient
 from nerfstudio.utils.rich_utils import CONSOLE
 
 try:
-    from diffusers import PNDMScheduler, StableDiffusionPipeline, UNet2DConditionModel
+    from diffusers import DDPMScheduler, PNDMScheduler, StableDiffusionPipeline, UNet2DConditionModel
     from diffusers.loaders import AttnProcsLayers
     from diffusers.models.attention_processor import LoRAAttnProcessor
     from diffusers.models.embeddings import TimestepEmbedding
@@ -80,13 +80,12 @@ class StableDiffusion(nn.Module):
         self.min_step = int(self.num_train_timesteps * 0.02)
         self.max_step = int(self.num_train_timesteps * 0.98)
 
-        self.scheduler = PNDMScheduler(
-            beta_start=0.00085,
-            beta_end=0.012,
-            beta_schedule="scaled_linear",
-            num_train_timesteps=self.num_train_timesteps,
-        )
-        self.alphas = self.scheduler.alphas_cumprod.to(self.device)  # type: ignore
+        # self.scheduler = PNDMScheduler(
+        #     beta_start=0.00085,
+        #     beta_end=0.012,
+        #     beta_schedule="scaled_linear",
+        #     num_train_timesteps=self.num_train_timesteps,
+        # )
 
         sd_id = SD_IDENTIFIERS[version]
         pipe = StableDiffusionPipeline.from_pretrained(sd_id, torch_dtype=torch.float16)
@@ -94,6 +93,14 @@ class StableDiffusion(nn.Module):
         pipe = pipe.to(self.device)
 
         pipe.enable_attention_slicing()
+
+        self.scheduler = DDPMScheduler.from_pretrained(
+            sd_id,
+            subfolder="scheduler",
+            # torch_dtype=self.weights_dtype,
+        )
+
+        self.alphas = self.scheduler.alphas_cumprod.to(self.device)  # type: ignore
 
         self.unet = pipe.unet
         self.unet.to(memory_format=torch.channels_last)
@@ -195,7 +202,7 @@ class StableDiffusion(nn.Module):
     ) -> torch.Tensor:
         B = image.shape[0]
         image = F.interpolate(image.half(), (IMG_DIM, IMG_DIM), mode="bilinear")
-        t = torch.randint(self.min_step, self.max_step + 1, [B], dtype=torch.long, device=self.device)
+        t = torch.randint(0, int(self.scheduler.config.num_train_timesteps), [B], dtype=torch.long, device=self.device)
         latents = self.imgs_to_latent(image)
 
         noise = torch.randn_like(latents)
@@ -203,7 +210,7 @@ class StableDiffusion(nn.Module):
         text_embeddings, _ = text_embeddings.chunk(2)
         camera_condition = torch.zeros((B, 4, 4), device=self.device)
 
-        noise_pred = self.unet(
+        noise_pred = self.unet_lora(
             latents_noisy,
             t,
             encoder_hidden_states=text_embeddings,
@@ -217,12 +224,12 @@ class StableDiffusion(nn.Module):
         self,
         text_embeddings: Float[Tensor, "N max_length embed_dim"],
         image: Float[Tensor, "BS 3 H W"],
-        guidance_scale: float = 100.0,
+        guidance_scale: float = 1.0,
         grad_scaler: Optional[GradScaler] = None,
     ) -> torch.Tensor:
         B = image.shape[0]
         image = F.interpolate(image.half(), (IMG_DIM, IMG_DIM), mode="bilinear")
-        t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
+        t = torch.randint(self.min_step, self.max_step + 1, [B], dtype=torch.long, device=self.device)
         latents = self.imgs_to_latent(image)
 
         with torch.no_grad():
@@ -237,14 +244,14 @@ class StableDiffusion(nn.Module):
                 cross_attention_kwargs = {"scale": 0.0}
                 noise_pred_pretrain = unet(
                     latent_model_input,
-                    t,
+                    torch.cat([t] * 2),
                     encoder_hidden_states=text_embeddings,
                     cross_attention_kwargs=cross_attention_kwargs,
                 ).sample
             camera_condition = torch.zeros((B, 4, 4), device=self.device)
-            noise_pred_lora = self.unet(
+            noise_pred_lora = self.unet_lora(
                 latent_model_input,
-                t,
+                torch.cat([t] * 2),
                 encoder_hidden_states=text_embeddings,
                 class_labels=torch.cat(
                     [
@@ -269,16 +276,21 @@ class StableDiffusion(nn.Module):
         guidance_scale_lora = 1.0
         noise_pred_lora = noise_pred_lora_uncond + guidance_scale_lora * (noise_pred_lora_text - noise_pred_lora_uncond)
 
-        w = 1 - self.alphas[t]
+        w = (1 - self.alphas[t]).view(-1, 1, 1, 1)
 
         grad = w * (noise_pred_pretrain - noise_pred_lora)
         grad = torch.nan_to_num(grad)
 
-        if grad_scaler is not None:
-            latents = grad_scaler.scale(latents)
-        loss = cast(Tensor, _SDSGradient.apply(latents, grad))
+        target = (latents - grad).detach()
+        loss_vsd = 0.5 * F.mse_loss(latents, target, reduction="sum") / B
 
-        return loss
+        return loss_vsd
+
+        # if grad_scaler is not None:
+        #     latents = grad_scaler.scale(latents)
+        # loss = cast(Tensor, _SDSGradient.apply(latents, grad))
+
+        # return loss
 
     def sds_loss(
         self,
