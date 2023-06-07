@@ -23,19 +23,8 @@ from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Generic,
-    List,
-    Literal,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-    cast,
-)
+from typing import (Any, Callable, Dict, Generic, List, Literal, Optional,
+                    Tuple, Type, Union, cast)
 
 import torch
 from torch import nn
@@ -49,20 +38,17 @@ from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
+from nerfstudio.data.dataparsers.blender_dataparser import \
+    BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.pixel_samplers import (
-    EquirectangularPixelSampler,
-    PatchPixelSampler,
-    PixelSampler,
-)
-from nerfstudio.data.utils.dataloaders import (
-    CacheDataloader,
-    FixedIndicesEvalDataloader,
-    RandIndicesEvalDataloader,
-)
+from nerfstudio.data.pixel_samplers import (EquirectangularPixelSampler,
+                                            PatchPixelSampler, PixelSampler)
+from nerfstudio.data.utils.dataloaders import (CacheDataloader,
+                                               FixedIndicesEvalDataloader,
+                                               RandIndicesEvalDataloader)
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
-from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
+from nerfstudio.engine.callbacks import (TrainingCallback,
+                                         TrainingCallbackAttributes)
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils import profiler
 from nerfstudio.utils.misc import IterableWrapper
@@ -441,7 +427,6 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
         return PixelSampler(*args, **kwargs)
 
-
     def setup_train(self):
         """Sets up the data loaders for training"""
         assert self.train_dataset is not None
@@ -457,17 +442,13 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
-        if self.config.camera_optimizer.mode != "off":
-            self.train_camera_optimizer = self.config.camera_optimizer.setup(
-                num_cameras=self.train_dataset.cameras.size, device=self.device
-            )
-        else:
-            self.train_camera_optimizer = None
+        self.train_camera_optimizer = self.config.camera_optimizer.setup(
+            num_cameras=self.train_dataset.cameras.size, device=self.device
+        )
         self.train_ray_generator = RayGenerator(
             self.train_dataset.cameras.to(self.device),
             self.train_camera_optimizer,
         )
-
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
@@ -484,12 +465,9 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
-        if self.config.camera_optimizer.mode != "off":
-            self.eval_camera_optimizer = self.config.camera_optimizer.setup(
-                num_cameras=self.eval_dataset.cameras.size, device=self.device
-            )
-        else:
-            self.eval_camera_optimizer = None
+        self.eval_camera_optimizer = self.config.camera_optimizer.setup(
+            num_cameras=self.eval_dataset.cameras.size, device=self.device
+        )
         self.eval_ray_generator = RayGenerator(
             self.eval_dataset.cameras.to(self.device),
             self.eval_camera_optimizer,
@@ -516,7 +494,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         indices = self.train_pixel_sampler.sample_indices(image_batch)
         c = indices[:, 0]
         ray_indices = indices.clone()
-        ray_indices[:, 0] = image_batch['image_idx'][c]
+        ray_indices[:, 0] = image_batch["image_idx"][c]
         ray_bundle, coords = self.train_ray_generator(ray_indices, resample=True)
         sample_coords = torch.column_stack((c.to(coords.device), coords))
         batch = self.train_pixel_sampler.sample(image_batch, sample_coords)
@@ -531,7 +509,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         indices = self.eval_pixel_sampler.sample_indices(image_batch)
         c = indices[:, 0]
         ray_indices = indices.clone()
-        ray_indices[:, 0] = image_batch['image_idx'][c]
+        ray_indices[:, 0] = image_batch["image_idx"][c]
         ray_bundle, coords = self.eval_ray_generator(ray_indices, resample=True)
         sample_coords = torch.column_stack((c.to(coords.device), coords))
         batch = self.eval_pixel_sampler.sample(image_batch, sample_coords)
@@ -545,14 +523,10 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         raise ValueError("No more eval images")
 
     def get_train_rays_per_batch(self) -> int:
-        if self.train_pixel_sampler is None:
-            return self.config.train_num_rays_per_batch
-        return self.train_pixel_sampler.num_rays_per_batch
+        return self.config.train_num_rays_per_batch
 
     def get_eval_rays_per_batch(self) -> int:
-        if self.eval_pixel_sampler is None:
-            return self.config.eval_num_rays_per_batch
-        return self.eval_pixel_sampler.num_rays_per_batch
+        return self.config.eval_num_rays_per_batch
 
     def get_datapath(self) -> Path:
         return self.config.dataparser.data
@@ -564,8 +538,8 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         """
         param_groups = {}
 
+        camera_opt_params = list(self.train_camera_optimizer.parameters())
         if self.config.camera_optimizer.mode != "off":
-            camera_opt_params = list(self.train_camera_optimizer.parameters())
             assert len(camera_opt_params) > 0
             param_groups[self.config.camera_optimizer.param_group] = camera_opt_params
 

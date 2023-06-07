@@ -76,7 +76,9 @@ class PixelSampler:
 
         return indices
 
-    def collate_image_dataset_batch(self, batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False, indices: torch.Tensor = None):
+    def collate_image_dataset_batch(
+        self, batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False, indices: torch.Tensor = None
+    ):
         """
         Operates on a batch of images and samples pixels to use for generating rays.
         Returns a collated batch which is input to the Graph.
@@ -103,9 +105,7 @@ class PixelSampler:
             }
         else:
             collated_batch = {
-                key: value[c, y, x]
-                for key, value in batch.items()
-                if key != "image_idx" and value is not None
+                key: value[c, y, x] for key, value in batch.items() if key != "image_idx" and value is not None
             }
 
         assert collated_batch["image"].shape[0] == num_rays_per_batch
@@ -119,7 +119,9 @@ class PixelSampler:
 
         return collated_batch
 
-    def collate_image_dataset_batch_list(self, batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False, indices: torch.Tensor = None):
+    def collate_image_dataset_batch_list(
+        self, batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False, indices: torch.Tensor = None
+    ):
         """
         Does the same as collate_image_dataset_batch, except it will operate over a list of images / masks inside
         a list.
@@ -146,7 +148,7 @@ class PixelSampler:
         for i in range(num_images):
             start_ray = num_rays_in_batch * i
 
-            idx = indices[start_ray:start_ray + num_rays_in_batch]
+            idx = indices[start_ray : start_ray + num_rays_in_batch]
             if need_interp:
                 all_images.append(_multiple_bilinear_sample(batch["image"], i, idx[:, 1], idx[:, 2]))
             else:
@@ -182,7 +184,7 @@ class PixelSampler:
     def collate_image_dataset_indices(self, batch: Dict, num_rays_per_batch: int):
         """
         Does the same as collate_image_dataset_batch, except it only produces indices.
-        
+
         Warning: camera indices are based on ordering in batch. Use batch["image_idx"][indices[:, 0]]
         to get corrected indices (fully equivalent to batch['indices']).
 
@@ -199,9 +201,7 @@ class PixelSampler:
                 num_rays_per_batch, num_images, image_height, image_width, mask=batch["mask"], device=device
             )
         else:
-            indices = self.sample_method(
-                num_rays_per_batch, num_images, image_height, image_width, device=device
-            )
+            indices = self.sample_method(num_rays_per_batch, num_images, image_height, image_width, device=device)
 
         return indices
 
@@ -269,16 +269,13 @@ class PixelSampler:
         if isinstance(image_batch["image"], list):
             # I don't think this copy is necessary?
             image_batch = dict(image_batch.items())  # copy the dictionary so we don't modify the original
-            idx = self.collate_image_dataset_indices_list(
-                image_batch, self.num_rays_per_batch
-            )
+            idx = self.collate_image_dataset_indices_list(image_batch, self.num_rays_per_batch)
         elif isinstance(image_batch["image"], torch.Tensor):
-            idx = self.collate_image_dataset_indices(
-                image_batch, self.num_rays_per_batch
-            )
+            idx = self.collate_image_dataset_indices(image_batch, self.num_rays_per_batch)
         else:
             raise ValueError("image_batch['image'] must be a list or torch.Tensor")
         return idx
+
 
 class EquirectangularPixelSampler(PixelSampler):
     """Samples 'pixel_batch's from 'image_batch's. Assumes images are
@@ -378,6 +375,7 @@ class PatchPixelSampler(PixelSampler):
 
         return indices
 
+
 def _multiple_bilinear_sample(im, c, y, x):
     y_max = im.shape[1] - 1
     x_max = im.shape[2] - 1
@@ -386,20 +384,24 @@ def _multiple_bilinear_sample(im, c, y, x):
     y_ceil = torch.clamp(y_floor + 1, max=y_max)
     x_floor = x.long()
     x_ceil = torch.clamp(x_floor + 1, max=x_max)
-    corners = torch.stack([
-        im[c, y_floor, x_floor],
-        im[c, y_ceil, x_floor],
-        im[c, y_floor, x_ceil],
-        im[c, y_ceil, x_ceil]
-    ], dim=1)
+    corners = torch.stack(
+        [im[c, y_floor, x_floor], im[c, y_ceil, x_floor], im[c, y_floor, x_ceil], im[c, y_ceil, x_ceil]], dim=1
+    )
     remain_x = x - x_floor
     remain_y = y - y_floor
     remain_comp_x = 1 - remain_x
     remain_comp_y = 1 - remain_y
-    multipliers = torch.stack([
-        remain_comp_x * remain_comp_y,
-        remain_x * remain_comp_y,
-        remain_comp_x * remain_y,
-        remain_x * remain_y,
-    ], dim=1).reshape(-1, 4, 1).to(im.device)
+    multipliers = (
+        torch.stack(
+            [
+                remain_comp_x * remain_comp_y,
+                remain_x * remain_comp_y,
+                remain_comp_x * remain_y,
+                remain_x * remain_y,
+            ],
+            dim=1,
+        )
+        .reshape(-1, 4, 1)
+        .to(im.device)
+    )
     return torch.sum(corners * multipliers, dim=1)

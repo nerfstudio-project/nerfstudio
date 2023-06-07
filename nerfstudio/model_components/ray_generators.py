@@ -21,7 +21,6 @@ from torch import Tensor, nn
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.utils import profiler
 
 
 class RayGenerator(nn.Module):
@@ -41,8 +40,7 @@ class RayGenerator(nn.Module):
         self.pose_optimizer = pose_optimizer
         self.register_buffer("image_coords", cameras.get_image_coords(), persistent=False)
 
-    @profiler.time_function
-    def forward(self, ray_indices: Int[Tensor, "num_rays 3"], resample: bool=False) -> RayBundle:
+    def forward(self, ray_indices: Int[Tensor, "num_rays 3"], resample: bool = False) -> RayBundle:
         """Index into the cameras to generate the rays.
 
         Args:
@@ -53,10 +51,7 @@ class RayGenerator(nn.Module):
         x = ray_indices[:, 2]  # col indices
         coords = self.image_coords[y, x]
 
-        if self.pose_optimizer is not None:
-            camera_opt_to_camera = self.pose_optimizer(c)
-        else:
-            camera_opt_to_camera = None
+        camera_opt_to_camera = self.pose_optimizer(c)
 
         ray_bundle_and_coords = self.cameras.generate_rays(
             camera_indices=c.unsqueeze(-1),

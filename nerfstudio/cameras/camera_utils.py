@@ -413,12 +413,12 @@ def _compute_residual_and_jacobian(
 
 @torch_compile(dynamic=True, mode="reduce-overhead", backend="eager")
 def radial_and_tangential_undistort(
-    coords: torch.Tensor,
-    distortion_params: torch.Tensor,
+    coords: Float[torch.Tensor, "num_points 2"],
+    distortion_params: Float[torch.Tensor, "#num_points num_params"],
     eps: float = 1e-3,
     max_iterations: int = 10,
-    resolution: torch.Tensor = torch.tensor([1e-3, 1e-3]),
-    tol: float = 0.5,
+    resolution: Float[torch.Tensor, "#num_points 2"] = torch.tensor([[1e-3, 1e-3]]),
+    tolerance: float = 0.5,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Computes undistorted coords given opencv distortion parameters.
     Adapted from MultiNeRF
@@ -431,9 +431,16 @@ def radial_and_tangential_undistort(
         eps: The smallest determinant magnitude for a matrix to be considered invertible (for Newton's method).
         max_iterations: The maximum number of iterations to perform.
         resolution: The resolution (w, h of each pixel, in units of multiples of focal length)
+        tolerance: The allowed error of the redistorted points in units of pixel width/height
 
     Returns:
-        The undistorted coordinates.
+        The undistorted coordinates, the jacobian of the distortion function, and the redistorted coordinates.
+
+        If F is the distortion function, then the outputs are:
+        undistort: approximated value of F^{-1}(coords)
+        d: jacobian of redistort with respect to undistort (used for pixel area calculation)
+        redistort: F(undistort), will be within [tolerance] pixels of coords (in Chebyshev distance)
+            unless max_iterations is reached
     """
     assert distortion_params.shape[-1] in [0, 1, 2, 4, 8]
 
@@ -444,9 +451,13 @@ def radial_and_tangential_undistort(
         distortion_params = F.pad(distortion_params, (0, 8 - distortion_params.shape[-1]), "constant", 0.0)
     assert distortion_params.shape[-1] == 8
 
+    if distortion_params.shape[0] == 1:
+        distortion_params = distortion_params.expand((coords.shape[0], -1))
+
+    if resolution.shape[0] == 1:
+        resolution = resolution.expand((coords.shape[0], -1))
+
     resolution = resolution.to(coords.device)
-    # n_samples = coords.shape[0]
-    # n_iters = 0
 
     # Initialize from the distorted point.
     x = coords[..., 0]
@@ -457,28 +468,20 @@ def radial_and_tangential_undistort(
     next_upd = torch.arange(coords.shape[0], device=coords.device)
 
     for _ in range(max_iterations):
-        # n_iters += next_upd.shape[0]
-
         x_upd = x[next_upd]
         y_upd = y[next_upd]
         fx, fy, fx_x, fx_y, fy_x, fy_y = _compute_residual_and_jacobian(
-            # x=x, y=y,
-            x=x_upd, y=y_upd,
-            xd=coords[next_upd, 0], yd=coords[next_upd, 1],
-            # xd=coords[:, 0], yd=coords[:, 1],
-            distortion_params=distortion_params[next_upd]
+            x=x_upd,
+            y=y_upd,
+            xd=coords[next_upd, 0],
+            yd=coords[next_upd, 1],
+            distortion_params=distortion_params[next_upd],
         )
 
-        # max_x = torch.max(torch.abs(fx / resolution[next_upd, 0])).item()
-        # max_y = torch.max(torch.abs(fy / resolution[next_upd, 1])).item()
-        # print(f"iteration {i}, max residual {max_x}, {max_y}")
-
-        converged = (fx < resolution[next_upd, 0] * tol) & (fy < resolution[next_upd, 1] * tol)
+        converged = (fx < resolution[next_upd, 0] * tolerance) & (fy < resolution[next_upd, 1] * tolerance)
 
         not_converged = torch.argwhere(~converged).squeeze(-1)
         converged = torch.argwhere(converged).squeeze(-1)
-
-        # print(f"{converged.shape[0]} points converged")
 
         denominator = fx_x * fy_y - fx_y * fy_x
         invertible = torch.abs(denominator) > eps
@@ -501,8 +504,6 @@ def radial_and_tangential_undistort(
         # careful: index_add_ (with underscore) is in-place, index_add (no underscore) is not in-place
         x = x.index_add(dim=0, index=next_upd, source=step[:, 0], alpha=-1)
         y = y.index_add(dim=0, index=next_upd, source=step[:, 1], alpha=-1)
-
-    # print(f"average number of newton iterations per sample: {n_iters / n_samples}")
 
     undistort = torch.stack([x, y], dim=-1)
 
@@ -554,12 +555,12 @@ def _compute_residual_and_jacobian_fisheye(
 
 @torch_compile(dynamic=True, mode="reduce-overhead", backend="eager")
 def fisheye_undistort(
-    coords: torch.Tensor,
-    distortion_params: torch.Tensor,
+    coords: Float[torch.Tensor, "num_points 2"],
+    distortion_params: Float[torch.Tensor, "#num_points num_params"],
     eps: float = 1e-3,
     max_iterations: int = 10,
-    resolution: torch.Tensor = torch.tensor([1e-3, 1e-3]),
-    tol: float = 0.5,
+    resolution: Float[torch.Tensor, "#num_points 2"] = torch.tensor([[1e-3, 1e-3]]),
+    tolerance: float = 0.5,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Computes undistorted coords given opencv distortion parameters. Based on OpenCV fisheye camera model.
 
@@ -570,9 +571,18 @@ def fisheye_undistort(
         eps: The smallest derivative magnitude considered to be nonzero (for Newton's method).
         max_iterations: The maximum number of iterations to perform.
         resolution: The resolution [w, h] of the cameras
+        tolerance: The allowed error of the redistorted points in units of pixel width/height
 
     Returns:
-        The undistorted coordinates.
+        The undistorted coordinates, the derivative of the distortion function, and the redistorted coordinates.
+
+        If F is the distortion function, then the outputs are:
+        undistort: approximated value of F^{-1}(coords)
+        d: derivative of r_redistort with respect to r (used for pixel area calculation), where
+            r_redistort is the distance from the principal point of the redistorted points
+            r is the distance from the principal point of the points in undistort
+        redistort: F(undistort), will be within [tolerance] pixels of coords (in Chebyshev distance)
+            unless max_iterations is reached
     """
     assert distortion_params.shape[-1] in [0, 1, 2, 4]
 
@@ -583,12 +593,17 @@ def fisheye_undistort(
         distortion_params = F.pad(distortion_params, (0, 4 - distortion_params.shape[-1]), "constant", 0.0)
     assert distortion_params.shape[-1] == 4
 
+    if distortion_params.shape[0] == 1:
+        distortion_params = distortion_params.expand((coords.shape[0], -1))
+
+    if resolution.shape[0] == 1:
+        resolution = resolution.expand((coords.shape[0], -1))
+
     resolution, _ = torch.min(resolution.to(coords.device), dim=-1)
-    # n_samples = coords.shape[0]
-    # n_iters = 0
 
     # OpenCV uses an equidistant projection for its fisheye camera model
-    # r = theta
+    # meaning the radius of the point is proportional to the angle from the principal direction
+    # r ~ theta
     r_d = torch.linalg.norm(coords, dim=-1)
 
     # Initialize from the distorted point.
@@ -599,25 +614,16 @@ def fisheye_undistort(
     next_upd = torch.arange(theta.shape[0], device=theta.device)
 
     for i in range(max_iterations):
-        # n_iters += next_upd.shape[0]
 
         theta_upd = theta[next_upd]
         f, dtheta = _compute_residual_and_jacobian_fisheye(
-            theta=theta_upd,
-            thetad=r_d[next_upd],
-            distortion_params=distortion_params[next_upd]
+            theta=theta_upd, thetad=r_d[next_upd], distortion_params=distortion_params[next_upd]
         )
 
-        # max_x = torch.max(torch.abs(fx * resolution[..., 0])).item()
-        # max_y = torch.max(torch.abs(fy * resolution[..., 1])).item()
-        # print(f"iteration {i}, max residual {max_x}, {max_y}")
-
-        converged = f < resolution[next_upd] * tol
+        converged = f < resolution[next_upd] * tolerance
 
         not_converged = torch.argwhere(~converged).squeeze(-1)
         converged = torch.argwhere(converged).squeeze(-1)
-
-        # print(f"{converged.shape[0]} points converged")
 
         upd_conv = next_upd[converged]
         all_derivative[upd_conv] = dtheta[converged]
@@ -635,8 +641,8 @@ def fisheye_undistort(
         # careful: index_add_ (with underscore) is in-place, index_add (no underscore) is not in-place
         theta = theta.index_add(dim=0, index=next_upd, source=step[:, 0], alpha=-1)
 
-    # print(f"average number of newton iterations per sample: {n_iters / n_samples}")
     return (theta / r_d).unsqueeze(-1) * coords, all_derivative, coords * (1 + all_residual / r_d).unsqueeze(-1)
+
 
 def rotation_matrix(a: Float[Tensor, "3"], b: Float[Tensor, "3"]) -> Float[Tensor, "3 3"]:
     """Compute the rotation matrix that rotates vector a to vector b.
