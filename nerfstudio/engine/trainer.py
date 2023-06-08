@@ -81,7 +81,8 @@ class TrainerConfig(ExperimentConfig):
     """Path to checkpoint file."""
     log_gradients: bool = False
     """Optionally log gradients during training"""
-
+    gradient_accumulation_steps: int = 1
+    """Number of steps to accumulate gradients over."""
 
 class Trainer:
     """Trainer class
@@ -117,6 +118,7 @@ class Trainer:
         self.mixed_precision: bool = self.config.mixed_precision
         self.use_grad_scaler: bool = self.mixed_precision or self.config.use_grad_scaler
         self.training_state: Literal["training", "paused", "completed"] = "training"
+        self.gradient_accumulation_steps: int = self.config.gradient_accumulation_steps
 
         if self.device == "cpu":
             self.mixed_precision = False
@@ -456,10 +458,12 @@ class Trainer:
 
         device_type: str = self.device.split(":")[0] if "cuda" in self.device else "cpu"
 
-        with torch.autocast(device_type=device_type, enabled=self.mixed_precision):
-            _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
-            loss = functools.reduce(torch.add, loss_dict.values())
-        self.grad_scaler.scale(loss).backward()  # type: ignore
+        for gradient_accumulation_step in range(self.gradient_accumulation_steps):
+            with torch.autocast(device_type=device_type, enabled=self.mixed_precision):
+                _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
+                loss = functools.reduce(torch.add, loss_dict.values())
+                loss /= self.gradient_accumulation_steps
+            self.grad_scaler.scale(loss).backward()  # type: ignore
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
 
         if self.config.log_gradients:
