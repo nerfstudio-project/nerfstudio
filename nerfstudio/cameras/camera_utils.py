@@ -21,7 +21,7 @@ from typing import List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
-from jaxtyping import Float
+from jaxtyping import Float, Shaped
 from numpy.typing import NDArray
 from torch import Tensor
 
@@ -208,10 +208,53 @@ def get_interpolated_k(
     return Ks
 
 
-def get_ordered_poses_and_k(
+def get_interpolated_dist_coeffs(
+    dist_coeffs_a: Float[Tensor, "6"], dist_coeffs_b: Float[Tensor, "6"], steps: int = 10
+) -> List[Float[Tensor, "6"]]:
+    """
+    Returns interpolated distortion coefficients with specified number of steps.
+
+    Args:
+        dist_coeffs_a: distortion coefficients 1
+        dist_coeffs_b: distortion coefficients 2
+        steps: number of steps the interpolated distortion coefficients should contain
+
+    Returns:
+        List of interpolated distortion coefficients
+    """
+    dist_coeffs: List[Float[Tensor, "6"]] = []
+    ts = np.linspace(0, 1, steps)
+    for t in ts:
+        new_dist_coeffs = dist_coeffs_a * (1.0 - t) + dist_coeffs_b * t
+        dist_coeffs.append(new_dist_coeffs)
+    return dist_coeffs
+
+
+def get_interpolated_sizes(size_a: int, size_b: int, steps: int = 10) -> List[int]:
+    """
+    Returns interpolated sizes with specified number of steps.
+
+    Args:
+        sizes_a: sizes 1
+        sizes_b: sizes 2
+        steps: number of steps the output sizes should contain
+
+    Returns:
+        List of interpolated sizes
+    """
+    if size_a == size_b:
+        return [size_a] * steps
+    sizes: List[int] = []
+    ts = np.linspace(0, 1, steps)
+    for t in ts:
+        new_size = size_a * (1.0 - t) + size_b * t
+        sizes.append(int(new_size))
+    return sizes
+
+
+def get_ordered_pose_indices(
     poses: Float[Tensor, "num_poses 3 4"],
-    Ks: Float[Tensor, "num_poses 3 3"],
-) -> Tuple[Float[Tensor, "num_poses 3 4"], Float[Tensor, "num_poses 3 3"]]:
+) -> List[int]:
     """
     Returns ordered poses and intrinsics by euclidian distance between poses.
 
@@ -220,41 +263,54 @@ def get_ordered_poses_and_k(
         Ks: list of camera intrinsics
 
     Returns:
-        tuple of ordered poses and intrinsics
+        indices of ordered poses
 
     """
 
     poses_num = len(poses)
 
     ordered_poses = torch.unsqueeze(poses[0], 0)
-    ordered_ks = torch.unsqueeze(Ks[0], 0)
+    ordered_idx = [0]
 
     # remove the first pose from poses
     poses = poses[1:]
-    Ks = Ks[1:]
+    poses_indices = list(range(1, poses_num))
 
     for _ in range(poses_num - 1):
         distances = torch.norm(ordered_poses[-1][:, 3] - poses[:, :, 3], dim=1)
         idx = torch.argmin(distances)
         ordered_poses = torch.cat((ordered_poses, torch.unsqueeze(poses[idx], 0)), dim=0)
-        ordered_ks = torch.cat((ordered_ks, torch.unsqueeze(Ks[idx], 0)), dim=0)
+        ordered_idx.append(poses_indices[idx])
         poses = torch.cat((poses[0:idx], poses[idx + 1 :]), dim=0)
-        Ks = torch.cat((Ks[0:idx], Ks[idx + 1 :]), dim=0)
+        poses_indices = poses_indices[0:idx] + poses_indices[idx + 1 :]
 
-    return ordered_poses, ordered_ks
+    assert len(ordered_idx) == poses_num
+    return ordered_idx
 
 
 def get_interpolated_poses_many(
     poses: Float[Tensor, "num_poses 3 4"],
     Ks: Float[Tensor, "num_poses 3 3"],
+    widths: Shaped[Tensor, "num_poses"],
+    heights: Shaped[Tensor, "num_poses"],
+    dist_coeffs: Optional[Float[Tensor, "num_poses 6"]] = None,
     steps_per_transition: int = 10,
     order_poses: bool = False,
-) -> Tuple[Float[Tensor, "num_poses 3 4"], Float[Tensor, "num_poses 3 3"]]:
+) -> Tuple[
+    Float[Tensor, "num_poses 3 4"],
+    Float[Tensor, "num_poses 3 3"],
+    Shaped[Tensor, "num_poses"],
+    Shaped[Tensor, "num_poses"],
+    Optional[Float[Tensor, "num_poses 6"]],
+]:
     """Return interpolated poses for many camera poses.
 
     Args:
         poses: list of camera poses
         Ks: list of camera intrinsics
+        widths: list of image widths
+        heights: list of image heights
+        dist_coeffs: list of distortion coefficients
         steps_per_transition: number of steps per transition
         order_poses: whether to order poses by euclidian distance
 
@@ -263,9 +319,18 @@ def get_interpolated_poses_many(
     """
     traj = []
     k_interp = []
+    widths_interp = []
+    heights_interp = []
+    dist_coeffs_interp = []
 
     if order_poses:
-        poses, Ks = get_ordered_poses_and_k(poses, Ks)
+        pose_indices = get_ordered_pose_indices(poses)
+        poses = poses[pose_indices]
+        Ks = Ks[pose_indices]
+        widths = widths[pose_indices]
+        heights = heights[pose_indices]
+        if dist_coeffs is not None:
+            dist_coeffs = dist_coeffs[pose_indices]
 
     for idx in range(poses.shape[0] - 1):
         pose_a = poses[idx].cpu().numpy()
@@ -273,11 +338,39 @@ def get_interpolated_poses_many(
         poses_ab = get_interpolated_poses(pose_a, pose_b, steps=steps_per_transition)
         traj += poses_ab
         k_interp += get_interpolated_k(Ks[idx], Ks[idx + 1], steps=steps_per_transition)
+        widths_interp += get_interpolated_sizes(
+            int(widths[idx].item()), int(widths[idx + 1].item()), steps=steps_per_transition
+        )
+        heights_interp += get_interpolated_sizes(
+            int(heights[idx].item()), int(heights[idx + 1].item()), steps=steps_per_transition
+        )
+        if dist_coeffs is not None:
+            dist_coeffs_interp += get_interpolated_dist_coeffs(
+                dist_coeffs[idx], dist_coeffs[idx + 1], steps=steps_per_transition
+            )
 
-    traj = np.stack(traj, axis=0)
+    # add last pose
+    traj.append(poses[-1])
+    k_interp.append(Ks[-1])
+    widths_interp.append(widths[-1].item())
+    heights_interp.append(heights[-1].item())
+    if dist_coeffs is not None:
+        dist_coeffs_interp.append(dist_coeffs[-1])
+
+    traj = torch.tensor(np.stack(traj, axis=0), dtype=torch.float32)
     k_interp = torch.stack(k_interp, dim=0)
+    if dist_coeffs is not None:
+        dist_coeffs_interp = torch.stack(dist_coeffs_interp, dim=0)
+    else:
+        dist_coeffs_interp = None
 
-    return torch.tensor(traj, dtype=torch.float32), torch.tensor(k_interp, dtype=torch.float32)
+    return (
+        traj,
+        k_interp,
+        torch.tensor(widths_interp, dtype=torch.int32),
+        torch.tensor(heights_interp, dtype=torch.int32),
+        dist_coeffs_interp,
+    )
 
 
 def normalize(x: torch.Tensor) -> Float[Tensor, "*batch"]:
