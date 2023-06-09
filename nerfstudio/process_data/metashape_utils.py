@@ -68,7 +68,8 @@ def metashape_to_json(
     if sensor_type.count(sensor_type[0]) != len(sensor_type):
         raise ValueError(
             "All Metashape sensors do not have the same sensor type. "
-            "nerfstudio does support per-frame camera intrinsics, but at this current time the utility does not account for this."
+            "nerfstudio does not support per-frame camera_model types."
+            "Only one camera type can be used: frame, fisheye or spherical (perspective, fisheye or equirectangular)"
         )
     data = {}
     if sensor_type[0] == "frame":
