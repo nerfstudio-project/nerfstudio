@@ -25,6 +25,7 @@ from typing import Literal, Optional, Tuple
 import torch
 import yaml
 
+from nerfstudio.configs.method_configs import all_methods
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
@@ -86,6 +87,8 @@ def eval_setup(
     # load save config
     config = yaml.load(config_path.read_text(), Loader=yaml.Loader)
     assert isinstance(config, TrainerConfig)
+
+    config.pipeline.datamanager._target = all_methods[config.method_name].pipeline.datamanager._target
 
     if eval_num_rays_per_chunk:
         config.pipeline.model.eval_num_rays_per_chunk = eval_num_rays_per_chunk

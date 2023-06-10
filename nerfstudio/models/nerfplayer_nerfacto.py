@@ -248,11 +248,12 @@ class NerfplayerNerfactoModel(NerfactoModel):
                     outputs["rendered_pred_normal_loss"]
                 )
             if "depth_image" in batch.keys() and self.config.depth_weight > 0:
-                mask = (batch["depth_image"] != 0).view([-1])
+                depth_image = batch["depth_image"].to(self.device)
+                mask = (depth_image != 0).view([-1])
                 loss_dict["depth_loss"] = 0
 
                 def compute_depth_loss(x):
-                    return self.config.depth_weight * (x - batch["depth_image"][mask]).pow(2).mean()
+                    return self.config.depth_weight * (x - depth_image[mask]).pow(2).mean()
 
                 loss_dict["depth_loss"] = compute_depth_loss(outputs["depth"][mask])
                 for i in range(self.config.num_proposal_iterations):
