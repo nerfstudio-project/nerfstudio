@@ -21,10 +21,7 @@ from typing import Optional
 
 import torch
 from torch import nn
-from torchmetrics.functional import (
-    peak_signal_noise_ratio,
-    structural_similarity_index_measure,
-)
+from torchmetrics.functional import structural_similarity_index_measure
 from torchtyping import TensorType
 
 from nerfstudio.utils.lpips_utils import (
@@ -72,24 +69,22 @@ class PSNRModule(ImageMetricModule):
         target: TensorType["bs", 3, "H", "W"],
         mask: Optional[TensorType["bs", 1, "H", "W"]] = None,
     ) -> TensorType["bs"]:
-
         bs, h, w = preds.shape[0], preds.shape[2], preds.shape[3]
         hw = h * w
 
-        psnr_image = peak_signal_noise_ratio(preds=preds, target=target, reduction="none", data_range=1.0, dim=1)
-        assert psnr_image.shape == (bs, h, w)
-
+        preds_reshaped = preds.view(bs, 3, hw)
+        target_reshaped = target.view(bs, 3, hw)
+        num = (preds_reshaped - target_reshaped) ** 2
         # the non-masked version
         if mask is None:
-            psnr = psnr_image.view(bs, hw).mean(1)
-            return psnr
-
-        # the masked version
-        psnr_reshaped = psnr_image.view(bs, hw)
-        psnr_reshaped = torch.nan_to_num(psnr_reshaped, nan=0.0, posinf=0.0, neginf=0.0)
-        mask_reshaped = mask.view(bs, hw)
-        den = mask_reshaped.sum(-1, keepdim=True)
-        psnr = (psnr_reshaped * mask_reshaped / den).sum(-1)
+            den = hw
+        else:
+            mask_reshaped = mask.view(bs, 1, hw)
+            num = num * mask_reshaped
+            den = mask_reshaped.sum(-1)
+        mse = num.sum(-1) / den
+        psnr = 10 * torch.log10(1.0 / mse)
+        psnr = psnr.mean(-1)
         return psnr
 
 
@@ -102,7 +97,6 @@ class SSIMModule(ImageMetricModule):
         target: TensorType["bs", 3, "H", "W"],
         mask: Optional[TensorType["bs", 1, "H", "W"]] = None,
     ) -> TensorType["bs"]:
-
         bs, h, w = preds.shape[0], preds.shape[2], preds.shape[3]
         hw = h * w
 
@@ -138,7 +132,6 @@ class LPIPSModule(ImageMetricModule):
         target: TensorType["bs", 3, "H", "W"],
         mask: Optional[TensorType["bs", 1, "H", "W"]] = None,
     ) -> TensorType["bs"]:
-
         bs, h, w = preds.shape[0], preds.shape[2], preds.shape[3]
         hw = h * w
 
