@@ -226,9 +226,10 @@ class NerfplayerNGPModel(NGPModel):
         rgb_loss = self.rgb_loss(image, outputs["rgb"])
         loss_dict = {"rgb_loss": rgb_loss}
         if "depth_image" in batch.keys() and self.config.depth_weight > 0 and self.training:
-            mask = batch["depth_image"] != 0
+            depth_image = batch["depth_image"].to(self.device)
+            mask = depth_image != 0
             # First we calculate the depth value, just like most of the papers.
-            loss_dict["depth_loss"] = (outputs["depth"][mask] - batch["depth_image"][mask]).abs().mean()
+            loss_dict["depth_loss"] = (outputs["depth"][mask] - depth_image[mask]).abs().mean()
             # But this is not enough -- it will lead to fog like reconstructions, even with depth supervision.
             # Because this loss only cares about the mean value.
             # (Feel free to try it and see the fog-like effects on DyCheck by commenting out the following loss.)
@@ -244,7 +245,7 @@ class NerfplayerNGPModel(NGPModel):
             # "clear" loss (as it is directly applied to the network outputs, rather than post-processed values).
             # But such a loss also has drawbacks: it tends to overfit wrong (or noise) presented in the depth map.
             # Some structures are floating in the air with this loss...
-            gt_depth_packed = batch["depth_image"][outputs["ray_indices"]]
+            gt_depth_packed = depth_image[outputs["ray_indices"]]
             steps = (outputs["ray_samples"].frustums.starts + outputs["ray_samples"].frustums.ends) / 2
             # empty area should not be too close to the given depth, so lets add a margin to the gt depth
             margin = (self.scene_box.aabb.max() - self.scene_box.aabb.min()) / 128
