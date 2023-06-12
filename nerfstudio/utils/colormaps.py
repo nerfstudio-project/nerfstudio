@@ -24,7 +24,7 @@ from torch import Tensor
 
 from nerfstudio.utils import colors
 
-Colormaps = Literal["default", "turbo", "viridis", "magma", "inferno", "cividis", "gray"]
+Colormaps = Literal["default", "turbo", "viridis", "magma", "inferno", "cividis", "gray", "pca"]
 
 
 @dataclass(frozen=True)
