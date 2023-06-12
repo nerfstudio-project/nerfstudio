@@ -560,3 +560,16 @@ def scale_gradients_by_distance_squared(
     for key, value in field_outputs.items():
         out[key], _ = cast(Tuple[Tensor, Tensor], _GradientScaler.apply(value, scaling))
     return out
+
+
+def depth_ranking_loss(rendered_depth, gt_depth):
+    """
+    Depth ranking loss as described in the SparseNeRF paper
+    Assumes that the layout of the batch comes from a PairPixelSampler, so that adjacent samples in the gt_depth 
+    and rendered_depth are from pixels with a radius of each other
+    """
+    m = 1e-4
+    dpt_diff = gt_depth[::2, :] - gt_depth[1::2, :]
+    out_diff = rendered_depth[::2, :] - rendered_depth[1::2, :] + m
+    differing_signs = torch.sign(dpt_diff) != torch.sign(out_diff)
+    return torch.nanmean((out_diff[differing_signs] * torch.sign(out_diff[differing_signs])))

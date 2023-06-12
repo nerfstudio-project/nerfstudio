@@ -45,6 +45,8 @@ from nerfstudio.model_components.losses import (
     orientation_loss,
     pred_normal_loss,
     scale_gradients_by_distance_squared,
+    depth_ranking_loss,
+
 )
 from nerfstudio.model_components.ray_samplers import (
     ProposalNetworkSampler,
@@ -223,7 +225,8 @@ class NerfactoModel(Model):
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
         self.renderer_accumulation = AccumulationRenderer()
-        self.renderer_depth = DepthRenderer()
+        self.renderer_depth = DepthRenderer('expected')
+        self.renderer_depth_med = DepthRenderer()
         self.renderer_normals = NormalsRenderer()
 
         # shaders
@@ -236,6 +239,8 @@ class NerfactoModel(Model):
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
+        self.step=0
+
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
@@ -254,6 +259,8 @@ class NerfactoModel(Model):
             def set_anneal(step):
                 # https://arxiv.org/pdf/2111.12077.pdf eq. 18
                 train_frac = np.clip(step / N, 0, 1)
+                self.step=step
+
 
                 def bias(x, b):
                     return b * x / ((b - 1) * x + 1)
@@ -290,12 +297,15 @@ class NerfactoModel(Model):
 
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
+        with torch.no_grad():
+            depth_med = self.renderer_depth_med(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 
         outputs = {
             "rgb": rgb,
             "accumulation": accumulation,
             "depth": depth,
+            "depth_med": depth_med,
         }
 
         if self.config.predict_normals:
@@ -352,6 +362,9 @@ class NerfactoModel(Model):
                 loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
                     outputs["rendered_pred_normal_loss"]
                 )
+            
+            if 'depth_image' in batch and self.step>=500:
+                loss_dict['depth_ranking'] = np.interp(self.step,[500,1000],[0,.2])*depth_ranking_loss(outputs['depth'],batch['depth_image'])
         return loss_dict
 
     def get_image_metrics_and_images(
