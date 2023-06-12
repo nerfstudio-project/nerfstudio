@@ -125,7 +125,7 @@ class NerfactoField(Field):
         )
 
         # if implementation--torch, then use torch.nn.Sequential
-        # if implementation==tcnn, then use efficient encoding+MLP combo when using tcnn
+        # if implementation==tcnn, then use efficient encoding+MLP combo
         self.mlp_base = EncoderAndMLP(
             in_dim=3,
             encoder_type=HashEncoding,
