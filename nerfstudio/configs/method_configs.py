@@ -459,7 +459,7 @@ method_configs["generfacto"] = TrainerConfig(
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=RandomCamerasDataManagerConfig(
-            horizontal_rotation_warmup=2000,
+            horizontal_rotation_warmup=1000,
         ),
         model=GenerfactoModelConfig(
             eval_num_rays_per_chunk=1 << 15,
@@ -468,6 +468,7 @@ method_configs["generfacto"] = TrainerConfig(
             max_res=256,
             sphere_collider=True,
             initialize_density=True,
+            taper_range=(0, 5000),
             random_background=True,
             proposal_warmup=500,
             proposal_update_every=0,
@@ -483,13 +484,14 @@ method_configs["generfacto"] = TrainerConfig(
         "proposal_networks": {
             "optimizer": AdamOptimizerConfig(lr=5e-3, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
-                warmup_steps=4000, lr_final=5e-7, max_steps=20000, ramp="linear"
+                warmup_steps=3000, lr_final=5e-6, max_steps=30000, ramp="linear"
             ),
         },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=5e-3, eps=1e-15),
+            # "scheduler": None,
             "scheduler": ExponentialDecaySchedulerConfig(
-                warmup_steps=4000, lr_final=5e-7, max_steps=20000, ramp="linear"
+                warmup_steps=2000, lr_final=5e-6, max_steps=30000, ramp="linear"
             ),
         },
     },

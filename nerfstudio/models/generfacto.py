@@ -66,15 +66,13 @@ class GenerfactoModelConfig(ModelConfig):
 
     _target: Type = field(default_factory=lambda: GenerfactoModel)
     """target class to instantiate"""
-    prompt: str = "a high quality zoomed out photo of an orange tabby cat sitting on a box"
+    prompt: str = "a high quality photo of a ripe pineapple"
     """prompt for stable dreamfusion"""
 
-    orientation_loss_mult: Tuple[float, float] = (0.01, 100.0)
+    orientation_loss_mult: Tuple[float, float] = (0.0001, 1.0)
     """Orientation loss multipier on computed normals."""
-    orientation_loss_mult_end: int = 10000
+    orientation_loss_mult_range: int = (5000, 15000)
     """number of iterations to reach last orientation_loss_mult value"""
-    pred_normal_loss_mult: float = 0.001
-    """Predicted normal loss multiplier."""
     random_light_source: bool = True
     """Randomizes light source per output."""
     initialize_density: bool = True
@@ -298,8 +296,8 @@ class GenerfactoModel(Model):
             else:
                 self.orientation_loss_mult = np.interp(
                     step,
+                    self.config.orientation_loss_mult_range,
                     self.config.orientation_loss_mult,
-                    (self.config.start_normals_training, self.config.orientation_loss_mult_end),
                 )
 
         # anneal the weights of the proposal network before doing PDF sampling

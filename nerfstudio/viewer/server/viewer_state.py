@@ -93,7 +93,10 @@ class ViewerState:
         self.train_lock = train_lock
         self.pipeline = pipeline
         self.log_filename = log_filename
-        self.datapath = datapath.parent if datapath.is_file() else datapath
+        if datapath is None:
+            self.datapath = None
+        else:
+            self.datapath = datapath.parent if datapath.is_file() else datapath
 
         if self.config.websocket_port is None:
             websocket_port = viewer_utils.get_free_port(default_port=self.config.websocket_port_default)
