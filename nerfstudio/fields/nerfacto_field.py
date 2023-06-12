@@ -35,7 +35,7 @@ from nerfstudio.field_components.field_heads import (
     TransientRGBFieldHead,
     UncertaintyFieldHead,
 )
-from nerfstudio.field_components.mlp import MLP
+from nerfstudio.field_components.mlp import MLP, EncoderAndMLP
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
 
@@ -124,24 +124,27 @@ class NerfactoField(Field):
             in_dim=3, num_frequencies=2, min_freq_exp=0, max_freq_exp=2 - 1, implementation=implementation
         )
 
-        encoder = HashEncoding(
-            num_levels=num_levels,
-            min_res=base_res,
-            max_res=max_res,
-            log2_hashmap_size=log2_hashmap_size,
-            features_per_level=features_per_level,
+        # if implementation--torch, then use torch.nn.Sequential
+        # if implementation==tcnn, then use efficient encoding+MLP combo when using tcnn
+        self.mlp_base = EncoderAndMLP(
+            in_dim=3,
+            encoder_type=HashEncoding,
+            encoder_params={
+                "num_levels": num_levels,
+                "min_res": base_res,
+                "max_res": max_res,
+                "log2_hashmap_size": log2_hashmap_size,
+                "features_per_level": features_per_level,
+            },
+            mlp_params={
+                "num_layers": num_layers,
+                "layer_width": hidden_dim,
+                "out_dim": 1 + self.geo_feat_dim,
+                "activation": nn.ReLU(),
+                "out_activation": None,
+            },
             implementation=implementation,
         )
-        network = MLP(
-            in_dim=encoder.get_out_dim(),
-            num_layers=num_layers,
-            layer_width=hidden_dim,
-            out_dim=1 + self.geo_feat_dim,
-            activation=nn.ReLU(),
-            out_activation=None,
-            implementation=implementation,
-        )
-        self.mlp_base = torch.nn.Sequential(encoder, network)
 
         # transients
         if self.use_transient_embedding:

@@ -15,7 +15,7 @@
 """
 Multi Layer Perceptron
 """
-from typing import Literal, Optional, Set, Tuple, Union
+from typing import Any, Dict, Literal, Optional, Set, Tuple, Type, Union
 
 import torch
 from jaxtyping import Float
@@ -23,6 +23,7 @@ from torch import Tensor, nn
 
 from nerfstudio.field_components.base_field_component import FieldComponent
 from nerfstudio.utils.printing import print_tcnn_speed_warning
+from nerfstudio.field_components.encodings import Encoding
 
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -102,37 +103,40 @@ class MLP(FieldComponent):
             self.build_nn_modules()
         elif implementation == "tcnn" and not TCNN_EXISTS:
             print_tcnn_speed_warning("MLP")
+            self.build_nn_modules()
         elif implementation == "tcnn":
-            activation_str = activation_to_tcnn_string(activation)
-            output_activation_str = activation_to_tcnn_string(out_activation)
-            if layer_width in [16, 32, 64, 128]:
-                network_config = {
-                    "otype": "FullyFusedMLP",
-                    "activation": activation_str,
-                    "output_activation": output_activation_str,
-                    "n_neurons": layer_width,
-                    "n_hidden_layers": num_layers - 1,
-                }
-            else:
-                CONSOLE.line()
-                CONSOLE.print("[bold yellow]WARNING: Using slower TCNN CutlassMLP instead of TCNN FullyFusedMLP")
-                CONSOLE.print(
-                    "[bold yellow]Use layer width of 16, 32, 64, or 128 to use the faster TCNN FullyFusedMLP."
-                )
-                CONSOLE.line()
-                network_config = {
-                    "otype": "CutlassMLP",
-                    "activation": activation_str,
-                    "output_activation": output_activation_str,
-                    "n_neurons": layer_width,
-                    "n_hidden_layers": num_layers - 1,
-                }
-
+            network_config = self.get_tcnn_network_config()
             self.tcnn_encoding = tcnn.Network(
                 n_input_dims=in_dim,
                 n_output_dims=out_dim,
                 network_config=network_config,
             )
+
+    def get_tcnn_network_config(self) -> dict:
+        """Get the network configuration for tcnn is implemented"""
+        activation_str = activation_to_tcnn_string(self.activation)
+        output_activation_str = activation_to_tcnn_string(self.out_activation)
+        if self.layer_width in [16, 32, 64, 128]:
+            network_config = {
+                "otype": "FullyFusedMLP",
+                "activation": activation_str,
+                "output_activation": output_activation_str,
+                "n_neurons": self.layer_width,
+                "n_hidden_layers": self.num_layers - 1,
+            }
+        else:
+            CONSOLE.line()
+            CONSOLE.print("[bold yellow]WARNING: Using slower TCNN CutlassMLP instead of TCNN FullyFusedMLP")
+            CONSOLE.print("[bold yellow]Use layer width of 16, 32, 64, or 128 to use the faster TCNN FullyFusedMLP.")
+            CONSOLE.line()
+            network_config = {
+                "otype": "CutlassMLP",
+                "activation": activation_str,
+                "output_activation": output_activation_str,
+                "n_neurons": self.layer_width,
+                "n_hidden_layers": self.num_layers - 1,
+            }
+        return network_config
 
     def build_nn_modules(self) -> None:
         """Initialize multi-layer perceptron."""
@@ -176,3 +180,51 @@ class MLP(FieldComponent):
         if self.tcnn_encoding is not None:
             return self.tcnn_encoding(in_tensor)
         return self.pytorch_fwd(in_tensor)
+
+
+class EncoderAndMLP(FieldComponent):
+    """Multilayer perceptron with encoding
+
+    Args:
+        in_dim: Input layer dimension
+        encoder_type: Type of encoder to use
+        encoder_params: Parameters for encoder
+        mlp_params: Parameters for MLP
+        implementation: Implementation to use, either "tcnn" or "torch. Don't set these in the params dicts.
+    """
+
+    def __init__(
+        self,
+        in_dim: int,
+        encoder_type: Type[Encoding],
+        encoder_params: Dict[str, Any],
+        mlp_params: Dict[str, Any],
+        implementation: Literal["tcnn", "torch"] = "torch",
+    ) -> None:
+        super().__init__()
+        self.in_dim = in_dim
+        assert self.in_dim > 0
+
+        # check if encoder_type has implementation. if so, set it
+        if hasattr(encoder_type, "implementation"):
+            assert (
+                "implementation" not in encoder_params
+            ), "Implementation should be set in in EncoderAndMLP, not Encoder"
+            encoder_params["implementation"] = implementation
+        encoder = encoder_type(**encoder_params)
+        assert "implementation" not in mlp_params, "Implementation should be set in in EncoderAndMLP, not MLP"
+        mlp = MLP(in_dim=encoder.get_out_dim(), **mlp_params, implementation=implementation)
+
+        self.tcnn_encoding = None
+        if implementation == "torch":
+            self.model = torch.nn.Sequential(encoder, mlp)
+        elif implementation == "tcnn" and not TCNN_EXISTS:
+            print_tcnn_speed_warning("MLP")
+            self.model = torch.nn.Sequential(encoder, mlp)
+        elif implementation == "tcnn":
+            encoding_config = encoder.get_tcnn_encoding_config()
+            mlp_config = mlp.get_tcnn_network_config()
+            self.model = tcnn.NetworkWithInputEncoding(self.in_dim, mlp.out_dim, encoding_config, mlp_config)
+
+    def forward(self, in_tensor: Float[Tensor, "*bs in_dim"]) -> Float[Tensor, "*bs out_dim"]:
+        return self.model(in_tensor)
