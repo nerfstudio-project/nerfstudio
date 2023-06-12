@@ -44,6 +44,7 @@ class DepthDataset(InputDataset):
     def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0):
         super().__init__(dataparser_outputs, scale_factor)
         #if there are no depth images than we want to generate them all with zoe depth
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         if len(dataparser_outputs.image_filenames) > 0 and ("depth_filenames" not in dataparser_outputs.metadata.keys() or dataparser_outputs.metadata["depth_filenames"] is None):
             depth_paths = []
             tranforms = self._find_transform(dataparser_outputs.image_filenames[0])
@@ -53,7 +54,8 @@ class DepthDataset(InputDataset):
             filenames = [data / frames[j]['file_path'].split('/')[-1] for j in range(len(frames))]
             os.makedirs(dataparser_outputs.image_filenames[0].parent / "depth", exist_ok=True)
             repo = "isl-org/ZoeDepth"
-            self.zoe = torch.compile(torch.hub.load(repo, "ZoeD_NK", pretrained=True).cuda())
+            self.zoe = torch.compile(torch.hub.load(repo, "ZoeD_NK", pretrained=True).to(device))
+
 
             for i in track(range(len(filenames)), description="Generating depth images"):
                 image_filename = filenames[i]
@@ -63,9 +65,8 @@ class DepthDataset(InputDataset):
                     image = image[:, :, None].repeat(3, axis=2)
                 image = torch.from_numpy(image.astype("float32") / 255.0)
 
-                #BAD: FIX BY FINDING DEVICE
                 with torch.no_grad():
-                    image = torch.permute(image, (2, 0, 1)).unsqueeze(0).cuda()
+                    image = torch.permute(image, (2, 0, 1)).unsqueeze(0).to(device)
                     depth_numpy = self.zoe.infer(image).squeeze().unsqueeze(-1).cpu().numpy()
                     
                 depth_paths.append(image_filename.parent / "depth" / f"depth{i}.npy")
