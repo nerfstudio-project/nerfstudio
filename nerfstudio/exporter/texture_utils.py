@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,35 +16,31 @@
 Texture utils.
 """
 
-# pylint: disable=no-member
 
 from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Literal, Optional, Tuple, Union
 
 import mediapy as media
 import numpy as np
 import torch
 import xatlas
-from rich.console import Console
-from torchtyping import TensorType
-from typing_extensions import Literal
+from jaxtyping import Float
+from torch import Tensor
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.exporter.exporter_utils import Mesh
 from nerfstudio.pipelines.base_pipeline import Pipeline
-from nerfstudio.utils.rich_utils import get_progress
+from nerfstudio.utils.rich_utils import CONSOLE, get_progress
 
-CONSOLE = Console(width=120)
-
-TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
+TORCH_DEVICE = Union[torch.device, str]
 
 
 def get_parallelogram_area(
-    p: TensorType["bs":..., 2], v0: TensorType["bs":..., 2], v1: TensorType["bs":..., 2]
-) -> TensorType["bs":...]:
+    p: Float[Tensor, "*bs 2"], v0: Float[Tensor, "*bs 2"], v1: Float[Tensor, "*bs 2"]
+) -> Float[Tensor, "*bs"]:
     """Given three 2D points, return the area defined by the parallelogram. I.e., 2x the triangle area.
 
     Args:
@@ -60,7 +56,7 @@ def get_parallelogram_area(
 
 def get_texture_image(
     num_pixels_w: int, num_pixels_h: int, device: TORCH_DEVICE
-) -> Tuple[TensorType["num_pixels_h", "num_pixels_w", 2], TensorType["num_pixels_h", "num_pixels_w", 2]]:
+) -> Tuple[Float[Tensor, "num_pixels_h num_pixels_w 2"], Float[Tensor, "num_pixels_h num_pixels_w 2"]]:
     """Get a texture image."""
     px_w = 1.0 / num_pixels_w
     px_h = 1.0 / num_pixels_h
@@ -80,14 +76,14 @@ def get_texture_image(
 
 
 def unwrap_mesh_per_uv_triangle(
-    vertices: TensorType["num_verts", 3],
-    faces: TensorType["num_faces", 3],
-    vertex_normals: TensorType["num_verts", 3],
+    vertices: Float[Tensor, "num_verts 3"],
+    faces: Float[Tensor, "num_faces 3"],
+    vertex_normals: Float[Tensor, "num_verts 3"],
     px_per_uv_triangle: int,
 ) -> Tuple[
-    TensorType["num_faces", 3, 2],
-    TensorType["num_pixels", "num_pixels", 3],
-    TensorType["num_pixels", "num_pixels", "num_pixels"],
+    Float[Tensor, "num_faces 3 2"],
+    Float[Tensor, "num_pixels num_pixels 3"],
+    Float[Tensor, "num_pixels num_pixels num_pixels"],
 ]:
     """Unwrap a mesh to a UV texture. This is done by making a grid of rectangles in the UV texture map
     and then having two triangles per rectangle. Then the texture image is rasterized and uses barycentric
@@ -99,8 +95,6 @@ def unwrap_mesh_per_uv_triangle(
         vertex_normals: The vertex normals of the mesh.
         px_per_uv_triangle: The number of pixels per UV triangle.
     """
-
-    # pylint: disable=too-many-statements
 
     assert len(vertices) == len(vertex_normals), "Number of vertices and vertex normals must be equal"
     device = vertices.device
@@ -216,15 +210,15 @@ def unwrap_mesh_per_uv_triangle(
 
 
 def unwrap_mesh_with_xatlas(
-    vertices: TensorType["num_verts", 3],
-    faces: TensorType["num_faces", 3, torch.long],
-    vertex_normals: TensorType["num_verts", 3],
+    vertices: Float[Tensor, "num_verts 3"],
+    faces: Float[Tensor, "num_faces 3 torch.long"],
+    vertex_normals: Float[Tensor, "num_verts 3"],
     num_pixels_per_side=1024,
     num_faces_per_barycentric_chunk=10,
 ) -> Tuple[
-    TensorType["num_faces", 3, 2],
-    TensorType["num_pixels", "num_pixels", 3],
-    TensorType["num_pixels", "num_pixels", "num_pixels"],
+    Float[Tensor, "num_faces 3 2"],
+    Float[Tensor, "num_pixels num_pixels 3"],
+    Float[Tensor, "num_pixels num_pixels num_pixels"],
 ]:
     """Unwrap a mesh using xatlas. We use xatlas to unwrap the mesh with UV coordinates.
     Then we rasterize the mesh with a square pattern. We interpolate the XYZ and normal
@@ -244,18 +238,13 @@ def unwrap_mesh_with_xatlas(
         directions: Tensor of directions for every pixel.
     """
 
-    # pylint: disable=unused-variable
-    # pylint: disable=too-many-statements
-
     device = vertices.device
 
     # unwrap the mesh
     vertices_np = vertices.cpu().numpy()
     faces_np = faces.cpu().numpy()
     vertex_normals_np = vertex_normals.cpu().cpu().numpy()
-    vmapping, indices, uvs = xatlas.parametrize(  # pylint: disable=c-extension-no-member
-        vertices_np, faces_np, vertex_normals_np
-    )
+    vmapping, indices, uvs = xatlas.parametrize(vertices_np, faces_np, vertex_normals_np)
 
     # vertices texture coordinates
     vertices_tc = torch.from_numpy(uvs.astype(np.float32)).to(device)
@@ -335,7 +324,7 @@ def export_textured_mesh(
     mesh: Mesh,
     pipeline: Pipeline,
     output_dir: Path,
-    px_per_uv_triangle: Optional[int] = None,
+    px_per_uv_triangle: Optional[int],
     unwrap_method: Literal["xatlas", "custom"] = "xatlas",
     raylen_method: Literal["edge", "none"] = "edge",
     num_pixels_per_side=1024,
@@ -349,13 +338,11 @@ def export_textured_mesh(
         mesh: The mesh to texture.
         pipeline: The pipeline to use for texturing.
         output_dir: The directory to write the textured mesh to.
-        px_per_uv_triangle: The number of pixels per side of UV triangle.
+        px_per_uv_triangle: The number of pixels per side of UV triangle. Required for "custom" unwrapping.
         unwrap_method: The method to use for unwrapping the mesh.
         offset_method: The method to use for computing the ray length to render.
         num_pixels_per_side: The number of pixels per side of the texture image.
     """
-
-    # pylint: disable=too-many-statements
 
     device = pipeline.device
 
@@ -376,6 +363,7 @@ def export_textured_mesh(
         CONSOLE.print("[bold green]:white_check_mark: Unwrapped mesh with xatlas method")
     elif unwrap_method == "custom":
         CONSOLE.print("Unwrapping mesh with custom method...")
+        assert px_per_uv_triangle is not None
         texture_coordinates, origins, directions = unwrap_mesh_per_uv_triangle(
             vertices, faces, vertex_normals, px_per_uv_triangle
         )
@@ -401,6 +389,7 @@ def export_textured_mesh(
     camera_indices = torch.zeros_like(origins[..., 0:1])
     nears = torch.zeros_like(origins[..., 0:1])
     fars = torch.ones_like(origins[..., 0:1]) * raylen
+    directions_norm = torch.ones_like(origins[..., 0:1])  # for surface model
     camera_ray_bundle = RayBundle(
         origins=origins,
         directions=directions,
@@ -408,6 +397,7 @@ def export_textured_mesh(
         camera_indices=camera_indices,
         nears=nears,
         fars=fars,
+        metadata={"directions_norm": directions_norm},
     )
 
     CONSOLE.print("Creating texture image by rendering with NeRF...")
@@ -432,14 +422,14 @@ def export_textured_mesh(
         "map_Kd material_0.png",
     ]
     lines_mtl = [line + "\n" for line in lines_mtl]
-    file_mtl = open(output_dir / "material_0.mtl", "w", encoding="utf-8")  # pylint: disable=consider-using-with
+    file_mtl = open(output_dir / "material_0.mtl", "w", encoding="utf-8")
     file_mtl.writelines(lines_mtl)
     file_mtl.close()
 
     # create the .obj file
     lines_obj = ["# Generated with nerfstudio", "mtllib material_0.mtl", "usemtl material_0"]
     lines_obj = [line + "\n" for line in lines_obj]
-    file_obj = open(output_dir / "mesh.obj", "w", encoding="utf-8")  # pylint: disable=consider-using-with
+    file_obj = open(output_dir / "mesh.obj", "w", encoding="utf-8")
     file_obj.writelines(lines_obj)
 
     # write the geometric vertices

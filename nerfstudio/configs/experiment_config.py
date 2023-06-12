@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,11 +19,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 import yaml
-from rich.console import Console
-from typing_extensions import Literal
 
 from nerfstudio.configs.base_config import (
     InstantiateConfig,
@@ -35,8 +33,7 @@ from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.engine.optimizers import OptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 @dataclass
@@ -50,6 +47,8 @@ class ExperimentConfig(InstantiateConfig):
     """Method name. Required to set in python or via cli"""
     experiment_name: Optional[str] = None
     """Experiment name. If None, will automatically be set to dataset name"""
+    project_name: Optional[str] = "nerfstudio-project"
+    """Project name."""
     timestamp: str = "{timestamp}"
     """Experiment timestamp."""
     machine: MachineConfig = MachineConfig()
@@ -69,7 +68,7 @@ class ExperimentConfig(InstantiateConfig):
         }
     )
     """Dictionary of optimizer groups and their schedulers"""
-    vis: Literal["viewer", "wandb", "tensorboard", "viewer+wandb", "viewer+tensorboard"] = "wandb"
+    vis: Literal["viewer", "wandb", "tensorboard", "viewer+wandb", "viewer+tensorboard", "viewer_beta"] = "wandb"
     """Which visualizer to use."""
     data: Optional[Path] = None
     """Alias for --pipeline.datamanager.data"""
@@ -79,6 +78,10 @@ class ExperimentConfig(InstantiateConfig):
     def is_viewer_enabled(self) -> bool:
         """Checks if a viewer is enabled."""
         return ("viewer" == self.vis) | ("viewer+wandb" == self.vis) | ("viewer+tensorboard" == self.vis)
+
+    def is_viewer_beta_enabled(self) -> bool:
+        """Checks if a viewer beta is enabled."""
+        return "viewer_beta" == self.vis
 
     def is_wandb_enabled(self) -> bool:
         """Checks if wandb is enabled."""

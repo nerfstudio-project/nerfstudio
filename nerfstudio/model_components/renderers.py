@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,25 +28,25 @@ Example:
 """
 import contextlib
 import math
-from typing import Generator, Optional, Union
+from typing import Generator, Literal, Optional, Union
 
 import nerfacc
 import torch
-from torch import nn
-from torchtyping import TensorType
-from typing_extensions import Literal
+from jaxtyping import Float, Int
+from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.utils import colors
 from nerfstudio.utils.math import components_from_spherical_harmonics, safe_normalize
 
-BACKGROUND_COLOR_OVERRIDE: Optional[TensorType[3]] = None
+BackgroundColor = Union[Literal["random", "last_sample", "black", "white"], Float[Tensor, "3"]]
+BACKGROUND_COLOR_OVERRIDE: Optional[Float[Tensor, "3"]] = None
 
 
 @contextlib.contextmanager
-def background_color_override_context(mode: TensorType[3]) -> Generator[None, None, None]:
+def background_color_override_context(mode: Float[Tensor, "3"]) -> Generator[None, None, None]:
     """Context manager for setting background mode."""
-    global BACKGROUND_COLOR_OVERRIDE  # pylint: disable=global-statement
+    global BACKGROUND_COLOR_OVERRIDE
     old_background_color = BACKGROUND_COLOR_OVERRIDE
     try:
         BACKGROUND_COLOR_OVERRIDE = mode
@@ -62,19 +62,19 @@ class RGBRenderer(nn.Module):
         background_color: Background color as RGB. Uses random colors if None.
     """
 
-    def __init__(self, background_color: Union[Literal["random", "last_sample"], TensorType[3]] = "random") -> None:
+    def __init__(self, background_color: BackgroundColor = "random") -> None:
         super().__init__()
-        self.background_color = background_color
+        self.background_color: BackgroundColor = background_color
 
     @classmethod
     def combine_rgb(
         cls,
-        rgb: TensorType["bs":..., "num_samples", 3],
-        weights: TensorType["bs":..., "num_samples", 1],
-        background_color: Union[Literal["random", "white", "black", "last_sample"], TensorType[3]] = "random",
-        ray_indices: Optional[TensorType["num_samples"]] = None,
+        rgb: Float[Tensor, "*bs num_samples 3"],
+        weights: Float[Tensor, "*bs num_samples 1"],
+        background_color: BackgroundColor = "random",
+        ray_indices: Optional[Int[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
-    ) -> TensorType["bs":..., 3]:
+    ) -> Float[Tensor, "*bs 3"]:
         """Composite samples along ray and render color image
 
         Args:
@@ -91,8 +91,12 @@ class RGBRenderer(nn.Module):
             # Necessary for packed samples from volumetric ray sampler
             if background_color == "last_sample":
                 raise NotImplementedError("Background color 'last_sample' not implemented for packed samples.")
-            comp_rgb = nerfacc.accumulate_along_rays(weights, ray_indices, rgb, num_rays)
-            accumulated_weight = nerfacc.accumulate_along_rays(weights, ray_indices, None, num_rays)
+            comp_rgb = nerfacc.accumulate_along_rays(
+                weights[..., 0], values=rgb, ray_indices=ray_indices, n_rays=num_rays
+            )
+            accumulated_weight = nerfacc.accumulate_along_rays(
+                weights[..., 0], values=None, ray_indices=ray_indices, n_rays=num_rays
+            )
         else:
             comp_rgb = torch.sum(weights * rgb, dim=-2)
             accumulated_weight = torch.sum(weights, dim=-2)
@@ -113,11 +117,11 @@ class RGBRenderer(nn.Module):
 
     def forward(
         self,
-        rgb: TensorType["bs":..., "num_samples", 3],
-        weights: TensorType["bs":..., "num_samples", 1],
-        ray_indices: Optional[TensorType["num_samples"]] = None,
+        rgb: Float[Tensor, "*bs num_samples 3"],
+        weights: Float[Tensor, "*bs num_samples 1"],
+        ray_indices: Optional[Int[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
-    ) -> TensorType["bs":..., 3]:
+    ) -> Float[Tensor, "*bs 3"]:
         """Composite samples along ray and render color image
 
         Args:
@@ -150,19 +154,19 @@ class SHRenderer(nn.Module):
 
     def __init__(
         self,
-        background_color: Union[Literal["random", "last_sample"], TensorType[3]] = "random",
+        background_color: BackgroundColor = "random",
         activation: Optional[nn.Module] = nn.Sigmoid(),
     ) -> None:
         super().__init__()
-        self.background_color = background_color
+        self.background_color: BackgroundColor = background_color
         self.activation = activation
 
     def forward(
         self,
-        sh: TensorType[..., "num_samples", "coeffs"],
-        directions: TensorType[..., "num_samples", 3],
-        weights: TensorType[..., "num_samples", 1],
-    ) -> TensorType[..., 3]:
+        sh: Float[Tensor, "*batch num_samples coeffs"],
+        directions: Float[Tensor, "*batch num_samples 3"],
+        weights: Float[Tensor, "*batch num_samples 1"],
+    ) -> Float[Tensor, "*batch 3"]:
         """Composite samples along ray and render color image
 
         Args:
@@ -180,7 +184,7 @@ class SHRenderer(nn.Module):
         components = components_from_spherical_harmonics(levels=levels, directions=directions)
 
         rgb = sh * components[..., None, :]  # [..., num_samples, 3, sh_components]
-        rgb = torch.sum(sh, dim=-1) + 0.5  # [..., num_samples, 3]
+        rgb = torch.sum(rgb, dim=-1)  # [..., num_samples, 3]
 
         if self.activation is not None:
             rgb = self.activation(rgb)
@@ -200,10 +204,10 @@ class AccumulationRenderer(nn.Module):
     @classmethod
     def forward(
         cls,
-        weights: TensorType["bs":..., "num_samples", 1],
-        ray_indices: Optional[TensorType["num_samples"]] = None,
+        weights: Float[Tensor, "*bs num_samples 1"],
+        ray_indices: Optional[Int[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
-    ) -> TensorType["bs":..., 1]:
+    ) -> Float[Tensor, "*bs 1"]:
         """Composite samples along ray and calculate accumulation.
 
         Args:
@@ -217,7 +221,9 @@ class AccumulationRenderer(nn.Module):
 
         if ray_indices is not None and num_rays is not None:
             # Necessary for packed samples from volumetric ray sampler
-            accumulation = nerfacc.accumulate_along_rays(weights, ray_indices, None, num_rays)
+            accumulation = nerfacc.accumulate_along_rays(
+                weights[..., 0], values=None, ray_indices=ray_indices, n_rays=num_rays
+            )
         else:
             accumulation = torch.sum(weights, dim=-2)
         return accumulation
@@ -240,11 +246,11 @@ class DepthRenderer(nn.Module):
 
     def forward(
         self,
-        weights: TensorType[..., "num_samples", 1],
+        weights: Float[Tensor, "*batch num_samples 1"],
         ray_samples: RaySamples,
-        ray_indices: Optional[TensorType["num_samples"]] = None,
+        ray_indices: Optional[Int[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
-    ) -> TensorType[..., 1]:
+    ) -> Float[Tensor, "*batch 1"]:
         """Composite samples along ray and calculate depths.
 
         Args:
@@ -274,8 +280,12 @@ class DepthRenderer(nn.Module):
 
             if ray_indices is not None and num_rays is not None:
                 # Necessary for packed samples from volumetric ray sampler
-                depth = nerfacc.accumulate_along_rays(weights, ray_indices, steps, num_rays)
-                accumulation = nerfacc.accumulate_along_rays(weights, ray_indices, None, num_rays)
+                depth = nerfacc.accumulate_along_rays(
+                    weights[..., 0], values=steps, ray_indices=ray_indices, n_rays=num_rays
+                )
+                accumulation = nerfacc.accumulate_along_rays(
+                    weights[..., 0], values=None, ray_indices=ray_indices, n_rays=num_rays
+                )
                 depth = depth / (accumulation + eps)
             else:
                 depth = torch.sum(weights * steps, dim=-2) / (torch.sum(weights, -2) + eps)
@@ -292,8 +302,8 @@ class UncertaintyRenderer(nn.Module):
 
     @classmethod
     def forward(
-        cls, betas: TensorType["bs":..., "num_samples", 1], weights: TensorType["bs":..., "num_samples", 1]
-    ) -> TensorType["bs":..., 1]:
+        cls, betas: Float[Tensor, "*bs num_samples 1"], weights: Float[Tensor, "*bs num_samples 1"]
+    ) -> Float[Tensor, "*bs 1"]:
         """Calculate uncertainty along the ray.
 
         Args:
@@ -313,9 +323,9 @@ class SemanticRenderer(nn.Module):
     @classmethod
     def forward(
         cls,
-        semantics: TensorType["bs":..., "num_samples", "num_classes"],
-        weights: TensorType["bs":..., "num_samples", 1],
-    ) -> TensorType["bs":..., "num_classes"]:
+        semantics: Float[Tensor, "*bs num_samples num_classes"],
+        weights: Float[Tensor, "*bs num_samples 1"],
+    ) -> Float[Tensor, "*bs num_classes"]:
         """Calculate semantics along the ray."""
         sem = torch.sum(weights * semantics, dim=-2)
         return sem
@@ -327,10 +337,10 @@ class NormalsRenderer(nn.Module):
     @classmethod
     def forward(
         cls,
-        normals: TensorType["bs":..., "num_samples", 3],
-        weights: TensorType["bs":..., "num_samples", 1],
+        normals: Float[Tensor, "*bs num_samples 3"],
+        weights: Float[Tensor, "*bs num_samples 1"],
         normalize: bool = True,
-    ) -> TensorType["bs":..., 3]:
+    ) -> Float[Tensor, "*bs 3"]:
         """Calculate normals along the ray.
 
         Args:

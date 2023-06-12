@@ -1,4 +1,3 @@
-# pylint: disable=protected-access
 """
 Default test to make sure train runs
 """
@@ -13,26 +12,32 @@ from nerfstudio.configs.method_configs import method_configs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.minimal_dataparser import MinimalDataParserConfig
 from nerfstudio.engine.trainer import TrainerConfig
-from scripts.train import train_loop
+from nerfstudio.models.vanilla_nerf import VanillaModelConfig
+from nerfstudio.scripts.train import train_loop
 
 BLACKLIST = [
     "base",
     "semantic-nerfw",
     "instant-ngp",
     "instant-ngp-bounded",
-    "nerfacto",
+    "nerfacto-big",
     "volinga",
     "phototourism",
     "depth-nerfacto",
     "nerfplayer-ngp",
     "nerfplayer-nerfacto",
     "neus",
+    "neus-facto",
 ]
 
 
 def set_reduced_config(config: TrainerConfig):
     """Reducing the config settings to speedup test"""
-    config.machine.num_gpus = 0
+    config.machine.device_type = "cpu"
+    if hasattr(config.pipeline.model, "implementation"):
+        setattr(config.pipeline.model, "implementation", "torch")
+    config.mixed_precision = False
+    config.use_grad_scaler = False
     config.max_num_iterations = 2
     # reduce dataset factors; set dataset to test
     config.pipeline.datamanager.dataparser = BlenderDataParserConfig(data=Path("tests/data/lego_test"))
@@ -45,15 +50,13 @@ def set_reduced_config(config: TrainerConfig):
 
     # reduce model factors
     if hasattr(config.pipeline.model, "num_coarse_samples"):
+        assert isinstance(config.pipeline.model, VanillaModelConfig)
         config.pipeline.model.num_coarse_samples = 4
     if hasattr(config.pipeline.model, "num_importance_samples"):
+        assert isinstance(config.pipeline.model, VanillaModelConfig)
         config.pipeline.model.num_importance_samples = 4
     # remove viewer
-    config.viewer.enable = False
-
-    # model specific config settings
-    if config.method_name == "instant-ngp":
-        config.pipeline.model.field_implementation = "torch"
+    config.viewer.quit_on_train_completion = True
 
     return config
 

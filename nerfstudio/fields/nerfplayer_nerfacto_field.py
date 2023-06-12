@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,8 +21,9 @@ from typing import Dict, Optional, Tuple
 
 import numpy as np
 import torch
+from jaxtyping import Float
+from torch import Tensor
 from torch.nn.parameter import Parameter
-from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import Frustums, RaySamples
 from nerfstudio.data.scene_box import SceneBox
@@ -42,7 +43,7 @@ from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
 
 try:
     import tinycudann as tcnn
-except ImportError:
+except ModuleNotFoundError:
     # tinycudann module doesn't exist
     pass
 
@@ -65,7 +66,7 @@ class TemporalHashMLPDensityField(Field):
 
     def __init__(
         self,
-        aabb: TensorType,
+        aabb: Tensor,
         temporal_dim: int = 64,
         num_layers: int = 2,
         hidden_dim: int = 64,
@@ -103,14 +104,16 @@ class TemporalHashMLPDensityField(Field):
             },
         )
 
-    # pylint: disable=arguments-differ
-    def density_fn(self, positions: TensorType["bs":..., 3], times: TensorType["bs", 1]) -> TensorType["bs":..., 1]:
+    def density_fn(
+        self, positions: Float[Tensor, "*bs 3"], times: Optional[Float[Tensor, "bs 1"]] = None
+    ) -> Float[Tensor, "*bs 1"]:
         """Returns only the density. Used primarily with the density grid.
 
         Args:
             positions: the origin of the samples/frustums
             times: the time of rays
         """
+        assert times is not None, "TemporalHashMLPDensityField requires times to be specified"
         if len(positions.shape) == 3 and len(times.shape) == 2:
             # position is [ray, sample, 3]; times is [ray, 1]
             times = times[:, None]  # RaySamples can handle the shape
@@ -128,13 +131,14 @@ class TemporalHashMLPDensityField(Field):
         density, _ = self.get_density(ray_samples)
         return density
 
-    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, None]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, None]:
         if self.spatial_distortion is not None:
             positions = self.spatial_distortion(ray_samples.frustums.get_positions())
             positions = (positions + 2.0) / 4.0
         else:
             positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
+        assert ray_samples.times is not None
         time_flat = ray_samples.times.reshape(-1, 1)
         x = self.encoding(positions_flat, time_flat).to(positions)
         density_before_activation = self.linear(x).view(*ray_samples.frustums.shape, -1)
@@ -145,7 +149,7 @@ class TemporalHashMLPDensityField(Field):
         density = trunc_exp(density_before_activation)
         return density, None
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None) -> dict:
+    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None) -> dict:
         return {}
 
 
@@ -177,7 +181,7 @@ class NerfplayerNerfactoField(Field):
 
     def __init__(
         self,
-        aabb: TensorType,
+        aabb: Tensor,
         num_images: int,
         num_layers: int = 2,
         hidden_dim: int = 64,
@@ -232,7 +236,7 @@ class NerfplayerNerfactoField(Field):
             num_levels=num_levels,
             level_dim=features_per_level,
             log2_hashmap_size=log2_hashmap_size,
-            desired_resolution=1024 * (self.aabb.max() - self.aabb.min()),
+            desired_resolution=int(1024 * (self.aabb.max().item() - self.aabb.min().item())),
         )
         self.mlp_base_decode = tcnn.Network(
             n_input_dims=num_levels * features_per_level,
@@ -309,7 +313,7 @@ class NerfplayerNerfactoField(Field):
             },
         )
 
-    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
         if self.spatial_distortion is not None:
             positions = ray_samples.frustums.get_positions()
@@ -331,8 +335,8 @@ class NerfplayerNerfactoField(Field):
         return density, base_mlp_out
 
     def get_outputs(
-        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
-    ) -> Dict[FieldHeadNames, TensorType]:
+        self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None
+    ) -> Dict[FieldHeadNames, Tensor]:
         assert density_embedding is not None
         outputs = {}
         if ray_samples.camera_indices is None:

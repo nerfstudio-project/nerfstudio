@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Type
+from typing import Any, Dict, List, Literal, Tuple, Type, cast
 
 import torch
 import torch.nn.functional as F
@@ -28,13 +28,12 @@ from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.field_components.encodings import NeRFEncoding
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
-from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
+from nerfstudio.fields.nerfacto_field import NerfactoField
 from nerfstudio.fields.sdf_field import SDFFieldConfig
 from nerfstudio.fields.vanilla_nerf_field import NeRFField
 from nerfstudio.model_components.losses import (
@@ -85,9 +84,9 @@ class SurfaceModelConfig(ModelConfig):
     background_model: Literal["grid", "mlp", "none"] = "mlp"
     """background models"""
     num_samples_outside: int = 32
-    """Number of samples outside the bounding sphere for backgound"""
+    """Number of samples outside the bounding sphere for background"""
     periodic_tvl_mult: float = 0.0
-    """Total variational loss mutliplier"""
+    """Total variational loss multiplier"""
     overwrite_near_far_plane: bool = False
     """whether to use near and far collider from command line"""
 
@@ -125,7 +124,7 @@ class SurfaceModel(Model):
 
         # background model
         if self.config.background_model == "grid":
-            self.field_background = TCNNNerfactoField(
+            self.field_background = NerfactoField(
                 self.scene_box.aabb,
                 spatial_distortion=self.scene_contraction,
                 num_images=self.num_train_data,
@@ -174,14 +173,15 @@ class SurfaceModel(Model):
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
         param_groups["fields"] = list(self.field.parameters())
-        if self.config.background_model != "none":
-            param_groups["field_background"] = list(self.field_background.parameters())
-        else:
-            param_groups["field_background"] = list(self.field_background)
+        param_groups["field_background"] = (
+            [self.field_background]
+            if isinstance(self.field_background, Parameter)
+            else list(self.field_background.parameters())
+        )
         return param_groups
 
     @abstractmethod
-    def sample_and_forward_field(self, ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
+    def sample_and_forward_field(self, ray_bundle: RayBundle) -> Dict[str, Any]:
         """Takes in a Ray Bundle and returns a dictionary of samples and field output.
 
         Args:
@@ -202,10 +202,16 @@ class SurfaceModel(Model):
         Returns:
             Outputs of model. (ie. rendered colors)
         """
+        assert (
+            ray_bundle.metadata is not None and "directions_norm" in ray_bundle.metadata
+        ), "directions_norm is required in ray_bundle.metadata"
+
         samples_and_field_outputs = self.sample_and_forward_field(ray_bundle=ray_bundle)
 
         # shortcuts
-        field_outputs = samples_and_field_outputs["field_outputs"]
+        field_outputs: Dict[FieldHeadNames, torch.Tensor] = cast(
+            Dict[FieldHeadNames, torch.Tensor], samples_and_field_outputs["field_outputs"]
+        )
         ray_samples = samples_and_field_outputs["ray_samples"]
         weights = samples_and_field_outputs["weights"]
         bg_transmittance = samples_and_field_outputs["bg_transmittance"]
@@ -220,12 +226,16 @@ class SurfaceModel(Model):
 
         # background model
         if self.config.background_model != "none":
+            assert isinstance(self.field_background, torch.nn.Module), "field_background should be a module"
+            assert ray_bundle.fars is not None, "fars is required in ray_bundle"
             # sample inversely from far to 1000 and points and forward the bg model
             ray_bundle.nears = ray_bundle.fars
+            assert ray_bundle.fars is not None
             ray_bundle.fars = torch.ones_like(ray_bundle.fars) * self.config.far_plane_bg
 
             ray_samples_bg = self.sampler_bg(ray_bundle)
             # use the same background model for both density field and occupancy field
+            assert not isinstance(self.field_background, Parameter)
             field_outputs_bg = self.field_background(ray_samples_bg)
             weights_bg = ray_samples_bg.get_weights(field_outputs_bg[FieldHeadNames.DENSITY])
 
@@ -233,7 +243,7 @@ class SurfaceModel(Model):
             depth_bg = self.renderer_depth(weights=weights_bg, ray_samples=ray_samples_bg)
             accumulation_bg = self.renderer_accumulation(weights=weights_bg)
 
-            # merge background color to forgound color
+            # merge background color to foregound color
             rgb = rgb + bg_transmittance * rgb_bg
 
             bg_outputs = {
@@ -262,8 +272,8 @@ class SurfaceModel(Model):
             outputs.update(samples_and_field_outputs)
 
         if "weights_list" in samples_and_field_outputs:
-            weights_list = samples_and_field_outputs["weights_list"]
-            ray_samples_list = samples_and_field_outputs["ray_samples_list"]
+            weights_list = cast(List[torch.Tensor], samples_and_field_outputs["weights_list"])
+            ray_samples_list = cast(List[torch.Tensor], samples_and_field_outputs["ray_samples_list"])
 
             for i in range(len(weights_list) - 1):
                 outputs[f"prop_depth_{i}"] = self.renderer_depth(

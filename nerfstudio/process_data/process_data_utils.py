@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,22 +14,20 @@
 
 """Helper utils for processing data into the nerfstudio format."""
 
+import math
 import os
 import shutil
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Literal, Optional, OrderedDict, Tuple, Union
 
 import cv2
 import numpy as np
-from rich.console import Console
-from typing_extensions import Literal, OrderedDict
 
-from nerfstudio.utils.rich_utils import status
+from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
 
-CONSOLE = Console(width=120)
 POLYCAM_UPSCALING_TIMES = 2
 
 
@@ -38,12 +36,13 @@ class CameraModel(Enum):
 
     OPENCV = "OPENCV"
     OPENCV_FISHEYE = "OPENCV_FISHEYE"
+    EQUIRECTANGULAR = "EQUIRECTANGULAR"
 
 
 CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
-    "equirectangular": CameraModel.OPENCV,
+    "equirectangular": CameraModel.EQUIRECTANGULAR,
 }
 
 
@@ -141,7 +140,7 @@ def convert_video_to_images(
         if num_frames == 0:
             CONSOLE.print(f"[bold red]Error: Video has no frames: {video_path}")
             sys.exit(1)
-        print("Number of frames in video:", num_frames)
+        CONSOLE.print("Number of frames in video:", num_frames)
 
         out_filename = image_dir / "frame_%05d.png"
         ffmpeg_cmd = f'ffmpeg -i "{video_path}"'
@@ -157,9 +156,12 @@ def convert_video_to_images(
         spacing = num_frames // num_frames_target
         if spacing > 1:
             ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB{crop_cmd} -r 1"
+            CONSOLE.print("Number of frames to extract:", math.ceil(num_frames / spacing))
         else:
             CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
-            ffmpeg_cmd += f" -pix_fmt bgr8 -vf {crop_cmd[1:]}"
+            ffmpeg_cmd += " -pix_fmt bgr8"
+            if crop_cmd != "":
+                ffmpeg_cmd += f" -vf {crop_cmd[1:]}"
 
         ffmpeg_cmd += f" {out_filename}"
         run_command(ffmpeg_cmd, verbose=verbose)
@@ -193,7 +195,9 @@ def copy_images_list(
 
     # Remove original directory only if we provide a proper image folder path
     if image_dir.is_dir() and len(image_paths):
-        shutil.rmtree(image_dir, ignore_errors=True)
+        # check that output directory is not the same as input directory
+        if image_dir != image_paths[0].parent:
+            shutil.rmtree(image_dir, ignore_errors=True)
         image_dir.mkdir(exist_ok=True, parents=True)
 
     copied_image_paths = []
@@ -203,7 +207,10 @@ def copy_images_list(
         if verbose:
             CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
         copied_image_path = image_dir / f"frame_{idx + 1:05d}{image_path.suffix}"
-        shutil.copy(image_path, copied_image_path)
+        try:
+            shutil.copy(image_path, copied_image_path)
+        except shutil.SameFileError:
+            pass
         copied_image_paths.append(copied_image_path)
 
     if crop_border_pixels is not None:
@@ -379,7 +386,23 @@ def find_tool_feature_matcher_combination(
     matcher_type: Literal[
         "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
     ],
-):
+) -> Union[
+    Tuple[None, None, None],
+    Tuple[
+        Literal["colmap", "hloc"],
+        Literal[
+            "sift",
+            "superpoint_aachen",
+            "superpoint_max",
+            "superpoint_inloc",
+            "r2d2",
+            "d2net-ss",
+            "sosnet",
+            "disk",
+        ],
+        Literal["NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"],
+    ],
+]:
     """Find a valid combination of sfm tool, feature type, and matcher type.
     Basically, replace the default parameters 'any' by usable value
 
@@ -519,7 +542,11 @@ def save_mask(
         mask_path_i = image_dir.parent / f"masks_{downscale}"
         mask_path_i.mkdir(exist_ok=True)
         mask_path_i = mask_path_i / "mask.png"
-        mask_i = cv2.resize(mask, (width // downscale, height // downscale), interpolation=cv2.INTER_NEAREST)
+        mask_i = cv2.resize(
+            mask,
+            (width // downscale, height // downscale),
+            interpolation=cv2.INTER_NEAREST,
+        )
         cv2.imwrite(str(mask_path_i), mask_i)
     CONSOLE.log(":tada: Generated and saved masks.")
     return mask_path / "mask.png"

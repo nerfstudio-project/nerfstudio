@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,6 +30,8 @@ class DepthDataset(InputDataset):
         dataparser_outputs: description of where and how to read input images.
         scale_factor: The scaling factor for the dataparser outputs.
     """
+
+    exclude_batch_keys_from_device = InputDataset.exclude_batch_keys_from_device + ["depth_image"]
 
     def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0):
         super().__init__(dataparser_outputs, scale_factor)

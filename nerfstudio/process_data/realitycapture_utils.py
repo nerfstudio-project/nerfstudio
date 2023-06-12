@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,24 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Helper utils for processing polycam data into the nerfstudio format."""
+"""Helper utils for processing reality capture data into the nerfstudio format."""
 
 import csv
 import json
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 import numpy as np
 from PIL import Image
-from rich.console import Console
 
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def realitycapture_to_json(
-    image_filename_map: List[Path],
+    image_filename_map: Dict[str, Path],
     csv_filename: Path,
     output_dir: Path,
     verbose: bool = False,
@@ -59,27 +57,21 @@ def realitycapture_to_json(
             for column, value in row.items():
                 cameras.setdefault(column, []).append(value)
 
-    for name in cameras["#name"]:
-        camera_label = name.split(".")[0]
-        if camera_label in image_filename_map:
-            img = np.array(Image.open(output_dir / image_filename_map[camera_label]))
-            break
-
-    height, width, _ = img.shape
-
-    data["h"] = int(height)
-    data["w"] = int(width)
-
     missing_image_data = 0
 
     for i, name in enumerate(cameras["#name"]):
-        basename = name.split(".")[0]
+        basename = name.rpartition(".")[0]
         if basename not in image_filename_map:
             if verbose:
                 CONSOLE.print(f"Missing image for camera data {basename}, Skipping")
             missing_image_data += 1
             continue
+
         frame = {}
+        img = np.array(Image.open(output_dir / image_filename_map[basename]))
+        height, width, _ = img.shape
+        frame["h"] = int(height)
+        frame["w"] = int(width)
         frame["file_path"] = image_filename_map[basename].as_posix()
         frame["fl_x"] = float(cameras["f"][i]) * max(width, height) / 36
         frame["fl_y"] = float(cameras["f"][i]) * max(width, height) / 36

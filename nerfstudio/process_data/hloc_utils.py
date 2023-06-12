@@ -5,7 +5,7 @@ and do sparse reconstruction.
 Requires hloc module from : https://github.com/cvg/Hierarchical-Localization
 """
 
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,11 +21,10 @@ Requires hloc module from : https://github.com/cvg/Hierarchical-Localization
 
 import sys
 from pathlib import Path
-
-from rich.console import Console
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.process_data.process_data_utils import CameraModel
+from nerfstudio.utils.rich_utils import CONSOLE
 
 try:
     # TODO(1480) un-hide pycolmap import
@@ -43,13 +42,11 @@ else:
     _HAS_HLOC = True
 
 try:
-    from pixsfm.refine_hloc import PixSfM
+    from pixsfm.refine_hloc import PixSfM  # type: ignore
 except ImportError:
     _HAS_PIXSFM = False
 else:
     _HAS_PIXSFM = True
-
-CONSOLE = Console(width=120)
 
 
 def run_hloc(
@@ -75,6 +72,11 @@ def run_hloc(
         camera_model: Camera model to use.
         gpu: If True, use GPU.
         verbose: If True, logs the output of the command.
+        matching_method: Method to use for matching images.
+        feature_type: Type of visual features to use.
+        matcher_type: Type of feature matcher to use.
+        num_matched: Number of image pairs for loc.
+        refine_pixsfm: If True, refine the reconstruction using pixel-perfect-sfm.
     """
     if not _HAS_HLOC:
         CONSOLE.print(
@@ -108,11 +110,15 @@ def run_hloc(
         pairs_from_retrieval.main(retrieval_path, sfm_pairs, num_matched=num_matched)
     match_features.main(matcher_conf, sfm_pairs, features=features, matches=matches)
 
-    image_options = pycolmap.ImageReaderOptions(  # pylint: disable=c-extension-no-member
-        camera_model=camera_model.value
-    )
+    image_options = pycolmap.ImageReaderOptions(camera_model=camera_model.value)
     if refine_pixsfm:
-        sfm = PixSfM({"dense_features": {"max_edge": 1024}})
+        sfm = PixSfM(
+            conf={
+                "dense_features": {"use_cache": True},
+                "KA": {"dense_features": {"use_cache": True}, "max_kps_per_problem": 1000},
+                "BA": {"strategy": "costmaps"},
+            }
+        )
         refined, _ = sfm.reconstruction(
             sfm_dir,
             image_dir,
@@ -120,7 +126,7 @@ def run_hloc(
             features,
             matches,
             image_list=references,
-            camera_mode=pycolmap.CameraMode.SINGLE,  # pylint: disable=c-extension-no-member
+            camera_mode=pycolmap.CameraMode.SINGLE,
             image_options=image_options,
             verbose=verbose,
         )
@@ -133,7 +139,7 @@ def run_hloc(
             sfm_pairs,
             features,
             matches,
-            camera_mode=pycolmap.CameraMode.SINGLE,  # pylint: disable=c-extension-no-member
+            camera_mode=pycolmap.CameraMode.SINGLE,
             image_options=image_options,
             verbose=verbose,
         )
