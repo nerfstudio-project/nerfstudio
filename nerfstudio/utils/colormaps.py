@@ -24,7 +24,7 @@ from torch import Tensor
 
 from nerfstudio.utils import colors
 
-Colormaps = Literal["default", "turbo", "viridis", "magma", "inferno", "cividis", "pca"]
+Colormaps = Literal["default", "turbo", "viridis", "magma", "inferno", "cividis", "gray", "pca"]
 
 
 @dataclass(frozen=True)
@@ -104,6 +104,8 @@ def apply_float_colormap(image: Float[Tensor, "*bs 1"], colormap: Colormaps = "v
         colormap = "turbo"
 
     image = torch.nan_to_num(image, 0)
+    if colormap == "gray":
+        return image.repeat(1, 1, 3)
     image_long = (image * 255).long()
     image_long_min = torch.min(image_long)
     image_long_max = torch.max(image_long)
