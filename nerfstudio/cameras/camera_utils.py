@@ -351,31 +351,32 @@ def _compute_residual_and_jacobian(
     distortion_params: torch.Tensor,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor,]:
     """Auxiliary function of radial_and_tangential_undistort() that computes residuals and jacobians.
-    Adapted from MultiNeRF:
-    https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L427-L474
+    Uses the OPENCV camera model defined in COLMAP (which restricts the OpenCV camera model to second degree)
 
     Args:
         x: The updated x coordinates.
         y: The updated y coordinates.
         xd: The distorted x coordinates.
         yd: The distorted y coordinates.
-        distortion_params: The distortion parameters [k1, k2, p1, p2, k3, k4, k5, k6].
+        distortion_params: The distortion parameters [k1, k2, p1, p2].
 
     Returns:
         The residuals (fx, fy) and jacobians (fx_x, fx_y, fy_x, fy_y).
     """
-    assert distortion_params.shape[-1] == 8
 
-    k1, k2, p1, p2, k3, k4, k5, k6 = torch.unbind(distortion_params, dim=-1)
+    k1 = distortion_params[..., 0]
+    k2 = distortion_params[..., 1]
+    p1 = distortion_params[..., 4]
+    p2 = distortion_params[..., 5]
 
     # let r(x, y) = x^2 + y^2;
+    # in the full OpenCV camera model, radial distortion is modeled as:
     #     alpha(x, y) = 1 + k1 * r(x, y) + k2 * r(x, y) ^2 + k3 * r(x, y)^3;
     #     beta(x, y) = 1 + k4 * r(x, y) + k5 * r(x, y) ^2 + k6 * r(x, y)^3;
     #     d(x, y) = alpha(x, y) / beta(x, y);
+    # COLMAP's OPENCV model restricts this to k1 and k2 so
     r = x * x + y * y
-    alpha = 1.0 + r * (k1 + r * (k2 + r * k3))
-    beta = 1.0 + r * (k4 + r * (k5 + r * k6))
-    d = alpha / beta
+    d = 1.0 + r * (k1 + r * k2)
 
     # The perfect projection is:
     # xd = x * d(x, y) + 2 * p1 * x * y + p2 * (r(x, y) + 2 * x^2);
@@ -392,11 +393,9 @@ def _compute_residual_and_jacobian(
     fy = d * y + 2 * p2 * x * y + p1 * (r + 2 * y * y) - yd
 
     # Compute derivative of alpha, beta over r.
-    alpha_r = k1 + r * (2.0 * k2 + r * (3.0 * k3))
-    beta_r = k4 + r * (2.0 * k5 + r * (3.0 * k6))
+    d_r = k1 + 2.0 * r * k2
 
     # Compute derivative of d over [x, y]
-    d_r = (alpha_r * beta - alpha * beta_r) / (beta * beta)
     d_x = 2.0 * x * d_r
     d_y = 2.0 * y * d_r
 
@@ -426,8 +425,8 @@ def radial_and_tangential_undistort(
 
     Args:
         coords: The distorted coordinates.
-        distortion_params: The distortion parameters. Supports 0, 1, 2, 4, 8 parameters, in
-            the order of [k1, k2, p1, p2, k3, k4, k5, k6].
+        distortion_params: The distortion parameters. Accepts 6 parameters, in
+            the order of [k1, k2, k3, k4, p1, p2], but this only uses [k1, k2, p1, p2].
         eps: The smallest determinant magnitude for a matrix to be considered invertible (for Newton's method).
         max_iterations: The maximum number of iterations to perform.
         resolution: The resolution (w, h of each pixel, in units of multiples of focal length)
@@ -442,14 +441,12 @@ def radial_and_tangential_undistort(
         redistort: F(undistort), will be within [tolerance] pixels of coords (in Chebyshev distance)
             unless max_iterations is reached
     """
-    assert distortion_params.shape[-1] in [0, 1, 2, 4, 8]
-
     if distortion_params.shape[-1] == 0:
         return coords, torch.eye(2, device=coords.device), coords
 
-    if distortion_params.shape[-1] < 8:
-        distortion_params = F.pad(distortion_params, (0, 8 - distortion_params.shape[-1]), "constant", 0.0)
-    assert distortion_params.shape[-1] == 8
+    if distortion_params.shape[-1] < 6:
+        distortion_params = F.pad(distortion_params, (0, 6 - distortion_params.shape[-1]), "constant", 0.0)
+    assert distortion_params.shape[-1] == 6
 
     if distortion_params.shape[0] == 1:
         distortion_params = distortion_params.expand((coords.shape[0], -1))
@@ -527,9 +524,11 @@ def _compute_residual_and_jacobian_fisheye(
     Returns:
         The residuals (ftheta) and derivatives (ftheta_theta).
     """
-    assert distortion_params.shape[-1] == 4
 
-    k1, k2, k3, k4 = torch.unbind(distortion_params, dim=-1)
+    k1 = distortion_params[..., 0]
+    k2 = distortion_params[..., 1]
+    k3 = distortion_params[..., 2]
+    k4 = distortion_params[..., 3]
 
     # let d(theta) = 1 + k1 * theta^2 + k2 * theta^4 + k3 * theta^6 + k4 * theta^8
     # r(theta) = theta^2
@@ -566,8 +565,8 @@ def fisheye_undistort(
 
     Args:
         coords: The distorted coordinates.
-        distortion_params: The distortion parameters. Supports 0, 1, 2, 4 parameters, in
-            the order of [k1, k2, k3, k4].
+        distortion_params: The distortion parameters. Supports up to 4
+            radial distortion parameters, in order [k1, k2, k3, k4]
         eps: The smallest derivative magnitude considered to be nonzero (for Newton's method).
         max_iterations: The maximum number of iterations to perform.
         resolution: The resolution [w, h] of the cameras
@@ -584,12 +583,12 @@ def fisheye_undistort(
         redistort: F(undistort), will be within [tolerance] pixels of coords (in Chebyshev distance)
             unless max_iterations is reached
     """
-    assert distortion_params.shape[-1] in [0, 1, 2, 4]
-
     if distortion_params.shape[-1] == 0:
         return coords, torch.tensor(1, device=coords.device), coords
 
-    if distortion_params.shape[-1] < 4:
+    if distortion_params.shape[-1] > 4:
+        distortion_params = distortion_params[..., :4]
+    elif distortion_params.shape[-1] < 4:
         distortion_params = F.pad(distortion_params, (0, 4 - distortion_params.shape[-1]), "constant", 0.0)
     assert distortion_params.shape[-1] == 4
 
@@ -614,7 +613,6 @@ def fisheye_undistort(
     next_upd = torch.arange(theta.shape[0], device=theta.device)
 
     for i in range(max_iterations):
-
         theta_upd = theta[next_upd]
         f, dtheta = _compute_residual_and_jacobian_fisheye(
             theta=theta_upd, thetad=r_d[next_upd], distortion_params=distortion_params[next_upd]
@@ -636,12 +634,17 @@ def fisheye_undistort(
         dtheta = dtheta[not_converged]
 
         f = f[not_converged].reshape(-1, 1)
-        step = torch.where(dtheta > eps, (f / dtheta), 0)
+        step = torch.where(torch.abs(dtheta) > eps, (f / dtheta), 0)
 
         # careful: index_add_ (with underscore) is in-place, index_add (no underscore) is not in-place
         theta = theta.index_add(dim=0, index=next_upd, source=step[:, 0], alpha=-1)
 
-    return (theta / r_d).unsqueeze(-1) * coords, all_derivative, coords * (1 + all_residual / r_d).unsqueeze(-1)
+    inverse_r_d = torch.where(r_d > 1e-5, 1 / r_d, 0)
+    return (
+        (theta * inverse_r_d).unsqueeze(-1) * coords,
+        all_derivative,
+        coords * (1 + all_residual * inverse_r_d).unsqueeze(-1),
+    )
 
 
 def rotation_matrix(a: Float[Tensor, "3"], b: Float[Tensor, "3"]) -> Float[Tensor, "3 3"]:
