@@ -387,7 +387,14 @@ def find_tool_feature_matcher_combination(
     Tuple[
         Literal["colmap", "hloc"],
         Literal[
-            "sift", "superpoint_aachen", "superpoint_max", "superpoint_inloc", "r2d2", "d2net-ss", "sosnet", "disk"
+            "sift",
+            "superpoint_aachen",
+            "superpoint_max",
+            "superpoint_inloc",
+            "r2d2",
+            "d2net-ss",
+            "sosnet",
+            "disk",
         ],
         Literal["NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"],
     ],
@@ -531,7 +538,11 @@ def save_mask(
         mask_path_i = image_dir.parent / f"masks_{downscale}"
         mask_path_i.mkdir(exist_ok=True)
         mask_path_i = mask_path_i / "mask.png"
-        mask_i = cv2.resize(mask, (width // downscale, height // downscale), interpolation=cv2.INTER_NEAREST)
+        mask_i = cv2.resize(
+            mask,
+            (width // downscale, height // downscale),
+            interpolation=cv2.INTER_NEAREST,
+        )
         cv2.imwrite(str(mask_path_i), mask_i)
     CONSOLE.log(":tada: Generated and saved masks.")
     return mask_path / "mask.png"
