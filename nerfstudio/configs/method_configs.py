@@ -673,6 +673,7 @@ def sort_methods(methods, method_descriptions):
     return methods, method_descriptions
 
 
+base_methods, base_descriptions = method_configs, descriptions
 all_methods, all_descriptions = method_configs, descriptions
 # Add discovered external methods
 all_methods, all_descriptions = merge_methods(all_methods, all_descriptions, *discover_methods())
