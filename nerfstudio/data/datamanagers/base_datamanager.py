@@ -53,7 +53,6 @@ from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConf
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import (
     EquirectangularPixelSampler,
-    PatchPixelSampler,
     PairPixelSampler,
     PixelSampler,
 )
