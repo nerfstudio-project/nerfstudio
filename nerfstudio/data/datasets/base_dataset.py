@@ -42,6 +42,7 @@ class InputDataset(Dataset):
         scale_factor: The scaling factor for the dataparser outputs
     """
 
+    exclude_batch_keys_from_device: List[str] = ["image", "mask"]
     cameras: Cameras
 
     def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0):
