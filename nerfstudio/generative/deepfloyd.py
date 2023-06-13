@@ -23,7 +23,7 @@ from diffusers import IFPipeline
 from diffusers.pipelines.deepfloyd_if import IFPipelineOutput
 from jaxtyping import Float
 from PIL import Image
-from torch import FloatTensor, Generator, Tensor, nn
+from torch import Generator, Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
 
 from transformers import T5EncoderModel
@@ -126,8 +126,8 @@ class DeepFloyd(nn.Module):
         with torch.no_grad():
             prompt_embeds, negative_embeds = self.pipe.encode_prompt(prompt, negative_prompt=negative_prompt)
 
-        assert isinstance(negative_embeds, FloatTensor)
-        assert isinstance(prompt_embeds, FloatTensor)
+        assert isinstance(negative_embeds, Tensor)
+        assert isinstance(prompt_embeds, Tensor)
         return torch.cat([negative_embeds, prompt_embeds])
 
     def sds_loss(

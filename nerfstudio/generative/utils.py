@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Utility helper functions for diffusion models"""
 
 import torch
 from torch.cuda.amp import custom_bwd, custom_fwd
-
-"""Gradient helper functions for SDS loss"""
 
 
 class _SDSGradient(torch.autograd.Function):
