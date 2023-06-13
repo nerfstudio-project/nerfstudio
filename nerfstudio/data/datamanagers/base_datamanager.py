@@ -434,7 +434,6 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         if self.config.patch_size > 1:
             return PairPixelSampler(*args, **kwargs, radius=self.config.patch_size)
 
-
         # If all images are equirectangular, use equirectangular pixel sampler
         is_equirectangular = dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
         if is_equirectangular.all():

@@ -301,10 +301,11 @@ class PatchPixelSampler(PixelSampler):
 
         return indices
 
+
 class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
     """Samples pair of pixels from 'image_batch's. Samples pairs of pixels from
         from the images randomly within a 'radius' distance apart. Useful for pair-based losses.
-        
+
     Args:
         num_rays_per_batch: number of rays to sample per batch
         keep_full_image: whether or not to include a reference to the full image in returned batch

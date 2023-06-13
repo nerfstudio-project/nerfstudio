@@ -565,7 +565,7 @@ def scale_gradients_by_distance_squared(
 def depth_ranking_loss(rendered_depth, gt_depth):
     """
     Depth ranking loss as described in the SparseNeRF paper
-    Assumes that the layout of the batch comes from a PairPixelSampler, so that adjacent samples in the gt_depth 
+    Assumes that the layout of the batch comes from a PairPixelSampler, so that adjacent samples in the gt_depth
     and rendered_depth are from pixels with a radius of each other
     """
     m = 1e-4
