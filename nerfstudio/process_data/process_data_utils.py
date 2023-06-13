@@ -15,7 +15,6 @@
 """Helper utils for processing data into the nerfstudio format."""
 
 import math
-import os
 import shutil
 import sys
 from enum import Enum
@@ -263,7 +262,7 @@ def copy_and_upscale_polycam_depth_maps_list(
 
     # copy and upscale them to new directory
     with status(msg="[bold yellow] Upscaling depth maps...", spinner="growVertical", verbose=verbose):
-        upscale_factor = 2 ** POLYCAM_UPSCALING_TIMES
+        upscale_factor = 2**POLYCAM_UPSCALING_TIMES
         assert upscale_factor > 1
         assert isinstance(upscale_factor, int)
 
@@ -342,7 +341,7 @@ def downscale_images(
         return "No downscaling performed."
 
     with status(msg="[bold yellow]Downscaling images...", spinner="growVertical", verbose=verbose):
-        downscale_factors = [2 ** i for i in range(num_downscales + 1)[1:]]
+        downscale_factors = [2**i for i in range(num_downscales + 1)[1:]]
         for downscale_factor in downscale_factors:
             assert downscale_factor > 1
             assert isinstance(downscale_factor, int)
@@ -446,7 +445,7 @@ def generate_circle_mask(height: int, width: int, percent_radius) -> Optional[np
         return None
     mask = np.zeros((height, width), dtype=np.uint8)
     center = (width // 2, height // 2)
-    radius = int(percent_radius * np.sqrt(width ** 2 + height ** 2) / 2.0)
+    radius = int(percent_radius * np.sqrt(width**2 + height**2) / 2.0)
     cv2.circle(mask, center, radius, 1, -1)
     return mask
 
@@ -527,7 +526,7 @@ def save_mask(
     mask_path = image_dir.parent / "masks"
     mask_path.mkdir(exist_ok=True)
     cv2.imwrite(str(mask_path / "mask.png"), mask)
-    downscale_factors = [2 ** i for i in range(num_downscales + 1)[1:]]
+    downscale_factors = [2**i for i in range(num_downscales + 1)[1:]]
     for downscale in downscale_factors:
         mask_path_i = image_dir.parent / f"masks_{downscale}"
         mask_path_i.mkdir(exist_ok=True)
