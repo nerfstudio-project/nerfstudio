@@ -71,7 +71,7 @@ class GenerfactoModelConfig(ModelConfig):
 
     orientation_loss_mult: Tuple[float, float] = (0.0001, 1.0)
     """Orientation loss multipier on computed normals."""
-    orientation_loss_mult_range: int = (5000, 15000)
+    orientation_loss_mult_range: Tuple[int, int] = (5000, 15000)
     """number of iterations to reach last orientation_loss_mult value"""
     random_light_source: bool = True
     """Randomizes light source per output."""
