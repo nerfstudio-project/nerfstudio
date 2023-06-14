@@ -16,10 +16,10 @@
 
 # Modified from https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py
 
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Union, cast
+from nerfstudio.utils.rich_utils import CONSOLE
 
 import mediapy
 import numpy as np
@@ -30,9 +30,7 @@ from jaxtyping import Float
 from torch import Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
 
-from nerfstudio.utils.rich_utils import CONSOLE
-
-from nerfstudio.generative.utils import _SDSGradient
+from nerfstudio.generative.utils import _SDSGradient, CatchMissingPackages
 
 
 try:
@@ -40,12 +38,10 @@ try:
     from transformers import logging
 
 except ImportError:
-    CONSOLE.print("[bold red]Missing Stable Diffusion packages.")
-    CONSOLE.print(r"Install using [yellow]pip install nerfstudio\[gen][/yellow]")
-    CONSOLE.print(r"or [yellow]pip install -e .\[gen][/yellow] if installing from source.")
-    sys.exit(1)
+    PNDMScheduler = StableDiffusionPipeline = logging = CatchMissingPackages()
 
 logging.set_verbosity_error()
+
 IMG_DIM = 512
 CONST_SCALE = 0.18215
 SD_IDENTIFIERS = {
@@ -88,7 +84,6 @@ class StableDiffusion(nn.Module):
 
         sd_id = SD_IDENTIFIERS[version]
         pipe = StableDiffusionPipeline.from_pretrained(sd_id, torch_dtype=torch.float16)
-        assert isinstance(pipe, StableDiffusionPipeline)
         pipe = pipe.to(self.device)
 
         pipe.enable_attention_slicing()
@@ -230,6 +225,7 @@ class StableDiffusion(nn.Module):
 
                 # compute the previous noisy sample x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents)["prev_sample"]  # type: ignore
+        assert isinstance(latents, Tensor)
         return latents
 
     def latents_to_img(self, latents: Float[Tensor, "BS 4 H W"]) -> Float[Tensor, "BS 3 H W"]:

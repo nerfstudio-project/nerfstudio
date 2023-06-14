@@ -19,16 +19,25 @@ from typing import List, Optional, Union, cast
 import torch
 import torch.nn.functional as F
 import tyro
-from diffusers import IFPipeline
-from diffusers.pipelines.deepfloyd_if import IFPipelineOutput
+
 from jaxtyping import Float
 from PIL import Image
 from torch import Generator, Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
 
-from transformers import T5EncoderModel
 
-from nerfstudio.generative.utils import _SDSGradient
+from nerfstudio.generative.utils import _SDSGradient, CatchMissingPackages
+
+try:
+    from diffusers import IFPipeline
+    from diffusers.pipelines.deepfloyd_if import IFPipelineOutput
+    from transformers import T5EncoderModel
+    from transformers import logging
+
+except ImportError:
+    IFPipeline = IFPipelineOutput = T5EncoderModel = logging = CatchMissingPackages()
+
+logging.set_verbosity_error()
 
 IMG_DIM = 64
 
@@ -61,7 +70,6 @@ class DeepFloyd(nn.Module):
             variant="fp16",
             torch_dtype=torch.float16,
         )
-        assert isinstance(self.pipe, IFPipeline)
         self.pipe = self.pipe.to(self.device)
 
         self.pipe.enable_attention_slicing(1)
@@ -96,7 +104,6 @@ class DeepFloyd(nn.Module):
             variant="fp16",
             torch_dtype=torch.float16,
         )
-        assert isinstance(self.pipe, IFPipeline)
         self.pipe = self.pipe.to(self.device)
 
         self.pipe.enable_attention_slicing(1)
@@ -122,7 +129,6 @@ class DeepFloyd(nn.Module):
         prompt = [prompt] if isinstance(prompt, str) else prompt
         negative_prompt = [negative_prompt] if isinstance(negative_prompt, str) else negative_prompt
 
-        assert isinstance(self.pipe, IFPipeline)
         with torch.no_grad():
             prompt_embeds, negative_embeds = self.pipe.encode_prompt(prompt, negative_prompt=negative_prompt)
 
@@ -202,12 +208,10 @@ class DeepFloyd(nn.Module):
         prompts = [prompts] if isinstance(prompts, str) else prompts
         negative_prompts = [negative_prompts] if isinstance(negative_prompts, str) else negative_prompts
 
-        assert isinstance(self.pipe, IFPipeline)
         prompt_embeds, negative_embeds = self.pipe.encode_prompt(prompts, negative_prompt=negative_prompts)
         model_output = self.pipe(
             prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_embeds, generator=generator
         )
-        assert isinstance(model_output, IFPipelineOutput)
         image = model_output.images[0]
 
         return image

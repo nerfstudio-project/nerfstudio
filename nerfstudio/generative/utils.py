@@ -14,8 +14,28 @@
 
 """Utility helper functions for diffusion models"""
 
+import sys
 import torch
 from torch.cuda.amp import custom_bwd, custom_fwd
+from nerfstudio.utils.rich_utils import CONSOLE
+
+
+class CatchMissingPackages:
+    def __init__(self):
+        self.error_message = _fail_on_missing_packages
+
+    def __call__(self, *args, **kwargs):
+        return self.error_message(*args, **kwargs)
+
+    def __getattr__(self, attr):
+        return self.error_message
+
+
+def _fail_on_missing_packages(*args, **kwargs):
+    CONSOLE.print("[bold red]Missing Stable Diffusion packages.")
+    CONSOLE.print(r"Install using [yellow]pip install nerfstudio\[gen][/yellow]")
+    CONSOLE.print(r"or [yellow]pip install -e .\[gen][/yellow] if installing from source.")
+    sys.exit(1)
 
 
 class _SDSGradient(torch.autograd.Function):
