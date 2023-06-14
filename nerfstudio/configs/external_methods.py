@@ -121,6 +121,7 @@ To enable NeRFPlayer, you must install it first. Please follow the instructions 
     )
 )
 
+
 @dataclass
 class ExternalMethodTrainerConfig(TrainerConfig):
     """
