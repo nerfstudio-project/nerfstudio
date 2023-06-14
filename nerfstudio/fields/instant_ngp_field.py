@@ -30,10 +30,8 @@ from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.embedding import Embedding
 from nerfstudio.field_components.field_heads import FieldHeadNames
-from nerfstudio.field_components.spatial_distortions import (
-    SceneContraction,
-    SpatialDistortion,
-)
+from nerfstudio.field_components.spatial_distortions import (SceneContraction,
+                                                             SpatialDistortion)
 from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
 
 try:
