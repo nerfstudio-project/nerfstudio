@@ -16,7 +16,6 @@
 Depth dataset.
 """
 
-import os
 from typing import Dict
 
 import numpy as np
@@ -48,46 +47,58 @@ class DepthDataset(InputDataset):
             "depth_filenames" not in dataparser_outputs.metadata.keys()
             or dataparser_outputs.metadata["depth_filenames"] is None
         ):
-            depth_paths = []
-            tranforms = self._find_transform(dataparser_outputs.image_filenames[0])
-            assert tranforms is not None, "Could not find transforms.json"
-            data = dataparser_outputs.image_filenames[0].parent
-            meta = json.load(open(tranforms, "r"))
-            frames = meta["frames"]
-            filenames = [data / frames[j]["file_path"].split("/")[-1] for j in range(len(frames))]
-            os.makedirs(dataparser_outputs.image_filenames[0].parent / "depth", exist_ok=True)
-            repo = "isl-org/ZoeDepth"
-            self.zoe = torch.compile(torch.hub.load(repo, "ZoeD_NK", pretrained=True).to(device))
+            cache = dataparser_outputs.image_filenames[0].parent / "depths.npy"
+            if cache.exists():
+                # load all the depths
+                self.depths = np.load(cache)
+                self.depths = torch.from_numpy(self.depths).to(device)
+            else:
+                depth_tensors = []
+                tranforms = self._find_transform(dataparser_outputs.image_filenames[0])
+                data = dataparser_outputs.image_filenames[0].parent
+                if tranforms is not None:
+                    meta = json.load(open(tranforms, "r"))
+                    frames = meta["frames"]
+                    filenames = [data / frames[j]["file_path"].split("/")[-1] for j in range(len(frames))]
+                else:
+                    meta = None
+                    frames = None
+                    filenames = dataparser_outputs.image_filenames
 
-            for i in track(range(len(filenames)), description="Generating depth images"):
-                image_filename = filenames[i]
-                pil_image = Image.open(image_filename)
-                image = np.array(pil_image, dtype="uint8")  # shape is (h, w) or (h, w, 3 or 4)
-                if len(image.shape) == 2:
-                    image = image[:, :, None].repeat(3, axis=2)
-                image = torch.from_numpy(image.astype("float32") / 255.0)
+                repo = "isl-org/ZoeDepth"
+                self.zoe = torch.compile(torch.hub.load(repo, "ZoeD_NK", pretrained=True).to(device))
 
-                with torch.no_grad():
-                    image = torch.permute(image, (2, 0, 1)).unsqueeze(0).to(device)
-                    depth_numpy = self.zoe.infer(image).squeeze().unsqueeze(-1).cpu().numpy()
+                for i in track(range(len(filenames)), description="Generating depth images"):
+                    image_filename = filenames[i]
+                    pil_image = Image.open(image_filename)
+                    image = np.array(pil_image, dtype="uint8")  # shape is (h, w) or (h, w, 3 or 4)
+                    if len(image.shape) == 2:
+                        image = image[:, :, None].repeat(3, axis=2)
+                    image = torch.from_numpy(image.astype("float32") / 255.0)
 
-                depth_paths.append(image_filename.parent / "depth" / f"depth{i}.npy")
-                meta["frames"][i]["depth_file_path"] = str(
-                    Path(meta["frames"][i]["file_path"]).parent / "depth" / f"depth{i}.npy"
-                )
-                np.save(depth_paths[-1], depth_numpy)
+                    with torch.no_grad():
+                        image = torch.permute(image, (2, 0, 1)).unsqueeze(0).to(device)
+                        if image.shape[1] == 4:
+                            image = image[:, :3, :, :]
+                        depth_tensor = self.zoe.infer(image).squeeze().unsqueeze(-1)
 
-            json.dump(meta, open(tranforms, "w"))
+                    depth_tensors.append(depth_tensor)
 
-            dataparser_outputs.metadata["depth_filenames"] = depth_paths
-            self.metadata["depth_filenames"] = depth_paths
+                self.depths = torch.stack(depth_tensors)
+                np.save(cache, self.depths.cpu().numpy())
+
+            dataparser_outputs.metadata["depth_filenames"] = None
             dataparser_outputs.metadata["depth_unit_scale_factor"] = 1.0
+            self.metadata["depth_filenames"] = None
             self.metadata["depth_unit_scale_factor"] = 1.0
 
         self.depth_filenames = self.metadata["depth_filenames"]
         self.depth_unit_scale_factor = self.metadata["depth_unit_scale_factor"]
 
     def get_metadata(self, data: Dict) -> Dict:
+        if self.depth_filenames is None:
+            return {"depth_image": self.depths[data["image_idx"]]}
+
         filepath = self.depth_filenames[data["image_idx"]]
         height = int(self._dataparser_outputs.cameras.height[data["image_idx"]])
         width = int(self._dataparser_outputs.cameras.width[data["image_idx"]])
