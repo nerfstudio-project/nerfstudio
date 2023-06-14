@@ -106,6 +106,20 @@ To enable Tetra-NeRF, you must install it first. Please follow the instructions 
     )
 )
 
+# NeRFPlayer
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]Tetra-NeRF[/bold yellow]
+For more information visit: https://docs.nerf.studio/en/latest/nerfology/methods/nerfplayer.html
+
+To enable NeRFPlayer, you must install it first. Please follow the instructions here:
+  https://github.com/lsongx/nerfplayer-nerfstudio#installation""",
+        configurations=[
+            ("nerfplayer-nerfacto", "NeRFPlayer with nerfacto backbone"),
+            ("nerfplayer-ngp", "NeRFPlayer with instang-ngp-bounded backbone"),
+        ],
+    )
+)
 
 @dataclass
 class ExternalMethodTrainerConfig(TrainerConfig):

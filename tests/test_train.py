@@ -24,8 +24,6 @@ BLACKLIST = [
     "volinga",
     "phototourism",
     "depth-nerfacto",
-    "nerfplayer-ngp",
-    "nerfplayer-nerfacto",
     "neus",
     "neus-facto",
 ]
