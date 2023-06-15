@@ -76,6 +76,7 @@ class NerfactoField(Field):
         hidden_dim: int = 64,
         geo_feat_dim: int = 15,
         num_levels: int = 16,
+        base_res: int = 16,
         max_res: int = 2048,
         log2_hashmap_size: int = 19,
         num_layers_color: int = 3,
@@ -112,8 +113,7 @@ class NerfactoField(Field):
         self.use_semantics = use_semantics
         self.use_pred_normals = use_pred_normals
         self.pass_semantic_gradients = pass_semantic_gradients
-
-        base_res: int = 32
+        self.base_res = base_res
 
         self.direction_encoding = SHEncoding(
             levels=4,
