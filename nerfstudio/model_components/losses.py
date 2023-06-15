@@ -549,7 +549,7 @@ def scale_gradients_by_distance_squared(
     Scale gradients by the ray distance to the pixel
     as suggested in `Radiance Field Gradient Scaling for Unbiased Near-Camera Training` paper
 
-    Note: The scaling is applied on the interval of [0, scaling_end] along the ray!
+    Note: The scaling is applied on the interval of [0, 1] along the ray!
 
     Example:
         GradientLoss should be called right after obtaining the densities and colors from the field. ::
