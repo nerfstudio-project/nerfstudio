@@ -123,7 +123,7 @@ class CameraOptimizer(nn.Module):
             outputs.append(exp_map_SE3(self.pose_adjustment[indices, :]))
         else:
             assert_never(self.config.mode)
-        # Detach non-trainable indices from training by setting to identity transform.
+        # Detach non-trainable indices by setting to identity transform
         if self.non_trainable_camera_indices is not None:
             outputs[0][self.non_trainable_camera_indices] = torch.eye(4)[:3, :4].to(self.device)
 
