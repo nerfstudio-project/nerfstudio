@@ -29,7 +29,10 @@ from torch.cuda.amp.grad_scaler import GradScaler
 from nerfstudio.generative.utils import _SDSGradient, CatchMissingPackages
 
 try:
-    from diffusers import IFPipeline
+    from diffusers import IFPipeline as IFOrig
+    from diffusers.pipelines.deepfloyd_if import IFPipelineOutput as IFOutputOrig
+
+    from diffusers import IFPipeline, DiffusionPipeline
     from diffusers.pipelines.deepfloyd_if import IFPipelineOutput
     from transformers import T5EncoderModel
     from transformers import logging
@@ -70,6 +73,7 @@ class DeepFloyd(nn.Module):
             variant="fp16",
             torch_dtype=torch.float16,
         )
+        assert isinstance(self.pipe, DiffusionPipeline)
         self.pipe = self.pipe.to(self.device)
 
         self.pipe.enable_attention_slicing(1)
@@ -104,6 +108,7 @@ class DeepFloyd(nn.Module):
             variant="fp16",
             torch_dtype=torch.float16,
         )
+        assert isinstance(self.pipe, DiffusionPipeline)
         self.pipe = self.pipe.to(self.device)
 
         self.pipe.enable_attention_slicing(1)
@@ -129,6 +134,7 @@ class DeepFloyd(nn.Module):
         prompt = [prompt] if isinstance(prompt, str) else prompt
         negative_prompt = [negative_prompt] if isinstance(negative_prompt, str) else negative_prompt
 
+        assert isinstance(self.pipe, DiffusionPipeline)
         with torch.no_grad():
             prompt_embeds, negative_embeds = self.pipe.encode_prompt(prompt, negative_prompt=negative_prompt)
 
@@ -185,7 +191,7 @@ class DeepFloyd(nn.Module):
 
         return loss
 
-    def prompt_to_img(
+    def prompt_to_image(
         self,
         prompts: Union[str, List[str]],
         negative_prompts: Union[str, List[str]] = "",
@@ -207,14 +213,17 @@ class DeepFloyd(nn.Module):
 
         prompts = [prompts] if isinstance(prompts, str) else prompts
         negative_prompts = [negative_prompts] if isinstance(negative_prompts, str) else negative_prompts
-
+        assert isinstance(self.pipe, DiffusionPipeline)
         prompt_embeds, negative_embeds = self.pipe.encode_prompt(prompts, negative_prompt=negative_prompts)
+
+        assert isinstance(self.pipe, IFOrig)
         model_output = self.pipe(
             prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_embeds, generator=generator
         )
-        image = model_output.images[0]
+        assert isinstance(model_output, IFOutputOrig)
+        output_image = model_output.images[0]
 
-        return image
+        return output_image
 
 
 def generate_image(
@@ -232,7 +241,7 @@ def generate_image(
     cuda_device = torch.device("cuda")
     with torch.no_grad():
         df = DeepFloyd(cuda_device)
-        img = df.prompt_to_img(prompt, negative, generator, steps)
+        img = df.prompt_to_image(prompt, negative, generator, steps)
         img.save(save_path)
 
 

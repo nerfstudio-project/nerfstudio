@@ -34,7 +34,7 @@ from nerfstudio.generative.utils import _SDSGradient, CatchMissingPackages
 
 
 try:
-    from diffusers import PNDMScheduler, StableDiffusionPipeline
+    from diffusers import PNDMScheduler, StableDiffusionPipeline, DiffusionPipeline
     from transformers import logging
 
 except ImportError:
@@ -84,6 +84,8 @@ class StableDiffusion(nn.Module):
 
         sd_id = SD_IDENTIFIERS[version]
         pipe = StableDiffusionPipeline.from_pretrained(sd_id, torch_dtype=torch.float16)
+
+        assert isinstance(pipe, DiffusionPipeline)  # and hasattr(pipe, "to")
         pipe = pipe.to(self.device)
 
         pipe.enable_attention_slicing()
