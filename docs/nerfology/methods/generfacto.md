@@ -2,7 +2,7 @@
 
 <h4>Generate 3D models from text</h4>
 
-**Our model that combines generative 3D and NeRF advancements**
+**Our model that combines generative 3D with our latest NeRF methods**
 
 ## Installation
 
