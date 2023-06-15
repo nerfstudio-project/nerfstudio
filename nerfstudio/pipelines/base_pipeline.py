@@ -35,6 +35,7 @@ from rich.progress import (
 from torch import nn
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datamanagers.base_datamanager import (
@@ -222,6 +223,7 @@ class VanillaPipeline(Pipeline):
             'inference': does not load any dataset into memory
         world_size: total number of machines available
         local_rank: rank of current machine
+        grad_scaler: gradient scaler used in the trainer
 
     Attributes:
         datamanager: The data manager that will be used
@@ -235,6 +237,7 @@ class VanillaPipeline(Pipeline):
         test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
+        grad_scaler: Optional[GradScaler] = None,
     ):
         super().__init__()
         self.config = config
@@ -250,6 +253,8 @@ class VanillaPipeline(Pipeline):
             scene_box=self.datamanager.train_dataset.scene_box,
             num_train_data=len(self.datamanager.train_dataset),
             metadata=self.datamanager.train_dataset.metadata,
+            device=device,
+            grad_scaler=grad_scaler,
         )
         self.model.to(device)
 

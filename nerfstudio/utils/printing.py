@@ -19,10 +19,10 @@ from math import floor, log
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
-def print_tcnn_speed_warning(method_name: str):
+def print_tcnn_speed_warning(module_name: str):
     """Prints a warning about the speed of the TCNN."""
     CONSOLE.line()
-    CONSOLE.print(f"[bold yellow]WARNING: Using a slow implementation of {method_name}. ")
+    CONSOLE.print(f"[bold yellow]WARNING: Using a slow implementation for the {module_name} module. ")
     CONSOLE.print(
         "[bold yellow]:person_running: :person_running: "
         + "Install tcnn for speedups :person_running: :person_running:"

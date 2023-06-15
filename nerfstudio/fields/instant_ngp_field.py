@@ -60,6 +60,7 @@ class TCNNInstantNGPField(Field):
         num_levels: number of levels of the hashmap for the base mlp
         log2_hashmap_size: size of the hashmap for the base mlp
         max_res: maximum resolution of the hashmap for the base mlp
+        mode: which implementation to use for the field
     """
 
     def __init__(

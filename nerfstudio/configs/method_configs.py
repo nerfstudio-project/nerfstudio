@@ -163,7 +163,7 @@ method_configs["nerfacto-huge"] = TrainerConfig(
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            dataparser=NerfstudioDataParserConfig(),
+            dataparser=NerfstudioDataParserConfig(downscale_factor=1),
             train_num_rays_per_batch=16000,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
@@ -182,7 +182,7 @@ method_configs["nerfacto-huge"] = TrainerConfig(
             ],
             hidden_dim=256,
             hidden_dim_color=256,
-            hidden_dim_transient=256,
+            appearance_embed_dim=256,
             features_per_level=4,
             max_res=8000,
             proposal_weights_anneal_max_num_iters=5000,
