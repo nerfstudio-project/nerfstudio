@@ -35,12 +35,9 @@ try:
     from diffusers import IFPipeline, DiffusionPipeline
     from diffusers.pipelines.deepfloyd_if import IFPipelineOutput
     from transformers import T5EncoderModel
-    from transformers import logging
 
 except ImportError:
-    IFPipeline = IFPipelineOutput = T5EncoderModel = logging = CatchMissingPackages()
-
-logging.set_verbosity_error()
+    IFPipeline = IFPipelineOutput = T5EncoderModel = CatchMissingPackages()
 
 IMG_DIM = 64
 

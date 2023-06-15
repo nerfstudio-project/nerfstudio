@@ -35,12 +35,10 @@ from nerfstudio.generative.utils import _SDSGradient, CatchMissingPackages
 
 try:
     from diffusers import PNDMScheduler, StableDiffusionPipeline, DiffusionPipeline
-    from transformers import logging
 
 except ImportError:
-    PNDMScheduler = StableDiffusionPipeline = logging = CatchMissingPackages()
+    PNDMScheduler = StableDiffusionPipeline = CatchMissingPackages()
 
-logging.set_verbosity_error()
 
 IMG_DIM = 512
 CONST_SCALE = 0.18215
