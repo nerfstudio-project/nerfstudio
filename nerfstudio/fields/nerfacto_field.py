@@ -82,7 +82,7 @@ class NerfactoField(Field):
         num_layers_transient: int = 2,
         hidden_dim_color: int = 64,
         hidden_dim_transient: int = 64,
-        appearance_embedding_dim: int = 32,
+        appearance_embedding_dim: int = 128,
         transient_embedding_dim: int = 16,
         use_transient_embedding: bool = False,
         use_semantics: bool = False,
@@ -190,6 +190,7 @@ class NerfactoField(Field):
 
         self.mlp_head = MLP(
             in_dim=self.direction_encoding.get_out_dim() + self.geo_feat_dim + self.appearance_embedding_dim,
+            # in_dim=self.direction_encoding.get_out_dim() + self.geo_feat_dim,
             num_layers=num_layers_color,
             layer_width=hidden_dim_color,
             out_dim=3,
@@ -197,6 +198,18 @@ class NerfactoField(Field):
             out_activation=nn.Sigmoid(),
             implementation=implementation,
         )
+
+        self.affine_mlp = MLP(
+            in_dim=self.appearance_embedding_dim,
+            num_layers=2,
+            layer_width=128,
+            out_dim=self.geo_feat_dim*2,
+            activation=nn.ReLU(),
+            #Change MLP to accept callable function Tensor -> Tensor
+            out_activation=None,
+            implementation=implementation,
+        )
+
 
     def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
@@ -251,6 +264,10 @@ class NerfactoField(Field):
                     (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
                 )
 
+        # output = self.affine_mlp(embedded_appearance.view(-1, self.appearance_embedding_dim))
+        # scale_shift = torch.exp(output)
+        # scale, shift = torch.split(scale_shift, [self.geo_feat_dim, self.geo_feat_dim], dim=-1)
+
         # transients
         if self.use_transient_embedding and self.training:
             embedded_transient = self.embedding_transient(camera_indices)
@@ -288,6 +305,7 @@ class NerfactoField(Field):
         h = torch.cat(
             [
                 d,
+                # density_embedding.view(-1, self.geo_feat_dim) * scale + shift,
                 density_embedding.view(-1, self.geo_feat_dim),
                 embedded_appearance.view(-1, self.appearance_embedding_dim),
             ],
