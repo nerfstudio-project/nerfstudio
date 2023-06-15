@@ -348,7 +348,7 @@ def downscale_images(
             downscale_dir = image_dir.parent / f"{folder_name}_{downscale_factor}"
             downscale_dir.mkdir(parents=True, exist_ok=True)
             # Using %05d ffmpeg commands appears to be unreliable (skips images).
-            for f in image_dir.glob("*.png"):
+            for f in list_images(image_dir):
                 filename = f.name
                 nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
                 ffmpeg_cmd = [
