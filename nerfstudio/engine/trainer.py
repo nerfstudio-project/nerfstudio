@@ -459,16 +459,12 @@ class Trainer:
 
         device_type: str = self.device.split(":")[0] if "cuda" in self.device else "cpu"
 
-        internal_step = 0
-        while True:
-            internal_step += 1
+        for _ in range(self.gradient_accumulation_steps):
             with torch.autocast(device_type=device_type, enabled=self.mixed_precision):
                 _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
                 loss = functools.reduce(torch.add, loss_dict.values())
                 loss /= self.gradient_accumulation_steps
             self.grad_scaler.scale(loss).backward()  # type: ignore
-            if internal_step % self.gradient_accumulation_steps == 0:
-                break
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
 
         if self.config.log_gradients:
