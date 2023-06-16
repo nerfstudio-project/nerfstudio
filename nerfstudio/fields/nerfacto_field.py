@@ -83,6 +83,7 @@ class NerfactoField(Field):
         hidden_dim_color: int = 64,
         hidden_dim_transient: int = 64,
         appearance_embedding_dim: int = 128,
+        # appearance_embedding_dim: int = 32,
         transient_embedding_dim: int = 16,
         use_transient_embedding: bool = False,
         use_semantics: bool = False,
@@ -189,8 +190,8 @@ class NerfactoField(Field):
             self.field_head_pred_normals = PredNormalsFieldHead(in_dim=self.mlp_pred_normals.get_out_dim())
 
         self.mlp_head = MLP(
-            in_dim=self.direction_encoding.get_out_dim() + self.geo_feat_dim + self.appearance_embedding_dim,
-            # in_dim=self.direction_encoding.get_out_dim() + self.geo_feat_dim,
+            # in_dim=self.direction_encoding.get_out_dim() + self.geo_feat_dim + self.appearance_embedding_dim,
+            in_dim=self.direction_encoding.get_out_dim() + self.geo_feat_dim,
             num_layers=num_layers_color,
             layer_width=hidden_dim_color,
             out_dim=3,
@@ -254,6 +255,10 @@ class NerfactoField(Field):
         # appearance
         if self.training:
             embedded_appearance = self.embedding_appearance(camera_indices)
+            output = self.affine_mlp(embedded_appearance.view(-1, self.appearance_embedding_dim))
+            # output = trunc_exp(output)
+            scale, shift = torch.split(output, [self.geo_feat_dim, self.geo_feat_dim], dim=-1)
+            scale = trunc_exp(scale)
         else:
             if self.use_average_appearance_embedding:
                 embedded_appearance = torch.ones(
@@ -263,10 +268,9 @@ class NerfactoField(Field):
                 embedded_appearance = torch.zeros(
                     (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
                 )
-
-        # output = self.affine_mlp(embedded_appearance.view(-1, self.appearance_embedding_dim))
-        # scale_shift = torch.exp(output)
-        # scale, shift = torch.split(scale_shift, [self.geo_feat_dim, self.geo_feat_dim], dim=-1)
+            scale = 1
+            shift = 0
+            
 
         # transients
         if self.use_transient_embedding and self.training:
@@ -305,9 +309,9 @@ class NerfactoField(Field):
         h = torch.cat(
             [
                 d,
-                # density_embedding.view(-1, self.geo_feat_dim) * scale + shift,
-                density_embedding.view(-1, self.geo_feat_dim),
-                embedded_appearance.view(-1, self.appearance_embedding_dim),
+                density_embedding.view(-1, self.geo_feat_dim) * scale + shift,
+                # density_embedding.view(-1, self.geo_feat_dim),
+                # embedded_appearance.view(-1, self.appearance_embedding_dim),
             ],
             dim=-1,
         )
