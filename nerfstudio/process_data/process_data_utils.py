@@ -15,7 +15,6 @@
 """Helper utils for processing data into the nerfstudio format."""
 
 import math
-import os
 import shutil
 import sys
 from enum import Enum
@@ -348,11 +347,8 @@ def downscale_images(
             assert isinstance(downscale_factor, int)
             downscale_dir = image_dir.parent / f"{folder_name}_{downscale_factor}"
             downscale_dir.mkdir(parents=True, exist_ok=True)
-            # Using %05d ffmpeg commands appears to be unreliable (skips images), so use scandir.
-            files = os.scandir(image_dir)
-            for f in files:
-                if f.is_dir():
-                    continue
+            # Using %05d ffmpeg commands appears to be unreliable (skips images).
+            for f in list_images(image_dir):
                 filename = f.name
                 nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
                 ffmpeg_cmd = [
