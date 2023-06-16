@@ -177,7 +177,7 @@ method_configs["nerfacto-huge"] = TrainerConfig(
             ],
             hidden_dim=256,
             hidden_dim_color=256,
-            appearance_embed_dim=256,
+            appearance_embed_dim=32,
             features_per_level=4,
             base_res=32,
             max_res=8192,
