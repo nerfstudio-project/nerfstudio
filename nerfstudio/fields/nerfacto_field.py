@@ -76,10 +76,12 @@ class NerfactoField(Field):
         hidden_dim: int = 64,
         geo_feat_dim: int = 15,
         num_levels: int = 16,
+        base_res: int = 16,
         max_res: int = 2048,
         log2_hashmap_size: int = 19,
         num_layers_color: int = 3,
         num_layers_transient: int = 2,
+        features_per_level: int = 2,
         hidden_dim_color: int = 64,
         hidden_dim_transient: int = 64,
         appearance_embedding_dim: int = 32,
@@ -111,9 +113,7 @@ class NerfactoField(Field):
         self.use_semantics = use_semantics
         self.use_pred_normals = use_pred_normals
         self.pass_semantic_gradients = pass_semantic_gradients
-
-        base_res: int = 16
-        features_per_level: int = 2
+        self.base_res = base_res
 
         self.direction_encoding = SHEncoding(
             levels=4,
@@ -124,7 +124,7 @@ class NerfactoField(Field):
             in_dim=3, num_frequencies=2, min_freq_exp=0, max_freq_exp=2 - 1, implementation=implementation
         )
 
-        encoder = HashEncoding(
+        self.mlp_base_grid = HashEncoding(
             num_levels=num_levels,
             min_res=base_res,
             max_res=max_res,
@@ -132,8 +132,8 @@ class NerfactoField(Field):
             features_per_level=features_per_level,
             implementation=implementation,
         )
-        network = MLP(
-            in_dim=encoder.get_out_dim(),
+        self.mlp_base_mlp = MLP(
+            in_dim=self.mlp_base_grid.get_out_dim(),
             num_layers=num_layers,
             layer_width=hidden_dim,
             out_dim=1 + self.geo_feat_dim,
@@ -141,7 +141,7 @@ class NerfactoField(Field):
             out_activation=None,
             implementation=implementation,
         )
-        self.mlp_base = torch.nn.Sequential(encoder, network)
+        self.mlp_base = torch.nn.Sequential(self.mlp_base_grid, self.mlp_base_mlp)
 
         # transients
         if self.use_transient_embedding:
