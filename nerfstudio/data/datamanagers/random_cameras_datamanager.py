@@ -24,14 +24,15 @@ from typing import Dict, List, Tuple, Type, Union
 
 import torch
 from rich.progress import Console
-from torch.nn import Parameter
 from torch import Tensor
+from torch.nn import Parameter
 from typing_extensions import Literal
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.config_utils import to_immutable_dict
-from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig
+from nerfstudio.data.datamanagers.base_datamanager import (DataManager,
+                                                           DataManagerConfig)
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.data.utils.dataloaders import RandIndicesEvalDataloader
@@ -72,7 +73,7 @@ def random_train_pose(
     focal_range: Tuple[float, float] = (0.75, 1.35),
     jitter_std: float = 0.01,
     center: Tuple[float, float, float] = (0, 0, 0),
-) -> Tuple[Cameras, Tensor, Tensor]:
+) -> Tuple[Cameras, Tensor, Tensor, Tensor]:
     """generate random poses from an orbit camera
     Args:
         size: batch size of generated poses.
@@ -147,7 +148,7 @@ def random_train_pose(
         cy=resolution / 2,
     ).to(device)
 
-    return cameras, torch.rad2deg(vertical_rotation), torch.rad2deg(central_rotation)
+    return cameras, torch.rad2deg(vertical_rotation), torch.rad2deg(central_rotation), camera_to_worlds
 
 
 @dataclass
@@ -218,7 +219,7 @@ class RandomCamerasDataManager(DataManager):  # pylint: disable=abstract-method
             CONSOLE.print("[red] --data should not be used with the RandomCamerasDataManager[/red]")
             sys.exit(1)
 
-        cameras, _, _ = random_train_pose(
+        cameras, _, _, _ = random_train_pose(
             self.config.num_eval_angles,
             self.config.eval_resolution,
             device=self.device,
@@ -249,7 +250,7 @@ class RandomCamerasDataManager(DataManager):  # pylint: disable=abstract-method
         self.train_count += 1
         horizontal_range = min((step / max(1, self.config.horizontal_rotation_warmup)), 1) * 180
 
-        cameras, vertical_rotation, central_rotation = random_train_pose(
+        cameras, vertical_rotation, central_rotation, c2w = random_train_pose(
             self.config.train_images_per_batch,
             self.config.train_resolution,
             device=self.device,
@@ -267,13 +268,14 @@ class RandomCamerasDataManager(DataManager):  # pylint: disable=abstract-method
             "vertical": vertical_rotation,
             "central": central_rotation,
             "initialization": True,
+            "c2w": c2w,
         }
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the eval dataloader."""
         self.eval_count += 1
 
-        cameras, vertical_rotation, central_rotation = random_train_pose(
+        cameras, vertical_rotation, central_rotation, c2w = random_train_pose(
             self.config.eval_images_per_batch,
             self.config.eval_resolution,
             device=self.device,
@@ -288,7 +290,11 @@ class RandomCamerasDataManager(DataManager):  # pylint: disable=abstract-method
             torch.tensor([[i] for i in range(self.config.train_images_per_batch)])
         ).flatten()
 
-        return ray_bundle, {"vertical": vertical_rotation, "central": central_rotation}
+        return ray_bundle, {
+            "vertical": vertical_rotation,
+            "central": central_rotation,
+            "c2w": c2w,
+        }
 
     def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
         for camera_ray_bundle, batch in self.eval_dataloader:

@@ -339,11 +339,6 @@ class DreamFusionModel(Model):
         param_groups["proposal_networks"] = list(self.proposal_networks.parameters())
         param_groups["fields"] = list(self.field.parameters())  # + list(self._diffusion_model.parameters())
         param_groups["diffusion_model"] = list(self._diffusion_model.parameters())
-        print("PARAMETERS:")
-        for name, param in self._diffusion_model.named_parameters():
-            if param.requires_grad:
-                print(name)  # , param.data)
-        # print(list(self._diffusion_model.parameters()))
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):  # pylint: disable=too-many-statements
@@ -478,6 +473,8 @@ class DreamFusionModel(Model):
             vertical_angle=batch["vertical"], horizontal_angle=batch["central"]
         )
 
+        c2w = batch["c2w"]
+
         train_output = (
             outputs["train_output"]
             .view(1, int(outputs["train_output"].shape[0] ** 0.5), int(outputs["train_output"].shape[0] ** 0.5), 3)
@@ -491,22 +488,16 @@ class DreamFusionModel(Model):
         #     grad_scaler=self.grad_scaler,
         # )
 
-        sds_loss = self._diffusion_model.vsd_loss(
+        sds_loss = self._diffusion_model.vsd_forward(
+            text_embedding.to(self.diffusion_device),
             text_embedding.to(self.diffusion_device),
             train_output.to(self.diffusion_device),
-            guidance_scale=int(self.guidance_scale),
-            grad_scaler=self.grad_scaler,
-        )
-
-        lora_loss = self._diffusion_model.lora_loss(
-            text_embedding.to(self.diffusion_device),
-            train_output.to(self.diffusion_device),
-            guidance_scale=int(1.0),
+            c2w.to(self.diffusion_device),
+            guidance_scale=int(7.5),
             grad_scaler=self.grad_scaler,
         )
 
         loss_dict["sds_loss"] = sds_loss.to(self.device)
-        loss_dict["lora_loss"] = lora_loss.to(self.device)
 
         if self.training:
             loss_dict["distortion_loss"] = self.config.distortion_loss_mult * distortion_loss(

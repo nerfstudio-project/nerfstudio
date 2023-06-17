@@ -16,7 +16,7 @@
 
 # Modified from https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py
 
-import copy
+import os
 import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -30,9 +30,7 @@ import torch.nn.functional as F
 import tyro
 from jaxtyping import Float
 from torch import Tensor, nn
-from torch.autograd import Variable
 from torch.cuda.amp.grad_scaler import GradScaler
-from torchviz import make_dot
 
 from nerfstudio.generative.utils import _SDSGradient
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -106,11 +104,12 @@ class StableDiffusion(nn.Module):
         #     num_train_timesteps=self.num_train_timesteps,
         # )
 
+        os.environ["TOKENIZERS_PARALLELISM"] = "false"
         sd_id = SD_IDENTIFIERS[version]
-        pipe = StableDiffusionPipeline.from_pretrained(sd_id, torch_dtype=torch.float16).to(self.device)
+        pipe = StableDiffusionPipeline.from_pretrained(sd_id, torch_dtype=self.weights_dtype).to(self.device)
         assert isinstance(pipe, StableDiffusionPipeline)
 
-        pipe_lora = StableDiffusionPipeline.from_pretrained(sd_id, torch_dtype=torch.float16).to(self.device)
+        pipe_lora = StableDiffusionPipeline.from_pretrained(sd_id, torch_dtype=self.weights_dtype).to(self.device)
         del pipe_lora.vae
         pipe_lora.vae = pipe.vae
 
@@ -158,7 +157,7 @@ class StableDiffusion(nn.Module):
         #     p.requires_grad_(False)
 
         # # from https://github.com/threestudio-project/threestudio/commit/12d8f1c52f6ef4379db4e23261b274d36e12a531
-        self.camera_embedding = TimestepEmbedding(16, 1280)
+        self.camera_embedding = TimestepEmbedding(12, 1280)
         self.unet_lora.class_embedding = self.camera_embedding
 
         lora_attn_procs = {}
@@ -272,53 +271,6 @@ class StableDiffusion(nn.Module):
 
         return text_embeddings
 
-    def lora_loss(
-        self,
-        text_embeddings: Float[Tensor, "N max_length embed_dim"],
-        latents: Float[Tensor, "BS 4 64 64"],
-        guidance_scale: float = 100.0,
-        grad_scaler: Optional[GradScaler] = None,
-    ) -> torch.Tensor:
-        B = latents.shape[0]
-        t = torch.randint(0, int(self.scheduler.config.num_train_timesteps), [B], dtype=torch.long, device=self.device)
-        latents = latents.detach().repeat(1, 1, 1, 1)
-
-        noise = torch.randn_like(latents)
-        latents_noisy = self.scheduler_lora.add_noise(latents, noise, t)  # type: ignore
-        if self.scheduler_lora.config.prediction_type == "epsilon":
-            target = noise
-        elif self.scheduler_lora.config.prediction_type == "v_prediction":
-            target = self.scheduler_lora.get_velocity(latents, noise, t)
-        else:
-            raise ValueError(f"Unknown prediction type {self.scheduler_lora.config.prediction_type}")
-
-        _, text_embeddings = text_embeddings.chunk(2)
-        # camera_condition = torch.zeros((B, 4, 4), device=self.device)
-        camera_condition = torch.eye(4, device=self.device)[None, ...]
-
-        noise_pred = self.forward_unet(
-            self.unet_lora,
-            latents_noisy,
-            t,
-            encoder_hidden_states=text_embeddings,
-            class_labels=camera_condition.view(B, -1),
-            cross_attention_kwargs={"scale": 1.0},
-        )
-
-        print("NOISE_PRED REQUIRES GRAD:", noise_pred.requires_grad, noise_pred.grad_fn)
-
-        # q = [noise_pred.grad_fn]
-        # while len(q) > 0 and q[0] is not None:
-        #     curr = q.pop(0)
-        #     print(curr.name())
-        #     for next_fn in curr.next_functions:
-        #         next_fn = next_fn[0]
-        #         if next_fn is not None:
-        #             q.append(next_fn)
-        #         break
-
-        return F.mse_loss(noise_pred.float(), target.float(), reduction="mean")
-
     @torch.cuda.amp.autocast(enabled=False)
     def forward_unet(
         self,
@@ -338,19 +290,48 @@ class StableDiffusion(nn.Module):
             cross_attention_kwargs=cross_attention_kwargs,
         ).sample.to(input_dtype)
 
+    def lora_loss(
+        self,
+        text_embeddings: Float[Tensor, "N max_length embed_dim"],
+        latents: Float[Tensor, "BS 4 64 64"],
+        camera_condition: Float[Tensor, "BS 3 4"],
+        guidance_scale: float = 100.0,
+    ) -> torch.Tensor:
+        B = latents.shape[0]
+        t = torch.randint(0, int(self.scheduler.config.num_train_timesteps), [B], dtype=torch.long, device=self.device)
+        latents = latents.detach().repeat(1, 1, 1, 1)
+
+        noise = torch.randn_like(latents)
+        latents_noisy = self.scheduler_lora.add_noise(latents, noise, t)  # type: ignore
+        if self.scheduler_lora.config.prediction_type == "epsilon":
+            target = noise
+        elif self.scheduler_lora.config.prediction_type == "v_prediction":
+            target = self.scheduler_lora.get_velocity(latents, noise, t)
+        else:
+            raise ValueError(f"Unknown prediction type {self.scheduler_lora.config.prediction_type}")
+
+        _, text_embeddings = text_embeddings.chunk(2)
+
+        noise_pred = self.forward_unet(
+            self.unet_lora,
+            latents_noisy,
+            t,
+            encoder_hidden_states=text_embeddings,
+            class_labels=camera_condition.view(B, -1),
+            cross_attention_kwargs={"scale": 1.0},
+        )
+
+        return F.mse_loss(noise_pred.float(), target.float(), reduction="mean")
+
     def vsd_loss(
         self,
         text_embeddings: Float[Tensor, "N max_length embed_dim"],
         latents: Float[Tensor, "BS 4 64 64"],
+        camera_condition: Float[Tensor, "BS 3 4"],
         guidance_scale: float = 1.0,
         grad_scaler: Optional[GradScaler] = None,
     ) -> torch.Tensor:
         B = latents.shape[0]
-
-        # tmp = self.lora_loss(text_embeddings, latents, guidance_scale=guidance_scale)
-        # print("LORA LOSS REQUIRES GRAD 1:", tmp.requires_grad)
-
-        print("TEXT EMBEDDINGS SHAPE:", text_embeddings.shape)
 
         with torch.no_grad():
             # add noise
@@ -359,18 +340,14 @@ class StableDiffusion(nn.Module):
             latents_noisy = self.scheduler.add_noise(latents, noise, t)  # type: ignore
             # pred noise
             latent_model_input = torch.cat([latents_noisy] * 2, dim=0)
-            # noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embeddings).sample
             with self.disable_unet_class_embedding(self.unet) as unet:
                 cross_attention_kwargs = {"scale": 0.0}
-                # unet = copy.deepcopy(self.unet)
                 noise_pred_pretrain = self.forward_unet(
                     unet,
                     latent_model_input,
                     torch.cat([t] * 2),
                     encoder_hidden_states=text_embeddings,
                 )
-
-            camera_condition = torch.eye(4, device=self.device)[None, ...]
 
             noise_pred_lora = self.forward_unet(
                 self.unet_lora,
@@ -387,11 +364,7 @@ class StableDiffusion(nn.Module):
                 cross_attention_kwargs={"scale": 1.0},
             )
 
-        # exit()
-
         noise_pred_pretrain_uncond, noise_pred_pretrain_text = noise_pred_pretrain.chunk(2)
-
-        # NOTE: guidance scale definition here is aligned with diffusers, but different from other guidance
         noise_pred_pretrain = noise_pred_pretrain_uncond + guidance_scale * (
             noise_pred_pretrain_text - noise_pred_pretrain_uncond
         )
@@ -525,7 +498,7 @@ class StableDiffusion(nn.Module):
             Images
         """
 
-        latents = 1 / CONST_SCALE * latents
+        latents = 1 / (self.vae.config.scaling_factor) * latents
 
         with torch.no_grad():
             imgs = self.auto_encoder.decode(latents).sample
@@ -546,7 +519,7 @@ class StableDiffusion(nn.Module):
         imgs = 2 * imgs - 1
 
         posterior = self.vae.encode(imgs.to(self.weights_dtype)).latent_dist
-        latents = posterior.sample() * CONST_SCALE
+        latents = posterior.sample() * self.vae.config.scaling_factor
 
         return latents.to(input_dtype)
 
@@ -607,6 +580,7 @@ class StableDiffusion(nn.Module):
         text_embeddings_vd: Float[Tensor, "N max_length embed_dim"],
         text_embeddings: Float[Tensor, "N max_length embed_dim"],
         image: Float[Tensor, "BS 3 H W"],
+        camera_condition: Float[Tensor, "BS 3 4"],
         guidance_scale: float = 1.0,
         grad_scaler: Optional[GradScaler] = None,
     ) -> torch.Tensor:
@@ -615,60 +589,42 @@ class StableDiffusion(nn.Module):
             image = F.interpolate(image, (IMG_DIM, IMG_DIM), mode="bilinear")
         latents = self.imgs_to_latent(image)
 
-        loss_vsd = self.vsd_loss(text_embeddings_vd, latents, guidance_scale=guidance_scale)
-        loss_lora = self.lora_loss(text_embeddings, latents, guidance_scale=1.0)
+        loss_vsd = self.vsd_loss(text_embeddings_vd, latents, camera_condition, guidance_scale=guidance_scale)
+        loss_lora = self.lora_loss(text_embeddings, latents, camera_condition, guidance_scale=1.0)
 
-        print("LOSSES:", loss_vsd.item(), loss_lora.item())
-        # exit()
         return loss_vsd + loss_lora
 
 
 def vsd_generate_image(prompt: str, negative: str = "", seed: int = 0, save_path: Path = Path("test_sd.png")):
-    # torch.manual_seed(seed)
-    # torch.cuda.manual_seed(seed)
     cuda_device = torch.device("cuda")
 
     sd = StableDiffusion(cuda_device, use_sds=False).to(cuda_device).float()
     im = torch.rand((1, 3, 512, 512)).float().to(cuda_device)
     im.requires_grad_(True)
     im.retain_grad()
-    # im = im.half()  # .to(cuda_device)
+
     text_embedding = sd.get_text_embeds(prompt, negative)
     text_embedding_vd = text_embedding
 
-    # WORKS
-    # text_embedding = torch.load("text_embeddings.pt").to(cuda_device)
-    # one, two = text_embedding.chunk(2)
-    # text_embedding = torch.cat([two, one], dim=0)
-    # text_embedding_vd = torch.load("text_embeddings_vd.pt").to(cuda_device)
-    # one, two = text_embedding_vd.chunk(2)
-    # text_embedding_vd = torch.cat([two, one], dim=0)
+    im_optimizer = torch.optim.Adam([im], lr=0.01, eps=1e-15)
+    sd_optimizer = torch.optim.Adam(list(sd.parameters()), lr=0.0001, eps=1e-15)
 
-    # AdamOptimizerConfig(lr=5e-3, eps=1e-15)
-    # optimizer = torch.optim.SGD([im] + list(sd.parameters()), lr=0.01, momentum=0.9, weight_decay=1e-4)
-    optimizer = torch.optim.Adam([im] + list(sd.parameters()), lr=0.01, eps=1e-15)
+    camera_condition = torch.eye(4, device=cuda_device)[None, ...]
 
-    # with torch.autocast(device_type="cuda", enabled=True):
     for i in range(5000):
         print(f"STEP: {i}; {im.std()}; {torch.cat([torch.flatten(p) for p in sd.unet_lora.parameters()]).std()}")
-        optimizer.zero_grad()
+        im_optimizer.zero_grad()
+        sd_optimizer.zero_grad()
 
         # loss = sd.sds_loss(text_embedding, im, guidance_scale=20.0)
-        loss = sd.vsd_forward(text_embedding_vd, text_embedding, im, guidance_scale=7.5)
+        loss = sd.vsd_forward(text_embedding_vd, text_embedding, im, camera_condition, guidance_scale=7.5)
         loss.backward()
 
-        # for name, param in sd.unet_lora.named_parameters():
-        #     if param.requires_grad and param.grad is not None:
-        #         print(name, param.grad.norm())
-
-        optimizer.step()
+        im_optimizer.step()
+        sd_optimizer.step()
 
         if i % 10 == 0:
             mediapy.write_image(str(save_path), im.clip(0.0, 1.0).permute(0, 2, 3, 1).detach().cpu()[0])
-
-    im = im.clip(0.0, 1.0).permute(0, 2, 3, 1).detach().cpu()
-    print("IM SHAPE:", im.shape)
-    mediapy.write_image(str(save_path), im[0])
 
 
 def generate_image(
