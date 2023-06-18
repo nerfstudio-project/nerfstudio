@@ -107,7 +107,6 @@ class RenderStateMachine(threading.Thread):
 
         # handle interrupt logic
         if self.state == "high" and self.next_action.action in ("move", "rerender"):
-            print("interrupting render", self.next_action.action)
             self.interrupt_render_flag = True
         self.render_trigger.set()
 

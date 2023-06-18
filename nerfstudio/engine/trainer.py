@@ -351,7 +351,6 @@ class Trainer:
         except RuntimeError:
             time.sleep(0.03)  # sleep to allow buffer to reset
             CONSOLE.log("Viewer failed. Continuing training.")
-            raise
 
     @check_viewer_enabled
     def _train_complete_viewer(self) -> None:

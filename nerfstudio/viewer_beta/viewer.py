@@ -218,7 +218,6 @@ class Viewer:
                 image=image_uint8,
                 wxyz=R.wxyz,
                 position=c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO,
-                jpeg_quality=50,
             )
 
             @camera_handle.on_click
