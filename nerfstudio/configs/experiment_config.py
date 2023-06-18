@@ -72,6 +72,8 @@ class ExperimentConfig(InstantiateConfig):
     """Which visualizer to use."""
     data: Optional[Path] = None
     """Alias for --pipeline.datamanager.data"""
+    prompt: Optional[str] = None
+    """Alias for --pipeline.model.prompt"""
     relative_model_dir: Path = Path("nerfstudio_models/")
     """Relative path to save all checkpoints."""
 

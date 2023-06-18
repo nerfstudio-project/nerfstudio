@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import contextlib
 import threading
+import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 
@@ -97,12 +98,16 @@ class RenderStateMachine(threading.Thread):
         elif self.next_action == "rerender":
             # never overwrite rerenders
             pass
+        elif action.action == "static" and self.next_action.action == "move":
+            # don't overwrite a move action with a static: static is always self-fired
+            return
         else:
             #  monimal use case, just set the next action
             self.next_action = action
 
         # handle interrupt logic
         if self.state == "high" and self.next_action.action in ("move", "rerender"):
+            print("interrupting render", self.next_action.action)
             self.interrupt_render_flag = True
         self.render_trigger.set()
 
@@ -176,7 +181,10 @@ class RenderStateMachine(threading.Thread):
                 continue
             self._send_output_to_viewer(outputs)
             # if we rendered a static low res, we need to self-trigger a static high-res
-            if self.state == "low_static":
+            if self.next_action is None:
+                # if there hasn't been an action, wait for 1/target_fps seconds in case we get another move command
+                time.sleep(1 / self.target_fps)
+            if self.state in ["low_static", "low_move"]:
                 self.action(RenderAction("static", action.camera_state))
 
     def check_interrupt(self, frame, event, arg):
