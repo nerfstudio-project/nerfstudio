@@ -69,9 +69,9 @@ class GenerfactoModelConfig(ModelConfig):
     prompt: str = "a high quality photo of a ripe pineapple"
     """prompt for stable dreamfusion"""
 
-    orientation_loss_mult: Tuple[float, float] = (0.0001, 1.0)
+    orientation_loss_mult: Tuple[float, float] = (0.001, 10.0)
     """Orientation loss multipier on computed normals."""
-    orientation_loss_mult_range: Tuple[int, int] = (5000, 15000)
+    orientation_loss_mult_range: Tuple[int, int] = (0, 15000)
     """number of iterations to reach last orientation_loss_mult value"""
     random_light_source: bool = True
     """Randomizes light source per output."""
@@ -422,8 +422,8 @@ class GenerfactoModel(Model):
         outputs["shaded_albedo"] = shaded_albedo
         outputs["rgb"] = accum_mask * rgb + background
 
-        # while training 20% of the time use a random background
-        if np.random.random_sample() < 0.2 and self.random_background and self.training:
+        # while training 50% of the time use a random background
+        if np.random.random_sample() < 0.5 and self.random_background and self.training:
             background = torch.ones_like(background) * torch.rand(3, device=self.device) * accum_mask_inv
 
         if shading_weight > 0:
@@ -434,18 +434,6 @@ class GenerfactoModel(Model):
                 outputs["train_output"] = shaded_albedo + background
         else:
             outputs["train_output"] = accum_mask * rgb + background
-
-        if shading_weight > 0:
-            samp = np.random.random_sample()
-            if samp > 0.5 and not self.training:
-                outputs["train_output"] = outputs["shaded"]
-            elif samp < 0.2 and self.random_background:
-                rand_bg = torch.ones_like(background) * torch.rand(3, device=self.device)
-                outputs["train_output"] = accum_mask * shaded_albedo + rand_bg * accum_mask_inv
-            else:
-                outputs["train_output"] = accum_mask * shaded_albedo + background
-        else:
-            outputs["train_output"] = outputs["rgb"]
 
         outputs["rendered_orientation_loss"] = orientation_loss(
             weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions

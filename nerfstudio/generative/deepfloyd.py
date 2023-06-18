@@ -14,7 +14,7 @@
 
 import gc
 from pathlib import Path
-from typing import List, Optional, Union, cast
+from typing import List, Optional, Union
 
 import torch
 import torch.nn.functional as F
@@ -26,7 +26,7 @@ from torch import Generator, Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
 
 
-from nerfstudio.generative.utils import _SDSGradient, CatchMissingPackages
+from nerfstudio.generative.utils import CatchMissingPackages
 
 try:
     from diffusers import IFPipeline as IFOrig
@@ -155,36 +155,33 @@ class DeepFloyd(nn.Module):
         Returns:
             The loss
         """
-        with torch.autocast(device_type="cuda", enabled=False):
-            image = F.interpolate(image.half(), (IMG_DIM, IMG_DIM), mode="bilinear", align_corners=False)
-            t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
+        image = F.interpolate(image.half(), (IMG_DIM, IMG_DIM), mode="bilinear", align_corners=False)
+        t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
 
-            # predict the noise residual with unet, NO grad!
-            with torch.no_grad():
-                # add noise
-                noise = torch.randn_like(image)
-                image_noisy = self.scheduler.add_noise(image, noise, t)  # type: ignore
-                # pred noise
-                image_model_input = torch.cat((image_noisy,) * 2)
-                noise_pred = self.unet(image_model_input, t, encoder_hidden_states=text_embeddings).sample
+        # predict the noise residual with unet, NO grad!
+        with torch.no_grad():
+            # add noise
+            noise = torch.randn_like(image)
+            image_noisy = self.scheduler.add_noise(image, noise, t)  # type: ignore
+            # pred noise
+            image_model_input = torch.cat((image_noisy,) * 2)
+            noise_pred = self.unet(image_model_input, t, encoder_hidden_states=text_embeddings).sample
 
-            # perform guidance
-            noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-            noise_pred_text, predicted_variance = noise_pred_text.split(3, dim=1)
-            noise_pred_uncond, _ = noise_pred_uncond.split(3, dim=1)
+        # perform guidance
+        noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+        noise_pred_text, predicted_variance = noise_pred_text.split(3, dim=1)
+        noise_pred_uncond, _ = noise_pred_uncond.split(3, dim=1)
 
-            noise_pred = noise_pred_text + guidance_scale * (noise_pred_text - noise_pred_uncond)
+        noise_pred = noise_pred_text + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
-            # w(t), sigma_t^2
-            w = 1 - self.alphas[t]
+        # w(t), sigma_t^2
+        w = 1 - self.alphas[t]
 
-            grad = w * (noise_pred - noise)
-            grad = torch.nan_to_num(grad)
+        grad = w * (noise_pred - noise)
+        grad = torch.nan_to_num(grad)
 
-            if grad_scaler is not None:
-                loss = cast(Tensor, _SDSGradient.apply(grad_scaler.scale(image), grad))
-            else:
-                loss = cast(Tensor, _SDSGradient.apply(image, grad))
+        target = (image - grad).detach()
+        loss = 0.5 * F.mse_loss(image, target, reduction="sum") / image.shape[0]
 
         return loss
 

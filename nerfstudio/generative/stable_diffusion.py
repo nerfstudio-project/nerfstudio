@@ -16,9 +16,8 @@
 
 # Modified from https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py
 
-from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Union, cast
+from typing import List, Optional, Union
 from nerfstudio.utils.rich_utils import CONSOLE
 
 import mediapy
@@ -30,7 +29,7 @@ from jaxtyping import Float
 from torch import Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
 
-from nerfstudio.generative.utils import _SDSGradient, CatchMissingPackages
+from nerfstudio.generative.utils import CatchMissingPackages
 
 
 try:
@@ -48,12 +47,7 @@ SD_IDENTIFIERS = {
     "2-1": "stabilityai/stable-diffusion-2-1-base",
 }
 
-
-@dataclass
-class UNet2DConditionOutput:
-    """Class to hold traced model"""
-
-    sample: torch.FloatTensor
+torch.backends.cuda.matmul.allow_tf32 = True
 
 
 class StableDiffusion(nn.Module):
@@ -149,7 +143,7 @@ class StableDiffusion(nn.Module):
         Returns:
             The loss
         """
-        image = F.interpolate(image, (IMG_DIM, IMG_DIM), mode="bilinear")
+        image = F.interpolate(image, (IMG_DIM, IMG_DIM), mode="bilinear").to(torch.float16)
         t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
         latents = self.imgs_to_latent(image)
 
@@ -172,9 +166,8 @@ class StableDiffusion(nn.Module):
         grad = w * (noise_pred - noise)
         grad = torch.nan_to_num(grad)
 
-        if grad_scaler is not None:
-            latents = grad_scaler.scale(latents)
-        loss = cast(Tensor, _SDSGradient.apply(latents, grad))
+        target = (latents - grad).detach()
+        loss = 0.5 * F.mse_loss(latents, target, reduction="sum") / latents.shape[0]
 
         return loss
 
