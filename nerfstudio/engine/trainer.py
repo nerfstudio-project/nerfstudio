@@ -33,8 +33,8 @@ from rich.table import Table
 from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.configs.experiment_config import ExperimentConfig
-from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
+from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline
 from nerfstudio.utils import profiler, writer
@@ -460,10 +460,14 @@ class Trainer:
 
         self.optimizers.zero_grad_all()
         cpu_or_cuda_str: str = self.device.split(":")[0]
+        assert (
+            self.gradient_accumulation_steps > 0
+        ), f"gradient_accumulation_steps must be > 0, not {self.gradient_accumulation_steps}"
         for _ in range(self.gradient_accumulation_steps):
             with torch.autocast(device_type=cpu_or_cuda_str, enabled=self.mixed_precision):
                 _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
                 loss = functools.reduce(torch.add, loss_dict.values())
+                loss /= self.gradient_accumulation_steps
             self.grad_scaler.scale(loss).backward()  # type: ignore
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
 
@@ -473,10 +477,10 @@ class Trainer:
                 assert tag != "Total"
                 if value.grad is not None:
                     grad = value.grad.norm()
-                    metrics_dict[f"Gradients/{tag}"] = grad
+                    metrics_dict[f"Gradients/{tag}"] = grad  # type: ignore
                     total_grad += grad
 
-            metrics_dict["Gradients/Total"] = cast(torch.Tensor, total_grad)
+            metrics_dict["Gradients/Total"] = cast(torch.Tensor, total_grad)  # type: ignore
 
         scale = self.grad_scaler.get_scale()
         self.grad_scaler.update()
@@ -485,7 +489,7 @@ class Trainer:
             self.optimizers.scheduler_step_all(step)
 
         # Merging loss and metrics dict into a single output.
-        return loss, loss_dict, metrics_dict
+        return loss, loss_dict, metrics_dict  # type: ignore
 
     @check_eval_enabled
     @profiler.time_function
