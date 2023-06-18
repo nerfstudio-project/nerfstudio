@@ -42,10 +42,10 @@ class CameraOptimizerConfig(InstantiateConfig):
     mode: Literal["off", "SO3xR3", "SE3"] = "off"
     """Pose optimization strategy to use. If enabled, we recommend SO3xR3."""
 
-    trans_l2_penalty: float = 1e-2
+    trans_l2_penalty: float = 1e-3
     """L2 penalty on translation parameters."""
 
-    rot_l2_penalty: float = 1e-2
+    rot_l2_penalty: float = 1e-3
     """L2 penalty on rotation parameters."""
 
 class CameraOptimizer(nn.Module):
