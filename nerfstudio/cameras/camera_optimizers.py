@@ -30,11 +30,7 @@ from typing_extensions import assert_never
 
 from nerfstudio.cameras.lie_groups import exp_map_SE3, exp_map_SO3xR3
 from nerfstudio.configs.base_config import InstantiateConfig
-from nerfstudio.engine.optimizers import AdamOptimizerConfig, OptimizerConfig
-from nerfstudio.engine.schedulers import (
-    ExponentialDecaySchedulerConfig,
-    SchedulerConfig,
-)
+from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.utils import poses as pose_utils
 
 
@@ -46,22 +42,6 @@ class CameraOptimizerConfig(InstantiateConfig):
 
     mode: Literal["off", "SO3xR3", "SE3"] = "off"
     """Pose optimization strategy to use. If enabled, we recommend SO3xR3."""
-
-    position_noise_std: float = 0.0
-    """Noise to add to initial positions. Useful for debugging."""
-
-    orientation_noise_std: float = 0.0
-    """Noise to add to initial orientations. Useful for debugging."""
-
-    optimizer: OptimizerConfig = AdamOptimizerConfig(lr=6e-4, eps=1e-15)
-    """ADAM parameters for camera optimization."""
-
-    scheduler: SchedulerConfig = ExponentialDecaySchedulerConfig(max_steps=10000)
-    """Learning rate scheduler for camera optimizer.."""
-
-    param_group: tyro.conf.Suppress[str] = "camera_opt"
-    """Name of the parameter group used for pose optimization. Can be any string that doesn't conflict with other
-    groups."""
 
 
 class CameraOptimizer(nn.Module):
@@ -89,16 +69,6 @@ class CameraOptimizer(nn.Module):
         else:
             assert_never(self.config.mode)
 
-        # Initialize pose noise; useful for debugging.
-        if config.position_noise_std != 0.0 or config.orientation_noise_std != 0.0:
-            assert config.position_noise_std >= 0.0 and config.orientation_noise_std >= 0.0
-            std_vector = torch.tensor(
-                [config.position_noise_std] * 3 + [config.orientation_noise_std] * 3, device=device
-            )
-            self.pose_noise = exp_map_SE3(torch.normal(torch.zeros((num_cameras, 6), device=device), std_vector))
-        else:
-            self.pose_noise = None
-
     def forward(
         self,
         indices: Int[Tensor, "num_cameras"],
@@ -122,12 +92,16 @@ class CameraOptimizer(nn.Module):
         else:
             assert_never(self.config.mode)
 
-        # Apply initial pose noise.
-        if self.pose_noise is not None:
-            outputs.append(self.pose_noise[indices, :, :])
-
         # Return: identity if no transforms are needed, otherwise multiply transforms together.
         if len(outputs) == 0:
             # Note that using repeat() instead of tile() here would result in unnecessary copies.
             return torch.eye(4, device=self.device)[None, :3, :4].tile(indices.shape[0], 1, 1)
         return functools.reduce(pose_utils.multiply, outputs)
+
+    def apply_to_raybundle(self, raybundle: RayBundle) -> None:
+        """
+        Apply the pose correction to the raybundle
+        """
+        correction_matrices = self(raybundle.camera_indices.squeeze())
+        raybundle.origins = raybundle.origins + correction_matrices[:, :3, 3]
+        raybundle.directions = torch.bmm(correction_matrices[:, :3, :3], raybundle.directions[..., None]).squeeze()

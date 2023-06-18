@@ -43,7 +43,6 @@ from torch.nn import Parameter
 from torch.utils.data.distributed import DistributedSampler
 from typing_extensions import TypeVar
 
-from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
@@ -109,8 +108,6 @@ class DataManagerConfig(InstantiateConfig):
     """Target class to instantiate."""
     data: Optional[Path] = None
     """Source of data, may not be used by all models."""
-    camera_optimizer: Optional[CameraOptimizerConfig] = None
-    """Specifies the camera pose optimizer used during training. Helpful if poses are noisy."""
 
 
 class DataManager(nn.Module):
@@ -329,9 +326,6 @@ class VanillaDataManagerConfig(DataManagerConfig):
     new images. If -1, never pick new images."""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """Specifies the image indices to use during eval; if None, uses all."""
-    camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
-    """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
-    Record3D."""
     collate_fn: Callable[[Any], Any] = cast(Any, staticmethod(nerfstudio_collate))
     """Specifies the collate function to use for the train and eval dataloaders."""
     camera_res_scale_factor: float = 1.0
@@ -459,13 +453,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
-        self.train_camera_optimizer = self.config.camera_optimizer.setup(
-            num_cameras=self.train_dataset.cameras.size, device=self.device
-        )
-        self.train_ray_generator = RayGenerator(
-            self.train_dataset.cameras.to(self.device),
-            self.train_camera_optimizer,
-        )
+        self.train_ray_generator = RayGenerator(self.train_dataset.cameras.to(self.device))
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
@@ -483,13 +471,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
-        self.eval_camera_optimizer = self.config.camera_optimizer.setup(
-            num_cameras=self.eval_dataset.cameras.size, device=self.device
-        )
-        self.eval_ray_generator = RayGenerator(
-            self.eval_dataset.cameras.to(self.device),
-            self.eval_camera_optimizer,
-        )
+        self.eval_ray_generator = RayGenerator(self.eval_dataset.cameras.to(self.device))
         # for loading full images
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
             input_dataset=self.eval_dataset,
@@ -545,13 +527,4 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         Returns:
             A list of dictionaries containing the data manager's param groups.
         """
-        param_groups = {}
-
-        camera_opt_params = list(self.train_camera_optimizer.parameters())
-        if self.config.camera_optimizer.mode != "off":
-            assert len(camera_opt_params) > 0
-            param_groups[self.config.camera_optimizer.param_group] = camera_opt_params
-        else:
-            assert len(camera_opt_params) == 0
-
-        return param_groups
+        return {}

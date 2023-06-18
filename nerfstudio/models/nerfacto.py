@@ -48,6 +48,7 @@ from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
+from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig, CameraOptimizer
 
 
 @dataclass
@@ -126,6 +127,8 @@ class NerfactoModelConfig(ModelConfig):
     """Which implementation to use for the model."""
     appearance_embed_dim: int = 32
     """Dimension of the appearance embedding."""
+    camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
+    """Config of the camera optimizer to use"""
 
 
 class NerfactoModel(Model):
@@ -163,6 +166,9 @@ class NerfactoModel(Model):
             implementation=self.config.implementation,
         )
 
+        self.camera_optimizer: CameraOptimizer = self.config.camera_optimizer.setup(
+            num_cameras=self.num_train_data, device="cpu"  # for now initialize on cpu, these will be moved later
+        )
         self.density_fns = []
         num_prop_nets = self.config.num_proposal_iterations
         # Build the proposal network(s)
@@ -236,6 +242,12 @@ class NerfactoModel(Model):
         param_groups = {}
         param_groups["proposal_networks"] = list(self.proposal_networks.parameters())
         param_groups["fields"] = list(self.field.parameters())
+        camera_opt_params = list(self.camera_optimizer.parameters())
+        if self.config.camera_optimizer.mode != "off":
+            assert len(camera_opt_params) > 0
+            param_groups["camera_opt"] = camera_opt_params
+        else:
+            assert len(camera_opt_params) == 0
         return param_groups
 
     def get_training_callbacks(
@@ -273,6 +285,10 @@ class NerfactoModel(Model):
         return callbacks
 
     def get_outputs(self, ray_bundle: RayBundle):
+        # apply the camera optimizer pose tweaks
+        if self.training:
+            self.camera_optimizer.apply_to_raybundle(ray_bundle)
+
         ray_samples: RaySamples
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         field_outputs = self.field.forward(ray_samples, compute_normals=self.config.predict_normals)
@@ -325,6 +341,10 @@ class NerfactoModel(Model):
         metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
         if self.training:
             metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
+
+        # Report the camera optimization metrics
+        metrics_dict["camera_opt_translation"] = self.camera_optimizer.pose_adjustment[:, :3].norm()
+        metrics_dict["camera_opt_rotation"] = self.camera_optimizer.pose_adjustment[:, 3:].norm()
         return metrics_dict
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
