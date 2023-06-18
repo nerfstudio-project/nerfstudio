@@ -23,7 +23,6 @@ from dataclasses import dataclass, field
 from typing import Literal, Type, Union
 
 import torch
-import tyro
 from jaxtyping import Float, Int
 from torch import Tensor, nn
 from typing_extensions import assert_never
@@ -43,7 +42,7 @@ class CameraOptimizerConfig(InstantiateConfig):
     mode: Literal["off", "SO3xR3", "SE3"] = "off"
     """Pose optimization strategy to use. If enabled, we recommend SO3xR3."""
 
-    trans_l2_penalty: float = 1e-3
+    trans_l2_penalty: float = 1e-2
     """L2 penalty on translation parameters."""
 
     rot_l2_penalty: float = 1e-2
@@ -115,5 +114,4 @@ class CameraOptimizer(nn.Module):
         """
         Add a regularizer
         """
-        loss_dict['camera_opt_regularizer'] = self.pose_adjustment[:,:3].norm(dim=-1).mean() * self.config.trans_l2_penalty
-        loss_dict['camera_rot_regularizer'] = self.pose_adjustment[:,3:].norm(dim=-1).mean() * self.config.rot_l2_penalty
+        loss_dict['camera_opt_regularizer'] = self.pose_adjustment[:,:3].norm(dim=-1).mean() * self.config.trans_l2_penalty + self.pose_adjustment[:,3:].norm(dim=-1).mean() * self.config.rot_l2_penalty

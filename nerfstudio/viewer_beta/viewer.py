@@ -129,18 +129,19 @@ class Viewer:
         # Update the train camera locations based on optimization
         assert self.camera_handles is not None
         idxs = list(self.camera_handles.keys())
-        camera_optimizer = self.trainer.pipeline.datamanager.train_camera_optimizer
+        camera_optimizer = self.trainer.pipeline.model.camera_optimizer
         with torch.no_grad():
             c2ws_delta = camera_optimizer(torch.tensor(idxs, device=camera_optimizer.device)).cpu().numpy()
-        for idx in idxs:
-            # both are numpy arrays
-            c2w_orig = self.original_c2w[idx]
-            c2w_delta = c2ws_delta[idx, ...]
-            c2w = c2w_orig @ np.concatenate((c2w_delta, np.array([[0, 0, 0, 1]])), axis=0)
-            R = vtf.SO3.from_matrix(c2w[:3, :3])
-            R = R @ vtf.SO3.from_x_radians(np.pi)
-            self.camera_handles[idx].position = c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO
-            self.camera_handles[idx].wxyz = R.wxyz
+        with self.viser_server.atomic():
+            for idx in idxs:
+                # both are numpy arrays
+                c2w_orig = self.original_c2w[idx]
+                c2w_delta = c2ws_delta[idx, ...]
+                c2w = c2w_orig @ np.concatenate((c2w_delta, np.array([[0, 0, 0, 1]])), axis=0)
+                R = vtf.SO3.from_matrix(c2w[:3, :3])
+                R = R @ vtf.SO3.from_x_radians(np.pi)
+                self.camera_handles[idx].position = c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO
+                self.camera_handles[idx].wxyz = R.wxyz
 
     def _interrupt_render(self, _) -> None:
         """Interrupt current render."""
