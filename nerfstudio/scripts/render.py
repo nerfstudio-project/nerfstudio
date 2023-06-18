@@ -546,7 +546,7 @@ class BlockNerfRenderTrajectory:
         pipeline_models: Dict[str, Model] = {}
         pipeline_devices: List[torch.device] = []
         for block_name, config_path in self.config_files.items():
-            _, pipeline, _ = eval_setup(config_path, self.eval_num_rays_per_chunk, "inference")
+            _, pipeline, _, _ = eval_setup(config_path, self.eval_num_rays_per_chunk, "inference")
             # TODO: I can change the pipeline_models to a dict with pipeline_models[config.experiment_name]. Need the create_block_lookup to save it in similar fashion.
             pipeline_models[block_name] = pipeline.model
             pipeline_devices.append(pipeline.device)

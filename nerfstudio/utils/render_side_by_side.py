@@ -111,7 +111,8 @@ class RenderSideBySide:
             new_camera_path["camera_path"].append(
                 {
                     "camera_to_world": c2w,
-                    "fov": 90,
+                    # TODO: Configure the fov automatically.
+                    "fov": 40,
                     "aspect": width / height,
                 }
             )

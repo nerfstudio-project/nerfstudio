@@ -112,9 +112,13 @@ class ExperimentPipeline:
         config.data = self.input_data_dir
         config.output_dir = self.output_dir
         config.experiment_name = self.experiment_name
-        config.vis = "viewer"
+        config.vis = "wandb"
         config.viewer.quit_on_train_completion = True
-        config.max_num_iterations = 15000
+        
+        if self.model == "mipnerf":
+            config.max_num_iterations = 300000
+        else:
+            config.max_num_iterations = 15000
 
         if not self.use_camera_optimizer:
             config.pipeline.datamanager.camera_optimizer.mode = "off"
@@ -209,7 +213,7 @@ class ExperimentPipeline:
             # Create side-by-side video of model_render and input_images_render
             self.render_side_by_side.create_side_by_side_video(
                 video_paths=[input_images_render_path, model_render_path],
-                export_path=render_side_by_side.render_dir / "side-by-side.mp4",
+                export_path=render_side_by_side.render_dir / f"side-by-side-{get_timestamp()}.mp4",
             )
 
     def get_camera_path(self, model_path: Path) -> Path:
@@ -347,7 +351,7 @@ if __name__ == "__main__":
         )
         render_side_by_side.create_side_by_side_video(
             video_paths=[input_images_render_path, model_render_path],
-            export_path=render_side_by_side.render_dir / "side-by-side.mp4",
+            export_path=render_side_by_side.render_dir / f"side-by-side-{get_timestamp()}.mp4",
         )
 
     terminal.close()

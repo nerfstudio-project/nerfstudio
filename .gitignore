@@ -201,3 +201,5 @@ ffmpeg_test/**/*.json
 
 scripts/completions/zsh/*
 copy_data.sh
+
+block_nerf/images
