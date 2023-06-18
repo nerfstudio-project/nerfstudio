@@ -127,7 +127,7 @@ class NerfactoModelConfig(ModelConfig):
     """Which implementation to use for the model."""
     appearance_embed_dim: int = 32
     """Dimension of the appearance embedding."""
-    camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
+    camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig(mode="SO3xR3")
     """Config of the camera optimizer to use"""
 
 
@@ -367,6 +367,8 @@ class NerfactoModel(Model):
                 loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
                     outputs["rendered_pred_normal_loss"]
                 )
+            # Add losses from the camera optimizer (like L2 regularization)
+            self.camera_optimizer.get_loss_dict(loss_dict)
         return loss_dict
 
     def get_image_metrics_and_images(

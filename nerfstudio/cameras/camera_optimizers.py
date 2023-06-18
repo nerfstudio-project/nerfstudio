@@ -43,6 +43,11 @@ class CameraOptimizerConfig(InstantiateConfig):
     mode: Literal["off", "SO3xR3", "SE3"] = "off"
     """Pose optimization strategy to use. If enabled, we recommend SO3xR3."""
 
+    trans_l2_penalty: float = 1e-3
+    """L2 penalty on translation parameters."""
+
+    rot_l2_penalty: float = 1e-2
+    """L2 penalty on rotation parameters."""
 
 class CameraOptimizer(nn.Module):
     """Layer that modifies camera poses to be optimized as well as the field during training."""
@@ -105,3 +110,10 @@ class CameraOptimizer(nn.Module):
         correction_matrices = self(raybundle.camera_indices.squeeze())
         raybundle.origins = raybundle.origins + correction_matrices[:, :3, 3]
         raybundle.directions = torch.bmm(correction_matrices[:, :3, :3], raybundle.directions[..., None]).squeeze()
+
+    def get_loss_dict(self, loss_dict: dict) -> dict:
+        """
+        Add a regularizer
+        """
+        loss_dict['camera_opt_regularizer'] = self.pose_adjustment[:,:3].norm(dim=-1).mean() * self.config.trans_l2_penalty
+        loss_dict['camera_rot_regularizer'] = self.pose_adjustment[:,3:].norm(dim=-1).mean() * self.config.rot_l2_penalty
