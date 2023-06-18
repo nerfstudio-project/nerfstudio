@@ -125,6 +125,23 @@ class Viewer:
             self.camera_state = CameraState(fov=self.client.camera.fov, aspect=self.client.camera.aspect, c2w=c2w)
             self.render_statemachine.action(RenderAction("move", self.camera_state))
 
+    def update_camera_poses(self):
+        # Update the train camera locations based on optimization
+        assert self.camera_handles is not None
+        idxs = list(self.camera_handles.keys())
+        camera_optimizer = self.trainer.pipeline.datamanager.train_camera_optimizer
+        with torch.no_grad():
+            c2ws_delta = camera_optimizer(torch.tensor(idxs, device=camera_optimizer.device)).cpu().numpy()
+        for idx in idxs:
+            # both are numpy arrays
+            c2w_orig = self.original_c2w[idx]
+            c2w_delta = c2ws_delta[idx, ...]
+            c2w = c2w_orig @ np.concatenate((c2w_delta, np.array([[0, 0, 0, 1]])), axis=0)
+            R = vtf.SO3.from_matrix(c2w[:3, :3])
+            R = R @ vtf.SO3.from_x_radians(np.pi)
+            self.camera_handles[idx].position = c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO
+            self.camera_handles[idx].wxyz = R.wxyz
+
     def _interrupt_render(self, _) -> None:
         """Interrupt current render."""
         if self.camera_state is not None:
@@ -180,6 +197,8 @@ class Viewer:
 
         # draw the training cameras and images
         image_indices = self._pick_drawn_image_idxs(len(dataset))
+        self.camera_handles = {}
+        self.original_c2w = {}
         for idx in image_indices:
             image = dataset[idx]["image"]
             camera = dataset.cameras[idx]
@@ -193,12 +212,13 @@ class Viewer:
             R = R @ vtf.SO3.from_x_radians(np.pi)
             camera_handle = self.viser_server.add_camera_frustum(
                 name=f"/camera_{idx:05d}",
-                fov=float(camera.fx[0]),
-                scale=0.2,
+                fov=2 * np.arctan(camera.cx / camera.fx[0]),
+                scale=1,
                 aspect=float(camera.cx[0] / camera.cy[0]),
                 image=image_uint8,
                 wxyz=R.wxyz,
                 position=c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO,
+                jpeg_quality=50,
             )
 
             @camera_handle.on_click
@@ -206,6 +226,9 @@ class Viewer:
                 with self.client.atomic():
                     self.client.camera.position = cam.position
                     self.client.camera.wxyz = cam.wxyz
+
+            self.camera_handles[idx] = camera_handle
+            self.original_c2w[idx] = c2w
 
         self.train_state = train_state
         self.train_util = 0.9
