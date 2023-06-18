@@ -34,6 +34,7 @@ from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
+from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline
 from nerfstudio.utils import profiler, writer
@@ -227,9 +228,11 @@ class Trainer:
         """Train the model."""
         assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
 
-        self.pipeline.datamanager.train_dataparser_outputs.save_dataparser_transform(
-            self.base_dir / "dataparser_transforms.json"
-        )
+        # don't want to call save_dataparser_transform if pipeline's datamanager does not have a dataparser
+        if isinstance(self.pipeline.datamanager, VanillaDataManager):
+            self.pipeline.datamanager.train_dataparser_outputs.save_dataparser_transform(
+                self.base_dir / "dataparser_transforms.json"
+            )
 
         self._init_viewer_state()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
@@ -456,14 +459,11 @@ class Trainer:
         """
 
         self.optimizers.zero_grad_all()
-
-        device_type: str = self.device.split(":")[0] if "cuda" in self.device else "cpu"
-
+        cpu_or_cuda_str: str = self.device.split(":")[0]
         for _ in range(self.gradient_accumulation_steps):
-            with torch.autocast(device_type=device_type, enabled=self.mixed_precision):
+            with torch.autocast(device_type=cpu_or_cuda_str, enabled=self.mixed_precision):
                 _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
                 loss = functools.reduce(torch.add, loss_dict.values())
-                loss /= self.gradient_accumulation_steps
             self.grad_scaler.scale(loss).backward()  # type: ignore
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
 

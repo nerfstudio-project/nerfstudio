@@ -11,10 +11,10 @@ from nerfstudio.data.datasets.base_dataset import DataparserOutputs, InputDatase
 from nerfstudio.pipelines.base_pipeline import (
     Model,
     ModelConfig,
-    VanillaDataManagerConfig,
     VanillaPipeline,
     VanillaPipelineConfig,
 )
+from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
 
 
 class MockedDataManager:
