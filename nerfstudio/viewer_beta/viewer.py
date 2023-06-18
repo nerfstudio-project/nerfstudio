@@ -95,8 +95,7 @@ class Viewer:
         self.train_btn_state: Literal["training", "paused", "completed"] = "training"
         self._prev_train_state: Literal["training", "paused", "completed"] = "training"
 
-        self.camera_message = None
-
+        self.client = None
         self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
 
         self.viser_server.on_client_connect(self.handle_new_client)
@@ -114,15 +113,34 @@ class Viewer:
         self.render_statemachine.start()
 
     def handle_new_client(self, client: viser.ClientHandle) -> None:
+        self.client = client
+
         @client.camera.on_update
         def _(_: viser.CameraHandle) -> None:
-            R = vtf.SO3(wxyz=client.camera.wxyz)
+            R = vtf.SO3(wxyz=self.client.camera.wxyz)
             R = R @ vtf.SO3.from_x_radians(np.pi)
             R = torch.tensor(R.as_matrix())
-            pos = torch.tensor(client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
+            pos = torch.tensor(self.client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
             c2w = torch.concatenate([R, pos[:, None]], dim=1)
-            self.camera_state = CameraState(fov=client.camera.fov, aspect=client.camera.aspect, c2w=c2w)
+            self.camera_state = CameraState(fov=self.client.camera.fov, aspect=self.client.camera.aspect, c2w=c2w)
             self.render_statemachine.action(RenderAction("move", self.camera_state))
+
+    def update_camera_poses(self):
+        # Update the train camera locations based on optimization
+        assert self.camera_handles is not None
+        idxs = list(self.camera_handles.keys())
+        camera_optimizer = self.trainer.pipeline.datamanager.train_camera_optimizer
+        with torch.no_grad():
+            c2ws_delta = camera_optimizer(torch.tensor(idxs, device=camera_optimizer.device)).cpu().numpy()
+        for idx in idxs:
+            # both are numpy arrays
+            c2w_orig = self.original_c2w[idx]
+            c2w_delta = c2ws_delta[idx, ...]
+            c2w = c2w_orig @ np.concatenate((c2w_delta, np.array([[0, 0, 0, 1]])), axis=0)
+            R = vtf.SO3.from_matrix(c2w[:3, :3])
+            R = R @ vtf.SO3.from_x_radians(np.pi)
+            self.camera_handles[idx].position = c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO
+            self.camera_handles[idx].wxyz = R.wxyz
 
     def _interrupt_render(self, _) -> None:
         """Interrupt current render."""
@@ -179,6 +197,8 @@ class Viewer:
 
         # draw the training cameras and images
         image_indices = self._pick_drawn_image_idxs(len(dataset))
+        self.camera_handles = {}
+        self.original_c2w = {}
         for idx in image_indices:
             image = dataset[idx]["image"]
             camera = dataset.cameras[idx]
@@ -190,15 +210,24 @@ class Viewer:
             c2w = camera.camera_to_worlds.cpu().numpy()
             R = vtf.SO3.from_matrix(c2w[:3, :3])
             R = R @ vtf.SO3.from_x_radians(np.pi)
-            self.viser_server.add_camera_frustum(
-                name=f"Camera {idx}",
-                fov=float(camera.fx[0]),
-                scale=0.2,
+            camera_handle = self.viser_server.add_camera_frustum(
+                name=f"/camera_{idx:05d}",
+                fov=2 * np.arctan(camera.cx / camera.fx[0]),
+                scale=1,
                 aspect=float(camera.cx[0] / camera.cy[0]),
                 image=image_uint8,
                 wxyz=R.wxyz,
                 position=c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO,
             )
+
+            @camera_handle.on_click
+            def _(cam: viser.CameraHandle) -> None:
+                with self.client.atomic():
+                    self.client.camera.position = cam.position
+                    self.client.camera.wxyz = cam.wxyz
+
+            self.camera_handles[idx] = camera_handle
+            self.original_c2w[idx] = c2w
 
         self.train_state = train_state
         self.train_util = 0.9

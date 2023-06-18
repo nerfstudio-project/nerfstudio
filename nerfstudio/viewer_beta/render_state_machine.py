@@ -167,7 +167,8 @@ class RenderStateMachine(threading.Thread):
             self.render_trigger.wait()
             self.render_trigger.clear()
             action = self.next_action
-            assert action is not None, "Action should never be None at this point"
+            if action is None:
+                continue
             self.next_action = None
             if self.state == "high" and action.action == "static":
                 # if we are in high res and we get a static action, we don't need to do anything
@@ -180,6 +181,7 @@ class RenderStateMachine(threading.Thread):
                 # if we got interrupted, don't send the output to the viewer
                 continue
             self._send_output_to_viewer(outputs)
+            self.viewer.update_camera_poses()
             # if we rendered a static low res, we need to self-trigger a static high-res
             if self.next_action is None:
                 # if there hasn't been an action, wait for 1/target_fps seconds in case we get another move command
