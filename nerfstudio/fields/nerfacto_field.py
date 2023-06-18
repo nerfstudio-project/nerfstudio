@@ -259,6 +259,10 @@ class NerfactoField(Field):
             # output = trunc_exp(output)
             scale, shift = torch.split(output, [self.geo_feat_dim, self.geo_feat_dim], dim=-1)
             scale = trunc_exp(scale)
+
+            #AdaIN normalization
+            # shift = torch.mean(embedded_appearance, dim=-1).view(-1, 1)
+            # scale = torch.std(embedded_appearance, dim=-1).view(-1, 1)
         else:
             if self.use_average_appearance_embedding:
                 embedded_appearance = torch.ones(
@@ -306,10 +310,12 @@ class NerfactoField(Field):
             x = self.mlp_pred_normals(pred_normals_inp).view(*outputs_shape, -1).to(directions)
             outputs[FieldHeadNames.PRED_NORMALS] = self.field_head_pred_normals(x)
 
+        density_embedding_resized = density_embedding.view(-1, self.geo_feat_dim)
         h = torch.cat(
             [
                 d,
-                density_embedding.view(-1, self.geo_feat_dim) * scale + shift,
+                # density_embedding.view(-1, self.geo_feat_dim) * scale + shift,
+                # ((density_embedding_resized - torch.mean(density_embedding_resized, dim=-1)[..., None])/torch.std(density_embedding_resized, dim=-1)[..., None]) * scale + shift,
                 # density_embedding.view(-1, self.geo_feat_dim),
                 # embedded_appearance.view(-1, self.appearance_embedding_dim),
             ],
