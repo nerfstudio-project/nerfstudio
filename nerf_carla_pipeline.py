@@ -21,7 +21,8 @@ from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.configs.method_configs import method_configs
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.scripts.eval import ComputePSNR
-from nerfstudio.scripts.render import BlockNerfRenderTrajectory, RenderTrajectory
+from nerfstudio.scripts.render import (BlockNerfRenderTrajectory,
+                                       RenderTrajectory)
 from nerfstudio.scripts.train import launch, train_loop
 from nerfstudio.utils.render_side_by_side import RenderSideBySide
 from nerfstudio.utils.scripts import run_command
