@@ -47,8 +47,6 @@ SD_IDENTIFIERS = {
     "2-1": "stabilityai/stable-diffusion-2-1-base",
 }
 
-torch.backends.cuda.matmul.allow_tf32 = True
-
 
 class StableDiffusion(nn.Module):
     """Stable Diffusion implementation
