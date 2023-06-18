@@ -25,6 +25,7 @@ BLACKLIST = [
     "phototourism",
     "depth-nerfacto",
     "neus",
+    "generfacto",
     "neus-facto",
 ]
 

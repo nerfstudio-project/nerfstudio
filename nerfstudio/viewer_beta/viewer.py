@@ -126,8 +126,8 @@ class Viewer:
 
     def _interrupt_render(self, _) -> None:
         """Interrupt current render."""
-        if self.camera_message is not None:
-            self.render_statemachine.action(RenderAction("rerender", self.camera_message))
+        if self.camera_state is not None:
+            self.render_statemachine.action(RenderAction("rerender", self.camera_state))
 
     def _crop_params_update(self, _) -> None:
         """Update crop parameters"""
