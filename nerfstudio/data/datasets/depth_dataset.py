@@ -21,8 +21,11 @@ from typing import Dict
 import numpy as np
 
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
+from nerfstudio.model_components import losses
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.data_utils import get_depth_image_from_path
+from nerfstudio.utils.rich_utils import CONSOLE
+
 from typing import Union
 from PIL import Image
 import torch
@@ -32,7 +35,7 @@ import json
 
 
 class DepthDataset(InputDataset):
-    """Dataset that returns images and depths.
+    """Dataset that returns images and depths. If no depths are found, then we generate them with Zoe Depth.
 
     Args:
         dataparser_outputs: description of where and how to read input images.
@@ -47,8 +50,11 @@ class DepthDataset(InputDataset):
             "depth_filenames" not in dataparser_outputs.metadata.keys()
             or dataparser_outputs.metadata["depth_filenames"] is None
         ):
+            losses.DEPTH_METRIC = 0
+            CONSOLE.print("[bold yellow] No depth data found!")
             cache = dataparser_outputs.image_filenames[0].parent / "depths.npy"
             if cache.exists():
+                CONSOLE.print("[bold yellow] Loading cache!")
                 # load all the depths
                 self.depths = np.load(cache)
                 self.depths = torch.from_numpy(self.depths).to(device)
@@ -86,11 +92,13 @@ class DepthDataset(InputDataset):
 
                 self.depths = torch.stack(depth_tensors)
                 np.save(cache, self.depths.cpu().numpy())
-
             dataparser_outputs.metadata["depth_filenames"] = None
             dataparser_outputs.metadata["depth_unit_scale_factor"] = 1.0
             self.metadata["depth_filenames"] = None
             self.metadata["depth_unit_scale_factor"] = 1.0
+
+        else:
+            losses.DEPTH_METRIC = 0
 
         self.depth_filenames = self.metadata["depth_filenames"]
         self.depth_unit_scale_factor = self.metadata["depth_unit_scale_factor"]

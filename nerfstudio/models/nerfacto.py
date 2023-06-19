@@ -301,8 +301,8 @@ class NerfactoModel(Model):
         outputs = {
             "rgb": rgb,
             "accumulation": accumulation,
-            "depth": depth,
-            "depth_med": depth_med,
+            "expected_depth": depth,
+            "depth": depth_med,
         }
 
         if self.config.predict_normals:
@@ -359,9 +359,8 @@ class NerfactoModel(Model):
                 loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
                     outputs["rendered_pred_normal_loss"]
                 )
-
-            if "depth_image" in batch and self.step >= 500:
-                loss_dict["depth_ranking"] = np.interp(self.step, [500, 1000], [0, 0.2]) * depth_ranking_loss(
+            if "depth_image" in batch:
+                loss_dict["depth_ranking"] = np.interp(self.step, [0, 2000], [0, 0.2]) * depth_ranking_loss(
                     outputs["depth"], batch["depth_image"]
                 )
         return loss_dict
