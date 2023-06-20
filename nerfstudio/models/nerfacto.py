@@ -28,6 +28,7 @@ from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
+from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
 from nerfstudio.cameras.rays import RayBundle, RaySamples
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.field_components.field_heads import FieldHeadNames
@@ -48,7 +49,6 @@ from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
-from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig, CameraOptimizer
 
 
 @dataclass
@@ -232,7 +232,7 @@ class NerfactoModel(Model):
 
         # losses
         self.rgb_loss = MSELoss()
-
+        self.step = 0
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
@@ -260,6 +260,7 @@ class NerfactoModel(Model):
 
             def set_anneal(step):
                 # https://arxiv.org/pdf/2111.12077.pdf eq. 18
+                self.step = step
                 train_frac = np.clip(step / N, 0, 1)
 
                 def bias(x, b):

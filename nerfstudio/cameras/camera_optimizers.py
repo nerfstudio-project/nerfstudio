@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass, field
-from typing import Literal, Type, Union
+from typing import Literal, Optional, Type, Union
 
 import torch
 from jaxtyping import Float, Int
@@ -59,12 +59,14 @@ class CameraOptimizer(nn.Module):
         config: CameraOptimizerConfig,
         num_cameras: int,
         device: Union[torch.device, str],
+        non_trainable_camera_indices: Optional[Int[Tensor, "num_non_trainable_cameras"]] = None,
         **kwargs,
     ) -> None:
         super().__init__()
         self.config = config
         self.num_cameras = num_cameras
         self.device = device
+        self.non_trainable_camera_indices = non_trainable_camera_indices
 
         # Initialize learnable parameters.
         if self.config.mode == "off":
@@ -96,6 +98,9 @@ class CameraOptimizer(nn.Module):
             outputs.append(exp_map_SE3(self.pose_adjustment[indices, :]))
         else:
             assert_never(self.config.mode)
+        # Detach non-trainable indices by setting to identity transform
+        if self.non_trainable_camera_indices is not None:
+            outputs[0][self.non_trainable_camera_indices] = torch.eye(4, device=self.device)[:3, :4]
 
         # Return: identity if no transforms are needed, otherwise multiply transforms together.
         if len(outputs) == 0:

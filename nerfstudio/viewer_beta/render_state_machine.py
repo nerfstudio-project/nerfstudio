@@ -181,7 +181,8 @@ class RenderStateMachine(threading.Thread):
                 # if we got interrupted, don't send the output to the viewer
                 continue
             self._send_output_to_viewer(outputs)
-            self.viewer.update_camera_poses()
+            if self.state == "high":
+                self.viewer.update_camera_poses()
             # if we rendered a static low res, we need to self-trigger a static high-res
             if self.next_action is None:
                 # if there hasn't been an action, wait for 1/target_fps seconds in case we get another move command
