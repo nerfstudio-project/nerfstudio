@@ -105,7 +105,7 @@ class DepthNerfactoModel(NerfactoModel):
                 loss_dict["depth_loss"] = self.config.depth_loss_mult * metrics_dict["depth_loss"]
             else:
                 loss_dict["depth_ranking"] = np.interp(self.step, [0, 2000], [0, 0.2]) * depth_ranking_loss(
-                    outputs["depth"], batch["depth_image"]
+                    outputs["expected_depth"], batch["depth_image"]
                 )
             # Else use depth ranking loss
 

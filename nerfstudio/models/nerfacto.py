@@ -45,7 +45,6 @@ from nerfstudio.model_components.losses import (
     orientation_loss,
     pred_normal_loss,
     scale_gradients_by_distance_squared,
-    depth_ranking_loss,
 )
 from nerfstudio.model_components.ray_samplers import (
     ProposalNetworkSampler,
@@ -358,10 +357,6 @@ class NerfactoModel(Model):
                 # ground truth supervision for normals
                 loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
                     outputs["rendered_pred_normal_loss"]
-                )
-            if "depth_image" in batch:
-                loss_dict["depth_ranking"] = np.interp(self.step, [0, 2000], [0, 0.2]) * depth_ranking_loss(
-                    outputs["depth"], batch["depth_image"]
                 )
         return loss_dict
 
