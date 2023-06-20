@@ -113,6 +113,8 @@ class DataManagerConfig(InstantiateConfig):
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy."""
     masks_on_gpu: Optional[bool] = None
     """Process masks on GPU for speed at the expense of memory, if True."""
+    downscale_factor: Optional[int] = None
+    """Downscale factor to use, automatic if not specified."""
 
 
 class DataManager(nn.Module):
@@ -390,6 +392,8 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         else:
             self.config.data = self.config.dataparser.data
         self.dataparser = self.dataparser_config.setup()
+        if self.config.downscale_factor is not None:
+            self.dataparser.downscale_factor = self.config.downscale_factor
         if test_mode == "inference":
             self.dataparser.downscale_factor = 1  # Avoid opening images
         self.includes_time = self.dataparser.includes_time
