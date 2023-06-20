@@ -28,8 +28,8 @@ from torch import Tensor, nn
 from typing_extensions import assert_never
 
 from nerfstudio.cameras.lie_groups import exp_map_SE3, exp_map_SO3xR3
-from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.cameras.rays import RayBundle
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.utils import poses as pose_utils
 
 
@@ -42,11 +42,12 @@ class CameraOptimizerConfig(InstantiateConfig):
     mode: Literal["off", "SO3xR3", "SE3"] = "off"
     """Pose optimization strategy to use. If enabled, we recommend SO3xR3."""
 
-    trans_l2_penalty: float = 1e-3
+    trans_l2_penalty: float = 1e-2
     """L2 penalty on translation parameters."""
 
     rot_l2_penalty: float = 1e-3
     """L2 penalty on rotation parameters."""
+
 
 class CameraOptimizer(nn.Module):
     """Layer that modifies camera poses to be optimized as well as the field during training."""
@@ -114,4 +115,7 @@ class CameraOptimizer(nn.Module):
         """
         Add a regularizer
         """
-        loss_dict['camera_opt_regularizer'] = self.pose_adjustment[:,:3].norm(dim=-1).mean() * self.config.trans_l2_penalty + self.pose_adjustment[:,3:].norm(dim=-1).mean() * self.config.rot_l2_penalty
+        loss_dict["camera_opt_regularizer"] = (
+            self.pose_adjustment[:, :3].norm(dim=-1).mean() * self.config.trans_l2_penalty
+            + self.pose_adjustment[:, 3:].norm(dim=-1).mean() * self.config.rot_l2_penalty
+        )
