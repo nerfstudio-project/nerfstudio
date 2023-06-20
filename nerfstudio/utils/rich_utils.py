@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ from rich.progress import (
     BarColumn,
     Progress,
     ProgressColumn,
+    Task,
     TaskProgressColumn,
     TextColumn,
     TimeRemainingColumn,
@@ -38,7 +39,7 @@ class ItersPerSecColumn(ProgressColumn):
         super().__init__()
         self.suffix = suffix
 
-    def render(self, task: "Task") -> Text:
+    def render(self, task: Task) -> Text:
         """Show data transfer speed."""
         speed = task.finished_speed or task.speed
         if speed is None:

@@ -1,3 +1,17 @@
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 #!/usr/bin/env python
 """Simple yaml debugger"""
 import subprocess
@@ -5,19 +19,11 @@ import sys
 
 import tyro
 import yaml
-from rich.console import Console
 from rich.style import Style
 
-CONSOLE = Console(width=120, no_color=True)
+from nerfstudio.utils.rich_utils import CONSOLE
 
-
-LOCAL_TESTS = [
-    "Run license checks",
-    "Run isort",
-    "Run Black",
-    "Python Pylint",
-    "Test with pytest",
-]
+LOCAL_TESTS = ["Run license checks", "Run Ruff", "Run Black", "Run Pyright", "Test with pytest"]
 
 
 def run_command(command: str, continue_on_fail: bool = False) -> bool:
@@ -51,8 +57,10 @@ def run_github_actions_file(filename: str, continue_on_fail: bool = False):
     for step in steps:
         if "name" in step and step["name"] in LOCAL_TESTS:
             compressed = step["run"].replace("\n", ";").replace("\\", "")
-            compressed = compressed.replace("--check", "")
-            curr_command = f"{compressed}"
+            if "ruff" in compressed:
+                curr_command = f"{compressed} --fix"
+            else:
+                curr_command = compressed.replace("--check", "")
 
             CONSOLE.line()
             CONSOLE.rule(f"[bold green]Running: {curr_command}")
@@ -64,7 +72,9 @@ def run_github_actions_file(filename: str, continue_on_fail: bool = False):
     # Add checks for building documentation
     CONSOLE.line()
     CONSOLE.rule("[bold green]Adding notebook documentation metadata")
-    success = success and run_command("python scripts/docs/add_nb_tags.py", continue_on_fail=continue_on_fail)
+    success = success and run_command(
+        "python nerfstudio/scripts/docs/add_nb_tags.py", continue_on_fail=continue_on_fail
+    )
     CONSOLE.line()
     CONSOLE.rule("[bold green]Building Documentation")
     success = success and run_command("cd docs/; make html SPHINXOPTS='-W;'", continue_on_fail=continue_on_fail)

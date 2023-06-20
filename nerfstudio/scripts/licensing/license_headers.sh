@@ -27,7 +27,7 @@ do
         echo "$i missing copyright header"
         check_failed=true
       else
-        cat scripts/licensing/copyright.txt $i >$i.new && mv $i.new $i
+        cat nerfstudio/scripts/licensing/copyright.txt $i >$i.new && mv $i.new $i
         echo "Adding license header to $i."
       fi
     added_headers=true
@@ -36,7 +36,7 @@ done
 
 if [ "$check_failed" = true ];
   then
-    echo "Run '.scripts/licensing/license_headers.sh to add missing headers.'"
+    echo "Run '.nerfstudio/scripts/licensing/license_headers.sh to add missing headers.'"
     exit 1
 fi
 

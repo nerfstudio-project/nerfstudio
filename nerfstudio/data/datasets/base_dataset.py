@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,10 +24,12 @@ from typing import Dict, List
 import numpy as np
 import numpy.typing as npt
 import torch
+from jaxtyping import Float
 from PIL import Image
+from torch import Tensor
 from torch.utils.data import Dataset
-from torchtyping import TensorType
 
+from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.utils.data_utils import get_image_mask_tensor_from_path
 
@@ -40,10 +42,12 @@ class InputDataset(Dataset):
         scale_factor: The scaling factor for the dataparser outputs
     """
 
+    exclude_batch_keys_from_device: List[str] = ["image", "mask"]
+    cameras: Cameras
+
     def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0):
         super().__init__()
         self._dataparser_outputs = dataparser_outputs
-        self.has_masks = dataparser_outputs.mask_filenames is not None
         self.scale_factor = scale_factor
         self.scene_box = deepcopy(dataparser_outputs.scene_box)
         self.metadata = deepcopy(dataparser_outputs.metadata)
@@ -73,7 +77,7 @@ class InputDataset(Dataset):
         assert image.shape[2] in [3, 4], f"Image shape of {image.shape} is in correct."
         return image
 
-    def get_image(self, image_idx: int) -> TensorType["image_height", "image_width", "num_channels"]:
+    def get_image(self, image_idx: int) -> Float[Tensor, "image_height image_width num_channels"]:
         """Returns a 3 channel image.
 
         Args:
@@ -94,9 +98,8 @@ class InputDataset(Dataset):
             image_idx: The image index in the dataset.
         """
         image = self.get_image(image_idx)
-        data = {"image_idx": image_idx}
-        data["image"] = image
-        if self.has_masks:
+        data = {"image_idx": image_idx, "image": image}
+        if self._dataparser_outputs.mask_filenames is not None:
             mask_filepath = self._dataparser_outputs.mask_filenames[image_idx]
             data["mask"] = get_image_mask_tensor_from_path(filepath=mask_filepath, scale_factor=self.scale_factor)
             assert (
@@ -106,7 +109,6 @@ class InputDataset(Dataset):
         data.update(metadata)
         return data
 
-    # pylint: disable=no-self-use
     def get_metadata(self, data: Dict) -> Dict:
         """Method that can be used to process any additional metadata that may be part of the model inputs.
 

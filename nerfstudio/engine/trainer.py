@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,14 +24,16 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Lock
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Literal, Optional, Tuple, Type, cast
 
 import torch
-from rich.console import Console
+from rich import box, style
+from rich.panel import Panel
+from rich.table import Table
 from torch.cuda.amp.grad_scaler import GradScaler
-from typing_extensions import Literal
 
 from nerfstudio.configs.experiment_config import ExperimentConfig
+from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.engine.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
@@ -47,20 +49,13 @@ from nerfstudio.utils.decorators import (
     check_viewer_enabled,
 )
 from nerfstudio.utils.misc import step_check
+from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server.viewer_state import ViewerState
+from nerfstudio.viewer_beta.viewer import Viewer as ViewerBetaState
 
-CONSOLE = Console(width=120, no_color=True)
-
-TRAIN_INTERATION_OUTPUT = Tuple[  # pylint: disable=invalid-name
-    torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]
-]
-TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
-
-TRAIN_INTERATION_OUTPUT = Tuple[  # pylint: disable=invalid-name
-    torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]
-]
-TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
+TRAIN_INTERATION_OUTPUT = Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
+TORCH_DEVICE = str
 
 
 @dataclass
@@ -90,8 +85,12 @@ class TrainerConfig(ExperimentConfig):
     """Continue training from a model checkpoint"""
     load_config: Optional[Path] = None
     """Path to config YAML file."""
+    load_checkpoint: Optional[Path] = None
+    """Path to checkpoint file."""
     log_gradients: bool = False
     """Optionally log gradients during training"""
+    gradient_accumulation_steps: int = 1
+    """Number of steps to accumulate gradients over."""
 
 
 class Trainer:
@@ -122,10 +121,13 @@ class Trainer:
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size
-        self.device: TORCH_DEVICE = "cpu" if world_size == 0 else f"cuda:{local_rank}"
+        self.device: TORCH_DEVICE = config.machine.device_type
+        if self.device == "cuda":
+            self.device += f":{local_rank}"
         self.mixed_precision: bool = self.config.mixed_precision
         self.use_grad_scaler: bool = self.mixed_precision or self.config.use_grad_scaler
         self.training_state: Literal["training", "paused", "completed"] = "training"
+        self.gradient_accumulation_steps: int = self.config.gradient_accumulation_steps
 
         if self.device == "cpu":
             self.mixed_precision = False
@@ -158,7 +160,11 @@ class Trainer:
             self.config.pipeline.datamanager.train_size_initial = num_of_initial_train_images
 
         self.pipeline = self.config.pipeline.setup(
-            device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
+            device=self.device,
+            test_mode=test_mode,
+            world_size=self.world_size,
+            local_rank=self.local_rank,
+            grad_scaler=self.grad_scaler,
         )
         self.optimizers = self.setup_optimizers()
 
@@ -178,22 +184,36 @@ class Trainer:
                 train_lock=self.train_lock,
             )
             banner_messages = [f"Viewer at: {self.viewer_state.viewer_url}"]
+        if self.config.is_viewer_beta_enabled() and self.local_rank == 0:
+            self.viewer_state = ViewerBetaState(
+                self.config.viewer,
+                log_filename=viewer_log_path,
+                datapath=self.base_dir,
+                pipeline=self.pipeline,
+                trainer=self,
+                train_lock=self.train_lock,
+            )
+            banner_messages = [f"Viewer Beta at: {self.viewer_state.viewer_url}"]
         self._check_viewer_warnings()
 
         self._load_checkpoint()
 
         self.callbacks = self.pipeline.get_training_callbacks(
             TrainingCallbackAttributes(
-                optimizers=self.optimizers,  # type: ignore
-                grad_scaler=self.grad_scaler,  # type: ignore
-                pipeline=self.pipeline,  # type: ignore
+                optimizers=self.optimizers,
+                grad_scaler=self.grad_scaler,
+                pipeline=self.pipeline,
             )
         )
 
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / self.config.logging.relative_log_dir
         writer.setup_event_writer(
-            self.config.is_wandb_enabled(), self.config.is_tensorboard_enabled(), log_dir=writer_log_path
+            self.config.is_wandb_enabled(),
+            self.config.is_tensorboard_enabled(),
+            log_dir=writer_log_path,
+            experiment_name=self.config.experiment_name,
+            project_name=self.config.project_name,
         )
         writer.setup_local_writer(
             self.config.logging, max_iter=self.config.max_num_iterations, banner_messages=banner_messages
@@ -222,9 +242,11 @@ class Trainer:
         """Train the model."""
         assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
 
-        self.pipeline.datamanager.train_dataparser_outputs.save_dataparser_transform(
-            self.base_dir / "dataparser_transforms.json"
-        )
+        # don't want to call save_dataparser_transform if pipeline's datamanager does not have a dataparser
+        if isinstance(self.pipeline.datamanager, VanillaDataManager):
+            self.pipeline.datamanager.train_dataparser_outputs.save_dataparser_transform(
+                self.base_dir / "dataparser_transforms.json"
+            )
 
         self._init_viewer_state()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
@@ -256,7 +278,9 @@ class Trainer:
                 if step > 1:
                     writer.put_time(
                         name=EventName.TRAIN_RAYS_PER_SEC,
-                        duration=self.pipeline.datamanager.get_train_rays_per_batch() / train_t.duration,
+                        duration=self.world_size
+                        * self.pipeline.datamanager.get_train_rays_per_batch()
+                        / train_t.duration,
                         step=step,
                         avg_over_steps=True,
                     )
@@ -292,20 +316,28 @@ class Trainer:
         # write out any remaining events (e.g., total train time)
         writer.write_out_storage()
 
-        CONSOLE.rule()
-        CONSOLE.print("[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:", justify="center")
+        table = Table(
+            title=None,
+            show_header=False,
+            box=box.MINIMAL,
+            title_style=style.Style(bold=True),
+        )
+        table.add_row("Config File", str(self.config.get_base_dir() / "config.yml"))
+        table.add_row("Checkpoint Directory", str(self.checkpoint_dir))
+        CONSOLE.print(Panel(table, title="[bold][green]:tada: Training Finished :tada:[/bold]", expand=False))
+
+        # after train end callbacks
+        for callback in self.callbacks:
+            callback.run_callback_at_location(step=step, location=TrainingCallbackLocation.AFTER_TRAIN)
+
         if not self.config.viewer.quit_on_train_completion:
-            self.training_state = "completed"
             self._train_complete_viewer()
-            CONSOLE.print("Use ctrl+c to quit", justify="center")
-            while True:
-                time.sleep(0.01)
 
     @check_main_thread
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
         if (
-            self.config.is_viewer_enabled()
+            (self.config.is_viewer_enabled() or self.config.is_viewer_beta_enabled())
             and not self.config.is_tensorboard_enabled()
             and not self.config.is_wandb_enabled()
         ):
@@ -344,11 +376,15 @@ class Trainer:
     def _train_complete_viewer(self) -> None:
         """Let the viewer know that the training is complete"""
         assert self.viewer_state is not None
+        self.training_state = "completed"
         try:
             self.viewer_state.training_complete()
         except RuntimeError:
             time.sleep(0.03)  # sleep to allow buffer to reset
             CONSOLE.log("Viewer failed. Continuing training.")
+        CONSOLE.print("Use ctrl+c to quit", justify="center")
+        while True:
+            time.sleep(0.01)
 
     @check_viewer_enabled
     def _update_viewer_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int) -> None:
@@ -362,7 +398,7 @@ class Trainer:
         train_num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
         writer.put_time(
             name=EventName.TRAIN_RAYS_PER_SEC,
-            duration=train_num_rays_per_batch / (train_t.duration - vis_t.duration),
+            duration=self.world_size * train_num_rays_per_batch / (train_t.duration - vis_t.duration),
             step=step,
             avg_over_steps=True,
         )
@@ -377,6 +413,20 @@ class Trainer:
         if self.config.load_ckpt is not None:
             checkpoint_path = Path(self.config.load_ckpt)
             loaded_state = self.get_checkpoint_state(checkpoint_path)
+
+            # TODO: theirs
+            # load_dir = self.config.load_dir
+            # load_checkpoint = self.config.load_checkpoint
+            # if load_dir is not None:
+            #     load_step = self.config.load_step
+            #     if load_step is None:
+            #         print("Loading latest Nerfstudio checkpoint from load_dir...")
+            #         # NOTE: this is specific to the checkpoint name format
+            #         load_step = sorted(int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(load_dir))[-1]
+            #     load_path: Path = load_dir / f"step-{load_step:09d}.ckpt"
+            #     assert load_path.exists(), f"Checkpoint {load_path} does not exist"
+            #     loaded_state = torch.load(load_path, map_location="cpu")
+
             self._start_step = loaded_state["step"] + 1
             # load the checkpoints for pipeline, optimizers, and gradient scalar
             self.pipeline.load_pipeline(loaded_state["pipeline"], loaded_state["step"])
@@ -384,7 +434,7 @@ class Trainer:
             self.grad_scaler.load_state_dict(loaded_state["scalers"])
             CONSOLE.print(f"done loading checkpoint from {str(checkpoint_path)}")
         else:
-            CONSOLE.print("No checkpoints to load, training from scratch")
+            CONSOLE.print("No Nerfstudio checkpoint to load, so training from scratch.")
 
     @check_main_thread
     def save_checkpoint(self, step: int) -> None:
@@ -426,11 +476,15 @@ class Trainer:
 
         self.optimizers.zero_grad_all()
         cpu_or_cuda_str: str = self.device.split(":")[0]
-
-        with torch.autocast(device_type=cpu_or_cuda_str, enabled=self.mixed_precision):
-            _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
-            loss = functools.reduce(torch.add, loss_dict.values())
-        self.grad_scaler.scale(loss).backward()  # type: ignore
+        assert (
+            self.gradient_accumulation_steps > 0
+        ), f"gradient_accumulation_steps must be > 0, not {self.gradient_accumulation_steps}"
+        for _ in range(self.gradient_accumulation_steps):
+            with torch.autocast(device_type=cpu_or_cuda_str, enabled=self.mixed_precision):
+                _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
+                loss = functools.reduce(torch.add, loss_dict.values())
+                loss /= self.gradient_accumulation_steps
+            self.grad_scaler.scale(loss).backward()  # type: ignore
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
 
         if self.config.log_gradients:
@@ -439,16 +493,19 @@ class Trainer:
                 assert tag != "Total"
                 if value.grad is not None:
                     grad = value.grad.norm()
-                    metrics_dict[f"Gradients/{tag}"] = grad
+                    metrics_dict[f"Gradients/{tag}"] = grad  # type: ignore
                     total_grad += grad
 
-            metrics_dict["Gradients/Total"] = total_grad
+            metrics_dict["Gradients/Total"] = cast(torch.Tensor, total_grad)  # type: ignore
 
+        scale = self.grad_scaler.get_scale()
         self.grad_scaler.update()
-        self.optimizers.scheduler_step_all(step)
+        # If the gradient scaler is decreased, no optimization step is performed so we should not step the scheduler.
+        if scale <= self.grad_scaler.get_scale():
+            self.optimizers.scheduler_step_all(step)
 
         # Merging loss and metrics dict into a single output.
-        return loss, loss_dict, metrics_dict
+        return loss, loss_dict, metrics_dict  # type: ignore
 
     @check_eval_enabled
     @profiler.time_function

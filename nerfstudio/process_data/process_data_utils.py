@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,22 +15,18 @@
 """Helper utils for processing data into the nerfstudio format."""
 
 import math
-import os
 import shutil
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Literal, Optional, OrderedDict, Tuple, Union
 
 import cv2
 import numpy as np
-from rich.console import Console
-from typing_extensions import Literal, OrderedDict
 
-from nerfstudio.utils.rich_utils import status
+from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
 
-CONSOLE = Console(width=120)
 POLYCAM_UPSCALING_TIMES = 2
 
 
@@ -39,12 +35,13 @@ class CameraModel(Enum):
 
     OPENCV = "OPENCV"
     OPENCV_FISHEYE = "OPENCV_FISHEYE"
+    EQUIRECTANGULAR = "EQUIRECTANGULAR"
 
 
 CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
-    "equirectangular": CameraModel.OPENCV,
+    "equirectangular": CameraModel.EQUIRECTANGULAR,
 }
 
 
@@ -197,7 +194,9 @@ def copy_images_list(
 
     # Remove original directory only if we provide a proper image folder path
     if image_dir.is_dir() and len(image_paths):
-        shutil.rmtree(image_dir, ignore_errors=True)
+        # check that output directory is not the same as input directory
+        if image_dir != image_paths[0].parent:
+            shutil.rmtree(image_dir, ignore_errors=True)
         image_dir.mkdir(exist_ok=True, parents=True)
 
     copied_image_paths = []
@@ -207,7 +206,10 @@ def copy_images_list(
         if verbose:
             CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
         copied_image_path = image_dir / f"frame_{idx + 1:05d}{image_path.suffix}"
-        shutil.copy(image_path, copied_image_path)
+        try:
+            shutil.copy(image_path, copied_image_path)
+        except shutil.SameFileError:
+            pass
         copied_image_paths.append(copied_image_path)
 
     if crop_border_pixels is not None:
@@ -353,11 +355,8 @@ def downscale_images(
             assert isinstance(downscale_factor, int)
             downscale_dir = image_dir.parent / f"{folder_name}_{downscale_factor}"
             downscale_dir.mkdir(parents=True, exist_ok=True)
-            # Using %05d ffmpeg commands appears to be unreliable (skips images), so use scandir.
-            files = os.scandir(image_dir)
-            for f in files:
-                if f.is_dir():
-                    continue
+            # Using %05d ffmpeg commands appears to be unreliable (skips images).
+            for f in list_images(image_dir):
                 filename = f.name
                 nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
                 ffmpeg_cmd = [
@@ -391,7 +390,23 @@ def find_tool_feature_matcher_combination(
     matcher_type: Literal[
         "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
     ],
-):
+) -> Union[
+    Tuple[None, None, None],
+    Tuple[
+        Literal["colmap", "hloc"],
+        Literal[
+            "sift",
+            "superpoint_aachen",
+            "superpoint_max",
+            "superpoint_inloc",
+            "r2d2",
+            "d2net-ss",
+            "sosnet",
+            "disk",
+        ],
+        Literal["NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"],
+    ],
+]:
     """Find a valid combination of sfm tool, feature type, and matcher type.
     Basically, replace the default parameters 'any' by usable value
 

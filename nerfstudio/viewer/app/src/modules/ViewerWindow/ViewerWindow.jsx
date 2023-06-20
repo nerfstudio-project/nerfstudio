@@ -12,11 +12,12 @@ import SyncOutlinedIcon from '@mui/icons-material/SyncOutlined';
 import ThreeDRotationIcon from '@mui/icons-material/ThreeDRotation';
 import VideoCameraBackIcon from '@mui/icons-material/VideoCameraBackOutlined';
 import { isEqual } from 'lodash';
-import RenderWindow from '../RenderWindow/RenderWindow';
 import {
   makeThrottledMessageSender,
   ViserWebSocketContext,
 } from '../WebSocket/ViserWebSocket';
+
+import variables from '../../index.scss';
 
 function CameraToggle() {
   const dispatch = useDispatch();
@@ -150,14 +151,14 @@ export default function ViewerWindow(props) {
     renderer.setSize(viewportWidth, viewportHeight);
     labelRenderer.setSize(viewportWidth, viewportHeight);
   };
+  const clock = new THREE.Clock();
 
   const render = () => {
-    const fps = 24;
-    const interval = 1000 / fps;
+    const delta = clock.getDelta();
     handleResize();
     sceneTree.metadata.camera.updateProjectionMatrix();
     sceneTree.metadata.moveCamera();
-    sceneTree.metadata.camera_controls.update(interval);
+    sceneTree.metadata.camera_controls.update(delta);
     requestAnimationFrame(render);
     renderer.render(scene, sceneTree.metadata.camera);
     labelRenderer.render(scene, sceneTree.metadata.camera);
@@ -187,6 +188,19 @@ export default function ViewerWindow(props) {
   // start the three.js rendering loop
   // when the DOM is ready
   useEffect(() => {
+    document.getElementById("background-image").onload = function () {
+      if (scene) {
+        const oldBackground = scene.background;
+        const texture = new THREE.Texture(this);
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.needsUpdate = true;
+        scene.background = texture;
+        if (oldBackground) {
+          oldBackground.dispose();
+        }
+      }
+    }
     myRef.current.append(renderer.domElement);
     render();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -203,17 +217,17 @@ export default function ViewerWindow(props) {
   let crop_h;
   const render_aspect = render_width / render_height;
   const viewport_aspect = viewport_width / viewport_height;
-  let render_viewport_apsect_ratio = null;
+  let render_viewport_aspect_ratio = null;
   if (render_aspect > viewport_aspect) {
     // render width is the limiting factor
     crop_w = viewport_width;
     crop_h = viewport_width / render_aspect;
-    render_viewport_apsect_ratio = viewport_aspect / render_aspect;
+    render_viewport_aspect_ratio = viewport_aspect / render_aspect;
   } else {
     // render height is the limiting factor
     crop_w = viewport_height * render_aspect;
     crop_h = viewport_height;
-    render_viewport_apsect_ratio = 1.0;
+    render_viewport_aspect_ratio = 1.0;
   }
 
   let display = null;
@@ -233,7 +247,7 @@ export default function ViewerWindow(props) {
   // such that the rendered video will match correctly
   if (camera_choice !== 'Main Camera') {
     const fl = 1.0 / Math.tan((field_of_view * Math.PI) / 360);
-    const fl_new = fl * render_viewport_apsect_ratio;
+    const fl_new = fl * render_viewport_aspect_ratio;
     const fov = Math.atan(1 / fl_new) / (Math.PI / 360);
     sceneTree.metadata.camera.fov = fov;
   } else {
@@ -301,9 +315,62 @@ export default function ViewerWindow(props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isWebsocketConnected]);
 
+  const throttledClickSender = makeThrottledMessageSender(
+    viser_websocket,
+    10,
+  );
+  useEffect(() => {
+    const onMouseDouble = (e) => {
+      const BANNER_HEIGHT = parseInt(variables.bannerHeight,10);
+
+      const mouseVector = new THREE.Vector2();
+      mouseVector.x = 2 * (e.clientX / size.x) - 1;
+      mouseVector.y = 1 - 2 * ((e.clientY - BANNER_HEIGHT) / size.y);
+
+      const mouse_in_scene = !(
+        mouseVector.x > 1 ||
+        mouseVector.x < -1 ||
+        mouseVector.y > 1 ||
+        mouseVector.y < -1
+      );
+      if (!mouse_in_scene) { return; } 
+
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouseVector, sceneTree.metadata.camera);
+
+      throttledClickSender({
+        type: 'ClickMessage',
+        origin: [
+          raycaster.ray.origin.x, 
+          raycaster.ray.origin.y, 
+          raycaster.ray.origin.z
+        ],
+        direction: [
+          raycaster.ray.direction.x, 
+          raycaster.ray.direction.y, 
+          raycaster.ray.direction.z
+        ],
+      });
+    };
+    window.addEventListener('dblclick', onMouseDouble, false);
+    return () => {
+      window.removeEventListener('dblclick', onMouseDouble, false);
+    };
+  }, [size, sceneTree.metadata.camera, throttledClickSender]);
+
   return (
     <>
-      <RenderWindow />
+      <div className="RenderWindow">
+        <div id="not-connected-overlay" hidden={isWebsocketConnected}>
+          <div id="not-connected-overlay-text">Renderer Disconnected</div>
+        </div>
+      </div>
+      <img
+        id="background-image"
+        alt="Render window"
+        z-index="1"
+        hidden
+      />
       <div className="canvas-container-main" ref={myRef}>
         <div className="ViewerWindow-camera-toggle">
           <CameraToggle />

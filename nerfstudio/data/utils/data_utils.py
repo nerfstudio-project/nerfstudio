@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ def get_semantics_and_mask_tensors_from_path(
     If no mask is required - use mask_indices = []
     """
     if isinstance(mask_indices, List):
-        mask_indices = torch.tensor(mask_indices, dtype="int64").view(1, 1, -1)
+        mask_indices = torch.tensor(mask_indices, dtype=torch.int64).view(1, 1, -1)
     pil_image = Image.open(filepath)
     if scale_factor != 1.0:
         width, height = pil_image.size
@@ -74,7 +74,7 @@ def get_depth_image_from_path(
         interpolation: Depth value interpolation for resizing.
 
     Returns:
-        Depth image torch tensor with shape [width, height, 1].
+        Depth image torch tensor with shape [height, width, 1].
     """
     if filepath.suffix == ".npy":
         image = np.load(filepath) * scale_factor

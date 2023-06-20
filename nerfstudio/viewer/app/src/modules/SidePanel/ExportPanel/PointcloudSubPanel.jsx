@@ -3,8 +3,8 @@ import { useControls, useStoreContext } from 'leva';
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
-
 import { Button } from '@mui/material';
+import { get_normal_methods } from '../../../utils';
 
 export default function PointcloudSubPanel(props) {
   const update_box_center = props.update_box_center;
@@ -26,14 +26,25 @@ export default function PointcloudSubPanel(props) {
   const clippingScale = useSelector(
     (state) => state.renderingState.clipping_box_scale,
   );
-
+  const output_options = useSelector(
+    (state) => state.renderingState.output_options,
+  );
   const config_filename = `${config_base_dir}/config.yml`;
+
+  const normal_options = get_normal_methods(output_options);
 
   const controlValues = useControls(
     {
       numPoints: { label: 'Number of Points', value: 1000000, min: 1 },
       removeOutliers: { label: 'Remove Outliers', value: true },
-      estimateNormals: { label: 'Estimate Normals', value: false },
+      normal_options: {
+        label: 'Normal Options',
+        options: [...normal_options],
+        value:
+          normal_options.values().next().value !== 'none'
+            ? normal_options.values().next().value
+            : 'open3d',
+      },
       useBoundingBox: {
         label: 'Crop',
         value: clippingEnabled,
@@ -102,8 +113,14 @@ export default function PointcloudSubPanel(props) {
     ` --output-dir ${controlValues.outputDir}` +
     ` --num-points ${controlValues.numPoints}` +
     ` --remove-outliers ${getPythonBool(controlValues.removeOutliers)}` +
-    ` --estimate-normals ${getPythonBool(controlValues.estimateNormals)}` +
-    ` --use-bounding-box ${getPythonBool(clippingEnabled)}` +
+    ` --normal-method ${
+      controlValues.normal_options === 'open3d' ? 'open3d' : 'model_output'
+    }${
+      controlValues.normal_options !== 'open3d' &&
+      controlValues.normal_options !== 'none'
+        ? ` --normal-output-name ${controlValues.normal_options}`
+        : ''
+    } --use-bounding-box ${getPythonBool(clippingEnabled)}` +
     ` --bounding-box-min ${bbox_min[0]} ${bbox_min[1]} ${bbox_min[2]}` +
     ` --bounding-box-max ${bbox_max[0]} ${bbox_max[1]} ${bbox_max[2]}`;
 

@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ TensorRF implementation.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Literal, Tuple, Type, cast
 
 import numpy as np
 import torch
@@ -27,7 +27,6 @@ from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.config_utils import to_immutable_dict
@@ -44,7 +43,7 @@ from nerfstudio.field_components.encodings import (
 )
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.tensorf_field import TensoRFField
-from nerfstudio.model_components.losses import MSELoss
+from nerfstudio.model_components.losses import MSELoss, tv_loss
 from nerfstudio.model_components.ray_samplers import PDFSampler, UniformSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
@@ -68,7 +67,14 @@ class TensoRFModelConfig(ModelConfig):
     """final render resolution"""
     upsampling_iters: Tuple[int, ...] = (2000, 3000, 4000, 5500, 7000)
     """specifies a list of iteration step numbers to perform upsampling"""
-    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
+    loss_coefficients: Dict[str, float] = to_immutable_dict(
+        {
+            "rgb_loss": 1.0,
+            "tv_reg_density": 1e-3,
+            "tv_reg_color": 1e-4,
+            "l1_reg": 5e-4,
+        }
+    )
     """Loss specific weights."""
     num_samples: int = 50
     """Number of samples in field evaluation"""
@@ -81,6 +87,8 @@ class TensoRFModelConfig(ModelConfig):
     appearance_dim: int = 27
     """Number of channels for color encoding"""
     tensorf_encoding: Literal["triplane", "vm", "cp"] = "vm"
+    regularization: Literal["none", "l1", "tv"] = "l1"
+    """Regularization method used in tensorf paper"""
 
 
 class TensoRFModel(Model):
@@ -121,9 +129,9 @@ class TensoRFModel(Model):
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
         # the callback that we want to run every X iterations after the training iteration
-        def reinitialize_optimizer(
-            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
-        ):
+        def reinitialize_optimizer(self, training_callback_attributes: TrainingCallbackAttributes, step: int):
+            assert training_callback_attributes.optimizers is not None
+            assert training_callback_attributes.pipeline is not None
             index = self.upsampling_iters.index(step)
             resolution = self.upsampling_steps[index]
 
@@ -242,6 +250,10 @@ class TensoRFModel(Model):
         if self.config.enable_collider:
             self.collider = AABBBoxCollider(scene_box=self.scene_box)
 
+        # regularizations
+        if self.config.tensorf_encoding == "cp" and self.config.regularization == "tv":
+            raise RuntimeError("TV reg not supported for CP decomposition")
+
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
 
@@ -296,6 +308,25 @@ class TensoRFModel(Model):
         rgb_loss = self.rgb_loss(image, outputs["rgb"])
 
         loss_dict = {"rgb_loss": rgb_loss}
+
+        if self.config.regularization == "l1":
+            l1_parameters = []
+            for parameter in self.field.density_encoding.parameters():
+                l1_parameters.append(parameter.view(-1))
+            loss_dict["l1_reg"] = torch.abs(torch.cat(l1_parameters)).mean()
+        elif self.config.regularization == "tv":
+            density_plane_coef = self.field.density_encoding.plane_coef
+            color_plane_coef = self.field.color_encoding.plane_coef
+            assert isinstance(color_plane_coef, torch.Tensor) and isinstance(
+                density_plane_coef, torch.Tensor
+            ), "TV reg only supported for TensoRF encoding types with plane_coef attribute"
+            loss_dict["tv_reg_density"] = tv_loss(density_plane_coef)
+            loss_dict["tv_reg_color"] = tv_loss(color_plane_coef)
+        elif self.config.regularization == "none":
+            pass
+        else:
+            raise ValueError(f"Regularization {self.config.regularization} not supported")
+
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         return loss_dict
 
@@ -320,7 +351,7 @@ class TensoRFModel(Model):
         rgb = torch.moveaxis(rgb, -1, 0)[None, ...]
 
         psnr = self.psnr(image, rgb)
-        ssim = self.ssim(image, rgb)
+        ssim = cast(torch.Tensor, self.ssim(image, rgb))
         lpips = self.lpips(image, rgb)
 
         metrics_dict = {

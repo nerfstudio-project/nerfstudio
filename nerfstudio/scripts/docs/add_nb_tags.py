@@ -1,3 +1,17 @@
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Helper that add tags to notebooks based on cell comments."""
 
 import sys
@@ -5,9 +19,8 @@ from glob import glob
 
 import nbformat as nbf
 import tyro
-from rich.console import Console
 
-CONSOLE = Console(width=120, no_color=True)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def main(check: bool = False):
@@ -60,7 +73,8 @@ def main(check: bool = False):
         if incorrect_metadata:
             if check:
                 CONSOLE.print(
-                    f"[bold yellow]{ipath} has incorrect metadata. Call `python scripts.docs.add_nb_tags.py` to add it."
+                    f"[bold yellow]{ipath} has incorrect metadata. "
+                    "Call `python nerfstudio.scripts.docs.add_nb_tags.py` to add it."
                 )
                 any_missing = True
             else:

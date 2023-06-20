@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,16 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" Utilites for generating custom gui elements in the viewer """
+""" Utilities for generating custom gui elements in the viewer """
 
 from __future__ import annotations
 
 from typing import Any, List, Tuple
 
 from torch import nn
-
-from nerfstudio.pipelines.base_pipeline import Pipeline
-from nerfstudio.viewer.server.viewer_elements import ViewerElement
 
 
 def parse_object(
@@ -56,26 +53,19 @@ def parse_object(
     ret = []
     # get a list of the properties of the object, sorted by whether things are instances of type_check
     obj_props = [(k, getattr(obj, k)) for k in dir(obj)]
-    for (k, v) in obj_props:
+    for k, v in obj_props:
         if k[0] == "_":
             continue
         new_tree_stub = f"{tree_stub}/{k}"
         if isinstance(v, type_check):
             add(ret, new_tree_stub, v)
         elif isinstance(v, nn.Module):
+            if v is obj:
+                # some nn.Modules might contain infinite references, e.g. consider foo = nn.Module(), foo.bar = foo
+                # to stop infinite recursion, we skip such attributes
+                continue
             lower_rets = parse_object(v, type_check, new_tree_stub)
             # check that the values aren't already in the tree
             for ts, o in lower_rets:
                 add(ret, ts, o)
-    return ret
-
-
-def get_viewer_elements(pipeline: Pipeline) -> List[Tuple[str, ViewerElement]]:
-    """
-    Recursively parse the pipeline object and return a tree of all the ViewerElements contained
-
-    returns a list of (path/to/object, param), which represents the path down the object tree as well as
-    the ViewerElement itself
-    """
-    ret = parse_object(pipeline, ViewerElement, "Custom")
     return ret

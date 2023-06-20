@@ -1,3 +1,17 @@
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 #!/usr/bin/env python
 """Configuration script for setting up tab completion for nerfstudio in bash and zsh."""
 
@@ -10,13 +24,14 @@ import shutil
 import stat
 import subprocess
 import sys
-from typing import List, Optional, Union
+from typing import List, Literal, Optional, Union
+from typing import get_args as typing_get_args
 
 import tyro
-from rich.console import Console
 from rich.prompt import Confirm
-from typing_extensions import Literal, assert_never
-from typing_extensions import get_args as typing_get_args
+from typing_extensions import assert_never
+
+from nerfstudio.utils.rich_utils import CONSOLE
 
 if sys.version_info < (3, 10):
     import importlib_metadata
@@ -26,7 +41,6 @@ else:
 ConfigureMode = Literal["install", "uninstall"]
 ShellType = Literal["zsh", "bash"]
 
-CONSOLE = Console(width=120, no_color=True)
 HEADER_LINE = "# Source nerfstudio autocompletions."
 
 
@@ -310,9 +324,7 @@ def _generate_completions_files(
         completion_paths = list(
             concurrent_executor.map(
                 lambda path_or_entrypoint_and_shell: _generate_completion(
-                    path_or_entrypoint_and_shell[0],
-                    path_or_entrypoint_and_shell[1],
-                    completions_dir
+                    path_or_entrypoint_and_shell[0], path_or_entrypoint_and_shell[1], completions_dir
                 ),
                 itertools.product(script_paths + entry_points, shells_found),
             )
@@ -383,7 +395,7 @@ def main(mode: ConfigureMode = "install") -> None:
         assert_never(mode)
 
     if conda_path is not None:
-        # In conda environment we add the completitions activation scripts.
+        # In conda environment we add the completions activation scripts.
         commands = _get_all_entry_points()
         _update_conda_scripts(commands, completions_dir, mode)
     else:

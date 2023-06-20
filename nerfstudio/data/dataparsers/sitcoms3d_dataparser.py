@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ from pathlib import Path
 from typing import Type
 
 import torch
-from rich.console import Console
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (
@@ -36,8 +35,6 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 )
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
-
-CONSOLE = Console()
 
 
 @dataclass
@@ -64,8 +61,7 @@ class Sitcoms3D(DataParser):
 
     config: Sitcoms3DDataParserConfig
 
-    def _generate_dataparser_outputs(self, split="train"):  # pylint: disable=unused-argument,too-many-statements
-
+    def _generate_dataparser_outputs(self, split="train"):
         cameras_json = load_from_json(self.config.data / "cameras.json")
         frames = cameras_json["frames"]
         bbox = torch.tensor(cameras_json["bbox"])
@@ -115,11 +111,12 @@ class Sitcoms3D(DataParser):
         lengths = scene_box.aabb[1] - scene_box.aabb[0]
         longest_dim = torch.argmax(lengths)
         longest_length = lengths[longest_dim]
-        scale = scene_scale / longest_length
+        scale = scene_scale / longest_length.item()
         scene_box.aabb = scene_box.aabb * scale  # box
         camera_to_worlds[..., 3] *= scale  # cameras
 
         # --- semantics ---
+        semantics = None
         if self.config.include_semantics:
             empty_path = Path()
             replace_this_path = str(empty_path / images_folder / empty_path)

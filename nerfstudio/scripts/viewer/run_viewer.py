@@ -1,3 +1,17 @@
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 #!/usr/bin/env python
 """
 Starts viewer in eval mode.
@@ -10,7 +24,7 @@ from pathlib import Path
 from typing import Literal, Optional, Tuple
 
 import tyro
-from rich.console import Console
+from scripts.my_utils import get_step_from_ckpt_path
 
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
@@ -20,9 +34,6 @@ from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import writer
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.viewer.server.viewer_state import ViewerState
-from scripts.my_utils import get_step_from_ckpt_path
-
-CONSOLE = Console(width=120, no_color=True)
 
 
 @dataclass
