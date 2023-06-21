@@ -61,12 +61,19 @@ class ComputeOccupancy:
 
 
     def compute_occupancy(self, pipeline):
+        print("Entered compute_occupancy...")
         model = pipeline.model
 
         # positions = torch.meshgrid()  # TODO(benjamin)
-        # positions = torch.zeros((10, 1, 3), device=model.device)  # TODO(benjamin)
-        positions = torch.arange(0, 1, 0.1, device=model.device).view(-1, 1, 1).repeat(1, 1, 3)
+        # positions = torch.zeros((10, 1, 3), device=model.device)
+        # positions = torch.arange(-5, 5, 0.1, device=model.device).view(-1, 1, 1).repeat(1, 1, 3)
         # _, wavelengths = model.get_wavelengths([0, 1, 2]) # rgb uses only 0, 1, 2
+
+        # bounds = -5, 5, 0.1
+        # bounds = -2.75, 2.75, 0.1
+        bounds = -0.875, 0.875, 0.01 # TODO: compute them automatically
+        positions = torch.stack(torch.meshgrid(torch.arange(*bounds), torch.arange(*bounds), torch.arange(*bounds)), -1).to(model.device).reshape(-1, 1, 3)
+
         n_wavelengths = model.config.num_output_color_channels
         wavelengths = torch.arange(
                 n_wavelengths,
@@ -74,13 +81,25 @@ class ComputeOccupancy:
                 device=model.device,
                 requires_grad=False,
             ) / n_wavelengths
+        print(f"n_wavelengths = {n_wavelengths}")
         densities = model.field.density_fn(positions, wavelengths=wavelengths)
+        import pickle
+
+        with open('test_position.pkl', 'wb') as handle:
+            pickle.dump(positions, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        with open('test_densities.pkl', 'wb') as handle:
+            pickle.dump(densities, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
         print(densities)
         return densities
 
 
     def main(self) -> None:
         """Main function."""
+        print("Entered main...")
+        # import time
+        # time.sleep(2)
         config, pipeline, checkpoint_path = eval_setup(self.load_config)
 
         densities = self.compute_occupancy(pipeline)
