@@ -109,7 +109,7 @@ class DataProc(mp.Process):
                     self.out_queue.put_nowait((ray_bundle, batch))
                     break
                 except:
-                    time.sleep(0.005)
+                    time.sleep(0.001)
 
     def cache_images(self):
         # caches all the input images in a NxHxWx3 tensor
@@ -160,7 +160,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         mp.set_start_method("spawn")
         # Manager().queue() can be faster
         # https://stackoverflow.com/questions/43439194/python-multiprocessing-queue-vs-multiprocessing-manager-queue/45236748#45236748
-        self.data_q = mp.Manager().Queue(maxsize=4)
+        self.data_q = mp.Manager().Queue(maxsize=2)
         self.data_procs = [
             DataProc(self.data_q, self.config, self.train_dataparser_outputs, self.train_dataset, self.pix_sampler)
             for i in range(self.config.n_procs)
