@@ -37,3 +37,27 @@ Specify which diffusion model to use with the diffusion_model flag:
 ```bash
 ns-train generfacto --pipeline.model.diffusion_model ["stablediffusion", "deepfloyd"]
 ```
+
+# Example Results
+
+The following videos are renders of NeRFs generated from Generfacto. Each model was trained 30k steps, which took around 1 hour with DeepFloyd
+and around 4 hours with Stable Diffusion.
+
+"a high quality photo of a ripe pineapple"
+<img src="https://user-images.githubusercontent.com/3310961/194017985-ade69503-9d68-46a2-b518-2db1a012f090.gif" width="52%"/> <img src="https://user-images.githubusercontent.com/3310961/194020648-7e5f380c-15ca-461d-8c1c-20beb586defe.gif" width="46%"/>
+
+<video id="idu" muted autoplay playsinline loop controls width="100%">
+    <source id="mp4" src="https://user-images.githubusercontent.com/19509183/246646597-407ff7c8-7106-4835-acf3-c2f8188bbd1d.mp4" type="video/mp4">
+</video>
+
+"a high quality zoomed out photo of a palm tree"
+
+<video id="idu" muted autoplay playsinline loop controls width="100%">
+    <source id="mp4" src="https://user-images.githubusercontent.com/19509183/246646597-407ff7c8-7106-4835-acf3-c2f8188bbd1d.mp4" type="video/mp4">
+</video>
+
+"a high quality zoomed out photo of a light grey baby shark"
+
+<video id="idu" muted autoplay playsinline loop controls width="100%">
+    <source id="mp4" src="https://user-images.githubusercontent.com/19509183/246646597-407ff7c8-7106-4835-acf3-c2f8188bbd1d.mp4" type="video/mp4">
+</video>
