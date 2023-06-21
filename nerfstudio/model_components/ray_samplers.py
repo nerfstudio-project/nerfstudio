@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,13 +17,12 @@ Collection of sampling strategies
 """
 
 from abc import abstractmethod
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Protocol, Tuple, Union
 
-import nerfacc
 import torch
-from nerfacc import OccupancyGrid
-from torch import nn
-from torchtyping import TensorType
+from jaxtyping import Float
+from nerfacc import OccGridEstimator
+from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import Frustums, RayBundle, RaySamples
 
@@ -43,10 +42,10 @@ class Sampler(nn.Module):
         self.num_samples = num_samples
 
     @abstractmethod
-    def generate_ray_samples(self) -> RaySamples:
+    def generate_ray_samples(self) -> Any:
         """Generate Ray Samples"""
 
-    def forward(self, *args, **kwargs) -> RaySamples:
+    def forward(self, *args, **kwargs) -> Any:
         """Generate ray samples"""
         return self.generate_ray_samples(*args, **kwargs)
 
@@ -112,7 +111,10 @@ class SpacedSampler(Sampler):
             bins = bin_lower + (bin_upper - bin_lower) * t_rand
 
         s_near, s_far = (self.spacing_fn(x) for x in (ray_bundle.nears, ray_bundle.fars))
-        spacing_to_euclidean_fn = lambda x: self.spacing_fn_inv(x * s_far + (1 - x) * s_near)
+
+        def spacing_to_euclidean_fn(x):
+            return self.spacing_fn_inv(x * s_far + (1 - x) * s_near)
+
         euclidean_bins = spacing_to_euclidean_fn(bins)  # [num_rays, num_samples+1]
 
         ray_samples = ray_bundle.get_ray_samples(
@@ -275,7 +277,7 @@ class PDFSampler(Sampler):
         self,
         ray_bundle: Optional[RayBundle] = None,
         ray_samples: Optional[RaySamples] = None,
-        weights: TensorType[..., "num_samples", 1] = None,
+        weights: Optional[Float[Tensor, "*batch num_samples 1"]] = None,
         num_samples: Optional[int] = None,
         eps: float = 1e-5,
     ) -> RaySamples:
@@ -294,6 +296,7 @@ class PDFSampler(Sampler):
 
         if ray_samples is None or ray_bundle is None:
             raise ValueError("ray_samples and ray_bundle must be provided")
+        assert weights is not None, "weights must be provided"
 
         num_samples = num_samples or self.num_samples
         assert num_samples is not None
@@ -369,6 +372,17 @@ class PDFSampler(Sampler):
         return ray_samples
 
 
+class DensityFn(Protocol):
+    """
+    Function that evaluates density at a given point.
+    """
+
+    def __call__(
+        self, positions: Float[Tensor, "*batch 3"], times: Optional[Float[Tensor, "*batch 1"]] = None
+    ) -> Float[Tensor, "*batch 1"]:
+        ...
+
+
 class VolumetricSampler(Sampler):
     """Sampler inspired by the one proposed in the Instant-NGP paper.
     Generates samples along a ray by sampling the occupancy field.
@@ -382,24 +396,21 @@ class VolumetricSampler(Sampler):
 
     def __init__(
         self,
-        occupancy_grid: Optional[OccupancyGrid] = None,
-        density_fn: Optional[Callable[[TensorType[..., 3]], TensorType[..., 1]]] = None,
-        scene_aabb: Optional[TensorType[2, 3]] = None,
-    ) -> None:
-
+        occupancy_grid: OccGridEstimator,
+        density_fn: Optional[DensityFn] = None,
+    ):
         super().__init__()
-        self.scene_aabb = scene_aabb
+        assert occupancy_grid is not None
         self.density_fn = density_fn
         self.occupancy_grid = occupancy_grid
-        if self.scene_aabb is not None:
-            self.scene_aabb = self.scene_aabb.to("cuda").flatten()
 
-    def get_sigma_fn(self, origins, directions) -> Optional[Callable]:
+    def get_sigma_fn(self, origins, directions, times=None) -> Optional[Callable]:
         """Returns a function that returns the density of a point.
 
         Args:
             origins: Origins of rays
             directions: Directions of rays
+            times: Times at which rays are sampled
         Returns:
             Function that returns the density of a point or None if a density function is not provided.
         """
@@ -412,8 +423,10 @@ class VolumetricSampler(Sampler):
         def sigma_fn(t_starts, t_ends, ray_indices):
             t_origins = origins[ray_indices]
             t_dirs = directions[ray_indices]
-            positions = t_origins + t_dirs * (t_starts + t_ends) / 2.0
-            return density_fn(positions)
+            positions = t_origins + t_dirs * (t_starts + t_ends)[:, None] / 2.0
+            if times is None:
+                return density_fn(positions).squeeze(-1)
+            return density_fn(positions, times[ray_indices]).squeeze(-1)
 
         return sigma_fn
 
@@ -422,15 +435,15 @@ class VolumetricSampler(Sampler):
             "The VolumetricSampler fuses sample generation and density check together. Please call forward() directly."
         )
 
-    # pylint: disable=arguments-differ
     def forward(
         self,
         ray_bundle: RayBundle,
         render_step_size: float,
         near_plane: float = 0.0,
         far_plane: Optional[float] = None,
+        alpha_thre: float = 0.01,
         cone_angle: float = 0.0,
-    ) -> Tuple[RaySamples, TensorType["total_samples",]]:
+    ) -> Tuple[RaySamples, Float[Tensor, "total_samples "]]:
         """Generate ray samples in a bounding box.
 
         Args:
@@ -438,6 +451,7 @@ class VolumetricSampler(Sampler):
             render_step_size: Minimum step size to use for rendering
             near_plane: Near plane for raymarching
             far_plane: Far plane for raymarching
+            alpha_thre: Opacity threshold skipping samples.
             cone_angle: Cone angle for raymarching, set to 0 for uniform marching.
 
         Returns:
@@ -448,6 +462,7 @@ class VolumetricSampler(Sampler):
 
         rays_o = ray_bundle.origins.contiguous()
         rays_d = ray_bundle.directions.contiguous()
+        times = ray_bundle.times
 
         if ray_bundle.nears is not None and ray_bundle.fars is not None:
             t_min = ray_bundle.nears.contiguous().reshape(-1)
@@ -457,34 +472,33 @@ class VolumetricSampler(Sampler):
             t_min = None
             t_max = None
 
+        if far_plane is None:
+            far_plane = 1e10
+
         if ray_bundle.camera_indices is not None:
             camera_indices = ray_bundle.camera_indices.contiguous()
         else:
             camera_indices = None
-
-        ray_indices, starts, ends = nerfacc.ray_marching(
+        ray_indices, starts, ends = self.occupancy_grid.sampling(
             rays_o=rays_o,
             rays_d=rays_d,
             t_min=t_min,
             t_max=t_max,
-            scene_aabb=self.scene_aabb,
-            grid=self.occupancy_grid,
-            # this is a workaround - using density causes crash and damage quality. should be fixed
-            sigma_fn=None,  # self.get_sigma_fn(rays_o, rays_d),
+            sigma_fn=self.get_sigma_fn(rays_o, rays_d, times),
             render_step_size=render_step_size,
             near_plane=near_plane,
             far_plane=far_plane,
             stratified=self.training,
             cone_angle=cone_angle,
-            alpha_thre=1e-2,
+            alpha_thre=alpha_thre,
         )
         num_samples = starts.shape[0]
         if num_samples == 0:
             # create a single fake sample and update packed_info accordingly
             # this says the last ray in packed_info has 1 sample, which starts and ends at 1
             ray_indices = torch.zeros((1,), dtype=torch.long, device=rays_o.device)
-            starts = torch.ones((1, 1), dtype=starts.dtype, device=rays_o.device)
-            ends = torch.ones((1, 1), dtype=ends.dtype, device=rays_o.device)
+            starts = torch.ones((1,), dtype=starts.dtype, device=rays_o.device)
+            ends = torch.ones((1,), dtype=ends.dtype, device=rays_o.device)
 
         origins = rays_o[ray_indices]
         dirs = rays_d[ray_indices]
@@ -496,8 +510,8 @@ class VolumetricSampler(Sampler):
             frustums=Frustums(
                 origins=origins,
                 directions=dirs,
-                starts=starts,
-                ends=ends,
+                starts=starts[..., None],
+                ends=ends[..., None],
                 pixel_area=zeros,
             ),
             camera_indices=camera_indices,
@@ -521,7 +535,7 @@ class ProposalNetworkSampler(Sampler):
 
     def __init__(
         self,
-        num_proposal_samples_per_ray: Tuple[int] = (64,),
+        num_proposal_samples_per_ray: Tuple[int, ...] = (64,),
         num_nerf_samples_per_ray: int = 32,
         num_proposal_network_iterations: int = 2,
         single_jitter: bool = False,
@@ -632,7 +646,7 @@ class NeuSSampler(Sampler):
     def generate_ray_samples(
         self,
         ray_bundle: Optional[RayBundle] = None,
-        sdf_fn: Optional[Callable] = None,
+        sdf_fn: Optional[Callable[[RaySamples], torch.Tensor]] = None,
         ray_samples: Optional[RaySamples] = None,
     ) -> Union[Tuple[RaySamples, torch.Tensor], RaySamples]:
         assert ray_bundle is not None
@@ -645,17 +659,18 @@ class NeuSSampler(Sampler):
 
         total_iters = 0
         sorted_index = None
+        sdf: Optional[torch.Tensor] = None
         new_samples = ray_samples
 
         base_variance = self.base_variance
 
         while total_iters < self.num_upsample_steps:
-
             with torch.no_grad():
                 new_sdf = sdf_fn(new_samples)
 
             # merge sdf predictions
             if sorted_index is not None:
+                assert sdf is not None
                 sdf_merge = torch.cat([sdf.squeeze(-1), new_sdf.squeeze(-1)], -1)
                 sdf = torch.gather(sdf_merge, 1, sorted_index).unsqueeze(-1)
             else:
@@ -684,8 +699,8 @@ class NeuSSampler(Sampler):
 
     @staticmethod
     def rendering_sdf_with_fixed_inv_s(
-        ray_samples: RaySamples, sdf: TensorType["num_samples", -1], inv_s: int
-    ) -> TensorType["num_samples", -1]:
+        ray_samples: RaySamples, sdf: Float[Tensor, "num_samples 1"], inv_s: int
+    ) -> Float[Tensor, "num_samples 1"]:
         """
         rendering given a fixed inv_s as NeuS
 

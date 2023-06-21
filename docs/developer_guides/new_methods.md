@@ -10,11 +10,13 @@ We recommend the following file structure:
 
 ```
 ├── my_method
+│   ├── __init__.py
 │   ├── my_config.py
 │   ├── custom_pipeline.py [optional]
 │   ├── custom_model.py [optional]
 │   ├── custom_field.py [optional]
 │   ├── custom_datamanger.py [optional]
+│   ├── custom_dataparser.py [optional]
 │   ├── ...
 ├── pyproject.toml
 ```
@@ -56,11 +58,54 @@ dependencies = [
     "nerfstudio" # you may want to consider pinning the version, ie "nerfstudio==0.1.19"
 ]
 
+[tool.setuptools.packages.find]
+include = ["my_method*"]
+
 [project.entry-points.'nerfstudio.method_configs']
 my-method = 'my_method.my_config:MyMethod'
 ```
 
 finally run the following to register the method,
+
+```
+pip install -e .
+```
+
+When developing a new method you don't always want to install your code as a package.
+Instead, you may use the `NERFSTUDIO_METHOD_CONFIGS` environment variable to temporarily register your custom method.
+
+```
+export NERFSTUDIO_METHOD_CONFIGS="my-method=my_method.my_config:MyMethod"
+```
+
+## Registering custom dataparser with nerfstudio
+
+We also support adding new dataparsers in a similar way. In order to extend the NeRFstudio and register a customized dataparser, you can register it with Nerfstudio as a `nerfstudio.dataparser_configs` entrypoint in the `pyproject.toml` file. Nerfstudio will automatically look for all registered dataparsers and will register them to be used by methods such as `ns-train`.
+
+You can declare the dataparser in the same config file:
+
+```python
+"""my_method/my_config.py"""
+
+from nerfstudio.plugins.registry_dataparser import DataParserSpecification
+from my_method.custom_dataparser import CustomDataparserConfig
+
+MyDataparser = DataParserSpecification(config=CustomDataparserConfig())
+```
+
+Then add the following lines in the `pyproject.toml` file, where the entrypoint to the new dataparser is set.
+
+```python
+"""pyproject.toml"""
+
+[project]
+name = "my_method"
+
+[project.entry-points.'nerfstudio.dataparser_configs']
+custom-dataparser = 'my_method.my_config:MyDataparser'
+```
+
+finally run the following to register the dataparser.
 
 ```
 pip install -e .
@@ -73,3 +118,7 @@ After registering your method you should be able to run the method with,
 ```
 ns-train my-method --data DATA_DIR
 ```
+
+## Adding to the _nerf.studio_ documentation
+
+We invite researchers to contribute their own methods to our online documentation. You can find more information on how to do this {ref}`here<own_method_docs>`.

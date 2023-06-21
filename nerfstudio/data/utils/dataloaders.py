@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,10 +21,10 @@ import concurrent.futures
 import multiprocessing
 import random
 from abc import abstractmethod
-from typing import Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sized, Tuple, Union
 
 import torch
-from rich.progress import Console, track
+from rich.progress import track
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 
@@ -33,8 +33,7 @@ from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.utils.misc import get_dict_to_torch
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 class CacheDataloader(DataLoader):
@@ -55,10 +54,15 @@ class CacheDataloader(DataLoader):
         num_images_to_sample_from: int = -1,
         num_times_to_repeat_images: int = -1,
         device: Union[torch.device, str] = "cpu",
-        collate_fn=nerfstudio_collate,
+        collate_fn: Callable[[Any], Any] = nerfstudio_collate,
+        exclude_batch_keys_from_device: Optional[List[str]] = None,
         **kwargs,
     ):
+        if exclude_batch_keys_from_device is None:
+            exclude_batch_keys_from_device = ["image"]
         self.dataset = dataset
+        assert isinstance(self.dataset, Sized)
+
         super().__init__(dataset=dataset, **kwargs)  # This will set self.dataset
         self.num_times_to_repeat_images = num_times_to_repeat_images
         self.cache_all_images = (num_images_to_sample_from == -1) or (num_images_to_sample_from >= len(self.dataset))
@@ -66,6 +70,7 @@ class CacheDataloader(DataLoader):
         self.device = device
         self.collate_fn = collate_fn
         self.num_workers = kwargs.get("num_workers", 0)
+        self.exclude_batch_keys_from_device = exclude_batch_keys_from_device
 
         self.num_repeated = self.num_times_to_repeat_images  # starting value
         self.first_time = True
@@ -94,6 +99,7 @@ class CacheDataloader(DataLoader):
     def _get_batch_list(self):
         """Returns a list of batches from the dataset attribute."""
 
+        assert isinstance(self.dataset, Sized)
         indices = random.sample(range(len(self.dataset)), k=self.num_images_to_sample_from)
         batch_list = []
         results = []
@@ -116,7 +122,9 @@ class CacheDataloader(DataLoader):
         """Returns a collated batch."""
         batch_list = self._get_batch_list()
         collated_batch = self.collate_fn(batch_list)
-        collated_batch = get_dict_to_torch(collated_batch, device=self.device, exclude=["image"])
+        collated_batch = get_dict_to_torch(
+            collated_batch, device=self.device, exclude=self.exclude_batch_keys_from_device
+        )
         return collated_batch
 
     def __iter__(self):
@@ -184,6 +192,7 @@ class EvalDataloader(DataLoader):
         ray_bundle = self.cameras.generate_rays(camera_indices=image_idx, keep_shape=True)
         batch = self.input_dataset[image_idx]
         batch = get_dict_to_torch(batch, device=self.device, exclude=["image"])
+        assert isinstance(batch, dict)
         return ray_bundle, batch
 
 
@@ -225,30 +234,16 @@ class FixedIndicesEvalDataloader(EvalDataloader):
 
 class RandIndicesEvalDataloader(EvalDataloader):
     """Dataloader that returns random images.
-
     Args:
         input_dataset: InputDataset to load data from
         device: Device to load data to
     """
 
-    def __init__(
-        self,
-        input_dataset: InputDataset,
-        device: Union[torch.device, str] = "cpu",
-        **kwargs,
-    ):
-        super().__init__(input_dataset, device, **kwargs)
-        self.count = 0
-
     def __iter__(self):
-        self.count = 0
         return self
 
     def __next__(self):
-        if self.count < 1:
-            image_indices = range(self.cameras.size)
-            image_idx = random.choice(image_indices)
-            ray_bundle, batch = self.get_data_from_image_idx(image_idx)
-            self.count += 1
-            return ray_bundle, batch
-        raise StopIteration
+        # choose a random image index
+        image_idx = random.randint(0, len(self.cameras) - 1)
+        ray_bundle, batch = self.get_data_from_image_idx(image_idx)
+        return ray_bundle, batch

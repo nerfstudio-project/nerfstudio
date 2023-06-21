@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import torch
 from torch import nn
@@ -74,7 +74,7 @@ class Model(nn.Module):
         super().__init__()
         self.config = config
         self.scene_box = scene_box
-        self.render_aabb = None  # the box that we want to render - should be a subset of scene_box
+        self.render_aabb: Optional[SceneBox] = None  # the box that we want to render - should be a subset of scene_box
         self.num_train_data = num_train_data
         self.kwargs = kwargs
         self.collider = None
@@ -89,8 +89,8 @@ class Model(nn.Module):
         """Returns the device that the model is on."""
         return self.device_indicator_param.device
 
-    def get_training_callbacks(  # pylint:disable=no-self-use
-        self, training_callback_attributes: TrainingCallbackAttributes  # pylint: disable=unused-argument
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
         """Returns a list of callbacks that run functions at the specified training iterations."""
         return []
@@ -115,7 +115,7 @@ class Model(nn.Module):
         """
 
     @abstractmethod
-    def get_outputs(self, ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
+    def get_outputs(self, ray_bundle: RayBundle) -> Dict[str, Union[torch.Tensor, List]]:
         """Takes in a Ray Bundle and returns a dictionary of outputs.
 
         Args:
@@ -126,7 +126,7 @@ class Model(nn.Module):
             Outputs of model. (ie. rendered colors)
         """
 
-    def forward(self, ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
+    def forward(self, ray_bundle: RayBundle) -> Dict[str, Union[torch.Tensor, List]]:
         """Run forward starting with a ray bundle. This outputs different things depending on the configuration
         of the model and whether or not the batch is provided (whether or not we are training basically)
 
@@ -146,8 +146,7 @@ class Model(nn.Module):
             outputs: the output to compute loss dict to
             batch: ground truth batch corresponding to outputs
         """
-        # pylint: disable=unused-argument
-        # pylint: disable=no-self-use
+
         return {}
 
     @abstractmethod
@@ -177,12 +176,12 @@ class Model(nn.Module):
             ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
             outputs = self.forward(ray_bundle=ray_bundle)
             for output_name, output in outputs.items():  # type: ignore
+                if not torch.is_tensor(output):
+                    # TODO: handle lists of tensors as well
+                    continue
                 outputs_lists[output_name].append(output)
         outputs = {}
         for output_name, outputs_list in outputs_lists.items():
-            if not torch.is_tensor(outputs_list[0]):
-                # TODO: handle lists of tensors as well
-                continue
             outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)  # type: ignore
         return outputs
 

@@ -29,11 +29,12 @@ You can learn more about these methods [here](https://github.com/autonomousvisio
 
 ## Surface models in nerfstudio
 
-We intend to integrate many of the SDFStudio improvments back into the nerstudio core repository.
+We intend to integrate many of the SDFStudio improvements back into the nerfstudio core repository.
 
 Supported methods:
 
 - NeuS
+- NeuS-facto
 
 ## Citation
 

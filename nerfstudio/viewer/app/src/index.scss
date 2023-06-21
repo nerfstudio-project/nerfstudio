@@ -17,6 +17,7 @@ code {
 .App {
   position: relative;
   height: 100vh;
+  background-color: #1d222a;
 }
 
 $base-color1: #292d39;
@@ -29,12 +30,14 @@ $highlight-color1: #606980;
 $highlight-color2: #eeeeee;
 $highlight-color3: #ffffff;
 
+$bannerHeight: 50;
+
 .banner {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 50px;
+  height: $bannerHeight + 0px;
   width: 100%;
   z-index: 1000;
   background-color: $base-color2;
@@ -49,6 +52,10 @@ $highlight-color3: #ffffff;
     margin-right: 120px;
     float: right;
   }
+}
+
+:export {
+  bannerHeight: $bannerHeight;
 }
 
 .App-body {
@@ -193,7 +200,7 @@ $sidebar-width: 100% !default;
 // ------------------------------------
 // Viewport Controls Modal styling
 
-.ViewportConstrolsModal-box {
+.ViewportControlsModal-box {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -358,8 +365,32 @@ $sidebar-width: 100% !default;
   border: $custom-border;
 }
 
-.RenderWindow {
-  z-index: 1;
+#not-connected-overlay {
+  position: absolute;
+  background-color: #1d222a;
+  height: 100%;
+  width: 100%;
+  text-align: center;
+  margin: 0;
+  padding: 0;
+  z-index: 10;
+  opacity: 0.8;
+}
+
+#not-connected-overlay-text {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #393939;
+  border-radius: 10px;
+  padding-left: 15px;
+  padding-right: 15px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  color: #ff6969;
+  font-size: 18px;
+  z-index: 10;
 }
 
 .ViewerWindow-render-crop-container {

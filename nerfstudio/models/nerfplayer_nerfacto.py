@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,14 +20,13 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass, field
-from typing import Dict, List, Type
+from typing import Dict, List, Literal, Sequence, Type, cast
 
 import numpy as np
 import torch
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.field_components.field_heads import FieldHeadNames
@@ -119,15 +118,16 @@ class NerfplayerNerfactoModel(NerfactoModel):
 
         self.density_fns = []
         num_prop_nets = self.config.num_proposal_iterations
+
         # Build the proposal network(s)
-        self.proposal_networks = torch.nn.ModuleList()
+        proposal_networks: List[TemporalHashMLPDensityField] = []
         if self.config.use_same_proposal_network:
             assert len(self.config.proposal_net_args_list) == 1, "Only one proposal network is allowed."
             prop_net_args = self.config.proposal_net_args_list[0]
             network = TemporalHashMLPDensityField(
                 self.scene_box.aabb, spatial_distortion=scene_contraction, **prop_net_args
             )
-            self.proposal_networks.append(network)
+            proposal_networks.append(network)
             self.density_fns.extend([network.density_fn for _ in range(num_prop_nets)])
         else:
             for i in range(num_prop_nets):
@@ -137,15 +137,18 @@ class NerfplayerNerfactoModel(NerfactoModel):
                     spatial_distortion=scene_contraction,
                     **prop_net_args,
                 )
-                self.proposal_networks.append(network)
-            self.density_fns.extend([network.density_fn for network in self.proposal_networks])
+                proposal_networks.append(network)
+            self.density_fns.extend([network.density_fn for network in proposal_networks])
+        self.proposal_networks = cast(Sequence[TemporalHashMLPDensityField], torch.nn.ModuleList(proposal_networks))
 
         # Samplers
-        update_schedule = lambda step: np.clip(
-            np.interp(step, [0, self.config.proposal_warmup], [0, self.config.proposal_update_every]),
-            1,
-            self.config.proposal_update_every,
-        )
+        def update_schedule(step):
+            return np.clip(
+                np.interp(step, [0, self.config.proposal_warmup], [0, self.config.proposal_update_every]),
+                1,
+                self.config.proposal_update_every,
+            )
+
         self.proposal_sampler = ProposalNetworkSampler(
             num_nerf_samples_per_ray=self.config.num_nerf_samples_per_ray,
             num_proposal_samples_per_ray=self.config.num_proposal_samples_per_ray,
@@ -245,12 +248,16 @@ class NerfplayerNerfactoModel(NerfactoModel):
                     outputs["rendered_pred_normal_loss"]
                 )
             if "depth_image" in batch.keys() and self.config.depth_weight > 0:
-                mask = (batch["depth_image"] != 0).view([-1])
+                depth_image = batch["depth_image"].to(self.device)
+                mask = (depth_image != 0).view([-1])
                 loss_dict["depth_loss"] = 0
-                l = lambda x: self.config.depth_weight * (x - batch["depth_image"][mask]).pow(2).mean()
-                loss_dict["depth_loss"] = l(outputs["depth"][mask])
+
+                def compute_depth_loss(x):
+                    return self.config.depth_weight * (x - depth_image[mask]).pow(2).mean()
+
+                loss_dict["depth_loss"] = compute_depth_loss(outputs["depth"][mask])
                 for i in range(self.config.num_proposal_iterations):
-                    loss_dict["depth_loss"] += l(outputs[f"prop_depth_{i}"][mask])
+                    loss_dict["depth_loss"] += compute_depth_loss(outputs[f"prop_depth_{i}"][mask])
             if self.config.temporal_tv_weight > 0:
                 loss_dict["temporal_tv_loss"] = self.field.mlp_base.get_temporal_tv_loss()
                 for net in self.proposal_networks:

@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,21 +13,19 @@
 # limitations under the License.
 
 """
-Tools supporting the execution of COLMAP and preparation of COLMAP-based datasets for nerstudio training.
+Tools supporting the execution of COLMAP and preparation of COLMAP-based datasets for nerfstudio training.
 """
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 import appdirs
 import cv2
 import numpy as np
 import requests
 import torch
-from rich.console import Console
 from rich.progress import track
-from typing_extensions import Literal
 
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
 # import pycolmap
@@ -39,10 +37,8 @@ from nerfstudio.data.utils.colmap_parsing_utils import (
 )
 from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils import colormaps
-from nerfstudio.utils.rich_utils import status
+from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
-
-CONSOLE = Console(width=120)
 
 
 def get_colmap_version(colmap_cmd: str, default_version=3.8) -> float:
@@ -115,9 +111,7 @@ def run_colmap(
     colmap_version = get_colmap_version(colmap_cmd)
 
     colmap_database_path = colmap_dir / "database.db"
-    if colmap_database_path.exists():
-        # Can't use missing_ok argument because of Python 3.7 compatibility.
-        colmap_database_path.unlink()
+    colmap_database_path.unlink(missing_ok=True)
 
     # Feature extraction
     feature_extractor_cmd = [
@@ -182,7 +176,7 @@ def run_colmap(
     CONSOLE.log("[bold green]:tada: Done refining intrinsics.")
 
 
-def parse_colmap_camera_params(camera) -> Dict[str, Any]:  # pylint: disable=too-many-statements
+def parse_colmap_camera_params(camera) -> Dict[str, Any]:
     """
     Parses all currently supported COLMAP cameras into the transforms.json metadata
 
@@ -520,7 +514,7 @@ def create_sfm_depth(
     im_id_to_image = read_images_binary(recon_dir / "images.bin")
 
     # Only support first camera
-    CAMERA_ID = 1  # pylint: disable=invalid-name
+    CAMERA_ID = 1
     W = cam_id_to_camera[CAMERA_ID].width
     H = cam_id_to_camera[CAMERA_ID].height
 
@@ -588,7 +582,7 @@ def create_sfm_depth(
 
         out_name = str(im_data.name)
         depth_path = output_dir / out_name
-        cv2.imwrite(str(depth_path), depth_img)
+        cv2.imwrite(str(depth_path), depth_img)  # type: ignore
 
         image_id_to_depth_path[im_id] = depth_path
 
@@ -600,39 +594,39 @@ def create_sfm_depth(
             overlay = 255.0 * colormaps.apply_depth_colormap(torch.from_numpy(depth_flat)).numpy()
             overlay = overlay.reshape([H, W, 3])
             input_image_path = input_images_dir / im_data.name
-            input_image = cv2.imread(str(input_image_path))
+            input_image = cv2.imread(str(input_image_path))  # type: ignore
             debug = 0.3 * input_image + 0.7 + overlay
 
             out_name = out_name + ".debug.jpg"
             output_path = output_dir / "debug_depth" / out_name
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            cv2.imwrite(str(output_path), debug.astype(np.uint8))
+            cv2.imwrite(str(output_path), debug.astype(np.uint8))  # type: ignore
 
     return image_id_to_depth_path
 
 
-def get_matching_summary(num_intial_frames: int, num_matched_frames: int) -> str:
+def get_matching_summary(num_initial_frames: int, num_matched_frames: int) -> str:
     """Returns a summary of the matching results.
 
     Args:
-        num_intial_frames: The number of initial frames.
+        num_initial_frames: The number of initial frames.
         num_matched_frames: The number of matched frames.
 
     Returns:
         A summary of the matching results.
     """
-    match_ratio = num_matched_frames / num_intial_frames
+    match_ratio = num_matched_frames / num_initial_frames
     if match_ratio == 1:
         return "[bold green]COLMAP found poses for all images, CONGRATS!"
     if match_ratio < 0.4:
-        result = f"[bold red]COLMAP only found poses for {num_matched_frames / num_intial_frames * 100:.2f}%"
+        result = f"[bold red]COLMAP only found poses for {num_matched_frames / num_initial_frames * 100:.2f}%"
         result += " of the images. This is low.\nThis can be caused by a variety of reasons,"
         result += " such poor scene coverage, blurry images, or large exposure changes."
         return result
     if match_ratio < 0.8:
-        result = f"[bold yellow]COLMAP only found poses for {num_matched_frames / num_intial_frames * 100:.2f}%"
+        result = f"[bold yellow]COLMAP only found poses for {num_matched_frames / num_initial_frames * 100:.2f}%"
         result += " of the images.\nThis isn't great, but may be ok."
         result += "\nMissing poses can be caused by a variety of reasons, such poor scene coverage, blurry images,"
         result += " or large exposure changes."
         return result
-    return f"[bold green]COLMAP found poses for {num_matched_frames / num_intial_frames * 100:.2f}% of the images."
+    return f"[bold green]COLMAP found poses for {num_matched_frames / num_initial_frames * 100:.2f}% of the images."

@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,18 +17,21 @@ Camera transformation helper code.
 """
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
-from numpy.typing import ArrayLike
-from torchtyping import TensorType
-from typing_extensions import Literal
+from jaxtyping import Float
+from numpy.typing import NDArray
+from torch import Tensor
+from torch.nn import functional as F
+
+from nerfstudio.utils.misc import torch_compile
 
 _EPS = np.finfo(float).eps * 4.0
 
 
-def unit_vector(data: ArrayLike, axis: Optional[int] = None) -> np.ndarray:
+def unit_vector(data: NDArray, axis: Optional[int] = None) -> np.ndarray:
     """Return ndarray normalized by length, i.e. Euclidean norm, along axis.
 
     Args:
@@ -47,7 +50,7 @@ def unit_vector(data: ArrayLike, axis: Optional[int] = None) -> np.ndarray:
     return data
 
 
-def quaternion_from_matrix(matrix: ArrayLike, isprecise: bool = False) -> np.ndarray:
+def quaternion_from_matrix(matrix: NDArray, isprecise: bool = False) -> np.ndarray:
     """Return quaternion from rotation matrix.
 
     Args:
@@ -86,14 +89,13 @@ def quaternion_from_matrix(matrix: ArrayLike, isprecise: bool = False) -> np.nda
         m21 = M[2, 1]
         m22 = M[2, 2]
         # symmetric matrix K
-        K = np.array(
-            [
-                [m00 - m11 - m22, 0.0, 0.0, 0.0],
-                [m01 + m10, m11 - m00 - m22, 0.0, 0.0],
-                [m02 + m20, m12 + m21, m22 - m00 - m11, 0.0],
-                [m21 - m12, m02 - m20, m10 - m01, m00 + m11 + m22],
-            ]
-        )
+        K = [
+            [m00 - m11 - m22, 0.0, 0.0, 0.0],
+            [m01 + m10, m11 - m00 - m22, 0.0, 0.0],
+            [m02 + m20, m12 + m21, m22 - m00 - m11, 0.0],
+            [m21 - m12, m02 - m20, m10 - m01, m00 + m11 + m22],
+        ]
+        K = np.array(K)
         K /= 3.0
         # quaternion is eigenvector of K that corresponds to largest eigenvalue
         w, V = np.linalg.eigh(K)
@@ -104,7 +106,7 @@ def quaternion_from_matrix(matrix: ArrayLike, isprecise: bool = False) -> np.nda
 
 
 def quaternion_slerp(
-    quat0: ArrayLike, quat1: ArrayLike, fraction: float, spin: int = 0, shortestpath: bool = True
+    quat0: NDArray, quat1: NDArray, fraction: float, spin: int = 0, shortestpath: bool = True
 ) -> np.ndarray:
     """Return spherical linear interpolation between two quaternions.
     Args:
@@ -139,7 +141,7 @@ def quaternion_slerp(
     return q0
 
 
-def quaternion_matrix(quaternion: ArrayLike) -> np.ndarray:
+def quaternion_matrix(quaternion: NDArray) -> np.ndarray:
     """Return homogeneous rotation matrix from quaternion.
 
     Args:
@@ -161,7 +163,7 @@ def quaternion_matrix(quaternion: ArrayLike) -> np.ndarray:
     )
 
 
-def get_interpolated_poses(pose_a: ArrayLike, pose_b: ArrayLike, steps: int = 10) -> List[float]:
+def get_interpolated_poses(pose_a: NDArray, pose_b: NDArray, steps: int = 10) -> List[float]:
     """Return interpolation of poses with specified number of steps.
     Args:
         pose_a: first pose
@@ -185,7 +187,9 @@ def get_interpolated_poses(pose_a: ArrayLike, pose_b: ArrayLike, steps: int = 10
     return poses_ab
 
 
-def get_interpolated_k(k_a, k_b, steps: int = 10) -> TensorType[3, 4]:
+def get_interpolated_k(
+    k_a: Float[Tensor, "3 3"], k_b: Float[Tensor, "3 3"], steps: int = 10
+) -> List[Float[Tensor, "3 4"]]:
     """
     Returns interpolated path between two camera poses with specified number of steps.
 
@@ -193,8 +197,11 @@ def get_interpolated_k(k_a, k_b, steps: int = 10) -> TensorType[3, 4]:
         k_a: camera matrix 1
         k_b: camera matrix 2
         steps: number of steps the interpolated pose path should contain
+
+    Returns:
+        List of interpolated camera poses
     """
-    Ks = []
+    Ks: List[Float[Tensor, "3 3"]] = []
     ts = np.linspace(0, 1, steps)
     for t in ts:
         new_k = k_a * (1.0 - t) + k_b * t
@@ -202,37 +209,79 @@ def get_interpolated_k(k_a, k_b, steps: int = 10) -> TensorType[3, 4]:
     return Ks
 
 
+def get_ordered_poses_and_k(
+    poses: Float[Tensor, "num_poses 3 4"],
+    Ks: Float[Tensor, "num_poses 3 3"],
+) -> Tuple[Float[Tensor, "num_poses 3 4"], Float[Tensor, "num_poses 3 3"]]:
+    """
+    Returns ordered poses and intrinsics by euclidian distance between poses.
+
+    Args:
+        poses: list of camera poses
+        Ks: list of camera intrinsics
+
+    Returns:
+        tuple of ordered poses and intrinsics
+
+    """
+
+    poses_num = len(poses)
+
+    ordered_poses = torch.unsqueeze(poses[0], 0)
+    ordered_ks = torch.unsqueeze(Ks[0], 0)
+
+    # remove the first pose from poses
+    poses = poses[1:]
+    Ks = Ks[1:]
+
+    for _ in range(poses_num - 1):
+        distances = torch.norm(ordered_poses[-1][:, 3] - poses[:, :, 3], dim=1)
+        idx = torch.argmin(distances)
+        ordered_poses = torch.cat((ordered_poses, torch.unsqueeze(poses[idx], 0)), dim=0)
+        ordered_ks = torch.cat((ordered_ks, torch.unsqueeze(Ks[idx], 0)), dim=0)
+        poses = torch.cat((poses[0:idx], poses[idx + 1 :]), dim=0)
+        Ks = torch.cat((Ks[0:idx], Ks[idx + 1 :]), dim=0)
+
+    return ordered_poses, ordered_ks
+
+
 def get_interpolated_poses_many(
-    poses: TensorType["num_poses", 3, 4],
-    Ks: TensorType["num_poses", 3, 3],
-    steps_per_transition=10,
-) -> Tuple[TensorType["num_poses", 3, 4], TensorType["num_poses", 3, 3]]:
+    poses: Float[Tensor, "num_poses 3 4"],
+    Ks: Float[Tensor, "num_poses 3 3"],
+    steps_per_transition: int = 10,
+    order_poses: bool = False,
+) -> Tuple[Float[Tensor, "num_poses 3 4"], Float[Tensor, "num_poses 3 3"]]:
     """Return interpolated poses for many camera poses.
 
     Args:
         poses: list of camera poses
         Ks: list of camera intrinsics
         steps_per_transition: number of steps per transition
+        order_poses: whether to order poses by euclidian distance
 
     Returns:
         tuple of new poses and intrinsics
     """
     traj = []
     k_interp = []
+
+    if order_poses:
+        poses, Ks = get_ordered_poses_and_k(poses, Ks)
+
     for idx in range(poses.shape[0] - 1):
-        pose_a = poses[idx]
-        pose_b = poses[idx + 1]
+        pose_a = poses[idx].cpu().numpy()
+        pose_b = poses[idx + 1].cpu().numpy()
         poses_ab = get_interpolated_poses(pose_a, pose_b, steps=steps_per_transition)
         traj += poses_ab
         k_interp += get_interpolated_k(Ks[idx], Ks[idx + 1], steps=steps_per_transition)
 
     traj = np.stack(traj, axis=0)
-    k_interp = np.stack(k_interp, axis=0)
+    k_interp = torch.stack(k_interp, dim=0)
 
     return torch.tensor(traj, dtype=torch.float32), torch.tensor(k_interp, dtype=torch.float32)
 
 
-def normalize(x: torch.Tensor) -> TensorType[...]:
+def normalize(x: torch.Tensor) -> Float[Tensor, "*batch"]:
     """Returns a normalized vector."""
     return x / torch.linalg.norm(x)
 
@@ -252,7 +301,7 @@ def normalize_with_norm(x: torch.Tensor, dim: int) -> Tuple[torch.Tensor, torch.
     return x / norm, norm
 
 
-def viewmatrix(lookat: torch.Tensor, up: torch.Tensor, pos: torch.Tensor) -> TensorType[...]:
+def viewmatrix(lookat: torch.Tensor, up: torch.Tensor, pos: torch.Tensor) -> Float[Tensor, "*batch"]:
     """Returns a camera transformation matrix.
 
     Args:
@@ -278,7 +327,7 @@ def get_distortion_params(
     k4: float = 0.0,
     p1: float = 0.0,
     p2: float = 0.0,
-) -> TensorType[...]:
+) -> Float[Tensor, "*batch"]:
     """Returns a distortion parameters matrix.
 
     Args:
@@ -294,7 +343,6 @@ def get_distortion_params(
     return torch.Tensor([k1, k2, k3, k4, p1, p2])
 
 
-@torch.jit.script
 def _compute_residual_and_jacobian(
     x: torch.Tensor,
     y: torch.Tensor,
@@ -303,15 +351,14 @@ def _compute_residual_and_jacobian(
     distortion_params: torch.Tensor,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor,]:
     """Auxiliary function of radial_and_tangential_undistort() that computes residuals and jacobians.
-    Adapted from MultiNeRF:
-    https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L427-L474
+    Uses the OPENCV camera model defined in COLMAP (which restricts the OpenCV camera model to second degree)
 
     Args:
         x: The updated x coordinates.
         y: The updated y coordinates.
         xd: The distorted x coordinates.
         yd: The distorted y coordinates.
-        distortion_params: The distortion parameters [k1, k2, k3, k4, p1, p2].
+        distortion_params: The distortion parameters [k1, k2, p1, p2].
 
     Returns:
         The residuals (fx, fy) and jacobians (fx_x, fx_y, fy_x, fy_y).
@@ -319,16 +366,17 @@ def _compute_residual_and_jacobian(
 
     k1 = distortion_params[..., 0]
     k2 = distortion_params[..., 1]
-    k3 = distortion_params[..., 2]
-    k4 = distortion_params[..., 3]
     p1 = distortion_params[..., 4]
     p2 = distortion_params[..., 5]
 
     # let r(x, y) = x^2 + y^2;
-    #     d(x, y) = 1 + k1 * r(x, y) + k2 * r(x, y) ^2 + k3 * r(x, y)^3 +
-    #                   k4 * r(x, y)^4;
+    # in the full OpenCV camera model, radial distortion is modeled as:
+    #     alpha(x, y) = 1 + k1 * r(x, y) + k2 * r(x, y) ^2 + k3 * r(x, y)^3;
+    #     beta(x, y) = 1 + k4 * r(x, y) + k5 * r(x, y) ^2 + k6 * r(x, y)^3;
+    #     d(x, y) = alpha(x, y) / beta(x, y);
+    # COLMAP's OPENCV model restricts this to k1 and k2 so
     r = x * x + y * y
-    d = 1.0 + r * (k1 + r * (k2 + r * (k3 + r * k4)))
+    d = 1.0 + r * (k1 + r * k2)
 
     # The perfect projection is:
     # xd = x * d(x, y) + 2 * p1 * x * y + p2 * (r(x, y) + 2 * x^2);
@@ -344,8 +392,10 @@ def _compute_residual_and_jacobian(
     fx = d * x + 2 * p1 * x * y + p2 * (r + 2 * x * x) - xd
     fy = d * y + 2 * p2 * x * y + p1 * (r + 2 * y * y) - yd
 
+    # Compute derivative of alpha, beta over r.
+    d_r = k1 + 2.0 * r * k2
+
     # Compute derivative of d over [x, y]
-    d_r = k1 + r * (2.0 * k2 + r * (3.0 * k3 + r * 4.0 * k4))
     d_x = 2.0 * x * d_r
     d_y = 2.0 * y * d_r
 
@@ -360,48 +410,244 @@ def _compute_residual_and_jacobian(
     return fx, fy, fx_x, fx_y, fy_x, fy_y
 
 
-@torch.jit.script
+@torch_compile(dynamic=True, mode="reduce-overhead", backend="eager")
 def radial_and_tangential_undistort(
-    coords: torch.Tensor,
-    distortion_params: torch.Tensor,
+    coords: Float[torch.Tensor, "num_points 2"],
+    distortion_params: Float[torch.Tensor, "#num_points num_params"],
     eps: float = 1e-3,
     max_iterations: int = 10,
-) -> torch.Tensor:
+    resolution: Float[torch.Tensor, "#num_points 2"] = torch.tensor([[1e-3, 1e-3]]),
+    tolerance: float = 0.5,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Computes undistorted coords given opencv distortion parameters.
     Adapted from MultiNeRF
     https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L477-L509
 
     Args:
         coords: The distorted coordinates.
-        distortion_params: The distortion parameters [k1, k2, k3, k4, p1, p2].
-        eps: The epsilon for the convergence.
+        distortion_params: The distortion parameters. Accepts 6 parameters, in
+            the order of [k1, k2, k3, k4, p1, p2], but this only uses [k1, k2, p1, p2].
+        eps: The smallest determinant magnitude for a matrix to be considered invertible (for Newton's method).
         max_iterations: The maximum number of iterations to perform.
+        resolution: The resolution (w, h of each pixel, in units of multiples of focal length)
+        tolerance: The allowed error of the redistorted points in units of pixel width/height
 
     Returns:
-        The undistorted coordinates.
+        The undistorted coordinates, the jacobian of the distortion function, and the redistorted coordinates.
+
+        If F is the distortion function, then the outputs are:
+        undistort: approximated value of F^{-1}(coords)
+        d: jacobian of redistort with respect to undistort (used for pixel area calculation)
+        redistort: F(undistort), will be within [tolerance] pixels of coords (in Chebyshev distance)
+            unless max_iterations is reached
     """
+    if distortion_params.shape[-1] == 0:
+        return coords, torch.eye(2, device=coords.device), coords
+
+    if distortion_params.shape[-1] < 6:
+        distortion_params = F.pad(distortion_params, (0, 6 - distortion_params.shape[-1]), "constant", 0.0)
+    assert distortion_params.shape[-1] == 6
+
+    if distortion_params.shape[0] == 1:
+        distortion_params = distortion_params.expand((coords.shape[0], -1))
+
+    if resolution.shape[0] == 1:
+        resolution = resolution.expand((coords.shape[0], -1))
+
+    resolution = resolution.to(coords.device)
 
     # Initialize from the distorted point.
     x = coords[..., 0]
     y = coords[..., 1]
+    all_jacobian = torch.empty(x.shape + (2, 2), device=coords.device)
+    all_residual = torch.empty_like(coords)
+
+    next_upd = torch.arange(coords.shape[0], device=coords.device)
 
     for _ in range(max_iterations):
+        x_upd = x[next_upd]
+        y_upd = y[next_upd]
         fx, fy, fx_x, fx_y, fy_x, fy_y = _compute_residual_and_jacobian(
-            x=x, y=y, xd=coords[..., 0], yd=coords[..., 1], distortion_params=distortion_params
+            x=x_upd,
+            y=y_upd,
+            xd=coords[next_upd, 0],
+            yd=coords[next_upd, 1],
+            distortion_params=distortion_params[next_upd],
         )
-        denominator = fy_x * fx_y - fx_x * fy_y
-        x_numerator = fx * fy_y - fy * fx_y
-        y_numerator = fy * fx_x - fx * fy_x
-        step_x = torch.where(torch.abs(denominator) > eps, x_numerator / denominator, torch.zeros_like(denominator))
-        step_y = torch.where(torch.abs(denominator) > eps, y_numerator / denominator, torch.zeros_like(denominator))
 
-        x = x + step_x
-        y = y + step_y
+        converged = (fx < resolution[next_upd, 0] * tolerance) & (fy < resolution[next_upd, 1] * tolerance)
 
-    return torch.stack([x, y], dim=-1)
+        not_converged = torch.argwhere(~converged).squeeze(-1)
+        converged = torch.argwhere(converged).squeeze(-1)
+
+        denominator = fx_x * fy_y - fx_y * fy_x
+        invertible = torch.abs(denominator) > eps
+        numerator = torch.stack([fy_y, -fx_y, -fy_x, fx_x], dim=-1)
+        j_inv = (torch.where(invertible, 1 / denominator, 0).reshape(-1, 1) * numerator).reshape(-1, 2, 2)
+        upd_conv = next_upd[converged]
+        all_jacobian[upd_conv] = j_inv[converged]
+        residual = torch.stack((fx, fy), dim=-1)
+        all_residual[upd_conv] = residual[converged]
+
+        next_upd = next_upd[not_converged]
+        if next_upd.numel() == 0:
+            break
+
+        j_inv = j_inv[not_converged]
+
+        residual = residual[not_converged].reshape(-1, 2, 1)
+        step = (j_inv @ residual).squeeze(-1).float()
+
+        # careful: index_add_ (with underscore) is in-place, index_add (no underscore) is not in-place
+        x = x.index_add(dim=0, index=next_upd, source=step[:, 0], alpha=-1)
+        y = y.index_add(dim=0, index=next_upd, source=step[:, 1], alpha=-1)
+
+    undistort = torch.stack([x, y], dim=-1)
+
+    return undistort, all_jacobian, coords + all_residual
 
 
-def rotation_matrix(a: TensorType[3], b: TensorType[3]) -> TensorType[3, 3]:
+def _compute_residual_and_jacobian_fisheye(
+    theta: torch.Tensor,
+    thetad: torch.Tensor,
+    distortion_params: torch.Tensor,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Auxiliary function of radial_and_tangential_undistort() that computes residuals and jacobians.
+    Adapted from MultiNeRF:
+    https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L427-L474
+
+    Args:
+        theta: The updated angles.
+        thetad: The distorted angles.
+        distortion_params: The distortion parameters [k1, k2, k3, k4].
+
+    Returns:
+        The residuals (ftheta) and derivatives (ftheta_theta).
+    """
+
+    k1 = distortion_params[..., 0]
+    k2 = distortion_params[..., 1]
+    k3 = distortion_params[..., 2]
+    k4 = distortion_params[..., 3]
+
+    # let d(theta) = 1 + k1 * theta^2 + k2 * theta^4 + k3 * theta^6 + k4 * theta^8
+    # r(theta) = theta^2
+    r = theta * theta
+    d = 1.0 + r * (k1 + r * (k2 + r * (k3 + r * k4)))
+
+    # The perfect projection is:
+    # thetad = theta * d(theta)
+    #
+    # Let's define
+    #
+    # f(theta) = theta * d(theta) - thetad;
+    #
+    # We are looking for a solution that satisfies
+    # f(theta) = 0;
+    f = theta * d - thetad
+
+    # Compute derivative of f over theta.
+    f_theta = 1 + r * (3 * k1 + r * (5 * k2 + r * (7 * k3 + r * 9 * k4)))
+
+    return f, f_theta
+
+
+@torch_compile(dynamic=True, mode="reduce-overhead", backend="eager")
+def fisheye_undistort(
+    coords: Float[torch.Tensor, "num_points 2"],
+    distortion_params: Float[torch.Tensor, "#num_points num_params"],
+    eps: float = 1e-3,
+    max_iterations: int = 10,
+    resolution: Float[torch.Tensor, "#num_points 2"] = torch.tensor([[1e-3, 1e-3]]),
+    tolerance: float = 0.5,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Computes undistorted coords given opencv distortion parameters. Based on OpenCV fisheye camera model.
+
+    Args:
+        coords: The distorted coordinates.
+        distortion_params: The distortion parameters. Supports up to 4
+            radial distortion parameters, in order [k1, k2, k3, k4]
+        eps: The smallest derivative magnitude considered to be nonzero (for Newton's method).
+        max_iterations: The maximum number of iterations to perform.
+        resolution: The resolution [w, h] of the cameras
+        tolerance: The allowed error of the redistorted points in units of pixel width/height
+
+    Returns:
+        The undistorted coordinates, the derivative of the distortion function, and the redistorted coordinates.
+
+        If F is the distortion function, then the outputs are:
+        undistort: approximated value of F^{-1}(coords)
+        d: derivative of r_redistort with respect to r (used for pixel area calculation), where
+            r_redistort is the distance from the principal point of the redistorted points
+            r is the distance from the principal point of the points in undistort
+        redistort: F(undistort), will be within [tolerance] pixels of coords (in Chebyshev distance)
+            unless max_iterations is reached
+    """
+    if distortion_params.shape[-1] == 0:
+        return coords, torch.tensor(1, device=coords.device), coords
+
+    if distortion_params.shape[-1] > 4:
+        distortion_params = distortion_params[..., :4]
+    elif distortion_params.shape[-1] < 4:
+        distortion_params = F.pad(distortion_params, (0, 4 - distortion_params.shape[-1]), "constant", 0.0)
+    assert distortion_params.shape[-1] == 4
+
+    if distortion_params.shape[0] == 1:
+        distortion_params = distortion_params.expand((coords.shape[0], -1))
+
+    if resolution.shape[0] == 1:
+        resolution = resolution.expand((coords.shape[0], -1))
+
+    resolution, _ = torch.min(resolution.to(coords.device), dim=-1)
+
+    # OpenCV uses an equidistant projection for its fisheye camera model
+    # meaning the radius of the point is proportional to the angle from the principal direction
+    # r ~ theta
+    r_d = torch.linalg.norm(coords, dim=-1)
+
+    # Initialize from the distorted point.
+    theta = torch.clone(r_d)
+    all_derivative = torch.empty_like(theta)
+    all_residual = torch.empty_like(theta)
+
+    next_upd = torch.arange(theta.shape[0], device=theta.device)
+
+    for i in range(max_iterations):
+        theta_upd = theta[next_upd]
+        f, dtheta = _compute_residual_and_jacobian_fisheye(
+            theta=theta_upd, thetad=r_d[next_upd], distortion_params=distortion_params[next_upd]
+        )
+
+        converged = f < resolution[next_upd] * tolerance
+
+        not_converged = torch.argwhere(~converged).squeeze(-1)
+        converged = torch.argwhere(converged).squeeze(-1)
+
+        upd_conv = next_upd[converged]
+        all_derivative[upd_conv] = dtheta[converged]
+        all_residual[upd_conv] = f[converged]
+
+        next_upd = next_upd[not_converged]
+        if next_upd.numel() == 0:
+            break
+
+        dtheta = dtheta[not_converged]
+
+        f = f[not_converged].reshape(-1, 1)
+        step = torch.where(torch.abs(dtheta) > eps, (f / dtheta), 0)
+
+        # careful: index_add_ (with underscore) is in-place, index_add (no underscore) is not in-place
+        theta = theta.index_add(dim=0, index=next_upd, source=step[:, 0], alpha=-1)
+
+    inverse_r_d = torch.where(r_d > 1e-5, 1 / r_d, 0)
+    return (
+        (theta * inverse_r_d).unsqueeze(-1) * coords,
+        all_derivative,
+        coords * (1 + all_residual * inverse_r_d).unsqueeze(-1),
+    )
+
+
+def rotation_matrix(a: Float[Tensor, "3"], b: Float[Tensor, "3"]) -> Float[Tensor, "3 3"]:
     """Compute the rotation matrix that rotates vector a to vector b.
 
     Args:
@@ -429,7 +675,7 @@ def rotation_matrix(a: TensorType[3], b: TensorType[3]) -> TensorType[3, 3]:
     return torch.eye(3) + skew_sym_mat + skew_sym_mat @ skew_sym_mat * ((1 - c) / (s**2 + 1e-8))
 
 
-def focus_of_attention(poses: TensorType["num_poses":..., 4, 4], initial_focus: TensorType[3]) -> TensorType[3]:
+def focus_of_attention(poses: Float[Tensor, "*num_poses 4 4"], initial_focus: Float[Tensor, "3"]) -> Float[Tensor, "3"]:
     """Compute the focus of attention of a set of cameras. Only cameras
     that have the focus of attention in front of them are considered.
 
@@ -468,10 +714,10 @@ def focus_of_attention(poses: TensorType["num_poses":..., 4, 4], initial_focus: 
 
 
 def auto_orient_and_center_poses(
-    poses: TensorType["num_poses":..., 4, 4],
+    poses: Float[Tensor, "*num_poses 4 4"],
     method: Literal["pca", "up", "vertical", "none"] = "up",
     center_method: Literal["poses", "focus", "none"] = "poses",
-) -> Tuple[TensorType["num_poses":..., 3, 4], TensorType[3, 4]]:
+) -> Tuple[Float[Tensor, "*num_poses 3 4"], Float[Tensor, "3 4"]]:
     """Orients and centers the poses. We provide two methods for orientation: pca and up.
 
     pca: Orient the poses so that the principal directions of the camera centers are aligned
@@ -523,7 +769,7 @@ def auto_orient_and_center_poses(
         transform = torch.cat([eigvec, eigvec @ -translation[..., None]], dim=-1)
         oriented_poses = transform @ poses
 
-        if oriented_poses.mean(axis=0)[2, 1] < 0:
+        if oriented_poses.mean(dim=0)[2, 1] < 0:
             oriented_poses[:, 1:3] = -1 * oriented_poses[:, 1:3]
     elif method in ("up", "vertical"):
         up = torch.mean(poses[:, :3, 1], dim=0)
