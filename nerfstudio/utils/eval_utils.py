@@ -89,7 +89,6 @@ def eval_setup(
     assert isinstance(config, TrainerConfig)
 
     config.pipeline.datamanager._target = all_methods[config.method_name].pipeline.datamanager._target
-
     if eval_num_rays_per_chunk:
         config.pipeline.model.eval_num_rays_per_chunk = eval_num_rays_per_chunk
 
