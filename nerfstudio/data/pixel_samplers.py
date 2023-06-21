@@ -67,10 +67,10 @@ class PixelSampler:
             chosen_indices = random.sample(range(len(nonzero_indices)), k=batch_size)
             indices = nonzero_indices[chosen_indices]
         else:
-            randids = torch.rand((batch_size, 3), device=device)* torch.tensor([num_images, image_height, image_width], device=device)
-            # indices = randids.floor()
-            # print("done floor")
-            indices = randids.long()
+            indices = (
+                torch.rand((batch_size, 3), device=device)
+                * torch.tensor([num_images, image_height, image_width], device=device).long()
+            )
 
         return indices
 
