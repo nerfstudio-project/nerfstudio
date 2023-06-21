@@ -69,8 +69,8 @@ class PixelSampler:
         else:
             indices = (
                 torch.rand((batch_size, 3), device=device)
-                * torch.tensor([num_images, image_height, image_width], device=device).long()
-            )
+                * torch.tensor([num_images, image_height, image_width], device=device)
+            ).long()
 
         return indices
 
