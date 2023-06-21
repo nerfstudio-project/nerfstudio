@@ -18,6 +18,7 @@ NeRF implementation that combines many recent advancements.
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Tuple, Type
 
@@ -283,13 +284,19 @@ class NerfactoModel(Model):
                     func=self.proposal_sampler.step_cb,
                 )
             )
+            callbacks.append(
+                TrainingCallback(
+                    where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                    update_every_num_iters=1,
+                    func=self.field.step_cb,
+                )
+            )
         return callbacks
 
     def get_outputs(self, ray_bundle: RayBundle):
         # apply the camera optimizer pose tweaks
         if self.training:
             self.camera_optimizer.apply_to_raybundle(ray_bundle)
-
         ray_samples: RaySamples
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         field_outputs = self.field.forward(ray_samples, compute_normals=self.config.predict_normals)
@@ -333,7 +340,6 @@ class NerfactoModel(Model):
 
         for i in range(self.config.num_proposal_iterations):
             outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
-
         return outputs
 
     def get_metrics_dict(self, outputs, batch):

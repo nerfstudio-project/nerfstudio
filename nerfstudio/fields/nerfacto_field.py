@@ -89,6 +89,7 @@ class NerfactoField(Field):
         use_transient_embedding: bool = False,
         use_semantics: bool = False,
         num_semantic_classes: int = 100,
+        freq_warmup: int = 0,
         pass_semantic_gradients: bool = False,
         use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
@@ -114,6 +115,8 @@ class NerfactoField(Field):
         self.use_pred_normals = use_pred_normals
         self.pass_semantic_gradients = pass_semantic_gradients
         self.base_res = base_res
+        self.freq_warmup = freq_warmup
+        self.step = 0
 
         self.direction_encoding = SHEncoding(
             levels=4,
@@ -198,6 +201,29 @@ class NerfactoField(Field):
             implementation=implementation,
         )
 
+    def step_cb(self, step):
+        self.step = step
+
+    def get_freq_mask(self, B, N, D, device):
+        import numpy as np
+
+        ts = np.linspace(self.step * N, self.step, N)
+        mask_vals = np.interp(ts, [0, self.freq_warmup], [0, 1])
+        m = torch.from_numpy(mask_vals)[None, ..., None].to(device)
+        return m.repeat((B, 1, D))
+
+    def mask_freqs(self, hashgrid_outputs):
+        """
+        hashgrid_outputs is a B x N*D array of the hashgrid values
+        """
+        # N is number of levels (usually 16)
+        # D is feature dim (usually 2)
+        N = self.mlp_base_grid.num_levels
+        D = self.mlp_base_grid.features_per_level
+        hashgrid_outputs = hashgrid_outputs.view(-1, N, D)
+        masked = self.get_freq_mask(hashgrid_outputs.shape[0], N, D, hashgrid_outputs.device) * hashgrid_outputs
+        return masked.view(masked.shape[0], -1)
+
     def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
         if self.spatial_distortion is not None:
@@ -213,7 +239,10 @@ class NerfactoField(Field):
         if not self._sample_locations.requires_grad:
             self._sample_locations.requires_grad = True
         positions_flat = positions.view(-1, 3)
-        h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
+        hashgrid_vecs = self.mlp_base_grid(positions_flat)
+        hashgrid_vecs = self.mask_freqs(hashgrid_vecs)
+        h = self.mlp_base_mlp(hashgrid_vecs).view(*ray_samples.frustums.shape, -1)
+        # h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
         self._density_before_activation = density_before_activation
 

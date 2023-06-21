@@ -260,6 +260,14 @@ class TensorDataclass:
             A new TensorDataclass with the same data but on the specified device.
         """
         return self._apply_fn_to_fields(lambda x: x.to(device))
+    
+    def pin_memory(self: TensorDataclassT) -> TensorDataclassT:
+        """Pins the tensor dataclass memory
+
+        Returns:
+            TensorDataclass: A new TensorDataclass with the same data but pinned.
+        """
+        return self._apply_fn_to_fields(lambda x: x.pin_memory())
 
     def _apply_fn_to_fields(
         self: TensorDataclassT,
