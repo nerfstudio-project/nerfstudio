@@ -2,16 +2,15 @@ from __future__ import annotations
 
 import concurrent.futures
 import functools
-import torch.multiprocessing as mp
 import time
 from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import (Any, Callable, Dict, Generic, List, Literal, Optional,
-                    Tuple, Type, Union, cast)
+from typing import Any, Callable, Dict, Generic, List, Literal, Optional, Tuple, Type, Union, cast
 
 import torch
+import torch.multiprocessing as mp
 from rich.progress import track
 from torch import nn
 from torch.nn import Parameter
@@ -22,20 +21,14 @@ from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
-from nerfstudio.data.datamanagers.base_datamanager import (
-    DataManager, DataManagerConfig, TDataset, variable_res_collate)
+from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig, TDataset, variable_res_collate
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-from nerfstudio.data.dataparsers.blender_dataparser import \
-    BlenderDataParserConfig
+from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.pixel_samplers import (EquirectangularPixelSampler,
-                                            PatchPixelSampler, PixelSampler)
-from nerfstudio.data.utils.dataloaders import (CacheDataloader,
-                                               FixedIndicesEvalDataloader,
-                                               RandIndicesEvalDataloader)
+from nerfstudio.data.pixel_samplers import EquirectangularPixelSampler, PatchPixelSampler, PixelSampler
+from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
-from nerfstudio.engine.callbacks import (TrainingCallback,
-                                         TrainingCallbackAttributes)
+from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -76,6 +69,7 @@ class ParallelDataManagerConfig(DataManagerConfig):
     n_procs: int = 1
     """Number of processes to use for data loading."""
 
+
 class DataProc(mp.Process):
     def __init__(
         self,
@@ -103,14 +97,19 @@ class DataProc(mp.Process):
         self.train_pixel_sampler = pix_sampler
         self.train_ray_generator = RayGenerator(self.train_dataset.cameras)
         self.cache_images()
-    
+
     def run(self):
         while True:
             batch = self.train_pixel_sampler.sample(self.img_data)
             ray_indices = batch["indices"]
-            ray_bundle:RayBundle = self.train_ray_generator(ray_indices)
+            ray_bundle: RayBundle = self.train_ray_generator(ray_indices)
             ray_bundle = ray_bundle.pin_memory()
-            self.out_queue.put((ray_bundle,batch), block=True)
+            while True:
+                try:
+                    self.out_queue.put_nowait((ray_bundle, batch))
+                    break
+                except:
+                    time.sleep(0.005)
 
     def cache_images(self):
         # caches all the input images in a NxHxWx3 tensor
@@ -157,8 +156,11 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         self.train_dataset = self.create_train_dataset()
         # self.eval_dataset = self.create_eval_dataset()
         self.pix_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
-        mp.set_start_method('spawn')
-        self.data_q = mp.Queue(maxsize=4)
+        # Spawn is critical for not freezing the program (PyTorch compatability issue)
+        mp.set_start_method("spawn")
+        # Manager().queue() can be faster
+        # https://stackoverflow.com/questions/43439194/python-multiprocessing-queue-vs-multiprocessing-manager-queue/45236748#45236748
+        self.data_q = mp.Manager().Queue(maxsize=4)
         self.data_procs = [
             DataProc(self.data_q, self.config, self.train_dataparser_outputs, self.train_dataset, self.pix_sampler)
             for i in range(self.config.n_procs)
@@ -190,16 +192,17 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         if is_equirectangular.any():
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
         return PixelSampler(*args, **kwargs)
-    
+
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         self.train_count += 1
+
         # Fetch the next batch in an executor to parallelize the queue get() operation
         # with the train step
         bundle, batch = self.batch_fut.result()
         self.batch_fut = self.executor.submit(self.data_q.get)
         bundle = bundle.to(self.device)
-        return bundle,batch
-    
+        return bundle, batch
+
     def get_train_rays_per_batch(self) -> int:
         return self.config.train_num_rays_per_batch
 
