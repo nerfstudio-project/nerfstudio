@@ -96,7 +96,7 @@ def get_num_frames_in_video(video: Path) -> int:
     assert output is not None
     number_match = re.search(r"\d+", output)
     assert number_match is not None
-    return int(output[0])
+    return int(number_match[0])
 
 
 def convert_video_to_images(
