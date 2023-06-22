@@ -360,24 +360,20 @@ class ColmapDataParser(DataParser):
                 # Downscaled images not found
                 # Ask if user wants to downscale the images automatically here
                 CONSOLE.print(
-                    f"[bold red]Downscaled images do not exist for factor {self._downscale_factor}.[/bold red]"
+                    f"[bold red]Downscaled images do not exist for factor of {self._downscale_factor}.[/bold red]"
                 )
                 if Confirm.ask("\nWould you like to downscale the images now?", default=False, console=CONSOLE):
                     # Install the method
                     image_dir = image_filenames[0].parent
-                    downscale_images(
-                        image_dir, self._downscale_factor, folder_name=image_dir.name, nearest_neighbor=False
-                    )
+                    num_downscales = int(math.log2(self._downscale_factor))
+                    assert 2**num_downscales == self._downscale_factor, "Downscale factor must be a power of 2"
+                    downscale_images(image_dir, num_downscales, folder_name=image_dir.name, nearest_neighbor=False)
                     if len(mask_filenames) > 0:
                         mask_dir = mask_filenames[0].parent
-                        downscale_images(
-                            mask_dir, self._downscale_factor, folder_name=mask_dir.name, nearest_neighbor=True
-                        )
+                        downscale_images(mask_dir, num_downscales, folder_name=mask_dir.name, nearest_neighbor=True)
                     if len(depth_filenames) > 0:
                         depth_dir = depth_filenames[0].parent
-                        downscale_images(
-                            depth_dir, self._downscale_factor, folder_name=depth_dir.name, nearest_neighbor=False
-                        )
+                        downscale_images(depth_dir, num_downscales, folder_name=depth_dir.name, nearest_neighbor=False)
                 else:
                     sys.exit(1)
 
