@@ -54,7 +54,6 @@ from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import (
     PixelSampler,
     PixelSamplerConfig,
-    PairPixelSamplerConfig,
 )
 from nerfstudio.data.utils.dataloaders import (
     CacheDataloader,
@@ -338,7 +337,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """The scale factor for scaling spatial data such as images, mask, semantics
     along with relevant information about camera intrinsics
     """
-    sampling_config: PixelSamplerConfig = PairPixelSamplerConfig()
+    sampling_config: PixelSamplerConfig = PixelSamplerConfig()
     """Specifies the pixel sampler used to sample pixels from images."""
 
 
