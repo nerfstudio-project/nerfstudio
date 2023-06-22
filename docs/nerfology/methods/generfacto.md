@@ -43,21 +43,20 @@ ns-train generfacto --pipeline.model.diffusion_model ["stablediffusion", "deepfl
 The following videos are renders of NeRFs generated from Generfacto. Each model was trained 30k steps, which took around 1 hour with DeepFloyd
 and around 4 hours with Stable Diffusion.
 
-"a high quality photo of a ripe pineapple"
-<img src="https://user-images.githubusercontent.com/3310961/194017985-ade69503-9d68-46a2-b518-2db1a012f090.gif" width="52%"/> <img src="https://user-images.githubusercontent.com/3310961/194020648-7e5f380c-15ca-461d-8c1c-20beb586defe.gif" width="46%"/>
+"a high quality photo of a ripe pineapple" (Stable Diffusion)
 
 <video id="idu" muted autoplay playsinline loop controls width="100%">
     <source id="mp4" src="https://user-images.githubusercontent.com/19509183/246646597-407ff7c8-7106-4835-acf3-c2f8188bbd1d.mp4" type="video/mp4">
 </video>
 
-"a high quality zoomed out photo of a palm tree"
+"a high quality zoomed out photo of a palm tree" (DeepFloyd)
 
 <video id="idu" muted autoplay playsinline loop controls width="100%">
-    <source id="mp4" src="https://user-images.githubusercontent.com/19509183/246646597-407ff7c8-7106-4835-acf3-c2f8188bbd1d.mp4" type="video/mp4">
+    <source id="mp4" src="https://user-images.githubusercontent.com/19509183/246646594-05ffebce-a3d6-43af-9f11-e04ce2ce3237.mp4" type="video/mp4">
 </video>
 
-"a high quality zoomed out photo of a light grey baby shark"
+"a high quality zoomed out photo of a light grey baby shark" (DeepFloyd)
 
 <video id="idu" muted autoplay playsinline loop controls width="100%">
-    <source id="mp4" src="https://user-images.githubusercontent.com/19509183/246646597-407ff7c8-7106-4835-acf3-c2f8188bbd1d.mp4" type="video/mp4">
+    <source id="mp4" src="https://user-images.githubusercontent.com/19509183/246646599-b1f5b7c5-dd96-48b4-8db0-960632e7798b.mp4" type="video/mp4">
 </video>
