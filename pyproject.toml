@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "0.3.1"
+version = "0.3.2"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -83,7 +83,7 @@ dev = [
     "typeguard==2.13.3",
     "ruff==0.0.267",
     "sshconf==0.2.5",
-    "pycolmap==0.3.0",
+    "pycolmap>=0.3.0",  # NOTE: pycolmap==0.3.0 is not available on newer python versions
     "diffusers==0.16.1",
     "opencv-stubs==0.0.7",
     "transformers==4.29.2",
