@@ -160,6 +160,7 @@ def _render_trajectory_video(
                                 accumulation=outputs["accumulation"],
                                 near_plane=depth_near_plane,
                                 far_plane=depth_far_plane,
+                                colormap_options=colormap_options,
                             )
                             .cpu()
                             .numpy()
