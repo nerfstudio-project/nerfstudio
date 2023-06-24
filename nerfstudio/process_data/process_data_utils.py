@@ -17,6 +17,7 @@
 import math
 import shutil
 import sys
+import re
 from enum import Enum
 from pathlib import Path
 from typing import List, Literal, Optional, OrderedDict, Tuple, Union
@@ -93,8 +94,9 @@ def get_num_frames_in_video(video: Path) -> int:
             -show_entries stream=nb_read_packets -of csv=p=0 "{video}"'
     output = run_command(cmd)
     assert output is not None
-    output = output.strip(" ,\t\n\r")
-    return int(output)
+    number_match = re.search(r"\d+", output)
+    assert number_match is not None
+    return int(number_match[0])
 
 
 def convert_video_to_images(
