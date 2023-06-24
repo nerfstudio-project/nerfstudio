@@ -10,11 +10,12 @@ ns-train nerfacto --help
 
 We provide a few additional variants:
 
-| Method           | Description           | Memory | Speed  |
-| ---------------- | --------------------- | ------ | ------ |
-| `nerfacto`       | Default Model         | ~6GB   | Fast   |
-| `nerfacto-big`   | Larger higher quality | ~12GB  | Slower |
-| `depth-nerfacto` | Supervise on depth    | ~6GB   | Fast   |
+| Method           | Description                    | Memory | Speed   |
+| ---------------- | ------------------------------ | ------ | ------- |
+| `nerfacto`       | Default Model                  | ~6GB   | Fast    |
+| `nerfacto-big`   | Larger higher quality          | ~12GB  | Slower  |
+| `nerfacto-huge`  | Even larger and higher quality | ~24GB  | Slowest |
+| `depth-nerfacto` | Supervise on depth             | ~6GB   | Fast    |
 
 ## Method
 
