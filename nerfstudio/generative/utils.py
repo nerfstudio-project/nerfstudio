@@ -12,28 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Utility helper functions for diffusion models"""
 
-import torch
-from torch.cuda.amp import custom_bwd, custom_fwd
-
-"""Gradient helper functions for SDS loss"""
+import sys
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
-class _SDSGradient(torch.autograd.Function):
-    """Custom gradient function for SDS loss. Since it is already computed, we can just return it."""
+class CatchMissingPackages:
+    """Class to catch missing environment packages related to diffusion models."""
 
-    @staticmethod
-    @custom_fwd
-    def forward(ctx, input_tensor, gt_grad):
-        del input_tensor
-        ctx.save_for_backward(gt_grad)
-        # Return magniture of gradient, not the actual loss.
-        return torch.mean(gt_grad**2) ** 0.5
+    def __init__(self):
+        pass
 
-    @staticmethod
-    @custom_bwd
-    def backward(ctx, grad):
-        del grad
-        (gt_grad,) = ctx.saved_tensors
-        batch_size = len(gt_grad)
-        return gt_grad / batch_size, None
+    def __call__(self, *args, **kwargs):
+        CONSOLE.print("[bold red]Missing Stable Diffusion packages.")
+        CONSOLE.print(r"Install using [yellow]pip install nerfstudio\[gen][/yellow]")
+        CONSOLE.print(r"or [yellow]pip install -e .\[gen][/yellow] if installing from source.")
+        sys.exit(1)
+
+    def __getattr__(self, attr):
+        return self.__call__

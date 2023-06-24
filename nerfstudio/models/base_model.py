@@ -50,6 +50,8 @@ class ModelConfig(InstantiateConfig):
     """parameters to instantiate density field with"""
     eval_num_rays_per_chunk: int = 4096
     """specifies number of rays per chunk during eval"""
+    prompt: Optional[str] = None
+    """A prompt to be used in text to NeRF models"""
 
 
 class Model(nn.Module):

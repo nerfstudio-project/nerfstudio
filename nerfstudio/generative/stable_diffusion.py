@@ -16,10 +16,9 @@
 
 # Modified from https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py
 
-import sys
-from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Union, cast
+from typing import List, Optional, Union
+from nerfstudio.utils.rich_utils import CONSOLE
 
 import mediapy
 import numpy as np
@@ -30,22 +29,16 @@ from jaxtyping import Float
 from torch import Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
 
-from nerfstudio.utils.rich_utils import CONSOLE
-
-from nerfstudio.generative.utils import _SDSGradient
+from nerfstudio.generative.utils import CatchMissingPackages
 
 
 try:
-    from diffusers import PNDMScheduler, StableDiffusionPipeline
-    from transformers import logging
+    from diffusers import PNDMScheduler, StableDiffusionPipeline, DiffusionPipeline
 
 except ImportError:
-    CONSOLE.print("[bold red]Missing Stable Diffusion packages.")
-    CONSOLE.print(r"Install using [yellow]pip install nerfstudio\[gen][/yellow]")
-    CONSOLE.print(r"or [yellow]pip install -e .\[gen][/yellow] if installing from source.")
-    sys.exit(1)
+    PNDMScheduler = StableDiffusionPipeline = CatchMissingPackages()
 
-logging.set_verbosity_error()
+
 IMG_DIM = 512
 CONST_SCALE = 0.18215
 SD_IDENTIFIERS = {
@@ -53,13 +46,6 @@ SD_IDENTIFIERS = {
     "2-0": "stabilityai/stable-diffusion-2-base",
     "2-1": "stabilityai/stable-diffusion-2-1-base",
 }
-
-
-@dataclass
-class UNet2DConditionOutput:
-    """Class to hold traced model"""
-
-    sample: torch.FloatTensor
 
 
 class StableDiffusion(nn.Module):
@@ -88,7 +74,8 @@ class StableDiffusion(nn.Module):
 
         sd_id = SD_IDENTIFIERS[version]
         pipe = StableDiffusionPipeline.from_pretrained(sd_id, torch_dtype=torch.float16)
-        assert isinstance(pipe, StableDiffusionPipeline)
+
+        assert isinstance(pipe, DiffusionPipeline)  # and hasattr(pipe, "to")
         pipe = pipe.to(self.device)
 
         pipe.enable_attention_slicing()
@@ -154,7 +141,7 @@ class StableDiffusion(nn.Module):
         Returns:
             The loss
         """
-        image = F.interpolate(image, (IMG_DIM, IMG_DIM), mode="bilinear")
+        image = F.interpolate(image, (IMG_DIM, IMG_DIM), mode="bilinear").to(torch.float16)
         t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
         latents = self.imgs_to_latent(image)
 
@@ -177,9 +164,8 @@ class StableDiffusion(nn.Module):
         grad = w * (noise_pred - noise)
         grad = torch.nan_to_num(grad)
 
-        if grad_scaler is not None:
-            latents = grad_scaler.scale(latents)
-        loss = cast(Tensor, _SDSGradient.apply(latents, grad))
+        target = (latents - grad).detach()
+        loss = 0.5 * F.mse_loss(latents, target, reduction="sum") / latents.shape[0]
 
         return loss
 
@@ -230,6 +216,7 @@ class StableDiffusion(nn.Module):
 
                 # compute the previous noisy sample x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents)["prev_sample"]  # type: ignore
+        assert isinstance(latents, Tensor)
         return latents
 
     def latents_to_img(self, latents: Float[Tensor, "BS 4 H W"]) -> Float[Tensor, "BS 3 H W"]:

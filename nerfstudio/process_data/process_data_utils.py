@@ -15,9 +15,9 @@
 """Helper utils for processing data into the nerfstudio format."""
 
 import math
-import os
 import shutil
 import sys
+import re
 from enum import Enum
 from pathlib import Path
 from typing import List, Literal, Optional, OrderedDict, Tuple, Union
@@ -94,8 +94,9 @@ def get_num_frames_in_video(video: Path) -> int:
             -show_entries stream=nb_read_packets -of csv=p=0 "{video}"'
     output = run_command(cmd)
     assert output is not None
-    output = output.strip(" ,\t\n\r")
-    return int(output)
+    number_match = re.search(r"\d+", output)
+    assert number_match is not None
+    return int(number_match[0])
 
 
 def convert_video_to_images(
@@ -348,11 +349,8 @@ def downscale_images(
             assert isinstance(downscale_factor, int)
             downscale_dir = image_dir.parent / f"{folder_name}_{downscale_factor}"
             downscale_dir.mkdir(parents=True, exist_ok=True)
-            # Using %05d ffmpeg commands appears to be unreliable (skips images), so use scandir.
-            files = os.scandir(image_dir)
-            for f in files:
-                if f.is_dir():
-                    continue
+            # Using %05d ffmpeg commands appears to be unreliable (skips images).
+            for f in list_images(image_dir):
                 filename = f.name
                 nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
                 ffmpeg_cmd = [
