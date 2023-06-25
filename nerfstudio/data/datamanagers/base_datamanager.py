@@ -351,7 +351,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
 
 
-class VanillaDataManager(Generic[TDataset], DataManager):
+class VanillaDataManager(DataManager, Generic[TDataset]):
     """Basic stored data manager implementation.
 
     This is pretty much a port over from our old dataloading utilities, and is a little jank
@@ -380,7 +380,6 @@ class VanillaDataManager(Generic[TDataset], DataManager):
         local_rank: int = 0,
         **kwargs,
     ):
-        super().__init__()
         self.config = config
         self.device = device
         self.world_size = world_size
@@ -413,6 +412,7 @@ class VanillaDataManager(Generic[TDataset], DataManager):
                         CONSOLE.print("Variable resolution, using variable_res_collate")
                         self.config.collate_fn = variable_res_collate
                         break
+        super().__init__()
 
     @cached_property
     def dataset_type(self) -> Type[TDataset]:
