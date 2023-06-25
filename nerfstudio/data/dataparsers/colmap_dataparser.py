@@ -74,7 +74,24 @@ class ColmapDataParserConfig(DataParserConfig):
 
 
 class ColmapDataParser(DataParser):
-    """Nerfstudio DatasetParser"""
+    """COLMAP DatasetParser.
+    Expects a folder with the following structure:
+        images/ # folder containing images used to create the COLMAP model
+        sparse/0 # folder containing the COLMAP reconstruction (either TEXT or BINARY format)
+        masks/ # (OPTIONAL) folder containing masks for each image
+        depths/ # (OPTIONAL) folder containing depth maps for each image
+    The paths can be different and can be specified in the config. (e.g., sparse/0 -> sparse)
+    Currently, most COLMAP camera models are supported except for the FULL_OPENCV and THIN_PRISM_FISHEYE models.
+
+    The dataparser loads the downscaled images from folders with `_{downscale_factor}` suffix.
+    If these folders do not exist, the user can choose to automatically downscale the images and
+    create these folders.
+
+    The loader is compatible with the datasets processed using the ns-process-data script and
+    can be used as a drop-in replacement. It further supports datasets like Mip-NeRF 360 (although
+    in the case of Mip-NeRF 360 the downsampled images may have a different resolution because they
+    use different rounding when computing the image resolution).
+    """
 
     config: ColmapDataParserConfig
 
