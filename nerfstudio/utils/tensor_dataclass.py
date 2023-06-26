@@ -79,15 +79,14 @@ class TensorDataclass:
         self_dc = self
         if not dataclasses.is_dataclass(self_dc):
             raise TypeError("TensorDataclass must be a dataclass")
+        fields = dataclasses.fields(self_dc)
 
-        batch_shapes = self._get_dict_batch_shapes({f.name: getattr(self, f.name) for f in dataclasses.fields(self_dc)})
+        batch_shapes = self._get_dict_batch_shapes({f.name: getattr(self, f.name) for f in fields})
         if len(batch_shapes) == 0:
             raise ValueError("TensorDataclass must have at least one tensor")
         batch_shape = torch.broadcast_shapes(*batch_shapes)
 
-        broadcasted_fields = self._broadcast_dict_fields(
-            {f.name: getattr(self, f.name) for f in dataclasses.fields(self_dc)}, batch_shape
-        )
+        broadcasted_fields = self._broadcast_dict_fields({f.name: getattr(self, f.name) for f in fields}, batch_shape)
         for f, v in broadcasted_fields.items():
             object.__setattr__(self, f, v)
 
@@ -105,7 +104,7 @@ class TensorDataclass:
         batch_shapes = []
         for k, v in dict_.items():
             if isinstance(v, torch.Tensor):
-                if isinstance(self._field_custom_dimensions, dict) and k in self._field_custom_dimensions:
+                if k in self._field_custom_dimensions:
                     batch_shapes.append(v.shape[: -self._field_custom_dimensions[k]])
                 else:
                     batch_shapes.append(v.shape[:-1])
@@ -128,7 +127,7 @@ class TensorDataclass:
         for k, v in dict_.items():
             if isinstance(v, torch.Tensor):
                 # Apply field-specific custom dimensions.
-                if isinstance(self._field_custom_dimensions, dict) and k in self._field_custom_dimensions:
+                if k in self._field_custom_dimensions:
                     new_dict[k] = v.broadcast_to(
                         (
                             *batch_shape,

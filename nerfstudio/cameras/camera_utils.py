@@ -27,7 +27,7 @@ from torch import Tensor
 
 from nerfstudio.utils.misc import torch_compile
 
-_EPS = np.finfo(float).eps * 4.0
+_EPS = float(np.finfo(float).eps) * 4.0
 
 
 def unit_vector(data: NDArray, axis: Optional[int] = None) -> np.ndarray:
@@ -296,7 +296,7 @@ def normalize_with_norm(x: torch.Tensor, dim: int) -> Tuple[torch.Tensor, torch.
         Tuple of normalized tensor and corresponding norm.
     """
 
-    norm = torch.maximum(torch.linalg.vector_norm(x, dim=dim, keepdims=True), torch.tensor([_EPS]).to(x))
+    norm = torch.linalg.vector_norm(x, dim=dim, keepdims=True).clamp_min(_EPS)
     return x / norm, norm
 
 

@@ -24,28 +24,13 @@ import typing
 from collections import deque
 from contextlib import ContextDecorator, contextmanager
 from pathlib import Path
-from typing import (
-    Any,
-    Callable,
-    ContextManager,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    TypeVar,
-    Union,
-    overload,
-)
+from typing import Any, Callable, ContextManager, Dict, List, Optional, Tuple, TypeVar, Union, overload
 
 from torch.profiler import ProfilerActivity, profile, record_function
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.utils import comms
-from nerfstudio.utils.decorators import (
-    check_main_thread,
-    check_profiler_enabled,
-    decorate_all,
-)
+from nerfstudio.utils.decorators import check_main_thread, check_profiler_enabled, decorate_all
 from nerfstudio.utils.rich_utils import CONSOLE
 
 PROFILER = []
@@ -155,7 +140,7 @@ class PytorchProfiler:
         self.output_path = output_path / "profiler_traces"
         if trace_steps is None:
             # Some arbitrary steps which likely do not overlap with steps usually chosen to run callbacks
-            trace_steps = [12, 17]
+            trace_steps = [162, 167]
         self.trace_steps = trace_steps
 
     @contextmanager
