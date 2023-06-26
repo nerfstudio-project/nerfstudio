@@ -11,11 +11,11 @@ import json
 from copy import deepcopy
 from pathlib import Path
 
-import scripts.train as train
 import tyro
-from scripts.my_utils import *
 
+import nerfstudio.scripts.train as train
 from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion, MyTrainerConf
+from nerfstudio.scripts.my_utils import *
 
 SEGMENTATION_DIRECTORY_DELIMITER = ":"
 

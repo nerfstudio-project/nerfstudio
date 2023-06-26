@@ -78,7 +78,8 @@ class TrainerConfig(ExperimentConfig):
     """Whether or not to use mixed precision for training."""
     use_grad_scaler: bool = False
     """Use gradient scaler even if the automatic mixed precision is disabled."""
-    save_only_latest_checkpoint: bool = True
+    # TODO: matej stavio na false
+    save_only_latest_checkpoint: bool = False
     """Whether to only save the latest checkpoint or all checkpoints."""
     # optional parameters if we want to resume training
     load_ckpt: Optional[Path] = None

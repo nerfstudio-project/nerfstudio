@@ -34,6 +34,7 @@ from nerfstudio.configs.experiment_details import InferredExperimentDetails
 from nerfstudio.engine.optimizers import OptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
+from nerfstudio.scripts.my_utils import save_yaml
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
@@ -140,4 +141,5 @@ class ExperimentConfig(InstantiateConfig):
         base_dir.mkdir(parents=True, exist_ok=True)
         config_yaml_path = base_dir / "config.yml"
         CONSOLE.log(f"Saving config to: {config_yaml_path}")
-        config_yaml_path.write_text(yaml.dump(self), "utf8")
+        save_yaml(self, config_yaml_path)
+        # config_yaml_path.write_text(yaml.dump(self), "utf8")

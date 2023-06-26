@@ -4,6 +4,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import yaml
+
 
 def get_timestamp():
     return datetime.today().strftime("%Y-%m-%d-%H-%M-%S")
@@ -70,3 +72,8 @@ def add_prefix_to_keys(dict: dict, prefix) -> dict:
         returns {"text_a": 1, "text_b": 2}
     """
     return {prefix + k: v for k, v in dict.items()}
+
+
+def save_yaml(data: dict | list, path: Path):
+    with open(path, mode="w", encoding="utf-8") as f:
+        yaml.dump(data, f)

@@ -24,13 +24,13 @@ from pathlib import Path
 from typing import Literal, Optional, Tuple
 
 import tyro
-from scripts.my_utils import get_step_from_ckpt_path
 
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
 from nerfstudio.defaults import SPLIT_MODE_ALL
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
+from nerfstudio.scripts.my_utils import get_step_from_ckpt_path
 from nerfstudio.utils import writer
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.viewer.server.viewer_state import ViewerState

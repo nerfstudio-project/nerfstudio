@@ -152,7 +152,6 @@ def generate_dataparser_outputs_static(
         _indices = []
 
         for image_path, image_split in indices_json.items():
-
             if image_split == "ignore":
                 continue
             if image_split not in split_strategy:

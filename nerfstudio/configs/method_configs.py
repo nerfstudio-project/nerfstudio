@@ -18,13 +18,18 @@ Put all the method implementations in one location.
 
 from __future__ import annotations
 
+import dataclasses
 from collections import OrderedDict
 from typing import Dict
 
 import tyro
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
-from nerfstudio.configs.base_config import ViewerConfig
+from nerfstudio.configs.base_config import (
+    LocalWriterConfig,
+    LoggingConfig,
+    ViewerConfig,
+)
 from nerfstudio.configs.external_methods import get_external_methods
 from nerfstudio.data.datamanagers.base_datamanager import (
     VanillaDataManager,
@@ -300,8 +305,14 @@ method_configs["volinga"] = TrainerConfig(
         ),
     ),
     optimizers={
-        "proposal_networks": {"optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15), "scheduler": None,},
-        "fields": {"optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15), "scheduler": None,},
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",
@@ -373,7 +384,12 @@ method_configs["mipnerf"] = TrainerConfig(
             eval_num_rays_per_chunk=1024,
         ),
     ),
-    optimizers={"fields": {"optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08), "scheduler": None,}},
+    optimizers={
+        "fields": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        }
+    },
 )
 
 method_configs["semantic-nerfw"] = TrainerConfig(

@@ -104,6 +104,7 @@ class Nerfstudio(DataParser):
         mask_filenames = []
         depth_filenames = []
         poses = []
+        num_skipped_image_filenames = 0
 
         fx_fixed = "fl_x" in meta
         fy_fixed = "fl_y" in meta
@@ -208,12 +209,6 @@ class Nerfstudio(DataParser):
                 split_strategy = ["train", "val", "test"]
             else:
                 raise ValueError(f"Split can't be '{split}'")
-        if f"{split}_filenames" in meta:
-            # Validate split first
-            split_filenames = set(self._get_fname(Path(x), data_dir) for x in meta[f"{split}_filenames"])
-            unmatched_filenames = split_filenames.difference(image_filenames)
-            if unmatched_filenames:
-                raise RuntimeError(f"Some filenames for split {split} were not found: {unmatched_filenames}.")
 
             indices_json: dict[str, str] = load_from_json(indices_file_path)
             # assert len(indices_json) == len(
@@ -232,6 +227,16 @@ class Nerfstudio(DataParser):
                 _indices.append(i)
 
             indices = np.array(sorted(_indices), dtype=np.int64)
+        if f"{split}_filenames" in meta:
+            # Validate split first
+            split_filenames = set(self._get_fname(Path(x), data_dir) for x in meta[f"{split}_filenames"])
+            unmatched_filenames = split_filenames.difference(image_filenames)
+            if unmatched_filenames:
+                raise RuntimeError(f"Some filenames for split {split} were not found: {unmatched_filenames}.")
+
+            indices = [i for i, path in enumerate(image_filenames) if path in split_filenames]
+            CONSOLE.log(f"[yellow] Dataset is overriding {split}_indices to {indices}")
+            indices = np.array(indices, dtype=np.int32)
         elif has_split_files_spec:
             if f"{split}_filenames" in meta:
                 # Validate split first
@@ -245,7 +250,7 @@ class Nerfstudio(DataParser):
                 indices = np.array(indices, dtype=np.int32)
             else:
                 raise RuntimeError(f"The dataset's list of filenames for split {split} is missing.")
-        else:
+            # else:
             # filter image_filenames and poses based on train/eval split percentage
             num_images = len(image_filenames)
             num_train_images = math.ceil(num_images * self.config.train_split_fraction)
