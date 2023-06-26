@@ -519,6 +519,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
 
     @torch.compile
     def _next_train_compiled(self, image_batch):
+        assert self.train_pixel_sampler is not None
         batch = self.train_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
         ray_bundle = self.train_ray_generator(ray_indices)
@@ -534,6 +535,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
 
     @torch.compile
     def _next_eval_compiled(self, image_batch):
+        assert self.eval_pixel_sampler is not None
         batch = self.eval_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
         ray_bundle = self.eval_ray_generator(ray_indices)
