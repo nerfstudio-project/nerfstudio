@@ -231,6 +231,10 @@ def main(config: TrainerConfig) -> None:
         CONSOLE.log("Using --data alias for --data.pipeline.datamanager.data")
         config.pipeline.datamanager.data = config.data
 
+    if config.prompt:
+        CONSOLE.log("Using --prompt alias for --data.pipeline.model.prompt")
+        config.pipeline.model.prompt = config.prompt
+
     if config.load_config:
         CONSOLE.log(f"Loading pre-set config from: {config.load_config}")
         config = yaml.load(config.load_config.read_text(), Loader=yaml.Loader)

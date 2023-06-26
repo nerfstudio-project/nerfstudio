@@ -10,11 +10,12 @@ ns-train nerfacto --help
 
 We provide a few additional variants:
 
-| Method           | Description           | Memory | Speed  |
-| ---------------- | --------------------- | ------ | ------ |
-| `nerfacto`       | Default Model         | ~6GB   | Fast   |
-| `nerfacto-big`   | Larger higher quality | ~12GB  | Slower |
-| `depth-nerfacto` | Supervise on depth    | ~6GB   | Fast   |
+| Method           | Description                    | Memory | Speed   |
+| ---------------- | ------------------------------ | ------ | ------- |
+| `nerfacto`       | Default Model                  | ~6GB   | Fast    |
+| `nerfacto-big`   | Larger higher quality          | ~12GB  | Slower  |
+| `nerfacto-huge`  | Even larger and higher quality | ~24GB  | Slowest |
+| `depth-nerfacto` | Supervise on depth             | ~6GB   | Fast    |
 
 ## Method
 
@@ -55,7 +56,7 @@ It is not uncommon to have errors in the predicted camera poses. This is even mo
 
 ### Piecewise Sampler
 
-We use a Piecewise sampler to produce the initial set of samples of the scene. This sampler allocates half of the samples uniformly up to a distance of 1 from the camera. The remaining samples are distributed such that the step size increases with each sample. The step size is chosen such that the [frustums](../model_components/visualize_samples.ipynb) are scaled versions of themselves. By increasing the step sizes, we are able to sample distant objects will still having a dense set of samples for nearby objects.
+We use a Piecewise sampler to produce the initial set of samples of the scene. This sampler allocates half of the samples uniformly up to a distance of 1 from the camera. The remaining samples are distributed such that the step size increases with each sample. The step size is chosen such that the [frustums](../model_components/visualize_samples.ipynb) are scaled versions of themselves. By increasing the step sizes, we are able to sample distant objects while still having a dense set of samples for nearby objects.
 
 ### Proposal Sampler
 

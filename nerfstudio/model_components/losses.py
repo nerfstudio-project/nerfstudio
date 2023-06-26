@@ -542,7 +542,8 @@ class _GradientScaler(torch.autograd.Function):  # typing: ignore
 
 
 def scale_gradients_by_distance_squared(
-    field_outputs: Dict[FieldHeadNames, torch.Tensor], ray_samples: RaySamples
+    field_outputs: Dict[FieldHeadNames, torch.Tensor],
+    ray_samples: RaySamples,
 ) -> Dict[FieldHeadNames, torch.Tensor]:
     """
     Scale gradients by the ray distance to the pixel

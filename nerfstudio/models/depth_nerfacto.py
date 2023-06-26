@@ -107,7 +107,7 @@ class DepthNerfactoModel(NerfactoModel):
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
         """Appends ground truth depth to the depth image."""
         metrics, images = super().get_image_metrics_and_images(outputs, batch)
-        ground_truth_depth = batch["depth_image"]
+        ground_truth_depth = batch["depth_image"].to(self.device)
         if not self.config.is_euclidean_depth:
             ground_truth_depth = ground_truth_depth * outputs["directions_norm"]
 

@@ -114,6 +114,7 @@ This documentation is organized into 3 parts:
 - [Instruct-NeRF2NeRF](nerfology/methods/in2n.md): Editing 3D Scenes with Instructions
 - [K-Planes](nerfology/methods/kplanes.md): Unified 3D and 4D Radiance Fields
 - [LERF](nerfology/methods/lerf.md): Language Embedded Radiance Fields
+- [NeRFPlayer](nerfology/methods/nerfplayer.md): 4D Radiance Fields by Streaming Feature Channels
 - [Tetra-NeRF](nerfology/methods/tetranerf.md): Representing Neural Radiance Fields Using Tetrahedra
 
 **Eager to contribute a method?** We'd love to see you use nerfstudio in implementing new (or even existing) methods! Please view our {ref}`guide<own_method_docs>` for more details about how to add to this list!
