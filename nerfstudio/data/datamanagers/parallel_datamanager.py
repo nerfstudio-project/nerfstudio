@@ -3,6 +3,7 @@ from __future__ import annotations
 import concurrent.futures
 import functools
 import time
+import queue
 from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -108,8 +109,11 @@ class DataProc(mp.Process):
                 try:
                     self.out_queue.put_nowait((ray_bundle, batch))
                     break
-                except:
-                    time.sleep(0.001)
+                except queue.Full:
+                    time.sleep(0.0001)
+                except Exception:
+                    CONSOLE.print_exception()
+                    CONSOLE.print("[bold red]Error: Error occured in parallel datamanager queue.")
 
     def cache_images(self):
         # caches all the input images in a NxHxWx3 tensor
