@@ -175,8 +175,13 @@ class Pipeline(nn.Module):
 
     @abstractmethod
     @profiler.time_function
-    def get_average_eval_image_metrics(self, step: Optional[int] = None, output_path: Optional[Path]=None):
-        """Iterate over all the images in the eval dataset and get the average."""
+    def get_average_eval_image_metrics(self, step: Optional[int] = None, output_path: Optional[Path] = None):
+        """Iterate over all the images in the eval dataset and get the average.
+
+        Args:
+            step: current training step
+            output_path: optional path to save rendered images to
+        """
 
     def load_pipeline(self, loaded_state: Dict[str, Any], step: int) -> None:
         """Load the checkpoint from the given path
@@ -343,6 +348,10 @@ class VanillaPipeline(Pipeline):
     @profiler.time_function
     def get_average_eval_image_metrics(self, step: Optional[int] = None, output_path: Optional[Path] = None):
         """Iterate over all the images in the eval dataset and get the average.
+
+        Args:
+            step: current training step
+            output_path: optional path to save rendered images to
 
         Returns:
             metrics_dict: dictionary of metrics
