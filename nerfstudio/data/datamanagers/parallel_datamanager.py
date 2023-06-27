@@ -69,6 +69,9 @@ class ParallelDataManagerConfig(DataManagerConfig):
     """Size of patch to sample from. If >1, patch-based sampling will be used."""
     n_procs: int = 1
     """Number of processes to use for data loading."""
+    queue_size: int = 2
+    """Size of shared data queue containing generated ray bundles and batches. 
+    If queue_size <= 0, the queue size is infinite."""
 
 
 class DataProc(mp.Process):
@@ -164,7 +167,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         mp.set_start_method("spawn")
         # Manager().queue() can be faster
         # https://stackoverflow.com/questions/43439194/python-multiprocessing-queue-vs-multiprocessing-manager-queue/45236748#45236748
-        self.data_q = mp.Manager().Queue(maxsize=2)
+        self.data_q = mp.Manager().Queue(maxsize=self.config.queue_size)
         self.data_procs = [
             DataProc(self.data_q, self.config, self.train_dataparser_outputs, self.train_dataset, self.pix_sampler)
             for i in range(self.config.n_procs)
