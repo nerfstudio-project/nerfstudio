@@ -378,7 +378,7 @@ class VanillaPipeline(Pipeline):
                 if output_path is not None:
                     for key, val in images_dict.items():
                         Image.fromarray((val * 255).byte().cpu().numpy()).save(
-                            output_path / "{0:06d}-{1}.jpg".format(int(camera_ray_bundle.camera_indices[0, 0, 0]), key)
+                            output_path / "{0:06d}-{1}.jpg".format(int(camera_ray_bundle.camera_indices.view(-1)[0]), key)
                         )
                 assert "num_rays_per_sec" not in metrics_dict
                 metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)
