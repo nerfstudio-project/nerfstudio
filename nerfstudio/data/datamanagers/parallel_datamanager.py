@@ -37,7 +37,7 @@ from nerfstudio.utils.rich_utils import CONSOLE
 
 @dataclass
 class ParallelDataManagerConfig(DataManagerConfig):
-    """A basic data manager"""
+    """Config for a `ParallelDataManager` which reads data in multiple processes"""
 
     _target: Type = field(default_factory=lambda: ParallelDataManager)
     """Target class to instantiate."""
