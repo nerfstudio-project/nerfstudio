@@ -33,6 +33,10 @@ from nerfstudio.utils.scripts import run_command
 
 POLYCAM_UPSCALING_TIMES = 2
 
+"""Lowercase suffixes to treat as raw image."""
+ALLOWED_RAW_EXTS = [".cr2"]
+"""Suffix to use for converted images from raw."""
+RAW_CONVERTED_SUFFIX = ".tiff"
 
 class CameraModel(Enum):
     """Enum for camera types."""
@@ -57,7 +61,7 @@ def list_images(data: Path) -> List[Path]:
     Returns:
         Paths to images contained in the directory
     """
-    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".cr2"]
+    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"] + ALLOWED_RAW_EXTS
     image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
     return image_paths
 
@@ -213,8 +217,8 @@ def copy_images_list(
         copied_image_path = image_dir / f"frame_{idx + 1:05d}{image_path.suffix}"
         try:
             # if CR2 raw, we want to read raw and write TIFF, and change the file suffix for downstream processing
-            if str(image_path).lower().endswith(".cr2"):
-                copied_image_path = image_dir / f"frame_{idx + 1:05d}.tiff"
+            if image_path.suffix.lower() in ALLOWED_RAW_EXTS:
+                copied_image_path = image_dir / f"frame_{idx + 1:05d}{RAW_CONVERTED_SUFFIX}"
                 with rawpy.imread(str(image_path)) as raw:
                     rgb = raw.postprocess()
                 imageio.imsave(copied_image_path, rgb)
