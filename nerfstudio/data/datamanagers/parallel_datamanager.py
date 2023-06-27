@@ -72,6 +72,9 @@ class ParallelDataManagerConfig(DataManagerConfig):
     queue_size: int = 2
     """Size of shared data queue containing generated ray bundles and batches. 
     If queue_size <= 0, the queue size is infinite."""
+    max_thread_workers: Optional[int] = 1
+    """Maximum number of threads to use in thread pool executor. If None, automatically
+    set to harware cpu_count + 4."""
 
 
 class DataProc(mp.Process):
@@ -176,7 +179,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             proc.start()
         super().__init__()
         # Prime the executor with the first batch
-        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=self.config.max_thread_workers)
         self.batch_fut = self.executor.submit(self.data_q.get)
 
     def create_train_dataset(self) -> TDataset:
