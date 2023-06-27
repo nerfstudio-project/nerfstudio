@@ -38,6 +38,7 @@ ALLOWED_RAW_EXTS = [".cr2"]
 """Suffix to use for converted images from raw."""
 RAW_CONVERTED_SUFFIX = ".tiff"
 
+
 class CameraModel(Enum):
     """Enum for camera types."""
 
