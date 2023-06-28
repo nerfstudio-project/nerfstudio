@@ -670,7 +670,7 @@ class SDFField(Field):
                 FieldHeadNames.RGB: rgb,
                 FieldHeadNames.DENSITY: density,
                 FieldHeadNames.SDF: sdf,
-                FieldHeadNames.NORMAL: normals,
+                FieldHeadNames.NORMALS: normals,
                 FieldHeadNames.GRADIENT: gradients,
                 "points_norm": points_norm,
                 "sampled_sdf": sampled_sdf,

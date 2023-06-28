@@ -141,7 +141,7 @@ method_configs["neuralangelo"] = TrainerConfig(
             # "scheduler": NeuSSchedulerConfig(warm_up_end=5000, learning_rate_alpha=0.05, max_steps=500000),
             "scheduler": MultiStepWarmupSchedulerConfig(warm_up_end=5000, milestones=[300_000, 400_000], gamma=0.1),
         },
-        "proposal_networks": {
+        "field_background": {
             "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),                       #! fix back  to adamW
             "scheduler": MultiStepWarmupSchedulerConfig(warm_up_end=5000, milestones=[300_000, 400_000], gamma=0.1),
         },
