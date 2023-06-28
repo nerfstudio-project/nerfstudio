@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import typing
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from time import time
-from typing import Any, Dict, List, Mapping, Optional, Type, Union, cast
+from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Type, Union, cast
 
 import torch
 import torch.distributed as dist
@@ -35,14 +35,13 @@ from rich.progress import (
 from torch import nn
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
-from typing_extensions import Literal
+from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datamanagers.base_datamanager import (
     DataManager,
     DataManagerConfig,
     VanillaDataManager,
-    VanillaDataManagerConfig,
 )
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.models.base_model import Model, ModelConfig
@@ -90,8 +89,6 @@ class Pipeline(nn.Module):
         datamanager: The data manager that will be used
         model: The model that will be used
     """
-
-    # pylint: disable=abstract-method
 
     datamanager: DataManager
     _model: Model
@@ -187,11 +184,13 @@ class Pipeline(nn.Module):
             step: training step of the loaded checkpoint
         """
 
+    @abstractmethod
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
         """Returns the training callbacks from both the Dataloader and the Model."""
 
+    @abstractmethod
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Get the param groups for the pipeline.
 
@@ -206,7 +205,7 @@ class VanillaPipelineConfig(cfg.InstantiateConfig):
 
     _target: Type = field(default_factory=lambda: VanillaPipeline)
     """target class to instantiate"""
-    datamanager: DataManagerConfig = VanillaDataManagerConfig()
+    datamanager: DataManagerConfig = DataManagerConfig()
     """specifies the datamanager config"""
     model: ModelConfig = ModelConfig()
     """specifies the model config"""
@@ -224,6 +223,7 @@ class VanillaPipeline(Pipeline):
             'inference': does not load any dataset into memory
         world_size: total number of machines available
         local_rank: rank of current machine
+        grad_scaler: gradient scaler used in the trainer
 
     Attributes:
         datamanager: The data manager that will be used
@@ -237,11 +237,12 @@ class VanillaPipeline(Pipeline):
         test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
+        grad_scaler: Optional[GradScaler] = None,
     ):
         super().__init__()
         self.config = config
         self.test_mode = test_mode
-        self.datamanager: VanillaDataManager = config.datamanager.setup(
+        self.datamanager: DataManager = config.datamanager.setup(
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
         self.datamanager.to(device)
@@ -252,6 +253,8 @@ class VanillaPipeline(Pipeline):
             scene_box=self.datamanager.train_dataset.scene_box,
             num_train_data=len(self.datamanager.train_dataset),
             metadata=self.datamanager.train_dataset.metadata,
+            device=device,
+            grad_scaler=grad_scaler,
         )
         self.model.to(device)
 
@@ -275,7 +278,7 @@ class VanillaPipeline(Pipeline):
             step: current iteration step to update sampler if using DDP (distributed)
         """
         ray_bundle, batch = self.datamanager.next_train(step)
-        model_outputs = self.model(ray_bundle)
+        model_outputs = self._model(ray_bundle)  # train distributed data parallel model if world_size > 1
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
 
         if self.config.datamanager.camera_optimizer is not None:
@@ -301,7 +304,7 @@ class VanillaPipeline(Pipeline):
         raise NotImplementedError
 
     @profiler.time_function
-    def get_eval_loss_dict(self, step: int):
+    def get_eval_loss_dict(self, step: int) -> Tuple[Any, Dict[str, Any], Dict[str, Any]]:
         """This function gets your evaluation loss dict. It needs to get the data
         from the DataManager and feed it to the model's forward function
 
@@ -344,6 +347,7 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         metrics_dict_list = []
+        assert isinstance(self.datamanager, VanillaDataManager)
         num_images = len(self.datamanager.fixed_indices_eval_dataloader)
         with Progress(
             TextColumn("[progress.description]{task.description}"),

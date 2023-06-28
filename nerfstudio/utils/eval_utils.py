@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,17 +20,16 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Literal, Optional, Tuple
 
 import torch
 import yaml
-from rich.console import Console
-from typing_extensions import Literal
 
+from nerfstudio.configs.method_configs import all_methods
+from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def eval_load_checkpoint(config: TrainerConfig, pipeline: Pipeline) -> Tuple[Path, int]:
@@ -89,13 +88,15 @@ def eval_setup(
     config = yaml.load(config_path.read_text(), Loader=yaml.Loader)
     assert isinstance(config, TrainerConfig)
 
+    config.pipeline.datamanager._target = all_methods[config.method_name].pipeline.datamanager._target
     if eval_num_rays_per_chunk:
         config.pipeline.model.eval_num_rays_per_chunk = eval_num_rays_per_chunk
 
     # load checkpoints from wherever they were saved
     # TODO: expose the ability to choose an arbitrary checkpoint
     config.load_dir = config.get_checkpoint_dir()
-    config.pipeline.datamanager.eval_image_indices = None
+    if isinstance(config.pipeline.datamanager, VanillaDataManagerConfig):
+        config.pipeline.datamanager.eval_image_indices = None
 
     # setup pipeline (which includes the DataManager)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

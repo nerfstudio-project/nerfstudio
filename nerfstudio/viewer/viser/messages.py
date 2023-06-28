@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,10 +18,10 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Tuple
+from typing import Any, Literal, Optional, Tuple
 
 import viser.infra
-from typing_extensions import Literal, override
+from typing_extensions import override
 
 
 class NerfstudioMessage(viser.infra.Message):
@@ -125,6 +125,20 @@ class FilePathInfoMessage(NerfstudioMessage):
 
 
 @dataclasses.dataclass
+class SetCameraMessage(NerfstudioMessage):
+    """Set the current camera."""
+
+    fov: Optional[float]
+    """ Field of view of the camera """
+    look_at: Optional[Tuple[float, float, float]]
+    """Point in 3D the camera is looking at"""
+    position: Optional[Tuple[float, float, float]]
+    """ Position of the camera"""
+    instant: bool = False
+    """ Whether to move the camera instantly or animate it"""
+
+
+@dataclasses.dataclass
 class CameraMessage(NerfstudioMessage):
     """Render camera data."""
 
@@ -172,10 +186,10 @@ class DatasetImageMessage(NerfstudioMessage):
 
 @dataclasses.dataclass
 class TrainingStateMessage(NerfstudioMessage):
-    """Wheather the scene is in training mode or not."""
+    """Whether the scene is in training mode or not."""
 
     training_state: Literal["training", "paused", "completed"]
-    """True if the model is currently trianing, False otherwise"""
+    """True if the model is currently training, False otherwise"""
 
 
 @dataclasses.dataclass
@@ -241,6 +255,16 @@ class TimeConditionMessage(NerfstudioMessage):
 
     time: float
     """ Time conditioning value """
+
+
+@dataclasses.dataclass
+class ClickMessage(NerfstudioMessage):
+    """Click message."""
+
+    origin: Tuple[float, float, float]
+    """The origin of the click in world coords (center of camera)"""
+    direction: Tuple[float, float, float]
+    """The direction of the click if projected through the clicked pixel (world coords)"""
 
 
 @dataclasses.dataclass

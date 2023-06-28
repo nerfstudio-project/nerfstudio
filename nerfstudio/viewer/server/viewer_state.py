@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,16 +17,15 @@ from __future__ import annotations
 
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Literal, Optional
 
 import numpy as np
 import torch
 from rich import box, style
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from typing_extensions import Literal
 
+from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.scene_box import SceneBox
@@ -34,6 +33,7 @@ from nerfstudio.models.base_model import Model
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
+from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer.server.control_panel import ControlPanel
@@ -42,12 +42,14 @@ from nerfstudio.viewer.server.render_state_machine import (
     RenderAction,
     RenderStateMachine,
 )
-from nerfstudio.viewer.server.viewer_elements import ViewerElement
+from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
+from nerfstudio.viewer.server.viewer_elements import ViewerControl, ViewerElement
 from nerfstudio.viewer.viser import ViserServer
 from nerfstudio.viewer.viser.messages import (
     CameraMessage,
     CameraPathOptionsRequest,
     CameraPathPayloadMessage,
+    ClickMessage,
     CropParamsMessage,
     NerfstudioMessage,
     SaveCheckpointMessage,
@@ -57,8 +59,6 @@ from nerfstudio.viewer.viser.messages import (
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
-
-CONSOLE = Console(width=120)
 
 
 @decorate_all([check_main_thread])
@@ -116,6 +116,7 @@ class ViewerState:
 
         # viewer specific variables
         self.output_type_changed = True
+        self.output_split_type_changed = True
         self.step = 0
         self.train_btn_state: Literal["training", "paused", "completed"] = "training"
         self._prev_train_state: Literal["training", "paused", "completed"] = "training"
@@ -130,21 +131,26 @@ class ViewerState:
         self.viser_server.register_handler(CameraPathOptionsRequest, self._handle_camera_path_option_request)
         self.viser_server.register_handler(CameraPathPayloadMessage, self._handle_camera_path_payload)
         self.viser_server.register_handler(CropParamsMessage, self._handle_crop_params_message)
+        self.viser_server.register_handler(ClickMessage, self._handle_click_message)
         if self.include_time:
             self.viser_server.use_time_conditioning()
             self.viser_server.register_handler(TimeConditionMessage, self._handle_time_condition_message)
 
         self.control_panel = ControlPanel(
-            self.include_time, self._interrupt_render, self._crop_params_update, self._output_type_change
+            self.viser_server,
+            self.include_time,
+            self._interrupt_render,
+            self._crop_params_update,
+            self._output_type_change,
+            self._output_split_type_change,
         )
-        self.control_panel.install(self.viser_server)
 
         def nested_folder_install(folder_labels: List[str], element: ViewerElement):
             if len(folder_labels) == 0:
                 element.install(self.viser_server)
                 # also rewire the hook to rerender
                 prev_cb = element.cb_hook
-                element.cb_hook = lambda element: [self._interrupt_render(element), prev_cb(element)]
+                element.cb_hook = lambda element: [prev_cb(element), self._interrupt_render(element)]
             else:
                 with self.viser_server.gui_folder(folder_labels[0]):
                     nested_folder_install(folder_labels[1:], element)
@@ -158,11 +164,26 @@ class ViewerState:
             folder_labels = param_path.split("/")[:-1]
             nested_folder_install(folder_labels, element)
 
+        # scrape the trainer/pipeline for any ViewerControl objects to initialize them
+        if self.trainer is not None:
+            self.viewer_controls: List[ViewerControl] = [
+                e for (_, e) in parse_object(self.trainer, ViewerControl, "Trainer")
+            ]
+        else:
+            self.viewer_controls: List[ViewerControl] = [
+                e for (_, e) in parse_object(self.trainer, ViewerControl, "Pipeline")
+            ]
+
+        for c in self.viewer_controls:
+            c._setup(self)
         self.render_statemachine = RenderStateMachine(self)
         self.render_statemachine.start()
 
     def _output_type_change(self, _):
         self.output_type_changed = True
+
+    def _output_split_type_change(self, _):
+        self.output_split_type_changed = True
 
     def _interrupt_render(self, _) -> None:
         """Interrupt current render."""
@@ -171,7 +192,6 @@ class ViewerState:
 
     def _crop_params_update(self, _) -> None:
         """Update crop parameters"""
-        self.render_statemachine.action(RenderAction("rerender", self.camera_message))
         crop_min = torch.tensor(self.control_panel.crop_min, dtype=torch.float32)
         crop_max = torch.tensor(self.control_panel.crop_max, dtype=torch.float32)
         scene_box = SceneBox(aabb=torch.stack([crop_min, crop_max], dim=0))
@@ -184,6 +204,8 @@ class ViewerState:
             crop_scale=tuple(crop_scale.tolist()),
             crop_center=tuple(crop_center.tolist()),
         )
+        if self.camera_message is not None:
+            self.render_statemachine.action(RenderAction("rerender", self.camera_message))
 
     def _handle_training_state_message(self, message: NerfstudioMessage) -> None:
         """Handle training state message from viewer."""
@@ -242,6 +264,12 @@ class ViewerState:
         self.control_panel.crop_min = tuple(crop_min.tolist())
         self.control_panel.crop_max = tuple(crop_max.tolist())
 
+    def _handle_click_message(self, message: NerfstudioMessage) -> None:
+        """Handle click message from viewer."""
+        assert isinstance(message, ClickMessage)
+        for controls in self.viewer_controls:
+            controls.on_click(message)
+
     def _handle_time_condition_message(self, message: NerfstudioMessage) -> None:
         """Handle time conditioning message from viewer."""
         assert isinstance(message, TimeConditionMessage)
@@ -260,8 +288,51 @@ class ViewerState:
         if self.trainer is not None:
             self.trainer.training_state = training_state
 
+    def get_camera(self, image_height: int, image_width: int) -> Optional[Cameras]:
+        """
+        Return a Cameras object representing the camera for the viewer given the provided image height and width
+        """
+        cam_msg: Optional[CameraMessage] = self.camera_message
+        if cam_msg is None:
+            return None
+        intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
+            cam_msg, image_height=image_height, image_width=image_width
+        )
+
+        camera_to_world = camera_to_world_h[:3, :]
+        camera_to_world = torch.stack(
+            [
+                camera_to_world[0, :],
+                camera_to_world[2, :],
+                camera_to_world[1, :],
+            ],
+            dim=0,
+        )
+
+        camera_type_msg = cam_msg.camera_type
+        if camera_type_msg == "perspective":
+            camera_type = CameraType.PERSPECTIVE
+        elif camera_type_msg == "fisheye":
+            camera_type = CameraType.FISHEYE
+        elif camera_type_msg == "equirectangular":
+            camera_type = CameraType.EQUIRECTANGULAR
+        else:
+            camera_type = CameraType.PERSPECTIVE
+
+        camera = Cameras(
+            fx=intrinsics_matrix[0, 0],
+            fy=intrinsics_matrix[1, 1],
+            cx=intrinsics_matrix[0, 2],
+            cy=intrinsics_matrix[1, 2],
+            camera_type=camera_type,
+            camera_to_worlds=camera_to_world[None, ...],
+            times=torch.tensor([self.control_panel.time], dtype=torch.float32),
+        )
+        camera = camera.to(self.get_model().device)
+        return camera
+
     def _pick_drawn_image_idxs(self, total_num: int) -> list[int]:
-        """Determine indicies of images to display in viewer.
+        """Determine indices of images to display in viewer.
 
         Args:
             total_num: total number of training images.
@@ -276,7 +347,7 @@ class ViewerState:
         # draw indices, roughly evenly spaced
         return np.linspace(0, total_num - 1, num_display_images, dtype=np.int32).tolist()
 
-    def init_scene(self, dataset: InputDataset, train_state=Literal["training", "paused", "completed"]) -> None:
+    def init_scene(self, dataset: InputDataset, train_state: Literal["training", "paused", "completed"]) -> None:
         """Draw some images and the scene aabb in the viewer.
 
         Args:
@@ -350,6 +421,17 @@ class ViewerState:
         if self.output_type_changed:
             self.control_panel.update_colormap_options(dimensions, dtype)
             self.output_type_changed = False
+
+    def update_split_colormap_options(self, dimensions: int, dtype: type) -> None:
+        """update the colormap options based on the current render
+
+        Args:
+            dimensions: the number of dimensions of the render
+            dtype: the data type of the render
+        """
+        if self.output_split_type_changed:
+            self.control_panel.update_split_colormap_options(dimensions, dtype)
+            self.output_split_type_changed = False
 
     def get_model(self) -> Model:
         """Returns the model."""

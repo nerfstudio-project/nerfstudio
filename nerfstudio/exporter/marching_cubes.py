@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,21 +17,20 @@ This module implements the Marching Cubes algorithm for extracting
 isosurfaces
 """
 
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 import trimesh
+from jaxtyping import Bool, Float
 from skimage import measure
-from torchtyping import TensorType
+from torch import Tensor
 
 avg_pool_3d = torch.nn.AvgPool3d(2, stride=2)
 upsample = torch.nn.Upsample(scale_factor=2, mode="nearest")
 
 
-def create_point_pyramid(
-    points: TensorType[3, "height", "width", "depth"]
-) -> List[TensorType[3, "height", "width", "depth"]]:
+def create_point_pyramid(points: Float[Tensor, "3 height width depth"]) -> List[Float[Tensor, "3 height width depth"]]:
     """
     Create a point pyramid for multi-resolution evaluation.
 
@@ -49,7 +48,7 @@ def create_point_pyramid(
     return points_pyramid
 
 
-def evaluate_sdf(sdf: Callable, points: TensorType["batch", 3]) -> TensorType["batch"]:
+def evaluate_sdf(sdf: Callable[[Tensor], Tensor], points: Float[Tensor, "batch 3"]) -> Float[Tensor, "batch"]:
     """
     Evaluate a signed distance function (SDF) for a batch of points.
 
@@ -61,22 +60,20 @@ def evaluate_sdf(sdf: Callable, points: TensorType["batch", 3]) -> TensorType["b
     Returns:
         A torch tensor with the SDF values evaluated at the given points.
     """
-    z = []
+    z: List[Tensor] = []
     for _, pnts in enumerate(torch.split(points, 100000, dim=0)):
         z.append(sdf(pnts))
-    z = torch.cat(z, axis=0)
-    return z
+    return torch.cat(z, dim=0)
 
 
 def evaluate_multiresolution_sdf(
     evaluate: Callable,
-    points_pyramid: List[TensorType[3, "height", "width", "depth"]],
-    coarse_mask: Union[TensorType[1, 1, "height", "width", "depth"], None],
+    points_pyramid: List[Float[Tensor, "3 height width depth"]],
+    coarse_mask: Union[Bool[Tensor, "1 1 height width depth"], None],
     x_max: float,
     x_min: float,
     crop_n: int,
-) -> TensorType["batch"]:
-
+) -> Float[Tensor, "batch"]:
     """
     Evaluate SDF values using a multi-resolution approach with a given point pyramid.
 
@@ -93,6 +90,7 @@ def evaluate_multiresolution_sdf(
         A torch tensor with the SDF values evaluated at the given points.
     """
     mask = None
+    pts_sdf: Optional[Tensor] = None
     threshold = 2 * (x_max - x_min) / crop_n * 8
     for pid, pts in enumerate(points_pyramid):
         coarse_n = pts.shape[-1]
@@ -113,19 +111,24 @@ def evaluate_multiresolution_sdf(
 
             if pts_to_eval.shape[0] > 0:
                 pts_sdf_eval = evaluate(pts_to_eval.contiguous())
+                assert pts_sdf is not None
                 pts_sdf[mask] = pts_sdf_eval
 
         if pid < 3:
             # Update mask
+            assert pts_sdf is not None
             mask = torch.abs(pts_sdf) < threshold
             mask = mask.reshape(coarse_n, coarse_n, coarse_n)[None, None]
             mask = upsample(mask.float()).bool()
 
             pts_sdf = pts_sdf.reshape(coarse_n, coarse_n, coarse_n)[None, None]
             pts_sdf = upsample(pts_sdf)
+            assert pts_sdf is not None
             pts_sdf = pts_sdf.reshape(-1)
 
         threshold /= 2.0
+
+    assert pts_sdf is not None
     return pts_sdf
 
 
@@ -136,7 +139,7 @@ def generate_mesh_with_multires_marching_cubes(
     bounding_box_min: Tuple[float, float, float] = (-1.0, -1.0, -1.0),
     bounding_box_max: Tuple[float, float, float] = (1.0, 1.0, 1.0),
     isosurface_threshold: float = 0.0,
-    coarse_mask: Union[None, TensorType["height", "width", "depth"]] = None,
+    coarse_mask: Union[None, Bool[Tensor, "height width depth"]] = None,
 ) -> trimesh.Trimesh:
     """
     Computes the isosurface of a signed distance function (SDF) defined by the
@@ -234,7 +237,7 @@ def generate_mesh_with_multires_marching_cubes(
 
                 if not (np.min(z) > isosurface_threshold or np.max(z) < isosurface_threshold):
                     z = z.astype(np.float32)
-                    verts, faces, normals, _ = measure.marching_cubes(
+                    verts, faces, normals, _ = measure.marching_cubes(  # type: ignore
                         volume=z.reshape(crop_n, crop_n, crop_n),
                         level=isosurface_threshold,
                         spacing=(
@@ -249,5 +252,5 @@ def generate_mesh_with_multires_marching_cubes(
                     meshcrop = trimesh.Trimesh(verts, faces, normals)
                     meshes.append(meshcrop)
 
-    combined_mesh: trimesh.Trimesh = trimesh.util.concatenate(meshes)
+    combined_mesh: trimesh.Trimesh = trimesh.util.concatenate(meshes)  # type: ignore
     return combined_mesh

@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 Visualization code for plotly.
 The function use prefix conventions in the following way:
     - 'get_*' functions (e.g., 'get_camera_frustums')
-        return data that can be ploted with plotly
+        return data that can be plotted with plotly
     - 'vis_*' functions (e.g., 'vis_camera_rays')
         return 'go.Figure' objects which are the plots. Go Figure! :')
 """
@@ -27,8 +27,9 @@ import numpy as np
 import plotly.graph_objects as go
 import torch
 import torch.nn.functional as F
+from jaxtyping import Float
 from plotly import express as ex
-from torchtyping import TensorType
+from torch import Tensor
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import Frustums, RayBundle
@@ -49,7 +50,7 @@ def color_str(color):
 
 
 def get_line_segments_from_lines(
-    lines: TensorType["num_rays", 2, 3],
+    lines: Float[Tensor, "num_rays 2 3"],
     color: str = color_str((1, 0, 0)),
     marker_color: str = color_str((1, 0, 0)),
     colors: Optional[List[str]] = None,
@@ -81,7 +82,7 @@ def get_line_segments_from_lines(
             marker_color = colors[idx]
             thiscolor = colors[idx]
         data.append(
-            go.Scatter3d(
+            go.Scatter3d(  # type: ignore
                 x=line[:, 0],
                 y=line[:, 1],
                 z=line[:, 2],
@@ -99,7 +100,10 @@ def get_line_segments_from_lines(
     return data
 
 
-def vis_dataset(camera_origins: TensorType["num_cameras", 3], ray_bundle: RayBundle) -> go.FigureWidget:  # type: ignore
+def vis_dataset(
+    camera_origins: Float[Tensor, "num_cameras 3"],
+    ray_bundle: RayBundle,
+) -> go.FigureWidget:  # type: ignore
     """Visualize a dataset with plotly using our cameras and generated rays.
 
     Args:
@@ -116,7 +120,7 @@ def vis_dataset(camera_origins: TensorType["num_cameras", 3], ray_bundle: RayBun
 
     data = []
     data += [
-        go.Scatter3d(
+        go.Scatter3d(  # type: ignore
             x=camera_origins[::skip, 0],
             y=camera_origins[::skip, 1],
             z=camera_origins[::skip, 2],
@@ -143,8 +147,8 @@ def vis_dataset(camera_origins: TensorType["num_cameras", 3], ray_bundle: RayBun
             camera=dict(up=dict(x=0, y=0, z=1), center=dict(x=0, y=0, z=0), eye=dict(x=1.25, y=1.25, z=1.25)),
         ),
     )
-    fig = go.Figure(data=data, layout=layout)
-    return fig
+    fig = go.Figure(data=data, layout=layout)  # type: ignore
+    return fig  # type: ignore
 
 
 def get_random_color(colormap: Optional[List[str]] = None, idx: Optional[int] = None) -> str:
@@ -165,7 +169,11 @@ def get_random_color(colormap: Optional[List[str]] = None, idx: Optional[int] = 
 
 
 def get_sphere(
-    radius: float, center: TensorType[3] = None, color: str = "black", opacity: float = 1.0, resolution: int = 32
+    radius: float,
+    center: Optional[Float[Tensor, "3"]] = None,
+    color: str = "black",
+    opacity: float = 1.0,
+    resolution: int = 32,
 ) -> go.Mesh3d:  # type: ignore
     """Returns a sphere object for plotting with plotly.
 
@@ -192,7 +200,7 @@ def get_sphere(
     if center is not None:
         pts += center
 
-    return go.Mesh3d(
+    return go.Mesh3d(  # type: ignore
         {
             "x": pts[:, :, 0].flatten(),
             "y": pts[:, :, 1].flatten(),
@@ -206,7 +214,7 @@ def get_sphere(
 
 def get_cube(
     side_length: Union[float, torch.Tensor],
-    center: TensorType[3] = None,
+    center: Optional[Float[Tensor, "3"]] = None,
     color: str = "black",
     opacity: float = 1.0,
 ) -> go.Mesh3d:  # type: ignore
@@ -240,7 +248,7 @@ def get_cube(
         pts[1] = np.add(pts[1], center[1])
         pts[2] = np.add(pts[2], center[2])
 
-    return go.Mesh3d(
+    return go.Mesh3d(  # type: ignore
         {
             "x": pts[0],
             "y": pts[1],
@@ -253,8 +261,8 @@ def get_cube(
 
 
 def get_gaussian_ellipsiod(
-    mean: TensorType[3],
-    cov: TensorType[3, 3],
+    mean: Float[Tensor, "3"],
+    cov: Float[Tensor, "3 3"],
     n_std: int = 2,
     color="lightblue",
     opacity: float = 0.5,
@@ -298,7 +306,7 @@ def get_gaussian_ellipsiod(
 
     pts += mean
 
-    return go.Mesh3d(
+    return go.Mesh3d(  # type: ignore
         {
             "x": pts[:, :, 0].flatten(),
             "y": pts[:, :, 1].flatten(),
@@ -327,7 +335,7 @@ def get_gaussian_ellipsoids_list(
     """
     data = []
 
-    vis_means = go.Scatter3d(
+    vis_means = go.Scatter3d(  # type: ignore
         x=gaussians.mean[:, 0],
         y=gaussians.mean[:, 1],
         z=gaussians.mean[:, 2],
@@ -393,7 +401,7 @@ def get_frustum_mesh(
     pts = torch.einsum("kj,ij->ki", pts, rotation)
 
     pts += frustum.origins
-    return go.Mesh3d(
+    return go.Mesh3d(  # type: ignore
         x=pts[..., 0],
         y=pts[..., 1],
         z=pts[..., 2],
@@ -447,7 +455,7 @@ def get_frustum_points(
     frustum = frustum.flatten()
     pts = frustum.get_positions()
 
-    return go.Scatter3d(
+    return go.Scatter3d(  # type: ignore
         x=pts[..., 0],
         y=pts[..., 1],
         z=pts[..., 2],
@@ -482,7 +490,7 @@ def get_ray_bundle_lines(
     lines = torch.empty((origins.shape[0] * 2, 3))
     lines[0::2] = origins
     lines[1::2] = origins + directions * length
-    return go.Scatter3d(
+    return go.Scatter3d(  # type: ignore
         x=lines[..., 0],
         y=lines[..., 1],
         z=lines[..., 2],
@@ -521,8 +529,8 @@ def vis_camera_rays(cameras: Cameras) -> go.Figure:  # type: ignore
     colors[0::2] = coords
     colors[1::2] = coords
 
-    fig = go.Figure(
-        data=go.Scatter3d(
+    fig = go.Figure(  # type: ignore
+        data=go.Scatter3d(  # type: ignore
             x=lines[:, 0],
             y=lines[:, 2],
             z=lines[:, 1],

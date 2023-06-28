@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import Type
 
 import torch
-from rich.console import Console
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -31,8 +30,6 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 )
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
-
-CONSOLE = Console()
 
 
 @dataclass
@@ -64,7 +61,7 @@ class SDFStudio(DataParser):
 
     config: SDFStudioDataParserConfig
 
-    def _generate_dataparser_outputs(self, split="train"):  # pylint: disable=unused-argument,too-many-statements
+    def _generate_dataparser_outputs(self, split="train"):
         # load meta data
         meta = load_from_json(self.config.data / "meta_data.json")
 
@@ -87,16 +84,17 @@ class SDFStudio(DataParser):
                 continue
 
             image_filename = self.config.data / frame["rgb_path"]
-            depth_filename = self.config.data / frame["mono_depth_path"]
-            normal_filename = self.config.data / frame["mono_normal_path"]
+            depth_filename = frame.get("mono_depth_path")
+            normal_filename = frame.get("mono_normal_path")
 
             intrinsics = torch.tensor(frame["intrinsics"])
             camtoworld = torch.tensor(frame["camtoworld"])
 
             # append data
             image_filenames.append(image_filename)
-            depth_filenames.append(depth_filename)
-            normal_filenames.append(normal_filename)
+            if depth_filename is not None and normal_filename is not None:
+                depth_filenames.append(self.config.data / depth_filename)
+                normal_filenames.append(self.config.data / normal_filename)
             fx.append(intrinsics[0, 0])
             fy.append(intrinsics[1, 1])
             cx.append(intrinsics[0, 2])

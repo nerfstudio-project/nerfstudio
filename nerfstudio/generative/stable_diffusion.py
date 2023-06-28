@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,36 +16,29 @@
 
 # Modified from https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py
 
-import sys
-from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Union
+from nerfstudio.utils.rich_utils import CONSOLE
 
-import appdirs
 import mediapy
 import numpy as np
 import torch
 import torch.nn.functional as F
 import tyro
-from rich.console import Console
-from torch import nn
-from torch.cuda.amp import custom_bwd, custom_fwd
+from jaxtyping import Float
+from torch import Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
-from torchtyping import TensorType
 
-CONSOLE = Console(width=120)
+from nerfstudio.generative.utils import CatchMissingPackages
+
 
 try:
-    from diffusers import PNDMScheduler, StableDiffusionPipeline
-    from transformers import logging
+    from diffusers import PNDMScheduler, StableDiffusionPipeline, DiffusionPipeline
 
 except ImportError:
-    CONSOLE.print("[bold red]Missing Stable Diffusion packages.")
-    CONSOLE.print(r"Install using [yellow]pip install nerfstudio\[gen][/yellow]")
-    CONSOLE.print(r"or [yellow]pip install -e .\[gen][/yellow] if installing from source.")
-    sys.exit(1)
+    PNDMScheduler = StableDiffusionPipeline = CatchMissingPackages()
 
-logging.set_verbosity_error()
+
 IMG_DIM = 512
 CONST_SCALE = 0.18215
 SD_IDENTIFIERS = {
@@ -53,33 +46,6 @@ SD_IDENTIFIERS = {
     "2-0": "stabilityai/stable-diffusion-2-base",
     "2-1": "stabilityai/stable-diffusion-2-1-base",
 }
-
-
-@dataclass
-class UNet2DConditionOutput:
-    """Class to hold traced model"""
-
-    sample: torch.FloatTensor
-
-
-class _SDSGradient(torch.autograd.Function):  # pylint: disable=abstract-method
-    """Custom gradient function for SDS loss. Since it is already computed, we can just return it."""
-
-    @staticmethod
-    @custom_fwd
-    def forward(ctx, input_tensor, gt_grad):  # pylint: disable=arguments-differ
-        del input_tensor
-        ctx.save_for_backward(gt_grad)
-        # Return magniture of gradient, not the actual loss.
-        return torch.mean(gt_grad**2) ** 0.5
-
-    @staticmethod
-    @custom_bwd
-    def backward(ctx, grad):  # pylint: disable=arguments-differ
-        del grad
-        (gt_grad,) = ctx.saved_tensors
-        batch_size = len(gt_grad)
-        return gt_grad / batch_size, None
 
 
 class StableDiffusion(nn.Module):
@@ -108,38 +74,14 @@ class StableDiffusion(nn.Module):
 
         sd_id = SD_IDENTIFIERS[version]
         pipe = StableDiffusionPipeline.from_pretrained(sd_id, torch_dtype=torch.float16)
-        assert pipe is not None
+
+        assert isinstance(pipe, DiffusionPipeline)  # and hasattr(pipe, "to")
         pipe = pipe.to(self.device)
 
         pipe.enable_attention_slicing()
 
-        # use jitted unet
-        filename_sd_id = sd_id.split("/")[-1]
-        unet_traced_filename = Path(appdirs.user_data_dir("nerfstudio")) / f"{filename_sd_id}_unet_traced.pt"
-        if unet_traced_filename.exists():
-            CONSOLE.print("Loading traced UNet.")
-            unet_traced = torch.jit.load(unet_traced_filename)
-
-            class TracedUNet(torch.nn.Module):
-                """Jitted version of UNet"""
-
-                def __init__(self):
-                    super().__init__()
-                    self.in_channels = pipe.unet.in_channels
-                    self.device = pipe.unet.device
-
-                def forward(self, latent_model_input, t, encoder_hidden_states):  # pylint: disable=no-self-use
-                    """Forward pass"""
-                    sample = unet_traced(latent_model_input, t, encoder_hidden_states)[0]
-                    return UNet2DConditionOutput(sample=sample)
-
-            self.unet = TracedUNet()
-            del pipe.unet
-        else:
-            CONSOLE.print("[bold yellow] Warning: Loading UNet without JIT acceleration.")
-            CONSOLE.print(f"Run [yellow]ns-trace-sd --sd-version {version} [/yellow] for a speedup!")
-            self.unet = pipe.unet
-            self.unet.to(memory_format=torch.channels_last)
+        self.unet = pipe.unet
+        self.unet.to(memory_format=torch.channels_last)
 
         self.tokenizer = pipe.tokenizer
         self.text_encoder = pipe.text_encoder
@@ -149,7 +91,7 @@ class StableDiffusion(nn.Module):
 
     def get_text_embeds(
         self, prompt: Union[str, List[str]], negative_prompt: Union[str, List[str]]
-    ) -> TensorType[2, "max_length", "embed_dim"]:
+    ) -> Float[Tensor, "2 max_length embed_dim"]:
         """Get text embeddings for prompt and negative prompt
         Args:
             prompt: Prompt text
@@ -185,8 +127,8 @@ class StableDiffusion(nn.Module):
 
     def sds_loss(
         self,
-        text_embeddings: TensorType["N", "max_length", "embed_dim"],
-        image: TensorType["BS", 3, "H", "W"],
+        text_embeddings: Float[Tensor, "N max_length embed_dim"],
+        image: Float[Tensor, "BS 3 H W"],
         guidance_scale: float = 100.0,
         grad_scaler: Optional[GradScaler] = None,
     ) -> torch.Tensor:
@@ -199,7 +141,7 @@ class StableDiffusion(nn.Module):
         Returns:
             The loss
         """
-        image = F.interpolate(image, (IMG_DIM, IMG_DIM), mode="bilinear")
+        image = F.interpolate(image, (IMG_DIM, IMG_DIM), mode="bilinear").to(torch.float16)
         t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
         latents = self.imgs_to_latent(image)
 
@@ -209,7 +151,7 @@ class StableDiffusion(nn.Module):
             noise = torch.randn_like(latents)
             latents_noisy = self.scheduler.add_noise(latents, noise, t)  # type: ignore
             # pred noise
-            latent_model_input = torch.cat([latents_noisy] * 2)
+            latent_model_input = torch.cat((latents_noisy,) * 2)
             noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embeddings).sample
 
         # perform guidance
@@ -222,21 +164,20 @@ class StableDiffusion(nn.Module):
         grad = w * (noise_pred - noise)
         grad = torch.nan_to_num(grad)
 
-        if grad_scaler is not None:
-            latents = grad_scaler.scale(latents)
-        loss = _SDSGradient.apply(latents, grad)
+        target = (latents - grad).detach()
+        loss = 0.5 * F.mse_loss(latents, target, reduction="sum") / latents.shape[0]
 
         return loss
 
     def produce_latents(
         self,
-        text_embeddings: TensorType["N", "max_length", "embed_dim"],
+        text_embeddings: Float[Tensor, "N max_length embed_dim"],
         height: int = IMG_DIM,
         width: int = IMG_DIM,
         num_inference_steps: int = 50,
         guidance_scale: float = 7.5,
-        latents: Optional[TensorType["BS", 4, "H", "W"]] = None,
-    ) -> TensorType["BS", 4, "H", "W"]:
+        latents: Optional[Float[Tensor, "BS 4 H W"]] = None,
+    ) -> Float[Tensor, "BS 4 H W"]:
         """Produce latents for a given text embedding
         Args:
             text_embeddings: Text embeddings
@@ -251,7 +192,8 @@ class StableDiffusion(nn.Module):
 
         if latents is None:
             latents = torch.randn(
-                (text_embeddings.shape[0] // 2, self.unet.in_channels, height // 8, width // 8), device=self.device
+                (text_embeddings.shape[0] // 2, self.unet.config.in_channels, height // 8, width // 8),
+                device=self.device,
             )
 
         self.scheduler.set_timesteps(num_inference_steps)  # type: ignore
@@ -274,9 +216,10 @@ class StableDiffusion(nn.Module):
 
                 # compute the previous noisy sample x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents)["prev_sample"]  # type: ignore
+        assert isinstance(latents, Tensor)
         return latents
 
-    def latents_to_img(self, latents: TensorType["BS", 4, "H", "W"]) -> TensorType["BS", 3, "H", "W"]:
+    def latents_to_img(self, latents: Float[Tensor, "BS 4 H W"]) -> Float[Tensor, "BS 3 H W"]:
         """Convert latents to images
         Args:
             latents: Latents to convert
@@ -293,7 +236,7 @@ class StableDiffusion(nn.Module):
 
         return imgs
 
-    def imgs_to_latent(self, imgs: TensorType["BS", 3, "H", "W"]) -> TensorType["BS", 4, "H", "W"]:
+    def imgs_to_latent(self, imgs: Float[Tensor, "BS 3 H W"]) -> Float[Tensor, "BS 4 H W"]:
         """Convert images to latents
         Args:
             imgs: Images to convert

@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,10 +16,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-
-from rich.console import Console
-from typing_extensions import Literal
+from typing import Dict, List, Literal, Optional, Tuple
 
 from nerfstudio.process_data import colmap_utils, hloc_utils, process_data_utils
 from nerfstudio.process_data.base_converter_to_nerfstudio_dataset import (
@@ -27,8 +24,7 @@ from nerfstudio.process_data.base_converter_to_nerfstudio_dataset import (
 )
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils import install_checks
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 @dataclass
@@ -102,15 +98,15 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     """If --use-sfm-depth and this flag is True, also export debug images showing Sf overlaid upon input images."""
 
     @staticmethod
-    def default_colmap_path() -> Path:  # pylint: disable=missing-function-docstring
+    def default_colmap_path() -> Path:
         return Path("colmap/sparse/0")
 
     @property
-    def absolute_colmap_model_path(self) -> Path:  # pylint: disable=missing-function-docstring
+    def absolute_colmap_model_path(self) -> Path:
         return self.output_dir / self.colmap_model_path
 
     @property
-    def absolute_colmap_path(self) -> Path:  # pylint: disable=missing-function-docstring
+    def absolute_colmap_path(self) -> Path:
         return self.output_dir / "colmap"
 
     def _save_transforms(
@@ -182,16 +178,26 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         """
         self.absolute_colmap_path.mkdir(parents=True, exist_ok=True)
 
-        (sfm_tool, feature_type, matcher_type,) = process_data_utils.find_tool_feature_matcher_combination(
+        (
+            sfm_tool,
+            feature_type,
+            matcher_type,
+        ) = process_data_utils.find_tool_feature_matcher_combination(
             self.sfm_tool, self.feature_type, self.matcher_type
         )
         # check that sfm_tool is hloc if using refine_pixsfm
         if self.refine_pixsfm:
             assert sfm_tool == "hloc", "refine_pixsfm only works with sfm_tool hloc"
 
+        # set the image_dir if didn't copy
+        if self.skip_image_processing:
+            image_dir = self.data
+        else:
+            image_dir = self.image_dir
+
         if sfm_tool == "colmap":
             colmap_utils.run_colmap(
-                image_dir=self.image_dir,
+                image_dir=image_dir,
                 colmap_dir=self.absolute_colmap_path,
                 camera_model=CAMERA_MODELS[self.camera_type],
                 camera_mask_path=mask_path,
@@ -203,8 +209,12 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         elif sfm_tool == "hloc":
             if mask_path is not None:
                 raise RuntimeError("Cannot use a mask with hloc. Please remove the cropping options " "and try again.")
+
+            assert feature_type is not None
+            assert matcher_type is not None
+            assert matcher_type != "NN"  # Only used for colmap.
             hloc_utils.run_hloc(
-                image_dir=self.image_dir,
+                image_dir=image_dir,
                 colmap_dir=self.absolute_colmap_path,
                 camera_model=CAMERA_MODELS[self.camera_type],
                 verbose=self.verbose,

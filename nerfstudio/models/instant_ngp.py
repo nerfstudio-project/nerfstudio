@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ Implementation of Instant NGP.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Dict, List, Literal, Optional, Tuple, Type
 
 import nerfacc
 import torch
@@ -27,7 +27,6 @@ from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.engine.callbacks import (
@@ -37,7 +36,7 @@ from nerfstudio.engine.callbacks import (
 )
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
-from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
+from nerfstudio.fields.nerfacto_field import NerfactoField
 from nerfstudio.model_components.losses import MSELoss
 from nerfstudio.model_components.ray_samplers import VolumetricSampler
 from nerfstudio.model_components.renderers import (
@@ -95,7 +94,7 @@ class NGPModel(Model):
     """
 
     config: InstantNGPModelConfig
-    field: TCNNNerfactoField
+    field: NerfactoField
 
     def __init__(self, config: InstantNGPModelConfig, **kwargs) -> None:
         super().__init__(config=config, **kwargs)
@@ -109,7 +108,7 @@ class NGPModel(Model):
         else:
             scene_contraction = SceneContraction(order=float("inf"))
 
-        self.field = TCNNNerfactoField(
+        self.field = NerfactoField(
             aabb=self.scene_box.aabb,
             num_images=self.num_train_data,
             log2_hashmap_size=self.config.log2_hashmap_size,
@@ -233,7 +232,6 @@ class NGPModel(Model):
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
-
         image = batch["image"].to(self.device)
         rgb = outputs["rgb"]
         acc = colormaps.apply_colormap(outputs["accumulation"])

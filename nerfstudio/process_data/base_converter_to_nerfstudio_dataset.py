@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ class BaseConverterToNerfstudioDataset(ABC):
         self.image_dir.mkdir(parents=True, exist_ok=True)
 
     @property
-    def image_dir(self) -> Path:  # pylint: disable=missing-function-docstring
+    def image_dir(self) -> Path:
         return self.output_dir / "images"
 
     @abstractmethod

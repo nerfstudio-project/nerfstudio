@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,15 +16,13 @@
 
 from math import floor, log
 
-from rich.console import Console
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
-def print_tcnn_speed_warning(method_name: str):
+def print_tcnn_speed_warning(module_name: str):
     """Prints a warning about the speed of the TCNN."""
     CONSOLE.line()
-    CONSOLE.print(f"[bold yellow]WARNING: Using a slow implementation of {method_name}. ")
+    CONSOLE.print(f"[bold yellow]WARNING: Using a slow implementation for the {module_name} module. ")
     CONSOLE.print(
         "[bold yellow]:person_running: :person_running: "
         + "Install tcnn for speedups :person_running: :person_running:"
