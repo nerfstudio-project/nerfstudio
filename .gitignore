@@ -12,7 +12,7 @@ build/
 develop-eggs/
 dist/
 downloads/
-!scripts/downloads/
+!nerfstudio/scripts/downloads/
 eggs/
 .eggs/
 lib/
@@ -169,8 +169,7 @@ renders/
 events.out.*
 
 # Data
-data
-!*/data
+/data
 
 # Misc
 old/
@@ -184,3 +183,8 @@ bash/
 cache/
 package-lock.json
 camera_paths/
+.DS_Store
+._.DS_Store
+*/**/.DS_Store
+*/**/._.DS_Store
+

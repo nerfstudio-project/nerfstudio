@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,12 +15,18 @@
 """ Math Helper Functions """
 
 from dataclasses import dataclass
+from typing import Literal, Tuple
 
 import torch
-from torchtyping import TensorType
+from jaxtyping import Bool, Float
+from torch import Tensor
+
+from nerfstudio.utils.misc import torch_compile
 
 
-def components_from_spherical_harmonics(levels: int, directions: TensorType[..., 3]) -> TensorType[..., "components"]:
+def components_from_spherical_harmonics(
+    levels: int, directions: Float[Tensor, "*batch 3"]
+) -> Float[Tensor, "*batch components"]:
     """
     Returns value for each component of spherical harmonics.
 
@@ -74,12 +80,12 @@ def components_from_spherical_harmonics(levels: int, directions: TensorType[...,
         components[..., 16] = 2.5033429417967046 * x * y * (xx - yy)
         components[..., 17] = 1.7701307697799304 * y * z * (3 * xx - yy)
         components[..., 18] = 0.9461746957575601 * x * y * (7 * zz - 1)
-        components[..., 19] = 0.6690465435572892 * y * (7 * zz - 3)
+        components[..., 19] = 0.6690465435572892 * y * z * (7 * zz - 3)
         components[..., 20] = 0.10578554691520431 * (35 * zz * zz - 30 * zz + 3)
         components[..., 21] = 0.6690465435572892 * x * z * (7 * zz - 3)
         components[..., 22] = 0.47308734787878004 * (xx - yy) * (7 * zz - 1)
         components[..., 23] = 1.7701307697799304 * x * z * (xx - 3 * yy)
-        components[..., 24] = 0.4425326924449826 * (xx * (xx - 3 * yy) - yy * (3 * xx - yy))
+        components[..., 24] = 0.6258357354491761 * (xx * (xx - 3 * yy) - yy * (3 * xx - yy))
 
     return components
 
@@ -93,17 +99,17 @@ class Gaussians:
         cov: Covariance of multivariate Gaussian.
     """
 
-    mean: TensorType[..., "dim"]
-    cov: TensorType[..., "dim", "dim"]
+    mean: Float[Tensor, "*batch dim"]
+    cov: Float[Tensor, "*batch dim dim"]
 
 
 def compute_3d_gaussian(
-    directions: TensorType[..., 3],
-    means: TensorType[..., 3],
-    dir_variance: TensorType[..., 1],
-    radius_variance: TensorType[..., 1],
+    directions: Float[Tensor, "*batch 3"],
+    means: Float[Tensor, "*batch 3"],
+    dir_variance: Float[Tensor, "*batch 1"],
+    radius_variance: Float[Tensor, "*batch 1"],
 ) -> Gaussians:
-    """Compute guassian along ray.
+    """Compute gaussian along ray.
 
     Args:
         directions: Axis of Gaussian.
@@ -126,11 +132,11 @@ def compute_3d_gaussian(
 
 
 def cylinder_to_gaussian(
-    origins: TensorType[..., 3],
-    directions: TensorType[..., 3],
-    starts: TensorType[..., 1],
-    ends: TensorType[..., 1],
-    radius: TensorType[..., 1],
+    origins: Float[Tensor, "*batch 3"],
+    directions: Float[Tensor, "*batch 3"],
+    starts: Float[Tensor, "*batch 1"],
+    ends: Float[Tensor, "*batch 1"],
+    radius: Float[Tensor, "*batch 1"],
 ) -> Gaussians:
     """Approximates cylinders with a Gaussian distributions.
 
@@ -151,11 +157,11 @@ def cylinder_to_gaussian(
 
 
 def conical_frustum_to_gaussian(
-    origins: TensorType[..., 3],
-    directions: TensorType[..., 3],
-    starts: TensorType[..., 1],
-    ends: TensorType[..., 1],
-    radius: TensorType[..., 1],
+    origins: Float[Tensor, "*batch 3"],
+    directions: Float[Tensor, "*batch 3"],
+    starts: Float[Tensor, "*batch 1"],
+    ends: Float[Tensor, "*batch 1"],
+    radius: Float[Tensor, "*batch 1"],
 ) -> Gaussians:
     """Approximates conical frustums with a Gaussian distributions.
 
@@ -193,47 +199,129 @@ def expected_sin(x_means: torch.Tensor, x_vars: torch.Tensor) -> torch.Tensor:
     return torch.exp(-0.5 * x_vars) * torch.sin(x_means)
 
 
-def intersect_aabb(origins, directions, aabb):
+@torch_compile(dynamic=True, mode="reduce-overhead", backend="eager")
+def intersect_aabb(
+    origins: torch.Tensor,
+    directions: torch.Tensor,
+    aabb: torch.Tensor,
+    max_bound: float = 1e10,
+    invalid_value: float = 1e10,
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-    pytorch implementation of ray intersection with AABB box
-    :param origin: N,3 tensor of 3d positions
-    :param direction: N,3 tensor of normalized directions
-    :param aabb: 6,1 array of aabb box in the form of [x_min, y_min, z_min, x_max, y_max, z_max]
-    :return: t_min, t_max - two tensors of shapes N,1 representing the intersection signed distance from
-    the origin. t_min is clipped to 0 in case it is negative, in case of no intersection t_min is 1e10.
+    Implementation of ray intersection with AABB box
+
+    Args:
+        origins: [N,3] tensor of 3d positions
+        directions: [N,3] tensor of normalized directions
+        aabb: [6] array of aabb box in the form of [x_min, y_min, z_min, x_max, y_max, z_max]
+        max_bound: Maximum value of t_max
+        invalid_value: Value to return in case of no intersection
+
+    Returns:
+        t_min, t_max - two tensors of shapes N representing distance of intersection from the origin.
     """
 
-    max_bound = 1e10
+    tx_min = (aabb[:3] - origins) / directions
+    tx_max = (aabb[3:] - origins) / directions
 
-    tx_min = (aabb[0] - origins[:, 0]) / directions[:, 0]
-    tx_max = (aabb[3] - origins[:, 0]) / directions[:, 0]
-    t_min = torch.min(tx_min, tx_max)
-    t_max = torch.max(tx_min, tx_max)
+    t_min = torch.stack((tx_min, tx_max)).amin(dim=0)
+    t_max = torch.stack((tx_min, tx_max)).amax(dim=0)
 
-    ty_min_temp = (aabb[1] - origins[:, 1]) / directions[:, 1]
-    ty_max_temp = (aabb[4] - origins[:, 1]) / directions[:, 1]
-    ty_min = torch.min(ty_min_temp, ty_max_temp)
-    ty_max = torch.max(ty_min_temp, ty_max_temp)
+    t_min = t_min.amax(dim=-1)
+    t_max = t_max.amin(dim=-1)
 
-    cond = torch.logical_or((t_min > ty_max), (ty_min > t_max))
-    t_min = torch.where(cond, max_bound, t_min)
-    t_max = torch.where(cond, max_bound, t_max)
+    t_min = torch.clamp(t_min, min=0, max=max_bound)
+    t_max = torch.clamp(t_max, min=0, max=max_bound)
 
-    t_min = torch.max(t_min, ty_min)
-    t_max = torch.min(t_max, ty_max)
-
-    tz_min_temp = (aabb[2] - origins[:, 2]) / directions[:, 2]
-    tz_max_temp = (aabb[5] - origins[:, 2]) / directions[:, 2]
-    tz_min = torch.min(tz_min_temp, tz_max_temp)
-    tz_max = torch.max(tz_min_temp, tz_max_temp)
-
-    cond = torch.logical_or((t_min > tz_max), tz_min > t_max)
-    t_min = torch.where(cond, max_bound, t_min)
-    t_max = torch.where(cond, max_bound, t_max)
-
-    t_min = torch.max(t_min, tz_min)
-    t_max = torch.min(t_max, tz_max)
-    t_min = torch.where(t_min > 0, t_min, 0)
-    t_max = torch.where(t_min == max_bound, max_bound, t_max)
+    cond = t_max <= t_min
+    t_min = torch.where(cond, invalid_value, t_min)
+    t_max = torch.where(cond, invalid_value, t_max)
 
     return t_min, t_max
+
+
+def safe_normalize(
+    vectors: Float[Tensor, "*batch_dim N"],
+    eps: float = 1e-10,
+) -> Float[Tensor, "*batch_dim N"]:
+    """Normalizes vectors.
+
+    Args:
+        vectors: Vectors to normalize.
+        eps: Epsilon value to avoid division by zero.
+
+    Returns:
+        Normalized vectors.
+    """
+    return vectors / (torch.norm(vectors, dim=-1, keepdim=True) + eps)
+
+
+def masked_reduction(
+    input_tensor: Float[Tensor, "1 32 mult"],
+    mask: Bool[Tensor, "1 32 mult"],
+    reduction_type: Literal["image", "batch"],
+) -> Tensor:
+    """
+    Whether to consolidate the input_tensor across the batch or across the image
+    Args:
+        input_tensor: input tensor
+        mask: mask tensor
+        reduction_type: either "batch" or "image"
+    Returns:
+        input_tensor: reduced input_tensor
+    """
+    if reduction_type == "batch":
+        # avoid division by 0 (if sum(M) = sum(sum(mask)) = 0: sum(image_loss) = 0)
+        divisor = torch.sum(mask)
+        if divisor == 0:
+            return torch.tensor(0, device=input_tensor.device)
+        input_tensor = torch.sum(input_tensor) / divisor
+    elif reduction_type == "image":
+        # avoid division by 0 (if M = sum(mask) = 0: image_loss = 0)
+        valid = mask.nonzero()
+
+        input_tensor[valid] = input_tensor[valid] / mask[valid]
+        input_tensor = torch.mean(input_tensor)
+    return input_tensor
+
+
+def normalized_depth_scale_and_shift(
+    prediction: Float[Tensor, "1 32 mult"], target: Float[Tensor, "1 32 mult"], mask: Bool[Tensor, "1 32 mult"]
+):
+    """
+    More info here: https://arxiv.org/pdf/2206.00665.pdf supplementary section A2 Depth Consistency Loss
+    This function computes scale/shift required to normalizes predicted depth map,
+    to allow for using normalized depth maps as input from monocular depth estimation networks.
+    These networks are trained such that they predict normalized depth maps.
+
+    Solves for scale/shift using a least squares approach with a closed form solution:
+    Based on:
+    https://github.com/autonomousvision/monosdf/blob/d9619e948bf3d85c6adec1a643f679e2e8e84d4b/code/model/loss.py#L7
+    Args:
+        prediction: predicted depth map
+        target: ground truth depth map
+        mask: mask of valid pixels
+    Returns:
+        scale and shift for depth prediction
+    """
+    # system matrix: A = [[a_00, a_01], [a_10, a_11]]
+    a_00 = torch.sum(mask * prediction * prediction, (1, 2))
+    a_01 = torch.sum(mask * prediction, (1, 2))
+    a_11 = torch.sum(mask, (1, 2))
+
+    # right hand side: b = [b_0, b_1]
+    b_0 = torch.sum(mask * prediction * target, (1, 2))
+    b_1 = torch.sum(mask * target, (1, 2))
+
+    # solution: x = A^-1 . b = [[a_11, -a_01], [-a_10, a_00]] / (a_00 * a_11 - a_01 * a_10) . b
+    scale = torch.zeros_like(b_0)
+    shift = torch.zeros_like(b_1)
+
+    det = a_00 * a_11 - a_01 * a_01
+    valid = det.nonzero()
+
+    scale[valid] = (a_11[valid] * b_0[valid] - a_01[valid] * b_1[valid]) / det[valid]
+    shift[valid] = (-a_01[valid] * b_0[valid] + a_00[valid] * b_1[valid]) / det[valid]
+
+    return scale, shift
+    return scale, shift

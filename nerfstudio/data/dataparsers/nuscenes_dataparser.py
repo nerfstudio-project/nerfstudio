@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@ import math
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Tuple, Type
+from typing import Literal, Optional, Tuple, Type
 
 import numpy as np
+import pyquaternion
 import torch
 from nuscenes.nuscenes import NuScenes as NuScenesDatabase
-from typing_extensions import Literal
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (
@@ -31,14 +31,19 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataparserOutputs,
 )
 from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.process_data.colmap_utils import qvec2rotmat
 
 
-def rotation_translation_to_pose(r_vec, t_vec):
+def rotation_translation_to_pose(r_quat, t_vec):
     """Convert quaternion rotation and translation vectors to 4x4 matrix"""
 
     pose = np.eye(4)
-    pose[:3, :3] = qvec2rotmat(r_vec)
+
+    # NB: Nuscenes recommends pyquaternion, which uses scalar-first format (w x y z)
+    # https://github.com/nutonomy/nuscenes-devkit/issues/545#issuecomment-766509242
+    # https://github.com/KieranWynn/pyquaternion/blob/99025c17bab1c55265d61add13375433b35251af/pyquaternion/quaternion.py#L299
+    # https://fzheng.me/2017/11/12/quaternion_conventions_en/
+    pose[:3, :3] = pyquaternion.Quaternion(r_quat).rotation_matrix
+
     pose[:3, 3] = t_vec
     return pose
 
@@ -50,7 +55,7 @@ class NuScenesDataParserConfig(DataParserConfig):
     Each clip was recorded with a suite of sensors including 6 surround cameras.
     It also includes 3D cuboid annotations around objects.
     We optionally use these cuboids to mask dynamic objects by specifying the mask_dir flag.
-    To create these masks use scripts/datasets/process_nuscenes_masks.py.
+    To create these masks use nerfstudio/scripts/datasets/process_nuscenes_masks.py.
     """
 
     _target: Type = field(default_factory=lambda: NuScenes)
@@ -66,7 +71,7 @@ class NuScenesDataParserConfig(DataParserConfig):
     mask_dir: Optional[Path] = None
     """Path to masks of dynamic objects."""
 
-    train_split_percentage: float = 0.9
+    train_split_fraction: float = 0.9
     """The percent of images to use for training. The remaining images are for eval."""
 
     verbose: bool = False
@@ -80,9 +85,11 @@ class NuScenes(DataParser):
     config: NuScenesDataParserConfig
 
     def _generate_dataparser_outputs(self, split="train"):
-        # pylint: disable=too-many-statements
-
-        nusc = NuScenesDatabase(version=self.config.version, dataroot=self.config.data_dir, verbose=self.config.verbose)
+        nusc = NuScenesDatabase(
+            version=self.config.version,
+            dataroot=str(self.config.data_dir.absolute()),
+            verbose=self.config.verbose,
+        )
         cameras = ["CAM_" + camera for camera in self.config.cameras]
 
         assert (
@@ -160,7 +167,7 @@ class NuScenes(DataParser):
 
         # filter image_filenames and poses based on train/eval split percentage
         num_snapshots = len(samples)
-        num_train_snapshots = math.ceil(num_snapshots * self.config.train_split_percentage)
+        num_train_snapshots = math.ceil(num_snapshots * self.config.train_split_fraction)
         num_eval_snapshots = num_snapshots - num_train_snapshots
         i_all = np.arange(num_snapshots)
         i_train = np.linspace(

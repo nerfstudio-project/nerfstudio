@@ -1,4 +1,4 @@
-# Copyright 2022 The nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ from nerfstudio.engine.callbacks import (
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
-from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
+from nerfstudio.fields.nerfacto_field import NerfactoField
 from nerfstudio.model_components.losses import MSELoss, distortion_loss, interlevel_loss
 from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler
 from nerfstudio.model_components.renderers import (
@@ -61,6 +61,8 @@ class SemanticNerfWModelConfig(NerfactoModelConfig):
     _target: Type = field(default_factory=lambda: SemanticNerfWModel)
     use_transient_embedding: bool = False
     """Whether to use transient embedding."""
+    semantic_loss_weight: float = 1.0
+    pass_semantic_gradients: bool = False
 
 
 class SemanticNerfWModel(Model):
@@ -76,6 +78,7 @@ class SemanticNerfWModel(Model):
         assert "semantics" in metadata.keys() and isinstance(metadata["semantics"], Semantics)
         self.semantics = metadata["semantics"]
         super().__init__(config=config, **kwargs)
+        self.colormap = self.semantics.colors.clone().detach().to(self.device)
 
     def populate_modules(self):
         """Set the fields and modules."""
@@ -87,7 +90,7 @@ class SemanticNerfWModel(Model):
             raise ValueError("Transient embedding is not fully working for semantic nerf-w.")
 
         # Fields
-        self.field = TCNNNerfactoField(
+        self.field = NerfactoField(
             self.scene_box.aabb,
             num_levels=self.config.num_levels,
             max_res=self.config.max_res,
@@ -98,6 +101,7 @@ class SemanticNerfWModel(Model):
             use_transient_embedding=self.config.use_transient_embedding,
             use_semantics=True,
             num_semantic_classes=len(self.semantics.classes),
+            pass_semantic_gradients=self.config.pass_semantic_gradients,
         )
 
         # Build the proposal network(s)
@@ -137,7 +141,7 @@ class SemanticNerfWModel(Model):
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
-        self.lpips = LearnedPerceptualImagePatchSimilarity()
+        self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
@@ -156,7 +160,10 @@ class SemanticNerfWModel(Model):
             def set_anneal(step):
                 # https://arxiv.org/pdf/2111.12077.pdf eq. 18
                 train_frac = np.clip(step / N, 0, 1)
-                bias = lambda x, b: (b * x) / ((b - 1) * x + 1)
+
+                def bias(x, b):
+                    return b * x / ((b - 1) * x + 1)
+
                 anneal = bias(train_frac, self.config.proposal_weights_anneal_slope)
                 self.proposal_sampler.set_anneal(anneal)
 
@@ -207,13 +214,16 @@ class SemanticNerfWModel(Model):
             outputs["density_transient"] = field_outputs[FieldHeadNames.TRANSIENT_DENSITY]
 
         # semantics
+        semantic_weights = weights_static
+        if not self.config.pass_semantic_gradients:
+            semantic_weights = semantic_weights.detach()
         outputs["semantics"] = self.renderer_semantics(
-            field_outputs[FieldHeadNames.SEMANTICS], weights=weights_static.detach()
+            field_outputs[FieldHeadNames.SEMANTICS], weights=semantic_weights
         )
 
         # semantics colormaps
         semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics"], dim=-1), dim=-1)
-        outputs["semantics_colormap"] = self.semantics.colors[semantic_labels]
+        outputs["semantics_colormap"] = self.colormap.to(self.device)[semantic_labels]
 
         return outputs
 
@@ -243,13 +253,14 @@ class SemanticNerfWModel(Model):
             loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
 
         # semantic loss
-        loss_dict["semantics_loss"] = self.cross_entropy_loss(outputs["semantics"], batch["semantics"][..., 0].long())
+        loss_dict["semantics_loss"] = self.config.semantic_loss_weight * self.cross_entropy_loss(
+            outputs["semantics"], batch["semantics"][..., 0].long().to(self.device)
+        )
         return loss_dict
 
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
-
         image = batch["image"].to(self.device)
         rgb = outputs["rgb"]
         rgb = torch.clamp(rgb, min=0, max=1)
@@ -287,9 +298,9 @@ class SemanticNerfWModel(Model):
 
         # semantics
         semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics"], dim=-1), dim=-1)
-        images_dict["semantics_colormap"] = self.semantics.colors[semantic_labels]
+        images_dict["semantics_colormap"] = self.colormap.to(self.device)[semantic_labels]
 
         # valid mask
-        images_dict["mask"] = batch["mask"].repeat(1, 1, 3)
+        images_dict["mask"] = batch["mask"].repeat(1, 1, 3).to(self.device)
 
         return metrics_dict, images_dict

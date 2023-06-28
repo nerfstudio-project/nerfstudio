@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ from typing import Dict, List, Tuple, Type
 import cv2
 import numpy as np
 import torch
-from rich.progress import Console
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (
@@ -34,8 +33,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.io import load_from_json
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def downscale(img, scale: int) -> np.ndarray:
@@ -54,7 +52,7 @@ def downscale(img, scale: int) -> np.ndarray:
     if height % scale > 0 or width % scale > 0:
         raise ValueError(f"Image shape ({height},{width}) must be divisible by the" f" scale ({scale}).")
     out_height, out_width = height // scale, width // scale
-    resized = cv2.resize(img, (out_width, out_height), cv2.INTER_AREA)
+    resized = cv2.resize(img, (out_width, out_height), cv2.INTER_AREA)  # type: ignore
     return resized
 
 
@@ -72,11 +70,11 @@ def upscale(img, scale: int) -> np.ndarray:
         return img
     height, width = img.shape[:2]
     out_height, out_width = height * scale, width * scale
-    resized = cv2.resize(img, (out_width, out_height), cv2.INTER_AREA)
+    resized = cv2.resize(img, (out_width, out_height), cv2.INTER_AREA)  # type: ignore
     return resized
 
 
-def rescale(img, scale_factor: float, interpolation=cv2.INTER_AREA) -> np.ndarray:
+def rescale(img, scale_factor: float, interpolation: int = cv2.INTER_AREA) -> np.ndarray:
     """Function from DyCheck's repo. Rescale an image.
 
     Args:
@@ -108,7 +106,7 @@ def rescale(img, scale_factor: float, interpolation=cv2.INTER_AREA) -> np.ndarra
     out_width = math.ceil(width * scale_factor)
     out_width -= out_width % 2
 
-    return cv2.resize(img, (out_width, out_height), interpolation)
+    return cv2.resize(img, (out_width, out_height), interpolation)  # type: ignore
 
 
 def _load_scene_info(data_dir: Path) -> Tuple[np.ndarray, float, float, float]:
@@ -202,6 +200,7 @@ class Dycheck(DataParser):
     """Dycheck (https://arxiv.org/abs/2210.13445) Dataset `iphone` subset"""
 
     config: DycheckDataParserConfig
+    includes_time: bool = True
 
     def __init__(self, config: DycheckDataParserConfig):
         super().__init__(config=config)
@@ -243,7 +242,7 @@ class Dycheck(DataParser):
             frame_names = np.array(split_dict["frame_names"])[[0]]
             time_ids = np.array(split_dict["time_ids"])[[0]]
 
-        image_filenames, depth_filenames, cams = self.process_frames(frame_names, time_ids)
+        image_filenames, depth_filenames, cams = self.process_frames(frame_names.tolist(), time_ids)
 
         scene_box = SceneBox(
             aabb=torch.tensor(
@@ -323,7 +322,7 @@ class Dycheck(DataParser):
             for frame in frame_names:
                 cv2.imwrite(
                     str(self.data / f"rgb/{d}x/{frame}.png"),
-                    cv2.resize(cv2.imread(str(self.data / f"rgb/1x/{frame}.png")), [h, w]),
+                    cv2.resize(cv2.imread(str(self.data / f"rgb/1x/{frame}.png")), (h, w)),
                 )
             CONSOLE.print("finished")
 

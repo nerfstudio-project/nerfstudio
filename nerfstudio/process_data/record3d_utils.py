@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,13 +19,10 @@ from pathlib import Path
 from typing import List
 
 import numpy as np
-from rich.console import Console
 from scipy.spatial.transform import Rotation
 
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils import io
-
-CONSOLE = Console(width=120)
 
 
 def record3d_to_json(images_paths: List[Path], metadata_path: Path, output_dir: Path, indices: np.ndarray) -> int:
@@ -46,6 +43,8 @@ def record3d_to_json(images_paths: List[Path], metadata_path: Path, output_dir: 
     metadata_dict = io.load_from_json(metadata_path)
 
     poses_data = np.array(metadata_dict["poses"])  # (N, 3, 4)
+    # NB: Record3D / scipy use "scalar-last" format quaternions (x y z w)
+    # https://fzheng.me/2017/11/12/quaternion_conventions_en/
     camera_to_worlds = np.concatenate(
         [Rotation.from_quat(poses_data[:, :4]).as_matrix(), poses_data[:, 4:, None]],
         axis=-1,

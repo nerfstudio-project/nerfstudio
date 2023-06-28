@@ -5,7 +5,7 @@ and do sparse reconstruction.
 Requires hloc module from : https://github.com/cvg/Hierarchical-Localization
 """
 
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,13 +21,13 @@ Requires hloc module from : https://github.com/cvg/Hierarchical-Localization
 
 import sys
 from pathlib import Path
-
-from rich.console import Console
-from typing_extensions import Literal
+from typing import Literal
 
 from nerfstudio.process_data.process_data_utils import CameraModel
+from nerfstudio.utils.rich_utils import CONSOLE
 
 try:
+    # TODO(1480) un-hide pycolmap import
     import pycolmap
     from hloc import (
         extract_features,
@@ -41,7 +41,12 @@ except ImportError:
 else:
     _HAS_HLOC = True
 
-CONSOLE = Console(width=120)
+try:
+    from pixsfm.refine_hloc import PixSfM  # type: ignore
+except ImportError:
+    _HAS_PIXSFM = False
+else:
+    _HAS_PIXSFM = True
 
 
 def run_hloc(
@@ -57,6 +62,7 @@ def run_hloc(
         "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
     ] = "superglue",
     num_matched: int = 50,
+    refine_pixsfm: bool = False,
 ) -> None:
     """Runs hloc on the images.
 
@@ -66,12 +72,21 @@ def run_hloc(
         camera_model: Camera model to use.
         gpu: If True, use GPU.
         verbose: If True, logs the output of the command.
+        matching_method: Method to use for matching images.
+        feature_type: Type of visual features to use.
+        matcher_type: Type of feature matcher to use.
+        num_matched: Number of image pairs for loc.
+        refine_pixsfm: If True, refine the reconstruction using pixel-perfect-sfm.
     """
     if not _HAS_HLOC:
         CONSOLE.print(
             f"[bold red]Error: To use this set of parameters ({feature_type}/{matcher_type}/hloc), "
             "you must install hloc toolbox!!"
         )
+        sys.exit(1)
+
+    if refine_pixsfm and not _HAS_PIXSFM:
+        CONSOLE.print("[bold red]Error: use refine_pixsfm, you must install pixel-perfect-sfm toolbox!!")
         sys.exit(1)
 
     outputs = colmap_dir
@@ -96,13 +111,35 @@ def run_hloc(
     match_features.main(matcher_conf, sfm_pairs, features=features, matches=matches)
 
     image_options = pycolmap.ImageReaderOptions(camera_model=camera_model.value)
-    reconstruction.main(
-        sfm_dir,
-        image_dir,
-        sfm_pairs,
-        features,
-        matches,
-        camera_mode=pycolmap.CameraMode.SINGLE,
-        image_options=image_options,
-        verbose=verbose,
-    )
+    if refine_pixsfm:
+        sfm = PixSfM(
+            conf={
+                "dense_features": {"use_cache": True},
+                "KA": {"dense_features": {"use_cache": True}, "max_kps_per_problem": 1000},
+                "BA": {"strategy": "costmaps"},
+            }
+        )
+        refined, _ = sfm.reconstruction(
+            sfm_dir,
+            image_dir,
+            sfm_pairs,
+            features,
+            matches,
+            image_list=references,
+            camera_mode=pycolmap.CameraMode.SINGLE,
+            image_options=image_options,
+            verbose=verbose,
+        )
+        print("Refined", refined.summary())
+
+    else:
+        reconstruction.main(
+            sfm_dir,
+            image_dir,
+            sfm_pairs,
+            features,
+            matches,
+            camera_mode=pycolmap.CameraMode.SINGLE,
+            image_options=image_options,
+            verbose=verbose,
+        )

@@ -3,26 +3,8 @@ import { useControls, useStoreContext } from 'leva';
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
-
 import { Button } from '@mui/material';
-
-function get_normal_outputs(output_options) {
-  // Get a list of normal outputs from the Model
-  let normal_options = [];
-  if (output_options) {
-    // check which outputs have normals
-    for (let i = 0; i < output_options.length; i += 1) {
-      const output_name = output_options[i];
-      if (output_name.includes('normals')) {
-        normal_options.push(output_name);
-      }
-    }
-  }
-  if (normal_options.length === 0) {
-    normal_options = ['none'];
-  }
-  return normal_options;
-}
+import { get_normal_methods } from '../../../utils';
 
 export default function MeshSubPanel(props) {
   const update_box_center = props.update_box_center;
@@ -33,7 +15,7 @@ export default function MeshSubPanel(props) {
 
   // redux store state
   const config_base_dir = useSelector(
-    (state) => state.renderingState.config_base_dir,
+    (state) => state.file_path_info.config_base_dir,
   );
   const clippingEnabled = useSelector(
     (state) => state.renderingState.clipping_enabled,
@@ -47,7 +29,7 @@ export default function MeshSubPanel(props) {
   const output_options = useSelector(
     (state) => state.renderingState.output_options,
   );
-  const normal_options = get_normal_outputs(output_options);
+  const normal_options = get_normal_methods(output_options);
   const mesh_method_options = ['poisson', 'tsdf'];
 
   const config_filename = `${config_base_dir}/config.yml`;
@@ -64,8 +46,11 @@ export default function MeshSubPanel(props) {
       },
       normal_options: {
         label: 'Normal Options',
-        options: [...new Set(normal_options)],
-        value: normal_options[0],
+        options: [...normal_options],
+        value:
+          normal_options.values().next().value !== 'none'
+            ? normal_options.values().next().value
+            : 'open3d',
         render: (get) => get('mesh_method_options') === 'poisson',
       },
       numFaces: { label: 'Number of Faces', value: 50000, min: 1 },
@@ -132,9 +117,6 @@ export default function MeshSubPanel(props) {
     return boolean ? 'True' : 'False';
   };
 
-  console.log(controlValues.outputDir);
-  console.log(getPythonBool(controlValues.removeOutliers));
-
   const bbox_min = [
     clippingCenter[0] - clippingScale[0] / 2,
     clippingCenter[1] - clippingScale[1] / 2,
@@ -147,7 +129,6 @@ export default function MeshSubPanel(props) {
   ];
 
   const mesh_method_choice = controlValues.mesh_method_options;
-  console.log(mesh_method_choice);
   let cmd = '';
   if (mesh_method_choice === 'tsdf') {
     cmd =
@@ -166,8 +147,13 @@ export default function MeshSubPanel(props) {
       ` --output-dir ${controlValues.outputDir}` +
       ` --target-num-faces ${controlValues.numFaces}` +
       ` --num-pixels-per-side ${controlValues.textureResolution}` +
-      ` --normal-output-name ${controlValues.normal_options}` +
-      ` --num-points ${controlValues.numPoints}` +
+      ` --normal-method ${
+        controlValues.normal_options === 'open3d' ? 'open3d' : 'model_output'
+      }${
+        controlValues.normal_options !== 'open3d'
+          ? ` --normal-output-name ${controlValues.normal_options}`
+          : ''
+      } --num-points ${controlValues.numPoints}` +
       ` --remove-outliers ${getPythonBool(controlValues.removeOutliers)}` +
       ` --use-bounding-box ${getPythonBool(clippingEnabled)}` +
       ` --bounding-box-min ${bbox_min[0]} ${bbox_min[1]} ${bbox_min[2]}` +
@@ -192,7 +178,7 @@ export default function MeshSubPanel(props) {
     inner_html = (
       <div className="ExportModal-text">
         You need to train a model with normals to use poisson meshing. Try tsdf
-        or retrain the model with normals. You can use nerfacto with <br/>
+        or retrain the model with normals. You can use nerfacto with <br />
         <b>--pipeline.model.predict-normals True</b>
       </div>
     );

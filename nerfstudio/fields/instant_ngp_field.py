@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,34 +17,30 @@ Instant-NGP field implementations using tiny-cuda-nn, torch, ....
 """
 
 
-from typing import Optional
+from typing import Dict, Optional, Tuple
 
+import numpy as np
 import torch
-from nerfacc import ContractionType, contract
+from jaxtyping import Float
+from torch import Tensor
 from torch.nn.parameter import Parameter
-from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.embedding import Embedding
 from nerfstudio.field_components.field_heads import FieldHeadNames
-from nerfstudio.fields.base_field import Field
+from nerfstudio.field_components.spatial_distortions import (
+    SceneContraction,
+    SpatialDistortion,
+)
+from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
 
 try:
     import tinycudann as tcnn
-except ImportError:
+except ModuleNotFoundError:
     # tinycudann module doesn't exist
     pass
-
-
-def get_normalized_directions(directions: TensorType["bs":..., 3]):
-    """SH encoding must be in the range [0, 1]
-
-    Args:
-        directions: batch of directions
-    """
-    return (directions + 1.0) / 2.0
 
 
 class TCNNInstantNGPField(Field):
@@ -58,33 +54,36 @@ class TCNNInstantNGPField(Field):
         num_layers_color: number of hidden layers for color network
         hidden_dim_color: dimension of hidden layers for color network
         use_appearance_embedding: whether to use appearance embedding
-        num_images: number of images, requried if use_appearance_embedding is True
+        num_images: number of images, required if use_appearance_embedding is True
         appearance_embedding_dim: dimension of appearance embedding
         contraction_type: type of contraction
         num_levels: number of levels of the hashmap for the base mlp
         log2_hashmap_size: size of the hashmap for the base mlp
+        max_res: maximum resolution of the hashmap for the base mlp
+        mode: which implementation to use for the field
     """
 
     def __init__(
         self,
-        aabb,
+        aabb: Tensor,
         num_layers: int = 2,
         hidden_dim: int = 64,
         geo_feat_dim: int = 15,
         num_layers_color: int = 3,
         hidden_dim_color: int = 64,
-        use_appearance_embedding: bool = False,
+        use_appearance_embedding: Optional[bool] = False,
         num_images: Optional[int] = None,
         appearance_embedding_dim: int = 32,
-        contraction_type: ContractionType = ContractionType.UN_BOUNDED_SPHERE,
         num_levels: int = 16,
         log2_hashmap_size: int = 19,
+        max_res: int = 2048,
+        spatial_distortion: Optional[SpatialDistortion] = SceneContraction(),
     ) -> None:
         super().__init__()
 
         self.aabb = Parameter(aabb, requires_grad=False)
         self.geo_feat_dim = geo_feat_dim
-        self.contraction_type = contraction_type
+        self.spatial_distortion = spatial_distortion
 
         self.use_appearance_embedding = use_appearance_embedding
         if use_appearance_embedding:
@@ -93,7 +92,9 @@ class TCNNInstantNGPField(Field):
             self.appearance_embedding = Embedding(num_images, appearance_embedding_dim)
 
         # TODO: set this properly based on the aabb
-        per_level_scale = 1.4472692012786865
+        base_res: int = 16
+        features_per_level: int = 2
+        growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
         self.direction_encoding = tcnn.Encoding(
             n_input_dims=3,
@@ -109,10 +110,10 @@ class TCNNInstantNGPField(Field):
             encoding_config={
                 "otype": "HashGrid",
                 "n_levels": num_levels,
-                "n_features_per_level": 2,
+                "n_features_per_level": features_per_level,
                 "log2_hashmap_size": log2_hashmap_size,
-                "base_resolution": 16,
-                "per_level_scale": per_level_scale,
+                "base_resolution": base_res,
+                "per_level_scale": growth_factor,
             },
             network_config={
                 "otype": "FullyFusedMLP",
@@ -138,10 +139,17 @@ class TCNNInstantNGPField(Field):
             },
         )
 
-    def get_density(self, ray_samples: RaySamples):
-        positions = ray_samples.frustums.get_positions()
+    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
+        if self.spatial_distortion is not None:
+            positions = ray_samples.frustums.get_positions()
+            positions = self.spatial_distortion(positions)
+            positions = (positions + 2.0) / 4.0
+        else:
+            positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        # Make sure the tcnn gets inputs between 0 and 1.
+        selector = ((positions > 0.0) & (positions < 1.0)).all(dim=-1)
+        positions = positions * selector[..., None]
         positions_flat = positions.view(-1, 3)
-        positions_flat = contract(x=positions_flat, roi=self.aabb, type=self.contraction_type)
 
         h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
@@ -150,18 +158,18 @@ class TCNNInstantNGPField(Field):
         # softplus, because it enables high post-activation (float32) density outputs
         # from smaller internal (float16) parameters.
         density = trunc_exp(density_before_activation.to(positions))
+        density = density * selector[..., None]
         return density, base_mlp_out
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
-        directions = get_normalized_directions(ray_samples.frustums.directions)
+    def get_outputs(
+        self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None
+    ) -> Dict[FieldHeadNames, Tensor]:
+        assert density_embedding is not None
+        directions = shift_directions_for_tcnn(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
-
         d = self.direction_encoding(directions_flat)
-        if density_embedding is None:
-            positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
-            h = torch.cat([d, positions.view(-1, 3)], dim=-1)
-        else:
-            h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
+
+        h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
 
         if self.use_appearance_embedding:
             if ray_samples.camera_indices is None:
@@ -178,7 +186,7 @@ class TCNNInstantNGPField(Field):
         rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
         return {FieldHeadNames.RGB: rgb}
 
-    def get_opacity(self, positions: TensorType["bs":..., 3], step_size) -> TensorType["bs":..., 1]:
+    def get_opacity(self, positions: Float[Tensor, "*bs 3"], step_size) -> Float[Tensor, "*bs 1"]:
         """Returns the opacity for a position. Used primarily by the occupancy grid.
 
         Args:
@@ -186,20 +194,5 @@ class TCNNInstantNGPField(Field):
             step_size: the step size to use for the opacity evaluation.
         """
         density = self.density_fn(positions)
-        ## TODO: We should scale step size based on the distortion. Currently it uses too much memory.
-        # aabb_min, aabb_max = self.aabb[0], self.aabb[1]
-        # if self.contraction_type is not ContractionType.AABB:
-        #     x = (positions - aabb_min) / (aabb_max - aabb_min)
-        #     x = x * 2 - 1  # aabb is at [-1, 1]
-        #     mag = x.norm(dim=-1, keepdim=True)
-        #     mask = mag.squeeze(-1) > 1
-
-        #     dev = (2 * mag - 1) / mag**2 + 2 * x**2 * (1 / mag**3 - (2 * mag - 1) / mag**4)
-        #     dev[~mask] = 1.0
-        #     dev = torch.clamp(dev, min=1e-6)
-        #     step_size = step_size / dev.norm(dim=-1, keepdim=True)
-        # else:
-        #     step_size = step_size * (aabb_max - aabb_min)
-
         opacity = density * step_size
         return opacity

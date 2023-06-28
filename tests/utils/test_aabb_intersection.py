@@ -5,11 +5,11 @@ import importlib
 import math
 import os
 import random
-from distutils.util import strtobool
 
 import torch
 
 from nerfstudio.utils.math import intersect_aabb
+from nerfstudio.utils.misc import strtobool
 
 test_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -48,7 +48,7 @@ def _get_random_aabb_box(max_box, device):
 
 def _get_random_rays(num_rays, max_box, aabb, device):
     """
-    genrate random rays that distribute in the general direction of the box.
+    generate random rays that distribute in the general direction of the box.
     The implementation is naive for now.
     :param num_rays:
     :param max_box:
@@ -168,7 +168,11 @@ def test_equall_nerfacc():
         # time2 = time.time()
 
         # time3 = time.time()
-        t_min_nerfacc, t_max_nerfacc = nerfacc.ray_aabb_intersect(origins, directions, aabb)
+        t_min_nerfacc, t_max_nerfacc, _ = nerfacc.ray_aabb_intersect(
+            origins, directions, aabb[None, :], near_plane=0, far_plane=1e10, miss_value=1e10
+        )
+        t_max_nerfacc = t_max_nerfacc.squeeze(-1)
+        t_min_nerfacc = t_min_nerfacc.squeeze(-1)
         # time4 = time.time()
 
         # print("pytorch ", time2-time1)

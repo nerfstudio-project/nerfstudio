@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,10 +20,11 @@ import json
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Literal, Optional, Type
 
 import torch
-from torchtyping import TensorType
+from jaxtyping import Float
+from torch import Tensor
 
 import nerfstudio.configs.base_config as cfg
 from nerfstudio.cameras.cameras import Cameras
@@ -39,7 +40,7 @@ class Semantics:
     """filenames to load semantic data"""
     classes: List[str]
     """class labels for data"""
-    colors: torch.Tensor
+    colors: Tensor
     """color mapping for classes"""
     mask_classes: List[str] = field(default_factory=lambda: [])
     """classes to mask out from training for all modalities"""
@@ -54,9 +55,9 @@ class DataparserOutputs:
     """Filenames for the images."""
     cameras: Cameras
     """Camera object storing collection of camera information in dataset."""
-    alpha_color: Optional[TensorType[3]] = None
+    alpha_color: Optional[Float[Tensor, "3"]] = None
     """Color of dataset background."""
-    scene_box: SceneBox = SceneBox()
+    scene_box: SceneBox = SceneBox(aabb=torch.tensor([[-1, -1, -1], [1, 1, 1]]))
     """Scene box of dataset. Used to bound the scene or provide the scene scale depending on model."""
     mask_filenames: Optional[List[Path]] = None
     """Filenames for any masks that are required"""
@@ -64,7 +65,7 @@ class DataparserOutputs:
     """Dictionary of any metadata that be required for the given experiment.
     Will be processed by the InputDataset to create any additional tensors that may be required.
     """
-    dataparser_transform: TensorType[3, 4] = torch.eye(4)[:3, :]
+    dataparser_transform: Float[Tensor, "3 4"] = torch.eye(4)[:3, :]
     """Transform applied by the dataparser."""
     dataparser_scale: float = 1.0
     """Scale applied by the dataparser."""
@@ -89,6 +90,26 @@ class DataparserOutputs:
         with open(path, "w", encoding="UTF-8") as file:
             json.dump(data, file, indent=4)
 
+    def transform_poses_to_original_space(
+        self,
+        poses: Float[Tensor, "num_poses 3 4"],
+        camera_convention: Literal["opengl", "opencv"] = "opencv",
+    ) -> Float[Tensor, "num_poses 3 4"]:
+        """
+        Transforms the poses in the transformed space back to the original world coordinate system.
+        Args:
+            poses: Poses in the transformed space
+            camera_convention: Camera system convention used for the transformed poses
+        Returns:
+            Original poses
+        """
+        return transform_poses_to_original_space(
+            poses,
+            self.dataparser_transform,
+            self.dataparser_scale,
+            camera_convention=camera_convention,
+        )
+
 
 @dataclass
 class DataParserConfig(cfg.InstantiateConfig):
@@ -106,33 +127,83 @@ class DataParser:
 
     Args:
         config: datasetparser config containing all information needed to instantiate dataset
+
+    Attributes:
+        config: datasetparser config containing all information needed to instantiate dataset
+        includes_time: Does the dataset include time information in the camera poses.
     """
 
     config: DataParserConfig
+    includes_time: bool = False
 
     def __init__(self, config: DataParserConfig):
         super().__init__()
         self.config = config
 
     @abstractmethod
-    def _generate_dataparser_outputs(self, split: str = "train") -> DataparserOutputs:
+    def _generate_dataparser_outputs(self, split: str = "train", **kwargs: Optional[Dict]) -> DataparserOutputs:
         """Abstract method that returns the dataparser outputs for the given split.
 
         Args:
             split: Which dataset split to generate (train/test).
+            kwargs: kwargs for generating dataparser outputs.
 
         Returns:
             DataparserOutputs containing data for the specified dataset and split
         """
 
-    def get_dataparser_outputs(self, split: str = "train") -> DataparserOutputs:
+    def get_dataparser_outputs(self, split: str = "train", **kwargs: Optional[Dict]) -> DataparserOutputs:
         """Returns the dataparser outputs for the given split.
 
         Args:
             split: Which dataset split to generate (train/test).
+            kwargs: kwargs for generating dataparser outputs.
 
         Returns:
             DataparserOutputs containing data for the specified dataset and split
         """
-        dataparser_outputs = self._generate_dataparser_outputs(split)
+        dataparser_outputs = self._generate_dataparser_outputs(split, **kwargs)
         return dataparser_outputs
+
+
+def transform_poses_to_original_space(
+    poses: Float[Tensor, "num_poses 3 4"],
+    applied_transform: Float[Tensor, "3 4"],
+    applied_scale: float,
+    camera_convention: Literal["opengl", "opencv"] = "opencv",
+) -> Float[Tensor, "num_poses 3 4"]:
+    """
+    Transforms the poses in the transformed space back to the original world coordinate system.
+    Args:
+        poses: Poses in the transformed space
+        applied_transform: Transform matrix applied in the data processing step
+        applied_scale: Scale used in the data processing step
+        camera_convention: Camera system convention used for the transformed poses
+    Returns:
+        Original poses
+    """
+    output_poses = torch.cat(
+        (
+            poses,
+            torch.tensor([[[0, 0, 0, 1]]], dtype=poses.dtype, device=poses.device).repeat_interleave(len(poses), 0),
+        ),
+        1,
+    )
+    output_poses[..., :3, 3] /= applied_scale
+    inv_transform = torch.linalg.inv(
+        torch.cat(
+            (
+                applied_transform,
+                torch.tensor([[0, 0, 0, 1]], dtype=applied_transform.dtype, device=applied_transform.device),
+            ),
+            0,
+        )
+    )
+    output_poses = torch.einsum("ij,bjk->bik", inv_transform, output_poses)
+    if camera_convention == "opencv":
+        output_poses[..., 0:3, 1:3] *= -1
+    elif camera_convention == "opengl":
+        pass
+    else:
+        raise ValueError(f"Camera convention {camera_convention} is not supported.")
+    return output_poses[:, :3]

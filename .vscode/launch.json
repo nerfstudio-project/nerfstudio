@@ -30,7 +30,7 @@
       "name": "Python: train",
       "type": "python",
       "request": "launch",
-      "program": "scripts/train.py",
+      "program": "nerfstudio/scripts/train.py",
       "console": "integratedTerminal",
       "args": [
         "instant_ngp",
@@ -42,7 +42,7 @@
       "name": "Python: train ngp",
       "type": "python",
       "request": "launch",
-      "program": "scripts/train.py",
+      "program": "nerfstudio/scripts/train.py",
       "console": "integratedTerminal",
       "args": ["instant_ngp"]
     },
@@ -50,7 +50,7 @@
       "name": "Python: train ngp nerfstudio",
       "type": "python",
       "request": "launch",
-      "program": "scripts/train.py",
+      "program": "nerfstudio/scripts/train.py",
       "console": "integratedTerminal",
       "args": [
         "instant_ngp",
@@ -70,7 +70,7 @@
       "name": "Python: train ngp-friends",
       "type": "python",
       "request": "launch",
-      "program": "scripts/train.py",
+      "program": "nerfstudio/scripts/train.py",
       "console": "integratedTerminal",
       "args": [
         "instant_ngp",
@@ -89,9 +89,65 @@
       "name": "Python: train semantic_nerfw",
       "type": "python",
       "request": "launch",
-      "program": "scripts/train.py",
+      "program": "nerfstudio/scripts/train.py",
       "console": "integratedTerminal",
       "args": ["semantic_nerf"]
+    },
+    {
+      "name": "Python: NeuS on Replica",
+      "type": "python",
+      "request": "launch",
+      "program": "nerfstudio/scripts/train.py",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": { "CUDA_VISIBLE_DEVICES": "0" },
+      "args": [
+        "neus",
+        "--pipeline.model.sdf-field.inside-outside=True",
+        "--pipeline.model.mono-depth-loss-mult=0.1",
+        "--pipeline.model.mono-normal-loss-mult=0.05",
+        "--vis=wandb",
+        "sdfstudio-data",
+        "--data=data/sdfstudio-demo-data/replica-room0",
+        "--include_mono_prior=True"
+      ]
+    },
+    {
+      "name": "Python: NeuS-facto on Replica",
+      "type": "python",
+      "request": "launch",
+      "program": "nerfstudio/scripts/train.py",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": { "CUDA_VISIBLE_DEVICES": "0" },
+      "args": [
+        "neus-facto",
+        "--pipeline.model.sdf-field.inside-outside=True",
+        "--pipeline.model.mono-depth-loss-mult=0.1",
+        "--pipeline.model.mono-normal-loss-mult=0.05",
+        "--vis=wandb",
+        "sdfstudio-data",
+        "--data=data/sdfstudio-demo-data/replica-room0",
+        "--include_mono_prior=True"
+      ]
+    },
+    {
+      "name": "Python: NeuS-facto on DTU (no mono-prior)",
+      "type": "python",
+      "request": "launch",
+      "program": "nerfstudio/scripts/train.py",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": { "CUDA_VISIBLE_DEVICES": "0" },
+      "args": [
+        "neus-facto",
+        "--pipeline.model.sdf-field.inside-outside=False",
+        "--vis=wandb",
+        "sdfstudio-data",
+        "--data=data/sdfstudio-demo-data/dtu-scan65",
+        "--include_mono_prior=False",
+        "--auto-orient=True"
+      ]
     }
   ]
 }

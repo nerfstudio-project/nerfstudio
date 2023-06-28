@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,8 @@ from nerfstudio.model_components.renderers import (
     DepthRenderer,
     RGBRenderer,
 )
-from nerfstudio.models.base_model import Model, ModelConfig
+from nerfstudio.models.base_model import Model
+from nerfstudio.models.vanilla_nerf import VanillaModelConfig
 from nerfstudio.utils import colormaps, colors, misc
 
 
@@ -47,13 +48,17 @@ class MipNerfModel(Model):
         config: MipNerf configuration to instantiate model
     """
 
+    config: VanillaModelConfig
+
     def __init__(
         self,
-        config: ModelConfig,
+        config: VanillaModelConfig,
         **kwargs,
     ) -> None:
         self.field = None
+        assert config.collider_params is not None, "MipNeRF model requires bounding box collider parameters."
         super().__init__(config=config, **kwargs)
+        assert self.config.collider_params is not None, "mip-NeRF requires collider parameters to be set."
 
     def populate_modules(self):
         """Set the fields and modules"""
@@ -86,7 +91,7 @@ class MipNerfModel(Model):
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
-        self.lpips = LearnedPerceptualImagePatchSimilarity()
+        self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
@@ -96,7 +101,6 @@ class MipNerfModel(Model):
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
-
         if self.field is None:
             raise ValueError("populate_fields() must be called before get_outputs")
 
@@ -147,11 +151,14 @@ class MipNerfModel(Model):
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
+        assert self.config.collider_params is not None, "mip-NeRF requires collider parameters to be set."
         image = batch["image"].to(outputs["rgb_coarse"].device)
         rgb_coarse = outputs["rgb_coarse"]
         rgb_fine = outputs["rgb_fine"]
         acc_coarse = colormaps.apply_colormap(outputs["accumulation_coarse"])
         acc_fine = colormaps.apply_colormap(outputs["accumulation_fine"])
+
+        assert self.config.collider_params is not None
         depth_coarse = colormaps.apply_depth_colormap(
             outputs["depth_coarse"],
             accumulation=outputs["accumulation_coarse"],
@@ -173,14 +180,15 @@ class MipNerfModel(Model):
         image = torch.moveaxis(image, -1, 0)[None, ...]
         rgb_coarse = torch.moveaxis(rgb_coarse, -1, 0)[None, ...]
         rgb_fine = torch.moveaxis(rgb_fine, -1, 0)[None, ...]
-        rgb_coarse = torch.clip(rgb_coarse, min=-1, max=1)
-        rgb_fine = torch.clip(rgb_fine, min=-1, max=1)
+        rgb_coarse = torch.clip(rgb_coarse, min=0, max=1)
+        rgb_fine = torch.clip(rgb_fine, min=0, max=1)
 
         coarse_psnr = self.psnr(image, rgb_coarse)
         fine_psnr = self.psnr(image, rgb_fine)
         fine_ssim = self.ssim(image, rgb_fine)
         fine_lpips = self.lpips(image, rgb_fine)
 
+        assert isinstance(fine_ssim, torch.Tensor)
         metrics_dict = {
             "psnr": float(fine_psnr.item()),
             "coarse_psnr": float(coarse_psnr.item()),

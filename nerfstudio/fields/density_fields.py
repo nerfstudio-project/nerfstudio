@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,24 +17,18 @@ Proposal network field.
 """
 
 
-from typing import Optional
+from typing import Literal, Optional, Tuple
 
-import numpy as np
 import torch
-from torch.nn.parameter import Parameter
-from torchtyping import TensorType
+from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
+from nerfstudio.field_components.encodings import HashEncoding
+from nerfstudio.field_components.mlp import MLP
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.base_field import Field
-
-try:
-    import tinycudann as tcnn
-except ImportError:
-    # tinycudann module doesn't exist
-    pass
 
 
 class HashMLPDensityField(Field):
@@ -48,60 +42,63 @@ class HashMLPDensityField(Field):
         use_linear: whether to skip the MLP and use a single linear layer instead
     """
 
+    aabb: Tensor
+
     def __init__(
         self,
-        aabb,
+        aabb: Tensor,
         num_layers: int = 2,
         hidden_dim: int = 64,
         spatial_distortion: Optional[SpatialDistortion] = None,
-        use_linear=False,
-        num_levels=8,
-        max_res=1024,
-        base_res=16,
-        log2_hashmap_size=18,
-        features_per_level=2,
+        use_linear: bool = False,
+        num_levels: int = 8,
+        max_res: int = 1024,
+        base_res: int = 16,
+        log2_hashmap_size: int = 18,
+        features_per_level: int = 2,
+        implementation: Literal["tcnn", "torch"] = "torch",
     ) -> None:
         super().__init__()
-        self.aabb = Parameter(aabb, requires_grad=False)
+        self.register_buffer("aabb", aabb)
         self.spatial_distortion = spatial_distortion
         self.use_linear = use_linear
-        growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
-        config = {
-            "encoding": {
-                "otype": "HashGrid",
-                "n_levels": num_levels,
-                "n_features_per_level": features_per_level,
-                "log2_hashmap_size": log2_hashmap_size,
-                "base_resolution": base_res,
-                "per_level_scale": growth_factor,
-            },
-            "network": {
-                "otype": "FullyFusedMLP",
-                "activation": "ReLU",
-                "output_activation": "None",
-                "n_neurons": hidden_dim,
-                "n_hidden_layers": num_layers - 1,
-            },
-        }
+        self.register_buffer("max_res", torch.tensor(max_res))
+        self.register_buffer("num_levels", torch.tensor(num_levels))
+        self.register_buffer("log2_hashmap_size", torch.tensor(log2_hashmap_size))
+
+        self.encoding = HashEncoding(
+            num_levels=num_levels,
+            min_res=base_res,
+            max_res=max_res,
+            log2_hashmap_size=log2_hashmap_size,
+            features_per_level=features_per_level,
+            implementation=implementation,
+        )
 
         if not self.use_linear:
-            self.mlp_base = tcnn.NetworkWithInputEncoding(
-                n_input_dims=3,
-                n_output_dims=1,
-                encoding_config=config["encoding"],
-                network_config=config["network"],
+            network = MLP(
+                in_dim=self.encoding.get_out_dim(),
+                num_layers=num_layers,
+                layer_width=hidden_dim,
+                out_dim=1,
+                activation=nn.ReLU(),
+                out_activation=None,
+                implementation=implementation,
             )
+            self.mlp_base = torch.nn.Sequential(self.encoding, network)
         else:
-            self.encoding = tcnn.Encoding(n_input_dims=3, encoding_config=config["encoding"])
-            self.linear = torch.nn.Linear(self.encoding.n_output_dims, 1)
+            self.linear = torch.nn.Linear(self.encoding.get_out_dim(), 1)
 
-    def get_density(self, ray_samples: RaySamples):
+    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, None]:
         if self.spatial_distortion is not None:
             positions = self.spatial_distortion(ray_samples.frustums.get_positions())
             positions = (positions + 2.0) / 4.0
         else:
             positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        # Make sure the tcnn gets inputs between 0 and 1.
+        selector = ((positions > 0.0) & (positions < 1.0)).all(dim=-1)
+        positions = positions * selector[..., None]
         positions_flat = positions.view(-1, 3)
         if not self.use_linear:
             density_before_activation = (
@@ -115,7 +112,8 @@ class HashMLPDensityField(Field):
         # softplus, because it enables high post-activation (float32) density outputs
         # from smaller internal (float16) parameters.
         density = trunc_exp(density_before_activation)
+        density = density * selector[..., None]
         return density, None
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
+    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None) -> dict:
         return {}
