@@ -4,11 +4,62 @@
     "service": "nerfstudio",
     "workspaceFolder": "/workspace",
     "shutdownAction": "stopCompose",
-    "extensions": [
-        "mutantdino.resourcemonitor",
-        "ms-azuretools.vscode-docker",
-        "nvidia.nsight-vscode-edition",
-        "ms-python.python",
-        "charliermarsh.ruff"
-    ]
+	// Use this environment variable if you need to bind mount your local source code into a new container.
+	"remoteEnv": {
+		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+		},
+		// Configure tool-specific properties.
+		"customizations": {
+			// Configure properties specific to VS Code.
+			"vscode": {
+				// Set *default* container specific settings.json values on container create.
+				"settings": { 
+					"python.defaultInterpreterPath": "/usr/local/bin/python",
+					"python.linting.enabled": true,
+					"python.linting.pylintEnabled": false,
+					"python.formatting.autopep8Path": "/usr/local/py-utils/bin/autopep8",
+					"python.formatting.blackPath": "/usr/local/py-utils/bin/black",
+					"python.formatting.yapfPath": "/usr/local/py-utils/bin/yapf",
+					"python.linting.banditPath": "/usr/local/py-utils/bin/bandit",
+					"python.linting.flake8Path": "/usr/local/py-utils/bin/flake8",
+					"python.linting.mypyPath": "/usr/local/py-utils/bin/mypy",
+					"python.linting.pycodestylePath": "/usr/local/py-utils/bin/pycodestyle",
+					"python.linting.pydocstylePath": "/usr/local/py-utils/bin/pydocstyle",
+					"python.linting.pylintPath": "/usr/local/py-utils/bin/pylint",
+					"python.analysis.extraPaths": [
+						"/workspace",
+						"/workspace/src"
+					]
+					// Modify PYTHONPATH to add current folder
+					//"terminal.integrated.env.linux": {"PYTHONPATH": "${workspaceFolder}, ${workspaceFolder}/src"}
+				},
+				
+				// Add the IDs of extensions you want installed when the container is created.
+				"extensions": [
+					"ms-azuretools.vscode-docker",
+					"ms-python.python",
+					"ms-python.vscode-pylance",
+					"GitHub.copilot-nightly",
+					"GitHub.copilot-labs",
+					"GitHub.vscode-pull-request-github",
+					"njpwerner.autodocstring",
+					"ms-vsliveshare.vsliveshare",
+					"ms-toolsai.jupyter",
+					"charliermarsh.ruff",
+					"mohsen1.prettify-json",
+					"mutantdino.resourcemonitor",
+					"nvidia.nsight-vscode-edition"
+				]
+			}
+		},
+ 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand":  "git config --global --add user.email ${localEnv:GIT_AUTHOR_EMAIL} && git config --global --add user.name ${localEnv:GIT_AUTHOR_NAME}"
+
+	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+	// "remoteUser": "root",  
+  
+  
 }
