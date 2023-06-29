@@ -58,8 +58,8 @@ import torch.multiprocessing as mp
 import tyro
 import yaml
 
+from nerfstudio.configs.annotated_types import AnnotatedBaseConfigUnion
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
-from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.utils import comms, profiler
 from nerfstudio.utils.rich_utils import CONSOLE

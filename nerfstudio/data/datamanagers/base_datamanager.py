@@ -21,12 +21,13 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
-from pathlib import Path
 from functools import cached_property
+from pathlib import Path
 from typing import (
     Any,
     Callable,
     Dict,
+    ForwardRef,
     Generic,
     List,
     Literal,
@@ -35,9 +36,8 @@ from typing import (
     Type,
     Union,
     cast,
-    ForwardRef,
-    get_origin,
     get_args,
+    get_origin,
 )
 
 import torch
@@ -50,26 +50,16 @@ from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
-from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
-from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
+from nerfstudio.data.dataparsers.base_dataparser import DataParserConfig, DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.pixel_samplers import (
-    EquirectangularPixelSampler,
-    PatchPixelSampler,
-    PixelSampler,
-)
-from nerfstudio.data.utils.dataloaders import (
-    CacheDataloader,
-    FixedIndicesEvalDataloader,
-    RandIndicesEvalDataloader,
-)
+from nerfstudio.data.pixel_samplers import EquirectangularPixelSampler, PatchPixelSampler, PixelSampler
+from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
-from nerfstudio.utils.misc import IterableWrapper
+from nerfstudio.utils.misc import IterableWrapper, get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
-from nerfstudio.utils.misc import get_orig_class
 
 
 def variable_res_collate(batch: List[Dict]) -> Dict:
@@ -317,7 +307,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
 
     _target: Type = field(default_factory=lambda: VanillaDataManager)
     """Target class to instantiate."""
-    dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
+    dataparser: DataParserConfig = BlenderDataParserConfig()
     """Specifies the dataparser used to unpack the data."""
     train_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per training iteration."""
