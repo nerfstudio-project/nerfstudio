@@ -53,9 +53,40 @@ def sort_methods(methods, method_descriptions):
     return methods, method_descriptions
 
 
+def to_snake_case(name: str) -> str:
+    """Convert a name to snake case."""
+    return "".join(["_" + c.lower() if c.isupper() else c for c in name]).lstrip("_")
+
+
 # DataParsers
 external_dataparsers, _external_dataparsers_help = discover_dataparsers()
 all_dataparsers = {**dataparser_configs, **external_dataparsers}
+
+# Methods
+all_methods, all_descriptions = method_configs, method_descriptions
+# Add discovered external methods
+discovered_methods, discovered_descriptions = discover_methods()
+all_methods, all_descriptions = merge_methods(
+    all_methods, all_descriptions, discovered_methods, discovered_descriptions
+)
+all_methods, all_descriptions = sort_methods(all_methods, all_descriptions)
+
+# Register all possible external methods which can be installed with Nerfstudio
+all_methods, all_descriptions = merge_methods(
+    all_methods, all_descriptions, *sort_methods(*get_external_methods()), overwrite=False
+)
+
+# We also register all external dataparsers found in the external methods
+_registered_dataparsers = set(map(type, all_dataparsers.values()))
+for method_name, method in discovered_methods.items():
+    if (
+        hasattr(method.pipeline.datamanager, "dataparser")
+        and type(method.pipeline.datamanager.dataparser) not in _registered_dataparsers
+    ):
+        name = (
+            method_name + "-" + to_snake_case(type(method.pipeline.datamanager.dataparser).__name__).replace("_", "-")
+        )
+        all_dataparsers[name] = method.pipeline.datamanager.dataparser
 
 if TYPE_CHECKING:
     # For static analysis (tab completion, type checking, etc), just use the base
@@ -117,15 +148,6 @@ def fix_method_dataparser_type(method_config: TrainerConfig):
     return method_config
 
 
-all_methods, all_descriptions = method_configs, method_descriptions
-# Add discovered external methods
-all_methods, all_descriptions = merge_methods(all_methods, all_descriptions, *discover_methods())
-all_methods, all_descriptions = sort_methods(all_methods, all_descriptions)
-
-# Register all possible external methods which can be installed with Nerfstudio
-all_methods, all_descriptions = merge_methods(
-    all_methods, all_descriptions, *sort_methods(*get_external_methods()), overwrite=False
-)
 for key, method in all_methods.items():
     all_methods[key] = fix_method_dataparser_type(method)
 
