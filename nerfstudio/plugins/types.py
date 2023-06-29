@@ -16,6 +16,7 @@
 This package contains specifications used to register plugins.
 """
 from dataclasses import dataclass
+from typing import Optional
 
 from nerfstudio.data.dataparsers.base_dataparser import DataParserConfig
 from nerfstudio.engine.trainer import TrainerConfig
@@ -43,5 +44,5 @@ class DataParserSpecification:
 
     config: DataParserConfig
     """DataParser configuration"""
-    description: str
+    description: Optional[str] = None
     """DataParser description shown in `ns-train` help"""
