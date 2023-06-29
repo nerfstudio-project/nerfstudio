@@ -98,14 +98,14 @@ class TensoRFField(Field):
         rgb_features = self.color_encoding(positions)
         rgb_features = self.B(rgb_features)
 
-        d_encoded = self.direction_encoding(d)
-        rgb_features_encoded = self.feature_encoding(rgb_features)
-
         if self.use_sh:
             sh_mult = self.sh(d)[:, :, None]
             rgb_sh = rgb_features.view(sh_mult.shape[0], sh_mult.shape[1], 3, sh_mult.shape[-1])
             rgb = torch.relu(torch.sum(sh_mult * rgb_sh, dim=-1) + 0.5)
         else:
+            d_encoded = self.direction_encoding(d)
+            rgb_features_encoded = self.feature_encoding(rgb_features)
+
             out = self.mlp_head(torch.cat([rgb_features, d, rgb_features_encoded, d_encoded], dim=-1))  # type: ignore
             rgb = self.field_output_rgb(out)
 
