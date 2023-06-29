@@ -79,14 +79,12 @@ all_methods, all_descriptions = merge_methods(
 # We also register all external dataparsers found in the external methods
 _registered_dataparsers = set(map(type, all_dataparsers.values()))
 for method_name, method in discovered_methods.items():
-    if (
-        hasattr(method.pipeline.datamanager, "dataparser")
-        and type(method.pipeline.datamanager.dataparser) not in _registered_dataparsers
-    ):
-        name = (
-            method_name + "-" + to_snake_case(type(method.pipeline.datamanager.dataparser).__name__).replace("_", "-")
-        )
-        all_dataparsers[name] = method.pipeline.datamanager.dataparser
+    if not hasattr(method.pipeline.datamanager, "dataparser"):
+        continue
+    dataparser = method.pipeline.datamanager.dataparser  # type: ignore
+    if type(dataparser) not in _registered_dataparsers:
+        name = method_name + "-" + to_snake_case(type(dataparser).__name__).replace("_", "-")
+        all_dataparsers[name] = dataparser
 
 if TYPE_CHECKING:
     # For static analysis (tab completion, type checking, etc), just use the base
