@@ -21,8 +21,9 @@ import os
 import sys
 import typing as t
 
+from nerfstudio.data.dataparsers.base_dataparser import DataParserConfig
 from nerfstudio.engine.trainer import TrainerConfig
-from nerfstudio.plugins.types import MethodSpecification
+from nerfstudio.plugins.types import DataParserSpecification, MethodSpecification
 from nerfstudio.utils.rich_utils import CONSOLE
 
 if sys.version_info < (3, 10):
@@ -68,3 +69,44 @@ def discover_methods() -> t.Tuple[t.Dict[str, TrainerConfig], t.Dict[str, str]]:
             CONSOLE.print("[bold red]Error: Could not load methods from environment variable NERFSTUDIO_METHOD_CONFIGS")
 
     return methods, descriptions
+
+
+def discover_dataparsers() -> t.Tuple[t.Dict[str, DataParserConfig], t.Dict[str, str]]:
+    """
+    Discovers all DataParsers registered using the `nerfstudio.dataparser_configs` entrypoint.
+    And also DataParsers in the NERFSTUDIO_DATAPARSER_CONFIGS environment variable.
+    """
+    configs = {}
+    descriptions = {}
+    discovered_entry_points = entry_points(group="nerfstudio.dataparser_configs")
+    for name in discovered_entry_points.names:
+        spec = discovered_entry_points[name].load()
+        if not isinstance(spec, DataParserSpecification):
+            CONSOLE.print(
+                f"[bold yellow]Warning: Could not entry point {spec} as it is not an instance of DataParserSpecification"
+            )
+            continue
+        spec = t.cast(DataParserSpecification, spec)
+        configs[name] = spec.config
+        descriptions[name] = spec.description
+
+    if "NERFSTUDIO_DATAPARSER_CONFIGS" in os.environ:
+        try:
+            strings = os.environ["NERFSTUDIO_DATAPARSER_CONFIGS"].split(",")
+            for definition in strings:
+                if not definition:
+                    continue
+                name, path = definition.split("=")
+                CONSOLE.print(f"[bold green]Info: Loading method {name} from environment variable")
+                module, config_name = path.split(":")
+                dataparser_config = getattr(importlib.import_module(module), config_name)
+                assert isinstance(dataparser_config, DataParserSpecification)
+                configs[name] = dataparser_config.config
+                descriptions[name] = dataparser_config.description
+        except Exception:
+            CONSOLE.print_exception()
+            CONSOLE.print(
+                "[bold red]Error: Could not load methods from environment variable NERFSTUDIO_DATAPARSER_CONFIGS"
+            )
+
+    return configs, descriptions

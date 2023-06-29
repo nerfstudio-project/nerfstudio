@@ -17,6 +17,7 @@ This package contains specifications used to register plugins.
 """
 from dataclasses import dataclass
 
+from nerfstudio.data.dataparsers.base_dataparser import DataParserConfig
 from nerfstudio.engine.trainer import TrainerConfig
 
 
@@ -31,3 +32,16 @@ class MethodSpecification:
     """Trainer configuration"""
     description: str
     """Method description shown in `ns-train` help"""
+
+
+@dataclass
+class DataParserSpecification:
+    """
+    DataParser specification class used to register custom dataparsers with Nerfstudio.
+    The registered dataparsers will be available in commands such as `ns-train`
+    """
+
+    config: DataParserConfig
+    """DataParser configuration"""
+    description: str
+    """DataParser description shown in `ns-train` help"""
