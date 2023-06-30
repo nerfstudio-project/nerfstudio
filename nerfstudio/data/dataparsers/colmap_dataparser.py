@@ -174,7 +174,6 @@ class ColmapDataParser(DataParser):
             split_filenames = set(self.config.images_path / x for x in filenames)
             unmatched_filenames = split_filenames.difference(image_filenames)
             if unmatched_filenames:
-                breakpoint()
                 raise RuntimeError(
                     f"Some filenames for split {split} were not found: {set(map(str, unmatched_filenames))}."
                 )
