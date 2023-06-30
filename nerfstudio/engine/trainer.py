@@ -33,24 +33,17 @@ from rich.table import Table
 from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.configs.experiment_config import ExperimentConfig
-from nerfstudio.engine.callbacks import (
-    TrainingCallback,
-    TrainingCallbackAttributes,
-    TrainingCallbackLocation,
-)
+from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
+from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline
 from nerfstudio.utils import profiler, writer
-from nerfstudio.utils.decorators import (
-    check_eval_enabled,
-    check_main_thread,
-    check_viewer_enabled,
-)
+from nerfstudio.utils.decorators import check_eval_enabled, check_main_thread, check_viewer_enabled
 from nerfstudio.utils.misc import step_check
 from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server.viewer_state import ViewerState
-from nerfstudio.viewer_beta.viewer_state import ViewerState as ViewerBetaState
+from nerfstudio.viewer_beta.viewer import Viewer as ViewerBetaState
 
 TRAIN_INTERATION_OUTPUT = Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
 TORCH_DEVICE = str
@@ -89,6 +82,8 @@ class TrainerConfig(ExperimentConfig):
     """Path to checkpoint file."""
     log_gradients: bool = False
     """Optionally log gradients during training"""
+    gradient_accumulation_steps: int = 1
+    """Number of steps to accumulate gradients over."""
 
 
 class Trainer:
@@ -119,10 +114,13 @@ class Trainer:
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size
-        self.device: TORCH_DEVICE = "cpu" if world_size == 0 else f"cuda:{local_rank}"
+        self.device: TORCH_DEVICE = config.machine.device_type
+        if self.device == "cuda":
+            self.device += f":{local_rank}"
         self.mixed_precision: bool = self.config.mixed_precision
         self.use_grad_scaler: bool = self.mixed_precision or self.config.use_grad_scaler
         self.training_state: Literal["training", "paused", "completed"] = "training"
+        self.gradient_accumulation_steps: int = self.config.gradient_accumulation_steps
 
         if self.device == "cpu":
             self.mixed_precision = False
@@ -148,7 +146,11 @@ class Trainer:
                 'inference': does not load any dataset into memory
         """
         self.pipeline = self.config.pipeline.setup(
-            device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
+            device=self.device,
+            test_mode=test_mode,
+            world_size=self.world_size,
+            local_rank=self.local_rank,
+            grad_scaler=self.grad_scaler,
         )
         self.optimizers = self.setup_optimizers()
 
@@ -226,9 +228,11 @@ class Trainer:
         """Train the model."""
         assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
 
-        self.pipeline.datamanager.train_dataparser_outputs.save_dataparser_transform(
-            self.base_dir / "dataparser_transforms.json"
-        )
+        # don't want to call save_dataparser_transform if pipeline's datamanager does not have a dataparser
+        if isinstance(self.pipeline.datamanager, VanillaDataManager):
+            self.pipeline.datamanager.train_dataparser_outputs.save_dataparser_transform(
+                self.base_dir / "dataparser_transforms.json"
+            )
 
         self._init_viewer_state()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
@@ -456,11 +460,15 @@ class Trainer:
 
         self.optimizers.zero_grad_all()
         cpu_or_cuda_str: str = self.device.split(":")[0]
-
-        with torch.autocast(device_type=cpu_or_cuda_str, enabled=self.mixed_precision):
-            _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
-            loss = functools.reduce(torch.add, loss_dict.values())
-        self.grad_scaler.scale(loss).backward()  # type: ignore
+        assert (
+            self.gradient_accumulation_steps > 0
+        ), f"gradient_accumulation_steps must be > 0, not {self.gradient_accumulation_steps}"
+        for _ in range(self.gradient_accumulation_steps):
+            with torch.autocast(device_type=cpu_or_cuda_str, enabled=self.mixed_precision):
+                _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
+                loss = functools.reduce(torch.add, loss_dict.values())
+                loss /= self.gradient_accumulation_steps
+            self.grad_scaler.scale(loss).backward()  # type: ignore
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
 
         if self.config.log_gradients:
@@ -469,10 +477,10 @@ class Trainer:
                 assert tag != "Total"
                 if value.grad is not None:
                     grad = value.grad.norm()
-                    metrics_dict[f"Gradients/{tag}"] = grad
+                    metrics_dict[f"Gradients/{tag}"] = grad  # type: ignore
                     total_grad += grad
 
-            metrics_dict["Gradients/Total"] = cast(torch.Tensor, total_grad)
+            metrics_dict["Gradients/Total"] = cast(torch.Tensor, total_grad)  # type: ignore
 
         scale = self.grad_scaler.get_scale()
         self.grad_scaler.update()
@@ -481,7 +489,7 @@ class Trainer:
             self.optimizers.scheduler_step_all(step)
 
         # Merging loss and metrics dict into a single output.
-        return loss, loss_dict, metrics_dict
+        return loss, loss_dict, metrics_dict  # type: ignore
 
     @check_eval_enabled
     @profiler.time_function

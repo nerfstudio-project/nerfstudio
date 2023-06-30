@@ -12,20 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""init cuda functions"""
-from typing import Callable
+"""Utility helper functions for diffusion models"""
+
+import sys
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
-def _make_lazy_cuda_func(name: str) -> Callable:
-    """_make_lazy_cuda_func from nerfacc.cuda"""
+class CatchMissingPackages:
+    """Class to catch missing environment packages related to diffusion models."""
 
-    def call_cuda(*args, **kwargs):
-        from ._backend import _C
+    def __init__(self):
+        pass
 
-        return getattr(_C, name)(*args, **kwargs)
+    def __call__(self, *args, **kwargs):
+        CONSOLE.print("[bold red]Missing Stable Diffusion packages.")
+        CONSOLE.print(r"Install using [yellow]pip install nerfstudio\[gen][/yellow]")
+        CONSOLE.print(r"or [yellow]pip install -e .\[gen][/yellow] if installing from source.")
+        sys.exit(1)
 
-    return call_cuda
-
-
-temporal_grid_encode_forward = _make_lazy_cuda_func("temporal_grid_encode_forward")
-temporal_grid_encode_backward = _make_lazy_cuda_func("temporal_grid_encode_backward")
+    def __getattr__(self, attr):
+        return self.__call__

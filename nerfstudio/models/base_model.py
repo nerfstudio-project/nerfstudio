@@ -21,7 +21,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import torch
 from torch import nn
@@ -50,6 +50,8 @@ class ModelConfig(InstantiateConfig):
     """parameters to instantiate density field with"""
     eval_num_rays_per_chunk: int = 4096
     """specifies number of rays per chunk during eval"""
+    prompt: Optional[str] = None
+    """A prompt to be used in text to NeRF models"""
 
 
 class Model(nn.Module):
@@ -115,7 +117,7 @@ class Model(nn.Module):
         """
 
     @abstractmethod
-    def get_outputs(self, ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
+    def get_outputs(self, ray_bundle: RayBundle) -> Dict[str, Union[torch.Tensor, List]]:
         """Takes in a Ray Bundle and returns a dictionary of outputs.
 
         Args:
@@ -126,7 +128,7 @@ class Model(nn.Module):
             Outputs of model. (ie. rendered colors)
         """
 
-    def forward(self, ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
+    def forward(self, ray_bundle: RayBundle) -> Dict[str, Union[torch.Tensor, List]]:
         """Run forward starting with a ray bundle. This outputs different things depending on the configuration
         of the model and whether or not the batch is provided (whether or not we are training basically)
 

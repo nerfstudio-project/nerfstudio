@@ -77,9 +77,9 @@ def outer(
 
 
 def lossfun_outer(
-    t: Float[Tensor, "*batch num_samples+1"],
+    t: Float[Tensor, "*batch num_samples_1"],
     w: Float[Tensor, "*batch num_samples"],
-    t_env: Float[Tensor, "*batch num_samples+1"],
+    t_env: Float[Tensor, "*batch num_samples_1"],
     w_env: Float[Tensor, "*batch num_samples"],
 ):
     """
@@ -542,7 +542,8 @@ class _GradientScaler(torch.autograd.Function):  # typing: ignore
 
 
 def scale_gradients_by_distance_squared(
-    field_outputs: Dict[FieldHeadNames, torch.Tensor], ray_samples: RaySamples
+    field_outputs: Dict[FieldHeadNames, torch.Tensor],
+    ray_samples: RaySamples,
 ) -> Dict[FieldHeadNames, torch.Tensor]:
     """
     Scale gradients by the ray distance to the pixel

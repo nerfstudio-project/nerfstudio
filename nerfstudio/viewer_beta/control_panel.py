@@ -17,9 +17,10 @@ from collections import defaultdict
 from typing import Callable, DefaultDict, List, Tuple, get_args
 
 import torch
+from viser import ViserServer
 
 from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
-from nerfstudio.viewer.server.viewer_elements import (
+from nerfstudio.viewer_beta.viewer_elements import (  # ViewerButtonGroup,
     ViewerButtonGroup,
     ViewerCheckbox,
     ViewerDropdown,
@@ -29,7 +30,6 @@ from nerfstudio.viewer.server.viewer_elements import (
     ViewerSlider,
     ViewerVec3,
 )
-from nerfstudio.viewer.viser import ViserServer
 
 
 class ControlPanel:
@@ -176,6 +176,8 @@ class ControlPanel:
         self.add_element(self._time, additional_tags=("time",))
 
     def _train_speed_cb(self) -> None:
+        pass
+
         """Callback for when the train speed is changed"""
         if self._train_speed.value == "Fast":
             self._train_util.value = 0.95
@@ -360,8 +362,8 @@ def _get_colormap_options(dimensions: int, dtype: type) -> List[Colormaps]:
     colormap_options: List[Colormaps] = []
     if dimensions == 3:
         colormap_options = ["default"]
-    if dimensions == 1 and dtype == torch.float:
-        colormap_options = [c for c in list(get_args(Colormaps)) if c not in ("default", "pca")]
+    if dimensions == 1 and dtype in [torch.float64, torch.float32, torch.float16, torch.bfloat16]:
+        colormap_options = [c for c in list(get_args(Colormaps)) if c != "default"]
     if dimensions > 3:
         colormap_options = ["pca"]
     return colormap_options

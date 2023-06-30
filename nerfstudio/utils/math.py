@@ -80,12 +80,12 @@ def components_from_spherical_harmonics(
         components[..., 16] = 2.5033429417967046 * x * y * (xx - yy)
         components[..., 17] = 1.7701307697799304 * y * z * (3 * xx - yy)
         components[..., 18] = 0.9461746957575601 * x * y * (7 * zz - 1)
-        components[..., 19] = 0.6690465435572892 * y * (7 * zz - 3)
+        components[..., 19] = 0.6690465435572892 * y * z * (7 * zz - 3)
         components[..., 20] = 0.10578554691520431 * (35 * zz * zz - 30 * zz + 3)
         components[..., 21] = 0.6690465435572892 * x * z * (7 * zz - 3)
         components[..., 22] = 0.47308734787878004 * (xx - yy) * (7 * zz - 1)
         components[..., 23] = 1.7701307697799304 * x * z * (xx - 3 * yy)
-        components[..., 24] = 0.4425326924449826 * (xx * (xx - 3 * yy) - yy * (3 * xx - yy))
+        components[..., 24] = 0.6258357354491761 * (xx * (xx - 3 * yy) - yy * (3 * xx - yy))
 
     return components
 

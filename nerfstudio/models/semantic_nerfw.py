@@ -38,7 +38,7 @@ from nerfstudio.engine.callbacks import (
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
-from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
+from nerfstudio.fields.nerfacto_field import NerfactoField
 from nerfstudio.model_components.losses import MSELoss, distortion_loss, interlevel_loss
 from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler
 from nerfstudio.model_components.renderers import (
@@ -90,7 +90,7 @@ class SemanticNerfWModel(Model):
             raise ValueError("Transient embedding is not fully working for semantic nerf-w.")
 
         # Fields
-        self.field = TCNNNerfactoField(
+        self.field = NerfactoField(
             self.scene_box.aabb,
             num_levels=self.config.num_levels,
             max_res=self.config.max_res,
@@ -254,7 +254,7 @@ class SemanticNerfWModel(Model):
 
         # semantic loss
         loss_dict["semantics_loss"] = self.config.semantic_loss_weight * self.cross_entropy_loss(
-            outputs["semantics"], batch["semantics"][..., 0].long()
+            outputs["semantics"], batch["semantics"][..., 0].long().to(self.device)
         )
         return loss_dict
 
@@ -301,6 +301,6 @@ class SemanticNerfWModel(Model):
         images_dict["semantics_colormap"] = self.colormap.to(self.device)[semantic_labels]
 
         # valid mask
-        images_dict["mask"] = batch["mask"].repeat(1, 1, 3)
+        images_dict["mask"] = batch["mask"].repeat(1, 1, 3).to(self.device)
 
         return metrics_dict, images_dict

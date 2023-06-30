@@ -15,9 +15,9 @@
 """Helper utils for processing data into the nerfstudio format."""
 
 import math
-import os
 import shutil
 import sys
+import re
 from enum import Enum
 from pathlib import Path
 from typing import List, Literal, Optional, OrderedDict, Tuple, Union
@@ -25,10 +25,18 @@ from typing import List, Literal, Optional, OrderedDict, Tuple, Union
 import cv2
 import numpy as np
 
+import imageio
+import rawpy
+
 from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
 
 POLYCAM_UPSCALING_TIMES = 2
+
+"""Lowercase suffixes to treat as raw image."""
+ALLOWED_RAW_EXTS = [".cr2"]
+"""Suffix to use for converted images from raw."""
+RAW_CONVERTED_SUFFIX = ".tiff"
 
 
 class CameraModel(Enum):
@@ -54,7 +62,7 @@ def list_images(data: Path) -> List[Path]:
     Returns:
         Paths to images contained in the directory
     """
-    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
+    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"] + ALLOWED_RAW_EXTS
     image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
     return image_paths
 
@@ -94,8 +102,9 @@ def get_num_frames_in_video(video: Path) -> int:
             -show_entries stream=nb_read_packets -of csv=p=0 "{video}"'
     output = run_command(cmd)
     assert output is not None
-    output = output.strip(" ,\t\n\r")
-    return int(output)
+    number_match = re.search(r"\d+", output)
+    assert number_match is not None
+    return int(number_match[0])
 
 
 def convert_video_to_images(
@@ -195,7 +204,9 @@ def copy_images_list(
 
     # Remove original directory only if we provide a proper image folder path
     if image_dir.is_dir() and len(image_paths):
-        shutil.rmtree(image_dir, ignore_errors=True)
+        # check that output directory is not the same as input directory
+        if image_dir != image_paths[0].parent:
+            shutil.rmtree(image_dir, ignore_errors=True)
         image_dir.mkdir(exist_ok=True, parents=True)
 
     copied_image_paths = []
@@ -205,7 +216,18 @@ def copy_images_list(
         if verbose:
             CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
         copied_image_path = image_dir / f"frame_{idx + 1:05d}{image_path.suffix}"
-        shutil.copy(image_path, copied_image_path)
+        try:
+            # if CR2 raw, we want to read raw and write TIFF, and change the file suffix for downstream processing
+            if image_path.suffix.lower() in ALLOWED_RAW_EXTS:
+                copied_image_path = image_dir / f"frame_{idx + 1:05d}{RAW_CONVERTED_SUFFIX}"
+                with rawpy.imread(str(image_path)) as raw:
+                    rgb = raw.postprocess()
+                imageio.imsave(copied_image_path, rgb)
+                image_paths[idx] = copied_image_path
+            else:
+                shutil.copy(image_path, copied_image_path)
+        except shutil.SameFileError:
+            pass
         copied_image_paths.append(copied_image_path)
 
     if crop_border_pixels is not None:
@@ -343,11 +365,8 @@ def downscale_images(
             assert isinstance(downscale_factor, int)
             downscale_dir = image_dir.parent / f"{folder_name}_{downscale_factor}"
             downscale_dir.mkdir(parents=True, exist_ok=True)
-            # Using %05d ffmpeg commands appears to be unreliable (skips images), so use scandir.
-            files = os.scandir(image_dir)
-            for f in files:
-                if f.is_dir():
-                    continue
+            # Using %05d ffmpeg commands appears to be unreliable (skips images).
+            for f in list_images(image_dir):
                 filename = f.name
                 nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
                 ffmpeg_cmd = [
