@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Tuple, Type
+from typing import Dict, List, Literal, Tuple, Type, Optional
 
 import numpy as np
 import torch
@@ -130,6 +130,11 @@ class NerfactoModelConfig(ModelConfig):
     """Dimension of the appearance embedding."""
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig(mode="SO3xR3")
     """Config of the camera optimizer to use"""
+    bundle_adjust: bool = False
+    """Whether to bundle adjust (BARF)"""
+    coarse_to_fine_iters: Optional[Tuple[float, float]] = (0.0, 0.1)
+    """Iterations (as a percentage of total iterations) at which coarse to fine hash grid optimization starts and ends.
+    Linear interpolation between (start, end) and full activation of hash grid from end onwards."""
 
 
 class NerfactoModel(Model):
@@ -165,6 +170,8 @@ class NerfactoModel(Model):
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
             appearance_embedding_dim=self.config.appearance_embed_dim,
             implementation=self.config.implementation,
+            bundle_adjust=self.config.bundle_adjust,
+            coarse_to_fine_iters=self.config.coarse_to_fine_iters,
         )
 
         self.camera_optimizer: CameraOptimizer = self.config.camera_optimizer.setup(
