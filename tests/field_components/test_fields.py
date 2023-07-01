@@ -18,7 +18,9 @@ def test_nerfacto_field():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     aabb_scale = 1.0
     aabb = torch.tensor(
-        [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32, device=device
+        [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]],
+        dtype=torch.float32,
+        device=device,
     )
     field = NerfactoField(aabb, num_images=1).to(device)
     num_rays = 1024
