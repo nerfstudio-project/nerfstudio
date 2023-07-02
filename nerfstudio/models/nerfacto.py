@@ -332,14 +332,9 @@ class NerfactoModel(Model):
         image = batch["image"].to(self.device)
         loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
         if self.training:
-            if self.config.use_zipnerf_loss:
-                loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * zipnerf_loss(
-                    outputs["weights_list"], outputs["ray_samples_list"]
-                )
-            else:
-                loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
-                    outputs["weights_list"], outputs["ray_samples_list"]
-                )
+            loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
+                outputs["weights_list"], outputs["ray_samples_list"]
+            )
             assert metrics_dict is not None and "distortion" in metrics_dict
             loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
             if self.config.predict_normals:

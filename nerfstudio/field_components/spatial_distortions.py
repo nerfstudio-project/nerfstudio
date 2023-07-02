@@ -15,7 +15,7 @@
 """Space distortions."""
 
 import abc
-from typing import Optional, Union
+from typing import Optional, Union, Tuple
 
 import torch
 from functorch import jacrev, vmap
@@ -88,3 +88,41 @@ class SceneContraction(SpatialDistortion):
             return Gaussians(mean=means, cov=cov)
 
         return contract(positions)
+
+
+class LinearizedContraction(SpatialDistortion):
+    """Lightweight contract unbounded space using the contraction was proposed in ZipNeRF.
+        
+        Proposed only for Gausians. Part of code was taken from github.com/SuLvXiangXin/zipnerf-pytorch
+    """
+
+    def forward(self, positions: Gaussians) -> Gaussians:
+        @torch.no_grad()
+        def contract(
+            mean: Float[Tensor, "*bs 3"],
+            cov: Float[Tensor, "*bs 1"],
+            eps: float = 1e-7,
+        ) -> Tuple[Float[Tensor, "*bs 3"], Float[Tensor, "*bs 1"]]:
+            """Adopted from https://github.com/SuLvXiangXin/zipnerf-pytorch/blob/14a244b2a74cccf38f04000b55259e2faff97773/internal/coord.py#L60"""
+            mean_mag_sq = torch.sum(mean ** 2, dim=-1, keepdim=True).clamp_min(eps)
+            mean_mag_sqrt = torch.sqrt(mean_mag_sq)
+            mask = mean_mag_sq <= 1
+            mean_contracted = torch.where(mask, mean, ((2 * mean_mag_sqrt - 1) / mean_mag_sq) * mean)
+            det_13 = (torch.pow(2 * mean_mag_sqrt - 1, 1/3) / mean_mag_sqrt) ** 2
+            std_contracted = torch.where(mask[..., 0], cov, det_13[..., 0] * cov)
+  
+            return mean_contracted, std_contracted
+
+        assert isinstance(positions, Gaussians)
+
+        pre_shape = positions.mean.shape[:-1]
+
+        means = positions.mean.view(-1, 3)
+        cov = positions.cov.view(-1)
+
+        means, cov = contract(means, cov)
+
+        means = means.view(*pre_shape, 3)
+        cov = cov.view(*pre_shape)
+
+        return Gaussians(mean=means, cov=cov)

@@ -275,12 +275,14 @@ class HashEncoding(Encoding):
 
         levels = torch.arange(num_levels)
         growth_factor = np.exp((np.log(max_res) - np.log(min_res)) / (num_levels - 1))
-        self.scalings = torch.floor(min_res * growth_factor**levels)
 
-        self.hash_offset = levels * self.hash_table_size
-        self.hash_table = torch.rand(size=(self.hash_table_size * num_levels, features_per_level)) * 2 - 1
-        self.hash_table *= hash_init_scale
+        self.hash_table = torch.empty(size=(self.hash_table_size * num_levels, features_per_level))
+        nn.init.uniform_(self.hash_table, -hash_init_scale, hash_init_scale)
         self.hash_table = nn.Parameter(self.hash_table)
+
+        self.register_buffer("scalings", torch.floor(min_res * growth_factor**levels).view(-1, 1), False)
+        self.register_buffer("hash_offset", levels * self.hash_table_size, False)
+        self.register_buffer("hash_values", torch.tensor([1, 2654435761, 805459861]), False)
 
         self.tcnn_encoding = None
         if implementation == "tcnn" and not TCNN_EXISTS:
@@ -322,11 +324,11 @@ class HashEncoding(Encoding):
         # assert min_val >= 0.0
         # assert max_val <= 1.0
 
-        in_tensor = in_tensor * torch.tensor([1, 2654435761, 805459861]).to(in_tensor.device)
+        in_tensor = in_tensor * self.hash_values
         x = torch.bitwise_xor(in_tensor[..., 0], in_tensor[..., 1])
         x = torch.bitwise_xor(x, in_tensor[..., 2])
         x %= self.hash_table_size
-        x += self.hash_offset.to(x.device)
+        x += self.hash_offset
         return x
 
     def pytorch_fwd(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
@@ -334,7 +336,7 @@ class HashEncoding(Encoding):
 
         assert in_tensor.shape[-1] == 3
         in_tensor = in_tensor[..., None, :]  # [..., 1, 3]
-        scaled = in_tensor * self.scalings.view(-1, 1).to(in_tensor.device)  # [..., L, 3]
+        scaled = in_tensor * self.scalings  # [..., L, 3]
         scaled_c = torch.ceil(scaled).type(torch.int32)
         scaled_f = torch.floor(scaled).type(torch.int32)
 

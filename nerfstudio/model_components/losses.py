@@ -96,27 +96,19 @@ def lossfun_outer(
     return torch.clip(w - w_outer, min=0) ** 2 / (w + EPS)
 
 
-def ray_samples_to_sdist(ray_samples):
-    """Convert ray samples to s space"""
-    starts = ray_samples.spacing_starts
-    ends = ray_samples.spacing_ends
-    sdist = torch.cat([starts[..., 0], ends[..., -1:, 0]], dim=-1)  # (num_rays, num_samples + 1)
-    return sdist
-
-
 def interlevel_loss(weights_list, ray_samples_list) -> torch.Tensor:
     """Calculates the proposal loss in the MipNeRF-360 paper.
 
     https://github.com/kakaobrain/NeRF-Factory/blob/f61bb8744a5cb4820a4d968fb3bfbed777550f4a/src/model/mipnerf360/model.py#L515
     https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/train_utils.py#L133
     """
-    c = ray_samples_to_sdist(ray_samples_list[-1]).detach()
+    c = ray_samples_list[-1].to_sdist().detach()
     w = weights_list[-1][..., 0].detach()
     assert len(ray_samples_list) > 0
 
     loss_interlevel = 0.0
     for ray_samples, weights in zip(ray_samples_list[:-1], weights_list[:-1]):
-        sdist = ray_samples_to_sdist(ray_samples)
+        sdist = ray_samples.to_sdist()
         cp = sdist  # (num_rays, num_samples + 1)
         wp = weights[..., 0]  # (num_rays, num_samples)
         loss_interlevel += torch.mean(lossfun_outer(c, w, cp, wp))
@@ -125,7 +117,7 @@ def interlevel_loss(weights_list, ray_samples_list) -> torch.Tensor:
     return loss_interlevel
 
 
-def blur_stepfun(x, y, r):
+def blur_stepfun(x: torch.Tensor, y: torch.Tensor, r: float) -> Tuple[torch.Tensor, torch.Tensor]:
     xr, xr_idx = torch.sort(torch.cat([x - r, x + r], dim=-1))
     y1 = (
         torch.cat([y, torch.zeros_like(y[..., :1])], dim=-1) - torch.cat([torch.zeros_like(y[..., :1]), y], dim=-1)
@@ -151,7 +143,7 @@ def sorted_interp_quad(x, xp, fpdf, fcdf):
         return x0, x1
 
     fpdf0, fpdf1 = find_interval(fpdf)
-    fcdf0, fcdf1 = find_interval(fcdf)
+    fcdf0, _ = find_interval(fcdf)
     xp0, xp1 = find_interval(xp)
 
     offset = torch.clip(torch.nan_to_num((x - xp0) / (xp1 - xp0), 0), 0, 1)
@@ -165,13 +157,13 @@ def zipnerf_loss(weights_list, ray_samples_list):
     # In the paper the loss is computed as the sum over the ray samples.
     # Here we take the mean and the multiplier for this loss should be changed accordingly.
     pulse_widths = [0.003, 0.03]
-    c = ray_samples_to_sdist(ray_samples_list[-1]).detach()
+    c = ray_samples_list[-1].to_sdist().detach()
     w = weights_list[-1][..., 0].detach()
 
     w_norm = w / (c[..., 1:] - c[..., :-1])
     loss = 0
     for i, (ray_samples, weights) in enumerate(zip(ray_samples_list[:-1], weights_list[:-1])):
-        cp = ray_samples_to_sdist(ray_samples)
+        cp = ray_samples.to_sdist()
         wp = weights[..., 0]  # (num_rays, num_samples)
         c_, w_ = blur_stepfun(c, w_norm, pulse_widths[i])
 
@@ -205,7 +197,7 @@ def lossfun_distortion(t, w):
 
 def distortion_loss(weights_list, ray_samples_list):
     """From mipnerf360"""
-    c = ray_samples_to_sdist(ray_samples_list[-1])
+    c = ray_samples_list[-1].to_sdist()
     w = weights_list[-1][..., 0]
     loss = torch.mean(lossfun_distortion(c, w))
     return loss
@@ -624,3 +616,65 @@ def scale_gradients_by_distance_squared(
     for key, value in field_outputs.items():
         out[key], _ = cast(Tuple[Tensor, Tensor], _GradientScaler.apply(value, scaling))
     return out
+
+
+class CharbonnierLoss(nn.Module):
+    """
+    Charbonnier Loss from MipNeRF 360
+    https://arxiv.org/pdf/2111.12077.pdf
+    """
+
+    def __init__(self, padding: float = 1e-3):
+        super().__init__()
+
+        self.padding = padding
+
+    def forward(
+        self,
+        prediction: Float[Tensor, "*bs 3"],
+        target: Float[Tensor, "*bs 3"],
+    ) -> Float[Tensor, "1"]:
+        """
+        Args:
+            prediction: predicted rgb values
+            target: ground truth rgb values
+        Returns:
+            loss
+        """
+        square_loss = (prediction - target) ** 2
+        loss = torch.sqrt(square_loss + self.padding ** 2)
+
+        return torch.mean(loss)
+
+
+class RawNeRFLoss(nn.Module):
+    """
+    RawNeRF Loss from RawNeRF paper
+    https://arxiv.org/pdf/2111.13679.pdf
+    """
+
+    def __init__(self, padding: float = 1e-3):
+        super().__init__()
+
+        self.padding = padding
+
+    def forward(
+        self,
+        prediction: Float[Tensor, "*bs 3"],
+        target: Float[Tensor, "*bs 3"],
+    ) -> Float[Tensor, "1"]:
+        """
+        Args:
+            prediction: predicted rgb values
+            target: ground truth rgb values
+        Returns:
+            loss
+        """
+        rgb_render_clip = prediction.clamp_max(1)
+        resid_sq_clip = (rgb_render_clip - target) ** 2
+        # Scale by gradient of log tonemapping curve.
+        scaling_grad = 1. / (self.padding + rgb_render_clip.detach())
+        # Reweighted L2 loss.
+        data_loss = resid_sq_clip * scaling_grad ** 2
+
+        return torch.mean(data_loss)

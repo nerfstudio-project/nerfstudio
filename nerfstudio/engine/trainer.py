@@ -20,6 +20,7 @@ from __future__ import annotations
 import dataclasses
 import functools
 import os
+import gc
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -288,8 +289,10 @@ class Trainer:
                     )
 
                 # Do not perform evaluation if there are no validation images
-                if self.pipeline.datamanager.eval_dataset:
-                    self.eval_iteration(step)
+                # if self.pipeline.datamanager.eval_dataset:
+                #     gc.collect()
+                #     torch.cuda.empty_cache()
+                #     self.eval_iteration(step)
 
                 if step_check(step, self.config.steps_per_save):
                     self.save_checkpoint(step)

@@ -75,6 +75,7 @@ class CameraOptimizer(nn.Module):
         num_cameras: int,
         device: Union[torch.device, str],
         non_trainable_camera_indices: Optional[Int[Tensor, "num_non_trainable_cameras"]] = None,
+        init_scale: float = 1e-4,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -87,7 +88,9 @@ class CameraOptimizer(nn.Module):
         if self.config.mode == "off":
             pass
         elif self.config.mode in ("SO3xR3", "SE3"):
-            self.pose_adjustment = torch.nn.Parameter(torch.zeros((num_cameras, 6), device=device))
+            self.pose_adjustment = torch.empty(size=(num_cameras, 6), device=device)
+            nn.init.uniform_(self.pose_adjustment, -init_scale, init_scale)
+            self.pose_adjustment = nn.Parameter(self.pose_adjustment)
         else:
             assert_never(self.config.mode)
 

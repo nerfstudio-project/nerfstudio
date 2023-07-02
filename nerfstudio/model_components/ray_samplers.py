@@ -25,6 +25,7 @@ from nerfacc import OccGridEstimator
 from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import Frustums, RayBundle, RaySamples
+from nerfstudio.utils.math import power_fn, inv_power_fn
 
 
 class Sampler(nn.Module):
@@ -97,7 +98,7 @@ class SpacedSampler(Sampler):
         assert num_samples is not None
         num_rays = ray_bundle.origins.shape[0]
 
-        bins = torch.linspace(0.0, 1.0, num_samples + 1).to(ray_bundle.origins.device)[None, ...]  # [1, num_samples+1]
+        bins = torch.linspace(0.0, 1.0, num_samples + 1, device=ray_bundle.origins.device)[None, ...]  # [1, num_samples+1]
 
         # TODO More complicated than it needs to be.
         if self.train_stratified and self.training:
@@ -217,6 +218,32 @@ class LogSampler(SpacedSampler):
             num_samples=num_samples,
             spacing_fn=torch.log,
             spacing_fn_inv=torch.exp,
+            train_stratified=train_stratified,
+            single_jitter=single_jitter,
+        )
+
+
+class PowerSampler(SpacedSampler):
+    """Sampler according to the ZipNeRF's power function
+    
+    Args:
+        num_samples: Number of samples per ray
+        train_stratified: Use stratified sampling during training. Defaults to True
+        lam: Parameter of power transformation
+    
+    """
+
+    def __init__(
+        self,
+        num_samples: Optional[int] = None,
+        train_stratified=True,
+        single_jitter=False,
+        lam=-1.5,
+    ) -> None:
+        super().__init__(
+            num_samples=num_samples,
+            spacing_fn=lambda x: power_fn(x * 2, lam),
+            spacing_fn_inv=lambda x: inv_power_fn(x, lam) / 2,
             train_stratified=train_stratified,
             single_jitter=single_jitter,
         )

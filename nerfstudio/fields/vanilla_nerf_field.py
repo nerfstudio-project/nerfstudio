@@ -89,7 +89,7 @@ class NeRFField(Field):
 
     def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         if self.use_integrated_encoding:
-            gaussian_samples = ray_samples.frustums.get_gaussian_blob()
+            gaussian_samples = ray_samples.frustums.get_conical_gaussian_blob()
             if self.spatial_distortion is not None:
                 gaussian_samples = self.spatial_distortion(gaussian_samples)
             encoded_xyz = self.position_encoding(gaussian_samples.mean, covs=gaussian_samples.cov)
