@@ -144,7 +144,12 @@ build arg and look up [the compute capability for your GPU](https://developer.nv
 For example, here's how to build with support for GeForce 30xx series GPUs:
 
 ```bash
-docker build --build-arg CUDA_ARCHITECTURES=86 --tag nerfstudio-86 -f Dockerfile .
+docker build \
+    --build-arg CUDA_VERSION=11.8.0 \
+    --build-arg CUDA_ARCHITECTURES=86 \
+    --build-arg OS_VERSION=22.04 \
+    --tag nerfstudio-86 \
+    --file Dockerfile .
 ```
 
 ### Using an interactive container
