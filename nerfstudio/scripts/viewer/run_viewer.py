@@ -89,6 +89,7 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
     base_dir = config.get_base_dir()
     viewer_log_path = base_dir / config.viewer.relative_log_filename
     banner_messages = None
+    viewer_state = None
     if config.vis == "viewer":
         viewer_state = ViewerState(
             config.viewer,
@@ -115,7 +116,7 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
         dataset=pipeline.datamanager.train_dataset,
         train_state="completed",
     )
-    if config.vis == "viewer":
+    if isinstance(viewer_state, ViewerState):
         viewer_state.viser_server.set_training_state("completed")
     viewer_state.update_scene(step=step)
     while True:
