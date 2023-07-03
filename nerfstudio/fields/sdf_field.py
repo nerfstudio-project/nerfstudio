@@ -97,19 +97,19 @@ class SDFFieldConfig(FieldConfig):
     beta_init: float = 0.1
     """Init learnable beta value for transformation of sdf to density"""
     encoding_type: Literal["hash", "periodic", "tensorf_vm"] = "hash"
-    num_levels = 16
+    num_levels: int = 16
     """Number of encoding levels"""
-    max_res = 2048
+    max_res: int = 2048
     """Maximum resolution of the encoding"""
-    base_res = 16
+    base_res: int = 16
     """Base resolution of the encoding"""
-    log2_hashmap_size = 19
+    log2_hashmap_size: int = 19
     """Size of the hash map"""
-    features_per_level = 2
+    features_per_level: int = 2
     """Number of features per encoding level"""
-    use_hash = True
+    use_hash: bool = True
     """Whether to use hash encoding"""
-    smoothstep = True
+    smoothstep: bool = True
     """Whether to use the smoothstep function"""
 
 
