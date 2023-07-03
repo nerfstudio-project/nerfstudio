@@ -34,7 +34,14 @@ from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.data.utils.dataloaders import RandIndicesEvalDataloader
+from nerfstudio.data.utils.dataloaders import RandIndicesEvalDataloader, CacheDataloader
+from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
+from nerfstudio.data.pixel_samplers import (
+    PixelSampler,
+)
+from nerfstudio.model_components.ray_generators import RayGenerator
+from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
+
 
 CONSOLE = Console(width=120)
 
@@ -157,7 +164,7 @@ class RandomCamerasDataManagerConfig(DataManagerConfig):
     _target: Type = field(default_factory=lambda: RandomCamerasDataManager)
     train_resolution: int = 64
     """Training resolution"""
-    eval_resolution: int = 64
+    eval_resolution: int = 256
     """Evaluation resolution"""
     num_eval_angles: int = 256
     """Number of evaluation angles"""
@@ -232,7 +239,25 @@ class RandomCamerasDataManager(DataManager):  # pylint: disable=abstract-method
         )
 
         self.train_dataset = TrivialDataset(cameras)
+
+        self.train_image_dataloader = CacheDataloader(
+            self.train_dataset,
+            num_images_to_sample_from=256,
+            num_times_to_repeat_images=-1,
+            device=self.device,
+            num_workers=self.world_size * 4,
+            pin_memory=True,
+            collate_fn=nerfstudio_collate,
+            exclude_batch_keys_from_device=self.train_dataset.exclude_batch_keys_from_device,
+        )
+
+        self.iter_train_image_dataloader = iter(self.train_image_dataloader)
+
+        self.train_pixel_sampler = PixelSampler(num_rays_per_batch=self.get_eval_rays_per_batch())
+
         self.eval_dataset = TrivialDataset(cameras)
+
+        self.horizontal_rotation_warmup = self.config.horizontal_rotation_warmup
 
         self.eval_dataloader = RandIndicesEvalDataloader(
             input_dataset=self.eval_dataset,
@@ -247,7 +272,7 @@ class RandomCamerasDataManager(DataManager):  # pylint: disable=abstract-method
         """Returns the next batch of data from the train dataloader."""
 
         self.train_count += 1
-        horizontal_range = min((step / max(1, self.config.horizontal_rotation_warmup)), 1) * 180
+        horizontal_range = min((step / max(1, self.horizontal_rotation_warmup)), 1) * 180
 
         cameras, vertical_rotation, central_rotation = random_train_pose(
             self.config.train_images_per_batch,
@@ -268,6 +293,26 @@ class RandomCamerasDataManager(DataManager):  # pylint: disable=abstract-method
             "central": central_rotation,
             "initialization": True,
         }
+
+    def random_train(self, step: int) -> Tuple[RayBundle, Dict]:
+        """Returns a batch of randomly sampled camera rays. For use during point cloud generation"""
+
+        assert self.train_dataset is not None
+        temp_camera_optimizer = CameraOptimizerConfig().setup(
+            num_cameras=self.train_dataset.cameras.size, device=self.device
+        )
+        self.train_ray_generator = RayGenerator(
+            self.train_dataset.cameras.to(self.device),
+            temp_camera_optimizer,
+        )
+
+        image_batch = next(self.iter_train_image_dataloader)
+        assert image_batch is not None
+        batch = self.train_pixel_sampler.sample(image_batch)
+        ray_indices = batch["indices"]
+
+        ray_bundle = self.train_ray_generator(ray_indices)
+        return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the eval dataloader."""
