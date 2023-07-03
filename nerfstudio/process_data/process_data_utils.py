@@ -111,6 +111,7 @@ def convert_video_to_images(
     video_path: Path,
     image_dir: Path,
     num_frames_target: int,
+    num_downscales: int,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     verbose: bool = False,
 ) -> Tuple[List[str], int]:
@@ -120,6 +121,7 @@ def convert_video_to_images(
         video_path: Path to the video.
         output_dir: Path to the output directory.
         num_frames_target: Number of frames to extract.
+        num_downscales: Number of times to downscale the images. Downscales by 2 each time.
         crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
         verbose: If True, logs the output of the command.
     Returns:
@@ -151,7 +153,6 @@ def convert_video_to_images(
             sys.exit(1)
         CONSOLE.print("Number of frames in video:", num_frames)
 
-        out_filename = image_dir / "frame_%05d.png"
         ffmpeg_cmd = f'ffmpeg -i "{video_path}"'
 
         crop_cmd = ""
@@ -160,29 +161,43 @@ def convert_video_to_images(
             width = 1 - crop_factor[2] - crop_factor[3]
             start_x = crop_factor[2]
             start_y = crop_factor[0]
-            crop_cmd = f',"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}"'
+            crop_cmd = f'crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y},'
 
+        num_frames = get_num_frames_in_video(video_path)
         spacing = num_frames // num_frames_target
+
+        downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}[out{i}]" for i in range(num_downscales + 1)]
+        downscale_dirs = [Path(str(image_dir) + (f"_{2**i}" if i > 0 else "")) for i in range(num_downscales + 1)]
+        downscale_paths = [downscale_dirs[i] / "frame_%05d.png" for i in range(num_downscales + 1)]
+
+        for dir in downscale_dirs:
+            dir.mkdir(parents=True, exist_ok=True)
+
+        downscale_chain = f'split={num_downscales + 1}' + ''.join([f'[t{i}]' for i in range(num_downscales + 1)]) + ';' \
+                          + ';'.join(downscale_chains)
+
         if spacing > 1:
-            ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB{crop_cmd} -r 1"
             CONSOLE.print("Number of frames to extract:", math.ceil(num_frames / spacing))
+            select_cmd = f"thumbnail={spacing},setpts=N/TB,"
         else:
             CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
             ffmpeg_cmd += " -pix_fmt bgr8"
-            if crop_cmd != "":
-                ffmpeg_cmd += f" -vf {crop_cmd[1:]}"
+            select_cmd = ""
 
-        ffmpeg_cmd += f" {out_filename}"
+        downscale_cmd = f' -filter_complex "{select_cmd}{crop_cmd}{downscale_chain}" -vsync vfr -r 1' \
+                        + ''.join([f' -map "[out{i}]" "{downscale_paths[i]}"' for i in range(num_downscales + 1)])
+
+        ffmpeg_cmd += downscale_cmd
+
         run_command(ffmpeg_cmd, verbose=verbose)
 
-    num_final_frames = len(list(image_dir.glob("*.png")))
-    summary_log = []
-    summary_log.append(f"Starting with {num_frames} video frames")
-    summary_log.append(f"We extracted {num_final_frames} images")
-    CONSOLE.log("[bold green]:tada: Done converting video to images.")
+        num_final_frames = len(list(image_dir.glob("*.png")))
+        summary_log = []
+        summary_log.append(f"Starting with {num_frames} video frames")
+        summary_log.append(f"We extracted {num_final_frames} images")
+        CONSOLE.log("[bold green]:tada: Done converting video to images.")
 
-    return summary_log, num_final_frames
-
+        return summary_log, num_final_frames
 
 def copy_images_list(
     image_paths: List[Path],
