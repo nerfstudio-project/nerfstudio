@@ -303,7 +303,7 @@ class TensoRFModel(Model):
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
         # Scaling metrics by coefficients to create the losses.
         device = outputs["rgb"].device
-        image = batch["image"].to(device)
+        image = batch["image"][..., :3].to(device)
 
         rgb_loss = self.rgb_loss(image, outputs["rgb"])
 
@@ -333,7 +333,7 @@ class TensoRFModel(Model):
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
-        image = batch["image"].to(outputs["rgb"].device)
+        image = batch["image"][..., :3].to(outputs["rgb"].device)
         rgb = outputs["rgb"]
         acc = colormaps.apply_colormap(outputs["accumulation"])
         assert self.config.collider_params is not None

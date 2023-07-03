@@ -106,6 +106,8 @@ class NerfactoModelConfig(ModelConfig):
     """Orientation loss multiplier on computed normals."""
     pred_normal_loss_mult: float = 0.001
     """Predicted normal loss multiplier."""
+    use_alpha_transparency_training: bool = False
+    """Whether to use alpha channel transparency training."""
     use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""
     use_average_appearance_embedding: bool = True
@@ -283,7 +285,14 @@ class NerfactoModel(Model):
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
 
-        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+        background_color = (
+            self.renderer_rgb.get_background_color(rgb=field_outputs[FieldHeadNames.RGB], background_color="random")
+            if self.config.use_alpha_transparency_training and self.training
+            else None
+        )
+        rgb = self.renderer_rgb(
+            rgb=field_outputs[FieldHeadNames.RGB], weights=weights, background_color=background_color
+        )
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 
@@ -292,6 +301,8 @@ class NerfactoModel(Model):
             "accumulation": accumulation,
             "depth": depth,
         }
+        if self.config.use_alpha_transparency_training:
+            outputs["background_color"] = background_color
 
         if self.config.predict_normals:
             normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
@@ -321,7 +332,7 @@ class NerfactoModel(Model):
 
     def get_metrics_dict(self, outputs, batch):
         metrics_dict = {}
-        image = batch["image"].to(self.device)
+        image = batch["image"][..., :3].to(self.device)
         metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
         if self.training:
             metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
@@ -329,7 +340,7 @@ class NerfactoModel(Model):
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = {}
-        image = batch["image"].to(self.device)
+        image = self.renderer_rgb.blend_background(batch["image"].to(self.device), outputs)
         loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
         if self.training:
             loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
@@ -352,7 +363,7 @@ class NerfactoModel(Model):
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
-        image = batch["image"].to(self.device)
+        image = batch["image"][..., :3].to(self.device)
         rgb = outputs["rgb"]
         acc = colormaps.apply_colormap(outputs["accumulation"])
         depth = colormaps.apply_depth_colormap(

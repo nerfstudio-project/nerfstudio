@@ -28,7 +28,7 @@ Example:
 """
 import contextlib
 import math
-from typing import Generator, Literal, Optional, Union
+from typing import Generator, Literal, Optional, Union, Dict
 
 import nerfacc
 import torch
@@ -101,19 +101,56 @@ class RGBRenderer(nn.Module):
             comp_rgb = torch.sum(weights * rgb, dim=-2)
             accumulated_weight = torch.sum(weights, dim=-2)
 
-        if BACKGROUND_COLOR_OVERRIDE is not None:
-            background_color = BACKGROUND_COLOR_OVERRIDE
-        if background_color == "last_sample":
-            background_color = rgb[..., -1, :]
-        if background_color == "random":
-            background_color = torch.rand_like(comp_rgb).to(rgb.device)
-        if isinstance(background_color, str) and background_color in colors.COLORS_DICT:
-            background_color = colors.COLORS_DICT[background_color].to(rgb.device)
-
-        assert isinstance(background_color, torch.Tensor)
+        background_color = cls.get_background_color(rgb=rgb, background_color=background_color)
         comp_rgb = comp_rgb + background_color.to(weights.device) * (1.0 - accumulated_weight)
 
         return comp_rgb
+
+    @classmethod
+    def get_background_color(cls, rgb: Float[Tensor, "*bs num_samples 3"], background_color: BackgroundColor) -> Tensor:
+        """Returns the RGB background color for a specified background color.
+
+        Args:
+            rgb: RGB for each sample.
+            background_color: The background color specification.
+
+        Returns:
+            Background color as RGB.
+        """
+        if BACKGROUND_COLOR_OVERRIDE is not None:
+            background_color = BACKGROUND_COLOR_OVERRIDE
+        elif background_color == "last_sample":
+            background_color = rgb[..., -1, :]
+        elif background_color == "random":
+            background_color = torch.rand_like(rgb[..., -1, :]).to(rgb.device)
+        elif isinstance(background_color, str) and background_color in colors.COLORS_DICT:
+            background_color = colors.COLORS_DICT[background_color].to(rgb.device)
+        assert isinstance(background_color, Tensor)
+        return background_color
+
+    @classmethod
+    def blend_background(
+        cls,
+        image: Tensor,
+        outputs: Dict[str, Union[Tensor, list]],
+    ) -> Float[Tensor, "*bs 3"]:
+        """Blends the background color into the image using the alpha channel. Removes
+        the alpha channel if there is no `background_color` in `outputs`.
+
+        Args:
+            image: RGBA.
+            outputs: Dict containing the model outputs.
+
+        Returns:
+            Blended RGB.
+        """
+        if outputs.get("background_color", None) is not None:
+            background_color = outputs["background_color"]
+            assert isinstance(background_color, Tensor)
+            blended_rgb = image[:, :3] * image[:, 3:] + background_color.to(image.device) * (1 - image[:, 3:])
+        else:
+            blended_rgb = image[:, :3]
+        return blended_rgb
 
     def forward(
         self,
@@ -121,6 +158,7 @@ class RGBRenderer(nn.Module):
         weights: Float[Tensor, "*bs num_samples 1"],
         ray_indices: Optional[Int[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
+        background_color: Union[Float[Tensor, "3"], BackgroundColor, None] = None,
     ) -> Float[Tensor, "*bs 3"]:
         """Composite samples along ray and render color image
 
@@ -129,15 +167,18 @@ class RGBRenderer(nn.Module):
             weights: Weights for each sample
             ray_indices: Ray index for each sample, used when samples are packed.
             num_rays: Number of rays, used when samples are packed.
+            background_color: The background color to use for rendering.
 
         Returns:
             Outputs of rgb values.
         """
+        if background_color is None:
+            background_color = self.background_color
 
         if not self.training:
             rgb = torch.nan_to_num(rgb)
         rgb = self.combine_rgb(
-            rgb, weights, background_color=self.background_color, ray_indices=ray_indices, num_rays=num_rays
+            rgb, weights, background_color=background_color, ray_indices=ray_indices, num_rays=num_rays
         )
         if not self.training:
             torch.clamp_(rgb, min=0.0, max=1.0)
