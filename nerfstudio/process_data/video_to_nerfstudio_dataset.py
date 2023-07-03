@@ -97,7 +97,6 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                 process_data_utils.downscale_images(self.image_dir, self.num_downscales, verbose=self.verbose)
             )
 
-
         # # Create mask
         mask_path = process_data_utils.save_mask(
             image_dir=self.image_dir,
