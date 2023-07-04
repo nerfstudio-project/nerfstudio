@@ -106,8 +106,8 @@ cd vcpkg
 ```bash
 git clone https://github.com/microsoft/vcpkg
 cd vcpkg
-./bootstrap-vcpkg.bat
-./vcpkg install colmap[cuda]:x64-windows
+.\bootstrap-vcpkg.bat
+.\vcpkg install colmap[cuda]:x64-windows
 ```
 
 :::
@@ -116,8 +116,8 @@ cd vcpkg
 ```bash
 git clone https://github.com/microsoft/vcpkg
 cd vcpkg
-./bootstrap-vcpkg.sh
-./vcpkg install colmap:x64-windows
+.\bootstrap-vcpkg.sh
+.\vcpkg install colmap:x64-windows
 ```
 
 :::
