@@ -107,7 +107,9 @@ class RGBRenderer(nn.Module):
         return comp_rgb
 
     @classmethod
-    def get_background_color(cls, rgb: Float[Tensor, "*bs num_samples 3"], background_color: BackgroundColor) -> Tensor:
+    def get_background_color(
+        cls, rgb: Float[Tensor, "*bs num_samples 3"], background_color: BackgroundColor
+    ) -> Float[Tensor, "3"]:
         """Returns the RGB background color for a specified background color.
 
         Args:
@@ -133,7 +135,7 @@ class RGBRenderer(nn.Module):
         cls,
         rgb: Tensor,
         opacity: Tensor,
-        background_color: Tensor,
+        background_color: Float[Tensor, "3"],
     ) -> Float[Tensor, "*bs 3"]:
         """Blends the background color into the image.
 
