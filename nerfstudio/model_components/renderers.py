@@ -133,7 +133,7 @@ class RGBRenderer(nn.Module):
         cls,
         rgb: Tensor,
         opacity: Tensor,
-        background_color: Optional[Tensor] = None,
+        background_color: Tensor,
     ) -> Float[Tensor, "*bs 3"]:
         """Blends the background color into the image.
 
@@ -147,9 +147,7 @@ class RGBRenderer(nn.Module):
         """
         if len(opacity.shape) == 1:
             opacity = opacity.unsqueeze(-1)
-        blended_rgb = (
-            rgb * opacity + background_color.to(rgb.device) * (1 - opacity) if background_color is not None else rgb
-        )
+        blended_rgb = rgb * opacity + background_color.to(rgb.device) * (1 - opacity)
         return blended_rgb
 
     def forward(
