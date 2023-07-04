@@ -1,11 +1,13 @@
+ARG CUDA_VERSION=11.8.0
+ARG OS_VERSION=22.04
 # Define base image.
-FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
+FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${OS_VERSION}
 
 # metainformation
 LABEL org.opencontainers.image.version = "0.1.18"
 LABEL org.opencontainers.image.source = "https://github.com/nerfstudio-project/nerfstudio"
 LABEL org.opencontainers.image.licenses = "Apache License 2.0"
-LABEL org.opencontainers.image.base.name="docker.io/library/nvidia/cuda:11.8.0-devel-ubuntu22.04"
+LABEL org.opencontainers.image.base.name="docker.io/library/nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${OS_VERSION}"
 
 # Variables used at build time.
 ## CUDA architectures, required by Colmap and tiny-cuda-nn.
@@ -115,7 +117,10 @@ SHELL ["/bin/bash", "-c"]
 # Upgrade pip and install packages.
 RUN python3.10 -m pip install --upgrade pip setuptools pathtools promise pybind11
 # Install pytorch and submodules
-RUN python3.10 -m pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
+RUN CUDA_VER=${CUDA_VERSION%.*} && CUDA_VER=${CUDA_VER//./} && python3.10 -m pip install \
+    torch==2.0.1+cu${CUDA_VER} \
+    torchvision==0.15.2+cu${CUDA_VER} \
+        --extra-index-url https://download.pytorch.org/whl/cu${CUDA_VER}
 # Install tynyCUDNN (we need to set the target architectures as environment variable first).
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
 RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch
@@ -128,7 +133,7 @@ RUN git clone --branch v0.3.0 --recursive https://github.com/colmap/pycolmap.git
     cd ..
 
 # Install hloc master (last release (1.3) is too old) as alternative feature detector and matcher option for nerfstudio.
-RUN git clone --branch master --recursive https://github.com/cvg/Hierarchical-Localization && \
+RUN git clone --branch master --recursive https://github.com/cvg/Hierarchical-Localization.git && \
     cd Hierarchical-Localization && \
     python3.10 -m pip install -e . && \
     cd ..
@@ -140,7 +145,7 @@ RUN git clone --branch main --recursive https://github.com/cvg/pyceres.git && \
     cd ..
 
 # Install pixel perfect sfm.
-RUN git clone --branch main --recursive https://github.com/cvg/pixel-perfect-sfm && \
+RUN git clone --branch main --recursive https://github.com/cvg/pixel-perfect-sfm.git && \
     cd pixel-perfect-sfm && \
     python3.10 -m pip install -e . && \
     cd ..

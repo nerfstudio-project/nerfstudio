@@ -4,11 +4,11 @@ Test the fields
 import torch
 
 from nerfstudio.cameras.rays import Frustums, RaySamples
-from nerfstudio.fields.instant_ngp_field import TCNNInstantNGPField
+from nerfstudio.fields.nerfacto_field import NerfactoField
 
 
-def test_tcnn_instant_ngp_field():
-    """Test the tiny-cuda-nn field"""
+def test_nerfacto_field():
+    """Test the Nerfacto field"""
     try:
         import tinycudann as tcnn  # noqa: F401
     except ModuleNotFoundError as e:
@@ -18,9 +18,11 @@ def test_tcnn_instant_ngp_field():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     aabb_scale = 1.0
     aabb = torch.tensor(
-        [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
-    ).to(device)
-    field = TCNNInstantNGPField(aabb)
+        [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]],
+        dtype=torch.float32,
+        device=device,
+    )
+    field = NerfactoField(aabb, num_images=1).to(device)
     num_rays = 1024
     num_samples = 256
     positions = torch.rand((num_rays, num_samples, 3), dtype=torch.float32, device=device)
@@ -32,9 +34,16 @@ def test_tcnn_instant_ngp_field():
         ends=torch.zeros((*directions.shape[:-1], 1), device=device),
         pixel_area=torch.ones((*directions.shape[:-1], 1), device=device),
     )
-    ray_samples = RaySamples(frustums=frustums)
+    ray_samples = RaySamples(
+        frustums=frustums,
+        camera_indices=torch.zeros(
+            (num_rays, 1, 1),
+            device=device,
+            dtype=torch.int32,
+        ),
+    )
     field.forward(ray_samples)
 
 
 if __name__ == "__main__":
-    test_tcnn_instant_ngp_field()
+    test_nerfacto_field()

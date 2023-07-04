@@ -264,7 +264,7 @@ class HashEncoding(Encoding):
         log2_hashmap_size: int = 19,
         features_per_level: int = 2,
         hash_init_scale: float = 0.001,
-        implementation: Literal["tcnn", "torch"] = "torch",
+        implementation: Literal["tcnn", "torch"] = "tcnn",
         interpolation: Optional[Literal["Nearest", "Linear", "Smoothstep"]] = None,
     ) -> None:
         super().__init__(in_dim=3)
