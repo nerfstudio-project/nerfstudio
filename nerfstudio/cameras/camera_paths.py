@@ -27,28 +27,50 @@ from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.viewer.server.utils import three_js_perspective_camera_focal_length
 
 
-def get_interpolated_camera_path(cameras: Cameras, steps: int, order_poses: bool) -> Cameras:
+def get_interpolated_camera_path(cameras: Cameras, steps: int, order_poses: bool, fixed_intrinsics: bool) -> Cameras:
     """Generate a camera path between two cameras. Uses the camera type of the first camera
 
     Args:
         cameras: Cameras object containing intrinsics of all cameras.
         steps: The number of steps to interpolate between the two cameras.
+        fixed_intrinsics: Use intrinsics from the first camera for the whole sequence.
 
     Returns:
         A new set of cameras along a path.
     """
     Ks = cameras.get_intrinsics_matrices()
     poses = cameras.camera_to_worlds
-    poses, Ks = get_interpolated_poses_many(poses, Ks, steps_per_transition=steps, order_poses=order_poses)
-
-    cameras = Cameras(
-        fx=Ks[:, 0, 0],
-        fy=Ks[:, 1, 1],
-        cx=Ks[0, 0, 2],
-        cy=Ks[0, 1, 2],
-        camera_type=cameras.camera_type[0],
-        camera_to_worlds=poses,
+    widths = cameras.width
+    heights = cameras.height
+    dist_coeffs = cameras.distortion_params
+    poses, Ks, widths, heights, dist_coeffs = get_interpolated_poses_many(
+        poses, Ks, widths, heights, dist_coeffs, steps_per_transition=steps, order_poses=order_poses
     )
+
+    if fixed_intrinsics:
+        cameras = Cameras(
+            fx=Ks[0, 0, 0],
+            fy=Ks[0, 1, 1],
+            cx=Ks[0, 0, 2],
+            cy=Ks[0, 1, 2],
+            width=widths[0],
+            height=heights[0],
+            distortion_params=dist_coeffs[0] if dist_coeffs is not None else None,
+            camera_type=cameras.camera_type[0],
+            camera_to_worlds=poses,
+        )
+    else:
+        cameras = Cameras(
+            fx=Ks[:, 0, 0],
+            fy=Ks[:, 1, 1],
+            cx=Ks[:, 0, 2],
+            cy=Ks[:, 1, 2],
+            width=widths,
+            height=heights,
+            distortion_params=dist_coeffs,
+            camera_type=cameras.camera_type[0],
+            camera_to_worlds=poses,
+        )
     return cameras
 
 

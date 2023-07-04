@@ -26,7 +26,7 @@ import sys
 from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union, Tuple
 
 import mediapy as media
 import numpy as np
@@ -125,8 +125,8 @@ def _render_trajectory_video(
             for camera_idx in progress.track(range(cameras.size), description=""):
                 aabb_box = None
                 if crop_data is not None:
-                    bounding_box_min = crop_data.center - crop_data.scale / 2.0
-                    bounding_box_max = crop_data.center + crop_data.scale / 2.0
+                    bounding_box_min = crop_data.bounding_box_min
+                    bounding_box_max = crop_data.bounding_box_max
                     aabb_box = SceneBox(torch.stack([bounding_box_min, bounding_box_max]).to(pipeline.device))
                 camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx, aabb_box=aabb_box)
 
@@ -271,10 +271,10 @@ class CropData:
 
     background_color: Float[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
     """background color"""
-    center: Float[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
-    """center of the crop"""
-    scale: Float[Tensor, "3"] = torch.Tensor([2.0, 2.0, 2.0])
-    """scale of the crop"""
+    bounding_box_min: Float[Tensor, "3"] = torch.Tensor([-1.0, -1.0, -1.0])
+    """Minimum of the crop box."""
+    bounding_box_max: Float[Tensor, "3"] = torch.Tensor([1.0, 1.0, 1.0])
+    """Minimum of the crop box."""
 
 
 def get_crop_from_json(camera_json: Dict[str, Any]) -> Optional[CropData]:
@@ -289,11 +289,12 @@ def get_crop_from_json(camera_json: Dict[str, Any]) -> Optional[CropData]:
         return None
 
     bg_color = camera_json["crop"]["crop_bg_color"]
-
+    center = torch.Tensor(camera_json["crop"]["crop_center"])
+    scale = torch.Tensor(camera_json["crop"]["crop_scale"])
     return CropData(
         background_color=torch.Tensor([bg_color["r"] / 255.0, bg_color["g"] / 255.0, bg_color["b"] / 255.0]),
-        center=torch.Tensor(camera_json["crop"]["crop_center"]),
-        scale=torch.Tensor(camera_json["crop"]["crop_scale"]),
+        bounding_box_min=center - scale / 2.0,
+        bounding_box_max=center + scale / 2.0,
     )
 
 
@@ -315,6 +316,14 @@ class BaseRender:
     """Specifies number of rays per chunk during eval. If None, use the value in the config file."""
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions()
     """Colormap options."""
+    use_bounding_box: bool = False
+    """Only render points within the bounding box (overriding crop data from the camera path)."""
+    background_color: Tuple[float, float, float] = (0, 0, 0)
+    """Background color for the cropped render, used if use_bounding_box is True."""
+    bounding_box_min: Tuple[float, float, float] = (-1, -1, -1)
+    """Minimum of the bounding box, used if use_bounding_box is True."""
+    bounding_box_max: Tuple[float, float, float] = (1, 1, 1)
+    """Minimum of the bounding box, used if use_bounding_box is True."""
 
 
 @dataclass
@@ -341,7 +350,14 @@ class RenderCameraPath(BaseRender):
         with open(self.camera_path_filename, "r", encoding="utf-8") as f:
             camera_path = json.load(f)
         seconds = camera_path["seconds"]
-        crop_data = get_crop_from_json(camera_path)
+        if self.use_bounding_box:
+            crop_data = CropData(
+                background_color=torch.Tensor(self.background_color),
+                bounding_box_min=torch.Tensor(self.bounding_box_min),
+                bounding_box_max=torch.Tensor(self.bounding_box_max),
+            )
+        else:
+            crop_data = get_crop_from_json(camera_path)
         camera_path = get_path_from_json(camera_path)
 
         if camera_path.camera_type[0] == CameraType.OMNIDIRECTIONALSTEREO_L.value:
@@ -432,6 +448,8 @@ class RenderInterpolated(BaseRender):
     """Number of interpolation steps between eval dataset cameras."""
     order_poses: bool = False
     """Whether to order camera poses by proximity."""
+    fixed_intrinsics: bool = False
+    """Use intrinsics from the first camera for the whole sequence."""
     frame_rate: int = 24
     """Frame rate of the output video."""
     output_format: Literal["images", "video"] = "video"
@@ -459,7 +477,16 @@ class RenderInterpolated(BaseRender):
             cameras=cameras,
             steps=self.interpolation_steps,
             order_poses=self.order_poses,
+            fixed_intrinsics=self.fixed_intrinsics,
         )
+        if self.use_bounding_box:
+            crop_data = CropData(
+                background_color=torch.Tensor(self.background_color),
+                bounding_box_min=torch.Tensor(self.bounding_box_min),
+                bounding_box_max=torch.Tensor(self.bounding_box_max),
+            )
+        else:
+            crop_data = None
 
         _render_trajectory_video(
             pipeline,
@@ -467,8 +494,11 @@ class RenderInterpolated(BaseRender):
             output_filename=self.output_path,
             rendered_output_names=self.rendered_output_names,
             rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
+            crop_data=crop_data,
             seconds=seconds,
             output_format=self.output_format,
+            image_format=self.image_format,
+            jpeg_quality=self.jpeg_quality,
             colormap_options=self.colormap_options,
         )
 
@@ -502,6 +532,14 @@ class SpiralRender(BaseRender):
         steps = int(self.frame_rate * self.seconds)
         camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
         camera_path = get_spiral_path(camera_start, steps=steps, radius=self.radius)
+        if self.use_bounding_box:
+            crop_data = CropData(
+                background_color=torch.Tensor(self.background_color),
+                bounding_box_min=torch.Tensor(self.bounding_box_min),
+                bounding_box_max=torch.Tensor(self.bounding_box_max),
+            )
+        else:
+            crop_data = None
 
         _render_trajectory_video(
             pipeline,
@@ -509,8 +547,11 @@ class SpiralRender(BaseRender):
             output_filename=self.output_path,
             rendered_output_names=self.rendered_output_names,
             rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
+            crop_data=crop_data,
             seconds=self.seconds,
             output_format=self.output_format,
+            image_format=self.image_format,
+            jpeg_quality=self.jpeg_quality,
             colormap_options=self.colormap_options,
         )
 
