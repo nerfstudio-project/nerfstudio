@@ -301,7 +301,7 @@ class NerfactoModel(Model):
             "accumulation": accumulation,
             "depth": depth,
         }
-        if self.config.use_alpha_transparency_training:
+        if background_color is not None:
             outputs["background_color"] = background_color
 
         if self.config.predict_normals:
@@ -340,8 +340,15 @@ class NerfactoModel(Model):
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = {}
-        image = self.renderer_rgb.blend_background(batch["image"].to(self.device), outputs)
-        loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
+        image = batch["image"].to(self.device)
+        blended_rgb = (
+            self.renderer_rgb.blend_background(
+                rgb=image[..., :3], opacity=image[..., 3], background_color=outputs["background_color"]
+            )
+            if "background_color" in outputs
+            else image[..., :3]
+        )
+        loss_dict["rgb_loss"] = self.rgb_loss(blended_rgb, outputs["rgb"])
         if self.training:
             loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]

@@ -28,7 +28,7 @@ Example:
 """
 import contextlib
 import math
-from typing import Generator, Literal, Optional, Union, Dict
+from typing import Generator, Literal, Optional, Union
 
 import nerfacc
 import torch
@@ -131,25 +131,25 @@ class RGBRenderer(nn.Module):
     @classmethod
     def blend_background(
         cls,
-        image: Tensor,
-        outputs: Dict[str, Union[Tensor, list]],
+        rgb: Tensor,
+        opacity: Tensor,
+        background_color: Optional[Tensor] = None,
     ) -> Float[Tensor, "*bs 3"]:
-        """Blends the background color into the image using the alpha channel. Removes
-        the alpha channel if there is no `background_color` in `outputs`.
+        """Blends the background color into the image.
 
         Args:
-            image: RGBA.
-            outputs: Dict containing the model outputs.
+            rgb: RGB per pixel.
+            opacity: Alpha opacity per pixel.
+            background_color: Background color.
 
         Returns:
             Blended RGB.
         """
-        if outputs.get("background_color", None) is not None:
-            background_color = outputs["background_color"]
-            assert isinstance(background_color, Tensor)
-            blended_rgb = image[:, :3] * image[:, 3:] + background_color.to(image.device) * (1 - image[:, 3:])
-        else:
-            blended_rgb = image[:, :3]
+        if len(opacity.shape) == 1:
+            opacity = opacity.unsqueeze(-1)
+        blended_rgb = (
+            rgb * opacity + background_color.to(rgb.device) * (1 - opacity) if background_color is not None else rgb
+        )
         return blended_rgb
 
     def forward(
