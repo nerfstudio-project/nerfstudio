@@ -106,8 +106,6 @@ class NerfactoModelConfig(ModelConfig):
     """Orientation loss multiplier on computed normals."""
     pred_normal_loss_mult: float = 0.001
     """Predicted normal loss multiplier."""
-    use_alpha_transparency_training: bool = False
-    """Whether to use alpha channel transparency training."""
     use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""
     use_average_appearance_embedding: bool = True
@@ -286,8 +284,10 @@ class NerfactoModel(Model):
         ray_samples_list.append(ray_samples)
 
         background_color = (
-            self.renderer_rgb.get_background_color(rgb=field_outputs[FieldHeadNames.RGB], background_color="random")
-            if self.config.use_alpha_transparency_training and self.training
+            self.renderer_rgb.get_background_color(
+                rgb=field_outputs[FieldHeadNames.RGB], background_color=self.config.background_color
+            )
+            if self.training
             else None
         )
         rgb = self.renderer_rgb(
@@ -345,7 +345,7 @@ class NerfactoModel(Model):
             self.renderer_rgb.blend_background(
                 rgb=image[..., :3], opacity=image[..., 3], background_color=outputs["background_color"]
             )
-            if "background_color" in outputs
+            if "background_color" in outputs and image.shape[-1] == 4
             else image[..., :3]
         )
         loss_dict["rgb_loss"] = self.rgb_loss(blended_rgb, outputs["rgb"])
