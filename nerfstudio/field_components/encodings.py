@@ -280,7 +280,7 @@ class HashEncoding(Encoding):
         self.hash_offset = levels * self.hash_table_size
 
         self.tcnn_encoding = None
-        self.hash_table = None
+        self.hash_table = torch.empty(0)
         if implementation == "tcnn" and not TCNN_EXISTS:
             print_tcnn_speed_warning("HashEncoding")
             implementation = "torch"
