@@ -27,8 +27,7 @@ from jaxtyping import Float, Int, Shaped
 from torch import Tensor, nn
 
 from nerfstudio.field_components.base_field_component import FieldComponent
-from nerfstudio.utils.math import (components_from_spherical_harmonics,
-                                   expected_sin)
+from nerfstudio.utils.math import components_from_spherical_harmonics, expected_sin
 from nerfstudio.utils.printing import print_tcnn_speed_warning
 
 try:
