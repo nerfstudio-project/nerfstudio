@@ -332,8 +332,12 @@ class NerfactoModel(Model):
 
     def get_metrics_dict(self, outputs, batch):
         metrics_dict = {}
-        image = batch["image"][..., :3].to(self.device)
-        metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
+        image = batch["image"].to(self.device)
+        predicted_rgb, gt_rgb = self.renderer_rgb.blend_background_for_metric_computation(
+            gt_image=image, predicted_rgb=outputs["rgb"], predicted_opacity=outputs["accumulation"]
+        )
+        metrics_dict["psnr"] = self.psnr(predicted_rgb, gt_rgb)
+
         if self.training:
             metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
         return metrics_dict
@@ -345,7 +349,7 @@ class NerfactoModel(Model):
             self.renderer_rgb.blend_background(
                 rgb=image[..., :3], opacity=image[..., 3], background_color=outputs["background_color"]
             )
-            if "background_color" in outputs and image.shape[-1] == 4
+            if image.shape[-1] == 4 and "background_color" in outputs
             else image[..., :3]
         )
         loss_dict["rgb_loss"] = self.rgb_loss(blended_rgb, outputs["rgb"])
@@ -370,25 +374,27 @@ class NerfactoModel(Model):
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
-        image = batch["image"][..., :3].to(self.device)
-        rgb = outputs["rgb"]
+        image = batch["image"].to(self.device)
+        predicted_rgb, gt_rgb = self.renderer_rgb.blend_background_for_metric_computation(
+            gt_image=image, predicted_rgb=outputs["rgb"], predicted_opacity=outputs["accumulation"]
+        )
         acc = colormaps.apply_colormap(outputs["accumulation"])
         depth = colormaps.apply_depth_colormap(
             outputs["depth"],
             accumulation=outputs["accumulation"],
         )
 
-        combined_rgb = torch.cat([image, rgb], dim=1)
+        combined_rgb = torch.cat([gt_rgb, predicted_rgb], dim=1)
         combined_acc = torch.cat([acc], dim=1)
         combined_depth = torch.cat([depth], dim=1)
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
-        image = torch.moveaxis(image, -1, 0)[None, ...]
-        rgb = torch.moveaxis(rgb, -1, 0)[None, ...]
+        gt_rgb = torch.moveaxis(gt_rgb, -1, 0)[None, ...]
+        predicted_rgb = torch.moveaxis(predicted_rgb, -1, 0)[None, ...]
 
-        psnr = self.psnr(image, rgb)
-        ssim = self.ssim(image, rgb)
-        lpips = self.lpips(image, rgb)
+        psnr = self.psnr(gt_rgb, predicted_rgb)
+        ssim = self.ssim(gt_rgb, predicted_rgb)
+        lpips = self.lpips(gt_rgb, predicted_rgb)
 
         # all of these metrics will be logged as scalars
         metrics_dict = {"psnr": float(psnr.item()), "ssim": float(ssim)}  # type: ignore

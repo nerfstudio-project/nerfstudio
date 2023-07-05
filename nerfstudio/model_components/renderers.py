@@ -28,7 +28,7 @@ Example:
 """
 import contextlib
 import math
-from typing import Generator, Literal, Optional, Union
+from typing import Generator, Literal, Optional, Tuple, Union
 
 import nerfacc
 import torch
@@ -107,9 +107,7 @@ class RGBRenderer(nn.Module):
         return comp_rgb
 
     @classmethod
-    def get_background_color(
-        cls, rgb: Float[Tensor, "*bs num_samples 3"], background_color: BackgroundColor
-    ) -> Float[Tensor, "3"]:
+    def get_background_color(cls, rgb: Float[Tensor, "*bs num_samples 3"], background_color: BackgroundColor) -> Tensor:
         """Returns the RGB background color for a specified background color.
 
         Args:
@@ -147,10 +145,42 @@ class RGBRenderer(nn.Module):
         Returns:
             Blended RGB.
         """
-        if len(opacity.shape) == 1:
+        if len(opacity.shape) < len(rgb.shape):
             opacity = opacity.unsqueeze(-1)
         blended_rgb = rgb * opacity + background_color.to(rgb.device) * (1 - opacity)
         return blended_rgb
+
+    def blend_background_for_metric_computation(
+        self,
+        gt_image: torch.Tensor,
+        predicted_rgb: torch.Tensor,
+        predicted_opacity: torch.Tensor,
+        background_color: torch.Tensor = colors.BLACK,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Blends a background color into the ground truth and predicted image for
+        metric computation if the current background color is "random".
+
+        Args:
+            gt_image: The ground truth image.
+            predicted_rgb: The predicted RGB values.
+            predicted_opacity: The predicted opacity/ accumulation.
+            background_color: The background color to use for blending. This should be
+                a single color to use for all pixels.
+
+        Returns:
+            A tuple of the predicted and ground truth RGB values.
+        """
+        if gt_image.shape[-1] == 4 and self.background_color == "random":
+            predicted_rgb = self.blend_background(
+                rgb=predicted_rgb, opacity=predicted_opacity, background_color=background_color
+            )
+            gt_rgb = self.blend_background(
+                rgb=gt_image[..., :3], opacity=gt_image[..., 3], background_color=background_color
+            )
+        else:
+            gt_rgb = gt_image[..., :3]
+
+        return predicted_rgb, gt_rgb
 
     def forward(
         self,
