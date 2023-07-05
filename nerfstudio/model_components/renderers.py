@@ -71,7 +71,7 @@ class RGBRenderer(nn.Module):
         cls,
         rgb: Float[Tensor, "*bs num_samples 3"],
         weights: Float[Tensor, "*bs num_samples 1"],
-        background_color: BackgroundColor = "random",
+        background_color: Union[BackgroundColor, Tensor] = "random",
         ray_indices: Optional[Int[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
     ) -> Float[Tensor, "*bs 3"]:
@@ -107,7 +107,9 @@ class RGBRenderer(nn.Module):
         return comp_rgb
 
     @classmethod
-    def get_background_color(cls, rgb: Float[Tensor, "*bs num_samples 3"], background_color: BackgroundColor) -> Tensor:
+    def get_background_color(
+        cls, rgb: Float[Tensor, "*bs num_samples 3"], background_color: Union[BackgroundColor, Tensor]
+    ) -> Tensor:
         """Returns the RGB background color for a specified background color.
 
         Args:
@@ -188,7 +190,7 @@ class RGBRenderer(nn.Module):
         weights: Float[Tensor, "*bs num_samples 1"],
         ray_indices: Optional[Int[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
-        background_color: Union[Float[Tensor, "3"], BackgroundColor, None] = None,
+        background_color: Optional[Union[BackgroundColor, Tensor]] = None,
     ) -> Float[Tensor, "*bs 3"]:
         """Composite samples along ray and render color image
 
