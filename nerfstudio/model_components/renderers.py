@@ -39,7 +39,7 @@ from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.utils import colors
 from nerfstudio.utils.math import components_from_spherical_harmonics, safe_normalize
 
-BackgroundColor = Union[Literal["random", "last_sample", "black", "white"], Float[Tensor, "3"]]
+BackgroundColor = Union[Literal["random", "last_sample", "black", "white"], Float[Tensor, "3"], Float[Tensor, "*bs 3"]]
 BACKGROUND_COLOR_OVERRIDE: Optional[Float[Tensor, "3"]] = None
 
 
@@ -71,7 +71,7 @@ class RGBRenderer(nn.Module):
         cls,
         rgb: Float[Tensor, "*bs num_samples 3"],
         weights: Float[Tensor, "*bs num_samples 1"],
-        background_color: Union[BackgroundColor, Tensor] = "random",
+        background_color: BackgroundColor = "random",
         ray_indices: Optional[Int[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
     ) -> Float[Tensor, "*bs 3"]:
@@ -108,8 +108,8 @@ class RGBRenderer(nn.Module):
 
     @classmethod
     def get_background_color(
-        cls, rgb: Float[Tensor, "*bs num_samples 3"], background_color: Union[BackgroundColor, Tensor]
-    ) -> Tensor:
+        cls, rgb: Float[Tensor, "*bs num_samples 3"], background_color: BackgroundColor
+    ) -> Union[Float[Tensor, "3"], Float[Tensor, "*bs 3"]]:
         """Returns the RGB background color for a specified background color.
 
         Args:
@@ -154,11 +154,11 @@ class RGBRenderer(nn.Module):
 
     def blend_background_for_metric_computation(
         self,
-        gt_image: torch.Tensor,
-        predicted_rgb: torch.Tensor,
-        predicted_opacity: torch.Tensor,
-        background_color: torch.Tensor = colors.BLACK,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        gt_image: Tensor,
+        predicted_rgb: Tensor,
+        predicted_opacity: Tensor,
+        background_color: Float[Tensor, "3"] = colors.BLACK,
+    ) -> Tuple[Tensor, Tensor]:
         """Blends a background color into the ground truth and predicted image for
         metric computation if the current background color is "random".
 
@@ -190,7 +190,7 @@ class RGBRenderer(nn.Module):
         weights: Float[Tensor, "*bs num_samples 1"],
         ray_indices: Optional[Int[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
-        background_color: Optional[Union[BackgroundColor, Tensor]] = None,
+        background_color: Optional[BackgroundColor] = None,
     ) -> Float[Tensor, "*bs 3"]:
         """Composite samples along ray and render color image
 
