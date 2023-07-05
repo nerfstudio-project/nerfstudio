@@ -219,6 +219,7 @@ class RenderStateMachine(threading.Thread):
             image=outputs[self.viewer.control_panel.output_render],
             colormap_options=self.viewer.control_panel.colormap_options,
         )
+        depth = outputs["depth"]
 
         if self.viewer.control_panel.split:
             split_output_render = self.viewer.control_panel.split_output_render
@@ -237,11 +238,14 @@ class RenderStateMachine(threading.Thread):
             selected_output[:, split_index] = torch.tensor([0.133, 0.157, 0.192], device=selected_output.device)
 
         selected_output = (selected_output * 255).type(torch.uint8)
+        depth = (torch.clip(depth,0,1) * 2**16-1).squeeze().cpu().numpy().astype(np.uint16)
+        # depth = torch.concatenate([depth, depth, depth], dim=-1)
 
         self.viewer.viser_server.set_background_image(
             selected_output.cpu().numpy(),
             format=self.viewer.config.image_format,
             jpeg_quality=self.viewer.config.jpeg_quality,
+            depthimg=depth,
         )
 
     def _calculate_image_res(self, aspect_ratio: float) -> Tuple[int, int]:

@@ -140,7 +140,6 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         self.device = device
         self.world_size = world_size
         self.local_rank = local_rank
-        # self.sampler = None
         self.test_mode = test_mode
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
         self.dataparser_config = self.config.dataparser
@@ -160,9 +159,15 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         mp.set_start_method("spawn")
         # Manager().queue() can be faster
         # https://stackoverflow.com/questions/43439194/python-multiprocessing-queue-vs-multiprocessing-manager-queue/45236748#45236748
-        self.data_q = mp.Manager().Queue(maxsize=2)
+        self.data_q = mp.Manager().Queue(maxsize=3)
         self.data_procs = [
-            DataProc(self.data_q, self.config, self.train_dataparser_outputs, self.train_dataset, self.pix_sampler)
+            DataProc(
+                self.data_q,
+                self.config,
+                self.train_dataparser_outputs,
+                self.train_dataset,
+                self.pix_sampler,
+            )
             for i in range(self.config.n_procs)
         ]
         for proc in self.data_procs:
@@ -195,7 +200,6 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         self.train_count += 1
-
         # Fetch the next batch in an executor to parallelize the queue get() operation
         # with the train step
         bundle, batch = self.batch_fut.result()
