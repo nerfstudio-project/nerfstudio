@@ -3,6 +3,7 @@ from __future__ import annotations
 import concurrent.futures
 import functools
 import time
+import queue
 from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -19,6 +20,7 @@ from typing_extensions import TypeVar
 
 from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.cameras.rays import RayBundle
+from nerfstudio.cameras.lie_groups import exp_map_SE3
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
 from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig, TDataset, variable_res_collate
@@ -32,11 +34,12 @@ from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttrib
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
 from nerfstudio.utils.rich_utils import CONSOLE
+from nerfstudio.utils import poses as pose_utils
 
 
 @dataclass
 class ParallelDataManagerConfig(DataManagerConfig):
-    """A basic data manager"""
+    """Config for a `ParallelDataManager` which reads data in multiple processes"""
 
     _target: Type = field(default_factory=lambda: ParallelDataManager)
     """Target class to instantiate."""
@@ -68,6 +71,18 @@ class ParallelDataManagerConfig(DataManagerConfig):
     """Size of patch to sample from. If >1, patch-based sampling will be used."""
     n_procs: int = 1
     """Number of processes to use for data loading."""
+    queue_size: int = 2
+    """Size of shared data queue containing generated ray bundles and batches. 
+    If queue_size <= 0, the queue size is infinite."""
+    max_thread_workers: Optional[int] = 1
+    """Maximum number of threads to use in thread pool executor. If None, automatically
+    set to harware cpu_count + 4."""
+    position_noise_std: float = 0.0
+    """Noise to add to initial camera pose positions. Useful for debugging."""
+    orientation_noise_std: float = 0.0
+    """Noise to add to initial camera pose orientations. Useful for debugging."""
+    non_trainable_camera_indices: Optional[Tuple[int, ...]] = None
+    """List of non trainable camera indices"""
 
 
 class DataProc(mp.Process):
@@ -108,8 +123,11 @@ class DataProc(mp.Process):
                 try:
                     self.out_queue.put_nowait((ray_bundle, batch))
                     break
-                except:
-                    time.sleep(0.001)
+                except queue.Full:
+                    time.sleep(0.0001)
+                except Exception:
+                    CONSOLE.print_exception()
+                    CONSOLE.print("[bold red]Error: Error occured in parallel datamanager queue.")
 
     def cache_images(self):
         # caches all the input images in a NxHxWx3 tensor
@@ -152,6 +170,9 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             self.dataparser.downscale_factor = 1  # Avoid opening images
         self.includes_time = self.dataparser.includes_time
         self.train_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split="train")
+        self.non_trainable_camera_indices = self.config.non_trainable_camera_indices
+        if self.config.position_noise_std != 0.0 or self.config.orientation_noise_std != 0.0:
+            self.apply_pose_noise(self.non_trainable_camera_indices)
         self.train_dataset = self.create_train_dataset()
         # self.eval_dataset = self.create_eval_dataset()
         self.pix_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
@@ -159,7 +180,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         mp.set_start_method("spawn")
         # Manager().queue() can be faster
         # https://stackoverflow.com/questions/43439194/python-multiprocessing-queue-vs-multiprocessing-manager-queue/45236748#45236748
-        self.data_q = mp.Manager().Queue(maxsize=3)
+        self.data_q = mp.Manager().Queue(maxsize=self.config.queue_size)
         self.data_procs = [
             DataProc(
                 self.data_q,
@@ -174,7 +195,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             proc.start()
         super().__init__()
         # Prime the executor with the first batch
-        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=self.config.max_thread_workers)
         self.batch_fut = self.executor.submit(self.data_q.get)
 
     def create_train_dataset(self) -> TDataset:
@@ -222,3 +243,20 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             A list of dictionaries containing the data manager's param groups.
         """
         return {}
+
+    def apply_pose_noise(self, non_trainable_camera_indices: Optional[List[int]]):
+        """Apply noise to training camera poses"""
+        assert self.config.position_noise_std >= 0.0 and self.config.orientation_noise_std >= 0.0
+        camera_to_worlds = self.train_dataparser_outputs.cameras.camera_to_worlds.to(self.device)
+        num_cameras = len(self.train_dataparser_outputs.cameras)
+        std_vector = torch.tensor(
+            [self.config.position_noise_std] * 3 + [self.config.orientation_noise_std] * 3, device=self.device
+        )
+        pose_noise = exp_map_SE3(torch.normal(torch.zeros((num_cameras, 6), device=self.device), std_vector))
+        if non_trainable_camera_indices is not None:
+            pose_noise[torch.tensor(non_trainable_camera_indices).long()] = torch.eye(4, device=pose_noise.device)[
+                :3, :4
+            ]
+        self.train_dataparser_outputs.cameras.camera_to_worlds = functools.reduce(
+            pose_utils.multiply, [camera_to_worlds, pose_noise]
+        ).to(self.train_dataparser_outputs.cameras.camera_to_worlds.device)

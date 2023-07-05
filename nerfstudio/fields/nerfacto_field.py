@@ -38,6 +38,7 @@ from nerfstudio.field_components.field_heads import (
 from nerfstudio.field_components.mlp import MLP
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
+from nerfstudio.utils.writer import GLOBAL_BUFFER
 
 
 class NerfactoField(Field):
@@ -64,6 +65,8 @@ class NerfactoField(Field):
         use_pred_normals: whether to use predicted normals
         use_average_appearance_embedding: whether to use average appearance embedding or zeros for inference
         spatial_distortion: spatial distortion to apply to the scene
+        bundle_adjust: whether to use bundle adjustment
+        coarse_to_fine_iters: iterations (percentage of max iters) at which bundle adjustment is active
     """
 
     aabb: Tensor
@@ -95,6 +98,8 @@ class NerfactoField(Field):
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
         implementation: Literal["tcnn", "torch"] = "tcnn",
+        bundle_adjust: bool = False,
+        coarse_to_fine_iters: Optional[Tuple[float, float]] = None,
     ) -> None:
         super().__init__()
 
@@ -116,6 +121,8 @@ class NerfactoField(Field):
         self.pass_semantic_gradients = pass_semantic_gradients
         self.base_res = base_res
         self.freq_warmup = freq_warmup
+        self.bundle_adjust = bundle_adjust
+        self.coarse_to_fine_iters = coarse_to_fine_iters
         self.step = 0
 
         self.direction_encoding = SHEncoding(
@@ -207,9 +214,24 @@ class NerfactoField(Field):
     def get_freq_mask(self, B, N, D, device):
         import numpy as np
 
-        ts = np.linspace(self.step * N, self.step, N)
-        mask_vals = np.interp(ts, [0, self.freq_warmup], [0, 1])
-        m = torch.from_numpy(mask_vals)[None, ..., None].to(device)
+        if self.bundle_adjust:
+            # set masks for hash grid levels
+            self.max_iters: int = GLOBAL_BUFFER.get("max_iter")
+            assert self.coarse_to_fine_iters is not None
+            start, end = self.coarse_to_fine_iters
+            assert (
+                start >= 0 and end >= 0
+            ), f"start and end iterations for bundle adjustment have to be positive, got start = {start} and end = {end}"
+            L = N
+            # From https://arxiv.org/pdf/2104.06405.pdf equation 14
+            alpha = ((self.step / self.max_iters) - start) / (end - start) * L
+            k = torch.arange(L, dtype=torch.float32, device=device)
+            mask_vals = (1 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()) / 2
+        else:
+            ts = np.linspace(self.step * N, self.step, N)
+            mask_vals = np.interp(ts, [0, self.freq_warmup], [0, 1])
+            mask_vals = torch.from_numpy(mask_vals)
+        m = mask_vals[None, ..., None].to(device)
         return m.repeat((B, 1, D))
 
     def mask_freqs(self, hashgrid_outputs):
