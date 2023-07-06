@@ -301,7 +301,7 @@ class NerfactoModel(Model):
             "accumulation": accumulation,
             "depth": depth,
         }
-        if background_color is not None:
+        if self.training and self.config.background_color == "random" and background_color is not None:
             outputs["background_color"] = background_color
 
         if self.config.predict_normals:
