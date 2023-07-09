@@ -71,6 +71,9 @@ from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 from nerfstudio.plugins.registry import discover_methods
 
+import torch
+torch.cuda.empty_cache()
+
 method_configs: Dict[str, TrainerConfig] = {}
 descriptions = {
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
@@ -102,8 +105,8 @@ method_configs["neuralangelo"] = TrainerConfig(
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             dataparser=SDFStudioDataParserConfig(),
-            train_num_rays_per_batch=512,
-            eval_num_rays_per_batch=512,
+            train_num_rays_per_batch=32,
+            eval_num_rays_per_batch=32,
             camera_optimizer=CameraOptimizerConfig(
                 mode="off", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),

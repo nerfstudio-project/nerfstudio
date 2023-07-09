@@ -167,13 +167,13 @@ class NeuralangeloModel(NeuSModel):
         if self.training and self.config.curvature_loss_multi > 0.0:
             delta = self.field.numerical_gradients_delta
             centered_sdf = outputs['field_outputs'][FieldHeadNames.SDF]
-            sourounding_sdf = outputs['field_outputs']["sampled_sdf"]
+            surrounding = outputs['field_outputs']["sampled_sdf"]
             
-            sourounding_sdf = sourounding_sdf.reshape(centered_sdf.shape[:2] + (3, 2))
+            surrounding = surrounding.reshape(centered_sdf.shape[:2] + (3, 2))
             
             # (a - b)/d - (b -c)/d = (a + c - 2b)/d
             # ((a - b)/d - (b -c)/d)/d = (a + c - 2b)/(d*d)
-            curvature = (sourounding_sdf.sum(dim=-1) - 2 * centered_sdf) / (delta * delta)
+            curvature = (surrounding.sum(dim=-1) - 2 * centered_sdf) / (delta * delta)
             loss_dict["curvature_loss"] = torch.abs(curvature).mean() * self.config.curvature_loss_multi * self.curvature_loss_multi_factor
             
         return loss_dict
