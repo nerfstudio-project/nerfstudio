@@ -1,3 +1,4 @@
 [submodule "NERF_WEB"]
 	path = NERF_WEB
 	url = https://github.com/Spaceport-Project/NERF_WEB.git
+	branch = main
