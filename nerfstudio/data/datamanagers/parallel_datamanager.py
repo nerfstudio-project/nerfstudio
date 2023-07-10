@@ -4,8 +4,6 @@ import concurrent.futures
 import functools
 import time
 import queue
-from abc import abstractmethod
-from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Generic, List, Literal, Optional, Tuple, Type, Union, cast
@@ -13,28 +11,21 @@ from typing import Any, Callable, Dict, Generic, List, Literal, Optional, Tuple,
 import torch
 import torch.multiprocessing as mp
 from rich.progress import track
-from torch import nn
 from torch.nn import Parameter
-from torch.utils.data.distributed import DistributedSampler
-from typing_extensions import TypeVar
 
 from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.cameras.lie_groups import exp_map_SE3
-from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
 from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig, TDataset, variable_res_collate
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
-from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import EquirectangularPixelSampler, PatchPixelSampler, PixelSampler
-from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
-from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
-from nerfstudio.utils.misc import IterableWrapper
 from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils import poses as pose_utils
+from nerfstudio.data.utils.dataloaders import RandIndicesEvalDataloader, CacheDataloader, FixedIndicesEvalDataloader
 
 
 @dataclass
@@ -70,11 +61,11 @@ class ParallelDataManagerConfig(DataManagerConfig):
     patch_size: int = 1
     """Size of patch to sample from. If >1, patch-based sampling will be used."""
     n_procs: int = 1
-    """Number of processes to use for data loading."""
+    """Number of processes to use for train data loading."""
     queue_size: int = 2
     """Size of shared data queue containing generated ray bundles and batches. 
     If queue_size <= 0, the queue size is infinite."""
-    max_thread_workers: Optional[int] = 1
+    max_thread_workers: Optional[int] = None
     """Maximum number of threads to use in thread pool executor. If None, automatically
     set to harware cpu_count + 4."""
     position_noise_std: float = 0.0
@@ -82,42 +73,48 @@ class ParallelDataManagerConfig(DataManagerConfig):
     orientation_noise_std: float = 0.0
     """Noise to add to initial camera pose orientations. Useful for debugging."""
     non_trainable_camera_indices: Optional[Tuple[int, ...]] = None
-    """List of non trainable camera indices"""
+    """List of non trainable camera indices."""
 
 
-class DataProc(mp.Process):
+class DataProcessor(mp.Process):
+    """Parallel dataset batch processor.
+
+    This class is responsible for generating ray bundles from an input dataset
+    in parallel python processes.
+
+    Args:
+        out_queue: the output queue for storing the processed data
+        config: configuration object for the parallel data manager
+        dataparser_outputs: outputs from the dataparser
+        dataset: input dataset
+        pixel_sampler: The pixel sampler for sampling rays
+    """
+
     def __init__(
         self,
         out_queue: mp.Queue,
         config: ParallelDataManagerConfig,
         dataparser_outputs: DataparserOutputs,
-        train_dataset: TDataset,
-        pix_sampler: PixelSampler,
+        dataset: TDataset,
+        pixel_sampler: PixelSampler,
     ):
         super().__init__()
         self.daemon = True
         self.out_queue = out_queue
         self.config = config
         self.dataparser_outputs = dataparser_outputs
-        self.train_dataset = train_dataset
-        self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
-        if self.dataparser_outputs is not None:
-            cameras = self.dataparser_outputs.cameras
-            if len(cameras) > 1:
-                for i in range(1, len(cameras)):
-                    if cameras[0].width != cameras[i].width or cameras[0].height != cameras[i].height:
-                        CONSOLE.print("Variable resolution, using variable_res_collate")
-                        self.config.collate_fn = variable_res_collate
-                        break
-        self.train_pixel_sampler = pix_sampler
-        self.train_ray_generator = RayGenerator(self.train_dataset.cameras)
+        self.dataset = dataset
+        self.exclude_batch_keys_from_device = self.dataset.exclude_batch_keys_from_device
+        self.pixel_sampler = pixel_sampler
+        self.ray_generator = RayGenerator(self.dataset.cameras)
         self.cache_images()
 
     def run(self):
+        """Append out queue in parallel with ray bundles and batches."""
         while True:
-            batch = self.train_pixel_sampler.sample(self.img_data)
+            batch = self.pixel_sampler.sample(self.img_data)
             ray_indices = batch["indices"]
-            ray_bundle: RayBundle = self.train_ray_generator(ray_indices)
+            ray_bundle: RayBundle = self.ray_generator(ray_indices)
             ray_bundle = ray_bundle.pin_memory()
             while True:
                 try:
@@ -131,19 +128,25 @@ class DataProc(mp.Process):
 
     def cache_images(self):
         # caches all the input images in a NxHxWx3 tensor
-        indices = range(len(self.train_dataset))
+        indices = range(len(self.dataset))
         batch_list = []
         results = []
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.max_thread_workers) as executor:
             for idx in indices:
-                res = executor.submit(self.train_dataset.__getitem__, idx)
+                res = executor.submit(self.dataset.__getitem__, idx)
                 results.append(res)
-            for res in track(results, description="Loading data batch", transient=True):
+            for res in track(results, description="Loading data batch", transient=False):
                 batch_list.append(res.result())
         self.img_data = self.config.collate_fn(batch_list)
 
 
 class ParallelDataManager(DataManager, Generic[TDataset]):
+    """Data manager implementation for parallel dataloading.
+
+    Args:
+        config: the DataManagerConfig used to instantiate class
+    """
+
     def __init__(
         self,
         config: ParallelDataManagerConfig,
@@ -158,7 +161,6 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         self.device = device
         self.world_size = world_size
         self.local_rank = local_rank
-        # self.sampler = None
         self.test_mode = test_mode
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
         self.dataparser_config = self.config.dataparser
@@ -171,32 +173,35 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             self.dataparser.downscale_factor = 1  # Avoid opening images
         self.includes_time = self.dataparser.includes_time
         self.train_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split="train")
+        self.eval_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split=self.test_split)
+        cameras = self.train_dataparser_outputs.cameras
+        if len(cameras) > 1:
+            for i in range(1, len(cameras)):
+                if cameras[0].width != cameras[i].width or cameras[0].height != cameras[i].height:
+                    CONSOLE.print("Variable resolution, using variable_res_collate")
+                    self.config.collate_fn = variable_res_collate
+                    break
         self.non_trainable_camera_indices = self.config.non_trainable_camera_indices
         if self.config.position_noise_std != 0.0 or self.config.orientation_noise_std != 0.0:
             self.apply_pose_noise(self.non_trainable_camera_indices)
         self.train_dataset = self.create_train_dataset()
-        # self.eval_dataset = self.create_eval_dataset()
-        self.pix_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
+        self.eval_dataset = self.create_eval_dataset()
+        self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
         # Spawn is critical for not freezing the program (PyTorch compatability issue)
         mp.set_start_method("spawn")
-        # Manager().queue() can be faster
-        # https://stackoverflow.com/questions/43439194/python-multiprocessing-queue-vs-multiprocessing-manager-queue/45236748#45236748
-        self.data_q = mp.Manager().Queue(maxsize=self.config.queue_size)
-        self.data_procs = [
-            DataProc(self.data_q, self.config, self.train_dataparser_outputs, self.train_dataset, self.pix_sampler)
-            for i in range(self.config.n_procs)
-        ]
-        for proc in self.data_procs:
-            proc.start()
         super().__init__()
-        # Prime the executor with the first batch
-        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=self.config.max_thread_workers)
-        self.batch_fut = self.executor.submit(self.data_q.get)
 
     def create_train_dataset(self) -> TDataset:
         """Sets up the data loaders for training"""
         return self.dataset_type(
             dataparser_outputs=self.train_dataparser_outputs,
+            scale_factor=self.config.camera_res_scale_factor,
+        )
+
+    def create_eval_dataset(self) -> TDataset:
+        """Sets up the data loaders for evaluation"""
+        return self.dataset_type(
+            dataparser_outputs=self.dataparser.get_dataparser_outputs(split=self.test_split),
             scale_factor=self.config.camera_res_scale_factor,
         )
 
@@ -214,15 +219,87 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
         return PixelSampler(*args, **kwargs)
 
+    def setup_train(self):
+        """Sets up the data loaders for training"""
+        assert self.train_dataset is not None
+        self.train_pix_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
+        # Manager().queue() can be faster
+        # https://stackoverflow.com/questions/43439194/python-multiprocessing-queue-vs-multiprocessing-manager-queue/45236748#45236748
+        self.data_queue = mp.Manager().Queue(maxsize=self.config.queue_size)
+        # self.data_queue = mp.Queue(maxsize=self.config.queue_size)
+        self.data_procs = [
+            DataProcessor(
+                out_queue=self.data_queue,
+                config=self.config,
+                dataparser_outputs=self.train_dataparser_outputs,
+                dataset=self.train_dataset,
+                pixel_sampler=self.train_pix_sampler,
+            )
+            for i in range(self.config.n_procs)
+        ]
+        for proc in self.data_procs:
+            proc.start()
+
+        # Prime the executor with the first batch
+        self.train_executor = concurrent.futures.ThreadPoolExecutor(max_workers=self.config.max_thread_workers)
+        self.train_batch_fut = self.train_executor.submit(self.data_queue.get)
+
+    def setup_eval(self):
+        """Sets up the data loader for evaluation"""
+        assert self.eval_dataset is not None
+        CONSOLE.print("Setting up evaluation dataset...")
+        self.eval_image_dataloader = CacheDataloader(
+            self.eval_dataset,
+            num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
+            num_times_to_repeat_images=self.config.eval_num_times_to_repeat_images,
+            device=self.device,
+            num_workers=self.world_size * 4,
+            pin_memory=True,
+            collate_fn=self.config.collate_fn,
+            exclude_batch_keys_from_device=self.exclude_batch_keys_from_device,
+        )
+        self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
+        self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
+        self.eval_ray_generator = RayGenerator(self.eval_dataset.cameras.to(self.device))
+        # for loading full images
+        self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
+            input_dataset=self.eval_dataset,
+            device=self.device,
+            num_workers=self.world_size * 4,
+        )
+        self.eval_dataloader = RandIndicesEvalDataloader(
+            input_dataset=self.eval_dataset,
+            device=self.device,
+            num_workers=self.world_size * 4,
+        )
+
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         self.train_count += 1
 
         # Fetch the next batch in an executor to parallelize the queue get() operation
         # with the train step
-        bundle, batch = self.batch_fut.result()
-        self.batch_fut = self.executor.submit(self.data_q.get)
-        bundle = bundle.to(self.device)
-        return bundle, batch
+        bundle, batch = self.train_batch_fut.result()
+        self.train_batch_fut = self.train_executor.submit(self.data_queue.get)
+        ray_bundle = bundle.to(self.device)
+        return ray_bundle, batch
+
+    def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
+        """Returns the next batch of data fnon_trainable_camera_indicesrom the eval dataloader."""
+        self.eval_count += 1
+        image_batch = next(self.iter_eval_image_dataloader)
+        assert self.eval_pixel_sampler is not None
+        assert isinstance(image_batch, dict)
+        batch = self.eval_pixel_sampler.sample(image_batch)
+        ray_indices = batch["indices"]
+        ray_bundle = self.eval_ray_generator(ray_indices)
+        return ray_bundle, batch
+
+    def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
+        for camera_ray_bundle, batch in self.eval_dataloader:
+            assert camera_ray_bundle.camera_indices is not None
+            image_idx = int(camera_ray_bundle.camera_indices[0, 0, 0])
+            return image_idx, camera_ray_bundle, batch
+        raise ValueError("No more eval images")
 
     def get_train_rays_per_batch(self) -> int:
         return self.config.train_num_rays_per_batch
@@ -241,7 +318,11 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         return {}
 
     def apply_pose_noise(self, non_trainable_camera_indices: Optional[List[int]]):
-        """Apply noise to training camera poses"""
+        """Apply noise to training camera poses.
+
+        Args:
+            non_trainable_camera_indices: list of non trainable cameras
+        """
         assert self.config.position_noise_std >= 0.0 and self.config.orientation_noise_std >= 0.0
         camera_to_worlds = self.train_dataparser_outputs.cameras.camera_to_worlds.to(self.device)
         num_cameras = len(self.train_dataparser_outputs.cameras)
