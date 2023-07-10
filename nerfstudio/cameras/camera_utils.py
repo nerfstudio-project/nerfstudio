@@ -504,7 +504,7 @@ def radial_and_tangential_undistort(
 
     undistort = torch.stack([x, y], dim=-1)
 
-    return undistort, all_jacobian, coords + all_residual
+    return undistort, all_jacobian
 
 
 def _compute_residual_and_jacobian_fisheye(
@@ -643,7 +643,6 @@ def fisheye_undistort(
     return (
         (theta * inverse_r_d).unsqueeze(-1) * coords,
         all_derivative,
-        coords * (1 + all_residual * inverse_r_d).unsqueeze(-1),
     )
 
 

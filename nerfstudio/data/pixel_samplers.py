@@ -23,8 +23,6 @@ import torch
 from jaxtyping import Int
 from torch import Tensor
 
-from nerfstudio.utils import profiler
-
 
 class PixelSampler:
     """Samples 'pixel_batch's from 'image_batch's.
@@ -76,9 +74,7 @@ class PixelSampler:
 
         return indices
 
-    def collate_image_dataset_batch(
-        self, batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False, indices: torch.Tensor = None
-    ):
+    def collate_image_dataset_batch(self, batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
         """
         Operates on a batch of images and samples pixels to use for generating rays.
         Returns a collated batch which is input to the Graph.
@@ -90,23 +86,21 @@ class PixelSampler:
             keep_full_image: whether or not to include a reference to the full image in returned batch
         """
 
-        if indices is None:
-            indices = self.collate_image_dataset_indices(batch, num_rays_per_batch)
-        need_interp = torch.is_floating_point(indices)
+        device = batch["image"].device
+        num_images, image_height, image_width, _ = batch["image"].shape
 
-        c, y, x = torch.unbind(indices, dim=-1)
-        c, y, x = c.cpu(), y.cpu(), x.cpu()
-        c = c.long()
-        if need_interp:
-            collated_batch = {
-                key: _multiple_bilinear_sample(value, c, y, x)
-                for key, value in batch.items()
-                if key != "image_idx" and value is not None
-            }
+        if "mask" in batch:
+            indices = self.sample_method(
+                num_rays_per_batch, num_images, image_height, image_width, mask=batch["mask"], device=device
+            )
         else:
-            collated_batch = {
-                key: value[c, y, x] for key, value in batch.items() if key != "image_idx" and value is not None
-            }
+            indices = self.sample_method(num_rays_per_batch, num_images, image_height, image_width, device=device)
+
+        c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
+        c, y, x = c.cpu(), y.cpu(), x.cpu()
+        collated_batch = {
+            key: value[c, y, x] for key, value in batch.items() if key != "image_idx" and value is not None
+        }
 
         assert collated_batch["image"].shape[0] == num_rays_per_batch
 
@@ -119,9 +113,7 @@ class PixelSampler:
 
         return collated_batch
 
-    def collate_image_dataset_batch_list(
-        self, batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False, indices: torch.Tensor = None
-    ):
+    def collate_image_dataset_batch_list(self, batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
         """
         Does the same as collate_image_dataset_batch, except it will operate over a list of images / masks inside
         a list.
@@ -136,43 +128,53 @@ class PixelSampler:
             keep_full_image: whether or not to include a reference to the full image in returned batch
         """
 
+        device = batch["image"][0].device
         num_images = len(batch["image"])
 
         # only sample within the mask, if the mask is in the batch
+        all_indices = []
         all_images = []
-        if indices is None:
-            indices = self.collate_image_dataset_indices_list(batch, num_rays_per_batch)
-        need_interp = torch.is_floating_point(indices)
 
-        num_rays_in_batch = num_rays_per_batch // num_images
-        for i in range(num_images):
-            start_ray = num_rays_in_batch * i
+        if "mask" in batch:
+            num_rays_in_batch = num_rays_per_batch // num_images
+            for i in range(num_images):
+                image_height, image_width, _ = batch["image"][i].shape
 
-            idx = indices[start_ray : start_ray + num_rays_in_batch]
-            if need_interp:
-                all_images.append(_multiple_bilinear_sample(batch["image"], i, idx[:, 1], idx[:, 2]))
-            else:
-                all_images.append(batch["image"][i, idx[:, 1], idx[:, 2]])
+                if i == num_images - 1:
+                    num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
 
-        c, y, x = torch.unbind(indices, dim=-1)
-        c = c.long()
-        if need_interp:
-            collated_batch = {
-                key: _multiple_bilinear_sample(value, c, y, x)
-                for key, value in batch.items()
-                if key not in ["image_idx", "image", "mask"] and value is not None
-            }
+                indices = self.sample_method(
+                    num_rays_in_batch, 1, image_height, image_width, mask=batch["mask"][i], device=device
+                )
+                indices[:, 0] = i
+                all_indices.append(indices)
+                all_images.append(batch["image"][i][indices[:, 1], indices[:, 2]])
+
         else:
-            collated_batch = {
-                key: value[c, y, x]
-                for key, value in batch.items()
-                if key not in ["image_idx", "image", "mask"] and value is not None
-            }
+            num_rays_in_batch = num_rays_per_batch // num_images
+            for i in range(num_images):
+                image_height, image_width, _ = batch["image"][i].shape
+                if i == num_images - 1:
+                    num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
+                indices = self.sample_method(num_rays_in_batch, 1, image_height, image_width, device=device)
+                indices[:, 0] = i
+                all_indices.append(indices)
+                all_images.append(batch["image"][i][indices[:, 1], indices[:, 2]])
+
+        indices = torch.cat(all_indices, dim=0)
+
+        c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
+        collated_batch = {
+            key: value[c, y, x]
+            for key, value in batch.items()
+            if key != "image_idx" and key != "image" and key != "mask" and value is not None
+        }
 
         collated_batch["image"] = torch.cat(all_images, dim=0)
 
         assert collated_batch["image"].shape[0] == num_rays_per_batch
 
+        # Needed to correct the random indices to their actual camera idx locations.
         indices[:, 0] = batch["image_idx"][c]
         collated_batch["indices"] = indices  # with the abs camera indices
 
@@ -181,66 +183,7 @@ class PixelSampler:
 
         return collated_batch
 
-    def collate_image_dataset_indices(self, batch: Dict, num_rays_per_batch: int):
-        """
-        Does the same as collate_image_dataset_batch, except it only produces indices.
-
-        Warning: camera indices are based on ordering in batch. Use batch["image_idx"][indices[:, 0]]
-        to get corrected indices (fully equivalent to batch['indices']).
-
-        Args:
-            batch: batch of images to sample from
-            num_rays_per_batch: number of rays to sample per batch
-        """
-
-        device = batch["image"].device
-        num_images, image_height, image_width, _ = batch["image"].shape
-
-        if "mask" in batch:
-            indices = self.sample_method(
-                num_rays_per_batch, num_images, image_height, image_width, mask=batch["mask"], device=device
-            )
-        else:
-            indices = self.sample_method(num_rays_per_batch, num_images, image_height, image_width, device=device)
-
-        return indices
-
-    def collate_image_dataset_indices_list(self, batch: Dict, num_rays_per_batch: int):
-        """
-        Does the same as collate_image_dataset_indices, except it will operate over a list of images / masks inside
-        a list.
-
-        Args:
-            batch: batch of images to sample from
-            num_rays_per_batch: number of rays to sample per batch
-        """
-        device = batch["image"][0].device
-        num_images = len(batch["image"])
-
-        # only sample within the mask, if the mask is in the batch
-        all_indices = []
-        masks = batch.get("mask", None)
-
-        num_rays_in_batch = num_rays_per_batch // num_images
-        for i in range(num_images):
-            image_height, image_width, _ = batch["image"][i].shape
-
-            start_ray = num_rays_in_batch * i
-            if i == num_images - 1:
-                num_rays_in_batch = num_rays_per_batch - start_ray
-
-            idx = self.sample_method(
-                num_rays_in_batch, 1, image_height, image_width, mask=masks[i] if masks else None, device=device
-            )
-            idx[:, 0] = i
-            all_indices.append(idx)
-
-        indices = torch.cat(all_indices, dim=0)
-
-        return indices
-
-    @profiler.time_function
-    def sample(self, image_batch: Dict, indices: torch.Tensor = None):
+    def sample(self, image_batch: Dict):
         """Sample an image batch and return a pixel batch.
 
         Args:
@@ -249,32 +192,15 @@ class PixelSampler:
         if isinstance(image_batch["image"], list):
             image_batch = dict(image_batch.items())  # copy the dictionary so we don't modify the original
             pixel_batch = self.collate_image_dataset_batch_list(
-                image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image, indices=indices
+                image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
             )
         elif isinstance(image_batch["image"], torch.Tensor):
             pixel_batch = self.collate_image_dataset_batch(
-                image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image, indices=indices
+                image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
             )
         else:
             raise ValueError("image_batch['image'] must be a list or torch.Tensor")
         return pixel_batch
-
-    def sample_indices(self, image_batch: Dict):
-        """Sample an image batch and return the indices of a pixel batch.
-        Equivalent to batch["indices"] where batch is produced by sample()
-
-        Args:
-            image_batch: batch of images to sample from
-        """
-        if isinstance(image_batch["image"], list):
-            # I don't think this copy is necessary?
-            image_batch = dict(image_batch.items())  # copy the dictionary so we don't modify the original
-            idx = self.collate_image_dataset_indices_list(image_batch, self.num_rays_per_batch)
-        elif isinstance(image_batch["image"], torch.Tensor):
-            idx = self.collate_image_dataset_indices(image_batch, self.num_rays_per_batch)
-        else:
-            raise ValueError("image_batch['image'] must be a list or torch.Tensor")
-        return idx
 
 
 class EquirectangularPixelSampler(PixelSampler):
@@ -374,34 +300,3 @@ class PatchPixelSampler(PixelSampler):
             indices = indices.flatten(0, 2)
 
         return indices
-
-
-def _multiple_bilinear_sample(im, c, y, x):
-    y_max = im.shape[1] - 1
-    x_max = im.shape[2] - 1
-    c = c.long()
-    y_floor = y.long()
-    y_ceil = torch.clamp(y_floor + 1, max=y_max)
-    x_floor = x.long()
-    x_ceil = torch.clamp(x_floor + 1, max=x_max)
-    corners = torch.stack(
-        [im[c, y_floor, x_floor], im[c, y_ceil, x_floor], im[c, y_floor, x_ceil], im[c, y_ceil, x_ceil]], dim=1
-    )
-    remain_x = x - x_floor
-    remain_y = y - y_floor
-    remain_comp_x = 1 - remain_x
-    remain_comp_y = 1 - remain_y
-    multipliers = (
-        torch.stack(
-            [
-                remain_comp_x * remain_comp_y,
-                remain_x * remain_comp_y,
-                remain_comp_x * remain_y,
-                remain_x * remain_y,
-            ],
-            dim=1,
-        )
-        .reshape(-1, 4, 1)
-        .to(im.device)
-    )
-    return torch.sum(corners * multipliers, dim=1)

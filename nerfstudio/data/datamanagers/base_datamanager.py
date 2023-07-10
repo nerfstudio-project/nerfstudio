@@ -23,8 +23,19 @@ from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import (Any, Callable, Dict, Generic, List, Literal, Optional,
-                    Tuple, Type, Union, cast)
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 import torch
 from torch import nn
@@ -38,19 +49,21 @@ from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-from nerfstudio.data.dataparsers.blender_dataparser import \
-    BlenderDataParserConfig
+from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.pixel_samplers import (EquirectangularPixelSampler,
-                                            PatchPixelSampler, PixelSampler)
-from nerfstudio.data.utils.dataloaders import (CacheDataloader,
-                                               FixedIndicesEvalDataloader,
-                                               RandIndicesEvalDataloader)
+from nerfstudio.data.pixel_samplers import (
+    EquirectangularPixelSampler,
+    PatchPixelSampler,
+    PixelSampler,
+)
+from nerfstudio.data.utils.dataloaders import (
+    CacheDataloader,
+    FixedIndicesEvalDataloader,
+    RandIndicesEvalDataloader,
+)
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
-from nerfstudio.engine.callbacks import (TrainingCallback,
-                                         TrainingCallbackAttributes)
+from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
-from nerfstudio.utils import profiler
 from nerfstudio.utils.misc import IterableWrapper
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -489,20 +502,15 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             num_workers=self.world_size * 4,
         )
 
-    @profiler.time_function
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
         image_batch = next(self.iter_train_image_dataloader)
         assert self.train_pixel_sampler is not None
         assert isinstance(image_batch, dict)
-        indices = self.train_pixel_sampler.sample_indices(image_batch)
-        c = indices[:, 0]
-        ray_indices = indices.clone()
-        ray_indices[:, 0] = image_batch["image_idx"][c]
-        ray_bundle, coords = self.train_ray_generator(ray_indices, resample=True)
-        sample_coords = torch.column_stack((c.to(coords.device), coords))
-        batch = self.train_pixel_sampler.sample(image_batch, sample_coords)
+        batch = self.train_pixel_sampler.sample(image_batch)
+        ray_indices = batch["indices"]
+        ray_bundle = self.train_ray_generator(ray_indices)
         return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
@@ -511,13 +519,9 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         image_batch = next(self.iter_eval_image_dataloader)
         assert self.eval_pixel_sampler is not None
         assert isinstance(image_batch, dict)
-        indices = self.eval_pixel_sampler.sample_indices(image_batch)
-        c = indices[:, 0]
-        ray_indices = indices.clone()
-        ray_indices[:, 0] = image_batch["image_idx"][c]
-        ray_bundle, coords = self.eval_ray_generator(ray_indices, resample=True)
-        sample_coords = torch.column_stack((c.to(coords.device), coords))
-        batch = self.eval_pixel_sampler.sample(image_batch, sample_coords)
+        batch = self.eval_pixel_sampler.sample(image_batch)
+        ray_indices = batch["indices"]
+        ray_bundle = self.eval_ray_generator(ray_indices)
         return ray_bundle, batch
 
     def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
@@ -547,5 +551,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         if self.config.camera_optimizer.mode != "off":
             assert len(camera_opt_params) > 0
             param_groups[self.config.camera_optimizer.param_group] = camera_opt_params
+        else:
+            assert len(camera_opt_params) == 0
 
         return param_groups

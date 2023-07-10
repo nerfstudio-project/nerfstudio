@@ -40,7 +40,7 @@ class RayGenerator(nn.Module):
         self.pose_optimizer = pose_optimizer
         self.register_buffer("image_coords", cameras.get_image_coords(), persistent=False)
 
-    def forward(self, ray_indices: Int[Tensor, "num_rays 3"], resample: bool = False) -> RayBundle:
+    def forward(self, ray_indices: Int[Tensor, "num_rays 3"]) -> RayBundle:
         """Index into the cameras to generate the rays.
 
         Args:
@@ -53,10 +53,9 @@ class RayGenerator(nn.Module):
 
         camera_opt_to_camera = self.pose_optimizer(c)
 
-        ray_bundle_and_coords = self.cameras.generate_rays(
+        ray_bundle = self.cameras.generate_rays(
             camera_indices=c.unsqueeze(-1),
             coords=coords,
             camera_opt_to_camera=camera_opt_to_camera,
-            resample=resample,
         )
-        return ray_bundle_and_coords
+        return ray_bundle

@@ -330,8 +330,7 @@ class Cameras(TensorDataclass):
         keep_shape: Optional[bool] = None,
         disable_distortion: bool = False,
         aabb_box: Optional[SceneBox] = None,
-        resample: bool = False,
-    ) -> Union[Tuple[RayBundle], Tuple[RayBundle, Float[Tensor, "*num_rays 2"]]]:
+    ) -> Tuple[RayBundle]:
         """Generates rays for the given camera indices.
 
         This function will standardize the input arguments and then call the _generate_rays_from_coords function
@@ -465,13 +464,13 @@ class Cameras(TensorDataclass):
         # This will do the actual work of generating the rays now that we have standardized the inputs
         # raybundle.shape == (num_rays) when done
         # pylint: disable=protected-access
-        raybundle, coords = cameras._generate_rays_from_coords(
+        raybundle = cameras._generate_rays_from_coords(
             camera_indices,
             coords,
             camera_opt_to_camera,
             distortion_params_delta,
             disable_distortion=disable_distortion,
-            tolerance=0.5 if resample else 1e-4,
+            tolerance=1e-5,
         )
 
         # If we have mandated that we don't keep the shape, then we flatten
@@ -502,8 +501,6 @@ class Cameras(TensorDataclass):
         # TODO: We should have to squeeze the last dimension here if we started with zero batch dims, but never have to,
         # so there might be a rogue squeeze happening somewhere, and this may cause some unintended behaviour
         # that we haven't caught yet with tests
-        if resample:
-            return raybundle, coords
         return raybundle
 
     def _generate_rays_from_coords(
@@ -513,8 +510,8 @@ class Cameras(TensorDataclass):
         camera_opt_to_camera: Optional[Float[Tensor, "*num_rays 3 4"]] = None,
         distortion_params_delta: Optional[Float[Tensor, "*num_rays 6"]] = None,
         disable_distortion: bool = False,
-        tolerance: float = 0.5,
-    ) -> Tuple[RayBundle, Float[Tensor, "*num_rays 2"]]:
+        tolerance: float = 1e-5,
+    ) -> RayBundle:
         """Generates rays for the given camera indices and coords where self isn't jagged
 
         This is a fairly complex function, so let's break this down slowly.
@@ -634,7 +631,6 @@ class Cameras(TensorDataclass):
         # Undistorts our images according to our distortion parameters
         area_multipliers = torch.ones(num_rays_shape, device=self.device)
         if not disable_distortion:
-            resample = torch.empty_like(coords)
             distortion_params = None
             if self.distortion_params is not None:
                 distortion_params = self.distortion_params[true_indices]
@@ -649,7 +645,7 @@ class Cameras(TensorDataclass):
                 resolutions = torch.stack((1 / fx, 1 / fy), dim=-1)
                 mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
                 if mask.any():
-                    coord[mask], jacobian, resample[mask] = camera_utils.radial_and_tangential_undistort(
+                    coord[mask], jacobian = camera_utils.radial_and_tangential_undistort(
                         coord[mask], distortion_params[mask], resolution=resolutions[mask], tolerance=tolerance
                     )
 
@@ -660,23 +656,13 @@ class Cameras(TensorDataclass):
                 if mask.any():
                     r_d = torch.sqrt(torch.sum(coord**2, dim=-1))
 
-                    coord[mask], dtheta, resample[mask] = camera_utils.fisheye_undistort(
+                    coord[mask], dtheta = camera_utils.fisheye_undistort(
                         coord[mask], distortion_params[mask], resolution=resolutions[mask], tolerance=tolerance
                     )
 
                     r = torch.sqrt(torch.sum(coord**2, dim=-1))
 
                     area_multipliers[mask] = torch.where(r_d > 1e-2, r / r_d, 1) / dtheta
-
-            # go back to pixel coordinates, remembering to flip axis order
-            mask = (self.camera_type[true_indices] == CameraType.EQUIRECTANGULAR.value).squeeze(-1)
-            if mask.any():
-                resample[mask] = coords[mask]
-            if not mask.all():
-                x_r, y_r = torch.unbind(resample[~mask], dim=-1)
-                resample[~mask] = torch.stack([-fy[~mask] * y_r + cy[~mask], fx[~mask] * x_r + cx[~mask]], dim=-1)
-        else:
-            resample = coords.clone()
 
         # Make sure after we have undistorted our images, the shapes are still correct
         assert coord.shape == num_rays_shape + (2,)
@@ -837,16 +823,13 @@ class Cameras(TensorDataclass):
 
         times = self.times[camera_indices, 0] if self.times is not None else None
 
-        return (
-            RayBundle(
-                origins=origins,
-                directions=directions,
-                pixel_area=pixel_area,
-                camera_indices=camera_indices,
-                times=times,
-                metadata=metadata,
-            ),
-            resample,
+        return RayBundle(
+            origins=origins,
+            directions=directions,
+            pixel_area=pixel_area,
+            camera_indices=camera_indices,
+            times=times,
+            metadata=metadata,
         )
 
     def to_json(
