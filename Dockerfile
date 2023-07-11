@@ -125,7 +125,7 @@ RUN CUDA_VER=${CUDA_VERSION%.*} && CUDA_VER=${CUDA_VER//./} && python3.10 -m pip
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
 RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch
 
-# Install pycolmap 0.3.0, required by hloc.
+# Install pycolmap, required by hloc.
 RUN git clone --branch v0.4.0 --recursive https://github.com/colmap/pycolmap.git && \
     cd pycolmap && \
     python3.10 -m pip install . && \
