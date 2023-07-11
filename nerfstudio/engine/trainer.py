@@ -266,7 +266,7 @@ class Trainer:
                         name=EventName.TRAIN_RAYS_PER_SEC,
                         duration=self.world_size
                         * self.pipeline.datamanager.get_train_rays_per_batch()
-                        / train_t.duration,
+                        / max(0.001, train_t.duration),
                         step=step,
                         avg_over_steps=True,
                     )
