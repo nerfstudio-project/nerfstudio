@@ -30,7 +30,7 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.field_components.encodings import NeRFEncoding
-from nerfstudio.field_components.field_heads import FieldHeadNames, RGBFieldHead
+from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.fields.vanilla_nerf_field import NeRFField
 from nerfstudio.model_components.losses import MSELoss
@@ -98,13 +98,11 @@ class NeRFModel(Model):
         self.field_coarse = NeRFField(
             position_encoding=position_encoding,
             direction_encoding=direction_encoding,
-            field_heads=(RGBFieldHead(),),
         )
 
         self.field_fine = NeRFField(
             position_encoding=position_encoding,
             direction_encoding=direction_encoding,
-            field_heads=(RGBFieldHead(),),
         )
 
         # samplers
