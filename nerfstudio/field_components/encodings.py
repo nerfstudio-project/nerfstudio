@@ -208,7 +208,12 @@ class RFFEncoding(Encoding):
         self.include_input = include_input
 
     def get_out_dim(self) -> int:
-        return self.num_frequencies * 2
+        out_dim = self.num_frequencies * 2
+        if self.include_input:
+            if self.in_dim is None:
+                raise ValueError("Input dimension has not been set")
+            out_dim += self.in_dim
+        return out_dim
 
     def forward(
         self,
