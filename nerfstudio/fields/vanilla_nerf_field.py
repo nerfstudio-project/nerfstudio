@@ -26,7 +26,6 @@ from nerfstudio.field_components.field_heads import (
     DensityFieldHead,
     FieldHead,
     FieldHeadNames,
-    RGBFieldHead,
 )
 from nerfstudio.field_components.mlp import MLP
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
@@ -57,7 +56,7 @@ class NeRFField(Field):
         head_mlp_num_layers: int = 2,
         head_mlp_layer_width: int = 128,
         skip_connections: Tuple[int] = (4,),
-        field_heads: Optional[Tuple[FieldHead]] = (RGBFieldHead(),),
+        field_heads: Optional[Tuple[FieldHead]] = None,
         use_integrated_encoding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
