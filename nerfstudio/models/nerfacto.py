@@ -70,7 +70,7 @@ class NerfactoModelConfig(ModelConfig):
     num_levels: int = 16
     """Number of levels of the hashmap for the base mlp."""
     base_res: int = 16
-    """Resolution of the base grid for the hasgrid."""
+    """Resolution of the base grid for the hashgrid."""
     max_res: int = 2048
     """Maximum resolution of the hashmap for the base mlp."""
     log2_hashmap_size: int = 19
