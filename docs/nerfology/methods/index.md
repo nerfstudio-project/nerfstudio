@@ -37,6 +37,7 @@ The following methods are supported in nerfstudio:
     Tetra-NeRF<tetranerf.md>
     TensoRF<tensorf.md>
     Generfacto<generfacto.md>
+    Nerfbusters<nerfbusters.md>
 ```
 
 (own_method_docs)=
