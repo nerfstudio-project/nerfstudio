@@ -131,6 +131,7 @@ def process_images(
         image_dir=image_dir,
         crop_border_pixels=crop_border_pixels,
         verbose=verbose,
+        num_downscales=num_downscales,
     )
     num_frames = len(copied_image_paths)
 
@@ -144,9 +145,6 @@ def process_images(
         )
     else:
         summary_log.append(f"Started with {num_frames} images")
-
-    # Downscale images
-    summary_log.append(process_data_utils.downscale_images(image_dir, num_downscales, verbose=verbose))
 
     # Save json
     if num_frames == 0:
