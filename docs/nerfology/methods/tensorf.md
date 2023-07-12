@@ -24,10 +24,10 @@ ns-train tensorf
 :align: center
 ```
 
-TensoRF models the radiance field of a scene as a 4D tensor, which represents a 3D voxel grid with per-voxel multi-channel features. TensoRF factorizes the 4D scene tensor into multiple compact low-rank tensor components (CP and VM mode). CP decomposition factorizes tensors into rank-one components with compact vectors. vector-matrix (VM) decomposition factorizes tensors into compact vector and matrix factors.
+TensoRF models the radiance field of a scene as a 4D tensor, which represents a 3D voxel grid with per-voxel multi-channel features. TensoRF factorizes the 4D scene tensor into multiple compact low-rank tensor components using CP or VM modes. CP decomposition factorizes tensors into rank-one components with compact vectors. Vector-Matrix (VM) decomposition factorizes tensors into compact vector and matrix factors.
 
 ```{image} imgs/tensorf/models_tensorf_factorization.png
 :align: center
 ```
 
-TensoRF with CP and VM decompositions lead to a significantly lower memory footprint in comparison to previous and concurrent works that directly optimize per-voxel features (such as Plenoxels and PlenOctrees). Experimentally, TensoRF with CP decomposition achieves fast reconstruction with better rendering quality and even a smaller model size compared to NeRF. Moreover, TensoRF with VM decomposition further boosts rendering quality, while reducing the reconstruction time and retaining a compact model size.
+TensoRF with CP and VM decompositions results in a significantly reduced memory footprint compared to previous and concurrent works that directly optimize per-voxel features, such as [Plenoxels](https://alexyu.net/plenoxels/) and [PlenOctrees](https://alexyu.net/plenoctrees/). In experiments, TensoRF with CP decomposition achieves fast reconstruction with improved rendering quality and a smaller model size compared to NeRF. Furthermore, TensoRF with VM decomposition enhances rendering quality even further, while reducing reconstruction time and maintaining a compact model size.
