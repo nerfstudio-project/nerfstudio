@@ -21,7 +21,6 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-
 from typing import Literal
 
 import tyro
@@ -113,8 +112,9 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
 
     assert viewer_state and pipeline.datamanager.train_dataset
     viewer_state.init_scene(
-        dataset=pipeline.datamanager.train_dataset,
+        train_dataset=pipeline.datamanager.train_dataset,
         train_state="completed",
+        eval_dataset=pipeline.datamanager.eval_dataset,
     )
     if isinstance(viewer_state, ViewerState):
         viewer_state.viser_server.set_training_state("completed")

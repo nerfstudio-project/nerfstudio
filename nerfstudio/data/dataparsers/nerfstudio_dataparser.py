@@ -16,9 +16,10 @@
 from __future__ import annotations
 
 import math
+import os
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath
-from typing import Literal, Optional, Tuple, Type
+from typing import Literal, Optional, Type
 
 import numpy as np
 import torch
@@ -26,11 +27,7 @@ from PIL import Image
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
-from nerfstudio.data.dataparsers.base_dataparser import (
-    DataParser,
-    DataParserConfig,
-    DataparserOutputs,
-)
+from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -61,11 +58,7 @@ class NerfstudioDataParserConfig(DataParserConfig):
     eval_mode: Literal["train-split-fraction", "eval-frame-index", "eval-interval"] = "train-split-fraction"
     """The method to use for splitting the dataset into train and eval."""
     train_split_fraction: float = 0.9
-    """The fraction of images to use for training. The remaining images are for eval."""
-    train_frame_indices: Tuple[int, ...] = (0,)
-    """The index of the frames to use for train."""
-    eval_frame_indices: Tuple[int, ...] = (1,)
-    """The index of the frames to use for eval."""
+    """The index of the frames to use for eval. Eval frames are names frame_1_00001.png, frame_1_00002.png, etc."""
     eval_interval: int = 8
     """The interval between frames to use for eval."""
     depth_unit_scale_factor: float = 1e-3
@@ -215,9 +208,7 @@ class Nerfstudio(DataParser):
                 i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
                 assert len(i_eval) == num_eval_images
         elif self.config.eval_mode == "eval-frame-index":
-            # keep around some metadata
-            eval_frame_index_0_metadata = []
-            # filter image_filenames and poses based on train and eval frame indices
+            # filter image_filenames and poses based on train and eval frame names
             num_images = len(image_filenames)
             basenames = [os.path.basename(image_filename) for image_filename in image_filenames]
             i_all = np.arange(num_images)
@@ -225,19 +216,14 @@ class Nerfstudio(DataParser):
             i_eval = []
             for idx, basename in zip(i_all, basenames):
                 # check the frame index
-                if len(basename.split("_")) == 2:
-                    frame_index = 0
-                else:
-                    frame_index = int(basename.split("_")[1])
-                if frame_index in self.config.train_frame_indices:
+                if "train" in basename:
                     i_train.append(idx)
-                    if frame_index == 0:
-                        # set 1 where frame_index is 0
-                        eval_frame_index_0_metadata.append(1)
-                    else:
-                        eval_frame_index_0_metadata.append(0)
-                if frame_index in self.config.eval_frame_indices:
+                elif "eval" in basename:
                     i_eval.append(idx)
+                else:
+                    raise ValueError(
+                        "frame should contain train/eval in its name to use this eval-frame-index eval mode"
+                    )
         elif self.config.eval_mode == "eval-interval":
             # filter image_filenames and poses based on a specified interval for eval
             # this chunk of code is very similar to the mipnerf360 code
@@ -337,9 +323,6 @@ class Nerfstudio(DataParser):
             "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
             "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
         }
-
-        if self.config.eval_mode == "eval-frame-index":
-            metadata["eval_frame_index_0_metadata"] = torch.tensor(eval_frame_index_0_metadata, dtype=torch.long)  # type: ignore
 
         if "applied_transform" in meta:
             applied_transform = torch.tensor(meta["applied_transform"], dtype=transform_matrix.dtype)
