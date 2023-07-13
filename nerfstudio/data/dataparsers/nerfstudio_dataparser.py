@@ -184,7 +184,7 @@ class Nerfstudio(DataParser):
             has_split_files_spec = any(f"{split}_filenames" in meta for split in ("train", "val", "test"))
             if f"{split}_filenames" in meta:
                 # Validate split first
-                split_filenames = set(self._get_fname(PurePath(x), data_dir) for x in meta[f"{split}_filenames"])
+                split_filenames = set(self._get_fname(Path(x), data_dir) for x in meta[f"{split}_filenames"])
                 unmatched_filenames = split_filenames.difference(image_filenames)
                 if unmatched_filenames:
                     raise RuntimeError(f"Some filenames for split {split} were not found: {unmatched_filenames}.")

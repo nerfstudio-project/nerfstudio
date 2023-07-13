@@ -15,17 +15,16 @@
 """Helper utils for processing data into the nerfstudio format."""
 
 import math
+import re
 import shutil
 import sys
-import re
 from enum import Enum
 from pathlib import Path
 from typing import List, Literal, Optional, OrderedDict, Tuple, Union
 
 import cv2
-import numpy as np
-
 import imageio
+import numpy as np
 import rawpy
 
 from nerfstudio.utils.rich_utils import CONSOLE, status
@@ -113,6 +112,7 @@ def convert_video_to_images(
     num_frames_target: int,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     verbose: bool = False,
+    image_prefix: str = "frame_",
 ) -> Tuple[List[str], int]:
     """Converts a video into a sequence of images.
 
@@ -122,6 +122,7 @@ def convert_video_to_images(
         num_frames_target: Number of frames to extract.
         crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
         verbose: If True, logs the output of the command.
+        image_prefix: Prefix to use for the image filenames.
     Returns:
         A tuple containing summary of the conversion and the number of extracted frames.
     """
@@ -151,7 +152,7 @@ def convert_video_to_images(
             sys.exit(1)
         CONSOLE.print("Number of frames in video:", num_frames)
 
-        out_filename = image_dir / "frame_%05d.png"
+        out_filename = image_dir / f"{image_prefix}%05d.png"
         ffmpeg_cmd = f'ffmpeg -i "{video_path}"'
 
         crop_cmd = ""
@@ -187,23 +188,27 @@ def convert_video_to_images(
 def copy_images_list(
     image_paths: List[Path],
     image_dir: Path,
+    image_prefix: str = "frame_",
     crop_border_pixels: Optional[int] = None,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     verbose: bool = False,
+    keep_image_dir: bool = False,
 ) -> List[Path]:
     """Copy all images in a list of Paths. Useful for filtering from a directory.
     Args:
         image_paths: List of Paths of images to copy to a new directory.
         image_dir: Path to the output directory.
+        image_prefix: Prefix for the image filenames.
         crop_border_pixels: If not None, crops each edge by the specified number of pixels.
         crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
         verbose: If True, print extra logging.
+        keep_image_dir: If True, keep the original directory.
     Returns:
         A list of the copied image Paths.
     """
 
     # Remove original directory only if we provide a proper image folder path
-    if image_dir.is_dir() and len(image_paths):
+    if image_dir.is_dir() and len(image_paths) and not keep_image_dir:
         # check that output directory is not the same as input directory
         if image_dir != image_paths[0].parent:
             shutil.rmtree(image_dir, ignore_errors=True)
@@ -215,11 +220,11 @@ def copy_images_list(
     for idx, image_path in enumerate(image_paths):
         if verbose:
             CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
-        copied_image_path = image_dir / f"frame_{idx + 1:05d}{image_path.suffix}"
+        copied_image_path = image_dir / f"{image_prefix}{idx + 1:05d}{image_path.suffix}"
         try:
             # if CR2 raw, we want to read raw and write TIFF, and change the file suffix for downstream processing
             if image_path.suffix.lower() in ALLOWED_RAW_EXTS:
-                copied_image_path = image_dir / f"frame_{idx + 1:05d}{RAW_CONVERTED_SUFFIX}"
+                copied_image_path = image_dir / f"{image_prefix}{idx + 1:05d}{RAW_CONVERTED_SUFFIX}"
                 with rawpy.imread(str(image_path)) as raw:
                     rgb = raw.postprocess()
                 imageio.imsave(copied_image_path, rgb)
@@ -308,7 +313,12 @@ def copy_and_upscale_polycam_depth_maps_list(
 
 
 def copy_images(
-    data: Path, image_dir: Path, verbose, crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+    data: Path,
+    image_dir: Path,
+    verbose,
+    image_prefix: str = "frame_",
+    crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    keep_image_dir: bool = False,
 ) -> OrderedDict[Path, Path]:
     """Copy images from a directory to a new directory.
 
@@ -316,7 +326,9 @@ def copy_images(
         data: Path to the directory of images.
         image_dir: Path to the output directory.
         verbose: If True, print extra logging.
+        image_prefix: Prefix for the image filenames.
         crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
+        keep_image_dir: If True, keep the original directory.
     Returns:
         The mapping from the original filenames to the new ones.
     """
@@ -328,7 +340,12 @@ def copy_images(
             sys.exit(1)
 
         copied_images = copy_images_list(
-            image_paths=image_paths, image_dir=image_dir, crop_factor=crop_factor, verbose=verbose
+            image_paths=image_paths,
+            image_dir=image_dir,
+            crop_factor=crop_factor,
+            verbose=verbose,
+            image_prefix=image_prefix,
+            keep_image_dir=keep_image_dir,
         )
         return OrderedDict((original_path, new_path) for original_path, new_path in zip(image_paths, copied_images))
 

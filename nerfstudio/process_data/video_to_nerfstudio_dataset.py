@@ -18,9 +18,7 @@ import shutil
 from dataclasses import dataclass
 
 from nerfstudio.process_data import equirect_utils, process_data_utils
-from nerfstudio.process_data.colmap_converter_to_nerfstudio_dataset import (
-    ColmapConverterToNerfstudioDataset,
-)
+from nerfstudio.process_data.colmap_converter_to_nerfstudio_dataset import ColmapConverterToNerfstudioDataset
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
@@ -46,11 +44,12 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
         summary_log = []
         # Convert video to images
         if self.camera_type == "equirectangular":
+            assert len(self.data) == 1, "Only one video can be processed at a time for equirectangular camera type."
             # create temp images folder to store the equirect and perspective images
             temp_image_dir = self.output_dir / "temp_images"
             temp_image_dir.mkdir(parents=True, exist_ok=True)
             summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
-                self.data,
+                self.data[0],
                 image_dir=temp_image_dir,
                 num_frames_target=self.num_frames_target,
                 crop_factor=(0.0, 0.0, 0.0, 0.0),
@@ -58,12 +57,35 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
             )
         else:
             summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
-                self.data,
+                self.data[0],
                 image_dir=self.image_dir,
                 num_frames_target=self.num_frames_target,
                 crop_factor=self.crop_factor,
                 verbose=self.verbose,
+                image_prefix="frame_train_" if len(self.data) == 2 else "frame_",
             )
+
+            if len(self.data) == 2:
+                temp_image_dir = self.output_dir / "temp_images"
+                temp_image_dir.mkdir(parents=True, exist_ok=True)
+                summary_log_eval, num_extracted_frames_eval = process_data_utils.convert_video_to_images(
+                    self.data[1],
+                    image_dir=temp_image_dir,
+                    num_frames_target=self.num_frames_target,
+                    verbose=self.verbose,
+                )
+                summary_log += summary_log_eval
+                num_extracted_frames += num_extracted_frames_eval
+                # copy the images from the temp directory to the image directory
+                process_data_utils.copy_images(
+                    temp_image_dir,
+                    image_dir=self.image_dir,
+                    verbose=False,
+                    image_prefix="frame_eval_",
+                    keep_image_dir=True,
+                )
+                # remove the temp directory
+                shutil.rmtree(self.output_dir / "temp_images", ignore_errors=True)
 
         # Generate planar projections if equirectangular
         if self.camera_type == "equirectangular":

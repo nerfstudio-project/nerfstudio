@@ -19,14 +19,15 @@ Base class to process images or video into a nerfstudio dataset
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Tuple, Union
 
 
 @dataclass
 class BaseConverterToNerfstudioDataset(ABC):
-    """Base class to process images or video into a nerfstudio dataset"""
+    """Base class to process images or video into a nerfstudio dataset."""
 
-    data: Path
-    """Path the data, either a video file or a directory of images."""
+    data: Union[Tuple[Path], Tuple[Path, Path]]
+    """Path the data, either a video file or a directory of images. If two, the first will be assumed training video, and the second eval video."""
     output_dir: Path
     """Path to the output directory."""
     verbose: bool = False

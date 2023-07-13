@@ -19,9 +19,7 @@ from pathlib import Path
 from typing import Dict, List, Literal, Optional, Tuple
 
 from nerfstudio.process_data import colmap_utils, hloc_utils, process_data_utils
-from nerfstudio.process_data.base_converter_to_nerfstudio_dataset import (
-    BaseConverterToNerfstudioDataset,
-)
+from nerfstudio.process_data.base_converter_to_nerfstudio_dataset import BaseConverterToNerfstudioDataset
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils import install_checks
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -191,7 +189,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
 
         # set the image_dir if didn't copy
         if self.skip_image_processing:
-            image_dir = self.data
+            image_dir = self.data[0]
         else:
             image_dir = self.image_dir
 
