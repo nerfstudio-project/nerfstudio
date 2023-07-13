@@ -188,11 +188,11 @@ def process_depth_maps(
 
     # Copy depth images to output directory
     copied_depth_maps_paths = process_data_utils.copy_and_upscale_polycam_depth_maps_list(
-        polycam_depth_maps_filenames, 
-        depth_dir=depth_dir, 
+        polycam_depth_maps_filenames,
+        depth_dir=depth_dir,
         num_downscales=num_downscales,
-        crop_border_pixels=crop_border_pixels, 
-        verbose=verbose, 
+        crop_border_pixels=crop_border_pixels,
+        verbose=verbose,
     )
 
     num_processed_depth_maps = len(copied_depth_maps_paths)

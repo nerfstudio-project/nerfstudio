@@ -259,7 +259,10 @@ def copy_images_list(
     nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
     downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}{nn_flag}[out{i}]" for i in range(num_downscales + 1)]
     downscale_dirs = [Path(str(image_dir) + (f"_{2**i}" if i > 0 else "")) for i in range(num_downscales + 1)]
-    downscale_paths = [downscale_dirs[i] / ("frame_%05d" + (copied_image_paths[0].suffix if i == 0 else ".png")) for i in range(num_downscales + 1)]
+    downscale_paths = [
+        downscale_dirs[i] / ("frame_%05d" + (copied_image_paths[0].suffix if i == 0 else ".png"))
+        for i in range(num_downscales + 1)
+    ]
 
     for dir in downscale_dirs:
         dir.mkdir(parents=True, exist_ok=True)
@@ -346,9 +349,9 @@ def copy_and_upscale_polycam_depth_maps_list(
 
 
 def copy_images(
-    data: Path, 
-    image_dir: Path, 
-    verbose: bool = False, 
+    data: Path,
+    image_dir: Path,
+    verbose: bool = False,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     num_downscales: int = 0,
 ) -> OrderedDict[Path, Path]:
@@ -370,7 +373,11 @@ def copy_images(
             sys.exit(1)
 
         copied_images = copy_images_list(
-            image_paths=image_paths, image_dir=image_dir, crop_factor=crop_factor, verbose=verbose, num_downscales=num_downscales
+            image_paths=image_paths,
+            image_dir=image_dir,
+            crop_factor=crop_factor,
+            verbose=verbose,
+            num_downscales=num_downscales,
         )
         return OrderedDict((original_path, new_path) for original_path, new_path in zip(image_paths, copied_images))
 
@@ -598,7 +605,7 @@ def save_mask(
         cv2.imwrite(str(mask_path / "mask.png"), mask)
     else:
         CONSOLE.log(":tada: Per-frame masks...")
-        copy_images(Path(frame_mask_path), mask_path, False, crop_factor, num_downscales)        
+        copy_images(Path(frame_mask_path), mask_path, False, crop_factor, num_downscales)
 
     CONSOLE.log(":tada: Generated and saved masks.")
     return mask_path / "mask.png"

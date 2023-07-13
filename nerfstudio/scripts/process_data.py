@@ -89,9 +89,9 @@ class ProcessRecord3D(BaseConverterToNerfstudioDataset):
         record3d_image_filenames = list(np.array(record3d_image_filenames)[idx])
         # Copy images to output directory
         copied_image_paths = process_data_utils.copy_images_list(
-            record3d_image_filenames, 
-            image_dir=image_dir, 
-            verbose=self.verbose, 
+            record3d_image_filenames,
+            image_dir=image_dir,
+            verbose=self.verbose,
             num_downscales=self.num_downscales,
         )
         num_frames = len(copied_image_paths)

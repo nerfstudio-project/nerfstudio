@@ -60,7 +60,11 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
         if not self.skip_image_processing:
             # Copy images to output directory
             image_rename_map_paths = process_data_utils.copy_images(
-                self.data, image_dir=self.image_dir, crop_factor=self.crop_factor, verbose=self.verbose, num_downscales=self.num_downscales
+                self.data,
+                image_dir=self.image_dir,
+                crop_factor=self.crop_factor,
+                verbose=self.verbose,
+                num_downscales=self.num_downscales,
             )
             image_rename_map = dict((a.name, b.name) for a, b in image_rename_map_paths.items())
             num_frames = len(image_rename_map)
