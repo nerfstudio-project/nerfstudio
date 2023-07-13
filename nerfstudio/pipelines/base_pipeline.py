@@ -106,7 +106,7 @@ class Pipeline(nn.Module):
         """Returns the device that the model is on."""
         return self.model.device
 
-    def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
+    def load_state_dict(self, state_dict: Mapping[str, Any], strict: Optional[bool] = None):
         is_ddp_model_state = True
         model_state = {}
         for key, value in state_dict.items():
@@ -123,10 +123,14 @@ class Pipeline(nn.Module):
 
         pipeline_state = {key: value for key, value in state_dict.items() if not key.startswith("_model.")}
 
-        try:
-            self.model.load_state_dict(model_state, strict=strict)
-        except RuntimeError:
-            self.model.load_state_dict(model_state, strict=False)
+        if not strict:
+            strict = True
+            try:
+                self.model.load_state_dict(model_state, strict=strict)
+            except RuntimeError:
+                self.model.load_state_dict(model_state, strict=False)
+        else:
+                self.model.load_state_dict(model_state, strict=strict)
 
         super().load_state_dict(pipeline_state, strict=False)
 
@@ -415,7 +419,7 @@ class VanillaPipeline(Pipeline):
             (key[len("module.") :] if key.startswith("module.") else key): value for key, value in loaded_state.items()
         }
         self.model.update_to_step(step)
-        self.load_state_dict(state, strict=True)
+        self.load_state_dict(state)
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
