@@ -133,7 +133,7 @@ class Field(nn.Module):
         return field_outputs
 
 
-def get_normalized_directions(directions: Float[Tensor, "bs 3"]) -> Float[Tensor, "*bs 3"]:
+def get_normalized_directions(directions: Float[Tensor, "*bs 3"]) -> Float[Tensor, "*bs 3"]:
     """SH encoding must be in the range [0, 1]
 
     Args:
