@@ -132,6 +132,8 @@ class NerfactoModelConfig(ModelConfig):
     """Use gradient scaler where the gradients are lower for points closer to the camera."""
     implementation: Literal["tcnn", "torch"] = "tcnn"
     """Which implementation to use for the model."""
+    use_appearance_embedding: bool = True
+    """Whether to use appearance embedding or to predict a scale an shift from it à la Zip-NeRF."""
 
 
 class NerfactoModel(Model):
@@ -165,6 +167,7 @@ class NerfactoModel(Model):
             num_images=self.num_train_data,
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
+            use_appearance_embedding=self.config.use_appearance_embedding,
             implementation=self.config.implementation,
         )
 
