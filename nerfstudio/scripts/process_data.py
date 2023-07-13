@@ -254,10 +254,12 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
 
+        assert len(self.data) == 1, "Only one dataset can be processed at a time"
+
         summary_log = []
 
         # Copy images to output directory
-        image_filenames, num_orig_images = process_data_utils.get_image_filenames(self.data, self.max_dataset_size)
+        image_filenames, num_orig_images = process_data_utils.get_image_filenames(self.data[0], self.max_dataset_size)
         copied_image_paths = process_data_utils.copy_images_list(
             image_filenames,
             image_dir=image_dir,
@@ -341,10 +343,12 @@ class ProcessRealityCapture(BaseConverterToNerfstudioDataset, _NoDefaultProcessR
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
 
+        assert len(self.data) == 1, "Only one dataset can be processed at a time"
+
         summary_log = []
 
         # Copy images to output directory
-        image_filenames, num_orig_images = process_data_utils.get_image_filenames(self.data, self.max_dataset_size)
+        image_filenames, num_orig_images = process_data_utils.get_image_filenames(self.data[0], self.max_dataset_size)
         copied_image_paths = process_data_utils.copy_images_list(
             image_filenames,
             image_dir=image_dir,

@@ -11,14 +11,8 @@ from PIL import Image
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.utils.colmap_parsing_utils import Camera
 from nerfstudio.data.utils.colmap_parsing_utils import Image as ColmapImage
-from nerfstudio.data.utils.colmap_parsing_utils import (
-    qvec2rotmat,
-    write_cameras_binary,
-    write_images_binary,
-)
-from nerfstudio.process_data.images_to_nerfstudio_dataset import (
-    ImagesToNerfstudioDataset,
-)
+from nerfstudio.data.utils.colmap_parsing_utils import qvec2rotmat, write_cameras_binary, write_images_binary
+from nerfstudio.process_data.images_to_nerfstudio_dataset import ImagesToNerfstudioDataset
 
 
 def random_quaternion(num_poses: int):
@@ -83,7 +77,7 @@ def test_process_images_skip_colmap(tmp_path: Path):
 
     # Convert images into a NerfStudio dataset
     cmd = ImagesToNerfstudioDataset(
-        data=tmp_path / "images", output_dir=tmp_path / "nerfstudio", colmap_model_path=sparse_path, skip_colmap=True
+        data=(tmp_path / "images",), output_dir=tmp_path / "nerfstudio", colmap_model_path=sparse_path, skip_colmap=True
     )
     cmd.main()
     os.environ["PATH"] = old_path
