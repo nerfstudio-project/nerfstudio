@@ -122,7 +122,12 @@ class Pipeline(nn.Module):
             model_state = {key[len("module.") :]: value for key, value in model_state.items()}
 
         pipeline_state = {key: value for key, value in state_dict.items() if not key.startswith("_model.")}
-        self.model.load_state_dict(model_state, strict=strict)
+
+        try:
+            self.model.load_state_dict(model_state, strict=strict)
+        except RuntimeError:
+            self.model.load_state_dict(model_state, strict=False)
+
         super().load_state_dict(pipeline_state, strict=False)
 
     @profiler.time_function
