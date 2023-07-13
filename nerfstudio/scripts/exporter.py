@@ -98,6 +98,8 @@ class ExportPointCloud(Exporter):
     """Number of points to generate. May result in less if outlier removal is used."""
     remove_outliers: bool = True
     """Remove outliers from the point cloud."""
+    reorient_normals: bool = True
+    """Reorient point cloud normals based on view direction."""
     normal_method: Literal["open3d", "model_output"] = "model_output"
     """Method to estimate normals with."""
     normal_output_name: str = "normals"
@@ -139,6 +141,7 @@ class ExportPointCloud(Exporter):
             pipeline=pipeline,
             num_points=self.num_points,
             remove_outliers=self.remove_outliers,
+            reorient_normals=self.reorient_normals,
             estimate_normals=estimate_normals,
             rgb_output_name=self.rgb_output_name,
             depth_output_name=self.depth_output_name,
@@ -244,6 +247,8 @@ class ExportPoissonMesh(Exporter):
     """Number of points to generate. May result in less if outlier removal is used."""
     remove_outliers: bool = True
     """Remove outliers from the point cloud."""
+    reorient_normals: bool = True
+    """Reorient point cloud normals based on view direction."""
     depth_output_name: str = "depth"
     """Name of the depth output."""
     rgb_output_name: str = "rgb"
@@ -297,6 +302,7 @@ class ExportPoissonMesh(Exporter):
             pipeline=pipeline,
             num_points=self.num_points,
             remove_outliers=self.remove_outliers,
+            reorient_normals=self.reorient_normals,
             estimate_normals=estimate_normals,
             rgb_output_name=self.rgb_output_name,
             depth_output_name=self.depth_output_name,
