@@ -73,7 +73,7 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                 crop_factor=(0.0, 0.0, 0.0, 0.0),
             )
             if mask_path is not None:
-                summary_log.append(f"Saved mask(s)")
+                summary_log.append("Saved mask(s)")
         else:
             num_frames = len(process_data_utils.list_images(self.data))
             if num_frames == 0:
