@@ -213,6 +213,8 @@ def copy_images_list(
     crop_border_pixels: Optional[int] = None,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     verbose: bool = False,
+    upscale_factor: Optional[int] = None,
+    nearest_neighbor: bool = False,
 ) -> List[Path]:
     """Copy all images in a list of Paths. Useful for filtering from a directory.
     Args:
@@ -254,7 +256,8 @@ def copy_images_list(
             pass
         copied_image_paths.append(copied_image_path)
 
-    downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}[out{i}]" for i in range(num_downscales + 1)]
+    nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
+    downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}{nn_flag}[out{i}]" for i in range(num_downscales + 1)]
     downscale_dirs = [Path(str(image_dir) + (f"_{2**i}" if i > 0 else "")) for i in range(num_downscales + 1)]
     downscale_paths = [downscale_dirs[i] / ("frame_%05d" + (copied_image_paths[0].suffix if i == 0 else ".png")) for i in range(num_downscales + 1)]
 
@@ -273,15 +276,17 @@ def copy_images_list(
 
     crop_cmd = ""
     if crop_border_pixels is not None:
-        crop_cmd = f"[0:v]crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}[cropped];[cropped]"
+        crop_cmd = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}[cropped];[cropped]"
     elif crop_factor != (0.0, 0.0, 0.0, 0.0):
         height = 1 - crop_factor[0] - crop_factor[1]
         width = 1 - crop_factor[2] - crop_factor[3]
         start_x = crop_factor[2]
         start_y = crop_factor[0]
-        crop_cmd = f"[0:v]crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}[cropped];[cropped]"
+        crop_cmd = f"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}[cropped];[cropped]"
 
-    select_cmd = ""
+    select_cmd = "[0:v]"
+    if upscale_factor is not None:
+        select_cmd = f"[0:v]scale=iw*{upscale_factor}:ih*{upscale_factor}:flags=neighbor[upscaled];[upscaled]"
 
     downscale_cmd = f' -filter_complex "{select_cmd}{crop_cmd}{downscale_chain}"' + "".join(
         [f' -map "[out{i}]" "{downscale_paths[i]}"' for i in range(num_downscales + 1)]
@@ -303,6 +308,7 @@ def copy_images_list(
 def copy_and_upscale_polycam_depth_maps_list(
     polycam_depth_image_filenames: List[Path],
     depth_dir: Path,
+    num_downscales: int,
     crop_border_pixels: Optional[int] = None,
     verbose: bool = False,
 ) -> List[Path]:
@@ -325,24 +331,15 @@ def copy_and_upscale_polycam_depth_maps_list(
         assert upscale_factor > 1
         assert isinstance(upscale_factor, int)
 
-        copied_depth_map_paths = []
-        for idx, depth_map in enumerate(polycam_depth_image_filenames):
-            destination = depth_dir / f"frame_{idx + 1:05d}{depth_map.suffix}"
-            ffmpeg_cmd = [
-                f'ffmpeg -y -i "{depth_map}" ',
-                f"-q:v 2 -vf scale=iw*{upscale_factor}:ih*{upscale_factor}:flags=neighbor ",
-                f'"{destination}"',
-            ]
-            ffmpeg_cmd = " ".join(ffmpeg_cmd)
-            run_command(ffmpeg_cmd, verbose=verbose)
-            copied_depth_map_paths.append(destination)
-
-    if crop_border_pixels is not None:
-        file_type = depth_dir.glob("frame_*").__next__().suffix
-        filename = f"frame_%05d{file_type}"
-        crop = f"crop=iw-{crop_border_pixels * 2}:ih-{crop_border_pixels * 2}"
-        ffmpeg_cmd = f'ffmpeg -y -i "{depth_dir / filename}" -q:v 2 -vf {crop} "{depth_dir / filename}"'
-        run_command(ffmpeg_cmd, verbose=verbose)
+        copied_depth_map_paths = copy_images_list(
+            image_paths=polycam_depth_image_filenames,
+            image_dir=depth_dir,
+            num_downscales=num_downscales,
+            crop_border_pixels=crop_border_pixels,
+            verbose=verbose,
+            upscale_factor=upscale_factor,
+            nearest_neighbor=True,
+        )
 
     CONSOLE.log("[bold green]:tada: Done upscaling depth maps.")
     return copied_depth_map_paths
