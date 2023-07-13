@@ -123,14 +123,13 @@ class Pipeline(nn.Module):
 
         pipeline_state = {key: value for key, value in state_dict.items() if not key.startswith("_model.")}
 
-        if not strict:
-            strict = True
-            try:
-                self.model.load_state_dict(model_state, strict=strict)
-            except RuntimeError:
+        try:
+            self.model.load_state_dict(model_state, strict=True)
+        except RuntimeError:
+            if not strict:
                 self.model.load_state_dict(model_state, strict=False)
-        else:
-                self.model.load_state_dict(model_state, strict=strict)
+            else:
+                raise
 
         super().load_state_dict(pipeline_state, strict=False)
 
