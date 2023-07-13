@@ -260,7 +260,7 @@ def copy_images_list(
     downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}{nn_flag}[out{i}]" for i in range(num_downscales + 1)]
     downscale_dirs = [Path(str(image_dir) + (f"_{2**i}" if i > 0 else "")) for i in range(num_downscales + 1)]
     downscale_paths = [
-        downscale_dirs[i] / ("frame_%05d" + (copied_image_paths[0].suffix if i == 0 else ".png"))
+        downscale_dirs[i] / ("frame_%05d" + copied_image_paths[0].suffix)
         for i in range(num_downscales + 1)
     ]
 
