@@ -243,6 +243,8 @@ class RenderStateMachine(threading.Thread):
             image_height: the maximum image height that can be rendered in the time budget
             image_width: the maximum image width that can be rendered in the time budget
         """
+        if aspect_ratio == 0:
+            aspect_ratio = 0.001
         max_res = self.viewer.control_panel.max_res
         if self.state == "high":
             # high res is always static

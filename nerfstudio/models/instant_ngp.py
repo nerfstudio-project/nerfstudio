@@ -110,6 +110,7 @@ class NGPModel(Model):
 
         self.field = NerfactoField(
             aabb=self.scene_box.aabb,
+            appearance_embedding_dim=0 if self.config.use_appearance_embedding else 32,
             num_images=self.num_train_data,
             log2_hashmap_size=self.config.log2_hashmap_size,
             max_res=self.config.max_res,
