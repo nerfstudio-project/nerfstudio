@@ -111,6 +111,7 @@ def convert_video_to_images(
     video_path: Path,
     image_dir: Path,
     num_frames_target: int,
+    num_downscales: int,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     verbose: bool = False,
 ) -> Tuple[List[str], int]:
@@ -120,6 +121,7 @@ def convert_video_to_images(
         video_path: Path to the video.
         output_dir: Path to the output directory.
         num_frames_target: Number of frames to extract.
+        num_downscales: Number of times to downscale the images. Downscales by 2 each time.
         crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
         verbose: If True, logs the output of the command.
     Returns:
@@ -151,7 +153,6 @@ def convert_video_to_images(
             sys.exit(1)
         CONSOLE.print("Number of frames in video:", num_frames)
 
-        out_filename = image_dir / "frame_%05d.png"
         ffmpeg_cmd = f'ffmpeg -i "{video_path}"'
 
         crop_cmd = ""
@@ -160,41 +161,66 @@ def convert_video_to_images(
             width = 1 - crop_factor[2] - crop_factor[3]
             start_x = crop_factor[2]
             start_y = crop_factor[0]
-            crop_cmd = f',"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}"'
+            crop_cmd = f"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y},"
 
+        num_frames = get_num_frames_in_video(video_path)
         spacing = num_frames // num_frames_target
+
+        downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}[out{i}]" for i in range(num_downscales + 1)]
+        downscale_dirs = [Path(str(image_dir) + (f"_{2**i}" if i > 0 else "")) for i in range(num_downscales + 1)]
+        downscale_paths = [downscale_dirs[i] / "frame_%05d.png" for i in range(num_downscales + 1)]
+
+        for dir in downscale_dirs:
+            dir.mkdir(parents=True, exist_ok=True)
+
+        downscale_chain = (
+            f"split={num_downscales + 1}"
+            + "".join([f"[t{i}]" for i in range(num_downscales + 1)])
+            + ";"
+            + ";".join(downscale_chains)
+        )
+
         if spacing > 1:
-            ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB{crop_cmd} -r 1"
             CONSOLE.print("Number of frames to extract:", math.ceil(num_frames / spacing))
+            ffmpeg_cmd += " -vsync vfr -r1"
+            select_cmd = f"thumbnail={spacing},setpts=N/TB,"
         else:
             CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
             ffmpeg_cmd += " -pix_fmt bgr8"
-            if crop_cmd != "":
-                ffmpeg_cmd += f" -vf {crop_cmd[1:]}"
+            select_cmd = ""
 
-        ffmpeg_cmd += f" {out_filename}"
+        downscale_cmd = f' -filter_complex "{select_cmd}{crop_cmd}{downscale_chain}"' + "".join(
+            [f' -map "[out{i}]" "{downscale_paths[i]}"' for i in range(num_downscales + 1)]
+        )
+
+        ffmpeg_cmd += downscale_cmd
+
         run_command(ffmpeg_cmd, verbose=verbose)
 
-    num_final_frames = len(list(image_dir.glob("*.png")))
-    summary_log = []
-    summary_log.append(f"Starting with {num_frames} video frames")
-    summary_log.append(f"We extracted {num_final_frames} images")
-    CONSOLE.log("[bold green]:tada: Done converting video to images.")
+        num_final_frames = len(list(image_dir.glob("*.png")))
+        summary_log = []
+        summary_log.append(f"Starting with {num_frames} video frames")
+        summary_log.append(f"We extracted {num_final_frames} images")
+        CONSOLE.log("[bold green]:tada: Done converting video to images.")
 
-    return summary_log, num_final_frames
+        return summary_log, num_final_frames
 
 
 def copy_images_list(
     image_paths: List[Path],
     image_dir: Path,
+    num_downscales: int,
     crop_border_pixels: Optional[int] = None,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     verbose: bool = False,
+    upscale_factor: Optional[int] = None,
+    nearest_neighbor: bool = False,
 ) -> List[Path]:
     """Copy all images in a list of Paths. Useful for filtering from a directory.
     Args:
         image_paths: List of Paths of images to copy to a new directory.
         image_dir: Path to the output directory.
+        num_downscales: Number of times to downscale the images. Downscales by 2 each time.
         crop_border_pixels: If not None, crops each edge by the specified number of pixels.
         crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
         verbose: If True, print extra logging.
@@ -230,26 +256,48 @@ def copy_images_list(
             pass
         copied_image_paths.append(copied_image_path)
 
+    nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
+    downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}{nn_flag}[out{i}]" for i in range(num_downscales + 1)]
+    downscale_dirs = [Path(str(image_dir) + (f"_{2**i}" if i > 0 else "")) for i in range(num_downscales + 1)]
+    downscale_paths = [
+        downscale_dirs[i] / ("frame_%05d" + copied_image_paths[0].suffix) for i in range(num_downscales + 1)
+    ]
+
+    for dir in downscale_dirs:
+        dir.mkdir(parents=True, exist_ok=True)
+
+    downscale_chain = (
+        f"split={num_downscales + 1}"
+        + "".join([f"[t{i}]" for i in range(num_downscales + 1)])
+        + ";"
+        + ";".join(downscale_chains)
+    )
+
+    num_frames = len(image_paths)
+    ffmpeg_cmd = f'ffmpeg -y -noautorotate -i "{image_dir / f"frame_%05d{copied_image_paths[0].suffix}"}" -q:v 2 '
+
+    crop_cmd = ""
     if crop_border_pixels is not None:
-        file_type = image_paths[0].suffix
-        filename = f"frame_%05d{file_type}"
-        crop = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}"
-        ffmpeg_cmd = f'ffmpeg -y -noautorotate -i "{image_dir / filename}" -q:v 2 -vf {crop} "{image_dir / filename}"'
-        run_command(ffmpeg_cmd, verbose=verbose)
+        crop_cmd = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}[cropped];[cropped]"
     elif crop_factor != (0.0, 0.0, 0.0, 0.0):
-        file_type = image_paths[0].suffix
-        filename = f"frame_%05d{file_type}"
         height = 1 - crop_factor[0] - crop_factor[1]
         width = 1 - crop_factor[2] - crop_factor[3]
         start_x = crop_factor[2]
         start_y = crop_factor[0]
-        crop_cmd = f',"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}"'
-        ffmpeg_cmd = (
-            f'ffmpeg -y -noautorotate -i "{image_dir / filename}" -q:v 2 -vf {crop_cmd[1:]} "{image_dir / filename}"'
-        )
-        run_command(ffmpeg_cmd, verbose=verbose)
+        crop_cmd = f"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}[cropped];[cropped]"
 
-    num_frames = len(image_paths)
+    select_cmd = "[0:v]"
+    if upscale_factor is not None:
+        select_cmd = f"[0:v]scale=iw*{upscale_factor}:ih*{upscale_factor}:flags=neighbor[upscaled];[upscaled]"
+
+    downscale_cmd = f' -filter_complex "{select_cmd}{crop_cmd}{downscale_chain}"' + "".join(
+        [f' -map "[out{i}]" "{downscale_paths[i]}"' for i in range(num_downscales + 1)]
+    )
+
+    ffmpeg_cmd += downscale_cmd
+    if verbose:
+        CONSOLE.log(f"... {ffmpeg_cmd}")
+    run_command(ffmpeg_cmd, verbose=verbose)
 
     if num_frames == 0:
         CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
@@ -262,6 +310,7 @@ def copy_images_list(
 def copy_and_upscale_polycam_depth_maps_list(
     polycam_depth_image_filenames: List[Path],
     depth_dir: Path,
+    num_downscales: int,
     crop_border_pixels: Optional[int] = None,
     verbose: bool = False,
 ) -> List[Path]:
@@ -284,31 +333,26 @@ def copy_and_upscale_polycam_depth_maps_list(
         assert upscale_factor > 1
         assert isinstance(upscale_factor, int)
 
-        copied_depth_map_paths = []
-        for idx, depth_map in enumerate(polycam_depth_image_filenames):
-            destination = depth_dir / f"frame_{idx + 1:05d}{depth_map.suffix}"
-            ffmpeg_cmd = [
-                f'ffmpeg -y -i "{depth_map}" ',
-                f"-q:v 2 -vf scale=iw*{upscale_factor}:ih*{upscale_factor}:flags=neighbor ",
-                f'"{destination}"',
-            ]
-            ffmpeg_cmd = " ".join(ffmpeg_cmd)
-            run_command(ffmpeg_cmd, verbose=verbose)
-            copied_depth_map_paths.append(destination)
-
-    if crop_border_pixels is not None:
-        file_type = depth_dir.glob("frame_*").__next__().suffix
-        filename = f"frame_%05d{file_type}"
-        crop = f"crop=iw-{crop_border_pixels * 2}:ih-{crop_border_pixels * 2}"
-        ffmpeg_cmd = f'ffmpeg -y -i "{depth_dir / filename}" -q:v 2 -vf {crop} "{depth_dir / filename}"'
-        run_command(ffmpeg_cmd, verbose=verbose)
+        copied_depth_map_paths = copy_images_list(
+            image_paths=polycam_depth_image_filenames,
+            image_dir=depth_dir,
+            num_downscales=num_downscales,
+            crop_border_pixels=crop_border_pixels,
+            verbose=verbose,
+            upscale_factor=upscale_factor,
+            nearest_neighbor=True,
+        )
 
     CONSOLE.log("[bold green]:tada: Done upscaling depth maps.")
     return copied_depth_map_paths
 
 
 def copy_images(
-    data: Path, image_dir: Path, verbose, crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+    data: Path,
+    image_dir: Path,
+    verbose: bool = False,
+    crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    num_downscales: int = 0,
 ) -> OrderedDict[Path, Path]:
     """Copy images from a directory to a new directory.
 
@@ -328,7 +372,11 @@ def copy_images(
             sys.exit(1)
 
         copied_images = copy_images_list(
-            image_paths=image_paths, image_dir=image_dir, crop_factor=crop_factor, verbose=verbose
+            image_paths=image_paths,
+            image_dir=image_dir,
+            crop_factor=crop_factor,
+            verbose=verbose,
+            num_downscales=num_downscales,
         )
         return OrderedDict((original_path, new_path) for original_path, new_path in zip(image_paths, copied_images))
 
@@ -340,7 +388,8 @@ def downscale_images(
     nearest_neighbor: bool = False,
     verbose: bool = False,
 ) -> str:
-    """Downscales the images in the directory. Uses FFMPEG.
+    """(Now deprecated; much faster integrated into copy_images.)
+    Downscales the images in the directory. Uses FFMPEG.
 
     Assumes images are named frame_00001.png, frame_00002.png, etc.
 

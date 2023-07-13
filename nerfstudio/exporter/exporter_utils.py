@@ -85,6 +85,7 @@ def generate_point_cloud(
     num_points: int = 1000000,
     remove_outliers: bool = True,
     estimate_normals: bool = False,
+    reorient_normals: bool = False,
     rgb_output_name: str = "rgb",
     depth_output_name: str = "depth",
     normal_output_name: Optional[str] = None,
@@ -99,6 +100,7 @@ def generate_point_cloud(
         pipeline: Pipeline to evaluate with.
         num_points: Number of points to generate. May result in less if outlier removal is used.
         remove_outliers: Whether to remove outliers.
+        reorient_normals: Whether to re-orient the normals based on the view direction.
         estimate_normals: Whether to estimate normals.
         rgb_output_name: Name of the RGB output.
         depth_output_name: Name of the depth output.
@@ -122,6 +124,8 @@ def generate_point_cloud(
     points = []
     rgbs = []
     normals = []
+    view_directions = []
+
     with progress as progress_bar:
         task = progress_bar.add_task("Generating Point Cloud", total=num_points)
         while not progress_bar.finished:
@@ -154,6 +158,7 @@ def generate_point_cloud(
                 ), "Normal values from method output must be in [0, 1]"
                 normal = (normal * 2.0) - 1.0
             point = ray_bundle.origins + ray_bundle.directions * depth
+            view_direction = ray_bundle.directions
 
             if use_bounding_box:
                 comp_l = torch.tensor(bounding_box_min, device=point.device)
@@ -164,16 +169,19 @@ def generate_point_cloud(
                 mask = torch.all(torch.concat([point > comp_l, point < comp_m], dim=-1), dim=-1)
                 point = point[mask]
                 rgb = rgb[mask]
+                view_direction = view_direction[mask]
                 if normal is not None:
                     normal = normal[mask]
 
             points.append(point)
             rgbs.append(rgb)
+            view_directions.append(view_direction)
             if normal is not None:
                 normals.append(normal)
             progress.advance(task, point.shape[0])
     points = torch.cat(points, dim=0)
     rgbs = torch.cat(rgbs, dim=0)
+    view_directions = torch.cat(view_directions, dim=0).cpu()
 
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points.double().cpu().numpy())
@@ -185,6 +193,8 @@ def generate_point_cloud(
         pcd, ind = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=std_ratio)
         print("\033[A\033[A")
         CONSOLE.print("[bold green]:white_check_mark: Cleaning Point Cloud")
+        if ind is not None:
+            view_directions = view_directions[ind]
 
     # either estimate_normals or normal_output_name, not both
     if estimate_normals:
@@ -201,6 +211,13 @@ def generate_point_cloud(
         if ind is not None:
             # mask out normals for points that were removed with remove_outliers
             normals = normals[ind]
+        pcd.normals = o3d.utility.Vector3dVector(normals.double().cpu().numpy())
+
+    # re-orient the normals
+    if reorient_normals:
+        normals = torch.from_numpy(np.array(pcd.normals)).float()
+        mask = torch.sum(view_directions * normals, dim=-1) > 0
+        normals[mask] *= -1
         pcd.normals = o3d.utility.Vector3dVector(normals.double().cpu().numpy())
 
     return pcd
