@@ -600,12 +600,17 @@ def save_mask(
     mask *= 255
     mask_path = image_dir.parent / "masks"
     mask_path.mkdir(exist_ok=True)
-    if frame_mask_path == "":
-        CONSOLE.log(":tada: Single mask")
-        cv2.imwrite(str(mask_path / "mask.png"), mask)
-    else:
-        CONSOLE.log(":tada: Per-frame masks...")
-        copy_images(Path(frame_mask_path), mask_path, False, crop_factor, num_downscales)
-
+    cv2.imwrite(str(mask_path / "mask.png"), mask)
+    downscale_factors = [2**i for i in range(num_downscales + 1)[1:]]
+    for downscale in downscale_factors:
+        mask_path_i = image_dir.parent / f"masks_{downscale}"
+        mask_path_i.mkdir(exist_ok=True)
+        mask_path_i = mask_path_i / "mask.png"
+        mask_i = cv2.resize(
+            mask,
+            (width // downscale, height // downscale),
+            interpolation=cv2.INTER_NEAREST,
+        )
+        cv2.imwrite(str(mask_path_i), mask_i)
     CONSOLE.log(":tada: Generated and saved masks.")
     return mask_path / "mask.png"
