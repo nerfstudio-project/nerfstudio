@@ -18,7 +18,7 @@ from __future__ import annotations
 import math
 import os
 from dataclasses import dataclass, field
-from pathlib import Path, PurePath
+from pathlib import Path
 from typing import Literal, Optional, Type
 
 import numpy as np
@@ -110,7 +110,7 @@ class Nerfstudio(DataParser):
         # they do this in mipnerf360 code
         fnames = []
         for frame in meta["frames"]:
-            filepath = PurePath(frame["file_path"])
+            filepath = Path(frame["file_path"])
             fname = self._get_fname(filepath, data_dir)
             fnames.append(fname)
         inds = np.argsort(fnames)

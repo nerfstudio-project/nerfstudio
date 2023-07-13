@@ -169,7 +169,12 @@ class Viewer:
         # draw indices, roughly evenly spaced
         return np.linspace(0, total_num - 1, num_display_images, dtype=np.int32).tolist()
 
-    def init_scene(self, dataset: InputDataset, train_state: Literal["training", "paused", "completed"]) -> None:
+    def init_scene(
+        self,
+        train_dataset: InputDataset,
+        train_state: Literal["training", "paused", "completed"],
+        eval_dataset: Optional[InputDataset] = None,
+    ) -> None:
         """Draw some images and the scene aabb in the viewer.
 
         Args:
@@ -178,10 +183,10 @@ class Viewer:
         """
 
         # draw the training cameras and images
-        image_indices = self._pick_drawn_image_idxs(len(dataset))
+        image_indices = self._pick_drawn_image_idxs(len(train_dataset))
         for idx in image_indices:
-            image = dataset[idx]["image"]
-            camera = dataset.cameras[idx]
+            image = train_dataset[idx]["image"]
+            camera = train_dataset.cameras[idx]
             image_uint8 = (image * 255).detach().type(torch.uint8)
             image_uint8 = image_uint8.permute(2, 0, 1)
             image_uint8 = torchvision.transforms.functional.resize(image_uint8, 100)  # type: ignore
