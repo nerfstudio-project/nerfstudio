@@ -182,7 +182,7 @@ def convert_video_to_images(
 
         if spacing > 1:
             CONSOLE.print("Number of frames to extract:", math.ceil(num_frames / spacing))
-            ffmpeg_cmd += " -vsync vfr -r1"
+            ffmpeg_cmd += " -vsync vfr"
             select_cmd = f"thumbnail={spacing},setpts=N/TB,"
         else:
             CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
