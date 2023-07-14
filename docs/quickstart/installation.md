@@ -139,6 +139,14 @@ or be built from the repository using
 docker build --tag nerfstudio -f Dockerfile .
 ```
 
+To avoid *permission denied* errors on a server with multiple users add `UID` build arg:
+```bash
+docker build \
+    --build-arg UID=${UID} \
+    --tag nerfstudio \
+    --file Dockerfile .
+```
+
 To restrict to only CUDA architectures that you have available locally, use the `CUDA_ARCHITECTURES`
 build arg and look up [the compute capability for your GPU](https://developer.nvidia.com/cuda-gpus).
 For example, here's how to build with support for GeForce 30xx series GPUs:

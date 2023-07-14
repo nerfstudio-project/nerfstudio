@@ -98,16 +98,16 @@ RUN git clone --branch 3.8 https://github.com/colmap/colmap.git --single-branch 
     cd ../.. && \
     rm -rf colmap
 
-# Create non root user and setup environment.
-RUN useradd -m -d /home/user -g root -G sudo -u 1000 user
-RUN usermod -aG sudo user
-# Set user password
-RUN echo "user:user" | chpasswd
-# Ensure sudo group users are not asked for a password when using sudo command by ammending sudoers file
-RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+# Create non root user that mimic host user and setup environment.
+ARG UID=1000
+RUN useradd -m -d /home/user -u ${UID} -G sudo user && \
+    # Set user password
+    && echo "user:user" | chpasswd \
+    # Ensure sudo group users are not asked for a password when using sudo command by ammending sudoers file
+    && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # Switch to new uer and workdir.
-USER 1000
+USER user
 WORKDIR /home/user
 
 # Add local user binary folder to PATH variable.
@@ -154,7 +154,7 @@ RUN python3.10 -m pip install omegaconf
 ADD . /home/user/nerfstudio
 USER root
 RUN chown -R user /home/user/nerfstudio
-USER 1000
+USER user
 
 # Install nerfstudio dependencies.
 RUN cd nerfstudio && \
