@@ -60,6 +60,13 @@ class AdamOptimizerConfig(OptimizerConfig):
     weight_decay: float = 0
     """The weight decay to use."""
 
+@dataclass
+class AdamWOptimizerConfig(OptimizerConfig):
+    """Basic optimizer config with AdamW"""
+
+    _target: Type = torch.optim.AdamW
+    weight_decay: float = 0
+
 
 @dataclass
 class RAdamOptimizerConfig(OptimizerConfig):

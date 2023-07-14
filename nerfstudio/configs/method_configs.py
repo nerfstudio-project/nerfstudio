@@ -140,12 +140,12 @@ method_configs["neuralangelo"] = TrainerConfig(
     ),
     optimizers={
         "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-3, weight_decay=0.01, eps=1e-15),    #! fix back to AdamW
+            "optimizer": AdamWOptimizerConfig(lr=1e-3, weight_decay=0.01, eps=1e-15),    #! fix back to AdamW
             # "scheduler": NeuSSchedulerConfig(warm_up_end=5000, learning_rate_alpha=0.05, max_steps=500000),
             "scheduler": MultiStepWarmupSchedulerConfig(warm_up_end=5000, milestones=[300_000, 400_000], gamma=0.1),
         },
         "field_background": {
-            "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),                       #! fix back  to adamW
+            "optimizer": AdamWOptimizerConfig(lr=1e-3, eps=1e-15),                       #! fix back  to adamW
             "scheduler": MultiStepWarmupSchedulerConfig(warm_up_end=5000, milestones=[300_000, 400_000], gamma=0.1),
         },
     },
