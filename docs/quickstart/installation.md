@@ -139,10 +139,11 @@ or be built from the repository using
 docker build --tag nerfstudio -f Dockerfile .
 ```
 
-To avoid *permission denied* errors on a server with multiple users add `UID` build arg:
+To avoid *permission denied* errors on a server with multiple users add `UID` and `GID` build args:
 ```bash
 docker build \
     --build-arg UID=${UID} \
+    --build-arg GID=$(id -g) \
     --tag nerfstudio \
     --file Dockerfile .
 ```
