@@ -50,10 +50,12 @@ class NerfactoField(Field):
         hidden_dim: dimension of hidden layers
         geo_feat_dim: output geo feat dimensions
         num_levels: number of levels of the hashmap for the base mlp
+        base_res: base resolution of the hashmap for the base mlp
         max_res: maximum resolution of the hashmap for the base mlp
         log2_hashmap_size: size of the hashmap for the base mlp
         num_layers_color: number of hidden layers for color network
         num_layers_transient: number of hidden layers for transient network
+        features_per_level: number of features per level for the hashgrid
         hidden_dim_color: dimension of hidden layers for color network
         hidden_dim_transient: dimension of hidden layers for transient network
         appearance_embedding_dim: dimension of appearance embedding
