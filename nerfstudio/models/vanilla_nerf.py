@@ -194,12 +194,12 @@ class NeRFModel(Model):
         image = batch["image"].to(device)
         coarse_pred, coarse_image = self.renderer_rgb.blend_background_for_loss_computation(
             pred_image=outputs["rgb_coarse"],
-            pred_accumulation=outputs["accumulation"],
+            pred_accumulation=outputs["accumulation_coarse"],
             gt_image=image,
         )
         fine_pred, fine_image = self.renderer_rgb.blend_background_for_loss_computation(
             pred_image=outputs["rgb_fine"],
-            pred_accumulation=outputs["accumulation"],
+            pred_accumulation=outputs["accumulation_fine"],
             gt_image=image,
         )
 

@@ -107,13 +107,18 @@ class RGBRenderer(nn.Module):
             # as if the background color was black.
             return comp_rgb
 
-        background_color = cls.get_background_color(rgb=rgb, background_color=background_color)
+        elif background_color == "last_sample":
+            # Note, this is only supported for non-packed samples.
+            background_color = rgb[..., -1, :]
+        else:
+            background_color = cls.get_background_color(background_color, shape=rgb.shape, device=rgb.device)
+        assert isinstance(background_color, torch.Tensor)
         comp_rgb = comp_rgb + background_color.to(weights.device) * (1.0 - accumulated_weight)
         return comp_rgb
 
     @classmethod
     def get_background_color(
-        cls, rgb: Float[Tensor, "*bs num_samples 3"], background_color: BackgroundColor
+        cls, background_color: BackgroundColor, shape: Tuple[int, ...], device: torch.device
     ) -> Union[Float[Tensor, "3"], Float[Tensor, "*bs 3"]]:
         """Returns the RGB background color for a specified background color.
 
@@ -124,16 +129,16 @@ class RGBRenderer(nn.Module):
         Returns:
             Background color as RGB.
         """
+        assert background_color not in {"last_sample", "random"}
+        assert shape[-1] == 3, "Background color must be RGB."
         if BACKGROUND_COLOR_OVERRIDE is not None:
             background_color = BACKGROUND_COLOR_OVERRIDE
-        elif background_color == "last_sample":
-            background_color = rgb[..., -1, :]
-        elif background_color == "random":
-            background_color = torch.rand_like(rgb[..., -1, :]).to(rgb.device)
-        elif isinstance(background_color, str) and background_color in colors.COLORS_DICT:
-            background_color = colors.COLORS_DICT[background_color].to(rgb.device)
+        if isinstance(background_color, str) and background_color in colors.COLORS_DICT:
+            background_color = colors.COLORS_DICT[background_color]
         assert isinstance(background_color, Tensor)
-        return background_color
+
+        # Ensure correct shape
+        return background_color.expand(shape).to(device)
 
     def blend_background(
         self,
@@ -154,16 +159,14 @@ class RGBRenderer(nn.Module):
         if image.size(-1) < 4:
             return image
 
-        if background_color is None:
-            background_color_name = self.background_color
-            if background_color_name == "last_sample" or background_color_name == "random":
-                background_color_name = "black"
-            background_color = self.get_background_color(
-                rgb=image.unsqueeze(-1), background_color=background_color_name
-            )
         rgb, opacity = image[..., :3], image[..., 3:]
-        blended_rgb = rgb * opacity + background_color.to(rgb.device) * (1 - opacity)
-        return blended_rgb
+        if background_color is None:
+            background_color = self.background_color
+            if background_color in {"last_sample", "random"}:
+                background_color = "black"
+        background_color = self.get_background_color(background_color, shape=rgb.shape, device=rgb.device)
+        assert isinstance(background_color, torch.Tensor)
+        return rgb * opacity + background_color.to(rgb.device) * (1 - opacity)
 
     def blend_background_for_loss_computation(
         self,
@@ -181,11 +184,11 @@ class RGBRenderer(nn.Module):
         Returns:
             A tuple of the predicted and ground truth RGB values.
         """
-
-        background_color = self.get_background_color(
-            rgb=pred_image.unsqueeze(-1), background_color=self.background_color
-        ).to(pred_image.device)
-        if self.background_color == "random":
+        background_color = self.background_color
+        if self.background_color == "last_sample":
+            background_color = "black"  # No background blending for GT
+        elif self.background_color == "random":
+            background_color = torch.rand_like(pred_image)
             pred_image = pred_image + background_color * (1.0 - pred_accumulation)
         gt_image = self.blend_background(gt_image, background_color=background_color)
         return pred_image, gt_image
