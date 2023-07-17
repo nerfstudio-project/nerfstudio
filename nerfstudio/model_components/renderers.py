@@ -76,7 +76,7 @@ class RGBRenderer(nn.Module):
         num_rays: Optional[int] = None,
     ) -> Float[Tensor, "*bs 3"]:
         """Composite samples along ray and render color image.
-        If background color is random, the predicted color is blended with black (0, 0, 0).
+        If background color is random, no BG color is added - as if the background was black!
 
         Args:
             rgb: RGB for each sample
@@ -103,7 +103,8 @@ class RGBRenderer(nn.Module):
             accumulated_weight = torch.sum(weights, dim=-2)
 
         if background_color == "random":
-            # If background color is random, the predicted color is blended with black (0, 0, 0).
+            # If background color is random, the predicted color is returned without blending,
+            # as if the background color was black.
             return comp_rgb
 
         background_color = cls.get_background_color(rgb=rgb, background_color=background_color)
