@@ -75,7 +75,8 @@ class RGBRenderer(nn.Module):
         ray_indices: Optional[Int[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
     ) -> Float[Tensor, "*bs 3"]:
-        """Composite samples along ray and render color image
+        """Composite samples along ray and render color image.
+        If background color is random, the predicted color is blended with black (0, 0, 0).
 
         Args:
             rgb: RGB for each sample
@@ -101,9 +102,12 @@ class RGBRenderer(nn.Module):
             comp_rgb = torch.sum(weights * rgb, dim=-2)
             accumulated_weight = torch.sum(weights, dim=-2)
 
+        if background_color == "random":
+            # If background color is random, the predicted color is blended with black (0, 0, 0).
+            return comp_rgb
+
         background_color = cls.get_background_color(rgb=rgb, background_color=background_color)
         comp_rgb = comp_rgb + background_color.to(weights.device) * (1.0 - accumulated_weight)
-
         return comp_rgb
 
     @classmethod
@@ -124,65 +128,68 @@ class RGBRenderer(nn.Module):
         elif background_color == "last_sample":
             background_color = rgb[..., -1, :]
         elif background_color == "random":
-            background_color = torch.rand_like(rgb[..., -1, :]).to(rgb.device)
+            # background_color = torch.rand_like(rgb[..., -1, :]).to(rgb.device)
+            raise RuntimeError("get_background_color should never be called with background_color='random'")
         elif isinstance(background_color, str) and background_color in colors.COLORS_DICT:
             background_color = colors.COLORS_DICT[background_color].to(rgb.device)
         assert isinstance(background_color, Tensor)
         return background_color
 
-    @classmethod
     def blend_background(
-        cls,
-        rgb: Tensor,
-        opacity: Tensor,
-        background_color: Float[Tensor, "3"],
+        self,
+        image: Tensor,
+        background_color: Optional[Float[Tensor, "3"]] = None,
     ) -> Float[Tensor, "*bs 3"]:
-        """Blends the background color into the image.
+        """Blends the background color into the image if image is RGBA.
+        Otherwise no blending is performed (we assume opacity of 1).
 
         Args:
-            rgb: RGB per pixel.
+            image: RGB/RGBA per pixel.
             opacity: Alpha opacity per pixel.
             background_color: Background color.
 
         Returns:
             Blended RGB.
         """
-        if len(opacity.shape) < len(rgb.shape):
-            opacity = opacity.unsqueeze(-1)
+        if background_color is None:
+            background_color_name = self.background_color
+            if background_color_name == "last_sample" or background_color == "random":
+                background_color_name = "black"
+            background_color = self.get_background_color(
+                rgb=image.unsqueeze(-1), background_color=background_color_name
+            )
+        if image.size(-1) < 4:
+            return image
+        rgb, opacity = image[..., :3], image[..., 3:]
         blended_rgb = rgb * opacity + background_color.to(rgb.device) * (1 - opacity)
         return blended_rgb
 
-    def blend_background_for_metric_computation(
+    def blend_background_for_loss_computation(
         self,
+        pred_image: Tensor,
+        pred_accumulation: Tensor,
         gt_image: Tensor,
-        predicted_rgb: Tensor,
-        predicted_opacity: Tensor,
-        background_color: Float[Tensor, "3"] = colors.BLACK,
     ) -> Tuple[Tensor, Tensor]:
         """Blends a background color into the ground truth and predicted image for
-        metric computation if the current background color is "random".
+        loss computation.
 
         Args:
             gt_image: The ground truth image.
-            predicted_rgb: The predicted RGB values.
-            predicted_opacity: The predicted opacity/ accumulation.
-            background_color: The background color to use for blending. This should be
-                a single color to use for all pixels.
-
+            pred_image: The predicted RGB values (without background blending).
+            pred_accumulation: The predicted opacity/ accumulation.
         Returns:
             A tuple of the predicted and ground truth RGB values.
         """
-        if gt_image.shape[-1] == 4 and self.background_color == "random":
-            predicted_rgb = self.blend_background(
-                rgb=predicted_rgb, opacity=predicted_opacity, background_color=background_color
-            )
-            gt_rgb = self.blend_background(
-                rgb=gt_image[..., :3], opacity=gt_image[..., 3], background_color=background_color
-            )
-        else:
-            gt_rgb = gt_image[..., :3]
 
-        return predicted_rgb, gt_rgb
+        if self.background_color == "random":
+            background_color = torch.rand_like(pred_image)
+        else:
+            background_color = self.get_background_color(
+                rgb=pred_image.unsqueeze(-1), background_color=self.background_color
+            ).to(pred_image.device)
+        pred_image = pred_image + background_color * (1.0 - pred_accumulation)
+        gt_image = self.blend_background(gt_image, background_color=background_color)
+        return pred_image, gt_image
 
     def forward(
         self,
