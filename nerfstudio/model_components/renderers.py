@@ -143,7 +143,7 @@ class RGBRenderer(nn.Module):
     def blend_background(
         self,
         image: Tensor,
-        background_color: Optional[Float[Tensor, "3"]] = None,
+        background_color: Optional[BackgroundColor] = None,
     ) -> Float[Tensor, "*bs 3"]:
         """Blends the background color into the image if image is RGBA.
         Otherwise no blending is performed (we assume opacity of 1).
