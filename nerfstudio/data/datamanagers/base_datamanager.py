@@ -61,6 +61,7 @@ from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttrib
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper, get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
+from nerfstudio.utils.misc import torch_compile
 
 
 def variable_res_collate(batch: List[Dict]) -> Dict:
@@ -517,7 +518,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             num_workers=self.world_size * 4,
         )
 
-    @torch.compile
+    @torch_compile
     def _next_train_compiled(self, image_batch):
         assert self.train_pixel_sampler is not None
         batch = self.train_pixel_sampler.sample(image_batch)
@@ -533,7 +534,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         assert isinstance(image_batch, dict)
         return self._next_train_compiled(image_batch)
 
-    @torch.compile
+    @torch_compile
     def _next_eval_compiled(self, image_batch):
         assert self.eval_pixel_sampler is not None
         batch = self.eval_pixel_sampler.sample(image_batch)
