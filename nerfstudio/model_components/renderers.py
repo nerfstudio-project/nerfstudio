@@ -128,8 +128,7 @@ class RGBRenderer(nn.Module):
         elif background_color == "last_sample":
             background_color = rgb[..., -1, :]
         elif background_color == "random":
-            # background_color = torch.rand_like(rgb[..., -1, :]).to(rgb.device)
-            raise RuntimeError("get_background_color should never be called with background_color='random'")
+            background_color = torch.rand_like(rgb[..., -1, :]).to(rgb.device)
         elif isinstance(background_color, str) and background_color in colors.COLORS_DICT:
             background_color = colors.COLORS_DICT[background_color].to(rgb.device)
         assert isinstance(background_color, Tensor)
@@ -151,15 +150,16 @@ class RGBRenderer(nn.Module):
         Returns:
             Blended RGB.
         """
+        if image.size(-1) < 4:
+            return image
+
         if background_color is None:
             background_color_name = self.background_color
-            if background_color_name == "last_sample" or background_color == "random":
+            if background_color_name == "last_sample" or background_color_name == "random":
                 background_color_name = "black"
             background_color = self.get_background_color(
                 rgb=image.unsqueeze(-1), background_color=background_color_name
             )
-        if image.size(-1) < 4:
-            return image
         rgb, opacity = image[..., :3], image[..., 3:]
         blended_rgb = rgb * opacity + background_color.to(rgb.device) * (1 - opacity)
         return blended_rgb
@@ -181,13 +181,11 @@ class RGBRenderer(nn.Module):
             A tuple of the predicted and ground truth RGB values.
         """
 
+        background_color = self.get_background_color(
+            rgb=pred_image.unsqueeze(-1), background_color=self.background_color
+        ).to(pred_image.device)
         if self.background_color == "random":
-            background_color = torch.rand_like(pred_image)
-        else:
-            background_color = self.get_background_color(
-                rgb=pred_image.unsqueeze(-1), background_color=self.background_color
-            ).to(pred_image.device)
-        pred_image = pred_image + background_color * (1.0 - pred_accumulation)
+            pred_image = pred_image + background_color * (1.0 - pred_accumulation)
         gt_image = self.blend_background(gt_image, background_color=background_color)
         return pred_image, gt_image
 
