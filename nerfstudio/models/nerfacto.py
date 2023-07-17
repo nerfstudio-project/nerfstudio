@@ -283,16 +283,7 @@ class NerfactoModel(Model):
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
 
-        background_color = (
-            self.renderer_rgb.get_background_color(
-                rgb=field_outputs[FieldHeadNames.RGB], background_color=self.config.background_color
-            )
-            if self.training
-            else None
-        )
-        rgb = self.renderer_rgb(
-            rgb=field_outputs[FieldHeadNames.RGB], weights=weights, background_color=background_color
-        )
+        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 
@@ -301,8 +292,6 @@ class NerfactoModel(Model):
             "accumulation": accumulation,
             "depth": depth,
         }
-        if self.training and self.config.background_color == "random" and background_color is not None:
-            outputs["background_color"] = background_color
 
         if self.config.predict_normals:
             normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
@@ -332,10 +321,9 @@ class NerfactoModel(Model):
 
     def get_metrics_dict(self, outputs, batch):
         metrics_dict = {}
-        image = batch["image"].to(self.device)
-        predicted_rgb, gt_rgb = self.renderer_rgb.blend_background_for_metric_computation(
-            gt_image=image, predicted_rgb=outputs["rgb"], predicted_opacity=outputs["accumulation"]
-        )
+        gt_rgb = batch["image"].to(self.device)  # RGB or RGBA image
+        gt_rgb = self.renderer_rgb.blend_background(gt_rgb)  # Blend if RGBA
+        predicted_rgb = outputs["rgb"]
         metrics_dict["psnr"] = self.psnr(predicted_rgb, gt_rgb)
 
         if self.training:
@@ -345,14 +333,13 @@ class NerfactoModel(Model):
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = {}
         image = batch["image"].to(self.device)
-        blended_rgb = (
-            self.renderer_rgb.blend_background(
-                rgb=image[..., :3], opacity=image[..., 3], background_color=outputs["background_color"]
-            )
-            if image.shape[-1] == 4 and "background_color" in outputs
-            else image[..., :3]
+        pred_rgb, gt_rgb = self.renderer_rgb.blend_background_for_loss_computation(
+            pred_image=outputs["rgb"],
+            pred_accumulation=outputs["accumulation"],
+            gt_image=image,
         )
-        loss_dict["rgb_loss"] = self.rgb_loss(blended_rgb, outputs["rgb"])
+
+        loss_dict["rgb_loss"] = self.rgb_loss(gt_rgb, pred_rgb)
         if self.training:
             loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
@@ -374,10 +361,9 @@ class NerfactoModel(Model):
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
-        image = batch["image"].to(self.device)
-        predicted_rgb, gt_rgb = self.renderer_rgb.blend_background_for_metric_computation(
-            gt_image=image, predicted_rgb=outputs["rgb"], predicted_opacity=outputs["accumulation"]
-        )
+        gt_rgb = batch["image"].to(self.device)
+        predicted_rgb = outputs["rgb"]  # Blended with background (black if random background)
+        gt_rgb = self.renderer_rgb.blend_background(gt_rgb)
         acc = colormaps.apply_colormap(outputs["accumulation"])
         depth = colormaps.apply_depth_colormap(
             outputs["depth"],
