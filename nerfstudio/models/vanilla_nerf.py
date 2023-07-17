@@ -191,10 +191,20 @@ class NeRFModel(Model):
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
         # Scaling metrics by coefficients to create the losses.
         device = outputs["rgb_coarse"].device
-        image = batch["image"][..., :3].to(device)
+        image = batch["image"].to(device)
+        coarse_pred, coarse_image = self.renderer_rgb.blend_background_for_loss_computation(
+            pred_image=outputs["rgb_coarse"],
+            pred_accumulation=outputs["accumulation"],
+            gt_image=image,
+        )
+        fine_pred, fine_image = self.renderer_rgb.blend_background_for_loss_computation(
+            pred_image=outputs["rgb_fine"],
+            pred_accumulation=outputs["accumulation"],
+            gt_image=image,
+        )
 
-        rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
-        rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
+        rgb_loss_coarse = self.rgb_loss(coarse_image, coarse_pred)
+        rgb_loss_fine = self.rgb_loss(fine_image, fine_pred)
 
         loss_dict = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
@@ -203,7 +213,8 @@ class NeRFModel(Model):
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
-        image = batch["image"][..., :3].to(outputs["rgb_coarse"].device)
+        image = batch["image"].to(outputs["rgb_coarse"].device)
+        image = self.renderer_rgb.blend_background(image)
         rgb_coarse = outputs["rgb_coarse"]
         rgb_fine = outputs["rgb_fine"]
         acc_coarse = colormaps.apply_colormap(outputs["accumulation_coarse"])
