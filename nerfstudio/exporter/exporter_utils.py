@@ -140,7 +140,7 @@ def generate_point_cloud(
                 CONSOLE.print(f"Could not find {depth_output_name} in the model outputs", justify="center")
                 CONSOLE.print(f"Please set --depth_output_name to one of: {outputs.keys()}", justify="center")
                 sys.exit(1)
-            rgb = outputs[rgb_output_name]
+            rgba = pipeline.model.get_rgba_image(outputs, rgb_output_name)
             depth = outputs[depth_output_name]
             if normal_output_name is not None:
                 if normal_output_name not in outputs:
@@ -154,6 +154,13 @@ def generate_point_cloud(
                 ), "Normal values from method output must be in [0, 1]"
                 normal = (normal * 2.0) - 1.0
             point = ray_bundle.origins + ray_bundle.directions * depth
+
+            # Filter points with opacity lower than 0.5
+            mask = rgba[..., -1:] > 0.5
+            point = point[mask]
+            rgb = rgba[mask][..., :3]
+            if normal is not None:
+                normal = normal[mask]
 
             if use_bounding_box:
                 comp_l = torch.tensor(bounding_box_min, device=point.device)
@@ -213,6 +220,7 @@ def render_trajectory(
     depth_output_name: str,
     rendered_resolution_scaling_factor: float = 1.0,
     disable_distortion: bool = False,
+    return_rgba_images: bool = False,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Helper function to create a video of a trajectory.
 
@@ -223,6 +231,7 @@ def render_trajectory(
         depth_output_name: Name of the depth output.
         rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
         disable_distortion: Whether to disable distortion.
+        return_rgba_images: Whether to return RGBA images (default RGB).
 
     Returns:
         List of rgb images, list of depth images.
@@ -255,7 +264,11 @@ def render_trajectory(
                 CONSOLE.print(f"Could not find {depth_output_name} in the model outputs", justify="center")
                 CONSOLE.print(f"Please set --depth_output_name to one of: {outputs.keys()}", justify="center")
                 sys.exit(1)
-            images.append(outputs[rgb_output_name].cpu().numpy())
+            if return_rgba_images:
+                image = pipeline.model.get_rgba_image(outputs, rgb_output_name)
+            else:
+                image = outputs[rgb_output_name]
+            images.append(image.cpu().numpy())
             depths.append(outputs[depth_output_name].cpu().numpy())
     return images, depths
 

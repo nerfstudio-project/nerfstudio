@@ -331,7 +331,11 @@ def export_tsdf_mesh(
         depth_output_name=depth_output_name,
         rendered_resolution_scaling_factor=1.0 / downscale_factor,
         disable_distortion=True,
+        return_rgba_images=True,
     )
+
+    # TODO: this can be done better by removing transparent points from the TSDF
+    color_images = [x[..., :3] for x in color_images]
 
     # camera extrinsics and intrinsics
     c2w: Float[Tensor, "N 3 4"] = cameras.camera_to_worlds.to(device)
