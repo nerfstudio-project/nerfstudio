@@ -122,6 +122,9 @@ class RGBRenderer(nn.Module):
     ) -> Union[Float[Tensor, "3"], Float[Tensor, "*bs 3"]]:
         """Returns the RGB background color for a specified background color.
 
+        Note:
+            This function CANNOT be called for background_color being either "last_sample" or "random".
+
         Args:
             rgb: RGB for each sample.
             background_color: The background color specification.
@@ -185,9 +188,9 @@ class RGBRenderer(nn.Module):
             A tuple of the predicted and ground truth RGB values.
         """
         background_color = self.background_color
-        if self.background_color == "last_sample":
+        if background_color == "last_sample":
             background_color = "black"  # No background blending for GT
-        elif self.background_color == "random":
+        elif background_color == "random":
             background_color = torch.rand_like(pred_image)
             pred_image = pred_image + background_color * (1.0 - pred_accumulation)
         gt_image = self.blend_background(gt_image, background_color=background_color)
