@@ -183,12 +183,15 @@ class Pipeline(nn.Module):
 
     @abstractmethod
     @profiler.time_function
-    def get_average_eval_image_metrics(self, step: Optional[int] = None, output_path: Optional[Path] = None):
+    def get_average_eval_image_metrics(
+        self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: bool = False
+    ):
         """Iterate over all the images in the eval dataset and get the average.
 
         Args:
             step: current training step
             output_path: optional path to save rendered images to
+            get_std: Set True if you want to return std with the mean metric.
         """
 
     def load_pipeline(self, loaded_state: Dict[str, Any], step: int) -> None:
@@ -354,12 +357,15 @@ class VanillaPipeline(Pipeline):
         return metrics_dict, images_dict
 
     @profiler.time_function
-    def get_average_eval_image_metrics(self, step: Optional[int] = None, output_path: Optional[Path] = None):
+    def get_average_eval_image_metrics(
+        self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: bool = False
+    ):
         """Iterate over all the images in the eval dataset and get the average.
 
         Args:
             step: current training step
             output_path: optional path to save rendered images to
+            get_std: Set True if you want to return std with the mean metric.
 
         Returns:
             metrics_dict: dictionary of metrics
@@ -401,9 +407,16 @@ class VanillaPipeline(Pipeline):
         # average the metrics list
         metrics_dict = {}
         for key in metrics_dict_list[0].keys():
-            metrics_dict[key] = float(
-                torch.mean(torch.tensor([metrics_dict[key] for metrics_dict in metrics_dict_list]))
-            )
+            if get_std:
+                key_std, key_mean = torch.std_mean(
+                    torch.tensor([metrics_dict[key] for metrics_dict in metrics_dict_list])
+                )
+                metrics_dict[key] = float(key_mean)
+                metrics_dict[f"{key}_std"] = float(key_std)
+            else:
+                metrics_dict[key] = float(
+                    torch.mean(torch.tensor([metrics_dict[key] for metrics_dict in metrics_dict_list]))
+                )
         self.train()
         return metrics_dict
 
