@@ -37,7 +37,7 @@ from nerfstudio.field_components.field_heads import (
 )
 from nerfstudio.field_components.mlp import MLP
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
-from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
+from nerfstudio.fields.base_field import Field, get_normalized_directions
 
 
 class NerfactoField(Field):
@@ -50,10 +50,12 @@ class NerfactoField(Field):
         hidden_dim: dimension of hidden layers
         geo_feat_dim: output geo feat dimensions
         num_levels: number of levels of the hashmap for the base mlp
+        base_res: base resolution of the hashmap for the base mlp
         max_res: maximum resolution of the hashmap for the base mlp
         log2_hashmap_size: size of the hashmap for the base mlp
         num_layers_color: number of hidden layers for color network
         num_layers_transient: number of hidden layers for transient network
+        features_per_level: number of features per level for the hashgrid
         hidden_dim_color: dimension of hidden layers for color network
         hidden_dim_transient: dimension of hidden layers for transient network
         appearance_embedding_dim: dimension of appearance embedding
@@ -232,7 +234,7 @@ class NerfactoField(Field):
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
         camera_indices = ray_samples.camera_indices.squeeze()
-        directions = shift_directions_for_tcnn(ray_samples.frustums.directions)
+        directions = get_normalized_directions(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
         d = self.direction_encoding(directions_flat)
 
