@@ -292,8 +292,13 @@ class SurfaceModel(Model):
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
         loss_dict = {}
-        image = batch["image"][..., :3].to(self.device)
-        loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
+        image = batch["image"].to(self.device)
+        pred_image, image = self.renderer_rgb.blend_background_for_loss_computation(
+            pred_image=outputs["rgb"],
+            pred_accumulation=outputs["accumulation"],
+            gt_image=image,
+        )
+        loss_dict["rgb_loss"] = self.rgb_loss(image, pred_image)
         if self.training:
             # eikonal loss
             grad_theta = outputs["eik_grad"]
@@ -336,7 +341,8 @@ class SurfaceModel(Model):
             batch: ground truth batch corresponding to outputs
         """
         metrics_dict = {}
-        image = batch["image"][..., :3].to(self.device)
+        image = batch["image"].to(self.device)
+        image = self.renderer_rgb.blend_background(image)
         metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
         return metrics_dict
 
@@ -351,7 +357,8 @@ class SurfaceModel(Model):
         Returns:
             A dictionary of metrics.
         """
-        image = batch["image"][..., :3].to(self.device)
+        image = batch["image"].to(self.device)
+        image = self.renderer_rgb.blend_background(image)
         rgb = outputs["rgb"]
         acc = colormaps.apply_colormap(outputs["accumulation"])
 
