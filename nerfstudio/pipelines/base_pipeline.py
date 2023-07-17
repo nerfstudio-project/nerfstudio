@@ -184,7 +184,7 @@ class Pipeline(nn.Module):
     @abstractmethod
     @profiler.time_function
     def get_average_eval_image_metrics(
-        self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: Optional[bool] = None
+        self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: bool = False
     ):
         """Iterate over all the images in the eval dataset and get the average.
 
@@ -358,7 +358,7 @@ class VanillaPipeline(Pipeline):
 
     @profiler.time_function
     def get_average_eval_image_metrics(
-        self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: Optional[bool] = None
+        self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: bool = False
     ):
         """Iterate over all the images in the eval dataset and get the average.
 
