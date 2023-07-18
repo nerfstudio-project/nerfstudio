@@ -157,6 +157,7 @@ def generate_point_cloud(
             # Filter points with opacity lower than 0.5
             mask = rgba[..., -1] > 0.5
             point = point[mask]
+            view_direction = view_direction[mask]
             rgb = rgba[mask][..., :3]
             if normal is not None:
                 normal = normal[mask]
