@@ -24,7 +24,7 @@ from jaxtyping import Float
 from nerfacc import OccGridEstimator
 from torch import Tensor, nn
 
-from nerfstudio.cameras.rays import Frustums, RayBundle, RaySamples
+from nerfstudio.cameras.rays import Frustums, RayBundle, RaySamples, positions_to_ray_samples
 from nerfstudio.utils.math import power_fn, inv_power_fn
 
 
@@ -407,7 +407,9 @@ class DensityFn(Protocol):
     """
 
     def __call__(
-        self, positions: Float[Tensor, "*batch 3"], times: Optional[Float[Tensor, "*batch 1"]] = None
+        self,
+        ray_samples: RaySamples,
+        times: Optional[Float[Tensor, "*batch 1"]] = None,
     ) -> Float[Tensor, "*batch 1"]:
         ...
 
@@ -453,9 +455,10 @@ class VolumetricSampler(Sampler):
             t_origins = origins[ray_indices]
             t_dirs = directions[ray_indices]
             positions = t_origins + t_dirs * (t_starts + t_ends)[:, None] / 2.0
+            ray_samples = positions_to_ray_samples(positions)
             if times is None:
-                return density_fn(positions).squeeze(-1)
-            return density_fn(positions, times[ray_indices]).squeeze(-1)
+                return density_fn(ray_samples).squeeze(-1)
+            return density_fn(ray_samples, times[ray_indices]).squeeze(-1)
 
         return sigma_fn
 

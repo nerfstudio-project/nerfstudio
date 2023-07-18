@@ -190,11 +190,11 @@ class ZipNeRFField(NerfactoField):
         # hash grid performs trilerp inside itself
         mean = (
             self.mlp_base_grid(mean.view(-1, 3))
-            .view(prefix_shape + [self.num_levels * self.features_per_level])
+            .view(prefix_shape + [self.num_levels * self.features_per_level])  # type: ignore
             .unflatten(-1, (self.num_levels, self.features_per_level))
         )  # [..., "dim", "num_levels", "features_per_level"]
         weights = erf_approx(
-            1 / (8**0.5 * (cov[..., None] * self.mlp_base_grid.scalings.view(-1)).abs()).clamp_min(EPS)
+            1 / (8**0.5 * (cov[..., None] * self.mlp_base_grid.scalings.view(-1)).abs()).clamp_min(EPS)  # type: ignore
         )  # [..., "dim", "num_levels"]
         features = (
             (mean * weights[..., None]).mean(dim=-3).flatten(-2, -1)

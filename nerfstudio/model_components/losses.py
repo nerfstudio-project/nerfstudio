@@ -153,6 +153,7 @@ def sorted_interp_quad(x, xp, fpdf, fcdf):
 
 
 def zipnerf_loss(weights_list, ray_samples_list):
+    """Anti-aliased interlevel loss proposed in ZipNeRF paper."""
     # ground truth s and w (real nerf samples)
     # This implementation matches ZipNeRF up to the scale.
     # In the paper the loss is computed as the sum over the ray samples.
@@ -379,9 +380,7 @@ def hash_decay_loss(
     hash_decay_list: List[Float[Tensor, "0"]],
 ) -> Float[Tensor, "0"]:
     """Implementation of hash decay loss."""
-    loss = 0.0
-    for hash_decay in hash_decay_list:
-        loss += hash_decay.mean()
+    loss = sum(hash_decay.mean() for hash_decay in hash_decay_list)
 
     return loss
 

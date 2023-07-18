@@ -338,3 +338,18 @@ class RayBundle(TensorDataclass):
         )
 
         return ray_samples
+
+
+def positions_to_ray_samples(positions: Float[Tensor, "*bs 3"]) -> RaySamples:
+    """Convert positions to ray samples."""
+    ray_samples = RaySamples(
+        frustums=Frustums(
+            origins=positions,
+            directions=torch.ones_like(positions),
+            starts=torch.zeros_like(positions[..., :1]),
+            ends=torch.zeros_like(positions[..., :1]),
+            pixel_area=torch.ones_like(positions[..., :1]),
+        )
+    )
+
+    return ray_samples
