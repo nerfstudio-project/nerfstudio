@@ -54,7 +54,7 @@ class RunViewer:
     """Path to config YAML file."""
     viewer: ViewerConfigWithoutNumRays = field(default_factory=ViewerConfigWithoutNumRays)
     """Viewer configuration"""
-    vis: Literal["viewer", "viewer-beta"] = "viewer"
+    vis: Literal["viewer", "viewer_beta"] = "viewer"
     """Type of viewer"""
 
     def main(self) -> None:
@@ -88,7 +88,8 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
     """
     base_dir = config.get_base_dir()
     viewer_log_path = base_dir / config.viewer.relative_log_filename
-    print(config.vis)
+    banner_messages = None
+    viewer_state = None
     if config.vis == "viewer":
         viewer_state = ViewerState(
             config.viewer,
@@ -97,7 +98,7 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
             pipeline=pipeline,
         )
         banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
-    if config.vis == "viewer-beta":
+    if config.vis == "viewer_beta":
         viewer_state = ViewerBetaState(
             config.viewer,
             log_filename=viewer_log_path,
@@ -115,7 +116,7 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
         dataset=pipeline.datamanager.train_dataset,
         train_state="completed",
     )
-    if config.vis == "viewer":
+    if isinstance(viewer_state, ViewerState):
         viewer_state.viser_server.set_training_state("completed")
     viewer_state.update_scene(step=step)
     while True:

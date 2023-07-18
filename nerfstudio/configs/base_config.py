@@ -17,15 +17,12 @@
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, Literal, Optional, Tuple, Type
 
 # model instances
 from nerfstudio.utils import writer
-
-warnings.filterwarnings("ignore", module="torchvision")
 
 
 # Pretty printing class

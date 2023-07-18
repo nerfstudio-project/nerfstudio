@@ -217,7 +217,12 @@ class RFFEncoding(Encoding):
         self.include_input = include_input
 
     def get_out_dim(self) -> int:
-        return self.num_frequencies * 2
+        out_dim = self.num_frequencies * 2
+        if self.include_input:
+            if self.in_dim is None:
+                raise ValueError("Input dimension has not been set")
+            out_dim += self.in_dim
+        return out_dim
 
     def forward(
         self,
@@ -272,8 +277,8 @@ class HashEncoding(Encoding):
         max_res: int = 1024,
         log2_hashmap_size: int = 19,
         features_per_level: int = 2,
-        hash_init_scale: float = 1e-3,
-        implementation: Literal["tcnn", "torch"] = "torch",
+        hash_init_scale: float = 0.001,
+        implementation: Literal["tcnn", "torch"] = "tcnn",
         interpolation: Optional[Literal["Nearest", "Linear", "Smoothstep"]] = None,
     ) -> None:
         super().__init__(in_dim=3)
@@ -290,7 +295,6 @@ class HashEncoding(Encoding):
         self.register_buffer("hash_values", torch.tensor([1, 2654435761, 805459861]), False)
 
         self.tcnn_encoding = None
-        self.hash_table = torch.empty(0)
         if implementation == "tcnn" and not TCNN_EXISTS:
             print_tcnn_speed_warning("HashEncoding")
             implementation = "torch"

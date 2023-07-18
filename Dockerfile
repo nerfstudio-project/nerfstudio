@@ -2,6 +2,7 @@ ARG CUDA_VERSION=11.8.0
 ARG OS_VERSION=22.04
 # Define base image.
 FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${OS_VERSION}
+FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${OS_VERSION}
 
 # metainformation
 LABEL org.opencontainers.image.version = "0.1.18"
@@ -128,9 +129,8 @@ RUN CUDA_VER=${CUDA_VERSION%.*} && CUDA_VER=${CUDA_VER//./} && python3.10 -m pip
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
 RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch
 
-# Install pycolmap 0.3.0, required by hloc.
-# TODO(https://github.com/colmap/pycolmap/issues/111) use wheel when available for Python 3.10
-RUN git clone --branch v0.3.0 --recursive https://github.com/colmap/pycolmap.git && \
+# Install pycolmap, required by hloc.
+RUN git clone --branch v0.4.0 --recursive https://github.com/colmap/pycolmap.git && \
     cd pycolmap && \
     python3.10 -m pip install . && \
     cd ..
@@ -142,13 +142,13 @@ RUN git clone --branch master --recursive https://github.com/cvg/Hierarchical-Lo
     cd ..
 
 # Install pyceres from source
-RUN git clone --branch main --recursive https://github.com/cvg/pyceres.git && \
+RUN git clone --branch v1.0 --recursive https://github.com/cvg/pyceres.git && \
     cd pyceres && \
     python3.10 -m pip install -e . && \
     cd ..
 
 # Install pixel perfect sfm.
-RUN git clone --branch main --recursive https://github.com/cvg/pixel-perfect-sfm.git && \
+RUN git clone --branch v1.0 --recursive https://github.com/cvg/pixel-perfect-sfm.git && \
     cd pixel-perfect-sfm && \
     python3.10 -m pip install -e . && \
     cd ..
