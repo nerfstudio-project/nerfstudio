@@ -28,13 +28,7 @@ import open3d as o3d
 import pymeshlab
 import torch
 from jaxtyping import Float
-from rich.progress import (
-    BarColumn,
-    Progress,
-    TaskProgressColumn,
-    TextColumn,
-    TimeRemainingColumn,
-)
+from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeRemainingColumn
 from torch import Tensor
 
 from nerfstudio.cameras.cameras import Cameras
@@ -161,7 +155,7 @@ def generate_point_cloud(
             view_direction = ray_bundle.directions
 
             # Filter points with opacity lower than 0.5
-            mask = rgba[..., -1:] > 0.5
+            mask = rgba[..., -1] > 0.5
             point = point[mask]
             rgb = rgba[mask][..., :3]
             if normal is not None:
