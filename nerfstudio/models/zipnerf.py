@@ -26,7 +26,7 @@ from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig
 from nerfstudio.field_components.spatial_distortions import LinearizedSceneContraction
 from nerfstudio.model_components.losses import (
     zipnerf_loss,
-    CharbonnierLoss, 
+    CharbonnierLoss,
 )
 from nerfstudio.fields.zipnerf_field import ZipNeRFField
 from nerfstudio.model_components.ray_samplers import PowerSampler

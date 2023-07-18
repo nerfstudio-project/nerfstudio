@@ -15,6 +15,7 @@
 """
 Some ray datastructures.
 """
+
 import random
 from dataclasses import dataclass, field
 from typing import Callable, Dict, Literal, Optional, Tuple, Union, overload
@@ -222,7 +223,8 @@ class RaySamples(TensorDataclass):
         return sdist
 
     def from_sdist(
-        self, sdist: Float[Tensor, "*batch num_samples+1"],
+        self,
+        sdist: Float[Tensor, "*batch num_samples+1"],
     ) -> "RaySamples":
         """Convert s space to ray samples inplace."""
         self.spacing_starts = sdist[..., :-1, None]

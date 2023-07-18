@@ -223,34 +223,43 @@ def multisampled_frustum_to_gaussian(
 
     # prepare 6-point hexagonal pattern for each sample
     j = torch.arange(6, device=starts.device, dtype=starts.dtype)
-    t = starts + t_d / (t_d ** 2 + 3 * t_m ** 2) * (
-        ends ** 2 + 2 * t_m ** 2 + 3 / 7 ** 0.5 * (2 * j / 5 - 1) * (
-        (t_d ** 2 - t_m ** 2) ** 2 + 4 * t_m ** 4).sqrt()) # [..., num_samples, 6]
+    t = starts + t_d / (t_d**2 + 3 * t_m**2) * (
+        ends**2 + 2 * t_m**2 + 3 / 7**0.5 * (2 * j / 5 - 1) * ((t_d**2 - t_m**2) ** 2 + 4 * t_m**4).sqrt()
+    )  # [..., num_samples, 6]
 
     deg = torch.pi / 3 * starts.new_tensor([0, 2, 4, 3, 5, 1]).broadcast_to(t.shape)
     if rand:
         # randomly rotate and flip
-        mask = torch.rand_like(starts) > 0.5 # [..., num_samples, 1]
+        mask = torch.rand_like(starts) > 0.5  # [..., num_samples, 1]
         deg = deg + 2 * torch.pi * torch.rand_like(starts)
         deg = torch.where(mask, deg, 5 * torch.pi / 3.0 - deg)
     else:
         # rotate 30 degree and flip every other pattern
         mask = (
-            torch.arange(
-                end=starts.shape[-2],
-                device=starts.device,
-                dtype=starts.dtype,
-            ) % 2 == 0
-        ).unsqueeze(-1).broadcast_to(starts.shape) # [..., num_samples, 6]
+            (
+                torch.arange(
+                    end=starts.shape[-2],
+                    device=starts.device,
+                    dtype=starts.dtype,
+                )
+                % 2
+                == 0
+            )
+            .unsqueeze(-1)
+            .broadcast_to(starts.shape)
+        )  # [..., num_samples, 6]
         deg = torch.where(mask, deg, deg + torch.pi / 6.0)
         deg = torch.where(mask, deg, 5 * torch.pi / 3.0 - deg)
 
-    means = torch.stack([
-        radius * t * torch.cos(deg) / 2 ** 0.5,
-        radius * t * torch.sin(deg) / 2 ** 0.5,
-        t,
-    ], dim=-1) # [..., "num_samples", 6, 3]
-    stds = cov_scale * radius * t / 2 ** 0.5 # [..., "num_samples", 6]
+    means = torch.stack(
+        [
+            radius * t * torch.cos(deg) / 2**0.5,
+            radius * t * torch.sin(deg) / 2**0.5,
+            t,
+        ],
+        dim=-1,
+    )  # [..., "num_samples", 6, 3]
+    stds = cov_scale * radius * t / 2**0.5  # [..., "num_samples", 6]
 
     # extend stds as diagonal
     # stds = stds.unsqueeze(-1).broadcast_to(*stds.shape, 3).diag_embed() # [..., "num_samples", 6, 3, 3]
@@ -260,16 +269,18 @@ def multisampled_frustum_to_gaussian(
         list(directions.shape[:-2]) + [1, 3],
         device=directions.device,
         dtype=directions.dtype,
-    ) # [..., 1, 3]
+    )  # [..., 1, 3]
     ortho1 = torch.nn.functional.normalize(
-        torch.cross(directions, rand_vec, dim=-1), dim=-1, eps=eps) # [..., num_samples, 3]
+        torch.cross(directions, rand_vec, dim=-1), dim=-1, eps=eps
+    )  # [..., num_samples, 3]
     ortho2 = torch.nn.functional.normalize(
-        torch.cross(directions, ortho1, dim=-1), dim=-1, eps=eps) # [..., num_samples, 3]
+        torch.cross(directions, ortho1, dim=-1), dim=-1, eps=eps
+    )  # [..., num_samples, 3]
 
     # just use directions to be the third vector of the orthonormal basis,
     # while the cross section of cone is parallel to the image plane
     basis_matrix = torch.stack([ortho1, ortho2, directions], dim=-1)
-    means = torch.matmul(means, basis_matrix.transpose(-1, -2)) # [..., "num_samples", 6, 3]
+    means = torch.matmul(means, basis_matrix.transpose(-1, -2))  # [..., "num_samples", 6, 3]
     means = means + origins[..., None, :]
 
     return Gaussians(mean=means, cov=stds)
@@ -460,7 +471,7 @@ def inv_power_fn(
 @torch_compile(dynamic=True, mode="reduce-overhead", backend="eager")
 def erf_approx(x: torch.Tensor) -> torch.Tensor:
     """Error function approximation proposed in ZipNeRF paper (Eq. 11)."""
-    return torch.sign(x) * torch.sqrt(1 - torch.exp(-4 / torch.pi * x ** 2))
+    return torch.sign(x) * torch.sqrt(1 - torch.exp(-4 / torch.pi * x**2))
 
 
 def div_round_up(val: int, divisor: int) -> int:

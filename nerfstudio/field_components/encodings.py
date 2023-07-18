@@ -333,7 +333,7 @@ class HashEncoding(Encoding):
 
     def get_out_dim(self) -> int:
         return self.num_levels * self.features_per_level
-    
+
     def _create_hash_offset_and_scalings_tcnn(self) -> Tuple[Tensor, Tensor]:
         """Create offset map for each weight."""
         offset: int = 0
@@ -342,9 +342,9 @@ class HashEncoding(Encoding):
         for i in range(self.num_levels):
             resolution = grid_resolution(grid_scale(i, math.log2(self.growth_factor), self.min_res))
             resolutions.append(resolution)
-            params_in_level = powi(resolution, self.in_dim) # type: ignore
+            params_in_level = powi(resolution, self.in_dim)  # type: ignore
             params_in_level = next_multiple(params_in_level, 8)
-            params_in_level = min(params_in_level, (2 ** self.log2_hashmap_size))
+            params_in_level = min(params_in_level, (2**self.log2_hashmap_size))
             offsets.append(offset)
             offset += params_in_level
 
@@ -355,8 +355,8 @@ class HashEncoding(Encoding):
         indexes_shape = self.hash_table.view(-1, self.features_per_level).shape[0]
         level_indexes = self.hash_table.new_empty(indexes_shape, dtype=torch.long)
         for i in range(self.num_levels - 1):
-            level_indexes[self.hash_offset[i]: self.hash_offset[i + 1]] = i # type: ignore
-        level_indexes[self.hash_offset[-1]:] = self.num_levels - 1 # type: ignore
+            level_indexes[self.hash_offset[i] : self.hash_offset[i + 1]] = i  # type: ignore
+        level_indexes[self.hash_offset[-1] :] = self.num_levels - 1  # type: ignore
 
         return level_indexes
 
@@ -421,7 +421,7 @@ class HashEncoding(Encoding):
         )  # [..., num_levels, features_per_level]
 
         return torch.flatten(encoded_value, start_dim=-2, end_dim=-1)  # [..., num_levels * features_per_level]
-    
+
     def regularize_hash_pyramid(
         self,
         regularize_fn: Callable[[Tensor], Tensor] = torch.abs,
@@ -435,7 +435,7 @@ class HashEncoding(Encoding):
         ).mean()
 
         return hash_decay
-    
+
     def scale_featurization(self) -> Float[Tensor, "*num_levels"]:
         """Compute scale featurization proposed in ZipNeRF paper."""
         scale_feat = segment_coo(

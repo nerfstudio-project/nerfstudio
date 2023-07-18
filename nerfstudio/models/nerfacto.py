@@ -359,9 +359,7 @@ class NerfactoModel(Model):
             loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
 
             if self.config.compute_regularize_hash:
-                loss_dict["hash_decay"] = self.config.hash_decay_loss_mult * hash_decay_loss(
-                    outputs["hash_decay"]
-                )
+                loss_dict["hash_decay"] = self.config.hash_decay_loss_mult * hash_decay_loss(outputs["hash_decay"])
 
             if self.config.predict_normals:
                 # orientation loss for computed normals

@@ -15,6 +15,7 @@
 """
 Collection of Losses.
 """
+
 from enum import Enum
 from typing import Dict, Literal, Optional, Tuple, cast, List
 
@@ -378,10 +379,10 @@ def hash_decay_loss(
     hash_decay_list: List[Float[Tensor, "0"]],
 ) -> Float[Tensor, "0"]:
     """Implementation of hash decay loss."""
-    loss = 0.
+    loss = 0.0
     for hash_decay in hash_decay_list:
         loss += hash_decay.mean()
-    
+
     return loss
 
 
@@ -653,7 +654,7 @@ class CharbonnierLoss(nn.Module):
             loss
         """
         square_loss = (prediction - target) ** 2
-        loss = torch.sqrt(square_loss + self.padding ** 2)
+        loss = torch.sqrt(square_loss + self.padding**2)
 
         return torch.mean(loss)
 
@@ -684,8 +685,8 @@ class RawNeRFLoss(nn.Module):
         rgb_render_clip = prediction.clamp_max(1)
         resid_sq_clip = (rgb_render_clip - target) ** 2
         # Scale by gradient of log tonemapping curve.
-        scaling_grad = 1. / (self.padding + rgb_render_clip.detach())
+        scaling_grad = 1.0 / (self.padding + rgb_render_clip.detach())
         # Reweighted L2 loss.
-        data_loss = resid_sq_clip * scaling_grad ** 2
+        data_loss = resid_sq_clip * scaling_grad**2
 
         return torch.mean(data_loss)

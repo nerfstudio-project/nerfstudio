@@ -21,7 +21,6 @@ from typing import Dict, Optional, Tuple
 
 import numpy as np
 import torch
-from jaxtyping import Float
 from torch import Tensor
 from torch.nn.parameter import Parameter
 

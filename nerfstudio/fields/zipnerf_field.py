@@ -16,8 +16,7 @@
 Field for compound nerf model, adds scene contraction and image embeddings to instant ngp
 """
 
-
-from typing import Literal, Optional, Tuple, Dict, Callable
+from typing import Literal, Optional, Tuple, Callable
 from jaxtyping import Float
 
 import torch
@@ -189,16 +188,24 @@ class ZipNeRFField(NerfactoField):
         prefix_shape = list(mean.shape[:-1])
 
         # hash grid performs trilerp inside itself
-        mean = self.mlp_base_grid(mean.view(-1, 3)).view(
-            prefix_shape + [self.num_levels * self.features_per_level]
-        ).unflatten(-1, (self.num_levels, self.features_per_level)) # [..., "dim", "num_levels", "features_per_level"]
-        weights = erf_approx(1 / ( 8 ** 0.5 * (cov[..., None] * self.mlp_base_grid.scalings.view(-1)).abs()).clamp_min(EPS)) # [..., "dim", "num_levels"]
-        features = (mean * weights[..., None]).mean(dim=-3).flatten(-2, -1) # [..., "dim", "num_levels * features_per_level"]
+        mean = (
+            self.mlp_base_grid(mean.view(-1, 3))
+            .view(prefix_shape + [self.num_levels * self.features_per_level])
+            .unflatten(-1, (self.num_levels, self.features_per_level))
+        )  # [..., "dim", "num_levels", "features_per_level"]
+        weights = erf_approx(
+            1 / (8**0.5 * (cov[..., None] * self.mlp_base_grid.scalings.view(-1)).abs()).clamp_min(EPS)
+        )  # [..., "dim", "num_levels"]
+        features = (
+            (mean * weights[..., None]).mean(dim=-3).flatten(-2, -1)
+        )  # [..., "dim", "num_levels * features_per_level"]
 
         if self.scale_featurization:
             with torch.no_grad():
-                vl2mean = self.mlp_base_grid.scale_featurization() # ["num_levels"]
-            featurized_weights = (2 * weights.mean(dim=-2) - 1) * (self.mlp_base_grid.hash_init_scale ** 2 + vl2mean).sqrt() # [..., "num_levels"]
+                vl2mean = self.mlp_base_grid.scale_featurization()  # ["num_levels"]
+            featurized_weights = (2 * weights.mean(dim=-2) - 1) * (
+                self.mlp_base_grid.hash_init_scale**2 + vl2mean
+            ).sqrt()  # [..., "num_levels"]
             features = torch.cat([features, featurized_weights], dim=-1)
         features_flat = features.view(-1, self.last_dim)
         h = self.mlp_base_mlp(features_flat).view(*ray_samples.frustums.shape, -1)

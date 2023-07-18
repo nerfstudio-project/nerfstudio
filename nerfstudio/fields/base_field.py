@@ -24,7 +24,7 @@ import torch
 from jaxtyping import Float, Shaped
 from torch import Tensor, nn
 
-from nerfstudio.cameras.rays import Frustums, RaySamples
+from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.field_components.field_heads import FieldHeadNames
 

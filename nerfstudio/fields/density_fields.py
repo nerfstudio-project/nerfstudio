@@ -16,7 +16,6 @@
 Proposal network field.
 """
 
-
 from typing import Literal, Optional, Tuple, Callable
 
 import torch
@@ -162,7 +161,6 @@ class HashMLPGaussianDensityField(HashMLPDensityField):
         compute_hash_regularization: bool = False,
         implementation: Literal["tcnn", "torch"] = "torch",
     ) -> None:
-
         super().__init__(
             aabb=aabb,
             num_layers=num_layers,
@@ -219,17 +217,25 @@ class HashMLPGaussianDensityField(HashMLPDensityField):
         prefix_shape = list(mean.shape[:-1])
 
         # hash grid performs trilerp inside itself
-        mean = self.encoding(mean.view(-1, 3)).view(
-            prefix_shape + [self.num_levels * self.features_per_level]
-        ).unflatten(-1, (self.num_levels, self.features_per_level)) # [..., "dim", "num_levels", "features_per_level"]
-        weights = erf_approx(1 / (8 ** 0.5 * cov[..., None] * self.encoding.scalings.view(-1)).abs().clamp_min(EPS)) # [..., "dim", "num_levels"]
+        mean = (
+            self.encoding(mean.view(-1, 3))
+            .view(prefix_shape + [self.num_levels * self.features_per_level])
+            .unflatten(-1, (self.num_levels, self.features_per_level))
+        )  # [..., "dim", "num_levels", "features_per_level"]
+        weights = erf_approx(
+            1 / (8**0.5 * cov[..., None] * self.encoding.scalings.view(-1)).abs().clamp_min(EPS)
+        )  # [..., "dim", "num_levels"]
 
-        features = (mean * weights[..., None]).mean(dim=-3).flatten(-2, -1) # [..., "dim", "num_levels * features_per_level"]
+        features = (
+            (mean * weights[..., None]).mean(dim=-3).flatten(-2, -1)
+        )  # [..., "dim", "num_levels * features_per_level"]
 
         if self.scale_featurization:
             with torch.no_grad():
-                vl2mean = self.encoding.scale_featurization() # ["num_levels"]
-            featurized_w = (2 * weights.mean(dim=-2) - 1) * (self.encoding.hash_init_scale ** 2 + vl2mean).sqrt() # [..., "num_levels"]
+                vl2mean = self.encoding.scale_featurization()  # ["num_levels"]
+            featurized_w = (2 * weights.mean(dim=-2) - 1) * (
+                self.encoding.hash_init_scale**2 + vl2mean
+            ).sqrt()  # [..., "num_levels"]
             features = torch.cat([features, featurized_w], dim=-1)
         features_flat = features.view(-1, self.last_dim)
         density_before_activation = self.network(features_flat).view(*ray_samples.frustums.shape, -1)

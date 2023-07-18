@@ -98,7 +98,9 @@ class SpacedSampler(Sampler):
         assert num_samples is not None
         num_rays = ray_bundle.origins.shape[0]
 
-        bins = torch.linspace(0.0, 1.0, num_samples + 1, device=ray_bundle.origins.device)[None, ...]  # [1, num_samples+1]
+        bins = torch.linspace(0.0, 1.0, num_samples + 1, device=ray_bundle.origins.device)[
+            None, ...
+        ]  # [1, num_samples+1]
 
         # TODO More complicated than it needs to be.
         if self.train_stratified and self.training:
@@ -225,12 +227,12 @@ class LogSampler(SpacedSampler):
 
 class PowerSampler(SpacedSampler):
     """Sampler according to the ZipNeRF's power function
-    
+
     Args:
         num_samples: Number of samples per ray
         train_stratified: Use stratified sampling during training. Defaults to True
         lam: Parameter of power transformation
-    
+
     """
 
     def __init__(
