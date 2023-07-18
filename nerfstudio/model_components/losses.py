@@ -380,7 +380,7 @@ def hash_decay_loss(
     hash_decay_list: List[Float[Tensor, "0"]],
 ) -> Float[Tensor, "0"]:
     """Implementation of hash decay loss."""
-    loss = sum(hash_decay.mean() for hash_decay in hash_decay_list)
+    loss: Tensor = sum(hash_decay.mean() for hash_decay in hash_decay_list)  # type: ignore
 
     return loss
 

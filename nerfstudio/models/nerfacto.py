@@ -112,7 +112,7 @@ class NerfactoModelConfig(ModelConfig):
     """Predicted normal loss multiplier."""
     hash_decay_loss_mult: float = 0.001
     """Hash decay loss multiplier."""
-    compute_regularize_hash: bool = False
+    compute_hash_regularization: bool = False
     """Whether to compute regularization on hash weights."""
     use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""
@@ -156,6 +156,8 @@ class NerfactoModel(Model):
         else:
             scene_contraction = SceneContraction(order=float("inf"))
 
+        regularize_function = getattr(torch, self.config.regularize_function, torch.square)
+
         # Fields
         self.field = NerfactoField(
             self.scene_box.aabb,
@@ -172,6 +174,8 @@ class NerfactoModel(Model):
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
             appearance_embedding_dim=self.config.appearance_embed_dim,
+            regularize_function=regularize_function,
+            compute_hash_regularization=self.config.compute_hash_regularization,
             implementation=self.config.implementation,
         )
 
@@ -186,6 +190,8 @@ class NerfactoModel(Model):
                 self.scene_box.aabb,
                 spatial_distortion=scene_contraction,
                 **prop_net_args,
+                regularize_function=regularize_function,
+                compute_hash_regularization=self.config.compute_hash_regularization,
                 implementation=self.config.implementation,
             )
             self.proposal_networks.append(network)
@@ -197,6 +203,8 @@ class NerfactoModel(Model):
                     self.scene_box.aabb,
                     spatial_distortion=scene_contraction,
                     **prop_net_args,
+                    regularize_function=regularize_function,
+                    compute_hash_regularization=self.config.compute_hash_regularization,
                     implementation=self.config.implementation,
                 )
                 self.proposal_networks.append(network)
@@ -319,7 +327,7 @@ class NerfactoModel(Model):
             outputs["weights_list"] = weights_list
             outputs["ray_samples_list"] = ray_samples_list
 
-            if self.config.compute_regularize_hash:
+            if self.config.compute_hash_regularization:
                 outputs["hash_decay"] = []
                 for proposal_network in self.proposal_networks:
                     outputs["hash_decay"].append(proposal_network.get_outputs()[FieldHeadNames.HASH_DECAY])  # type: ignore
@@ -369,7 +377,7 @@ class NerfactoModel(Model):
             assert metrics_dict is not None and "distortion" in metrics_dict
             loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
 
-            if self.config.compute_regularize_hash:
+            if self.config.compute_hash_regularization:
                 loss_dict["hash_decay_loss"] = self.config.hash_decay_loss_mult * hash_decay_loss(outputs["hash_decay"])
 
             if self.config.predict_normals:

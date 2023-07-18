@@ -56,8 +56,6 @@ class ZipNeRFModelConfig(NerfactoModelConfig):
     """Proposal loss multiplier."""
     hash_decay_loss_mult: float = 1e-2
     """Hash decay loss multiplier."""
-    compute_regularize_hash: bool = True
-    """Whether to compute regularization on hash weights."""
     scale_featurization: bool = True
     """Scale featurization from appendix of ZipNeRF."""
     regularize_function: Literal["abs", "square"] = "square"
