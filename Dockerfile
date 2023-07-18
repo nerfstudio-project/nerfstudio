@@ -120,7 +120,10 @@ RUN python3.10 -m pip install --upgrade pip setuptools pathtools promise pybind1
 RUN CUDA_VER=${CUDA_VERSION%.*} && CUDA_VER=${CUDA_VER//./} && python3.10 -m pip install \
     torch==2.0.1+cu${CUDA_VER} \
     torchvision==0.15.2+cu${CUDA_VER} \
-        --extra-index-url https://download.pytorch.org/whl/cu${CUDA_VER}
+    torch-scatter==2.1.1 \
+        --extra-index-url https://download.pytorch.org/whl/cu${CUDA_VER} \
+        --find-links https://data.pyg.org/whl/torch-2.0.1+cu${CUDA_VER}.html
+
 # Install tynyCUDNN (we need to set the target architectures as environment variable first).
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
 RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch

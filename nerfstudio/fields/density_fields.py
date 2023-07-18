@@ -17,7 +17,7 @@ Proposal network field.
 """
 
 
-from typing import Literal, Optional, Tuple
+from typing import Literal, Optional, Tuple, Callable
 
 import torch
 from torch import Tensor, nn
@@ -28,8 +28,10 @@ from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.encodings import HashEncoding
 from nerfstudio.field_components.mlp import MLP
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
-from nerfstudio.fields.base_field import Field
+from nerfstudio.fields.base_field import Field, FieldHeadNames
 from nerfstudio.utils.math import erf_approx
+
+EPS = 1.0e-7
 
 
 class HashMLPDensityField(Field):
@@ -57,12 +59,16 @@ class HashMLPDensityField(Field):
         base_res: int = 16,
         log2_hashmap_size: int = 18,
         features_per_level: int = 2,
+        regularize_function: Callable[[Tensor], Tensor] = torch.square,
+        compute_hash_regularization: bool = False,
         implementation: Literal["tcnn", "torch"] = "torch",
     ) -> None:
         super().__init__()
         self.register_buffer("aabb", aabb)
         self.spatial_distortion = spatial_distortion
         self.use_linear = use_linear
+        self.regularize_function = regularize_function
+        self.compute_hash_regularization = compute_hash_regularization
 
         self.register_buffer("max_res", torch.tensor(max_res))
         self.register_buffer("num_levels", torch.tensor(num_levels))
@@ -117,8 +123,12 @@ class HashMLPDensityField(Field):
         density = density * selector[..., None]
         return density, None
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None) -> dict:
-        return {}
+    def get_outputs(self, ray_samples: Optional[RaySamples] = None, density_embedding: Optional[Tensor] = None) -> dict:
+        outputs = {}
+        if self.compute_hash_regularization:
+            outputs[FieldHeadNames.HASH_DECAY] = self.encoding.regularize_hash_pyramid(self.regularize_function)
+
+        return outputs
 
 
 class HashMLPGaussianDensityField(HashMLPDensityField):
@@ -148,6 +158,8 @@ class HashMLPGaussianDensityField(HashMLPDensityField):
         log2_hashmap_size: int = 18,
         features_per_level: int = 2,
         scale_featurization: bool = False,
+        regularize_function: Callable[[Tensor], Tensor] = torch.square,
+        compute_hash_regularization: bool = False,
         implementation: Literal["tcnn", "torch"] = "torch",
     ) -> None:
 
@@ -162,6 +174,8 @@ class HashMLPGaussianDensityField(HashMLPDensityField):
             base_res=base_res,
             log2_hashmap_size=log2_hashmap_size,
             features_per_level=features_per_level,
+            regularize_function=regularize_function,
+            compute_hash_regularization=compute_hash_regularization,
             implementation=implementation,
         )
 
@@ -208,15 +222,15 @@ class HashMLPGaussianDensityField(HashMLPDensityField):
         mean = self.encoding(mean.view(-1, 3)).view(
             prefix_shape + [self.num_levels * self.features_per_level]
         ).unflatten(-1, (self.num_levels, self.features_per_level)) # [..., "dim", "num_levels", "features_per_level"]
-        weights = erf_approx(1 / torch.sqrt(8 * cov[..., None] ** 2 * self.encoding.scalings.view(-1) ** 2)) # [..., "dim", "num_levels"]
+        weights = erf_approx(1 / (8 ** 0.5 * cov[..., None] * self.encoding.scalings.view(-1)).abs().clamp_min(EPS)) # [..., "dim", "num_levels"]
+
         features = (mean * weights[..., None]).mean(dim=-3).flatten(-2, -1) # [..., "dim", "num_levels * features_per_level"]
 
         if self.scale_featurization:
-            # with torch.no_grad():
-            #     vl2mean = self.mlp_base_grid.sum_of_mean_hash_pyramid() # ["num_levels"]
-            # featurized_w: TensorType[..., "num_levels"] = (2 * weights.mean(dim=-2) - 1) * (self.xyz_encoding.hash_init_scale ** 2 + vl2mean).sqrt()
-            # means_flat = torch.cat([means_flat, featurized_w], dim=-1)
-            pass
+            with torch.no_grad():
+                vl2mean = self.encoding.scale_featurization() # ["num_levels"]
+            featurized_w = (2 * weights.mean(dim=-2) - 1) * (self.encoding.hash_init_scale ** 2 + vl2mean).sqrt() # [..., "num_levels"]
+            features = torch.cat([features, featurized_w], dim=-1)
         features_flat = features.view(-1, self.last_dim)
         density_before_activation = self.network(features_flat).view(*ray_samples.frustums.shape, -1)
 

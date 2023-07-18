@@ -17,7 +17,9 @@
 from dataclasses import dataclass
 from typing import Literal, Tuple
 
+import math
 import torch
+import numpy as np
 from jaxtyping import Bool, Float
 from torch import Tensor
 
@@ -246,9 +248,12 @@ def multisampled_frustum_to_gaussian(
     means = torch.stack([
         radius * t * torch.cos(deg) / 2 ** 0.5,
         radius * t * torch.sin(deg) / 2 ** 0.5,
-        t
+        t,
     ], dim=-1) # [..., "num_samples", 6, 3]
-    stds = cov_scale * radius * t / 2 ** 0.5 # [..., "num_samples", 6, 3]
+    stds = cov_scale * radius * t / 2 ** 0.5 # [..., "num_samples", 6]
+
+    # extend stds as diagonal
+    # stds = stds.unsqueeze(-1).broadcast_to(*stds.shape, 3).diag_embed() # [..., "num_samples", 6, 3, 3]
 
     # two basis in parallel to the image plane
     rand_vec = torch.rand(
@@ -263,11 +268,10 @@ def multisampled_frustum_to_gaussian(
 
     # just use directions to be the third vector of the orthonormal basis,
     # while the cross section of cone is parallel to the image plane
-    basis_matrix = torch.stack([ortho1, ortho2, directions], dim=-1) 
+    basis_matrix = torch.stack([ortho1, ortho2, directions], dim=-1)
     means = torch.matmul(means, basis_matrix.transpose(-1, -2)) # [..., "num_samples", 6, 3]
     means = means + origins[..., None, :]
 
-    # TODO dimensions are not right
     return Gaussians(mean=means, cov=stds)
 
 
@@ -453,7 +457,33 @@ def inv_power_fn(
     return ((x * lam / lam_1 + 1).clamp_min(eps) ** (1 / lam) - 1) * lam_1
 
 
+@torch_compile(dynamic=True, mode="reduce-overhead", backend="eager")
 def erf_approx(x: torch.Tensor) -> torch.Tensor:
     """Error function approximation proposed in ZipNeRF paper (Eq. 11)."""
-
     return torch.sign(x) * torch.sqrt(1 - torch.exp(-4 / torch.pi * x ** 2))
+
+
+def div_round_up(val: int, divisor: int) -> int:
+    return (val + divisor - 1) // divisor
+
+
+def grid_scale(level: int, log2_per_level_scale: float, base_resolution: int) -> float:
+    # The -1 means that `base_resolution` refers to the number of grid _vertices_ rather
+    # than the number of cells. This is slightly different from the notation in the paper,
+    # but results in nice, power-of-2-scaled parameter grids that fit better into cache lines.
+    return np.exp2(level * log2_per_level_scale) * base_resolution - 1.0
+
+
+def grid_resolution(scale: float) -> int:
+    return math.ceil(scale) + 1
+
+
+def powi(base: int, exponent: int) -> int:
+    result: int = 1
+    for _ in range(exponent):
+        result *= base
+    return result
+
+
+def next_multiple(val: int, divisor: int) -> int:
+    return div_round_up(val, divisor) * divisor

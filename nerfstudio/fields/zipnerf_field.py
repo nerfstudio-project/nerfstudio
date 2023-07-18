@@ -17,7 +17,7 @@ Field for compound nerf model, adds scene contraction and image embeddings to in
 """
 
 
-from typing import Literal, Optional, Tuple
+from typing import Literal, Optional, Tuple, Dict, Callable
 from jaxtyping import Float
 
 import torch
@@ -29,6 +29,8 @@ from nerfstudio.field_components.mlp import MLP
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.nerfacto_field import NerfactoField
 from nerfstudio.utils.math import erf_approx
+
+EPS = 1.0e-7
 
 
 class ZipNeRFField(NerfactoField):
@@ -55,6 +57,9 @@ class ZipNeRFField(NerfactoField):
         use_pred_normals: whether to use predicted normals
         use_average_appearance_embedding: whether to use average appearance embedding or zeros for inference
         spatial_distortion: spatial distortion to apply to the scene
+        scale_featurization: scale featurization from appendix of ZipNeRF
+        regularize_function: type of regularization
+        compute_hash_regularization: whether to compute regularization on hash weights
     """
 
     aabb: Tensor
@@ -85,6 +90,8 @@ class ZipNeRFField(NerfactoField):
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
         scale_featurization: bool = False,
+        regularize_function: Callable[[Tensor], Tensor] = torch.square,
+        compute_hash_regularization: bool = True,
         implementation: Literal["tcnn", "torch"] = "tcnn",
     ) -> None:
         super().__init__(
@@ -111,6 +118,8 @@ class ZipNeRFField(NerfactoField):
             use_pred_normals=use_pred_normals,
             use_average_appearance_embedding=use_average_appearance_embedding,
             spatial_distortion=spatial_distortion,
+            compute_hash_regularization=compute_hash_regularization,
+            regularize_function=regularize_function,
             implementation=implementation,
         )
 
@@ -149,7 +158,7 @@ class ZipNeRFField(NerfactoField):
             retain_graph=True,
         )[0]
 
-        # zip-nerf 6-point hexagonal pattern
+        # ZipNeRF 6-point hexagonal pattern
         normals = normals.mean(-2)
 
         normals = -torch.nn.functional.normalize(normals, dim=-1)
@@ -183,15 +192,14 @@ class ZipNeRFField(NerfactoField):
         mean = self.mlp_base_grid(mean.view(-1, 3)).view(
             prefix_shape + [self.num_levels * self.features_per_level]
         ).unflatten(-1, (self.num_levels, self.features_per_level)) # [..., "dim", "num_levels", "features_per_level"]
-        weights = erf_approx(1 / torch.sqrt(8 * cov[..., None] ** 2 * self.mlp_base_grid.scalings.view(-1) ** 2)) # [..., "dim", "num_levels"]
+        weights = erf_approx(1 / ( 8 ** 0.5 * (cov[..., None] * self.mlp_base_grid.scalings.view(-1)).abs()).clamp_min(EPS)) # [..., "dim", "num_levels"]
         features = (mean * weights[..., None]).mean(dim=-3).flatten(-2, -1) # [..., "dim", "num_levels * features_per_level"]
 
         if self.scale_featurization:
-            # with torch.no_grad():
-            #     vl2mean = self.mlp_base_grid.sum_of_mean_hash_pyramid() # ["num_levels"]
-            # featurized_w: TensorType[..., "num_levels"] = (2 * weights.mean(dim=-2) - 1) * (self.xyz_encoding.hash_init_scale ** 2 + vl2mean).sqrt()
-            # means_flat = torch.cat([means_flat, featurized_w], dim=-1)
-            pass
+            with torch.no_grad():
+                vl2mean = self.mlp_base_grid.scale_featurization() # ["num_levels"]
+            featurized_weights = (2 * weights.mean(dim=-2) - 1) * (self.mlp_base_grid.hash_init_scale ** 2 + vl2mean).sqrt() # [..., "num_levels"]
+            features = torch.cat([features, featurized_weights], dim=-1)
         features_flat = features.view(-1, self.last_dim)
         h = self.mlp_base_mlp(features_flat).view(*ray_samples.frustums.shape, -1)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)

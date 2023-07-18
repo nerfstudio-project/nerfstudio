@@ -17,7 +17,7 @@ Field for compound nerf model, adds scene contraction and image embeddings to in
 """
 
 
-from typing import Dict, Literal, Optional, Tuple
+from typing import Dict, Literal, Optional, Tuple, Callable
 
 import torch
 from torch import Tensor, nn
@@ -64,6 +64,8 @@ class NerfactoField(Field):
         use_pred_normals: whether to use predicted normals
         use_average_appearance_embedding: whether to use average appearance embedding or zeros for inference
         spatial_distortion: spatial distortion to apply to the scene
+        compute_hash_regularization: whether to compute regularization on hash weights
+        regularize_function: type of regularization
     """
 
     aabb: Tensor
@@ -93,6 +95,8 @@ class NerfactoField(Field):
         use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
+        compute_hash_regularization: bool = False,
+        regularize_function: Callable[[Tensor], Tensor] = torch.square,
         implementation: Literal["tcnn", "torch"] = "tcnn",
     ) -> None:
         super().__init__()
@@ -114,6 +118,8 @@ class NerfactoField(Field):
         self.use_pred_normals = use_pred_normals
         self.pass_semantic_gradients = pass_semantic_gradients
         self.base_res = base_res
+        self.compute_hash_regularization = compute_hash_regularization
+        self.regularize_function = regularize_function
 
         self.direction_encoding = SHEncoding(
             levels=4,
@@ -295,5 +301,8 @@ class NerfactoField(Field):
         )
         rgb = self.mlp_head(h).view(*outputs_shape, -1).to(directions)
         outputs.update({FieldHeadNames.RGB: rgb})
+
+        if self.compute_hash_regularization:
+            outputs[FieldHeadNames.HASH_DECAY] = self.mlp_base_grid.regularize_hash_pyramid(self.regularize_function)
 
         return outputs

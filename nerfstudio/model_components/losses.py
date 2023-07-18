@@ -16,7 +16,7 @@
 Collection of Losses.
 """
 from enum import Enum
-from typing import Dict, Literal, Optional, Tuple, cast
+from typing import Dict, Literal, Optional, Tuple, cast, List
 
 import torch
 from jaxtyping import Bool, Float
@@ -372,6 +372,17 @@ def depth_loss(
         return urban_radiance_field_depth_loss(weights, termination_depth, predicted_depth, steps, sigma)
 
     raise NotImplementedError("Provided depth loss type not implemented.")
+
+
+def hash_decay_loss(
+    hash_decay_list: List[Float[Tensor, "0"]],
+) -> Float[Tensor, "0"]:
+    """Implementation of hash decay loss."""
+    loss = 0.
+    for hash_decay in hash_decay_list:
+        loss += hash_decay.mean()
+    
+    return loss
 
 
 def monosdf_normal_loss(

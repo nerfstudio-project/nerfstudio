@@ -23,8 +23,11 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Tuple, Type
 
 from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig
-from nerfstudio.field_components.spatial_distortions import LinearizedContraction
-from nerfstudio.model_components.losses import zipnerf_loss, CharbonnierLoss
+from nerfstudio.field_components.spatial_distortions import LinearizedSceneContraction
+from nerfstudio.model_components.losses import (
+    zipnerf_loss,
+    CharbonnierLoss, 
+)
 from nerfstudio.fields.zipnerf_field import ZipNeRFField
 from nerfstudio.model_components.ray_samplers import PowerSampler
 from nerfstudio.fields.density_fields import HashMLPGaussianDensityField
@@ -49,10 +52,22 @@ class ZipNeRFModelConfig(NerfactoModelConfig):
     """Number of samples per ray for the nerf network."""
     num_proposal_samples_per_ray: Tuple[int, ...] = (256, 128)
     """Number of samples per ray for each proposal network."""
-    scale_featurization: bool = False
+    interlevel_loss_mult: float = 1e-1
+    """Proposal loss multiplier."""
+    hash_decay_loss_mult: float = 1e-2
+    """Hash decay loss multiplier."""
+    compute_regularize_hash: bool = True
+    """Whether to compute regularization on hash weights."""
+    scale_featurization: bool = True
     """Scale featurization from appendix of ZipNeRF."""
+    regularize_function: Literal["abs", "square"] = "square"
+    """Type of regularization."""
+    compute_hash_regularization: bool = True
+    """Whether to compute regularization on hash weights."""
     proposal_initial_sampler: Literal["power"] = "power"
     """Initial sampler for the proposal network."""
+    interlevel_loss_type: Literal["zipnerf"] = "zipnerf"
+    """Type of interlevel loss."""
     implementation: Literal["tcnn", "torch"] = "torch"
     """Which implementation to use for the model."""
 
@@ -70,7 +85,8 @@ class ZipNeRFModel(NerfactoModel):
         """Set the fields and modules."""
         super().populate_modules()
 
-        scene_contraction = LinearizedContraction()
+        scene_contraction = LinearizedSceneContraction(order=float("inf"))
+        regularize_function = getattr(torch, self.config.regularize_function, torch.square)
 
         # Fields
         self.field = ZipNeRFField(
@@ -87,6 +103,8 @@ class ZipNeRFModel(NerfactoModel):
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
             appearance_embedding_dim=self.config.appearance_embed_dim,
             scale_featurization=self.config.scale_featurization,
+            regularize_function=regularize_function,
+            compute_hash_regularization=self.config.compute_hash_regularization,
             implementation=self.config.implementation,
         )
 
@@ -102,6 +120,8 @@ class ZipNeRFModel(NerfactoModel):
                 spatial_distortion=scene_contraction,
                 **prop_net_args,
                 scale_featurization=self.config.scale_featurization,
+                regularize_function=regularize_function,
+                compute_hash_regularization=self.config.compute_hash_regularization,
                 implementation=self.config.implementation,
             )
             self.proposal_networks.append(network)
@@ -114,6 +134,8 @@ class ZipNeRFModel(NerfactoModel):
                     spatial_distortion=scene_contraction,
                     **prop_net_args,
                     scale_featurization=self.config.scale_featurization,
+                    regularize_function=regularize_function,
+                    compute_hash_regularization=self.config.compute_hash_regularization,
                     implementation=self.config.implementation,
                 )
                 self.proposal_networks.append(network)
@@ -124,12 +146,4 @@ class ZipNeRFModel(NerfactoModel):
 
         # Losses
         self.rgb_loss = CharbonnierLoss()
-
-    def get_loss_dict(self, outputs, batch, metrics_dict=None):
-        loss_dict = super().get_loss_dict(outputs, batch, metrics_dict=metrics_dict)
-        if self.training:
-            loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * zipnerf_loss(
-                outputs["weights_list"], outputs["ray_samples_list"]
-            )
-
-        return loss_dict
+        self.interlevel_loss = zipnerf_loss

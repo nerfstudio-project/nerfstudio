@@ -185,14 +185,3 @@ class TCNNInstantNGPField(Field):
 
         rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
         return {FieldHeadNames.RGB: rgb}
-
-    def get_opacity(self, positions: Float[Tensor, "*bs 3"], step_size) -> Float[Tensor, "*bs 1"]:
-        """Returns the opacity for a position. Used primarily by the occupancy grid.
-
-        Args:
-            positions: the positions to evaluate the opacity at.
-            step_size: the step size to use for the opacity evaluation.
-        """
-        density = self.density_fn(positions)
-        opacity = density * step_size
-        return opacity

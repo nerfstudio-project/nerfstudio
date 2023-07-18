@@ -627,10 +627,10 @@ class ProposalNetworkSampler(Sampler):
             if is_prop:
                 if updated:
                     # always update on the first step or the inf check in grad scaling crashes
-                    density = density_fns[i_level](ray_samples.frustums.get_positions())
+                    density = density_fns[i_level](ray_samples)
                 else:
                     with torch.no_grad():
-                        density = density_fns[i_level](ray_samples.frustums.get_positions())
+                        density = density_fns[i_level](ray_samples)
                 weights = ray_samples.get_weights(density)
                 weights_list.append(weights)  # (num_rays, num_samples)
                 ray_samples_list.append(ray_samples)
