@@ -18,6 +18,7 @@ NeRF implementation that combines many recent advancements.
 
 from __future__ import annotations
 
+import functools
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Tuple, Type, Optional
@@ -175,7 +176,7 @@ class NerfactoModel(Model):
         )
 
         self.camera_optimizer: CameraOptimizer = self.config.camera_optimizer.setup(
-            num_cameras=self.num_train_data, device="cpu"  # for now initialize on cpu, these will be moved later
+            num_cameras=self.num_train_data, device="cpu"
         )
         self.density_fns = []
         num_prop_nets = self.config.num_proposal_iterations
@@ -250,12 +251,7 @@ class NerfactoModel(Model):
         param_groups = {}
         param_groups["proposal_networks"] = list(self.proposal_networks.parameters())
         param_groups["fields"] = list(self.field.parameters())
-        camera_opt_params = list(self.camera_optimizer.parameters())
-        if self.config.camera_optimizer.mode != "off":
-            assert len(camera_opt_params) > 0
-            param_groups["camera_opt"] = camera_opt_params
-        else:
-            assert len(camera_opt_params) == 0
+        self.camera_optimizer.get_param_groups(param_groups=param_groups)
         return param_groups
 
     def get_training_callbacks(
@@ -356,9 +352,7 @@ class NerfactoModel(Model):
         if self.training:
             metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
 
-        # Report the camera optimization metrics
-        metrics_dict["camera_opt_translation"] = self.camera_optimizer.pose_adjustment[:, :3].norm()
-        metrics_dict["camera_opt_rotation"] = self.camera_optimizer.pose_adjustment[:, 3:].norm()
+        self.camera_optimizer.get_metrics_dict(metrics_dict)
         return metrics_dict
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
@@ -381,7 +375,7 @@ class NerfactoModel(Model):
                 loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
                     outputs["rendered_pred_normal_loss"]
                 )
-            # Add losses from the camera optimizer (like L2 regularization)
+            # Add loss from camera optimizer
             self.camera_optimizer.get_loss_dict(loss_dict)
         return loss_dict
 
