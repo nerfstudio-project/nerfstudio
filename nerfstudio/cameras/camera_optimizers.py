@@ -113,7 +113,7 @@ class CameraOptimizer(nn.Module):
     def apply_to_raybundle(self, raybundle: RayBundle) -> None:
         """Apply the pose correction to the raybundle"""
         if self.config.mode != "off":
-            correction_matrices = self(raybundle.camera_indices.squeeze())
+            correction_matrices = self(raybundle.camera_indices.squeeze())  # type: ignore
             raybundle.origins = raybundle.origins + correction_matrices[:, :3, 3]
             raybundle.directions = torch.bmm(correction_matrices[:, :3, :3], raybundle.directions[..., None]).squeeze()
 
