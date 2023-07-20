@@ -105,7 +105,7 @@ class ParallelDataManagerConfig(DataManagerConfig):
     num_processes: int = 1
     """Number of processes to use for train data loading."""
     queue_size: int = 2
-    """Size of shared data queue containing generated ray bundles and batches. 
+    """Size of shared data queue containing generated ray bundles and batches.
     If queue_size <= 0, the queue size is infinite."""
     max_thread_workers: Optional[int] = None
     """Maximum number of threads to use in thread pool executor. If None, automatically
@@ -264,11 +264,11 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
     def setup_train(self):
         """Sets up parallel python data processes for training."""
         assert self.train_dataset is not None
-        self.train_pix_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
+        self.train_pix_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)  # type: ignore
         self.data_queue = mp.Manager().Queue(maxsize=self.config.queue_size)
         self.data_procs = [
             DataProcessor(
-                out_queue=self.data_queue,
+                out_queue=self.data_queue,  # type: ignore
                 config=self.config,
                 dataparser_outputs=self.train_dataparser_outputs,
                 dataset=self.train_dataset,
@@ -298,7 +298,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             exclude_batch_keys_from_device=self.exclude_batch_keys_from_device,
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
-        self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
+        self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)  # type: ignore
         self.eval_ray_generator = RayGenerator(self.eval_dataset.cameras.to(self.device))
         # for loading full images
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
@@ -361,7 +361,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         """
         return {}
 
-    def apply_pose_noise(self, non_trainable_camera_indices: Optional[List[int]]):
+    def apply_pose_noise(self, non_trainable_camera_indices: Optional[Tuple[int]]):
         """Apply noise to training camera poses.
 
         Args:
