@@ -133,7 +133,7 @@ class NerfactoModelConfig(ModelConfig):
     implementation: Literal["tcnn", "torch"] = "tcnn"
     """Which implementation to use for the model."""
     use_appearance_embedding: bool = True
-    """Whether to use appearance embedding or to predict a scale an shift from it à la Zip-NeRF."""
+    """Whether to use average appearance embedding or to predict a scale and shift from it à la Zip-NeRF."""
 
 
 class NerfactoModel(Model):

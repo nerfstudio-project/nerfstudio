@@ -208,16 +208,17 @@ class NerfactoField(Field):
             implementation=implementation,
         )
 
-        self.affine_mlp = MLP(
-            in_dim=self.appearance_embedding_dim,
-            num_layers=2,
-            layer_width=128,
-            out_dim=self.geo_feat_dim * 2,
-            activation=nn.ReLU(),
-            # Change MLP to accept callable function Tensor -> Tensor
-            out_activation=None,
-            implementation=implementation,
-        )
+        if not self.use_appearance_embedding:
+            self.affine_mlp = MLP(
+                in_dim=self.appearance_embedding_dim,
+                num_layers=2,
+                layer_width=128,
+                out_dim=self.geo_feat_dim * 2,
+                activation=nn.ReLU(),
+                # Change MLP to accept callable function Tensor -> Tensor
+                out_activation=None,
+                implementation=implementation,
+            )
 
     def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
