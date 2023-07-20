@@ -137,7 +137,6 @@ include = ["nerfstudio*"]
 line-length = 120
 
 [tool.pytest.ini_options]
-addopts = "-n=4 --typeguard-packages=nerfstudio --disable-warnings"
 testpaths = [
     "tests",
 ]
