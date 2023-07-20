@@ -1,12 +1,41 @@
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Parallel data manager that generates training data in multiple python processes.
+"""
 from __future__ import annotations
 
 import concurrent.futures
 import functools
-import time
 import queue
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, List, Literal, Optional, Tuple, Type, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 import torch
 import torch.multiprocessing as mp
@@ -14,18 +43,31 @@ from rich.progress import track
 from torch.nn import Parameter
 
 from nerfstudio.cameras.cameras import CameraType
-from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.cameras.lie_groups import exp_map_SE3
+from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
-from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig, TDataset, variable_res_collate
+from nerfstudio.data.datamanagers.base_datamanager import (
+    DataManager,
+    DataManagerConfig,
+    TDataset,
+    variable_res_collate,
+)
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
-from nerfstudio.data.pixel_samplers import EquirectangularPixelSampler, PatchPixelSampler, PixelSampler
+from nerfstudio.data.pixel_samplers import (
+    EquirectangularPixelSampler,
+    PatchPixelSampler,
+    PixelSampler,
+)
+from nerfstudio.data.utils.dataloaders import (
+    CacheDataloader,
+    FixedIndicesEvalDataloader,
+    RandIndicesEvalDataloader,
+)
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.model_components.ray_generators import RayGenerator
-from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils import poses as pose_utils
-from nerfstudio.data.utils.dataloaders import RandIndicesEvalDataloader, CacheDataloader, FixedIndicesEvalDataloader
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 @dataclass
@@ -60,7 +102,7 @@ class ParallelDataManagerConfig(DataManagerConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If >1, patch-based sampling will be used."""
-    n_procs: int = 1
+    num_processes: int = 1
     """Number of processes to use for train data loading."""
     queue_size: int = 2
     """Size of shared data queue containing generated ray bundles and batches. 
@@ -127,7 +169,7 @@ class DataProcessor(mp.Process):
                     CONSOLE.print("[bold red]Error: Error occured in parallel datamanager queue.")
 
     def cache_images(self):
-        # caches all the input images in a NxHxWx3 tensor
+        """Caches all input images into a NxHxWx3 tensor."""
         indices = range(len(self.dataset))
         batch_list = []
         results = []
@@ -192,14 +234,14 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         super().__init__()
 
     def create_train_dataset(self) -> TDataset:
-        """Sets up the data loaders for training"""
+        """Sets up the data loaders for training."""
         return self.dataset_type(
             dataparser_outputs=self.train_dataparser_outputs,
             scale_factor=self.config.camera_res_scale_factor,
         )
 
     def create_eval_dataset(self) -> TDataset:
-        """Sets up the data loaders for evaluation"""
+        """Sets up the data loaders for evaluation."""
         return self.dataset_type(
             dataparser_outputs=self.dataparser.get_dataparser_outputs(split=self.test_split),
             scale_factor=self.config.camera_res_scale_factor,
@@ -220,13 +262,10 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         return PixelSampler(*args, **kwargs)
 
     def setup_train(self):
-        """Sets up the data loaders for training"""
+        """Sets up parallel python data processes for training."""
         assert self.train_dataset is not None
         self.train_pix_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
-        # Manager().queue() can be faster
-        # https://stackoverflow.com/questions/43439194/python-multiprocessing-queue-vs-multiprocessing-manager-queue/45236748#45236748
         self.data_queue = mp.Manager().Queue(maxsize=self.config.queue_size)
-        # self.data_queue = mp.Queue(maxsize=self.config.queue_size)
         self.data_procs = [
             DataProcessor(
                 out_queue=self.data_queue,
@@ -235,7 +274,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
                 dataset=self.train_dataset,
                 pixel_sampler=self.train_pix_sampler,
             )
-            for i in range(self.config.n_procs)
+            for i in range(self.config.num_processes)
         ]
         for proc in self.data_procs:
             proc.start()
@@ -245,7 +284,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         self.train_batch_fut = self.train_executor.submit(self.data_queue.get)
 
     def setup_eval(self):
-        """Sets up the data loader for evaluation"""
+        """Sets up the data loader for evaluation."""
         assert self.eval_dataset is not None
         CONSOLE.print("Setting up evaluation dataset...")
         self.eval_image_dataloader = CacheDataloader(
@@ -274,6 +313,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         )
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
+        """Returns the next batch of data from the parallel training processes."""
         self.train_count += 1
 
         # Fetch the next batch in an executor to parallelize the queue get() operation
@@ -284,7 +324,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
-        """Returns the next batch of data fnon_trainable_camera_indicesrom the eval dataloader."""
+        """Returns the next batch of data from the eval dataloader."""
         self.eval_count += 1
         image_batch = next(self.iter_eval_image_dataloader)
         assert self.eval_pixel_sampler is not None
@@ -295,6 +335,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         return ray_bundle, batch
 
     def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
+        """Retrieve the next eval image."""
         for camera_ray_bundle, batch in self.eval_dataloader:
             assert camera_ray_bundle.camera_indices is not None
             image_idx = int(camera_ray_bundle.camera_indices[0, 0, 0])
@@ -302,12 +343,15 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         raise ValueError("No more eval images")
 
     def get_train_rays_per_batch(self) -> int:
+        """Returns the number of rays per batch for training."""
         return self.config.train_num_rays_per_batch
 
     def get_eval_rays_per_batch(self) -> int:
+        """Returns the number of rays per batch for evaluation."""
         return self.config.eval_num_rays_per_batch
 
     def get_datapath(self) -> Path:
+        """Returns the path to the data. This is used to determine where to save camera paths."""
         return self.config.dataparser.data
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
