@@ -111,18 +111,35 @@ class CameraOptimizer(nn.Module):
         return functools.reduce(pose_utils.multiply, outputs)
 
     def apply_to_raybundle(self, raybundle: RayBundle) -> None:
-        """
-        Apply the pose correction to the raybundle
-        """
-        correction_matrices = self(raybundle.camera_indices.squeeze())
-        raybundle.origins = raybundle.origins + correction_matrices[:, :3, 3]
-        raybundle.directions = torch.bmm(correction_matrices[:, :3, :3], raybundle.directions[..., None]).squeeze()
+        """Apply the pose correction to the raybundle"""
+        if self.config.mode != "off":
+            correction_matrices = self(raybundle.camera_indices.squeeze())
+            raybundle.origins = raybundle.origins + correction_matrices[:, :3, 3]
+            raybundle.directions = torch.bmm(correction_matrices[:, :3, :3], raybundle.directions[..., None]).squeeze()
 
-    def get_loss_dict(self, loss_dict: dict) -> dict:
-        """
-        Add a regularizer
-        """
-        loss_dict["camera_opt_regularizer"] = (
-            self.pose_adjustment[:, :3].norm(dim=-1).mean() * self.config.trans_l2_penalty
-            + self.pose_adjustment[:, 3:].norm(dim=-1).mean() * self.config.rot_l2_penalty
-        )
+    def get_loss_dict(self, loss_dict: dict) -> None:
+        """Add regularization"""
+        if self.config.mode != "off":
+            loss_dict["camera_opt_regularizer"] = (
+                self.pose_adjustment[:, :3].norm(dim=-1).mean() * self.config.trans_l2_penalty
+                + self.pose_adjustment[:, 3:].norm(dim=-1).mean() * self.config.rot_l2_penalty
+            )
+
+    def get_correction_matrices(self):
+        """Get optimized pose correction matrices"""
+        return self(torch.arange(0, self.num_cameras).long())
+
+    def get_metrics_dict(self, metrics_dict: dict) -> None:
+        """Get camera optimizer metrics"""
+        if self.config.mode != "off":
+            metrics_dict["camera_opt_translation"] = self.pose_adjustment[:, :3].norm()
+            metrics_dict["camera_opt_rotation"] = self.pose_adjustment[:, 3:].norm()
+
+    def get_param_groups(self, param_groups: dict) -> None:
+        """Get camera optimizer parameters"""
+        camera_opt_params = list(self.parameters())
+        if self.config.mode != "off":
+            assert len(camera_opt_params) > 0
+            param_groups["camera_opt"] = camera_opt_params
+        else:
+            assert len(camera_opt_params) == 0
