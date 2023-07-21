@@ -71,8 +71,8 @@ class DepthDataset(InputDataset):
                     frames = None
                     filenames = dataparser_outputs.image_filenames
 
-                # repo = "isl-org/ZoeDepth"
-                # self.zoe = torch.compile(torch.hub.load(repo, "ZoeD_NK", pretrained=True).to(device))
+                repo = "isl-org/ZoeDepth"
+                self.zoe = torch.compile(torch.hub.load(repo, "ZoeD_NK", pretrained=True).to(device))
                 self.zoe = None
 
                 for i in track(range(len(filenames)), description="Generating depth images"):
