@@ -444,13 +444,13 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         is_equirectangular = dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
         if is_equirectangular.all():
             return self.config.pixel_sampler.setup(
-                is_equirectangular=is_equirectangular, num_rays_per_batch=self.config.train_num_rays_per_batch
+                is_equirectangular=True, num_rays_per_batch=self.config.train_num_rays_per_batch
             )
         # Otherwise, use the default pixel sampler
         if is_equirectangular.any():
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
         return self.config.pixel_sampler.setup(
-            is_equirectangular=is_equirectangular, num_rays_per_batch=self.config.train_num_rays_per_batch
+            is_equirectangular=False, num_rays_per_batch=self.config.train_num_rays_per_batch
         )
 
     # def _get_pixel_sampler(self, dataset: TDataset, *args: Any, **kwargs: Any) -> PixelSampler:

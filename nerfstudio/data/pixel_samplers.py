@@ -46,7 +46,7 @@ class PixelSamplerConfig(InstantiateConfig):
     keep_full_image: bool = False
     """Whether or not to include a reference to the full image in returned batch."""
     is_equirectangular: bool = False
-    """List of whether or not camera i is equirectangular."""
+    """Whether or not to use equirectangular sampler."""
 
 
 class PixelSampler:
