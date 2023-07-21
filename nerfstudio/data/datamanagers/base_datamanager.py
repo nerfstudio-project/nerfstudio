@@ -18,11 +18,11 @@ Datamanager.
 
 from __future__ import annotations
 
-import functools
 from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
+from functools import cached_property
 from typing import (
     Any,
     Callable,
@@ -35,6 +35,9 @@ from typing import (
     Type,
     Union,
     cast,
+    ForwardRef,
+    get_origin,
+    get_args,
 )
 
 import torch
@@ -66,6 +69,7 @@ from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttrib
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
 from nerfstudio.utils.rich_utils import CONSOLE
+from nerfstudio.utils.misc import get_orig_class
 
 
 def variable_res_collate(batch: List[Dict]) -> Dict:
@@ -111,6 +115,8 @@ class DataManagerConfig(InstantiateConfig):
     """Source of data, may not be used by all models."""
     camera_optimizer: Optional[CameraOptimizerConfig] = None
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy."""
+    masks_on_gpu: Optional[bool] = None
+    """Process masks on GPU for speed at the expense of memory, if True."""
 
 
 class DataManager(nn.Module):
@@ -374,7 +380,6 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         local_rank: int = 0,
         **kwargs,
     ):
-        self.dataset_type: Type[TDataset] = kwargs.get("_dataset_type", getattr(TDataset, "__default__"))
         self.config = config
         self.device = device
         self.world_size = world_size
@@ -396,6 +401,8 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
         self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
+        if self.config.masks_on_gpu is True:
+            self.exclude_batch_keys_from_device.remove("mask")
 
         if self.train_dataparser_outputs is not None:
             cameras = self.train_dataparser_outputs.cameras
@@ -405,15 +412,32 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
                         CONSOLE.print("Variable resolution, using variable_res_collate")
                         self.config.collate_fn = variable_res_collate
                         break
-
         super().__init__()
 
-    def __class_getitem__(cls, item):
-        return type(
-            cls.__name__,
-            (cls,),
-            {"__module__": cls.__module__, "__init__": functools.partialmethod(cls.__init__, _dataset_type=item)},
-        )
+    @cached_property
+    def dataset_type(self) -> Type[TDataset]:
+        """Returns the dataset type passed as the generic argument"""
+        default: Type[TDataset] = cast(TDataset, TDataset.__default__)  # type: ignore
+        orig_class: Type[VanillaDataManager] = get_orig_class(self, default=None)  # type: ignore
+        if type(self) is VanillaDataManager and orig_class is None:
+            return default
+        if orig_class is not None and get_origin(orig_class) is VanillaDataManager:
+            return get_args(orig_class)[0]
+
+        # For inherited classes, we need to find the correct type to instantiate
+        for base in getattr(self, "__orig_bases__", []):
+            if get_origin(base) is VanillaDataManager:
+                for value in get_args(base):
+                    if isinstance(value, ForwardRef):
+                        if value.__forward_evaluated__:
+                            value = value.__forward_value__
+                        elif value.__forward_module__ is None:
+                            value.__forward_module__ = type(self).__module__
+                            value = getattr(value, "_evaluate")(None, None, set())
+                    assert isinstance(value, type)
+                    if issubclass(value, InputDataset):
+                        return cast(Type[TDataset], value)
+        return default
 
     def create_train_dataset(self) -> TDataset:
         """Sets up the data loaders for training"""

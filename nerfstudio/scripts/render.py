@@ -469,6 +469,7 @@ class RenderInterpolated(BaseRender):
             rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
             seconds=seconds,
             output_format=self.output_format,
+            image_format=self.image_format,
             colormap_options=self.colormap_options,
         )
 
@@ -511,6 +512,7 @@ class SpiralRender(BaseRender):
             rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
             seconds=self.seconds,
             output_format=self.output_format,
+            image_format=self.image_format,
             colormap_options=self.colormap_options,
         )
 

@@ -30,9 +30,8 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
 
     This script does the following:
 
-    1. Converts the video into images.
-    2. Scales images to a specified size.
-    3. Calculates the camera poses for each image using `COLMAP <https://colmap.github.io/>`_.
+    1. Converts the video into images and downscales them.
+    2. Calculates the camera poses for each image using `COLMAP <https://colmap.github.io/>`_.
     """
 
     num_frames_target: int = 300
@@ -53,14 +52,17 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                 self.data,
                 image_dir=temp_image_dir,
                 num_frames_target=self.num_frames_target,
+                num_downscales=0,
                 crop_factor=(0.0, 0.0, 0.0, 0.0),
                 verbose=self.verbose,
             )
         else:
+            # If we're not dealing with equirects we can downscale in one step.
             summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
                 self.data,
                 image_dir=self.image_dir,
                 num_frames_target=self.num_frames_target,
+                num_downscales=self.num_downscales,
                 crop_factor=self.crop_factor,
                 verbose=self.verbose,
             )
@@ -90,6 +92,11 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
 
             self.camera_type = "perspective"
 
+            # # Downscale images
+            summary_log.append(
+                process_data_utils.downscale_images(self.image_dir, self.num_downscales, verbose=self.verbose)
+            )
+
         # # Create mask
         mask_path = process_data_utils.save_mask(
             image_dir=self.image_dir,
@@ -99,11 +106,6 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
         )
         if mask_path is not None:
             summary_log.append(f"Saved mask to {mask_path}")
-
-        # # Downscale images
-        summary_log.append(
-            process_data_utils.downscale_images(self.image_dir, self.num_downscales, verbose=self.verbose)
-        )
 
         # Run Colmap
         if not self.skip_colmap:
