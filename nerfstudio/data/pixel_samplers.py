@@ -17,25 +17,52 @@ Code for sampling pixels.
 """
 
 import random
-from typing import Dict, Optional, Union
 
 import torch
 from jaxtyping import Int
 from torch import Tensor
+
+from dataclasses import dataclass, field
+from typing import (
+    Dict,
+    Optional,
+    Type,
+    Union,
+)
+
+from nerfstudio.configs.base_config import (
+    InstantiateConfig,
+)
+
+
+@dataclass
+class PixelSamplerConfig(InstantiateConfig):
+    """Configuration for pixel sampler instantiation."""
+
+    _target: Type = field(default_factory=lambda: PixelSampler)
+    """Target class to instantiate."""
+    num_rays_per_batch: int = 4096
+    """Number of rays to sample per batch."""
+    keep_full_image: bool = False
+    """Whether or not to include a reference to the full image in returned batch."""
+    is_equirectangular: bool = False
+    """List of whether or not camera i is equirectangular."""
 
 
 class PixelSampler:
     """Samples 'pixel_batch's from 'image_batch's.
 
     Args:
-        num_rays_per_batch: number of rays to sample per batch
-        keep_full_image: whether or not to include a reference to the full image in returned batch
+        config: the DataManagerConfig used to instantiate class
     """
 
-    def __init__(self, num_rays_per_batch: int, keep_full_image: bool = False, **kwargs) -> None:
+    config: PixelSamplerConfig
+
+    def __init__(self, config: PixelSamplerConfig, **kwargs) -> None:
         self.kwargs = kwargs
-        self.num_rays_per_batch = num_rays_per_batch
-        self.keep_full_image = keep_full_image
+        self.config = config
+        self.num_rays_per_batch = self.config.num_rays_per_batch
+        self.keep_full_image = self.config.keep_full_image
 
     def set_num_rays_per_batch(self, num_rays_per_batch: int):
         """Set the number of rays to sample per batch.
@@ -74,6 +101,36 @@ class PixelSampler:
 
         return indices
 
+    def sample_method_equirectangular(
+        self,
+        batch_size: int,
+        num_images: int,
+        image_height: int,
+        image_width: int,
+        mask: Optional[Tensor] = None,
+        device: Union[torch.device, str] = "cpu",
+    ) -> Int[Tensor, "batch_size 3"]:
+        if isinstance(mask, torch.Tensor):
+            # Note: if there is a mask, sampling reduces back to uniform sampling, which gives more
+            # sampling weight to the poles of the image than the equators.
+            # TODO(kevinddchen): implement the correct mask-sampling method.
+
+            indices = self.sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)
+        else:
+            # We sample theta uniformly in [0, 2*pi]
+            # We sample phi in [0, pi] according to the PDF f(phi) = sin(phi) / 2.
+            # This is done by inverse transform sampling.
+            # http://corysimon.github.io/articles/uniformdistn-on-sphere/
+            num_images_rand = torch.rand(batch_size, device=device)
+            phi_rand = torch.acos(1 - 2 * torch.rand(batch_size, device=device)) / torch.pi
+            theta_rand = torch.rand(batch_size, device=device)
+            indices = torch.floor(
+                torch.stack((num_images_rand, phi_rand, theta_rand), dim=-1)
+                * torch.tensor([num_images, image_height, image_width], device=device)
+            ).long()
+
+        return indices
+
     def collate_image_dataset_batch(self, batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
         """
         Operates on a batch of images and samples pixels to use for generating rays.
@@ -90,11 +147,21 @@ class PixelSampler:
         num_images, image_height, image_width, _ = batch["image"].shape
 
         if "mask" in batch:
-            indices = self.sample_method(
-                num_rays_per_batch, num_images, image_height, image_width, mask=batch["mask"], device=device
-            )
+            if self.config.is_equirectangular:
+                indices = self.sample_method_equirectangular(
+                    num_rays_per_batch, num_images, image_height, image_width, mask=batch["mask"], device=device
+                )
+            else:
+                indices = self.sample_method(
+                    num_rays_per_batch, num_images, image_height, image_width, mask=batch["mask"], device=device
+                )
         else:
-            indices = self.sample_method(num_rays_per_batch, num_images, image_height, image_width, device=device)
+            if self.config.is_equirectangular:
+                indices = self.sample_method_equirectangular(
+                    num_rays_per_batch, num_images, image_height, image_width, device=device
+                )
+            else:
+                indices = self.sample_method(num_rays_per_batch, num_images, image_height, image_width, device=device)
 
         c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
         c, y, x = c.cpu(), y.cpu(), x.cpu()
@@ -156,7 +223,12 @@ class PixelSampler:
                 image_height, image_width, _ = batch["image"][i].shape
                 if i == num_images - 1:
                     num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
-                indices = self.sample_method(num_rays_in_batch, 1, image_height, image_width, device=device)
+                if self.config.is_equirectangular:
+                    indices = self.sample_method_equirectangular(
+                        num_rays_in_batch, 1, image_height, image_width, device=device
+                    )
+                else:
+                    indices = self.sample_method(num_rays_in_batch, 1, image_height, image_width, device=device)
                 indices[:, 0] = i
                 all_indices.append(indices)
                 all_images.append(batch["image"][i][indices[:, 1], indices[:, 2]])
@@ -203,45 +275,15 @@ class PixelSampler:
         return pixel_batch
 
 
-class EquirectangularPixelSampler(PixelSampler):
-    """Samples 'pixel_batch's from 'image_batch's. Assumes images are
-    equirectangular and the sampling is done uniformly on the sphere.
+@dataclass
+class PatchPixelSamplerConfig(PixelSamplerConfig):
+    """Config dataclass for PatchPixelSampler."""
 
-    Args:
-        num_rays_per_batch: number of rays to sample per batch
-        keep_full_image: whether or not to include a reference to the full image in returned batch
-    """
-
-    # overrides base method
-    def sample_method(
-        self,
-        batch_size: int,
-        num_images: int,
-        image_height: int,
-        image_width: int,
-        mask: Optional[Tensor] = None,
-        device: Union[torch.device, str] = "cpu",
-    ) -> Int[Tensor, "batch_size 3"]:
-        if isinstance(mask, torch.Tensor):
-            # Note: if there is a mask, sampling reduces back to uniform sampling, which gives more
-            # sampling weight to the poles of the image than the equators.
-            # TODO(kevinddchen): implement the correct mask-sampling method.
-
-            indices = super().sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)
-        else:
-            # We sample theta uniformly in [0, 2*pi]
-            # We sample phi in [0, pi] according to the PDF f(phi) = sin(phi) / 2.
-            # This is done by inverse transform sampling.
-            # http://corysimon.github.io/articles/uniformdistn-on-sphere/
-            num_images_rand = torch.rand(batch_size, device=device)
-            phi_rand = torch.acos(1 - 2 * torch.rand(batch_size, device=device)) / torch.pi
-            theta_rand = torch.rand(batch_size, device=device)
-            indices = torch.floor(
-                torch.stack((num_images_rand, phi_rand, theta_rand), dim=-1)
-                * torch.tensor([num_images, image_height, image_width], device=device)
-            ).long()
-
-        return indices
+    _target: Type = field(default_factory=lambda: PatchPixelSampler)
+    """Target class to instantiate."""
+    patch_size: int = 2
+    """Side length of patch. This must be consistent in the method
+    config in order for samples to be reshaped into patches correctly."""
 
 
 class PatchPixelSampler(PixelSampler):
@@ -249,16 +291,16 @@ class PatchPixelSampler(PixelSampler):
     from the images randomly. Useful for patch-based losses.
 
     Args:
-        num_rays_per_batch: number of rays to sample per batch
-        keep_full_image: whether or not to include a reference to the full image in returned batch
-        patch_size: side length of patch. This must be consistent in the method
-        config in order for samples to be reshaped into patches correctly.
+        config: the PatchPixelSamplerConfig used to instantiate class
     """
 
-    def __init__(self, num_rays_per_batch: int, keep_full_image: bool = False, **kwargs) -> None:
-        self.patch_size = kwargs["patch_size"]
-        num_rays = (num_rays_per_batch // (self.patch_size**2)) * (self.patch_size**2)
-        super().__init__(num_rays, keep_full_image, **kwargs)
+    def __init__(self, config: PatchPixelSamplerConfig, **kwargs) -> None:
+        self.config = config
+        self.patch_size = self.config.patch_size
+        self.config.num_rays_per_batch = (self.config.num_rays_per_batch // (self.patch_size**2)) * (
+            self.patch_size**2
+        )
+        super().__init__(self.config, **kwargs)
 
     def set_num_rays_per_batch(self, num_rays_per_batch: int):
         """Set the number of rays to sample per batch. Overridden to deal with patch-based sampling.
@@ -299,4 +341,59 @@ class PatchPixelSampler(PixelSampler):
             indices = torch.floor(indices).long()
             indices = indices.flatten(0, 2)
 
+        return indices
+
+
+@dataclass
+class PairPixelSamplerConfig(PixelSamplerConfig):
+    """Config dataclass for PatchPixelSampler."""
+
+    _target: Type = field(default_factory=lambda: PairPixelSampler)
+    """Target class to instantiate."""
+    radius: int = 2
+    """max distance between pairs of pixels."""
+
+
+class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
+    """Samples pair of pixels from 'image_batch's. Samples pairs of pixels from
+        from the images randomly within a 'radius' distance apart. Useful for pair-based losses.
+
+    Args:
+        config: the PairPixelSamplerConfig used to instantiate class
+    """
+
+    def __init__(self, config: PairPixelSamplerConfig, **kwargs) -> None:
+        self.config = config
+        self.radius = self.config.radius
+        self.rays_to_sample = self.config.num_rays_per_batch // 2
+        super().__init__(self.config, **kwargs)
+
+    # overrides base method
+    def sample_method(  # pylint: disable=no-self-use
+        self,
+        batch_size: int,
+        num_images: int,
+        image_height: int,
+        image_width: int,
+        mask: Optional[Tensor] = None,
+        device: Union[torch.device, str] = "cpu",
+    ) -> Int[Tensor, "batch_size 3"]:
+        if mask:
+            # Note: if there is a mask, sampling reduces back to uniform sampling
+            raise NotImplementedError()
+        else:
+            s = (self.rays_to_sample, 1)
+            ns = torch.randint(0, num_images, s, dtype=torch.long, device=device)
+            hs = torch.randint(self.radius, image_height - self.radius, s, dtype=torch.long, device=device)
+            ws = torch.randint(self.radius, image_width - self.radius, s, dtype=torch.long, device=device)
+            indices = torch.concat((ns, hs, ws), dim=1)
+
+            pair_indices = torch.hstack(
+                (
+                    torch.zeros(self.rays_to_sample, 1, device=device, dtype=torch.long),
+                    torch.randint(-self.radius, self.radius, (self.rays_to_sample, 2), device=device, dtype=torch.long),
+                )
+            )
+            pair_indices += indices
+            indices = torch.hstack((indices, pair_indices)).view(self.rays_to_sample * 2, 3)
         return indices
