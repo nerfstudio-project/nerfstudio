@@ -46,6 +46,8 @@ class CameraType(Enum):
     EQUIRECTANGULAR = auto()
     OMNIDIRECTIONALSTEREO_L = auto()
     OMNIDIRECTIONALSTEREO_R = auto()
+    VR180_L = auto()
+    VR180_R = auto()
 
 
 CAMERA_MODEL_TO_TYPE = {
@@ -58,6 +60,8 @@ CAMERA_MODEL_TO_TYPE = {
     "EQUIRECTANGULAR": CameraType.EQUIRECTANGULAR,
     "OMNIDIRECTIONALSTEREO_L": CameraType.OMNIDIRECTIONALSTEREO_L,
     "OMNIDIRECTIONALSTEREO_R": CameraType.OMNIDIRECTIONALSTEREO_R,
+    "VR180_L": CameraType.VR180_L,
+    "VR180_R": CameraType.VR180_R,
 }
 
 
@@ -708,6 +712,60 @@ class Cameras(TensorDataclass):
 
             return ods_origins_circle, directions_stack
 
+        def _compute_rays_for_vr180(
+            eye: Literal["left", "right"]
+        ) -> Tuple[Float[Tensor, "num_rays_shape 3"], Float[Tensor, "3 num_rays_shape 3"]]:
+            """Compute the rays for a VR180 camera
+
+            Args:
+                eye: Which eye to compute rays for.
+
+            Returns:
+                A tuple containing the origins and the directions of the rays.
+            """
+            # Directions calculated similarly to equirectangular
+            vr180_cam_type = CameraType.VR180_R.value if eye == "right" else CameraType.VR180_L.value
+            mask = (self.camera_type[true_indices] == vr180_cam_type).squeeze(-1)
+            mask = torch.stack([mask, mask, mask], dim=0)
+
+            # adjusting theta range to +/-90 deg
+            theta = -torch.pi * ((x - cx) / (fx * 2))[0]
+            phi = torch.pi * (0.5 - coord_stack[..., 1])
+
+            directions_stack[..., 0][mask] = torch.masked_select(-torch.sin(theta) * torch.sin(phi), mask).float()
+            directions_stack[..., 1][mask] = torch.masked_select(torch.cos(phi), mask).float()
+            directions_stack[..., 2][mask] = torch.masked_select(-torch.cos(theta) * torch.sin(phi), mask).float()
+
+            vr_ipd = 0.064  # IPD in meters (note: scale of NeRF must be true to life and can be adjusted with the Blender add-on)
+            isRightEye = 1 if eye == "right" else -1
+
+            # find VR180 camera position
+            c2w = self.camera_to_worlds[true_indices]
+            assert c2w.shape == num_rays_shape + (3, 4)
+            transposedC2W = c2w[0][0].t()
+            vr180_cam_position = transposedC2W[3].repeat(c2w.shape[1], 1)
+
+            rotation = c2w[..., :3, :3]
+
+            -torch.pi * ((x - cx) / fx)[0]
+
+            # interocular axis of the VR180 camera
+            vr180_x_axis = torch.tensor([1, 0, 0], device=c2w.device)
+
+            # VR180 ray origins of horizontal offset
+            vr180_origins = isRightEye * (vr_ipd / 2.0) * (vr180_x_axis.repeat(c2w.shape[1], 1))
+
+            # rotate origins to match the camera rotation
+            for i in range(vr180_origins.shape[0]):
+                vr180_origins[i] = rotation[0][0] @ vr180_origins[i] + vr180_cam_position[0]
+
+            vr180_origins = vr180_origins.unsqueeze(0).repeat(c2w.shape[0], 1, 1)
+
+            # assign final camera origins
+            c2w[..., :3, 3] = vr180_origins
+
+            return vr180_origins, directions_stack
+
         for cam in cam_types:
             if CameraType.PERSPECTIVE.value in cam_types:
                 mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
@@ -755,6 +813,17 @@ class Cameras(TensorDataclass):
                 ods_origins_circle, directions_stack = _compute_rays_for_omnidirectional_stereo("right")
                 # assign final camera origins
                 c2w[..., :3, 3] = ods_origins_circle
+
+            elif CameraType.VR180_L.value in cam_types:
+                vr180_origins, directions_stack = _compute_rays_for_vr180("left")
+                # assign final camera origins
+                c2w[..., :3, 3] = vr180_origins
+
+            elif CameraType.VR180_R.value in cam_types:
+                vr180_origins, directions_stack = _compute_rays_for_vr180("right")
+                # assign final camera origins
+                c2w[..., :3, 3] = vr180_origins
+
             else:
                 raise ValueError(f"Camera type {cam} not supported.")
 

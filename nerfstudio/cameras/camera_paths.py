@@ -141,6 +141,8 @@ def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
         camera_type = CameraType.EQUIRECTANGULAR
     elif camera_path["camera_type"].lower() == "omnidirectional":
         camera_type = CameraType.OMNIDIRECTIONALSTEREO_L
+    elif camera_path["camera_type"].lower() == "vr180":
+        camera_type = CameraType.VR180_L
     else:
         camera_type = CameraType.PERSPECTIVE
 
@@ -155,6 +157,8 @@ def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
             camera_type == CameraType.EQUIRECTANGULAR
             or camera_type == CameraType.OMNIDIRECTIONALSTEREO_L
             or camera_type == CameraType.OMNIDIRECTIONALSTEREO_R
+            or camera_type == CameraType.VR180_L
+            or camera_type == CameraType.VR180_R
         ):
             fxs.append(image_width / 2)
             fys.append(image_height)
