@@ -6,7 +6,7 @@
 
 ## Overview
 
-This Blender add-on allows for compositing with a Nerfstudio render as a background layer by generating a camera path JSON file from the Blender camera path, as well as a way to import Nerfstudio JSON files as a Blender camera baked with the Nerfstudio camera path. This add-on also allows compositing multiple NeRF objects into a NeRF scene. This is achieved by importing a mesh or point-cloud representation of the NeRF scene from Nerfstudio into Blender and getting the camera coordinates relative to the transformations of the NeRF representation. Dynamic FOV from the Blender camera is supported and will match the Nerfstudio render. Perspective, equirectangular, and omnidirectional stereo (VR 360) cameras are supported.
+This Blender add-on allows for compositing with a Nerfstudio render as a background layer by generating a camera path JSON file from the Blender camera path, as well as a way to import Nerfstudio JSON files as a Blender camera baked with the Nerfstudio camera path. This add-on also allows compositing multiple NeRF objects into a NeRF scene. This is achieved by importing a mesh or point-cloud representation of the NeRF scene from Nerfstudio into Blender and getting the camera coordinates relative to the transformations of the NeRF representation. Dynamic FOV from the Blender camera is supported and will match the Nerfstudio render. Perspective, equirectangular, VR180, and omnidirectional stereo (VR 360) cameras are supported.
 
 <center>
  <img width="800" alt="image" src="https://user-images.githubusercontent.com/9502341/211442247-99d1ebc7-3ef9-46f7-9bcc-0e18553f19b7.PNG">
@@ -89,7 +89,7 @@ This Blender add-on allows for compositing with a Nerfstudio render as a backgro
 - The generated JSON camera path follows the user specified frame start, end, and step fields in the Output Properties in Blender. The JSON file specifies the user specified x and y render resolutions at the given % in the Output Properties.
 - The add-on computes the camera coordinates based on the active camera in the scene.
 - FOV animated changes of the camera will be matched with the NeRF render.
-- Perspective, equirectangular, and omnidirectional stereo cameras are supported and can be selected within Blender.
+- Perspective, equirectangular, VR180, and omnidirectional stereo cameras are supported and can be configured within Blender.
 - The generated JSON file can be imported into Nerfstudio. Each keyframe of the camera transform in the frame sequence in Blender will be a keyframe in Nerfstudio. The exported JSON camera path is baked, where each frame in the sequence is a keyframe. This is to ensure that frame interpolation across Nerfstudio and Blender do not differ.
     <center>
     <img width="800" alt="image" src="https://user-images.githubusercontent.com/9502341/211245108-587a97f7-d48d-4515-b09a-5644fd966298.png">
@@ -101,7 +101,10 @@ This Blender add-on allows for compositing with a Nerfstudio render as a backgro
 - It is recommended to export a high fidelity mesh as the NeRF representation from Nerfstudio. However if that is not possible or the scene is too large, a point cloud representation also works.
 - For compositing, it is recommended to convert the video render into image frames to ensure the Blender and NeRF renders are in sync.
 - Currently, dynamic camera focus is not supported.
-- For compositing Blender objects or NeRFs with Nerfstudio omnidirectional stereo renders (VR 360), configure the Blender camera to be equirectangular and enable stereoscopy in the Output Properties. Under the Stereoscopy panel the Blender camera settings, change the mode to "Parallel", set the Interocular Distance to 0.064 m, and checkmark "Spherical Stereo".
+- Compositing with Blender Objects and VR180 or ODS Renders
+  - Configure the Blender camera to be panoramic equirectangular and enable stereoscopy in the Output Properties. For the VR180 Blender camera, set the panoramic longitude min and max to -90 and 90.
+  - Under the Stereoscopy panel the Blender camera settings, change the mode to "Parallel", set the Interocular Distance to 0.064 m, and checkmark "Spherical Stereo".
+
     <center>
     <img width="300" alt="image" src="https://github-production-user-asset-6210df.s3.amazonaws.com/9502341/253217833-fd607601-2b81-48ab-ac5d-e55514a588da.png">
     </center>
