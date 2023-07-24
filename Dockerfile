@@ -103,7 +103,7 @@ ARG UID=1000
 ARG GID=1000
 
 RUN groupadd -g ${GID} user
-RUN useradd -m -d /home/user -u ${UID} -g ${GID} -G sudo -p user \
+RUN useradd -m -d /home/user -u ${UID} -g ${GID} -G sudo \
         user && \
     # Ensure sudo group users are not asked for a password when using sudo command by ammending sudoers file
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
