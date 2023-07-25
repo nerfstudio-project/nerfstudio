@@ -38,6 +38,7 @@ from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.nerfacto_field import NerfactoField
+from nerfstudio.fields.visibility_field import VisibilityField
 from nerfstudio.model_components.losses import (
     MSELoss,
     distortion_loss,
@@ -168,6 +169,10 @@ class NerfactoModel(Model):
             implementation=self.config.implementation,
         )
 
+        # this can be set by the pipeline
+        # is set, then we create a visibility outputs
+        self.visibility_field: Optional[VisibilityField] = None
+
         self.density_fns = []
         num_prop_nets = self.config.num_proposal_iterations
         # Build the proposal network(s)
@@ -224,6 +229,8 @@ class NerfactoModel(Model):
         self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
+        self.renderer_depth_expected = DepthRenderer(method="expected")
+        self.renderer_depth_median = DepthRenderer(method="median")
         self.renderer_normals = NormalsRenderer()
 
         # shaders
@@ -279,11 +286,14 @@ class NerfactoModel(Model):
 
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples: RaySamples
-        ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
+        ray_samples, densities_list, weights_list, ray_samples_list = self.proposal_sampler(
+            ray_bundle, density_fns=self.density_fns
+        )
         field_outputs = self.field.forward(ray_samples, compute_normals=self.config.predict_normals)
         if self.config.use_gradient_scaling:
             field_outputs = scale_gradients_by_distance_squared(field_outputs, ray_samples)
 
+        densities_list.append(field_outputs[FieldHeadNames.DENSITY])
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
@@ -298,6 +308,22 @@ class NerfactoModel(Model):
             "depth": depth,
         }
 
+        if self.visibility_field is not None:
+            assert isinstance(self.visibility_field, VisibilityField), "self.visibility_field must be a VisibilityField"
+            visibility_samples = self.visibility_field.forward(ray_samples_list[-1])
+            visibility = self.renderer_depth_expected(
+                weights=weights, ray_samples=ray_samples, quantity=visibility_samples
+            )
+            outputs["visibility_count"] = visibility.long()
+            visibility = visibility.float() / len(self.visibility_field.c2ws)  # [0, 1] 1 is seen by all cameras
+            outputs["visibility"] = visibility
+            visibility_median = self.renderer_depth_median(
+                weights=weights, ray_samples=ray_samples, quantity=visibility_samples
+            )
+            outputs["visibility_median_count"] = visibility_median.long()
+            visibility_median = visibility_median.float() / len(self.visibility_field.c2ws)  # [0, 1]
+            outputs["visibility_median"] = visibility_median
+
         if self.config.predict_normals:
             normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
             pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
@@ -305,6 +331,7 @@ class NerfactoModel(Model):
             outputs["pred_normals"] = self.normals_shader(pred_normals)
         # These use a lot of GPU memory, so we avoid storing them for eval.
         if self.training:
+            outputs["densities_list"] = densities_list
             outputs["weights_list"] = weights_list
             outputs["ray_samples_list"] = ray_samples_list
 

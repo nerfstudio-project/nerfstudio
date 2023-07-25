@@ -250,7 +250,8 @@ class DepthRenderer(nn.Module):
         ray_samples: RaySamples,
         ray_indices: Optional[Int[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
-    ) -> Float[Tensor, "*batch 1"]:
+        quantity: Optional[Float[Tensor, "*batch num_samples 1"]] = None,
+    ) -> Float[Tensor, "*bs 1"]:
         """Composite samples along ray and calculate depths.
 
         Args:
@@ -258,39 +259,37 @@ class DepthRenderer(nn.Module):
             ray_samples: Set of ray samples.
             ray_indices: Ray index for each sample, used when samples are packed.
             num_rays: Number of rays, used when samples are packed.
+            quantity: If specified, then take the median of this quantity instead of the depth.
 
         Returns:
             Outputs of depth values.
         """
 
-        if self.method == "median":
-            steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
+        if quantity is None:
+            # set the quantity to steps
+            quantity = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
 
+        if self.method == "median":
             if ray_indices is not None and num_rays is not None:
                 raise NotImplementedError("Median depth calculation is not implemented for packed samples.")
             cumulative_weights = torch.cumsum(weights[..., 0], dim=-1)  # [..., num_samples]
             split = torch.ones((*weights.shape[:-2], 1), device=weights.device) * 0.5  # [..., 1]
             median_index = torch.searchsorted(cumulative_weights, split, side="left")  # [..., 1]
-            median_index = torch.clamp(median_index, 0, steps.shape[-2] - 1)  # [..., 1]
-            median_depth = torch.gather(steps[..., 0], dim=-1, index=median_index)  # [..., 1]
+            median_index = torch.clamp(median_index, 0, quantity.shape[-2] - 1)  # [..., 1]
+            median_depth = torch.gather(quantity[..., 0], dim=-1, index=median_index)  # [..., 1]
             return median_depth
         if self.method == "expected":
             eps = 1e-10
-            steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
 
             if ray_indices is not None and num_rays is not None:
                 # Necessary for packed samples from volumetric ray sampler
-                depth = nerfacc.accumulate_along_rays(
-                    weights[..., 0], values=steps, ray_indices=ray_indices, n_rays=num_rays
-                )
-                accumulation = nerfacc.accumulate_along_rays(
-                    weights[..., 0], values=None, ray_indices=ray_indices, n_rays=num_rays
-                )
+                depth = nerfacc.accumulate_along_rays(weights, ray_indices, quantity, num_rays)
+                accumulation = nerfacc.accumulate_along_rays(weights, ray_indices, None, num_rays)
                 depth = depth / (accumulation + eps)
             else:
-                depth = torch.sum(weights * steps, dim=-2) / (torch.sum(weights, -2) + eps)
+                depth = torch.sum(weights * quantity, dim=-2) / (torch.sum(weights, -2) + eps)
 
-            depth = torch.clip(depth, steps.min(), steps.max())
+            depth = torch.clip(depth, quantity.min(), quantity.max())
 
             return depth
 

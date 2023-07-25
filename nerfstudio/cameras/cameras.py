@@ -851,7 +851,7 @@ class Cameras(TensorDataclass):
         Returns:
             Pinhole camera intrinsics matrices
         """
-        K = torch.zeros((*self.shape, 3, 3), dtype=torch.float32)
+        K = torch.zeros((*self.shape, 3, 3), dtype=torch.float32, device=self.device)
         K[..., 0, 0] = self.fx.squeeze(-1)
         K[..., 1, 1] = self.fy.squeeze(-1)
         K[..., 0, 2] = self.cx.squeeze(-1)
