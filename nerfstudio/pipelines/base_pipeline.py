@@ -25,24 +25,16 @@ from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Type, Uni
 
 import torch
 import torch.distributed as dist
-from rich.progress import (
-    BarColumn,
-    MofNCompleteColumn,
-    Progress,
-    TextColumn,
-    TimeElapsedColumn,
-)
+from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeElapsedColumn
 from torch import nn
+from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.cuda.amp.grad_scaler import GradScaler
+from nerfstudio.fields.visibility_field import VisibilityField
+
 
 from nerfstudio.configs import base_config as cfg
-from nerfstudio.data.datamanagers.base_datamanager import (
-    DataManager,
-    VanillaDataManager,
-    VanillaDataManagerConfig,
-)
+from nerfstudio.data.datamanagers.base_datamanager import DataManager, VanillaDataManager, VanillaDataManagerConfig
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
@@ -209,6 +201,14 @@ class VanillaPipelineConfig(cfg.InstantiateConfig):
     """specifies the datamanager config"""
     model: ModelConfig = ModelConfig()
     """specifies the model config"""
+    use_visibility_loss: bool = False
+    """whether to apply the visibility loss"""
+    visibility_loss_quantity: Literal["weights", "densities"] = "densities"
+    """whether to apply the visibility loss to weights or densities"""
+    visibility_loss_mult: float = 1.0
+    """multiplier for the visibility loss"""
+    visibility_min_views: int = 1
+    """minimum number of views for the visibility loss"""
 
 
 class VanillaPipeline(Pipeline):
@@ -263,6 +263,15 @@ class VanillaPipeline(Pipeline):
             self._model = typing.cast(Model, DDP(self._model, device_ids=[local_rank], find_unused_parameters=True))
             dist.barrier(device_ids=[local_rank])
 
+        if self.config.use_visibility_loss:
+            # bounding box of the scene
+            self.aabb = self.datamanager.train_dataset.scene_box.aabb.to(self.device) * self.config.aabb_scalar
+
+            # initialize the visibility field
+            cameras = self.datamanager.train_dataparser_outputs.cameras.to(self.device)
+            # TODO(ethan): make sure only the training cameras are being used
+            self.model.visibility_field = VisibilityField(cameras).to(self.device)
+
     @property
     def device(self):
         """Returns the device that the model is on."""
@@ -293,6 +302,64 @@ class VanillaPipeline(Pipeline):
                 )
 
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
+
+        if self.config.use_visibility_loss:
+            # randomly sample a center within the aabb
+            center = (torch.rand(3, device=self.device) * (self.aabb[1] - self.aabb[0]) + self.aabb[0]).tolist()
+            cameras, _, _ = random_train_pose(
+                size=self.config.visibility_num_rays,
+                resolution=1,
+                device=self.device,
+                radius_mean=self.config.aabb_scalar * math.sqrt(3.0),
+                radius_std=0.0,
+                central_rotation_range=(0, 360),
+                vertical_rotation_range=(-90, 90),
+                focal_range=self.config.focal_range,
+                jitter_std=0,
+                center=center,
+            )
+            # We only use the first camera index, but it doesn't matter since we don't care about appearance embeddings
+            # when using the visibility loss.
+            camera_indices = torch.tensor([0] * self.config.visibility_num_rays).unsqueeze(-1)
+            ray_bundle_rays = cameras.generate_rays(camera_indices)
+            # ray_bundle is (1, 1, self.config.visibility_num_rays)
+            ray_bundle_rays = ray_bundle_rays.flatten()
+            model_outputs_rays = self.model(ray_bundle_rays)
+            quantity_list = model_outputs_rays[f"{self.config.visibility_loss_quantity}_list"]  # weights or densities
+            visibility_loss = 0.0
+            for i in range(len(quantity_list)):
+                quantity_samples = quantity_list[i]
+                ray_samples = model_outputs_rays["ray_samples_list"][i]
+                visibility_samples = self.model.visibility_field(ray_samples)
+
+                with torch.no_grad():
+                    if (
+                        self.config.sample_method in ["importance", "random"]
+                        and self.config.weight_grid_quantity == "visibility"
+                    ):
+                        if step % self.config.weight_grid_update_per_step == 0:
+                            if i - 1 == len(quantity_list):
+                                # update the weight grid
+                                # get positions
+                                positions = ray_samples.frustums.get_positions()
+                                print(positions.shape)
+                                normalized_positions = SceneBox.get_normalized_positions(positions, self.aabb)
+                                # UPDATE THE WEIGHT GRID
+                                normalized_positions = normalized_positions.view(-1, 3)
+                                quant = visibility_samples.view(-1, 1)
+                                # only use positions between 0 inclusive and 1 exclusive
+                                mask = (normalized_positions >= 0.0) & (normalized_positions < 1.0)
+                                mask = mask[:, 0] & mask[:, 1] & mask[:, 2]
+                                normalized_positions = normalized_positions[mask]
+                                quant = quant[mask]
+                                if normalized_positions.numel() != 0:
+                                    self.weight_grid.update(normalized_positions, quant)
+
+                quantity_samples_masked = quantity_samples[visibility_samples < self.config.visibility_min_views]
+                if quantity_samples_masked.numel() != 0:
+                    visibility_loss_i = self.config.visibility_loss_mult * quantity_samples_masked.mean()
+                    visibility_loss += visibility_loss_i
+            loss_dict["visibility_loss"] = visibility_loss
 
         return model_outputs, loss_dict, metrics_dict
 
