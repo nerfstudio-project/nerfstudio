@@ -17,30 +17,20 @@ Field for Generfacto model
 """
 
 
-from typing import Optional, Tuple, Dict, Literal
+from typing import Dict, Literal, Optional, Tuple
 
 import numpy as np
 import torch
-from torch.nn.parameter import Parameter
-from jaxtyping import Float
 from torch import Tensor, nn
+from torch.nn.parameter import Parameter
 
-from nerfstudio.field_components.mlp import MLP
 from nerfstudio.cameras.rays import RayBundle, RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
-from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.encodings import HashEncoding, SHEncoding
-from nerfstudio.fields.base_field import Field
-
-
-def get_normalized_directions(directions: Float[Tensor, "bs 3"]):
-    """SH encoding must be in the range [0, 1]
-
-    Args:
-        directions: batch of directions
-    """
-    return (directions + 1.0) / 2.0
+from nerfstudio.field_components.field_heads import FieldHeadNames
+from nerfstudio.field_components.mlp import MLP
+from nerfstudio.fields.base_field import Field, get_normalized_directions
 
 
 class GenerfactoField(Field):
