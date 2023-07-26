@@ -78,9 +78,9 @@ class BaseMetrics:
             ssim = float(ssim_module(x, x_gt)[0])
             lpips = float(lpips_module(x, x_gt)[0])
 
-            metrics["psnr_list"].append(psnr)
-            metrics["ssim_list"].append(ssim)
-            metrics["lpips_list"].append(lpips)
+            metrics["psnr_list"] = metrics.get("psnr_list", []) + [psnr]
+            metrics["ssim_list"] = metrics.get("ssim_list", []) + [ssim]
+            metrics["lpips_list"] = metrics.get("lpips_list", []) + [lpips]
 
             # save the images
             rgb_gt = (rgb_gt * 255.0).cpu().numpy().astype(np.uint8)
@@ -107,6 +107,7 @@ class BaseMetrics:
 
         # write to a json file
         metrics_filename = self.output_folder / f"{experiment_name}.json"
+        os.makedirs(self.output_folder, exist_ok=True)
         with open(metrics_filename, "w") as f:
             json.dump(metrics, f, indent=4)
 
@@ -217,21 +218,21 @@ class NerfbusterMetrics(BaseMetrics):
             normals_median = float(theta.median())
 
             # the angle thresholds
-            metrics["normals_11.25"].append(float((theta < 11.25).float().mean()))
-            metrics["normals_22.5"].append(float((theta < 22.5).float().mean()))
-            metrics["normals_30"].append(float((theta < 30).float().mean()))
+            metrics["normals_11.25"] = metrics.get("normals_11.25", []) + [float((theta < 11.25).float().mean())]
+            metrics["normals_22.5"] = metrics.get("normals_22.5", []) + [float((theta < 22.5).float().mean())]
+            metrics["normals_30"] = metrics.get("normals_30", []) + [float((theta < 30).float().mean())]
 
             # coverage
             coverage = float(mask[..., 0].sum() / visibilty_mask.sum())
 
-            metrics["psnr_list"].append(psnr)
-            metrics["ssim_list"].append(ssim)
-            metrics["lpips_list"].append(lpips)
-            metrics["depth_list"].append(depth_mse)
-            metrics["disparity_list"].append(disparity)
-            metrics["normals_list"].append(normals_mse)
-            metrics["normals_median_list"].append(normals_median)
-            metrics["coverage_list"].append(coverage)
+            metrics["psnr_list"] = metrics.get("psnr_list", []) + [psnr]
+            metrics["ssim_list"] = metrics.get("ssim_list", []) + [ssim]
+            metrics["lpips_list"] = metrics.get("lpips_list", []) + [lpips]
+            metrics["depth_list"] = metrics.get("depth_list", []) + [depth_mse]
+            metrics["disparity_list"] = metrics.get("disparity_list", []) + [disparity]
+            metrics["normals_list"] = metrics.get("normals_list", []) + [normals_mse]
+            metrics["normals_median_list"] = metrics.get("normals_median_list", []) + [normals_median]
+            metrics["coverage_list"] = metrics.get("coverage_list", []) + [coverage]
 
             # save the images
             rgb_gt = (rgb_gt * 255.0).cpu().numpy().astype(np.uint8)
