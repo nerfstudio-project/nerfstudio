@@ -505,14 +505,13 @@ class VolumetricSampler(Sampler):
         if camera_indices is not None:
             camera_indices = camera_indices[ray_indices]
 
-        zeros = torch.zeros_like(origins[:, :1])
         ray_samples = RaySamples(
             frustums=Frustums(
                 origins=origins,
                 directions=dirs,
                 starts=starts[..., None],
                 ends=ends[..., None],
-                pixel_area=zeros,
+                pixel_area=ray_bundle[ray_indices].pixel_area,
             ),
             camera_indices=camera_indices,
         )
