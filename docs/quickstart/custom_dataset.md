@@ -347,25 +347,37 @@ The pixels representing the distorted hand and head are obviously not useful in 
 
 If cropping only needs to be done from the bottom, you can use the `--crop-bottom [num]` argument which would be the same as doing `--crop-factor 0.0 [num] 0.0 0.0`
 
-## 🥽 Render Omni-directional Stereo (360 VR)
+## 🥽 Render VR Video
 
-Stereo equirectangular rendering for VR video is supported as omni-directional stereo video and image rendering. This outputs two equirectangular renders vertically stacked, one for each eye. Omni-directional stereo (ODS) is a method to render VR 3D 360 videos, and may introduce slight depth distortions for close objects. For additional information on how ODS works, refer to this [writeup](https://developers.google.com/vr/jump/rendering-ods-content.pdf).
+Stereo equirectangular rendering for VR video is supported as VR180 and omni-directional stereo (360 VR) Nerfstudio camera types for video and image rendering. 
+
+### Omni-directional Stereo (360 VR)
+This outputs two equirectangular renders vertically stacked, one for each eye. Omni-directional stereo (ODS) is a method to render VR 3D 360 videos, and may introduce slight depth distortions for close objects. For additional information on how ODS works, refer to this [writeup](https://developers.google.com/vr/jump/rendering-ods-content.pdf).
 
 <center>
-<img img width="300" src="https://github-production-user-asset-6210df.s3.amazonaws.com/9502341/240530353-5c05d12b-6e42-42bb-8ff5-f54aa30ca262.jpg">
+<img img width="300" src="https://github-production-user-asset-6210df.s3.amazonaws.com/9502341/255423390-ff0710f1-29ce-47b2-85f9-922084cab297.jpg">
 </center>
 
-To render in ODS it is essential to adjust the NeRF to have an approximately true-to-life real world scale (adjustable in the camera path) to ensure that the scene depth and IPD (distance between the eyes) is appropriate for the render to be viewable in VR. You can adjust the scene scale with the [Nerfstudio Blender Add-on](https://docs.nerf.studio/en/latest/extensions/blender_addon.html) by appropriately scaling a point cloud representation of the NeRF.
+
+### VR180
+This outputs two 180 deg equirectangular renders horizontally stacked, one for each eye. VR180 is a video format for VR 3D 180 videos. Unlike in omnidirectional stereo, VR180 content only displays front facing content. 
+
+<center>
+<img img width="375" src="https://github-production-user-asset-6210df.s3.amazonaws.com/9502341/255379444-b90f5b3c-5021-4659-8732-17725669914e.jpeg">
+</center>
+
+### Setup instructions
+To render for VR video it is essential to adjust the NeRF to have an approximately true-to-life real world scale (adjustable in the camera path) to ensure that the scene depth and IPD (distance between the eyes) is appropriate for the render to be viewable in VR. You can adjust the scene scale with the [Nerfstudio Blender Add-on](https://docs.nerf.studio/en/latest/extensions/blender_addon.html) by appropriately scaling a point cloud representation of the NeRF.
 Results may be unviewable if the scale is not set appropriately. The IPD is set at 64mm by default but only is accurate when the NeRF scene is true to scale.
 
-For good quality renders, it is recommended to render at 4096x2048 per eye, or 2048x1024 per eye. Render resolutions must be specified in the camera path in a 2:1 aspect ratio. The final stacked render output will automatically be constructed as 1:1.
+For good quality renders, it is recommended to render at high resolutions (For ODS: 4096x2048 per eye, or 2048x1024 per eye. For VR180: 4096x4096 per eye or 2048x2048 per eye). Render resolutions for a single eye are specified in the camera path. For VR180, resolutions must be in a 1:1 aspect ratio. For ODS, resolutions must be in a 2:1 aspect ratio. The final stacked render output will automatically be constructed (with aspect ratios for VR180 as 2:1 and ODS as 1:1).
 
 :::{admonition} Note
 :class: info
 If you are rendering an image sequence, it is recommended to render as png instead of jpeg, since the png will appear clearer. However, file sizes can be significantly larger with png.
 :::
 
-To render with the ODS camera:
+To render with the VR videos camera:
 1. Use the [Nerfstudio Blender Add-on](https://docs.nerf.studio/en/latest/extensions/blender_addon.html) to set the scale of the NeRF scene and create the camera path
     - Export a point cloud representation of the NeRF
    - Import the point cloud representation in Blender and enable the Nerfstudio Blender Add-on
@@ -374,23 +386,38 @@ To render with the ODS camera:
     - To place the camera at the correct height from the ground in the scene, you can create a cylinder representing the viewer vertically scaled to the viewer’s height, and place the camera at eye level.
     - Animate the camera movement as needed
     - Create the camera path JSON file with the Nerfstudio Blender Add-on
+
 2. Edit the JSON camera path file
-    - Open the camera path JSON file and specify the `camera_type` as `omnidirectional`
-    - Specify the `render_height` and `render_width` to the resolution of a single eye. The width:height aspect ratio must be 2:1. Recommended resolutions are 4096x2048 or 2048x1024.
+
+    **Omni-directional Stereo (360 VR)**
+      - Open the camera path JSON file and specify the `camera_type` as `omnidirectional`
+      - Specify the `render_height` and `render_width` to the resolution of a single eye. The width:height aspect ratio must be 2:1. Recommended resolutions are 4096x2048 or 2048x1024.
+        <center>
+        <img img width="250" src="https://github-production-user-asset-6210df.s3.amazonaws.com/9502341/240530527-22d14276-ac2c-46a5-a4b0-4785b7413241.png">
+        </center>
+
+
+    **VR180**
+      - Open the camera path JSON file and specify the `camera_type` as `vr180`
+      - Specify the `render_height` and `render_width` to the resolution of a single eye. The width:height aspect ratio must be 1:1. Recommended resolutions are 4096x4096 or 2048x2048.
+      <center>
+      <img img width="190" src="https://github-production-user-asset-6210df.s3.amazonaws.com/9502341/255379889-83b7fd09-ce8f-4868-8838-7be9b63f01b4.png">
+      </center>
+
     - Save the camera path and render the NeRF
-  <center>
-  <img img width="300" src="https://github-production-user-asset-6210df.s3.amazonaws.com/9502341/240530527-22d14276-ac2c-46a5-a4b0-4785b7413241.png">
-  </center>
+
 
 :::{admonition} Note
 :class: info
 If the depth of the scene is unviewable and looks too close or expanded when viewing the render in VR, the scale of the NeRF may be set too small. If there is almost no discernible depth, the scale of the NeRF may be too large. Getting the right scale may take some experimentation, so it is recommended to either render at a much lower resolution or just one frame to ensure the depth and render is viewable in the VR headset.
 :::
 
-### Additional Notes
-- Rendering with ODS can take significantly longer than traditional renders due to higher resolutions and needing to render a left and right eye view for each frame. Render times may grow exponentially with larger resolutions.
-- When rendering ODS content, Nerfstudio will first render the left eye, then the right eye, and finally vertically stack the renders. During this process, Nerfstudio will create a temporary folder to store the left and right eye renders and delete this folder once the final renders are stacked.
+#### Additional Notes
+- Rendering with VR180 or ODS can take significantly longer than traditional renders due to higher resolutions and needing to render a left and right eye view for each frame. Render times may grow exponentially with larger resolutions.
+- When rendering VR180 or ODS content, Nerfstudio will first render the left eye, then the right eye, and finally vertically stack the renders. During this process, Nerfstudio will create a temporary folder to store the left and right eye renders and delete this folder once the final renders are stacked.
 - If rendering content where the camera is stationary for many frames, it is recommended to only render once at that position and extend the time in a video editor since ODS renders can take a lot of time to render.
 - It is recommended to render a preliminary render at a much lower resolution or frame rate to test and ensure that the depth and camera position look accurate in VR.
  - The IPD can be modified in the `cameras.py` script as the variable `vr_ipd` (default is 64 mm).
- - If using the Nerfstudio Blender Add-on to composite Blender objects or NeRFs with the omnidirectional render, change the Stereoscopy mode to "Parallel" set the Interocular Distance to 0.064 m.
+ - Compositing with Blender Objects and VR180 or ODS Renders
+   - Configure the Blender camera as panoramic and equirectangular. For the VR180 Blender camera, set the panoramic longitude min and max to -90 and 90.
+   - Change the Stereoscopy mode to "Parallel" set the Interocular Distance to 0.064 m. 
