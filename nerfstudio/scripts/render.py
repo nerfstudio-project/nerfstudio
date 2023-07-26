@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import json
 import os
-import struct
 import shutil
+import struct
 import sys
 from contextlib import ExitStack
 from dataclasses import dataclass, field
@@ -35,23 +35,12 @@ import tyro
 from jaxtyping import Float
 from rich import box, style
 from rich.panel import Panel
-from rich.progress import (
-    BarColumn,
-    Progress,
-    TaskProgressColumn,
-    TextColumn,
-    TimeElapsedColumn,
-    TimeRemainingColumn,
-)
+from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn
 from rich.table import Table
 from torch import Tensor
 from typing_extensions import Annotated
 
-from nerfstudio.cameras.camera_paths import (
-    get_interpolated_camera_path,
-    get_path_from_json,
-    get_spiral_path,
-)
+from nerfstudio.cameras.camera_paths import get_interpolated_camera_path, get_path_from_json, get_spiral_path
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.data.scene_box import SceneBox
@@ -74,6 +63,7 @@ def _render_trajectory_video(
     output_format: Literal["images", "video"] = "video",
     image_format: Literal["jpeg", "png"] = "jpeg",
     jpeg_quality: int = 100,
+    concatenate_outputs: bool = False,
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions(),
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
@@ -87,6 +77,7 @@ def _render_trajectory_video(
         rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
         seconds: Length of output video.
         output_format: How to save output data.
+        concatenate_outputs: Whether to concatenate the outputs images.
         colormap_options: Options for colormap.
     """
     CONSOLE.print("[bold green]Creating trajectory " + output_format)
@@ -139,7 +130,12 @@ def _render_trajectory_video(
                     with torch.no_grad():
                         outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
 
-                render_image = []
+                # also save ground truth if specified
+                if "rgb_gt" in rendered_output_names:
+                    assert pipeline.datamanager.eval_dataset is not None
+                    outputs["rgb_gt"] = pipeline.datamanager.eval_dataset.get_image(camera_idx).to(pipeline.device)
+
+                render_images = []
                 for rendered_output_name in rendered_output_names:
                     if rendered_output_name not in outputs:
                         CONSOLE.rule("Error", style="red")
@@ -157,27 +153,41 @@ def _render_trajectory_video(
                         .cpu()
                         .numpy()
                     )
-                    render_image.append(output_image)
-                render_image = np.concatenate(render_image, axis=1)
-                if output_format == "images":
-                    if image_format == "png":
-                        media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image, fmt="png")
-                    if image_format == "jpeg":
-                        media.write_image(
-                            output_image_dir / f"{camera_idx:05d}.jpg", render_image, fmt="jpeg", quality=jpeg_quality
-                        )
-                if output_format == "video":
-                    if writer is None:
-                        render_width = int(render_image.shape[1])
-                        render_height = int(render_image.shape[0])
-                        writer = stack.enter_context(
-                            media.VideoWriter(
-                                path=output_filename,
-                                shape=(render_height, render_width),
-                                fps=fps,
+                    render_images.append(output_image)
+
+                if concatenate_outputs:
+                    render_images = [np.concatenate(render_images, axis=1)]
+                    render_names = ["composite"]
+                else:
+                    render_names = rendered_output_names
+
+                for render_name, render_image in zip(render_names, render_images):
+                    if output_format == "images":
+                        os.makedirs(output_image_dir / render_name, exist_ok=True)
+                        if image_format == "png":
+                            media.write_image(
+                                output_image_dir / render_name / f"{camera_idx:05d}.png", render_image, fmt="png"
                             )
-                        )
-                    writer.add_image(render_image)
+                        if image_format == "jpeg":
+                            media.write_image(
+                                output_image_dir / render_name / f"{camera_idx:05d}.jpg",
+                                render_image,
+                                fmt="jpeg",
+                                quality=jpeg_quality,
+                            )
+                    if output_format == "video":
+                        if writer is None:
+                            render_width = int(render_image.shape[1])
+                            render_height = int(render_image.shape[0])
+
+                            writer = stack.enter_context(
+                                media.VideoWriter(
+                                    path=output_image_dir / f"{render_name}.mp4",
+                                    shape=(render_height, render_width),
+                                    fps=fps,
+                                )
+                            )
+                        writer.add_image(render_image)
 
     table = Table(
         title=None,
@@ -315,6 +325,8 @@ class BaseRender:
     """Specifies number of rays per chunk during eval. If None, use the value in the config file."""
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions()
     """Colormap options."""
+    concatenate_outputs: bool = True
+    """Whether to concatenate the outputs images."""
 
 
 @dataclass
@@ -379,6 +391,7 @@ class RenderCameraPath(BaseRender):
             image_format=self.image_format,
             jpeg_quality=self.jpeg_quality,
             colormap_options=self.colormap_options,
+            concatenate_outputs=self.concatenate_outputs,
         )
 
         if (
@@ -410,6 +423,7 @@ class RenderCameraPath(BaseRender):
                 image_format=self.image_format,
                 jpeg_quality=self.jpeg_quality,
                 colormap_options=self.colormap_options,
+                concatenate_outputs=self.concatenate_outputs,
             )
 
             self.output_path = Path(str(left_eye_path.parent)[:-5] + ".mp4")
@@ -508,6 +522,7 @@ class RenderInterpolated(BaseRender):
             output_format=self.output_format,
             image_format=self.image_format,
             colormap_options=self.colormap_options,
+            concatenate_outputs=self.concatenate_outputs,
         )
 
 
@@ -551,6 +566,7 @@ class SpiralRender(BaseRender):
             output_format=self.output_format,
             image_format=self.image_format,
             colormap_options=self.colormap_options,
+            concatenate_outputs=self.concatenate_outputs,
         )
 
 
