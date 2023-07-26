@@ -65,7 +65,7 @@ class ProcessRecord3D(BaseConverterToNerfstudioDataset):
 
         summary_log = []
 
-        record3d_image_dir = self.data[0] / "rgb"
+        record3d_image_dir = self.data / "rgb"
 
         if not record3d_image_dir.exists():
             raise ValueError(f"Image directory {record3d_image_dir} doesn't exist")
@@ -100,7 +100,7 @@ class ProcessRecord3D(BaseConverterToNerfstudioDataset):
         # Downscale images
         summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
 
-        metadata_path = self.data[0] / "metadata.json"
+        metadata_path = self.data / "metadata.json"
         record3d_utils.record3d_to_json(copied_image_paths, metadata_path, self.output_dir, indices=idx)
         CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
 
@@ -147,26 +147,26 @@ class ProcessPolycam(BaseConverterToNerfstudioDataset):
 
         summary_log = []
 
-        if self.data[0].suffix == ".zip":
-            with zipfile.ZipFile(self.data[0], "r") as zip_ref:
+        if self.data.suffix == ".zip":
+            with zipfile.ZipFile(self.data, "r") as zip_ref:
                 zip_ref.extractall(self.output_dir)
                 extracted_folder = zip_ref.namelist()[0].split("/")[0]
-            self.data = (self.output_dir / extracted_folder,)
+            self.data = self.output_dir / extracted_folder
 
-        if (self.data[0] / "keyframes" / "corrected_images").exists() and not self.use_uncorrected_images:
-            polycam_image_dir = self.data[0] / "keyframes" / "corrected_images"
-            polycam_cameras_dir = self.data[0] / "keyframes" / "corrected_cameras"
+        if (self.data / "keyframes" / "corrected_images").exists() and not self.use_uncorrected_images:
+            polycam_image_dir = self.data / "keyframes" / "corrected_images"
+            polycam_cameras_dir = self.data / "keyframes" / "corrected_cameras"
         else:
-            polycam_image_dir = self.data[0] / "keyframes" / "images"
-            polycam_cameras_dir = self.data[0] / "keyframes" / "cameras"
+            polycam_image_dir = self.data / "keyframes" / "images"
+            polycam_cameras_dir = self.data / "keyframes" / "cameras"
             if not self.use_uncorrected_images:
                 CONSOLE.print("[bold yellow]Corrected images not found, using raw images.")
 
         if not polycam_image_dir.exists():
             raise ValueError(f"Image directory {polycam_image_dir} doesn't exist")
 
-        if not (self.data[0] / "keyframes" / "depth").exists():
-            depth_dir = self.data[0] / "keyframes" / "depth"
+        if not (self.data / "keyframes" / "depth").exists():
+            depth_dir = self.data / "keyframes" / "depth"
             raise ValueError(f"Depth map directory {depth_dir} doesn't exist")
 
         (image_processing_log, polycam_image_filenames) = polycam_utils.process_images(
@@ -182,7 +182,7 @@ class ProcessPolycam(BaseConverterToNerfstudioDataset):
 
         polycam_depth_filenames = []
         if self.use_depth:
-            polycam_depth_image_dir = self.data[0] / "keyframes" / "depth"
+            polycam_depth_image_dir = self.data / "keyframes" / "depth"
             depth_dir = self.output_dir / "depth"
             depth_dir.mkdir(parents=True, exist_ok=True)
             (depth_processing_log, polycam_depth_filenames) = polycam_utils.process_depth_maps(
@@ -254,12 +254,12 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
 
-        assert len(self.data) == 1, "Only one dataset can be processed at a time"
+        assert self.eval_data is None, "Only one dataset can be processed at a time"
 
         summary_log = []
 
         # Copy images to output directory
-        image_filenames, num_orig_images = process_data_utils.get_image_filenames(self.data[0], self.max_dataset_size)
+        image_filenames, num_orig_images = process_data_utils.get_image_filenames(self.data, self.max_dataset_size)
         copied_image_paths = process_data_utils.copy_images_list(
             image_filenames,
             image_dir=image_dir,
@@ -343,12 +343,12 @@ class ProcessRealityCapture(BaseConverterToNerfstudioDataset, _NoDefaultProcessR
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
 
-        assert len(self.data) == 1, "Only one dataset can be processed at a time"
+        assert self.eval_data is None, "Only one dataset can be processed at a time"
 
         summary_log = []
 
         # Copy images to output directory
-        image_filenames, num_orig_images = process_data_utils.get_image_filenames(self.data[0], self.max_dataset_size)
+        image_filenames, num_orig_images = process_data_utils.get_image_filenames(self.data, self.max_dataset_size)
         copied_image_paths = process_data_utils.copy_images_list(
             image_filenames,
             image_dir=image_dir,

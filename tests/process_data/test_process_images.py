@@ -77,7 +77,7 @@ def test_process_images_skip_colmap(tmp_path: Path):
 
     # Convert images into a NerfStudio dataset
     cmd = ImagesToNerfstudioDataset(
-        data=(tmp_path / "images",), output_dir=tmp_path / "nerfstudio", colmap_model_path=sparse_path, skip_colmap=True
+        data=tmp_path / "images", output_dir=tmp_path / "nerfstudio", colmap_model_path=sparse_path, skip_colmap=True
     )
     cmd.main()
     os.environ["PATH"] = old_path

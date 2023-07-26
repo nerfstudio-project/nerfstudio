@@ -45,16 +45,14 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
 
         # Generate planar projections if equirectangular
         if self.camera_type == "equirectangular":
-            pers_size = equirect_utils.compute_resolution_from_equirect(self.data[0], self.images_per_equirect)
+            pers_size = equirect_utils.compute_resolution_from_equirect(self.data, self.images_per_equirect)
             CONSOLE.log(f"Generating {self.images_per_equirect} {pers_size} sized images per equirectangular image")
-            self.data = (
-                equirect_utils.generate_planar_projections_from_equirectangular(
-                    self.data[0], pers_size, self.images_per_equirect, crop_factor=self.crop_factor
-                ),
+            self.data = equirect_utils.generate_planar_projections_from_equirectangular(
+                self.data, pers_size, self.images_per_equirect, crop_factor=self.crop_factor
             )
             self.camera_type = "perspective"
 
-        assert len(self.data) == 1, "Only one data source is supported for images"
+        assert self.eval_data is None, "Only one data source is supported for images"
 
         summary_log = []
 
@@ -62,7 +60,7 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
         if not self.skip_image_processing:
             # Copy images to output directory
             image_rename_map_paths = process_data_utils.copy_images(
-                self.data[0], image_dir=self.image_dir, crop_factor=self.crop_factor, verbose=self.verbose
+                self.data, image_dir=self.image_dir, crop_factor=self.crop_factor, verbose=self.verbose
             )
             image_rename_map = dict((a.name, b.name) for a, b in image_rename_map_paths.items())
             num_frames = len(image_rename_map)
@@ -73,7 +71,7 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                 process_data_utils.downscale_images(self.image_dir, self.num_downscales, verbose=self.verbose)
             )
         else:
-            num_frames = len(process_data_utils.list_images(self.data[0]))
+            num_frames = len(process_data_utils.list_images(self.data))
             if num_frames == 0:
                 raise RuntimeError("No usable images in the data folder.")
             summary_log.append(f"Starting with {num_frames} images")

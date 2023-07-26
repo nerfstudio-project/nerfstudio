@@ -44,39 +44,43 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
         summary_log = []
         # Convert video to images
         if self.camera_type == "equirectangular":
-            assert len(self.data) == 1, "Only one video can be processed at a time for equirectangular camera type."
+            assert self.eval_data is None, "Only one video can be processed at a time for equirectangular camera type."
             # create temp images folder to store the equirect and perspective images
             temp_image_dir = self.output_dir / "temp_images"
             temp_image_dir.mkdir(parents=True, exist_ok=True)
             summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
-                self.data[0],
+                self.data,
                 image_dir=temp_image_dir,
                 num_frames_target=self.num_frames_target,
                 crop_factor=(0.0, 0.0, 0.0, 0.0),
                 verbose=self.verbose,
             )
         else:
+            # Convert video to images
             summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
-                self.data[0],
+                self.data,
                 image_dir=self.image_dir,
                 num_frames_target=self.num_frames_target,
                 crop_factor=self.crop_factor,
                 verbose=self.verbose,
-                image_prefix="frame_train_" if len(self.data) == 2 else "frame_",
+                image_prefix="frame_train_" if self.eval_data is not None else "frame_",
             )
 
-            if len(self.data) == 2:
+            # Convert the eval video to images
+            if self.eval_data is not None:
+                # Create temporal directory for processing the eval video
                 temp_image_dir = self.output_dir / "temp_images"
                 temp_image_dir.mkdir(parents=True, exist_ok=True)
                 summary_log_eval, num_extracted_frames_eval = process_data_utils.convert_video_to_images(
-                    self.data[1],
+                    self.eval_data,
                     image_dir=temp_image_dir,
                     num_frames_target=self.num_frames_target,
                     verbose=self.verbose,
                 )
                 summary_log += summary_log_eval
                 num_extracted_frames += num_extracted_frames_eval
-                # copy the images from the temp directory to the image directory
+                # copy the images from the temp directory to the image directory.
+                # name the images with the prefix "frame_eval_"
                 process_data_utils.copy_images(
                     temp_image_dir,
                     image_dir=self.image_dir,

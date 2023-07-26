@@ -56,11 +56,11 @@ class NerfstudioDataParserConfig(DataParserConfig):
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
     eval_mode: Literal["train-split-fraction", "eval-frame-index", "eval-interval"] = "train-split-fraction"
-    """The method to use for splitting the dataset into train and eval."""
+    """The method to use for splitting the dataset into train and eval. eval-frame-index splits based on image names."""
     train_split_fraction: float = 0.9
-    """The index of the frames to use for eval. Eval frames are names frame_1_00001.png, frame_1_00002.png, etc."""
+    """The percentage of the dataset to use for training. Only used when eval_mode is train-split-fraction."""
     eval_interval: int = 8
-    """The interval between frames to use for eval."""
+    """The interval between frames to use for eval. Only used when eval_mode is eval-interval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
 

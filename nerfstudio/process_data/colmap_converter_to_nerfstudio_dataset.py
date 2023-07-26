@@ -189,7 +189,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
 
         # set the image_dir if didn't copy
         if self.skip_image_processing:
-            image_dir = self.data[0]
+            image_dir = self.data
         else:
             image_dir = self.image_dir
 
