@@ -747,8 +747,6 @@ class Cameras(TensorDataclass):
 
             rotation = c2w[..., :3, :3]
 
-            -torch.pi * ((x - cx) / fx)[0]
-
             # interocular axis of the VR180 camera
             vr180_x_axis = torch.tensor([1, 0, 0], device=c2w.device)
 

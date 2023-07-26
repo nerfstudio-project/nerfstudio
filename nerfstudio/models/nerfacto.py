@@ -19,7 +19,7 @@ NeRF implementation that combines many recent advancements.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Tuple, Type, Optional
+from typing import Dict, List, Literal, Optional, Tuple, Type
 
 import numpy as np
 import torch
@@ -167,7 +167,7 @@ class NerfactoModel(Model):
         )
 
         # this can be set by the pipeline
-        # is set, then we create a visibility outputs
+        # if set, then we create a visibility outputs
         self.visibility_field: Optional[VisibilityField] = None
 
         self.density_fns = []

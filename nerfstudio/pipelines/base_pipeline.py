@@ -17,6 +17,7 @@ Abstracts for the Pipeline class.
 """
 from __future__ import annotations
 
+import math
 import typing
 from abc import abstractmethod
 from dataclasses import dataclass, field
@@ -25,35 +26,23 @@ from time import time
 from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Type, Union, cast
 
 import torch
-import math
 import torch.distributed as dist
 from PIL import Image
-from rich.progress import (
-    BarColumn,
-    MofNCompleteColumn,
-    Progress,
-    TextColumn,
-    TimeElapsedColumn,
-)
+from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeElapsedColumn
 from torch import nn
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
-from nerfstudio.fields.visibility_field import VisibilityField
 
-
+from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.configs import base_config as cfg
-from nerfstudio.data.datamanagers.base_datamanager import (
-    DataManager,
-    DataManagerConfig,
-    VanillaDataManager,
-)
+from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig, VanillaDataManager
+from nerfstudio.data.datamanagers.random_cameras_datamanager import random_train_pose
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
+from nerfstudio.fields.visibility_field import VisibilityField
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
-from nerfstudio.data.datamanagers.random_cameras_datamanager import random_train_pose
 from nerfstudio.utils.misc import step_check
-from nerfstudio.cameras.cameras import Cameras
 
 
 def module_wrapper(ddp_or_model: Union[DDP, Model]) -> Model:
@@ -303,7 +292,7 @@ class VanillaPipeline(Pipeline):
 
         if self.config.use_visibility_loss:
             # initialize the visibility field
-            cameras = typing.cast(Cameras, self.datamanager.train_dataparser_outputs.cameras.to(self.device))
+            cameras = typing.cast(Cameras, self.datamanager.train_dataparser_outputs.cameras.to(self.device))  # type: ignore
             # TODO(ethan): make sure only the training cameras are being used
             self.model.visibility_field = VisibilityField(cameras).to(self.device)
 
@@ -340,10 +329,12 @@ class VanillaPipeline(Pipeline):
 
         if self.config.use_visibility_loss and step_check(step, self.config.visibility_steps_per_loss):
             # randomly sample a center within the aabb
-            center: List[float, float, float] = (
-                torch.rand((3,), device=self.device) * (2 * self.config.visibility_radius)
-                - self.config.visibility_radius
-            ).tolist()
+            center: Tuple[float, float, float] = tuple(
+                (
+                    torch.rand((3,), device=self.device) * (2 * self.config.visibility_radius)
+                    - self.config.visibility_radius
+                ).tolist()
+            )
             cameras, _, _ = random_train_pose(
                 size=self.config.visibility_num_rays,
                 resolution=1,
@@ -365,16 +356,16 @@ class VanillaPipeline(Pipeline):
             quantity_list = model_outputs_rays[
                 f"{self.config.visibility_loss_quantity}_list"
             ]  # weights_list or densities_list
-            visibility_loss = 0.0
+            visibility_loss = torch.zeros(1, device=self.device)
             for i in range(len(quantity_list)):
                 quantity_samples = quantity_list[i]
                 ray_samples = model_outputs_rays["ray_samples_list"][i]
-                visibility_samples = self.model.visibility_field(ray_samples)
+                visibility_samples = self.model.visibility_field(ray_samples)  # type: ignore
                 quantity_samples_masked = quantity_samples[visibility_samples < self.config.visibility_min_views]
                 if quantity_samples_masked.numel() != 0:
                     visibility_loss_i = self.config.visibility_loss_mult * quantity_samples_masked.mean()
                     visibility_loss += visibility_loss_i
-            loss_dict["visibility_loss"] = visibility_loss
+            loss_dict.update({"visibility_loss": visibility_loss})
 
         return model_outputs, loss_dict, metrics_dict
 

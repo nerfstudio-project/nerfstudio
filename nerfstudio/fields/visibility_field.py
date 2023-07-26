@@ -37,7 +37,7 @@ class VisibilityField(nn.Module):
         self.image_width = cameras.width
 
     @torch.no_grad()
-    def forward(self, ray_samples: RaySamples, camera_chunk_size=50, ray_chunk_size=4096):
+    def forward(self, ray_samples: RaySamples, camera_chunk_size=50, ray_chunk_size=4096) -> torch.Tensor:
         """
         Args:
             ray_samples: Ray samples.
