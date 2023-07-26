@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "0.3.1"
+version = "0.3.2"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -43,13 +43,14 @@ dependencies = [
     "pyngrok>=5.1.0",
     "python-socketio>=5.7.1",
     "pyquaternion>=0.9.9",
+    "rawpy>=0.18.1",
     "requests",
     "rich>=12.5.1",
     "scikit-image>=0.19.3",
     "tensorboard>=2.13.0",
     "torch>=1.13.1",
     "torchvision>=0.14.1",
-    "torchmetrics[image]>=0.9.3",
+    "torchmetrics[image]>=1.0.1",
     "typing_extensions>=4.4.0",
     "viser>=0.0.12",
     "nuscenes-devkit>=1.1.1",
@@ -68,6 +69,9 @@ dependencies = [
 gen = [
     "diffusers==0.16.1",
     "transformers==4.29.2",
+    "accelerate==0.19.0",
+    "bitsandbytes==0.39.0",
+    "sentencepiece==0.1.99",
 ]
 
 
@@ -80,7 +84,7 @@ dev = [
     "typeguard==2.13.3",
     "ruff==0.0.267",
     "sshconf==0.2.5",
-    "pycolmap==0.3.0",
+    "pycolmap>=0.3.0",  # NOTE: pycolmap==0.3.0 is not available on newer python versions
     "diffusers==0.16.1",
     "opencv-stubs==0.0.7",
     "transformers==4.29.2",

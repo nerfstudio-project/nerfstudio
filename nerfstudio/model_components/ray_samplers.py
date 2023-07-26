@@ -574,7 +574,7 @@ class ProposalNetworkSampler(Sampler):
         self,
         ray_bundle: Optional[RayBundle] = None,
         density_fns: Optional[List[Callable]] = None,
-    ) -> Tuple[RaySamples, List, List]:
+    ) -> Tuple[RaySamples, List, List, List]:
         assert ray_bundle is not None
         assert density_fns is not None
 

@@ -20,12 +20,21 @@ from __future__ import annotations
 import typing
 from abc import abstractmethod
 from dataclasses import dataclass, field
+from pathlib import Path
 from time import time
 from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Type, Union, cast
 
 import torch
+import math
 import torch.distributed as dist
-from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeElapsedColumn
+from PIL import Image
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from torch import nn
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn import Parameter
@@ -34,10 +43,17 @@ from nerfstudio.fields.visibility_field import VisibilityField
 
 
 from nerfstudio.configs import base_config as cfg
-from nerfstudio.data.datamanagers.base_datamanager import DataManager, VanillaDataManager, VanillaDataManagerConfig
+from nerfstudio.data.datamanagers.base_datamanager import (
+    DataManager,
+    DataManagerConfig,
+    VanillaDataManager,
+)
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
+from nerfstudio.data.datamanagers.random_cameras_datamanager import random_train_pose
+from nerfstudio.utils.misc import step_check
+from nerfstudio.cameras.cameras import Cameras
 
 
 def module_wrapper(ddp_or_model: Union[DDP, Model]) -> Model:
@@ -96,7 +112,7 @@ class Pipeline(nn.Module):
         """Returns the device that the model is on."""
         return self.model.device
 
-    def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
+    def load_state_dict(self, state_dict: Mapping[str, Any], strict: Optional[bool] = None):
         is_ddp_model_state = True
         model_state = {}
         for key, value in state_dict.items():
@@ -112,7 +128,15 @@ class Pipeline(nn.Module):
             model_state = {key[len("module.") :]: value for key, value in model_state.items()}
 
         pipeline_state = {key: value for key, value in state_dict.items() if not key.startswith("_model.")}
-        self.model.load_state_dict(model_state, strict=strict)
+
+        try:
+            self.model.load_state_dict(model_state, strict=True)
+        except RuntimeError:
+            if not strict:
+                self.model.load_state_dict(model_state, strict=False)
+            else:
+                raise
+
         super().load_state_dict(pipeline_state, strict=False)
 
     @profiler.time_function
@@ -165,8 +189,16 @@ class Pipeline(nn.Module):
 
     @abstractmethod
     @profiler.time_function
-    def get_average_eval_image_metrics(self, step: Optional[int] = None):
-        """Iterate over all the images in the eval dataset and get the average."""
+    def get_average_eval_image_metrics(
+        self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: bool = False
+    ):
+        """Iterate over all the images in the eval dataset and get the average.
+
+        Args:
+            step: current training step
+            output_path: optional path to save rendered images to
+            get_std: Set True if you want to return std with the mean metric.
+        """
 
     def load_pipeline(self, loaded_state: Dict[str, Any], step: int) -> None:
         """Load the checkpoint from the given path
@@ -197,18 +229,24 @@ class VanillaPipelineConfig(cfg.InstantiateConfig):
 
     _target: Type = field(default_factory=lambda: VanillaPipeline)
     """target class to instantiate"""
-    datamanager: VanillaDataManagerConfig = VanillaDataManagerConfig()
+    datamanager: DataManagerConfig = DataManagerConfig()
     """specifies the datamanager config"""
     model: ModelConfig = ModelConfig()
     """specifies the model config"""
     use_visibility_loss: bool = False
     """whether to apply the visibility loss"""
+    visibility_steps_per_loss: int = 10
+    """how often to apply the visibility loss"""
     visibility_loss_quantity: Literal["weights", "densities"] = "densities"
     """whether to apply the visibility loss to weights or densities"""
     visibility_loss_mult: float = 1.0
     """multiplier for the visibility loss"""
     visibility_min_views: int = 1
     """minimum number of views for the visibility loss"""
+    visibility_num_rays: int = 10
+    """number of rays per batch to use for the visibility loss"""
+    visibility_radius: float = 1.0
+    """radius for the visibility loss"""
 
 
 class VanillaPipeline(Pipeline):
@@ -242,7 +280,7 @@ class VanillaPipeline(Pipeline):
         super().__init__()
         self.config = config
         self.test_mode = test_mode
-        self.datamanager: VanillaDataManager = config.datamanager.setup(
+        self.datamanager: DataManager = config.datamanager.setup(
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
         self.datamanager.to(device)
@@ -264,11 +302,8 @@ class VanillaPipeline(Pipeline):
             dist.barrier(device_ids=[local_rank])
 
         if self.config.use_visibility_loss:
-            # bounding box of the scene
-            self.aabb = self.datamanager.train_dataset.scene_box.aabb.to(self.device) * self.config.aabb_scalar
-
             # initialize the visibility field
-            cameras = self.datamanager.train_dataparser_outputs.cameras.to(self.device)
+            cameras = typing.cast(Cameras, self.datamanager.train_dataparser_outputs.cameras.to(self.device))
             # TODO(ethan): make sure only the training cameras are being used
             self.model.visibility_field = VisibilityField(cameras).to(self.device)
 
@@ -303,18 +338,20 @@ class VanillaPipeline(Pipeline):
 
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
 
-        if self.config.use_visibility_loss:
+        if self.config.use_visibility_loss and step_check(step, self.config.visibility_steps_per_loss):
             # randomly sample a center within the aabb
-            center = (torch.rand(3, device=self.device) * (self.aabb[1] - self.aabb[0]) + self.aabb[0]).tolist()
+            center: List[float, float, float] = (
+                torch.rand((3,), device=self.device) * (2 * self.config.visibility_radius)
+                - self.config.visibility_radius
+            ).tolist()
             cameras, _, _ = random_train_pose(
                 size=self.config.visibility_num_rays,
                 resolution=1,
                 device=self.device,
-                radius_mean=self.config.aabb_scalar * math.sqrt(3.0),
+                radius_mean=self.config.visibility_radius * math.sqrt(3.0),
                 radius_std=0.0,
                 central_rotation_range=(0, 360),
                 vertical_rotation_range=(-90, 90),
-                focal_range=self.config.focal_range,
                 jitter_std=0,
                 center=center,
             )
@@ -325,36 +362,14 @@ class VanillaPipeline(Pipeline):
             # ray_bundle is (1, 1, self.config.visibility_num_rays)
             ray_bundle_rays = ray_bundle_rays.flatten()
             model_outputs_rays = self.model(ray_bundle_rays)
-            quantity_list = model_outputs_rays[f"{self.config.visibility_loss_quantity}_list"]  # weights or densities
+            quantity_list = model_outputs_rays[
+                f"{self.config.visibility_loss_quantity}_list"
+            ]  # weights_list or densities_list
             visibility_loss = 0.0
             for i in range(len(quantity_list)):
                 quantity_samples = quantity_list[i]
                 ray_samples = model_outputs_rays["ray_samples_list"][i]
                 visibility_samples = self.model.visibility_field(ray_samples)
-
-                with torch.no_grad():
-                    if (
-                        self.config.sample_method in ["importance", "random"]
-                        and self.config.weight_grid_quantity == "visibility"
-                    ):
-                        if step % self.config.weight_grid_update_per_step == 0:
-                            if i - 1 == len(quantity_list):
-                                # update the weight grid
-                                # get positions
-                                positions = ray_samples.frustums.get_positions()
-                                print(positions.shape)
-                                normalized_positions = SceneBox.get_normalized_positions(positions, self.aabb)
-                                # UPDATE THE WEIGHT GRID
-                                normalized_positions = normalized_positions.view(-1, 3)
-                                quant = visibility_samples.view(-1, 1)
-                                # only use positions between 0 inclusive and 1 exclusive
-                                mask = (normalized_positions >= 0.0) & (normalized_positions < 1.0)
-                                mask = mask[:, 0] & mask[:, 1] & mask[:, 2]
-                                normalized_positions = normalized_positions[mask]
-                                quant = quant[mask]
-                                if normalized_positions.numel() != 0:
-                                    self.weight_grid.update(normalized_positions, quant)
-
                 quantity_samples_masked = quantity_samples[visibility_samples < self.config.visibility_min_views]
                 if quantity_samples_masked.numel() != 0:
                     visibility_loss_i = self.config.visibility_loss_mult * quantity_samples_masked.mean()
@@ -406,14 +421,22 @@ class VanillaPipeline(Pipeline):
         return metrics_dict, images_dict
 
     @profiler.time_function
-    def get_average_eval_image_metrics(self, step: Optional[int] = None):
+    def get_average_eval_image_metrics(
+        self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: bool = False
+    ):
         """Iterate over all the images in the eval dataset and get the average.
+
+        Args:
+            step: current training step
+            output_path: optional path to save rendered images to
+            get_std: Set True if you want to return std with the mean metric.
 
         Returns:
             metrics_dict: dictionary of metrics
         """
         self.eval()
         metrics_dict_list = []
+        assert isinstance(self.datamanager, VanillaDataManager)
         num_images = len(self.datamanager.fixed_indices_eval_dataloader)
         with Progress(
             TextColumn("[progress.description]{task.description}"),
@@ -429,7 +452,15 @@ class VanillaPipeline(Pipeline):
                 height, width = camera_ray_bundle.shape
                 num_rays = height * width
                 outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                metrics_dict, _ = self.model.get_image_metrics_and_images(outputs, batch)
+                metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
+
+                if output_path is not None:
+                    camera_indices = camera_ray_bundle.camera_indices
+                    assert camera_indices is not None
+                    for key, val in images_dict.items():
+                        Image.fromarray((val * 255).byte().cpu().numpy()).save(
+                            output_path / "{0:06d}-{1}.jpg".format(int(camera_indices[0, 0, 0]), key)
+                        )
                 assert "num_rays_per_sec" not in metrics_dict
                 metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)
                 fps_str = "fps"
@@ -440,9 +471,16 @@ class VanillaPipeline(Pipeline):
         # average the metrics list
         metrics_dict = {}
         for key in metrics_dict_list[0].keys():
-            metrics_dict[key] = float(
-                torch.mean(torch.tensor([metrics_dict[key] for metrics_dict in metrics_dict_list]))
-            )
+            if get_std:
+                key_std, key_mean = torch.std_mean(
+                    torch.tensor([metrics_dict[key] for metrics_dict in metrics_dict_list])
+                )
+                metrics_dict[key] = float(key_mean)
+                metrics_dict[f"{key}_std"] = float(key_std)
+            else:
+                metrics_dict[key] = float(
+                    torch.mean(torch.tensor([metrics_dict[key] for metrics_dict in metrics_dict_list]))
+                )
         self.train()
         return metrics_dict
 
@@ -457,7 +495,7 @@ class VanillaPipeline(Pipeline):
             (key[len("module.") :] if key.startswith("module.") else key): value for key, value in loaded_state.items()
         }
         self.model.update_to_step(step)
-        self.load_state_dict(state, strict=True)
+        self.load_state_dict(state)
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
