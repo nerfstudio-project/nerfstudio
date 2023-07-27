@@ -436,5 +436,5 @@ class ViewerVec3(ViewerParameter[Tuple[float, float, float]]):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         self.gui_handle = viser_server.add_gui_vector3(
-            self.name, self.default_value, self.step, disabled=self.disabled, hint=self.hint
+            self.name, self.default_value, step=self.step, disabled=self.disabled, hint=self.hint
         )
