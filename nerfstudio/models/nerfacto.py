@@ -41,6 +41,8 @@ from nerfstudio.model_components.losses import (
     orientation_loss,
     pred_normal_loss,
     scale_gradients_by_distance_squared,
+    hash_decay_loss,
+    zipnerf_loss,
 )
 from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler, UniformSampler
 from nerfstudio.model_components.renderers import AccumulationRenderer, DepthRenderer, NormalsRenderer, RGBRenderer
@@ -79,7 +81,7 @@ class NerfactoModelConfig(ModelConfig):
     """How many hashgrid features per level"""
     num_proposal_samples_per_ray: Tuple[int, ...] = (256, 96)
     """Number of samples per ray for each proposal network."""
-    num_nerf_samples_per_ray: int = 48
+    num_nerf_samples_per_ray: int = 64
     """Number of samples per ray for the nerf network."""
     proposal_update_every: int = 5
     """Sample every n steps after the warmup"""
@@ -91,8 +93,8 @@ class NerfactoModelConfig(ModelConfig):
     """Use the same proposal network. Otherwise use different ones."""
     proposal_net_args_list: List[Dict] = field(
         default_factory=lambda: [
-            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 128, "use_linear": False},
             {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 256, "use_linear": False},
+            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 512, "use_linear": False},
         ]
     )
     """Arguments for the proposal density fields."""
@@ -100,19 +102,27 @@ class NerfactoModelConfig(ModelConfig):
     """Initial sampler for the proposal network. Piecewise is preferred for unbounded scenes."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
+    interlevel_loss_type: Literal["mipnerf", "zipnerf"] = "mipnerf"
+    """Type of interlevel loss."""
     distortion_loss_mult: float = 0.002
     """Distortion loss multiplier."""
     orientation_loss_mult: float = 0.0001
     """Orientation loss multiplier on computed normals."""
     pred_normal_loss_mult: float = 0.001
     """Predicted normal loss multiplier."""
+    hash_decay_loss_mult: float = 0.001
+    """Hash decay loss multiplier."""
+    compute_hash_regularization: bool = False
+    """Whether to compute regularization on hash weights."""
     use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""
+    regularize_function: Literal["abs", "square"] = "square"
+    """Regularize function for hash pyramid weights."""
     use_average_appearance_embedding: bool = True
     """Whether to use average appearance embedding or zeros for inference."""
     proposal_weights_anneal_slope: float = 10.0
     """Slope of the annealing function for the proposal weights."""
-    proposal_weights_anneal_max_num_iters: int = 1000
+    proposal_weights_anneal_max_num_iters: int = 1
     """Max num iterations for the annealing function."""
     use_single_jitter: bool = True
     """Whether use single jitter or not for the proposal networks."""
@@ -146,6 +156,8 @@ class NerfactoModel(Model):
         else:
             scene_contraction = SceneContraction(order=float("inf"))
 
+        regularize_function = getattr(torch, self.config.regularize_function, torch.square)
+
         # Fields
         self.field = NerfactoField(
             self.scene_box.aabb,
@@ -162,6 +174,8 @@ class NerfactoModel(Model):
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
             appearance_embedding_dim=self.config.appearance_embed_dim,
+            regularize_function=regularize_function,
+            compute_hash_regularization=self.config.compute_hash_regularization,
             implementation=self.config.implementation,
         )
 
@@ -176,6 +190,8 @@ class NerfactoModel(Model):
                 self.scene_box.aabb,
                 spatial_distortion=scene_contraction,
                 **prop_net_args,
+                regularize_function=regularize_function,
+                compute_hash_regularization=self.config.compute_hash_regularization,
                 implementation=self.config.implementation,
             )
             self.proposal_networks.append(network)
@@ -187,6 +203,8 @@ class NerfactoModel(Model):
                     self.scene_box.aabb,
                     spatial_distortion=scene_contraction,
                     **prop_net_args,
+                    regularize_function=regularize_function,
+                    compute_hash_regularization=self.config.compute_hash_regularization,
                     implementation=self.config.implementation,
                 )
                 self.proposal_networks.append(network)
@@ -228,6 +246,10 @@ class NerfactoModel(Model):
 
         # losses
         self.rgb_loss = MSELoss()
+        if self.config.interlevel_loss_type == "mipnerf":
+            self.interlevel_loss = interlevel_loss
+        else:
+            self.interlevel_loss = zipnerf_loss
 
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
@@ -305,6 +327,12 @@ class NerfactoModel(Model):
             outputs["weights_list"] = weights_list
             outputs["ray_samples_list"] = ray_samples_list
 
+            if self.config.compute_hash_regularization:
+                outputs["hash_decay"] = []
+                for proposal_network in self.proposal_networks:
+                    outputs["hash_decay"].append(proposal_network.get_outputs()[FieldHeadNames.HASH_DECAY])  # type: ignore
+                outputs["hash_decay"].append(field_outputs[FieldHeadNames.HASH_DECAY])
+
         if self.training and self.config.predict_normals:
             outputs["rendered_orientation_loss"] = orientation_loss(
                 weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
@@ -343,11 +371,15 @@ class NerfactoModel(Model):
 
         loss_dict["rgb_loss"] = self.rgb_loss(gt_rgb, pred_rgb)
         if self.training:
-            loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
+            loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * self.interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
             )
             assert metrics_dict is not None and "distortion" in metrics_dict
             loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
+
+            if self.config.compute_hash_regularization:
+                loss_dict["hash_decay_loss"] = self.config.hash_decay_loss_mult * hash_decay_loss(outputs["hash_decay"])
+
             if self.config.predict_normals:
                 # orientation loss for computed normals
                 loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(

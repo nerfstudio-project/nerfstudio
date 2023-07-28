@@ -17,7 +17,9 @@
 from dataclasses import dataclass
 from typing import Literal, Tuple
 
+import math
 import torch
+import numpy as np
 from jaxtyping import Bool, Float
 from torch import Tensor
 
@@ -185,6 +187,105 @@ def conical_frustum_to_gaussian(
     return compute_3d_gaussian(directions, means, dir_variance, radius_variance)
 
 
+def multisampled_frustum_to_gaussian(
+    origins: Float[Tensor, "*batch num_samples 3"],
+    directions: Float[Tensor, "*batch num_samples 3"],
+    starts: Float[Tensor, "*batch num_samples 1"],
+    ends: Float[Tensor, "*batch num_samples 1"],
+    radius: Float[Tensor, "*batch num_samples 1"],
+    rand: bool = True,
+    cov_scale: float = 0.5,
+    eps: float = 1e-10,
+) -> Gaussians:
+    """Approximates frustums with a Gaussian distributions via multisampling.
+    Proposed in ZipNeRF https://arxiv.org/pdf/2304.06706.pdf
+
+    Taken from https://github.com/SuLvXiangXin/zipnerf-pytorch/blob/b1cb42943d244301a013bd53f9cb964f576b0af4/internal/render.py#L92
+
+    Args:
+        origins: Origins of cones.
+        directions: Direction (axis) of frustums.
+        starts: Start of frustums.
+        ends: End of frustums.
+        radius: Radii of cone a distance of 1 from the origin.
+        rand: Whether should add noise to points or not.
+        cov_scale: Covariance scale parameter.
+        eps: Small number.
+
+    Returns:
+        Gaussians: Approximation of frustums via multisampling
+    """
+
+    # middle points
+    t_m = (starts + ends) / 2.0
+    # half of the width
+    t_d = (ends - starts) / 2.0
+
+    # prepare 6-point hexagonal pattern for each sample
+    j = torch.arange(6, device=starts.device, dtype=starts.dtype)
+    t = starts + t_d / (t_d**2 + 3 * t_m**2) * (
+        ends**2 + 2 * t_m**2 + 3 / 7**0.5 * (2 * j / 5 - 1) * ((t_d**2 - t_m**2) ** 2 + 4 * t_m**4).sqrt()
+    )  # [..., num_samples, 6]
+
+    deg = torch.pi / 3 * starts.new_tensor([0, 2, 4, 3, 5, 1]).broadcast_to(t.shape)
+    if rand:
+        # randomly rotate and flip
+        mask = torch.rand_like(starts) > 0.5  # [..., num_samples, 1]
+        deg = deg + 2 * torch.pi * torch.rand_like(starts)
+        deg = torch.where(mask, deg, 5 * torch.pi / 3.0 - deg)
+    else:
+        # rotate 30 degree and flip every other pattern
+        mask = (
+            (
+                torch.arange(
+                    end=starts.shape[-2],
+                    device=starts.device,
+                    dtype=starts.dtype,
+                )
+                % 2
+                == 0
+            )
+            .unsqueeze(-1)
+            .broadcast_to(starts.shape)
+        )  # [..., num_samples, 6]
+        deg = torch.where(mask, deg, deg + torch.pi / 6.0)
+        deg = torch.where(mask, deg, 5 * torch.pi / 3.0 - deg)
+
+    means = torch.stack(
+        [
+            radius * t * torch.cos(deg) / 2**0.5,
+            radius * t * torch.sin(deg) / 2**0.5,
+            t,
+        ],
+        dim=-1,
+    )  # [..., "num_samples", 6, 3]
+    stds = cov_scale * radius * t / 2**0.5  # [..., "num_samples", 6]
+
+    # extend stds as diagonal
+    # stds = stds.unsqueeze(-1).broadcast_to(*stds.shape, 3).diag_embed() # [..., "num_samples", 6, 3, 3]
+
+    # two basis in parallel to the image plane
+    rand_vec = torch.rand(
+        list(directions.shape[:-2]) + [1, 3],
+        device=directions.device,
+        dtype=directions.dtype,
+    )  # [..., 1, 3]
+    ortho1 = torch.nn.functional.normalize(
+        torch.cross(directions, rand_vec, dim=-1), dim=-1, eps=eps
+    )  # [..., num_samples, 3]
+    ortho2 = torch.nn.functional.normalize(
+        torch.cross(directions, ortho1, dim=-1), dim=-1, eps=eps
+    )  # [..., num_samples, 3]
+
+    # just use directions to be the third vector of the orthonormal basis,
+    # while the cross section of cone is parallel to the image plane
+    basis_matrix = torch.stack([ortho1, ortho2, directions], dim=-1)
+    means = torch.matmul(means, basis_matrix.transpose(-1, -2))  # [..., "num_samples", 6, 3]
+    means = means + origins[..., None, :]
+
+    return Gaussians(mean=means, cov=stds)
+
+
 def expected_sin(x_means: torch.Tensor, x_vars: torch.Tensor) -> torch.Tensor:
     """Computes the expected value of sin(y) where y ~ N(x_means, x_vars)
 
@@ -324,4 +425,76 @@ def normalized_depth_scale_and_shift(
     shift[valid] = (-a_01[valid] * b_0[valid] + a_00[valid] * b_1[valid]) / det[valid]
 
     return scale, shift
-    return scale, shift
+
+
+def power_fn(x: torch.Tensor, lam: float = -1.5, max_bound: float = 1e10) -> torch.Tensor:
+    """Power transformation function from Eq. 4 in ZipNeRF paper."""
+
+    if lam == 1:
+        return x
+    if lam == 0:
+        return torch.log1p(x)
+    # infinity case
+    if lam > max_bound:
+        return torch.expm1(x)
+    # -infinity case
+    if lam < -max_bound:
+        return -torch.expm1(-x)
+
+    lam_1 = abs(lam - 1)
+    return (lam_1 / lam) * ((x / lam_1 + 1) ** lam - 1)
+
+
+def inv_power_fn(
+    x: torch.Tensor,
+    lam: float = -1.5,
+    eps: float = 1e-10,
+    max_bound: float = 1e10,
+) -> torch.Tensor:
+    """Inverse power transformation function from Eq. 4 in ZipNeRF paper."""
+
+    if lam == 1:
+        return x
+    if lam == 0:
+        return torch.expm1(x)
+    # infinity case
+    if lam > max_bound:
+        return torch.log1p(x)
+    # -infinity case
+    if lam < -max_bound:
+        return -torch.log(1 - x)
+
+    lam_1 = abs(lam - 1)
+    return ((x * lam / lam_1 + 1).clamp_min(eps) ** (1 / lam) - 1) * lam_1
+
+
+@torch_compile(dynamic=True, mode="reduce-overhead", backend="eager")
+def erf_approx(x: torch.Tensor) -> torch.Tensor:
+    """Error function approximation proposed in ZipNeRF paper (Eq. 11)."""
+    return torch.sign(x) * torch.sqrt(1 - torch.exp(-4 / torch.pi * x**2))
+
+
+def div_round_up(val: int, divisor: int) -> int:
+    return (val + divisor - 1) // divisor
+
+
+def grid_scale(level: int, log2_per_level_scale: float, base_resolution: int) -> float:
+    # The -1 means that `base_resolution` refers to the number of grid _vertices_ rather
+    # than the number of cells. This is slightly different from the notation in the paper,
+    # but results in nice, power-of-2-scaled parameter grids that fit better into cache lines.
+    return np.exp2(level * log2_per_level_scale) * base_resolution - 1.0
+
+
+def grid_resolution(scale: float) -> int:
+    return math.ceil(scale) + 1
+
+
+def powi(base: int, exponent: int) -> int:
+    result: int = 1
+    for _ in range(exponent):
+        result *= base
+    return result
+
+
+def next_multiple(val: int, divisor: int) -> int:
+    return div_round_up(val, divisor) * divisor

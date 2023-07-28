@@ -16,18 +16,27 @@
 Encoding functions
 """
 
+import math
 import itertools
 from abc import abstractmethod
-from typing import Literal, Optional, Sequence
+from typing import Literal, Optional, Sequence, Callable, Tuple, List
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from jaxtyping import Float, Int, Shaped
 from torch import Tensor, nn
+from torch_scatter import segment_coo
 
 from nerfstudio.field_components.base_field_component import FieldComponent
-from nerfstudio.utils.math import components_from_spherical_harmonics, expected_sin
+from nerfstudio.utils.math import (
+    components_from_spherical_harmonics,
+    expected_sin,
+    grid_resolution,
+    grid_scale,
+    powi,
+    next_multiple,
+)
 from nerfstudio.utils.printing import print_tcnn_speed_warning
 
 try:
@@ -277,15 +286,15 @@ class HashEncoding(Encoding):
         self.features_per_level = features_per_level
         self.log2_hashmap_size = log2_hashmap_size
         self.hash_table_size = 2**log2_hashmap_size
+        self.min_res = min_res
+        self.hash_init_scale = hash_init_scale
 
         levels = torch.arange(num_levels)
-        growth_factor = np.exp((np.log(max_res) - np.log(min_res)) / (num_levels - 1)) if num_levels > 1 else 1
-        self.scalings = torch.floor(min_res * growth_factor**levels)
+        self.growth_factor = np.exp((np.log(max_res) - np.log(min_res)) / (num_levels - 1)) if num_levels > 1 else 1
 
-        self.hash_offset = levels * self.hash_table_size
+        self.register_buffer("hash_values", torch.tensor([1, 2654435761, 805459861]), False)
 
         self.tcnn_encoding = None
-        self.hash_table = torch.empty(0)
         if implementation == "tcnn" and not TCNN_EXISTS:
             print_tcnn_speed_warning("HashEncoding")
             implementation = "torch"
@@ -297,7 +306,7 @@ class HashEncoding(Encoding):
                 "n_features_per_level": self.features_per_level,
                 "log2_hashmap_size": self.log2_hashmap_size,
                 "base_resolution": min_res,
-                "per_level_scale": growth_factor,
+                "per_level_scale": self.growth_factor,
             }
             if interpolation is not None:
                 encoding_config["interpolation"] = interpolation
@@ -306,18 +315,54 @@ class HashEncoding(Encoding):
                 n_input_dims=3,
                 encoding_config=encoding_config,
             )
+            self.hash_table = self.tcnn_encoding.params
+            offsets, scalings = self._create_hash_offset_and_scalings_tcnn()
+
+            self.register_buffer("scalings", scalings, False)
+            self.register_buffer("hash_offset", offsets, False)
         elif implementation == "torch":
             self.hash_table = torch.rand(size=(self.hash_table_size * num_levels, features_per_level)) * 2 - 1
             self.hash_table *= hash_init_scale
             self.hash_table = nn.Parameter(self.hash_table)
+
+            self.register_buffer("scalings", torch.floor(min_res * self.growth_factor**levels).view(-1, 1), False)
+            self.register_buffer("hash_offset", levels * self.hash_table_size, False)
 
         if self.tcnn_encoding is None:
             assert (
                 interpolation is None or interpolation == "Linear"
             ), f"interpolation '{interpolation}' is not supported for torch encoding backend"
 
+        self.register_buffer("level_indexes", self._create_level_indexes(), False)
+
     def get_out_dim(self) -> int:
         return self.num_levels * self.features_per_level
+
+    def _create_hash_offset_and_scalings_tcnn(self) -> Tuple[Tensor, Tensor]:
+        """Create offset map for each weight."""
+        offset: int = 0
+        offsets: List[int] = []
+        resolutions: List[int] = []
+        for i in range(self.num_levels):
+            resolution = grid_resolution(grid_scale(i, math.log2(self.growth_factor), self.min_res))
+            resolutions.append(resolution)
+            params_in_level = powi(resolution, self.in_dim)  # type: ignore
+            params_in_level = next_multiple(params_in_level, 8)
+            params_in_level = min(params_in_level, (2**self.log2_hashmap_size))
+            offsets.append(offset)
+            offset += params_in_level
+
+        return torch.tensor(offsets), torch.tensor(resolutions)
+
+    def _create_level_indexes(self) -> Tensor:
+        """Create an affiliation of each hash pyramid weight to the levels."""
+        indexes_shape = self.hash_table.view(-1, self.features_per_level).shape[0]
+        level_indexes = self.hash_table.new_empty(indexes_shape, dtype=torch.long)
+        for i in range(self.num_levels - 1):
+            level_indexes[self.hash_offset[i] : self.hash_offset[i + 1]] = i  # type: ignore
+        level_indexes[self.hash_offset[-1] :] = self.num_levels - 1  # type: ignore
+
+        return level_indexes
 
     def hash_fn(self, in_tensor: Int[Tensor, "*bs num_levels 3"]) -> Shaped[Tensor, "*bs num_levels"]:
         """Returns hash tensor using method described in Instant-NGP
@@ -331,11 +376,11 @@ class HashEncoding(Encoding):
         # assert min_val >= 0.0
         # assert max_val <= 1.0
 
-        in_tensor = in_tensor * torch.tensor([1, 2654435761, 805459861]).to(in_tensor.device)
+        in_tensor = in_tensor * self.hash_values
         x = torch.bitwise_xor(in_tensor[..., 0], in_tensor[..., 1])
         x = torch.bitwise_xor(x, in_tensor[..., 2])
         x %= self.hash_table_size
-        x += self.hash_offset.to(x.device)
+        x += self.hash_offset
         return x
 
     def pytorch_fwd(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
@@ -343,7 +388,7 @@ class HashEncoding(Encoding):
 
         assert in_tensor.shape[-1] == 3
         in_tensor = in_tensor[..., None, :]  # [..., 1, 3]
-        scaled = in_tensor * self.scalings.view(-1, 1).to(in_tensor.device)  # [..., L, 3]
+        scaled = in_tensor * self.scalings  # [..., L, 3]
         scaled_c = torch.ceil(scaled).type(torch.int32)
         scaled_f = torch.floor(scaled).type(torch.int32)
 
@@ -380,6 +425,31 @@ class HashEncoding(Encoding):
         )  # [..., num_levels, features_per_level]
 
         return torch.flatten(encoded_value, start_dim=-2, end_dim=-1)  # [..., num_levels * features_per_level]
+
+    def regularize_hash_pyramid(
+        self,
+        regularize_fn: Callable[[Tensor], Tensor] = torch.abs,
+    ) -> Float[Tensor, "0"]:
+        """Regularize hash pyramid weights."""
+        hash_decay = segment_coo(
+            src=regularize_fn(self.hash_table.view(-1, self.features_per_level)),
+            index=self.level_indexes,  # type: ignore
+            out=self.hash_table.new_zeros(self.num_levels, self.features_per_level),
+            reduce="mean",
+        ).mean()
+
+        return hash_decay
+
+    def scale_featurization(self) -> Float[Tensor, "*num_levels"]:
+        """Compute scale featurization proposed in ZipNeRF paper."""
+        scale_feat = segment_coo(
+            src=self.hash_table.view(-1, self.features_per_level).pow(2).sum(-1),
+            index=self.level_indexes,  # type: ignore
+            dim_size=self.num_levels,
+            reduce="mean",
+        )
+
+        return scale_feat
 
     def forward(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
         if self.tcnn_encoding is not None:

@@ -15,10 +15,9 @@
 """Space distortions."""
 
 import abc
-from typing import Optional, Union
+from typing import Optional, Union, Tuple
 
 import torch
-from functorch import jacrev, vmap
 from jaxtyping import Float
 from torch import Tensor, nn
 
@@ -64,27 +63,70 @@ class SceneContraction(SpatialDistortion):
         self.order = order
 
     def forward(self, positions):
-        def contract(x):
+        def contract(x: torch.Tensor) -> torch.Tensor:
             mag = torch.linalg.norm(x, ord=self.order, dim=-1)[..., None]
             return torch.where(mag < 1, x, (2 - (1 / mag)) * (x / mag))
 
         if isinstance(positions, Gaussians):
             means = contract(positions.mean.clone())
 
-            def contract_gauss(x):
-                return (2 - 1 / torch.linalg.norm(x, ord=self.order, dim=-1, keepdim=True)) * (
-                    x / torch.linalg.norm(x, ord=self.order, dim=-1, keepdim=True)
-                )
+            def contract_gauss(x: torch.Tensor) -> torch.Tensor:
+                mag = torch.linalg.norm(x, ord=self.order, dim=-1, keepdim=True)
+                return (2 - 1 / mag) * (x / mag)
 
-            jc_means = vmap(jacrev(contract_gauss))(positions.mean.view(-1, positions.mean.shape[-1]))
+            jc_means = torch.func.vmap(torch.func.jacrev(contract_gauss))(
+                positions.mean.view(-1, positions.mean.shape[-1])
+            )
             jc_means = jc_means.view(list(positions.mean.shape) + [positions.mean.shape[-1]])
 
             # Only update covariances on positions outside the unit sphere
             mag = positions.mean.norm(dim=-1)
             mask = mag >= 1
             cov = positions.cov.clone()
-            cov[mask] = jc_means[mask] @ positions.cov[mask] @ torch.transpose(jc_means[mask], -2, -1)
+            cov[mask] = (jc_means[mask] @ positions.cov[mask] @ torch.transpose(jc_means[mask], -2, -1)).to(cov)
 
             return Gaussians(mean=means, cov=cov)
 
         return contract(positions)
+
+
+class LinearizedSceneContraction(SpatialDistortion):
+    """Lightweight contract unbounded space using the contraction was proposed in ZipNeRF.
+
+    Proposed only for Gausians. Part of code was taken from github.com/SuLvXiangXin/zipnerf-pytorch
+    """
+
+    def __init__(self, order: Optional[Union[float, int]] = None) -> None:
+        super().__init__()
+        self.order = order
+
+    def forward(self, positions: Gaussians) -> Gaussians:
+        def contract(
+            mean: Float[Tensor, "*bs 3"],
+            cov: Float[Tensor, "*bs"],
+            eps: float = 1e-7,
+        ) -> Tuple[Float[Tensor, "*bs 3"], Float[Tensor, "*bs"]]:
+            """ZipNeRF contraction function"""
+            mag = torch.linalg.norm(mean, ord=self.order, dim=-1, keepdim=False).clamp_min(eps)
+            mask = mag < 1
+            mean_contracted = torch.where(mask[..., None], mean, (2 - (1 / mag[..., None])) * (mean / mag[..., None]))
+            # prevent negative root computations
+            clamped_mag = mag.clamp_min(1.0)
+            det_13 = (torch.pow(2 * clamped_mag - 1, 1 / 3) / clamped_mag) ** 2
+            std_contracted = torch.where(mask, cov, cov * det_13)
+
+            return mean_contracted, std_contracted
+
+        assert isinstance(positions, Gaussians)
+
+        pre_shape = positions.mean.shape[:-1]
+
+        means = positions.mean.view(-1, 3)
+        cov = positions.cov.view(-1)
+
+        means, cov = contract(means, cov)
+
+        means = means.view(*pre_shape, 3)
+        cov = cov.view(*pre_shape)
+
+        return Gaussians(mean=means, cov=cov)

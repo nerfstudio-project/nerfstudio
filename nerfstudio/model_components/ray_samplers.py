@@ -24,7 +24,8 @@ from jaxtyping import Float
 from nerfacc import OccGridEstimator
 from torch import Tensor, nn
 
-from nerfstudio.cameras.rays import Frustums, RayBundle, RaySamples
+from nerfstudio.cameras.rays import Frustums, RayBundle, RaySamples, positions_to_ray_samples
+from nerfstudio.utils.math import power_fn, inv_power_fn
 
 
 class Sampler(nn.Module):
@@ -97,7 +98,9 @@ class SpacedSampler(Sampler):
         assert num_samples is not None
         num_rays = ray_bundle.origins.shape[0]
 
-        bins = torch.linspace(0.0, 1.0, num_samples + 1).to(ray_bundle.origins.device)[None, ...]  # [1, num_samples+1]
+        bins = torch.linspace(0.0, 1.0, num_samples + 1, device=ray_bundle.origins.device)[
+            None, ...
+        ]  # [1, num_samples+1]
 
         # TODO More complicated than it needs to be.
         if self.train_stratified and self.training:
@@ -222,6 +225,32 @@ class LogSampler(SpacedSampler):
         )
 
 
+class PowerSampler(SpacedSampler):
+    """Sampler according to the ZipNeRF's power function
+
+    Args:
+        num_samples: Number of samples per ray
+        train_stratified: Use stratified sampling during training. Defaults to True
+        lam: Parameter of power transformation
+
+    """
+
+    def __init__(
+        self,
+        num_samples: Optional[int] = None,
+        train_stratified=True,
+        single_jitter=False,
+        lam=-1.5,
+    ) -> None:
+        super().__init__(
+            num_samples=num_samples,
+            spacing_fn=lambda x: power_fn(x * 2, lam),
+            spacing_fn_inv=lambda x: inv_power_fn(x, lam) / 2,
+            train_stratified=train_stratified,
+            single_jitter=single_jitter,
+        )
+
+
 class UniformLinDispPiecewiseSampler(SpacedSampler):
     """Piecewise sampler along a ray that allocates the first half of the samples uniformly and the second half
     using linearly in disparity spacing.
@@ -265,7 +294,7 @@ class PDFSampler(Sampler):
         train_stratified: bool = True,
         single_jitter: bool = False,
         include_original: bool = True,
-        histogram_padding: float = 0.01,
+        histogram_padding: float = 0.00,
     ) -> None:
         super().__init__(num_samples=num_samples)
         self.train_stratified = train_stratified
@@ -378,7 +407,9 @@ class DensityFn(Protocol):
     """
 
     def __call__(
-        self, positions: Float[Tensor, "*batch 3"], times: Optional[Float[Tensor, "*batch 1"]] = None
+        self,
+        ray_samples: RaySamples,
+        times: Optional[Float[Tensor, "*batch 1"]] = None,
     ) -> Float[Tensor, "*batch 1"]:
         ...
 
@@ -424,9 +455,10 @@ class VolumetricSampler(Sampler):
             t_origins = origins[ray_indices]
             t_dirs = directions[ray_indices]
             positions = t_origins + t_dirs * (t_starts + t_ends)[:, None] / 2.0
+            ray_samples = positions_to_ray_samples(positions)
             if times is None:
-                return density_fn(positions).squeeze(-1)
-            return density_fn(positions, times[ray_indices]).squeeze(-1)
+                return density_fn(ray_samples).squeeze(-1)
+            return density_fn(ray_samples, times[ray_indices]).squeeze(-1)
 
         return sigma_fn
 
@@ -599,10 +631,10 @@ class ProposalNetworkSampler(Sampler):
             if is_prop:
                 if updated:
                     # always update on the first step or the inf check in grad scaling crashes
-                    density = density_fns[i_level](ray_samples.frustums.get_positions())
+                    density = density_fns[i_level](ray_samples)
                 else:
                     with torch.no_grad():
-                        density = density_fns[i_level](ray_samples.frustums.get_positions())
+                        density = density_fns[i_level](ray_samples)
                 weights = ray_samples.get_weights(density)
                 weights_list.append(weights)  # (num_rays, num_samples)
                 ray_samples_list.append(ray_samples)

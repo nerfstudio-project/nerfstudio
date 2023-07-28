@@ -41,7 +41,7 @@ def test_frustum_get_gaussian_blob():
         pixel_area=torch.ones((5, 1)),
     )
 
-    gaussian_blob = frustum.get_gaussian_blob()
+    gaussian_blob = frustum.get_conical_gaussian_blob()
     assert gaussian_blob.mean.shape == (5, 3)
     assert gaussian_blob.cov.shape == (5, 3, 3)
 

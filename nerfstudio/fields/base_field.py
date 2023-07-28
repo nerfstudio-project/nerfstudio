@@ -24,7 +24,7 @@ import torch
 from jaxtyping import Float, Shaped
 from torch import Tensor, nn
 
-from nerfstudio.cameras.rays import Frustums, RaySamples
+from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.field_components.field_heads import FieldHeadNames
 
@@ -46,7 +46,7 @@ class Field(nn.Module):
         self._density_before_activation = None
 
     def density_fn(
-        self, positions: Shaped[Tensor, "*bs 3"], times: Optional[Shaped[Tensor, "*bs 1"]] = None
+        self, ray_samples: RaySamples, times: Optional[Shaped[Tensor, "*bs 1"]] = None
     ) -> Shaped[Tensor, "*bs 1"]:
         """Returns only the density. Used primarily with the density grid.
 
@@ -54,16 +54,6 @@ class Field(nn.Module):
             positions: the origin of the samples/frustums
         """
         del times
-        # Need to figure out a better way to describe positions with a ray.
-        ray_samples = RaySamples(
-            frustums=Frustums(
-                origins=positions,
-                directions=torch.ones_like(positions),
-                starts=torch.zeros_like(positions[..., :1]),
-                ends=torch.zeros_like(positions[..., :1]),
-                pixel_area=torch.ones_like(positions[..., :1]),
-            )
-        )
         density, _ = self.get_density(ray_samples)
         return density
 

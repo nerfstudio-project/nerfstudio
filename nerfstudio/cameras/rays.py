@@ -15,6 +15,7 @@
 """
 Some ray datastructures.
 """
+
 import random
 from dataclasses import dataclass, field
 from typing import Callable, Dict, Literal, Optional, Tuple, Union, overload
@@ -23,7 +24,11 @@ import torch
 from jaxtyping import Float, Int, Shaped
 from torch import Tensor
 
-from nerfstudio.utils.math import Gaussians, conical_frustum_to_gaussian
+from nerfstudio.utils.math import (
+    Gaussians,
+    conical_frustum_to_gaussian,
+    multisampled_frustum_to_gaussian,
+)
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
 TORCH_DEVICE = Union[str, torch.device]
@@ -69,14 +74,14 @@ class Frustums(TensorDataclass):
         """Sets offsets for this frustum for computing positions"""
         self.offsets = offsets
 
-    def get_gaussian_blob(self) -> Gaussians:
+    def get_conical_gaussian_blob(self) -> Gaussians:
         """Calculates guassian approximation of conical frustum.
 
         Returns:
             Conical frustums approximated by gaussian distribution.
         """
         # Cone radius is set such that the square pixel_area matches the cone area.
-        cone_radius = torch.sqrt(self.pixel_area) / 1.7724538509055159  # r = sqrt(pixel_area / pi)
+        cone_radius = torch.sqrt(self.pixel_area / torch.pi)
         if self.offsets is not None:
             raise NotImplementedError()
         return conical_frustum_to_gaussian(
@@ -85,6 +90,25 @@ class Frustums(TensorDataclass):
             starts=self.starts,
             ends=self.ends,
             radius=cone_radius,
+        )
+
+    def get_multisampled_gaussian_blob(self, rand: bool = False) -> Gaussians:
+        """Calculates guassian approximation of conical frustum via multisampling.
+
+        Returns:
+            Conical frustums approximated by multisampled gaussian distribution.
+        """
+        # Cone radius is set such that the square pixel_area matches the cone area.
+        cone_radius = torch.sqrt(self.pixel_area / torch.pi)
+        if self.offsets is not None:
+            raise NotImplementedError()
+        return multisampled_frustum_to_gaussian(
+            origins=self.origins,
+            directions=self.directions,
+            starts=self.starts,
+            ends=self.ends,
+            radius=cone_radius,
+            rand=rand,
         )
 
     @classmethod
@@ -186,6 +210,27 @@ class RaySamples(TensorDataclass):
         if weights_only:
             return weights
         return weights, transmittance
+
+    def to_sdist(self) -> Optional[Float[Tensor, "*batch num_samples+1"]]:
+        """Convert ray samples to s space."""
+        starts = self.spacing_starts
+        ends = self.spacing_ends
+
+        if starts is None or ends is None:
+            return None
+
+        sdist = torch.cat([starts[..., 0], ends[..., -1:, 0]], dim=-1)  # (num_rays, num_samples + 1)
+        return sdist
+
+    def from_sdist(
+        self,
+        sdist: Float[Tensor, "*batch num_samples+1"],
+    ) -> "RaySamples":
+        """Convert s space to ray samples inplace."""
+        self.spacing_starts = sdist[..., :-1, None]
+        self.spacing_ends = sdist[..., 1:, None]
+
+        return self
 
 
 @dataclass
@@ -293,3 +338,18 @@ class RayBundle(TensorDataclass):
         )
 
         return ray_samples
+
+
+def positions_to_ray_samples(positions: Float[Tensor, "*bs 3"]) -> RaySamples:
+    """Convert positions to ray samples."""
+    ray_samples = RaySamples(
+        frustums=Frustums(
+            origins=positions,
+            directions=torch.ones_like(positions),
+            starts=torch.zeros_like(positions[..., :1]),
+            ends=torch.zeros_like(positions[..., :1]),
+            pixel_area=torch.ones_like(positions[..., :1]),
+        )
+    )
+
+    return ray_samples
