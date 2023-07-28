@@ -226,15 +226,13 @@ class VanillaPipelineConfig(cfg.InstantiateConfig):
     """whether to apply the visibility loss"""
     visibility_steps_per_loss: int = 10
     """how often to apply the visibility loss"""
-    visibility_loss_quantity: Literal["weights", "densities"] = "densities"
-    """whether to apply the visibility loss to weights or densities"""
     visibility_loss_mult: float = 1.0
     """multiplier for the visibility loss"""
     visibility_min_views: int = 1
-    """minimum number of views for the visibility loss"""
+    """apply visibility loss where fewer than this min_views are seen."""
     visibility_num_rays: int = 10
     """number of rays per batch to use for the visibility loss"""
-    visibility_radius: float = 1.0
+    visibility_radius: float = 2.0
     """radius for the visibility loss"""
 
 
@@ -293,7 +291,6 @@ class VanillaPipeline(Pipeline):
         if self.config.use_visibility_loss:
             # initialize the visibility field
             cameras = typing.cast(Cameras, self.datamanager.train_dataparser_outputs.cameras.to(self.device))  # type: ignore
-            # TODO(ethan): make sure only the training cameras are being used
             self.model.visibility_field = VisibilityField(cameras).to(self.device)
 
     @property
@@ -349,22 +346,17 @@ class VanillaPipeline(Pipeline):
             # We only use the first camera index, but it doesn't matter since we don't care about appearance embeddings
             # when using the visibility loss.
             camera_indices = torch.tensor([0] * self.config.visibility_num_rays).unsqueeze(-1)
-            ray_bundle_rays = cameras.generate_rays(camera_indices)
-            # ray_bundle is (1, 1, self.config.visibility_num_rays)
-            ray_bundle_rays = ray_bundle_rays.flatten()
+            ray_bundle_rays = cameras.generate_rays(camera_indices).flatten()
             model_outputs_rays = self.model(ray_bundle_rays)
-            quantity_list = model_outputs_rays[
-                f"{self.config.visibility_loss_quantity}_list"
-            ]  # weights_list or densities_list
             visibility_loss = torch.zeros(1, device=self.device)
-            for i in range(len(quantity_list)):
-                quantity_samples = quantity_list[i]
+            for i in range(len(model_outputs_rays["densities_list"])):
+                density_samples = model_outputs_rays["densities_list"][i]
                 ray_samples = model_outputs_rays["ray_samples_list"][i]
                 visibility_samples = self.model.visibility_field(ray_samples)  # type: ignore
-                quantity_samples_masked = quantity_samples[visibility_samples < self.config.visibility_min_views]
-                if quantity_samples_masked.numel() != 0:
-                    visibility_loss_i = self.config.visibility_loss_mult * quantity_samples_masked.mean()
-                    visibility_loss += visibility_loss_i
+                # penalize densities seen in less than min_views
+                density_samples_masked = density_samples[visibility_samples < self.config.visibility_min_views]
+                if density_samples_masked.numel() != 0:
+                    visibility_loss += self.config.visibility_loss_mult * density_samples_masked.mean()
             loss_dict.update({"visibility_loss": visibility_loss})
 
         return model_outputs, loss_dict, metrics_dict

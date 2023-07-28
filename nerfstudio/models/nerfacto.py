@@ -44,7 +44,13 @@ from nerfstudio.model_components.losses import (
     scale_gradients_by_distance_squared,
 )
 from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler, UniformSampler
-from nerfstudio.model_components.renderers import AccumulationRenderer, DepthRenderer, NormalsRenderer, RGBRenderer
+from nerfstudio.model_components.renderers import (
+    AccumulationRenderer,
+    DepthRenderer,
+    NormalsRenderer,
+    RGBRenderer,
+    VisibilityRenderer,
+)
 from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
@@ -226,8 +232,7 @@ class NerfactoModel(Model):
         self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
-        self.renderer_depth_expected = DepthRenderer(method="expected")
-        self.renderer_depth_median = DepthRenderer(method="median")
+        self.renderer_visibility = VisibilityRenderer(method="median")
         self.renderer_normals = NormalsRenderer()
 
         # shaders
@@ -308,20 +313,11 @@ class NerfactoModel(Model):
         if self.visibility_field is not None:
             assert isinstance(self.visibility_field, VisibilityField), "self.visibility_field must be a VisibilityField"
             visibility_samples = self.visibility_field.forward(ray_samples_list[-1])
-            visibility = self.renderer_depth_expected(
-                weights=weights, ray_samples=ray_samples, quantity=visibility_samples
-            )
+            visibility = self.renderer_visibility(weights=weights, visibility_samples=visibility_samples)
             visibility = visibility.float() / len(
                 self.visibility_field.c2ws
             )  # range [0, 1] where 1 is seen by all cameras
-            outputs["visibility_expected"] = visibility
-            visibility_median = self.renderer_depth_median(
-                weights=weights, ray_samples=ray_samples, quantity=visibility_samples
-            )
-            visibility_median = visibility_median.float() / len(
-                self.visibility_field.c2ws
-            )  # range [0, 1] where 1 is seen by all cameras
-            outputs["visibility_median"] = visibility_median
+            outputs["visibility"] = visibility
 
         if self.config.predict_normals:
             normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
