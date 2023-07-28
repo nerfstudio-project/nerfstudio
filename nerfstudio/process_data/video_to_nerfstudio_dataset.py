@@ -44,7 +44,6 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
         summary_log = []
         # Convert video to images
         if self.camera_type == "equirectangular":
-            assert self.eval_data is None, "Only one video can be processed at a time for equirectangular camera type."
             # create temp images folder to store the equirect and perspective images
             temp_image_dir = self.output_dir / "temp_images"
             temp_image_dir.mkdir(parents=True, exist_ok=True)
@@ -55,6 +54,19 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                 crop_factor=(0.0, 0.0, 0.0, 0.0),
                 verbose=self.verbose,
             )
+
+            if self.eval_data is not None:
+                # Create temporal directory for processing the eval video
+                eval_temp_image_dir = self.output_dir / "temp_eval_images"
+                eval_temp_image_dir.mkdir(parents=True, exist_ok=True)
+
+                summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
+                    self.eval_data,
+                    image_dir=eval_temp_image_dir,
+                    num_frames_target=self.num_frames_target,
+                    crop_factor=(0.0, 0.0, 0.0, 0.0),
+                    verbose=self.verbose,
+                )
         else:
             # Convert video to images
             summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
@@ -108,11 +120,35 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
             process_data_utils.copy_images(
                 self.output_dir / "temp_images" / "planar_projections",
                 image_dir=self.output_dir / "images",
+                image_prefix="frame_train_" if self.eval_data is not None else "frame_",
                 verbose=False,
             )
 
             # remove the temp_images folder
             shutil.rmtree(self.output_dir / "temp_images", ignore_errors=True)
+
+            if self.eval_data is not None:
+                perspective_image_size = equirect_utils.compute_resolution_from_equirect(
+                    self.output_dir / "temp_eval_images", self.images_per_equirect
+                )
+
+                equirect_utils.generate_planar_projections_from_equirectangular(
+                    self.output_dir / "temp_eval_images",
+                    perspective_image_size,
+                    self.images_per_equirect,
+                    crop_factor=self.crop_factor,
+                )
+
+                # copy the perspective images to the image directory
+                process_data_utils.copy_images(
+                    self.output_dir / "temp_eval_images" / "planar_projections",
+                    image_dir=self.output_dir / "images",
+                    image_prefix="frame_eval_",
+                    verbose=False,
+                )
+
+                # remove the temp_eval_images folder
+                shutil.rmtree(self.output_dir / "temp_eval_images", ignore_errors=True)
 
             self.camera_type = "perspective"
 

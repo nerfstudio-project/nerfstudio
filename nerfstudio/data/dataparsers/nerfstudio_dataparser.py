@@ -15,8 +15,6 @@
 
 from __future__ import annotations
 
-import math
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Optional, Type
@@ -29,6 +27,11 @@ from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
 from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.data.utils.dataparsers_utils import (
+    get_train_eval_split_filename,
+    get_train_eval_split_fraction,
+    get_train_eval_split_interval,
+)
 from nerfstudio.utils.io import load_from_json
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -55,8 +58,8 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The method to use to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
-    eval_mode: Literal["train-split-fraction", "eval-frame-index", "eval-interval"] = "train-split-fraction"
-    """The method to use for splitting the dataset into train and eval. eval-frame-index splits based on image names."""
+    eval_mode: Literal["fraction", "filename", "interval"] = "fraction"
+    """The method to use for splitting the dataset into train and eval. Fraction of the images as eval images, filename splits based on filenames containing train/eval, interval uses every nth frame for eval."""
     train_split_fraction: float = 0.9
     """The percentage of the dataset to use for training. Only used when eval_mode is train-split-fraction."""
     eval_interval: int = 8
@@ -107,7 +110,6 @@ class Nerfstudio(DataParser):
         distort = []
 
         # sort the frames by fname
-        # they do this in mipnerf360 code
         fnames = []
         for frame in meta["frames"]:
             filepath = Path(frame["file_path"])
@@ -180,59 +182,12 @@ class Nerfstudio(DataParser):
         """
 
         # find train and eval indices based on the eval_mode specified
-        if self.config.eval_mode == "train-split-fraction":
-            has_split_files_spec = any(f"{split}_filenames" in meta for split in ("train", "val", "test"))
-            if f"{split}_filenames" in meta:
-                # Validate split first
-                split_filenames = set(self._get_fname(Path(x), data_dir) for x in meta[f"{split}_filenames"])
-                unmatched_filenames = split_filenames.difference(image_filenames)
-                if unmatched_filenames:
-                    raise RuntimeError(f"Some filenames for split {split} were not found: {unmatched_filenames}.")
-
-                indices = [i for i, path in enumerate(image_filenames) if path in split_filenames]
-                CONSOLE.log(f"[yellow] Dataset is overriding {split}_indices to {indices}")
-                indices = np.array(indices, dtype=np.int32)
-                i_train = indices
-                i_eval = indices
-            elif has_split_files_spec:
-                raise RuntimeError(f"The dataset's list of filenames for split {split} is missing.")
-            else:
-                # filter image_filenames and poses based on train/eval split percentage
-                num_images = len(image_filenames)
-                num_train_images = math.ceil(num_images * self.config.train_split_fraction)
-                num_eval_images = num_images - num_train_images
-                i_all = np.arange(num_images)
-                i_train = np.linspace(
-                    0, num_images - 1, num_train_images, dtype=int
-                )  # equally spaced training images starting and ending at 0 and num_images-1
-                i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
-                assert len(i_eval) == num_eval_images
-        elif self.config.eval_mode == "eval-frame-index":
-            # filter image_filenames and poses based on train and eval frame names
-            num_images = len(image_filenames)
-            basenames = [os.path.basename(image_filename) for image_filename in image_filenames]
-            i_all = np.arange(num_images)
-            i_train = []
-            i_eval = []
-            for idx, basename in zip(i_all, basenames):
-                # check the frame index
-                if "train" in basename:
-                    i_train.append(idx)
-                elif "eval" in basename:
-                    i_eval.append(idx)
-                else:
-                    raise ValueError(
-                        "frame should contain train/eval in its name to use this eval-frame-index eval mode"
-                    )
-        elif self.config.eval_mode == "eval-interval":
-            # filter image_filenames and poses based on a specified interval for eval
-            # this chunk of code is very similar to the mipnerf360 code
-            num_images = len(image_filenames)
-            all_indices = np.arange(num_images)
-            train_indices = all_indices[all_indices % self.config.eval_interval != 0]
-            eval_indices = all_indices[all_indices % self.config.eval_interval == 0]
-            i_train = train_indices
-            i_eval = eval_indices
+        if self.config.eval_mode == "fraction":
+            i_train, i_eval = get_train_eval_split_fraction(image_filenames, self.config.train_split_fraction)
+        elif self.config.eval_mode == "filename":
+            i_train, i_eval = get_train_eval_split_filename(image_filenames)
+        elif self.config.eval_mode == "interval":
+            i_train, i_eval = get_train_eval_split_interval(image_filenames, self.config.eval_interval)
         else:
             raise ValueError(f"Unknown eval mode {self.config.eval_mode}")
 

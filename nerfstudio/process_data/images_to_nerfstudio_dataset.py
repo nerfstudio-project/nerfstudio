@@ -50,9 +50,17 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
             self.data = equirect_utils.generate_planar_projections_from_equirectangular(
                 self.data, pers_size, self.images_per_equirect, crop_factor=self.crop_factor
             )
-            self.camera_type = "perspective"
 
-        assert self.eval_data is None, "Only one data source is supported for images"
+            if self.eval_data is not None:
+                pers_size = equirect_utils.compute_resolution_from_equirect(self.eval_data, self.images_per_equirect)
+                CONSOLE.log(
+                    f"Generating {self.images_per_equirect} {pers_size} sized images per equirectangular eval image"
+                )
+                self.eval_data = equirect_utils.generate_planar_projections_from_equirectangular(
+                    self.eval_data, pers_size, self.images_per_equirect, crop_factor=self.crop_factor
+                )
+
+            self.camera_type = "perspective"
 
         summary_log = []
 
@@ -60,8 +68,22 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
         if not self.skip_image_processing:
             # Copy images to output directory
             image_rename_map_paths = process_data_utils.copy_images(
-                self.data, image_dir=self.image_dir, crop_factor=self.crop_factor, verbose=self.verbose
+                self.data,
+                image_dir=self.image_dir,
+                crop_factor=self.crop_factor,
+                image_prefix="frame_eval_" if self.eval_data is not None else "frame_",
+                verbose=self.verbose,
             )
+            if self.eval_data is not None:
+                eval_image_rename_map_paths = process_data_utils.copy_images(
+                    self.eval_data,
+                    image_dir=self.image_dir,
+                    crop_factor=self.crop_factor,
+                    image_prefix="frame_eval_",
+                    verbose=self.verbose,
+                )
+                image_rename_map_paths.update(eval_image_rename_map_paths)
+
             image_rename_map = dict((a.name, b.name) for a, b in image_rename_map_paths.items())
             num_frames = len(image_rename_map)
             summary_log.append(f"Starting with {num_frames} images")
