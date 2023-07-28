@@ -361,7 +361,6 @@ class DepthRenderer(nn.Module):
             ray_samples: Set of ray samples.
             ray_indices: Ray index for each sample, used when samples are packed.
             num_rays: Number of rays, used when samples are packed.
-            quantity: If specified, then take the median of this quantity instead of the depth.
 
         Returns:
             Outputs of depth values.
@@ -379,8 +378,12 @@ class DepthRenderer(nn.Module):
 
             if ray_indices is not None and num_rays is not None:
                 # Necessary for packed samples from volumetric ray sampler
-                depth = nerfacc.accumulate_along_rays(weights, ray_indices, steps, num_rays)
-                accumulation = nerfacc.accumulate_along_rays(weights, ray_indices, None, num_rays)
+                depth = nerfacc.accumulate_along_rays(
+                    weights[..., 0], values=steps, ray_indices=ray_indices, n_rays=num_rays
+                )
+                accumulation = nerfacc.accumulate_along_rays(
+                    weights[..., 0], values=None, ray_indices=ray_indices, n_rays=num_rays
+                )
                 depth = depth / (accumulation + eps)
             else:
                 depth = torch.sum(weights * steps, dim=-2) / (torch.sum(weights, -2) + eps)
@@ -396,7 +399,7 @@ class VisibilityRenderer(nn.Module):
     """Calculate visibility along ray.
 
     Visibity Method:
-        - median: Visibility is set to the num_views where the accumulated weight reaches 0.5.
+        - median: Visibility is set to the visibility_samples where the accumulated weight reaches 0.5.
 
     Args:
         method: Visibility calculation method.
@@ -416,14 +419,14 @@ class VisibilityRenderer(nn.Module):
         """Composite samples along ray and calculate depths.
 
         Args:
+            visibility_samples: Number of views each point is visible in.
             weights: Weights for each sample.
             ray_samples: Set of ray samples.
             ray_indices: Ray index for each sample, used when samples are packed.
             num_rays: Number of rays, used when samples are packed.
-            num_views: Number of views each point is visible in.
 
         Returns:
-            Outputs of depth values.
+            Outputs of visibility values.
         """
 
         if self.method == "median":
