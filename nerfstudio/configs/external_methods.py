@@ -136,7 +136,6 @@ To enable Volinga, you must install it first by running:
     )
 )
 
-
 @dataclass
 class ExternalMethodTrainerConfig(TrainerConfig):
     """
