@@ -46,7 +46,9 @@ from rich.progress import (
 from rich.table import Table
 from torch import Tensor
 from typing_extensions import Annotated
+
 from scipy.spatial import KDTree
+import lpips
 
 from nerfstudio.cameras.camera_paths import (
     get_interpolated_camera_path,
@@ -121,9 +123,19 @@ def _render_trajectory_video(
 
     with ExitStack() as stack:
         writer = None
+
+        lpips_loss_fn = lpips.LPIPS(net='alex')
         train_dataset = pipeline.datamanager.train_dataset
         train_cameras = train_dataset.cameras.to(pipeline.device)
+        training_images = []
+
         # import pdb; pdb.set_trace()
+        for i in range(len(train_cameras)):
+            training_images.append(train_dataset.get_image(i))
+        training_images = torch.stack(training_images)
+        training_images = training_images.to(pipeline.device)
+
+        import pdb; pdb.set_trace()
         # train_cameras.rescale_output_resolution(float(cameras.image_width[0]/ train_cameras.image_width[0]))
         points = []
 
