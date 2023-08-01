@@ -334,7 +334,7 @@ class Cameras(TensorDataclass):
         keep_shape: Optional[bool] = None,
         disable_distortion: bool = False,
         aabb_box: Optional[SceneBox] = None,
-    ) -> Tuple[RayBundle]:
+    ) -> RayBundle:
         """Generates rays for the given camera indices.
 
         This function will standardize the input arguments and then call the _generate_rays_from_coords function
@@ -761,9 +761,9 @@ class Cameras(TensorDataclass):
             theta = -torch.pi * ((x - cx) / (fx * 2))[0]
             phi = torch.pi * (0.5 - coords[..., 1])
 
-            directions_stack[..., 0][mask] = torch.masked_select(-torch.sin(theta) * torch.sin(phi), mask).float()
-            directions_stack[..., 1][mask] = torch.masked_select(torch.cos(phi), mask).float()
-            directions_stack[..., 2][mask] = torch.masked_select(-torch.cos(theta) * torch.sin(phi), mask).float()
+            directions[..., 0][mask] = torch.masked_select(-torch.sin(theta) * torch.sin(phi), mask).float()
+            directions[..., 1][mask] = torch.masked_select(torch.cos(phi), mask).float()
+            directions[..., 2][mask] = torch.masked_select(-torch.cos(theta) * torch.sin(phi), mask).float()
 
             # total area integrates to 2pi steradians (1 hemisphere)
             pixel_area[mask] = 2 * torch.pi * torch.pi * sin_phi * base_areas[mask]
