@@ -60,10 +60,10 @@ class DepthDataset(InputDataset):
                 self.depths = torch.from_numpy(self.depths).to(device)
             else:
                 depth_tensors = []
-                tranforms = self._find_transform(dataparser_outputs.image_filenames[0])
+                transforms = self._find_transform(dataparser_outputs.image_filenames[0])
                 data = dataparser_outputs.image_filenames[0].parent
-                if tranforms is not None:
-                    meta = json.load(open(tranforms, "r"))
+                if transforms is not None:
+                    meta = json.load(open(transforms, "r"))
                     frames = meta["frames"]
                     filenames = [data / frames[j]["file_path"].split("/")[-1] for j in range(len(frames))]
                 else:
