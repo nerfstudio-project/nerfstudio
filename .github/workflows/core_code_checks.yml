@@ -42,3 +42,4 @@ jobs:
       - name: Test with pytest
         run: |
           pytest
+        timeout-minutes: 10
