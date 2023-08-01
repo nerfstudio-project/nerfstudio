@@ -115,8 +115,10 @@ class DataManagerConfig(InstantiateConfig):
     """Source of data, may not be used by all models."""
     camera_optimizer: Optional[CameraOptimizerConfig] = None
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy."""
-    masks_on_gpu: Optional[bool] = None
+    masks_on_gpu: bool = False
     """Process masks on GPU for speed at the expense of memory, if True."""
+    images_on_gpu: bool = False
+    """Process images on GPU for speed at the expense of memory, if True."""
 
 
 class DataManager(nn.Module):
@@ -403,6 +405,8 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
         if self.config.masks_on_gpu is True:
             self.exclude_batch_keys_from_device.remove("mask")
+        if self.config.images_on_gpu is True:
+            self.exclude_batch_keys_from_device.remove("image")
 
         if self.train_dataparser_outputs is not None:
             cameras = self.train_dataparser_outputs.cameras
