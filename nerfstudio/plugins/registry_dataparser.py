@@ -13,49 +13,22 @@
 # limitations under the License.
 
 """
-Module that keeps all registered plugins and allows for plugin discovery.
+[LEGACY] Module that keeps all registered plugins and allows for plugin discovery.
 """
 
-import sys
-import typing as t
-from dataclasses import dataclass
 
-from rich.progress import Console
+import warnings
+from typing import Dict
 
-from nerfstudio.data.dataparsers.base_dataparser import DataParserConfig
+from .registry import discover_dataparsers as new_discover_dataparsers
+from .types import DataParserConfig  # pylint: disable=unused-import
 
-if sys.version_info < (3, 10):
-    from importlib_metadata import entry_points
-else:
-    from importlib.metadata import entry_points
-CONSOLE = Console(width=120)
+warnings.warn(
+    "This module is deprecated and will be removed in future releases. Use nerfstudio.plugins.registry and nerfstudio.plugins.types instead!",
+    DeprecationWarning,
+)
 
 
-@dataclass
-class DataParserSpecification:
-    """
-    DataParser specification class used to register custom dataparsers with Nerfstudio.
-    The registered dataparsers will be available in commands such as `ns-train`
-    """
-
-    config: DataParserConfig
-    """Dataparser configuration"""
-
-
-def discover_dataparsers() -> t.Dict[str, DataParserConfig]:
-    """
-    Discovers all dataparsers registered using the `nerfstudio.dataparser_configs` entrypoint.
-    """
-    dataparsers = {}
-    discovered_entry_points = entry_points(group="nerfstudio.dataparser_configs")
-    for name in discovered_entry_points.names:
-        spec = discovered_entry_points[name].load()
-        if not isinstance(spec, DataParserSpecification):
-            CONSOLE.print(
-                f"[bold yellow]Warning: Could not entry point {spec} as it is an instance of DataParserSpecification"
-            )
-            continue
-        spec = t.cast(DataParserSpecification, spec)
-        dataparsers[name] = spec.config
-
-    return dataparsers
+def discover_dataparsers() -> Dict[str, DataParserConfig]:
+    configs, _docs = new_discover_dataparsers()
+    return configs

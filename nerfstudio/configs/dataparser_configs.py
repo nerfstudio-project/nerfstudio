@@ -16,12 +16,7 @@
 Aggregate all the dataparser configs in one location.
 """
 
-from typing import TYPE_CHECKING
-
-import tyro
-
 from nerfstudio.data.dataparsers.arkitscenes_dataparser import ARKitScenesDataParserConfig
-from nerfstudio.data.dataparsers.base_dataparser import DataParserConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.colmap_dataparser import ColmapDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
@@ -35,9 +30,8 @@ from nerfstudio.data.dataparsers.phototourism_dataparser import PhototourismData
 from nerfstudio.data.dataparsers.scannet_dataparser import ScanNetDataParserConfig
 from nerfstudio.data.dataparsers.sdfstudio_dataparser import SDFStudioDataParserConfig
 from nerfstudio.data.dataparsers.sitcoms3d_dataparser import Sitcoms3DDataParserConfig
-from nerfstudio.plugins.registry_dataparser import discover_dataparsers
 
-dataparsers = {
+dataparser_configs = {
     "nerfstudio-data": NerfstudioDataParserConfig(),
     "minimal-parser": MinimalDataParserConfig(),
     "arkit-data": ARKitScenesDataParserConfig(),
@@ -53,22 +47,3 @@ dataparsers = {
     "sitcoms3d-data": Sitcoms3DDataParserConfig(),
     "colmap": ColmapDataParserConfig(),
 }
-
-external_dataparsers = discover_dataparsers()
-all_dataparsers = {**dataparsers, **external_dataparsers}
-
-if TYPE_CHECKING:
-    # For static analysis (tab completion, type checking, etc), just use the base
-    # dataparser config.
-    DataParserUnion = DataParserConfig
-else:
-    # At runtime, populate a Union type dynamically. This is used by `tyro` to generate
-    # subcommands in the CLI.
-    DataParserUnion = tyro.extras.subcommand_type_from_defaults(
-        all_dataparsers,
-        prefix_names=False,  # Omit prefixes in subcommands themselves.
-    )
-
-AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[DataParserUnion]  # Omit prefixes of flags in subcommands.
-"""Union over possible dataparser types, annotated with metadata for tyro. This is
-the same as the vanilla union, but results in shorter subcommand names."""
