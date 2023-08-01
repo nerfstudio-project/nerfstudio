@@ -343,7 +343,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """The scale factor for scaling spatial data such as images, mask, semantics
     along with relevant information about camera intrinsics
     """
-    sampling_config: PixelSamplerConfig = PixelSamplerConfig()
+    pixel_sampler: PixelSamplerConfig = PixelSamplerConfig()
     """Specifies the pixel sampler used to sample pixels from images."""
 
 
@@ -457,7 +457,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
         if is_equirectangular.any():
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
-        return self.config.sampling_config.setup(
+        return self.config.pixel_sampler.setup(
             is_equirectangular=is_equirectangular, num_rays_per_batch=self.config.train_num_rays_per_batch
         )
 
