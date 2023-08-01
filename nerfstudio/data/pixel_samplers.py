@@ -61,6 +61,10 @@ class PixelSampler:
     def __init__(self, config: PixelSamplerConfig, **kwargs) -> None:
         self.kwargs = kwargs
         self.config = config
+        # Possibly override some values if they are present in the kwargs dictionary
+        self.config.num_rays_per_batch = self.kwargs.get("num_rays_per_batch", self.config.num_rays_per_batch)
+        self.config.keep_full_image = self.kwargs.get("keep_full_image", self.config.keep_full_image)
+        self.config.is_equirectangular = self.kwargs.get("is_equirectangular", self.config.is_equirectangular)
         self.set_num_rays_per_batch(self.config.num_rays_per_batch)
 
     def set_num_rays_per_batch(self, num_rays_per_batch: int):
