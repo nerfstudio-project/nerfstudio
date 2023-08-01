@@ -54,7 +54,7 @@ To build the necessary CUDA extensions, `cuda-toolkit` is also required. We
 recommend installing with conda:
 
 ```bash
-conda install -c "nvidia/label/cuda-11.7.1" cuda-toolkit
+conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
 ```
 
 :::
@@ -70,7 +70,7 @@ To build the necessary CUDA extensions, `cuda-toolkit` is also required. We
 recommend installing with conda:
 
 ```bash
-conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
+conda install -c "nvidia/label/cuda-11.7.1" cuda-toolkit
 ```
 
 :::
