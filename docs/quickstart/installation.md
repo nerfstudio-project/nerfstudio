@@ -5,22 +5,21 @@
 ::::::{tab-set}
 :::::{tab-item} Linux
 
-Install CUDA. This library has been tested with version 11.8. You can find CUDA download links [here](https://developer.nvidia.com/cuda-toolkit-archive) and more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html).
+Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 :::::
 :::::{tab-item} Windows
+
 Install [Git](https://git-scm.com/downloads).
 
 Install Visual Studio 2022. This must be done before installing CUDA. The necessary components are included in the `Desktop Development with C++` workflow (also called `C++ Build Tools` in the BuildTools edition).
 
-Install CUDA 11.8. You can find CUDA download links [here](https://developer.nvidia.com/cuda-toolkit-archive) and more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html).
+Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 :::::
 ::::::
 
 ## Create environment
-
-Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 ```bash
 conda create --name nerfstudio -y python=3.8
@@ -55,7 +54,7 @@ To build the necessary CUDA extensions, `cuda-toolkit` is also required. We
 recommend installing with conda:
 
 ```bash
-conda install -c "nvidia/label/cuda-11.7.1" cuda-toolkit
+conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
 ```
 
 :::
@@ -71,7 +70,7 @@ To build the necessary CUDA extensions, `cuda-toolkit` is also required. We
 recommend installing with conda:
 
 ```bash
-conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
+conda install -c "nvidia/label/cuda-11.7.1" cuda-toolkit
 ```
 
 :::
