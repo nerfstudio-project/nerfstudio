@@ -92,17 +92,20 @@ Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependen
 ```bash
 conda create --name nerfstudio -y python=3.8
 conda activate nerfstudio
-python -m pip install --upgrade pip
+pip install --upgrade pip
 ```
 
 ### Dependencies
 
-Install pytorch with CUDA (this repo has been tested with CUDA 11.7 and CUDA 11.8) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+Install PyTorch with CUDA (this repo has been tested with CUDA 11.7 and CUDA 11.8) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn).
+`cuda-toolkit` is required for building `tiny-cuda-nn`.
 
 For CUDA 11.7:
 
 ```bash
 pip install torch==2.0.1+cu117 torchvision==0.15.2+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
+
+conda install -c "nvidia/label/cuda-11.7.1" cuda-toolkit
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
@@ -110,6 +113,8 @@ For CUDA 11.8:
 
 ```bash
 pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
+
+conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
