@@ -15,7 +15,7 @@
 """Classic NeRF field"""
 
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Type
 
 import torch
 from torch import Tensor, nn
@@ -57,7 +57,7 @@ class NeRFField(Field):
         head_mlp_num_layers: int = 2,
         head_mlp_layer_width: int = 128,
         skip_connections: Tuple[int] = (4,),
-        field_heads: Optional[Tuple[FieldHead]] = (RGBFieldHead(),),
+        field_heads: Optional[Tuple[Type[FieldHead]]] = (RGBFieldHead,),
         use_integrated_encoding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
@@ -83,7 +83,7 @@ class NeRFField(Field):
         )
 
         self.field_output_density = DensityFieldHead(in_dim=self.mlp_base.get_out_dim())
-        self.field_heads = nn.ModuleList(field_heads)
+        self.field_heads = nn.ModuleList([field_head() for field_head in field_heads] if field_heads else [])  # type: ignore
         for field_head in self.field_heads:
             field_head.set_in_dim(self.mlp_head.get_out_dim())  # type: ignore
 

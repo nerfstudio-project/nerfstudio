@@ -118,8 +118,8 @@ class Viewer:
         def _(_: viser.CameraHandle) -> None:
             R = vtf.SO3(wxyz=client.camera.wxyz)
             R = R @ vtf.SO3.from_x_radians(np.pi)
-            R = torch.tensor(R.as_matrix())
-            pos = torch.tensor(client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
+            R = torch.tensor(R.as_matrix(), dtype=torch.float32)
+            pos = torch.tensor(client.camera.position, dtype=torch.float32) / VISER_NERFSTUDIO_SCALE_RATIO
             c2w = torch.concatenate([R, pos[:, None]], dim=1)
             self.camera_state = CameraState(fov=client.camera.fov, aspect=client.camera.aspect, c2w=c2w)
             self.render_statemachine.action(RenderAction("move", self.camera_state))

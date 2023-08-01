@@ -208,7 +208,12 @@ class RFFEncoding(Encoding):
         self.include_input = include_input
 
     def get_out_dim(self) -> int:
-        return self.num_frequencies * 2
+        out_dim = self.num_frequencies * 2
+        if self.include_input:
+            if self.in_dim is None:
+                raise ValueError("Input dimension has not been set")
+            out_dim += self.in_dim
+        return out_dim
 
     def forward(
         self,
@@ -264,7 +269,7 @@ class HashEncoding(Encoding):
         log2_hashmap_size: int = 19,
         features_per_level: int = 2,
         hash_init_scale: float = 0.001,
-        implementation: Literal["tcnn", "torch"] = "torch",
+        implementation: Literal["tcnn", "torch"] = "tcnn",
         interpolation: Optional[Literal["Nearest", "Linear", "Smoothstep"]] = None,
     ) -> None:
         super().__init__(in_dim=3)
@@ -274,18 +279,18 @@ class HashEncoding(Encoding):
         self.hash_table_size = 2**log2_hashmap_size
 
         levels = torch.arange(num_levels)
-        growth_factor = np.exp((np.log(max_res) - np.log(min_res)) / (num_levels - 1))
+        growth_factor = np.exp((np.log(max_res) - np.log(min_res)) / (num_levels - 1)) if num_levels > 1 else 1
         self.scalings = torch.floor(min_res * growth_factor**levels)
 
         self.hash_offset = levels * self.hash_table_size
-        self.hash_table = torch.rand(size=(self.hash_table_size * num_levels, features_per_level)) * 2 - 1
-        self.hash_table *= hash_init_scale
-        self.hash_table = nn.Parameter(self.hash_table)
 
         self.tcnn_encoding = None
+        self.hash_table = torch.empty(0)
         if implementation == "tcnn" and not TCNN_EXISTS:
             print_tcnn_speed_warning("HashEncoding")
-        elif implementation == "tcnn":
+            implementation = "torch"
+
+        if implementation == "tcnn":
             encoding_config = {
                 "otype": "HashGrid",
                 "n_levels": self.num_levels,
@@ -301,6 +306,10 @@ class HashEncoding(Encoding):
                 n_input_dims=3,
                 encoding_config=encoding_config,
             )
+        elif implementation == "torch":
+            self.hash_table = torch.rand(size=(self.hash_table_size * num_levels, features_per_level)) * 2 - 1
+            self.hash_table *= hash_init_scale
+            self.hash_table = nn.Parameter(self.hash_table)
 
         if self.tcnn_encoding is None:
             assert (
