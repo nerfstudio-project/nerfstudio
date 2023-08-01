@@ -418,7 +418,7 @@ def radial_and_tangential_undistort(
     max_iterations: int = 10,
     resolution: Float[torch.Tensor, "#num_points 2"] = torch.tensor([[1e-3, 1e-3]]),
     tolerance: float = 0.5,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> Tuple[Float[torch.Tensor, "num_points 2"], Float[torch.Tensor, "num_points 2 2"]]:
     """Computes undistorted coords given opencv distortion parameters.
     Adapted from MultiNeRF
     https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L477-L509
@@ -560,7 +560,7 @@ def fisheye_undistort(
     max_iterations: int = 10,
     resolution: Float[torch.Tensor, "#num_points 2"] = torch.tensor([[1e-3, 1e-3]]),
     tolerance: float = 0.5,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> Tuple[Float[torch.Tensor, "num_points 2"], Float[torch.Tensor, "num_points"]]:
     """Computes undistorted coords given opencv distortion parameters. Based on OpenCV fisheye camera model.
 
     Args:

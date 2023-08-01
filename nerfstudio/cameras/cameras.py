@@ -675,14 +675,16 @@ class Cameras(TensorDataclass):
 
         def _compute_rays_for_omnidirectional_stereo(
             eye: Literal["left", "right"]
-        ) -> Tuple[Float[Tensor, "num_rays_shape 3"], Float[Tensor, "3 num_rays_shape 3"]]:
+        ) -> Tuple[
+            Float[Tensor, "num_rays_shape 3"], Float[Tensor, "num_rays_shape 3"], Float[Tensor, "num_rays_shape"]
+        ]:
             """Compute the rays for an omnidirectional stereo camera
 
             Args:
                 eye: Which eye to compute rays for.
 
             Returns:
-                A tuple containing the origins and the directions of the rays.
+                A tuple containing the origins and the directions of the rays, as well as the area of the pixel corresponding to each ray.
             """
             # Directions calculated similarly to equirectangular
             ods_cam_type = (
@@ -778,7 +780,7 @@ class Cameras(TensorDataclass):
                 directions[..., 1][mask] = (torch.cos(phi)).float()
                 directions[..., 2][mask] = (-torch.cos(theta) * sin_phi).float()
                 # total area integrates to 4pi steradians
-                pixel_area[mask] = 2 * torch.pi * torch.pi * sin_phi * base_areas[msak]
+                pixel_area[mask] = 2 * torch.pi * torch.pi * sin_phi * base_areas[mask]
 
             elif cam == CameraType.OMNIDIRECTIONALSTEREO_L.value:
                 mask = (self.camera_type[true_indices] == CameraType.OMNIDIRECTIONALSTEREO_L.value).squeeze(-1)
