@@ -115,9 +115,9 @@ class DataManagerConfig(InstantiateConfig):
     """Source of data, may not be used by all models."""
     camera_optimizer: Optional[CameraOptimizerConfig] = None
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy."""
-    masks_on_gpu: Optional[bool] = None
+    masks_on_gpu: bool = False
     """Process masks on GPU for speed at the expense of memory, if True."""
-    images_on_gpu: Optional[bool] = None
+    images_on_gpu: bool = False
     """Process images on GPU for speed at the expense of memory, if True."""
 
 
