@@ -474,7 +474,6 @@ class Cameras(TensorDataclass):
             camera_opt_to_camera,
             distortion_params_delta,
             disable_distortion=disable_distortion,
-            tolerance=1e-5,
         )
 
         # If we have mandated that we don't keep the shape, then we flatten
@@ -514,7 +513,7 @@ class Cameras(TensorDataclass):
         camera_opt_to_camera: Optional[Float[Tensor, "*num_rays 3 4"]] = None,
         distortion_params_delta: Optional[Float[Tensor, "*num_rays 6"]] = None,
         disable_distortion: bool = False,
-        tolerance: float = 1e-5,
+        tolerance: float = 5e-7,
     ) -> RayBundle:
         """Generates rays for the given camera indices and coords where self isn't jagged
 
@@ -646,11 +645,10 @@ class Cameras(TensorDataclass):
             # Do not apply distortion for equirectangular images
             if distortion_params is not None:
                 # w, h of each pixel, in units of multiples of focal length.
-                resolutions = torch.stack((1 / fx, 1 / fy), dim=-1)
                 mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
                 if mask.any():
                     coord[mask], jacobian = camera_utils.radial_and_tangential_undistort(
-                        coord[mask], distortion_params[mask], resolution=resolutions[mask], tolerance=tolerance
+                        coord[mask], distortion_params[mask], tolerance=tolerance
                     )
 
                     ja, jb, jc, jd = torch.unbind(jacobian.reshape(-1, 4), dim=1)
@@ -661,7 +659,7 @@ class Cameras(TensorDataclass):
                     r_d = torch.sqrt(torch.sum(coord**2, dim=-1))
 
                     coord[mask], dtheta = camera_utils.fisheye_undistort(
-                        coord[mask], distortion_params[mask], resolution=resolutions[mask], tolerance=tolerance
+                        coord[mask], distortion_params[mask], tolerance=tolerance
                     )
 
                     r = torch.sqrt(torch.sum(coord**2, dim=-1))

@@ -416,8 +416,7 @@ def radial_and_tangential_undistort(
     distortion_params: Float[torch.Tensor, "#num_points num_params"],
     eps: float = 1e-3,
     max_iterations: int = 10,
-    resolution: Float[torch.Tensor, "#num_points 2"] = torch.tensor([[1e-3, 1e-3]]),
-    tolerance: float = 0.5,
+    tolerance: float = 5e-7,
 ) -> Tuple[Float[torch.Tensor, "num_points 2"], Float[torch.Tensor, "num_points 2 2"]]:
     """Computes undistorted coords given opencv distortion parameters.
     Adapted from MultiNeRF
@@ -442,7 +441,7 @@ def radial_and_tangential_undistort(
             unless max_iterations is reached
     """
     if distortion_params.shape[-1] == 0:
-        return coords, torch.eye(2, device=coords.device), coords
+        return coords, torch.eye(2, device=coords.device).broadcast_to(coords.shape + (2,))
 
     if distortion_params.shape[-1] < 6:
         distortion_params = F.pad(distortion_params, (0, 6 - distortion_params.shape[-1]), "constant", 0.0)
@@ -450,11 +449,6 @@ def radial_and_tangential_undistort(
 
     if distortion_params.shape[0] == 1:
         distortion_params = distortion_params.expand((coords.shape[0], -1))
-
-    if resolution.shape[0] == 1:
-        resolution = resolution.expand((coords.shape[0], -1))
-
-    resolution = resolution.to(coords.device)
 
     # Initialize from the distorted point.
     x = coords[..., 0]
@@ -475,7 +469,7 @@ def radial_and_tangential_undistort(
             distortion_params=distortion_params[next_upd],
         )
 
-        converged = (fx < resolution[next_upd, 0] * tolerance) & (fy < resolution[next_upd, 1] * tolerance)
+        converged = (fx < tolerance) & (fy < tolerance)
 
         not_converged = torch.argwhere(~converged).squeeze(-1)
         converged = torch.argwhere(converged).squeeze(-1)
@@ -499,6 +493,7 @@ def radial_and_tangential_undistort(
         step = (j_inv @ residual).squeeze(-1).float()
 
         # careful: index_add_ (with underscore) is in-place, index_add (no underscore) is not in-place
+        # index_add_ seems to give wrong results, stick with out-of-place version
         x = x.index_add(dim=0, index=next_upd, source=step[:, 0], alpha=-1)
         y = y.index_add(dim=0, index=next_upd, source=step[:, 1], alpha=-1)
 
@@ -558,8 +553,7 @@ def fisheye_undistort(
     distortion_params: Float[torch.Tensor, "#num_points num_params"],
     eps: float = 1e-3,
     max_iterations: int = 10,
-    resolution: Float[torch.Tensor, "#num_points 2"] = torch.tensor([[1e-3, 1e-3]]),
-    tolerance: float = 0.5,
+    tolerance: float = 5e-7,
 ) -> Tuple[Float[torch.Tensor, "num_points 2"], Float[torch.Tensor, "num_points"]]:
     """Computes undistorted coords given opencv distortion parameters. Based on OpenCV fisheye camera model.
 
@@ -584,7 +578,7 @@ def fisheye_undistort(
             unless max_iterations is reached
     """
     if distortion_params.shape[-1] == 0:
-        return coords, torch.tensor(1, device=coords.device), coords
+        return coords, torch.ones(coords.shape[:-1], device=coords.device)
 
     if distortion_params.shape[-1] > 4:
         distortion_params = distortion_params[..., :4]
@@ -594,11 +588,6 @@ def fisheye_undistort(
 
     if distortion_params.shape[0] == 1:
         distortion_params = distortion_params.expand((coords.shape[0], -1))
-
-    if resolution.shape[0] == 1:
-        resolution = resolution.expand((coords.shape[0], -1))
-
-    resolution, _ = torch.min(resolution.to(coords.device), dim=-1)
 
     # OpenCV uses an equidistant projection for its fisheye camera model
     # meaning the radius of the point is proportional to the angle from the principal direction
@@ -618,7 +607,7 @@ def fisheye_undistort(
             theta=theta_upd, thetad=r_d[next_upd], distortion_params=distortion_params[next_upd]
         )
 
-        converged = f < resolution[next_upd] * tolerance
+        converged = f < tolerance
 
         not_converged = torch.argwhere(~converged).squeeze(-1)
         converged = torch.argwhere(converged).squeeze(-1)
