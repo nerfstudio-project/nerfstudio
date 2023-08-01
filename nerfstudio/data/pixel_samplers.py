@@ -61,8 +61,7 @@ class PixelSampler:
     def __init__(self, config: PixelSamplerConfig, **kwargs) -> None:
         self.kwargs = kwargs
         self.config = config
-        self.num_rays_per_batch = self.config.num_rays_per_batch
-        self.keep_full_image = self.config.keep_full_image
+        self.set_num_rays_per_batch(self.config.num_rays_per_batch)
 
     def set_num_rays_per_batch(self, num_rays_per_batch: int):
         """Set the number of rays to sample per batch.
@@ -264,11 +263,11 @@ class PixelSampler:
         if isinstance(image_batch["image"], list):
             image_batch = dict(image_batch.items())  # copy the dictionary so we don't modify the original
             pixel_batch = self.collate_image_dataset_batch_list(
-                image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
+                image_batch, self.num_rays_per_batch, keep_full_image=self.config.keep_full_image
             )
         elif isinstance(image_batch["image"], torch.Tensor):
             pixel_batch = self.collate_image_dataset_batch(
-                image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
+                image_batch, self.num_rays_per_batch, keep_full_image=self.config.keep_full_image
             )
         else:
             raise ValueError("image_batch['image'] must be a list or torch.Tensor")
@@ -294,13 +293,7 @@ class PatchPixelSampler(PixelSampler):
         config: the PatchPixelSamplerConfig used to instantiate class
     """
 
-    def __init__(self, config: PatchPixelSamplerConfig, **kwargs) -> None:
-        self.config = config
-        self.patch_size = self.config.patch_size
-        self.config.num_rays_per_batch = (self.config.num_rays_per_batch // (self.patch_size**2)) * (
-            self.patch_size**2
-        )
-        super().__init__(self.config, **kwargs)
+    config: PatchPixelSamplerConfig
 
     def set_num_rays_per_batch(self, num_rays_per_batch: int):
         """Set the number of rays to sample per batch. Overridden to deal with patch-based sampling.
@@ -308,7 +301,7 @@ class PatchPixelSampler(PixelSampler):
         Args:
             num_rays_per_batch: number of rays to sample per batch
         """
-        self.num_rays_per_batch = (num_rays_per_batch // (self.patch_size**2)) * (self.patch_size**2)
+        self.num_rays_per_batch = (num_rays_per_batch // (self.config.patch_size**2)) * (self.config.patch_size**2)
 
     # overrides base method
     def sample_method(
@@ -324,16 +317,20 @@ class PatchPixelSampler(PixelSampler):
             # Note: if there is a mask, sampling reduces back to uniform sampling
             indices = super().sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)
         else:
-            sub_bs = batch_size // (self.patch_size**2)
+            sub_bs = batch_size // (self.config.patch_size**2)
             indices = torch.rand((sub_bs, 3), device=device) * torch.tensor(
-                [num_images, image_height - self.patch_size, image_width - self.patch_size],
+                [num_images, image_height - self.config.patch_size, image_width - self.config.patch_size],
                 device=device,
             )
 
-            indices = indices.view(sub_bs, 1, 1, 3).broadcast_to(sub_bs, self.patch_size, self.patch_size, 3).clone()
+            indices = (
+                indices.view(sub_bs, 1, 1, 3)
+                .broadcast_to(sub_bs, self.config.patch_size, self.config.patch_size, 3)
+                .clone()
+            )
 
             yys, xxs = torch.meshgrid(
-                torch.arange(self.patch_size, device=device), torch.arange(self.patch_size, device=device)
+                torch.arange(self.config.patch_size, device=device), torch.arange(self.config.patch_size, device=device)
             )
             indices[:, ..., 1] += yys
             indices[:, ..., 2] += xxs
