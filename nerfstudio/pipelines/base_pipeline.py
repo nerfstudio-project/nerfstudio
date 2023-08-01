@@ -106,7 +106,7 @@ class Pipeline(nn.Module):
         """Returns the device that the model is on."""
         return self.model.device
 
-    def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
+    def load_state_dict(self, state_dict: Mapping[str, Any], strict: Optional[bool] = None):
         is_ddp_model_state = True
         model_state = {}
         for key, value in state_dict.items():
@@ -122,7 +122,15 @@ class Pipeline(nn.Module):
             model_state = {key[len("module.") :]: value for key, value in model_state.items()}
 
         pipeline_state = {key: value for key, value in state_dict.items() if not key.startswith("_model.")}
-        self.model.load_state_dict(model_state, strict=strict)
+
+        try:
+            self.model.load_state_dict(model_state, strict=True)
+        except RuntimeError:
+            if not strict:
+                self.model.load_state_dict(model_state, strict=False)
+            else:
+                raise
+
         super().load_state_dict(pipeline_state, strict=False)
 
     @profiler.time_function
@@ -175,12 +183,15 @@ class Pipeline(nn.Module):
 
     @abstractmethod
     @profiler.time_function
-    def get_average_eval_image_metrics(self, step: Optional[int] = None, output_path: Optional[Path] = None):
+    def get_average_eval_image_metrics(
+        self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: bool = False
+    ):
         """Iterate over all the images in the eval dataset and get the average.
 
         Args:
             step: current training step
             output_path: optional path to save rendered images to
+            get_std: Set True if you want to return std with the mean metric.
         """
 
     def load_pipeline(self, loaded_state: Dict[str, Any], step: int) -> None:
@@ -346,12 +357,15 @@ class VanillaPipeline(Pipeline):
         return metrics_dict, images_dict
 
     @profiler.time_function
-    def get_average_eval_image_metrics(self, step: Optional[int] = None, output_path: Optional[Path] = None):
+    def get_average_eval_image_metrics(
+        self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: bool = False
+    ):
         """Iterate over all the images in the eval dataset and get the average.
 
         Args:
             step: current training step
             output_path: optional path to save rendered images to
+            get_std: Set True if you want to return std with the mean metric.
 
         Returns:
             metrics_dict: dictionary of metrics
@@ -393,9 +407,16 @@ class VanillaPipeline(Pipeline):
         # average the metrics list
         metrics_dict = {}
         for key in metrics_dict_list[0].keys():
-            metrics_dict[key] = float(
-                torch.mean(torch.tensor([metrics_dict[key] for metrics_dict in metrics_dict_list]))
-            )
+            if get_std:
+                key_std, key_mean = torch.std_mean(
+                    torch.tensor([metrics_dict[key] for metrics_dict in metrics_dict_list])
+                )
+                metrics_dict[key] = float(key_mean)
+                metrics_dict[f"{key}_std"] = float(key_std)
+            else:
+                metrics_dict[key] = float(
+                    torch.mean(torch.tensor([metrics_dict[key] for metrics_dict in metrics_dict_list]))
+                )
         self.train()
         return metrics_dict
 
@@ -410,7 +431,7 @@ class VanillaPipeline(Pipeline):
             (key[len("module.") :] if key.startswith("module.") else key): value for key, value in loaded_state.items()
         }
         self.model.update_to_step(step)
-        self.load_state_dict(state, strict=True)
+        self.load_state_dict(state)
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes

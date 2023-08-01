@@ -76,6 +76,8 @@ class ExperimentConfig(InstantiateConfig):
     """Alias for --pipeline.model.prompt"""
     relative_model_dir: Path = Path("nerfstudio_models/")
     """Relative path to save all checkpoints."""
+    load_scheduler: bool = True
+    """Whether to load the scheduler state_dict to resume training, if exists"""
 
     def is_viewer_enabled(self) -> bool:
         """Checks if a viewer is enabled."""

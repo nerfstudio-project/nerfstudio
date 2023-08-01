@@ -133,8 +133,8 @@ class Field(nn.Module):
         return field_outputs
 
 
-def shift_directions_for_tcnn(directions: Float[Tensor, "*bs 3"]) -> Float[Tensor, "*bs 3"]:
-    """Shift directions from [-1, 1] to [0, 1]
+def get_normalized_directions(directions: Float[Tensor, "*bs 3"]) -> Float[Tensor, "*bs 3"]:
+    """SH encoding must be in the range [0, 1]
 
     Args:
         directions: batch of directions
