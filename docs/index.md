@@ -200,10 +200,11 @@ If you use this library or find the documentation useful for your research, plea
 
 ## Maintainers
 
-|                                              | Nerfstudio Discord | Affiliation                          |
-| -------------------------------------------- | ------------------ | ------------------------------------ |
-| [Justin Kerr](https://kerrj.github.io/)      | justin.kerr        | UC Berkeley                          |
-| [Jonáš Kulhánek](https://jkulhanek.com/)     | jkulhanek          | Czech Technical University in Prague |
-| [Matt Tancik](https://www.matthewtancik.com) | tancik             | UC Berkeley                          |
-| [Ethan Weber](https://ethanweber.me/)        | ethanweber         | UC Berkeley                          |
-| [Brent Yi](https://github.com/brentyi)       | brent              | UC Berkeley                          |
+|                                                 | Nerfstudio Discord | Affiliation                          |
+| ----------------------------------------------- | ------------------ | ------------------------------------ |
+| [Justin Kerr](https://kerrj.github.io/)         | justin.kerr        | UC Berkeley                          |
+| [Jonáš Kulhánek](https://jkulhanek.com/)        | jkulhanek          | Czech Technical University in Prague |
+| [Matt Tancik](https://www.matthewtancik.com)    | tancik             | Luma AI                              |
+| [Matias Turkulainen](https://maturk.github.io/) | maturk             | ETH Zurich                           |
+| [Ethan Weber](https://ethanweber.me/)           | ethanweber         | UC Berkeley                          |
+| [Brent Yi](https://github.com/brentyi)          | brent              | UC Berkeley                          |
