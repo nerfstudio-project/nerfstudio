@@ -318,8 +318,8 @@ class PatchPixelSampler(PixelSampler):
         device: Union[torch.device, str] = "cpu",
     ) -> Int[Tensor, "batch_size 3"]:
         if isinstance(mask, Tensor):
-            # Note: if there is a mask, sampling reduces back to uniform sampling
-            indices = super().sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)
+            # Note: if there is a mask, should switch to the base PixelSampler class
+            raise NotImplementedError()
         else:
             sub_bs = batch_size // (self.config.patch_size**2)
             indices = torch.rand((sub_bs, 3), device=device) * torch.tensor(
@@ -380,7 +380,8 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
         device: Union[torch.device, str] = "cpu",
     ) -> Int[Tensor, "batch_size 3"]:
         if mask:
-            # Note: if there is a mask, sampling reduces back to uniform sampling
+                        # Note: if there is a mask, should switch to the base PixelSampler class
+
             raise NotImplementedError()
         else:
             s = (self.rays_to_sample, 1)
