@@ -36,7 +36,7 @@ POLYCAM_UPSCALING_TIMES = 2
 """Lowercase suffixes to treat as raw image."""
 ALLOWED_RAW_EXTS = [".cr2"]
 """Suffix to use for converted images from raw."""
-RAW_CONVERTED_SUFFIX = ".tiff"
+RAW_CONVERTED_SUFFIX = ".jpg"
 
 
 class CameraModel(Enum):
@@ -244,7 +244,7 @@ def copy_images_list(
             CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
         copied_image_path = image_dir / f"frame_{idx + 1:05d}{image_path.suffix}"
         try:
-            # if CR2 raw, we want to read raw and write TIFF, and change the file suffix for downstream processing
+            # if CR2 raw, we want to read raw and write RAW_CONVERTED_SUFFIX, and change the file suffix for downstream processing
             if image_path.suffix.lower() in ALLOWED_RAW_EXTS:
                 copied_image_path = image_dir / f"frame_{idx + 1:05d}{RAW_CONVERTED_SUFFIX}"
                 with rawpy.imread(str(image_path)) as raw:
