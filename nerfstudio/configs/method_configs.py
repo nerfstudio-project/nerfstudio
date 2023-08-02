@@ -22,6 +22,7 @@ from collections import OrderedDict
 from typing import Dict
 
 import tyro
+from nerfstudio.data.pixel_samplers import PairPixelSamplerConfig
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import ViewerConfig
@@ -209,6 +210,7 @@ method_configs["depth-nerfacto"] = TrainerConfig(
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             _target=VanillaDataManager[DepthDataset],
+            pixel_sampler=PairPixelSamplerConfig(),
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,

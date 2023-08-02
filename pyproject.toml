@@ -56,7 +56,8 @@ dependencies = [
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
     "xatlas",
-    "trimesh>=3.20.2"
+    "trimesh>=3.20.2",
+    "timm==0.6.7"
 ]
 
 [project.urls]
