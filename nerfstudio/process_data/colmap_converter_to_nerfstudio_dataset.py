@@ -96,6 +96,8 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     """If True, export and use depth maps induced from SfM points."""
     include_depth_debug: bool = False
     """If --use-sfm-depth and this flag is True, also export debug images showing Sf overlaid upon input images."""
+    same_dimensions: bool = True
+    """Whether to assume all images are same dimensions and so to use fast downscaling with no autorotation."""
 
     @staticmethod
     def default_colmap_path() -> Path:

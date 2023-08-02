@@ -215,6 +215,7 @@ def copy_images_list(
     verbose: bool = False,
     upscale_factor: Optional[int] = None,
     nearest_neighbor: bool = False,
+    same_dimensions: bool = True,
 ) -> List[Path]:
     """Copy all images in a list of Paths. Useful for filtering from a directory.
     Args:
@@ -250,8 +251,15 @@ def copy_images_list(
                     rgb = raw.postprocess()
                 imageio.imsave(copied_image_path, rgb)
                 image_paths[idx] = copied_image_path
-            else:
+            elif same_dimensions:
+                # Fast path; just copy the file
                 shutil.copy(image_path, copied_image_path)
+            else:
+                # Slow path; let ffmpeg perform autorotation (and clear metadata)
+                ffmpeg_cmd = f"ffmpeg -y -i {image_path} -metadata:s:v:0 rotate=0 {copied_image_path}"
+                if verbose:
+                    CONSOLE.log(f"... {ffmpeg_cmd}")
+                run_command(ffmpeg_cmd, verbose=verbose)
         except shutil.SameFileError:
             pass
         copied_image_paths.append(copied_image_path)
@@ -259,9 +267,6 @@ def copy_images_list(
     nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
     downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}{nn_flag}[out{i}]" for i in range(num_downscales + 1)]
     downscale_dirs = [Path(str(image_dir) + (f"_{2**i}" if i > 0 else "")) for i in range(num_downscales + 1)]
-    downscale_paths = [
-        downscale_dirs[i] / ("frame_%05d" + copied_image_paths[0].suffix) for i in range(num_downscales + 1)
-    ]
 
     for dir in downscale_dirs:
         dir.mkdir(parents=True, exist_ok=True)
@@ -274,30 +279,38 @@ def copy_images_list(
     )
 
     num_frames = len(image_paths)
-    ffmpeg_cmd = f'ffmpeg -y -noautorotate -i "{image_dir / f"frame_%05d{copied_image_paths[0].suffix}"}" -q:v 2 '
+    # ffmpeg batch commands assume all images are the same dimensions.
+    # When this is not the case (e.g. mixed portrait and landscape images), we need to do individually.
+    # (Unfortunately, that is much slower.)
+    for framenum in range(1, (1 if same_dimensions else num_frames) + 1):
+        framename = "frame_%05d" if same_dimensions else f"frame_{framenum:05d}"
+        ffmpeg_cmd = f'ffmpeg -y -noautorotate -i "{image_dir / f"{framename}{copied_image_paths[0].suffix}"}" -q:v 2 '
 
-    crop_cmd = ""
-    if crop_border_pixels is not None:
-        crop_cmd = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}[cropped];[cropped]"
-    elif crop_factor != (0.0, 0.0, 0.0, 0.0):
-        height = 1 - crop_factor[0] - crop_factor[1]
-        width = 1 - crop_factor[2] - crop_factor[3]
-        start_x = crop_factor[2]
-        start_y = crop_factor[0]
-        crop_cmd = f"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}[cropped];[cropped]"
+        crop_cmd = ""
+        if crop_border_pixels is not None:
+            crop_cmd = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}[cropped];[cropped]"
+        elif crop_factor != (0.0, 0.0, 0.0, 0.0):
+            height = 1 - crop_factor[0] - crop_factor[1]
+            width = 1 - crop_factor[2] - crop_factor[3]
+            start_x = crop_factor[2]
+            start_y = crop_factor[0]
+            crop_cmd = f"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y}[cropped];[cropped]"
 
-    select_cmd = "[0:v]"
-    if upscale_factor is not None:
-        select_cmd = f"[0:v]scale=iw*{upscale_factor}:ih*{upscale_factor}:flags=neighbor[upscaled];[upscaled]"
+        select_cmd = "[0:v]"
+        if upscale_factor is not None:
+            select_cmd = f"[0:v]scale=iw*{upscale_factor}:ih*{upscale_factor}:flags=neighbor[upscaled];[upscaled]"
 
-    downscale_cmd = f' -filter_complex "{select_cmd}{crop_cmd}{downscale_chain}"' + "".join(
-        [f' -map "[out{i}]" "{downscale_paths[i]}"' for i in range(num_downscales + 1)]
-    )
+        downscale_cmd = f' -filter_complex "{select_cmd}{crop_cmd}{downscale_chain}"' + "".join(
+            [
+                f' -map "[out{i}]" "{downscale_dirs[i] / f"{framename}{copied_image_paths[0].suffix}"}"'
+                for i in range(num_downscales + 1)
+            ]
+        )
 
-    ffmpeg_cmd += downscale_cmd
-    if verbose:
-        CONSOLE.log(f"... {ffmpeg_cmd}")
-    run_command(ffmpeg_cmd, verbose=verbose)
+        ffmpeg_cmd += downscale_cmd
+        if verbose:
+            CONSOLE.log(f"... {ffmpeg_cmd}")
+        run_command(ffmpeg_cmd, verbose=verbose)
 
     if num_frames == 0:
         CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
@@ -353,6 +366,7 @@ def copy_images(
     verbose: bool = False,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     num_downscales: int = 0,
+    same_dimensions: bool = True,
 ) -> OrderedDict[Path, Path]:
     """Copy images from a directory to a new directory.
 
@@ -377,6 +391,7 @@ def copy_images(
             crop_factor=crop_factor,
             verbose=verbose,
             num_downscales=num_downscales,
+            same_dimensions=same_dimensions,
         )
         return OrderedDict((original_path, new_path) for original_path, new_path in zip(image_paths, copied_images))
 
