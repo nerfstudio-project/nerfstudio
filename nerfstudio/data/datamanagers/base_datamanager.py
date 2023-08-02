@@ -57,6 +57,7 @@ from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import (
     PixelSampler,
     PixelSamplerConfig,
+    PatchPixelSamplerConfig,
 )
 from nerfstudio.data.utils.dataloaders import (
     CacheDataloader,
@@ -345,6 +346,8 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """The scale factor for scaling spatial data such as images, mask, semantics
     along with relevant information about camera intrinsics
     """
+    patch_size: int = 1
+    """Size of patch to sample from. If >1, patch-based sampling will be used."""
     pixel_sampler: PixelSamplerConfig = PixelSamplerConfig()
     """Specifies the pixel sampler used to sample pixels from images."""
 
@@ -458,6 +461,10 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
 
     def _get_pixel_sampler(self, dataset: TDataset, num_rays_per_batch: int) -> PixelSampler:
         """Infer pixel sampler to use."""
+        if self.config.patch_size > 1:
+            return PatchPixelSamplerConfig().setup(
+                patch_size=self.config.patch_size, num_rays_per_batch=num_rays_per_batch
+            )
         is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
         if is_equirectangular.any():
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")

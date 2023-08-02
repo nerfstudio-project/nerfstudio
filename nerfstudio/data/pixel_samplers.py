@@ -380,7 +380,7 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
         device: Union[torch.device, str] = "cpu",
     ) -> Int[Tensor, "batch_size 3"]:
         if mask:
-                        # Note: if there is a mask, should switch to the base PixelSampler class
+            # Note: if there is a mask, should switch to the base PixelSampler class
 
             raise NotImplementedError()
         else:
