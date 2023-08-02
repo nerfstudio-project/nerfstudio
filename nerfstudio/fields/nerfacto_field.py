@@ -65,8 +65,6 @@ class NerfactoField(Field):
         use_pred_normals: whether to use predicted normals
         use_average_appearance_embedding: whether to use average appearance embedding or zeros for inference
         spatial_distortion: spatial distortion to apply to the scene
-        bundle_adjust: whether to use bundle adjustment
-        coarse_to_fine_iters: iterations (percentage of max iters) at which bundle adjustment is active
     """
 
     aabb: Tensor
@@ -92,14 +90,11 @@ class NerfactoField(Field):
         use_transient_embedding: bool = False,
         use_semantics: bool = False,
         num_semantic_classes: int = 100,
-        freq_warmup: int = 0,
         pass_semantic_gradients: bool = False,
         use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
         implementation: Literal["tcnn", "torch"] = "tcnn",
-        bundle_adjust: bool = False,
-        coarse_to_fine_iters: Optional[Tuple[float, float]] = None,
     ) -> None:
         super().__init__()
 
@@ -120,9 +115,6 @@ class NerfactoField(Field):
         self.use_pred_normals = use_pred_normals
         self.pass_semantic_gradients = pass_semantic_gradients
         self.base_res = base_res
-        self.freq_warmup = freq_warmup
-        self.bundle_adjust = bundle_adjust
-        self.coarse_to_fine_iters = coarse_to_fine_iters
         self.step = 0
 
         self.direction_encoding = SHEncoding(
@@ -208,44 +200,6 @@ class NerfactoField(Field):
             implementation=implementation,
         )
 
-    def step_cb(self, step):
-        self.step = step
-
-    def get_freq_mask(self, B, N, D, device):
-        import numpy as np
-
-        if self.bundle_adjust:
-            # set masks for hash grid levels
-            self.max_iters: int = GLOBAL_BUFFER.get("max_iter")
-            assert self.coarse_to_fine_iters is not None
-            start, end = self.coarse_to_fine_iters
-            assert (
-                start >= 0 and end >= 0
-            ), f"start and end iterations for bundle adjustment have to be positive, got start = {start} and end = {end}"
-            L = N
-            # From https://arxiv.org/pdf/2104.06405.pdf equation 14
-            alpha = ((self.step / self.max_iters) - start) / (end - start) * L
-            k = torch.arange(L, dtype=torch.float32, device=device)
-            mask_vals = (1 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()) / 2
-        else:
-            ts = np.linspace(self.step * N, self.step, N)
-            mask_vals = np.interp(ts, [0, self.freq_warmup], [0, 1])
-            mask_vals = torch.from_numpy(mask_vals)
-        m = mask_vals[None, ..., None].to(device)
-        return m.repeat((B, 1, D))
-
-    def mask_freqs(self, hashgrid_outputs):
-        """
-        hashgrid_outputs is a B x N*D array of the hashgrid values
-        """
-        # N is number of levels (usually 16)
-        # D is feature dim (usually 2)
-        N = self.mlp_base_grid.num_levels
-        D = self.mlp_base_grid.features_per_level
-        hashgrid_outputs = hashgrid_outputs.view(-1, N, D)
-        masked = self.get_freq_mask(hashgrid_outputs.shape[0], N, D, hashgrid_outputs.device) * hashgrid_outputs
-        return masked.view(masked.shape[0], -1)
-
     def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
         if self.spatial_distortion is not None:
@@ -261,10 +215,7 @@ class NerfactoField(Field):
         if not self._sample_locations.requires_grad:
             self._sample_locations.requires_grad = True
         positions_flat = positions.view(-1, 3)
-        hashgrid_vecs = self.mlp_base_grid(positions_flat)
-        hashgrid_vecs = self.mask_freqs(hashgrid_vecs)
-        h = self.mlp_base_mlp(hashgrid_vecs).view(*ray_samples.frustums.shape, -1)
-        # h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
+        h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
         self._density_before_activation = density_before_activation
 
