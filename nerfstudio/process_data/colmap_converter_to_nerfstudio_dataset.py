@@ -189,9 +189,15 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         if self.refine_pixsfm:
             assert sfm_tool == "hloc", "refine_pixsfm only works with sfm_tool hloc"
 
+        # set the image_dir if didn't copy
+        if self.skip_image_processing:
+            image_dir = self.data
+        else:
+            image_dir = self.image_dir
+
         if sfm_tool == "colmap":
             colmap_utils.run_colmap(
-                image_dir=self.image_dir,
+                image_dir=image_dir,
                 colmap_dir=self.absolute_colmap_path,
                 camera_model=CAMERA_MODELS[self.camera_type],
                 camera_mask_path=mask_path,
@@ -208,7 +214,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
             assert matcher_type is not None
             assert matcher_type != "NN"  # Only used for colmap.
             hloc_utils.run_hloc(
-                image_dir=self.image_dir,
+                image_dir=image_dir,
                 colmap_dir=self.absolute_colmap_path,
                 camera_model=CAMERA_MODELS[self.camera_type],
                 verbose=self.verbose,

@@ -187,6 +187,30 @@ class Model(nn.Module):
             outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)  # type: ignore
         return outputs
 
+    def get_rgba_image(self, outputs: Dict[str, torch.Tensor], output_name: str = "rgb") -> torch.Tensor:
+        """Returns the RGBA image from the outputs of the model.
+
+        Args:
+            outputs: Outputs of the model.
+
+        Returns:
+            RGBA image.
+        """
+        accumulation_name = output_name.replace("rgb", "accumulation")
+        if (
+            not hasattr(self, "renderer_rgb")
+            or not hasattr(self.renderer_rgb, "background_color")
+            or accumulation_name not in outputs
+        ):
+            raise NotImplementedError(f"get_rgba_image is not implemented for model {self.__class__.__name__}")
+        rgb = outputs[output_name]
+        if self.renderer_rgb.background_color == "random":  # type: ignore
+            acc = outputs[accumulation_name]
+            if acc.dim() < rgb.dim():
+                acc = acc.unsqueeze(-1)
+            return torch.cat((rgb / acc.clamp(min=1e-10), acc), dim=-1)
+        return torch.cat((rgb, torch.ones_like(rgb[..., :1])), dim=-1)
+
     @abstractmethod
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]

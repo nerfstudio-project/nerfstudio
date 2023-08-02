@@ -121,6 +121,24 @@ To enable NeRFPlayer, you must install it first by running:
     )
 )
 
+# Volinga
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]Volinga[/bold yellow]
+For more information visit: https://docs.nerf.studio/en/latest/extensions/unreal_engine.html
+
+To enable Volinga, you must install it first by running:
+  [grey]pip install git+https://github.com/Volinga/volinga-model[/grey]""",
+        configurations=[
+            (
+                "volinga",
+                "Real-time rendering model from Volinga. Directly exportable to NVOL format at https://volinga.ai/",
+            ),
+        ],
+        pip_package="git+https://github.com/Volinga/volinga-model",
+    )
+)
+
 
 @dataclass
 class ExternalMethodTrainerConfig(TrainerConfig):
