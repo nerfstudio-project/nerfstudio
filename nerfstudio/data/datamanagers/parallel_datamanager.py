@@ -48,7 +48,7 @@ from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
 from nerfstudio.data.datamanagers.base_datamanager import (
     DataManager,
-    DataManagerConfig,
+    VanillaDataManagerConfig,
     TDataset,
     variable_res_collate,
 )
@@ -71,37 +71,11 @@ from nerfstudio.utils.rich_utils import CONSOLE
 
 
 @dataclass
-class ParallelDataManagerConfig(DataManagerConfig):
+class ParallelDataManagerConfig(VanillaDataManagerConfig):
     """Config for a `ParallelDataManager` which reads data in multiple processes"""
 
     _target: Type = field(default_factory=lambda: ParallelDataManager)
     """Target class to instantiate."""
-    dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
-    """Specifies the dataparser used to unpack the data."""
-    train_num_rays_per_batch: int = 1024
-    """Number of rays per batch to use per training iteration."""
-    train_num_images_to_sample_from: int = -1
-    """Number of images to sample during training iteration."""
-    train_num_times_to_repeat_images: int = -1
-    """When not training on all images, number of iterations before picking new
-    images. If -1, never pick new images."""
-    eval_num_rays_per_batch: int = 1024
-    """Number of rays per batch to use per eval iteration."""
-    eval_num_images_to_sample_from: int = -1
-    """Number of images to sample during eval iteration."""
-    eval_num_times_to_repeat_images: int = -1
-    """When not evaluating on all images, number of iterations before picking
-    new images. If -1, never pick new images."""
-    eval_image_indices: Optional[Tuple[int, ...]] = (0,)
-    """Specifies the image indices to use during eval; if None, uses all."""
-    collate_fn: Callable[[Any], Any] = cast(Any, staticmethod(nerfstudio_collate))
-    """Specifies the collate function to use for the train and eval dataloaders."""
-    camera_res_scale_factor: float = 1.0
-    """The scale factor for scaling spatial data such as images, mask, semantics
-    along with relevant information about camera intrinsics
-    """
-    patch_size: int = 1
-    """Size of patch to sample from. If >1, patch-based sampling will be used."""
     num_processes: int = 1
     """Number of processes to use for train data loading."""
     queue_size: int = 2
@@ -110,14 +84,7 @@ class ParallelDataManagerConfig(DataManagerConfig):
     max_thread_workers: Optional[int] = None
     """Maximum number of threads to use in thread pool executor. If None, automatically
     set to harware cpu_count + 4."""
-    position_noise_std: float = 0.0
-    """Noise to add to initial camera pose positions. Useful for debugging."""
-    orientation_noise_std: float = 0.0
-    """Noise to add to initial camera pose orientations. Useful for debugging."""
-    non_trainable_camera_indices: Optional[Tuple[int, ...]] = None
-    """List of non trainable camera indices."""
-
-
+    
 class DataProcessor(mp.Process):
     """Parallel dataset batch processor.
 
@@ -223,9 +190,6 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
                     CONSOLE.print("Variable resolution, using variable_res_collate")
                     self.config.collate_fn = variable_res_collate
                     break
-        self.non_trainable_camera_indices = self.config.non_trainable_camera_indices
-        if self.config.position_noise_std != 0.0 or self.config.orientation_noise_std != 0.0:
-            self.apply_pose_noise(self.non_trainable_camera_indices)
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
         self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
@@ -360,24 +324,3 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             A list of dictionaries containing the data manager's param groups.
         """
         return {}
-
-    def apply_pose_noise(self, non_trainable_camera_indices: Optional[Tuple[int]]):
-        """Apply noise to training camera poses.
-
-        Args:
-            non_trainable_camera_indices: list of non trainable cameras
-        """
-        assert self.config.position_noise_std >= 0.0 and self.config.orientation_noise_std >= 0.0
-        camera_to_worlds = self.train_dataparser_outputs.cameras.camera_to_worlds.to(self.device)
-        num_cameras = len(self.train_dataparser_outputs.cameras)
-        std_vector = torch.tensor(
-            [self.config.position_noise_std] * 3 + [self.config.orientation_noise_std] * 3, device=self.device
-        )
-        pose_noise = exp_map_SE3(torch.normal(torch.zeros((num_cameras, 6), device=self.device), std_vector))
-        if non_trainable_camera_indices is not None:
-            pose_noise[torch.tensor(non_trainable_camera_indices).long()] = torch.eye(4, device=pose_noise.device)[
-                :3, :4
-            ]
-        self.train_dataparser_outputs.cameras.camera_to_worlds = functools.reduce(
-            pose_utils.multiply, [camera_to_worlds, pose_noise]
-        ).to(self.train_dataparser_outputs.cameras.camera_to_worlds.device)
