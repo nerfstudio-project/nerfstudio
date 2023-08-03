@@ -65,6 +65,7 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                 crop_factor=self.crop_factor,
                 verbose=self.verbose,
                 num_downscales=self.num_downscales,
+                same_dimensions=self.same_dimensions,
             )
             image_rename_map = dict((a.name, b.name) for a, b in image_rename_map_paths.items())
             num_frames = len(image_rename_map)
