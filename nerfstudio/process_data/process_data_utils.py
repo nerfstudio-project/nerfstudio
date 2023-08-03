@@ -203,7 +203,7 @@ def convert_video_to_images(
 
         num_final_frames = len(list(image_dir.glob("*.png")))
         summary_log = []
-        summary_log.append(f"Starting with {num_frames} video frames with prefix '{image_prefix}'")
+        summary_log.append(f"Starting with {num_frames} video frames")
         summary_log.append(f"We extracted {num_final_frames} images with prefix '{image_prefix}'")
         CONSOLE.log("[bold green]:tada: Done converting video to images.")
 
