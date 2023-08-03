@@ -461,7 +461,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
 
     def _get_pixel_sampler(self, dataset: TDataset, num_rays_per_batch: int) -> PixelSampler:
         """Infer pixel sampler to use."""
-        if self.config.patch_size > 1:
+        if self.config.patch_size > 1 and isinstance(self.config.pixel_sampler, PixelSamplerConfig):
             return PatchPixelSamplerConfig().setup(
                 patch_size=self.config.patch_size, num_rays_per_batch=num_rays_per_batch
             )
