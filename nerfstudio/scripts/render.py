@@ -47,14 +47,19 @@ from rich.table import Table
 from torch import Tensor
 from typing_extensions import Annotated
 
-from scipy.spatial import KDTree
 import lpips
+from scipy.spatial.transform import Rotation as R
+from torchvision import transforms
+import PIL
+# from PIL import Image
 
 from nerfstudio.cameras.camera_paths import (
     get_interpolated_camera_path,
     get_path_from_json,
     get_spiral_path,
 )
+
+from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.data.scene_box import SceneBox
@@ -124,111 +129,157 @@ def _render_trajectory_video(
     with ExitStack() as stack:
         writer = None
 
-        lpips_loss_fn = lpips.LPIPS(net='alex')
+        # lpips_loss_fn = lpips.LPIPS(net='alex')
         train_dataset = pipeline.datamanager.train_dataset
         train_cameras = train_dataset.cameras.to(pipeline.device)
-        training_images = []
+        # training_images = []
 
         # import pdb; pdb.set_trace()
-        for i in range(len(train_cameras)):
-            training_images.append(train_dataset.get_image(i))
-        training_images = torch.stack(training_images)
-        training_images = training_images.to(pipeline.device)
+        # for i in range(len(train_cameras)):
+        #     training_images.append(train_dataset.get_image(i))
+        # training_images = torch.stack(training_images)
+        # training_images = training_images.to(pipeline.device)
 
-        import pdb; pdb.set_trace()
-        # train_cameras.rescale_output_resolution(float(cameras.image_width[0]/ train_cameras.image_width[0]))
-        points = []
+        # with progress:
+        for camera_idx in progress.track(range(cameras.size), description=""):
+            aabb_box = None
+            if crop_data is not None:
+                bounding_box_min = crop_data.center - crop_data.scale / 2.0
+                bounding_box_max = crop_data.center + crop_data.scale / 2.0
+                aabb_box = SceneBox(torch.stack([bounding_box_min, bounding_box_max]).to(pipeline.device))
+            camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx, aabb_box=aabb_box)
+            cam_pos = cameras[camera_idx].camera_to_worlds[:, 3].cpu()
+            cam_rot = R.from_matrix(cameras[camera_idx].camera_to_worlds[:3, :3].cpu())
+            cam_quat = cam_rot.as_quat()
 
-        for i in range(len(train_cameras)):
-            points.append(train_cameras[i].camera_to_worlds[:, 3].cpu())
-        
-        kdtree = KDTree(points)
+            max_dist, max_idx = None, None
+            true_max_dist, true_max_idx = None, None 
+            for i in range(len(train_cameras)):
+                train_cam_pos = train_cameras[i].camera_to_worlds[:, 3].cpu()
+                #Make sure the line of sight from rendered cam to training cam is not blocked by any object
+                dataparser_outputs = pipeline.datamanager.train_dataset._dataparser_outputs
+                scale_factor = dataparser_outputs.dataparser_scale
+                bundle = RayBundle(
+                    origins=cam_pos.view(1, 3),
+                    directions=((cam_pos - train_cam_pos)/(cam_pos - train_cam_pos).norm()).view(1, 3),
+                    pixel_area=torch.tensor(1).view(1, 1),
+                    nears=torch.tensor(0.05).view(1, 1),
+                    fars=torch.tensor(100).view(1, 1),
+                    camera_indices=torch.tensor(0).view(1, 1),
+                    metadata={},
+                ).to(pipeline.device)
+                outputs = pipeline.model.get_outputs(bundle)
+                print("Render: ", camera_idx, "Camera: ", i , "Depth: ", outputs['depth'][0], "Distance: ", torch.norm(cam_pos - train_cam_pos).item()/scale_factor, "Occluded: ", outputs['depth'][0] < torch.norm(cam_pos - train_cam_pos).item()/scale_factor)
 
-        with progress:
-            for camera_idx in progress.track(range(cameras.size), description=""):
-                aabb_box = None
-                if crop_data is not None:
-                    bounding_box_min = crop_data.center - crop_data.scale / 2.0
-                    bounding_box_max = crop_data.center + crop_data.scale / 2.0
-                    aabb_box = SceneBox(torch.stack([bounding_box_min, bounding_box_max]).to(pipeline.device))
-                camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx, aabb_box=aabb_box)
-                cam_pos = cameras[camera_idx].camera_to_worlds[:, 3].cpu()
+                r = R.from_matrix(train_cameras[i].camera_to_worlds[:3, :3].cpu())
+                q = r.as_quat()
+                #calculate distance between two quaternions
+                rot_dist = 1 - np.dot(q, cam_quat)**2
+                pos_dist = torch.norm(train_cam_pos - cam_pos)
+                dist = 0.3 * rot_dist + 0.7 * pos_dist
 
-                if crop_data is not None:
-                    with renderers.background_color_override_context(
-                        crop_data.background_color.to(pipeline.device)
-                    ), torch.no_grad():
-                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                else:
-                    with torch.no_grad():
-                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                if outputs['depth'][0] < torch.norm(cam_pos - train_cam_pos).item()/scale_factor:
+                    if true_max_dist is None or dist < true_max_dist:
+                        true_max_dist = dist
+                        true_max_idx = i
+                    continue
 
-                render_image = []
-                for rendered_output_name in rendered_output_names:
-                    if rendered_output_name not in outputs:
-                        CONSOLE.rule("Error", style="red")
-                        CONSOLE.print(f"Could not find {rendered_output_name} in the model outputs", justify="center")
-                        CONSOLE.print(
-                            f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center"
-                        )
-                        sys.exit(1)
-                    output_image = outputs[rendered_output_name]
-                    output_image = (
-                        colormaps.apply_colormap(
-                            image=output_image,
-                            colormap_options=colormap_options,
-                        )
-                        .cpu()
-                        .numpy()
+                if max_dist is None or dist < max_dist:
+                    max_dist = dist
+                    max_idx = i
+
+            if max_idx is None:
+                max_idx = true_max_idx
+                print("FAILED TO FIND A CAMERA NOT OCCLUDED")
+            
+            if crop_data is not None:
+                with renderers.background_color_override_context(
+                    crop_data.background_color.to(pipeline.device)
+                ), torch.no_grad():
+                    outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+            else:
+                with torch.no_grad():
+                    outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+
+            render_image = []
+            for rendered_output_name in rendered_output_names:
+                if rendered_output_name not in outputs:
+                    CONSOLE.rule("Error", style="red")
+                    CONSOLE.print(f"Could not find {rendered_output_name} in the model outputs", justify="center")
+                    CONSOLE.print(
+                        f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center"
                     )
-                    render_image.append(output_image)
-
-                #Add closest training image
-                dist, nearest_train_cam_idx = kdtree.query(cam_pos)
-                img = train_dataset.get_image(nearest_train_cam_idx)
-                padded_img = torch.zeros(int(cameras.image_height[0]), int(cameras.image_width[0]), 3)
-                # Calculate the starting indices for copying the original tensor into the padded tensor.
-                start_row = (padded_img.shape[0] - img.shape[0]) // 2
-                start_col = (padded_img.shape[1] - img.shape[1]) // 2
-                # Calculate the ending indices for copying the original tensor.
-                end_row = start_row + img.shape[0]
-                end_col = start_col + img.shape[1]
-                # Copy the original img into the padded tensor at the appropriate position.
-                padded_img[start_row:end_row, start_col:end_col] = img
-
-                import pdb; pdb.set_trace()
-                # train_camera_ray_bundle = train_cameras.generate_rays(camera_indices=int(nearest_train_cam_idx))
-                # img = pipeline.model.get_outputs_for_camera_ray_bundle(train_camera_ray_bundle)['rgb']
-                padded_img = (
+                    sys.exit(1)
+                output_image = outputs[rendered_output_name]
+                output_image = (
                     colormaps.apply_colormap(
-                        image=padded_img,
+                        image=output_image,
                         colormap_options=colormap_options,
                     )
                     .cpu()
                     .numpy()
                 )
-                render_image.append(padded_img)
+                render_image.append(output_image)
 
-                render_image = np.concatenate(render_image, axis=1)
-                if output_format == "images":
-                    if image_format == "png":
-                        media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image, fmt="png")
-                    if image_format == "jpeg":
-                        media.write_image(
-                            output_image_dir / f"{camera_idx:05d}.jpg", render_image, fmt="jpeg", quality=jpeg_quality
+            #Add closest training image
+            # import pdb; pdb.set_trace()
+            img = train_dataset.get_image(max_idx)
+            img = img.permute(2, 0, 1)
+            img = transforms.ToPILImage()(img)
+            resized_image = img.resize((int(cameras.image_width[0]), int(cameras.image_height[0])), PIL.Image.Resampling.LANCZOS)
+            resized_image = transforms.ToTensor()(resized_image).permute(1, 2, 0)
+            resized_image = (
+                colormaps.apply_colormap(
+                    image=resized_image,
+                    colormap_options=colormap_options,
+                )
+                .cpu()
+                .numpy()
+            )
+            render_image.append(resized_image)
+            # padded_img = torch.zeros(int(cameras.image_height[0]), int(cameras.image_width[0]), 3)
+            # # Calculate the starting indices for copying the original tensor into the padded tensor.
+            # start_row = (padded_img.shape[0] - img.shape[0]) // 2
+            # start_col = (padded_img.shape[1] - img.shape[1]) // 2
+            # # Calculate the ending indices for copying the original tensor.
+            # end_row = start_row + img.shape[0]
+            # end_col = start_col + img.shape[1]
+            # # Copy the original img into the padded tensor at the appropriate position.
+            # padded_img[start_row:end_row, start_col:end_col] = img
+
+            # import pdb; pdb.set_trace()
+            # # train_camera_ray_bundle = train_cameras.generate_rays(camera_indices=int(nearest_train_cam_idx))
+            # # img = pipeline.model.get_outputs_for_camera_ray_bundle(train_camera_ray_bundle)['rgb']
+            # padded_img = (
+            #     colormaps.apply_colormap(
+            #         image=padded_img,
+            #         colormap_options=colormap_options,
+            #     )
+            #     .cpu()
+            #     .numpy()
+            # )
+            # render_image.append(padded_img)
+
+            render_image = np.concatenate(render_image, axis=1)
+            if output_format == "images":
+                if image_format == "png":
+                    media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image, fmt="png")
+                if image_format == "jpeg":
+                    media.write_image(
+                        output_image_dir / f"{camera_idx:05d}.jpg", render_image, fmt="jpeg", quality=jpeg_quality
+                    )
+            if output_format == "video":
+                if writer is None:
+                    render_width = int(render_image.shape[1])
+                    render_height = int(render_image.shape[0])
+                    writer = stack.enter_context(
+                        media.VideoWriter(
+                            path=output_filename,
+                            shape=(render_height, render_width),
+                            fps=fps,
                         )
-                if output_format == "video":
-                    if writer is None:
-                        render_width = int(render_image.shape[1])
-                        render_height = int(render_image.shape[0])
-                        writer = stack.enter_context(
-                            media.VideoWriter(
-                                path=output_filename,
-                                shape=(render_height, render_width),
-                                fps=fps,
-                            )
-                        )
-                    writer.add_image(render_image)
+                    )
+                writer.add_image(render_image)
 
     table = Table(
         title=None,
