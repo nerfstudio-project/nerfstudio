@@ -30,7 +30,12 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image import PeakSignalNoiseRatio
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
-from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
+from nerfstudio.cameras.camera_optimizers import (
+    CameraOptimizer,
+    CameraOptimizerConfig,
+    DeblurCameraOptimizerConfig,
+    DeblurCameraOptimizer,
+)
 from nerfstudio.cameras.rays import RayBundle, RaySamples
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.field_components.field_heads import FieldHeadNames
@@ -129,7 +134,7 @@ class NerfactoModelConfig(ModelConfig):
     """Which implementation to use for the model."""
     appearance_embed_dim: int = 32
     """Dimension of the appearance embedding."""
-    camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig(mode="SO3xR3")
+    camera_optimizer: CameraOptimizerConfig = DeblurCameraOptimizerConfig(mode="SO3xR3")
     """Config of the camera optimizer to use"""
 
 
@@ -287,7 +292,7 @@ class NerfactoModel(Model):
     def get_outputs(self, ray_bundle: RayBundle):
         # apply the camera optimizer pose tweaks
         if self.training:
-            self.camera_optimizer.apply_to_raybundle(ray_bundle)
+            ray_bundle = self.camera_optimizer.apply_to_raybundle(ray_bundle)
         ray_samples: RaySamples
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         field_outputs = self.field.forward(ray_samples, compute_normals=self.config.predict_normals)
@@ -299,6 +304,10 @@ class NerfactoModel(Model):
         ray_samples_list.append(ray_samples)
 
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+        if self.training and isinstance(self.camera_optimizer, DeblurCameraOptimizer):
+            n = self.camera_optimizer.config.num_samples
+            s = ray_bundle.origins.shape[0] // n
+            rgb = rgb.view(s, n, 3).mean(dim=1)
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 

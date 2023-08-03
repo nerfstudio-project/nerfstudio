@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass, field
-from typing import Literal, Optional, Type, Union
+from typing import Literal, Optional, Type, Union, Dict, Tuple
 
 import torch
 from jaxtyping import Float, Int
@@ -42,7 +42,7 @@ class CameraOptimizerConfig(InstantiateConfig):
     mode: Literal["off", "SO3xR3", "SE3"] = "off"
     """Pose optimization strategy to use. If enabled, we recommend SO3xR3."""
 
-    trans_l2_penalty: float = 1e-2
+    trans_l2_penalty: float = 1e-3
     """L2 penalty on translation parameters."""
 
     rot_l2_penalty: float = 1e-3
@@ -110,12 +110,14 @@ class CameraOptimizer(nn.Module):
             return torch.eye(4, device=self.device)[None, :3, :4].tile(indices.shape[0], 1, 1)
         return functools.reduce(pose_utils.multiply, outputs)
 
-    def apply_to_raybundle(self, raybundle: RayBundle) -> None:
+    def apply_to_raybundle(self, raybundle: RayBundle) -> RayBundle:
         """Apply the pose correction to the raybundle"""
+        assert raybundle.camera_indices is not None
         if self.config.mode != "off":
             correction_matrices = self(raybundle.camera_indices.squeeze())  # type: ignore
             raybundle.origins = raybundle.origins + correction_matrices[:, :3, 3]
             raybundle.directions = torch.bmm(correction_matrices[:, :3, :3], raybundle.directions[..., None]).squeeze()
+        return raybundle
 
     def get_loss_dict(self, loss_dict: dict) -> None:
         """Add regularization"""
@@ -143,3 +145,76 @@ class CameraOptimizer(nn.Module):
             param_groups["camera_opt"] = camera_opt_params
         else:
             assert len(camera_opt_params) == 0
+
+
+@dataclass
+class DeblurCameraOptimizerConfig(CameraOptimizerConfig):
+    """Configuration of optimization for camera poses."""
+
+    _target: Type = field(default_factory=lambda: DeblurCameraOptimizer)
+    """The target class to be instantiated."""
+
+    num_samples: int = 7
+    """The number of samples to use for deblurring."""
+
+    blur_l2_penalty: float = 1e-4
+    """The L2 penalty for the blur parameters."""
+
+
+class DeblurCameraOptimizer(CameraOptimizer):
+    config: DeblurCameraOptimizerConfig
+
+    def __init__(self, config: DeblurCameraOptimizerConfig, *args, **kwargs) -> None:
+        super().__init__(config, *args, **kwargs)
+        self.config = config
+        self.blur_adjustment = torch.nn.Parameter(torch.zeros((self.num_cameras, 6), device=self.device))
+
+    def sample_blur_correction(self, indices: Int[Tensor, "num_cameras"]):
+        """
+        Samples the blur parameters and returns transformation matrices for the origins and directions
+        """
+        times = (
+            torch.linspace(0, 1, self.config.num_samples, device=indices.device)
+            .unsqueeze(1)
+            .repeat(indices.shape[0] // self.config.num_samples, 1)
+        )
+        # add a small random jittter to each sample time to avoid aliasing
+        # w = 1 / (self.config.num_samples - 1)
+        # times += torch.rand_like(times) * w - w / 2
+        blur_adjs = self.blur_adjustment[indices, :] * times
+        # normal seems to work worse
+        # blur_adjs = self.blur_adjustment[indices, :] * torch.normal(
+        #     torch.zeros((indices.shape[0], 1), device=indices.device),  # mean
+        #     torch.ones((indices.shape[0], 1), device=indices.device),  # std
+        # )
+        return exp_map_SO3xR3(blur_adjs)
+
+    def apply_to_raybundle(self, ray_bundle: RayBundle) -> RayBundle:
+        assert ray_bundle.camera_indices is not None
+        if self.blur_adjustment.device != ray_bundle.origins.device:
+            self.blur_adjustment = self.blur_adjustment.to(ray_bundle.origins.device)
+
+        optimized_bundle = super().apply_to_raybundle(ray_bundle)
+        if self.config.num_samples == 1:
+            return optimized_bundle
+
+        # duplicate optimized_bundle num_samples times and stack
+        def repeatfn(x):
+            return x.repeat_interleave(self.config.num_samples, 0)
+
+        ray_bundle = optimized_bundle._apply_fn_to_fields(repeatfn)
+        camera_ids = ray_bundle.camera_indices.squeeze()
+        # Multiply in the camera optimization deltas to the rays
+        blur_deltas = self.sample_blur_correction(camera_ids)
+        ray_bundle.origins = ray_bundle.origins + blur_deltas[:, :, 3]
+        ray_bundle.directions = torch.bmm(
+            blur_deltas[:, :, :3], ray_bundle.directions.view(*ray_bundle.directions.shape, 1)
+        )[..., 0]
+        return ray_bundle
+
+    def get_loss_dict(self, loss_dict: dict) -> None:
+        """Add regularization"""
+        super().get_loss_dict(loss_dict)
+        if self.config.mode != "off":
+            # add a loss penalizing norm of blur adjustment
+            loss_dict["blur_regularizer"] = self.blur_adjustment.norm(dim=-1).mean() * self.config.blur_l2_penalty
