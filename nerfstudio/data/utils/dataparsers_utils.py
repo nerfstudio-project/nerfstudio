@@ -85,3 +85,17 @@ def get_train_eval_split_interval(image_filenames: List, eval_interval: float) -
     i_eval = eval_indices
 
     return i_train, i_eval
+
+
+def get_train_eval_split_all(image_filenames: List) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Get the train/eval split where all indices are used for both train and eval.
+
+    Args:
+        image_filenames: list of image filenames
+    """
+    num_images = len(image_filenames)
+    i_all = np.arange(num_images)
+    i_train = i_all
+    i_eval = i_all
+    return i_train, i_eval

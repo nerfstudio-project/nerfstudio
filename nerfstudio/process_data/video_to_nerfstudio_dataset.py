@@ -86,7 +86,6 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
             if self.eval_data is not None:
                 raise ValueError("Cannot use eval_data with camera_type equirectangular.")
 
-            
             perspective_image_size = equirect_utils.compute_resolution_from_equirect(
                 self.output_dir / "temp_images", self.images_per_equirect
             )

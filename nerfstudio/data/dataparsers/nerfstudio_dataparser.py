@@ -31,6 +31,7 @@ from nerfstudio.data.utils.dataparsers_utils import (
     get_train_eval_split_filename,
     get_train_eval_split_fraction,
     get_train_eval_split_interval,
+    get_train_eval_split_all,
 )
 from nerfstudio.utils.io import load_from_json
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -58,8 +59,14 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The method to use to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
-    eval_mode: Literal["fraction", "filename", "interval"] = "fraction"
-    """The method to use for splitting the dataset into train and eval. Fraction of the images as eval images, filename splits based on filenames containing train/eval, interval uses every nth frame for eval."""
+    eval_mode: Literal["fraction", "filename", "interval", "all"] = "fraction"
+    """
+    The method to use for splitting the dataset into train and eval. 
+    Fraction splits based on a percentage for train and the remaining for eval.
+    Filename splits based on filenames containing train/eval.
+    Interval uses every nth frame for eval.
+    All uses all the images for any split.
+    """
     train_split_fraction: float = 0.9
     """The percentage of the dataset to use for training. Only used when eval_mode is train-split-fraction."""
     eval_interval: int = 8
@@ -181,22 +188,38 @@ class Nerfstudio(DataParser):
         You should check that depth_file_path is specified for every frame (or zero frames) in transforms.json.
         """
 
-        # find train and eval indices based on the eval_mode specified
-        if self.config.eval_mode == "fraction":
-            i_train, i_eval = get_train_eval_split_fraction(image_filenames, self.config.train_split_fraction)
-        elif self.config.eval_mode == "filename":
-            i_train, i_eval = get_train_eval_split_filename(image_filenames)
-        elif self.config.eval_mode == "interval":
-            i_train, i_eval = get_train_eval_split_interval(image_filenames, self.config.eval_interval)
-        else:
-            raise ValueError(f"Unknown eval mode {self.config.eval_mode}")
+        has_split_files_spec = any(f"{split}_filenames" in meta for split in ("train", "val", "test"))
+        if f"{split}_filenames" in meta:
+            # Validate split first
+            split_filenames = set(self._get_fname(Path(x), data_dir) for x in meta[f"{split}_filenames"])
+            unmatched_filenames = split_filenames.difference(image_filenames)
+            if unmatched_filenames:
+                raise RuntimeError(f"Some filenames for split {split} were not found: {unmatched_filenames}.")
 
-        if split == "train":
-            indices = i_train
-        elif split in ["val", "test"]:
-            indices = i_eval
+            indices = [i for i, path in enumerate(image_filenames) if path in split_filenames]
+            CONSOLE.log(f"[yellow] Dataset is overriding {split}_indices to {indices}")
+            indices = np.array(indices, dtype=np.int32)
+        elif has_split_files_spec:
+            raise RuntimeError(f"The dataset's list of filenames for split {split} is missing.")
         else:
-            raise ValueError(f"Unknown dataparser split {split}")
+            # find train and eval indices based on the eval_mode specified
+            if self.config.eval_mode == "fraction":
+                i_train, i_eval = get_train_eval_split_fraction(image_filenames, self.config.train_split_fraction)
+            elif self.config.eval_mode == "filename":
+                i_train, i_eval = get_train_eval_split_filename(image_filenames)
+            elif self.config.eval_mode == "interval":
+                i_train, i_eval = get_train_eval_split_interval(image_filenames, self.config.eval_interval)
+            elif self.config.eval_mode == "all":
+                i_train, i_eval = get_train_eval_split_all(image_filenames)
+            else:
+                raise ValueError(f"Unknown eval mode {self.config.eval_mode}")
+
+            if split == "train":
+                indices = i_train
+            elif split in ["val", "test"]:
+                indices = i_eval
+            else:
+                raise ValueError(f"Unknown dataparser split {split}")
 
         if "orientation_override" in meta:
             orientation_method = meta["orientation_override"]
@@ -274,11 +297,6 @@ class Nerfstudio(DataParser):
         assert self.downscale_factor is not None
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
 
-        metadata = {
-            "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
-            "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
-        }
-
         if "applied_transform" in meta:
             applied_transform = torch.tensor(meta["applied_transform"], dtype=transform_matrix.dtype)
             transform_matrix = transform_matrix @ torch.cat(
@@ -295,7 +313,10 @@ class Nerfstudio(DataParser):
             mask_filenames=mask_filenames if len(mask_filenames) > 0 else None,
             dataparser_scale=scale_factor,
             dataparser_transform=transform_matrix,
-            metadata=metadata,
+            metadata={
+                "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
+                "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
+            },
         )
         return dataparser_outputs
 
