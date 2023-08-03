@@ -42,45 +42,57 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
 
         summary_log = []
         summary_log_eval = []
-
         # Convert video to images
-        summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
-            self.data,
-            image_dir=self.output_dir / "images",
-            num_frames_target=self.num_frames_target,
-            num_downscales=self.num_downscales,
-            crop_factor=self.crop_factor,
-            verbose=self.verbose,
-            image_prefix="frame_train_" if self.eval_data is not None else "frame_",
-            keep_image_dir=False,
-        )
-        if self.eval_data is not None:
-            summary_log_eval, num_extracted_frames_eval = process_data_utils.convert_video_to_images(
-                self.eval_data,
+        if self.camera_type == "equirectangular":
+            # create temp images folder to store the equirect and perspective images
+            temp_image_dir = self.output_dir / "temp_images"
+            temp_image_dir.mkdir(parents=True, exist_ok=True)
+            summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
+                self.data,
+                image_dir=temp_image_dir,
+                num_frames_target=self.num_frames_target,
+                num_downscales=0,
+                crop_factor=(0.0, 0.0, 0.0, 0.0),
+                verbose=self.verbose,
+            )
+        else:
+            # Convert video to images
+            summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
+                self.data,
                 image_dir=self.output_dir / "images",
                 num_frames_target=self.num_frames_target,
                 num_downscales=self.num_downscales,
                 crop_factor=self.crop_factor,
                 verbose=self.verbose,
-                image_prefix="frame_eval_",
-                keep_image_dir=True,
+                image_prefix="frame_train_" if self.eval_data is not None else "frame_",
+                keep_image_dir=False,
             )
-            summary_log += summary_log_eval
-            num_extracted_frames += num_extracted_frames_eval
+            if self.eval_data is not None:
+                summary_log_eval, num_extracted_frames_eval = process_data_utils.convert_video_to_images(
+                    self.eval_data,
+                    image_dir=self.output_dir / "images",
+                    num_frames_target=self.num_frames_target,
+                    num_downscales=self.num_downscales,
+                    crop_factor=self.crop_factor,
+                    verbose=self.verbose,
+                    image_prefix="frame_eval_",
+                    keep_image_dir=True,
+                )
+                summary_log += summary_log_eval
+                num_extracted_frames += num_extracted_frames_eval
 
         # Generate planar projections if equirectangular
         if self.camera_type == "equirectangular":
             if self.eval_data is not None:
                 raise ValueError("Cannot use eval_data with camera_type equirectangular.")
 
-            temp_image_dir = self.output_dir / "temp_images"
-            temp_image_dir.mkdir(parents=True, exist_ok=True)
+            
             perspective_image_size = equirect_utils.compute_resolution_from_equirect(
-                temp_image_dir, self.images_per_equirect
+                self.output_dir / "temp_images", self.images_per_equirect
             )
 
             equirect_utils.generate_planar_projections_from_equirectangular(
-                temp_image_dir,
+                self.output_dir / "temp_images",
                 perspective_image_size,
                 self.images_per_equirect,
                 crop_factor=self.crop_factor,
@@ -88,18 +100,17 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
 
             # copy the perspective images to the image directory
             process_data_utils.copy_images(
-                temp_image_dir / "planar_projections",
+                self.output_dir / "temp_images" / "planar_projections",
                 image_dir=self.output_dir / "images",
-                image_prefix="frame_",
                 verbose=False,
             )
 
             # remove the temp_images folder
-            shutil.rmtree(temp_image_dir, ignore_errors=True)
+            shutil.rmtree(self.output_dir / "temp_images", ignore_errors=True)
 
             self.camera_type = "perspective"
 
-            # Downscale images
+            # # Downscale images
             summary_log.append(
                 process_data_utils.downscale_images(self.image_dir, self.num_downscales, verbose=self.verbose)
             )
