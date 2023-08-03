@@ -85,7 +85,10 @@ class ProcessRecord3D(BaseConverterToNerfstudioDataset):
         record3d_image_filenames = list(np.array(record3d_image_filenames)[idx])
         # Copy images to output directory
         copied_image_paths = process_data_utils.copy_images_list(
-            record3d_image_filenames, image_dir=image_dir, verbose=self.verbose
+            record3d_image_filenames,
+            image_dir=image_dir,
+            verbose=self.verbose,
+            num_downscales=self.num_downscales,
         )
         num_frames = len(copied_image_paths)
 
@@ -96,9 +99,6 @@ class ProcessRecord3D(BaseConverterToNerfstudioDataset):
                 "To change the size of the dataset add the argument [yellow]--max_dataset_size[/yellow] to "
                 f"larger than the current value ({self.max_dataset_size}), or -1 to use all images."
             )
-
-        # Downscale images
-        summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
 
         metadata_path = self.data / "metadata.json"
         record3d_utils.record3d_to_json(copied_image_paths, metadata_path, self.output_dir, indices=idx)
@@ -250,6 +250,9 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
         if not self.xml.exists:
             raise ValueError(f"XML file {self.xml} doesn't exist")
 
+        if self.eval_data is not None:
+            raise ValueError("Cannot use eval_data since cameras were already aligned with Metashape.")
+
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
@@ -261,24 +264,10 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
         copied_image_paths = process_data_utils.copy_images_list(
             image_filenames,
             image_dir=image_dir,
-            image_prefix="frame_train_" if self.eval_data is not None else "frame_",
             verbose=self.verbose,
+            num_downscales=self.num_downscales,
         )
         num_frames = len(copied_image_paths)
-
-        if self.eval_data is not None:
-            eval_image_filenames, num_orig_eval_images = process_data_utils.get_image_filenames(
-                self.eval_data, self.max_dataset_size
-            )
-            copied_eval_image_paths = process_data_utils.copy_images_list(
-                eval_image_filenames,
-                image_dir=image_dir,
-                image_prefix="frame_eval_",
-                verbose=self.verbose,
-            )
-            num_orig_images += num_orig_eval_images
-            num_frames += len(copied_eval_image_paths)
-            copied_image_paths.extend(copied_eval_image_paths)
 
         copied_image_paths = [Path("images/" + copied_image_path.name) for copied_image_path in copied_image_paths]
         original_names = [image_path.stem for image_path in image_filenames]
@@ -292,9 +281,6 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
             )
         else:
             summary_log.append(f"Started with {num_frames} images")
-
-        # Downscale images
-        summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
 
         # Save json
         if num_frames == 0:
@@ -365,6 +351,7 @@ class ProcessRealityCapture(BaseConverterToNerfstudioDataset, _NoDefaultProcessR
             image_dir=image_dir,
             image_prefix="frame_train_" if self.eval_data is not None else "frame_",
             verbose=self.verbose,
+            num_downscales=self.num_downscales,
         )
         num_frames = len(copied_image_paths)
 
@@ -377,6 +364,7 @@ class ProcessRealityCapture(BaseConverterToNerfstudioDataset, _NoDefaultProcessR
                 image_dir=image_dir,
                 image_prefix="frame_eval_",
                 verbose=self.verbose,
+                num_downscales=self.num_downscales,
             )
             num_orig_images += num_orig_eval_images
             num_frames += len(copied_eval_image_paths)
@@ -394,9 +382,6 @@ class ProcessRealityCapture(BaseConverterToNerfstudioDataset, _NoDefaultProcessR
             )
         else:
             summary_log.append(f"Started with {num_frames} images")
-
-        # Downscale images
-        summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
 
         # Save json
         if num_frames == 0:

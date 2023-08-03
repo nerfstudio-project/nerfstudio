@@ -45,20 +45,14 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
 
         # Generate planar projections if equirectangular
         if self.camera_type == "equirectangular":
+            if self.eval_data is not None:
+                raise ValueError("Cannot use eval_data with camera_type equirectangular.")
+
             pers_size = equirect_utils.compute_resolution_from_equirect(self.data, self.images_per_equirect)
             CONSOLE.log(f"Generating {self.images_per_equirect} {pers_size} sized images per equirectangular image")
             self.data = equirect_utils.generate_planar_projections_from_equirectangular(
                 self.data, pers_size, self.images_per_equirect, crop_factor=self.crop_factor
             )
-
-            if self.eval_data is not None:
-                pers_size = equirect_utils.compute_resolution_from_equirect(self.eval_data, self.images_per_equirect)
-                CONSOLE.log(
-                    f"Generating {self.images_per_equirect} {pers_size} sized images per equirectangular eval image"
-                )
-                self.eval_data = equirect_utils.generate_planar_projections_from_equirectangular(
-                    self.eval_data, pers_size, self.images_per_equirect, crop_factor=self.crop_factor
-                )
 
             self.camera_type = "perspective"
 
@@ -71,8 +65,11 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                 self.data,
                 image_dir=self.image_dir,
                 crop_factor=self.crop_factor,
-                image_prefix="frame_eval_" if self.eval_data is not None else "frame_",
+                image_prefix="frame_train_" if self.eval_data is not None else "frame_",
                 verbose=self.verbose,
+                num_downscales=self.num_downscales,
+                same_dimensions=self.same_dimensions,
+                keep_image_dir=False,
             )
             if self.eval_data is not None:
                 eval_image_rename_map_paths = process_data_utils.copy_images(
@@ -81,6 +78,9 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                     crop_factor=self.crop_factor,
                     image_prefix="frame_eval_",
                     verbose=self.verbose,
+                    num_downscales=self.num_downscales,
+                    same_dimensions=self.same_dimensions,
+                    keep_image_dir=True,
                 )
                 image_rename_map_paths.update(eval_image_rename_map_paths)
 
@@ -88,10 +88,14 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
             num_frames = len(image_rename_map)
             summary_log.append(f"Starting with {num_frames} images")
 
-            # Downscale images
-            summary_log.append(
-                process_data_utils.downscale_images(self.image_dir, self.num_downscales, verbose=self.verbose)
+            # # Create mask
+            mask_path = process_data_utils.save_mask(
+                image_dir=self.image_dir,
+                num_downscales=self.num_downscales,
+                crop_factor=(0.0, 0.0, 0.0, 0.0),
             )
+            if mask_path is not None:
+                summary_log.append("Saved mask(s)")
         else:
             num_frames = len(process_data_utils.list_images(self.data))
             if num_frames == 0:

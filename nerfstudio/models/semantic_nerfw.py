@@ -24,8 +24,8 @@ from typing import Dict, List, Tuple, Type
 import numpy as np
 import torch
 from torch.nn import Parameter
-from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
+from torchmetrics.image import PeakSignalNoiseRatio
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
@@ -230,6 +230,7 @@ class SemanticNerfWModel(Model):
     def get_metrics_dict(self, outputs, batch):
         metrics_dict = {}
         image = batch["image"].to(self.device)
+        image = self.renderer_rgb.blend_background(image)
         metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
         metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
         return metrics_dict
@@ -237,6 +238,7 @@ class SemanticNerfWModel(Model):
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = {}
         image = batch["image"].to(self.device)
+        image = self.renderer_rgb.blend_background(image)
         loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
             outputs["weights_list"], outputs["ray_samples_list"]
         )
@@ -263,6 +265,12 @@ class SemanticNerfWModel(Model):
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
         image = batch["image"].to(self.device)
         rgb = outputs["rgb"]
+        rgb, image = self.renderer_rgb.blend_background_for_loss_computation(
+            pred_image=rgb,
+            pred_accumulation=outputs["accumulation"],
+            gt_image=image,
+        )
+
         rgb = torch.clamp(rgb, min=0, max=1)
         acc = colormaps.apply_colormap(outputs["accumulation"])
         depth = colormaps.apply_depth_colormap(

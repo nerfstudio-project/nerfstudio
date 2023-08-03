@@ -50,13 +50,14 @@ dependencies = [
     "tensorboard>=2.13.0",
     "torch>=1.13.1",
     "torchvision>=0.14.1",
-    "torchmetrics[image]>=0.9.3",
+    "torchmetrics[image]>=1.0.1",
     "typing_extensions>=4.4.0",
     "viser>=0.0.12",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
     "xatlas",
-    "trimesh>=3.20.2"
+    "trimesh>=3.20.2",
+    "timm==0.6.7"
 ]
 
 [project.urls]
