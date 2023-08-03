@@ -210,6 +210,9 @@ class Nerfstudio(DataParser):
             elif self.config.eval_mode == "interval":
                 i_train, i_eval = get_train_eval_split_interval(image_filenames, self.config.eval_interval)
             elif self.config.eval_mode == "all":
+                CONSOLE.log(
+                    "[yellow] Be careful with '--eval-mode=all'. If using camera optimization, the cameras may diverge in the current implementation, giving unpredictable results."
+                )
                 i_train, i_eval = get_train_eval_split_all(image_filenames)
             else:
                 raise ValueError(f"Unknown eval mode {self.config.eval_mode}")

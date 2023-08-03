@@ -381,8 +381,14 @@ class ViewerState:
             for idx in image_indices.tolist():
                 image = eval_dataset[idx]["image"]
                 bgr = image[..., [2, 1, 0]]
-                # make border of eval image red
-                bgr[:, :, :-1] = 255
+                # color the eval image borders red
+                # TODO: color the threejs frustum instead of changing the image itself like we are doing here
+                t = int(min(image.shape[:2]) * 0.1)  # border thickness as 10% of min height or width resolution
+                bc = torch.tensor((0, 0, 1.0))
+                bgr[:t, :, :] = bc
+                bgr[-t:, :, :] = bc
+                bgr[:, -t:, :] = bc
+                bgr[:, :t, :] = bc
 
                 camera_json = eval_dataset.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
                 self.viser_server.add_dataset_image(idx=f"{idx+len(train_dataset):06d}", json=camera_json)
