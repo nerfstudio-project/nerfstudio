@@ -56,7 +56,7 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                 verbose=self.verbose,
             )
         else:
-            # Convert video to images
+            # If we're not dealing with equirects we can downscale in one step.
             summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
                 self.data,
                 image_dir=self.image_dir,
