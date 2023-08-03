@@ -59,7 +59,7 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
             # Convert video to images
             summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
                 self.data,
-                image_dir=self.output_dir / "images",
+                image_dir=self.image_dir,
                 num_frames_target=self.num_frames_target,
                 num_downscales=self.num_downscales,
                 crop_factor=self.crop_factor,
@@ -70,7 +70,7 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
             if self.eval_data is not None:
                 summary_log_eval, num_extracted_frames_eval = process_data_utils.convert_video_to_images(
                     self.eval_data,
-                    image_dir=self.output_dir / "images",
+                    image_dir=self.image_dir,
                     num_frames_target=self.num_frames_target,
                     num_downscales=self.num_downscales,
                     crop_factor=self.crop_factor,

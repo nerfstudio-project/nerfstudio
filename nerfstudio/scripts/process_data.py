@@ -349,26 +349,10 @@ class ProcessRealityCapture(BaseConverterToNerfstudioDataset, _NoDefaultProcessR
         copied_image_paths = process_data_utils.copy_images_list(
             image_filenames,
             image_dir=image_dir,
-            image_prefix="frame_train_" if self.eval_data is not None else "frame_",
             verbose=self.verbose,
             num_downscales=self.num_downscales,
         )
         num_frames = len(copied_image_paths)
-
-        if self.eval_data is not None:
-            eval_image_filenames, num_orig_eval_images = process_data_utils.get_image_filenames(
-                self.eval_data, self.max_dataset_size
-            )
-            copied_eval_image_paths = process_data_utils.copy_images_list(
-                eval_image_filenames,
-                image_dir=image_dir,
-                image_prefix="frame_eval_",
-                verbose=self.verbose,
-                num_downscales=self.num_downscales,
-            )
-            num_orig_images += num_orig_eval_images
-            num_frames += len(copied_eval_image_paths)
-            copied_image_paths.extend(copied_eval_image_paths)
 
         copied_image_paths = [Path("images/" + copied_image_path.name) for copied_image_path in copied_image_paths]
         original_names = [image_path.stem for image_path in image_filenames]
