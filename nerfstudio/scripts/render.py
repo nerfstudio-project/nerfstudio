@@ -497,8 +497,6 @@ class RenderInterpolated(BaseRender):
     """Frame rate of the output video."""
     output_format: Literal["images", "video"] = "video"
     """How to save output data."""
-    loop: bool = False
-    """Whether to start and end with the first camera."""
 
     def main(self) -> None:
         """Main function."""
@@ -516,10 +514,6 @@ class RenderInterpolated(BaseRender):
         else:
             assert pipeline.datamanager.train_dataset is not None
             cameras = pipeline.datamanager.train_dataset.cameras
-
-        if self.loop:
-            # This will make the camera path start and end with the same camera
-            cameras = cameras.cat(cameras[:1])
 
         seconds = self.interpolation_steps * len(cameras) / self.frame_rate
         camera_path = get_interpolated_camera_path(

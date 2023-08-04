@@ -145,12 +145,12 @@ class TensorDataclass:
 
     def __getitem__(self: TensorDataclassT, indices) -> TensorDataclassT:
         if isinstance(indices, (torch.Tensor)):
-            return self._apply_fn_to_fields(lambda field_name, x: x[indices])
+            return self._apply_fn_to_fields(lambda x: x[indices])
         if isinstance(indices, (int, slice, type(Ellipsis))):
             indices = (indices,)
         assert isinstance(indices, tuple)
 
-        def tensor_fn(field_name, x):
+        def tensor_fn(x):
             return x[indices + (slice(None),)]
 
         def dataclass_fn(x):
@@ -195,28 +195,6 @@ class TensorDataclass:
         """Returns the number of dimensions of the tensor dataclass."""
         return len(self._shape)
 
-    def cat(self: TensorDataclassT, other: TensorDataclassT, dim: int = 0) -> TensorDataclassT:
-        """Returns a new TensorDataclass with the other TensorDataclass's values concatenated along the specified dimension.
-
-        Args:
-            other: The other TensorDataclass to concatenate with.
-            dim: The dimension along which to concatenate the tensors.
-
-        Returns:
-            A new TensorDataclass with the tensors concatenated along the specified dimension.
-        """
-        if not isinstance(other, TensorDataclass):
-            raise TypeError("Expected 'other' to be a TensorDataclass.")
-
-        def tensor_fn(field_name, x):
-            return torch.cat([x, getattr(other, field_name)], dim=dim)
-
-        dataclass_fn = None
-
-        custom_tensor_dims_fn = None
-
-        return self._apply_fn_to_fields(tensor_fn, dataclass_fn, custom_tensor_dims_fn=custom_tensor_dims_fn)
-
     def reshape(self: TensorDataclassT, shape: Tuple[int, ...]) -> TensorDataclassT:
         """Returns a new TensorDataclass with the same data but with a new shape.
 
@@ -231,7 +209,7 @@ class TensorDataclass:
         if isinstance(shape, int):
             shape = (shape,)
 
-        def tensor_fn(field_name, x):
+        def tensor_fn(x):
             return x.reshape((*shape, x.shape[-1]))
 
         def dataclass_fn(x):
@@ -269,7 +247,7 @@ class TensorDataclass:
             return v.broadcast_to((*shape, *v.shape[-custom_dims:]))
 
         return self._apply_fn_to_fields(
-            lambda field_name, x: x.broadcast_to((*shape, x.shape[-1])), custom_tensor_dims_fn=custom_tensor_dims_fn
+            lambda x: x.broadcast_to((*shape, x.shape[-1])), custom_tensor_dims_fn=custom_tensor_dims_fn
         )
 
     def to(self: TensorDataclassT, device) -> TensorDataclassT:
@@ -281,7 +259,7 @@ class TensorDataclass:
         Returns:
             A new TensorDataclass with the same data but on the specified device.
         """
-        return self._apply_fn_to_fields(lambda field_name, x: x.to(device))
+        return self._apply_fn_to_fields(lambda x: x.to(device))
 
     def _apply_fn_to_fields(
         self: TensorDataclassT,
@@ -352,7 +330,7 @@ class TensorDataclass:
                 ):
                     new_dict[f] = custom_tensor_dims_fn(f, v)
                 elif isinstance(v, (torch.Tensor, TensorDataclass)):
-                    new_dict[f] = fn(f, v)
+                    new_dict[f] = fn(v)
                 elif isinstance(v, Dict):
                     new_dict[f] = self._apply_fn_to_dict(v, fn, dataclass_fn)
                 else:
