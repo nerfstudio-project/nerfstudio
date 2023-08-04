@@ -24,6 +24,7 @@ from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.model_components import losses
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.data_utils import get_depth_image_from_path
+from nerfstudio.utils.misc import torch_compile
 from nerfstudio.utils.rich_utils import CONSOLE
 
 from typing import Union
@@ -72,7 +73,7 @@ class DepthDataset(InputDataset):
                     filenames = dataparser_outputs.image_filenames
 
                 repo = "isl-org/ZoeDepth"
-                self.zoe = torch.compile(torch.hub.load(repo, "ZoeD_NK", pretrained=True).to(device))
+                self.zoe = torch_compile(torch.hub.load(repo, "ZoeD_NK", pretrained=True).to(device))
 
                 for i in track(range(len(filenames)), description="Generating depth images"):
                     image_filename = filenames[i]
