@@ -15,17 +15,16 @@
 """Helper utils for processing data into the nerfstudio format."""
 
 import math
+import re
 import shutil
 import sys
-import re
 from enum import Enum
 from pathlib import Path
 from typing import List, Literal, Optional, OrderedDict, Tuple, Union
 
 import cv2
-import numpy as np
-
 import imageio
+import numpy as np
 import rawpy
 
 from nerfstudio.utils.rich_utils import CONSOLE, status
@@ -114,6 +113,8 @@ def convert_video_to_images(
     num_downscales: int,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     verbose: bool = False,
+    image_prefix: str = "frame_",
+    keep_image_dir: bool = False,
 ) -> Tuple[List[str], int]:
     """Converts a video into a sequence of images.
 
@@ -124,9 +125,18 @@ def convert_video_to_images(
         num_downscales: Number of times to downscale the images. Downscales by 2 each time.
         crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
         verbose: If True, logs the output of the command.
+        image_prefix: Prefix to use for the image filenames.
+        keep_image_dir: If True, don't delete the output directory if it already exists.
     Returns:
         A tuple containing summary of the conversion and the number of extracted frames.
     """
+
+    # If keep_image_dir is False, then remove the output image directory and its downscaled versions
+    if not keep_image_dir:
+        for i in range(num_downscales + 1):
+            dir_to_remove = image_dir if i == 0 else f"{image_dir}_{2**i}"
+            shutil.rmtree(dir_to_remove, ignore_errors=True)
+    image_dir.mkdir(exist_ok=True, parents=True)
 
     for i in crop_factor:
         if i < 0 or i > 1:
@@ -141,12 +151,6 @@ def convert_video_to_images(
         sys.exit(1)
 
     with status(msg="Converting video to images...", spinner="bouncingBall", verbose=verbose):
-        # delete existing images in folder
-        for img in image_dir.glob("*.png"):
-            if verbose:
-                CONSOLE.log(f"Deleting {img}")
-            img.unlink()
-
         num_frames = get_num_frames_in_video(video_path)
         if num_frames == 0:
             CONSOLE.print(f"[bold red]Error: Video has no frames: {video_path}")
@@ -168,7 +172,7 @@ def convert_video_to_images(
 
         downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}[out{i}]" for i in range(num_downscales + 1)]
         downscale_dirs = [Path(str(image_dir) + (f"_{2**i}" if i > 0 else "")) for i in range(num_downscales + 1)]
-        downscale_paths = [downscale_dirs[i] / "frame_%05d.png" for i in range(num_downscales + 1)]
+        downscale_paths = [downscale_dirs[i] / f"{image_prefix}%05d.png" for i in range(num_downscales + 1)]
 
         for dir in downscale_dirs:
             dir.mkdir(parents=True, exist_ok=True)
@@ -200,7 +204,7 @@ def convert_video_to_images(
         num_final_frames = len(list(image_dir.glob("*.png")))
         summary_log = []
         summary_log.append(f"Starting with {num_frames} video frames")
-        summary_log.append(f"We extracted {num_final_frames} images")
+        summary_log.append(f"We extracted {num_final_frames} images with prefix '{image_prefix}'")
         CONSOLE.log("[bold green]:tada: Done converting video to images.")
 
         return summary_log, num_final_frames
@@ -210,9 +214,11 @@ def copy_images_list(
     image_paths: List[Path],
     image_dir: Path,
     num_downscales: int,
+    image_prefix: str = "frame_",
     crop_border_pixels: Optional[int] = None,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     verbose: bool = False,
+    keep_image_dir: bool = False,
     upscale_factor: Optional[int] = None,
     nearest_neighbor: bool = False,
     same_dimensions: bool = True,
@@ -222,19 +228,24 @@ def copy_images_list(
         image_paths: List of Paths of images to copy to a new directory.
         image_dir: Path to the output directory.
         num_downscales: Number of times to downscale the images. Downscales by 2 each time.
+        image_prefix: Prefix for the image filenames.
         crop_border_pixels: If not None, crops each edge by the specified number of pixels.
         crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
         verbose: If True, print extra logging.
+        keep_image_dir: If True, don't delete the output directory if it already exists.
     Returns:
         A list of the copied image Paths.
     """
 
-    # Remove original directory only if we provide a proper image folder path
-    if image_dir.is_dir() and len(image_paths):
+    # Remove original directory and its downscaled versions
+    # only if we provide a proper image folder path and keep_image_dir is False
+    if image_dir.is_dir() and len(image_paths) and not keep_image_dir:
         # check that output directory is not the same as input directory
         if image_dir != image_paths[0].parent:
-            shutil.rmtree(image_dir, ignore_errors=True)
-        image_dir.mkdir(exist_ok=True, parents=True)
+            for i in range(num_downscales + 1):
+                dir_to_remove = image_dir if i == 0 else f"{image_dir}_{2**i}"
+                shutil.rmtree(dir_to_remove, ignore_errors=True)
+    image_dir.mkdir(exist_ok=True, parents=True)
 
     copied_image_paths = []
 
@@ -242,11 +253,11 @@ def copy_images_list(
     for idx, image_path in enumerate(image_paths):
         if verbose:
             CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
-        copied_image_path = image_dir / f"frame_{idx + 1:05d}{image_path.suffix}"
+        copied_image_path = image_dir / f"{image_prefix}{idx + 1:05d}{image_path.suffix}"
         try:
             # if CR2 raw, we want to read raw and write RAW_CONVERTED_SUFFIX, and change the file suffix for downstream processing
             if image_path.suffix.lower() in ALLOWED_RAW_EXTS:
-                copied_image_path = image_dir / f"frame_{idx + 1:05d}{RAW_CONVERTED_SUFFIX}"
+                copied_image_path = image_dir / f"{image_prefix}{idx + 1:05d}{RAW_CONVERTED_SUFFIX}"
                 with rawpy.imread(str(image_path)) as raw:
                     rgb = raw.postprocess()
                 imageio.imsave(copied_image_path, rgb)
@@ -283,7 +294,7 @@ def copy_images_list(
     # When this is not the case (e.g. mixed portrait and landscape images), we need to do individually.
     # (Unfortunately, that is much slower.)
     for framenum in range(1, (1 if same_dimensions else num_frames) + 1):
-        framename = "frame_%05d" if same_dimensions else f"frame_{framenum:05d}"
+        framename = f"{image_prefix}%05d" if same_dimensions else f"{image_prefix}{framenum:05d}"
         ffmpeg_cmd = f'ffmpeg -y -noautorotate -i "{image_dir / f"{framename}{copied_image_paths[0].suffix}"}" -q:v 2 '
 
         crop_cmd = ""
@@ -315,7 +326,7 @@ def copy_images_list(
     if num_frames == 0:
         CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
     else:
-        CONSOLE.log("[bold green]:tada: Done copying images.")
+        CONSOLE.log(f"[bold green]:tada: Done copying images with prefix '{image_prefix}'.")
 
     return copied_image_paths
 
@@ -363,7 +374,9 @@ def copy_and_upscale_polycam_depth_maps_list(
 def copy_images(
     data: Path,
     image_dir: Path,
+    image_prefix: str = "frame_",
     verbose: bool = False,
+    keep_image_dir: bool = False,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     num_downscales: int = 0,
     same_dimensions: bool = True,
@@ -373,8 +386,10 @@ def copy_images(
     Args:
         data: Path to the directory of images.
         image_dir: Path to the output directory.
+        image_prefix: Prefix for the image filenames.
         verbose: If True, print extra logging.
         crop_factor: Portion of the image to crop. Should be in [0,1] (top, bottom, left, right)
+        keep_image_dir: If True, don't delete the output directory if it already exists.
     Returns:
         The mapping from the original filenames to the new ones.
     """
@@ -390,6 +405,8 @@ def copy_images(
             image_dir=image_dir,
             crop_factor=crop_factor,
             verbose=verbose,
+            image_prefix=image_prefix,
+            keep_image_dir=keep_image_dir,
             num_downscales=num_downscales,
             same_dimensions=same_dimensions,
         )
@@ -405,8 +422,6 @@ def downscale_images(
 ) -> str:
     """(Now deprecated; much faster integrated into copy_images.)
     Downscales the images in the directory. Uses FFMPEG.
-
-    Assumes images are named frame_00001.png, frame_00002.png, etc.
 
     Args:
         image_dir: Path to the directory containing the images.
