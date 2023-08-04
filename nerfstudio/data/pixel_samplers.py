@@ -329,20 +329,20 @@ class PatchPixelSampler(PixelSampler):
                 device=device,
             )
 
-        indices = (
-            indices.view(sub_bs, 1, 1, 3)
-            .broadcast_to(sub_bs, self.config.patch_size, self.config.patch_size, 3)
-            .clone()
-        )
+            indices = (
+                indices.view(sub_bs, 1, 1, 3)
+                .broadcast_to(sub_bs, self.config.patch_size, self.config.patch_size, 3)
+                .clone()
+            )
 
-        yys, xxs = torch.meshgrid(
-            torch.arange(self.config.patch_size, device=device), torch.arange(self.config.patch_size, device=device)
-        )
-        indices[:, ..., 1] += yys
-        indices[:, ..., 2] += xxs
+            yys, xxs = torch.meshgrid(
+                torch.arange(self.config.patch_size, device=device), torch.arange(self.config.patch_size, device=device)
+            )
+            indices[:, ..., 1] += yys
+            indices[:, ..., 2] += xxs
 
-        indices = torch.floor(indices).long()
-        indices = indices.flatten(0, 2)
+            indices = torch.floor(indices).long()
+            indices = indices.flatten(0, 2)
 
         return indices
 
