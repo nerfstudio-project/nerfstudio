@@ -46,6 +46,10 @@ ns-process-data {images, video} --data {DATA_PATH} --output-dir {PROCESSED_DATA_
 ns-train nerfacto --data {PROCESSED_DATA_DIR}
 ```
 
+### Training and evaluation on separate data
+
+For `ns-process-data {images, video}`, you can optionally use a separate image directory or video for training and evaluation, as suggested in [Nerfbusters](https://ethanweber.me/nerfbusters/). To do this, run `ns-process-data {images, video} --data {DATA_PATH} --eval-data {EVAL_DATA_PATH} --output-dir {PROCESSED_DATA_DIR}`. Then when running nerfacto, run `ns-train nerfacto --data {PROCESSED_DATA_DIR} nerfstudio-data --eval-mode filename`.
+
 ### Installing COLMAP
 
 There are many ways to install COLMAP, unfortunately it can sometimes be a bit finicky. If the following commands do not work, please refer to the [COLMAP installation guide](https://colmap.github.io/install.html) for additional installation methods. COLMAP install issues are common! Feel free to ask for help in on our [Discord](https://discord.gg/uMbNqcraFc).
