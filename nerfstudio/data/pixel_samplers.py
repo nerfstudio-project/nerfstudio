@@ -323,7 +323,7 @@ class PatchPixelSampler(PixelSampler):
             half_patch_size = int(self.config.patch_size / 2)
             m = erode_mask(mask.permute(0, 3, 1, 2).float(), pixel_radius=half_patch_size)
             nonzero_indices = torch.nonzero(m[:, 0], as_tuple=False).to(device)
-            chosen_indices = random.sample(range(len(nonzero_indices)), k=self.rays_to_sample)
+            chosen_indices = random.sample(range(len(nonzero_indices)), k=sub_bs)
             indices = nonzero_indices[chosen_indices]
 
             indices = (
