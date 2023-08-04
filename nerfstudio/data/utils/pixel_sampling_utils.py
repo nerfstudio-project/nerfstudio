@@ -44,7 +44,6 @@ def erode(tensor: Float[Tensor, "bs 1 H W"], kernel_size=3) -> Float[Tensor, "bs
     if any(val not in (0, 1) for val in unique_vals) or tensor.dtype != torch.float32:
         raise ValueError("Input tensor should contain only values 0 and 1, and should have dtype torch.float32.")
 
-    x = 1 - tensor
     x = 1 - dilate(1 - tensor, kernel_size=kernel_size)
     # set edge pixels to 0
     p = (kernel_size - 1) // 2
