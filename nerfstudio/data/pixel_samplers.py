@@ -23,7 +23,7 @@ from jaxtyping import Int
 from torch import Tensor
 
 from dataclasses import dataclass, field
-from infinitescenes.utils.mesh_utils import erode
+from nerfstudio.data.utils.pixel_sampling_utils import erode_mask
 from typing import (
     Dict,
     Optional,
@@ -319,8 +319,9 @@ class PatchPixelSampler(PixelSampler):
         device: Union[torch.device, str] = "cpu",
     ) -> Int[Tensor, "batch_size 3"]:
         if isinstance(mask, Tensor):
-            # Note: if there is a mask, should switch to the base PixelSampler class
-            raise NotImplementedError()
+            raise NotImplementedError(
+                "Masked sampling not implemented for PairPixelSampler. Change Config to PixelSamplerConfig instead."
+            )
         else:
             sub_bs = batch_size // (self.config.patch_size**2)
             indices = torch.rand((sub_bs, 3), device=device) * torch.tensor(
@@ -328,20 +329,20 @@ class PatchPixelSampler(PixelSampler):
                 device=device,
             )
 
-            indices = (
-                indices.view(sub_bs, 1, 1, 3)
-                .broadcast_to(sub_bs, self.config.patch_size, self.config.patch_size, 3)
-                .clone()
-            )
+        indices = (
+            indices.view(sub_bs, 1, 1, 3)
+            .broadcast_to(sub_bs, self.config.patch_size, self.config.patch_size, 3)
+            .clone()
+        )
 
-            yys, xxs = torch.meshgrid(
-                torch.arange(self.config.patch_size, device=device), torch.arange(self.config.patch_size, device=device)
-            )
-            indices[:, ..., 1] += yys
-            indices[:, ..., 2] += xxs
+        yys, xxs = torch.meshgrid(
+            torch.arange(self.config.patch_size, device=device), torch.arange(self.config.patch_size, device=device)
+        )
+        indices[:, ..., 1] += yys
+        indices[:, ..., 2] += xxs
 
-            indices = torch.floor(indices).long()
-            indices = indices.flatten(0, 2)
+        indices = torch.floor(indices).long()
+        indices = indices.flatten(0, 2)
 
         return indices
 
@@ -380,20 +381,12 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
     ) -> Int[Tensor, "batch_size 3"]:
-<<<<<<< Updated upstream
-        if mask:
-            # Note: if there is a mask, should switch to the base PixelSampler class
-
-            raise NotImplementedError()
-=======
-        if mask is not None:
-            m = mask.permute(0,3,1,2).float()
-            for i in range(self.radius):
-                m = erode(m, kernel_size=3)
+        if isinstance(mask, Tensor):
+            m = mask.permute(0, 3, 1, 2).float()
+            m = erode_mask(m, pixel_radius=self.radius)
             nonzero_indices = torch.nonzero(m[:, 0], as_tuple=False).to(device)
             chosen_indices = random.sample(range(len(nonzero_indices)), k=self.rays_to_sample)
             indices = nonzero_indices[chosen_indices]
->>>>>>> Stashed changes
         else:
             s = (self.rays_to_sample, 1)
             ns = torch.randint(0, num_images, s, dtype=torch.long, device=device)
