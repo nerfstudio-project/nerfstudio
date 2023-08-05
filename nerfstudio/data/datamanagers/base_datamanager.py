@@ -46,6 +46,7 @@ from torch.nn import Parameter
 from torch.utils.data.distributed import DistributedSampler
 from typing_extensions import TypeVar
 
+from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
@@ -334,6 +335,15 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If >1, patch-based sampling will be used."""
+    camera_optimizer: Optional[CameraOptimizerConfig] = field(default=None)
+    """Depricated camera optimization feature."""
+
+    def __post_init__(self):
+        """Warn user of depricated feature."""
+        if self.camera_optimizer:
+            CONSOLE.print(
+                "[bold red] Deprication Warning: Camera optimization within the datamanager config is a depricated feature.\n Camera optimization will be turned OFF. Camera optimization should be defined in the model config."
+            )
 
 
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
