@@ -36,7 +36,7 @@ EPS = 1.0e-7
 # Sigma scale factor from Urban Radiance Fields (Rematas et al., 2022)
 URF_SIGMA_SCALE_FACTOR = 3.0
 
-# Toggle on whether to use true depth or depth ranking loss 
+# Toggle on whether to use true depth or depth ranking loss
 DEPTH_METRIC = 1
 
 
