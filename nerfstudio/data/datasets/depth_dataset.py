@@ -51,7 +51,6 @@ class DepthDataset(InputDataset):
             or dataparser_outputs.metadata["depth_filenames"] is None
         ):
             losses.DEPTH_METRIC = 0
-            CONSOLE.print("[bold yellow] No depth data found!")
             cache = dataparser_outputs.image_filenames[0].parent / "depths.npy"
             if cache.exists():
                 CONSOLE.print("[bold yellow] Loading cache!")
@@ -59,6 +58,7 @@ class DepthDataset(InputDataset):
                 self.depths = np.load(cache)
                 self.depths = torch.from_numpy(self.depths).to(device)
             else:
+                CONSOLE.print("[bold yellow] No depth data found!")
                 depth_tensors = []
                 transforms = self._find_transform(dataparser_outputs.image_filenames[0])
                 data = dataparser_outputs.image_filenames[0].parent
@@ -98,7 +98,7 @@ class DepthDataset(InputDataset):
             self.metadata["depth_unit_scale_factor"] = 1.0
 
         else:
-            losses.DEPTH_METRIC = 0
+            losses.DEPTH_METRIC = 1
 
         self.depth_filenames = self.metadata["depth_filenames"]
         self.depth_unit_scale_factor = self.metadata["depth_unit_scale_factor"]
