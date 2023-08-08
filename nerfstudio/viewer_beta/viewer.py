@@ -97,17 +97,55 @@ class Viewer:
 
         self.client = None
         self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
+        self.viser_server.configure_theme()
+        buttons = (
+            viser.theme.TitlebarButton(
+                text="Getting Started",
+                icon=None,
+                href="https://nerf.studio",
+            ),
+            viser.theme.TitlebarButton(
+                text="Github",
+                icon="GitHub",
+                href="https://github.com/nerfstudio-project/nerfstudio",
+            ),
+            viser.theme.TitlebarButton(
+                text="Documentation",
+                icon="Description",
+                href="https://docs.nerf.studio",
+            ),
+        )
+        image = viser.theme.TitlebarImage(
+            image_url_light="https://docs.nerf.studio/en/latest/_static/imgs/logo.png",
+            image_url_dark="https://docs.nerf.studio/en/latest/_static/imgs/logo-dark.png",
+            image_alt="NerfStudio Logo",
+            href="https://docs.nerf.studio/",
+        )
+        titlebar_theme = viser.theme.TitlebarConfig(buttons=buttons, image=image)
+        self.viser_server.configure_theme(
+            titlebar_content=titlebar_theme,
+            fixed_sidebar=True,
+            dark_mode=True,
+        )
 
         self.viser_server.on_client_connect(self.handle_new_client)
 
-        self.control_panel = ControlPanel(
-            self.viser_server,
-            self.include_time,
-            self._interrupt_render,
-            self._crop_params_update,
-            self._output_type_change,
-            self._output_split_type_change,
-        )
+        tabs = self.viser_server.add_gui_tab_group()
+        with tabs.add_tab("Control", viser.Icon.SETTINGS):
+            self.control_panel = ControlPanel(
+                self.viser_server,
+                self.include_time,
+                self._interrupt_render,
+                self._crop_params_update,
+                self._output_type_change,
+                self._output_split_type_change,
+            )
+        with tabs.add_tab("Render", viser.Icon.CAMERA):
+            self.viser_server.add_gui_button("TODO Render")
+
+        with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
+            self.viser_server.add_gui_button("TODO Export")
+
 
         self.render_statemachine = RenderStateMachine(self)
         self.render_statemachine.start()
