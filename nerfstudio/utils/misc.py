@@ -164,7 +164,7 @@ def strtobool(val) -> bool:
     return val.lower() in ("yes", "y", "true", "t", "on", "1")
 
 
-def torch_compile(*args, **kwargs):
+def torch_compile(*args, **kwargs) -> Any:
     """
     Safe torch.compile with backward compatibility for PyTorch 1.x
     """
