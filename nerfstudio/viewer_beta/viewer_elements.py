@@ -100,7 +100,7 @@ class ViewerButton(ViewerElement[bool]):
         super().__init__(name, disabled=disabled, cb_hook=cb_hook)
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        self.gui_handle = viser_server.add_gui_button(name=self.name, disabled=self.disabled)
+        self.gui_handle = viser_server.add_gui_button(label=self.name, disabled=self.disabled)
 
     def install(self, viser_server: ViserServer) -> None:
         self._create_gui_handle(viser_server)

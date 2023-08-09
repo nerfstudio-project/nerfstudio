@@ -18,9 +18,12 @@ from typing import Callable, DefaultDict, List, Tuple, get_args
 
 import torch
 from viser import ViserServer
+import viser.transforms as vtf
+import numpy as np
 
 from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
 from nerfstudio.viewer_beta.viewer_elements import (  # ViewerButtonGroup,
+    ViewerButton,
     ViewerButtonGroup,
     ViewerCheckbox,
     ViewerDropdown,
@@ -61,6 +64,10 @@ class ControlPanel:
             default_value="Balanced",
             options=["Slow", "Balanced", "Fast"],
             cb_hook=lambda han: self._train_speed_cb(),
+        )
+        self._reset_camera = ViewerButton(
+            name="Reset Up Direction",
+            cb_hook=lambda han: self._reset_camera_cb(),
         )
         self._output_render = ViewerDropdown(
             "Output Render",
@@ -141,6 +148,7 @@ class ControlPanel:
 
         self.add_element(self._train_speed)
         self.add_element(self._train_util)
+        self.add_element(self._reset_camera)
         with self.viser_server.add_gui_folder("Render Options"):
             self.add_element(self._max_res)
             self.add_element(self._output_render)
@@ -188,6 +196,10 @@ class ControlPanel:
         elif self._train_speed.value == "Slow":
             self._train_util.value = 0.5
             self._max_res.value = 1024
+
+    def _reset_camera_cb(self) -> None:
+        for client in self.viser_server.get_clients().values():
+            client.camera.up_direction = vtf.SO3(client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
 
     def update_output_options(self, new_options: List[str]):
         """
