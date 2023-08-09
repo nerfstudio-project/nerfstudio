@@ -138,6 +138,7 @@ class Viewer:
                 self._crop_params_update,
                 self._output_type_change,
                 self._output_split_type_change,
+                self._toggle_training_state,
             )
         with tabs.add_tab("Render", viser.Icon.CAMERA):
             self.viser_server.add_gui_button("TODO Render")
@@ -182,6 +183,14 @@ class Viewer:
         """Interrupt current render."""
         if self.camera_state is not None:
             self.render_statemachine.action(RenderAction("rerender", self.camera_state))
+
+    def _toggle_training_state(self, _) -> None:
+        """Toggle the trainer's training state."""
+        if self.trainer is not None:
+            if self.trainer.training_state == "training":
+                self.trainer.training_state = "paused"
+            elif self.trainer.training_state == "paused":
+                self.trainer.training_state = "training"
 
     def _crop_params_update(self, _) -> None:
         """Update crop parameters"""

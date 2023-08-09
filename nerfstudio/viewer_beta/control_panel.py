@@ -54,6 +54,7 @@ class ControlPanel:
         crop_update_cb: Callable,
         update_output_cb: Callable,
         update_split_output_cb: Callable,
+        toggle_training_state_cb: Callable,
     ):
         # elements holds a mapping from tag: [elements]
         self.viser_server = viser_server
@@ -146,6 +147,15 @@ class ControlPanel:
         self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=rerender_cb, hint="Time to render")
         self._time_enabled = time_enabled
 
+        self.pause_train = viser_server.add_gui_button(label="Pause Training", disabled=False)
+        self.pause_train.on_click(lambda _: self.toggle_pause_button())
+        self.pause_train.on_click(lambda han: toggle_training_state_cb(han))
+        self.resume_train = viser_server.add_gui_button(label="Resume Training", disabled=False)
+        self.resume_train.on_click(lambda _: self.toggle_pause_button())
+        self.resume_train.on_click(lambda han: toggle_training_state_cb(han))
+
+        self.resume_train.visible = False
+
         self.add_element(self._train_speed)
         self.add_element(self._train_util)
         self.add_element(self._reset_camera)
@@ -200,6 +210,10 @@ class ControlPanel:
     def _reset_camera_cb(self) -> None:
         for client in self.viser_server.get_clients().values():
             client.camera.up_direction = vtf.SO3(client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
+
+    def toggle_pause_button(self) -> None:
+        self.pause_train.visible = not self.pause_train.visible
+        self.resume_train.visible = not self.resume_train.visible
 
     def update_output_options(self, new_options: List[str]):
         """
