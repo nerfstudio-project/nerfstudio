@@ -102,6 +102,7 @@ class MLP(FieldComponent):
             self.build_nn_modules()
         elif implementation == "tcnn" and not TCNN_EXISTS:
             print_tcnn_speed_warning("MLP")
+            self.build_nn_modules()
         elif implementation == "tcnn":
             activation_str = activation_to_tcnn_string(activation)
             output_activation_str = activation_to_tcnn_string(out_activation)

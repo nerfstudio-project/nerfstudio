@@ -74,6 +74,35 @@ Have feature requests? Want to add your brand-spankin'-new NeRF model? Have a ne
 
 We hope nerfstudio enables you to build faster :hammer: learn together :books: and contribute to our NeRF community :sparkling_heart:.
 
+## Sponsors
+Sponsors of this work includes [Luma AI](https://lumalabs.ai/) and the [BAIR commons](https://bcommons.berkeley.edu/home).
+
+<p align="left">
+    <a href="https://lumalabs.ai/">
+        <!-- pypi-strip -->
+        <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/_static/imgs/luma_dark.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/_static/imgs/luma_light.png">
+        <!-- /pypi-strip -->
+        <img alt="Luma AI" src="docs/_static/imgs/luma_light.png" width="300">
+        <!-- pypi-strip -->
+        </picture>
+        <!-- /pypi-strip -->
+    </a>
+    <a href="https://bcommons.berkeley.edu/home">
+        <!-- pypi-strip -->
+        <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/_static/imgs/bair_dark.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/_static/imgs/bair_light.png">
+        <!-- /pypi-strip -->
+        <img alt="BAIR" src="docs/_static/imgs/bair_light.png" width="300">
+        <!-- pypi-strip -->
+        </picture>
+        <!-- /pypi-strip -->
+    </a>
+</p>
+
+
 # Quickstart
 
 The quickstart will help you get started with the default vanilla NeRF trained on the classic Blender Lego scene.
@@ -92,17 +121,20 @@ Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependen
 ```bash
 conda create --name nerfstudio -y python=3.8
 conda activate nerfstudio
-python -m pip install --upgrade pip
+pip install --upgrade pip
 ```
 
 ### Dependencies
 
-Install pytorch with CUDA (this repo has been tested with CUDA 11.7 and CUDA 11.8) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+Install PyTorch with CUDA (this repo has been tested with CUDA 11.7 and CUDA 11.8) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn).
+`cuda-toolkit` is required for building `tiny-cuda-nn`.
 
 For CUDA 11.7:
 
 ```bash
 pip install torch==2.0.1+cu117 torchvision==0.15.2+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
+
+conda install -c "nvidia/label/cuda-11.7.1" cuda-toolkit
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
@@ -110,6 +142,8 @@ For CUDA 11.8:
 
 ```bash
 pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
+
+conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 

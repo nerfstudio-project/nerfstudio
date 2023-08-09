@@ -33,9 +33,11 @@ The following methods are supported in nerfstudio:
     Mip-NeRF<mipnerf.md>
     NeRF<nerf.md>
     Nerfacto<nerfacto.md>
+    Nerfbusters<nerfbusters.md>
     NeRFPlayer<nerfplayer.md>
     Tetra-NeRF<tetranerf.md>
     TensoRF<tensorf.md>
+    Generfacto<generfacto.md>
 ```
 
 (own_method_docs)=

@@ -14,21 +14,30 @@
 
 import gc
 from pathlib import Path
-from typing import List, Optional, Union, cast
+from typing import List, Optional, Union
 
 import torch
 import torch.nn.functional as F
 import tyro
-from diffusers import IFPipeline
-from diffusers.pipelines.deepfloyd_if import IFPipelineOutput
+
 from jaxtyping import Float
 from PIL import Image
-from torch import FloatTensor, Generator, Tensor, nn
+from torch import Generator, Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
 
-from transformers import T5EncoderModel
 
-from nerfstudio.generative.utils import _SDSGradient
+from nerfstudio.generative.utils import CatchMissingPackages
+
+try:
+    from diffusers import IFPipeline as IFOrig
+    from diffusers.pipelines.deepfloyd_if import IFPipelineOutput as IFOutputOrig
+
+    from diffusers import IFPipeline, DiffusionPipeline
+    from diffusers.pipelines.deepfloyd_if import IFPipelineOutput
+    from transformers import T5EncoderModel
+
+except ImportError:
+    IFPipeline = IFPipelineOutput = T5EncoderModel = CatchMissingPackages()
 
 IMG_DIM = 64
 
@@ -61,7 +70,7 @@ class DeepFloyd(nn.Module):
             variant="fp16",
             torch_dtype=torch.float16,
         )
-        assert isinstance(self.pipe, IFPipeline)
+        assert isinstance(self.pipe, DiffusionPipeline)
         self.pipe = self.pipe.to(self.device)
 
         self.pipe.enable_attention_slicing(1)
@@ -96,7 +105,7 @@ class DeepFloyd(nn.Module):
             variant="fp16",
             torch_dtype=torch.float16,
         )
-        assert isinstance(self.pipe, IFPipeline)
+        assert isinstance(self.pipe, DiffusionPipeline)
         self.pipe = self.pipe.to(self.device)
 
         self.pipe.enable_attention_slicing(1)
@@ -122,12 +131,12 @@ class DeepFloyd(nn.Module):
         prompt = [prompt] if isinstance(prompt, str) else prompt
         negative_prompt = [negative_prompt] if isinstance(negative_prompt, str) else negative_prompt
 
-        assert isinstance(self.pipe, IFPipeline)
+        assert isinstance(self.pipe, DiffusionPipeline)
         with torch.no_grad():
             prompt_embeds, negative_embeds = self.pipe.encode_prompt(prompt, negative_prompt=negative_prompt)
 
-        assert isinstance(negative_embeds, FloatTensor)
-        assert isinstance(prompt_embeds, FloatTensor)
+        assert isinstance(negative_embeds, Tensor)
+        assert isinstance(prompt_embeds, Tensor)
         return torch.cat([negative_embeds, prompt_embeds])
 
     def sds_loss(
@@ -146,40 +155,37 @@ class DeepFloyd(nn.Module):
         Returns:
             The loss
         """
-        with torch.autocast(device_type="cuda", enabled=False):
-            image = F.interpolate(image.half(), (IMG_DIM, IMG_DIM), mode="bilinear", align_corners=False)
-            t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
+        image = F.interpolate(image.half(), (IMG_DIM, IMG_DIM), mode="bilinear", align_corners=False)
+        t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
 
-            # predict the noise residual with unet, NO grad!
-            with torch.no_grad():
-                # add noise
-                noise = torch.randn_like(image)
-                image_noisy = self.scheduler.add_noise(image, noise, t)  # type: ignore
-                # pred noise
-                image_model_input = torch.cat((image_noisy,) * 2)
-                noise_pred = self.unet(image_model_input, t, encoder_hidden_states=text_embeddings).sample
+        # predict the noise residual with unet, NO grad!
+        with torch.no_grad():
+            # add noise
+            noise = torch.randn_like(image)
+            image_noisy = self.scheduler.add_noise(image, noise, t)  # type: ignore
+            # pred noise
+            image_model_input = torch.cat((image_noisy,) * 2)
+            noise_pred = self.unet(image_model_input, t, encoder_hidden_states=text_embeddings).sample
 
-            # perform guidance
-            noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-            noise_pred_text, predicted_variance = noise_pred_text.split(3, dim=1)
-            noise_pred_uncond, _ = noise_pred_uncond.split(3, dim=1)
+        # perform guidance
+        noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+        noise_pred_text, predicted_variance = noise_pred_text.split(3, dim=1)
+        noise_pred_uncond, _ = noise_pred_uncond.split(3, dim=1)
 
-            noise_pred = noise_pred_text + guidance_scale * (noise_pred_text - noise_pred_uncond)
+        noise_pred = noise_pred_text + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
-            # w(t), sigma_t^2
-            w = 1 - self.alphas[t]
+        # w(t), sigma_t^2
+        w = 1 - self.alphas[t]
 
-            grad = w * (noise_pred - noise)
-            grad = torch.nan_to_num(grad)
+        grad = w * (noise_pred - noise)
+        grad = torch.nan_to_num(grad)
 
-            if grad_scaler is not None:
-                loss = cast(Tensor, _SDSGradient.apply(grad_scaler.scale(image), grad))
-            else:
-                loss = cast(Tensor, _SDSGradient.apply(image, grad))
+        target = (image - grad).detach()
+        loss = 0.5 * F.mse_loss(image, target, reduction="sum") / image.shape[0]
 
         return loss
 
-    def prompt_to_img(
+    def prompt_to_image(
         self,
         prompts: Union[str, List[str]],
         negative_prompts: Union[str, List[str]] = "",
@@ -201,16 +207,17 @@ class DeepFloyd(nn.Module):
 
         prompts = [prompts] if isinstance(prompts, str) else prompts
         negative_prompts = [negative_prompts] if isinstance(negative_prompts, str) else negative_prompts
-
-        assert isinstance(self.pipe, IFPipeline)
+        assert isinstance(self.pipe, DiffusionPipeline)
         prompt_embeds, negative_embeds = self.pipe.encode_prompt(prompts, negative_prompt=negative_prompts)
+
+        assert isinstance(self.pipe, IFOrig)
         model_output = self.pipe(
             prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_embeds, generator=generator
         )
-        assert isinstance(model_output, IFPipelineOutput)
-        image = model_output.images[0]
+        assert isinstance(model_output, IFOutputOrig)
+        output_image = model_output.images[0]
 
-        return image
+        return output_image
 
 
 def generate_image(
@@ -228,7 +235,7 @@ def generate_image(
     cuda_device = torch.device("cuda")
     with torch.no_grad():
         df = DeepFloyd(cuda_device)
-        img = df.prompt_to_img(prompt, negative, generator, steps)
+        img = df.prompt_to_image(prompt, negative, generator, steps)
         img.save(save_path)
 
 

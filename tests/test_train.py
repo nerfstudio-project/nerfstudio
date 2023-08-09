@@ -21,10 +21,10 @@ BLACKLIST = [
     "instant-ngp",
     "instant-ngp-bounded",
     "nerfacto-big",
-    "volinga",
     "phototourism",
     "depth-nerfacto",
     "neus",
+    "generfacto",
     "neus-facto",
 ]
 
