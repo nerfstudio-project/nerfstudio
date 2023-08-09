@@ -97,7 +97,6 @@ class Viewer:
 
         self.client = None
         self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
-        self.viser_server.configure_theme()
         buttons = (
             viser.theme.TitlebarButton(
                 text="Getting Started",
@@ -124,7 +123,7 @@ class Viewer:
         titlebar_theme = viser.theme.TitlebarConfig(buttons=buttons, image=image)
         self.viser_server.configure_theme(
             titlebar_content=titlebar_theme,
-            fixed_sidebar=True,
+            control_layout="floating",
             dark_mode=True,
         )
 
@@ -145,7 +144,6 @@ class Viewer:
 
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
             self.viser_server.add_gui_button("TODO Export")
-
 
         self.render_statemachine = RenderStateMachine(self)
         self.render_statemachine.start()
