@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Optional
+from typing import TYPE_CHECKING, Literal, Optional, Dict
 
 import numpy as np
 import torch
@@ -95,7 +95,7 @@ class Viewer:
         self.train_btn_state: Literal["training", "paused", "completed"] = "training"
         self._prev_train_state: Literal["training", "paused", "completed"] = "training"
 
-        self.client = None
+        self.client: viser.ClientHandle = None
         self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
         buttons = (
             viser.theme.TitlebarButton(
@@ -237,6 +237,8 @@ class Viewer:
         """
 
         # draw the training cameras and images
+        self.camera_handles: Dict[int, viser.SceneNodeHandle] = {}
+        self.original_c2w: Dict[int, torch.Tensor] = {}
         image_indices = self._pick_drawn_image_idxs(len(train_dataset))
         for idx in image_indices:
             image = train_dataset[idx]["image"]
