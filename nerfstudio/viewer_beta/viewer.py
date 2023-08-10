@@ -35,7 +35,8 @@ from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer_beta.control_panel import ControlPanel
 from nerfstudio.viewer_beta.render_state_machine import RenderAction, RenderStateMachine
 from nerfstudio.viewer_beta.utils import CameraState
-from nerfstudio.viewer_beta.export_panel import populate_export_panel
+from nerfstudio.viewer_beta.export_panel import populate_export_tab
+from nerfstudio.viewer_beta.render_panel import populate_render_tab
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
@@ -142,10 +143,10 @@ class Viewer:
                 self._toggle_training_state,
             )
         with tabs.add_tab("Render", viser.Icon.CAMERA):
-            self.viser_server.add_gui_button("TODO Render")
+            populate_render_tab(self.viser_server)
 
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
-            populate_export_panel(self.viser_server)
+            populate_export_tab(self.viser_server)
 
         self.render_statemachine = RenderStateMachine(self)
         self.render_statemachine.start()

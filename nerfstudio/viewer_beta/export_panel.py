@@ -11,7 +11,7 @@ import viser
 from typing_extensions import Literal, assert_never
 
 
-def populate_export_panel(server: viser.ViserServer) -> None:
+def populate_export_tab(server: viser.ViserServer) -> None:
     crop_options = make_crop_options(server)
 
     server.add_gui_markdown("")  # Vertical whitespace.
