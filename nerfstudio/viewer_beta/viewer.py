@@ -35,6 +35,7 @@ from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer_beta.control_panel import ControlPanel
 from nerfstudio.viewer_beta.render_state_machine import RenderAction, RenderStateMachine
 from nerfstudio.viewer_beta.utils import CameraState
+from nerfstudio.viewer_beta.export_panel import populate_export_panel
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
@@ -144,7 +145,7 @@ class Viewer:
             self.viser_server.add_gui_button("TODO Render")
 
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
-            self.viser_server.add_gui_button("TODO Export")
+            populate_export_panel(self.viser_server)
 
         self.render_statemachine = RenderStateMachine(self)
         self.render_statemachine.start()
@@ -261,7 +262,7 @@ class Viewer:
             R = vtf.SO3.from_matrix(c2w[:3, :3])
             R = R @ vtf.SO3.from_x_radians(np.pi)
             camera_handle = self.viser_server.add_camera_frustum(
-                name=f"/camera_{idx:05d}",
+                name=f"/cameras/camera_{idx:05d}",
                 fov=2 * np.arctan(camera.cx / camera.fx[0]),
                 scale=1,
                 aspect=float(camera.cx[0] / camera.cy[0]),

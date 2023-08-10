@@ -61,9 +61,9 @@ class ControlPanel:
         self._elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
 
         self._train_speed = ViewerButtonGroup(
-            name="Train Speed  ",
-            default_value="Balanced",
-            options=["Slow", "Balanced", "Fast"],
+            name="Train Speed",
+            default_value="Mid",
+            options=["Slow", "Mid", "Fast"],
             cb_hook=lambda han: self._train_speed_cb(),
         )
         self._reset_camera = ViewerButton(
@@ -164,11 +164,10 @@ class ControlPanel:
             self.add_element(self._output_render)
             self.add_element(self._colormap)
             # colormap options
-            with self.viser_server.add_gui_folder(" "):
-                self.add_element(self._invert, additional_tags=("colormap",))
-                self.add_element(self._normalize, additional_tags=("colormap",))
-                self.add_element(self._min, additional_tags=("colormap",))
-                self.add_element(self._max, additional_tags=("colormap",))
+            self.add_element(self._invert, additional_tags=("colormap",))
+            self.add_element(self._normalize, additional_tags=("colormap",))
+            self.add_element(self._min, additional_tags=("colormap",))
+            self.add_element(self._max, additional_tags=("colormap",))
 
         # split options
         with self.viser_server.add_gui_folder("Split Screen"):
@@ -177,11 +176,11 @@ class ControlPanel:
             self.add_element(self._split_percentage, additional_tags=("split",))
             self.add_element(self._split_output_render, additional_tags=("split",))
             self.add_element(self._split_colormap, additional_tags=("split",))
-            with self.viser_server.add_gui_folder("  "):
-                self.add_element(self._split_invert, additional_tags=("split_colormap",))
-                self.add_element(self._split_normalize, additional_tags=("split_colormap",))
-                self.add_element(self._split_min, additional_tags=("split_colormap",))
-                self.add_element(self._split_max, additional_tags=("split_colormap",))
+
+            self.add_element(self._split_invert, additional_tags=("split_colormap",))
+            self.add_element(self._split_normalize, additional_tags=("split_colormap",))
+            self.add_element(self._split_min, additional_tags=("split_colormap",))
+            self.add_element(self._split_max, additional_tags=("split_colormap",))
 
         with self.viser_server.add_gui_folder("Crop Viewport"):
             self.add_element(self._crop_viewport)
@@ -200,7 +199,7 @@ class ControlPanel:
         if self._train_speed.value == "Fast":
             self._train_util.value = 0.95
             self._max_res.value = 256
-        elif self._train_speed.value == "Balanced":
+        elif self._train_speed.value == "Mid":
             self._train_util.value = 0.85
             self._max_res.value = 512
         elif self._train_speed.value == "Slow":
