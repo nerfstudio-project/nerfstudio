@@ -18,6 +18,7 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Optional, Dict
+import time
 
 import numpy as np
 import torch
@@ -148,14 +149,15 @@ class Viewer:
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
             populate_export_tab(self.viser_server)
 
-        self.render_statemachine = RenderStateMachine(self)
+        self.render_statemachine = RenderStateMachine(self, VISER_NERFSTUDIO_SCALE_RATIO)
         self.render_statemachine.start()
 
     def handle_new_client(self, client: viser.ClientHandle) -> None:
         self.client = client
-
+        self.last_move_time = 0
         @client.camera.on_update
         def _(_: viser.CameraHandle) -> None:
+            self.last_move_time = time.time()
             R = vtf.SO3(wxyz=self.client.camera.wxyz)
             R = R @ vtf.SO3.from_x_radians(np.pi)
             R = torch.tensor(R.as_matrix())
@@ -295,7 +297,9 @@ class Viewer:
 
         if self.camera_state is None:
             return
-
+        # this stops training while moving to make the response smoother
+        while time.time()-self.last_move_time < 0.1:
+            time.sleep(.01)
         if self.trainer is not None and self.trainer.training_state == "training" and self.train_util != 1:
             if (
                 EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]

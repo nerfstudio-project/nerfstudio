@@ -55,7 +55,7 @@ class RenderStateMachine(threading.Thread):
         viewer: the viewer state
     """
 
-    def __init__(self, viewer: Viewer):
+    def __init__(self, viewer: Viewer, viser_scale_ratio: float):
         threading.Thread.__init__(self)
         self.transitions: Dict[RenderStates, Dict[RenderActions, RenderStates]] = {
             s: {} for s in get_args(RenderStates)
@@ -79,6 +79,7 @@ class RenderStateMachine(threading.Thread):
         self.interrupt_render_flag = False
         self.daemon = True
         self.output_keys = {}
+        self.viser_scale_ratio = viser_scale_ratio
 
     def action(self, action: RenderAction):
         """Takes an action and updates the state machine
@@ -107,7 +108,6 @@ class RenderStateMachine(threading.Thread):
 
         # handle interrupt logic
         if self.state == "high" and self.next_action.action in ("move", "rerender"):
-            print("interrupting render", self.next_action.action)
             self.interrupt_render_flag = True
         self.render_trigger.set()
 
@@ -239,6 +239,7 @@ class RenderStateMachine(threading.Thread):
 
         self.viewer.viser_server.set_background_image(
             selected_output.cpu().numpy(),
+            # outputs['depth'].cpu().numpy() * self.viser_scale_ratio,
             format=self.viewer.config.image_format,
             jpeg_quality=self.viewer.config.jpeg_quality,
         )
