@@ -42,7 +42,7 @@ from nerfstudio.viewer_beta.render_panel import populate_render_tab
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
 
-VISER_NERFSTUDIO_SCALE_RATIO: int = 10
+VISER_NERFSTUDIO_SCALE_RATIO: float = 10.0
 
 
 @decorate_all([check_main_thread])
@@ -248,7 +248,6 @@ class Viewer:
             dataset: dataset to render in the scene
             train_state: Current status of training
         """
-
         # draw the training cameras and images
         self.camera_handles: Dict[int, viser.SceneNodeHandle] = {}
         self.original_c2w: Dict[int, torch.Tensor] = {}
