@@ -54,7 +54,7 @@ class InstantNGPDataParserConfig(DataParserConfig):
     """How much to scale the scene."""
     eval_mode: Literal["fraction", "filename", "interval", "all"] = "fraction"
     """
-    The method to use for splitting the dataset into train and eval. 
+    The method to use for splitting the dataset into train and eval.
     Fraction splits based on a percentage for train and the remaining for eval.
     Filename splits based on filenames containing train/eval.
     Interval uses every nth frame for eval.
@@ -112,12 +112,12 @@ class InstantNGP(DataParser):
         assert (
             len(image_filenames) != 0
         ), """
-        No image files found. 
+        No image files found.
         You should check the file_paths in the transforms.json file to make sure they are correct.
         """
         poses = np.array(poses).astype(np.float32)
         poses[:, :3, 3] *= self.config.scene_scale
-        
+
         # find train and eval indices based on the eval_mode specified
         if self.config.eval_mode == "fraction":
             i_train, i_eval = get_train_eval_split_fraction(image_filenames, self.config.train_split_fraction)
@@ -132,7 +132,7 @@ class InstantNGP(DataParser):
             i_train, i_eval = get_train_eval_split_all(image_filenames)
         else:
             raise ValueError(f"Unknown eval mode {self.config.eval_mode}")
-        
+
         if split == "train":
             indices = i_train
         elif split in ["val", "test"]:
@@ -145,7 +145,7 @@ class InstantNGP(DataParser):
 
         idx_tensor = torch.tensor(indices, dtype=torch.long)
         poses = poses[idx_tensor]
-        
+
         camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
 
         distortion_params = camera_utils.get_distortion_params(
