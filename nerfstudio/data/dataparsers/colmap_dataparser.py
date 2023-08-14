@@ -380,7 +380,7 @@ class ColmapDataParser(DataParser):
                 )
                 if Confirm.ask("\nWould you like to downscale the images now?", default=False, console=CONSOLE):
                     # Install the method
-                    image_dir = image_filenames[0].parent
+                    image_dir = self.config.data / image_filenames[0].parent
                     num_downscales = int(math.log2(self._downscale_factor))
                     assert 2**num_downscales == self._downscale_factor, "Downscale factor must be a power of 2"
                     downscale_images(image_dir, num_downscales, folder_name=image_dir.name, nearest_neighbor=False)
