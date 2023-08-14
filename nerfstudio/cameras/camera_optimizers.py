@@ -56,7 +56,7 @@ class CameraOptimizerConfig(InstantiateConfig):
 
     focal_std_penalty: torch.Tensor = torch.tensor([0.1, 0.1, 0.01, 0.01])
 
-    optimize_focal: bool = False
+    optimize_focal: bool = True
     """Whether to optimize focal length."""
 
     principal_point_penalty: float = 1e-2
@@ -80,7 +80,17 @@ class CameraOptimizer(nn.Module):
         self.config = config
         self.num_cameras = num_cameras
         self.cameras = cameras
-        self.c2ws = self.cameras.camera_to_worlds
+        if cameras is not None:
+            self.c2ws = self.cameras.camera_to_worlds
+            self.Ks = torch.eye(3)
+            self.Ks = self.Ks[None, ...].repeat(self.c2ws.shape[0], 1, 1)
+            self.Ks[:, 0, 0] = (self.cameras.fx / self.cameras.width).squeeze()
+            self.Ks[:, 1, 1] = (self.cameras.fy / self.cameras.height).squeeze()
+            self.Ks[:, 0, 2] = (self.cameras.cx / self.cameras.width).squeeze()
+            self.Ks[:, 1, 2] = (self.cameras.cy / self.cameras.height).squeeze()
+            self.Ksinv = torch.inverse(self.Ks)
+        else:
+            self.c2ws = torch.eye(4, device=device)[None, :3, :4].repeat(num_cameras, 1, 1)
         self.device = device
         self.non_trainable_camera_indices = non_trainable_camera_indices
 
@@ -96,8 +106,8 @@ class CameraOptimizer(nn.Module):
             if self.cameras is None:
                 raise ValueError("cameras must be provided to optimize focal length")
             # optimize fx, fy, cx, cy
-            # self.K_adjustment = torch.nn.Parameter(torch.zeros((num_cameras, 4), device=device))
-            self.K_adjustment = torch.nn.Parameter(torch.zeros((4), device=device))
+            self.K_adjustment = torch.nn.Parameter(torch.zeros((num_cameras, 4), device=device))
+            # self.K_adjustment = torch.nn.Parameter(torch.zeros((4), device=device))
 
     def forward(
         self,
@@ -134,46 +144,64 @@ class CameraOptimizer(nn.Module):
         pose_corrections = functools.reduce(pose_utils.multiply, outputs)
 
         # next multiply in the focal corrections if provided
-        K_cor = torch.eye(3, device=self.pose_adjustment.device)
-        K_cors = K_cor[None, ...].repeat(indices.shape[0], 1, 1)
         # optimize them separately
-        # if self.config.optimize_focal:
-        #     K_cors[:, 0, 0] += self.K_adjustment[indices, 0]
-        #     K_cors[:, 1, 1] += self.K_adjustment[indices, 1]
-        #     K_cors[:, 0, 2] += self.K_adjustment[indices, 2]
-        #     K_cors[:, 1, 2] += self.K_adjustment[indices, 3]
-        # optimize all as one
+        if self.Ks.device != self.pose_adjustment.device:
+            self.Ks = self.Ks.to(self.pose_adjustment.device)
+            self.Ksinv = self.Ksinv.to(self.pose_adjustment.device)
+        K_cors = torch.eye(3, device=self.Ks.device)
+        K_cors = K_cors[None, ...].repeat(indices.shape[0], 1, 1)
         if self.config.optimize_focal:
-            K_cor[0, 0] += self.K_adjustment[0]
-            K_cor[1, 1] += self.K_adjustment[1]
-            K_cor[0, 2] += self.K_adjustment[2]
-            K_cor[1, 2] += self.K_adjustment[3]
-        K_cors = K_cor[None, ...].repeat(indices.shape[0], 1, 1)
-        pose_corrections = torch.bmm(K_cors, pose_corrections)  # 1x3x3 * Nx3x4
-        return pose_corrections
+            K_cors[:, 0, 0] *= torch.exp(self.K_adjustment[indices, 0])
+            K_cors[:, 1, 1] *= torch.exp(self.K_adjustment[indices, 1])
+            K_cors[:, 0, 2] += self.K_adjustment[indices, 2]
+            K_cors[:, 1, 2] += self.K_adjustment[indices, 3]
+        # optimize all as one
+        # if self.config.optimize_focal:
+        #     K_cor[0, 0] *= torch.exp(self.K_adjustment[0])
+        #     K_cor[1, 1] *= torch.exp(self.K_adjustment[1])
+        #     K_cor[0, 2] += self.K_adjustment[2]
+        #     K_cor[1, 2] += self.K_adjustment[3]
+        # K_cors = K_cor[None, ...].repeat(indices.shape[0], 1, 1)
+        return K_cors, pose_corrections
 
     def apply_to_raybundle(self, raybundle: RayBundle) -> None:
         """Apply the pose correction to the raybundle"""
         if self.config.mode != "off":
-            # print("focal corr", self.K_adjustment.mean(dim=0), self.K_adjustment.std(dim=0))
-            # print("focal corr", self.K_adjustment)
-            correction_matrices = self(raybundle.camera_indices.squeeze())  # type: ignore
-            if self.cameras is not None:
-                # Convert the correction matrix C to H * C * H^-1
-                if self.c2ws.device != correction_matrices.device:
-                    self.c2ws = self.c2ws.to(correction_matrices.device)
-                Hs = self.c2ws[raybundle.camera_indices.squeeze()]
-                # concat a row of 0 0 0 1
-                rows = torch.tensor([0, 0, 0, 1], dtype=Hs.dtype, device=Hs.device)[None, :].repeat(Hs.shape[0], 1, 1)
-                Hs = torch.cat([Hs, rows], dim=1)
-                Hsinv = torch.inverse(Hs)
-                correction_matrices = torch.cat([correction_matrices, rows], dim=1)
-                correction_matrices = torch.bmm(Hs, torch.bmm(correction_matrices, Hsinv))[:, :3, :]
+            if self.config.optimize_focal:
+                print("focal corr", self.K_adjustment.mean(dim=0), self.K_adjustment.std(dim=0))
+                # print("focal corr", self.K_adjustment)
+            K_cors, H_cors = self(raybundle.camera_indices.squeeze())  # type: ignore
+            if self.c2ws.device != K_cors.device:
+                self.c2ws = self.c2ws.to(K_cors.device)
+            Hs = self.c2ws[raybundle.camera_indices.squeeze()]
+            # concat a row of 0 0 0 1
+            rows = torch.tensor([0, 0, 0, 1], dtype=Hs.dtype, device=Hs.device)[None, :].repeat(Hs.shape[0], 1, 1)
+            Hs = torch.cat([Hs, rows], dim=1)
+            Hsinv = torch.inverse(Hs)
+            H_cors = torch.cat([H_cors, rows], dim=1)
+            onesvec = torch.ones((*raybundle.origins.shape[:-1], 1), device=raybundle.origins.device)
+            # first multiply the H_cor * Hsinv
+            Hcorinv = torch.bmm(H_cors, Hsinv)
+            raybundle.origins = torch.bmm(Hcorinv, torch.cat((raybundle.origins, onesvec), dim=-1)[..., None])
+            # then multiply the Hs to get back to world frame
+            raybundle.origins = torch.bmm(Hs, raybundle.origins)[..., :3, 0]
 
-            raybundle.origins = raybundle.origins + correction_matrices[:, :3, 3]
-            raybundle.directions = torch.bmm(correction_matrices[:, :3, :3], raybundle.directions[..., None]).squeeze()
-            # re-normalize
+            Ks = self.Ks[raybundle.camera_indices.squeeze()]
+            Ksinv = self.Ksinv[raybundle.camera_indices.squeeze()]
+            # multiply by the H_cor * Hsinv to bring us into camera local frame (-z is camera axis)
+            raybundle.directions = torch.bmm(Hcorinv[..., :3, :3], raybundle.directions[..., None]).squeeze()
+            # then apply the focal matrix to take it to focal plane space
+            raybundle.directions = torch.bmm(Ks, raybundle.directions[..., None]).squeeze()
+            # divide by -z to normalize to focal plane
+            raybundle.directions = raybundle.directions / -raybundle.directions[..., 2:3].repeat(1, 3)
+            # then apply the correction
+            raybundle.directions = torch.bmm(K_cors, raybundle.directions[..., None]).squeeze()
+            # then apply the inverse of the focal matrix to get back to camera space
+            raybundle.directions = torch.bmm(Ksinv, raybundle.directions[..., None]).squeeze()
+            # then re-normalize
             raybundle.directions = raybundle.directions / raybundle.directions.norm(dim=-1, keepdim=True)
+            # Then apply the Hs to get back to world frame
+            raybundle.directions = torch.bmm(Hs[..., :3, :3], raybundle.directions[..., None]).squeeze()
 
     def get_loss_dict(self, loss_dict: dict) -> None:
         """Add regularization"""
@@ -185,15 +213,15 @@ class CameraOptimizer(nn.Module):
             if self.config.optimize_focal:
                 if self.config.focal_std_penalty.device != self.K_adjustment.device:
                     self.config.focal_std_penalty = self.config.focal_std_penalty.to(self.K_adjustment.device)
-                # loss_dict["camera_opt_std_regularizer"] = (
-                #     self.K_adjustment.std(dim=0) * self.config.focal_std_penalty
-                # ).sum()
-                # loss_dict["camera_opt_principal_point_regularizer"] = (
-                #     self.K_adjustment.norm(dim=0)[2:].mean() * self.config.principal_point_penalty
-                # )
+                loss_dict["camera_opt_std_regularizer"] = (
+                    self.K_adjustment.std(dim=0) * self.config.focal_std_penalty
+                ).sum()
                 loss_dict["camera_opt_principal_point_regularizer"] = (
-                    self.K_adjustment[2:].norm() * self.config.principal_point_penalty
+                    self.K_adjustment.norm(dim=0)[2:].norm() * self.config.principal_point_penalty
                 )
+                # loss_dict["camera_opt_principal_point_regularizer"] = (
+                #     self.K_adjustment[2:].norm() * self.config.principal_point_penalty
+                # )
 
     def get_correction_matrices(self):
         """Get optimized pose correction matrices"""
