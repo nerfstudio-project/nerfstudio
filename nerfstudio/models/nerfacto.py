@@ -29,6 +29,7 @@ from torch.nn import Parameter
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image import PeakSignalNoiseRatio
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+from nerfstudio.cameras.cameras import Cameras
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
 from nerfstudio.cameras.rays import RayBundle, RaySamples
@@ -145,6 +146,8 @@ class NerfactoModel(Model):
     def populate_modules(self):
         """Set the fields and modules."""
         super().populate_modules()
+        if "train_cameras" in self.kwargs:
+            self.train_cameras: Cameras = self.kwargs["train_cameras"]
 
         if self.config.disable_scene_contraction:
             scene_contraction = None
@@ -171,7 +174,7 @@ class NerfactoModel(Model):
         )
 
         self.camera_optimizer: CameraOptimizer = self.config.camera_optimizer.setup(
-            num_cameras=self.num_train_data, device="cpu"
+            num_cameras=self.num_train_data, device="cpu", cameras=self.train_cameras
         )
         self.density_fns = []
         num_prop_nets = self.config.num_proposal_iterations
