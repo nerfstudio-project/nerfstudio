@@ -24,6 +24,7 @@ dependencies = [
     "imageio>=2.21.1",
     'importlib-metadata>=6.0.0; python_version < "3.10"',
     "ipywidgets>=7.6",
+    "ipython<=8.12.0",
     "jaxtyping>=0.2.15",
     "jupyterlab>=3.3.4",
     "matplotlib>=3.5.3",
