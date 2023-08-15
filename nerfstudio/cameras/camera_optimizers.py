@@ -103,8 +103,8 @@ class CameraOptimizer(nn.Module):
 
     def forward(
         self,
-        indices: Int[Tensor, "num_cameras"],
-    ) -> Float[Tensor, "num_cameras 3 4"]:
+        indices: Int[Tensor, "camera_indices"],
+    ) -> Float[Tensor, "camera_indices 3 4"]:
         """Indexing into camera adjustments.
         Args:
             indices: indices of Cameras to optimize.
