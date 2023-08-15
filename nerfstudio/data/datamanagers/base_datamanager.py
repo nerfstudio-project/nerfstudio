@@ -54,10 +54,12 @@ from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
+from nerfstudio.data.datasets.hdr_dataset import HDRInputDataset
+
 from nerfstudio.data.pixel_samplers import (
+    EquirectangularPixelSampler,
+    PatchPixelSampler,
     PixelSampler,
-    PixelSamplerConfig,
-    PatchPixelSamplerConfig,
 )
 from nerfstudio.data.utils.dataloaders import (
     CacheDataloader,
@@ -115,10 +117,8 @@ class DataManagerConfig(InstantiateConfig):
     """Source of data, may not be used by all models."""
     camera_optimizer: Optional[CameraOptimizerConfig] = None
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy."""
-    masks_on_gpu: bool = False
+    masks_on_gpu: Optional[bool] = None
     """Process masks on GPU for speed at the expense of memory, if True."""
-    images_on_gpu: bool = False
-    """Process images on GPU for speed at the expense of memory, if True."""
 
 
 class DataManager(nn.Module):
@@ -348,10 +348,14 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If >1, patch-based sampling will be used."""
-    pixel_sampler: PixelSamplerConfig = PixelSamplerConfig()
-    """Specifies the pixel sampler used to sample pixels from images."""
 
+@dataclass
+class HDRVanillaDataManagerConfig(VanillaDataManagerConfig):
+    """A HDR data manager, based on VanillaDataManager"""
 
+    _target: Type = field(default_factory=lambda: VanillaDataManager[HDRInputDataset])
+    """Target class to instantiate."""
+    
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
 
 
@@ -407,8 +411,6 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
         if self.config.masks_on_gpu is True:
             self.exclude_batch_keys_from_device.remove("mask")
-        if self.config.images_on_gpu is True:
-            self.exclude_batch_keys_from_device.remove("image")
 
         if self.train_dataparser_outputs is not None:
             cameras = self.train_dataparser_outputs.cameras
@@ -459,18 +461,19 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             scale_factor=self.config.camera_res_scale_factor,
         )
 
-    def _get_pixel_sampler(self, dataset: TDataset, num_rays_per_batch: int) -> PixelSampler:
+    def _get_pixel_sampler(self, dataset: TDataset, *args: Any, **kwargs: Any) -> PixelSampler:
         """Infer pixel sampler to use."""
-        if self.config.patch_size > 1 and type(self.config.pixel_sampler) is PixelSamplerConfig:
-            return PatchPixelSamplerConfig().setup(
-                patch_size=self.config.patch_size, num_rays_per_batch=num_rays_per_batch
-            )
-        is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
+        if self.config.patch_size > 1:
+            return PatchPixelSampler(*args, **kwargs, patch_size=self.config.patch_size)
+
+        # If all images are equirectangular, use equirectangular pixel sampler
+        is_equirectangular = dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
+        if is_equirectangular.all():
+            return EquirectangularPixelSampler(*args, **kwargs)
+        # Otherwise, use the default pixel sampler
         if is_equirectangular.any():
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
-        return self.config.pixel_sampler.setup(
-            is_equirectangular=is_equirectangular, num_rays_per_batch=num_rays_per_batch
-        )
+        return PixelSampler(*args, **kwargs)
 
     def setup_train(self):
         """Sets up the data loaders for training"""
