@@ -91,20 +91,20 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
             num_frames = len(image_rename_map)
             summary_log.append(f"Starting with {num_frames} images")
 
-            # # Create mask
-            mask_path = process_data_utils.save_mask(
-                image_dir=self.image_dir,
-                num_downscales=self.num_downscales,
-                crop_factor=(0.0, 0.0, 0.0, 0.0),
-                percent_radius=self.percent_radius_crop,
-            )
-            if mask_path is not None:
-                summary_log.append("Saved mask(s)")
         else:
             num_frames = len(process_data_utils.list_images(self.data))
             if num_frames == 0:
                 raise RuntimeError("No usable images in the data folder.")
             summary_log.append(f"Starting with {num_frames} images")
+        # # Create mask
+        mask_path = process_data_utils.save_mask(
+            image_dir=self.image_dir,
+            num_downscales=self.num_downscales,
+            crop_factor=(0.0, 0.0, 0.0, 0.0),
+            percent_radius=self.percent_radius_crop,
+        )
+        if mask_path is not None:
+            summary_log.append("Saved mask(s)")
 
         # Run COLMAP
         if not self.skip_colmap:
@@ -120,12 +120,7 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
         if require_cameras_exist and not (self.absolute_colmap_model_path / "cameras.bin").exists():
             raise RuntimeError(f"Could not find existing COLMAP results ({self.colmap_model_path / 'cameras.bin'}).")
 
-        summary_log += self._save_transforms(
-            num_frames,
-            image_id_to_depth_path,
-            None,
-            image_rename_map,
-        )
+        summary_log += self._save_transforms(num_frames, image_id_to_depth_path, mask_path, image_rename_map)
 
         CONSOLE.log("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
 
