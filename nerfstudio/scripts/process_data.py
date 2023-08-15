@@ -33,8 +33,16 @@ from nerfstudio.process_data import (
     realitycapture_utils,
     record3d_utils,
 )
-from nerfstudio.process_data.colmap_converter_to_nerfstudio_dataset import BaseConverterToNerfstudioDataset
-from nerfstudio.process_data.images_to_nerfstudio_dataset import ImagesToNerfstudioDataset
+from nerfstudio.process_data.colmap_converter_to_nerfstudio_dataset import (
+    BaseConverterToNerfstudioDataset,
+)
+from nerfstudio.process_data.images_to_nerfstudio_dataset import (
+    ImagesToNerfstudioDataset,
+)
+from nerfstudio.process_data.aligned_pano2plane import (
+    ProcessAlignedPano
+)
+
 from nerfstudio.process_data.video_to_nerfstudio_dataset import VideoToNerfstudioDataset
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -99,6 +107,7 @@ class ProcessRecord3D(BaseConverterToNerfstudioDataset):
                 "To change the size of the dataset add the argument [yellow]--max_dataset_size[/yellow] to "
                 f"larger than the current value ({self.max_dataset_size}), or -1 to use all images."
             )
+
 
         metadata_path = self.data / "metadata.json"
         record3d_utils.record3d_to_json(copied_image_paths, metadata_path, self.output_dir, indices=idx)
@@ -249,8 +258,6 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
             raise ValueError(f"XML file {self.xml} must have a .xml extension")
         if not self.xml.exists:
             raise ValueError(f"XML file {self.xml} doesn't exist")
-        if self.eval_data is not None:
-            raise ValueError("Cannot use eval_data since cameras were already aligned with Metashape.")
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
@@ -280,6 +287,7 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
             )
         else:
             summary_log.append(f"Started with {num_frames} images")
+
 
         # Save json
         if num_frames == 0:
@@ -336,8 +344,6 @@ class ProcessRealityCapture(BaseConverterToNerfstudioDataset, _NoDefaultProcessR
             raise ValueError(f"CSV file {self.csv} must have a .csv extension")
         if not self.csv.exists:
             raise ValueError(f"CSV file {self.csv} doesn't exist")
-        if self.eval_data is not None:
-            raise ValueError("Cannot use eval_data since cameras were already aligned with RealityCapture.")
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
@@ -368,6 +374,7 @@ class ProcessRealityCapture(BaseConverterToNerfstudioDataset, _NoDefaultProcessR
         else:
             summary_log.append(f"Started with {num_frames} images")
 
+
         # Save json
         if num_frames == 0:
             CONSOLE.print("[bold red]No images found, exiting")
@@ -394,6 +401,7 @@ Commands = Union[
     Annotated[ProcessMetashape, tyro.conf.subcommand(name="metashape")],
     Annotated[ProcessRealityCapture, tyro.conf.subcommand(name="realitycapture")],
     Annotated[ProcessRecord3D, tyro.conf.subcommand(name="record3d")],
+    Annotated[ProcessAlignedPano, tyro.conf.subcommand(name="aligned_pano2plane")],
 ]
 
 
