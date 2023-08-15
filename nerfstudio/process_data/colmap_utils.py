@@ -138,7 +138,7 @@ def run_colmap(
     ]
     if matching_method == "vocab_tree":
         vocab_tree_filename = get_vocab_tree()
-        feature_matcher_cmd.append(f'--VocabTreeMatching.vocab_tree_path "{vocab_tree_filename}"')
+        feature_matcher_cmd.append(f"--VocabTreeMatching.vocab_tree_path {vocab_tree_filename}")
     feature_matcher_cmd = " ".join(feature_matcher_cmd)
     with status(msg="[bold yellow]Running COLMAP feature matcher...", spinner="runner", verbose=verbose):
         run_command(feature_matcher_cmd, verbose=verbose)
@@ -438,7 +438,7 @@ def colmap_to_json(
             "colmap_im_id": im_id,
         }
         if camera_mask_path is not None:
-            frame["mask_path"] = camera_mask_path.relative_to(camera_mask_path.parent.parent).as_posix()
+            frame["mask_path"] = Path(camera_mask_path.absolute() / im_data.name).as_posix() # camera_mask_path.relative_to(camera_mask_path.parent.parent).as_posix()
         if image_id_to_depth_path is not None:
             depth_path = image_id_to_depth_path[im_id]
             frame["depth_file_path"] = str(depth_path)

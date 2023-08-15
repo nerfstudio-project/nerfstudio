@@ -110,6 +110,7 @@ def generate_planar_projections_from_equirectangular(
     image_dir: Path,
     planar_image_size: Tuple[int, int],
     samples_per_im: int,
+    mask_dir: Path,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
 ) -> Path:
     """Generate planar projections from an equirectangular image.
@@ -170,6 +171,10 @@ def generate_planar_projections_from_equirectangular(
     frame_dir = image_dir
     output_dir = image_dir / "planar_projections"
     output_dir.mkdir(exist_ok=True)
+    
+    output_mask_dir = image_dir / "mask_planar_projections"
+    output_mask_dir.mkdir(exist_ok=True)
+    
     num_ims = len(os.listdir(frame_dir))
     progress = Progress(
         TextColumn("[bold blue]Generating Planar Images", justify="right"),
@@ -181,21 +186,34 @@ def generate_planar_projections_from_equirectangular(
 
     with progress:
         for i in progress.track(os.listdir(frame_dir), description="", total=num_ims):
-            if i.lower().endswith((".jpg", ".png", ".jpeg")):
+            if i.lower().endswith((".jpg", ".png", ".jpeg", ".exr")):
                 im = np.array(cv2.imread(os.path.join(frame_dir, i)))
                 im = torch.tensor(im, dtype=torch.float32, device=device)
                 im = torch.permute(im, (2, 0, 1)) / 255.0
+
+                mask_addr = os.path.join(mask_dir, i)
+                if not os.path.isfile(mask_addr):
+                    raise Exception("The corresponding mask for " + i + " does not exist!!!")
+                mask = np.array(cv2.imread(mask_addr))
+                mask = torch.tensor(mask, dtype=torch.float32, device=device)
+                mask = torch.permute(mask, (2, 0, 1)) / 255.0
+
                 count = 0
                 for u_deg, v_deg in yaw_pitch_pairs:
                     v_rad = torch.pi * v_deg / 180.0
                     u_rad = torch.pi * u_deg / 180.0
                     pers_image = equi2pers(im, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad}) * 255.0
-                    assert isinstance(pers_image, torch.Tensor)
+                    pers_mask = equi2pers(mask, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad}) * 255.0
+
+                    assert isinstance(pers_image, torch.Tensor) and isinstance(pers_mask, torch.Tensor)
                     pers_image = (pers_image.permute(1, 2, 0)).type(torch.uint8).to("cpu").numpy()
+                    pers_mask = (pers_mask.permute(1, 2, 0)).type(torch.uint8).to("cpu").numpy()
                     cv2.imwrite(f"{output_dir}/{i[:-4]}_{count}.jpg", pers_image)
+                    cv2.imwrite(f"{output_mask_dir}/{i[:-4]}_{count}.jpg", pers_mask)
+                    
                     count += 1
 
-    return output_dir
+    return output_dir, output_mask_dir
 
 
 def compute_resolution_from_equirect(image_dir: Path, num_images: int) -> Tuple[int, int]:
