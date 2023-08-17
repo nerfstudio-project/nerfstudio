@@ -141,31 +141,31 @@ class ControlPanel:
 
         self.add_element(self._train_speed)
         self.add_element(self._train_util)
-        with self.viser_server.gui_folder("Render Options"):
+        with self.viser_server.add_gui_folder("Render Options"):
             self.add_element(self._max_res)
             self.add_element(self._output_render)
             self.add_element(self._colormap)
             # colormap options
-            with self.viser_server.gui_folder(" "):
+            with self.viser_server.add_gui_folder(" "):
                 self.add_element(self._invert, additional_tags=("colormap",))
                 self.add_element(self._normalize, additional_tags=("colormap",))
                 self.add_element(self._min, additional_tags=("colormap",))
                 self.add_element(self._max, additional_tags=("colormap",))
 
         # split options
-        with self.viser_server.gui_folder("Split Screen"):
+        with self.viser_server.add_gui_folder("Split Screen"):
             self.add_element(self._split)
 
             self.add_element(self._split_percentage, additional_tags=("split",))
             self.add_element(self._split_output_render, additional_tags=("split",))
             self.add_element(self._split_colormap, additional_tags=("split",))
-            with self.viser_server.gui_folder("  "):
+            with self.viser_server.add_gui_folder("  "):
                 self.add_element(self._split_invert, additional_tags=("split_colormap",))
                 self.add_element(self._split_normalize, additional_tags=("split_colormap",))
                 self.add_element(self._split_min, additional_tags=("split_colormap",))
                 self.add_element(self._split_max, additional_tags=("split_colormap",))
 
-        with self.viser_server.gui_folder("Crop Viewport"):
+        with self.viser_server.add_gui_folder("Crop Viewport"):
             self.add_element(self._crop_viewport)
 
             # Crop options

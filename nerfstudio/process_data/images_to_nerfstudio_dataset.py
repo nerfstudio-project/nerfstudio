@@ -30,6 +30,9 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
     2. Calculates the camera poses for each image using `COLMAP <https://colmap.github.io/>`_.
     """
 
+    percent_radius_crop: float = 1.0
+    """Create circle crop mask. The radius is the percent of the image diagonal."""
+
     def main(self) -> None:
         """Process images into a nerfstudio dataset."""
 
@@ -93,6 +96,7 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                 image_dir=self.image_dir,
                 num_downscales=self.num_downscales,
                 crop_factor=(0.0, 0.0, 0.0, 0.0),
+                percent_radius=self.percent_radius_crop,
             )
             if mask_path is not None:
                 summary_log.append("Saved mask(s)")
