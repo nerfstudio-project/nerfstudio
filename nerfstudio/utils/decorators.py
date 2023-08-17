@@ -66,7 +66,7 @@ def check_eval_enabled(func: Callable) -> Callable:
 
     def wrapper(self, *args, **kwargs):
         ret = None
-        if self.config.is_wandb_enabled() or self.config.is_tensorboard_enabled():
+        if self.config.is_wandb_enabled() or self.config.is_tensorboard_enabled() or self.config.is_comet_enabled():
             ret = func(self, *args, **kwargs)
         return ret
 
