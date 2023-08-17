@@ -405,9 +405,11 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
             chosen_indices = random.sample(range(len(nonzero_indices)), k=self.rays_to_sample)
             indices = nonzero_indices[chosen_indices]
         else:
-            rays_to_sample = self.rays_to_sample 
+            rays_to_sample = self.rays_to_sample
             if batch_size is not None:
-                assert int(batch_size) % 2 == 0, f'PairPixelSampler can only return batch sizes in multiples of two (got {batch_size})'
+                assert (
+                    int(batch_size) % 2 == 0
+                ), f"PairPixelSampler can only return batch sizes in multiples of two (got {batch_size})"
                 rays_to_sample = batch_size // 2
 
             s = (rays_to_sample, 1)
@@ -425,4 +427,3 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
             pair_indices += indices
             indices = torch.hstack((indices, pair_indices)).view(rays_to_sample * 2, 3)
         return indices
-
