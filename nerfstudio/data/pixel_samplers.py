@@ -392,7 +392,7 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
     # overrides base method
     def sample_method(  # pylint: disable=no-self-use
         self,
-        batch_size: int,
+        batch_size: Optional[int],
         num_images: int,
         image_height: int,
         image_width: int,
@@ -405,18 +405,25 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
             chosen_indices = random.sample(range(len(nonzero_indices)), k=self.rays_to_sample)
             indices = nonzero_indices[chosen_indices]
         else:
-            s = (self.rays_to_sample, 1)
+            rays_to_sample = self.rays_to_sample
+            if batch_size is not None:
+                assert (
+                    int(batch_size) % 2 == 0
+                ), f"PairPixelSampler can only return batch sizes in multiples of two (got {batch_size})"
+                rays_to_sample = batch_size // 2
+
+            s = (rays_to_sample, 1)
             ns = torch.randint(0, num_images, s, dtype=torch.long, device=device)
             hs = torch.randint(self.radius, image_height - self.radius, s, dtype=torch.long, device=device)
             ws = torch.randint(self.radius, image_width - self.radius, s, dtype=torch.long, device=device)
             indices = torch.concat((ns, hs, ws), dim=1)
 
-        pair_indices = torch.hstack(
-            (
-                torch.zeros(self.rays_to_sample, 1, device=device, dtype=torch.long),
-                torch.randint(-self.radius, self.radius, (self.rays_to_sample, 2), device=device, dtype=torch.long),
+            pair_indices = torch.hstack(
+                (
+                    torch.zeros(rays_to_sample, 1, device=device, dtype=torch.long),
+                    torch.randint(-self.radius, self.radius, (rays_to_sample, 2), device=device, dtype=torch.long),
+                )
             )
-        )
-        pair_indices += indices
-        indices = torch.hstack((indices, pair_indices)).view(self.rays_to_sample * 2, 3)
+            pair_indices += indices
+            indices = torch.hstack((indices, pair_indices)).view(rays_to_sample * 2, 3)
         return indices
