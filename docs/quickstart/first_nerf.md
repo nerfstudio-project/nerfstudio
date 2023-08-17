@@ -123,7 +123,7 @@ ns-download-data nerfstudio --capture-name=aspen
 ```python
 # 1 GPU (8192 rays per GPU per batch)
 export CUDA_VISIBLE_DEVICES=0
-ns-train nerfacto-big --vis viewer+wandb --machine.num-gpus 1 --pipeline.datamanager.train-num-rays-per-batch 4096 --data data/nerfstudio/aspen
+ns-train nerfacto-big --vis viewer+wandb --machine.num-devices 1 --pipeline.datamanager.train-num-rays-per-batch 4096 --data data/nerfstudio/aspen
 ```
 
 You would observe about ~70k rays / sec on NVIDIA V100.
@@ -148,7 +148,7 @@ By having more GPUs in the training, you can allocate batch size to multiple GPU
 ```python
 # 2 GPUs (4096 rays per GPU per batch, effectively 8192 rays per batch)
 export CUDA_VISIBLE_DEVICES=0,1
-ns-train nerfacto --vis viewer+wandb --machine.num-gpus 2 --pipeline.datamanager.train-num-rays-per-batch 4096 --data data/nerfstudio/aspen
+ns-train nerfacto --vis viewer+wandb --machine.num-devices 2 --pipeline.datamanager.train-num-rays-per-batch 4096 --data data/nerfstudio/aspen
 ```
 
 You would get improved throughput (~100k rays / sec on two NVIDIA V100).
