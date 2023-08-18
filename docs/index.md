@@ -161,7 +161,7 @@ This documentation is organized into 3 parts:
 | [Github](https://github.com/nerfstudio-project/nerfstudio) | Official Github Repo   |
 | [Discord](https://discord.gg/RyVk6w5WWP)                   | Join Discord Community |
 | [Viewer](https://viewer.nerf.studio/)                      | Web-based Nerf Viewer  |
-| [Feedback Form](TODO)                                      | Provide Nerfstudio Feedback |
+| [Feedback Form](https://forms.gle/sqN5phJN7LfQVwnP9)       | Provide Nerfstudio Feedback |
 
 ## Sponsors
 Sponsors of this work includes [Luma AI](https://lumalabs.ai/) and the [BAIR commons](https://bcommons.berkeley.edu/home).
