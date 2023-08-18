@@ -70,7 +70,7 @@ We are committed to providing learning resources to help you understand the basi
 Have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome [contributions](reference/contributing)!**
 Please do not hesitate to reach out to the nerfstudio team with any questions via [Discord](https://discord.gg/uMbNqcraFc).
 
-Have feedback? We'd love for you to fill out our [Nerfstudio Feedback Form](TODO) if you want to let us know who you are, why you are interested in Nerfstudio, or provide any feedback!
+Have feedback? We'd love for you to fill out our [Nerfstudio Feedback Form](https://forms.gle/sqN5phJN7LfQVwnP9) if you want to let us know who you are, why you are interested in Nerfstudio, or provide any feedback!
 
 We hope nerfstudio enables you to build faster 🔨 learn together 📚 and contribute to our NeRF community 💖.
 
