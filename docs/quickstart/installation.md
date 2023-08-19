@@ -170,6 +170,7 @@ The docker container can be launched with an interactive terminal where nerfstud
 ```bash
 docker run --gpus all \                                         # Give the container access to nvidia GPU (required).
             -v /folder/of/your/data:/workspace/ \               # Mount a folder from the local machine into the container to be able to process them (required).
+            -u $(id -u) \                                       # To prevent abusing of root privilege, please use custom user privilege to start. 
             -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ \   # Mount cache folder to avoid re-downloading of models everytime (recommended).
             -p 7007:7007 \                                      # Map port from local machine to docker container (required to access the web interface/UI).
             --rm \                                              # Remove container after it is closed (recommended).
