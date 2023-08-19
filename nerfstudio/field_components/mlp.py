@@ -115,13 +115,13 @@ class MLP(FieldComponent):
             )
             self.tcnn_encoding = tcnn.Network(
                 n_input_dims=in_dim,
-                n_output_dims=out_dim,
+                n_output_dims=self.out_dim,
                 network_config=network_config,
             )
 
     @classmethod
     def get_tcnn_network_config(cls, activation, out_activation, layer_width, num_layers) -> dict:
-        """Get the network configuration for tcnn is implemented"""
+        """Get the network configuration for tcnn if implemented"""
         activation_str = activation_to_tcnn_string(activation)
         output_activation_str = activation_to_tcnn_string(out_activation)
         if layer_width in [16, 32, 64, 128]:
@@ -201,7 +201,6 @@ class MLPWithHashEncoding(FieldComponent):
         features_per_level: Number of features per level.
         hash_init_scale: Value to initialize hash grid.
         interpolation: Interpolation override for tcnn hashgrid. Not supported for torch unless linear.
-        in_dim: Input layer dimension
         num_layers: Number of network layers
         layer_width: Width of each MLP layer
         out_dim: Output layer dimension. Uses layer_width if None.
@@ -253,7 +252,7 @@ class MLPWithHashEncoding(FieldComponent):
         if implementation == "torch":
             self.build_nn_modules()
         elif implementation == "tcnn" and not TCNN_EXISTS:
-            print_tcnn_speed_warning("MLP")
+            print_tcnn_speed_warning("MLPWithHashEncoding")
             self.build_nn_modules()
         elif implementation == "tcnn":
             self.model = tcnn.NetworkWithInputEncoding(

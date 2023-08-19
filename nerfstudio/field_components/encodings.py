@@ -52,7 +52,7 @@ class Encoding(FieldComponent):
 
     @classmethod
     def get_tcnn_encoding_config(cls) -> dict:
-        """Get the encoding configuration for tcnn is implemented"""
+        """Get the encoding configuration for tcnn if implemented"""
         raise NotImplementedError("Encoding does not have a TCNN implementation")
 
     @abstractmethod
@@ -143,7 +143,7 @@ class NeRFEncoding(Encoding):
 
     @classmethod
     def get_tcnn_encoding_config(cls, num_frequencies) -> dict:
-        """Get the encoding configuration for tcnn is implemented"""
+        """Get the encoding configuration for tcnn if implemented"""
         encoding_config = {"otype": "Frequency", "n_frequencies": num_frequencies}
         return encoding_config
 
@@ -291,7 +291,6 @@ class HashEncoding(Encoding):
         self.hash_table_size = 2**log2_hashmap_size
 
         levels = torch.arange(num_levels)
-
         self.growth_factor = np.exp((np.log(max_res) - np.log(min_res)) / (num_levels - 1)) if num_levels > 1 else 1
         self.scalings = torch.floor(min_res * self.growth_factor**levels)
 
@@ -329,7 +328,7 @@ class HashEncoding(Encoding):
     def get_tcnn_encoding_config(
         cls, num_levels, features_per_level, log2_hashmap_size, min_res, growth_factor, interpolation=None
     ) -> dict:
-        """Get the encoding configuration for tcnn is implemented"""
+        """Get the encoding configuration for tcnn if implemented"""
         encoding_config = {
             "otype": "HashGrid",
             "n_levels": num_levels,
@@ -727,7 +726,7 @@ class SHEncoding(Encoding):
 
     @classmethod
     def get_tcnn_encoding_config(cls, levels) -> dict:
-        """Get the encoding configuration for tcnn is implemented"""
+        """Get the encoding configuration for tcnn if implemented"""
         encoding_config = {
             "otype": "SphericalHarmonics",
             "degree": levels,
