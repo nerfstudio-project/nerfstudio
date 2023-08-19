@@ -131,6 +131,7 @@ def process_images(
         image_dir=image_dir,
         crop_border_pixels=crop_border_pixels,
         verbose=verbose,
+        num_downscales=num_downscales,
     )
     num_frames = len(copied_image_paths)
 
@@ -144,9 +145,6 @@ def process_images(
         )
     else:
         summary_log.append(f"Started with {num_frames} images")
-
-    # Downscale images
-    summary_log.append(process_data_utils.downscale_images(image_dir, num_downscales, verbose=verbose))
 
     # Save json
     if num_frames == 0:
@@ -190,7 +188,11 @@ def process_depth_maps(
 
     # Copy depth images to output directory
     copied_depth_maps_paths = process_data_utils.copy_and_upscale_polycam_depth_maps_list(
-        polycam_depth_maps_filenames, depth_dir=depth_dir, crop_border_pixels=crop_border_pixels, verbose=verbose
+        polycam_depth_maps_filenames,
+        depth_dir=depth_dir,
+        num_downscales=num_downscales,
+        crop_border_pixels=crop_border_pixels,
+        verbose=verbose,
     )
 
     num_processed_depth_maps = len(copied_depth_maps_paths)
@@ -210,12 +212,5 @@ def process_depth_maps(
         )
     else:
         summary_log.append(f"Started with {num_processed_depth_maps} images")
-
-    # Downscale depth maps
-    summary_log.append(
-        process_data_utils.downscale_images(
-            depth_dir, num_downscales, folder_name="depths", nearest_neighbor=True, verbose=verbose
-        )
-    )
 
     return summary_log, polycam_depth_maps_filenames

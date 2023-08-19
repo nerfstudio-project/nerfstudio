@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass, field
-from typing import Literal, Type, Union
+from typing import Literal, Optional, Type, Union
 
 import torch
 import tyro
@@ -53,10 +53,10 @@ class CameraOptimizerConfig(InstantiateConfig):
     orientation_noise_std: float = 0.0
     """Noise to add to initial orientations. Useful for debugging."""
 
-    optimizer: OptimizerConfig = AdamOptimizerConfig(lr=6e-4, eps=1e-15)
+    optimizer: OptimizerConfig = field(default_factory=lambda: AdamOptimizerConfig(lr=6e-4, eps=1e-15))
     """ADAM parameters for camera optimization."""
 
-    scheduler: SchedulerConfig = ExponentialDecaySchedulerConfig(max_steps=10000)
+    scheduler: SchedulerConfig = field(default_factory=lambda: ExponentialDecaySchedulerConfig(max_steps=10000))
     """Learning rate scheduler for camera optimizer.."""
 
     param_group: tyro.conf.Suppress[str] = "camera_opt"
@@ -74,12 +74,14 @@ class CameraOptimizer(nn.Module):
         config: CameraOptimizerConfig,
         num_cameras: int,
         device: Union[torch.device, str],
+        non_trainable_camera_indices: Optional[Int[Tensor, "num_non_trainable_cameras"]] = None,
         **kwargs,
     ) -> None:
         super().__init__()
         self.config = config
         self.num_cameras = num_cameras
         self.device = device
+        self.non_trainable_camera_indices = non_trainable_camera_indices
 
         # Initialize learnable parameters.
         if self.config.mode == "off":
@@ -101,8 +103,8 @@ class CameraOptimizer(nn.Module):
 
     def forward(
         self,
-        indices: Int[Tensor, "num_cameras"],
-    ) -> Float[Tensor, "num_cameras 3 4"]:
+        indices: Int[Tensor, "camera_indices"],
+    ) -> Float[Tensor, "camera_indices 3 4"]:
         """Indexing into camera adjustments.
         Args:
             indices: indices of Cameras to optimize.
@@ -121,11 +123,13 @@ class CameraOptimizer(nn.Module):
             outputs.append(exp_map_SE3(self.pose_adjustment[indices, :]))
         else:
             assert_never(self.config.mode)
+        # Detach non-trainable indices by setting to identity transform
+        if self.non_trainable_camera_indices is not None:
+            outputs[0][self.non_trainable_camera_indices] = torch.eye(4, device=self.device)[:3, :4]
 
         # Apply initial pose noise.
         if self.pose_noise is not None:
             outputs.append(self.pose_noise[indices, :, :])
-
         # Return: identity if no transforms are needed, otherwise multiply transforms together.
         if len(outputs) == 0:
             # Note that using repeat() instead of tile() here would result in unnecessary copies.

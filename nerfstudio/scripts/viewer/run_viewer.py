@@ -21,6 +21,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field, fields
 from pathlib import Path
+from typing import Literal
 
 import tyro
 
@@ -30,6 +31,7 @@ from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import writer
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.viewer.server.viewer_state import ViewerState
+from nerfstudio.viewer_beta.viewer import Viewer as ViewerBetaState
 
 
 @dataclass
@@ -51,6 +53,8 @@ class RunViewer:
     """Path to config YAML file."""
     viewer: ViewerConfigWithoutNumRays = field(default_factory=ViewerConfigWithoutNumRays)
     """Viewer configuration"""
+    vis: Literal["viewer", "viewer_beta"] = "viewer"
+    """Type of viewer"""
 
     def main(self) -> None:
         """Main function."""
@@ -61,7 +65,7 @@ class RunViewer:
         )
         num_rays_per_chunk = config.viewer.num_rays_per_chunk
         assert self.viewer.num_rays_per_chunk == -1
-        config.vis = "viewer"
+        config.vis = self.vis
         config.viewer = self.viewer.as_viewer_config()
         config.viewer.num_rays_per_chunk = num_rays_per_chunk
 
@@ -83,13 +87,24 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
     """
     base_dir = config.get_base_dir()
     viewer_log_path = base_dir / config.viewer.relative_log_filename
-    viewer_state = ViewerState(
-        config.viewer,
-        log_filename=viewer_log_path,
-        datapath=pipeline.datamanager.get_datapath(),
-        pipeline=pipeline,
-    )
-    banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
+    banner_messages = None
+    viewer_state = None
+    if config.vis == "viewer":
+        viewer_state = ViewerState(
+            config.viewer,
+            log_filename=viewer_log_path,
+            datapath=pipeline.datamanager.get_datapath(),
+            pipeline=pipeline,
+        )
+        banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
+    if config.vis == "viewer_beta":
+        viewer_state = ViewerBetaState(
+            config.viewer,
+            log_filename=viewer_log_path,
+            datapath=base_dir,
+            pipeline=pipeline,
+        )
+        banner_messages = [f"Viewer Beta at: {viewer_state.viewer_url}"]
 
     # We don't need logging, but writer.GLOBAL_BUFFER needs to be populated
     config.logging.local_writer.enable = False
@@ -97,10 +112,12 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
 
     assert viewer_state and pipeline.datamanager.train_dataset
     viewer_state.init_scene(
-        dataset=pipeline.datamanager.train_dataset,
+        train_dataset=pipeline.datamanager.train_dataset,
         train_state="completed",
+        eval_dataset=pipeline.datamanager.eval_dataset,
     )
-    viewer_state.viser_server.set_training_state("completed")
+    if isinstance(viewer_state, ViewerState):
+        viewer_state.viser_server.set_training_state("completed")
     viewer_state.update_scene(step=step)
     while True:
         time.sleep(0.01)

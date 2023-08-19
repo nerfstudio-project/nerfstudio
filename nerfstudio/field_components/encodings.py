@@ -50,7 +50,8 @@ class Encoding(FieldComponent):
             raise ValueError("Input dimension should be greater than zero")
         super().__init__(in_dim=in_dim)
 
-    def get_tcnn_encoding_config(self) -> dict:
+    @classmethod
+    def get_tcnn_encoding_config(cls) -> dict:
         """Get the encoding configuration for tcnn is implemented"""
         raise NotImplementedError("Encoding does not have a TCNN implementation")
 
@@ -134,15 +135,16 @@ class NeRFEncoding(Encoding):
         elif implementation == "tcnn":
             assert min_freq_exp == 0, "tcnn only supports min_freq_exp = 0"
             assert max_freq_exp == num_frequencies - 1, "tcnn only supports max_freq_exp = num_frequencies - 1"
-            encoding_config = self.get_tcnn_encoding_config()
+            encoding_config = self.get_tcnn_encoding_config(num_frequencies=self.num_frequencies)
             self.tcnn_encoding = tcnn.Encoding(
                 n_input_dims=in_dim,
                 encoding_config=encoding_config,
             )
 
-    def get_tcnn_encoding_config(self) -> dict:
+    @classmethod
+    def get_tcnn_encoding_config(cls, num_frequencies) -> dict:
         """Get the encoding configuration for tcnn is implemented"""
-        encoding_config = {"otype": "Frequency", "n_frequencies": self.num_frequencies}
+        encoding_config = {"otype": "Frequency", "n_frequencies": num_frequencies}
         return encoding_config
 
     def get_out_dim(self) -> int:
@@ -217,7 +219,12 @@ class RFFEncoding(Encoding):
         self.include_input = include_input
 
     def get_out_dim(self) -> int:
-        return self.num_frequencies * 2
+        out_dim = self.num_frequencies * 2
+        if self.include_input:
+            if self.in_dim is None:
+                raise ValueError("Input dimension has not been set")
+            out_dim += self.in_dim
+        return out_dim
 
     def forward(
         self,
@@ -273,7 +280,7 @@ class HashEncoding(Encoding):
         log2_hashmap_size: int = 19,
         features_per_level: int = 2,
         hash_init_scale: float = 0.001,
-        implementation: Literal["tcnn", "torch"] = "torch",
+        implementation: Literal["tcnn", "torch"] = "tcnn",
         interpolation: Optional[Literal["Nearest", "Linear", "Smoothstep"]] = None,
     ) -> None:
         super().__init__(in_dim=3)
@@ -284,42 +291,55 @@ class HashEncoding(Encoding):
         self.hash_table_size = 2**log2_hashmap_size
 
         levels = torch.arange(num_levels)
-        self.growth_factor = np.exp((np.log(max_res) - np.log(min_res)) / (num_levels - 1))
+
+        self.growth_factor = np.exp((np.log(max_res) - np.log(min_res)) / (num_levels - 1)) if num_levels > 1 else 1
         self.scalings = torch.floor(min_res * self.growth_factor**levels)
 
         self.hash_offset = levels * self.hash_table_size
-        self.hash_table = torch.rand(size=(self.hash_table_size * num_levels, features_per_level)) * 2 - 1
-        self.hash_table *= hash_init_scale
-        self.hash_table = nn.Parameter(self.hash_table)
 
         self.tcnn_encoding = None
+        self.hash_table = torch.empty(0)
         if implementation == "tcnn" and not TCNN_EXISTS:
             print_tcnn_speed_warning("HashEncoding")
         elif implementation == "tcnn":
-            encoding_config = self.get_tcnn_encoding_config()
-            if interpolation is not None:
-                encoding_config["interpolation"] = interpolation
+            encoding_config = self.get_tcnn_encoding_config(
+                num_levels=self.num_levels,
+                features_per_level=self.features_per_level,
+                log2_hashmap_size=self.log2_hashmap_size,
+                min_res=self.min_res,
+                growth_factor=self.growth_factor,
+                interpolation=interpolation,
+            )
 
             self.tcnn_encoding = tcnn.Encoding(
                 n_input_dims=3,
                 encoding_config=encoding_config,
             )
+        elif implementation == "torch":
+            self.hash_table = torch.rand(size=(self.hash_table_size * num_levels, features_per_level)) * 2 - 1
+            self.hash_table *= hash_init_scale
+            self.hash_table = nn.Parameter(self.hash_table)
 
         if self.tcnn_encoding is None:
             assert (
                 interpolation is None or interpolation == "Linear"
             ), f"interpolation '{interpolation}' is not supported for torch encoding backend"
 
-    def get_tcnn_encoding_config(self) -> dict:
+    @classmethod
+    def get_tcnn_encoding_config(
+        cls, num_levels, features_per_level, log2_hashmap_size, min_res, growth_factor, interpolation=None
+    ) -> dict:
         """Get the encoding configuration for tcnn is implemented"""
         encoding_config = {
             "otype": "HashGrid",
-            "n_levels": self.num_levels,
-            "n_features_per_level": self.features_per_level,
-            "log2_hashmap_size": self.log2_hashmap_size,
-            "base_resolution": self.min_res,
-            "per_level_scale": self.growth_factor,
+            "n_levels": num_levels,
+            "n_features_per_level": features_per_level,
+            "log2_hashmap_size": log2_hashmap_size,
+            "base_resolution": min_res,
+            "per_level_scale": growth_factor,
         }
+        if interpolation is not None:
+            encoding_config["interpolation"] = interpolation
         return encoding_config
 
     def get_out_dim(self) -> int:
@@ -699,17 +719,18 @@ class SHEncoding(Encoding):
         if implementation == "tcnn" and not TCNN_EXISTS:
             print_tcnn_speed_warning("SHEncoding")
         elif implementation == "tcnn":
-            encoding_config = self.get_tcnn_encoding_config()
+            encoding_config = self.get_tcnn_encoding_config(levels=self.levels)
             self.tcnn_encoding = tcnn.Encoding(
                 n_input_dims=3,
                 encoding_config=encoding_config,
             )
 
-    def get_tcnn_encoding_config(self) -> dict:
+    @classmethod
+    def get_tcnn_encoding_config(cls, levels) -> dict:
         """Get the encoding configuration for tcnn is implemented"""
         encoding_config = {
             "otype": "SphericalHarmonics",
-            "degree": self.levels,
+            "degree": levels,
         }
         return encoding_config
 

@@ -10,14 +10,9 @@
 
 NeRFStudio models can be used in Unreal Engine if they are converted to an NVOL file. NVOL is a new standard file format to store NeRFs in a fast and efficient way. NVOL files can be obtained from NeRFStudio checkpoints files (.ckpt) using the [Volinga Suite](https://volinga.ai/).
 
-:::{admonition} Note
-:class: warning
-Volinga Suite is not yet publicly available. If you are interested in converting your models to NVOL, sign up for the beta at [volinga.ai](https://volinga.ai).
-:::
-
 
 ## Exporting your model to NVOL
-Currently NVOL file only supports Volinga model (which is based on nerfacto). You can train your model using the following command:
+Currently NVOL file only supports Volinga model (which is based on nerfacto). To use Volinga model you will need to install [Volinga extension for NeRFStudio](https://github.com/Volinga/volinga-model). You can train your model using the following command:
 
 ```bash
 ns-train volinga --data /path/to/your/data --vis viewer

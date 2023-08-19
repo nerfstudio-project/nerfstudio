@@ -118,16 +118,16 @@ class Viewer:
         def _(_: viser.CameraHandle) -> None:
             R = vtf.SO3(wxyz=client.camera.wxyz)
             R = R @ vtf.SO3.from_x_radians(np.pi)
-            R = torch.tensor(R.as_matrix())
-            pos = torch.tensor(client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
+            R = torch.tensor(R.as_matrix(), dtype=torch.float32)
+            pos = torch.tensor(client.camera.position, dtype=torch.float32) / VISER_NERFSTUDIO_SCALE_RATIO
             c2w = torch.concatenate([R, pos[:, None]], dim=1)
             self.camera_state = CameraState(fov=client.camera.fov, aspect=client.camera.aspect, c2w=c2w)
             self.render_statemachine.action(RenderAction("move", self.camera_state))
 
     def _interrupt_render(self, _) -> None:
         """Interrupt current render."""
-        if self.camera_message is not None:
-            self.render_statemachine.action(RenderAction("rerender", self.camera_message))
+        if self.camera_state is not None:
+            self.render_statemachine.action(RenderAction("rerender", self.camera_state))
 
     def _crop_params_update(self, _) -> None:
         """Update crop parameters"""
@@ -169,7 +169,12 @@ class Viewer:
         # draw indices, roughly evenly spaced
         return np.linspace(0, total_num - 1, num_display_images, dtype=np.int32).tolist()
 
-    def init_scene(self, dataset: InputDataset, train_state: Literal["training", "paused", "completed"]) -> None:
+    def init_scene(
+        self,
+        train_dataset: InputDataset,
+        train_state: Literal["training", "paused", "completed"],
+        eval_dataset: Optional[InputDataset] = None,
+    ) -> None:
         """Draw some images and the scene aabb in the viewer.
 
         Args:
@@ -178,10 +183,10 @@ class Viewer:
         """
 
         # draw the training cameras and images
-        image_indices = self._pick_drawn_image_idxs(len(dataset))
+        image_indices = self._pick_drawn_image_idxs(len(train_dataset))
         for idx in image_indices:
-            image = dataset[idx]["image"]
-            camera = dataset.cameras[idx]
+            image = train_dataset[idx]["image"]
+            camera = train_dataset.cameras[idx]
             image_uint8 = (image * 255).detach().type(torch.uint8)
             image_uint8 = image_uint8.permute(2, 0, 1)
             image_uint8 = torchvision.transforms.functional.resize(image_uint8, 100)  # type: ignore

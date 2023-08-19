@@ -72,7 +72,38 @@ We are committed to providing learning resources to help you understand the basi
 
 Have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome [contributions](https://docs.nerf.studio/en/latest/reference/contributing.html)!** Please do not hesitate to reach out to the nerfstudio team with any questions via [Discord](https://discord.gg/uMbNqcraFc).
 
+Have feedback? We'd love for you to fill out our [Nerfstudio Feedback Form](https://forms.gle/sqN5phJN7LfQVwnP9) if you want to let us know who you are, why you are interested in Nerfstudio, or provide any feedback!
+
 We hope nerfstudio enables you to build faster :hammer: learn together :books: and contribute to our NeRF community :sparkling_heart:.
+
+## Sponsors
+Sponsors of this work includes [Luma AI](https://lumalabs.ai/) and the [BAIR commons](https://bcommons.berkeley.edu/home).
+
+<p align="left">
+    <a href="https://lumalabs.ai/">
+        <!-- pypi-strip -->
+        <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/_static/imgs/luma_dark.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/_static/imgs/luma_light.png">
+        <!-- /pypi-strip -->
+        <img alt="Luma AI" src="docs/_static/imgs/luma_light.png" width="300">
+        <!-- pypi-strip -->
+        </picture>
+        <!-- /pypi-strip -->
+    </a>
+    <a href="https://bcommons.berkeley.edu/home">
+        <!-- pypi-strip -->
+        <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/_static/imgs/bair_dark.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/_static/imgs/bair_light.png">
+        <!-- /pypi-strip -->
+        <img alt="BAIR" src="docs/_static/imgs/bair_light.png" width="300">
+        <!-- pypi-strip -->
+        </picture>
+        <!-- /pypi-strip -->
+    </a>
+</p>
+
 
 # Quickstart
 
@@ -92,17 +123,20 @@ Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependen
 ```bash
 conda create --name nerfstudio -y python=3.8
 conda activate nerfstudio
-python -m pip install --upgrade pip
+pip install --upgrade pip
 ```
 
 ### Dependencies
 
-Install pytorch with CUDA (this repo has been tested with CUDA 11.7 and CUDA 11.8) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+Install PyTorch with CUDA (this repo has been tested with CUDA 11.7 and CUDA 11.8) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn).
+`cuda-toolkit` is required for building `tiny-cuda-nn`.
 
 For CUDA 11.7:
 
 ```bash
 pip install torch==2.0.1+cu117 torchvision==0.15.2+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
+
+conda install -c "nvidia/label/cuda-11.7.1" cuda-toolkit
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
@@ -110,6 +144,8 @@ For CUDA 11.8:
 
 ```bash
 pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
+
+conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
@@ -264,6 +300,7 @@ If you're interested in learning more on how to create your own pipelines, devel
 | 💖 **Community**                                                                                   |
 | [Discord](https://discord.gg/uMbNqcraFc)                                                           | Join our community to discuss more. We would love to hear from you!                                |
 | [Twitter](https://twitter.com/nerfstudioteam)                                                      | Follow us on Twitter @nerfstudioteam to see cool updates and announcements                         |
+| [Feedback Form](TODO)                                                                              | We welcome any feedback! This is our chance to learn what you all are using Nerfstudio for.    |
 
 # Supported Features
 

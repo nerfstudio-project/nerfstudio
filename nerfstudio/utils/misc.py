@@ -17,6 +17,8 @@ Miscellaneous helper code.
 """
 
 
+from inspect import currentframe
+import typing
 import platform
 from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 import warnings
@@ -162,7 +164,7 @@ def strtobool(val) -> bool:
     return val.lower() in ("yes", "y", "true", "t", "on", "1")
 
 
-def torch_compile(*args, **kwargs):
+def torch_compile(*args, **kwargs) -> Any:
     """
     Safe torch.compile with backward compatibility for PyTorch 1.x
     """
@@ -171,7 +173,10 @@ def torch_compile(*args, **kwargs):
         warnings.warn(
             "PyTorch 1.x will no longer be supported by Nerstudio. Please upgrade to PyTorch 2.x.", DeprecationWarning
         )
-        return torch.jit.script
+        if args and isinstance(args[0], torch.nn.Module):
+            return args[0]
+        else:
+            return torch.jit.script
     elif platform.system() == "Windows":
         # torch.compile is not supported on Windows
         # https://github.com/orgs/pytorch/projects/27
@@ -179,6 +184,38 @@ def torch_compile(*args, **kwargs):
         warnings.warn(
             "Windows does not yet support torch.compile and the performance will be affected.", RuntimeWarning
         )
-        return lambda x: x
+        if args and isinstance(args[0], torch.nn.Module):
+            return args[0]
+        else:
+            return lambda x: x
     else:
         return torch.compile(*args, **kwargs)
+
+
+def get_orig_class(obj, default=None):
+    """Returns the __orig_class__ class of `obj` even when it is not initialized in __init__ (Python>=3.8).
+
+    Workaround for https://github.com/python/typing/issues/658.
+    Inspired by https://github.com/Stewori/pytypes/pull/53.
+    """
+    try:
+        return object.__getattribute__(obj, "__orig_class__")
+    except AttributeError:
+        cls = object.__getattribute__(obj, "__class__")
+        try:
+            is_type_generic = isinstance(cls, typing.GenericMeta)  # type: ignore
+        except AttributeError:  # Python 3.8
+            is_type_generic = issubclass(cls, typing.Generic)
+        if is_type_generic:
+            frame = currentframe().f_back.f_back  # type: ignore
+            try:
+                while frame:
+                    try:
+                        res = frame.f_locals["self"]
+                        if res.__origin__ is cls:
+                            return res
+                    except (KeyError, AttributeError):
+                        frame = frame.f_back
+            finally:
+                del frame
+        return default

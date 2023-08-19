@@ -106,6 +106,39 @@ To enable Tetra-NeRF, you must install it first. Please follow the instructions 
     )
 )
 
+# NeRFPlayer
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]NeRFPlayer[/bold yellow]
+For more information visit: https://docs.nerf.studio/en/latest/nerfology/methods/nerfplayer.html
+
+To enable NeRFPlayer, you must install it first by running:
+  [grey]pip install git+https://github.com/lsongx/nerfplayer-nerfstudio[/grey]""",
+        configurations=[
+            ("nerfplayer-nerfacto", "NeRFPlayer with nerfacto backbone"),
+            ("nerfplayer-ngp", "NeRFPlayer with instang-ngp-bounded backbone"),
+        ],
+    )
+)
+
+# Volinga
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]Volinga[/bold yellow]
+For more information visit: https://docs.nerf.studio/en/latest/extensions/unreal_engine.html
+
+To enable Volinga, you must install it first by running:
+  [grey]pip install git+https://github.com/Volinga/volinga-model[/grey]""",
+        configurations=[
+            (
+                "volinga",
+                "Real-time rendering model from Volinga. Directly exportable to NVOL format at https://volinga.ai/",
+            ),
+        ],
+        pip_package="git+https://github.com/Volinga/volinga-model",
+    )
+)
+
 
 @dataclass
 class ExternalMethodTrainerConfig(TrainerConfig):

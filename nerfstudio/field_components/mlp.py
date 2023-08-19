@@ -15,15 +15,16 @@
 """
 Multi Layer Perceptron
 """
-from typing import Any, Dict, Literal, Optional, Set, Tuple, Type, Union
+from typing import Literal, Optional, Set, Tuple, Union
 
+import numpy as np
 import torch
 from jaxtyping import Float
 from torch import Tensor, nn
 
 from nerfstudio.field_components.base_field_component import FieldComponent
 from nerfstudio.utils.printing import print_tcnn_speed_warning
-from nerfstudio.field_components.encodings import Encoding
+from nerfstudio.field_components.encodings import HashEncoding
 
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -73,6 +74,7 @@ class MLP(FieldComponent):
         out_dim: Output layer dimension. Uses layer_width if None.
         activation: intermediate layer activation function.
         out_activation: output activation function.
+        implementation: Implementation of hash encoding. Fallback to torch if tcnn not available.
     """
 
     def __init__(
@@ -105,24 +107,30 @@ class MLP(FieldComponent):
             print_tcnn_speed_warning("MLP")
             self.build_nn_modules()
         elif implementation == "tcnn":
-            network_config = self.get_tcnn_network_config()
+            network_config = self.get_tcnn_network_config(
+                activation=self.activation,
+                out_activation=self.out_activation,
+                layer_width=self.layer_width,
+                num_layers=self.num_layers,
+            )
             self.tcnn_encoding = tcnn.Network(
                 n_input_dims=in_dim,
                 n_output_dims=out_dim,
                 network_config=network_config,
             )
 
-    def get_tcnn_network_config(self) -> dict:
+    @classmethod
+    def get_tcnn_network_config(cls, activation, out_activation, layer_width, num_layers) -> dict:
         """Get the network configuration for tcnn is implemented"""
-        activation_str = activation_to_tcnn_string(self.activation)
-        output_activation_str = activation_to_tcnn_string(self.out_activation)
-        if self.layer_width in [16, 32, 64, 128]:
+        activation_str = activation_to_tcnn_string(activation)
+        output_activation_str = activation_to_tcnn_string(out_activation)
+        if layer_width in [16, 32, 64, 128]:
             network_config = {
                 "otype": "FullyFusedMLP",
                 "activation": activation_str,
                 "output_activation": output_activation_str,
-                "n_neurons": self.layer_width,
-                "n_hidden_layers": self.num_layers - 1,
+                "n_neurons": layer_width,
+                "n_hidden_layers": num_layers - 1,
             }
         else:
             CONSOLE.line()
@@ -133,8 +141,8 @@ class MLP(FieldComponent):
                 "otype": "CutlassMLP",
                 "activation": activation_str,
                 "output_activation": output_activation_str,
-                "n_neurons": self.layer_width,
-                "n_hidden_layers": self.num_layers - 1,
+                "n_neurons": layer_width,
+                "n_hidden_layers": num_layers - 1,
             }
         return network_config
 
@@ -182,49 +190,113 @@ class MLP(FieldComponent):
         return self.pytorch_fwd(in_tensor)
 
 
-class EncoderAndMLP(FieldComponent):
-    """Multilayer perceptron with encoding
+class MLPWithHashEncoding(FieldComponent):
+    """Multilayer perceptron with hash encoding
 
     Args:
+        num_levels: Number of feature grids.
+        min_res: Resolution of smallest feature grid.
+        max_res: Resolution of largest feature grid.
+        log2_hashmap_size: Size of hash map is 2^log2_hashmap_size.
+        features_per_level: Number of features per level.
+        hash_init_scale: Value to initialize hash grid.
+        interpolation: Interpolation override for tcnn hashgrid. Not supported for torch unless linear.
         in_dim: Input layer dimension
-        encoder_type: Type of encoder to use
-        encoder_params: Parameters for encoder
-        mlp_params: Parameters for MLP
-        implementation: Implementation to use, either "tcnn" or "torch. Don't set these in the params dicts.
+        num_layers: Number of network layers
+        layer_width: Width of each MLP layer
+        out_dim: Output layer dimension. Uses layer_width if None.
+        activation: intermediate layer activation function.
+        out_activation: output activation function.
+        implementation: Implementation of hash encoding. Fallback to torch if tcnn not available.
     """
 
     def __init__(
         self,
-        in_dim: int,
-        encoder_type: Type[Encoding],
-        encoder_params: Dict[str, Any],
-        mlp_params: Dict[str, Any],
+        num_levels: int = 16,
+        min_res: int = 16,
+        max_res: int = 1024,
+        log2_hashmap_size: int = 19,
+        features_per_level: int = 2,
+        hash_init_scale: float = 0.001,
+        interpolation: Optional[Literal["Nearest", "Linear", "Smoothstep"]] = None,
+        num_layers: int = 2,
+        layer_width: int = 64,
+        out_dim: Optional[int] = None,
+        skip_connections: Optional[Tuple[int]] = None,
+        activation: Optional[nn.Module] = nn.ReLU(),
+        out_activation: Optional[nn.Module] = None,
         implementation: Literal["tcnn", "torch"] = "torch",
     ) -> None:
         super().__init__()
-        self.in_dim = in_dim
-        assert self.in_dim > 0
+        self.in_dim = 3
 
-        # check if encoder_type has implementation. if so, set it
-        if hasattr(encoder_type, "implementation"):
-            assert (
-                "implementation" not in encoder_params
-            ), "Implementation should be set in in EncoderAndMLP, not Encoder"
-            encoder_params["implementation"] = implementation
-        encoder = encoder_type(**encoder_params)
-        assert "implementation" not in mlp_params, "Implementation should be set in in EncoderAndMLP, not MLP"
-        mlp = MLP(in_dim=encoder.get_out_dim(), **mlp_params, implementation=implementation)
+        self.num_levels = num_levels
+        self.min_res = min_res
+        self.max_res = max_res
+        self.features_per_level = features_per_level
+        self.hash_init_scale = hash_init_scale
+        self.log2_hashmap_size = log2_hashmap_size
+        self.hash_table_size = 2**log2_hashmap_size
+
+        self.growth_factor = np.exp((np.log(max_res) - np.log(min_res)) / (num_levels - 1)) if num_levels > 1 else 1
+
+        self.out_dim = out_dim if out_dim is not None else layer_width
+        self.num_layers = num_layers
+        self.layer_width = layer_width
+        self.skip_connections = skip_connections
+        self._skip_connections: Set[int] = set(skip_connections) if skip_connections else set()
+        self.activation = activation
+        self.out_activation = out_activation
+        self.net = None
 
         self.tcnn_encoding = None
         if implementation == "torch":
-            self.model = torch.nn.Sequential(encoder, mlp)
+            self.build_nn_modules()
         elif implementation == "tcnn" and not TCNN_EXISTS:
             print_tcnn_speed_warning("MLP")
-            self.model = torch.nn.Sequential(encoder, mlp)
+            self.build_nn_modules()
         elif implementation == "tcnn":
-            encoding_config = encoder.get_tcnn_encoding_config()
-            mlp_config = mlp.get_tcnn_network_config()
-            self.model = tcnn.NetworkWithInputEncoding(self.in_dim, mlp.out_dim, encoding_config, mlp_config)
+            self.model = tcnn.NetworkWithInputEncoding(
+                n_input_dims=self.in_dim,
+                n_output_dims=self.out_dim,
+                encoding_config=HashEncoding.get_tcnn_encoding_config(
+                    num_levels=self.num_levels,
+                    features_per_level=self.features_per_level,
+                    log2_hashmap_size=self.log2_hashmap_size,
+                    min_res=self.min_res,
+                    growth_factor=self.growth_factor,
+                    interpolation=interpolation,
+                ),
+                network_config=MLP.get_tcnn_network_config(
+                    activation=self.activation,
+                    out_activation=self.out_activation,
+                    layer_width=self.layer_width,
+                    num_layers=self.num_layers,
+                ),
+            )
+
+    def build_nn_modules(self) -> None:
+        """Initialize encoder and MLP."""
+        encoder = HashEncoding(
+            num_levels=self.num_levels,
+            min_res=self.min_res,
+            max_res=self.max_res,
+            log2_hashmap_size=self.log2_hashmap_size,
+            features_per_level=self.features_per_level,
+            hash_init_scale=self.hash_init_scale,
+            implementation="torch",
+        )
+        mlp = MLP(
+            in_dim=encoder.get_out_dim(),
+            num_layers=self.num_layers,
+            layer_width=self.layer_width,
+            out_dim=self.out_dim,
+            skip_connections=self.skip_connections,
+            activation=self.activation,
+            out_activation=self.out_activation,
+            implementation="torch",
+        )
+        self.model = torch.nn.Sequential(encoder, mlp)
 
     def forward(self, in_tensor: Float[Tensor, "*bs in_dim"]) -> Float[Tensor, "*bs out_dim"]:
         return self.model(in_tensor)
