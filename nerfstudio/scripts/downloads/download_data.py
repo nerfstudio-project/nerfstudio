@@ -190,7 +190,12 @@ def download_capture_name(save_dir: Path, dataset_name: str, capture_name: str, 
 
 @dataclass
 class NerfstudioDownload(DatasetDownload):
-    """Download the nerfstudio dataset."""
+    """
+    Download data in the Nerfstudio format.
+    If you are interested in the Nerfstudio Dataset subset from the SIGGRAPH 2023 paper,
+    you can obtain that by using --capture-name nerfstudio-dataset or by visiting Google Drive directly at:
+    https://drive.google.com/drive/folders/19TV6kdVGcmg3cGZ1bNIUnBBMD-iQjRbG?usp=drive_link.
+    """
 
     capture_name: NerfstudioCaptureName = "bww_entrance"
 
