@@ -26,7 +26,7 @@ from viser import (
     GuiButtonGroupHandle,
     GuiButtonHandle,
     GuiDropdownHandle,
-    GuiHandle,
+    GuiInputHandle,
     ViserServer,
 )
 
@@ -49,14 +49,14 @@ class ViewerElement(Generic[TValue]):
         cb_hook: Callable = lambda element: None,
     ) -> None:
         self.name = name
-        self.gui_handle: Optional[Union[GuiHandle[TValue], GuiButtonHandle, GuiButtonGroupHandle]] = None
+        self.gui_handle: Optional[Union[GuiInputHandle[TValue], GuiButtonHandle, GuiButtonGroupHandle]] = None
         self.disabled = disabled
         self.cb_hook = cb_hook
 
     @abstractmethod
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         """
-        Returns the GuiHandle object which actually controls the parameter in the gui.
+        Returns the GuiInputHandle object which actually controls the parameter in the gui.
 
         Args:
             viser_server: The server to install the gui element into.
@@ -100,7 +100,7 @@ class ViewerButton(ViewerElement[bool]):
         super().__init__(name, disabled=disabled, cb_hook=cb_hook)
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        self.gui_handle = viser_server.add_gui_button(name=self.name, disabled=self.disabled)
+        self.gui_handle = viser_server.add_gui_button(self.name, disabled=self.disabled)
 
     def install(self, viser_server: ViserServer) -> None:
         self._create_gui_handle(viser_server)
@@ -119,7 +119,7 @@ class ViewerParameter(ViewerElement[TValue], Generic[TValue]):
         cb_hook: Callback to call on update
     """
 
-    gui_handle: GuiHandle
+    gui_handle: GuiInputHandle
 
     def __init__(
         self,
