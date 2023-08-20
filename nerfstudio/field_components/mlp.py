@@ -147,7 +147,7 @@ class MLP(FieldComponent):
         return network_config
 
     def build_nn_modules(self) -> None:
-        """Initialize multi-layer perceptron."""
+        """Initialize the torch version of the multi-layer perceptron."""
         layers = []
         if self.num_layers == 1:
             layers.append(nn.Linear(self.in_dim, self.out_dim))
@@ -275,7 +275,7 @@ class MLPWithHashEncoding(FieldComponent):
             )
 
     def build_nn_modules(self) -> None:
-        """Initialize encoder and MLP."""
+        """Initialize the torch version of the MLP with hash encoding."""
         encoder = HashEncoding(
             num_levels=self.num_levels,
             min_res=self.min_res,

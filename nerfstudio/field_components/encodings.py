@@ -287,6 +287,7 @@ class HashEncoding(Encoding):
         self.num_levels = num_levels
         self.min_res = min_res
         self.features_per_level = features_per_level
+        self.hash_init_scale = hash_init_scale
         self.log2_hashmap_size = log2_hashmap_size
         self.hash_table_size = 2**log2_hashmap_size
 
@@ -298,8 +299,11 @@ class HashEncoding(Encoding):
 
         self.tcnn_encoding = None
         self.hash_table = torch.empty(0)
-        if implementation == "tcnn" and not TCNN_EXISTS:
+        if implementation == "torch":
+            self.build_nn_modules()
+        elif implementation == "tcnn" and not TCNN_EXISTS:
             print_tcnn_speed_warning("HashEncoding")
+            self.build_nn_modules()
         elif implementation == "tcnn":
             encoding_config = self.get_tcnn_encoding_config(
                 num_levels=self.num_levels,
@@ -309,20 +313,21 @@ class HashEncoding(Encoding):
                 growth_factor=self.growth_factor,
                 interpolation=interpolation,
             )
-
             self.tcnn_encoding = tcnn.Encoding(
                 n_input_dims=3,
                 encoding_config=encoding_config,
             )
-        elif implementation == "torch":
-            self.hash_table = torch.rand(size=(self.hash_table_size * num_levels, features_per_level)) * 2 - 1
-            self.hash_table *= hash_init_scale
-            self.hash_table = nn.Parameter(self.hash_table)
 
         if self.tcnn_encoding is None:
             assert (
                 interpolation is None or interpolation == "Linear"
             ), f"interpolation '{interpolation}' is not supported for torch encoding backend"
+
+    def build_nn_modules(self) -> None:
+        """Initialize the torch version of the hash encoding."""
+        self.hash_table = torch.rand(size=(self.hash_table_size * self.num_levels, self.features_per_level)) * 2 - 1
+        self.hash_table *= self.hash_init_scale
+        self.hash_table = nn.Parameter(self.hash_table)
 
     @classmethod
     def get_tcnn_encoding_config(
