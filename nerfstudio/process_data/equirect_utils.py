@@ -29,15 +29,14 @@ from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
 
 # https://gist.github.com/fgolemo/94b5caf0e209a6e71ab0ce2d75ad3ed8
 def euler_rodriguez_rotation_matrix(axis: torch.Tensor, theta: torch.float) -> torch.Tensor:
-    """
-    Generalized 3d rotation via Euler-Rodriguez formula, https://www.wikiwand.com/en/Euler%E2%80%93Rodrigues_formula
-    Return the rotation matrix associated with counterclockwise rotation about
-    the given axis by theta radians.
+    """Generates a 3x3 rotation matrix from an axis and angle using Euler-Rodriguez formula.
 
-    axis: torch.Tensor, shape (3,)
-    theta: torch.float
+    Args:
+        axis (torch.Tensor): Axis about which to rotate.
+        theta (torch.float): Angle to rotate by.
 
-    return: torch.Tensor, shape (3, 3)
+    Returns:
+        torch.Tensor: 3x3 Rotation matrix.
     """
     axis = axis / torch.sqrt(torch.dot(axis, axis))
     a = torch.cos(theta / 2.0)
@@ -56,14 +55,16 @@ def euler_rodriguez_rotation_matrix(axis: torch.Tensor, theta: torch.float) -> t
 def remap_cubic(
     img: torch.Tensor, map_x: torch.Tensor, map_y: torch.Tensor, border_mode: str = "border"
 ) -> torch.Tensor:
-    """
-    Apply remapping with cubic interpolation using PyTorch's grid_sample function.
+    """Remap image using bicubic interpolation.
 
-    :param img: Input image tensor.
-    :param map_x: X-coordinate remapping tensor.
-    :param map_y: Y-coordinate remapping tensor.
-    :param border_mode: Border mode ('border' or 'wrap').
-    :return: Remapped image tensor.
+    Args:
+        img (torch.Tensor): Image tensor
+        map_x (torch.Tensor): x mapping
+        map_y (torch.Tensor): y mapping
+        border_mode (str, optional): What to do with borders. Defaults to "border".
+
+    Returns:
+        torch.Tensor: _description_
     """
     batch_size, channels, height, width = img.shape
 
@@ -83,17 +84,18 @@ def remap_cubic(
 
 
 def equirect2persp(img: torch.Tensor, fov: int, theta: int, phi: int, hd: int, wd: int) -> torch.Tensor:
-    """
-    pytorch reimlement of https://github.com/kaustubh-sadekar/OmniCV-Lib
+    """Pytorch reimlement of https://github.com/kaustubh-sadekar/OmniCV-Lib for equirectangular to perspective projection.
 
-    img: torch.Tensor, shape (batch_size, channels, height, width)
-    fov: int, field of view
-    theta: int, left/right angle
-    phi: int, up/down angle
-    hd: int, height of perspective image
-    wd: int, width of perspective image
+    Args:
+        img (torch.Tensor): Image tensor
+        fov (int): Horizontal field of view in degrees
+        theta (int): Horizontal angle in degrees
+        phi (int): Vertical angle in degrees
+        hd (int): Number of pixels in height
+        wd (int): Number of pixels in width
 
-    return: torch.Tensor, shape (batch_size, channels, hd, wd)
+    Returns:
+        torch.Tensor: Planar image tensor
     """
     device = img.device
     theta = torch.tensor(theta, dtype=torch.float32, device=device)
