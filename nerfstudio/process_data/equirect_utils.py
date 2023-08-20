@@ -28,12 +28,12 @@ from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
 
 
 # https://gist.github.com/fgolemo/94b5caf0e209a6e71ab0ce2d75ad3ed8
-def euler_rodriguez_rotation_matrix(axis: torch.Tensor, theta: torch.float) -> torch.Tensor:
+def euler_rodriguez_rotation_matrix(axis: torch.Tensor, theta: torch.Tensor) -> torch.Tensor:
     """Generates a 3x3 rotation matrix from an axis and angle using Euler-Rodriguez formula.
 
     Args:
         axis (torch.Tensor): Axis about which to rotate.
-        theta (torch.float): Angle to rotate by.
+        theta (torch.Tloat): Angle to rotate by.
 
     Returns:
         torch.Tensor: 3x3 Rotation matrix.
@@ -98,8 +98,8 @@ def equirect2persp(img: torch.Tensor, fov: int, theta: int, phi: int, hd: int, w
         torch.Tensor: Planar image tensor
     """
     device = img.device
-    theta = torch.tensor(theta, dtype=torch.float32, device=device)
-    phi = torch.tensor(phi, dtype=torch.float32, device=device)
+    theta_tensor = torch.tensor(theta, dtype=torch.float32, device=device)
+    phi_tensor = torch.tensor(phi, dtype=torch.float32, device=device)
     # theta is left/right angle, phi is up/down angle, both in degree
     equ_h, equ_w = img.shape[2:]
 
@@ -130,23 +130,25 @@ def equirect2persp(img: torch.Tensor, fov: int, theta: int, phi: int, hd: int, w
 
     y_axis = torch.tensor([0.0, 1.0, 0.0], dtype=torch.float32, device=device)
     z_axis = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float32, device=device)
-    R1 = euler_rodriguez_rotation_matrix(z_axis, torch.deg2rad(theta)).to(device)
-    R2 = euler_rodriguez_rotation_matrix(torch.mm(R1, y_axis.view(3, 1)).squeeze(), torch.deg2rad(-phi)).to(device)
+    R1 = euler_rodriguez_rotation_matrix(z_axis, torch.deg2rad(theta_tensor)).to(device)
+    R2 = euler_rodriguez_rotation_matrix(torch.mm(R1, y_axis.view(3, 1)).squeeze(), torch.deg2rad(-phi_tensor)).to(
+        device
+    )
 
     xyz = xyz.view(hd * wd, 3).T
     xyz = torch.mm(R1, xyz)
     xyz = torch.mm(R2, xyz).T
     lat = torch.arcsin(xyz[:, 2] / 1)
     lon = torch.zeros([hd * wd], dtype=torch.float32, device=device)
-    theta = torch.arctan(xyz[:, 1] / xyz[:, 0])
+    theta_tensor = torch.arctan(xyz[:, 1] / xyz[:, 0])
     idx1 = xyz[:, 0] > 0
     idx2 = xyz[:, 1] > 0
     idx3 = ~idx1 & idx2
     idx4 = ~idx1 & ~idx2
 
-    lon[idx1] = theta[idx1]
-    lon[idx3] = theta[idx3] + np.pi
-    lon[idx4] = theta[idx4] - np.pi
+    lon[idx1] = theta_tensor[idx1]
+    lon[idx3] = theta_tensor[idx3] + np.pi
+    lon[idx4] = theta_tensor[idx4] - np.pi
 
     lon = lon.view(hd, wd) / torch.pi * 180
     lat = -lat.view(hd, wd) / torch.pi * 180
