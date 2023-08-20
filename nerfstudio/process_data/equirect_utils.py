@@ -28,7 +28,7 @@ from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
 
 
 # https://gist.github.com/fgolemo/94b5caf0e209a6e71ab0ce2d75ad3ed8
-def rotation_matrix(axis: torch.Tensor, theta: torch.float) -> torch.Tensor:
+def euler_rodriguez_rotation_matrix(axis: torch.Tensor, theta: torch.float) -> torch.Tensor:
     """
     Generalized 3d rotation via Euler-Rodriguez formula, https://www.wikiwand.com/en/Euler%E2%80%93Rodrigues_formula
     Return the rotation matrix associated with counterclockwise rotation about
@@ -99,7 +99,6 @@ def equirect2persp(img: torch.Tensor, fov: int, theta: int, phi: int, hd: int, w
     theta = torch.tensor(theta, dtype=torch.float32, device=device)
     phi = torch.tensor(phi, dtype=torch.float32, device=device)
     # theta is left/right angle, phi is up/down angle, both in degree
-    print(img.shape)
     equ_h, equ_w = img.shape[2:]
 
     equ_cx = (equ_w) / 2.0
@@ -129,8 +128,8 @@ def equirect2persp(img: torch.Tensor, fov: int, theta: int, phi: int, hd: int, w
 
     y_axis = torch.tensor([0.0, 1.0, 0.0], dtype=torch.float32, device=device)
     z_axis = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float32, device=device)
-    R1 = rotation_matrix(z_axis, torch.deg2rad(theta)).to(device)
-    R2 = rotation_matrix(torch.mm(R1, y_axis.view(3, 1)).squeeze(), torch.deg2rad(-phi)).to(device)
+    R1 = euler_rodriguez_rotation_matrix(z_axis, torch.deg2rad(theta)).to(device)
+    R2 = euler_rodriguez_rotation_matrix(torch.mm(R1, y_axis.view(3, 1)).squeeze(), torch.deg2rad(-phi)).to(device)
 
     xyz = xyz.view(hd * wd, 3).T
     xyz = torch.mm(R1, xyz)
@@ -311,7 +310,6 @@ def generate_planar_projections_from_equirectangular(
                         equirect2persp(im, fov, u_deg, v_deg, planar_image_size[1], planar_image_size[0]) * 255.0
                     )
                     pers_image = omnicv_pers_tensor.squeeze().permute(1, 2, 0).type(torch.uint8).to("cpu").numpy()
-                    assert isinstance(pers_image, torch.Tensor)
                     cv2.imwrite(f"{output_dir}/{i[:-4]}_{count}.jpg", pers_image)
                     count += 1
 
