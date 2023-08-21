@@ -367,7 +367,8 @@ class CometWriter(Writer):
 
     def __init__(self, log_dir: Path, experiment_name: str, project_name: str = "nerfstudio-project"):
         self.experiment = comet_ml.Experiment(project_name=project_name)
-        self.experiment.set_name(experiment_name)
+        if experiment_name != 'unnamed':
+            self.experiment.set_name(experiment_name)
 
     def write_image(self, name: str, image: Float[Tensor, "H W C"], step: int) -> None:
         self.experiment.log_image(image, name, step=step)
