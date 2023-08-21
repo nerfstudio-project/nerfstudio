@@ -116,7 +116,7 @@ method_configs["nerfacto"] = TrainerConfig(
         },
         "camera_opt": {
             "optimizer": AdamOptimizerConfig(lr=1e-4, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-5, max_steps=10000, warmup_steps=2500),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-5, max_steps=10000, warmup_steps=1000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
@@ -206,7 +206,7 @@ method_configs["nerfacto-huge"] = TrainerConfig(
         },
         "camera_opt": {
             "optimizer": AdamOptimizerConfig(lr=1e-4, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-4, max_steps=50000, warmup_steps=5000),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-5, max_steps=50000, warmup_steps=5000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),

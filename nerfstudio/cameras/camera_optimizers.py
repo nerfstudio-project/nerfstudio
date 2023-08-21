@@ -61,6 +61,12 @@ class CameraOptimizerConfig(InstantiateConfig):
 
     principal_point_penalty: float = 1e-2
 
+    distortion_penalty: float = 1e-1
+
+    distortion_std_penalty: float = .1
+
+    start_focal_train: int = 3000
+
 
 class CameraOptimizer(nn.Module):
     """Layer that modifies camera poses to be optimized as well as the field during training."""
@@ -80,6 +86,7 @@ class CameraOptimizer(nn.Module):
         self.config = config
         self.num_cameras = num_cameras
         self.cameras = cameras
+        self.step = 0
         if cameras is not None:
             self.c2ws = self.cameras.camera_to_worlds
             self.Ks = torch.eye(3)
@@ -107,7 +114,7 @@ class CameraOptimizer(nn.Module):
                 raise ValueError("cameras must be provided to optimize focal length")
             # optimize fx, fy, cx, cy
             self.K_adjustment = torch.nn.Parameter(torch.zeros((num_cameras, 4), device=device))
-            # self.K_adjustment = torch.nn.Parameter(torch.zeros((4), device=device))
+            self.D_adjustment = torch.nn.Parameter(torch.zeros((num_cameras, 2), device=device))
 
     def forward(
         self,
@@ -148,28 +155,17 @@ class CameraOptimizer(nn.Module):
         if self.Ks.device != self.pose_adjustment.device:
             self.Ks = self.Ks.to(self.pose_adjustment.device)
             self.Ksinv = self.Ksinv.to(self.pose_adjustment.device)
-        K_cors = torch.eye(3, device=self.Ks.device)
-        K_cors = K_cors[None, ...].repeat(indices.shape[0], 1, 1)
+        K_cors = self.Ks[indices]
         if self.config.optimize_focal:
             K_cors[:, 0, 0] *= torch.exp(self.K_adjustment[indices, 0])
             K_cors[:, 1, 1] *= torch.exp(self.K_adjustment[indices, 1])
             K_cors[:, 0, 2] += self.K_adjustment[indices, 2]
             K_cors[:, 1, 2] += self.K_adjustment[indices, 3]
-        # optimize all as one
-        # if self.config.optimize_focal:
-        #     K_cor[0, 0] *= torch.exp(self.K_adjustment[0])
-        #     K_cor[1, 1] *= torch.exp(self.K_adjustment[1])
-        #     K_cor[0, 2] += self.K_adjustment[2]
-        #     K_cor[1, 2] += self.K_adjustment[3]
-        # K_cors = K_cor[None, ...].repeat(indices.shape[0], 1, 1)
         return K_cors, pose_corrections
 
     def apply_to_raybundle(self, raybundle: RayBundle) -> None:
         """Apply the pose correction to the raybundle"""
         if self.config.mode != "off":
-            if self.config.optimize_focal:
-                print("focal corr", self.K_adjustment.mean(dim=0), self.K_adjustment.std(dim=0))
-                # print("focal corr", self.K_adjustment)
             K_cors, H_cors = self(raybundle.camera_indices.squeeze())  # type: ignore
             if self.c2ws.device != K_cors.device:
                 self.c2ws = self.c2ws.to(K_cors.device)
@@ -181,27 +177,42 @@ class CameraOptimizer(nn.Module):
             H_cors = torch.cat([H_cors, rows], dim=1)
             onesvec = torch.ones((*raybundle.origins.shape[:-1], 1), device=raybundle.origins.device)
             # first multiply the H_cor * Hsinv
+
             Hcorinv = torch.bmm(H_cors, Hsinv)
             raybundle.origins = torch.bmm(Hcorinv, torch.cat((raybundle.origins, onesvec), dim=-1)[..., None])
             # then multiply the Hs to get back to world frame
             raybundle.origins = torch.bmm(Hs, raybundle.origins)[..., :3, 0]
 
             Ks = self.Ks[raybundle.camera_indices.squeeze()]
-            Ksinv = self.Ksinv[raybundle.camera_indices.squeeze()]
             # multiply by the H_cor * Hsinv to bring us into camera local frame (-z is camera axis)
             raybundle.directions = torch.bmm(Hcorinv[..., :3, :3], raybundle.directions[..., None]).squeeze()
-            # then apply the focal matrix to take it to focal plane space
-            raybundle.directions = torch.bmm(Ks, raybundle.directions[..., None]).squeeze()
-            # divide by -z to normalize to focal plane
-            raybundle.directions = raybundle.directions / -raybundle.directions[..., 2:3].repeat(1, 3)
-            # then apply the correction
-            raybundle.directions = torch.bmm(K_cors, raybundle.directions[..., None]).squeeze()
-            # then apply the inverse of the focal matrix to get back to camera space
-            raybundle.directions = torch.bmm(Ksinv, raybundle.directions[..., None]).squeeze()
-            # then re-normalize
-            raybundle.directions = raybundle.directions / raybundle.directions.norm(dim=-1, keepdim=True)
+            if self.step > self.config.start_focal_train:
+                # then apply the focal matrix to take it to focal plane space
+                raybundle.directions = torch.bmm(Ks, raybundle.directions[..., None]).squeeze()
+                # divide by -z to normalize to focal plane
+                raybundle.directions = raybundle.directions / -raybundle.directions[..., 2:3].repeat(1, 3)
+                # Transform the focal coordinates by the distortion corrections, only using k1 and k2, no tangential
+                r = raybundle.directions[..., :2].norm(dim=-1, keepdim=True)
+                r2 = r**2.0
+                r4 = r2**2.0
+                radial = (
+                    1.0
+                    + r2 * self.D_adjustment[raybundle.camera_indices, 0]
+                    + r4 * self.D_adjustment[raybundle.camera_indices, 1]
+                )
+                raybundle.directions = raybundle.directions * torch.cat(
+                    (radial, radial, torch.ones((*radial.shape[:-1], 1), device=radial.device, dtype=radial.dtype)), dim=-1
+                )
+                # then apply the inverse of the focal matrix to get back to camera space
+                raybundle.directions = torch.bmm(torch.inverse(K_cors), raybundle.directions[..., None]).squeeze()
+                # then re-normalize
+                raybundle.directions = raybundle.directions / raybundle.directions.norm(dim=-1, keepdim=True)
             # Then apply the Hs to get back to world frame
             raybundle.directions = torch.bmm(Hs[..., :3, :3], raybundle.directions[..., None]).squeeze()
+
+    def set_step(self, step: int) -> None:
+        """Set the step for the optimizer"""
+        self.step = step
 
     def get_loss_dict(self, loss_dict: dict) -> None:
         """Add regularization"""
@@ -215,13 +226,16 @@ class CameraOptimizer(nn.Module):
                     self.config.focal_std_penalty = self.config.focal_std_penalty.to(self.K_adjustment.device)
                 loss_dict["camera_opt_std_regularizer"] = (
                     self.K_adjustment.std(dim=0) * self.config.focal_std_penalty
-                ).sum()
+                ).mean()
                 loss_dict["camera_opt_principal_point_regularizer"] = (
                     self.K_adjustment.norm(dim=0)[2:].norm() * self.config.principal_point_penalty
                 )
-                # loss_dict["camera_opt_principal_point_regularizer"] = (
-                #     self.K_adjustment[2:].norm() * self.config.principal_point_penalty
-                # )
+                loss_dict["camera_opt_distortion_regularizer"] = (
+                    self.D_adjustment.norm(dim=0).norm() * self.config.distortion_penalty
+                )
+                loss_dict["camera_opt_distortion_std_regularizer"] = (
+                    self.D_adjustment.std(dim=0) * self.config.distortion_std_penalty
+                ).mean()
 
     def get_correction_matrices(self):
         """Get optimized pose correction matrices"""
