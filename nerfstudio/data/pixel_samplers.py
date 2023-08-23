@@ -171,7 +171,6 @@ class PixelSampler:
         collated_batch = {
             key: value[c, y, x] for key, value in batch.items() if key != "image_idx" and value is not None
         }
-
         assert collated_batch["image"].shape[0] == num_rays_per_batch
 
         # Needed to correct the random indices to their actual camera idx locations.
@@ -367,8 +366,8 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
     def __init__(self, config: PairPixelSamplerConfig, **kwargs) -> None:
         self.config = config
         self.radius = self.config.radius
-        self.rays_to_sample = self.config.num_rays_per_batch // 2
         super().__init__(self.config, **kwargs)
+        self.rays_to_sample = self.num_rays_per_batch // 2
 
     # overrides base method
     def sample_method(  # pylint: disable=no-self-use
