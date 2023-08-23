@@ -178,15 +178,7 @@ class DeblurCameraOptimizer(CameraOptimizer):
             .unsqueeze(1)
             .repeat(indices.shape[0] // self.config.num_samples, 1)
         )
-        # add a small random jittter to each sample time to avoid aliasing
-        # w = 1 / (self.config.num_samples - 1)
-        # times += torch.rand_like(times) * w - w / 2
         blur_adjs = self.blur_adjustment[indices, :] * times
-        # normal seems to work worse
-        # blur_adjs = self.blur_adjustment[indices, :] * torch.normal(
-        #     torch.zeros((indices.shape[0], 1), device=indices.device),  # mean
-        #     torch.ones((indices.shape[0], 1), device=indices.device),  # std
-        # )
         return exp_map_SO3xR3(blur_adjs)
 
     def apply_to_raybundle(self, ray_bundle: RayBundle) -> RayBundle:
