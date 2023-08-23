@@ -15,9 +15,10 @@
 """ Manage the state of the viewer """
 from __future__ import annotations
 
+VISER_NERFSTUDIO_SCALE_RATIO: float = 10.0
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Optional, Dict
+from typing import TYPE_CHECKING, Literal, Optional, Dict,List
 import time
 
 import numpy as np
@@ -35,14 +36,14 @@ from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer_beta.control_panel import ControlPanel
 from nerfstudio.viewer_beta.render_state_machine import RenderAction, RenderStateMachine
-from nerfstudio.viewer_beta.utils import CameraState
+from nerfstudio.viewer_beta.utils import CameraState,parse_object
 from nerfstudio.viewer_beta.export_panel import populate_export_tab
 from nerfstudio.viewer_beta.render_panel import populate_render_tab
+from nerfstudio.viewer_beta.viewer_elements import ViewerElement, ViewerControl
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
 
-VISER_NERFSTUDIO_SCALE_RATIO: float = 10.0
 
 
 @decorate_all([check_main_thread])
@@ -133,7 +134,8 @@ class Viewer:
         self.viser_server.on_client_connect(self.handle_new_client)
 
         tabs = self.viser_server.add_gui_tab_group()
-        with tabs.add_tab("Control", viser.Icon.SETTINGS):
+        control_tab = tabs.add_tab("Control", viser.Icon.SETTINGS)
+        with control_tab:
             self.control_panel = ControlPanel(
                 self.viser_server,
                 self.include_time,
@@ -149,6 +151,29 @@ class Viewer:
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
             populate_export_tab(self.viser_server)
 
+        def nested_folder_install(folder_labels: List[str], element: ViewerElement):
+            if len(folder_labels) == 0:
+                element.install(self.viser_server)
+                # also rewire the hook to rerender
+                prev_cb = element.cb_hook
+                element.cb_hook = lambda element: [prev_cb(element), self._interrupt_render(element)]
+            else:
+                with self.viser_server.gui_folder(folder_labels[0]):
+                    nested_folder_install(folder_labels[1:], element)
+
+        with control_tab:
+            self.viewer_elements = []
+            self.viewer_elements.extend(parse_object(pipeline, ViewerElement, "Custom Elements"))
+            for param_path, element in self.viewer_elements:
+                folder_labels = param_path.split("/")[:-1]
+                nested_folder_install(folder_labels, element)
+
+            # scrape the trainer/pipeline for any ViewerControl objects to initialize them
+            self.viewer_controls: List[ViewerControl] = [
+                e for (_, e) in parse_object(self.trainer, ViewerControl, "Custom Elements")
+            ]
+        for c in self.viewer_controls:
+            c._setup(self)
         self.render_statemachine = RenderStateMachine(self, VISER_NERFSTUDIO_SCALE_RATIO)
         self.render_statemachine.start()
 

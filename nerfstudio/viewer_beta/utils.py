@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
@@ -23,6 +24,9 @@ from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.models.base_model import Model
 
+from typing import Any, List, Tuple
+
+from torch import nn
 
 @dataclass
 class CameraState:
@@ -93,3 +97,53 @@ def update_render_aabb(
             model.render_aabb = SceneBox(aabb=torch.stack([crop_min_tensor, crop_max_tensor], dim=0))
     else:
         model.render_aabb = None
+        
+
+def parse_object(
+    obj: Any,
+    type_check,
+    tree_stub: str,
+) -> List[Tuple[str, Any]]:
+    """
+    obj: the object to parse
+    type_check: recursively adds instances of this type to the output
+    tree_stub: the path down the object tree to this object
+
+    Returns:
+        a list of (path/to/object, obj), which represents the path down the object tree
+        along with the object itself
+    """
+
+    def add(ret: List[Tuple[str, Any]], ts: str, v: Any):
+        """
+        helper that adds to ret, and if v exists already keeps the tree stub with
+        the shortest path
+        """
+        for i, (t, o) in enumerate(ret):
+            if o == v:
+                if len(t.split("/")) > len(ts.split("/")):
+                    ret[i] = (ts, v)
+                return
+        ret.append((ts, v))
+
+    if not hasattr(obj, "__dict__"):
+        return []
+    ret = []
+    # get a list of the properties of the object, sorted by whether things are instances of type_check
+    obj_props = [(k, getattr(obj, k)) for k in dir(obj)]
+    for k, v in obj_props:
+        if k[0] == "_":
+            continue
+        new_tree_stub = f"{tree_stub}/{k}"
+        if isinstance(v, type_check):
+            add(ret, new_tree_stub, v)
+        elif isinstance(v, nn.Module):
+            if v is obj:
+                # some nn.Modules might contain infinite references, e.g. consider foo = nn.Module(), foo.bar = foo
+                # to stop infinite recursion, we skip such attributes
+                continue
+            lower_rets = parse_object(v, type_check, new_tree_stub)
+            # check that the values aren't already in the tree
+            for ts, o in lower_rets:
+                add(ret, ts, o)
+    return ret

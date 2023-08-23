@@ -242,9 +242,9 @@ class RenderStateMachine(threading.Thread):
 
         selected_output = (selected_output * 255).type(torch.uint8)
 
-        self.viewer.viser_server.set_popup_image(
+        self.viewer.viser_server.set_background_image(
             selected_output.cpu().numpy(),
-            outputs['gl_z_buf_depth'].cpu().numpy() * self.viser_scale_ratio,
+            # outputs['gl_z_buf_depth'].cpu().numpy() * self.viser_scale_ratio,
             format=self.viewer.config.image_format,
             jpeg_quality=self.viewer.config.jpeg_quality,
         )

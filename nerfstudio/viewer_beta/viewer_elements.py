@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from typing import Any, Callable, Generic, List, Optional, Tuple, Union
-
+from dataclasses import dataclass
 from typing_extensions import LiteralString, TypeVar
 from viser import (
     GuiButtonGroupHandle,
@@ -29,9 +29,124 @@ from viser import (
     GuiHandle,
     ViserServer,
 )
-
+from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO
+from nerfstudio.viewer_beta.utils import CameraState,get_camera
+from nerfstudio.cameras.cameras import Cameras
+import viser.transforms as vtf
+import numpy as np
+import torch
 TValue = TypeVar("TValue")
 TString = TypeVar("TString", default=str, bound=str)
+
+@dataclass
+class ViewerClick:
+    """
+    Class representing a click in the viewer as a ray.
+    """
+
+    # the information here matches the information in the ClickMessage,
+    # but we implement a wrapper as an abstraction layer
+    origin: Tuple[float, float, float]
+    """The origin of the click in world coordinates (center of camera)"""
+    direction: Tuple[float, float, float]
+    """
+    The direction of the click if projected from the camera through the clicked pixel,
+    in world coordinates
+    """
+
+
+class ViewerControl:
+    """
+    class for exposing non-gui controls of the viewer to the user
+    """
+
+    def __init__(self):
+        # this should be a user-facing constructor, since it will be used inside the model/pipeline class
+        self.click_cbs = []
+
+    def _setup(self, viewer: Viewer):
+        """
+        Internal use only, setup the viewer control with the viewer state object
+
+        Args:
+            viewer: The viewer object (viewer.py)
+        """
+        self.viewer:Viewer = viewer
+        self.viser_server: ViserServer = viewer.viser_server
+
+    def set_pose(
+        self,
+        position: Optional[Tuple[float, float, float]] = None,
+        look_at: Optional[Tuple[float, float, float]] = None,
+        instant: bool = False,
+    ):
+        """
+        Set the camera position of the viewer camera.
+
+        Args:
+            position: The new position of the camera in world coordinates
+            look_at: The new look_at point of the camera in world coordinates
+            instant: If the camera should move instantly or animate to the new position
+        """
+        raise NotImplementedError()
+
+    def set_fov(self, fov):
+        """
+        Set the FOV of the viewer camera
+
+        Args:
+            fov: The new FOV of the camera in degrees
+
+        """
+        raise NotImplementedError()
+
+    def set_crop(self, min_point: Tuple[float, float, float], max_point: Tuple[float, float, float]):
+        """
+        Set the scene crop box of the viewer to the specified min,max point
+
+        Args:
+            min_point: The minimum point of the crop box
+            max_point: The maximum point of the crop box
+
+        """
+        raise NotImplementedError()
+
+    def get_camera(self, img_height: int, img_width: int) -> Optional[Cameras]:
+        """
+        Returns the Cameras object representing the current camera for the viewer, or None if the viewer
+        is not connected yet
+
+        Args:
+            img_height: The height of the image to get camera intrinsics for
+            img_width: The width of the image to get camera intrinsics for
+        """
+        R = vtf.SO3(wxyz=self.viewer.client.camera.wxyz)
+        R = R @ vtf.SO3.from_x_radians(np.pi)
+        R = torch.tensor(R.as_matrix())
+        pos = torch.tensor(self.viewer.client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
+        c2w = torch.concatenate([R, pos[:, None]], dim=1)
+        camera_state = CameraState(fov=self.viewer.client.camera.fov, aspect=self.viewer.client.camera.aspect, c2w=c2w)
+        return get_camera(camera_state,img_height,img_width)
+
+    def register_click_cb(self, cb: Callable):
+        """
+        Add a callback which will be called when a click is detected in the viewer.
+
+        Args:
+            cb: The callback to call when a click is detected.
+                The callback should take a ViewerClick object as an argument
+        """
+        self.click_cbs.append(cb)
+
+    def on_click(self, msg):
+        """
+        Internal use only, register a click in the viewer which propagates to all self.click_cbs
+        """
+        raise NotImplementedError()
+    
+    @property
+    def server(self):
+        return self.viser_server
 
 
 class ViewerElement(Generic[TValue]):
