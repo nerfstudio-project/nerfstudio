@@ -16,23 +16,21 @@
 Depth dataset.
 """
 
-from typing import Dict
+import json
+from pathlib import Path
+from typing import Dict, Union
 
 import numpy as np
+import torch
+from PIL import Image
+from rich.progress import track
 
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-from nerfstudio.model_components import losses
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.data_utils import get_depth_image_from_path
+from nerfstudio.model_components import losses
 from nerfstudio.utils.misc import torch_compile
 from nerfstudio.utils.rich_utils import CONSOLE
-
-from typing import Union
-from PIL import Image
-import torch
-from rich.progress import track
-from pathlib import Path
-import json
 
 
 class DepthDataset(InputDataset):
@@ -99,7 +97,7 @@ class DepthDataset(InputDataset):
             self.metadata["depth_unit_scale_factor"] = 1.0
 
         else:
-            losses.DEPTH_METRIC = 0
+            losses.DEPTH_METRIC = 1
 
         self.depth_filenames = self.metadata["depth_filenames"]
         self.depth_unit_scale_factor = self.metadata["depth_unit_scale_factor"]
