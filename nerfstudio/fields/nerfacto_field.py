@@ -200,6 +200,9 @@ class NerfactoField(Field):
             implementation=implementation,
         )
 
+    def set_step(self, step: int) -> None:
+        self.mlp_base_grid.set_step(step)
+
     def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
         if self.spatial_distortion is not None:

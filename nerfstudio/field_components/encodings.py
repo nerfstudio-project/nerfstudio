@@ -18,7 +18,7 @@ Encoding functions
 
 import itertools
 from abc import abstractmethod
-from typing import Literal, Optional, Sequence
+from typing import Literal, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -247,6 +247,27 @@ class RFFEncoding(Encoding):
         return encoded_inputs
 
 
+class _HashGradientScaler(torch.autograd.Function):  # typing: ignore
+    """
+    Scales the gradients of hash features based on a provided mask
+    """
+
+    @staticmethod
+    def forward(ctx, value: Float[Tensor, "bs feat_dim"], mask: Float[Tensor, "feat_dim"]):
+        ctx.save_for_backward(mask)
+        return value, mask
+
+    @staticmethod
+    def backward(ctx, output_grad, grad_scaling):
+        (mask,) = ctx.saved_tensors
+        N = mask.shape[1]
+        D = mask.shape[2]
+        B = output_grad.shape[0]
+        in_shape = output_grad.shape
+        output_grad = (output_grad.view(B, N, D) * mask).view(*in_shape)
+        return output_grad, grad_scaling
+
+
 class HashEncoding(Encoding):
     """Hash encoding
 
@@ -271,12 +292,15 @@ class HashEncoding(Encoding):
         hash_init_scale: float = 0.001,
         implementation: Literal["tcnn", "torch"] = "tcnn",
         interpolation: Optional[Literal["Nearest", "Linear", "Smoothstep"]] = None,
+        coarse_to_fine_iters: Optional[Tuple[int, int]] = None,
     ) -> None:
         super().__init__(in_dim=3)
         self.num_levels = num_levels
         self.features_per_level = features_per_level
         self.log2_hashmap_size = log2_hashmap_size
         self.hash_table_size = 2**log2_hashmap_size
+        self.coarse_to_fine_iters = coarse_to_fine_iters
+        self.step = 0
 
         levels = torch.arange(num_levels)
         growth_factor = np.exp((np.log(max_res) - np.log(min_res)) / (num_levels - 1)) if num_levels > 1 else 1
@@ -318,6 +342,9 @@ class HashEncoding(Encoding):
 
     def get_out_dim(self) -> int:
         return self.num_levels * self.features_per_level
+
+    def set_step(self, step: int) -> None:
+        self.step = step
 
     def hash_fn(self, in_tensor: Int[Tensor, "*bs num_levels 3"]) -> Shaped[Tensor, "*bs num_levels"]:
         """Returns hash tensor using method described in Instant-NGP
@@ -381,10 +408,33 @@ class HashEncoding(Encoding):
 
         return torch.flatten(encoded_value, start_dim=-2, end_dim=-1)  # [..., num_levels * features_per_level]
 
+    def scale_grad_by_freq(self, outputs: Float[Tensor, "bs output_dim"]) -> Float[Tensor, "bs output_dim"]:
+        """Scale gradients by frequency of hash table entries"""
+        if self.coarse_to_fine_iters is None:
+            return outputs
+        B = outputs.shape[0]
+        N = self.num_levels
+        D = self.features_per_level
+        # formula for getting frequency mask
+        start, end = self.coarse_to_fine_iters
+        assert (
+            start >= 0 and end >= 0
+        ), f"start and end iterations for bundle adjustment have to be positive, got start = {start} and end = {end}"
+        L = N
+        # From https://arxiv.org/pdf/2104.06405.pdf equation 14
+        alpha = (self.step - start) / (end - start) * L
+        k = torch.arange(L, dtype=outputs.dtype, device=outputs.device)
+        mask_vals = (1.0 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()) / 2
+        mask_vals = mask_vals[None, ..., None].repeat((B, 1, D))
+        out, _ = _HashGradientScaler.apply(outputs, mask_vals)
+        return out
+
     def forward(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
         if self.tcnn_encoding is not None:
-            return self.tcnn_encoding(in_tensor)
-        return self.pytorch_fwd(in_tensor)
+            out = self.tcnn_encoding(in_tensor)
+        else:
+            out = self.pytorch_fwd(in_tensor)
+        return self.scale_grad_by_freq(out)
 
 
 class TensorCPEncoding(Encoding):

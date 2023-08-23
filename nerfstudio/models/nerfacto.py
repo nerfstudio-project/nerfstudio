@@ -275,6 +275,14 @@ class NerfactoModel(Model):
                     func=self.proposal_sampler.step_cb,
                 )
             )
+            # callback for hash encoding
+            callbacks.append(
+                TrainingCallback(
+                    where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                    update_every_num_iters=1,
+                    func=self.field.set_step,
+                )
+            )
         return callbacks
 
     def get_outputs(self, ray_bundle: RayBundle):
