@@ -427,7 +427,7 @@ class HashEncoding(Encoding):
         k = torch.arange(L, dtype=outputs.dtype, device=outputs.device)
         mask_vals = (1.0 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()) / 2
         mask_vals = mask_vals[None, ..., None].repeat((B, 1, D))
-        out, _ = _HashGradientScaler.apply(outputs, mask_vals)
+        out, _ = _HashGradientScaler.apply(outputs, mask_vals)  # type: ignore
         return out
 
     def forward(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
