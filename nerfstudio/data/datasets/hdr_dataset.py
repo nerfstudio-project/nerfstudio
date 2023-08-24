@@ -75,6 +75,7 @@ class HDRInputDataset(InputDataset):
         assert len(hdr_image.shape) == 3
         assert hdr_image.dtype == np.float32
         assert hdr_image.shape[2] in [3, 4], f"Image shape of {hdr_image.shape} is in correct."
+        # dfdffdd
         return hdr_image
 
     def get_image(self, image_idx: int) -> Float[Tensor, "image_height image_width num_channels"]:
@@ -84,7 +85,13 @@ class HDRInputDataset(InputDataset):
             image_idx: The image index in the dataset.
         """
         # Compress HDR using: pixel = log(pixel + 1.)
-        image = torch.from_numpy(np.log(1. + self.get_numpy_image(image_idx).astype("float32")))
+            
+        image = torch.from_numpy(self.get_numpy_image(image_idx).astype("float32"))
+        image = (image) ** (1 / 2.2) 
+        image = torch.clip(image, 0, 1)
+        # image = torch.log(1. + image)
+
+
         if self._dataparser_outputs.alpha_color is not None and image.shape[-1] == 4:
             image = image[:, :, :3] * image[:, :, -1:] + self._dataparser_outputs.alpha_color * (1.0 - image[:, :, -1:])
         return image

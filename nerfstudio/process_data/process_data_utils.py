@@ -62,7 +62,7 @@ def list_images(data: Path) -> List[Path]:
     Returns:
         Paths to images contained in the directory
     """
-    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"] + ALLOWED_RAW_EXTS
+    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".exr"] + ALLOWED_RAW_EXTS
     image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
     return image_paths
 
@@ -450,6 +450,7 @@ def copy_images(
     verbose: bool = False,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     num_downscales: int = 0,
+    is_HDR: bool = False,
 ) -> OrderedDict[Path, Path]:
     """Copy images from a directory to a new directory.
 
@@ -468,13 +469,22 @@ def copy_images(
             CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
             sys.exit(1)
 
-        copied_images = copy_images_list(
+        if is_HDR:
+            copied_images = copy_images_list_EXR(
             image_paths=image_paths,
             image_dir=image_dir,
             crop_factor=crop_factor,
             verbose=verbose,
             num_downscales=num_downscales,
         )
+        else:
+            copied_images = copy_images_list(
+                image_paths=image_paths,
+                image_dir=image_dir,
+                crop_factor=crop_factor,
+                verbose=verbose,
+                num_downscales=num_downscales,
+            )
         return OrderedDict((original_path, new_path) for original_path, new_path in zip(image_paths, copied_images))
 
 

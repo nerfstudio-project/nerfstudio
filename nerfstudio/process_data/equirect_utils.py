@@ -120,7 +120,9 @@ def generate_planar_projections_from_equirectangular(
     planar_image_size: Tuple[int, int],
     samples_per_im: int,
     mask_dir: Path,
+    hdr_dir: Path,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    is_HDR: bool = False,
 ) -> Path:
     """Generate planar projections from an equirectangular image.
 
@@ -181,8 +183,13 @@ def generate_planar_projections_from_equirectangular(
     output_dir = image_dir / "planar_projections"
     output_dir.mkdir(exist_ok=True)
     
-    output_mask_dir = image_dir / "mask_planar_projections"
-    output_mask_dir.mkdir(exist_ok=True)
+    if mask_dir is not None:
+        output_mask_dir = image_dir / "mask_planar_projections"
+        output_mask_dir.mkdir(exist_ok=True)
+
+    if hdr_dir is not None:
+        output_hdr_dir = image_dir / "hdr_planar_projections"
+        output_hdr_dir.mkdir(exist_ok=True)
     
     num_ims = len(os.listdir(frame_dir))
     progress = Progress(
@@ -196,35 +203,61 @@ def generate_planar_projections_from_equirectangular(
     with progress:
         for i in progress.track(os.listdir(frame_dir), description="", total=num_ims):
             if i.lower().endswith((".jpg", ".png", ".jpeg", ".exr")):
-                im = np.array(cv2.imread(os.path.join(frame_dir, i)))
+                if i.lower().endswith((".exr")):
+                    im = np.array(cv2.imread(os.path.join(frame_dir, i), cv2.IMREAD_UNCHANGED)).astype("float32")
+                else:
+                    im = np.array(cv2.imread(os.path.join(frame_dir, i)))
                 im = torch.tensor(im, dtype=torch.float32, device=device)
-                im = torch.permute(im, (2, 0, 1)) / 255.0
+                im = torch.permute(im, (2, 0, 1))
+                if not i.lower().endswith((".exr")):
+                    im /=255.0
 
-                mask_addr = os.path.join(mask_dir, i)
-                if not os.path.isfile(mask_addr):
-                    raise Exception("The corresponding mask for " + i + " does not exist!!!")
-                mask = np.array(cv2.imread(mask_addr))
-                mask = torch.tensor(mask, dtype=torch.float32, device=device)
-                mask = torch.permute(mask, (2, 0, 1)) / 255.0
+                if mask_dir is not None:
+                    mask_addr = os.path.join(mask_dir, i)
+                    if not os.path.isfile(mask_addr):
+                        raise Exception("The corresponding mask for " + i + " does not exist!!!")
+                    mask = np.array(cv2.imread(mask_addr))
+                    mask = torch.tensor(mask, dtype=torch.float32, device=device)
+                    mask = torch.permute(mask, (2, 0, 1)) / 255.0
+
+                if hdr_dir is not None:
+                    hdr_addr = os.path.join(hdr_dir, i)
+                    if is_HDR:
+                        hdr_addr = hdr_addr.replace('.png', '.exr')
+                    if not os.path.isfile(hdr_addr):
+                        raise Exception("The corresponding HDR for " + i + " does not exist!!!")
+                    hdr = np.array(cv2.imread(hdr_addr, cv2.IMREAD_UNCHANGED)).astype("float32")
+                    hdr = torch.tensor(hdr, dtype=torch.float32, device=device)
+                    hdr = torch.permute(hdr, (2, 0, 1))
 
                 count = 0
                 for u_deg, v_deg in yaw_pitch_pairs:
                     v_rad = torch.pi * v_deg / 180.0
                     u_rad = torch.pi * u_deg / 180.0
-                    pers_image = equi2pers(im, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad}) * 255.0
+                    pers_image = equi2pers(im, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad})
                     pers_mask = equi2pers(mask, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad}) * 255.0
-
-                    assert isinstance(pers_image, torch.Tensor) and isinstance(pers_mask, torch.Tensor)
-                    pers_image = (pers_image.permute(1, 2, 0)).type(torch.uint8).to("cpu").numpy()
-                    pers_mask = (pers_mask.permute(1, 2, 0)).type(torch.uint8).to("cpu").numpy()
-                    cv2.imwrite(f"{output_dir}/{i[:-4]}_{count}.png", pers_image)
+                    pers_hdr = equi2pers(hdr, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad}, clip_output=False)
+                    assert isinstance(pers_image, torch.Tensor) and isinstance(pers_mask, torch.Tensor) and isinstance(pers_hdr, torch.Tensor)
+                    if i.lower().endswith((".exr")):
+                        # normalize alpha channel
+                        pers_image = (pers_image.permute(1, 2, 0)).type(torch.float32).to("cpu").numpy()
+                        cv2.imwrite(f"{output_dir}/{i[:-4]}_{count}.exr", pers_image)
+                    else:
+                        pers_image *= 255.0
+                        pers_image = (pers_image.permute(1, 2, 0)).type(torch.uint8).to("cpu").numpy()
+                        cv2.imwrite(f"{output_dir}/{i[:-4]}_{count}.png", pers_image)
+                    
+                    pers_mask = (pers_mask.permute(1, 2, 0))[:, :, 0].type(torch.uint8).to("cpu").numpy()
                     cv2.imwrite(f"{output_mask_dir}/{i[:-4]}_{count}.png", pers_mask)
+
+                    pers_hdr = (pers_hdr.permute(1, 2, 0)).type(torch.float32).to("cpu").numpy()
+                    cv2.imwrite(f"{output_hdr_dir}/{i[:-4]}_{count}.exr", pers_hdr)
                     
                     count += 1
 
-    return output_dir, output_mask_dir
+    return output_dir, output_mask_dir, output_hdr_dir
 
-def generate_planar_projections_from_equirectangular(
+def generate_planar_projections_from_equirectangular_2(
     metadata_path: Path,
     image_dir: Path,
     planar_image_size: Tuple[int, int],
