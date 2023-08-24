@@ -155,11 +155,12 @@ class RenderStateMachine(threading.Thread):
                 self.viewer.get_model().train()
         num_rays = len(camera_ray_bundle)
         render_time = vis_t.duration
-        #convert to z_depth for depth compositing too
-        R = camera.camera_to_worlds[0:3,0:3].T
-        pts = (camera_ray_bundle.directions*outputs['depth'])
-        pts = (R@(pts.view(-1,3).T)).T.view(*camera_ray_bundle.directions.shape)
-        outputs['gl_z_buf_depth'] = -pts[...,2:3] 
+        if self.viewer.control_panel.layer_depth:
+            #convert to z_depth if depth compositing is enabled
+            R = camera.camera_to_worlds[0:3,0:3].T
+            pts = (camera_ray_bundle.directions*outputs['depth'])
+            pts = (R@(pts.view(-1,3).T)).T.view(*camera_ray_bundle.directions.shape)
+            outputs['gl_z_buf_depth'] = -pts[...,2:3] #negative z axis is the coordinate convention
         if writer.is_initialized():
             writer.put_time(
                 name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=step, avg_over_steps=True
@@ -241,12 +242,12 @@ class RenderStateMachine(threading.Thread):
             selected_output[:, split_index] = torch.tensor([0.133, 0.157, 0.192], device=selected_output.device)
 
         selected_output = (selected_output * 255).type(torch.uint8)
-
+        depth = outputs['gl_z_buf_depth'].cpu().numpy() * self.viser_scale_ratio if self.viewer.control_panel.layer_depth else None
         self.viewer.viser_server.set_background_image(
             selected_output.cpu().numpy(),
-            # outputs['gl_z_buf_depth'].cpu().numpy() * self.viser_scale_ratio,
             format=self.viewer.config.image_format,
             jpeg_quality=self.viewer.config.jpeg_quality,
+            depth=depth,
         )
 
     def _calculate_image_res(self, aspect_ratio: float) -> Tuple[int, int]:

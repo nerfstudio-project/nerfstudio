@@ -126,6 +126,9 @@ class ControlPanel:
             step=0.05,
             hint="Target training utilization, 0.0 is slow, 1.0 is fast. Doesn't affect final render quality",
         )
+        self._layer_depth = ViewerCheckbox(
+            "Composite Depth",True,cb_hook=rerender_cb,hint= "Allow NeRF to occlude 3D browser objects"
+        )
         self._max_res = ViewerSlider(
             "Max Res", 512, 64, 2048, 100, cb_hook=rerender_cb, hint="Maximum resolution to render in viewport"
         )
@@ -163,6 +166,7 @@ class ControlPanel:
             self.add_element(self._max_res)
             self.add_element(self._output_render)
             self.add_element(self._colormap)
+            self.add_element(self._layer_depth)
             # colormap options
             self.add_element(self._invert, additional_tags=("colormap",))
             self.add_element(self._normalize, additional_tags=("colormap",))
@@ -372,7 +376,9 @@ class ControlPanel:
             invert=self._split_invert.value,
         )
 
-
+    @property
+    def layer_depth(self):
+        return self._layer_depth.value
 def _get_colormap_options(dimensions: int, dtype: type) -> List[Colormaps]:
     """
     Given the number of dimensions and data type, returns a list of available colormap options
