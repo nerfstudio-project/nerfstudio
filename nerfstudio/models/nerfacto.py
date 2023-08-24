@@ -19,7 +19,7 @@ NeRF implementation that combines many recent advancements.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Tuple, Type
+from typing import Dict, List, Literal, Tuple, Type, Optional
 
 import numpy as np
 import torch
@@ -126,6 +126,8 @@ class NerfactoModelConfig(ModelConfig):
     """Which implementation to use for the model."""
     appearance_embed_dim: int = 32
     """Dimension of the appearance embedding."""
+    coarse_to_fine_iters: Optional[Tuple[int, int]] = None
+    """(start, end) iterations at which gradients of hash grid levels are modulated. Linear interpolation between (start, end) and full activation from end onwards."""
 
 
 class NerfactoModel(Model):
@@ -163,6 +165,7 @@ class NerfactoModel(Model):
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
             appearance_embedding_dim=self.config.appearance_embed_dim,
             implementation=self.config.implementation,
+            coarse_to_fine_iters=self.config.coarse_to_fine_iters,
         )
 
         self.density_fns = []
