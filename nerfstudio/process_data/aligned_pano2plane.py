@@ -17,16 +17,16 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Literal, Tuple
+from typing import Literal, Optional, Tuple
 
 import numpy as np
 
 from nerfstudio.process_data import equirect_utils, process_data_utils
-from nerfstudio.process_data.base_converter_to_nerfstudio_dataset import (
-    BaseConverterToNerfstudioDataset,
-)
-from nerfstudio.utils.rich_utils import CONSOLE
+from nerfstudio.process_data.base_converter_to_nerfstudio_dataset import \
+    BaseConverterToNerfstudioDataset
 from nerfstudio.utils import io
+from nerfstudio.utils.rich_utils import CONSOLE
+
 
 @dataclass
 class ProcessAlignedPano(BaseConverterToNerfstudioDataset):
@@ -69,11 +69,10 @@ class ProcessAlignedPano(BaseConverterToNerfstudioDataset):
         summary_log = []
         pers_size = equirect_utils.compute_resolution_from_equirect(self.data, self.images_per_equirect)
         CONSOLE.log(f"Generating {self.images_per_equirect} {pers_size} sized images per equirectangular image")
-        # self.data = equirect_utils.generate_planar_projections_from_equirectangular(
-        #     self.metadata, self.data, pers_size, self.images_per_equirect, crop_factor=self.crop_factor
-        # )
+        self.data = equirect_utils.generate_planar_projections_from_equirectangular_GT(
+            self.metadata, self.data, pers_size, self.images_per_equirect, crop_factor=self.crop_factor, clip_output = False
+        )
         self.camera_type = "perspective"
-        self.data = self.data / "planar_projections"
         metadata_dict = io.load_from_json(self.data / "transforms.json")
         # Copy images to output directory
         cropped_images_filename = []
