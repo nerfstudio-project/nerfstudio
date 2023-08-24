@@ -15,32 +15,27 @@
 """Helper utils for processing equirectangular data."""
 
 import os
+
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 
 import json
+import math
 import sys
 from pathlib import Path
 from typing import List, Tuple
-import math
 
 import cv2
 import numpy as np
-from numpy.linalg import inv
-
-from scipy.spatial.transform import Rotation
 import torch
-from equilib import Equi2Pers
-from rich.progress import (
-    BarColumn,
-    Progress,
-    TaskProgressColumn,
-    TextColumn,
-    TimeRemainingColumn,
-)
+from numpy.linalg import inv
+from rich.progress import (BarColumn, Progress, TaskProgressColumn, TextColumn,
+                           TimeRemainingColumn)
+from scipy.spatial.transform import Rotation
 
-from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
+from equilib import Equi2Pers
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils import io
+from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
 
 
 def _crop_bottom(bound_arr: list, fov: int, crop_factor: float) -> List[float]:
@@ -119,7 +114,6 @@ def generate_planar_projections_from_equirectangular(
     image_dir: Path,
     planar_image_size: Tuple[int, int],
     samples_per_im: int,
-    mask_dir: Path,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
 ) -> Path:
     """Generate planar projections from an equirectangular image.
@@ -180,10 +174,6 @@ def generate_planar_projections_from_equirectangular(
     frame_dir = image_dir
     output_dir = image_dir / "planar_projections"
     output_dir.mkdir(exist_ok=True)
-    
-    output_mask_dir = image_dir / "mask_planar_projections"
-    output_mask_dir.mkdir(exist_ok=True)
-    
     num_ims = len(os.listdir(frame_dir))
     progress = Progress(
         TextColumn("[bold blue]Generating Planar Images", justify="right"),
@@ -195,41 +185,29 @@ def generate_planar_projections_from_equirectangular(
 
     with progress:
         for i in progress.track(os.listdir(frame_dir), description="", total=num_ims):
-            if i.lower().endswith((".jpg", ".png", ".jpeg", ".exr")):
+            if i.lower().endswith((".jpg", ".png", ".jpeg")):
                 im = np.array(cv2.imread(os.path.join(frame_dir, i)))
                 im = torch.tensor(im, dtype=torch.float32, device=device)
                 im = torch.permute(im, (2, 0, 1)) / 255.0
-
-                mask_addr = os.path.join(mask_dir, i)
-                if not os.path.isfile(mask_addr):
-                    raise Exception("The corresponding mask for " + i + " does not exist!!!")
-                mask = np.array(cv2.imread(mask_addr))
-                mask = torch.tensor(mask, dtype=torch.float32, device=device)
-                mask = torch.permute(mask, (2, 0, 1)) / 255.0
-
                 count = 0
                 for u_deg, v_deg in yaw_pitch_pairs:
                     v_rad = torch.pi * v_deg / 180.0
                     u_rad = torch.pi * u_deg / 180.0
                     pers_image = equi2pers(im, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad}) * 255.0
-                    pers_mask = equi2pers(mask, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad}) * 255.0
-
-                    assert isinstance(pers_image, torch.Tensor) and isinstance(pers_mask, torch.Tensor)
+                    assert isinstance(pers_image, torch.Tensor)
                     pers_image = (pers_image.permute(1, 2, 0)).type(torch.uint8).to("cpu").numpy()
-                    pers_mask = (pers_mask.permute(1, 2, 0)).type(torch.uint8).to("cpu").numpy()
                     cv2.imwrite(f"{output_dir}/{i[:-4]}_{count}.png", pers_image)
-                    cv2.imwrite(f"{output_mask_dir}/{i[:-4]}_{count}.png", pers_mask)
-                    
                     count += 1
 
-    return output_dir, output_mask_dir
+    return output_dir
 
-def generate_planar_projections_from_equirectangular(
+def generate_planar_projections_from_equirectangular_GT(
     metadata_path: Path,
     image_dir: Path,
     planar_image_size: Tuple[int, int],
     samples_per_im: int,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    clip_output: bool = False,
 ) -> Path:
     """Given camera pose, generate planar projections from an equirectangular image.
        And output corresponding camera pose.
@@ -323,7 +301,7 @@ def generate_planar_projections_from_equirectangular(
                 for u_deg, v_deg in yaw_pitch_pairs:
                     v_rad = torch.pi * v_deg / 180.0
                     u_rad = torch.pi * u_deg / 180.0
-                    pers_image = equi2pers(im, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad})
+                    pers_image = equi2pers(im, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad}, clip_output=clip_output)
                     # transform matrix for blender: object.matrix_world 
                     perspective_camera_rotation = inv(Rotation.from_euler('XYZ', [v_rad, -u_rad, 0], degrees=False).as_matrix())
                     perspective_camera_rotation = current_pano_camera_rotation @  perspective_camera_rotation

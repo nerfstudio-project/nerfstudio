@@ -41,7 +41,8 @@ class ColormapOptions:
     """ Maximum value for the output colormap """
     invert: bool = False
     """ Whether to invert the output colormap """
-
+    exposure_scale: float = 0
+    """Scale the brightness prior to tonemapping by 2 ^ Exposure"""
 
 def apply_colormap(
     image: Float[Tensor, "*bs channels"],
@@ -64,7 +65,22 @@ def apply_colormap(
 
     # default for rgb images
     if image.shape[-1] == 3:
-        return image
+        if(colormap_options.exposure_scale != 0 or image.max() > 1.):
+            # Log
+            img_gamma_22 = torch.exp(image) - 1.
+            
+            # u-law
+            u = 5000.
+            img_gamma_22 = torch.exp(image * torch.log(torch.tensor(u+1.))) - 1.
+            img_gamma_22 /= u
+            
+            # img_gamma_22 = torch.exp(img_gamma_22) - 1.
+            # img_gamma_22 = torch.exp(img_gamma_22) - 1.
+            img_gamma_22 *= 2.**(colormap_options.exposure_scale)
+            img_gamma_22 = torch.pow(img_gamma_22, 1./2.2)
+            return torch.clamp(img_gamma_22, 0., 1.)
+        else:
+            return image
 
     # rendering depth outputs
     if image.shape[-1] == 1 and torch.is_floating_point(image):
