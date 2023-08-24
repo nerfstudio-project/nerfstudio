@@ -280,6 +280,7 @@ class HashEncoding(Encoding):
         hash_init_scale: Value to initialize hash grid.
         implementation: Implementation of hash encoding. Fallback to torch if tcnn not available.
         interpolation: Interpolation override for tcnn hashgrid. Not supported for torch unless linear.
+        coarse_to_fine_iters: (start, end) iterations at which gradients of hash grid levels are modulated. Linear interpolation between (start, end) and full activation from end onwards.
     """
 
     def __init__(
