@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from typing import Dict
 
 import tyro
-from lantern.config import lantern_config
+from lantern.config import Get_lantern_config
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import ViewerConfig
@@ -125,7 +125,7 @@ method_configs["nerfacto"] = TrainerConfig(
     vis="viewer",
 )
 
-method_configs["lantern-nerfacto"] = lantern_config
+method_configs["lantern-nerfacto"] = Get_lantern_config()
 
 method_configs["nerfacto-big"] = TrainerConfig(
     method_name="nerfacto",
