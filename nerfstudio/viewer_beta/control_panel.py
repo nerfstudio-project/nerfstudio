@@ -55,6 +55,7 @@ class ControlPanel:
         update_output_cb: Callable,
         update_split_output_cb: Callable,
         toggle_training_state_cb: Callable,
+        camera_vis: Callable,
     ):
         # elements holds a mapping from tag: [elements]
         self.viser_server = viser_server
@@ -156,8 +157,15 @@ class ControlPanel:
         self.resume_train = viser_server.add_gui_button(label="Resume Training", disabled=False)
         self.resume_train.on_click(lambda _: self.toggle_pause_button())
         self.resume_train.on_click(lambda han: toggle_training_state_cb(han))
-
         self.resume_train.visible = False
+        # Add buttons to toggle training image visibility
+        self.hide_images = viser_server.add_gui_button(label="Hide Train Cams", disabled=False)
+        self.hide_images.on_click(lambda _: camera_vis(False))
+        self.hide_images.on_click(lambda _: self.toggle_cameravis_button())
+        self.show_images = viser_server.add_gui_button(label="Show Train Cams", disabled=False)
+        self.show_images.on_click(lambda _: camera_vis(True))
+        self.show_images.on_click(lambda _: self.toggle_cameravis_button())
+        self.show_images.visible = False
 
         self.add_element(self._train_speed)
         self.add_element(self._train_util)
@@ -217,6 +225,10 @@ class ControlPanel:
     def toggle_pause_button(self) -> None:
         self.pause_train.visible = not self.pause_train.visible
         self.resume_train.visible = not self.resume_train.visible
+
+    def toggle_cameravis_button(self) -> None:
+        self.hide_images.visible = not self.hide_images.visible
+        self.show_images.visible = not self.show_images.visible
 
     def update_output_options(self, new_options: List[str]):
         """

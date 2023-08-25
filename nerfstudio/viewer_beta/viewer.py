@@ -144,6 +144,7 @@ class Viewer:
                 self._output_type_change,
                 self._output_split_type_change,
                 self._toggle_training_state,
+                self.set_camera_visibility,
             )
         with tabs.add_tab("Render", viser.Icon.CAMERA):
             populate_render_tab(self.viser_server)
@@ -181,7 +182,7 @@ class Viewer:
         self.client = client
         self.last_move_time = 0
         @client.camera.on_update
-        def _(_: viser.CameraHandle) -> None:
+        def _(cam: viser.CameraHandle) -> None:
             self.last_move_time = time.time()
             R = vtf.SO3(wxyz=self.client.camera.wxyz)
             R = R @ vtf.SO3.from_x_radians(np.pi)
@@ -191,11 +192,20 @@ class Viewer:
             self.camera_state = CameraState(fov=self.client.camera.fov, aspect=self.client.camera.aspect, c2w=c2w)
             self.render_statemachine.action(RenderAction("move", self.camera_state))
 
+    def set_camera_visibility(self, visible:bool) -> None:
+        """Toggle the visibility of the training cameras."""
+        with self.viser_server.atomic():
+            for idx in self.camera_handles:
+                self.camera_handles[idx].visible = visible
+
     def update_camera_poses(self):
         # Update the train camera locations based on optimization
         assert self.camera_handles is not None
         idxs = list(self.camera_handles.keys())
-        camera_optimizer = self.trainer.pipeline.datamanager.train_camera_optimizer
+        if hasattr(self.pipeline.datamanager,'train_camera_optimizer'):
+            camera_optimizer = self.pipeline.datamanager.train_camera_optimizer
+        else:
+            camera_optimizer = self.pipeline.model.camera_optimizer
         with torch.no_grad():
             c2ws_delta = camera_optimizer(torch.tensor(idxs, device=camera_optimizer.device)).cpu().numpy()
         for idx in idxs:
@@ -274,7 +284,7 @@ class Viewer:
             train_state: Current status of training
         """
         # draw the training cameras and images
-        self.camera_handles: Dict[int, viser.SceneNodeHandle] = {}
+        self.camera_handles: Dict[int, viser.CameraFrustumHandle] = {}
         self.original_c2w: Dict[int, torch.Tensor] = {}
         image_indices = self._pick_drawn_image_idxs(len(train_dataset))
         for idx in image_indices:
