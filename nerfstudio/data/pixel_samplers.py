@@ -398,7 +398,6 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
     ) -> Int[Tensor, "batch_size 3"]:
-        
         rays_to_sample = self.rays_to_sample
         if batch_size is not None:
             assert (
@@ -406,7 +405,7 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
             ), f"PairPixelSampler can only return batch sizes in multiples of two (got {batch_size})"
             rays_to_sample = batch_size // 2
 
-        if isinstance(mask, Tensor):            
+        if isinstance(mask, Tensor):
             m = erode_mask(mask.permute(0, 3, 1, 2).float(), pixel_radius=self.radius)
             nonzero_indices = torch.nonzero(m[:, 0], as_tuple=False).to(device)
             chosen_indices = random.sample(range(len(nonzero_indices)), k=rays_to_sample)
