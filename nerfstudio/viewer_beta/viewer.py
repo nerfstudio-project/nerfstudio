@@ -40,6 +40,7 @@ from nerfstudio.viewer_beta.utils import CameraState,parse_object
 from nerfstudio.viewer_beta.export_panel import populate_export_tab
 from nerfstudio.viewer_beta.render_panel import populate_render_tab
 from nerfstudio.viewer_beta.viewer_elements import ViewerElement, ViewerControl
+from nerfstudio.data.scene_box import SceneBox
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
@@ -233,21 +234,8 @@ class Viewer:
 
     def _crop_params_update(self, _) -> None:
         """Update crop parameters"""
-        print("Crop params not set up")
-        # crop_min = torch.tensor(self.control_panel.crop_min, dtype=torch.float32)
-        # crop_max = torch.tensor(self.control_panel.crop_max, dtype=torch.float32)
-        # scene_box = SceneBox(aabb=torch.stack([crop_min, crop_max], dim=0))
-        # self.viser_server.update_scene_box(scene_box)
-        # crop_scale = crop_max - crop_min
-        # crop_center = (crop_max + crop_min) / 2.0
-        # self.viser_server.send_crop_params(
-        #     crop_enabled=self.control_panel.crop_viewport,
-        #     crop_bg_color=self.control_panel.background_color,
-        #     crop_scale=tuple(crop_scale.tolist()),
-        #     crop_center=tuple(crop_center.tolist()),
-        # )
-        # if self.camera_message is not None:
-        #     self.render_statemachine.action(RenderAction("rerender", self.camera_message))
+        if self.camera_state is not None:
+            self.render_statemachine.action(RenderAction("move", self.camera_state))
 
     def _output_type_change(self, _):
         self.output_type_changed = True
