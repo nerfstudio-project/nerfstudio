@@ -159,7 +159,7 @@ class Viewer:
                 prev_cb = element.cb_hook
                 element.cb_hook = lambda element: [prev_cb(element), self._interrupt_render(element)]
             else:
-                with self.viser_server.gui_folder(folder_labels[0]):
+                with self.viser_server.add_gui_folder(folder_labels[0]):
                     nested_folder_install(folder_labels[1:], element)
 
         with control_tab:
@@ -333,7 +333,8 @@ class Viewer:
             return
         # this stops training while moving to make the response smoother
         while time.time()-self.last_move_time < 0.1:
-            time.sleep(.01)
+            time.sleep(.05)
+        self.render_statemachine.action(RenderAction("static", self.camera_state))
         if self.trainer is not None and self.trainer.training_state == "training" and self.train_util != 1:
             if (
                 EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]
@@ -353,6 +354,7 @@ class Viewer:
             if step > self.last_step + render_freq:
                 self.last_step = step
                 self.render_statemachine.action(RenderAction("step", self.camera_state))
+                self.update_camera_poses()
 
     def update_colormap_options(self, dimensions: int, dtype: type) -> None:
         """update the colormap options based on the current render
