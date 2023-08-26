@@ -46,16 +46,20 @@ class DepthDataset(InputDataset):
     def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0):
         super().__init__(dataparser_outputs, scale_factor)
         # if there are no depth images than we want to generate them all with zoe depth
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         if len(dataparser_outputs.image_filenames) > 0 and (
             "depth_filenames" not in dataparser_outputs.metadata.keys()
             or dataparser_outputs.metadata["depth_filenames"] is None
         ):
-            losses.DEPTH_METRIC = 0
-            CONSOLE.print("[bold yellow] No depth data found!")
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            CONSOLE.print("[bold yellow] No depth data found! Generating pseudodepth...")
+            losses.FORCE_PSEUDODEPTH_LOSS = True
+            CONSOLE.print("[bold red] Using psueodepth: forcing depth loss to be ranking loss.")
             cache = dataparser_outputs.image_filenames[0].parent / "depths.npy"
+            # Note: this should probably be saved to disk as images, and then loaded with the dataparser.
+            #  That will allow multi-gpu training.
             if cache.exists():
-                CONSOLE.print("[bold yellow] Loading cache!")
+                CONSOLE.print("[bold yellow] Loading pseudodata depth from cache!")
                 # load all the depths
                 self.depths = np.load(cache)
                 self.depths = torch.from_numpy(self.depths).to(device)
@@ -97,9 +101,6 @@ class DepthDataset(InputDataset):
             dataparser_outputs.metadata["depth_unit_scale_factor"] = 1.0
             self.metadata["depth_filenames"] = None
             self.metadata["depth_unit_scale_factor"] = 1.0
-
-        else:
-            losses.DEPTH_METRIC = 0
 
         self.depth_filenames = self.metadata["depth_filenames"]
         self.depth_unit_scale_factor = self.metadata["depth_unit_scale_factor"]
