@@ -79,8 +79,13 @@ class DepthNerfactoModel(NerfactoModel):
     def get_metrics_dict(self, outputs, batch):
         metrics_dict = super().get_metrics_dict(outputs, batch)
         if self.training:
-            if losses.FORCE_PSEUDODEPTH_LOSS and self.config.depth_loss_type not in losses.PSEUDODEPTH_COMPATIBLE_LOSSES:
-                raise ValueError(f"Forcing pseudodepth loss, but depth loss type ({self.config.depth_loss_type}) must be one of {losses.PSEUDODEPTH_COMPATIBLE_LOSSES}")
+            if (
+                losses.FORCE_PSEUDODEPTH_LOSS
+                and self.config.depth_loss_type not in losses.PSEUDODEPTH_COMPATIBLE_LOSSES
+            ):
+                raise ValueError(
+                    f"Forcing pseudodepth loss, but depth loss type ({self.config.depth_loss_type}) must be one of {losses.PSEUDODEPTH_COMPATIBLE_LOSSES}"
+                )
             if self.config.depth_loss_type in (DepthLossType.DS_NERF, DepthLossType.URF):
                 metrics_dict["depth_loss"] = 0.0
                 sigma = self._get_sigma().to(self.device)
@@ -109,8 +114,12 @@ class DepthNerfactoModel(NerfactoModel):
         loss_dict = super().get_loss_dict(outputs, batch, metrics_dict)
         if self.training:
             assert metrics_dict is not None and ("depth_loss" in metrics_dict or "depth_ranking" in metrics_dict)
-            if "depth_ranking" in metrics_dict: 
-                loss_dict["depth_ranking"] = self.config.depth_loss_mult * np.interp(self.step, [0, 2000], [0, 0.2]) * metrics_dict["depth_ranking"]
+            if "depth_ranking" in metrics_dict:
+                loss_dict["depth_ranking"] = (
+                    self.config.depth_loss_mult
+                    * np.interp(self.step, [0, 2000], [0, 0.2])
+                    * metrics_dict["depth_ranking"]
+                )
             if "depth_loss" in metrics_dict:
                 loss_dict["depth_loss"] = self.config.depth_loss_mult * metrics_dict["depth_loss"]
         return loss_dict

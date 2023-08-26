@@ -57,7 +57,7 @@ class DepthDataset(InputDataset):
             CONSOLE.print("[bold red] Using psueodepth: forcing depth loss to be ranking loss.")
             cache = dataparser_outputs.image_filenames[0].parent / "depths.npy"
             # Note: this should probably be saved to disk as images, and then loaded with the dataparser.
-            #  That will allow multi-gpu training. 
+            #  That will allow multi-gpu training.
             if cache.exists():
                 CONSOLE.print("[bold yellow] Loading pseudodata depth from cache!")
                 # load all the depths
