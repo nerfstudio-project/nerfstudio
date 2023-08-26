@@ -2,7 +2,7 @@
 
 Nerfstudio aims to offer researchers a codebase that they can utilize to extend and develop novel methods. Our vision is for users to establish a distinct repository that imports nerfstudio and overrides pipeline components to cater to specific functionality requirements of the new approach. If any of the new features require modifications to the core nerfstudio repository and can be generally useful, we encourage you to submit a PR to enable others to benefit from it.
 
-Examples are often the best way to learn, take a look at the [LERF](https://github.com/kerrj/lerf) repository for good example of how to use nerfstudio in your projects.
+You can use the [nerfstudio-method-template](https://github.com/nerfstudio-project/nerfstudio-method-template) repository as a minimal guide to register your new methods. Examples are often the best way to learn, take a look at the [LERF](https://github.com/kerrj/lerf) repository for a good example of how to extend and use nerfstudio in your projects.
 
 ## File Structure
 

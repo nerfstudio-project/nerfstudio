@@ -136,21 +136,24 @@ class RenderStateMachine(threading.Thread):
                 camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
                 self.viewer.get_model().eval()
                 step = self.viewer.step
-                if self.viewer.control_panel.crop_viewport:
-                    color = self.viewer.control_panel.background_color
-                    if color is None:
-                        background_color = torch.tensor([0.0, 0.0, 0.0], device=self.viewer.pipeline.model.device)
+                try:
+                    if self.viewer.control_panel.crop_viewport:
+                        color = self.viewer.control_panel.background_color
+                        if color is None:
+                            background_color = torch.tensor([0.0, 0.0, 0.0], device=self.viewer.pipeline.model.device)
+                        else:
+                            background_color = torch.tensor(
+                                [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0],
+                                device=self.viewer.get_model().device,
+                            )
+                        with background_color_override_context(background_color), torch.no_grad(),viewer_utils.SetTrace(self.check_interrupt):
+                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                     else:
-                        background_color = torch.tensor(
-                            [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0],
-                            device=self.viewer.get_model().device,
-                        )
-                    with background_color_override_context(background_color), torch.no_grad():
-                        outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                else:
-                    with torch.no_grad():
-                        outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                self.viewer.get_model().train()
+                        with torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
+                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                except viewer_utils.IOChangeException:
+                    self.viewer.get_model().train()
+                    raise
             num_rays = len(camera_ray_bundle)
             if self.viewer.control_panel.layer_depth:
                 #convert to z_depth if depth compositing is enabled
@@ -168,9 +171,12 @@ class RenderStateMachine(threading.Thread):
     def run(self):
         """Main loop for the render thread"""
         while True:
-            self.render_trigger.wait()
-            self.render_trigger.clear()
+            if not self.render_trigger.wait(.2):
+                #if we haven't received a trigger in a while, send a static action
+                if self.viewer.camera_state is not None:
+                    self.action(RenderAction(action="static", camera_state=self.viewer.camera_state))
             action = self.next_action
+            self.render_trigger.clear()
             if action is None:
                 continue
             self.next_action = None
@@ -179,8 +185,7 @@ class RenderStateMachine(threading.Thread):
                 continue
             self.state = self.transitions[self.state][action.action]
             try:
-                with viewer_utils.SetTrace(self.check_interrupt):
-                    outputs = self._render_img(action.camera_state)
+                outputs = self._render_img(action.camera_state)
             except viewer_utils.IOChangeException:
                 # if we got interrupted, don't send the output to the viewer
                 continue
