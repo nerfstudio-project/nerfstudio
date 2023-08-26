@@ -367,7 +367,7 @@ class PatchPixelSampler(PixelSampler):
 
 @dataclass
 class PairPixelSamplerConfig(PixelSamplerConfig):
-    """Config dataclass for PatchPixelSampler."""
+    """Config dataclass for PairPixelSampler."""
 
     _target: Type = field(default_factory=lambda: PairPixelSampler)
     """Target class to instantiate."""
