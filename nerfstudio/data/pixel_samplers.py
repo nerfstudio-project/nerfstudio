@@ -386,8 +386,8 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
     def __init__(self, config: PairPixelSamplerConfig, **kwargs) -> None:
         self.config = config
         self.radius = self.config.radius
-        self.rays_to_sample = self.config.num_rays_per_batch // 2
         super().__init__(self.config, **kwargs)
+        self.rays_to_sample = self.config.num_rays_per_batch // 2
 
     # overrides base method
     def sample_method(  # pylint: disable=no-self-use
