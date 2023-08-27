@@ -27,7 +27,6 @@ from torch import Tensor
 @dataclass
 class SceneBox:
     """Data to represent the scene box."""
-
     aabb: Float[Tensor, "2 3"]
     """aabb: axis-aligned bounding box.
     aabb[0] is the minimum (x,y,z) point.
@@ -76,3 +75,13 @@ class SceneBox:
         xyzs = poses[..., :3, -1]
         aabb = torch.stack([torch.min(xyzs, dim=0)[0], torch.max(xyzs, dim=0)[0]])
         return SceneBox(aabb=aabb * scale_factor)
+
+
+@dataclass
+class OrientedSceneBox:
+    R: Float[Tensor, "3 3"]
+    """R: rotation matrix."""
+    T: Float[Tensor, "3"]
+    """T: translation vector."""
+    S: Float[Tensor, "3"]
+    """S: scale vector."""

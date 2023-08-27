@@ -145,13 +145,13 @@ class ControlPanel:
         )
         
         self._crop_center = ViewerVec3(
-            "Crop Center", (0.0, 0.0, 0.0), cb_hook=crop_update_cb, hint="Center of the crop box"
+            "Crop Center", (0.0, 0.0, 0.0), step=.01, cb_hook=crop_update_cb, hint="Center of the crop box"
         )
         self._crop_rot = ViewerVec3(
-            "Crop Rotation", (0.0, 0.0, 0.0), cb_hook=crop_update_cb, hint="Rotation of the crop box"
+            "Crop Rotation", (0.0, 0.0, 0.0), step=.01, cb_hook=crop_update_cb, hint="Rotation of the crop box"
         )
         self._crop_scale = ViewerVec3(
-            "Crop Scale", (1.0, 1.0, 1.0), cb_hook=crop_update_cb, hint="Scale of the crop box"
+            "Crop Scale", (1.0, 1.0, 1.0), step=.01, cb_hook=crop_update_cb, hint="Scale of the crop box"
         )
 
         self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=rerender_cb, hint="Time to render")

@@ -32,7 +32,7 @@ import nerfstudio.utils.math
 import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.data.scene_box import SceneBox,OrientedSceneBox
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
 TORCH_DEVICE = Union[torch.device, str]
@@ -323,6 +323,7 @@ class Cameras(TensorDataclass):
         keep_shape: Optional[bool] = None,
         disable_distortion: bool = False,
         aabb_box: Optional[SceneBox] = None,
+        obb_box: Optional[OrientedSceneBox] = None,
     ) -> RayBundle:
         """Generates rays for the given camera indices.
 
@@ -465,20 +466,23 @@ class Cameras(TensorDataclass):
         if keep_shape is False:
             raybundle = raybundle.flatten()
 
-        if aabb_box:
+        if aabb_box or obb_box:
             with torch.no_grad():
-                tensor_aabb = Parameter(aabb_box.aabb.flatten(), requires_grad=False)
 
                 rays_o = raybundle.origins.contiguous()
                 rays_d = raybundle.directions.contiguous()
 
-                tensor_aabb = tensor_aabb.to(rays_o.device)
                 shape = rays_o.shape
 
                 rays_o = rays_o.reshape((-1, 3))
                 rays_d = rays_d.reshape((-1, 3))
 
-                t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
+                if aabb_box:
+                    tensor_aabb = Parameter(aabb_box.aabb.flatten(), requires_grad=False)
+                    tensor_aabb = tensor_aabb.to(rays_o.device)
+                    t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
+                else:
+                    t_min, t_max = nerfstudio.utils.math.intersect_obb(rays_o, rays_d, obb_box)
 
                 t_min = t_min.reshape([shape[0], shape[1], 1])
                 t_max = t_max.reshape([shape[0], shape[1], 1])
