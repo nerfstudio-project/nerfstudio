@@ -118,12 +118,10 @@ class RenderStateMachine(threading.Thread):
             camera_state: the current camera state
         """
         # initialize the camera ray bundle
-        utils.update_render_aabb(
-            crop_viewport=self.viewer.control_panel.crop_viewport,
-            crop_min=self.viewer.control_panel.crop_min,
-            crop_max=self.viewer.control_panel.crop_max,
-            model=self.viewer.get_model(),
-        )
+        if self.viewer.control_panel.crop_viewport:
+            obb = self.viewer.control_panel.crop_obb
+        else:
+            obb = None
 
         image_height, image_width = self._calculate_image_res(camera_state.aspect)
 
@@ -133,7 +131,7 @@ class RenderStateMachine(threading.Thread):
 
         with TimeWriter(None, None, write=False) as vis_t:
             with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
-                camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
+                camera_ray_bundle = camera.generate_rays(camera_indices=0, obb_box=obb)
                 self.viewer.get_model().eval()
                 step = self.viewer.step
                 try:

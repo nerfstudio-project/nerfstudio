@@ -343,6 +343,7 @@ class Viewer:
                 self.last_step = step
                 self.render_statemachine.action(RenderAction("step", self.camera_state))
                 self.update_camera_poses()
+                self.control_panel.update_step(step)
 
     def update_colormap_options(self, dimensions: int, dtype: type) -> None:
         """update the colormap options based on the current render

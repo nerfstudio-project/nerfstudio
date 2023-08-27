@@ -19,6 +19,7 @@ from typing import Callable, DefaultDict, List, Tuple, get_args
 import torch
 from viser import ViserServer
 import viser.transforms as vtf
+from nerfstudio.data.scene_box import OrientedSceneBox
 import numpy as np
 
 from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
@@ -142,15 +143,23 @@ class ControlPanel:
         self._background_color = ViewerRGB(
             "Background color", (38, 42, 55), cb_hook=crop_update_cb, hint="Color of the background"
         )
-        self._crop_min = ViewerVec3(
-            "Crop Min", (-1, -1, -1), 0.05, cb_hook=crop_update_cb, hint="Minimum value of the crop"
+        
+        self._crop_center = ViewerVec3(
+            "Crop Center", (0.0, 0.0, 0.0), cb_hook=crop_update_cb, hint="Center of the crop box"
         )
-        self._crop_max = ViewerVec3(
-            "Crop Max", (1, 1, 1), 0.05, cb_hook=crop_update_cb, hint="Maximum value of the crop"
+        self._crop_rot = ViewerVec3(
+            "Crop Rotation", (0.0, 0.0, 0.0), cb_hook=crop_update_cb, hint="Rotation of the crop box"
         )
+        self._crop_scale = ViewerVec3(
+            "Crop Scale", (1.0, 1.0, 1.0), cb_hook=crop_update_cb, hint="Scale of the crop box"
+        )
+
         self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=rerender_cb, hint="Time to render")
         self._time_enabled = time_enabled
 
+        self.stat_folder = self.viser_server.add_gui_folder("Stats")
+        with self.stat_folder:
+            self.markdown = self.viser_server.add_gui_markdown("Step: 0")
         self.pause_train = viser_server.add_gui_button(label="Pause Training", disabled=False)
         self.pause_train.on_click(lambda _: self.toggle_pause_button())
         self.pause_train.on_click(lambda han: toggle_training_state_cb(han))
@@ -196,11 +205,11 @@ class ControlPanel:
 
         with self.viser_server.add_gui_folder("Crop Viewport"):
             self.add_element(self._crop_viewport)
-
             # Crop options
             self.add_element(self._background_color, additional_tags=("crop",))
-            self.add_element(self._crop_min, additional_tags=("crop",))
-            self.add_element(self._crop_max, additional_tags=("crop",))
+            self.add_element(self._crop_center, additional_tags=("crop",))
+            self.add_element(self._crop_scale, additional_tags=("crop",))
+            self.add_element(self._crop_rot, additional_tags=("crop",))
 
         self.add_element(self._time, additional_tags=("time",))
 
@@ -229,6 +238,17 @@ class ControlPanel:
     def toggle_cameravis_button(self) -> None:
         self.hide_images.visible = not self.hide_images.visible
         self.show_images.visible = not self.show_images.visible
+
+    def update_step(self,step):
+        """
+        Args: 
+            step: the train step to set the model to
+        """
+        with self.viser_server.atomic(), self.stat_folder:
+            #TODO change to a .value call instead of remove() and add, this makes it jittery
+            old_mkdown = self.markdown
+            self.markdown = self.viser_server.add_gui_markdown(f"Step: {step}")
+            old_mkdown.remove()
 
     def update_output_options(self, new_options: List[str]):
         """
@@ -327,24 +347,12 @@ class ControlPanel:
         self._crop_viewport.value = value
 
     @property
-    def crop_min(self) -> Tuple[float, float, float]:
-        """Returns the current crop min setting"""
-        return self._crop_min.value
-
-    @crop_min.setter
-    def crop_min(self, value: Tuple[float, float, float]):
-        """Sets the crop min setting"""
-        self._crop_min.value = value
-
-    @property
-    def crop_max(self) -> Tuple[float, float, float]:
-        """Returns the current crop max setting"""
-        return self._crop_max.value
-
-    @crop_max.setter
-    def crop_max(self, value: Tuple[float, float, float]):
-        """Sets the crop max setting"""
-        self._crop_max.value = value
+    def crop_obb(self):
+        """Returns the current crop obb setting"""
+        rxyz = self._crop_rot.value
+        R = torch.tensor(vtf.SO3.from_rpy_radians(rxyz[0],rxyz[1],rxyz[2]).as_matrix())
+        obb = OrientedSceneBox(R,torch.tensor(self._crop_center.value),torch.tensor(self._crop_scale.value))
+        return obb
 
     @property
     def background_color(self) -> Tuple[int, int, int]:
