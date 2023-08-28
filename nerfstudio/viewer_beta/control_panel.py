@@ -154,7 +154,7 @@ class ControlPanel:
         )
 
         def update_rot(han):
-            self._crop_handle.wxyz = vtf.SO3.from_rpy_radians(*han.value)
+            self._crop_handle.wxyz = vtf.SO3.from_rpy_radians(*han.value).wxyz
         self._crop_rot = ViewerVec3(
             "Crop Rotation", (0.0, 0.0, 0.0), step=.01, cb_hook=lambda e: [crop_update_cb(e),update_rot(e)], hint="Rotation of the crop box"
         )
