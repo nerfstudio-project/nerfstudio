@@ -361,7 +361,7 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         metrics_dict_list = []
-        assert isinstance(self.datamanager, VanillaDataManager) or isinstance(self.datamanager, ParallelDataManager)
+        assert isinstance(self.datamanager, (VanillaDataManager, ParallelDataManager))
         num_images = len(self.datamanager.fixed_indices_eval_dataloader)
         with Progress(
             TextColumn("[progress.description]{task.description}"),

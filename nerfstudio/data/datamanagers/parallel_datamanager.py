@@ -18,14 +18,12 @@ Parallel data manager that generates training data in multiple python processes.
 from __future__ import annotations
 
 import concurrent.futures
-import functools
 import queue
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
     Dict,
     Generic,
     List,
@@ -34,7 +32,6 @@ from typing import (
     Tuple,
     Type,
     Union,
-    cast,
 )
 
 import torch
@@ -43,9 +40,7 @@ from rich.progress import track
 from torch.nn import Parameter
 
 from nerfstudio.cameras.cameras import CameraType
-from nerfstudio.cameras.lie_groups import exp_map_SE3
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
 from nerfstudio.data.datamanagers.base_datamanager import (
     DataManager,
     VanillaDataManagerConfig,
@@ -53,7 +48,6 @@ from nerfstudio.data.datamanagers.base_datamanager import (
     variable_res_collate,
 )
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.pixel_samplers import (
     EquirectangularPixelSampler,
     PatchPixelSampler,
@@ -64,9 +58,7 @@ from nerfstudio.data.utils.dataloaders import (
     FixedIndicesEvalDataloader,
     RandIndicesEvalDataloader,
 )
-from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.model_components.ray_generators import RayGenerator
-from nerfstudio.utils import poses as pose_utils
 from nerfstudio.utils.rich_utils import CONSOLE
 
 

@@ -18,10 +18,8 @@ NeRF implementation that combines many recent advancements.
 
 from __future__ import annotations
 
-import functools
-from contextlib import nullcontext
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Tuple, Type, Optional
+from typing import Dict, List, Literal, Tuple, Type
 
 import numpy as np
 import torch
