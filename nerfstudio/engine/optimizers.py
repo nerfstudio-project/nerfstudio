@@ -84,6 +84,25 @@ class Optimizers:
         self.schedulers = {}
         self.parameters = {}
         for param_group_name, params in param_groups.items():
+            # For deprecation, catch the camera_opt param group and fix it nicely
+            if param_group_name == "camera_opt" and "camera_opt" not in config:
+                from nerfstudio.engine.schedulers import ExponentialDecaySchedulerConfig
+                from nerfstudio.utils.rich_utils import CONSOLE
+
+                CONSOLE.print(
+                    "\nThe 'camera_opt' param group should be assigned an optimizer in the config. Assigning default optimizers for now. This will be removed in a future release.\n",
+                    style="bold yellow",
+                )
+
+                config["camera_opt"] = {
+                    "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
+                    "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-4, max_steps=30000),
+                }
+            # Print some nice warning messages if the user forgot to specify an optimizer
+            if param_group_name not in config:
+                raise RuntimeError(
+                    f"""Optimizer config for '{param_group_name}' not found in config file. Make sure you specify an optimizer for each parameter group. Provided configs were: {config.keys()}"""
+                )
             lr_init = config[param_group_name]["optimizer"].lr
             self.optimizers[param_group_name] = config[param_group_name]["optimizer"].setup(params=params)
             self.parameters[param_group_name] = params

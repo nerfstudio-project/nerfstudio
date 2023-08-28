@@ -31,6 +31,7 @@ from nerfstudio.cameras.lie_groups import exp_map_SE3, exp_map_SO3xR3
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.utils import poses as pose_utils
+from nerfstudio.engine.optimizers import OptimizerConfig
 
 
 @dataclass
@@ -47,6 +48,20 @@ class CameraOptimizerConfig(InstantiateConfig):
 
     rot_l2_penalty: float = 1e-3
     """L2 penalty on rotation parameters."""
+
+    optimizer: Optional[OptimizerConfig] = field(default=None)
+    """Deprecated, now specified inside the optimizers dict"""
+
+    def __post_init__(self):
+        if self.optimizer is not None:
+            import warnings
+            from nerfstudio.utils.rich_utils import CONSOLE
+
+            CONSOLE.print(
+                "\noptimizer is no longer specified in the CameraOptimizerConfig, it is now defined with the rest of the param groups inside the config file under the name 'camera_opt'\n",
+                style="bold yellow",
+            )
+            warnings.warn("above message coming from", FutureWarning, stacklevel=3)
 
 
 class CameraOptimizer(nn.Module):

@@ -77,14 +77,14 @@ class ParallelDataManagerConfig(VanillaDataManagerConfig):
     _target: Type = field(default_factory=lambda: ParallelDataManager)
     """Target class to instantiate."""
     num_processes: int = 1
-    """Number of processes to use for train data loading."""
+    """Number of processes to use for train data loading. More than 1 doesn't result in that much better performance"""
     queue_size: int = 2
     """Size of shared data queue containing generated ray bundles and batches.
     If queue_size <= 0, the queue size is infinite."""
     max_thread_workers: Optional[int] = None
-    """Maximum number of threads to use in thread pool executor. If None, automatically
-    set to harware cpu_count + 4."""
-    
+    """Maximum number of threads to use in thread pool executor. If None, use ThreadPool default."""
+
+
 class DataProcessor(mp.Process):
     """Parallel dataset batch processor.
 

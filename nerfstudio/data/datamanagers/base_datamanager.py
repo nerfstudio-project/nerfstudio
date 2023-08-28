@@ -336,14 +336,17 @@ class VanillaDataManagerConfig(DataManagerConfig):
     patch_size: int = 1
     """Size of patch to sample from. If >1, patch-based sampling will be used."""
     camera_optimizer: Optional[CameraOptimizerConfig] = field(default=None)
-    """Depricated camera optimization feature."""
+    """Deprecated, has been moved to the model config."""
 
     def __post_init__(self):
-        """Warn user of depricated feature."""
-        if self.camera_optimizer:
+        """Warn user of camera optimizer change."""
+        if self.camera_optimizer is not None:
+            import warnings
+
             CONSOLE.print(
-                "[bold red] Deprication Warning: Camera optimization within the datamanager config is a depricated feature.\n Camera optimization will be turned OFF. Camera optimization should be defined in the model config."
+                "\nCameraOptimizerConfig has been moved from the DataManager to the Model.\n", style="bold yellow"
             )
+            warnings.warn("above message coming from", FutureWarning, stacklevel=3)
 
 
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)

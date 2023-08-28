@@ -45,6 +45,7 @@ from nerfstudio.data.datamanagers.base_datamanager import (
     DataManagerConfig,
     VanillaDataManager,
 )
+from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
@@ -360,7 +361,7 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         metrics_dict_list = []
-        assert isinstance(self.datamanager, VanillaDataManager)
+        assert isinstance(self.datamanager, VanillaDataManager) or isinstance(self.datamanager, ParallelDataManager)
         num_images = len(self.datamanager.fixed_indices_eval_dataloader)
         with Progress(
             TextColumn("[progress.description]{task.description}"),
