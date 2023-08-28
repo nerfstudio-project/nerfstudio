@@ -140,6 +140,7 @@ class Viewer:
             self.control_panel = ControlPanel(
                 self.viser_server,
                 self.include_time,
+                VISER_NERFSTUDIO_SCALE_RATIO,
                 self._interrupt_render,
                 self._crop_params_update,
                 self._output_type_change,

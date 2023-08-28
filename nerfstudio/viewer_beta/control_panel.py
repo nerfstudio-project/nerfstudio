@@ -51,6 +51,7 @@ class ControlPanel:
         self,
         viser_server: ViserServer,
         time_enabled: bool,
+        scale_ratio: float,
         rerender_cb: Callable,
         crop_update_cb: Callable,
         update_output_cb: Callable,
@@ -58,6 +59,7 @@ class ControlPanel:
         toggle_training_state_cb: Callable,
         camera_vis: Callable,
     ):
+        self.viser_scale_ratio = scale_ratio
         # elements holds a mapping from tag: [elements]
         self.viser_server = viser_server
         self._elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
@@ -143,17 +145,30 @@ class ControlPanel:
         self._background_color = ViewerRGB(
             "Background color", (38, 42, 55), cb_hook=crop_update_cb, hint="Color of the background"
         )
-        
+        self._crop_handle = self.viser_server.add_transform_controls("Crop",depth_test=False)
+
+        def update_center(han):
+            self._crop_handle.position = tuple(p * self.viser_scale_ratio for p in han.value)
         self._crop_center = ViewerVec3(
-            "Crop Center", (0.0, 0.0, 0.0), step=.01, cb_hook=crop_update_cb, hint="Center of the crop box"
+            "Crop Center", (0.0, 0.0, 0.0), step=.01, cb_hook=lambda e:[crop_update_cb(e),update_center(e)], hint="Center of the crop box"
         )
+
+        def update_rot(han):
+            self._crop_handle.wxyz = vtf.SO3.from_rpy_radians(*han.value)
         self._crop_rot = ViewerVec3(
-            "Crop Rotation", (0.0, 0.0, 0.0), step=.01, cb_hook=crop_update_cb, hint="Rotation of the crop box"
+            "Crop Rotation", (0.0, 0.0, 0.0), step=.01, cb_hook=lambda e: [crop_update_cb(e),update_rot(e)], hint="Rotation of the crop box"
         )
+        
         self._crop_scale = ViewerVec3(
             "Crop Scale", (1.0, 1.0, 1.0), step=.01, cb_hook=crop_update_cb, hint="Scale of the crop box"
         )
 
+        @self._crop_handle.on_update
+        def _update_crop_handle(han):
+            pos = self._crop_handle.position
+            self._crop_center.value = tuple(p/self.viser_scale_ratio for p in pos)
+            rpy = vtf.SO3(self._crop_handle.wxyz).as_rpy_radians()
+            self._crop_rot.value =  (rpy.roll,rpy.pitch,rpy.yaw)
         self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=rerender_cb, hint="Time to render")
         self._time_enabled = time_enabled
 
@@ -246,9 +261,9 @@ class ControlPanel:
         """
         with self.viser_server.atomic(), self.stat_folder:
             #TODO change to a .value call instead of remove() and add, this makes it jittery
-            old_mkdown = self.markdown
-            self.markdown = self.viser_server.add_gui_markdown(f"Step: {step}")
-            old_mkdown.remove()
+            with self.viser_server.atomic():
+                self.markdown.remove()
+                self.markdown = self.viser_server.add_gui_markdown(f"Step: {step}")
 
     def update_output_options(self, new_options: List[str]):
         """
@@ -287,6 +302,7 @@ class ControlPanel:
         self._split_output_render.set_hidden(not self._split.value)
         self._split_colormap.set_hidden(not self._split.value)
         self._split_colormap.set_disabled(self.split_output_render == "rgb")
+        self._crop_handle.visible = self.crop_viewport
 
     def update_colormap_options(self, dimensions: int, dtype: type) -> None:
         """update the colormap options based on the current render
