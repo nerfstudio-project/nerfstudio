@@ -66,6 +66,7 @@ from nerfstudio.plugins.registry import discover_methods
 from nerfstudio.data.datamanagers.gaussian_splatting_datamanager import RasterizerDataManagerConfig
 from nerfstudio.data.dataparsers.gaussian_splatting_dataparser import GaussianSplattingDataParserConfig
 from nerfstudio.models.gaussian_splatting import GaussianSplattingModelConfig
+from nerfstudio.pipelines.gaussian_pipeline import GaussianPipelineConfig
 
 method_configs: Dict[str, TrainerConfig] = {}
 descriptions = {
@@ -585,7 +586,7 @@ method_configs["gaussian-splatting"] = TrainerConfig(
     steps_per_save=2000,
     max_num_iterations=30000,
     mixed_precision=True,
-    pipeline=VanillaPipelineConfig(
+    pipeline=GaussianPipelineConfig(
         datamanager=RasterizerDataManagerConfig(
             dataparser=GaussianSplattingDataParserConfig(),
         ),
