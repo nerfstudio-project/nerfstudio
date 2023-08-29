@@ -116,7 +116,7 @@ class RGBRenderer(nn.Module):
             background_color = rgb[..., -1, :]
 
         assert isinstance(background_color, torch.Tensor)
-        comp_rgb = comp_rgb + background_color * (1.0 - accumulated_weight)
+        comp_rgb = comp_rgb + background_color.to(comp_rgb.device) * (1.0 - accumulated_weight)
         return comp_rgb
 
     @classmethod
