@@ -26,12 +26,19 @@ import torch
 from torch.nn import Parameter
 from typing_extensions import Literal
 
-from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.datamanagers.base_datamanager import AnnotatedDataParserUnion
 from nerfstudio.data.dataparsers.gaussian_splatting_dataparser import GaussianSplattingDataParserConfig
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
+
+from nerfstudio.utils.rich_utils import CONSOLE
+
+from nerfstudio.data.utils.dataloaders import (
+    CacheDataloader,
+)
+
+from torch import Tensor
 
 
 @dataclass
@@ -39,11 +46,12 @@ class RasterizerDataManagerConfig(DataManagerConfig):
     """Configuration for data manager that does not load from a dataset. Instead, it generates random poses."""
 
     _target: Type = field(default_factory=lambda: RasterizerDataManager)
+    """Target class to initiate."""
     dataparser: AnnotatedDataParserUnion = GaussianSplattingDataParserConfig()
     """Specifies the dataparser used to unpack the data."""
     camera_res_scale_factor: float = 1.0
     """The scale factor for scaling spatial data such as images, mask, semantics
-    along with relevant information about camera intrinsics
+    along with relevant information about camera intrinsics.
     """
 
 
@@ -86,8 +94,9 @@ class RasterizerDataManager(DataManager):  # pylint: disable=abstract-method
 
         self.train_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split="train")
         self.gaussians = self.dataparser.get_initial_gaussians()
-
         self.train_dataset = self.create_train_dataset()
+
+        self.train_image_index = 0
 
         super().__init__()
         # DataManager.__init__(self)
@@ -99,11 +108,28 @@ class RasterizerDataManager(DataManager):  # pylint: disable=abstract-method
             scale_factor=self.config.camera_res_scale_factor,
         )
 
-    def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
+    def setup_train(self):
+        """Sets up the data loaders for training"""
+        assert self.train_dataset is not None
+        CONSOLE.print("Setting up training dataset...")
+        self.train_image_dataloader = CacheDataloader(
+            self.train_dataset,
+            device=self.device,
+            num_workers=self.world_size * 4,
+            pin_memory=True,
+        )
+        self.iter_train_image_dataloader = iter(self.train_image_dataloader)
+
+    def next_train(self, step: int) -> Tuple[int, Tensor]:
         """Returns the next batch of data from the train dataloader."""
 
         self.train_count += 1
-        pass
+        image_batch = next(self.iter_train_image_dataloader)
+        idx = image_batch["image_idx"][self.train_image_index]
+        image = image_batch["image"][self.train_image_index]
+        self.train_image_index += 1
+
+        return idx, image
 
     def get_param_groups(
         self,
