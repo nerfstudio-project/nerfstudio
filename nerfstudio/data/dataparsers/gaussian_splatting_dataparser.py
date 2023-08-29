@@ -106,7 +106,7 @@ class GaussianSplattingDataParser(ColmapDataParser):
         CONSOLE.log("Number of Gaussians at initialisation : ", len(points.xyzs))
 
         xyzs = points.xyzs.cpu().numpy()
-        opacity = inverse_sigmoid(0.1 * torch.ones((num_points, 1), dtype=torch.float, device="cuda"))
+        opacity = inverse_sigmoid(0.1 * torch.ones((num_points, 1), dtype=torch.float, device="cpu"))
 
         if self.config.intial_scale == "mean_3_nn":
             kd_tree = KDTree(xyzs)
