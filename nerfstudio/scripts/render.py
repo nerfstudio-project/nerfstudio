@@ -47,10 +47,10 @@ from rich.table import Table
 from torch import Tensor
 from typing_extensions import Annotated
 
-import lpips
 from scipy.spatial.transform import Rotation as R
 from torchvision import transforms
 import PIL
+
 # from PIL import Image
 
 from nerfstudio.cameras.camera_paths import (
@@ -128,7 +128,7 @@ def _render_trajectory_video(
 
     with ExitStack() as stack:
         writer = None
-        
+
         train_dataset = pipeline.datamanager.train_dataset
         train_cameras = train_dataset.cameras.to(pipeline.device)
 
@@ -146,13 +146,13 @@ def _render_trajectory_video(
                     cam_quat = cam_rot.as_quat()
 
                     max_dist, max_idx = None, None
-                    true_max_dist, true_max_idx = None, None 
+                    true_max_dist, true_max_idx = None, None
                     for i in range(len(train_cameras)):
                         train_cam_pos = train_cameras[i].camera_to_worlds[:, 3].cpu()
-                        #Make sure the line of sight from rendered cam to training cam is not blocked by any object
+                        # Make sure the line of sight from rendered cam to training cam is not blocked by any object
                         bundle = RayBundle(
                             origins=cam_pos.view(1, 3),
-                            directions=((cam_pos - train_cam_pos)/(cam_pos - train_cam_pos).norm()).view(1, 3),
+                            directions=((cam_pos - train_cam_pos) / (cam_pos - train_cam_pos).norm()).view(1, 3),
                             pixel_area=torch.tensor(1).view(1, 1),
                             nears=torch.tensor(0.05).view(1, 1),
                             fars=torch.tensor(100).view(1, 1),
@@ -163,12 +163,12 @@ def _render_trajectory_video(
 
                         r = R.from_matrix(train_cameras[i].camera_to_worlds[:3, :3].cpu())
                         q = r.as_quat()
-                        #calculate distance between two quaternions
-                        rot_dist = 1 - np.dot(q, cam_quat)**2
+                        # calculate distance between two quaternions
+                        rot_dist = 1 - np.dot(q, cam_quat) ** 2
                         pos_dist = torch.norm(train_cam_pos - cam_pos)
                         dist = 0.3 * rot_dist + 0.7 * pos_dist
 
-                        if outputs['depth'][0] < torch.norm(cam_pos - train_cam_pos).item():
+                        if outputs["depth"][0] < torch.norm(cam_pos - train_cam_pos).item():
                             if true_max_dist is None or dist < true_max_dist:
                                 true_max_dist = dist
                                 true_max_idx = i
@@ -180,7 +180,7 @@ def _render_trajectory_video(
 
                     if max_idx is None:
                         max_idx = true_max_idx
-                
+
                 if crop_data is not None:
                     with renderers.background_color_override_context(
                         crop_data.background_color.to(pipeline.device)
@@ -212,12 +212,14 @@ def _render_trajectory_video(
                     )
                     render_image.append(output_image)
 
-                #Add closest training image to the right of the rendered image
+                # Add closest training image to the right of the rendered image
                 if "nearest_camera" in rendered_output_names:
                     img = train_dataset.get_image(max_idx)
                     img = img.permute(2, 0, 1)
                     img = transforms.ToPILImage()(img)
-                    resized_image = img.resize((int(cameras.image_width[0]), int(cameras.image_height[0])), PIL.Image.Resampling.LANCZOS)
+                    resized_image = img.resize(
+                        (int(cameras.image_width[0]), int(cameras.image_height[0])), PIL.Image.Resampling.LANCZOS
+                    )
                     resized_image = transforms.ToTensor()(resized_image).permute(1, 2, 0)
                     resized_image = (
                         colormaps.apply_colormap(
