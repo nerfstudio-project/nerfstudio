@@ -121,7 +121,7 @@ class RasterizerDataManager(DataManager):  # pylint: disable=abstract-method
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
 
     def next_train(self, step: int) -> Tuple[int, Tensor]:
-        """Returns the next batch of data from the train dataloader."""
+        """Returns next training image index and image"""
 
         self.train_count += 1
         image_batch = next(self.iter_train_image_dataloader)
