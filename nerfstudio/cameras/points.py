@@ -22,7 +22,6 @@ import torch
 from jaxtyping import Float, Int
 from torch import Tensor
 
-from nerfstudio.utils.tensor_dataclass import TensorDataclass
 from nerfstudio.utils.poses import quaterion_to_rotation
 
 from nerfstudio.field_components.activations import trunc_exp
@@ -42,7 +41,7 @@ class Points3D:
 
 
 @dataclass
-class Gaussians3D(TensorDataclass):
+class Gaussians3D:
     """3D Gaussian objects"""
 
     positions: Float[Tensor, "*batch 3"]
@@ -51,14 +50,14 @@ class Gaussians3D(TensorDataclass):
     quat: Float[Tensor, "*batch 4"] = None
     scale: Float[Tensor, "*batch 3"] = None
     scale_activation: Literal["abs", "exp"] = "exp"
-    covariance: Float[Tensor, "*batch 2 2"] = None
+    covariance2D: Float[Tensor, "*batch 2 2"] = None
 
     def __len__(self) -> int:
         num_gaussians = torch.numel(self.positions) // self.positions.shape[-1]
         return num_gaussians
 
-    def get_gaussian_cov(self) -> Float[Tensor, "*batch 3 3"]:
-        """Transforms a rotation (quaternion) and scale to covariance matrix Σ = R@S@S.T@R.T
+    def get_covariance_3D(self) -> Float[Tensor, "*batch 3 3"]:
+        """Transforms a 3D rotation (quaternion) and scale to a 3D covariance matrix Σ = R@S@S.T@R.T
 
         TODO: speed this up using: https://github.com/graphdeco-inria/gaussian-splatting/blob/9d977c702bc8819bfec26992f541dc6162074267/scene/gaussian_model.py#L27
               or cuda implementation.
@@ -72,3 +71,8 @@ class Gaussians3D(TensorDataclass):
         RS = torch.bmm(R, S)
         RSSR = torch.bmm(RS, RS.permute(0, 2, 1))
         return RSSR
+
+    @property
+    def rotation(self):
+        """Returns rotation matrices"""
+        return quaterion_to_rotation(self.quat)
