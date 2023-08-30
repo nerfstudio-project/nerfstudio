@@ -67,13 +67,20 @@ class GaussianSplattingModel(Model):
         return {}
 
     def get_outputs(self, idx: int, image: Tensor):
-        """Projects 3D gaussians to 2D image"""
-        camera: Cameras = self.cameras[idx]  # current camera object to which gaussians are rendered onto
+        """Projects 3D gaussians to 2D image
+
+        Args:
+            idx: image index of current training view
+            image: rgb image of current training view
+        """
+        camera: Cameras = self.cameras[idx]  # current camera view to which gaussians are rendered onto
         c2w = camera.camera_to_worlds
         c2w = pose_utils.to4x4(c2w)
         w2c = torch.linalg.inv(c2w)
 
         gaussians_2d_image = self.project_gaussians_torch(w2c=w2c)
+        rgb = self.rasterize_torch(gaussians_2d_image)
+
         print(gaussians_2d_image.covariance.shape)
         # TODO: render 2d gaussians to get rgb image
 
@@ -83,59 +90,50 @@ class GaussianSplattingModel(Model):
         }
         return outputs
 
-    def project_gaussians_torch(self, w2c: Float[Tensor, "4 4"]):
+    def project_gaussians_torch(self, w2c: Float[Tensor, "4 4"]) -> Gaussians3D:
         """PyTorch implementation of 3D gaussian projection.
 
         Args:
             w2c: 4x4 homogenous world to camera matrix of current render view
         """
-
         # TODO: culling of bad gaussians before projection
 
-        # 1. points from world coord to camera coord i.e. view space
         positions = torch.cat(
             (self.gaussians.positions, torch.ones(self.gaussians.positions.shape[0], 1)), dim=1
         ).float()  # to homogenous
-        points_camera = torch.matmul(positions, w2c.T)[:, :3]
+        points_camera = torch.matmul(positions, w2c.T)[:, :3]  # transpose used for batch matmul
 
-        # 2. Linear jacobian of view matrix
         jacobian = self.jacobian_torch(points_camera)
 
         JW = torch.matmul(jacobian, w2c[:3, :3].unsqueeze(dim=0))
-        JWC = torch.bmm(JW, self.gaussians.get_gaussian_cov())
+        JWC = torch.bmm(JW, self.gaussians.get_covariance_3D())
         gaussian_2d_cov = torch.bmm(JWC, JW.permute(0, 2, 1))[:, :2, :2]  # projected gaussians
 
-        # 3. camera to image frame i.e. projection space
         points_image = torch.zeros_like(points_camera)
         points_image[:, 0] = points_camera[:, 0] / points_camera[:, 2]
         points_image[:, 1] = points_camera[:, 1] / points_camera[:, 2]
         points_image[:, 2] = points_camera.norm(dim=-1)
-
         gaussian_2d_image = Gaussians3D(
             positions=points_image,
             rgbs=self.gaussians.rgbs,  # .sigmoid()
             opacity=self.gaussians.opacity,  # .sigmoid()
-            covariance=gaussian_2d_cov,
+            covariance2D=gaussian_2d_cov,
         )
 
         return gaussian_2d_image
 
     def jacobian_torch(self, positions: Float[Tensor, "batch 3"]):
-        """PyTorch implementation of affine approximation of the projective transformation."""
+        """PyTorch implementation of local affine approximation of the projective transformation.
 
-        # The following models the steps outlined by equations 29
-        # and 31 in "EWA Splatting" (Zwicker et al., 2002).
-        # Additionally considers aspect / scaling of viewport.
-        # Transposes used to account for row-/column-major conventions.
-        # computeCov2D function from original repo.
+        The following implement equation 29 in "EWA Splatting" (Zwicker et al., 2002)
+        TODO: currently does not consider aspect / scaling of viewport as does computeCov2d from original repo.
 
-        # focal_x / t.z, 0.0f, -(focal_x * t.x) / (t.z * t.z),
-        # 0.0f, focal_y / t.z, -(focal_y * t.y) / (t.z * t.z),
-        # 0, 0, 0);
+        Args:
+            positions: xyz positions in camera space
+        """
 
-        # Is this even correct? Should check since original code has focal length and no normalization
         normalizer = 1.0 / (positions[:, 0] ** 2 + positions[:, 1] ** 2 + positions[:, 2] ** 2).sqrt()
-        _res = [
+        res = [
             1 / positions[:, 2],
             torch.zeros_like(positions[:, 0]),
             -positions[:, 0] / (positions[:, 2] ** 2),
@@ -146,10 +144,20 @@ class GaussianSplattingModel(Model):
             normalizer * positions[:, 1],
             normalizer * positions[:, 2],
         ]
-        return torch.stack(_res, dim=-1).reshape(-1, 3, 3)
+        return torch.stack(res, dim=-1).reshape(-1, 3, 3)
 
-    def rasterize_gaussians(self, means3D, means2D, shs, colors, opacities, scales, rotations, cov3d, **kwargs):
-        return None
+    def rasterize_torch(self, gaussians2D: Gaussians3D):
+        # means3D, means2D, shs, colors, opacities, scales, rotations, cov3d, **kwargs
+        keys = self.get_keys_torch(
+            means2D=gaussians2D.positions[:, :2],
+            depths=gaussians2D.positions[:, 2],
+        )
+        print(keys)
+        rgb = None
+        return rgb
+
+    def get_keys_torch(self, means2D, depths):
+        """For each instance to be rendered, produce adequate [ tile | depth ] key"""
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.
