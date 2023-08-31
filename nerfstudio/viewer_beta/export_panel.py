@@ -88,7 +88,7 @@ def populate_point_cloud_tab(
                     *crop_options.get_bbox_args(),
                 ]
             )
-            show_command_modal(viser.client, "point cloud", command)
+            show_command_modal(event.client, "point cloud", command)
 
 
 def populate_mesh_tab(
