@@ -22,7 +22,7 @@ from jaxtyping import Bool, Float
 from torch import Tensor
 
 from nerfstudio.utils.misc import torch_compile
-from nerfstudio.data.scene_box import OrientedSceneBox
+from nerfstudio.data.scene_box import OrientedBox
 
 
 def components_from_spherical_harmonics(
@@ -243,7 +243,7 @@ def intersect_aabb(
 def intersect_obb(
     origins: torch.Tensor,
     directions: torch.Tensor,
-    obb: OrientedSceneBox,
+    obb: OrientedBox,
     max_bound: float = 1e10,
     invalid_value: float = 1e10,
 ):

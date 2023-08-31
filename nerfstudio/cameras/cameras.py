@@ -32,7 +32,7 @@ import nerfstudio.utils.math
 import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.data.scene_box import SceneBox,OrientedSceneBox
+from nerfstudio.data.scene_box import SceneBox,OrientedBox
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
 TORCH_DEVICE = Union[torch.device, str]
@@ -323,7 +323,7 @@ class Cameras(TensorDataclass):
         keep_shape: Optional[bool] = None,
         disable_distortion: bool = False,
         aabb_box: Optional[SceneBox] = None,
-        obb_box: Optional[OrientedSceneBox] = None,
+        obb_box: Optional[OrientedBox] = None,
     ) -> RayBundle:
         """Generates rays for the given camera indices.
 

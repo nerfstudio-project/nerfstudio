@@ -152,7 +152,8 @@ class Viewer:
             populate_render_tab(self.viser_server)
 
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
-            populate_export_tab(self.viser_server)
+            config_path = self.log_filename.parents[0]/"config.yml"
+            populate_export_tab(self.viser_server,self.control_panel,config_path)
 
         def nested_folder_install(folder_labels: List[str], element: ViewerElement):
             if len(folder_labels) == 0:
