@@ -33,25 +33,29 @@ def populate_export_tab(server: viser.ViserServer, control_panel: ControlPanel, 
         populate_mesh_tab(server, control_panel, config_path, "tsdf")
 
 
-def show_command_modal(server: viser.ViserServer, what: Literal["mesh", "point cloud"], command: str) -> None:
+def show_command_modal(client: viser.ClientHandle, what: Literal["mesh", "point cloud"], command: str) -> None:
     """Show a modal to each currently connected client.
 
     In the future, we should only show the modal to the client that pushes the
     generation button.
     """
-    for client in server.get_clients().values():
-        with client.add_gui_modal(what.title() + " Export"):
-            client.add_gui_markdown(
-                "\n".join(
-                    [
-                        f"To export a {what}, run the following from the command line:",
-                        "",
-                        "```",
-                        command,
-                        "```",
-                    ]
-                )
+    with client.add_gui_modal(what.title() + " Export") as modal:
+        client.add_gui_markdown(
+            "\n".join(
+                [
+                    f"To export a {what}, run the following from the command line:",
+                    "",
+                    "```",
+                    command,
+                    "```",
+                ]
             )
+        )
+        close_button = client.add_gui_button("Close")
+
+        @close_button.on_click
+        def _(_) -> None:
+            modal.close()
 
 def get_crop_string(obb: OrientedBox):
     """Takes in an oriented bounding box and returns a string of the form "--obb_{center,rotation,scale}
@@ -86,7 +90,7 @@ def populate_point_cloud_tab(
     generate_command = server.add_gui_button("Generate Command")
 
     @generate_command.on_click
-    def _(_) -> None:
+    def _(event: viser.GuiEvent) -> None:
         for client in server.get_clients().values():
             command = " ".join(
                 [
@@ -100,7 +104,7 @@ def populate_point_cloud_tab(
                     get_crop_string(control_panel.crop_obb),
                 ]
             )
-            show_command_modal(server, "point cloud", command)
+            show_command_modal(event.client, "point cloud", command)
 
 
 def populate_mesh_tab(
@@ -129,7 +133,7 @@ def populate_mesh_tab(
         generate_command = server.add_gui_button("Generate Command")
 
         @generate_command.on_click
-        def _(_) -> None:
+        def _(event: viser.GuiEvent) -> None:
             command = " ".join(
                 [
                     "ns-export tsdf",
@@ -140,7 +144,7 @@ def populate_mesh_tab(
                     get_crop_string(control_panel.crop_obb),
                 ]
             )
-            show_command_modal(server, "mesh", command)
+            show_command_modal(event.client, "mesh", command)
 
     elif method == "poisson":
         num_points = server.add_gui_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
@@ -156,7 +160,7 @@ def populate_mesh_tab(
         generate_command = server.add_gui_button("Generate Command")
 
         @generate_command.on_click
-        def _(_) -> None:
+        def _(event: viser.GuiEvent) -> None:
             command = " ".join(
                 [
                     "ns-export poisson",
