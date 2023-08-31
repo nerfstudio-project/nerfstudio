@@ -290,7 +290,7 @@ class Viewer:
             camera_handle = self.viser_server.add_camera_frustum(
                 name=f"/cameras/camera_{idx:05d}",
                 fov=2 * np.arctan(camera.cx / camera.fx[0]),
-                scale=1,
+                scale=0.1,
                 aspect=float(camera.cx[0] / camera.cy[0]),
                 image=image_uint8,
                 wxyz=R.wxyz,
