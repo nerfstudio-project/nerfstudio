@@ -4,29 +4,33 @@ import dataclasses
 import time
 from pathlib import Path
 from typing import List, Optional, Tuple
-
+from nerfstudio.viewer_beta.control_panel import ControlPanel
+from nerfstudio.data.scene_box import OrientedBox
 import numpy as np
-import trimesh.creation
+import viser.transforms as vtf
 import viser
 from typing_extensions import Literal, assert_never
 
 
-def populate_export_tab(server: viser.ViserServer) -> None:
-    crop_options = make_crop_options(server)
+def populate_export_tab(server: viser.ViserServer, control_panel: ControlPanel, config_path: Path) -> None:
+    crop_output = server.add_gui_checkbox("Use Crop", False)
+
+    @crop_output.on_update
+    def _(_) -> None:
+        control_panel.crop_viewport = crop_output.value
 
     server.add_gui_markdown("")  # Vertical whitespace.
 
     export_tabs = server.add_gui_tab_group()
 
-    # with server.add_gui_folder("Point Cloud"):
     with export_tabs.add_tab("Points", viser.Icon.GRAIN):
-        populate_point_cloud_tab(server, crop_options, Path("./TODO"))
+        populate_point_cloud_tab(server, control_panel, config_path)
     # with server.add_gui_folder("Mesh (Poisson, recommended)"):
     with export_tabs.add_tab("Mesh", viser.Icon.HEXAGON_LETTER_P):
-        populate_mesh_tab(server, crop_options, Path("./TODO"), "poisson")
+        populate_mesh_tab(server, control_panel, config_path, "poisson")
     # with server.add_gui_folder("Mesh (TSDF)"):
     with export_tabs.add_tab("Mesh (TSDF)", viser.Icon.HEXAGON_LETTER_T):
-        populate_mesh_tab(server, crop_options, Path("./TODO"), "tsdf")
+        populate_mesh_tab(server, control_panel, config_path, "tsdf")
 
 
 def show_command_modal(client: viser.ClientHandle, what: Literal["mesh", "point cloud"], command: str) -> None:
@@ -53,10 +57,21 @@ def show_command_modal(client: viser.ClientHandle, what: Literal["mesh", "point 
         def _(_) -> None:
             modal.close()
 
+def get_crop_string(obb: OrientedBox):
+    """Takes in an oriented bounding box and returns a string of the form "--obb_{center,rotation,scale}
+    and each arg formatted with spaces around it
+    """
+    rpy = vtf.SO3.from_matrix(obb.R).as_rpy_radians()
+    pos = obb.T.squeeze().tolist()
+    scale = obb.S.squeeze().tolist()
+    rpystring = " ".join([str(x) for x in rpy])
+    posstring = " ".join([str(x) for x in pos])
+    scalestring = " ".join([str(x) for x in scale])
+    return f"--obb_center {posstring} --obb_rotation {rpystring} --obb_scale {scalestring}"
 
 def populate_point_cloud_tab(
     server: viser.ViserServer,
-    crop_options: CropOptionHandles,
+    control_panel: ControlPanel,
     config_path: Path,
 ) -> None:
     server.add_gui_markdown(
@@ -85,7 +100,8 @@ def populate_point_cloud_tab(
                     f"--num-points {num_points.value}",
                     f"--remove-outliers {remove_outliers.value}",
                     f"--normal-method {normals.value}",
-                    *crop_options.get_bbox_args(),
+                    f"--use_bounding_box {control_panel.crop_viewport}",
+                    get_crop_string(control_panel.crop_obb),
                 ]
             )
             show_command_modal(event.client, "point cloud", command)
@@ -93,7 +109,7 @@ def populate_point_cloud_tab(
 
 def populate_mesh_tab(
     server: viser.ViserServer,
-    crop_options: CropOptionHandles,
+    control_panel: ControlPanel,
     config_path: Path,
     method: Literal["tsdf", "poisson"],
 ) -> None:
@@ -124,7 +140,8 @@ def populate_mesh_tab(
                     f"--load-config {config_path}" f"--output-dir {output_directory.value}",
                     f"--target-num-faces {num_faces.value}",
                     f"--num-pixels-per-side {texture_resolution.value}",
-                    *crop_options.get_bbox_args(),
+                    f"--use_bounding_box {control_panel.crop_viewport}",
+                    get_crop_string(control_panel.crop_obb),
                 ]
             )
             show_command_modal(event.client, "mesh", command)
@@ -153,81 +170,8 @@ def populate_mesh_tab(
                     f"--num-points {num_points.value}",
                     f"--remove-outliers {remove_outliers.value}",
                     f"--normal-method {normals.value}",
-                    *crop_options.get_bbox_args(),
+                    f"--use_bounding_box {control_panel.crop_viewport}",
+                    get_crop_string(control_panel.crop_obb),
                 ]
             )
-            show_command_modal(event.client, "mesh", command)
-
-
-@dataclasses.dataclass
-class CropOptionHandles:
-    crop_enabled: viser.GuiHandle[bool]
-    crop_show: viser.GuiHandle[bool]
-    crop_center: viser.GuiHandle[Tuple[float, float, float]]
-    crop_scale: viser.GuiHandle[Tuple[float, float, float]]
-
-    def get_bbox_args(self) -> List[str]:
-        """Generate bounding box arguments that are shared between point cloud and mesh exports."""
-        out = [
-            f"--use-bounding-box {self.crop_enabled.value}",
-        ]
-        if self.crop_enabled.value:
-            bbox_min = np.array(self.crop_center.value) - np.array(self.crop_scale.value) / 2.0
-            bbox_max = np.array(self.crop_center.value) + np.array(self.crop_scale.value) / 2.0
-            out.extend(
-                [
-                    f"--bounding-box-min {bbox_min}",
-                    f"--bounding-box-max {bbox_max}",
-                ]
-            )
-        return out
-
-
-def make_crop_options(server: viser.ViserServer) -> CropOptionHandles:
-    """Make crop option inputs, and return the relevant GUI handles."""
-    handles = CropOptionHandles(
-        crop_enabled=server.add_gui_checkbox(
-            "Crop",
-            False,
-            hint="Turn cropping on or off. Applies to both point cloud and mesh exports.",
-        ),
-        crop_show=server.add_gui_checkbox("• Show", True),
-        crop_center=server.add_gui_vector3("• Center", initial_value=(0.0, 0.0, 0.0), step=1e-3),
-        crop_scale=server.add_gui_vector3("• Scale", initial_value=(2.0, 2.0, 2.0), step=1e-3),
-    )
-    crop_vis: Optional[viser.SceneNodeHandle] = None
-
-    def update_crop_vis() -> None:
-        nonlocal crop_vis
-
-        if not handles.crop_enabled.value or not handles.crop_show.value:
-            if crop_vis is not None:
-                crop_vis.remove()
-                crop_vis = None
-            return
-
-        box_mesh = trimesh.creation.box(extents=np.array(handles.crop_scale.value))
-        if handles.crop_show.value:
-            crop_vis = server.add_mesh_simple(
-                "/export/crop_vis",
-                box_mesh.vertices + np.array(handles.crop_center.value),
-                box_mesh.faces,
-                color=(255, 225, 0),
-                opacity=0.1,
-                side="double",
-            )
-
-    @handles.crop_enabled.on_update
-    def _(_) -> None:
-        handles.crop_show.disabled = not handles.crop_enabled.value
-        handles.crop_center.disabled = not handles.crop_enabled.value
-        handles.crop_scale.disabled = not handles.crop_enabled.value
-        update_crop_vis()
-
-    _(handles.crop_enabled)
-
-    handles.crop_show.on_update(lambda _: update_crop_vis())
-    handles.crop_center.on_update(lambda _: update_crop_vis())
-    handles.crop_scale.on_update(lambda _: update_crop_vis())
-
-    return handles
+            show_command_modal(server, "mesh", command)

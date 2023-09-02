@@ -19,7 +19,7 @@ from typing import Callable, DefaultDict, List, Tuple, get_args
 import torch
 from viser import ViserServer
 import viser.transforms as vtf
-from nerfstudio.data.scene_box import OrientedSceneBox
+from nerfstudio.data.scene_box import OrientedBox
 import numpy as np
 
 from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
@@ -145,7 +145,7 @@ class ControlPanel:
         self._background_color = ViewerRGB(
             "Background color", (38, 42, 55), cb_hook=crop_update_cb, hint="Color of the background"
         )
-        self._crop_handle = self.viser_server.add_transform_controls("Crop",depth_test=False)
+        self._crop_handle = self.viser_server.add_transform_controls("Crop",depth_test=False,line_width=4.0)
 
         def update_center(han):
             self._crop_handle.position = tuple(p * self.viser_scale_ratio for p in han.value)
@@ -367,7 +367,7 @@ class ControlPanel:
         """Returns the current crop obb setting"""
         rxyz = self._crop_rot.value
         R = torch.tensor(vtf.SO3.from_rpy_radians(rxyz[0],rxyz[1],rxyz[2]).as_matrix())
-        obb = OrientedSceneBox(R,torch.tensor(self._crop_center.value),torch.tensor(self._crop_scale.value))
+        obb = OrientedBox(R,torch.tensor(self._crop_center.value),torch.tensor(self._crop_scale.value))
         return obb
 
     @property
