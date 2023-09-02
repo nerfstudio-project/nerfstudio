@@ -128,8 +128,9 @@ class Viewer:
         titlebar_theme = viser.theme.TitlebarConfig(buttons=buttons, image=image)
         self.viser_server.configure_theme(
             titlebar_content=titlebar_theme,
-            control_layout="fixed",
+            control_layout="collapsible",
             dark_mode=True,
+            brand_color=(255, 211, 105),
         )
 
         self.viser_server.on_client_connect(self.handle_new_client)

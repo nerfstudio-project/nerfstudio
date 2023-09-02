@@ -539,7 +539,7 @@ def populate_render_tab(server: viser.ViserServer) -> None:
 def main() -> None:
     """Launch a GUI with just the render panel, for development purposes."""
     server = viser.ViserServer()
-    server.configure_theme(dark_mode=True)
+    server.configure_theme(dark_mode=True, control_layout="collapsible")
     server.world_axes.visible = True
 
     populate_render_tab(server)
