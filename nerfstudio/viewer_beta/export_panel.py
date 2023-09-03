@@ -150,13 +150,6 @@ def populate_mesh_tab(
     elif method == "poisson":
         num_points = server.add_gui_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
         remove_outliers = server.add_gui_checkbox("Remove outliers", True)
-        normals = server.add_gui_dropdown(
-            "Normals",
-            # TODO: options here could depend on what's available to the model.
-            ("open3d", "model_output"),
-            initial_value="model_output",
-            hint="Source for normal maps.",
-        )
 
         generate_command = server.add_gui_button("Generate Command")
 
