@@ -19,17 +19,17 @@ def populate_export_tab(server: viser.ViserServer, control_panel: ControlPanel, 
     def _(_) -> None:
         control_panel.crop_viewport = crop_output.value
 
-    server.add_gui_markdown("")  # Vertical whitespace.
+    # server.add_gui_markdown("")  # Vertical whitespace.
+    # export_tabs = server.add_gui_tab_group()
 
-    export_tabs = server.add_gui_tab_group()
-
-    with export_tabs.add_tab("Points", viser.Icon.GRAIN):
+    with server.add_gui_folder("Point Cloud"):
+    # with export_tabs.add_tab("Points", viser.Icon.GRAIN):
         populate_point_cloud_tab(server, control_panel, config_path)
-    # with server.add_gui_folder("Mesh (Poisson, recommended)"):
-    with export_tabs.add_tab("Mesh", viser.Icon.HEXAGON_LETTER_P):
+    with server.add_gui_folder("Mesh (Poisson, recommended)"):
+    # with export_tabs.add_tab("Mesh", viser.Icon.HEXAGON_LETTER_P):
         populate_mesh_tab(server, control_panel, config_path, "poisson")
-    # with server.add_gui_folder("Mesh (TSDF)"):
-    with export_tabs.add_tab("Mesh (TSDF)", viser.Icon.HEXAGON_LETTER_T):
+    with server.add_gui_folder("Mesh (TSDF)"):
+    # with export_tabs.add_tab("Mesh (TSDF)", viser.Icon.HEXAGON_LETTER_T):
         populate_mesh_tab(server, control_panel, config_path, "tsdf")
 
 
@@ -87,7 +87,7 @@ def populate_point_cloud_tab(
         hint="Normal map source.",
     )
     output_dir = server.add_gui_text("Output Directory", initial_value="exports/pcd/")
-    generate_command = server.add_gui_button("Generate Command")
+    generate_command = server.add_gui_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
     @generate_command.on_click
     def _(event: viser.GuiEvent) -> None:
@@ -130,7 +130,7 @@ def populate_mesh_tab(
     output_directory = server.add_gui_text("Output Directory", initial_value="exports/mesh/")
 
     if method == "tsdf":
-        generate_command = server.add_gui_button("Generate Command")
+        generate_command = server.add_gui_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @generate_command.on_click
         def _(event: viser.GuiEvent) -> None:
@@ -151,7 +151,7 @@ def populate_mesh_tab(
         num_points = server.add_gui_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
         remove_outliers = server.add_gui_checkbox("Remove outliers", True)
 
-        generate_command = server.add_gui_button("Generate Command")
+        generate_command = server.add_gui_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @generate_command.on_click
         def _(event: viser.GuiEvent) -> None:

@@ -73,7 +73,6 @@ class CameraPath:
             wxyz=keyframe.wxyz,
             position=keyframe.position,
             visible=self._keyframes_visible,
-            image=onp.ones((1, 1, 3)) * 0.2,
         )
 
         @frustum_handle.on_click
@@ -305,7 +304,6 @@ def populate_render_tab(server: viser.ViserServer) -> None:
 
     clear_keyframes_button = server.add_gui_button(
         "Clear keyframes",
-        color="red",
         icon=viser.Icon.TRASH,
         hint="Remove all keyframes from the render path.",
     )
@@ -408,7 +406,7 @@ def populate_render_tab(server: viser.ViserServer) -> None:
             framerate_slider.value = float(framerate_buttons.value)
 
         play_button = server.add_gui_button("Play", icon=viser.Icon.PLAYER_PLAY)
-        pause_button = server.add_gui_button("Pause", color="yellow", icon=viser.Icon.PLAYER_PAUSE, visible=False)
+        pause_button = server.add_gui_button("Pause", icon=viser.Icon.PLAYER_PAUSE, visible=False)
         attach_viewport_checkbox = server.add_gui_checkbox("Attach viewport", initial_value=False)
         show_checkbox = server.add_gui_checkbox(
             "Show keyframes",
