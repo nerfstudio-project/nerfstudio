@@ -275,6 +275,12 @@ class ExportPoissonMesh(Exporter):
     """Minimum of the bounding box, used if use_bounding_box is True."""
     bounding_box_max: Tuple[float, float, float] = (1, 1, 1)
     """Minimum of the bounding box, used if use_bounding_box is True."""
+    obb_center: Optional[Tuple[float,float,float]] = None
+    """Center of the oriented bounding box."""
+    obb_rotation: Optional[Tuple[float,float,float]] = None
+    """Rotation of the oriented bounding box. Expressed as RPY Euler angles in radians"""
+    obb_scale: Optional[Tuple[float,float,float]] = None
+    """Scale of the oriented bounding box along each axis."""
     num_rays_per_batch: int = 32768
     """Number of rays to evaluate per batch. Decrease if you run out of memory."""
     texture_method: Literal["point_cloud", "nerf"] = "nerf"
@@ -307,6 +313,10 @@ class ExportPoissonMesh(Exporter):
 
         # Whether the normals should be estimated based on the point cloud.
         estimate_normals = self.normal_method == "open3d"
+        if self.obb_center is not None and self.obb_rotation is not None and self.obb_scale is not None:
+            crop_obb = OrientedBox.from_params(self.obb_center,self.obb_rotation,self.obb_scale)
+        else:
+            crop_obb = None
 
         pcd = generate_point_cloud(
             pipeline=pipeline,
@@ -320,6 +330,7 @@ class ExportPoissonMesh(Exporter):
             use_bounding_box=self.use_bounding_box,
             bounding_box_min=self.bounding_box_min,
             bounding_box_max=self.bounding_box_max,
+            crop_obb=crop_obb,
             std_ratio=self.std_ratio,
         )
         torch.cuda.empty_cache()

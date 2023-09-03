@@ -137,7 +137,8 @@ def populate_mesh_tab(
             command = " ".join(
                 [
                     "ns-export tsdf",
-                    f"--load-config {config_path}" f"--output-dir {output_directory.value}",
+                    f"--load-config {config_path}",
+                    f"--output-dir {output_directory.value}",
                     f"--target-num-faces {num_faces.value}",
                     f"--num-pixels-per-side {texture_resolution.value}",
                     f"--use_bounding_box {control_panel.crop_viewport}",
@@ -164,7 +165,8 @@ def populate_mesh_tab(
             command = " ".join(
                 [
                     "ns-export poisson",
-                    f"--load-config {config_path}" f"--output-dir {output_directory.value}",
+                    f"--load-config {config_path}",
+                    f"--output-dir {output_directory.value}",
                     f"--target-num-faces {num_faces.value}",
                     f"--num-pixels-per-side {texture_resolution.value}",
                     f"--num-points {num_points.value}",
