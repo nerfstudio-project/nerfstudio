@@ -141,7 +141,7 @@ def _render_trajectory_video(
 
                 max_dist, max_idx = -1, -1
                 true_max_dist, true_max_idx = -1, -1
-                
+
                 if "nearest_camera" in rendered_output_names:
                     cam_pos = cameras[camera_idx].camera_to_worlds[:, 3].cpu()
                     cam_rot = Rotation.from_matrix(cameras[camera_idx].camera_to_worlds[:3, :3].cpu())
