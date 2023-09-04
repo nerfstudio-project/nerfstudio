@@ -142,8 +142,8 @@ def _render_trajectory_video(
                     cam_rot = Rotation.from_matrix(cameras[camera_idx].camera_to_worlds[:3, :3].cpu())
                     cam_quat = cam_rot.as_quat()
 
-                    max_dist, max_idx = None, -1
-                    true_max_dist, true_max_idx = None, None
+                    max_dist, max_idx = -1, -1
+                    true_max_dist, true_max_idx = -1, -1
                     for i in range(len(train_cameras)):
                         train_cam_pos = train_cameras[i].camera_to_worlds[:, 3].cpu()
                         # Make sure the line of sight from rendered cam to training cam is not blocked by any object
@@ -165,14 +165,14 @@ def _render_trajectory_video(
                         pos_dist = torch.norm(train_cam_pos - cam_pos)
                         dist = 0.3 * rot_dist + 0.7 * pos_dist
 
-                        if true_max_dist is None or dist < true_max_dist:
+                        if true_max_dist == -1 or dist < true_max_dist:
                             true_max_dist = dist
                             true_max_idx = i
 
                         if outputs["depth"][0] < torch.norm(cam_pos - train_cam_pos).item():
                             continue
 
-                        if check_occlusions and (max_dist is None or dist < max_dist):
+                        if check_occlusions and (max_dist == -1 or dist < max_dist):
                             max_dist = dist
                             max_idx = i
 
