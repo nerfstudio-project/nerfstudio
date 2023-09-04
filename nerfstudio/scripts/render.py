@@ -49,8 +49,6 @@ from typing_extensions import Annotated
 
 from scipy.spatial.transform import Rotation
 
-# from PIL import Image
-
 from nerfstudio.cameras.camera_paths import (
     get_interpolated_camera_path,
     get_path_from_json,
