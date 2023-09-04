@@ -47,9 +47,7 @@ from rich.table import Table
 from torch import Tensor
 from typing_extensions import Annotated
 
-from scipy.spatial.transform import Rotation as R
-from torchvision import transforms
-import PIL
+from scipy.spatial.transform import Rotation
 
 # from PIL import Image
 
@@ -83,6 +81,7 @@ def _render_trajectory_video(
     image_format: Literal["jpeg", "png"] = "jpeg",
     jpeg_quality: int = 100,
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions(),
+    check_occlusions: bool = False,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -142,7 +141,7 @@ def _render_trajectory_video(
                 camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx, aabb_box=aabb_box)
                 if "nearest_camera" in rendered_output_names:
                     cam_pos = cameras[camera_idx].camera_to_worlds[:, 3].cpu()
-                    cam_rot = R.from_matrix(cameras[camera_idx].camera_to_worlds[:3, :3].cpu())
+                    cam_rot = Rotation.from_matrix(cameras[camera_idx].camera_to_worlds[:3, :3].cpu())
                     cam_quat = cam_rot.as_quat()
 
                     max_dist, max_idx = None, None
@@ -161,20 +160,21 @@ def _render_trajectory_video(
                         ).to(pipeline.device)
                         outputs = pipeline.model.get_outputs(bundle)
 
-                        r = R.from_matrix(train_cameras[i].camera_to_worlds[:3, :3].cpu())
+                        r = Rotation.from_matrix(train_cameras[i].camera_to_worlds[:3, :3].cpu())
                         q = r.as_quat()
                         # calculate distance between two quaternions
                         rot_dist = 1 - np.dot(q, cam_quat) ** 2
                         pos_dist = torch.norm(train_cam_pos - cam_pos)
                         dist = 0.3 * rot_dist + 0.7 * pos_dist
 
+                        if true_max_dist is None or dist < true_max_dist:
+                            true_max_dist = dist
+                            true_max_idx = i
+
                         if outputs["depth"][0] < torch.norm(cam_pos - train_cam_pos).item():
-                            if true_max_dist is None or dist < true_max_dist:
-                                true_max_dist = dist
-                                true_max_idx = i
                             continue
 
-                        if max_dist is None or dist < max_dist:
+                        if check_occlusions and (max_dist is None or dist < max_dist):
                             max_dist = dist
                             max_idx = i
 
@@ -214,13 +214,17 @@ def _render_trajectory_video(
 
                 # Add closest training image to the right of the rendered image
                 if "nearest_camera" in rendered_output_names:
+                    # img = train_dataset.get_image(max_idx)
+                    # img = img.permute(2, 0, 1)
+                    # img = transforms.ToPILImage()(img)
+                    # resized_image = img.resize(
+                    #     (int(cameras.image_width[0]), int(cameras.image_height[0])), PIL.Image.Resampling.LANCZOS
+                    # )
+                    # resized_image = transforms.ToTensor()(resized_image).permute(1, 2, 0)
                     img = train_dataset.get_image(max_idx)
-                    img = img.permute(2, 0, 1)
-                    img = transforms.ToPILImage()(img)
-                    resized_image = img.resize(
-                        (int(cameras.image_width[0]), int(cameras.image_height[0])), PIL.Image.Resampling.LANCZOS
-                    )
-                    resized_image = transforms.ToTensor()(resized_image).permute(1, 2, 0)
+                    resized_image = torch.nn.functional.interpolate(
+                        img.permute(2, 0, 1)[None], size=(int(cameras.image_height[0]), int(cameras.image_width[0]))
+                    )[0].permute(1, 2, 0)
                     resized_image = (
                         colormaps.apply_colormap(
                             image=resized_image,
@@ -388,6 +392,8 @@ class BaseRender:
     """Specifies number of rays per chunk during eval. If None, use the value in the config file."""
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions()
     """Colormap options."""
+    check_occlusions: bool = False
+    """Whether to check occlusions."""
 
 
 @dataclass
@@ -445,6 +451,7 @@ class RenderCameraPath(BaseRender):
             image_format=self.image_format,
             jpeg_quality=self.jpeg_quality,
             colormap_options=self.colormap_options,
+            check_occlusions=self.check_occlusions,
         )
 
         if camera_path.camera_type[0] == CameraType.OMNIDIRECTIONALSTEREO_L.value:
@@ -469,6 +476,7 @@ class RenderCameraPath(BaseRender):
                 image_format=self.image_format,
                 jpeg_quality=self.jpeg_quality,
                 colormap_options=self.colormap_options,
+                check_occlusions=self.check_occlusions,
             )
 
             # stack the left and right eye renders for final output
@@ -544,6 +552,7 @@ class RenderInterpolated(BaseRender):
             output_format=self.output_format,
             image_format=self.image_format,
             colormap_options=self.colormap_options,
+            check_occlusions=self.check_occlusions,
         )
 
 
@@ -587,6 +596,7 @@ class SpiralRender(BaseRender):
             output_format=self.output_format,
             image_format=self.image_format,
             colormap_options=self.colormap_options,
+            check_occlusions=self.check_occlusions,
         )
 
 
