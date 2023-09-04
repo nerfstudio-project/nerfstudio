@@ -142,7 +142,7 @@ def _render_trajectory_video(
                     cam_rot = Rotation.from_matrix(cameras[camera_idx].camera_to_worlds[:3, :3].cpu())
                     cam_quat = cam_rot.as_quat()
 
-                    max_dist, max_idx = None, None
+                    max_dist, max_idx = None, -1
                     true_max_dist, true_max_idx = None, None
                     for i in range(len(train_cameras)):
                         train_cam_pos = train_cameras[i].camera_to_worlds[:, 3].cpu()
@@ -176,7 +176,7 @@ def _render_trajectory_video(
                             max_dist = dist
                             max_idx = i
 
-                    if max_idx is None:
+                    if max_idx == -1:
                         max_idx = true_max_idx
 
                 if crop_data is not None:
