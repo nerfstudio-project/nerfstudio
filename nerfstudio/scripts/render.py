@@ -125,6 +125,7 @@ def _render_trajectory_video(
 
     with ExitStack() as stack:
         writer = None
+
         assert pipeline.datamanager.train_dataset is not None
         train_dataset = pipeline.datamanager.train_dataset
         train_cameras = train_dataset.cameras.to(pipeline.device)
@@ -137,13 +138,15 @@ def _render_trajectory_video(
                     bounding_box_max = crop_data.center + crop_data.scale / 2.0
                     aabb_box = SceneBox(torch.stack([bounding_box_min, bounding_box_max]).to(pipeline.device))
                 camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx, aabb_box=aabb_box)
+
+                max_dist, max_idx = -1, -1
+                true_max_dist, true_max_idx = -1, -1
+                
                 if "nearest_camera" in rendered_output_names:
                     cam_pos = cameras[camera_idx].camera_to_worlds[:, 3].cpu()
                     cam_rot = Rotation.from_matrix(cameras[camera_idx].camera_to_worlds[:3, :3].cpu())
                     cam_quat = cam_rot.as_quat()
 
-                    max_dist, max_idx = -1, -1
-                    true_max_dist, true_max_idx = -1, -1
                     for i in range(len(train_cameras)):
                         train_cam_pos = train_cameras[i].camera_to_worlds[:, 3].cpu()
                         # Make sure the line of sight from rendered cam to training cam is not blocked by any object
