@@ -169,6 +169,7 @@ The docker container can be launched with an interactive terminal where nerfstud
 
 ```bash
 docker run --gpus all \                                         # Give the container access to nvidia GPU (required).
+            -u $(id -u) \                                       # To prevent abusing of root privilege, please use custom user privilege to start.
             -v /folder/of/your/data:/workspace/ \               # Mount a folder from the local machine into the container to be able to process them (required).
             -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ \   # Mount cache folder to avoid re-downloading of models everytime (recommended).
             -p 7007:7007 \                                      # Map port from local machine to docker container (required to access the web interface/UI).
@@ -185,7 +186,7 @@ docker run --gpus all \                                         # Give the conta
 Besides, the container can also directly be used by adding the nerfstudio command to the end.
 
 ```bash
-docker run --gpus all -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ -p 7007:7007 --rm -it --shm-size=12gb  # Parameters.
+docker run --gpus all -u $(id -u) -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ -p 7007:7007 --rm -it --shm-size=12gb  # Parameters.
             dromni/nerfstudio:<tag> \                           # Docker image name
             ns-process-data video --data /workspace/video.mp4   # Smaple command of nerfstudio.
 ```
