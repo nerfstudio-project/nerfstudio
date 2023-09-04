@@ -125,7 +125,7 @@ def _render_trajectory_video(
 
     with ExitStack() as stack:
         writer = None
-
+        assert pipeline.datamanager.train_dataset is not None
         train_dataset = pipeline.datamanager.train_dataset
         train_cameras = train_dataset.cameras.to(pipeline.device)
 
