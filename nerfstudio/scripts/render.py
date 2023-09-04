@@ -212,13 +212,6 @@ def _render_trajectory_video(
 
                 # Add closest training image to the right of the rendered image
                 if "nearest_camera" in rendered_output_names:
-                    # img = train_dataset.get_image(max_idx)
-                    # img = img.permute(2, 0, 1)
-                    # img = transforms.ToPILImage()(img)
-                    # resized_image = img.resize(
-                    #     (int(cameras.image_width[0]), int(cameras.image_height[0])), PIL.Image.Resampling.LANCZOS
-                    # )
-                    # resized_image = transforms.ToTensor()(resized_image).permute(1, 2, 0)
                     img = train_dataset.get_image(max_idx)
                     resized_image = torch.nn.functional.interpolate(
                         img.permute(2, 0, 1)[None], size=(int(cameras.image_height[0]), int(cameras.image_width[0]))
