@@ -121,7 +121,8 @@ def generate_point_cloud(
     rgbs = []
     normals = []
     view_directions = []
-
+    if use_bounding_box and (crop_obb is not None and bounding_box_max is not None):
+        CONSOLE.print("Provided aabb and crop_obb at the same time, using only the obb", style="bold yellow")
     with progress as progress_bar:
         task = progress_bar.add_task("Generating Point Cloud", total=num_points)
         while not progress_bar.finished:
@@ -165,8 +166,6 @@ def generate_point_cloud(
                 normal = normal[mask]
 
             if use_bounding_box:
-                if crop_obb is not None and bounding_box_max is not None:
-                    CONSOLE.print("Provided aabb and crop_obb at the same time", style="bold yellow")
                 if crop_obb is None:
                     comp_l = torch.tensor(bounding_box_min, device=point.device)
                     comp_m = torch.tensor(bounding_box_max, device=point.device)

@@ -22,6 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
+from nerfstudio.data.scene_box import OrientedBox
 
 import numpy as np
 import pymeshlab

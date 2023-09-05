@@ -19,18 +19,10 @@ def populate_export_tab(server: viser.ViserServer, control_panel: ControlPanel, 
     def _(_) -> None:
         control_panel.crop_viewport = crop_output.value
 
-    # server.add_gui_markdown("")  # Vertical whitespace.
-    # export_tabs = server.add_gui_tab_group()
-
     with server.add_gui_folder("Point Cloud"):
-    # with export_tabs.add_tab("Points", viser.Icon.GRAIN):
         populate_point_cloud_tab(server, control_panel, config_path)
-    with server.add_gui_folder("Mesh (Poisson, recommended)"):
-    # with export_tabs.add_tab("Mesh", viser.Icon.HEXAGON_LETTER_P):
-        populate_mesh_tab(server, control_panel, config_path, "poisson")
-    with server.add_gui_folder("Mesh (TSDF)"):
-    # with export_tabs.add_tab("Mesh (TSDF)", viser.Icon.HEXAGON_LETTER_T):
-        populate_mesh_tab(server, control_panel, config_path, "tsdf")
+    with server.add_gui_folder("Mesh"):
+        populate_mesh_tab(server, control_panel, config_path)
 
 
 def show_command_modal(client: viser.ClientHandle, what: Literal["mesh", "point cloud"], command: str) -> None:
@@ -75,7 +67,7 @@ def populate_point_cloud_tab(
     config_path: Path,
 ) -> None:
     server.add_gui_markdown(
-        "<small>Render out depth and normal maps, project to an oriented point cloud, and filter.</small> "
+        "<small>Render depth, project to an oriented point cloud, and filter.</small> "
     )
     num_points = server.add_gui_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
     remove_outliers = server.add_gui_checkbox("Remove outliers", True)
@@ -83,7 +75,7 @@ def populate_point_cloud_tab(
         "Normals",
         # TODO: options here could depend on what's available to the model.
         ("open3d", "model_output"),
-        initial_value="model_output",
+        initial_value="open3d",
         hint="Normal map source.",
     )
     output_dir = server.add_gui_text("Output Directory", initial_value="exports/pcd/")
@@ -111,62 +103,39 @@ def populate_mesh_tab(
     server: viser.ViserServer,
     control_panel: ControlPanel,
     config_path: Path,
-    method: Literal["tsdf", "poisson"],
 ) -> None:
     server.add_gui_markdown(
-        "<small>Recommended mesh export method. Renders out depth and normal maps, projects to an oriented point cloud, and runs Poisson surface reconstruction.</small>"
-        if method == "poisson"
-        else "<small>Mesh export via TSDF fusion. Results are typically lower quality than Poisson-based reconstruction.</small>"
+        "<small>Render depth, project to an oriented point cloud, and run Poisson surface reconstruction.</small>"
     )
 
     normals = server.add_gui_dropdown(
         "Normals",
         ("open3d", "model_output"),
-        initial_value="model_output",
+        initial_value="open3d",
         hint="Source for normal maps.",
     )
     num_faces = server.add_gui_number("# Faces", initial_value=50_000, min=1)
     texture_resolution = server.add_gui_number("Texture Resolution", min=8, initial_value=2048)
     output_directory = server.add_gui_text("Output Directory", initial_value="exports/mesh/")
+    num_points = server.add_gui_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
+    remove_outliers = server.add_gui_checkbox("Remove outliers", True)
 
-    if method == "tsdf":
-        generate_command = server.add_gui_button("Generate Command", icon=viser.Icon.TERMINAL_2)
+    generate_command = server.add_gui_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
-        @generate_command.on_click
-        def _(event: viser.GuiEvent) -> None:
-            command = " ".join(
-                [
-                    "ns-export tsdf",
-                    f"--load-config {config_path}",
-                    f"--output-dir {output_directory.value}",
-                    f"--target-num-faces {num_faces.value}",
-                    f"--num-pixels-per-side {texture_resolution.value}",
-                    f"--use_bounding_box {control_panel.crop_viewport}",
-                    get_crop_string(control_panel.crop_obb),
-                ]
-            )
-            show_command_modal(event.client, "mesh", command)
-
-    elif method == "poisson":
-        num_points = server.add_gui_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
-        remove_outliers = server.add_gui_checkbox("Remove outliers", True)
-
-        generate_command = server.add_gui_button("Generate Command", icon=viser.Icon.TERMINAL_2)
-
-        @generate_command.on_click
-        def _(event: viser.GuiEvent) -> None:
-            command = " ".join(
-                [
-                    "ns-export poisson",
-                    f"--load-config {config_path}",
-                    f"--output-dir {output_directory.value}",
-                    f"--target-num-faces {num_faces.value}",
-                    f"--num-pixels-per-side {texture_resolution.value}",
-                    f"--num-points {num_points.value}",
-                    f"--remove-outliers {remove_outliers.value}",
-                    f"--normal-method {normals.value}",
-                    f"--use_bounding_box {control_panel.crop_viewport}",
-                    get_crop_string(control_panel.crop_obb),
-                ]
-            )
-            show_command_modal(server, "mesh", command)
+    @generate_command.on_click
+    def _(event: viser.GuiEvent) -> None:
+        command = " ".join(
+            [
+                "ns-export poisson",
+                f"--load-config {config_path}",
+                f"--output-dir {output_directory.value}",
+                f"--target-num-faces {num_faces.value}",
+                f"--num-pixels-per-side {texture_resolution.value}",
+                f"--num-points {num_points.value}",
+                f"--remove-outliers {remove_outliers.value}",
+                f"--normal-method {normals.value}",
+                f"--use_bounding_box {control_panel.crop_viewport}",
+                get_crop_string(control_panel.crop_obb),
+            ]
+        )
+        show_command_modal(server, "mesh", command)
