@@ -15,32 +15,27 @@
 """Helper utils for processing equirectangular data."""
 
 import os
+
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 
 import json
+import math
 import sys
 from pathlib import Path
 from typing import List, Tuple
-import math
 
 import cv2
 import numpy as np
-from numpy.linalg import inv
-
-from scipy.spatial.transform import Rotation
 import torch
-from equilib import Equi2Pers
-from rich.progress import (
-    BarColumn,
-    Progress,
-    TaskProgressColumn,
-    TextColumn,
-    TimeRemainingColumn,
-)
+from numpy.linalg import inv
+from rich.progress import (BarColumn, Progress, TaskProgressColumn, TextColumn,
+                           TimeRemainingColumn)
+from scipy.spatial.transform import Rotation
 
-from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
+from equilib import Equi2Pers
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils import io
+from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
 
 
 def _crop_bottom(bound_arr: list, fov: int, crop_factor: float) -> List[float]:
@@ -119,11 +114,8 @@ def generate_planar_projections_from_equirectangular(
     image_dir: Path,
     planar_image_size: Tuple[int, int],
     samples_per_im: int,
-<<<<<<< HEAD
     mask_dir: Path,
     hdr_dir: Path,
-=======
->>>>>>> origin/jmchen
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     is_HDR: bool = False,
 ) -> Path:
@@ -185,7 +177,6 @@ def generate_planar_projections_from_equirectangular(
     frame_dir = image_dir
     output_dir = image_dir / "planar_projections"
     output_dir.mkdir(exist_ok=True)
-<<<<<<< HEAD
     
     if mask_dir is not None:
         output_mask_dir = image_dir / "mask_planar_projections"
@@ -195,8 +186,6 @@ def generate_planar_projections_from_equirectangular(
         output_hdr_dir = image_dir / "hdr_planar_projections"
         output_hdr_dir.mkdir(exist_ok=True)
     
-=======
->>>>>>> origin/jmchen
     num_ims = len(os.listdir(frame_dir))
     progress = Progress(
         TextColumn("[bold blue]Generating Planar Images", justify="right"),
@@ -208,7 +197,6 @@ def generate_planar_projections_from_equirectangular(
 
     with progress:
         for i in progress.track(os.listdir(frame_dir), description="", total=num_ims):
-<<<<<<< HEAD
             if i.lower().endswith((".jpg", ".png", ".jpeg", ".exr")):
                 if i.lower().endswith((".exr")):
                     im = np.array(cv2.imread(os.path.join(frame_dir, i), cv2.IMREAD_UNCHANGED)).astype("float32")
@@ -237,17 +225,10 @@ def generate_planar_projections_from_equirectangular(
                     hdr = torch.tensor(hdr, dtype=torch.float32, device=device)
                     hdr = torch.permute(hdr, (2, 0, 1))
 
-=======
-            if i.lower().endswith((".jpg", ".png", ".jpeg")):
-                im = np.array(cv2.imread(os.path.join(frame_dir, i)))
-                im = torch.tensor(im, dtype=torch.float32, device=device)
-                im = torch.permute(im, (2, 0, 1)) / 255.0
->>>>>>> origin/jmchen
                 count = 0
                 for u_deg, v_deg in yaw_pitch_pairs:
                     v_rad = torch.pi * v_deg / 180.0
                     u_rad = torch.pi * u_deg / 180.0
-<<<<<<< HEAD
                     pers_image = equi2pers(im, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad})
                     pers_mask = equi2pers(mask, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad}) * 255.0
                     pers_hdr = equi2pers(hdr, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad}, clip_output=False)
@@ -272,17 +253,6 @@ def generate_planar_projections_from_equirectangular(
     return output_dir, output_mask_dir, output_hdr_dir
 
 def generate_planar_projections_from_equirectangular_2(
-=======
-                    pers_image = equi2pers(im, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad}) * 255.0
-                    assert isinstance(pers_image, torch.Tensor)
-                    pers_image = (pers_image.permute(1, 2, 0)).type(torch.uint8).to("cpu").numpy()
-                    cv2.imwrite(f"{output_dir}/{i[:-4]}_{count}.png", pers_image)
-                    count += 1
-
-    return output_dir
-
-def generate_planar_projections_from_equirectangular_GT(
->>>>>>> origin/jmchen
     metadata_path: Path,
     image_dir: Path,
     planar_image_size: Tuple[int, int],
