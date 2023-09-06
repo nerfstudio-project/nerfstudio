@@ -6,6 +6,8 @@ Define custom method here that registers with Nerfstudio CLI.
 
 from __future__ import annotations
 
+from nerfstudio.lantern.datamanager import HDRVanillaDataManagerConfig
+from nerfstudio.lantern.model import LanternModelConfig
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import \
@@ -14,15 +16,12 @@ from nerfstudio.engine.optimizers import (AdamOptimizerConfig,
                                           RAdamOptimizerConfig)
 from nerfstudio.engine.schedulers import ExponentialDecaySchedulerConfig
 from nerfstudio.engine.trainer import TrainerConfig
-from nerfstudio.lantern.datamanager import HDRVanillaDataManagerConfig
-from nerfstudio.lantern.model import LanternModelConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.plugins.types import MethodSpecification
 
-
 def Get_lantern_config():
     return TrainerConfig(
-    method_name="Lantern-nerfacto",
+    method_name="lantern-nerfacto",
     steps_per_eval_batch=500,
     steps_per_save=2000,
     max_num_iterations=30000,

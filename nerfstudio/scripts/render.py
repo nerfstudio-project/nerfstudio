@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 import struct
 import shutil
 import sys
@@ -28,6 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Union
 
+import cv2
 import mediapy as media
 import numpy as np
 import torch
@@ -72,7 +74,7 @@ def _render_trajectory_video(
     rendered_resolution_scaling_factor: float = 1.0,
     seconds: float = 5.0,
     output_format: Literal["images", "video"] = "video",
-    image_format: Literal["jpeg", "png"] = "jpeg",
+    image_format: Literal["jpeg", "png", "exr"] = "jpeg",
     jpeg_quality: int = 100,
     depth_near_plane: Optional[float] = None,
     depth_far_plane: Optional[float] = None,
@@ -97,7 +99,7 @@ def _render_trajectory_video(
     cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
     cameras = cameras.to(pipeline.device)
     fps = len(cameras) / seconds
-
+    print(len(cameras))
     progress = Progress(
         TextColumn(":movie_camera: Rendering :movie_camera:"),
         BarColumn(),
@@ -166,6 +168,13 @@ def _render_trajectory_video(
                             .cpu()
                             .numpy()
                         )
+                    elif image_format == "exr":
+                        u = 5000.
+                        output_image = torch.exp(output_image * torch.log(torch.tensor(u+1.))) - 1.
+                        output_image /= u
+                        output_image = (
+                            output_image.cpu().numpy()
+                        )
                     else:
                         output_image = (
                             colormaps.apply_colormap(
@@ -184,6 +193,12 @@ def _render_trajectory_video(
                         media.write_image(
                             output_image_dir / f"{camera_idx:05d}.jpg", render_image, fmt="jpeg", quality=jpeg_quality
                         )
+                    if image_format == "exr":
+                        output_path_str = str(output_image_dir / f"{camera_idx:05d}.exr")
+                        CONSOLE.print(f"HDR Img {camera_idx}, max value: {render_image.max()}", justify="center")
+                        render_image = cv2.cvtColor(render_image, cv2.COLOR_BGR2RGB)
+                        cv2.imwrite(output_path_str, render_image)
+                        
                 if output_format == "video":
                     if writer is None:
                         render_width = int(render_image.shape[1])
@@ -323,7 +338,7 @@ class BaseRender:
     """Path to config YAML file."""
     output_path: Path = Path("renders/output.mp4")
     """Path to output video file."""
-    image_format: Literal["jpeg", "png"] = "jpeg"
+    image_format: Literal["jpeg", "png", "exr"] = "jpeg"
     """Image format"""
     jpeg_quality: int = 100
     """JPEG quality"""

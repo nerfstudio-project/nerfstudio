@@ -17,16 +17,16 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Optional, Tuple
+from typing import Optional, Literal, Tuple
 
 import numpy as np
 
 from nerfstudio.process_data import equirect_utils, process_data_utils
-from nerfstudio.process_data.base_converter_to_nerfstudio_dataset import \
-    BaseConverterToNerfstudioDataset
-from nerfstudio.utils import io
+from nerfstudio.process_data.base_converter_to_nerfstudio_dataset import (
+    BaseConverterToNerfstudioDataset,
+)
 from nerfstudio.utils.rich_utils import CONSOLE
-
+from nerfstudio.utils import io
 
 @dataclass
 class ProcessAlignedPano(BaseConverterToNerfstudioDataset):

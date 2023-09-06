@@ -87,9 +87,6 @@ class HDRInputDataset(InputDataset):
         # Compress HDR using: pixel = log(pixel + 1.)
             
         image = torch.from_numpy(self.get_numpy_image(image_idx).astype("float32"))
-        # image = torch.log(1. + image)
-        # image = torch.log(1. + image)
-        # image = torch.log(1. + image)
         
         # Compress HDR using u-law: pixel = log(u * pixel + 1.) / log(u + 1.)
         u = 5000.

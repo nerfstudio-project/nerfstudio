@@ -15,27 +15,32 @@
 """Helper utils for processing equirectangular data."""
 
 import os
-
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 
 import json
-import math
 import sys
 from pathlib import Path
 from typing import List, Tuple
+import math
 
 import cv2
 import numpy as np
-import torch
 from numpy.linalg import inv
-from rich.progress import (BarColumn, Progress, TaskProgressColumn, TextColumn,
-                           TimeRemainingColumn)
-from scipy.spatial.transform import Rotation
 
+from scipy.spatial.transform import Rotation
+import torch
 from equilib import Equi2Pers
+from rich.progress import (
+    BarColumn,
+    Progress,
+    TaskProgressColumn,
+    TextColumn,
+    TimeRemainingColumn,
+)
+
+from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils import io
-from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
 
 
 def _crop_bottom(bound_arr: list, fov: int, crop_factor: float) -> List[float]:

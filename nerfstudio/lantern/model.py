@@ -12,9 +12,11 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image import PeakSignalNoiseRatio
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
+from nerfstudio.lantern.field import LanternNerfactoField
+from nerfstudio.lantern.renderer import RGBRenderer_HDR
+
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
-from nerfstudio.lantern.field import LanternNerfactoField
 from nerfstudio.model_components.losses import (
     MSELoss, distortion_loss, interlevel_loss, orientation_loss,
     pred_normal_loss, scale_gradients_by_distance_squared)
@@ -127,7 +129,7 @@ class LanternModel(NerfactoModel):
         self.collider = NearFarCollider(near_plane=self.config.near_plane, far_plane=self.config.far_plane)
 
         # renderers
-        self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
+        self.renderer_rgb = RGBRenderer_HDR(background_color=self.config.background_color)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
         self.renderer_normals = NormalsRenderer()
@@ -138,7 +140,7 @@ class LanternModel(NerfactoModel):
         # TODO losses
         self.rgb_loss = MSELoss()
 
-        # metrics
+        # metrics, psnr
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
