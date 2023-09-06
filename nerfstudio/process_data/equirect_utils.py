@@ -252,7 +252,7 @@ def generate_planar_projections_from_equirectangular(
 
     return output_dir, output_mask_dir, output_hdr_dir
 
-def generate_planar_projections_from_equirectangular_2(
+def generate_planar_projections_from_equirectangular_GT(
     metadata_path: Path,
     image_dir: Path,
     planar_image_size: Tuple[int, int],
