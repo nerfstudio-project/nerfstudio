@@ -382,9 +382,11 @@ def parse_colmap_camera_params(camera) -> Dict[str, Any]:
 def colmap_to_json(
     recon_dir: Path,
     output_dir: Path,
+    is_HDR: bool = False,
     camera_mask_path: Optional[Path] = None,
     image_id_to_depth_path: Optional[Dict[int, Path]] = None,
     image_rename_map: Optional[Dict[str, str]] = None,
+    camera_hdr_path: Optional[Path] = None,
 ) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
 
@@ -428,10 +430,15 @@ def colmap_to_json(
         c2w[2, :] *= -1
 
         name = im_data.name
+        
         if image_rename_map is not None:
             name = image_rename_map[name]
-        name = Path(f"./images/{name}")
-
+        if is_HDR: 
+            hdr_name = name.replace('.png', '.exr')
+            name = Path(camera_hdr_path.absolute() / hdr_name)
+        else:
+            name = Path(f"./images/{name}")
+        
         frame = {
             "file_path": name.as_posix(),
             "transform_matrix": c2w.tolist(),

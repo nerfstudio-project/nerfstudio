@@ -18,9 +18,8 @@ from dataclasses import dataclass
 from typing import Optional
 
 from nerfstudio.process_data import equirect_utils, process_data_utils
-from nerfstudio.process_data.colmap_converter_to_nerfstudio_dataset import (
-    ColmapConverterToNerfstudioDataset,
-)
+from nerfstudio.process_data.colmap_converter_to_nerfstudio_dataset import ColmapConverterToNerfstudioDataset
+
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
@@ -31,6 +30,9 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
     1. Scales images to a specified size.
     2. Calculates the camera poses for each image using `COLMAP <https://colmap.github.io/>`_.
     """
+
+    percent_radius_crop: float = 1.0	
+    """Create circle crop mask. The radius is the percent of the image diagonal."""
 
     def main(self) -> None:
         """Process images into a nerfstudio dataset."""
@@ -47,10 +49,13 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
 
         # Generate planar projections if equirectangular
         if self.camera_type == "equirectangular":
+            if self.eval_data is not None:	
+                raise ValueError("Cannot use eval_data with camera_type equirectangular.")
             pers_size = equirect_utils.compute_resolution_from_equirect(self.data, self.images_per_equirect)
             CONSOLE.log(f"Generating {self.images_per_equirect} {pers_size} sized images per equirectangular image")
-            self.data, perspective_masks = equirect_utils.generate_planar_projections_from_equirectangular(
-                self.data, pers_size, self.images_per_equirect, self.mask_dir, crop_factor=self.crop_factor
+            self.data, perspective_masks, perspective_hdrs = equirect_utils.generate_planar_projections_from_equirectangular(
+                self.data, pers_size, self.images_per_equirect, self.mask_dir, hdr_dir=self.hdr_dir, crop_factor=self.crop_factor, 
+                is_HDR=self.is_HDR
             )
             self.camera_type = "perspective"
 
@@ -59,22 +64,54 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
         # Copy and downscale images
         if not self.skip_image_processing:
             # Copy images to output directory
+            
             image_rename_map_paths = process_data_utils.copy_images(
-                self.data, image_dir=self.image_dir, crop_factor=self.crop_factor, verbose=self.verbose
+                self.data,
+                image_dir=self.image_dir,
+                crop_factor=self.crop_factor,
+                verbose=self.verbose,
+                num_downscales=self.num_downscales,
             )
+            
+            if self.eval_data is not None:	
+                eval_image_rename_map_paths = process_data_utils.copy_images(	
+                    self.eval_data,	
+                    image_dir=self.image_dir,	
+                    crop_factor=self.crop_factor,	
+                    image_prefix="frame_eval_",	
+                    verbose=self.verbose,	
+                    num_downscales=self.num_downscales,	
+                )	
+                image_rename_map_paths.update(eval_image_rename_map_paths)
             
             (self.output_dir / "masks").mkdir(parents=True, exist_ok=True)
             mask_rename_map_paths = process_data_utils.copy_images(
-                perspective_masks, image_dir=self.output_dir / "masks", crop_factor=self.crop_factor, verbose=self.verbose
+                perspective_masks, 
+                image_dir=self.output_dir / "masks", 
+                num_downscales=self.num_downscales, 
+                verbose=self.verbose, 
+                crop_factor=self.crop_factor
             )
+
+            print('perspective_masks', perspective_masks, 'perspective_hdrs:', perspective_hdrs, 'image_dir: ', self.output_dir / "hdrs")
+            (self.output_dir / "hdrs").mkdir(parents=True, exist_ok=True)
+            copied_image_paths = process_data_utils.copy_images(
+                perspective_hdrs, 
+                image_dir=self.output_dir / "hdrs", 
+                verbose=self.verbose, 
+                num_downscales=self.num_downscales, 
+                crop_factor=self.crop_factor,
+                is_HDR = True
+            )
+
             image_rename_map = dict((a.name, b.name) for a, b in image_rename_map_paths.items())
             num_frames = len(image_rename_map)
             summary_log.append(f"Starting with {num_frames} images")
 
             # Downscale images
-            summary_log.append(
-                process_data_utils.downscale_images(self.image_dir, self.num_downscales, verbose=self.verbose)
-            )
+            # summary_log.append(
+            #     process_data_utils.downscale_images(self.image_dir, self.num_downscales, verbose=self.verbose)
+            # )
             # # Downscale images
             # summary_log.append(
             #     process_data_utils.downscale_images((self.output_dir / "masks"), self.num_downscales, verbose=self.verbose)
@@ -92,7 +129,7 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
             # Colmap uses renamed images
             image_rename_map = None
 
-        # Export depth maps
+        # # Export depth maps
         image_id_to_depth_path, log_tmp = self._export_depth()
         summary_log += log_tmp
 
@@ -103,7 +140,9 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
             num_frames,
             image_id_to_depth_path,
             (self.output_dir / "masks"),
+            (self.output_dir / "hdrs"),
             image_rename_map,
+            self.is_HDR
         )
 
         CONSOLE.log("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")

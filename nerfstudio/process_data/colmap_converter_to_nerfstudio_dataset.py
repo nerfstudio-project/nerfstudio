@@ -114,7 +114,9 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         num_frames: int,
         image_id_to_depth_path: Optional[Dict[int, Path]] = None,
         camera_mask_path: Optional[Path] = None,
+        camera_hdr_path: Optional[Path] = None,
         image_rename_map: Optional[Dict[str, str]] = None,
+        is_HDR: bool = False,
     ) -> List[str]:
         """Save colmap transforms into the output folder
 
@@ -131,6 +133,8 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                     image_id_to_depth_path=image_id_to_depth_path,
                     camera_mask_path=camera_mask_path,
                     image_rename_map=image_rename_map,
+                    camera_hdr_path=camera_hdr_path,
+                    is_HDR=is_HDR,
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
             summary_log.append(colmap_utils.get_matching_summary(num_frames, num_matched_frames))

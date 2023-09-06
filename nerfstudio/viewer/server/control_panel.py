@@ -76,6 +76,16 @@ class ControlPanel:
         self._normalize = ViewerCheckbox("Normalize", True, cb_hook=rerender_cb, hint="Normalize the colormap")
         self._min = ViewerNumber("Min", 0.0, cb_hook=rerender_cb, hint="Min value of the colormap")
         self._max = ViewerNumber("Max", 1.0, cb_hook=rerender_cb, hint="Max value of the colormap")
+        self._exposure = ViewerSlider(
+            "Exposure scale", 
+            default_value=0.0,
+            min_value=-5.0,
+            max_value=5.0,
+            step=0.1,
+            cb_hook=rerender_cb, 
+            hint="Scale the brightness prior to tonemapping by 2 ^ Exposure"
+        )
+
 
         self._split = ViewerCheckbox(
             "Enable",
@@ -145,6 +155,7 @@ class ControlPanel:
             self.add_element(self._max_res)
             self.add_element(self._output_render)
             self.add_element(self._colormap)
+            self.add_element(self._exposure)
             # colormap options
             with self.viser_server.gui_folder(" "):
                 self.add_element(self._invert, additional_tags=("colormap",))
@@ -213,6 +224,7 @@ class ControlPanel:
         Sets elements to be hidden or not based on the current state of the control panel
         """
         self._colormap.set_disabled(self.output_render == "rgb")
+        self._exposure.set_disabled(self.output_render != "rgb")
         for e in self._elements_by_tag["colormap"]:
             e.set_hidden(self.output_render == "rgb")
         for e in self._elements_by_tag["split_colormap"]:
@@ -248,6 +260,11 @@ class ControlPanel:
         """Returns the current output render"""
         return self._output_render.value
 
+    @property
+    def exposure_scale(self) -> str:
+        """Returns the current exposure scale"""
+        return self._exposure.value
+    
     @property
     def split_output_render(self) -> str:
         """Returns the current output for the split render"""
@@ -332,6 +349,7 @@ class ControlPanel:
             colormap_min=self._min.value,
             colormap_max=self._max.value,
             invert=self._invert.value,
+            exposure_scale=self._exposure.value,
         )
 
     @property

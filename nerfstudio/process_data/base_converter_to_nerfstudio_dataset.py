@@ -19,6 +19,7 @@ Base class to process images or video into a nerfstudio dataset
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 
 @dataclass
@@ -31,12 +32,18 @@ class BaseConverterToNerfstudioDataset(ABC):
     """Path to the output directory."""
     mask_dir: Path = None
     """Path to the mask directory."""
+    hdr_dir: Path = None
+    """Path to the HDR directory."""
     verbose: bool = False
     """If True, print extra logging."""
+    is_HDR: bool = False
+    """If True, process the .exr files as HDR images."""
+    eval_data: Optional[Path] = None
+    """Path the eval data, either a video file or a directory of images. If set to None, the first will be used both for training and eval"""
 
     def __post_init__(self) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        # self.image_dir.mkdir(parents=True, exist_ok=True)
+        self.image_dir.mkdir(parents=True, exist_ok=True)
 
     @property
     def image_dir(self) -> Path:

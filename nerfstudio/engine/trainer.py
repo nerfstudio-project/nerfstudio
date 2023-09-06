@@ -338,9 +338,8 @@ class Trainer:
         """Initializes viewer scene with given train dataset"""
         assert self.viewer_state and self.pipeline.datamanager.train_dataset
         self.viewer_state.init_scene(
-            train_dataset=self.pipeline.datamanager.train_dataset,
+            dataset=self.pipeline.datamanager.train_dataset,
             train_state="training",
-            eval_dataset=self.pipeline.datamanager.eval_dataset,
         )
 
     @check_viewer_enabled
