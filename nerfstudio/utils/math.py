@@ -205,7 +205,7 @@ def intersect_aabb(
     directions: torch.Tensor,
     aabb: torch.Tensor,
     max_bound: float = 1e10,
-    invalid_value: float = 0,
+    invalid_value: float = 1e10,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Implementation of ray intersection with AABB box

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Generic, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -36,7 +36,9 @@ from viser import (
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.viewer_beta.utils import CameraState, get_camera
-from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO, Viewer
+
+if TYPE_CHECKING:
+    from nerfstudio.viewer_beta.viewer import Viewer
 
 TValue = TypeVar("TValue")
 TString = TypeVar("TString", default=str, bound=str)
@@ -125,6 +127,9 @@ class ViewerControl:
             img_width: The width of the image to get camera intrinsics for
         """
         assert self.viewer.client is not None
+
+        from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO
+
         R = vtf.SO3(wxyz=self.viewer.client.camera.wxyz)
         R = R @ vtf.SO3.from_x_radians(np.pi)
         R = torch.tensor(R.as_matrix())
