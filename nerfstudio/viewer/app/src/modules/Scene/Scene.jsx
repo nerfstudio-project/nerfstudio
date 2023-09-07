@@ -133,13 +133,13 @@ export function get_scene_tree() {
     }
   }
 
-  function translateForward(moveDistance) {
-    const curPos = camera_controls.getPosition();
-    const distance = camera_controls.getTarget()
-      .sub(curPos)
-      .normalize()
-      .multiplyScalar(moveDistance);
-    const to = camera_controls.getTarget().add(distance);
+  function translateForward(distance) {
+    const to = camera_controls.getTarget().add(
+      camera_controls.getTarget()
+        .sub(camera_controls.getPosition())
+        .normalize()
+        .multiplyScalar(distance)
+    );
     camera_controls.moveTo(
       to.x,
       to.y,
