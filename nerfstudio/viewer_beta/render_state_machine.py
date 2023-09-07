@@ -149,6 +149,7 @@ class RenderStateMachine(threading.Thread):
                 except viewer_utils.IOChangeException:
                     self.viewer.get_model().train()
                     raise
+                self.viewer.get_model().train()
             num_rays = len(camera_ray_bundle)
             if self.viewer.control_panel.layer_depth:
                 # convert to z_depth if depth compositing is enabled

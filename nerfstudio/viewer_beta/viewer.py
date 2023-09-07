@@ -135,6 +135,7 @@ class Viewer:
             brand_color=(255, 211, 105),
         )
 
+        self.render_statemachine = RenderStateMachine(self, VISER_NERFSTUDIO_SCALE_RATIO)
         self.viser_server.on_client_connect(self.handle_new_client)
 
         tabs = self.viser_server.add_gui_tab_group()
@@ -181,7 +182,6 @@ class Viewer:
             ]
         for c in self.viewer_controls:
             c._setup(self)
-        self.render_statemachine = RenderStateMachine(self, VISER_NERFSTUDIO_SCALE_RATIO)
         self.render_statemachine.start()
 
     def handle_new_client(self, client: viser.ClientHandle) -> None:
@@ -222,9 +222,9 @@ class Viewer:
             c2w_orig = self.original_c2w[idx]
             c2w_delta = c2ws_delta[idx, ...]
             c2w = c2w_orig @ np.concatenate((c2w_delta, np.array([[0, 0, 0, 1]])), axis=0)
-            R = vtf.SO3.from_matrix(c2w[:3, :3].numpy(force=True))
+            R = vtf.SO3.from_matrix(c2w[:3, :3])
             R = R @ vtf.SO3.from_x_radians(np.pi)
-            self.camera_handles[idx].position = c2w[:3, 3].numpy(force=True) * VISER_NERFSTUDIO_SCALE_RATIO
+            self.camera_handles[idx].position = c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO
             self.camera_handles[idx].wxyz = R.wxyz
 
     def _interrupt_render(self, _) -> None:

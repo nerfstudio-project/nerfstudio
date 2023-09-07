@@ -245,7 +245,7 @@ def intersect_obb(
     directions: torch.Tensor,
     obb: OrientedBox,
     max_bound: float = 1e10,
-    invalid_value: float = 0,
+    invalid_value: float = 1e10,
 ):
     """
     Ray intersection with an oriented bounding box (OBB)

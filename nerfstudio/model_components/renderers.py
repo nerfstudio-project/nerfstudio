@@ -219,6 +219,7 @@ class RGBRenderer(nn.Module):
         Returns:
             Outputs of rgb values.
         """
+
         if background_color is None:
             background_color = self.background_color
 
