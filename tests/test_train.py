@@ -29,7 +29,7 @@ BLACKLIST = [
 ]
 
 
-def set_reduced_config(config: TrainerConfig, tmp_path):
+def set_reduced_config(config: TrainerConfig, tmp_path: Path):
     """Reducing the config settings to speedup test"""
     config.machine.device_type = "cpu"
     if hasattr(config.pipeline.model, "implementation"):
@@ -64,7 +64,7 @@ def set_reduced_config(config: TrainerConfig, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
-def test_train(tmp_path):
+def test_train(tmp_path: Path):
     """test run train script works properly"""
     all_config_names = method_configs.keys()
     for config_name in all_config_names:
@@ -78,7 +78,7 @@ def test_train(tmp_path):
         train_loop(local_rank=0, world_size=0, config=config)
 
 
-def test_simple_io(tmp_path):
+def test_simple_io(tmp_path: Path):
     """test to check minimal data IO works correctly"""
     config = method_configs["vanilla-nerf"]
     config.pipeline.datamanager.dataparser = MinimalDataParserConfig(data=Path("tests/data/minimal_parser"))
