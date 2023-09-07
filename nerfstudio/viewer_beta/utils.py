@@ -55,7 +55,7 @@ def get_camera(
     pp_w = image_width / 2.0
     pp_h = image_height / 2.0
     focal_length = pp_h / np.tan(fov / 2.0)
-    intrinsics_matrix = torch.tensor([[focal_length, 0, pp_w], [0, focal_length, pp_h], [0, 0, 1]],dtype=torch.float32)
+    intrinsics_matrix = torch.tensor([[focal_length, 0, pp_w], [0, focal_length, pp_h], [0, 0, 1]], dtype=torch.float32)
 
     camera_type = CameraType.PERSPECTIVE
 
