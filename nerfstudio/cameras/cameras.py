@@ -466,7 +466,7 @@ class Cameras(TensorDataclass):
         if keep_shape is False:
             raybundle = raybundle.flatten()
 
-        if aabb_box or obb_box:
+        if aabb_box is not None or obb_box is not None:
             with torch.no_grad():
                 rays_o = raybundle.origins.contiguous()
                 rays_d = raybundle.directions.contiguous()
@@ -476,12 +476,14 @@ class Cameras(TensorDataclass):
                 rays_o = rays_o.reshape((-1, 3))
                 rays_d = rays_d.reshape((-1, 3))
 
-                if aabb_box:
+                if aabb_box is not None:
                     tensor_aabb = Parameter(aabb_box.aabb.flatten(), requires_grad=False)
                     tensor_aabb = tensor_aabb.to(rays_o.device)
                     t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
-                else:
+                elif obb_box is not None:
                     t_min, t_max = nerfstudio.utils.math.intersect_obb(rays_o, rays_d, obb_box)
+                else:
+                    assert False
 
                 t_min = t_min.reshape([shape[0], shape[1], 1])
                 t_max = t_max.reshape([shape[0], shape[1], 1])
@@ -749,8 +751,6 @@ class Cameras(TensorDataclass):
             vr180_cam_position = transposedC2W[3].repeat(c2w.shape[1], 1)
 
             rotation = c2w[..., :3, :3]
-
-            -torch.pi * ((x - cx) / fx)[0]
 
             # interocular axis of the VR180 camera
             vr180_x_axis = torch.tensor([1, 0, 0], device=c2w.device)
