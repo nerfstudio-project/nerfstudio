@@ -17,17 +17,14 @@ from __future__ import annotations
 
 import contextlib
 import threading
-import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 
 import torch
-
 from nerfstudio.model_components.renderers import background_color_override_context
 from nerfstudio.utils import colormaps, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
-from nerfstudio.viewer_beta import utils
 from nerfstudio.viewer_beta.utils import CameraState, get_camera
 
 if TYPE_CHECKING:
@@ -89,9 +86,7 @@ class RenderStateMachine(threading.Thread):
         """
         if self.next_action is None:
             self.next_action = action
-        elif action.action == "step" and (
-            self.state == "low_move" or self.next_action.action in ("move", "rerender")
-        ):
+        elif action.action == "step" and (self.state == "low_move" or self.next_action.action in ("move", "rerender")):
             # ignore steps if:
             #  1. we are in low_moving state
             #  2. the current next_action is move, static, or rerender
@@ -144,7 +139,9 @@ class RenderStateMachine(threading.Thread):
                                 [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0],
                                 device=self.viewer.get_model().device,
                             )
-                        with background_color_override_context(background_color), torch.no_grad(),viewer_utils.SetTrace(self.check_interrupt):
+                        with background_color_override_context(
+                            background_color
+                        ), torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
                             outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                     else:
                         with torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
@@ -154,11 +151,11 @@ class RenderStateMachine(threading.Thread):
                     raise
             num_rays = len(camera_ray_bundle)
             if self.viewer.control_panel.layer_depth:
-                #convert to z_depth if depth compositing is enabled
-                R = camera.camera_to_worlds[0:3,0:3].T
-                pts = (camera_ray_bundle.directions*outputs['depth'])
-                pts = (R@(pts.view(-1,3).T)).T.view(*camera_ray_bundle.directions.shape)
-                outputs['gl_z_buf_depth'] = -pts[...,2:3] #negative z axis is the coordinate convention
+                # convert to z_depth if depth compositing is enabled
+                R = camera.camera_to_worlds[0:3, 0:3].T
+                pts = camera_ray_bundle.directions * outputs["depth"]
+                pts = (R @ (pts.view(-1, 3).T)).T.view(*camera_ray_bundle.directions.shape)
+                outputs["gl_z_buf_depth"] = -pts[..., 2:3]  # negative z axis is the coordinate convention
         render_time = vis_t.duration
         if writer.is_initialized():
             writer.put_time(
@@ -169,8 +166,8 @@ class RenderStateMachine(threading.Thread):
     def run(self):
         """Main loop for the render thread"""
         while True:
-            if not self.render_trigger.wait(.2):
-                #if we haven't received a trigger in a while, send a static action
+            if not self.render_trigger.wait(0.2):
+                # if we haven't received a trigger in a while, send a static action
                 if self.viewer.camera_state is not None:
                     self.action(RenderAction(action="static", camera_state=self.viewer.camera_state))
             action = self.next_action
@@ -188,7 +185,6 @@ class RenderStateMachine(threading.Thread):
                 # if we got interrupted, don't send the output to the viewer
                 continue
             self._send_output_to_viewer(outputs)
-                
 
     def check_interrupt(self, frame, event, arg):
         """Raises interrupt when flag has been set and not already on lowest resolution.
@@ -237,7 +233,9 @@ class RenderStateMachine(threading.Thread):
             selected_output[:, split_index] = torch.tensor([0.133, 0.157, 0.192], device=selected_output.device)
 
         selected_output = (selected_output * 255).type(torch.uint8)
-        depth = outputs['gl_z_buf_depth'].cpu().numpy() * self.viser_scale_ratio if 'gl_z_buf_depth' in outputs else None
+        depth = (
+            outputs["gl_z_buf_depth"].cpu().numpy() * self.viser_scale_ratio if "gl_z_buf_depth" in outputs else None
+        )
         self.viewer.viser_server.set_background_image(
             selected_output.cpu().numpy(),
             format=self.viewer.config.image_format,

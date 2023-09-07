@@ -131,6 +131,8 @@ class CameraPath:
 
                         @confirm_button.on_click
                         def _(_) -> None:
+                            assert camera_edit_panel is not None
+
                             keyframe_id = None
                             for i, keyframe_tuple in self._keyframes.items():
                                 if keyframe_tuple[1] is frustum_handle:
@@ -173,6 +175,7 @@ class CameraPath:
 
                 @close_button.on_click
                 def _(_) -> None:
+                    assert camera_edit_panel is not None
                     camera_edit_panel.remove()
 
         self._keyframes[keyframe_index] = (keyframe, frustum_handle)
@@ -246,7 +249,7 @@ class CameraPath:
         )
         colors_array = onp.array([colorsys.hls_to_rgb(h, 0.5, 1.0) for h in onp.linspace(0.0, 1.0, len(points_array))])
         self._spline = self._server.add_point_cloud(
-            f"/render_camera_spline",
+            "/render_camera_spline",
             points=points_array,
             colors=colors_array,
             point_size=0.035,
@@ -495,6 +498,8 @@ def populate_render_tab(server: viser.ViserServer) -> None:
     def _(_) -> None:
         nonlocal preview_frame_slider
         old = preview_frame_slider
+        assert old is not None
+
         preview_frame_slider = add_preview_frame_slider()
         if preview_frame_slider is not None:
             old.remove()

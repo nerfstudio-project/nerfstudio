@@ -16,12 +16,10 @@
 from collections import defaultdict
 from typing import Callable, DefaultDict, List, Tuple, get_args
 
+import numpy as np
 import torch
-from viser import ViserServer
 import viser.transforms as vtf
 from nerfstudio.data.scene_box import OrientedBox
-import numpy as np
-
 from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
 from nerfstudio.viewer_beta.viewer_elements import (  # ViewerButtonGroup,
     ViewerButton,
@@ -34,6 +32,7 @@ from nerfstudio.viewer_beta.viewer_elements import (  # ViewerButtonGroup,
     ViewerSlider,
     ViewerVec3,
 )
+from viser import ViserServer
 
 
 class ControlPanel:
@@ -131,7 +130,7 @@ class ControlPanel:
             hint="Target training utilization, 0.0 is slow, 1.0 is fast. Doesn't affect final render quality",
         )
         self._layer_depth = ViewerCheckbox(
-            "Composite Depth",True,cb_hook=rerender_cb,hint= "Allow NeRF to occlude 3D browser objects"
+            "Composite Depth", True, cb_hook=rerender_cb, hint="Allow NeRF to occlude 3D browser objects"
         )
         self._max_res = ViewerSlider(
             "Max Res", 512, 64, 2048, 100, cb_hook=rerender_cb, hint="Maximum resolution to render in viewport"
@@ -145,30 +144,41 @@ class ControlPanel:
         self._background_color = ViewerRGB(
             "Background color", (38, 42, 55), cb_hook=crop_update_cb, hint="Color of the background"
         )
-        self._crop_handle = self.viser_server.add_transform_controls("Crop",depth_test=False,line_width=4.0)
+        self._crop_handle = self.viser_server.add_transform_controls("Crop", depth_test=False, line_width=4.0)
 
         def update_center(han):
             self._crop_handle.position = tuple(p * self.viser_scale_ratio for p in han.value)
+
         self._crop_center = ViewerVec3(
-            "Crop Center", (0.0, 0.0, 0.0), step=.01, cb_hook=lambda e:[crop_update_cb(e),update_center(e)], hint="Center of the crop box"
+            "Crop Center",
+            (0.0, 0.0, 0.0),
+            step=0.01,
+            cb_hook=lambda e: [crop_update_cb(e), update_center(e)],
+            hint="Center of the crop box",
         )
 
         def update_rot(han):
             self._crop_handle.wxyz = vtf.SO3.from_rpy_radians(*han.value).wxyz
+
         self._crop_rot = ViewerVec3(
-            "Crop Rotation", (0.0, 0.0, 0.0), step=.01, cb_hook=lambda e: [crop_update_cb(e),update_rot(e)], hint="Rotation of the crop box"
+            "Crop Rotation",
+            (0.0, 0.0, 0.0),
+            step=0.01,
+            cb_hook=lambda e: [crop_update_cb(e), update_rot(e)],
+            hint="Rotation of the crop box",
         )
-        
+
         self._crop_scale = ViewerVec3(
-            "Crop Scale", (1.0, 1.0, 1.0), step=.01, cb_hook=crop_update_cb, hint="Scale of the crop box"
+            "Crop Scale", (1.0, 1.0, 1.0), step=0.01, cb_hook=crop_update_cb, hint="Scale of the crop box"
         )
 
         @self._crop_handle.on_update
         def _update_crop_handle(han):
             pos = self._crop_handle.position
-            self._crop_center.value = tuple(p/self.viser_scale_ratio for p in pos)
+            self._crop_center.value = tuple(p / self.viser_scale_ratio for p in pos)
             rpy = vtf.SO3(self._crop_handle.wxyz).as_rpy_radians()
-            self._crop_rot.value =  (rpy.roll,rpy.pitch,rpy.yaw)
+            self._crop_rot.value = (float(rpy.roll), float(rpy.pitch), float(rpy.yaw))
+
         self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=rerender_cb, hint="Time to render")
         self._time_enabled = time_enabled
 
@@ -254,13 +264,13 @@ class ControlPanel:
         self.hide_images.visible = not self.hide_images.visible
         self.show_images.visible = not self.show_images.visible
 
-    def update_step(self,step):
+    def update_step(self, step):
         """
-        Args: 
+        Args:
             step: the train step to set the model to
         """
         with self.viser_server.atomic(), self.stat_folder:
-            #TODO change to a .value call instead of remove() and add, this makes it jittery
+            # TODO change to a .value call instead of remove() and add, this makes it jittery
             with self.viser_server.atomic():
                 self.markdown.remove()
                 self.markdown = self.viser_server.add_gui_markdown(f"Step: {step}")
@@ -366,8 +376,8 @@ class ControlPanel:
     def crop_obb(self):
         """Returns the current crop obb setting"""
         rxyz = self._crop_rot.value
-        R = torch.tensor(vtf.SO3.from_rpy_radians(rxyz[0],rxyz[1],rxyz[2]).as_matrix())
-        obb = OrientedBox(R,torch.tensor(self._crop_center.value),torch.tensor(self._crop_scale.value))
+        R = torch.tensor(vtf.SO3.from_rpy_radians(rxyz[0], rxyz[1], rxyz[2]).as_matrix())
+        obb = OrientedBox(R, torch.tensor(self._crop_center.value), torch.tensor(self._crop_scale.value))
         return obb
 
     @property
@@ -415,6 +425,8 @@ class ControlPanel:
     @property
     def layer_depth(self):
         return self._layer_depth.value
+
+
 def _get_colormap_options(dimensions: int, dtype: type) -> List[Colormaps]:
     """
     Given the number of dimensions and data type, returns a list of available colormap options

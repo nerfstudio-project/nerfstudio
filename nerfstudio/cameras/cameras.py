@@ -32,7 +32,7 @@ import nerfstudio.utils.math
 import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.data.scene_box import SceneBox,OrientedBox
+from nerfstudio.data.scene_box import SceneBox, OrientedBox
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
 TORCH_DEVICE = Union[torch.device, str]
@@ -468,7 +468,6 @@ class Cameras(TensorDataclass):
 
         if aabb_box or obb_box:
             with torch.no_grad():
-
                 rays_o = raybundle.origins.contiguous()
                 rays_d = raybundle.directions.contiguous()
 

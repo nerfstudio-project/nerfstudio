@@ -21,7 +21,6 @@ import torch
 from jaxtyping import Bool, Float
 from torch import Tensor
 
-from nerfstudio.utils.misc import torch_compile
 from nerfstudio.data.scene_box import OrientedBox
 
 
@@ -240,6 +239,7 @@ def intersect_aabb(
 
     return t_min, t_max
 
+
 def intersect_obb(
     origins: torch.Tensor,
     directions: torch.Tensor,
@@ -260,20 +260,21 @@ def intersect_obb(
         invalid_value: Value to return in case of no intersection
     """
     # Transform ray to OBB space
-    R,T,S = obb.R,obb.T,obb.S.to(origins.device)
-    H = torch.eye(4, device=origins.device,dtype = origins.dtype)
+    R, T, S = obb.R, obb.T, obb.S.to(origins.device)
+    H = torch.eye(4, device=origins.device, dtype=origins.dtype)
     H[:3, :3] = R
     H[:3, 3] = T
     H_world2bbox = torch.inverse(H)
     origins = torch.cat((origins, torch.ones_like(origins[..., :1])), dim=-1)
-    origins = torch.matmul(H_world2bbox,origins.T).T[..., :3]
+    origins = torch.matmul(H_world2bbox, origins.T).T[..., :3]
     directions = torch.matmul(H_world2bbox[:3, :3], directions.T).T
 
     # Compute intersection with axis-aligned bounding box with min as -S and max as +S
-    aabb = torch.concat((-S/2, S/2))
+    aabb = torch.concat((-S / 2, S / 2))
     t_min, t_max = intersect_aabb(origins, directions, aabb, max_bound=max_bound, invalid_value=invalid_value)
 
     return t_min, t_max
+
 
 def safe_normalize(
     vectors: Float[Tensor, "*batch_dim N"],

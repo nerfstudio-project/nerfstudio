@@ -13,20 +13,18 @@
 # limitations under the License.
 
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 from jaxtyping import Float
-
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.models.base_model import Model
-
-from typing import Any, List, Tuple
-
 from torch import nn
+
 
 @dataclass
 class CameraState:
@@ -97,7 +95,7 @@ def update_render_aabb(
             model.render_aabb = SceneBox(aabb=torch.stack([crop_min_tensor, crop_max_tensor], dim=0))
     else:
         model.render_aabb = None
-        
+
 
 def parse_object(
     obj: Any,

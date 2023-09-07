@@ -14,16 +14,13 @@
 
 from __future__ import annotations
 
-import dataclasses
-import time
 from pathlib import Path
-from typing import List, Optional, Tuple
-from nerfstudio.viewer_beta.control_panel import ControlPanel
-from nerfstudio.data.scene_box import OrientedBox
-import numpy as np
-import viser.transforms as vtf
+
 import viser
-from typing_extensions import Literal, assert_never
+import viser.transforms as vtf
+from nerfstudio.data.scene_box import OrientedBox
+from nerfstudio.viewer_beta.control_panel import ControlPanel
+from typing_extensions import Literal
 
 
 def populate_export_tab(server: viser.ViserServer, control_panel: ControlPanel, config_path: Path) -> None:
@@ -63,11 +60,12 @@ def show_command_modal(client: viser.ClientHandle, what: Literal["mesh", "point 
         def _(_) -> None:
             modal.close()
 
+
 def get_crop_string(obb: OrientedBox):
     """Takes in an oriented bounding box and returns a string of the form "--obb_{center,rotation,scale}
     and each arg formatted with spaces around it
     """
-    rpy = vtf.SO3.from_matrix(obb.R).as_rpy_radians()
+    rpy = vtf.SO3.from_matrix(obb.R.numpy(force=True)).as_rpy_radians()
     pos = obb.T.squeeze().tolist()
     scale = obb.S.squeeze().tolist()
     rpystring = " ".join([str(x) for x in rpy])
@@ -75,14 +73,13 @@ def get_crop_string(obb: OrientedBox):
     scalestring = " ".join([str(x) for x in scale])
     return f"--obb_center {posstring} --obb_rotation {rpystring} --obb_scale {scalestring}"
 
+
 def populate_point_cloud_tab(
     server: viser.ViserServer,
     control_panel: ControlPanel,
     config_path: Path,
 ) -> None:
-    server.add_gui_markdown(
-        "<small>Render depth, project to an oriented point cloud, and filter.</small> "
-    )
+    server.add_gui_markdown("<small>Render depth, project to an oriented point cloud, and filter.</small> ")
     num_points = server.add_gui_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
     remove_outliers = server.add_gui_checkbox("Remove outliers", True)
     normals = server.add_gui_dropdown(
@@ -97,20 +94,20 @@ def populate_point_cloud_tab(
 
     @generate_command.on_click
     def _(event: viser.GuiEvent) -> None:
-        for client in server.get_clients().values():
-            command = " ".join(
-                [
-                    "ns-export pointcloud",
-                    f"--load-config {config_path}",
-                    f"--output-dir {output_dir.value}",
-                    f"--num-points {num_points.value}",
-                    f"--remove-outliers {remove_outliers.value}",
-                    f"--normal-method {normals.value}",
-                    f"--use_bounding_box {control_panel.crop_viewport}",
-                    get_crop_string(control_panel.crop_obb),
-                ]
-            )
-            show_command_modal(event.client, "point cloud", command)
+        assert event.client is not None
+        command = " ".join(
+            [
+                "ns-export pointcloud",
+                f"--load-config {config_path}",
+                f"--output-dir {output_dir.value}",
+                f"--num-points {num_points.value}",
+                f"--remove-outliers {remove_outliers.value}",
+                f"--normal-method {normals.value}",
+                f"--use_bounding_box {control_panel.crop_viewport}",
+                get_crop_string(control_panel.crop_obb),
+            ]
+        )
+        show_command_modal(event.client, "point cloud", command)
 
 
 def populate_mesh_tab(
@@ -138,6 +135,7 @@ def populate_mesh_tab(
 
     @generate_command.on_click
     def _(event: viser.GuiEvent) -> None:
+        assert event.client is not None
         command = " ".join(
             [
                 "ns-export poisson",
@@ -152,4 +150,4 @@ def populate_mesh_tab(
                 get_crop_string(control_panel.crop_obb),
             ]
         )
-        show_command_modal(server, "mesh", command)
+        show_command_modal(event.client, "mesh", command)

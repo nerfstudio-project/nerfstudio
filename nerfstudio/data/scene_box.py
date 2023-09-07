@@ -17,7 +17,7 @@ Dataset input structures.
 """
 
 from dataclasses import dataclass
-from typing import Union,Tuple
+from typing import Union, Tuple
 import viser.transforms as vtf
 
 import torch
@@ -28,6 +28,7 @@ from torch import Tensor
 @dataclass
 class SceneBox:
     """Data to represent the scene box."""
+
     aabb: Float[Tensor, "2 3"]
     """aabb: axis-aligned bounding box.
     aabb[0] is the minimum (x,y,z) point.
@@ -87,25 +88,27 @@ class OrientedBox:
     S: Float[Tensor, "3"]
     """S: scale vector."""
 
-    def within(self,pts: Float[Tensor,"n 3"]):
+    def within(self, pts: Float[Tensor, "n 3"]):
         """Returns a boolean mask indicating whether each point is within the box."""
-        R,T,S = self.R,self.T,self.S.to(pts)
-        H = torch.eye(4, device=pts.device,dtype = pts.dtype)
+        R, T, S = self.R, self.T, self.S.to(pts)
+        H = torch.eye(4, device=pts.device, dtype=pts.dtype)
         H[:3, :3] = R
         H[:3, 3] = T
         H_world2bbox = torch.inverse(H)
         pts = torch.cat((pts, torch.ones_like(pts[..., :1])), dim=-1)
-        pts = torch.matmul(H_world2bbox,pts.T).T[..., :3]
+        pts = torch.matmul(H_world2bbox, pts.T).T[..., :3]
 
-        comp_l = torch.tensor(-S/2)
-        comp_m = torch.tensor( S/2)
+        comp_l = torch.tensor(-S / 2)
+        comp_m = torch.tensor(S / 2)
         mask = torch.all(torch.concat([pts > comp_l, pts < comp_m], dim=-1), dim=-1)
         return mask
 
     @staticmethod
-    def from_params(pos: Tuple[float,float,float], rpy: Tuple[float,float,float], scale: Tuple[float,float,float]):
+    def from_params(
+        pos: Tuple[float, float, float], rpy: Tuple[float, float, float], scale: Tuple[float, float, float]
+    ):
         """Construct a box from position, rotation, and scale parameters."""
-        R = torch.tensor(vtf.SO3.from_rpy_radians(rpy[0],rpy[1],rpy[2]).as_matrix())
+        R = torch.tensor(vtf.SO3.from_rpy_radians(rpy[0], rpy[1], rpy[2]).as_matrix())
         T = torch.tensor(pos)
         S = torch.tensor(scale)
-        return OrientedBox(R=R,T=T,S=S)
+        return OrientedBox(R=R, T=T, S=S)

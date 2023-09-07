@@ -15,18 +15,17 @@
 """ Manage the state of the viewer """
 from __future__ import annotations
 
-VISER_NERFSTUDIO_SCALE_RATIO: float = 10.0
 import threading
-from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Optional, Dict,List
 import time
+from pathlib import Path
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional
 
 import numpy as np
 import torch
 import torchvision
 import viser
+import viser.theme
 import viser.transforms as vtf
-
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.models.base_model import Model
@@ -35,16 +34,19 @@ from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer_beta.control_panel import ControlPanel
-from nerfstudio.viewer_beta.render_state_machine import RenderAction, RenderStateMachine
-from nerfstudio.viewer_beta.utils import CameraState,parse_object
 from nerfstudio.viewer_beta.export_panel import populate_export_tab
 from nerfstudio.viewer_beta.render_panel import populate_render_tab
-from nerfstudio.viewer_beta.viewer_elements import ViewerElement, ViewerControl
-from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.viewer_beta.render_state_machine import RenderAction, RenderStateMachine
+from nerfstudio.viewer_beta.utils import CameraState, parse_object
+from nerfstudio.viewer_beta.viewer_elements import ViewerControl, ViewerElement
+
+from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
 
+
+VISER_NERFSTUDIO_SCALE_RATIO: float = 10.0
 
 
 @decorate_all([check_main_thread])
@@ -100,7 +102,7 @@ class Viewer:
         self.train_btn_state: Literal["training", "paused", "completed"] = "training"
         self._prev_train_state: Literal["training", "paused", "completed"] = "training"
 
-        self.client: viser.ClientHandle = None
+        self.client: Optional[viser.ClientHandle] = None
         self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
         buttons = (
             viser.theme.TitlebarButton(
@@ -153,8 +155,8 @@ class Viewer:
             populate_render_tab(self.viser_server)
 
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
-            config_path = self.log_filename.parents[0]/"config.yml"
-            populate_export_tab(self.viser_server,self.control_panel,config_path)
+            config_path = self.log_filename.parents[0] / "config.yml"
+            populate_export_tab(self.viser_server, self.control_panel, config_path)
 
         def nested_folder_install(folder_labels: List[str], element: ViewerElement):
             if len(folder_labels) == 0:
@@ -185,8 +187,10 @@ class Viewer:
     def handle_new_client(self, client: viser.ClientHandle) -> None:
         self.client = client
         self.last_move_time = 0
+
         @client.camera.on_update
         def _(cam: viser.CameraHandle) -> None:
+            assert self.client is not None
             self.last_move_time = time.time()
             R = vtf.SO3(wxyz=self.client.camera.wxyz)
             R = R @ vtf.SO3.from_x_radians(np.pi)
@@ -196,7 +200,7 @@ class Viewer:
             self.camera_state = CameraState(fov=self.client.camera.fov, aspect=self.client.camera.aspect, c2w=c2w)
             self.render_statemachine.action(RenderAction("move", self.camera_state))
 
-    def set_camera_visibility(self, visible:bool) -> None:
+    def set_camera_visibility(self, visible: bool) -> None:
         """Toggle the visibility of the training cameras."""
         with self.viser_server.atomic():
             for idx in self.camera_handles:
@@ -206,20 +210,21 @@ class Viewer:
         # Update the train camera locations based on optimization
         assert self.camera_handles is not None
         idxs = list(self.camera_handles.keys())
-        if hasattr(self.pipeline.datamanager,'train_camera_optimizer'):
+        if hasattr(self.pipeline.datamanager, "train_camera_optimizer"):
             camera_optimizer = self.pipeline.datamanager.train_camera_optimizer
         else:
             camera_optimizer = self.pipeline.model.camera_optimizer
         with torch.no_grad():
+            assert isinstance(camera_optimizer, CameraOptimizer)
             c2ws_delta = camera_optimizer(torch.tensor(idxs, device=camera_optimizer.device)).cpu().numpy()
         for idx in idxs:
             # both are numpy arrays
             c2w_orig = self.original_c2w[idx]
             c2w_delta = c2ws_delta[idx, ...]
             c2w = c2w_orig @ np.concatenate((c2w_delta, np.array([[0, 0, 0, 1]])), axis=0)
-            R = vtf.SO3.from_matrix(c2w[:3, :3])
+            R = vtf.SO3.from_matrix(c2w[:3, :3].numpy(force=True))
             R = R @ vtf.SO3.from_x_radians(np.pi)
-            self.camera_handles[idx].position = c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO
+            self.camera_handles[idx].position = c2w[:3, 3].numpy(force=True) * VISER_NERFSTUDIO_SCALE_RATIO
             self.camera_handles[idx].wxyz = R.wxyz
 
     def _interrupt_render(self, _) -> None:
@@ -291,7 +296,7 @@ class Viewer:
             R = R @ vtf.SO3.from_x_radians(np.pi)
             camera_handle = self.viser_server.add_camera_frustum(
                 name=f"/cameras/camera_{idx:05d}",
-                fov=2 * np.arctan(camera.cx / camera.fx[0]),
+                fov=float(2 * np.arctan(camera.cx / camera.fx[0])),
                 scale=0.1,
                 aspect=float(camera.cx[0] / camera.cy[0]),
                 image=image_uint8,
@@ -300,10 +305,11 @@ class Viewer:
             )
 
             @camera_handle.on_click
-            def _(cam: viser.CameraHandle) -> None:
+            def _(event: viser.ClickEvent[viser.CameraFrustumHandle]) -> None:
+                assert self.client is not None
                 with self.client.atomic():
-                    self.client.camera.position = cam.position
-                    self.client.camera.wxyz = cam.wxyz
+                    self.client.camera.position = event.target.position
+                    self.client.camera.wxyz = event.target.wxyz
 
             self.camera_handles[idx] = camera_handle
             self.original_c2w[idx] = c2w
@@ -323,8 +329,8 @@ class Viewer:
         if self.camera_state is None:
             return
         # this stops training while moving to make the response smoother
-        while time.time()-self.last_move_time < 0.1:
-            time.sleep(.05)
+        while time.time() - self.last_move_time < 0.1:
+            time.sleep(0.05)
         # self.render_statemachine.action(RenderAction("static", self.camera_state))
         if self.trainer is not None and self.trainer.training_state == "training" and self.train_util != 1:
             if (

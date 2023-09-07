@@ -19,8 +19,12 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Callable, Generic, List, Optional, Tuple, Union
 from dataclasses import dataclass
+from typing import Any, Callable, Generic, List, Optional, Tuple, Union
+
+import numpy as np
+import torch
+import viser.transforms as vtf
 from typing_extensions import LiteralString, TypeVar
 from viser import (
     GuiButtonGroupHandle,
@@ -29,14 +33,14 @@ from viser import (
     GuiInputHandle,
     ViserServer,
 )
-from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO
-from nerfstudio.viewer_beta.utils import CameraState,get_camera
+
 from nerfstudio.cameras.cameras import Cameras
-import viser.transforms as vtf
-import numpy as np
-import torch
+from nerfstudio.viewer_beta.utils import CameraState, get_camera
+from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO, Viewer
+
 TValue = TypeVar("TValue")
 TString = TypeVar("TString", default=str, bound=str)
+
 
 @dataclass
 class ViewerClick:
@@ -71,7 +75,7 @@ class ViewerControl:
         Args:
             viewer: The viewer object (viewer.py)
         """
-        self.viewer:Viewer = viewer
+        self.viewer: Viewer = viewer
         self.viser_server: ViserServer = viewer.viser_server
 
     def set_pose(
@@ -120,13 +124,14 @@ class ViewerControl:
             img_height: The height of the image to get camera intrinsics for
             img_width: The width of the image to get camera intrinsics for
         """
+        assert self.viewer.client is not None
         R = vtf.SO3(wxyz=self.viewer.client.camera.wxyz)
         R = R @ vtf.SO3.from_x_radians(np.pi)
         R = torch.tensor(R.as_matrix())
         pos = torch.tensor(self.viewer.client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
         c2w = torch.concatenate([R, pos[:, None]], dim=1)
         camera_state = CameraState(fov=self.viewer.client.camera.fov, aspect=self.viewer.client.camera.aspect, c2w=c2w)
-        return get_camera(camera_state,img_height,img_width)
+        return get_camera(camera_state, img_height, img_width)
 
     def register_click_cb(self, cb: Callable):
         """
@@ -143,7 +148,7 @@ class ViewerControl:
         Internal use only, register a click in the viewer which propagates to all self.click_cbs
         """
         raise NotImplementedError()
-    
+
     @property
     def server(self):
         return self.viser_server
