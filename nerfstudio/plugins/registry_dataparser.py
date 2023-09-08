@@ -16,6 +16,8 @@
 Module that keeps all registered plugins and allows for plugin discovery.
 """
 
+import os
+import importlib
 import sys
 import typing as t
 from dataclasses import dataclass
@@ -41,21 +43,55 @@ class DataParserSpecification:
     config: DataParserConfig
     """Dataparser configuration"""
 
+    description: t.Optional[str] = None
+    """Description of the dataparser"""
 
-def discover_dataparsers() -> t.Dict[str, DataParserConfig]:
+
+def discover_dataparsers() -> t.Tuple[t.Dict[str, DataParserConfig], t.Dict[str, str]]:
     """
     Discovers all dataparsers registered using the `nerfstudio.dataparser_configs` entrypoint.
+    And also dataparsers in the NERFSTUDIO_DATAPARSER_CONFIGS environment variable.
     """
     dataparsers = {}
+    descriptions = {}
     discovered_entry_points = entry_points(group="nerfstudio.dataparser_configs")
     for name in discovered_entry_points.names:
         spec = discovered_entry_points[name].load()
         if not isinstance(spec, DataParserSpecification):
             CONSOLE.print(
-                f"[bold yellow]Warning: Could not entry point {spec} as it is an instance of DataParserSpecification"
+                f"[bold yellow]Warning: Could not entry point {spec} as it is not an instance of DataParserSpecification"
             )
             continue
         spec = t.cast(DataParserSpecification, spec)
         dataparsers[name] = spec.config
+        descriptions[name] = spec.description
 
-    return dataparsers
+    if "NERFSTUDIO_DATAPARSER_CONFIGS" in os.environ:
+        try:
+            strings = os.environ["NERFSTUDIO_DATAPARSER_CONFIGS"].split(",")
+            for definition in strings:
+                if not definition:
+                    continue
+                name, path = definition.split("=")
+                CONSOLE.print(f"[bold green]Info: Loading method {name} from environment variable")
+                module, config_name = path.split(":")
+                dataparser_config = getattr(importlib.import_module(module), config_name)
+
+                # method_config specified as function or class -> instance
+                if callable(dataparser_config):
+                    dataparser_config = dataparser_config()
+
+                # check for valid instance type
+                if not isinstance(dataparser_config, DataParserSpecification):
+                    raise TypeError("Method is not an instance of DataParserSpecification")
+
+                # save to methods
+                dataparsers[name] = dataparser_config.config
+                descriptions[name] = dataparser_config.description
+        except Exception:  # pylint: disable=broad-except
+            CONSOLE.print_exception()
+            CONSOLE.print(
+                "[bold red]Error: Could not load methods from environment variable NERFSTUDIO_DATAPARSER_CONFIGS"
+            )
+
+    return dataparsers, descriptions
