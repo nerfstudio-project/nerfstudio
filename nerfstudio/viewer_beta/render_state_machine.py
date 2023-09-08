@@ -17,17 +17,14 @@ from __future__ import annotations
 
 import contextlib
 import threading
-import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 
 import torch
-
 from nerfstudio.model_components.renderers import background_color_override_context
 from nerfstudio.utils import colormaps, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
-from nerfstudio.viewer_beta import utils
 from nerfstudio.viewer_beta.utils import CameraState, get_camera
 
 if TYPE_CHECKING:
@@ -55,7 +52,7 @@ class RenderStateMachine(threading.Thread):
         viewer: the viewer state
     """
 
-    def __init__(self, viewer: Viewer):
+    def __init__(self, viewer: Viewer, viser_scale_ratio: float):
         threading.Thread.__init__(self)
         self.transitions: Dict[RenderStates, Dict[RenderActions, RenderStates]] = {
             s: {} for s in get_args(RenderStates)
@@ -74,11 +71,12 @@ class RenderStateMachine(threading.Thread):
         self.next_action: Optional[RenderAction] = None
         self.state: RenderStates = "low_static"
         self.render_trigger = threading.Event()
-        self.target_fps = 24
+        self.target_fps = 30
         self.viewer = viewer
         self.interrupt_render_flag = False
         self.daemon = True
         self.output_keys = {}
+        self.viser_scale_ratio = viser_scale_ratio
 
     def action(self, action: RenderAction):
         """Takes an action and updates the state machine
@@ -88,9 +86,7 @@ class RenderStateMachine(threading.Thread):
         """
         if self.next_action is None:
             self.next_action = action
-        elif action.action == "step" and (
-            self.state == "low_move" or self.next_action.action in ("move", "static", "rerender")
-        ):
+        elif action.action == "step" and (self.state == "low_move" or self.next_action.action in ("move", "rerender")):
             # ignore steps if:
             #  1. we are in low_moving state
             #  2. the current next_action is move, static, or rerender
@@ -107,7 +103,6 @@ class RenderStateMachine(threading.Thread):
 
         # handle interrupt logic
         if self.state == "high" and self.next_action.action in ("move", "rerender"):
-            print("interrupting render", self.next_action.action)
             self.interrupt_render_flag = True
         self.render_trigger.set()
 
@@ -117,14 +112,11 @@ class RenderStateMachine(threading.Thread):
         Args:
             camera_state: the current camera state
         """
-
         # initialize the camera ray bundle
-        utils.update_render_aabb(
-            crop_viewport=self.viewer.control_panel.crop_viewport,
-            crop_min=self.viewer.control_panel.crop_min,
-            crop_max=self.viewer.control_panel.crop_max,
-            model=self.viewer.get_model(),
-        )
+        if self.viewer.control_panel.crop_viewport:
+            obb = self.viewer.control_panel.crop_obb
+        else:
+            obb = None
 
         image_height, image_width = self._calculate_image_res(camera_state.aspect)
 
@@ -132,28 +124,39 @@ class RenderStateMachine(threading.Thread):
         camera = camera.to(self.viewer.get_model().device)
         assert camera is not None, "render called before viewer connected"
 
-        with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
-            camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
-
-            with TimeWriter(None, None, write=False) as vis_t:
+        with TimeWriter(None, None, write=False) as vis_t:
+            with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
+                camera_ray_bundle = camera.generate_rays(camera_indices=0, obb_box=obb)
                 self.viewer.get_model().eval()
                 step = self.viewer.step
-                if self.viewer.control_panel.crop_viewport:
-                    color = self.viewer.control_panel.background_color
-                    if color is None:
-                        background_color = torch.tensor([0.0, 0.0, 0.0], device=self.viewer.pipeline.model.device)
+                try:
+                    if self.viewer.control_panel.crop_viewport:
+                        color = self.viewer.control_panel.background_color
+                        if color is None:
+                            background_color = torch.tensor([0.0, 0.0, 0.0], device=self.viewer.pipeline.model.device)
+                        else:
+                            background_color = torch.tensor(
+                                [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0],
+                                device=self.viewer.get_model().device,
+                            )
+                        with background_color_override_context(
+                            background_color
+                        ), torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
+                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                     else:
-                        background_color = torch.tensor(
-                            [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0],
-                            device=self.viewer.get_model().device,
-                        )
-                    with background_color_override_context(background_color), torch.no_grad():
-                        outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                else:
-                    with torch.no_grad():
-                        outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                        with torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
+                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                except viewer_utils.IOChangeException:
+                    self.viewer.get_model().train()
+                    raise
                 self.viewer.get_model().train()
-        num_rays = len(camera_ray_bundle)
+            num_rays = len(camera_ray_bundle)
+            if self.viewer.control_panel.layer_depth:
+                # convert to z_depth if depth compositing is enabled
+                R = camera.camera_to_worlds[0:3, 0:3].T
+                pts = camera_ray_bundle.directions * outputs["depth"]
+                pts = (R @ (pts.view(-1, 3).T)).T.view(*camera_ray_bundle.directions.shape)
+                outputs["gl_z_buf_depth"] = -pts[..., 2:3]  # negative z axis is the coordinate convention
         render_time = vis_t.duration
         if writer.is_initialized():
             writer.put_time(
@@ -164,28 +167,25 @@ class RenderStateMachine(threading.Thread):
     def run(self):
         """Main loop for the render thread"""
         while True:
-            self.render_trigger.wait()
-            self.render_trigger.clear()
+            if not self.render_trigger.wait(0.2):
+                # if we haven't received a trigger in a while, send a static action
+                if self.viewer.camera_state is not None:
+                    self.action(RenderAction(action="static", camera_state=self.viewer.camera_state))
             action = self.next_action
-            assert action is not None, "Action should never be None at this point"
+            self.render_trigger.clear()
+            if action is None:
+                continue
             self.next_action = None
             if self.state == "high" and action.action == "static":
                 # if we are in high res and we get a static action, we don't need to do anything
                 continue
             self.state = self.transitions[self.state][action.action]
             try:
-                with viewer_utils.SetTrace(self.check_interrupt):
-                    outputs = self._render_img(action.camera_state)
+                outputs = self._render_img(action.camera_state)
             except viewer_utils.IOChangeException:
                 # if we got interrupted, don't send the output to the viewer
                 continue
             self._send_output_to_viewer(outputs)
-            # if we rendered a static low res, we need to self-trigger a static high-res
-            if self.next_action is None:
-                # if there hasn't been an action, wait for 1/target_fps seconds in case we get another move command
-                time.sleep(1 / self.target_fps)
-            if self.state in ["low_static", "low_move"]:
-                self.action(RenderAction("static", action.camera_state))
 
     def check_interrupt(self, frame, event, arg):
         """Raises interrupt when flag has been set and not already on lowest resolution.
@@ -234,11 +234,14 @@ class RenderStateMachine(threading.Thread):
             selected_output[:, split_index] = torch.tensor([0.133, 0.157, 0.192], device=selected_output.device)
 
         selected_output = (selected_output * 255).type(torch.uint8)
-
+        depth = (
+            outputs["gl_z_buf_depth"].cpu().numpy() * self.viser_scale_ratio if "gl_z_buf_depth" in outputs else None
+        )
         self.viewer.viser_server.set_background_image(
             selected_output.cpu().numpy(),
             format=self.viewer.config.image_format,
             jpeg_quality=self.viewer.config.jpeg_quality,
+            depth=depth,
         )
 
     def _calculate_image_res(self, aspect_ratio: float) -> Tuple[int, int]:
