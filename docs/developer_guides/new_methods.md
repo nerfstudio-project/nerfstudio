@@ -88,7 +88,7 @@ from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.plugins.types import MethodSpecification
 
 def MyMethodFunc():
-    return = MethodSpecification(
+    return MethodSpecification(
       config=TrainerConfig(...)
       description="Custom description"
     )
