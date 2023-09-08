@@ -16,15 +16,16 @@
 from __future__ import annotations
 
 import threading
+import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Optional
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional
 
 import numpy as np
 import torch
 import torchvision
 import viser
+import viser.theme
 import viser.transforms as vtf
-
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.models.base_model import Model
@@ -33,13 +34,19 @@ from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer_beta.control_panel import ControlPanel
+from nerfstudio.viewer_beta.export_panel import populate_export_tab
+from nerfstudio.viewer_beta.render_panel import populate_render_tab
 from nerfstudio.viewer_beta.render_state_machine import RenderAction, RenderStateMachine
-from nerfstudio.viewer_beta.utils import CameraState
+from nerfstudio.viewer_beta.utils import CameraState, parse_object
+from nerfstudio.viewer_beta.viewer_elements import ViewerControl, ViewerElement
+
+from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
 
-VISER_NERFSTUDIO_SCALE_RATIO: int = 10
+
+VISER_NERFSTUDIO_SCALE_RATIO: float = 10.0
 
 
 @decorate_all([check_main_thread])
@@ -95,57 +102,148 @@ class Viewer:
         self.train_btn_state: Literal["training", "paused", "completed"] = "training"
         self._prev_train_state: Literal["training", "paused", "completed"] = "training"
 
-        self.camera_message = None
-
+        self.client: Optional[viser.ClientHandle] = None
         self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
-
-        self.viser_server.on_client_connect(self.handle_new_client)
-
-        self.control_panel = ControlPanel(
-            self.viser_server,
-            self.include_time,
-            self._interrupt_render,
-            self._crop_params_update,
-            self._output_type_change,
-            self._output_split_type_change,
+        buttons = (
+            viser.theme.TitlebarButton(
+                text="Getting Started",
+                icon=None,
+                href="https://nerf.studio",
+            ),
+            viser.theme.TitlebarButton(
+                text="Github",
+                icon="GitHub",
+                href="https://github.com/nerfstudio-project/nerfstudio",
+            ),
+            viser.theme.TitlebarButton(
+                text="Documentation",
+                icon="Description",
+                href="https://docs.nerf.studio",
+            ),
+        )
+        image = viser.theme.TitlebarImage(
+            image_url_light="https://docs.nerf.studio/en/latest/_static/imgs/logo.png",
+            image_url_dark="https://docs.nerf.studio/en/latest/_static/imgs/logo-dark.png",
+            image_alt="NerfStudio Logo",
+            href="https://docs.nerf.studio/",
+        )
+        titlebar_theme = viser.theme.TitlebarConfig(buttons=buttons, image=image)
+        self.viser_server.configure_theme(
+            titlebar_content=titlebar_theme,
+            control_layout="collapsible",
+            dark_mode=True,
+            brand_color=(255, 211, 105),
         )
 
-        self.render_statemachine = RenderStateMachine(self)
+        self.render_statemachine = RenderStateMachine(self, VISER_NERFSTUDIO_SCALE_RATIO)
+        self.viser_server.on_client_connect(self.handle_new_client)
+
+        tabs = self.viser_server.add_gui_tab_group()
+        control_tab = tabs.add_tab("Control", viser.Icon.SETTINGS)
+        with control_tab:
+            self.control_panel = ControlPanel(
+                self.viser_server,
+                self.include_time,
+                VISER_NERFSTUDIO_SCALE_RATIO,
+                self._interrupt_render,
+                self._crop_params_update,
+                self._output_type_change,
+                self._output_split_type_change,
+                self._toggle_training_state,
+                self.set_camera_visibility,
+            )
+        with tabs.add_tab("Render", viser.Icon.CAMERA):
+            populate_render_tab(self.viser_server)
+
+        with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
+            config_path = self.log_filename.parents[0] / "config.yml"
+            populate_export_tab(self.viser_server, self.control_panel, config_path)
+
+        def nested_folder_install(folder_labels: List[str], element: ViewerElement):
+            if len(folder_labels) == 0:
+                element.install(self.viser_server)
+                # also rewire the hook to rerender
+                prev_cb = element.cb_hook
+                element.cb_hook = lambda element: [prev_cb(element), self._interrupt_render(element)]
+            else:
+                with self.viser_server.add_gui_folder(folder_labels[0]):
+                    nested_folder_install(folder_labels[1:], element)
+
+        with control_tab:
+            self.viewer_elements = []
+            self.viewer_elements.extend(parse_object(pipeline, ViewerElement, "Custom Elements"))
+            for param_path, element in self.viewer_elements:
+                folder_labels = param_path.split("/")[:-1]
+                nested_folder_install(folder_labels, element)
+
+            # scrape the trainer/pipeline for any ViewerControl objects to initialize them
+            self.viewer_controls: List[ViewerControl] = [
+                e for (_, e) in parse_object(self.trainer, ViewerControl, "Custom Elements")
+            ]
+        for c in self.viewer_controls:
+            c._setup(self)
         self.render_statemachine.start()
 
     def handle_new_client(self, client: viser.ClientHandle) -> None:
+        self.client = client
+        self.last_move_time = 0
+
         @client.camera.on_update
-        def _(_: viser.CameraHandle) -> None:
-            R = vtf.SO3(wxyz=client.camera.wxyz)
+        def _(cam: viser.CameraHandle) -> None:
+            assert self.client is not None
+            self.last_move_time = time.time()
+            R = vtf.SO3(wxyz=self.client.camera.wxyz)
             R = R @ vtf.SO3.from_x_radians(np.pi)
-            R = torch.tensor(R.as_matrix(), dtype=torch.float32)
-            pos = torch.tensor(client.camera.position, dtype=torch.float32) / VISER_NERFSTUDIO_SCALE_RATIO
+            R = torch.tensor(R.as_matrix())
+            pos = torch.tensor(self.client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
             c2w = torch.concatenate([R, pos[:, None]], dim=1)
-            self.camera_state = CameraState(fov=client.camera.fov, aspect=client.camera.aspect, c2w=c2w)
+            self.camera_state = CameraState(fov=self.client.camera.fov, aspect=self.client.camera.aspect, c2w=c2w)
             self.render_statemachine.action(RenderAction("move", self.camera_state))
+
+    def set_camera_visibility(self, visible: bool) -> None:
+        """Toggle the visibility of the training cameras."""
+        with self.viser_server.atomic():
+            for idx in self.camera_handles:
+                self.camera_handles[idx].visible = visible
+
+    def update_camera_poses(self):
+        # Update the train camera locations based on optimization
+        assert self.camera_handles is not None
+        idxs = list(self.camera_handles.keys())
+        if hasattr(self.pipeline.datamanager, "train_camera_optimizer"):
+            camera_optimizer = self.pipeline.datamanager.train_camera_optimizer
+        else:
+            camera_optimizer = self.pipeline.model.camera_optimizer
+        with torch.no_grad():
+            assert isinstance(camera_optimizer, CameraOptimizer)
+            c2ws_delta = camera_optimizer(torch.tensor(idxs, device=camera_optimizer.device)).cpu().numpy()
+        for idx in idxs:
+            # both are numpy arrays
+            c2w_orig = self.original_c2w[idx]
+            c2w_delta = c2ws_delta[idx, ...]
+            c2w = c2w_orig @ np.concatenate((c2w_delta, np.array([[0, 0, 0, 1]])), axis=0)
+            R = vtf.SO3.from_matrix(c2w[:3, :3])  # type: ignore
+            R = R @ vtf.SO3.from_x_radians(np.pi)
+            self.camera_handles[idx].position = c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO
+            self.camera_handles[idx].wxyz = R.wxyz
 
     def _interrupt_render(self, _) -> None:
         """Interrupt current render."""
         if self.camera_state is not None:
             self.render_statemachine.action(RenderAction("rerender", self.camera_state))
 
+    def _toggle_training_state(self, _) -> None:
+        """Toggle the trainer's training state."""
+        if self.trainer is not None:
+            if self.trainer.training_state == "training":
+                self.trainer.training_state = "paused"
+            elif self.trainer.training_state == "paused":
+                self.trainer.training_state = "training"
+
     def _crop_params_update(self, _) -> None:
         """Update crop parameters"""
-        print("Crop params not set up")
-        # crop_min = torch.tensor(self.control_panel.crop_min, dtype=torch.float32)
-        # crop_max = torch.tensor(self.control_panel.crop_max, dtype=torch.float32)
-        # scene_box = SceneBox(aabb=torch.stack([crop_min, crop_max], dim=0))
-        # self.viser_server.update_scene_box(scene_box)
-        # crop_scale = crop_max - crop_min
-        # crop_center = (crop_max + crop_min) / 2.0
-        # self.viser_server.send_crop_params(
-        #     crop_enabled=self.control_panel.crop_viewport,
-        #     crop_bg_color=self.control_panel.background_color,
-        #     crop_scale=tuple(crop_scale.tolist()),
-        #     crop_center=tuple(crop_center.tolist()),
-        # )
-        # if self.camera_message is not None:
-        #     self.render_statemachine.action(RenderAction("rerender", self.camera_message))
+        if self.camera_state is not None:
+            self.render_statemachine.action(RenderAction("move", self.camera_state))
 
     def _output_type_change(self, _):
         self.output_type_changed = True
@@ -181,8 +279,9 @@ class Viewer:
             dataset: dataset to render in the scene
             train_state: Current status of training
         """
-
         # draw the training cameras and images
+        self.camera_handles: Dict[int, viser.CameraFrustumHandle] = {}
+        self.original_c2w: Dict[int, np.ndarray] = {}
         image_indices = self._pick_drawn_image_idxs(len(train_dataset))
         for idx in image_indices:
             image = train_dataset[idx]["image"]
@@ -195,15 +294,25 @@ class Viewer:
             c2w = camera.camera_to_worlds.cpu().numpy()
             R = vtf.SO3.from_matrix(c2w[:3, :3])
             R = R @ vtf.SO3.from_x_radians(np.pi)
-            self.viser_server.add_camera_frustum(
-                name=f"Camera {idx}",
-                fov=float(camera.fx[0]),
-                scale=0.2,
+            camera_handle = self.viser_server.add_camera_frustum(
+                name=f"/cameras/camera_{idx:05d}",
+                fov=float(2 * np.arctan(camera.cx / camera.fx[0])),
+                scale=0.1,
                 aspect=float(camera.cx[0] / camera.cy[0]),
                 image=image_uint8,
                 wxyz=R.wxyz,
                 position=c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO,
             )
+
+            @camera_handle.on_click
+            def _(event: viser.ClickEvent[viser.CameraFrustumHandle]) -> None:
+                assert self.client is not None
+                with self.client.atomic():
+                    self.client.camera.position = event.target.position
+                    self.client.camera.wxyz = event.target.wxyz
+
+            self.camera_handles[idx] = camera_handle
+            self.original_c2w[idx] = c2w
 
         self.train_state = train_state
         self.train_util = 0.9
@@ -219,7 +328,10 @@ class Viewer:
 
         if self.camera_state is None:
             return
-
+        # this stops training while moving to make the response smoother
+        while time.time() - self.last_move_time < 0.1:
+            time.sleep(0.05)
+        # self.render_statemachine.action(RenderAction("static", self.camera_state))
         if self.trainer is not None and self.trainer.training_state == "training" and self.train_util != 1:
             if (
                 EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]
@@ -239,6 +351,8 @@ class Viewer:
             if step > self.last_step + render_freq:
                 self.last_step = step
                 self.render_statemachine.action(RenderAction("step", self.camera_state))
+                self.update_camera_poses()
+                self.control_panel.update_step(step)
 
     def update_colormap_options(self, dimensions: int, dtype: type) -> None:
         """update the colormap options based on the current render
