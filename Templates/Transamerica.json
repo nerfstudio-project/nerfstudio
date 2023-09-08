@@ -1,0 +1,1492 @@
+{
+    "type": "quickstart",
+    "modelVersion": 17,
+    "settings": {
+        "name": "Transamerica",
+        "frameRate": 30,
+        "dimensions": {
+            "width": 1920,
+            "height": 1080
+        },
+        "duration": 2700,
+        "timeFormat": "time"
+    },
+    "scenes": [
+        {
+            "animationModel": {
+                "roving": false,
+                "logarithmic": false,
+                "groupedPosition": true
+            },
+            "duration": 2700,
+            "attributes": [
+                {
+                    "type": "cameraGroup",
+                    "inTimeline": true,
+                    "attributes": [
+                        {
+                            "type": "cameraPositionGroup",
+                            "inTimeline": true,
+                            "attributes": [
+                                {
+                                    "type": "position",
+                                    "inTimeline": true,
+                                    "attributes": [
+                                        {
+                                            "type": "longitude",
+                                            "value": {
+                                                "relative": 0.15999085087740048
+                                            },
+                                            "keyframes": [
+                                                {
+                                                    "time": 0,
+                                                    "value": 0.15999216217958553,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.027777777777777776,
+                                                    "value": 0.1599869858659835,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.05555555555555555,
+                                                    "value": 0.1599924602028094,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.08333333333333333,
+                                                    "value": 0.15999739809783237,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.1111111111111111,
+                                                    "value": 0.15999216217958553,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.12037037037037036,
+                                                    "value": 0.15999210257494076,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.14814814814814814,
+                                                    "value": 0.15998197907582237,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.17592592592592593,
+                                                    "value": 0.15999240059816464,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.2037037037037037,
+                                                    "value": 0.16000234528334872,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.23148148148148148,
+                                                    "value": 0.15999216217958553,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.2414814814814815,
+                                                    "value": 0.1599922217842303,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.26925925925925925,
+                                                    "value": 0.15997375363484337,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.29703703703703704,
+                                                    "value": 0.15999216217958553,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.32481481481481483,
+                                                    "value": 0.16001033230574863,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.35259259259259257,
+                                                    "value": 0.15999228138887508,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.36185185185185187,
+                                                    "value": 0.1599919833656512,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.3896296296296296,
+                                                    "value": 0.15995980614796593,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.4174074074074074,
+                                                    "value": 0.15999204297029598,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.4451851851851852,
+                                                    "value": 0.16002511425765292,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.472962962962963,
+                                                    "value": 0.15999204297029598,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.4811111111111111,
+                                                    "value": 0.1599924602028094,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.5088888888888888,
+                                                    "value": 0.15993644112721397,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.5366666666666666,
+                                                    "value": 0.15999204297029598,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.5644444444444444,
+                                                    "value": 0.16004657192977206,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.5922222222222222,
+                                                    "value": 0.15999228138887508,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.605925925925926,
+                                                    "value": 0.1599919833656512,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.6337037037037037,
+                                                    "value": 0.15990592354908897,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.6614814814814814,
+                                                    "value": 0.15999204297029598,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.6892592592592592,
+                                                    "value": 0.16007804318221347,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.717037037037037,
+                                                    "value": 0.15999180455171688,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.73,
+                                                    "value": 0.1599910296913348,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.7577777777777778,
+                                                    "value": 0.15985156411305382,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.7855555555555556,
+                                                    "value": 0.15999204297029598,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.8133333333333334,
+                                                    "value": 0.16013430996688144,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.8411111111111111,
+                                                    "value": 0.15999085087740048,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                }
+                                            ],
+                                            "inTimeline": true
+                                        },
+                                        {
+                                            "type": "latitude",
+                                            "value": {
+                                                "relative": 0.7101999717878575
+                                            },
+                                            "keyframes": [
+                                                {
+                                                    "time": 0,
+                                                    "value": 0.7099817726934626,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.027777777777777776,
+                                                    "value": 0.709973447340772,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.05555555555555555,
+                                                    "value": 0.709965646756785,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.08333333333333333,
+                                                    "value": 0.7099735886408535,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.1111111111111111,
+                                                    "value": 0.7099818668916116,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.12037037037037036,
+                                                    "value": 0.7099892142806027,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.14814814814814814,
+                                                    "value": 0.7099735415408315,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.17592592592592593,
+                                                    "value": 0.7099582989458832,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.2037037037037037,
+                                                    "value": 0.7099735886408535,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.23148148148148148,
+                                                    "value": 0.7099892142806029,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.2414814814814815,
+                                                    "value": 0.7100022131850435,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.26925925925925925,
+                                                    "value": 0.7099733531406908,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.29703703703703704,
+                                                    "value": 0.7099456754764807,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.32481481481481483,
+                                                    "value": 0.7099734002407343,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.35259259259259257,
+                                                    "value": 0.7100018364109993,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.36185185185185187,
+                                                    "value": 0.7100233119794084,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.3896296296296296,
+                                                    "value": 0.7099733531406908,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.4174074074074074,
+                                                    "value": 0.7099250437468038,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.4451851851851852,
+                                                    "value": 0.7099722698382033,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.472962962962963,
+                                                    "value": 0.7100233119794084,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.4811111111111111,
+                                                    "value": 0.7100587253738385,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.5088888888888888,
+                                                    "value": 0.7099729763401497,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.5366666666666666,
+                                                    "value": 0.7098915031973427,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.5644444444444444,
+                                                    "value": 0.7099718930366679,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.5922222222222222,
+                                                    "value": 0.7100591020956437,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.605925925925926,
+                                                    "value": 0.7101137230952188,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.6337037037037037,
+                                                    "value": 0.7099737299408857,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.6614814814814814,
+                                                    "value": 0.7098462756473213,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.6892592592592592,
+                                                    "value": 0.7099718930366679,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.717037037037037,
+                                                    "value": 0.7101140997665102,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.73,
+                                                    "value": 0.7101995951954597,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.7577777777777778,
+                                                    "value": 0.7099737299408858,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.7855555555555556,
+                                                    "value": 0.7097512815819716,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.8133333333333334,
+                                                    "value": 0.7099688786119303,
+                                                    "transitionIn": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0,
+                                                        "y": 0,
+                                                        "type": "linear"
+                                                    }
+                                                },
+                                                {
+                                                    "time": 0.8411111111111111,
+                                                    "value": 0.7101999717878575,
+                                                    "transitionIn": {
+                                                        "x": -0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    },
+                                                    "transitionOut": {
+                                                        "x": 0.066,
+                                                        "y": 0,
+                                                        "influence": 0.5,
+                                                        "type": "auto"
+                                                    }
+                                                }
+                                            ],
+                                            "inTimeline": true
+                                        },
+                                        {
+                                            "type": "altitude",
+                                            "value": {
+                                                "relative": 0.00004546511645198148,
+                                                "logarithmic": false
+                                            },
+                                            "keyframes": [
+                                                {
+                                                    "time": 0,
+                                                    "value": 0.000004991026499423512
+                                                },
+                                                {
+                                                    "time": 0.027777777777777776,
+                                                    "value": 0.000004991026499423512
+                                                },
+                                                {
+                                                    "time": 0.05555555555555555,
+                                                    "value": 0.000004991026499423512
+                                                },
+                                                {
+                                                    "time": 0.08333333333333333,
+                                                    "value": 0.000004991026499423512
+                                                },
+                                                {
+                                                    "time": 0.1111111111111111,
+                                                    "value": 0.000004991026499423512
+                                                },
+                                                {
+                                                    "time": 0.12037037037037036,
+                                                    "value": 0.0000062725673353192235
+                                                },
+                                                {
+                                                    "time": 0.14814814814814814,
+                                                    "value": 0.0000062725673353192235
+                                                },
+                                                {
+                                                    "time": 0.17592592592592593,
+                                                    "value": 0.0000062725673353192235
+                                                },
+                                                {
+                                                    "time": 0.2037037037037037,
+                                                    "value": 0.0000062725673353192235
+                                                },
+                                                {
+                                                    "time": 0.23148148148148148,
+                                                    "value": 0.0000062725673353192235
+                                                },
+                                                {
+                                                    "time": 0.2414814814814815,
+                                                    "value": 0.000008250387488084598
+                                                },
+                                                {
+                                                    "time": 0.26925925925925925,
+                                                    "value": 0.000008250387488084598
+                                                },
+                                                {
+                                                    "time": 0.29703703703703704,
+                                                    "value": 0.000008250387488084598
+                                                },
+                                                {
+                                                    "time": 0.32481481481481483,
+                                                    "value": 0.000008250387488084598
+                                                },
+                                                {
+                                                    "time": 0.35259259259259257,
+                                                    "value": 0.000008250387488084598
+                                                },
+                                                {
+                                                    "time": 0.36185185185185187,
+                                                    "value": 0.000012351757147199827
+                                                },
+                                                {
+                                                    "time": 0.3896296296296296,
+                                                    "value": 0.000012351757147199827
+                                                },
+                                                {
+                                                    "time": 0.4174074074074074,
+                                                    "value": 0.000012351757147199827
+                                                },
+                                                {
+                                                    "time": 0.4451851851851852,
+                                                    "value": 0.000012351757147199827
+                                                },
+                                                {
+                                                    "time": 0.472962962962963,
+                                                    "value": 0.000012351757147199827
+                                                },
+                                                {
+                                                    "time": 0.4811111111111111,
+                                                    "value": 0.00001872436567140756
+                                                },
+                                                {
+                                                    "time": 0.5088888888888888,
+                                                    "value": 0.00001872436567140756
+                                                },
+                                                {
+                                                    "time": 0.5366666666666666,
+                                                    "value": 0.00001872436567140756
+                                                },
+                                                {
+                                                    "time": 0.5644444444444444,
+                                                    "value": 0.00001872436567140756
+                                                },
+                                                {
+                                                    "time": 0.5922222222222222,
+                                                    "value": 0.00001872436567140756
+                                                },
+                                                {
+                                                    "time": 0.605925925925926,
+                                                    "value": 0.000028937061015033017
+                                                },
+                                                {
+                                                    "time": 0.6337037037037037,
+                                                    "value": 0.000028937061015033017
+                                                },
+                                                {
+                                                    "time": 0.6614814814814814,
+                                                    "value": 0.000028937061015033017
+                                                },
+                                                {
+                                                    "time": 0.6892592592592592,
+                                                    "value": 0.000028937061015033017
+                                                },
+                                                {
+                                                    "time": 0.717037037037037,
+                                                    "value": 0.000028937061015033017
+                                                },
+                                                {
+                                                    "time": 0.73,
+                                                    "value": 0.00004546511645198148
+                                                },
+                                                {
+                                                    "time": 0.7577777777777778,
+                                                    "value": 0.00004546511645198148
+                                                },
+                                                {
+                                                    "time": 0.7855555555555556,
+                                                    "value": 0.00004546511645198148
+                                                },
+                                                {
+                                                    "time": 0.8133333333333334,
+                                                    "value": 0.00004546511645198148
+                                                },
+                                                {
+                                                    "time": 0.8411111111111111,
+                                                    "value": 0.00004546511645198148
+                                                }
+                                            ],
+                                            "inTimeline": true
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "type": "cameraTargetEffect",
+                            "inTimeline": true,
+                            "attributes": [
+                                {
+                                    "type": "enabled",
+                                    "value": {
+                                        "relative": 1
+                                    },
+                                    "inTimeline": true
+                                },
+                                {
+                                    "type": "poi",
+                                    "inTimeline": true,
+                                    "attributes": [
+                                        {
+                                            "type": "longitudePOI",
+                                            "value": {
+                                                "relative": 0.15999228138887517
+                                            },
+                                            "keyframes": [
+                                                {
+                                                    "time": 0,
+                                                    "value": 0.15999228138887517
+                                                }
+                                            ],
+                                            "inTimeline": true
+                                        },
+                                        {
+                                            "type": "latitudePOI",
+                                            "value": {
+                                                "relative": 0.7099734490474924
+                                            },
+                                            "keyframes": [
+                                                {
+                                                    "time": 0,
+                                                    "value": 0.7099734490474924
+                                                }
+                                            ],
+                                            "inTimeline": true
+                                        },
+                                        {
+                                            "type": "altitudePOI",
+                                            "value": {
+                                                "relative": 0.000002810305312797731,
+                                                "logarithmic": false
+                                            },
+                                            "keyframes": [
+                                                {
+                                                    "time": 0,
+                                                    "value": 0.000002810305312797731
+                                                }
+                                            ],
+                                            "inTimeline": true
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "influence",
+                                    "value": {},
+                                    "inTimeline": true
+                                }
+                            ]
+                        },
+                        {
+                            "type": "cameraRotationGroup",
+                            "inTimeline": true,
+                            "attributes": [
+                                {
+                                    "type": "rotationX",
+                                    "value": {
+                                        "relative": 0.49639824934440663
+                                    },
+                                    "inTimeline": true
+                                },
+                                {
+                                    "type": "rotationY",
+                                    "value": {
+                                        "relative": 0.2753581039286308
+                                    },
+                                    "inTimeline": true
+                                },
+                                {
+                                    "type": "rotationZ",
+                                    "value": {}
+                                }
+                            ]
+                        },
+                        {
+                            "type": "cameraLensGroup",
+                            "inTimeline": true,
+                            "attributes": [
+                                {
+                                    "type": "fov",
+                                    "value": {
+                                        "relative": 0.21910112359550563
+                                    },
+                                    "inTimeline": true
+                                },
+                                {
+                                    "type": "exposure",
+                                    "value": {}
+                                },
+                                {
+                                    "type": "aperture",
+                                    "value": {}
+                                },
+                                {
+                                    "type": "minFocusLength",
+                                    "value": {}
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "type": "environmentGroup",
+                    "attributes": [
+                        {
+                            "type": "sunGroup",
+                            "attributes": [
+                                {
+                                    "type": "sunVisibility",
+                                    "value": {}
+                                },
+                                {
+                                    "type": "worldTime",
+                                    "value": {
+                                        "relative": 0.5
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "type": "cloudGroup",
+                            "attributes": [
+                                {
+                                    "type": "cloudVisibility",
+                                    "value": {}
+                                },
+                                {
+                                    "type": "cloudopacity",
+                                    "value": {}
+                                },
+                                {
+                                    "type": "cloudheight",
+                                    "value": {}
+                                },
+                                {
+                                    "type": "clouddate",
+                                    "value": {
+                                        "maxValueRange": 1634608800000,
+                                        "minValueRange": 1634529600000,
+                                        "relative": 0.9090909090909091
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "type": "starsPlanetsGroup",
+                            "attributes": [
+                                {
+                                    "type": "starsEnabled",
+                                    "value": {}
+                                }
+                            ]
+                        },
+                        {
+                            "type": "seawaterGroup",
+                            "attributes": [
+                                {
+                                    "type": "seawater",
+                                    "value": {}
+                                },
+                                {
+                                    "type": "influence",
+                                    "value": {
+                                        "relative": 1
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "type": "buildingsEnabled",
+                            "value": {}
+                        }
+                    ]
+                }
+            ],
+            "cameraExport": {
+                "trackPoints": [
+                    {
+                        "name": "building_bottom",
+                        "color": "#148fbc",
+                        "visible": true,
+                        "position": {
+                            "type": "position",
+                            "attributes": [
+                                {
+                                    "type": "longitude",
+                                    "value": {
+                                        "relative": 0.15999224085137714
+                                    }
+                                },
+                                {
+                                    "type": "latitude",
+                                    "value": {
+                                        "relative": 0.7099734067815356
+                                    }
+                                },
+                                {
+                                    "type": "altitude",
+                                    "value": {
+                                        "relative": 0,
+                                        "logarithmic": false
+                                    }
+                                }
+                            ]
+                        },
+                        "isOrigin": true
+                    }
+                ],
+                "logarithmic": false,
+                "modelVersion": 2
+            }
+        }
+    ],
+    "has_started": false,
+    "has_finished": false,
+    "playbackManager": {
+        "range": {
+            "start": 0,
+            "end": 2700
+        }
+    }
+}
