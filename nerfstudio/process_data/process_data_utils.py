@@ -167,7 +167,6 @@ def convert_video_to_images(
             start_y = crop_factor[0]
             crop_cmd = f"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y},"
 
-        num_frames = get_num_frames_in_video(video_path)
         spacing = num_frames // num_frames_target
 
         downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}[out{i}]" for i in range(num_downscales + 1)]
