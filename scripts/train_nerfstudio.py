@@ -28,7 +28,7 @@ def construct_command(data_folder, checkpoint, downscale_factor, port, num_sampl
         command_list.append(f"--load-dir {checkpoint}")
     command_list.append(f"--pipeline.datamanager.camera-optimizer.mode {pose_optimizer}")
     command_list.append(f"--logging.profiler pytorch")
-    command_list.append(f"--pipeline.model.background_color black")
+    command_list.append(f"--pipeline.model.background_color random")
     command_list.append(f"--pipeline.model.near_plane {near_plane}")
     command_list.append(f"--pipeline.model.far_plane {far_plane}")
     command = " ".join(command_list)
