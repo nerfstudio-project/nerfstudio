@@ -1,0 +1,13 @@
+[project]
+name = "regional-nerf-methods"
+description = "NeRF models customized for regional map data"
+version = "0.1.0"
+
+dependencies = ["nerfstudio >= 0.3.0"] 
+
+[tool.setuptools.packages.find]
+include = ["regional_nerfacto*"]
+
+# register the entry point of your new method here:
+[project.entry-points.'nerfstudio.method_configs']
+regional-nerfacto = 'regional_nerfacto.config:regional_nerfacto'
