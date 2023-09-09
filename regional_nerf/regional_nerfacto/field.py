@@ -20,35 +20,27 @@ from typing import Dict, Literal, Optional, Tuple
 
 class RNerfField(NerfactoField):
     """Regional Nerf Field
-
-    Args:
-        aabb: parameters of scene aabb bounds
-        num_images: number of images in the dataset
     """
 
-    aabb: Tensor
-
     def __init__(
-        self,
-        aabb: Tensor,
-        num_images: int,
-    ) -> None:
-        super().__init__(aabb=aabb, num_images=num_images)
+        self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
+        self.top_cutoff = -0.5
 
     def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
         if self.spatial_distortion is not None:
-            positions = ray_samples.frustums.get_positions()
-            selector_0 = (positions[..., 2] <= -0.5)  # Navlab added
-            positions = self.spatial_distortion(positions)
+            unnorm_positions = ray_samples.frustums.get_positions()
+            positions = self.spatial_distortion(unnorm_positions)
             positions = (positions + 2.0) / 4.0
         else:
-            positions = ray_samples.frustums.get_positions()
-            # Selector to mask out positions with z higher than -0.5
-            selector_0 = (positions[..., 2] <= -0.5) # Navlab added
-            positions = SceneBox.get_normalized_positions(positions, self.aabb)
+            unnorm_positions = ray_samples.frustums.get_positions()
+            positions = SceneBox.get_normalized_positions(unnorm_positions, self.aabb)
         # Make sure the tcnn gets inputs between 0 and 1.
-
+        # Selector to mask out positions with z higher than -0.5
+        selector_0 = (unnorm_positions[..., 2] <= self.top_cutoff) # Navlab added
+            
         selector = selector_0 & ((positions > 0.0) & (positions < 1.0)).all(dim=-1)
 
         positions = positions * selector[..., None]
