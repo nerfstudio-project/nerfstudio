@@ -128,31 +128,7 @@ class RNerfModel(NerfactoModel):
         return outputs
     
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
-        loss_dict = {}
-        image = batch["image"].to(self.device)
-        pred_rgb, gt_rgb = self.renderer_rgb.blend_background_for_loss_computation(
-            pred_image=outputs["rgb"],
-            pred_accumulation=outputs["accumulation"],
-            gt_image=image,
-        )
-
-        loss_dict["rgb_loss"] = self.rgb_loss(gt_rgb, pred_rgb)
-        if self.training:
-            loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
-                outputs["weights_list"], outputs["ray_samples_list"]
-            )
-            assert metrics_dict is not None and "distortion" in metrics_dict
-            loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
-            if self.config.predict_normals:
-                # orientation loss for computed normals
-                loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
-                    outputs["rendered_orientation_loss"]
-                )
-
-                # ground truth supervision for normals
-                loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
-                    outputs["rendered_pred_normal_loss"]
-                )
+        loss_dict = super().get_loss_dict(outputs, batch, metrics_dict)
         # Add height opacity loss by its average
         # TODO: NAVLAB
         loss_dict["height_opacity_loss"] = self.tall_loss_factor * torch.mean(
