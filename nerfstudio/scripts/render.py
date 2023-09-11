@@ -58,6 +58,7 @@ from nerfstudio.cameras.camera_paths import (
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
+from nerfstudio.data.datasets.base_dataset import InputDataset, DataparserOutputs
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components import renderers
 from nerfstudio.pipelines.base_pipeline import Pipeline
@@ -127,8 +128,15 @@ def _render_trajectory_video(
     with ExitStack() as stack:
         writer = None
 
-        train_dataset = None
-        train_cameras = None
+        train_cameras = Cameras(
+            camera_to_worlds=torch.zeros((0, 4, 4)),
+            fx=torch.zeros((0,)),
+            fy=torch.zeros((0,)),
+            cx=torch.zeros((0,)),
+            cy=torch.zeros((0,)),
+        )
+        train_dataset = InputDataset(DataparserOutputs([], train_cameras))
+
         if render_nearest_camera:
             assert pipeline.datamanager.train_dataset is not None
             train_dataset = pipeline.datamanager.train_dataset
