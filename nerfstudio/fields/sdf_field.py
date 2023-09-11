@@ -148,7 +148,14 @@ class SDFField(Field):
         self.use_grid_feature = self.config.use_grid_feature
         self.divide_factor = self.config.divide_factor
 
-        growth_factor = np.exp((np.log(config.max_res) - np.log(config.base_res)) / (config.num_levels - 1))
+        self.num_levels = self.config.num_levels
+        self.max_res = self.config.max_res 
+        self.base_res = self.config.base_res 
+        self.log2_hashmap_size = self.config.log2_hashmap_size 
+        self.features_per_level = self.config.features_per_level 
+        self.use_hash = self.config.use_hash
+        self.smoothstep = self.config.smoothstep
+        self.growth_factor = np.exp((np.log(config.max_res) - np.log(config.base_res)) / (config.num_levels - 1))
 
         if self.config.encoding_type == "hash":
             # feature encoding
@@ -160,9 +167,13 @@ class SDFField(Field):
                     "n_features_per_level": config.features_per_level,
                     "log2_hashmap_size": config.log2_hashmap_size,
                     "base_resolution": config.base_res,
-                    "per_level_scale": growth_factor,
+                    "per_level_scale": self.growth_factor,
                     "interpolation": "Smoothstep" if config.smoothstep else "Linear",
                 },
+            )
+            self.hash_encoding_mask = torch.ones(
+                self.num_levels * self.features_per_level,
+                dtype=torch.float32,
             )
 
         # we concat inputs position ourselves
@@ -206,6 +217,7 @@ class SDFField(Field):
         self.sigmoid = torch.nn.Sigmoid()
 
         self._cos_anneal_ratio = 1.0
+        self.numerical_gradients_delta = 0.0001
 
         if self.use_grid_feature:
             assert self.spatial_distortion is not None, "spatial distortion must be provided when using grid feature"
@@ -257,6 +269,10 @@ class SDFField(Field):
         """Set the anneal value for the proposal network."""
         self._cos_anneal_ratio = anneal
 
+    def update_mask(self, level: int):
+        self.hash_encoding_mask[:] = 1.0
+        self.hash_encoding_mask[level * self.features_per_level:] = 0
+
     def forward_geonetwork(self, inputs: Float[Tensor, "*batch 3"]) -> Float[Tensor, "*batch geo_features+1"]:
         """forward the geonetwork"""
         if self.use_grid_feature:
@@ -265,6 +281,8 @@ class SDFField(Field):
             # map range [-2, 2] to [0, 1]
             positions = (positions + 2.0) / 4.0
             feature = self.encoding(positions)
+            # mask feature
+            feature = feature * self.hash_encoding_mask.to(feature.device)
         else:
             feature = torch.zeros_like(inputs[:, :1].repeat(1, self.encoding.n_output_dims))
 
@@ -295,6 +313,10 @@ class SDFField(Field):
         hidden_output = self.forward_geonetwork(positions_flat).view(*ray_samples.frustums.shape, -1)
         sdf, _ = torch.split(hidden_output, [1, self.config.geo_feat_dim], dim=-1)
         return sdf
+    
+    def set_numerical_gradients_delta(self, delta: float) -> None:
+        """Set the delta value for numerical gradient."""
+        self.numerical_gradients_delta = delta
 
     def get_alpha(
         self,
