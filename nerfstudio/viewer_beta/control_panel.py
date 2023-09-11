@@ -16,11 +16,13 @@
 from collections import defaultdict
 from typing import Callable, DefaultDict, List, Tuple, get_args
 
+import numpy as np
 import torch
-from viser import ViserServer
-
+import viser.transforms as vtf
+from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
 from nerfstudio.viewer_beta.viewer_elements import (  # ViewerButtonGroup,
+    ViewerButton,
     ViewerButtonGroup,
     ViewerCheckbox,
     ViewerDropdown,
@@ -30,6 +32,7 @@ from nerfstudio.viewer_beta.viewer_elements import (  # ViewerButtonGroup,
     ViewerSlider,
     ViewerVec3,
 )
+from viser import ViserServer
 
 
 class ControlPanel:
@@ -47,20 +50,28 @@ class ControlPanel:
         self,
         viser_server: ViserServer,
         time_enabled: bool,
+        scale_ratio: float,
         rerender_cb: Callable,
         crop_update_cb: Callable,
         update_output_cb: Callable,
         update_split_output_cb: Callable,
+        toggle_training_state_cb: Callable,
+        camera_vis: Callable,
     ):
+        self.viser_scale_ratio = scale_ratio
         # elements holds a mapping from tag: [elements]
         self.viser_server = viser_server
         self._elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
 
         self._train_speed = ViewerButtonGroup(
-            name="Train Speed  ",
-            default_value="Balanced",
-            options=["Slow", "Balanced", "Fast"],
+            name="Train Speed",
+            default_value="Mid",
+            options=["Slow", "Mid", "Fast"],
             cb_hook=lambda han: self._train_speed_cb(),
+        )
+        self._reset_camera = ViewerButton(
+            name="Reset Up Direction",
+            cb_hook=lambda han: self._reset_camera_cb(),
         )
         self._output_render = ViewerDropdown(
             "Output Render",
@@ -118,6 +129,9 @@ class ControlPanel:
             step=0.05,
             hint="Target training utilization, 0.0 is slow, 1.0 is fast. Doesn't affect final render quality",
         )
+        self._layer_depth = ViewerCheckbox(
+            "Composite Depth", True, cb_hook=rerender_cb, hint="Allow NeRF to occlude 3D browser objects"
+        )
         self._max_res = ViewerSlider(
             "Max Res", 512, 64, 2048, 100, cb_hook=rerender_cb, hint="Maximum resolution to render in viewport"
         )
@@ -130,27 +144,76 @@ class ControlPanel:
         self._background_color = ViewerRGB(
             "Background color", (38, 42, 55), cb_hook=crop_update_cb, hint="Color of the background"
         )
-        self._crop_min = ViewerVec3(
-            "Crop Min", (-1, -1, -1), 0.05, cb_hook=crop_update_cb, hint="Minimum value of the crop"
+        self._crop_handle = self.viser_server.add_transform_controls("Crop", depth_test=False, line_width=4.0)
+
+        def update_center(han):
+            self._crop_handle.position = tuple(p * self.viser_scale_ratio for p in han.value)
+
+        self._crop_center = ViewerVec3(
+            "Crop Center",
+            (0.0, 0.0, 0.0),
+            step=0.01,
+            cb_hook=lambda e: [crop_update_cb(e), update_center(e)],
+            hint="Center of the crop box",
         )
-        self._crop_max = ViewerVec3(
-            "Crop Max", (1, 1, 1), 0.05, cb_hook=crop_update_cb, hint="Maximum value of the crop"
+
+        def update_rot(han):
+            self._crop_handle.wxyz = vtf.SO3.from_rpy_radians(*han.value).wxyz
+
+        self._crop_rot = ViewerVec3(
+            "Crop Rotation",
+            (0.0, 0.0, 0.0),
+            step=0.01,
+            cb_hook=lambda e: [crop_update_cb(e), update_rot(e)],
+            hint="Rotation of the crop box",
         )
+
+        self._crop_scale = ViewerVec3(
+            "Crop Scale", (1.0, 1.0, 1.0), step=0.01, cb_hook=crop_update_cb, hint="Scale of the crop box"
+        )
+
+        @self._crop_handle.on_update
+        def _update_crop_handle(han):
+            pos = self._crop_handle.position
+            self._crop_center.value = tuple(p / self.viser_scale_ratio for p in pos)
+            rpy = vtf.SO3(self._crop_handle.wxyz).as_rpy_radians()
+            self._crop_rot.value = (float(rpy.roll), float(rpy.pitch), float(rpy.yaw))
+
         self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=rerender_cb, hint="Time to render")
         self._time_enabled = time_enabled
 
+        self.stat_folder = self.viser_server.add_gui_folder("Stats")
+        with self.stat_folder:
+            self.markdown = self.viser_server.add_gui_markdown("Step: 0")
+        self.pause_train = viser_server.add_gui_button(label="Pause Training", disabled=False)
+        self.pause_train.on_click(lambda _: self.toggle_pause_button())
+        self.pause_train.on_click(lambda han: toggle_training_state_cb(han))
+        self.resume_train = viser_server.add_gui_button(label="Resume Training", disabled=False)
+        self.resume_train.on_click(lambda _: self.toggle_pause_button())
+        self.resume_train.on_click(lambda han: toggle_training_state_cb(han))
+        self.resume_train.visible = False
+        # Add buttons to toggle training image visibility
+        self.hide_images = viser_server.add_gui_button(label="Hide Train Cams", disabled=False)
+        self.hide_images.on_click(lambda _: camera_vis(False))
+        self.hide_images.on_click(lambda _: self.toggle_cameravis_button())
+        self.show_images = viser_server.add_gui_button(label="Show Train Cams", disabled=False)
+        self.show_images.on_click(lambda _: camera_vis(True))
+        self.show_images.on_click(lambda _: self.toggle_cameravis_button())
+        self.show_images.visible = False
+
         self.add_element(self._train_speed)
         self.add_element(self._train_util)
+        self.add_element(self._reset_camera)
         with self.viser_server.add_gui_folder("Render Options"):
             self.add_element(self._max_res)
             self.add_element(self._output_render)
             self.add_element(self._colormap)
+            self.add_element(self._layer_depth)
             # colormap options
-            with self.viser_server.add_gui_folder(" "):
-                self.add_element(self._invert, additional_tags=("colormap",))
-                self.add_element(self._normalize, additional_tags=("colormap",))
-                self.add_element(self._min, additional_tags=("colormap",))
-                self.add_element(self._max, additional_tags=("colormap",))
+            self.add_element(self._invert, additional_tags=("colormap",))
+            self.add_element(self._normalize, additional_tags=("colormap",))
+            self.add_element(self._min, additional_tags=("colormap",))
+            self.add_element(self._max, additional_tags=("colormap",))
 
         # split options
         with self.viser_server.add_gui_folder("Split Screen"):
@@ -159,19 +222,19 @@ class ControlPanel:
             self.add_element(self._split_percentage, additional_tags=("split",))
             self.add_element(self._split_output_render, additional_tags=("split",))
             self.add_element(self._split_colormap, additional_tags=("split",))
-            with self.viser_server.add_gui_folder("  "):
-                self.add_element(self._split_invert, additional_tags=("split_colormap",))
-                self.add_element(self._split_normalize, additional_tags=("split_colormap",))
-                self.add_element(self._split_min, additional_tags=("split_colormap",))
-                self.add_element(self._split_max, additional_tags=("split_colormap",))
+
+            self.add_element(self._split_invert, additional_tags=("split_colormap",))
+            self.add_element(self._split_normalize, additional_tags=("split_colormap",))
+            self.add_element(self._split_min, additional_tags=("split_colormap",))
+            self.add_element(self._split_max, additional_tags=("split_colormap",))
 
         with self.viser_server.add_gui_folder("Crop Viewport"):
             self.add_element(self._crop_viewport)
-
             # Crop options
             self.add_element(self._background_color, additional_tags=("crop",))
-            self.add_element(self._crop_min, additional_tags=("crop",))
-            self.add_element(self._crop_max, additional_tags=("crop",))
+            self.add_element(self._crop_center, additional_tags=("crop",))
+            self.add_element(self._crop_scale, additional_tags=("crop",))
+            self.add_element(self._crop_rot, additional_tags=("crop",))
 
         self.add_element(self._time, additional_tags=("time",))
 
@@ -182,12 +245,35 @@ class ControlPanel:
         if self._train_speed.value == "Fast":
             self._train_util.value = 0.95
             self._max_res.value = 256
-        elif self._train_speed.value == "Balanced":
+        elif self._train_speed.value == "Mid":
             self._train_util.value = 0.85
             self._max_res.value = 512
         elif self._train_speed.value == "Slow":
             self._train_util.value = 0.5
             self._max_res.value = 1024
+
+    def _reset_camera_cb(self) -> None:
+        for client in self.viser_server.get_clients().values():
+            client.camera.up_direction = vtf.SO3(client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
+
+    def toggle_pause_button(self) -> None:
+        self.pause_train.visible = not self.pause_train.visible
+        self.resume_train.visible = not self.resume_train.visible
+
+    def toggle_cameravis_button(self) -> None:
+        self.hide_images.visible = not self.hide_images.visible
+        self.show_images.visible = not self.show_images.visible
+
+    def update_step(self, step):
+        """
+        Args:
+            step: the train step to set the model to
+        """
+        with self.viser_server.atomic(), self.stat_folder:
+            # TODO change to a .value call instead of remove() and add, this makes it jittery
+            with self.viser_server.atomic():
+                self.markdown.remove()
+                self.markdown = self.viser_server.add_gui_markdown(f"Step: {step}")
 
     def update_output_options(self, new_options: List[str]):
         """
@@ -226,6 +312,7 @@ class ControlPanel:
         self._split_output_render.set_hidden(not self._split.value)
         self._split_colormap.set_hidden(not self._split.value)
         self._split_colormap.set_disabled(self.split_output_render == "rgb")
+        self._crop_handle.visible = self.crop_viewport
 
     def update_colormap_options(self, dimensions: int, dtype: type) -> None:
         """update the colormap options based on the current render
@@ -286,24 +373,12 @@ class ControlPanel:
         self._crop_viewport.value = value
 
     @property
-    def crop_min(self) -> Tuple[float, float, float]:
-        """Returns the current crop min setting"""
-        return self._crop_min.value
-
-    @crop_min.setter
-    def crop_min(self, value: Tuple[float, float, float]):
-        """Sets the crop min setting"""
-        self._crop_min.value = value
-
-    @property
-    def crop_max(self) -> Tuple[float, float, float]:
-        """Returns the current crop max setting"""
-        return self._crop_max.value
-
-    @crop_max.setter
-    def crop_max(self, value: Tuple[float, float, float]):
-        """Sets the crop max setting"""
-        self._crop_max.value = value
+    def crop_obb(self):
+        """Returns the current crop obb setting"""
+        rxyz = self._crop_rot.value
+        R = torch.tensor(vtf.SO3.from_rpy_radians(rxyz[0], rxyz[1], rxyz[2]).as_matrix())
+        obb = OrientedBox(R, torch.tensor(self._crop_center.value), torch.tensor(self._crop_scale.value))
+        return obb
 
     @property
     def background_color(self) -> Tuple[int, int, int]:
@@ -346,6 +421,10 @@ class ControlPanel:
             colormap_max=self._split_max.value,
             invert=self._split_invert.value,
         )
+
+    @property
+    def layer_depth(self):
+        return self._layer_depth.value
 
 
 def _get_colormap_options(dimensions: int, dtype: type) -> List[Colormaps]:
