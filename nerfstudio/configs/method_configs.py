@@ -67,6 +67,7 @@ from nerfstudio.plugins.registry import discover_methods
 method_configs: Dict[str, TrainerConfig] = {}
 descriptions = {
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
+    "nerfacto-custom": "Custom settings in this fork.",
     "depth-nerfacto": "Nerfacto with depth supervision.",
     "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for unbounded scenes.",
     "instant-ngp-bounded": "Implementation of Instant-NGP. Recommended for bounded real and synthetic scenes",
@@ -81,6 +82,50 @@ descriptions = {
     "neus-facto": "Implementation of NeuS-Facto. (slow)",
 }
 
+method_configs["nerfacto-custom"] = TrainerConfig(
+    method_name="nerfacto-custom",
+    steps_per_eval_batch=501,  # [FORK]
+    steps_per_save=2000,
+    max_num_iterations=500,  # [FORK]
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            dataparser=NerfstudioDataParserConfig(
+                auto_scale_poses=False,  # [FORK]
+                scale_factor=1.0,  # [FORK]
+                scene_scale=1.0,  # [FORK]
+                center_method=None,  # [FORK]
+                orientation_method=None,  # [FORK]
+            ),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+            camera_optimizer=CameraOptimizerConfig(
+                mode="SO3xR3",
+                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
+                scheduler=ExponentialDecaySchedulerConfig(lr_final=6e-6, max_steps=200000),
+            ),
+        ),
+        model=NerfactoModelConfig(
+            use_periodic_volume_encoding=True,  # [FORK]
+            activation="softplus",  # [FORK]
+            custom_implementation=True,  # [FORK]
+            disable_scene_contraction=True,  # [FORK]
+            eval_num_rays_per_chunk=1 << 15,
+        ),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    vis="viewer",
+)
 method_configs["nerfacto"] = TrainerConfig(
     method_name="nerfacto",
     steps_per_eval_batch=500,

@@ -57,6 +57,13 @@
 - [Learn more](#learn-more)
 - [Supported Features](#supported-features)
 
+# [FORK]
+This fork of `nerfstudio` focuses on allowing the `density_fn` to be stripped out and replicated as a `flax` module for insertion into a `jax`-based pipeline (and also to allow the computation of derivatives of the density wrt inputs, which isn't supported right now in `nerfstudio`).
+
+It contains the following changes:
+* added the ability to swap out the TCNN HashEncoding with a [PeriodicVolumeEncoding](https://github.com/autonomousvision/sdfstudio/blob/370902a10dbef08cb3fe4391bd3ed1e227b5c165/nerfstudio/field_components/encodings.py#L617) as implemented in `sdfstudio`. The reason for this is that it's unclear from a cursory glance how to replicate the TCNN encoding in `jax`, while the PVE is very simple.
+* replaces the ReLU activation in `mlp_base` with a softplus in `nerfacto_field`. This gives the MLP more smoothness.
+
 # About
 
 _It’s as simple as plug and play with nerfstudio!_

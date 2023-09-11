@@ -95,7 +95,10 @@ class NerfactoField(Field):
         use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
-        implementation: Literal["tcnn", "torch"] = "tcnn",
+        implementation: Literal["tcnn", "torch"] = "tcnn",  # [FORK]
+        use_periodic_volume_encoding: bool = False,  # [FORK]
+        activation: Literal["relu", "softplus"] = "relu",  # [FORK]
+        custom_implementation: bool = False,  # [FORK]
     ) -> None:
         super().__init__()
 
@@ -126,23 +129,38 @@ class NerfactoField(Field):
             in_dim=3, num_frequencies=2, min_freq_exp=0, max_freq_exp=2 - 1, implementation=implementation
         )
 
-        self.mlp_base_grid = HashEncoding(
-            num_levels=num_levels,
-            min_res=base_res,
-            max_res=max_res,
-            log2_hashmap_size=log2_hashmap_size,
-            features_per_level=features_per_level,
-            implementation=implementation,
-        )
+        # ############# #
+        # ADDED IN FORK #
+        # ############# #
+        ###################################################################################################
+        if use_periodic_volume_encoding:
+            self.mlp_base_grid = PeriodicVolumeEncoding(
+                num_levels=self.num_levels,
+                min_res=self.base_res,
+                max_res=self.max_res,
+                log2_hashmap_size=18,  # 64 ** 3 = 2^18
+                features_per_level=self.features_per_level,
+                smoothstep=True,
+            )
+        else:
+            self.mlp_base_grid = HashEncoding(
+                num_levels=num_levels,
+                min_res=base_res,
+                max_res=max_res,
+                log2_hashmap_size=log2_hashmap_size,
+                features_per_level=features_per_level,
+                implementation=implementation,
+            )
         self.mlp_base_mlp = MLP(
             in_dim=self.mlp_base_grid.get_out_dim(),
             num_layers=num_layers,
             layer_width=hidden_dim,
             out_dim=1 + self.geo_feat_dim,
-            activation=nn.ReLU(),
+            activation=nn.Softplus() if activation == "softplus" else nn.ReLU(),
             out_activation=None,
-            implementation=implementation,
+            implementation="torch" if custom_implementation else implementation,
         )
+        ###################################################################################################
         self.mlp_base = torch.nn.Sequential(self.mlp_base_grid, self.mlp_base_mlp)
 
         # transients

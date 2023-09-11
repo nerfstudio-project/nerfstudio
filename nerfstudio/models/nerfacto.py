@@ -127,6 +127,13 @@ class NerfactoModelConfig(ModelConfig):
     appearance_embed_dim: int = 32
     """Dimension of the appearance embedding."""
 
+    # #### #
+    # FORK #
+    # #### #
+    use_periodic_volume_encoding: bool = False
+    activation: Literal["relu", "softplus"] = "relu"
+    custom_implementation: bool = False
+
 
 class NerfactoModel(Model):
     """Nerfacto model
@@ -163,6 +170,9 @@ class NerfactoModel(Model):
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
             appearance_embedding_dim=self.config.appearance_embed_dim,
             implementation=self.config.implementation,
+            use_periodic_volume_encoding=self.config.use_periodic_volume_encoding,
+            activation=self.config.activation,
+            custom_implementation=self.config.custom_implementation,
         )
 
         self.density_fns = []
