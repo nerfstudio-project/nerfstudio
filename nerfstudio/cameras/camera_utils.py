@@ -519,21 +519,24 @@ def auto_orient_and_center_poses(
     method: Literal["pca", "up", "vertical", "none"] = "up",
     center_method: Literal["poses", "focus", "none"] = "poses",
 ) -> Tuple[Float[Tensor, "*num_poses 3 4"], Float[Tensor, "3 4"]]:
-    """Orients and centers the poses. We provide two methods for orientation: pca and up.
+    """Orients and centers the poses.
 
-    pca: Orient the poses so that the principal directions of the camera centers are aligned
+    We provide three methods for orientation:
+
+    - pca: Orient the poses so that the principal directions of the camera centers are aligned
         with the axes, Z corresponding to the smallest principal component.
         This method works well when all of the cameras are in the same plane, for example when
         images are taken using a mobile robot.
-    up: Orient the poses so that the average up vector is aligned with the z axis.
+    - up: Orient the poses so that the average up vector is aligned with the z axis.
         This method works well when images are not at arbitrary angles.
-    vertical: Orient the poses so that the Z 3D direction projects close to the
+    - vertical: Orient the poses so that the Z 3D direction projects close to the
         y axis in images. This method works better if cameras are not all
         looking in the same 3D direction, which may happen in camera arrays or in LLFF.
 
     There are two centering methods:
-    poses: The poses are centered around the origin.
-    focus: The origin is set to the focus of attention of all cameras (the
+
+    - poses: The poses are centered around the origin.
+    - focus: The origin is set to the focus of attention of all cameras (the
         closest point to cameras optical axes). Recommended for inward-looking
         camera configurations.
 

@@ -329,25 +329,27 @@ class Cameras(TensorDataclass):
 
         This function will standardize the input arguments and then call the _generate_rays_from_coords function
         to generate the rays. Our goal is to parse the arguments and then get them into the right shape:
-            - camera_indices: (num_rays:..., num_cameras_batch_dims)
-            - coords: (num_rays:..., 2)
-            - camera_opt_to_camera: (num_rays:..., 3, 4) or None
-            - distortion_params_delta: (num_rays:..., 6) or None
+
+        - camera_indices: (num_rays:..., num_cameras_batch_dims)
+        - coords: (num_rays:..., 2)
+        - camera_opt_to_camera: (num_rays:..., 3, 4) or None
+        - distortion_params_delta: (num_rays:..., 6) or None
 
         Read the docstring for _generate_rays_from_coords for more information on how we generate the rays
         after we have standardized the arguments.
 
         We are only concerned about different combinations of camera_indices and coords matrices, and the following
         are the 4 cases we have to deal with:
-            1. isinstance(camera_indices, int) and coords == None
-                - In this case we broadcast our camera_indices / coords shape (h, w, 1 / 2 respectively)
-            2. isinstance(camera_indices, int) and coords != None
-                - In this case, we broadcast camera_indices to the same batch dim as coords
-            3. not isinstance(camera_indices, int) and coords == None
-                - In this case, we will need to set coords so that it is of shape (h, w, num_rays, 2), and broadcast
-                    all our other args to match the new definition of num_rays := (h, w) + num_rays
-            4. not isinstance(camera_indices, int) and coords != None
-                - In this case, we have nothing to do, only check that the arguments are of the correct shape
+
+        1. isinstance(camera_indices, int) and coords == None
+            - In this case we broadcast our camera_indices / coords shape (h, w, 1 / 2 respectively)
+        2. isinstance(camera_indices, int) and coords != None
+            - In this case, we broadcast camera_indices to the same batch dim as coords
+        3. not isinstance(camera_indices, int) and coords == None
+            - In this case, we will need to set coords so that it is of shape (h, w, num_rays, 2), and broadcast
+                all our other args to match the new definition of num_rays := (h, w) + num_rays
+        4. not isinstance(camera_indices, int) and coords != None
+            - In this case, we have nothing to do, only check that the arguments are of the correct shape
 
         There is one more edge case we need to be careful with: when we have "jagged cameras" (ie: different heights
         and widths for each camera). This isn't problematic when we specify coords, since coords is already a tensor.
