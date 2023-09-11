@@ -26,7 +26,9 @@ from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.embedding import Embedding
-from nerfstudio.field_components.encodings import HashEncoding, NeRFEncoding, SHEncoding
+from nerfstudio.field_components.encodings import (
+    HashEncoding, NeRFEncoding, PeriodicVolumeEncoding, SHEncoding
+)
 from nerfstudio.field_components.field_heads import (
     FieldHeadNames,
     PredNormalsFieldHead,
@@ -133,6 +135,7 @@ class NerfactoField(Field):
         # ADDED IN FORK #
         # ############# #
         ###################################################################################################
+        self.features_per_level = features_per_level
         if use_periodic_volume_encoding:
             self.mlp_base_grid = PeriodicVolumeEncoding(
                 num_levels=self.num_levels,
@@ -148,7 +151,7 @@ class NerfactoField(Field):
                 min_res=base_res,
                 max_res=max_res,
                 log2_hashmap_size=log2_hashmap_size,
-                features_per_level=features_per_level,
+                features_per_level=self.features_per_level,
                 implementation=implementation,
             )
         self.mlp_base_mlp = MLP(

@@ -766,7 +766,7 @@ class PeriodicVolumeEncoding(Encoding):
     def get_out_dim(self) -> int:
         return self.num_levels * self.features_per_level
 
-    def hash_fn(self, in_tensor: Float[Tensor, "*bs num_levels"])) -> Float[Tensor, "*bs num_levels"]:
+    def hash_fn(self, in_tensor: Float[Tensor, "*bs num_levels"]) -> Float[Tensor, "*bs num_levels"]:
         """Returns hash tensor using method described in Instant-NGP
 
         Args:
@@ -787,7 +787,7 @@ class PeriodicVolumeEncoding(Encoding):
 
         return x.long()
 
-    def pytorch_fwd(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]
+    def pytorch_fwd(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
         """Forward pass using pytorch. Significantly slower than TCNN implementation."""
 
         assert in_tensor.shape[-1] == 3

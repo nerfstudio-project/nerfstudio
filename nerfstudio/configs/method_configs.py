@@ -84,18 +84,18 @@ descriptions = {
 
 method_configs["nerfacto-custom"] = TrainerConfig(
     method_name="nerfacto-custom",
-    steps_per_eval_batch=501,  # [FORK]
+    steps_per_eval_batch=2000,  # [FORK]
     steps_per_save=2000,
-    max_num_iterations=500,  # [FORK]
-    mixed_precision=True,
+    max_num_iterations=200,  # [FORK]
+    mixed_precision=False,
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             dataparser=NerfstudioDataParserConfig(
                 auto_scale_poses=False,  # [FORK]
                 scale_factor=1.0,  # [FORK]
-                scene_scale=1.0,  # [FORK]
-                center_method=None,  # [FORK]
-                orientation_method=None,  # [FORK]
+                scene_scale=3.0,  # [FORK]
+                center_method="none",  # [FORK]
+                orientation_method="none",  # [FORK]
             ),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,

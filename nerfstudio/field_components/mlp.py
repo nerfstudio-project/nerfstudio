@@ -161,7 +161,7 @@ class MLP(FieldComponent):
         Returns:
             MLP network output
         """
-        x = in_tensor
+        x = in_tensor.float()  # [FORK] cast explicitly to float type to avoid mixed type error
         for i, layer in enumerate(self.layers):
             # as checked in `build_nn_modules`, 0 should not be in `_skip_connections`
             if i in self._skip_connections:
