@@ -79,6 +79,7 @@ def _render_trajectory_video(
     image_format: Literal["jpeg", "png"] = "jpeg",
     jpeg_quality: int = 100,
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions(),
+    render_nearest_camera=False,
     check_occlusions: bool = False,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
@@ -126,9 +127,12 @@ def _render_trajectory_video(
     with ExitStack() as stack:
         writer = None
 
-        assert pipeline.datamanager.train_dataset is not None
-        train_dataset = pipeline.datamanager.train_dataset
-        train_cameras = train_dataset.cameras.to(pipeline.device)
+        train_dataset = None
+        train_cameras = None
+        if render_nearest_camera:
+            assert pipeline.datamanager.train_dataset is not None
+            train_dataset = pipeline.datamanager.train_dataset
+            train_cameras = train_dataset.cameras.to(pipeline.device)
 
         with progress:
             for camera_idx in progress.track(range(cameras.size), description=""):
@@ -142,7 +146,7 @@ def _render_trajectory_video(
                 max_dist, max_idx = -1, -1
                 true_max_dist, true_max_idx = -1, -1
 
-                if "nearest_camera" in rendered_output_names:
+                if render_nearest_camera:
                     cam_pos = cameras[camera_idx].camera_to_worlds[:, 3].cpu()
                     cam_rot = Rotation.from_matrix(cameras[camera_idx].camera_to_worlds[:3, :3].cpu())
                     cam_quat = cam_rot.as_quat()
@@ -193,8 +197,6 @@ def _render_trajectory_video(
 
                 render_image = []
                 for rendered_output_name in rendered_output_names:
-                    if rendered_output_name == "nearest_camera":
-                        continue
                     if rendered_output_name not in outputs:
                         CONSOLE.rule("Error", style="red")
                         CONSOLE.print(f"Could not find {rendered_output_name} in the model outputs", justify="center")
@@ -214,7 +216,7 @@ def _render_trajectory_video(
                     render_image.append(output_image)
 
                 # Add closest training image to the right of the rendered image
-                if "nearest_camera" in rendered_output_names:
+                if render_nearest_camera:
                     img = train_dataset.get_image(max_idx)
                     resized_image = torch.nn.functional.interpolate(
                         img.permute(2, 0, 1)[None], size=(int(cameras.image_height[0]), int(cameras.image_width[0]))
@@ -386,6 +388,8 @@ class BaseRender:
     """Specifies number of rays per chunk during eval. If None, use the value in the config file."""
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions()
     """Colormap options."""
+    render_nearest_camera: bool = False
+    """Whether to render the nearest training camera to the rendered camera."""
     check_occlusions: bool = False
     """Whether to check occlusions."""
 
@@ -445,6 +449,7 @@ class RenderCameraPath(BaseRender):
             image_format=self.image_format,
             jpeg_quality=self.jpeg_quality,
             colormap_options=self.colormap_options,
+            render_nearest_camera=self.render_nearest_camera,
             check_occlusions=self.check_occlusions,
         )
 
@@ -470,6 +475,7 @@ class RenderCameraPath(BaseRender):
                 image_format=self.image_format,
                 jpeg_quality=self.jpeg_quality,
                 colormap_options=self.colormap_options,
+                render_nearest_camera=self.render_nearest_camera,
                 check_occlusions=self.check_occlusions,
             )
 
@@ -546,6 +552,7 @@ class RenderInterpolated(BaseRender):
             output_format=self.output_format,
             image_format=self.image_format,
             colormap_options=self.colormap_options,
+            render_nearest_camera=self.render_nearest_camera,
             check_occlusions=self.check_occlusions,
         )
 
@@ -590,6 +597,7 @@ class SpiralRender(BaseRender):
             output_format=self.output_format,
             image_format=self.image_format,
             colormap_options=self.colormap_options,
+            render_nearest_camera=self.render_nearest_camera,
             check_occlusions=self.check_occlusions,
         )
 
