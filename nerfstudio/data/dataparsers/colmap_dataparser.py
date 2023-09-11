@@ -379,7 +379,7 @@ class ColmapDataParser(DataParser):
             "points3D_xyz": points3D,
             "points3D_rgb": points3D_rgb,
             "points3D_error": torch.from_numpy(np.array([p.error for p in colmap_points.values()], dtype=np.float32)),
-            "points3D_num_points": points3D_num_points,
+            "points3D_num_points2D": points3D_num_points,
         }
         if self.config.max_2D_matches_per_3D_point != 0:
             if (colmap_path / "images.txt").exists():
@@ -415,7 +415,7 @@ class ColmapDataParser(DataParser):
                     / downscale_factor
                 )
             out["points3D_image_ids"] = torch.stack(points3D_image_ids, dim=0)
-            out["points3D_image_xy"] = torch.stack(points3D_image_xy, dim=0)
+            out["points3D_points2D_xy"] = torch.stack(points3D_image_xy, dim=0)
         return out
 
     def _setup_downscale_factor(
