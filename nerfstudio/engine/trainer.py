@@ -436,7 +436,8 @@ class Trainer:
         if not self.checkpoint_dir.exists():
             self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         # save the checkpoint
-        ckpt_path: Path = self.checkpoint_dir / f"step-{step:09d}.ckpt"
+        # ckpt_path: Path = self.checkpoint_dir / f"step-{step:09d}.ckpt"
+        ckpt_path: Path = self.checkpoint_dir / f"final.ckpt"  # [FORK] we only care about the last checkpoint
         torch.save(
             {
                 "step": step,

@@ -159,7 +159,7 @@ class NerfactoField(Field):
             num_layers=num_layers,
             layer_width=hidden_dim,
             out_dim=1 + self.geo_feat_dim,
-            activation=nn.Softplus() if activation == "softplus" else nn.ReLU(),
+            activation=nn.Softplus(beta=100.0) if activation == "softplus" else nn.ReLU(),
             out_activation=None,
             implementation="torch" if custom_implementation else implementation,
         )
