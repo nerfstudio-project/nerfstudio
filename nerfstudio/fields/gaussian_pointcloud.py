@@ -26,6 +26,10 @@ from utils.system_utils import mkdir_p
 
 class GaussianPointcloud:
 
+    # TODO (jake-austin): Make sure these methods / properties are clean af, and maybe make a superclass
+    # for pointclouds in general since people will likely make new kinds under this gaussian pointcloud
+    # paradigm
+
     def setup_functions(self):
         def build_covariance_from_scaling_rotation(scaling, scaling_modifier, rotation):
             L = build_scaling_rotation(scaling_modifier * scaling, rotation)

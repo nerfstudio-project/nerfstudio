@@ -22,35 +22,44 @@ from collections import OrderedDict
 from typing import Dict
 
 import tyro
-from nerfstudio.data.pixel_samplers import PairPixelSamplerConfig
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.configs.external_methods import get_external_methods
-
-from nerfstudio.data.datamanagers.random_cameras_datamanager import RandomCamerasDataManagerConfig
-from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager, VanillaDataManagerConfig
-
-from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
+from nerfstudio.data.datamanagers.base_datamanager import (
+    VanillaDataManager, VanillaDataManagerConfig)
+from nerfstudio.data.datamanagers.full_images_datamanager import \
+    FullImageDatamanagerConfig
+from nerfstudio.data.datamanagers.random_cameras_datamanager import \
+    RandomCamerasDataManagerConfig
+from nerfstudio.data.dataparsers.blender_dataparser import \
+    BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
-from nerfstudio.data.dataparsers.instant_ngp_dataparser import InstantNGPDataParserConfig
-from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
-from nerfstudio.data.dataparsers.phototourism_dataparser import PhototourismDataParserConfig
-from nerfstudio.data.dataparsers.sdfstudio_dataparser import SDFStudioDataParserConfig
-from nerfstudio.data.dataparsers.sitcoms3d_dataparser import Sitcoms3DDataParserConfig
+from nerfstudio.data.dataparsers.instant_ngp_dataparser import \
+    InstantNGPDataParserConfig
+from nerfstudio.data.dataparsers.nerfstudio_dataparser import \
+    NerfstudioDataParserConfig
+from nerfstudio.data.dataparsers.phototourism_dataparser import \
+    PhototourismDataParserConfig
+from nerfstudio.data.dataparsers.sdfstudio_dataparser import \
+    SDFStudioDataParserConfig
+from nerfstudio.data.dataparsers.sitcoms3d_dataparser import \
+    Sitcoms3DDataParserConfig
 from nerfstudio.data.datasets.depth_dataset import DepthDataset
 from nerfstudio.data.datasets.sdf_dataset import SDFDataset
 from nerfstudio.data.datasets.semantic_dataset import SemanticDataset
-from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
-from nerfstudio.engine.schedulers import (
-    CosineDecaySchedulerConfig,
-    ExponentialDecaySchedulerConfig,
-    MultiStepSchedulerConfig,
-)
+from nerfstudio.data.pixel_samplers import PairPixelSamplerConfig
+from nerfstudio.engine.optimizers import (AdamOptimizerConfig,
+                                          RAdamOptimizerConfig)
+from nerfstudio.engine.schedulers import (CosineDecaySchedulerConfig,
+                                          ExponentialDecaySchedulerConfig,
+                                          MultiStepSchedulerConfig)
 from nerfstudio.engine.trainer import TrainerConfig
-from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
+from nerfstudio.field_components.temporal_distortions import \
+    TemporalDistortionKind
 from nerfstudio.fields.sdf_field import SDFFieldConfig
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
+from nerfstudio.models.gaussian_splatting import GaussianSplattingModelConfig
 from nerfstudio.models.generfacto import GenerfactoModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
@@ -79,6 +88,7 @@ descriptions = {
     "generfacto": "Generative Text to NeRF model",
     "neus": "Implementation of NeuS. (slow)",
     "neus-facto": "Implementation of NeuS-Facto. (slow)",
+    "gaussian-splatting": "Gaussian Splatting model",
 }
 
 method_configs["nerfacto"] = TrainerConfig(
@@ -569,6 +579,55 @@ method_configs["neus-facto"] = TrainerConfig(
         "field_background": {
             "optimizer": AdamOptimizerConfig(lr=5e-4, eps=1e-15),
             "scheduler": CosineDecaySchedulerConfig(warm_up_end=500, learning_rate_alpha=0.05, max_steps=20001),
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    vis="viewer",
+)
+
+method_configs["gaussian-splatting"] = TrainerConfig(
+    method_name="gaussian-splatting",
+    steps_per_eval_image=10,
+    steps_per_eval_batch=10,
+    steps_per_save=2000,
+    steps_per_eval_all_images=1000000,  # set to a very large model so we don't eval with all images
+    max_num_iterations=20001,
+    mixed_precision=False,
+    pipeline=VanillaPipelineConfig(
+        datamanager=FullImageDatamanagerConfig(
+            dataparser=BlenderDataParserConfig(),
+        ),
+        model=GaussianSplattingModelConfig(),
+    ),
+    optimizers={
+        "xyz": {
+            "optimizer": AdamOptimizerConfig(lr=0.00016*5, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                lr_pre_warmup=0.01 * 0.00016*5,
+                lr_final=0.0000016*5,
+                warmup_steps = 0,
+                max_steps=30000,
+            ),
+        },
+        "f_dc": {
+            "optimizer": AdamOptimizerConfig(lr=0.0025, eps=1e-15),
+            "scheduler": None,
+        },
+        "f_rest": {
+            "optimizer": AdamOptimizerConfig(lr=0.0025, eps=1e-15),
+            "scheduler": None,
+        },
+        "opacity": {
+            "optimizer": AdamOptimizerConfig(lr=0.05, eps=1e-15),
+            "scheduler": None,
+        },
+        "scaling": {
+            "optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15),
+            "scheduler": None,
+        },
+        "rotation": {
+            "optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15),
+            "scheduler": None,
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),

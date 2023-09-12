@@ -23,7 +23,8 @@ from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 
 import torch
 
-from nerfstudio.model_components.renderers import background_color_override_context
+from nerfstudio.model_components.renderers import \
+    background_color_override_context
 from nerfstudio.utils import colormaps, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
@@ -133,7 +134,11 @@ class RenderStateMachine(threading.Thread):
         assert camera is not None, "render called before viewer connected"
 
         with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
-            camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
+            #TODO jake-austin: Make this check whether the model inherits from a camera based model or a ray based model
+            if True:
+                pass
+            else:
+                camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
 
             with TimeWriter(None, None, write=False) as vis_t:
                 self.viewer.get_model().eval()
@@ -148,12 +153,21 @@ class RenderStateMachine(threading.Thread):
                             device=self.viewer.get_model().device,
                         )
                     with background_color_override_context(background_color), torch.no_grad():
-                        outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                        if True:
+                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera)
+                        else:
+                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                 else:
                     with torch.no_grad():
-                        outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                        if True:
+                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera)
+                        else:
+                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                 self.viewer.get_model().train()
-        num_rays = len(camera_ray_bundle)
+        if True:
+            num_rays = (camera.height * camera.width).item()
+        else:
+            num_rays = len(camera_ray_bundle)
         render_time = vis_t.duration
         if writer.is_initialized():
             writer.put_time(

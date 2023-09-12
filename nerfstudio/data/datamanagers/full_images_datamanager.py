@@ -21,6 +21,7 @@ paradigm
 
 from __future__ import annotations
 
+import random
 import sys
 from abc import abstractmethod
 from collections import defaultdict
@@ -29,7 +30,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import (Any, Callable, Dict, ForwardRef, Generic, List, Literal,
                     Optional, Tuple, Type, Union, cast, get_args, get_origin)
-import random
+
 import torch
 from rich.progress import Console
 from torch import Tensor, nn
@@ -87,6 +88,9 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
     A datamanager that outputs full images and cameras instead of raybundles. This makes the
     datamanager far more lightweight since we dont have to do ray generation for things like
     gaussian splatting that dont require it.
+
+    TODO (jake-austin): Figure out why the dataparser doesnt show up as a subcommand, preventing us
+    from specifying nerfstudio-data instead of blender-data
     """
 
     config: FullImageDatamanagerConfig
@@ -191,6 +195,10 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         """
         return {}
     
+    def get_train_rays_per_batch(self):
+        # TODO (jake-austin): fix this to be the resolution of the last image rendered
+        return 800*800
+    
     def next_train(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next training batch
         
@@ -200,8 +208,9 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         if len(self.train_unseen_cameras) == 0:
             self.train_unseen_cameras = [i for i in range(len(self.train_dataset))]
         data = self.train_dataset.get_data(image_idx)
+        data["image"] = data["image"].to(self.device)
         assert len(self.train_dataset.cameras.shape) == 1, "Assumes single batch dimension"
-        camera = self.train_dataset.cameras[image_idx]
+        camera = self.train_dataset.cameras[image_idx].to(self.device)
         return camera, data
 
     def next_eval(self, step: int) -> Tuple[Cameras, Dict]:
@@ -213,8 +222,9 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         if len(self.eval_unseen_cameras) == 0:
             self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
         data = self.eval_dataset.get_data(image_idx)
+        data["image"] = data["image"].to(self.device)
         assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
-        camera = self.eval_dataset.cameras[image_idx]
+        camera = self.eval_dataset.cameras[image_idx].to(self.device)
         return camera, data
 
     def next_eval_image(self, step: int) -> Tuple[int, Cameras, Dict]:
@@ -228,6 +238,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         if len(self.eval_unseen_cameras) == 0:
             self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
         data = self.eval_dataset.get_data(image_idx)
+        data["image"] = data["image"].to(self.device)
         assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
-        camera = self.eval_dataset.cameras[image_idx]
+        camera = self.eval_dataset.cameras[image_idx].to(self.device)
         return image_idx, camera, data
