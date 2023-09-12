@@ -80,6 +80,8 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     new images. If -1, never pick new images."""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """Specifies the image indices to use during eval; if None, uses all."""
+    cache_images: Literal["no-cache", "cpu", "gpu"] = "cpu"
+    """Whether to cache images in memory. If "numpy", caches as numpy arrays, if "torch", caches as torch tensors."""
 
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
 
@@ -126,6 +128,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.train_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split="train")
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
+        self.cached_train, self.cached_eval = self.cache_images(self.config.cache_images)
         self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
         if self.config.masks_on_gpu is True:
             self.exclude_batch_keys_from_device.remove("mask")
@@ -139,6 +142,29 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
         super().__init__()
 
+
+    def cache_images(self, cache_images_option):
+        if cache_images_option == "no-cache":
+            cached_train = {}
+            cached_eval = {}
+        elif cache_images_option == "cpu":
+            cached_train = [self.train_dataset.get_data(i) for i in range(len(self.train_dataset))]
+            cached_eval = [self.eval_dataset.get_data(i) for i in range(len(self.eval_dataset))]
+        elif cache_images_option == "gpu":
+            cached_train = [self.train_dataset.get_data(i) for i in range(len(self.train_dataset))]
+            cached_eval = [self.eval_dataset.get_data(i) for i in range(len(self.eval_dataset))]
+            for cache in cached_train:
+                cache["image"] = cache["image"].to(self.device)
+                if "mask" in cache:
+                    cache["mask"] = cache["mask"].to(self.device)
+            for cache in cached_eval:
+                cache["image"] = cache["image"].to(self.device)
+                if "mask" in cache:
+                    cache["mask"] = cache["mask"].to(self.device)
+        else:
+            raise ValueError(f"Unknown cache_images option {cache_images_option}")
+
+        return cached_train, cached_eval
 
     def create_train_dataset(self) -> TDataset:
         """Sets up the data loaders for training"""
@@ -207,8 +233,19 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         # Make sure to re-populate the unseen cameras list if we have exhausted it
         if len(self.train_unseen_cameras) == 0:
             self.train_unseen_cameras = [i for i in range(len(self.train_dataset))]
-        data = self.train_dataset.get_data(image_idx)
-        data["image"] = data["image"].to(self.device)
+        
+        if self.config.cache_images == "no-cache":
+            data = self.train_dataset.get_data(image_idx)
+            data["image"] = data["image"].to(self.device)
+        elif self.config.cache_images == "cpu":
+            data = self.cached_train[image_idx]
+            data["image"] = data["image"].to(self.device)
+        elif self.config.cache_images == "gpu":
+            data = self.cached_train[image_idx]
+        else:
+            raise ValueError(f"Unknown cache_images option {self.config.cache_images}")
+        
+        
         assert len(self.train_dataset.cameras.shape) == 1, "Assumes single batch dimension"
         camera = self.train_dataset.cameras[image_idx].to(self.device)
         return camera, data

@@ -70,9 +70,12 @@ class GaussianSplattingModelConfig(ModelConfig):
     prune_density_until = 15000
     one_up_sh_every = 1000
     lambda_ssim = 0.2
+    use_diff_rast = True # TODO (jake-austin): remove
 
 class GaussianSplattingModel(Model):
     """Gaussian Splatting model
+
+    TODO (jake-austin): Figure out how to print out on the training log in terminal the number of splats
 
     Args:
         config: Gaussian Splatting configuration to instantiate model
@@ -189,7 +192,8 @@ class GaussianSplattingModel(Model):
     def get_features(self):
         features_dc = self._features_dc
         features_rest = self._features_rest
-        return torch.cat((features_dc, features_rest), dim=1)
+
+        return features_dc.squeeze() # torch.cat((features_dc, features_rest), dim=1)
     
     @property
     def get_opacity(self):
@@ -296,44 +300,116 @@ class GaussianSplattingModel(Model):
         Returns:
             Outputs of model. (ie. rendered colors)
         """
-        ray_bundle = ray_bundle.reshape(())
-        assert ray_bundle.shape == ()
-        R = ray_bundle.camera_to_worlds[..., :3, :3].squeeze()
+
+
+        camera = ray_bundle.reshape(())
+        assert camera.shape == ()
+        R = camera.camera_to_worlds[..., :3, :3].squeeze()
         R[:,0] = -R[:,0]
-        T = (R.T @ ray_bundle.camera_to_worlds[..., :3, 3:4]).squeeze()
-        fovx = gaussian_utils.focal2fov(ray_bundle.fx, ray_bundle.width)
-        fovy = gaussian_utils.focal2fov(ray_bundle.fy, ray_bundle.height)
+        T = (R.T @ camera.camera_to_worlds[..., :3, 3:4]).squeeze()
+        fovx = gaussian_utils.focal2fov(camera.fx, camera.width)
+        fovy = gaussian_utils.focal2fov(camera.fy, camera.height)
 
         world_view_transform = gaussian_utils.getWorld2View2(R, T, torch.tensor([0.0, 0.0, 0.0]).to(self.device), 1.0).transpose(0, 1).to(self.device)
         projection_matrix = gaussian_utils.getProjectionMatrix(znear=.01, zfar=100, fovX=fovx, fovY=fovy).transpose(0,1).to(self.device)
         full_projection_matrix = (world_view_transform.unsqueeze(0).bmm(projection_matrix.unsqueeze(0))).squeeze(0)
 
-        camera_center = world_view_transform.inverse()[3, :3]
-        data = {
-            "xyz": self.get_xyz,
-            "features": self.get_features,
-            "opacity": self.get_opacity,
-            "scaling": self.get_scaling,
-            "rotation": self.get_rotation,
-            "active_sh_degree": self.active_sh_degree,
-            "max_sh_degree": self.max_sh_degree,
-            "FoVx": fovx,
-            "FoVy": fovy,
-            "image_height": ray_bundle.width,
-            "image_width": ray_bundle.width,
-            "world_view_transform": world_view_transform,
-            "full_proj_transform": full_projection_matrix,
-            "camera_center": camera_center,
-        }
+        if not self.config.use_diff_rast:
 
-        image = gaussian_utils.render_from_dict(
-            data,
-            bg_color=torch.ones(3).to(self.device),
-        )["render"].permute(1, 2, 0) #HWC
+            camera_center = world_view_transform.inverse()[3, :3]
+            data = {
+                "xyz": self.get_xyz,
+                "features": self.get_features,
+                "opacity": self.get_opacity,
+                "scaling": self.get_scaling,
+                "rotation": self.get_rotation,
+                "active_sh_degree": self.active_sh_degree,
+                "max_sh_degree": self.max_sh_degree,
+                "FoVx": fovx,
+                "FoVy": fovy,
+                "image_height": camera.width,
+                "image_width": camera.width,
+                "world_view_transform": world_view_transform,
+                "full_proj_transform": full_projection_matrix,
+                "camera_center": camera_center,
+            }
 
-        # TODO (jake-austin): need to clip the images since there are color overflow issues
+            image = gaussian_utils.render_from_dict(
+                data,
+                bg_color=torch.tensor([1,1,1]).to(torch.float32).to(self.device),
+            )["render"].permute(1, 2, 0) #HWC
 
-        return {"rgb": image}
+            return {"rgb": image}
+        
+        else:
+
+            c2w = camera.camera_to_worlds
+            c2w = pose_utils.to4x4(c2w)
+            w2c = torch.linalg.inv(c2w)
+            proj = self._get_proj_matrix(
+                w2c=w2c,
+                fx=camera.fx.item(),
+                fy=camera.fy.item(),
+                width=camera.width.item(),
+                height=camera.height.item(),
+            )
+
+            BLOCK_X = 16
+            BLOCK_Y = 16
+            W = camera.width.item()
+            H = camera.height.item()
+            tile_bounds = (W + BLOCK_X - 1) // BLOCK_X, (H + BLOCK_Y - 1) // BLOCK_Y, 1
+
+            glob_scale = 1
+            xys, depths, radii, conics, num_tiles_hit = diff_rast.project_gaussians(
+                means3d=self.get_xyz,
+                scales=self.get_scaling,
+                glob_scale=glob_scale,
+                quats=self.get_rotation,
+                viewmat=w2c,
+                projmat=proj,
+                img_height=camera.width.item(),
+                img_width=camera.height.item(),
+                fx=camera.fx.item(),
+                fy=camera.fy.item(),
+                tile_bounds=tile_bounds,
+            )
+
+            rgb = diff_rast.rasterize(
+                xys,
+                depths,
+                radii,
+                conics,
+                num_tiles_hit,
+                self.get_features,
+                self.get_opacity.squeeze(),
+                camera.height.item(),
+                camera.width.item(),
+            )
+
+            return {"rgb": rgb}
+
+    def _get_proj_matrix(
+        self, w2c, fx: float, fy: float, width: int, height: int, znear=0.01, zfar=100
+    ):
+        top = 0.5 * height / fy * znear
+        bottom = -top
+        right = 0.5 * width / fx * znear
+        left = -right
+
+        P = torch.zeros(4, 4).to(self.device)
+
+        z_sign = 1.0
+
+        P[0, 0] = 2.0 * znear / (right - left)
+        P[1, 1] = 2.0 * znear / (top - bottom)
+        P[0, 2] = (right + left) / (right - left)
+        P[1, 2] = (top + bottom) / (top - bottom)
+        P[3, 2] = z_sign
+        P[2, 2] = z_sign * zfar / (zfar - znear)
+        P[2, 3] = -(zfar * znear) / (zfar - znear)
+
+        return P @ w2c
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.
@@ -353,6 +429,8 @@ class GaussianSplattingModel(Model):
             batch: ground truth batch corresponding to outputs
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
+        plt.imsave("test.png", np.concatenate([outputs["rgb"].detach().cpu().numpy(), batch["image"].detach().cpu().numpy()], axis=1))
+
         Ll1 = gaussian_utils.l1_loss(batch['image'], outputs['rgb'])
         loss = (1.0 - self.config.lambda_ssim) * Ll1 + self.config.lambda_ssim * (1.0 - gaussian_utils.ssim(batch['image'], outputs['rgb']))
         return {"main_loss": loss}
@@ -364,7 +442,9 @@ class GaussianSplattingModel(Model):
         Args:
             camera_ray_bundle: ray bundle to calculate outputs over
         """
-        return self.get_outputs(camera_ray_bundle)
+        outs = self.get_outputs(camera_ray_bundle.to(self.device))
+        outs["rgb"] = torch.clamp(outs["rgb"], 0.0, 1.0)
+        return outs
 
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
