@@ -70,7 +70,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     prune_density_until = 15000
     one_up_sh_every = 1000
     lambda_ssim = 0.2
-    use_diff_rast = True # TODO (jake-austin): remove
+    use_diff_rast = False # TODO (jake-austin): remove
 
 class GaussianSplattingModel(Model):
     """Gaussian Splatting model
@@ -193,7 +193,7 @@ class GaussianSplattingModel(Model):
         features_dc = self._features_dc
         features_rest = self._features_rest
 
-        return features_dc.squeeze() # torch.cat((features_dc, features_rest), dim=1)
+        return torch.cat((features_dc, features_rest), dim=1)
     
     @property
     def get_opacity(self):
@@ -429,7 +429,7 @@ class GaussianSplattingModel(Model):
             batch: ground truth batch corresponding to outputs
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
-        plt.imsave("test.png", np.concatenate([outputs["rgb"].detach().cpu().numpy(), batch["image"].detach().cpu().numpy()], axis=1))
+        # plt.imsave("test.png", np.concatenate([outputs["rgb"].detach().cpu().numpy(), batch["image"].detach().cpu().numpy()], axis=1))
 
         Ll1 = gaussian_utils.l1_loss(batch['image'], outputs['rgb'])
         loss = (1.0 - self.config.lambda_ssim) * Ll1 + self.config.lambda_ssim * (1.0 - gaussian_utils.ssim(batch['image'], outputs['rgb']))
