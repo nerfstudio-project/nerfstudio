@@ -331,6 +331,8 @@ class GaussianSplattingModel(Model):
             bg_color=torch.ones(3).to(self.device),
         )["render"].permute(1, 2, 0) #HWC
 
+        # TODO (jake-austin): need to clip the images since there are color overflow issues
+
         return {"rgb": image}
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
