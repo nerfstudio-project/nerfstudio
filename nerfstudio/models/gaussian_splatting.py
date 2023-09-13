@@ -60,17 +60,17 @@ from nerfstudio.utils import poses as pose_utils
 class GaussianSplattingModelConfig(ModelConfig):
     """Gaussian Splatting Model Config"""
     _target: Type = field(default_factory=lambda: GaussianSplattingModel)
-    initial_ptc_size = 100000
-    max_ptc_size = 100000
-    render_accumulation = False
-    use_aabb = True
-    initial_gaussian_scales = -3
-    prune_density_after = 500
-    prune_density_every = 100
-    prune_density_until = 15000
-    one_up_sh_every = 1000
-    lambda_ssim = 0.2
-    use_diff_rast = False # TODO (jake-austin): remove
+    initial_ptc_size: int = 100000
+    max_ptc_size: int = 100000
+    render_accumulation: bool = False
+    use_aabb: bool = True
+    initial_gaussian_scales: int = -3
+    prune_density_after: int = 500
+    prune_density_every: int = 100
+    prune_density_until: int = 15000
+    one_up_sh_every: int = 1000
+    lambda_ssim: float = 0.2
+    use_diff_rast: bool = False # TODO (jake-austin): remove
 
 class GaussianSplattingModel(Model):
     """Gaussian Splatting model
