@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path, PurePath
+from pathlib import Path
 from typing import Optional, Type
 
 import numpy as np
@@ -107,14 +107,14 @@ class Mipnerf360(DataParser):
         # they do this in mipnerf360 code
         fnames = []
         for frame in meta["frames"]:
-            filepath = PurePath(frame["file_path"])
+            filepath = Path(frame["file_path"])
             fname = self._get_fname(filepath, data_dir)
             fnames.append(fname)
         inds = np.argsort(fnames)
         frames = [meta["frames"][ind] for ind in inds]
 
         for frame in frames:
-            filepath = PurePath(frame["file_path"])
+            filepath = Path(frame["file_path"])
             fname = self._get_fname(filepath, data_dir)
             if not fname.exists():
                 num_skipped_image_filenames += 1
@@ -153,7 +153,7 @@ class Mipnerf360(DataParser):
             image_filenames.append(fname)
             poses.append(np.array(frame["transform_matrix"]))
             if "mask_path" in frame:
-                mask_filepath = PurePath(frame["mask_path"])
+                mask_filepath = Path(frame["mask_path"])
                 mask_fname = self._get_fname(
                     mask_filepath,
                     data_dir,
@@ -282,7 +282,7 @@ class Mipnerf360(DataParser):
         )
         return dataparser_outputs
 
-    def _get_fname(self, filepath: PurePath, data_dir: PurePath, downsample_folder_prefix="images_") -> Path:
+    def _get_fname(self, filepath: Path, data_dir: Path, downsample_folder_prefix="images_") -> Path:
         """Get the filename of the image file.
         downsample_folder_prefix can be used to point to auxillary image data, e.g. masks
 
