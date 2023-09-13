@@ -94,6 +94,22 @@ class Sitcoms3DDownload(DatasetDownload):
             os.rename(str(save_dir / "friends/"), str(save_dir / "sitcoms3d/"))
 
 
+@dataclass
+class Mipnerf360Download(DatasetDownload):
+    """Download the MIP-NeRF 360 dataset."""
+
+    def download(self, save_dir: Path):
+        """Download the MIP-NeRF 360 dataset."""
+
+        # Download the files
+        url = "https://huggingface.co/datasets/ethanweber/Mip-NeRF_360_Processed_with_Nerfstudio/resolve/main/nerfstudio-data-mipnerf360.zip"
+        download_path = str(save_dir / "nerfstudio-data-mipnerf360.zip")
+        gdown.download(url, output=download_path)
+        with zipfile.ZipFile(download_path, "r") as zip_ref:
+            zip_ref.extractall(str(save_dir))
+        os.remove(download_path)
+
+
 def grab_file_id(zip_url: str) -> str:
     """Get the file id from the google drive zip url."""
     s = zip_url.split("/d/")[1]
@@ -456,6 +472,7 @@ class NeRFOSRDownload(DatasetDownload):
 Commands = Union[
     Annotated[BlenderDownload, tyro.conf.subcommand(name="blender")],
     Annotated[Sitcoms3DDownload, tyro.conf.subcommand(name="sitcoms3d")],
+    Annotated[Mipnerf360Download, tyro.conf.subcommand(name="mipnerf360")],
     Annotated[NerfstudioDownload, tyro.conf.subcommand(name="nerfstudio")],
     Annotated[Record3dDownload, tyro.conf.subcommand(name="record3d")],
     Annotated[DNerfDownload, tyro.conf.subcommand(name="dnerf")],
