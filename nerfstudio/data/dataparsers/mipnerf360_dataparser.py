@@ -55,7 +55,7 @@ class Mipnerf360DataParserConfig(DataParserConfig):
     """How much to scale the region of interest by."""
     orientation_method: Literal["pca", "up", "none"] = "up"
     """The method to use for orientation."""
-    center_method: str = "poses"
+    center_method: Literal["poses", "focus", "none"] = "poses"
     """The method to use for centering the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
