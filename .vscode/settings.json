@@ -24,7 +24,7 @@
   "typescript.suggestionActions.enabled": false,
   "javascript.suggestionActions.enabled": false,
   "[python]": {
-    "editor.defaultFormatter": "ms-python.python",
+    "editor.defaultFormatter": "ms-python.black-formatter",
     "editor.codeActionsOnSave": {
       "source.organizeImports": true,
       "source.fixAll": true
@@ -32,7 +32,7 @@
   },
   "editor.formatOnSave": true,
   "python.envFile": "${workspaceFolder}/.env",
-  "python.formatting.provider": "black",
+  "python.formatting.provider": "none",
   "python.formatting.blackArgs": ["--line-length=120"],
   "python.linting.pylintEnabled": false,
   "python.linting.flake8Enabled": false,

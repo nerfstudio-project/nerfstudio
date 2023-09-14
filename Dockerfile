@@ -3,6 +3,9 @@ ARG OS_VERSION=22.04
 ARG USER_ID=1000
 # Define base image.
 FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${OS_VERSION}
+ARG CUDA_VERSION
+ARG OS_VERSION
+ARG USER_ID
 
 # metainformation
 LABEL org.opencontainers.image.version = "0.1.18"
