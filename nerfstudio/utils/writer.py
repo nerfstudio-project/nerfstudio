@@ -361,7 +361,7 @@ class TensorboardWriter(Writer):
         """
         self.tb_writer.add_text("config", str(config_dict))
 
-
+@decorate_all([check_main_thread])
 class CometWriter(Writer):
     """Comet_ML Writer Class"""
 
