@@ -22,6 +22,9 @@ from __future__ import annotations
 import math
 from pathlib import Path
 from typing import Literal, Optional, Tuple, Union
+import os
+os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
+
 
 import mediapy as media
 import numpy as np
@@ -29,6 +32,7 @@ import torch
 import xatlas
 from jaxtyping import Float
 from torch import Tensor
+import cv2
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.exporter.exporter_utils import Mesh
@@ -408,7 +412,14 @@ def export_textured_mesh(
 
     # save the texture image
     texture_image = rgb.cpu().numpy()
-    media.write_image(str(output_dir / "material_0.png"), texture_image)
+    # media.write_image(str(output_dir / "material_0.png"), texture_image)
+    # export HDR texture
+    u = 5000.
+    texture_image = torch.exp(rgb.cpu() * torch.log(torch.tensor(u+1.))) - 1.
+    texture_image /= u
+    texture_image = cv2.cvtColor(texture_image.numpy(), cv2.COLOR_BGR2RGB)
+
+    cv2.imwrite(str(output_dir / "material_0.exr"), texture_image)
 
     CONSOLE.print("Writing relevant OBJ information to files...")
     # create the .mtl file

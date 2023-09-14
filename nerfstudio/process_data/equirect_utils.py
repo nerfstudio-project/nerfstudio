@@ -259,6 +259,7 @@ def generate_planar_projections_from_equirectangular_GT(
     samples_per_im: int,
     crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     clip_output: bool = False,
+    use_mask = False
 ) -> Path:
     """Given camera pose, generate planar projections from an equirectangular image.
        And output corresponding camera pose.
@@ -323,7 +324,10 @@ def generate_planar_projections_from_equirectangular_GT(
     frame_dir = image_dir
     output_dir = image_dir / "planar_projections"
     output_dir.mkdir(exist_ok=True)
-    num_ims = len(os.listdir(frame_dir))
+    output_mask_dir = output_dir
+    if use_mask:
+        output_mask_dir = image_dir/ "mask" / "planar_projections"
+        output_mask_dir.mkdir(exist_ok=True)
     progress = Progress(
         TextColumn("[bold blue]Generating Planar Images", justify="right"),
         BarColumn(),
@@ -335,8 +339,11 @@ def generate_planar_projections_from_equirectangular_GT(
     
     frames = []
     idx = 0
+    files_list = [file for file in os.listdir(frame_dir) 
+         if os.path.isfile(os.path.join(frame_dir, file))]
+    num_ims = len(files_list)
     with progress:
-        for i in progress.track(os.listdir(frame_dir), description="", total=num_ims):
+        for i in progress.track(files_list, description="", total=num_ims):
             if i.lower().endswith((".jpg", ".png", ".jpeg", ".exr")):
                 if i.lower().endswith((".exr")):
                     im = np.array(cv2.imread(os.path.join(frame_dir, i), cv2.IMREAD_UNCHANGED)).astype("float32")
@@ -360,6 +367,7 @@ def generate_planar_projections_from_equirectangular_GT(
                     perspective_camera_pose[:3, :3] = perspective_camera_rotation
        
                     assert isinstance(pers_image, torch.Tensor)
+                    file_name = i.split(".")[0]
                     if i.lower().endswith((".exr")):
                         # normalize alpha channel
                         pers_image = (pers_image.permute(1, 2, 0)).type(torch.float32).to("cpu").numpy()
@@ -376,6 +384,21 @@ def generate_planar_projections_from_equirectangular_GT(
                             "file_path": f"{output_dir}/{i[:-4]}_{count}.png",
                             "transform_matrix": perspective_camera_pose.tolist(),
                         }
+                    
+                    if use_mask:
+                        mask_file_name = file_name + ".png"
+                        mask = np.array(cv2.imread(os.path.join(frame_dir, "mask", mask_file_name))).astype("uint8")
+                        mask = ~((mask == 255).all(axis=-1))
+                        mask = mask.astype("uint8") * 255
+                        # black corresponde to pixel to be ignored
+                        mask = torch.tensor(mask[:,:,None], dtype=torch.uint8, device=device)
+                        mask = torch.permute(mask, (2, 0, 1))
+                        pers_mask = equi2pers(mask, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad})
+                        pers_mask = pers_mask.permute(1, 2, 0) 
+                        pers_mask = pers_mask[:, :, 0].to("cpu").numpy()
+                        cv2.imwrite(f"{output_mask_dir}/{i[:-4]}_{count}.png", pers_mask)
+                        frame["mask_path"] = f"{output_mask_dir}/{i[:-4]}_{count}.png"
+                        
                     frames.append(frame)        
                     count += 1
             idx += 1

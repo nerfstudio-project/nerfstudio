@@ -164,7 +164,7 @@ class LanternModel(NerfactoModel):
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         gt_rgb_tonemapped = torch.clamp(colormaps.apply_colormap(gt_rgb), 0, 1)
         predicted_rgb_tonemapped = torch.clamp(colormaps.apply_colormap(predicted_rgb), 0, 1)
-        
+        predicted_rgb_tonemapped = torch.nan_to_num(predicted_rgb_tonemapped, nan=0.0)
         gt_rgb_tonemapped = torch.moveaxis(gt_rgb_tonemapped, -1, 0)[None, ...]
         predicted_rgb_tonemapped = torch.moveaxis(predicted_rgb_tonemapped, -1, 0)[None, ...]
         gt_rgb = torch.moveaxis(gt_rgb, -1, 0)[None, ...]

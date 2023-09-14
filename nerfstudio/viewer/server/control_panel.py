@@ -79,8 +79,8 @@ class ControlPanel:
         self._exposure = ViewerSlider(
             "Exposure scale", 
             default_value=0.0,
-            min_value=-5.0,
-            max_value=5.0,
+            min_value=-10.0,
+            max_value=10.0,
             step=0.1,
             cb_hook=rerender_cb, 
             hint="Scale the brightness prior to tonemapping by 2 ^ Exposure"
