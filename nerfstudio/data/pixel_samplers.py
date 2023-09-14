@@ -215,7 +215,7 @@ class PixelSampler:
                     num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
 
                 indices = self.sample_method(
-                    num_rays_in_batch, 1, image_height, image_width, mask=batch["mask"][i], device=device
+                    num_rays_in_batch, 1, image_height, image_width, mask=batch["mask"][i].unsqueeze(0), device=device
                 )
                 indices[:, 0] = i
                 all_indices.append(indices)
