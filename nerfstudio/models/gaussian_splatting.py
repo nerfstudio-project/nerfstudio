@@ -327,7 +327,7 @@ class GaussianSplattingModel(Model):
                 "max_sh_degree": self.max_sh_degree,
                 "FoVx": fovx,
                 "FoVy": fovy,
-                "image_height": camera.width,
+                "image_height": camera.height,
                 "image_width": camera.width,
                 "world_view_transform": world_view_transform,
                 "full_proj_transform": full_projection_matrix,

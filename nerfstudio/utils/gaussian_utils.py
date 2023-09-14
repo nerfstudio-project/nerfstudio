@@ -136,7 +136,8 @@ def render_from_dict(data : dict, bg_color : torch.Tensor, scaling_modifier = 1.
         projmatrix=data['full_proj_transform'],
         sh_degree=data['active_sh_degree'],
         campos=data['camera_center'],
-        prefiltered=False
+        prefiltered=False,
+        debug=False
     )
 
     rasterizer = GaussianRasterizer(raster_settings=raster_settings)
