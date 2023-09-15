@@ -27,11 +27,6 @@ from threading import Lock
 from typing import Dict, List, Literal, Optional, Tuple, Type, cast
 
 import torch
-from rich import box, style
-from rich.panel import Panel
-from rich.table import Table
-from torch.cuda.amp.grad_scaler import GradScaler
-
 from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
@@ -44,6 +39,10 @@ from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server.viewer_state import ViewerState
 from nerfstudio.viewer_beta.viewer import Viewer as ViewerBetaState
+from rich import box, style
+from rich.panel import Panel
+from rich.table import Table
+from torch.cuda.amp.grad_scaler import GradScaler
 
 TRAIN_INTERATION_OUTPUT = Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
 TORCH_DEVICE = str
@@ -197,6 +196,7 @@ class Trainer:
         writer.setup_event_writer(
             self.config.is_wandb_enabled(),
             self.config.is_tensorboard_enabled(),
+            self.config.is_comet_enabled(),
             log_dir=writer_log_path,
             experiment_name=self.config.experiment_name,
             project_name=self.config.project_name,
@@ -326,6 +326,7 @@ class Trainer:
             (self.config.is_viewer_enabled() or self.config.is_viewer_beta_enabled())
             and not self.config.is_tensorboard_enabled()
             and not self.config.is_wandb_enabled()
+            and not self.config.is_comet_enabled()
         ):
             string: str = (
                 "[NOTE] Not running eval iterations since only viewer is enabled.\n"
