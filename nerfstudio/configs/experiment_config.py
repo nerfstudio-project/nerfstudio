@@ -22,13 +22,7 @@ from pathlib import Path
 from typing import Any, Dict, Literal, Optional
 
 import yaml
-
-from nerfstudio.configs.base_config import (
-    InstantiateConfig,
-    LoggingConfig,
-    MachineConfig,
-    ViewerConfig,
-)
+from nerfstudio.configs.base_config import InstantiateConfig, LoggingConfig, MachineConfig, ViewerConfig
 from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.engine.optimizers import OptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
@@ -68,7 +62,9 @@ class ExperimentConfig(InstantiateConfig):
         }
     )
     """Dictionary of optimizer groups and their schedulers"""
-    vis: Literal["viewer", "wandb", "tensorboard", "viewer+wandb", "viewer+tensorboard", "viewer_beta"] = "wandb"
+    vis: Literal[
+        "viewer", "wandb", "tensorboard", "comet", "viewer+wandb", "viewer+tensorboard", "viewer+comet", "viewer_beta"
+    ] = "wandb"
     """Which visualizer to use."""
     data: Optional[Path] = None
     """Alias for --pipeline.datamanager.data"""
@@ -94,6 +90,9 @@ class ExperimentConfig(InstantiateConfig):
     def is_tensorboard_enabled(self) -> bool:
         """Checks if tensorboard is enabled."""
         return ("tensorboard" == self.vis) | ("viewer+tensorboard" == self.vis)
+
+    def is_comet_enabled(self) -> bool:
+        return ("comet" == self.vis) | ("viewer+comet" == self.vis)
 
     def set_timestamp(self) -> None:
         """Dynamically set the experiment timestamp"""
