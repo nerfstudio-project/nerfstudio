@@ -29,13 +29,7 @@ from torch import Tensor, nn
 from nerfstudio.field_components.base_field_component import FieldComponent
 from nerfstudio.utils.math import components_from_spherical_harmonics, expected_sin
 from nerfstudio.utils.printing import print_tcnn_speed_warning
-
-try:
-    import tinycudann as tcnn
-
-    TCNN_EXISTS = True
-except ModuleNotFoundError:
-    TCNN_EXISTS = False
+from nerfstudio.utils.external import tcnn, TCNN_EXISTS
 
 
 class Encoding(FieldComponent):
