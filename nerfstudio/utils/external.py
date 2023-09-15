@@ -17,22 +17,22 @@ import sys
 
 class _LazyError:
     def __init__(self, data):
-        self._data = data
+        self.__data = data  # pylint: disable=unused-private-member
 
     class LazyErrorObj:
         def __init__(self, data):
-            self._data = data
+            self.__data = data  # pylint: disable=unused-private-member
 
         def __call__(self, *args, **kwds):
-            name, exc = object.__getattribute__(self, "_data")
+            name, exc = object.__getattribute__(self, "__data")
             raise RuntimeError(f"Could not load package {name}.") from exc
 
-        def __getattribute__(self, __name: str):
-            name, exc = object.__getattribute__(self, "_data")
+        def __getattr__(self, __name: str):
+            name, exc = object.__getattribute__(self, "__data")
             raise RuntimeError(f"Could not load package {name}") from exc
 
-    def __getattribute__(self, __name: str):
-        return _LazyError.LazyErrorObj(object.__getattribute__(self, "_data"))
+    def __getattr__(self, __name: str):
+        return _LazyError.LazyErrorObj(object.__getattribute__(self, "__data"))
 
 
 TCNN_EXISTS = False
