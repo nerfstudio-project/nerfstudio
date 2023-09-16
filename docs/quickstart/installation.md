@@ -17,6 +17,11 @@ Install Visual Studio 2022. This must be done before installing CUDA. The necess
 Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 :::::
+:::::{tab-item} MacOS
+
+Nerfstudio requires `python >= 3.9`. We recommend using venv to manage dependencies.
+
+:::::
 ::::::
 
 ## Create environment
