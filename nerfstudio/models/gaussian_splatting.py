@@ -217,9 +217,9 @@ class GaussianSplattingModel(Model):
         # TODO (jake-austin): remove and implement this        
         callbacks = []
 
-        # def oneupSHdegree(step):
-        #     if self.active_sh_degree < self.max_sh_degree:
-        #         self.active_sh_degree += 1
+        def oneupSHdegree(step):
+            if step > 0 and self.active_sh_degree < self.max_sh_degree:
+                self.active_sh_degree += 1
 
         def wrapper_add_densification_stats(step):
             if step < self.config.prune_density_until:
@@ -235,23 +235,21 @@ class GaussianSplattingModel(Model):
 
         def wrapper_pruning_densification(step):
             if step >= self.config.prune_density_after and step < self.config.prune_density_until:
-                return
-            size_threshold = None#20 if iteration > opt.opacity_reset_interval else None
-            self.optimizer = training_callback_attributes.optimizers
-            self.densify_and_prune(0.0002, 0.005, 2.6, None)
+                size_threshold = None#20 if iteration > opt.opacity_reset_interval else None
+                self.optimizer = training_callback_attributes.optimizers
+                self.densify_and_prune(0.0002, 0.005, 2.6, None)
 
         def wrapper_reset_opacity(step):
             if step < self.config.prune_density_until and step > 0:
-                return
-            self.reset_opacity()
+                self.reset_opacity()
 
-        # callbacks.append(
-        #     TrainingCallback(
-        #         where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-        #         update_every_num_iters=self.config.one_up_sh_every,
-        #         func=oneupSHdegree,
-        #     )
-        # )
+        callbacks.append(
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                update_every_num_iters=self.config.one_up_sh_every,
+                func=oneupSHdegree,
+            )
+        )
         callbacks.append(
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
@@ -356,7 +354,7 @@ class GaussianSplattingModel(Model):
             Outputs of model. (ie. rendered colors)
         """
 
-        print(f"Num Points: {self._xyz.shape[0]}")
+        #print(f"Num Points: {self._xyz.shape[0]}")
 
 
         camera = ray_bundle.reshape(())
