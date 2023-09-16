@@ -76,6 +76,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     use_diff_rast: bool = False # TODO (jake-austin): remove
     gradient_threshold: float = 0.0002
     min_opacity: float = 0.005
+    scene_extent: float = 2.6
 
 class GaussianSplattingModel(Model):
     """Gaussian Splatting model
@@ -239,8 +240,7 @@ class GaussianSplattingModel(Model):
             if step >= self.config.prune_density_after and step < self.config.prune_density_until:
                 size_threshold = None#20 if iteration > opt.opacity_reset_interval else None
                 self.optimizer = training_callback_attributes.optimizers
-                extent = torch.abs(self.render_aabb.aabb).max() if self.render_aabb is not None else 1000
-                self.densify_and_prune(self.config.gradient_threshold, self.config.min_opacity, extent, None)
+                self.densify_and_prune(self.config.gradient_threshold, self.config.min_opacity, self.config.scene_extent, None)
 
         def wrapper_reset_opacity(step):
             if step < self.config.prune_density_until and step > 0:
