@@ -76,7 +76,8 @@ class GaussianSplattingModelConfig(ModelConfig):
     use_diff_rast: bool = False # TODO (jake-austin): remove
     gradient_threshold: float = 0.0002
     min_opacity: float = 0.005
-    scene_extent: float = 2.6
+    scene_extent: float = 2.0
+    max_sh_degree: int = 3
 
 class GaussianSplattingModel(Model):
     """Gaussian Splatting model
@@ -92,7 +93,7 @@ class GaussianSplattingModel(Model):
     def populate_modules(self):
         # TODO (jake-austin): clean this up, this is transplanted code across all the implementation functions
         self.active_sh_degree = 0
-        self.max_sh_degree = 3
+        self.max_sh_degree = self.config.max_sh_degree
 
         self._xyz = torch.empty(0)
         self._features_dc = torch.empty(0)
