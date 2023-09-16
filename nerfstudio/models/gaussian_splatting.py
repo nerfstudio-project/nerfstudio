@@ -391,7 +391,7 @@ class GaussianSplattingModel(Model):
 
             outs = gaussian_utils.render_from_dict(
                 data,
-                bg_color=torch.tensor([1,1,1]).to(torch.float32).to(self.device),
+                bg_color=torch.tensor([1,1,1]).to(torch.float32).to(self.device), # TODO (jake-austin): This should be in config
             ) #HWC
             image = outs["render"].permute(1, 2, 0)
 
