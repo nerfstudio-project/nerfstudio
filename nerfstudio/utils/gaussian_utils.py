@@ -182,7 +182,7 @@ def render_from_dict(data : dict, bg_color : torch.Tensor, scaling_modifier = 1.
     # They will be excluded from value updates used in the splitting criteria.
     return {"render": rendered_image,
             "viewspace_points": screenspace_points,
-            "visibility_filter" : None, #radii > 0,
+            "visibility_filter" : radii > 0,
             "radii": radii}
 
 

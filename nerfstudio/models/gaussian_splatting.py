@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn import Parameter
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image import PeakSignalNoiseRatio
@@ -36,6 +37,7 @@ from nerfstudio.cameras.rays import RayBundle, RaySamples
 from nerfstudio.engine.callbacks import (TrainingCallback,
                                          TrainingCallbackAttributes,
                                          TrainingCallbackLocation)
+from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
@@ -61,13 +63,14 @@ class GaussianSplattingModelConfig(ModelConfig):
     """Gaussian Splatting Model Config"""
     _target: Type = field(default_factory=lambda: GaussianSplattingModel)
     initial_ptc_size: int = 100000
-    max_ptc_size: int = 100000
+    max_ptc_size: int = None
     render_accumulation: bool = False
     use_aabb: bool = True
     initial_gaussian_scales: int = -3
     prune_density_after: int = 500
     prune_density_every: int = 100
     prune_density_until: int = 15000
+    opacity_reset_interval: int = 3000
     one_up_sh_every: int = 1000
     lambda_ssim: float = 0.2
     use_diff_rast: bool = False # TODO (jake-austin): remove
@@ -211,36 +214,44 @@ class GaussianSplattingModel(Model):
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
         
-        # TODO (jake-austin): remove and implement this
-        return []
-        
+        # TODO (jake-austin): remove and implement this        
         callbacks = []
 
-        def oneupSHdegree(self):
-            if self.active_sh_degree < self.max_sh_degree:
-                self.active_sh_degree += 1
-        def wrapper_pruning_densification(step):
-            if step <= self.config.prune_density_after and step > self.config.prune_density_until:
-                return
-            self.pruning_densification(
-                training_callback_attributes.optimizers,
-                training_callback_attributes.grad_scaler
-            )
-        def wrapper_reset_opacity(step):
-            if step > self.config.prune_density_until:
-                return
-            self.reset_opacity(
-                training_callback_attributes.optimizers,
-                training_callback_attributes.grad_scaler
-            )
+        # def oneupSHdegree(step):
+        #     if self.active_sh_degree < self.max_sh_degree:
+        #         self.active_sh_degree += 1
+
+        def wrapper_add_densification_stats(step):
+            if step < self.config.prune_density_until:
+                self.add_densification_stats(self.densification_stats_cache[0], self.densification_stats_cache[1])
 
         callbacks.append(
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-                update_every_num_iters=self.config.one_up_sh_every,
-                func=oneupSHdegree,
+                update_every_num_iters=1,
+                func=wrapper_add_densification_stats,
             )
         )
+
+        def wrapper_pruning_densification(step):
+            if step >= self.config.prune_density_after and step < self.config.prune_density_until:
+                return
+            size_threshold = None#20 if iteration > opt.opacity_reset_interval else None
+            self.optimizer = training_callback_attributes.optimizers
+            self.densify_and_prune(0.0002, 0.005, 2.6, None)
+
+        def wrapper_reset_opacity(step):
+            if step < self.config.prune_density_until and step > 0:
+                return
+            self.reset_opacity()
+
+        # callbacks.append(
+        #     TrainingCallback(
+        #         where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+        #         update_every_num_iters=self.config.one_up_sh_every,
+        #         func=oneupSHdegree,
+        #     )
+        # )
         callbacks.append(
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
@@ -248,30 +259,74 @@ class GaussianSplattingModel(Model):
                 func=wrapper_pruning_densification,
             )
         )
+        callbacks.append(
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                update_every_num_iters=self.config.opacity_reset_interval,
+                func=wrapper_reset_opacity,
+            )
+        )
 
         return callbacks
 
-    def pruning_densification(self, optimizers, grad_scaler):
-        assert False
+    # def pruning_densification(self, optimizers: Optimizers, grad_scaler: GradScaler):
 
-    def reset_opacity(self, optimizers, grad_scaler):
-        opacities_new = gaussian_utils.inverse_sigmoid(torch.min(self.get_opacity, torch.ones_like(self.get_opacity)*0.01))
-        optimizable_tensors = self.update_optimizer_tensors({"opacity": opacities_new}, "replace")
-        self._opacity = optimizable_tensors["opacity"]
+    #     prune_mask = (self.get_opacity < 0.005).squeeze()
+    #     # if max_screen_size:
+    #     #     big_points_vs = self.max_radii2D > max_screen_size
+    #     #     big_points_ws = self.get_scaling.max(dim=1).values > 0.1 * extent
+    #     #     prune_mask = torch.logical_or(torch.logical_or(prune_mask, big_points_vs), big_points_ws)
+    #     self.prune_points(prune_mask)
 
-    def update_optimizer_tensors(self, data: dict, operation: Literal["cat", "prune", "replace"]):
-        optimizable_tensors = {}
-        for group in self.optimizer.param_groups:
-            if group["name"] in data:
-                if operation == "cat":
-                    # TODO (jake-austin): implement this, consider splitting this into 3 functions?
-                    assert False
-                elif operation == "prune":
-                    assert False
-                elif operation == "replace":
-                    assert False
-                else:
-                    raise ValueError(f"Unknown operation {operation}")
+    #     mask = torch.cat((selected_pts_mask, torch.zeros(N * selected_pts_mask.sum(), device="cuda", dtype=bool)))
+
+    #     valid_points_mask = ~mask
+    #     for group_name in self.optimizers.optimizers:
+    #         stored_state = self.optimizer.state.get(group['params'][0], None)
+    #         if stored_state is not None:
+    #             stored_state["exp_avg"] = stored_state["exp_avg"][mask]
+    #             stored_state["exp_avg_sq"] = stored_state["exp_avg_sq"][mask]
+
+    #             del self.optimizer.state[group['params'][0]]
+    #             group["params"][0] = nn.Parameter((group["params"][0][mask].requires_grad_(True)))
+    #             self.optimizer.state[group['params'][0]] = stored_state
+
+    #             optimizable_tensors[group["name"]] = group["params"][0]
+    #         else:
+    #             group["params"][0] = nn.Parameter(group["params"][0][mask].requires_grad_(True))
+    #             optimizable_tensors[group["name"]] = group["params"][0]
+
+    #     self._xyz = optimizable_tensors["xyz"]
+    #     self._features_dc = optimizable_tensors["f_dc"]
+    #     self._features_rest = optimizable_tensors["f_rest"]
+    #     self._opacity = optimizable_tensors["opacity"]
+    #     self._scaling = optimizable_tensors["scaling"]
+    #     self._rotation = optimizable_tensors["rotation"]
+
+    #     self.xyz_gradient_accum = self.xyz_gradient_accum[valid_points_mask]
+
+    #     self.denom = self.denom[valid_points_mask]
+    #     self.max_radii2D = self.max_radii2D[valid_points_mask]
+
+
+    # def reset_opacity(self, optimizers, grad_scaler):
+    #     opacities_new = gaussian_utils.inverse_sigmoid(torch.min(self.get_opacity, torch.ones_like(self.get_opacity)*0.01))
+    #     optimizable_tensors = self.update_optimizer_tensors({"opacity": opacities_new}, "replace")
+    #     self._opacity = optimizable_tensors["opacity"]
+
+    # def update_optimizer_tensors(self, data: dict, operation: Literal["cat", "prune", "replace"]):
+    #     optimizable_tensors = {}
+    #     for group in self.optimizer.param_groups:
+    #         if group["name"] in data:
+    #             if operation == "cat":
+    #                 # TODO (jake-austin): implement this, consider splitting this into 3 functions?
+
+    #             elif operation == "prune":
+                    
+    #             elif operation == "replace":
+    #                 assert False
+    #             else:
+    #                 raise ValueError(f"Unknown operation {operation}")
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Obtain the parameter groups for the optimizers
@@ -300,6 +355,8 @@ class GaussianSplattingModel(Model):
         Returns:
             Outputs of model. (ie. rendered colors)
         """
+
+        print(f"Num Points: {self._xyz.shape[0]}")
 
 
         camera = ray_bundle.reshape(())
@@ -334,10 +391,14 @@ class GaussianSplattingModel(Model):
                 "camera_center": camera_center,
             }
 
-            image = gaussian_utils.render_from_dict(
+            outs = gaussian_utils.render_from_dict(
                 data,
                 bg_color=torch.tensor([1,1,1]).to(torch.float32).to(self.device),
-            )["render"].permute(1, 2, 0) #HWC
+            ) #HWC
+            image = outs["render"].permute(1, 2, 0)
+
+            if self.train():
+                self.densification_stats_cache = [outs["viewspace_points"], outs["visibility_filter"]]
 
             return {"rgb": image}
         
@@ -419,7 +480,7 @@ class GaussianSplattingModel(Model):
             batch: ground truth batch corresponding to outputs
         """
 
-        return {}
+        return {"Num Gaussians": self._xyz.shape[0]}
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
         """Computes and returns the losses dict.
@@ -480,3 +541,179 @@ class GaussianSplattingModel(Model):
         images_dict = {"img": combined_rgb}
 
         return metrics_dict, images_dict
+
+
+    def replace_tensor_to_optimizer(self, tensor, name):
+        optimizable_tensors = {}
+        for group_k, group_v in self.optimizer.optimizers.items():
+            if group_k == name:
+                stored_state = self.optimizer.optimizers[group_k].state.get(group_v.param_groups[0]['params'][0], None)
+                stored_state["exp_avg"] = torch.zeros_like(tensor)
+                stored_state["exp_avg_sq"] = torch.zeros_like(tensor)
+
+                del self.optimizer.optimizers[group_k].state[group_v.param_groups[0]['params'][0]]
+                group_v.param_groups[0]["params"][0] = nn.Parameter(tensor.requires_grad_(True))
+                self.optimizer.optimizers[group_k].state[group_v.param_groups[0]['params'][0]] = stored_state
+
+                optimizable_tensors[group_k] = group_v.param_groups[0]["params"][0]
+        return optimizable_tensors
+
+    def _prune_optimizer(self, mask):
+        optimizable_tensors = {}
+        for group_k, group_v in self.optimizer.optimizers.items():
+            stored_state = self.optimizer.optimizers[group_k].state.get(group_v.param_groups[0]['params'][0], None)
+            if stored_state is not None:
+                stored_state["exp_avg"] = stored_state["exp_avg"][mask]
+                stored_state["exp_avg_sq"] = stored_state["exp_avg_sq"][mask]
+
+                del self.optimizer.optimizers[group_k].state[group_v.param_groups[0]['params'][0]]
+                group_v.param_groups[0]["params"][0] = nn.Parameter((group_v.param_groups[0]["params"][0][mask].requires_grad_(True)))
+                self.optimizer.optimizers[group_k].state[group_v.param_groups[0]['params'][0]] = stored_state
+
+                optimizable_tensors[group_k] = group_v.param_groups[0]["params"][0]
+            else:
+                group_v.param_groups[0]["params"][0] = nn.Parameter(group_v.param_groups[0]["params"][0][mask].requires_grad_(True))
+                optimizable_tensors[group_k] = group_v.param_groups[0]["params"][0]
+        return optimizable_tensors
+
+    def prune_points(self, mask):
+        valid_points_mask = ~mask
+        optimizable_tensors = self._prune_optimizer(valid_points_mask)
+
+        self._xyz = optimizable_tensors["xyz"]
+        self._features_dc = optimizable_tensors["f_dc"]
+        self._features_rest = optimizable_tensors["f_rest"]
+        self._opacity = optimizable_tensors["opacity"]
+        self._scaling = optimizable_tensors["scaling"]
+        self._rotation = optimizable_tensors["rotation"]
+
+        self.xyz_gradient_accum = self.xyz_gradient_accum[valid_points_mask]
+
+        self.denom = self.denom[valid_points_mask]
+        self.max_radii2D = self.max_radii2D[valid_points_mask]
+
+    def cat_tensors_to_optimizer(self, tensors_dict):
+        optimizable_tensors = {}
+        for group_k, group_v in self.optimizer.optimizers.items():
+            assert len(group_v.param_groups[0]["params"]) == 1
+            extension_tensor = tensors_dict[group_k]
+            stored_state = self.optimizer.optimizers[group_k].state.get(group_v.param_groups[0]['params'][0], None)
+            if stored_state is not None:
+                stored_state["exp_avg"] = torch.cat((stored_state["exp_avg"], torch.zeros_like(extension_tensor)), dim=0)
+                stored_state["exp_avg_sq"] = torch.cat((stored_state["exp_avg_sq"], torch.zeros_like(extension_tensor)), dim=0)
+
+                del self.optimizer.optimizers[group_k].state[group_v.param_groups[0]['params'][0]]
+                group_v.param_groups[0]["params"][0] = nn.Parameter(torch.cat((group_v.param_groups[0]["params"][0], extension_tensor), dim=0).requires_grad_(True))
+                self.optimizer.optimizers[group_k].state[group_v.param_groups[0]['params'][0]] = stored_state
+
+                optimizable_tensors[group_k] = group_v.param_groups[0]["params"][0]
+            else:
+                group_v.param_groups[0]["params"][0] = nn.Parameter(torch.cat((group_v.param_groups[0]["params"][0], extension_tensor), dim=0).requires_grad_(True))
+                optimizable_tensors[group_k] = group_v.param_groups[0]["params"][0]
+
+        return optimizable_tensors
+
+    def densification_postfix(self, new_xyz, new_features_dc, new_features_rest, new_opacities, new_scaling, new_rotation):
+        d = {"xyz": new_xyz,
+        "f_dc": new_features_dc,
+        "f_rest": new_features_rest,
+        "opacity": new_opacities,
+        "scaling" : new_scaling,
+        "rotation" : new_rotation}
+
+        optimizable_tensors = self.cat_tensors_to_optimizer(d)
+        self._xyz = optimizable_tensors["xyz"]
+        self._features_dc = optimizable_tensors["f_dc"]
+        self._features_rest = optimizable_tensors["f_rest"]
+        self._opacity = optimizable_tensors["opacity"]
+        self._scaling = optimizable_tensors["scaling"]
+        self._rotation = optimizable_tensors["rotation"]
+
+        self.xyz_gradient_accum = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
+        self.denom = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
+        self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
+
+    def densify_and_split(self, grads, grad_threshold, scene_extent, N=2, num_selected=None):
+        n_init_points = self.get_xyz.shape[0]
+        # Extract points that satisfy the gradient condition
+        padded_grad = torch.zeros((n_init_points), device="cuda")
+        padded_grad[:grads.shape[0]] = grads.squeeze()
+        selected_pts_mask = torch.where(padded_grad >= grad_threshold, True, False)
+        selected_pts_mask = torch.logical_and(selected_pts_mask,
+                                              torch.max(self.get_scaling, dim=1).values > self.percent_dense*scene_extent)
+        if num_selected is not None and selected_pts_mask.sum() > 0:
+            num_selected = int(min(num_selected, selected_pts_mask.sum() - 1))
+            choices = np.arange(0, len(selected_pts_mask))[selected_pts_mask.cpu().numpy()]
+            chosen = np.random.choice(choices, num_selected, replace=False)
+            selected_pts_indices = torch.from_numpy(chosen).cuda()
+            selected_pts_mask[...] = False
+            selected_pts_mask[selected_pts_indices] = True
+
+        stds = self.get_scaling[selected_pts_mask].repeat(N,1)
+        means =torch.zeros((stds.size(0), 3),device="cuda")
+        samples = torch.normal(mean=means, std=stds)
+        rots = gaussian_utils.build_rotation(self._rotation[selected_pts_mask]).repeat(N,1,1)
+        new_xyz = torch.bmm(rots, samples.unsqueeze(-1)).squeeze(-1) + self.get_xyz[selected_pts_mask].repeat(N, 1)
+        new_scaling = self.scaling_inverse_activation(self.get_scaling[selected_pts_mask].repeat(N,1) / (0.8*N))
+        new_rotation = self._rotation[selected_pts_mask].repeat(N,1)
+        new_features_dc = self._features_dc[selected_pts_mask].repeat(N,1,1)
+        new_features_rest = self._features_rest[selected_pts_mask].repeat(N,1,1)
+        new_opacity = self._opacity[selected_pts_mask].repeat(N,1)
+
+        self.densification_postfix(new_xyz, new_features_dc, new_features_rest, new_opacity, new_scaling, new_rotation)
+
+        prune_filter = torch.cat((selected_pts_mask, torch.zeros(N * selected_pts_mask.sum(), device="cuda", dtype=bool)))
+        self.prune_points(prune_filter)
+
+    def densify_and_clone(self, grads, grad_threshold, scene_extent, num_selected=None):
+        # Extract points that satisfy the gradient condition
+        selected_pts_mask = torch.where(torch.norm(grads, dim=-1) >= grad_threshold, True, False)
+        selected_pts_mask = torch.logical_and(selected_pts_mask,
+                                              torch.max(self.get_scaling, dim=1).values <= self.percent_dense*scene_extent)
+
+        if num_selected is not None and selected_pts_mask.sum() > 0:
+            num_selected = int(min(num_selected, selected_pts_mask.sum() - 1))
+            choices = np.arange(0, len(selected_pts_mask))[selected_pts_mask.cpu().numpy()]
+            chosen = np.random.choice(choices, num_selected, replace=False)
+            selected_pts_indices = torch.from_numpy(chosen).cuda()
+            selected_pts_mask[...] = False
+            selected_pts_mask[selected_pts_indices] = True
+        
+        # if selected_pts_mask.sum() > 0:
+        #     breakpoint()
+        new_xyz = self._xyz[selected_pts_mask]
+        new_features_dc = self._features_dc[selected_pts_mask]
+        new_features_rest = self._features_rest[selected_pts_mask]
+        new_opacities = self._opacity[selected_pts_mask]
+        new_scaling = self._scaling[selected_pts_mask]
+        new_rotation = self._rotation[selected_pts_mask]
+        self.densification_postfix(new_xyz, new_features_dc, new_features_rest, new_opacities, new_scaling, new_rotation)
+        # if selected_pts_mask.sum() > 0:
+        #     breakpoint()
+
+    def densify_and_prune(self, max_grad, min_opacity, extent, max_screen_size):
+        grads = self.xyz_gradient_accum / self.denom
+        grads[grads.isnan()] = 0.0
+
+        num_added = self.max_points - self.get_xyz.shape[0] if self.max_points is not None else None
+        if num_added is None or num_added > 0:
+            self.densify_and_clone(grads, max_grad, extent, num_selected=num_added//2 if num_added is not None else None)
+            self.densify_and_split(grads, max_grad, extent, num_selected=num_added//2 if num_added is not None else None)
+
+        prune_mask = (self.get_opacity < min_opacity).squeeze()
+        if max_screen_size:
+            big_points_vs = self.max_radii2D > max_screen_size
+            big_points_ws = self.get_scaling.max(dim=1).values > 0.1 * extent
+            prune_mask = torch.logical_or(torch.logical_or(prune_mask, big_points_vs), big_points_ws)
+        self.prune_points(prune_mask)
+
+        torch.cuda.empty_cache()
+
+    def add_densification_stats(self, viewspace_point_tensor, update_filter):
+        self.xyz_gradient_accum[update_filter] += torch.norm(viewspace_point_tensor.grad[update_filter,:2], dim=-1, keepdim=True)
+        self.denom[update_filter] += 1
+
+    def reset_opacity(self):
+        opacities_new = gaussian_utils.inverse_sigmoid(torch.min(self.get_opacity, torch.ones_like(self.get_opacity)*0.01))
+        optimizable_tensors = self.replace_tensor_to_optimizer(opacities_new, "opacity")
+        self._opacity = optimizable_tensors["opacity"]
