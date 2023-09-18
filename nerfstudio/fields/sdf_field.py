@@ -29,7 +29,11 @@ from torch.nn.parameter import Parameter
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.field_components.embedding import Embedding
-from nerfstudio.field_components.encodings import NeRFEncoding
+from nerfstudio.field_components.encodings import (
+    NeRFEncoding,
+    PeriodicVolumeEncoding,
+    TensorVMEncoding,
+)
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.base_field import Field, FieldConfig
@@ -40,6 +44,30 @@ except ModuleNotFoundError:
     # tinycudann module doesn't exist
     pass
 
+# #Find a better place to put this
+# class LaplaceDensity(nn.Module):  # alpha * Laplace(loc=0, scale=beta).cdf(-sdf)
+#     """Laplace density from VolSDF"""
+
+#     def __init__(self, init_val, beta_min=0.0001):
+#         super().__init__()
+#         self.register_parameter("beta_min", nn.Parameter(beta_min * torch.ones(1), requires_grad=False))
+#         self.register_parameter("beta", nn.Parameter(init_val * torch.ones(1), requires_grad=True))
+
+#     def forward(
+#         self, sdf: TensorType["bs":...], beta: Union[TensorType["bs":...], None] = None
+#     ) -> TensorType["bs":...]:
+#         """convert sdf value to density value with beta, if beta is missing, then use learable beta"""
+
+#         if beta is None:
+#             beta = self.get_beta()
+
+#         alpha = 1.0 / beta
+#         return alpha * (0.5 + 0.5 * sdf.sign() * torch.expm1(-sdf.abs() / beta))
+
+#     def get_beta(self):
+#         """return current beta value"""
+#         beta = self.beta.abs() + self.beta_min
+#         return beta
 
 class LearnedVariance(nn.Module):
     """Variance network in NeuS
@@ -97,6 +125,25 @@ class SDFFieldConfig(FieldConfig):
     beta_init: float = 0.1
     """Init learnable beta value for transformation of sdf to density"""
     encoding_type: Literal["hash", "periodic", "tensorf_vm"] = "hash"
+    """feature grid encoding type"""
+    position_encoding_max_degree: int = 6
+    """positional encoding max degree"""
+    use_position_encoding: bool = True
+    """whether to use positional encoding as input for geometric network"""
+    use_diffuse_color: bool = False
+    """whether to use diffuse color as in ref-nerf"""
+    use_specular_tint: bool = False
+    """whether to use specular tint as in ref-nerf"""
+    use_reflections: bool = False
+    """whether to use reflections as in ref-nerf"""
+    use_n_dot_v: bool = False
+    """whether to use n dot v as in ref-nerf"""
+    rgb_padding: float = 0.001
+    """Padding added to the RGB outputs"""
+    off_axis: bool = False
+    """whether to use off axis encoding from mipnerf360"""
+    use_numerical_gradients: bool = False
+    """whether to use numercial gradients"""
     num_levels: int = 16
     """Number of encoding levels"""
     max_res: int = 2048
@@ -145,6 +192,7 @@ class SDFField(Field):
 
         self.embedding_appearance = Embedding(self.num_images, self.config.appearance_embedding_dim)
         self.use_average_appearance_embedding = use_average_appearance_embedding
+        self.use_numerical_gradients = self.config.use_numerical_gradients
         self.use_grid_feature = self.config.use_grid_feature
         self.divide_factor = self.config.divide_factor
 
@@ -153,7 +201,6 @@ class SDFField(Field):
         self.base_res = self.config.base_res 
         self.log2_hashmap_size = self.config.log2_hashmap_size 
         self.features_per_level = self.config.features_per_level 
-        self.use_hash = self.config.use_hash
         self.smoothstep = self.config.smoothstep
         self.growth_factor = np.exp((np.log(config.max_res) - np.log(config.base_res)) / (config.num_levels - 1))
 
@@ -175,10 +222,29 @@ class SDFField(Field):
                 self.num_levels * self.features_per_level,
                 dtype=torch.float32,
             )
+        elif self.config.encoding_type == "periodic":
+            print("using periodic encoding")
+            self.encoding = PeriodicVolumeEncoding(
+                num_levels=self.num_levels,
+                min_res=self.base_res,
+                max_res=self.max_res,
+                log2_hashmap_size=18,  # 64 ** 3 = 2^18
+                features_per_level=self.features_per_level,
+                smoothstep=config.smoothstep,
+            )
+        elif self.config.encoding_type == "tensorf_vm":
+            print("using tensor vm")
+            self.encoding = TensorVMEncoding(128, 24, smoothstep=config.smoothstep)
+
 
         # we concat inputs position ourselves
         self.position_encoding = NeRFEncoding(
-            in_dim=3, num_frequencies=6, min_freq_exp=0.0, max_freq_exp=5.0, include_input=False
+            in_dim=3,
+            num_frequencies=self.config.position_encoding_max_degree,
+            min_freq_exp=0.0,
+            max_freq_exp=self.config.position_encoding_max_degree - 1,
+            include_input=False,
+            off_axis=self.config.off_axis,
         )
 
         self.direction_encoding = NeRFEncoding(
@@ -188,29 +254,51 @@ class SDFField(Field):
         # initialize geometric network
         self.initialize_geo_layers()
 
+        # laplace function for transform sdf to density from VolSDF
+        # self.laplace_density = LaplaceDensity(init_val=self.config.beta_init)
+
         # deviation_network to compute alpha from sdf from NeuS
         self.deviation_network = LearnedVariance(init_val=self.config.beta_init)
 
-        # color network
+
+        # diffuse and specular tint layer
+        if self.config.use_diffuse_color:
+            self.diffuse_color_pred = nn.Linear(self.config.geo_feat_dim, 3)
+        if self.config.use_specular_tint:
+            self.specular_tint_pred = nn.Linear(self.config.geo_feat_dim, 3)
+
+        # view dependent color network
         dims = [self.config.hidden_dim_color for _ in range(self.config.num_layers_color)]
-        # point, view_direction, normal, feature, embedding
-        in_dim = (
-            3
-            + self.direction_encoding.get_out_dim()
-            + 3
-            + self.config.geo_feat_dim
-            + self.embedding_appearance.get_out_dim()
-        )
+        if self.config.use_diffuse_color:
+            in_dim = (
+                self.direction_encoding.get_out_dim()
+                + self.config.geo_feat_dim
+                + self.embedding_appearance.get_out_dim()
+            )
+        else:
+            # point, view_direction, normal, feature, embedding
+            in_dim = (
+                3
+                + self.direction_encoding.get_out_dim()
+                + 3
+                + self.config.geo_feat_dim
+                + self.embedding_appearance.get_out_dim()
+            )
+        if self.config.use_n_dot_v:
+            in_dim += 1
+
         dims = [in_dim] + dims + [3]
         self.num_layers_color = len(dims)
 
-        for layer in range(0, self.num_layers_color - 1):
-            out_dim = dims[layer + 1]
-            lin = nn.Linear(dims[layer], out_dim)
+        for l in range(0, self.num_layers_color - 1):
+            out_dim = dims[l + 1]
+            lin = nn.Linear(dims[l], out_dim)
+            torch.nn.init.kaiming_uniform_(lin.weight.data)
+            torch.nn.init.zeros_(lin.bias.data)
 
             if self.config.weight_norm:
                 lin = nn.utils.weight_norm(lin)
-            setattr(self, "clin" + str(layer), lin)
+            setattr(self, "clin" + str(l), lin)
 
         self.softplus = nn.Softplus(beta=100)
         self.relu = nn.ReLU()
@@ -218,9 +306,6 @@ class SDFField(Field):
 
         self._cos_anneal_ratio = 1.0
         self.numerical_gradients_delta = 0.0001
-
-        if self.use_grid_feature:
-            assert self.spatial_distortion is not None, "spatial distortion must be provided when using grid feature"
 
     def initialize_geo_layers(self) -> None:
         """
@@ -368,6 +453,49 @@ class SDFField(Field):
 
         return alpha
 
+    def gradient(self, x, skip_spatial_distortion=False, return_sdf=False):
+        """compute the gradient of the ray"""
+        if self.spatial_distortion is not None and not skip_spatial_distortion:
+            x = self.spatial_distortion(x)
+
+        # compute gradient in contracted space
+        if self.config.use_numerical_gradients:
+            # https://github.com/bennyguo/instant-nsr-pl/blob/main/models/geometry.py#L173
+            delta = self.numerical_gradients_delta
+            points = torch.stack(
+                [
+                    x + torch.as_tensor([delta, 0.0, 0.0]).to(x),
+                    x + torch.as_tensor([-delta, 0.0, 0.0]).to(x),
+                    x + torch.as_tensor([0.0, delta, 0.0]).to(x),
+                    x + torch.as_tensor([0.0, -delta, 0.0]).to(x),
+                    x + torch.as_tensor([0.0, 0.0, delta]).to(x),
+                    x + torch.as_tensor([0.0, 0.0, -delta]).to(x),
+                ],
+                dim=0,
+            )
+
+            points_sdf = self.forward_geonetwork(points.view(-1, 3))[..., 0].view(6, *x.shape[:-1])
+            gradients = torch.stack(
+                [
+                    0.5 * (points_sdf[0] - points_sdf[1]) / delta,
+                    0.5 * (points_sdf[2] - points_sdf[3]) / delta,
+                    0.5 * (points_sdf[4] - points_sdf[5]) / delta,
+                ],
+                dim=-1,
+            )
+        else:
+            x.requires_grad_(True)
+
+            y = self.forward_geonetwork(x)[:, :1]
+            d_output = torch.ones_like(y, requires_grad=False, device=y.device)
+            gradients = torch.autograd.grad(
+                outputs=y, inputs=x, grad_outputs=d_output, create_graph=True, retain_graph=True, only_inputs=True
+            )[0]
+        if not return_sdf:
+            return gradients
+        else:
+            return gradients, points_sdf
+
     def get_density(self, ray_samples: RaySamples):
         raise NotImplementedError
 
@@ -441,34 +569,59 @@ class SDFField(Field):
         directions = ray_samples.frustums.directions
         directions_flat = directions.reshape(-1, 3)
 
+        if self.spatial_distortion is not None:
+            inputs = self.spatial_distortion(inputs)
+        points_norm = inputs.norm(dim=-1)
+        # compute gradient in constracted space
+        
         inputs.requires_grad_(True)
         with torch.enable_grad():
             hidden_output = self.forward_geonetwork(inputs)
             sdf, geo_feature = torch.split(hidden_output, [1, self.config.geo_feat_dim], dim=-1)
-        d_output = torch.ones_like(sdf, requires_grad=False, device=sdf.device)
-        gradients = torch.autograd.grad(
-            outputs=sdf, inputs=inputs, grad_outputs=d_output, create_graph=True, retain_graph=True, only_inputs=True
-        )[0]
+        if self.use_numerical_gradients:
+            gradients, sampled_sdf = self.gradient(
+                inputs,
+                skip_spatial_distortion=True,
+                return_sdf=True,
+            )
+            sampled_sdf = sampled_sdf.view(-1, *ray_samples.frustums.directions.shape[:-1]).permute(1, 2, 0).contiguous()
+        else:
+            d_output = torch.ones_like(sdf, requires_grad=False, device=sdf.device)
+            gradients = torch.autograd.grad(
+                outputs=sdf, inputs=inputs, grad_outputs=d_output, create_graph=True, retain_graph=True, only_inputs=True
+            )[0]
+            sampled_sdf = None
 
         rgb = self.get_colors(inputs, directions_flat, gradients, geo_feature, camera_indices)
+
+        # density = self.laplace_density(sdf)
 
         rgb = rgb.view(*ray_samples.frustums.directions.shape[:-1], -1)
         sdf = sdf.view(*ray_samples.frustums.directions.shape[:-1], -1)
         gradients = gradients.view(*ray_samples.frustums.directions.shape[:-1], -1)
         normals = torch.nn.functional.normalize(gradients, p=2, dim=-1)
+        points_norm = points_norm.view(*ray_samples.frustums.directions.shape[:-1], -1)
 
         outputs.update(
             {
                 FieldHeadNames.RGB: rgb,
+                # FieldHeadNames.DENSITY: density,
                 FieldHeadNames.SDF: sdf,
                 FieldHeadNames.NORMALS: normals,
                 FieldHeadNames.GRADIENT: gradients,
+                "points_norm": points_norm,
+                "sampled_sdf": sampled_sdf,
             }
         )
 
         if return_alphas:
+            # TODO use mid point sdf for NeuS
             alphas = self.get_alpha(ray_samples, sdf, gradients)
             outputs.update({FieldHeadNames.ALPHA: alphas})
+
+        # if return_occupancy:
+        #     occupancy = self.get_occupancy(sdf)
+        #     outputs.update({FieldHeadNames.OCCUPANCY: occupancy})
 
         return outputs
 

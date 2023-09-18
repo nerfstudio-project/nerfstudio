@@ -174,33 +174,31 @@ class CosineDecayScheduler(Scheduler):
         return scheduler
 
 @dataclass
-class MultiStepWarmupSchedulerConfig(InstantiateConfig):
+class MultiStepWarmupSchedulerConfig(SchedulerConfig):
     """Basic scheduler config with self-defined exponential decay schedule"""
 
     _target: Type = field(default_factory=lambda: MultiStepWarmupScheduler)
+    """target class to instantiate"""
     warm_up_end: int = 5000
+    """Iteration number where warmp ends"""
     milestones: List[int] = field(default_factory=lambda: [300000, 400000, 500000])
+    """The milestone steps at which to decay the learning rate."""
     gamma: float = 0.33
-    
-    def setup(self, optimizer=None, **kwargs) -> Any:
-        """Returns the instantiated object using the config."""
-        return self._target(
-            optimizer,
-            self.warm_up_end,
-            self.milestones,
-            self.gamma
-        )
+    """The learning rate decay factor."""
 
-class MultiStepWarmupScheduler(lr_scheduler.LambdaLR):
+class MultiStepWarmupScheduler(Scheduler):
     """Starts with a flat lr schedule until it reaches N epochs then applies a given scheduler"""
 
-    def __init__(self, optimizer, warm_up_end, milestones, gamma) -> None:
+    config: MultiStepWarmupSchedulerConfig
+
+    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> LRScheduler:
         def func(step):
-            if step < warm_up_end:
-                learning_factor = step / warm_up_end
+            if step < self.config.warm_up_end:
+                learning_factor = step / self.config.warm_up_end
             else:
-                index = np.searchsorted(milestones, step, side='left')
-                learning_factor = gamma ** index
+                index = np.searchsorted(self.config.milestones, step, side='left')
+                learning_factor = self.config.gamma ** index
             return learning_factor
 
-        super().__init__(optimizer, lr_lambda=func)
+        scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=func)
+        return scheduler

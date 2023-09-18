@@ -46,6 +46,7 @@ from nerfstudio.engine.schedulers import (
     CosineDecaySchedulerConfig,
     ExponentialDecaySchedulerConfig,
     MultiStepSchedulerConfig,
+    MultiStepWarmupSchedulerConfig,
 )
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
@@ -612,8 +613,8 @@ method_configs["neuralangelo"] = TrainerConfig(
                 base_res=64,
                 max_res=4096,
                 log2_hashmap_size=22,
-                hash_features_per_level=8,
-                hash_smoothstep=False,
+                features_per_level=8,
+                smoothstep=False,
                 use_position_encoding=False,
             ),
             background_model="mlp",
@@ -624,13 +625,17 @@ method_configs["neuralangelo"] = TrainerConfig(
     ),
     optimizers={
         "fields": {
-            "optimizer": AdamWOptimizerConfig(lr=1e-3, weight_decay=0.01, eps=1e-15),
+            # "optimizer": AdamWOptimizerConfig(lr=1e-3, weight_decay=0.01, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             # "scheduler": NeuSSchedulerConfig(warm_up_end=5000, learning_rate_alpha=0.05, max_steps=500000),
             "scheduler": MultiStepWarmupSchedulerConfig(warm_up_end=5000, milestones=[300_000, 400_000], gamma=0.1),
+
         },
         "field_background": {
-            "optimizer": AdamWOptimizerConfig(lr=1e-3, eps=1e-15),
+            # "optimizer": AdamWOptimizerConfig(lr=1e-3, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": MultiStepWarmupSchedulerConfig(warm_up_end=5000, milestones=[300_000, 400_000], gamma=0.1),
+
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
