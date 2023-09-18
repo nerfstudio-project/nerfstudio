@@ -219,7 +219,6 @@ class NeuSFactoModel(NeuSModel):
         # read the hash encoding parameters from field
         level_init = self.config.level_init
         # schedule the delta in numerical gradients computation
-        num_levels = self.field.num_levels
         max_res = self.field.max_res
         base_res = self.field.base_res
         growth_factor = self.field.growth_factor
@@ -227,7 +226,7 @@ class NeuSFactoModel(NeuSModel):
         steps_per_level = self.config.steps_per_level
 
         init_delta = 1.0 / base_res
-        end_delta = 1.0 / max_res
+        1.0 / max_res
 
         if self.config.enable_numerical_gradients_schedule:
 
@@ -245,8 +244,8 @@ class NeuSFactoModel(NeuSModel):
                     func=set_delta,
                 )
             )
-        
-         # schedule the current level of multi-resolution hash encoding
+
+        # schedule the current level of multi-resolution hash encoding
         if self.config.enable_progressive_hash_encoding:
 
             def set_mask(step):
@@ -339,7 +338,7 @@ class NeuSFactoModel(NeuSModel):
                 torch.abs(curvature).mean() * self.config.curvature_loss_multi * self.curvature_loss_multi_factor
             )
         return loss_dict
-    
+
     def get_metrics_dict(self, outputs, batch) -> Dict:
         metrics_dict = super().get_metrics_dict(outputs, batch)
 
@@ -350,7 +349,6 @@ class NeuSFactoModel(NeuSModel):
             metrics_dict["curvature_loss_multi"] = self.curvature_loss_multi_factor * self.config.curvature_loss_multi
 
         return metrics_dict
-
 
     def get_image_metrics_and_images(
         self, outputs: Dict[str, Any], batch: Dict[str, Any]

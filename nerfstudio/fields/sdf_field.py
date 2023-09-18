@@ -69,6 +69,7 @@ except ModuleNotFoundError:
 #         beta = self.beta.abs() + self.beta_min
 #         return beta
 
+
 class LearnedVariance(nn.Module):
     """Variance network in NeuS
 
@@ -197,10 +198,10 @@ class SDFField(Field):
         self.divide_factor = self.config.divide_factor
 
         self.num_levels = self.config.num_levels
-        self.max_res = self.config.max_res 
-        self.base_res = self.config.base_res 
-        self.log2_hashmap_size = self.config.log2_hashmap_size 
-        self.features_per_level = self.config.features_per_level 
+        self.max_res = self.config.max_res
+        self.base_res = self.config.base_res
+        self.log2_hashmap_size = self.config.log2_hashmap_size
+        self.features_per_level = self.config.features_per_level
         self.smoothstep = self.config.smoothstep
         self.growth_factor = np.exp((np.log(config.max_res) - np.log(config.base_res)) / (config.num_levels - 1))
 
@@ -236,7 +237,6 @@ class SDFField(Field):
             print("using tensor vm")
             self.encoding = TensorVMEncoding(128, 24, smoothstep=config.smoothstep)
 
-
         # we concat inputs position ourselves
         self.position_encoding = NeRFEncoding(
             in_dim=3,
@@ -259,7 +259,6 @@ class SDFField(Field):
 
         # deviation_network to compute alpha from sdf from NeuS
         self.deviation_network = LearnedVariance(init_val=self.config.beta_init)
-
 
         # diffuse and specular tint layer
         if self.config.use_diffuse_color:
@@ -290,15 +289,15 @@ class SDFField(Field):
         dims = [in_dim] + dims + [3]
         self.num_layers_color = len(dims)
 
-        for l in range(0, self.num_layers_color - 1):
-            out_dim = dims[l + 1]
-            lin = nn.Linear(dims[l], out_dim)
+        for i in range(0, self.num_layers_color - 1):
+            out_dim = dims[i + 1]
+            lin = nn.Linear(dims[i], out_dim)
             torch.nn.init.kaiming_uniform_(lin.weight.data)
             torch.nn.init.zeros_(lin.bias.data)
 
             if self.config.weight_norm:
                 lin = nn.utils.weight_norm(lin)
-            setattr(self, "clin" + str(l), lin)
+            setattr(self, "clin" + str(i), lin)
 
         self.softplus = nn.Softplus(beta=100)
         self.relu = nn.ReLU()
@@ -356,7 +355,7 @@ class SDFField(Field):
 
     def update_mask(self, level: int):
         self.hash_encoding_mask[:] = 1.0
-        self.hash_encoding_mask[level * self.features_per_level:] = 0
+        self.hash_encoding_mask[level * self.features_per_level :] = 0
 
     def forward_geonetwork(self, inputs: Float[Tensor, "*batch 3"]) -> Float[Tensor, "*batch geo_features+1"]:
         """forward the geonetwork"""
@@ -398,7 +397,7 @@ class SDFField(Field):
         hidden_output = self.forward_geonetwork(positions_flat).view(*ray_samples.frustums.shape, -1)
         sdf, _ = torch.split(hidden_output, [1, self.config.geo_feat_dim], dim=-1)
         return sdf
-    
+
     def set_numerical_gradients_delta(self, delta: float) -> None:
         """Set the delta value for numerical gradient."""
         self.numerical_gradients_delta = delta
@@ -573,7 +572,7 @@ class SDFField(Field):
             inputs = self.spatial_distortion(inputs)
         points_norm = inputs.norm(dim=-1)
         # compute gradient in constracted space
-        
+
         inputs.requires_grad_(True)
         with torch.enable_grad():
             hidden_output = self.forward_geonetwork(inputs)
@@ -584,11 +583,18 @@ class SDFField(Field):
                 skip_spatial_distortion=True,
                 return_sdf=True,
             )
-            sampled_sdf = sampled_sdf.view(-1, *ray_samples.frustums.directions.shape[:-1]).permute(1, 2, 0).contiguous()
+            sampled_sdf = (
+                sampled_sdf.view(-1, *ray_samples.frustums.directions.shape[:-1]).permute(1, 2, 0).contiguous()
+            )
         else:
             d_output = torch.ones_like(sdf, requires_grad=False, device=sdf.device)
             gradients = torch.autograd.grad(
-                outputs=sdf, inputs=inputs, grad_outputs=d_output, create_graph=True, retain_graph=True, only_inputs=True
+                outputs=sdf,
+                inputs=inputs,
+                grad_outputs=d_output,
+                create_graph=True,
+                retain_graph=True,
+                only_inputs=True,
             )[0]
             sampled_sdf = None
 

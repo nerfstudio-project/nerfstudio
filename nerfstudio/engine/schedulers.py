@@ -17,7 +17,7 @@
 
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Literal, Optional, Tuple, Type, Any, List
+from typing import Literal, Optional, Tuple, Type, List
 
 import numpy as np
 from torch.optim import Optimizer, lr_scheduler
@@ -173,6 +173,7 @@ class CosineDecayScheduler(Scheduler):
         scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=func)
         return scheduler
 
+
 @dataclass
 class MultiStepWarmupSchedulerConfig(SchedulerConfig):
     """Basic scheduler config with self-defined exponential decay schedule"""
@@ -186,6 +187,7 @@ class MultiStepWarmupSchedulerConfig(SchedulerConfig):
     gamma: float = 0.33
     """The learning rate decay factor."""
 
+
 class MultiStepWarmupScheduler(Scheduler):
     """Starts with a flat lr schedule until it reaches N epochs then applies a given scheduler"""
 
@@ -196,8 +198,8 @@ class MultiStepWarmupScheduler(Scheduler):
             if step < self.config.warm_up_end:
                 learning_factor = step / self.config.warm_up_end
             else:
-                index = np.searchsorted(self.config.milestones, step, side='left')
-                learning_factor = self.config.gamma ** index
+                index = np.searchsorted(self.config.milestones, step, side="left")
+                learning_factor = self.config.gamma**index
             return learning_factor
 
         scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=func)

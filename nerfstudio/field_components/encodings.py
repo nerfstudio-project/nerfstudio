@@ -169,10 +169,10 @@ class NeRFEncoding(Encoding):
         if self.in_dim is None:
             raise ValueError("Input dimension has not been set")
         out_dim = self.in_dim * self.num_frequencies * 2
-        
+
         if self.off_axis:
             out_dim = self.P.shape[1] * self.num_frequencies * 2
-        
+
         if self.include_input:
             out_dim += self.in_dim
         return out_dim
@@ -776,7 +776,6 @@ class PeriodicVolumeEncoding(Encoding):
         hash_init_scale: float = 0.001,
         smoothstep: bool = False,
     ) -> None:
-
         super().__init__(in_dim=3)
         self.num_levels = num_levels
         self.features_per_level = features_per_level

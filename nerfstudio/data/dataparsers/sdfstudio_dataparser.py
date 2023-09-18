@@ -33,6 +33,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataparserOutputs,
 )
 from nerfstudio.data.scene_box import SceneBox
+
 # from nerfstudio.utils.images import BasicImages
 from nerfstudio.utils.io import load_from_json
 
@@ -229,7 +230,7 @@ class SDFStudio(DataParser):
                 intrinsics[0, 2] += 200
                 height, width = 1200, 1600
                 meta["height"], meta["width"] = height, width
-            
+
             if self.config.include_mono_prior:
                 assert meta["has_mono_prior"]
                 # load mono depth
@@ -347,7 +348,10 @@ class SDFStudio(DataParser):
         if pairs_path.exists() and split == "train" and self.config.load_pairs:
             with open(pairs_path, "r") as f:
                 pairs = f.readlines()
-            split_ext = lambda x: x.split(".")[0]
+
+            def split_ext(x):
+                return x.split(".")[0]
+
             pairs_srcs = []
             for sources_line in pairs:
                 sources_array = [int(split_ext(img_name)) for img_name in sources_line.split(" ")]
