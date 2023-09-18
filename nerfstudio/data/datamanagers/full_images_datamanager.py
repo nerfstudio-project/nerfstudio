@@ -31,11 +31,14 @@ from pathlib import Path
 from typing import (Any, Callable, Dict, ForwardRef, Generic, List, Literal,
                     Optional, Tuple, Type, Union, cast, get_args, get_origin)
 
+import cv2
+import numpy as np
 import torch
 from rich.progress import Console
 from torch import Tensor, nn
 from torch.nn import Parameter
 from torch.utils.data.distributed import DistributedSampler
+from tqdm import tqdm
 from typing_extensions import Literal, TypeVar
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
@@ -144,15 +147,81 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
 
     def cache_images(self, cache_images_option):
-        if cache_images_option == "no-cache":
-            cached_train = {}
-            cached_eval = {}
-        elif cache_images_option == "cpu":
-            cached_train = [self.train_dataset.get_data(i) for i in range(len(self.train_dataset))]
-            cached_eval = [self.eval_dataset.get_data(i) for i in range(len(self.eval_dataset))]
-        elif cache_images_option == "gpu":
-            cached_train = [self.train_dataset.get_data(i) for i in range(len(self.train_dataset))]
-            cached_eval = [self.eval_dataset.get_data(i) for i in range(len(self.eval_dataset))]
+        cached_train = []
+        CONSOLE.log("Caching / undistorting train images")
+        for i in tqdm(range(len(self.train_dataset)), leave=False):
+            # cv2.undistort the images / cameras
+            data = self.train_dataset.get_data(i)
+            camera = self.train_dataset.cameras[i].reshape(())
+            K = camera.get_intrinsics_matrices().numpy()
+            distortion_params = camera.distortion_params.numpy()
+            image = data["image"].numpy()
+
+            if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
+                distortion_params = np.array([distortion_params[0], distortion_params[1], distortion_params[4], distortion_params[5], distortion_params[2], distortion_params[3], 0, 0])
+                image = cv2.undistort(image, K, distortion_params, None, K) # Should update K in-place
+            elif camera.camera_type.item() == CameraType.FISHEYE.value:
+                distortion_params = np.array([distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]])
+                image = cv2.fisheye.undistortImage(image, K, distortion_params, None, K)
+            else:
+                raise NotImplementedError("Only perspective and fisheye cameras are supported")
+            data["image"] = torch.from_numpy(image)
+
+            if "mask" in data:
+                mask = data["mask"].numpy()
+                if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
+                    mask = cv2.undistort(mask, K, distortion_params, None, None)
+                elif camera.camera_type.item() == CameraType.FISHEYE.value:
+                    mask = cv2.fisheye.undistortImage(mask, K, distortion_params, None, None)
+                else:
+                    raise NotImplementedError("Only perspective and fisheye cameras are supported")
+                data["mask"] = torch.from_numpy(mask)
+
+            cached_train.append(data)
+
+            self.train_dataset.cameras[i].fx = K[0, 0]
+            self.train_dataset.cameras[i].fy = K[1, 1]
+            self.train_dataset.cameras[i].cx = K[0, 2]
+            self.train_dataset.cameras[i].cy = K[1, 2]
+
+        cached_eval = []
+        CONSOLE.log("Caching / undistorting eval images")
+        for i in tqdm(range(len(self.eval_dataset)), leave=False):
+            # cv2.undistort the images / cameras
+            data = self.eval_dataset.get_data(i)
+            camera = self.eval_dataset.cameras[i].reshape(())
+            K = camera.get_intrinsics_matrices().numpy()
+            distortion_params = camera.distortion_params.numpy()
+            image = data["image"].numpy()
+
+            if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
+                distortion_params = np.array([distortion_params[0], distortion_params[1], distortion_params[4], distortion_params[5], distortion_params[2], distortion_params[3], 0, 0])
+                image = cv2.undistort(image, K, distortion_params, None, K) # Should update K in-place
+            elif camera.camera_type.item() == CameraType.FISHEYE.value:
+                distortion_params = np.array([distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]])
+                image = cv2.fisheye.undistortImage(image, K, distortion_params, None, K)
+            else:
+                raise NotImplementedError("Only perspective and fisheye cameras are supported")
+            data["image"] = torch.from_numpy(image)
+
+            if "mask" in data:
+                mask = data["mask"].numpy()
+                if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
+                    mask = cv2.undistort(mask, K, distortion_params, None, None)
+                elif camera.camera_type.item() == CameraType.FISHEYE.value:
+                    mask = cv2.fisheye.undistortImage(mask, K, distortion_params, None, None)
+                else:
+                    raise NotImplementedError("Only perspective and fisheye cameras are supported")
+                data["mask"] = torch.from_numpy(mask)
+
+            cached_eval.append(data)
+
+            self.eval_dataset.cameras[i].fx = K[0, 0]
+            self.eval_dataset.cameras[i].fy = K[1, 1]
+            self.eval_dataset.cameras[i].cx = K[0, 2]
+            self.eval_dataset.cameras[i].cy = K[1, 2]
+
+        if cache_images_option == "gpu":
             for cache in cached_train:
                 cache["image"] = cache["image"].to(self.device)
                 if "mask" in cache:
@@ -161,8 +230,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 cache["image"] = cache["image"].to(self.device)
                 if "mask" in cache:
                     cache["mask"] = cache["mask"].to(self.device)
-        else:
-            raise ValueError(f"Unknown cache_images option {cache_images_option}")
 
         return cached_train, cached_eval
 
@@ -234,17 +301,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         if len(self.train_unseen_cameras) == 0:
             self.train_unseen_cameras = [i for i in range(len(self.train_dataset))]
         
-        if self.config.cache_images == "no-cache":
-            data = self.train_dataset.get_data(image_idx)
-            data["image"] = data["image"].to(self.device)
-        elif self.config.cache_images == "cpu":
-            data = self.cached_train[image_idx]
-            data["image"] = data["image"].to(self.device)
-        elif self.config.cache_images == "gpu":
-            data = self.cached_train[image_idx]
-        else:
-            raise ValueError(f"Unknown cache_images option {self.config.cache_images}")
-        
+        data = self.cached_train[image_idx]
+        data["image"] = data["image"].to(self.device)
         
         assert len(self.train_dataset.cameras.shape) == 1, "Assumes single batch dimension"
         camera = self.train_dataset.cameras[image_idx].to(self.device)
