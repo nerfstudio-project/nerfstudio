@@ -237,7 +237,7 @@ def main(config: TrainerConfig) -> None:
     if config.load_config:
         CONSOLE.log(f"Loading pre-set config from: {config.load_config}")
         config = yaml.load(config.load_config.read_text(), Loader=yaml.Loader)
-        
+
     config.set_timestamp()
 
     # print and save config
