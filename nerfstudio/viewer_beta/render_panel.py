@@ -548,7 +548,6 @@ def populate_render_tab(
 
     @render_button.on_click
     def _(event: viser.GuiEvent) -> None:
-        """TODO: write the render JSON and show the render command."""
         assert event.client is not None
         num_frames = int(framerate_slider.value * duration_number.value)
         json_data = {}
