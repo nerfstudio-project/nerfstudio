@@ -258,8 +258,11 @@ class CameraPath:
         )
 
 
-def populate_render_tab(server: viser.ViserServer,config_path: Path, datapath: Path, control_panel: ControlPanel) -> None:
+def populate_render_tab(
+    server: viser.ViserServer, config_path: Path, datapath: Path, control_panel: ControlPanel
+) -> None:
     from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO
+
     fov_degrees = server.add_gui_slider(
         "FOV",
         initial_value=90.0,
@@ -530,9 +533,12 @@ def populate_render_tab(server: viser.ViserServer,config_path: Path, datapath: P
     def _(_) -> None:
         play_button.visible = True
         pause_button.visible = False
-    #set the initial value to the current date-time string
+
+    # set the initial value to the current date-time string
     now = datetime.datetime.now()
-    render_name_text = server.add_gui_text("Render Name",initial_value=now.strftime("%Y-%m-%d-%H-%M-%S"),hint="Name of the render")
+    render_name_text = server.add_gui_text(
+        "Render Name", initial_value=now.strftime("%Y-%m-%d-%H-%M-%S"), hint="Name of the render"
+    )
     render_button = server.add_gui_button(
         "Generate Command",
         color="green",
@@ -546,34 +552,38 @@ def populate_render_tab(server: viser.ViserServer,config_path: Path, datapath: P
         assert event.client is not None
         num_frames = int(framerate_slider.value * duration_number.value)
         json_data = {}
-        #json data has the properties:
-            #keyframes: list of keyframes with 
-                # matrix : flattened 4x4 matrix
-                # fov: float in degrees
-                # aspect: float
-            #camera_type: string of camera type
-            #render_height: int
-            #render_width: int
-            #fps: int
-            #seconds: float
-            #is_cycle: bool
-            #smoothness_value: float
-            #camera_path: list of frames with properties
-                # camera_to_world: flattened 4x4 matrix
-                # fov: float in degrees
-                # aspect: float
-        #first populate the keyframes:
+        # json data has the properties:
+        # keyframes: list of keyframes with
+        # matrix : flattened 4x4 matrix
+        # fov: float in degrees
+        # aspect: float
+        # camera_type: string of camera type
+        # render_height: int
+        # render_width: int
+        # fps: int
+        # seconds: float
+        # is_cycle: bool
+        # smoothness_value: float
+        # camera_path: list of frames with properties
+        # camera_to_world: flattened 4x4 matrix
+        # fov: float in degrees
+        # aspect: float
+        # first populate the keyframes:
         keyframes = []
-        for (keyframe,dummy) in camera_path._keyframes.values():
+        for keyframe, dummy in camera_path._keyframes.values():
             pose = tf.SE3.from_rotation_and_translation(
-                tf.SO3(keyframe.wxyz) @ tf.SO3.from_x_radians(onp.pi) ,
-                keyframe.position/VISER_NERFSTUDIO_SCALE_RATIO,
+                tf.SO3(keyframe.wxyz) @ tf.SO3.from_x_radians(onp.pi),
+                keyframe.position / VISER_NERFSTUDIO_SCALE_RATIO,
             )
-            keyframes.append({
-                "matrix": pose.as_matrix().flatten().tolist(),
-                "fov": onp.rad2deg(keyframe.override_fov_value) if keyframe.override_fov_enabled else fov_degrees.value,
-                "aspect": keyframe.aspect
-            })
+            keyframes.append(
+                {
+                    "matrix": pose.as_matrix().flatten().tolist(),
+                    "fov": onp.rad2deg(keyframe.override_fov_value)
+                    if keyframe.override_fov_enabled
+                    else fov_degrees.value,
+                    "aspect": keyframe.aspect,
+                }
+            )
         json_data["keyframes"] = keyframes
         json_data["camera_type"] = "perspective"
         json_data["render_height"] = resolution.value[1]
@@ -582,25 +592,27 @@ def populate_render_tab(server: viser.ViserServer,config_path: Path, datapath: P
         json_data["seconds"] = duration_number.value
         json_data["is_cycle"] = loop.value
         json_data["smoothness_value"] = smoothness.value
-        #now populate the camera path:
+        # now populate the camera path:
         camera_path_list = []
         for i in range(num_frames):
             maybe_pose_and_fov = camera_path.interpolate_pose_and_fov(i / num_frames)
             if maybe_pose_and_fov is None:
                 return
             pose, fov = maybe_pose_and_fov
-            #rotate the axis of the camera 180 about x axis
+            # rotate the axis of the camera 180 about x axis
             pose = tf.SE3.from_rotation_and_translation(
-                pose.rotation() @ tf.SO3.from_x_radians(onp.pi) ,
-                pose.translation()/VISER_NERFSTUDIO_SCALE_RATIO,
+                pose.rotation() @ tf.SO3.from_x_radians(onp.pi),
+                pose.translation() / VISER_NERFSTUDIO_SCALE_RATIO,
             )
-            camera_path_list.append({
-                "camera_to_world": pose.as_matrix().flatten().tolist(),
-                "fov": onp.rad2deg(fov),
-                "aspect": resolution.value[0] / resolution.value[1]
-            })
+            camera_path_list.append(
+                {
+                    "camera_to_world": pose.as_matrix().flatten().tolist(),
+                    "fov": onp.rad2deg(fov),
+                    "aspect": resolution.value[0] / resolution.value[1],
+                }
+            )
         json_data["camera_path"] = camera_path_list
-        #finally add crop data if crop is enabled
+        # finally add crop data if crop is enabled
         if control_panel.crop_viewport:
             obb = control_panel.crop_obb
             rpy = tf.SO3.from_matrix(obb.R).as_rpy_radians()
@@ -608,15 +620,15 @@ def populate_render_tab(server: viser.ViserServer,config_path: Path, datapath: P
             json_data["crop"] = {
                 "crop_center": obb.T.tolist(),
                 "crop_scale": obb.S.tolist(),
-                "crop_rot": [rpy.roll,rpy.pitch,rpy.yaw],
-                "crop_bg_color": {'r':color[0],'g':color[1],'b':color[2]}
+                "crop_rot": [rpy.roll, rpy.pitch, rpy.yaw],
+                "crop_bg_color": {"r": color[0], "g": color[1], "b": color[2]},
             }
 
-        #now write the json file
-        json_outfile = datapath/'camera_paths'/f'{render_name_text.value}.json'
+        # now write the json file
+        json_outfile = datapath / "camera_paths" / f"{render_name_text.value}.json"
         with open(json_outfile.absolute(), "w") as outfile:
             json.dump(json_data, outfile)
-        #now show the command       
+        # now show the command
         with event.client.add_gui_modal("Render Command") as modal:
             dataname = datapath.name
             command = " ".join(
@@ -628,16 +640,16 @@ def populate_render_tab(server: viser.ViserServer,config_path: Path, datapath: P
                 ]
             )
             event.client.add_gui_markdown(
-            "\n".join(
-                [
-                    f"To render the trajectory, run the following from the command line:",
-                    "",
-                    "```",
-                    command,
-                    "```",
-                ]
+                "\n".join(
+                    [
+                        "To render the trajectory, run the following from the command line:",
+                        "",
+                        "```",
+                        command,
+                        "```",
+                    ]
+                )
             )
-        )
             close_button = event.client.add_gui_button("Close")
 
             @close_button.on_click

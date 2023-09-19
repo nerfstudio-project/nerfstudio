@@ -287,13 +287,14 @@ class CropData:
 
     background_color: Float[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
     """background color"""
-    obb: OrientedBox = OrientedBox(R=torch.eye(3), T=torch.zeros(3), S=torch.ones(3)*2)
+    obb: OrientedBox = OrientedBox(R=torch.eye(3), T=torch.zeros(3), S=torch.ones(3) * 2)
     """Oriented box representing the crop region"""
 
     # properties for backwards-compatibility interface
     @property
     def center(self):
         return self.obb.T
+
     @property
     def scale(self):
         return self.obb.S
@@ -312,10 +313,10 @@ def get_crop_from_json(camera_json: Dict[str, Any]) -> Optional[CropData]:
     bg_color = camera_json["crop"]["crop_bg_color"]
     center = camera_json["crop"]["crop_center"]
     scale = camera_json["crop"]["crop_scale"]
-    rot = (0.0,0.0,0.0) if "crop_rot" not in camera_json["crop"] else tuple(camera_json["crop"]["crop_rot"])
+    rot = (0.0, 0.0, 0.0) if "crop_rot" not in camera_json["crop"] else tuple(camera_json["crop"]["crop_rot"])
     return CropData(
         background_color=torch.Tensor([bg_color["r"] / 255.0, bg_color["g"] / 255.0, bg_color["b"] / 255.0]),
-        obb = OrientedBox.from_params(center,rot,scale)
+        obb=OrientedBox.from_params(center, rot, scale),
     )
 
 

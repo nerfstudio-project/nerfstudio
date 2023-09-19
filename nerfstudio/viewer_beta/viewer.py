@@ -154,7 +154,7 @@ class Viewer:
             )
         config_path = self.log_filename.parents[0] / "config.yml"
         with tabs.add_tab("Render", viser.Icon.CAMERA):
-            populate_render_tab(self.viser_server,config_path, self.datapath,self.control_panel)
+            populate_render_tab(self.viser_server, config_path, self.datapath, self.control_panel)
 
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
             populate_export_tab(self.viser_server, self.control_panel, config_path)
