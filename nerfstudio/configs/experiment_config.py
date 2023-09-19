@@ -22,7 +22,13 @@ from pathlib import Path
 from typing import Any, Dict, Literal, Optional
 
 import yaml
-from nerfstudio.configs.base_config import InstantiateConfig, LoggingConfig, MachineConfig, ViewerConfig
+
+from nerfstudio.configs.base_config import (
+    InstantiateConfig,
+    LoggingConfig,
+    MachineConfig,
+    ViewerConfig,
+)
 from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.engine.optimizers import OptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
@@ -66,6 +72,8 @@ class ExperimentConfig(InstantiateConfig):
         "viewer", "wandb", "tensorboard", "comet", "viewer+wandb", "viewer+tensorboard", "viewer+comet", "viewer_beta"
     ] = "wandb"
     """Which visualizer to use."""
+    share: bool = False
+    """Viewer beta feature: print a shareable URL. `vis` must be set to viewer_beta; this flag is otherwise ignored."""
     data: Optional[Path] = None
     """Alias for --pipeline.datamanager.data"""
     prompt: Optional[str] = None
@@ -73,7 +81,7 @@ class ExperimentConfig(InstantiateConfig):
     relative_model_dir: Path = Path("nerfstudio_models/")
     """Relative path to save all checkpoints."""
     load_scheduler: bool = True
-    """Whether to load the scheduler state_dict to resume training, if exists"""
+    """Whether to load the scheduler state_dict to resume training, if it exists."""
 
     def is_viewer_enabled(self) -> bool:
         """Checks if a viewer is enabled."""

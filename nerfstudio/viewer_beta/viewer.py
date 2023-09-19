@@ -26,6 +26,8 @@ import torchvision
 import viser
 import viser.theme
 import viser.transforms as vtf
+
+from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.models.base_model import Model
@@ -39,8 +41,6 @@ from nerfstudio.viewer_beta.render_panel import populate_render_tab
 from nerfstudio.viewer_beta.render_state_machine import RenderAction, RenderStateMachine
 from nerfstudio.viewer_beta.utils import CameraState, parse_object
 from nerfstudio.viewer_beta.viewer_elements import ViewerControl, ViewerElement
-
-from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
@@ -59,6 +59,7 @@ class Viewer:
         datapath: path to data
         pipeline: pipeline object to use
         trainer: trainer object to use
+        share: print a shareable URL
 
     Attributes:
         viewer_url: url to open viewer
@@ -77,7 +78,9 @@ class Viewer:
         pipeline: Pipeline,
         trainer: Optional[Trainer] = None,
         train_lock: Optional[threading.Lock] = None,
+        share: bool = False,
     ):
+        assert share
         self.config = config
         self.trainer = trainer
         self.last_step = 0
@@ -103,7 +106,7 @@ class Viewer:
         self._prev_train_state: Literal["training", "paused", "completed"] = "training"
 
         self.client: Optional[viser.ClientHandle] = None
-        self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
+        self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port, share=share)
         buttons = (
             viser.theme.TitlebarButton(
                 text="Getting Started",

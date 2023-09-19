@@ -55,6 +55,8 @@ class RunViewer:
     """Viewer configuration"""
     vis: Literal["viewer", "viewer_beta"] = "viewer"
     """Type of viewer"""
+    share: bool = False
+    """Viewer beta feature: print a shareable URL. `vis` must be set to viewer_beta; this flag is otherwise ignored."""
 
     def main(self) -> None:
         """Main function."""
@@ -66,6 +68,7 @@ class RunViewer:
         num_rays_per_chunk = config.viewer.num_rays_per_chunk
         assert self.viewer.num_rays_per_chunk == -1
         config.vis = self.vis
+        config.share = self.share
         config.viewer = self.viewer.as_viewer_config()
         config.viewer.num_rays_per_chunk = num_rays_per_chunk
 
@@ -103,6 +106,7 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
             log_filename=viewer_log_path,
             datapath=base_dir,
             pipeline=pipeline,
+            share=config.share,
         )
         banner_messages = [f"Viewer Beta at: {viewer_state.viewer_url}"]
 
