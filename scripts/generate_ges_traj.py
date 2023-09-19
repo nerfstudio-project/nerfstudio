@@ -43,7 +43,7 @@ def config_parser():
     import configargparse
     parser = configargparse.ArgumentParser()
     parser.add_argument("filepath", type=str, help='output file path (EPS)')
-    parser.add_argument("--template", type=str, default='template.json', help='template name (JSON)')
+    parser.add_argument("--template", type=str, default='"Templates/Transamerica.json"', help='template name (JSON)')
     parser.add_argument("lat", type=float, help='lat of ROI')
     parser.add_argument("lon", type=float, help='lon of ROI')
     parser.add_argument("alt", type=float, help='alt of ROI')

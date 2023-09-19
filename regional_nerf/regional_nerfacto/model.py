@@ -4,12 +4,14 @@ Regional Nerfacto Model File
 Currently this subclasses the Nerfacto model. Consider subclassing from the base Model.
 """
 from dataclasses import dataclass, field
-from typing import Type
+from typing import Dict, List, Tuple, Type
 
 import numpy as np
 import torch
 
 from regional_nerfacto.field import RNerfField
+
+import nerfacc
 
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 
@@ -33,6 +35,10 @@ class RNerfModelConfig(NerfactoModelConfig):
     """
 
     _target: Type = field(default_factory=lambda: RNerfModel)
+    num_lerf_samples: int = 24
+    hashgrid_layers: Tuple[int] = (12, 12)
+    hashgrid_resolutions: Tuple[Tuple[int]] = ((16, 128), (128, 512))
+    hashgrid_sizes: Tuple[int] = (19, 19)
 
 
 class RNerfModel(NerfactoModel):
@@ -50,6 +56,9 @@ class RNerfModel(NerfactoModel):
         
         # Fields
         self.field = RNerfField(
+            grid_resolutions=self.config.hashgrid_resolutions,
+            grid_layers=self.config.hashgrid_layers,
+            grid_sizes=self.config.hashgrid_sizes,
             aabb=self.scene_box.aabb,
             hidden_dim=self.config.hidden_dim,
             num_levels=self.config.num_levels,
@@ -67,7 +76,8 @@ class RNerfModel(NerfactoModel):
             implementation=self.config.implementation,
         )
 
-        self.tall_loss_factor = 1.0
+        self.tall_loss_factor = 0.01
+        self.max_height = 1.0
 
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples: RaySamples
@@ -77,61 +87,33 @@ class RNerfModel(NerfactoModel):
             field_outputs = scale_gradients_by_distance_squared(field_outputs, ray_samples)
 
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
-        weights_list.append(weights)
-        ray_samples_list.append(ray_samples)
+        
+        outputs = super().get_outputs(ray_bundle)
 
-        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
-        depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
-        accumulation = self.renderer_accumulation(weights=weights)
+        outputs["dino"] = torch.sum(weights * field_outputs["dino"], dim=-2)
+        
+        # # Extract height of samples and compute exponentially scaled density
+        # # TODO: NAVLAB
+        # positions = ray_samples.frustums.get_positions()
+        # # height = torch.clip(positions[..., 2][..., None] + 10.0, 0.0, self.max_height + 10.0)
+        # height = torch.exp(positions[..., 2][..., None] - self.max_height)
+        
+        # height_opacity = torch.sum(field_outputs[FieldHeadNames.DENSITY] * height, dim=-2)
 
-        outputs = {
-            "rgb": rgb,
-            "accumulation": accumulation,
-            "depth": depth,
-        }
-
-        # Extract height of samples and compute exponentially scaled density
-        # TODO: NAVLAB
-        positions = ray_samples.frustums.get_positions()
-        height = positions[..., 2][..., None]
-        weights = torch.exp(height-1.0)
-        # Normalize weights
-        weights = weights / torch.sum(weights, dim=-2, keepdim=True)
-
-        height_opacity = self.renderer_depth(weights=weights, ray_samples=ray_samples)
-        outputs["height_opacity"] = height_opacity
-
-        if self.config.predict_normals:
-            normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
-            pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
-            outputs["normals"] = self.normals_shader(normals)
-            outputs["pred_normals"] = self.normals_shader(pred_normals)
-        # These use a lot of GPU memory, so we avoid storing them for eval.
-        if self.training:
-            outputs["weights_list"] = weights_list
-            outputs["ray_samples_list"] = ray_samples_list
-
-        if self.training and self.config.predict_normals:
-            outputs["rendered_orientation_loss"] = orientation_loss(
-                weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
-            )
-
-            outputs["rendered_pred_normal_loss"] = pred_normal_loss(
-                weights.detach(),
-                field_outputs[FieldHeadNames.NORMALS].detach(),
-                field_outputs[FieldHeadNames.PRED_NORMALS],
-            )
-
-        for i in range(self.config.num_proposal_iterations):
-            outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
+        # outputs["height_opacity"] = height_opacity
 
         return outputs
     
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = super().get_loss_dict(outputs, batch, metrics_dict)
+
+        if self.training:
+            unreduced_dino = torch.nn.functional.mse_loss(outputs["dino"], batch["dino"], reduction="none")
+            loss_dict["dino_loss"] = 0.1*unreduced_dino.sum(dim=-1).nanmean()
+
         # Add height opacity loss by its average
         # TODO: NAVLAB
-        loss_dict["height_opacity_loss"] = self.tall_loss_factor * torch.mean(
-            outputs["height_opacity"]
-            )
+        # loss_dict["height_opacity_loss"] = self.tall_loss_factor * torch.mean(
+        #     outputs["height_opacity"]
+        #     )
         return loss_dict

@@ -15,6 +15,8 @@ def config_parser():
 
 def construct_command(data_folder, checkpoint, downscale_factor, port, num_sample, save_latest, pose_optimizer, near_plane, far_plane):
     command_list = ["ns-train regional-nerfacto"]
+    # command_list = ["ns-train nerfacto"]
+    # command_list = ["ns-train neus-facto"]
     if port is not None:
         command_list.append(f"--vis viewer --viewer.websocket-port={port}")
     if num_sample is not None:
