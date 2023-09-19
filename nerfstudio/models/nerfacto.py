@@ -276,7 +276,6 @@ class NerfactoModel(Model):
                 )
             )
         return callbacks
-
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples: RaySamples
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)

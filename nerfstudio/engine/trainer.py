@@ -170,10 +170,13 @@ class Trainer:
             )
             banner_messages = [f"Viewer at: {self.viewer_state.viewer_url}"]
         if self.config.is_viewer_beta_enabled() and self.local_rank == 0:
+            datapath = self.config.data
+            if datapath is None:
+                datapath = self.base_dir
             self.viewer_state = ViewerBetaState(
                 self.config.viewer,
                 log_filename=viewer_log_path,
-                datapath=self.base_dir,
+                datapath=datapath,
                 pipeline=self.pipeline,
                 trainer=self,
                 train_lock=self.train_lock,
