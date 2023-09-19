@@ -130,11 +130,11 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
     tyro.extras.set_accent_color("bright_yellow")
-    tyro.cli(RunViewer).main()
+    tyro.cli(tyro.conf.FlagConversionOff[RunViewer]).main()
 
 
 if __name__ == "__main__":
     entrypoint()
 
 # For sphinx docs
-get_parser_fn = lambda: tyro.extras.get_parser(RunViewer)  # noqa
+get_parser_fn = lambda: tyro.extras.get_parser(tyro.conf.FlagConversionOff[RunViewer])  # noqa
