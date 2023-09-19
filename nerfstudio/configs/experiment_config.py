@@ -72,8 +72,6 @@ class ExperimentConfig(InstantiateConfig):
         "viewer", "wandb", "tensorboard", "comet", "viewer+wandb", "viewer+tensorboard", "viewer+comet", "viewer_beta"
     ] = "wandb"
     """Which visualizer to use."""
-    share: bool = False
-    """Viewer beta feature: print a shareable URL. `vis` must be set to viewer_beta; this flag is otherwise ignored."""
     data: Optional[Path] = None
     """Alias for --pipeline.datamanager.data"""
     prompt: Optional[str] = None
