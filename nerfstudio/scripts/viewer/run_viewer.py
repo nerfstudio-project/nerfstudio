@@ -106,7 +106,7 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
             log_filename=viewer_log_path,
             datapath=base_dir,
             pipeline=pipeline,
-            share=config.share,
+            share=config.viewer.make_share_url,
         )
         banner_messages = [f"Viewer Beta at: {viewer_state.viewer_url}"]
 
