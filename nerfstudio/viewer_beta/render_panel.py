@@ -659,4 +659,3 @@ def populate_render_tab(
     camera_path.default_fov = fov_degrees.value / 180.0 * onp.pi
 
     transform_controls: List[viser.SceneNodeHandle] = []
-
