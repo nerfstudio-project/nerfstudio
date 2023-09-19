@@ -491,17 +491,74 @@ class TensorVMEncoding(Encoding):
         resolution: int = 128,
         num_components: int = 24,
         init_scale: float = 0.1,
+        smoothstep: bool = False,
     ) -> None:
         super().__init__(in_dim=3)
 
         self.resolution = resolution
         self.num_components = num_components
+        self.smoothstep = smoothstep
 
         self.plane_coef = nn.Parameter(init_scale * torch.randn((3, num_components, resolution, resolution)))
         self.line_coef = nn.Parameter(init_scale * torch.randn((3, num_components, resolution, 1)))
 
     def get_out_dim(self) -> int:
         return self.num_components * 3
+
+    def index_fn(self, x: torch.Tensor, y: torch.Tensor, width: int, height: int):
+        y.clamp_max_(height - 1)
+        x.clamp_max_(width - 1)
+
+        if y.max() >= height or x.max() >= width:
+            breakpoint()
+
+        index = y * width + x
+        feature_offset = width * height * torch.arange(3)
+        index += feature_offset.to(x.device)[:, None, None]
+
+        return index.long()
+
+    def grid_sample_2d(self, feature, coord, type="plane"):
+        if type == "plane":
+            height, width = self.resolution, self.resolution
+        else:
+            height, width = self.resolution, 1
+
+        scaled = coord * torch.tensor([width, height]).to(coord.device)[None, None]
+        scaled_c = torch.ceil(scaled).type(torch.int32)
+        scaled_f = torch.floor(scaled).type(torch.int32)
+
+        offset = scaled - scaled_f
+
+        # smooth version of offset
+        if self.smoothstep:
+            offset = offset * offset * (3.0 - 2.0 * offset)
+
+        offset = offset[..., None, :]
+
+        index_0 = self.index_fn(scaled_c[..., 0:1], scaled_c[..., 1:2], height, width)  # [..., num_levels]
+        index_2 = self.index_fn(scaled_f[..., 0:1], scaled_f[..., 1:2], height, width)
+        index_1 = self.index_fn(scaled_c[..., 0:1], scaled_f[..., 1:2], height, width)
+        index_3 = self.index_fn(scaled_f[..., 0:1], scaled_c[..., 1:2], height, width)
+
+        # breakpoint()
+        if type == "plane":
+            f_0 = feature[index_0]  # [..., num_levels, features_per_level]
+            f_1 = feature[index_1]
+            f_2 = feature[index_2]
+            f_3 = feature[index_3]
+
+            f_03 = f_0 * offset[..., 0:1] + f_3 * (1 - offset[..., 0:1])
+            f_12 = f_1 * offset[..., 0:1] + f_2 * (1 - offset[..., 0:1])
+
+            f0312 = f_03 * offset[..., 1:2] + f_12 * (1 - offset[..., 1:2])
+
+            return f0312
+        else:
+            f_0 = feature[index_0]  # [..., num_levels, features_per_level]
+            f_2 = feature[index_2]
+            f_02 = f_0 * offset[..., 0:1] + f_2 * (1 - offset[..., 0:1])
+            return f_02
 
     def forward(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
         """Compute encoding for each position in in_positions
@@ -519,7 +576,8 @@ class TensorVMEncoding(Encoding):
         plane_coord = plane_coord.view(3, -1, 1, 2).detach()
         line_coord = line_coord.view(3, -1, 1, 2).detach()
 
-        plane_features = F.grid_sample(self.plane_coef, plane_coord, align_corners=True)  # [3, Components, -1, 1]
+        # plane_features = F.grid_sample(self.plane_coef, plane_coord, align_corners=True)  # [3, Components, -1, 1]
+        plane_features = self.grid_sample_2d(self.plane_coef, plane_coord, type="plane")  # [3, -1, 1, Components]
         line_features = F.grid_sample(self.line_coef, line_coord, align_corners=True)  # [3, Components, -1, 1]
 
         features = plane_features * line_features  # [3, Components, -1, 1]

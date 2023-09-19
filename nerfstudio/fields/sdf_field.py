@@ -457,6 +457,7 @@ class SDFField(Field):
         if self.spatial_distortion is not None and not skip_spatial_distortion:
             x = self.spatial_distortion(x)
 
+        points_sdf = torch.zeros_like(x[..., :1])
         # compute gradient in contracted space
         if self.config.use_numerical_gradients:
             # https://github.com/bennyguo/instant-nsr-pl/blob/main/models/geometry.py#L173

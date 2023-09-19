@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ CONSOLE = Console()
 
 
 def get_src_from_pairs(
-    ref_idx, all_imgs, pairs_srcs, neighbors_num=None, neighbors_shuffle=False
+    ref_idx: int, all_imgs: TensorType, pairs_srcs: TensorType, neighbors_num=None, neighbors_shuffle=False
 ) -> Dict[str, TensorType]:
     # src_idx[0] is ref img
     src_idx = pairs_srcs[ref_idx]
@@ -130,7 +130,7 @@ def get_sparse_sfm_points(image_idx: int, sfm_points):
 
     # sfm points
     sparse_sfm_points = sfm_points[image_idx]
-    sparse_sfm_points = BasicImages([sparse_sfm_points])
+    # sparse_sfm_points = BasicImages([sparse_sfm_points])
     return {"sparse_sfm_points": sparse_sfm_points}
 
 
@@ -361,7 +361,7 @@ class SDFStudio(DataParser):
                 pairs_srcs.append(sources_array)
             pairs_srcs = torch.tensor(pairs_srcs)
             all_imgs = torch.stack(
-                [get_image(image_filename) for image_filename in sorted(image_filenames)], axis=0
+                [get_image(image_filename) for image_filename in sorted(image_filenames)], dim=0
             ).cuda()
 
             additional_inputs_dict["pairs"] = {
