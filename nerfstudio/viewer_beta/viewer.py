@@ -154,11 +154,11 @@ class Viewer:
                 self._toggle_training_state,
                 self.set_camera_visibility,
             )
+        config_path = self.log_filename.parents[0] / "config.yml"
         with tabs.add_tab("Render", viser.Icon.CAMERA):
-            populate_render_tab(self.viser_server)
+            populate_render_tab(self.viser_server, config_path, self.datapath, self.control_panel)
 
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
-            config_path = self.log_filename.parents[0] / "config.yml"
             populate_export_tab(self.viser_server, self.control_panel, config_path)
 
         def nested_folder_install(folder_labels: List[str], element: ViewerElement):
