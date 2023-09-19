@@ -80,7 +80,6 @@ class Viewer:
         train_lock: Optional[threading.Lock] = None,
         share: bool = False,
     ):
-        assert share
         self.config = config
         self.trainer = trainer
         self.last_step = 0
