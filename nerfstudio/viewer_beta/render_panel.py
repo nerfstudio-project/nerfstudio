@@ -614,7 +614,7 @@ def populate_render_tab(
         # finally add crop data if crop is enabled
         if control_panel.crop_viewport:
             obb = control_panel.crop_obb
-            rpy = tf.SO3.from_matrix(obb.R).as_rpy_radians()
+            rpy = tf.SO3.from_matrix(obb.R.numpy()).as_rpy_radians()
             color = control_panel.background_color
             json_data["crop"] = {
                 "crop_center": obb.T.tolist(),
@@ -660,17 +660,3 @@ def populate_render_tab(
 
     transform_controls: List[viser.SceneNodeHandle] = []
 
-
-def main() -> None:
-    """Launch a GUI with just the render panel, for development purposes."""
-    server = viser.ViserServer()
-    server.configure_theme(dark_mode=True, control_layout="collapsible")
-    server.world_axes.visible = True
-
-    populate_render_tab(server)
-    while True:
-        time.sleep(10.0)
-
-
-if __name__ == "__main__":
-    main()
