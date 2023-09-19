@@ -309,7 +309,6 @@ def get_crop_from_json(camera_json: Dict[str, Any]) -> Optional[CropData]:
     """
     if "crop" not in camera_json or camera_json["crop"] is None:
         return None
-    import viser.transforms as vtf
     bg_color = camera_json["crop"]["crop_bg_color"]
     center = camera_json["crop"]["crop_center"]
     scale = camera_json["crop"]["crop_scale"]
