@@ -26,6 +26,8 @@ import torchvision
 import viser
 import viser.theme
 import viser.transforms as vtf
+
+from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.models.base_model import Model
@@ -39,8 +41,6 @@ from nerfstudio.viewer_beta.render_panel import populate_render_tab
 from nerfstudio.viewer_beta.render_state_machine import RenderAction, RenderStateMachine
 from nerfstudio.viewer_beta.utils import CameraState, parse_object
 from nerfstudio.viewer_beta.viewer_elements import ViewerControl, ViewerElement
-
-from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
@@ -59,6 +59,7 @@ class Viewer:
         datapath: path to data
         pipeline: pipeline object to use
         trainer: trainer object to use
+        share: print a shareable URL
 
     Attributes:
         viewer_url: url to open viewer
@@ -77,6 +78,7 @@ class Viewer:
         pipeline: Pipeline,
         trainer: Optional[Trainer] = None,
         train_lock: Optional[threading.Lock] = None,
+        share: bool = False,
     ):
         self.config = config
         self.trainer = trainer
@@ -103,7 +105,7 @@ class Viewer:
         self._prev_train_state: Literal["training", "paused", "completed"] = "training"
 
         self.client: Optional[viser.ClientHandle] = None
-        self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
+        self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port, share=share)
         buttons = (
             viser.theme.TitlebarButton(
                 text="Getting Started",
@@ -191,14 +193,15 @@ class Viewer:
         @client.camera.on_update
         def _(cam: viser.CameraHandle) -> None:
             assert self.client is not None
-            self.last_move_time = time.time()
-            R = vtf.SO3(wxyz=self.client.camera.wxyz)
-            R = R @ vtf.SO3.from_x_radians(np.pi)
-            R = torch.tensor(R.as_matrix())
-            pos = torch.tensor(self.client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
-            c2w = torch.concatenate([R, pos[:, None]], dim=1)
-            self.camera_state = CameraState(fov=self.client.camera.fov, aspect=self.client.camera.aspect, c2w=c2w)
-            self.render_statemachine.action(RenderAction("move", self.camera_state))
+            with client.atomic():
+                self.last_move_time = time.time()
+                R = vtf.SO3(wxyz=self.client.camera.wxyz)
+                R = R @ vtf.SO3.from_x_radians(np.pi)
+                R = torch.tensor(R.as_matrix())
+                pos = torch.tensor(self.client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
+                c2w = torch.concatenate([R, pos[:, None]], dim=1)
+                self.camera_state = CameraState(fov=self.client.camera.fov, aspect=self.client.camera.aspect, c2w=c2w)
+                self.render_statemachine.action(RenderAction("move", self.camera_state))
 
     def set_camera_visibility(self, visible: bool) -> None:
         """Toggle the visibility of the training cameras."""
