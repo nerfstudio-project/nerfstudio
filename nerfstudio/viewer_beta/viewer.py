@@ -194,14 +194,15 @@ class Viewer:
         @client.camera.on_update
         def _(cam: viser.CameraHandle) -> None:
             assert self.client is not None
-            self.last_move_time = time.time()
-            R = vtf.SO3(wxyz=self.client.camera.wxyz)
-            R = R @ vtf.SO3.from_x_radians(np.pi)
-            R = torch.tensor(R.as_matrix())
-            pos = torch.tensor(self.client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
-            c2w = torch.concatenate([R, pos[:, None]], dim=1)
-            self.camera_state = CameraState(fov=self.client.camera.fov, aspect=self.client.camera.aspect, c2w=c2w)
-            self.render_statemachine.action(RenderAction("move", self.camera_state))
+            with client.atomic():
+                self.last_move_time = time.time()
+                R = vtf.SO3(wxyz=self.client.camera.wxyz)
+                R = R @ vtf.SO3.from_x_radians(np.pi)
+                R = torch.tensor(R.as_matrix())
+                pos = torch.tensor(self.client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
+                c2w = torch.concatenate([R, pos[:, None]], dim=1)
+                self.camera_state = CameraState(fov=self.client.camera.fov, aspect=self.client.camera.aspect, c2w=c2w)
+                self.render_statemachine.action(RenderAction("move", self.camera_state))
 
     def set_camera_visibility(self, visible: bool) -> None:
         """Toggle the visibility of the training cameras."""
