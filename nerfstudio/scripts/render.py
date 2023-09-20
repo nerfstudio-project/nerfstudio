@@ -54,7 +54,7 @@ from nerfstudio.cameras.camera_paths import (
 )
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
-from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.model_components import renderers
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import colormaps, install_checks
@@ -127,12 +127,10 @@ def _render_trajectory_video(
 
         with progress:
             for camera_idx in progress.track(range(cameras.size), description=""):
-                aabb_box = None
+                obb_box = None
                 if crop_data is not None:
-                    bounding_box_min = crop_data.center - crop_data.scale / 2.0
-                    bounding_box_max = crop_data.center + crop_data.scale / 2.0
-                    aabb_box = SceneBox(torch.stack([bounding_box_min, bounding_box_max]).to(pipeline.device))
-                camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx, aabb_box=aabb_box)
+                    obb_box = crop_data.obb
+                camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx, obb_box=obb_box)
 
                 if crop_data is not None:
                     with renderers.background_color_override_context(
@@ -289,10 +287,17 @@ class CropData:
 
     background_color: Float[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
     """background color"""
-    center: Float[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
-    """center of the crop"""
-    scale: Float[Tensor, "3"] = torch.Tensor([2.0, 2.0, 2.0])
-    """scale of the crop"""
+    obb: OrientedBox = OrientedBox(R=torch.eye(3), T=torch.zeros(3), S=torch.ones(3) * 2)
+    """Oriented box representing the crop region"""
+
+    # properties for backwards-compatibility interface
+    @property
+    def center(self):
+        return self.obb.T
+
+    @property
+    def scale(self):
+        return self.obb.S
 
 
 def get_crop_from_json(camera_json: Dict[str, Any]) -> Optional[CropData]:
@@ -305,13 +310,13 @@ def get_crop_from_json(camera_json: Dict[str, Any]) -> Optional[CropData]:
     """
     if "crop" not in camera_json or camera_json["crop"] is None:
         return None
-
     bg_color = camera_json["crop"]["crop_bg_color"]
-
+    center = camera_json["crop"]["crop_center"]
+    scale = camera_json["crop"]["crop_scale"]
+    rot = (0.0, 0.0, 0.0) if "crop_rot" not in camera_json["crop"] else tuple(camera_json["crop"]["crop_rot"])
     return CropData(
         background_color=torch.Tensor([bg_color["r"] / 255.0, bg_color["g"] / 255.0, bg_color["b"] / 255.0]),
-        center=torch.Tensor(camera_json["crop"]["crop_center"]),
-        scale=torch.Tensor(camera_json["crop"]["crop_scale"]),
+        obb=OrientedBox.from_params(center, rot, scale),
     )
 
 
