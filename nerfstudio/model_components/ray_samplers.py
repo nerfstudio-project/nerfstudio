@@ -419,14 +419,15 @@ class VolumetricSampler(Sampler):
         density_fn = self.density_fn
 
         def sigma_fn(t_starts, t_ends, ray_indices):
-            filtered_ray_bundle = RayBundle(
-                origins=ray_bundle.origins[ray_indices],
-                directions=ray_bundle.directions[ray_indices],
-                pixel_area=ray_bundle.pixel_area[ray_indices],
-                times=ray_bundle.times[ray_indices] if ray_bundle.times is not None else None,
+            ray_samples = RaySamples(
+                frustums=Frustums(
+                    origins=ray_bundle.origins[ray_indices],
+                    directions=ray_bundle.directions[ray_indices],
+                    starts=t_starts[..., None],
+                    ends=t_ends[..., None],
+                    pixel_area=ray_bundle.pixel_area[ray_indices],
+                ),
             )
-            breakpoint()
-            ray_samples = filtered_ray_bundle.get_ray_samples(t_starts, t_ends)
 
             density, _ = density_fn(ray_samples)
             return density.squeeze(-1)

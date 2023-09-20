@@ -23,12 +23,14 @@ from typing import Dict, List, Literal, Optional, Tuple, Type
 
 import nerfacc
 import torch
+from jaxtyping import Shaped
+from torch import Tensor
 from torch.nn import Parameter
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image import PeakSignalNoiseRatio
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
-from nerfstudio.cameras.rays import RayBundle
+from nerfstudio.cameras.rays import Frustums, RayBundle, RaySamples
 from nerfstudio.engine.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
@@ -151,10 +153,23 @@ class NGPModel(Model):
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
+        def density_fn_positions(positions: Shaped[Tensor, "*bs 3"]) -> Shaped[Tensor, "*bs 1"]:
+            ray_samples = RaySamples(
+                frustums=Frustums(
+                    origins=positions,
+                    directions=torch.ones_like(positions),
+                    starts=torch.zeros_like(positions[..., :1]),
+                    ends=torch.zeros_like(positions[..., :1]),
+                    pixel_area=torch.ones_like(positions[..., :1]),
+                )
+            )
+            density, _ = self.field.get_density(ray_samples)
+            return density
+
         def update_occupancy_grid(step: int):
             self.occupancy_grid.update_every_n_steps(
                 step=step,
-                occ_eval_fn=lambda x: self.field.density_fn(x) * self.config.render_step_size,
+                occ_eval_fn=lambda x: density_fn_positions(x) * self.config.render_step_size,
             )
 
         return [
