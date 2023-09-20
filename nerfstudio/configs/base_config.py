@@ -88,6 +88,7 @@ class LocalWriterConfig(InstantiateConfig):
         writer.EventName.VIS_RAYS_PER_SEC,
         writer.EventName.TEST_RAYS_PER_SEC,
         writer.EventName.ETA,
+        writer.EventName.GAUSSIAN_NUM,
     )
     """specifies which stats will be logged/printed to terminal"""
     max_log_size: int = 10

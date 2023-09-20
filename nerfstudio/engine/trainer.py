@@ -36,6 +36,7 @@ from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
+from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline
 from nerfstudio.utils import profiler, writer
 from nerfstudio.utils.decorators import check_eval_enabled, check_main_thread, check_viewer_enabled
@@ -262,14 +263,21 @@ class Trainer:
 
                 # Skip the first two steps to avoid skewed timings that break the viewer rendering speed estimate.
                 if step > 1:
-                    writer.put_time(
-                        name=EventName.TRAIN_RAYS_PER_SEC,
-                        duration=self.world_size
-                        * self.pipeline.datamanager.get_train_rays_per_batch()
-                        / max(0.001, train_t.duration),
-                        step=step,
-                        avg_over_steps=True,
-                    )
+                    if isinstance(self.pipeline.model, GaussianSplattingModel):
+                        writer.put_scalar(
+                            name=EventName.GAUSSIAN_NUM,
+                            scalar=self.pipeline.model.get_gaussian_num,
+                            step=step,
+                        )
+                    else:
+                        writer.put_time(
+                            name=EventName.TRAIN_RAYS_PER_SEC,
+                            duration=self.world_size
+                            * self.pipeline.datamanager.get_train_rays_per_batch()
+                            / max(0.001, train_t.duration),
+                            step=step,
+                            avg_over_steps=True,
+                        )
 
                 self._update_viewer_state(step)
 

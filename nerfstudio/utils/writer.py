@@ -56,6 +56,7 @@ class EventName(enum.Enum):
     TRAIN_RAYS_PER_SEC = "Train Rays / Sec"
     TEST_RAYS_PER_SEC = "Test Rays / Sec"
     VIS_RAYS_PER_SEC = "Vis Rays / Sec"
+    GAUSSIAN_NUM = "Number of Gaussians"
     CURR_TEST_PSNR = "Test PSNR"
 
 
@@ -468,7 +469,7 @@ class LocalWriter:
             if name in self.stats_to_track:
                 if "(time)" in name:
                     v = _format_time(v)
-                elif "Rays" in name:
+                elif "Rays" in name or "Gaussians" in name:
                     v = human_format(v)
                 else:
                     v = f"{v:0.4f}"

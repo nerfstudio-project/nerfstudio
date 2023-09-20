@@ -192,6 +192,10 @@ class GaussianSplattingModel(Model):
         return self.rotation_activation(self._rotation)
     
     @property
+    def get_gaussian_num(self):
+        return self._xyz.shape[0]
+    
+    @property
     def get_xyz(self):
         return self._xyz
     
