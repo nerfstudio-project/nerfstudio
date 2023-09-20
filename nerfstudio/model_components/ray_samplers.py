@@ -20,7 +20,7 @@ from abc import abstractmethod
 from typing import Any, Callable, List, Optional, Protocol, Tuple, Union
 
 import torch
-from jaxtyping import Float
+from jaxtyping import Float, Shaped
 from nerfacc import OccGridEstimator
 from torch import Tensor, nn
 
@@ -378,8 +378,8 @@ class DensityFn(Protocol):
     """
 
     def __call__(
-        self, positions: Float[Tensor, "*batch 3"], times: Optional[Float[Tensor, "*batch 1"]] = None
-    ) -> Float[Tensor, "*batch 1"]:
+        self, ray_samples: RaySamples
+    ) -> Tuple[Shaped[Tensor, "*batch 1"], Float[Tensor, "*batch num_features"]]:
         ...
 
 
@@ -404,13 +404,11 @@ class VolumetricSampler(Sampler):
         self.density_fn = density_fn
         self.occupancy_grid = occupancy_grid
 
-    def get_sigma_fn(self, origins, directions, times=None) -> Optional[Callable]:
+    def get_sigma_fn(self, ray_bundle: RayBundle) -> Optional[Callable]:
         """Returns a function that returns the density of a point.
 
         Args:
-            origins: Origins of rays
-            directions: Directions of rays
-            times: Times at which rays are sampled
+            ray_bundle: Rays to generate samples for
         Returns:
             Function that returns the density of a point or None if a density function is not provided.
         """
@@ -421,12 +419,17 @@ class VolumetricSampler(Sampler):
         density_fn = self.density_fn
 
         def sigma_fn(t_starts, t_ends, ray_indices):
-            t_origins = origins[ray_indices]
-            t_dirs = directions[ray_indices]
-            positions = t_origins + t_dirs * (t_starts + t_ends)[:, None] / 2.0
-            if times is None:
-                return density_fn(positions).squeeze(-1)
-            return density_fn(positions, times[ray_indices]).squeeze(-1)
+            filtered_ray_bundle = RayBundle(
+                origins=ray_bundle.origins[ray_indices],
+                directions=ray_bundle.directions[ray_indices],
+                pixel_area=ray_bundle.pixel_area[ray_indices],
+                times=ray_bundle.times[ray_indices] if ray_bundle.times is not None else None,
+            )
+            breakpoint()
+            ray_samples = filtered_ray_bundle.get_ray_samples(t_starts, t_ends)
+
+            density, _ = density_fn(ray_samples)
+            return density.squeeze(-1)
 
         return sigma_fn
 
@@ -462,7 +465,6 @@ class VolumetricSampler(Sampler):
 
         rays_o = ray_bundle.origins.contiguous()
         rays_d = ray_bundle.directions.contiguous()
-        times = ray_bundle.times
 
         if ray_bundle.nears is not None and ray_bundle.fars is not None:
             t_min = ray_bundle.nears.contiguous().reshape(-1)
@@ -484,7 +486,7 @@ class VolumetricSampler(Sampler):
             rays_d=rays_d,
             t_min=t_min,
             t_max=t_max,
-            sigma_fn=self.get_sigma_fn(rays_o, rays_d, times),
+            sigma_fn=self.get_sigma_fn(ray_bundle),
             render_step_size=render_step_size,
             near_plane=near_plane,
             far_plane=far_plane,

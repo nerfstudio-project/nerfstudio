@@ -132,7 +132,7 @@ class NGPModel(Model):
         # Sampler
         self.sampler = VolumetricSampler(
             occupancy_grid=self.occupancy_grid,
-            density_fn=self.field.density_fn,
+            density_fn=self.field.get_density,
         )
 
         # renderers
