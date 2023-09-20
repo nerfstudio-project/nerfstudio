@@ -109,12 +109,12 @@ class SemanticNerfWModel(Model):
         if self.config.use_same_proposal_network:
             network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction)
             self.proposal_networks.append(network)
-            self.density_fns = [network.density_fn for _ in range(self.config.num_proposal_iterations)]
+            self.density_fns = [network.get_density for _ in range(self.config.num_proposal_iterations)]
         else:
             for _ in range(self.config.num_proposal_iterations):
                 network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction)
                 self.proposal_networks.append(network)
-            self.density_fns = [network.density_fn for network in self.proposal_networks]
+            self.density_fns = [network.get_density for network in self.proposal_networks]
 
         # Collider
         self.collider = NearFarCollider(near_plane=self.config.near_plane, far_plane=self.config.far_plane)
