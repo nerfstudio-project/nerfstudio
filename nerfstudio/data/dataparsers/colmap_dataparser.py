@@ -72,7 +72,7 @@ class ColmapDataParserConfig(DataParserConfig):
     """Path to depth maps directory. If not set, depths are not loaded."""
     colmap_path: Path = Path("sparse/0")
     """Path to the colmap reconstruction directory relative to the data path."""
-    load_3D_points: bool = True
+    load_3D_points: bool = False
     """Whether to load the 3D points from the colmap reconstruction."""
     max_2D_matches_per_3D_point: int = -1
     """Maximum number of 2D matches per 3D point. If set to -1, all 2D matches are loaded. If set to 0, no 2D matches are loaded."""
