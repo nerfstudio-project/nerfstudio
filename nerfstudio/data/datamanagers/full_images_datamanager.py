@@ -39,31 +39,17 @@ from torch import Tensor, nn
 from torch.nn import Parameter
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm
-from typing_extensions import Literal, TypeVar
+from typing_extensions import Literal
 
-from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.cameras.cameras import Cameras, CameraType
-from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.configs.base_config import InstantiateConfig
-from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
 from nerfstudio.data.datamanagers.base_datamanager import (DataManager,
-                                                           DataManagerConfig)
+                                                           DataManagerConfig,TDataset)
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import \
     BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.pixel_samplers import (PatchPixelSamplerConfig,
-                                            PixelSampler, PixelSamplerConfig)
-from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.data.utils.dataloaders import (CacheDataloader,
-                                               FixedIndicesEvalDataloader,
-                                               RandIndicesEvalDataloader)
-from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
-from nerfstudio.engine.callbacks import (TrainingCallback,
-                                         TrainingCallbackAttributes)
-from nerfstudio.model_components.ray_generators import RayGenerator
-from nerfstudio.utils.misc import IterableWrapper, get_orig_class
+from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
 CONSOLE = Console(width=120)
@@ -85,8 +71,6 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     """Specifies the image indices to use during eval; if None, uses all."""
     cache_images: Literal["no-cache", "cpu", "gpu"] = "cpu"
     """Whether to cache images in memory. If "numpy", caches as numpy arrays, if "torch", caches as torch tensors."""
-
-TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
     """

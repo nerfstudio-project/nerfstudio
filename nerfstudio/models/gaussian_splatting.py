@@ -21,7 +21,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
 
-import diff_rast
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
