@@ -132,6 +132,15 @@ finally run the following to register the dataparser.
 pip install -e .
 ```
 
+Similarly to the method develomement, you can also use environment variables to register dataparsers.
+Use the `NERFSTUDIO_DATAPARSER_CONFIGS` environment variable:
+
+```
+export NERFSTUDIO_DATAPARSER_CONFIGS="my-dataparser=my_package.my_config:MyDataParser"
+```
+
+Same as with custom methods, `NERFSTUDIO_DATAPARSER_CONFIGS` environment variable additionally accepts a function or derived class to temporarily register your custom method.
+
 ## Running custom method
 
 After registering your method you should be able to run the method with,

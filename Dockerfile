@@ -168,6 +168,8 @@ RUN cd nerfstudio && \
 # Change working directory
 WORKDIR /workspace
 
-# Install nerfstudio cli auto completion and enter shell if no command was provided.
-CMD ns-install-cli --mode install && /bin/bash
+# Install nerfstudio cli auto completion
+RUN ns-install-cli --mode install
 
+# Bash as default entrypoint.
+CMD /bin/bash -l
