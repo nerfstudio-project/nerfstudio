@@ -38,7 +38,7 @@ from nerfstudio.model_components.renderers import (
 )
 from nerfstudio.models.base_model import Model
 from nerfstudio.models.vanilla_nerf import VanillaModelConfig
-from nerfstudio.utils import colormaps, colors, misc
+from nerfstudio.utils import colormaps, misc
 
 
 class MipNerfModel(Model):
