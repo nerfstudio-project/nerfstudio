@@ -20,7 +20,7 @@ jobs:
           pip install .[docs]
       - name: Sphinx build
         run: |
-          sphinx-build docs/source _build
+          sphinx-build docs _build
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
