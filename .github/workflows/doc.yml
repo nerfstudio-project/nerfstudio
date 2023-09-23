@@ -1,9 +1,7 @@
 name: Docs
-# on: [push, pull_request, workflow_dispatch]
-
 on:
   push:
-    branches: [main, migrate_doc]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
