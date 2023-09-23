@@ -3,7 +3,10 @@ name: Docs
 
 on:
   push:
-    branches: [migrate_doc]
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
