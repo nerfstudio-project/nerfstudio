@@ -80,7 +80,6 @@ We hope nerfstudio enables you to build faster 🔨 learn together 📚 and cont
 :hidden:
 :caption: Getting Started
 
-quickstart/installation
 quickstart/first_nerf
 quickstart/custom_dataset
 quickstart/viewer_quickstart
@@ -156,14 +155,15 @@ This documentation is organized into 3 parts:
 
 ## Quicklinks
 
-|                                                            |                        |
-| ---------------------------------------------------------- | ---------------------- |
-| [Github](https://github.com/nerfstudio-project/nerfstudio) | Official Github Repo   |
-| [Discord](https://discord.gg/RyVk6w5WWP)                   | Join Discord Community |
-| [Viewer](https://viewer.nerf.studio/)                      | Web-based Nerf Viewer  |
+|                                                            |                             |
+| ---------------------------------------------------------- | --------------------------- |
+| [Github](https://github.com/nerfstudio-project/nerfstudio) | Official Github Repo        |
+| [Discord](https://discord.gg/RyVk6w5WWP)                   | Join Discord Community      |
+| [Viewer](https://viewer.nerf.studio/)                      | Web-based Nerf Viewer       |
 | [Feedback Form](https://forms.gle/sqN5phJN7LfQVwnP9)       | Provide Nerfstudio Feedback |
 
 ## Sponsors
+
 Sponsors of this work includes [Luma AI](https://lumalabs.ai/) and the [BAIR commons](https://bcommons.berkeley.edu/home).
 
 |          |          |
