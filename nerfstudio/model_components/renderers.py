@@ -66,9 +66,8 @@ class RGBRenderer(nn.Module):
         super().__init__()
         self.background_color: BackgroundColor = background_color
 
-    @classmethod
     def combine_rgb(
-        cls,
+        self,
         rgb: Float[Tensor, "*bs num_samples 3"],
         weights: Float[Tensor, "*bs num_samples 1"],
         background_color: BackgroundColor = "random",
@@ -76,8 +75,6 @@ class RGBRenderer(nn.Module):
         num_rays: Optional[int] = None,
     ) -> Float[Tensor, "*bs 3"]:
         """Composite samples along ray and render color image.
-        If background color is random, no BG color is added - as if the background was black!
-
         Args:
             rgb: RGB for each sample
             weights: Weights for each sample
@@ -104,13 +101,14 @@ class RGBRenderer(nn.Module):
         if BACKGROUND_COLOR_OVERRIDE is not None:
             background_color = BACKGROUND_COLOR_OVERRIDE
         if background_color == "random":
-            # If background color is random, the predicted color is returned without blending,
-            # as if the background color was black.
-            return comp_rgb
+            if self.training:
+                background_color = torch.rand_like(comp_rgb)
+            else:
+                background_color = Tensor([0.5, 0.5, 0.5])
         elif background_color == "last_sample":
             # Note, this is only supported for non-packed samples.
             background_color = rgb[..., -1, :]
-        background_color = cls.get_background_color(background_color, shape=comp_rgb.shape, device=comp_rgb.device)
+        background_color = self.get_background_color(background_color, shape=comp_rgb.shape, device=comp_rgb.device)
 
         assert isinstance(background_color, torch.Tensor)
         comp_rgb = comp_rgb + background_color * (1.0 - accumulated_weight)
@@ -188,11 +186,8 @@ class RGBRenderer(nn.Module):
             A tuple of the predicted and ground truth RGB values.
         """
         background_color = self.background_color
-        if background_color == "last_sample":
-            background_color = "black"  # No background blending for GT
-        elif background_color == "random":
-            background_color = torch.rand_like(pred_image)
-            pred_image = pred_image + background_color * (1.0 - pred_accumulation)
+        if background_color in {"last_sample", "random"}:
+            background_color = "black"
         gt_image = self.blend_background(gt_image, background_color=background_color)
         return pred_image, gt_image
 
@@ -230,7 +225,7 @@ class RGBRenderer(nn.Module):
         return rgb
 
 
-class SHRenderer(nn.Module):
+class SHRenderer(RGBRenderer):
     """Render RGB value from spherical harmonics.
 
     Args:
@@ -277,7 +272,7 @@ class SHRenderer(nn.Module):
 
         if not self.training:
             rgb = torch.nan_to_num(rgb)
-        rgb = RGBRenderer.combine_rgb(rgb, weights, background_color=self.background_color)
+        rgb = self.combine_rgb(rgb, weights, background_color=self.background_color)
         if not self.training:
             torch.clamp_(rgb, min=0.0, max=1.0)
 
