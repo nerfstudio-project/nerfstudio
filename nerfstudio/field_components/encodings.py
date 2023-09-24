@@ -157,7 +157,7 @@ class NeRFEncoding(Encoding):
             Output values will be between -1 and 1
         """
         scaled_in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
-        freqs = 2 ** torch.linspace(self.min_freq, self.max_freq, self.num_frequencies).to(in_tensor.device)
+        freqs = 2 ** torch.linspace(self.min_freq, self.max_freq, self.num_frequencies, device=in_tensor.device)
         scaled_inputs = scaled_in_tensor[..., None] * freqs  # [..., "input_dim", "num_scales"]
         scaled_inputs = scaled_inputs.view(*scaled_inputs.shape[:-2], -1)  # [..., "input_dim" * "num_scales"]
 
@@ -236,7 +236,7 @@ class FFEncoding(Encoding):
         """
         scaled_in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
         scaled_inputs = scaled_in_tensor @ self.b_matrix  # [..., "num_frequencies"]
-        freqs = 2 ** torch.linspace(self.min_freq, self.max_freq, self.num_frequencies).to(in_tensor.device)
+        freqs = 2 ** torch.linspace(self.min_freq, self.max_freq, self.num_frequencies, device=in_tensor.device)
         scaled_inputs = scaled_inputs[..., None] * freqs  # [..., "input_dim", "num_scales"]
         scaled_inputs = scaled_inputs.view(*scaled_inputs.shape[:-2], -1)  # [..., "input_dim" * "num_scales"]
 
