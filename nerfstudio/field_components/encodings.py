@@ -212,9 +212,9 @@ class FFEncoding(Encoding):
     def get_out_dim(self) -> int:
         if self.in_dim is None:
             raise ValueError("Input dimension has not been set")
-        out_dim = self.b_matrix.shape[1] * self.num_frequencies * 2  # type: int
+        out_dim = self.b_matrix.shape[1] * self.num_frequencies * 2  # type: ignore
         if self.include_input:
-            out_dim += self.in_dim
+            out_dim += self.in_dim  # type: ignore
         return out_dim
 
     def forward(
