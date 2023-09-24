@@ -31,7 +31,7 @@ from nerfstudio.utils.external import TCNN_EXISTS, tcnn
 from nerfstudio.utils.math import (
     components_from_spherical_harmonics,
     expected_sin,
-    generate_basis,
+    generate_polyhedron_basis,
 )
 from nerfstudio.utils.printing import print_tcnn_speed_warning
 
@@ -187,6 +187,7 @@ class FFEncoding(Encoding):
 
     Args:
         in_dim: Input dimension of tensor
+        basis: Basis matrix from which to construct the Fourier features.
         num_frequencies: Number of encoded frequencies per axis
         min_freq_exp: Minimum frequency exponent
         max_freq_exp: Maximum frequency exponent
@@ -293,7 +294,7 @@ class PolyhedronFFEncoding(FFEncoding):
         basis_subdivisions: int = 1,
         include_input: bool = False,
     ) -> None:
-        basis_t = generate_basis(basis_shape, basis_subdivisions).T
+        basis_t = generate_polyhedron_basis(basis_shape, basis_subdivisions).T
         super().__init__(3, basis_t, num_frequencies, min_freq_exp, max_freq_exp, include_input)
 
 

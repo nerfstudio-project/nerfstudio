@@ -427,7 +427,7 @@ def tesselate_geodesic(
     return verts
 
 
-def generate_basis(
+def generate_polyhedron_basis(
     basis_shape: Literal["icosahedron", "octahedron"],
     angular_tesselation: int,
     remove_symmetries: bool = True,
