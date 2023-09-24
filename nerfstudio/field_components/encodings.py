@@ -215,7 +215,7 @@ class FFEncoding(Encoding):
         out_dim = self.b_matrix.shape[1] * self.num_frequencies * 2  # type: ignore
         if self.include_input:
             out_dim += self.in_dim  # type: ignore
-        return out_dim
+        return out_dim  # type: ignore
 
     def forward(
         self,
