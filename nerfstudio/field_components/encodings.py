@@ -206,15 +206,13 @@ class FFEncoding(Encoding):
         self.num_frequencies = num_frequencies
         self.min_freq = min_freq_exp
         self.max_freq = max_freq_exp
-        self.register_buffer(name="basis", tensor=basis)
+        self.register_buffer(name="b_matrix", tensor=basis)
         self.include_input = include_input
 
     def get_out_dim(self) -> int:
         if self.in_dim is None:
             raise ValueError("Input dimension has not been set")
-        basis_out_dim: int
-        basis_out_dim = self.basis.shape[-1]
-        out_dim = basis_out_dim * self.num_frequencies * 2
+        out_dim = self.b_matrix.shape[1] * self.num_frequencies * 2  # type: ignore
         if self.include_input:
             out_dim += self.in_dim
         return out_dim
@@ -235,7 +233,7 @@ class FFEncoding(Encoding):
             Output values will be between -1 and 1
         """
         scaled_in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
-        scaled_inputs = scaled_in_tensor @ self.basis  # [..., "num_frequencies"]
+        scaled_inputs = scaled_in_tensor @ self.b_matrix  # [..., "num_frequencies"]
         freqs = 2 ** torch.linspace(self.min_freq, self.max_freq, self.num_frequencies).to(in_tensor.device)
         scaled_inputs = scaled_inputs[..., None] * freqs  # [..., "input_dim", "num_scales"]
         scaled_inputs = scaled_inputs.view(*scaled_inputs.shape[:-2], -1)  # [..., "input_dim" * "num_scales"]
@@ -243,7 +241,7 @@ class FFEncoding(Encoding):
         if covs is None:
             encoded_inputs = torch.sin(torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1))
         else:
-            input_var = torch.sum((covs @ self.basis) * self.basis, -2)
+            input_var = torch.sum((covs @ self.b_matrix) * self.b_matrix, -2)
             input_var = input_var[..., :, None] * freqs[None, :] ** 2
             input_var = input_var.reshape((*input_var.shape[:-2], -1))
             encoded_inputs = expected_sin(
@@ -270,8 +268,8 @@ class RFFEncoding(FFEncoding):
         if not scale > 0:
             raise ValueError("RFF encoding scale should be greater than zero")
 
-        basis = torch.normal(mean=0, std=self.scale, size=(in_dim, num_frequencies))
-        super().__init__(in_dim, basis, 1, 0.0, 0.0, include_input)
+        b_matrix = torch.normal(mean=0, std=self.scale, size=(in_dim, num_frequencies))
+        super().__init__(in_dim, b_matrix, 1, 0.0, 0.0, include_input)
 
 
 class PolyhedronFFEncoding(FFEncoding):
