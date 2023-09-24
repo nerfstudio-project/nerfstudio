@@ -446,8 +446,8 @@ def generate_polyhedron_basis(
     """Generates a 3D basis by tesselating a geometric polyhedron.
     Basis is used to construct Fourier features for positional encoding.
     See Mip-Nerf360 paper: https://arxiv.org/abs/2111.12077
-
     Adapted from https://github.com/google-research/multinerf/blob/5b4d4f64608ec8077222c52fdf814d40acc10bc1/internal/geopoly.py
+
     Args:
         base_shape: string, the name of the starting polyhedron, must be either
             'icosahedron' or 'octahedron'.
