@@ -368,8 +368,13 @@ def columnwise_squared_l2_distance(
     y: Float[Tensor, "*M N"],
 ) -> Float[Tensor, "N N"]:
     """Compute the squared Euclidean distance between all pairs of columns.
-
     Adapted from https://github.com/google-research/multinerf/blob/5b4d4f64608ec8077222c52fdf814d40acc10bc1/internal/geopoly.py
+
+    Args:
+        x: tensor of floats, with shape [M, N].
+        y: tensor of floats, with shape [M, N].
+    Returns:
+        sq_dist: tensor of floats, with shape [N, N].
     """
     # Use the fact that ||x - y||^2 == ||x||^2 + ||y||^2 - 2 x^T y.
     sq_norm_x = torch.sum(x**2, 0)
@@ -378,10 +383,15 @@ def columnwise_squared_l2_distance(
     return sq_dist
 
 
-def compute_tesselation_weights(v: int) -> Tensor:
+def _compute_tesselation_weights(v: int) -> Tensor:
     """Tesselate the vertices of a triangle by a factor of `v`.
-
     Adapted from https://github.com/google-research/multinerf/blob/5b4d4f64608ec8077222c52fdf814d40acc10bc1/internal/geopoly.py
+
+    Args:
+        v: int, the factor of the tesselation (v==1 is a no-op to the triangle).
+
+    Returns:
+        weights: tesselated weights.
     """
     if v < 1:
         raise ValueError(f"v {v} must be >= 1")
@@ -394,7 +404,7 @@ def compute_tesselation_weights(v: int) -> Tensor:
     return weights
 
 
-def tesselate_geodesic(
+def _tesselate_geodesic(
     vertices: Float[Tensor, "N 3"], faces: Float[Tensor, "M 3"], v: int, eps: float = 1e-4
 ) -> Tensor:
     """Tesselate the vertices of a geodesic polyhedron.
@@ -402,16 +412,16 @@ def tesselate_geodesic(
     Adapted from https://github.com/google-research/multinerf/blob/5b4d4f64608ec8077222c52fdf814d40acc10bc1/internal/geopoly.py
 
     Args:
-      vertices: tensor of floats, the vertex coordinates of the geodesic.
-      faces: tensor of ints, the indices of the vertices of base_verts that
-        constitute eachface of the polyhedra.
-      v: int, the factor of the tesselation (v==1 is a no-op).
-      eps: float, a small value used to determine if two vertices are the same.
+        vertices: tensor of floats, the vertex coordinates of the geodesic.
+        faces: tensor of ints, the indices of the vertices of base_verts that
+            constitute eachface of the polyhedra.
+        v: int, the factor of the tesselation (v==1 is a no-op).
+        eps: float, a small value used to determine if two vertices are the same.
 
     Returns:
-      verts: a tensor of floats, the coordinates of the tesselated vertices.
+        verts: a tensor of floats, the coordinates of the tesselated vertices.
     """
-    tri_weights = compute_tesselation_weights(v)
+    tri_weights = _compute_tesselation_weights(v)
 
     verts = []
     for face in faces:
@@ -439,17 +449,17 @@ def generate_polyhedron_basis(
 
     Adapted from https://github.com/google-research/multinerf/blob/5b4d4f64608ec8077222c52fdf814d40acc10bc1/internal/geopoly.py
     Args:
-    base_shape: string, the name of the starting polyhedron, must be either
-        'icosahedron' or 'octahedron'.
-    angular_tesselation: int, the number of times to tesselate the polyhedron,
-        must be >= 1 (a value of 1 is a no-op to the polyhedron).
-    remove_symmetries: bool, if True then remove the symmetric basis columns,
-        which is usually a good idea because otherwise projections onto the basis
-        will have redundant negative copies of each other.
-    eps: float, a small number used to determine symmetries.
+        base_shape: string, the name of the starting polyhedron, must be either
+            'icosahedron' or 'octahedron'.
+        angular_tesselation: int, the number of times to tesselate the polyhedron,
+            must be >= 1 (a value of 1 is a no-op to the polyhedron).
+        remove_symmetries: bool, if True then remove the symmetric basis columns,
+            which is usually a good idea because otherwise projections onto the basis
+            will have redundant negative copies of each other.
+        eps: float, a small number used to determine symmetries.
 
     Returns:
-    basis: a matrix with shape [3, n].
+        basis: a matrix with shape [3, n].
     """
     if basis_shape == "icosahedron":
         a = (math.sqrt(5) + 1) / 2
@@ -493,13 +503,13 @@ def generate_polyhedron_basis(
                 (7, 2, 11),
             ]
         )
-        verts = tesselate_geodesic(verts, faces, angular_tesselation)
+        verts = _tesselate_geodesic(verts, faces, angular_tesselation)
     elif basis_shape == "octahedron":
         verts = torch.FloatTensor([(0, 0, -1), (0, 0, 1), (0, -1, 0), (0, 1, 0), (-1, 0, 0), (1, 0, 0)])
         corners = torch.FloatTensor(list(itertools.product([-1, 1], repeat=3)))
         pairs = torch.argwhere(columnwise_squared_l2_distance(corners.T, verts.T) == 2)
         faces, _ = torch.sort(torch.reshape(pairs[:, 1], [3, -1]).T, 1)
-        verts = tesselate_geodesic(verts, faces, angular_tesselation)
+        verts = _tesselate_geodesic(verts, faces, angular_tesselation)
 
     if remove_symmetries:
         # Remove elements of `verts` that are reflections of each other.
