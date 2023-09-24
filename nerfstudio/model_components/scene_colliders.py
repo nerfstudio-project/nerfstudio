@@ -183,7 +183,7 @@ class NearFarCollider(SceneCollider):
 
     def set_nears_and_fars(self, ray_bundle: RayBundle) -> RayBundle:
         ones = torch.ones_like(ray_bundle.origins[..., 0:1])
-        near_plane = self.near_plane if (self.training or not self.reset_near_plane) else 0.0
+        near_plane = self.near_plane if (self.training or not self.reset_near_plane) else 0
         ray_bundle.nears = ones * near_plane
         ray_bundle.fars = ones * self.far_plane
         return ray_bundle
