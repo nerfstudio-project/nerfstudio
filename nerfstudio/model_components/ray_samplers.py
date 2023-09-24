@@ -530,6 +530,7 @@ class ProposalNetworkSampler(Sampler):
         single_jitter: Use a same random jitter for all samples along a ray.
         update_sched: A function that takes the iteration number of steps between updates.
         initial_sampler: Sampler to use for the first iteration. Uses UniformLinDispPiecewise if not set.
+        pdf_sampler: PDFSampler to use after the first iteration. Uses PDFSampler if not set.
     """
 
     def __init__(
