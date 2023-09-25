@@ -237,12 +237,14 @@ class RenderStateMachine(threading.Thread):
         depth = (
             outputs["gl_z_buf_depth"].cpu().numpy() * self.viser_scale_ratio if "gl_z_buf_depth" in outputs else None
         )
-        self.viewer.viser_server.set_background_image(
-            selected_output.cpu().numpy(),
-            format=self.viewer.config.image_format,
-            jpeg_quality=self.viewer.config.jpeg_quality,
-            depth=depth,
-        )
+        clients = self.viewer.viser_server.get_clients()
+        for id in clients:
+            clients[id].set_background_image(
+                selected_output.cpu().numpy(),
+                format=self.viewer.config.image_format,
+                jpeg_quality=self.viewer.config.jpeg_quality,
+                depth=depth,
+            )
 
     def _calculate_image_res(self, aspect_ratio: float) -> Tuple[int, int]:
         """Calculate the maximum image height that can be rendered in the time budget

@@ -103,8 +103,8 @@ class Viewer:
         self.step = 0
         self.train_btn_state: Literal["training", "paused", "completed"] = "training"
         self._prev_train_state: Literal["training", "paused", "completed"] = "training"
+        self.last_move_time = 0
 
-        self.client: Optional[viser.ClientHandle] = None
         self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port, share=share)
         buttons = (
             viser.theme.TitlebarButton(
@@ -187,20 +187,21 @@ class Viewer:
         self.render_statemachine.start()
 
     def handle_new_client(self, client: viser.ClientHandle) -> None:
-        self.client = client
-        self.last_move_time = 0
-
         @client.camera.on_update
         def _(cam: viser.CameraHandle) -> None:
-            assert self.client is not None
-            with client.atomic():
-                self.last_move_time = time.time()
-                R = vtf.SO3(wxyz=self.client.camera.wxyz)
+            self.last_move_time = time.time()
+            with self.viser_server.atomic():
+                clients = self.viser_server.get_clients()
+                for id in clients:
+                    if id != client.client_id:
+                        clients[id].camera.position = cam.position
+                        clients[id].camera.wxyz = cam.wxyz
+                R = vtf.SO3(wxyz=client.camera.wxyz)
                 R = R @ vtf.SO3.from_x_radians(np.pi)
                 R = torch.tensor(R.as_matrix())
-                pos = torch.tensor(self.client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
+                pos = torch.tensor(client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
                 c2w = torch.concatenate([R, pos[:, None]], dim=1)
-                self.camera_state = CameraState(fov=self.client.camera.fov, aspect=self.client.camera.aspect, c2w=c2w)
+                self.camera_state = CameraState(fov=client.camera.fov, aspect=client.camera.aspect, c2w=c2w)
                 self.render_statemachine.action(RenderAction("move", self.camera_state))
 
     def set_camera_visibility(self, visible: bool) -> None:
