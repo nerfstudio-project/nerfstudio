@@ -47,7 +47,7 @@ from rich.table import Table
 from torch import Tensor
 from typing_extensions import Annotated
 
-from scipy.spatial.transform import Rotation
+import viser.transforms as tf
 
 from nerfstudio.cameras.camera_paths import (
     get_interpolated_camera_path,
@@ -58,7 +58,6 @@ from nerfstudio.cameras.camera_paths import (
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
-from nerfstudio.data.datasets.base_dataset import InputDataset, DataparserOutputs
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components import renderers
 from nerfstudio.pipelines.base_pipeline import Pipeline
@@ -95,6 +94,8 @@ def _render_trajectory_video(
         seconds: Length of output video.
         output_format: How to save output data.
         colormap_options: Options for colormap.
+        render_nearest_camera: Whether to render the nearest training camera to the rendered camera.
+        check_occlusions: If true, checks line-of-sight occlusions when computing camera distance and rejects cameras not visible to each other
     """
     CONSOLE.print("[bold green]Creating trajectory " + output_format)
     cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
@@ -128,19 +129,13 @@ def _render_trajectory_video(
     with ExitStack() as stack:
         writer = None
 
-        train_cameras = Cameras(
-            camera_to_worlds=torch.zeros((0, 4, 4)),
-            fx=torch.zeros((0,)),
-            fy=torch.zeros((0,)),
-            cx=torch.zeros((0,)),
-            cy=torch.zeros((0,)),
-        )
-        train_dataset = InputDataset(DataparserOutputs([], train_cameras))
-
         if render_nearest_camera:
             assert pipeline.datamanager.train_dataset is not None
             train_dataset = pipeline.datamanager.train_dataset
             train_cameras = train_dataset.cameras.to(pipeline.device)
+        else:
+            train_dataset = None
+            train_cameras = None
 
         with progress:
             for camera_idx in progress.track(range(cameras.size), description=""):
@@ -155,9 +150,11 @@ def _render_trajectory_video(
                 true_max_dist, true_max_idx = -1, -1
 
                 if render_nearest_camera:
+                    assert pipeline.datamanager.train_dataset is not None
+                    assert train_dataset is not None
+                    assert train_cameras is not None
                     cam_pos = cameras[camera_idx].camera_to_worlds[:, 3].cpu()
-                    cam_rot = Rotation.from_matrix(cameras[camera_idx].camera_to_worlds[:3, :3].cpu())
-                    cam_quat = cam_rot.as_quat()
+                    cam_quat = tf.SO3.from_matrix(cameras[camera_idx].camera_to_worlds[:3, :3].numpy(force=True)).wxyz
 
                     for i in range(len(train_cameras)):
                         train_cam_pos = train_cameras[i].camera_to_worlds[:, 3].cpu()
@@ -173,8 +170,7 @@ def _render_trajectory_video(
                         ).to(pipeline.device)
                         outputs = pipeline.model.get_outputs(bundle)
 
-                        r = Rotation.from_matrix(train_cameras[i].camera_to_worlds[:3, :3].cpu())
-                        q = r.as_quat()
+                        q = tf.SO3.from_matrix(train_cameras[i].camera_to_worlds[:3, :3].numpy(force=True)).wxyz
                         # calculate distance between two quaternions
                         rot_dist = 1 - np.dot(q, cam_quat) ** 2
                         pos_dist = torch.norm(train_cam_pos - cam_pos)
@@ -225,9 +221,14 @@ def _render_trajectory_video(
 
                 # Add closest training image to the right of the rendered image
                 if render_nearest_camera:
+                    assert train_dataset is not None
+                    assert train_cameras is not None
                     img = train_dataset.get_image(max_idx)
+                    height = cameras.image_height[0]
+                    # maintain the resolution of the img to calculate the width from the height
+                    width = int(img.shape[1] * (height / img.shape[0]))
                     resized_image = torch.nn.functional.interpolate(
-                        img.permute(2, 0, 1)[None], size=(int(cameras.image_height[0]), int(cameras.image_width[0]))
+                        img.permute(2, 0, 1)[None], size=(int(height), int(width))
                     )[0].permute(1, 2, 0)
                     resized_image = (
                         colormaps.apply_colormap(
@@ -399,7 +400,7 @@ class BaseRender:
     render_nearest_camera: bool = False
     """Whether to render the nearest training camera to the rendered camera."""
     check_occlusions: bool = False
-    """Whether to check occlusions."""
+    """If true, checks line-of-sight occlusions when computing camera distance and rejects cameras not visible to each other"""
 
 
 @dataclass
