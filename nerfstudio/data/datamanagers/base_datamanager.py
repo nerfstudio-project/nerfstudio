@@ -54,8 +54,16 @@ from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.pixel_samplers import EquirectangularPixelSampler, PatchPixelSampler, PixelSampler
-from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
+from nerfstudio.data.pixel_samplers import (
+    PixelSampler,
+    PixelSamplerConfig,
+    PatchPixelSamplerConfig,
+)
+from nerfstudio.data.utils.dataloaders import (
+    CacheDataloader,
+    FixedIndicesEvalDataloader,
+    RandIndicesEvalDataloader,
+)
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
@@ -337,6 +345,8 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """Size of patch to sample from. If >1, patch-based sampling will be used."""
     camera_optimizer: Optional[CameraOptimizerConfig] = field(default=None)
     """Deprecated, has been moved to the model config."""
+    pixel_sampler: PixelSamplerConfig = PixelSamplerConfig()
+    """Specifies the pixel sampler used to sample pixels from images."""
 
     def __post_init__(self):
         """Warn user of camera optimizer change."""
@@ -456,19 +466,18 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             scale_factor=self.config.camera_res_scale_factor,
         )
 
-    def _get_pixel_sampler(self, dataset: TDataset, *args: Any, **kwargs: Any) -> PixelSampler:
+    def _get_pixel_sampler(self, dataset: TDataset, num_rays_per_batch: int) -> PixelSampler:
         """Infer pixel sampler to use."""
-        if self.config.patch_size > 1:
-            return PatchPixelSampler(*args, **kwargs, patch_size=self.config.patch_size)
-
-        # If all images are equirectangular, use equirectangular pixel sampler
-        is_equirectangular = dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
-        if is_equirectangular.all():
-            return EquirectangularPixelSampler(*args, **kwargs)
-        # Otherwise, use the default pixel sampler
+        if self.config.patch_size > 1 and type(self.config.pixel_sampler) is PixelSamplerConfig:
+            return PatchPixelSamplerConfig().setup(
+                patch_size=self.config.patch_size, num_rays_per_batch=num_rays_per_batch
+            )
+        is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
         if is_equirectangular.any():
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
-        return PixelSampler(*args, **kwargs)
+        return self.config.pixel_sampler.setup(
+            is_equirectangular=is_equirectangular, num_rays_per_batch=num_rays_per_batch
+        )
 
     def setup_train(self):
         """Sets up the data loaders for training"""

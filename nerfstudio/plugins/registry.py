@@ -60,7 +60,16 @@ def discover_methods() -> t.Tuple[t.Dict[str, TrainerConfig], t.Dict[str, str]]:
                 CONSOLE.print(f"[bold green]Info: Loading method {name} from environment variable")
                 module, config_name = path.split(":")
                 method_config = getattr(importlib.import_module(module), config_name)
-                assert isinstance(method_config, MethodSpecification)
+
+                # method_config specified as function or class -> instance
+                if callable(method_config):
+                    method_config = method_config()
+
+                # check for valid instance type
+                if not isinstance(method_config, MethodSpecification):
+                    raise TypeError("Method is not an instance of MethodSpecification")
+
+                # save to methods
                 methods[name] = method_config.config
                 descriptions[name] = method_config.description
         except Exception:

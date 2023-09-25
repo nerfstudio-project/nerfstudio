@@ -19,9 +19,7 @@ from pathlib import Path
 from typing import Dict, List, Literal, Optional, Tuple
 
 from nerfstudio.process_data import colmap_utils, hloc_utils, process_data_utils
-from nerfstudio.process_data.base_converter_to_nerfstudio_dataset import (
-    BaseConverterToNerfstudioDataset,
-)
+from nerfstudio.process_data.base_converter_to_nerfstudio_dataset import BaseConverterToNerfstudioDataset
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils import install_checks
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -96,6 +94,8 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     """If True, export and use depth maps induced from SfM points."""
     include_depth_debug: bool = False
     """If --use-sfm-depth and this flag is True, also export debug images showing Sf overlaid upon input images."""
+    same_dimensions: bool = True
+    """Whether to assume all images are same dimensions and so to use fast downscaling with no autorotation."""
 
     @staticmethod
     def default_colmap_path() -> Path:

@@ -23,7 +23,6 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import (
-    Any,
     Dict,
     Generic,
     List,
@@ -49,9 +48,9 @@ from nerfstudio.data.datamanagers.base_datamanager import (
 )
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.pixel_samplers import (
-    EquirectangularPixelSampler,
-    PatchPixelSampler,
     PixelSampler,
+    PixelSamplerConfig,
+    PatchPixelSamplerConfig,
 )
 from nerfstudio.data.utils.dataloaders import (
     CacheDataloader,
@@ -203,19 +202,18 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             scale_factor=self.config.camera_res_scale_factor,
         )
 
-    def _get_pixel_sampler(self, dataset: TDataset, *args: Any, **kwargs: Any) -> PixelSampler:
+    def _get_pixel_sampler(self, dataset: TDataset, num_rays_per_batch: int) -> PixelSampler:
         """Infer pixel sampler to use."""
-        if self.config.patch_size > 1:
-            return PatchPixelSampler(*args, **kwargs, patch_size=self.config.patch_size)
-
-        # If all images are equirectangular, use equirectangular pixel sampler
-        is_equirectangular = dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
-        if is_equirectangular.all():
-            return EquirectangularPixelSampler(*args, **kwargs)
-        # Otherwise, use the default pixel sampler
+        if self.config.patch_size > 1 and type(self.config.pixel_sampler) is PixelSamplerConfig:
+            return PatchPixelSamplerConfig().setup(
+                patch_size=self.config.patch_size, num_rays_per_batch=num_rays_per_batch
+            )
+        is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
         if is_equirectangular.any():
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
-        return PixelSampler(*args, **kwargs)
+        return self.config.pixel_sampler.setup(
+            is_equirectangular=is_equirectangular, num_rays_per_batch=num_rays_per_batch
+        )
 
     def setup_train(self):
         """Sets up parallel python data processes for training."""

@@ -32,7 +32,7 @@ logging: !!python/object:nerfstudio.configs.base_config.LoggingConfig
 machine: !!python/object:nerfstudio.configs.base_config.MachineConfig
   dist_url: auto
   machine_rank: 0
-  num_gpus: 1
+  num_devices: 1
   num_machines: 1
   seed: 42
 max_num_iterations: 30000

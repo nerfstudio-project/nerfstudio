@@ -96,9 +96,9 @@ ns-train nerfacto <nerfacto optional args> nerfstudio-data --help
 
 Each script will have some other minor quirks (like the training script dataparser subcommand needing to come after the model subcommand), read up on them [here](../reference/cli/index.md).
 
-## Tensorboard / WandB / Viewer
+## Comet / Tensorboard / WandB / Viewer
 
-We support three different methods to track training progress, using the viewer, [tensorboard](https://www.tensorflow.org/tensorboard), and [Weights and Biases](https://wandb.ai/site). You can specify which visualizer to use by appending `--vis {viewer, tensorboard, wandb, viewer+wandb, viewer+tensorboard}` to the training command. Simultaneously utilizing the viewer alongside wandb or tensorboard may cause stuttering issues during evaluation steps. The viewer only works for methods that are fast (ie. nerfacto, instant-ngp), for slower methods like NeRF, use the other loggers.
+We support four different methods to track training progress, using the viewer [tensorboard](https://www.tensorflow.org/tensorboard), [Weights and Biases](https://wandb.ai/site), and [Comet](https://comet.com/?utm_source=nerf&utm_medium=referral&utm_content=nerf_docs). You can specify which visualizer to use by appending `--vis {viewer, tensorboard, wandb, viewer+wandb, viewer+tensorboard, viewer+comet}` to the training command. Simultaneously utilizing the viewer alongside wandb or tensorboard may cause stuttering issues during evaluation steps. The viewer only works for methods that are fast (ie. nerfacto, instant-ngp), for slower methods like NeRF, use the other loggers.
 
 ## Evaluating Runs
 
@@ -123,7 +123,7 @@ ns-download-data nerfstudio --capture-name=aspen
 ```python
 # 1 GPU (8192 rays per GPU per batch)
 export CUDA_VISIBLE_DEVICES=0
-ns-train nerfacto-big --vis viewer+wandb --machine.num-gpus 1 --pipeline.datamanager.train-num-rays-per-batch 4096 --data data/nerfstudio/aspen
+ns-train nerfacto-big --vis viewer+wandb --machine.num-devices 1 --pipeline.datamanager.train-num-rays-per-batch 4096 --data data/nerfstudio/aspen
 ```
 
 You would observe about ~70k rays / sec on NVIDIA V100.
@@ -148,7 +148,7 @@ By having more GPUs in the training, you can allocate batch size to multiple GPU
 ```python
 # 2 GPUs (4096 rays per GPU per batch, effectively 8192 rays per batch)
 export CUDA_VISIBLE_DEVICES=0,1
-ns-train nerfacto --vis viewer+wandb --machine.num-gpus 2 --pipeline.datamanager.train-num-rays-per-batch 4096 --data data/nerfstudio/aspen
+ns-train nerfacto --vis viewer+wandb --machine.num-devices 2 --pipeline.datamanager.train-num-rays-per-batch 4096 --data data/nerfstudio/aspen
 ```
 
 You would get improved throughput (~100k rays / sec on two NVIDIA V100).
