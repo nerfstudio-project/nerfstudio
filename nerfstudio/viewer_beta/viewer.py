@@ -161,8 +161,9 @@ class Viewer:
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
             populate_export_tab(self.viser_server, self.control_panel, config_path)
 
-        # Keep track of the pointers to generated GUI folders, because each generated folder holds a unique ID. 
+        # Keep track of the pointers to generated GUI folders, because each generated folder holds a unique ID.
         viewer_gui_folders = dict()
+
         def nested_folder_install(folder_labels: List[str], prev_labels: List[str], element: ViewerElement):
             if len(folder_labels) == 0:
                 element.install(self.viser_server)
@@ -172,13 +173,13 @@ class Viewer:
             else:
                 # recursively create folders
                 # If the folder name is "Custom Elements/a/b", then:
-                #   in the beginning: folder_path will be 
+                #   in the beginning: folder_path will be
                 #       "/".join([] + ["Custom Elements"]) --> "Custom Elements"
-                #   later, folder_path will be 
+                #   later, folder_path will be
                 #       "/".join(["Custom Elements"] + ["a"]) --> "Custom Elements/a"
                 #       "/".join(["Custom Elements", "a"] + ["b"]) --> "Custom Elements/a/b"
                 #  --> the element will be installed in the folder "Custom Elements/a/b"
-                # 
+                #
                 # Note that the gui_folder is created only when the folder is not in viewer_gui_folders,
                 # and we use the folder_path as the key to check if the folder is already created.
                 # Otherwise, use the existing folder as context manager.
