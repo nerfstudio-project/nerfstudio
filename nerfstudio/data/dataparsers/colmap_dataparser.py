@@ -147,11 +147,11 @@ class ColmapDataParser(DataParser):
             frame.update(cameras[im_data.camera_id])
             if self.config.masks_path is not None:
                 frame["mask_path"] = (
-                    (self.config.data / self.config.masks_path / im_data.name).with_suffix(".png").as_posix(),
+                    (self.config.data / self.config.masks_path / im_data.name).with_suffix(".png").as_posix()
                 )
             if self.config.depths_path is not None:
                 frame["depth_path"] = (
-                    (self.config.data / self.config.depths_path / im_data.name).with_suffix(".png").as_posix(),
+                    (self.config.data / self.config.depths_path / im_data.name).with_suffix(".png").as_posix()
                 )
             frames.append(frame)
             if camera_model is not None:
