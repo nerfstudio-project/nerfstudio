@@ -666,7 +666,7 @@ class DatasetRender(BaseRender):
                 device=datamanager.device,
                 num_workers=datamanager.world_size * 4,
             )
-            images_root = Path(os.path.commonprefix(dataparser_outputs.image_filenames))
+            images_root = Path(os.path.commonpath(dataparser_outputs.image_filenames))
             with Progress(
                 TextColumn(f":movie_camera: Rendering split {split} :movie_camera:"),
                 BarColumn(),
