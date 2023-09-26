@@ -60,6 +60,29 @@ class RNerfField(NerfactoField):
                 "n_hidden_layers": 1,
             },
         )
+        
+        self.encs2d = torch.nn.ModuleList(
+            [
+                RNerfField._get_encoding(
+                    grid_resolutions[i][0], grid_resolutions[i][1], grid_layers[i], indim=2, hash_size=grid_sizes[i]
+                )
+                for i in range(len(grid_layers))
+            ]
+        )
+        
+        tot_out_dims_2d = sum([e.n_output_dims for e in self.encs2d])
+        
+        self.heightcap_net = tcnn.Network(
+            n_input_dims=tot_out_dims_2d,
+            n_output_dims=1,
+            network_config={
+                "otype": "CutlassMLP",
+                "activation": "ReLU",
+                "output_activation": "None",
+                "n_neurons": 256,
+                "n_hidden_layers": 1,
+            },
+        )
 
     @staticmethod
     def _get_encoding(start_res, end_res, levels, indim=3, hash_size=19):
@@ -77,7 +100,15 @@ class RNerfField(NerfactoField):
         )
         return enc
 
-    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
+    def set_enu_transform(self, enu2nerf, nerf2enu, enu2nerf_points, nerf2enu_points, osm_image, osm_scale):
+        self.enu2nerf = enu2nerf
+        self.nerf2enu = nerf2enu
+        self.enu2nerf_points = enu2nerf_points
+        self.nerf2enu_points = nerf2enu_points
+        self.osm_image = osm_image
+        self.osm_scale = osm_scale
+
+    def get_density(self, ray_samples: RaySamples, do_heightcap=True) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
         if self.spatial_distortion is not None:
             unnorm_positions = ray_samples.frustums.get_positions()
@@ -87,8 +118,17 @@ class RNerfField(NerfactoField):
             unnorm_positions = ray_samples.frustums.get_positions()
             positions = SceneBox.get_normalized_positions(unnorm_positions, self.aabb)
         # Make sure the tcnn gets inputs between 0 and 1.
-        # Selector to mask out positions with z higher than -0.5
-        selector_0 = (unnorm_positions[..., 2] <= self.top_cutoff) # Navlab added
+        
+        if do_heightcap:
+            xs = [e(positions.view(-1, 3)[:, :2]) for e in self.encs2d]
+            x = torch.concat(xs, dim=-1)
+
+            heightcaps = self.heightcap_net(x).view(*ray_samples.frustums.shape)
+        else:
+            heightcaps = 10000.0
+
+        # Selector to mask out positions with z higher than heightcaps
+        selector_0 = (unnorm_positions[..., 2] <= heightcaps) # Navlab added
             
         selector = selector_0 & ((positions > 0.0) & (positions < 1.0)).all(dim=-1)
 
@@ -119,10 +159,9 @@ class RNerfField(NerfactoField):
         
         return density, base_mlp_out
     
-    def get_outputs(
-        self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None
-    ) -> Dict[FieldHeadNames, Tensor]:
-        outputs = super().get_outputs(ray_samples, density_embedding=density_embedding)
+    def get_dino_outputs(
+        self, ray_samples: RaySamples) -> Dict[FieldHeadNames, Tensor]:
+        outputs = {}
 
         positions = ray_samples.frustums.get_positions().detach()
         positions = self.spatial_distortion(positions)
@@ -133,5 +172,21 @@ class RNerfField(NerfactoField):
 
         dino_pass = self.dino_net(x).view(*ray_samples.frustums.shape, -1)
         outputs["dino"] = dino_pass
+
+        return outputs
+    
+    def get_heightcap_outputs(
+        self, ray_samples: RaySamples) -> Dict[FieldHeadNames, Tensor]:
+        outputs = {}
+
+        positions = ray_samples.frustums.get_positions().detach()
+        positions = self.spatial_distortion(positions)
+        positions = (positions + 2.0) / 4.0
+
+        xs = [e(positions.view(-1, 3)[:, :2]) for e in self.encs2d]
+        x = torch.concat(xs, dim=-1)
+
+        heightcap_pass = self.heightcap_net(x).view(*ray_samples.frustums.shape, -1)
+        outputs["heightcap"] = heightcap_pass
 
         return outputs

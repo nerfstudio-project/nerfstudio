@@ -68,12 +68,14 @@ if __name__ == '__main__':
 
     H, W, focal_x, focal_y = get_intrinsic(os.path.join(args.datadir, args.imgdir))
 
-    # rescale the whole range if you want
-    scale = 2**3 * np.pi / max(GES_pos.max(), -GES_pos.min())
+    # # rescale the whole range if you want
+    # scale = 2**3 * np.pi / max(GES_pos.max(), -GES_pos.min())
+    scale = 1.0
     SS = np.eye(4)
     SS[0,0] = scale
     SS[1,1] = scale
     SS[2,2] = scale
+
     
     rclat, rclng = np.radians(args.lat), np.radians(args.lon) 
     rot_ECEF2ENUV = np.array([[-math.sin(rclng),                math.cos(rclng),                              0],
@@ -93,6 +95,7 @@ if __name__ == '__main__':
         pos_z = position['z']
         xyz = np.array([pos_x, pos_y, pos_z])
         [pos_e,pos_n,pos_u] = np.dot(rot_ECEF2ENUV, xyz)
+        pos_u = pos_u - 6371106 # earth radius
 
         rotation = data['cameraFrames'][i]['rotation']
 
@@ -110,9 +113,15 @@ if __name__ == '__main__':
         GES_rotmat[:3,3] = np.array([nx,ny,nz])
 
         c2w = np.concatenate([GES_rotmat[:3,:4], np.array([[0, 0, 0, 1]])], 0)
-        
+
+        img_name_i = image_list[0][:-9] + str(i).zfill(4) + '.jpeg'
+        img_path = os.path.join(args.imgdir, img_name_i)
+        if img_name_i not in image_list:
+            print("Image not found, skipping...", img_path)
+            continue
+
         frame = {
-            "file_path": os.path.join(args.imgdir, image_list[i]),
+            "file_path": img_path,
             "transform_matrix": c2w.tolist(),
             "colmap_im_id": i,
         }
@@ -136,6 +145,8 @@ if __name__ == '__main__':
     out["p1"] = 0.0
     out["p2"] = 0.0
     out["scale"] = scale
+    out["lat"] = args.lat
+    out["lon"] = args.lon
         
     out["frames"] = frames
     # applied_transform = np.eye(4)[:3, :]

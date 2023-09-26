@@ -28,6 +28,8 @@ from nerfstudio.model_components.losses import (
 )
 from nerfstudio.field_components.field_heads import FieldHeadNames
 
+import math
+
 
 @dataclass
 class RNerfModelConfig(NerfactoModelConfig):
@@ -45,6 +47,9 @@ class RNerfModel(NerfactoModel):
     """Regional NeRF Model."""
 
     config: RNerfModelConfig
+
+    def set_enu_transform(self, *args, **kwargs):
+        self.field.set_enu_transform(*args, **kwargs)
 
     def populate_modules(self):
         super().populate_modules()
@@ -87,33 +92,96 @@ class RNerfModel(NerfactoModel):
             field_outputs = scale_gradients_by_distance_squared(field_outputs, ray_samples)
 
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
-        
-        outputs = super().get_outputs(ray_bundle)
+        weights_list.append(weights)
+        ray_samples_list.append(ray_samples)
 
-        outputs["dino"] = torch.sum(weights * field_outputs["dino"], dim=-2)
-        
-        # # Extract height of samples and compute exponentially scaled density
-        # # TODO: NAVLAB
-        # positions = ray_samples.frustums.get_positions()
-        # # height = torch.clip(positions[..., 2][..., None] + 10.0, 0.0, self.max_height + 10.0)
-        # height = torch.exp(positions[..., 2][..., None] - self.max_height)
-        
-        # height_opacity = torch.sum(field_outputs[FieldHeadNames.DENSITY] * height, dim=-2)
+        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+        with torch.no_grad():
+            depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
+        expected_depth = self.renderer_expected_depth(weights=weights, ray_samples=ray_samples)
+        accumulation = self.renderer_accumulation(weights=weights)
 
-        # outputs["height_opacity"] = height_opacity
+        outputs = {
+            "rgb": rgb,
+            "accumulation": accumulation,
+            "depth": depth,
+            "expected_depth": expected_depth,
+        }
 
+        if self.config.predict_normals:
+            normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
+            pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
+            outputs["normals"] = self.normals_shader(normals)
+            outputs["pred_normals"] = self.normals_shader(pred_normals)
+        # These use a lot of GPU memory, so we avoid storing them for eval.
+        if self.training:
+            outputs["weights_list"] = weights_list
+            outputs["ray_samples_list"] = ray_samples_list
+
+        if self.training and self.config.predict_normals:
+            outputs["rendered_orientation_loss"] = orientation_loss(
+                weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
+            )
+
+            outputs["rendered_pred_normal_loss"] = pred_normal_loss(
+                weights.detach(),
+                field_outputs[FieldHeadNames.NORMALS].detach(),
+                field_outputs[FieldHeadNames.PRED_NORMALS],
+            )
+
+        for i in range(self.config.num_proposal_iterations):
+            outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
+        
+        lerf_weights, best_ids = torch.topk(weights, self.config.num_lerf_samples, dim=-2, sorted=False)
+
+        def gather_fn(tens):
+            return torch.gather(tens, -2, best_ids.expand(*best_ids.shape[:-1], tens.shape[-1]))
+
+        dataclass_fn = lambda dc: dc._apply_fn_to_fields(gather_fn, dataclass_fn)
+        lerf_samples: RaySamples = ray_samples._apply_fn_to_fields(gather_fn, dataclass_fn)
+        
+        lerf_field_outputs = self.field.get_dino_outputs(lerf_samples)
+
+        outputs["dino"] = torch.sum(lerf_weights * lerf_field_outputs["dino"], dim=-2)
+        
+        heightcap_field_outputs = self.field.get_heightcap_outputs(ray_samples)
+        height = ray_samples.frustums.get_positions()[..., 2][..., None]
+
+        height_density, _ = self.field.get_density(ray_samples, do_heightcap=False)
+        height_weights = ray_samples.get_weights(height_density.detach())
+
+        # Soft penalty for height exceeding the heightcap
+        heightcap_penalty = torch.relu(height - heightcap_field_outputs["heightcap"]) + 0.1*heightcap_field_outputs["heightcap"]
+        outputs["height_penalty"] = torch.sum(height_weights * heightcap_penalty, dim=-2)
+
+        # Map rendering
+        enu_positions = self.field.nerf2enu_points(ray_samples.frustums.get_positions())[..., :2]
+
+        osm_scale = self.field.osm_scale
+        osm_positions = enu_positions / osm_scale
+        osm_positions = osm_positions + torch.tensor([self.field.osm_image.shape[1]/2, self.field.osm_image.shape[0]/2], device=osm_positions.device)[None, None, :]
+        osm_positions = osm_positions.long()
+        osm_positions = torch.clamp(osm_positions, 0, self.field.osm_image.shape[0]-1)
+
+        # Access the RGB value for each position
+        rgb_values = self.field.osm_image[:, osm_positions[..., 1], osm_positions[..., 0]]  # Access the RGB value for each position
+
+        rgb_values = rgb_values.permute(1, 2, 0)  # Move the RGB dimension to the front
+        # print(field_outputs[FieldHeadNames.RGB].shape, rgb_values.shape)
+
+        outputs["osm_rgb"] = self.renderer_rgb(rgb=rgb_values, weights=weights)
+        
         return outputs
     
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = super().get_loss_dict(outputs, batch, metrics_dict)
 
         if self.training:
+            dino_wt = 1.0-np.exp(-self.step*1e-10)
             unreduced_dino = torch.nn.functional.mse_loss(outputs["dino"], batch["dino"], reduction="none")
-            loss_dict["dino_loss"] = 0.1*unreduced_dino.sum(dim=-1).nanmean()
+            loss_dict["dino_loss"] = dino_wt*unreduced_dino.sum(dim=-1).nanmean()
 
         # Add height opacity loss by its average
         # TODO: NAVLAB
-        # loss_dict["height_opacity_loss"] = self.tall_loss_factor * torch.mean(
-        #     outputs["height_opacity"]
-        #     )
+            loss_dict["height_opacity_loss"] = self.tall_loss_factor *outputs["height_penalty"].sum(dim=-1).nanmean()
         return loss_dict

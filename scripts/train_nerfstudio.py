@@ -4,11 +4,11 @@ def config_parser():
     parser.add_argument("datadir", type=str, help='path to your data')
     parser.add_argument("--checkpoint", type=str, default=None, help='path to checkpoint directory (E.g. outputs/<dataset>/nerfacto/<date>/nerfstudio_models/)')
     parser.add_argument("--port", type=int, default=51224, help='port')
-    parser.add_argument("--num_sample", type=int, default=500, help='Number of training images to sample from')
+    parser.add_argument("--num_sample", type=int, default=600, help='Number of training images to sample from')
     parser.add_argument("--save_latest", type=bool, default=True, help='Save only the latest checkpoint')
     parser.add_argument("--downscale_factor", type=float, default=None, help='Downscale factor')
-    parser.add_argument("--pose_optimizer", type=str, default="off", help='Pose optimizer mode')
-    parser.add_argument("--near_plane", type=float, default=0.1, help='Near plane')
+    parser.add_argument("--pose_optimizer", type=str, default="SO3xR3", help='Pose optimizer mode')
+    parser.add_argument("--near_plane", type=float, default=0.05, help='Near plane')
     parser.add_argument("--far_plane", type=float, default=1000.0, help='Far plane')
 
     return parser
@@ -28,7 +28,7 @@ def construct_command(data_folder, checkpoint, downscale_factor, port, num_sampl
         command_list.append(f"--downscale-factor {downscale_factor}")
     if checkpoint is not None:
         command_list.append(f"--load-dir {checkpoint}")
-    command_list.append(f"--pipeline.datamanager.camera-optimizer.mode {pose_optimizer}")
+    # command_list.append(f"--pipeline.datamanager.camera-optimizer.mode {pose_optimizer}")
     command_list.append(f"--logging.profiler pytorch")
     command_list.append(f"--pipeline.model.background_color random")
     command_list.append(f"--pipeline.model.near_plane {near_plane}")
