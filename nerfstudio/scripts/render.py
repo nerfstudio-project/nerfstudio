@@ -766,7 +766,7 @@ class DatasetRender(BaseRender):
                         if is_raw:
                             with gzip.open(output_path.with_suffix(".npy.gz"), "wb") as f:
                                 np.save(f, output_image)
-                        if self.image_format == "png":
+                        elif self.image_format == "png":
                             media.write_image(output_path.with_suffix(".png"), output_image, fmt="png")
                         elif self.image_format == "jpeg":
                             media.write_image(
