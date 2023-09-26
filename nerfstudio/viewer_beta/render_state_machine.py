@@ -124,20 +124,9 @@ class RenderStateMachine(threading.Thread):
         camera = camera.to(self.viewer.get_model().device)
         assert camera is not None, "render called before viewer connected"
 
-<<<<<<< HEAD
-        with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
-            #TODO jake-austin: Make this check whether the model inherits from a camera based model or a ray based model
-            if True:
-                pass
-            else:
-                camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
-
-            with TimeWriter(None, None, write=False) as vis_t:
-=======
         with TimeWriter(None, None, write=False) as vis_t:
             with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
                 camera_ray_bundle = camera.generate_rays(camera_indices=0, obb_box=obb)
->>>>>>> 8812d7a5b092beb822ddd2b191c5e82cd3f66ed5
                 self.viewer.get_model().eval()
                 step = self.viewer.step
                 try:
@@ -153,44 +142,22 @@ class RenderStateMachine(threading.Thread):
                         with background_color_override_context(
                             background_color
                         ), torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
-                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                            outputs = self.viewer.get_model().get_outputs(camera)
                     else:
-<<<<<<< HEAD
-                        background_color = torch.tensor(
-                            [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0],
-                            device=self.viewer.get_model().device,
-                        )
-                    with background_color_override_context(background_color), torch.no_grad():
-                        if True:
-                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera)
-                        else:
-                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                else:
-                    with torch.no_grad():
-                        if True:
-                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera)
-                        else:
-                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                self.viewer.get_model().train()
-        if True:
-            num_rays = (camera.height * camera.width).item()
-        else:
-            num_rays = len(camera_ray_bundle)
-=======
                         with torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
-                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                            outputs = self.viewer.get_model().get_outputs(camera)
                 except viewer_utils.IOChangeException:
                     self.viewer.get_model().train()
                     raise
                 self.viewer.get_model().train()
-            num_rays = len(camera_ray_bundle)
-            if self.viewer.control_panel.layer_depth:
-                # convert to z_depth if depth compositing is enabled
-                R = camera.camera_to_worlds[0:3, 0:3].T
-                pts = camera_ray_bundle.directions * outputs["depth"]
-                pts = (R @ (pts.view(-1, 3).T)).T.view(*camera_ray_bundle.directions.shape)
-                outputs["gl_z_buf_depth"] = -pts[..., 2:3]  # negative z axis is the coordinate convention
->>>>>>> 8812d7a5b092beb822ddd2b191c5e82cd3f66ed5
+            num_rays = image_height*image_width
+            # num_rays = len(camera_ray_bundle)
+            # if self.viewer.control_panel.layer_depth:
+            #     # convert to z_depth if depth compositing is enabled
+            #     R = camera.camera_to_worlds[0:3, 0:3].T
+            #     pts = camera_ray_bundle.directions * outputs["depth"]
+            #     pts = (R @ (pts.view(-1, 3).T)).T.view(*camera_ray_bundle.directions.shape)
+            #     outputs["gl_z_buf_depth"] = -pts[..., 2:3]  # negative z axis is the coordinate convention
         render_time = vis_t.duration
         if writer.is_initialized():
             writer.put_time(

@@ -289,7 +289,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         data["image"] = data["image"].to(self.device)
         
         assert len(self.train_dataset.cameras.shape) == 1, "Assumes single batch dimension"
-        camera = self.train_dataset.cameras[image_idx].to(self.device)
+        camera = self.train_dataset.cameras[image_idx:image_idx+1].to(self.device)
         return camera, data
 
     def next_eval(self, step: int) -> Tuple[Cameras, Dict]:

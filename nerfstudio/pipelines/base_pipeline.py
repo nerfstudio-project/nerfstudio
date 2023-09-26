@@ -260,7 +260,8 @@ class VanillaPipeline(Pipeline):
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
         print("Inside base pipeline")
-        import pdb;pdb.set_trace()
+        pts = self.datamanager.train_dataparser_outputs.metadata['points3D_xyz']
+        pts_rgb = self.datamanager.train_dataparser_outputs.metadata['points3D_rgb']
         self.datamanager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_dataset is not None, "Missing input dataset"
@@ -271,6 +272,7 @@ class VanillaPipeline(Pipeline):
             metadata=self.datamanager.train_dataset.metadata,
             device=device,
             grad_scaler=grad_scaler,
+            seed_points = (pts,pts_rgb)
         )
         self.model.to(device)
 

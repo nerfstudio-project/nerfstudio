@@ -211,6 +211,7 @@ class Viewer:
 
     def update_camera_poses(self):
         # Update the train camera locations based on optimization
+        return
         assert self.camera_handles is not None
         idxs = list(self.camera_handles.keys())
         if hasattr(self.pipeline.datamanager, "train_camera_optimizer"):
