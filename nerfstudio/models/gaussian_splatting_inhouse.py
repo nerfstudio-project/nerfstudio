@@ -59,7 +59,6 @@ def identity_quat(N, **kwargs):
     quat[:, 0] = 1
     return quat
 
-
 def projection_matrix(znear, zfar, fovx, fovy, **kwargs):
     t = znear * math.tan(0.5 * fovy)
     b = -t
@@ -82,14 +81,20 @@ def projection_matrix(znear, zfar, fovx, fovy, **kwargs):
 class GaussianSplattingModelConfig(ModelConfig):
     """Gaussian Splatting Model Config"""
     _target: Type = field(default_factory=lambda: GaussianSplattingModel)
-    warmup_length:int = 300
+    warmup_length:int = 100
     """period of steps where resolution is upscaled iteratively"""
-    refine_every:int = 300
+    refine_every:int = 100
     """period of steps where gaussians are culled and densified"""
-    cull_threshold:float = .005
+    cull_alpha_thresh:float = .005
     """threshold of opacity for culling gaussians"""
+    cull_scale_thresh:float = .5
+    """threshold of scale for culling gaussians"""
     reset_alpha_every:int = 10
     """Every this many refinement steps, reset the alpha"""
+    densify_grad_thresh: float = .0002
+    """threshold of positional gradient norm for densifying gaussians"""
+    densify_size_thresh: float = .01
+    """below this size, gaussians are *duplicated*, otherwise split"""
     
 
 class GaussianSplattingModel(Model):
@@ -110,7 +115,8 @@ class GaussianSplattingModel(Model):
     def populate_modules(self):
         # TODO (jake-austin): clean this up, this is transplanted code across all the implementation functions
         self.means = torch.nn.Parameter(self.seed_pts[0])
-        init_scale = torch.log(torch.tensor(.002)).item()
+        self.means_grad_norm = None
+        init_scale = torch.log(torch.tensor(.01)).item()
         self.scales = torch.nn.Parameter(torch.full((self.num_points,3),init_scale))
         self.quats = torch.nn.Parameter(random_quat_tensor(self.num_points))
         rgbinit = torch.clamp((self.seed_pts[1].float())/255.,0,1)
@@ -135,19 +141,13 @@ class GaussianSplattingModel(Model):
         optimizer.state[param] = param_state
         optimizer.param_groups[0]['params'] = new_params
 
-    def duplicate_ids(self,ids):
-        """Duplicates the gaussians matching ids with a small random delta"""
+    def after_train(self,step):
         with torch.no_grad():
-            newmeans = self.means[ids] + torch.randn_like(self.means[ids])*.001
-            newscales = self.scales[ids].clone()
-            newquats = self.quats[ids].clone()
-            newrgbs = self.rgbs[ids].clone()
-            newopacities = self.opacities[ids].clone()
-            self.means.data = torch.cat([self.means.data,newmeans.data],dim=0)
-            self.scales.data = torch.cat([self.scales.data,newscales.data],dim=0)
-            self.quats.data = torch.cat([self.quats.data,newquats.data],dim=0)
-            self.rgbs.data = torch.cat([self.rgbs.data,newrgbs.data],dim=0)
-            self.opacities.data = torch.cat([self.opacities.data,newopacities.data],dim=0)
+            #keep track of a moving average of grad norms
+            if self.means_grad_norm is None:
+                self.means_grad_norm = self.means.grad.norm(dim=-1,keepdim=True)
+            else:
+                self.means_grad_norm = .1 * self.means.grad.norm(dim=-1,keepdim=True) + .9 * self.means_grad_norm
     
     def refinement_before(self, optimizers:Optimizers, step):
         print("Inside refinement before")
@@ -163,13 +163,19 @@ class GaussianSplattingModel(Model):
     def refinement_after(self, optimizers:Optimizers, step):
         if self.step > self.config.warmup_length:
             #then we densify
-            self.split_gaussians()
-            self.dup_gaussians()
+            high_grads = (self.means_grad_norm > self.config.densify_grad_thresh).squeeze()
+            splits = (self.scales.exp().max(dim=-1).values > self.config.densify_size_thresh).squeeze()
+            splits &= high_grads
+            dups = ~splits
+            dups &= high_grads
+            self.split_gaussians(splits)
+            self.dup_gaussians(dups) 
             if self.step // self.config.refine_every % self.config.reset_alpha_every == 0:
                 print("Resetting alpha")
                 with torch.no_grad():
                     reset_value = .01
                     self.opacities.data = torch.full_like(self.opacities.data,torch.logit(torch.tensor(reset_value)).item())
+            self.means_grad_norm = None
             
     def cull_gaussians(self):
         """
@@ -177,27 +183,31 @@ class GaussianSplattingModel(Model):
         """
         n_bef = self.num_points
         with torch.no_grad():
-            culls = (torch.sigmoid(self.opacities) < self.config.cull_threshold).squeeze()
+            #cull transparent ones
+            culls = (torch.sigmoid(self.opacities) < self.config.cull_alpha_thresh).squeeze()
+            #cull huge ones
+            culls |= (torch.exp(self.scales).max(dim=-1).values > self.config.cull_scale_thresh).squeeze()
             self.means = Parameter(self.means[~culls])
+            self.means_grad_norm = self.means_grad_norm[~culls]
             self.scales = Parameter(self.scales[~culls])
             self.quats = Parameter(self.quats[~culls])
             self.rgbs = Parameter(self.rgbs[~culls])
             self.opacities = Parameter(self.opacities[~culls])
+
         print(f"Culled {n_bef - self.num_points} gaussians")
         return culls
 
-    def split_gaussians(self):
+    def split_gaussians(self, split_mask):
         """
         This function splits gaussians that are too large
         """
-        pass
+        print(f"Would split {split_mask.sum().item()} gaussians")
 
-    def dup_gaussians(self):
+    def dup_gaussians(self,dup_mask):
         """
         This function duplicates gaussians that are too small
         """
-        pass
-
+        print(f"Would duplicate {dup_mask.sum().item()} gaussians")
 
     @property
     def num_points(self):
@@ -228,6 +238,8 @@ class GaussianSplattingModel(Model):
                                     update_every_num_iters=self.config.refine_every,
                                     args=[training_callback_attributes.optimizers]
                                     ))
+        cbs.append(TrainingCallback([TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                                    self.after_train,))
         return cbs
     
     def step_cb(self,step):
@@ -279,10 +291,12 @@ class GaussianSplattingModel(Model):
         #invert it
         viewmat = torch.inverse(viewmat)
         #calculate the FOV of the camera given fx and fy, width and height
+        cx = camera.cx.item()
+        cy = camera.cy.item()
         fovx = 2 * math.atan(camera.width / (2 * camera.fx))
         fovy = 2 * math.atan(camera.height / (2 * camera.fy))
-        projmat = projection_matrix(.0001,1000,fovx,fovy).to(self.device)
         W, H = camera.width.item(), camera.height.item()
+        projmat = projection_matrix(.0001,1000,fovx,fovy).to(self.device)
         BLOCK_X, BLOCK_Y = 16, 16
         tile_bounds = (
             (W + BLOCK_X - 1) // BLOCK_X,
@@ -303,6 +317,9 @@ class GaussianSplattingModel(Model):
             W,
             tile_bounds
         )
+        cx_delta = cx - W / 2
+        cy_delta = cy - H / 2
+        xys = xys.view(-1, 2) + torch.tensor([cx_delta, cy_delta], device=self.device)
         rgb = RasterizeGaussians.apply(
             xys,
             depths,
@@ -336,7 +353,13 @@ class GaussianSplattingModel(Model):
             batch: ground truth batch corresponding to outputs
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
-        Ll1 = torch.nn.functional.mse_loss(batch['image'], outputs['rgb'])
+        #imshow the rendered vs the gt
+        # import matplotlib.pyplot as plt
+        # fig,ax = plt.subplots(1,1)
+        # ax.imshow(batch['image'].detach().cpu().squeeze())
+        # ax.imshow(outputs['rgb'].detach().cpu().squeeze(),alpha=.5)
+        # plt.show()
+        Ll1 = torch.nn.functional.l1_loss(batch['image'], outputs['rgb'])
         # This simloss makes the results look weird, removing for now
         # simloss = self.ssim(batch['image'].permute(2,0,1)[None,...], outputs['rgb'].permute(2,0,1)[None,...])
         return {"main_loss": Ll1}

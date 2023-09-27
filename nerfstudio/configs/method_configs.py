@@ -586,54 +586,6 @@ method_configs["neus-facto"] = TrainerConfig(
     vis="viewer",
 )
 
-# method_configs["gaussian-splatting"] = TrainerConfig(
-#     method_name="gaussian-splatting",
-#     steps_per_eval_image=10,
-#     steps_per_eval_batch=10,
-#     steps_per_save=2000,
-#     steps_per_eval_all_images=1000000,  # set to a very large model so we don't eval with all images
-#     max_num_iterations=20001,
-#     mixed_precision=False,
-#     pipeline=VanillaPipelineConfig(
-#         datamanager=FullImageDatamanagerConfig(
-#             dataparser=BlenderDataParserConfig(),
-#         ),
-#         model=GaussianSplattingModelConfig(),
-#     ),
-#     optimizers={
-#         "xyz": {
-#             "optimizer": AdamOptimizerConfig(lr=0.00016, eps=1e-15),
-#             "scheduler": ExponentialDecaySchedulerConfig(
-#                 lr_pre_warmup=0.01 * 0.00016,
-#                 lr_final=0.0000016,
-#                 warmup_steps = 0,
-#                 max_steps=30000,
-#             ),
-#         },
-#         "f_dc": {
-#             "optimizer": AdamOptimizerConfig(lr=0.0025, eps=1e-15),
-#             "scheduler": None,
-#         },
-#         "f_rest": {
-#             "optimizer": AdamOptimizerConfig(lr=0.0025, eps=1e-15),
-#             "scheduler": None,
-#         },
-#         "opacity": {
-#             "optimizer": AdamOptimizerConfig(lr=0.05, eps=1e-15),
-#             "scheduler": None,
-#         },
-#         "scaling": {
-#             "optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15),
-#             "scheduler": None,
-#         },
-#         "rotation": {
-#             "optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15),
-#             "scheduler": None,
-#         },
-#     },
-#     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
-#     vis="viewer",
-# )
 method_configs["gaussian-splatting"] = TrainerConfig(
     method_name="gaussian-splatting",
     steps_per_eval_image=10,
@@ -650,30 +602,36 @@ method_configs["gaussian-splatting"] = TrainerConfig(
     ),
     optimizers={
         "xyz": {
-            "optimizer": AdamOptimizerConfig(lr=0.00016, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-4, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
-                lr_final=0.0000016,
+                lr_final=1e-5,
                 max_steps=30000,
             ),
         },
         "color": {
-            "optimizer": AdamOptimizerConfig(lr=0.00016, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
-                lr_final=0.0000016,
+                lr_final=1e-5,
                 max_steps=30000,
             ),
         },
         "opacity": {
-            "optimizer": AdamOptimizerConfig(lr=0.05, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=0.01, eps=1e-15),
             "scheduler": None,
         },
         "scaling": {
-            "optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15),
-            "scheduler": None,
+            "optimizer": AdamOptimizerConfig(lr=0.01, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                lr_final=1e-3,
+                max_steps=3000,
+            ),
         },
         "rotation": {
-            "optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15),
-            "scheduler": None,
+            "optimizer": AdamOptimizerConfig(lr=0.01, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                lr_final=1e-3,
+                max_steps=3000,
+            ),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
