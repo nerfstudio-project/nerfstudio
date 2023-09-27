@@ -57,7 +57,7 @@ from nerfstudio.model_components.renderers import (
 from nerfstudio.model_components.scene_colliders import AABBBoxCollider, SphereCollider
 from nerfstudio.model_components.shaders import LambertianShader, NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
-from nerfstudio.utils import colormaps, colors, math, misc
+from nerfstudio.utils import colormaps, math, misc
 
 
 @dataclass
@@ -68,7 +68,8 @@ class GenerfactoModelConfig(ModelConfig):
     """target class to instantiate"""
     prompt: str = "a high quality photo of a ripe pineapple"
     """prompt for stable dreamfusion"""
-
+    background_color: Literal["random", "last_sample", "black", "white"] = "white"
+    """Whether to randomize the background color."""
     orientation_loss_mult: Tuple[float, float] = (0.001, 10.0)
     """Orientation loss multipier on computed normals."""
     orientation_loss_mult_range: Tuple[int, int] = (0, 15000)
@@ -251,7 +252,7 @@ class GenerfactoModel(Model):
         )
 
         # renderers
-        self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
+        self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
         self.renderer_normals = NormalsRenderer()
