@@ -21,6 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
 import torch
+from copy import deepcopy
 from torch.nn import Parameter
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image import PeakSignalNoiseRatio
@@ -82,11 +83,15 @@ def projection_matrix(znear, zfar, fovx, fovy, **kwargs):
 class GaussianSplattingModelConfig(ModelConfig):
     """Gaussian Splatting Model Config"""
     _target: Type = field(default_factory=lambda: GaussianSplattingModel)
-    warmup_length:int = 300
-    """period of steps where resolution is upscaled iteratively"""
+    warmup_length:int = 1500
+    """period of steps where refinement is turned off"""
     refine_every:int = 100
     """period of steps where gaussians are culled and densified"""
-    cull_alpha_thresh:float = .005
+    resolution_schedule: int = 500
+    """training starts at 1/d resolution, every n steps this is doubled"""
+    num_downscales: int = 2
+    """at the beginning, resolution is 1/2^d, where d is this number"""
+    cull_alpha_thresh:float = .01
     """threshold of opacity for culling gaussians"""
     cull_scale_thresh:float = .5
     """threshold of scale for culling gaussians"""
@@ -94,9 +99,11 @@ class GaussianSplattingModelConfig(ModelConfig):
     """Every this many refinement steps, reset the alpha"""
     densify_grad_thresh: float = .0002
     """threshold of positional gradient norm for densifying gaussians"""
-    densify_size_thresh: float = .01
+    densify_size_thresh: float = .007
     """below this size, gaussians are *duplicated*, otherwise split"""
-    
+    #set to 3 to effeectively turn off, it seems to make things worse? need to investigate
+    sh_degree_interval: int = 500
+    """every n intervals turn on another sh degree"""
 
 class GaussianSplattingModel(Model):
     """Gaussian Splatting model
@@ -123,8 +130,6 @@ class GaussianSplattingModel(Model):
         self.degree = 3
         dim_sh = num_sh_bases(self.degree)
         self.colors = torch.nn.Parameter(torch.rand(self.num_points, dim_sh, 3))
-        # rgbinit = torch.clamp((self.seed_pts[1].float())/255.,0,1)
-        # self.colors = torch.nn.Parameter(torch.logit(rgbinit))
         self.opacities = torch.nn.Parameter(torch.zeros(self.num_points, 1))
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
@@ -187,7 +192,7 @@ class GaussianSplattingModel(Model):
             dup_means,dup_colors,dup_opacities,dup_scales,dup_quats = self.dup_gaussians(dups)
 
             self.means = Parameter(torch.cat([self.means,split_means, dup_means],dim=0))
-            self.rgbs = Parameter(torch.cat([self.rgbs,split_colors, dup_colors],dim=0))
+            self.colors = Parameter(torch.cat([self.colors,split_colors, dup_colors],dim=0))
             self.opacities = Parameter(torch.cat([self.opacities,split_opacities, dup_opacities],dim=0))
             self.scales = Parameter(torch.cat([self.scales,split_scales, dup_scales],dim=0))
             self.quats = Parameter(torch.cat([self.quats,split_quats, dup_quats],dim=0))
@@ -250,7 +255,7 @@ class GaussianSplattingModel(Model):
             centered_samples = torch.randn((n_splits,3),device=self.device)
             new_means = torch.bmm(cov_mats,centered_samples[...,None]).squeeze() + self.means[split_mask]
             # step 2, sample new colors
-            new_colors = self.rgbs[split_mask]
+            new_colors = self.colors[split_mask]
             # step 3, sample new opacities
             new_opacities = self.opacities[split_mask]
             # step 4, sample new scales
@@ -259,14 +264,6 @@ class GaussianSplattingModel(Model):
             # step 5, sample new quats
             new_quats = self.quats[split_mask]
             return new_means,new_colors,new_opacities,new_scales,new_quats
-            # split_points = self.means[split_mask]
-            # split_colors = self.rgbs[split_mask]
-        #     self.vc.viser_server.add_point_cloud(
-        #         "Split gaussians",
-        #         split_points.detach().cpu().numpy()*10,
-        #         torch.sigmoid(split_colors).detach().cpu().numpy(),
-        #         point_size=.2
-        #     )
 
     def dup_gaussians(self,dup_mask):
         """
@@ -275,19 +272,12 @@ class GaussianSplattingModel(Model):
         n_dups = dup_mask.sum().item()
         print(f"Would duplicate {dup_mask.sum().item()/self.num_points} gaussians: {n_dups}/{self.num_points}")
         dup_means = self.means[dup_mask]
-        dup_colors = self.rgbs[dup_mask]
+        dup_colors = self.colors[dup_mask]
         dup_opacities = self.opacities[dup_mask]
         dup_scales = self.scales[dup_mask]
         dup_quats = self.quats[dup_mask]
         return dup_means,dup_colors,dup_opacities,dup_scales,dup_quats
-        # with torch.no_grad():
-        #     self.vc.viser_server.add_point_cloud(
-        #         "Split gaussians",
-        #         dup_means.detach().cpu().numpy()*10,
-        #         torch.sigmoid(dup_colors).detach().cpu().numpy(),
-        #         point_size=.2
-        #     )
-
+    
     @property
     def num_points(self):
         return self.means.shape[0]
@@ -295,16 +285,6 @@ class GaussianSplattingModel(Model):
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
-        """
-        List of things that are important:
-        every 300 steps, densify by calculating positional gradients and duplicating/splitting
-        every 3000 steps: drop all alpha to low, and continue optimization
-        cull gaussians with alpha under a threshold
-        upscale image resolution every 300 iterations
-        SH coefficients are masked initially and get activated over time
-        
-        
-        """
         cbs = []
         cbs.append(TrainingCallback([TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],self.step_cb))
         cbs.append(TrainingCallback([TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
@@ -339,6 +319,9 @@ class GaussianSplattingModel(Model):
             "rotation": [self.quats],
         }
 
+    def _get_downscale_factor(self):
+        return 2 ** max((self.config.num_downscales - self.step // self.config.resolution_schedule),0)
+    
     def get_outputs(self, camera: Cameras) -> Dict[str, Union[torch.Tensor, List]]:
         """Takes in a Ray Bundle and returns a dictionary of outputs.
 
@@ -357,6 +340,11 @@ class GaussianSplattingModel(Model):
             print("Called get_outputs with not a camera")
             return {}
         assert camera.shape[0] ==1, "Only one camera at a time"
+        #dont mutate the input
+        camera = deepcopy(camera)
+        if self.training:
+            d = self._get_downscale_factor()
+            camera.rescale_output_resolution(1/d)
 
         #shift the camera to center of scene looking at center
         R = camera.camera_to_worlds[..., :3, :3] # 1 x 3 x 3
@@ -399,7 +387,9 @@ class GaussianSplattingModel(Model):
         )
         if self.degree > 0:
             viewdirs = self.means - camera.camera_to_worlds[..., :3, 3]  # (N, 3)
-            rgbs = SphericalHarmonics.apply(self.degree, viewdirs, self.colors)  # (N, 3)
+            n = min(self.step // self.config.sh_degree_interval,self.degree)
+            n_bases = num_sh_bases(n)
+            rgbs = SphericalHarmonics.apply(n, viewdirs, self.colors[:,:n_bases])  # (N, 3)
         else:
             rgbs = self.colors.squeeze()  # (N, 3)
         cx_delta = cx - W / 2
@@ -438,13 +428,15 @@ class GaussianSplattingModel(Model):
             batch: ground truth batch corresponding to outputs
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
-        #imshow the rendered vs the gt
-        # import matplotlib.pyplot as plt
-        # fig,ax = plt.subplots(1,1)
-        # ax.imshow(batch['image'].detach().cpu().squeeze())
-        # ax.imshow(outputs['rgb'].detach().cpu().squeeze(),alpha=.5)
-        # plt.show()
-        Ll1 = torch.nn.functional.l1_loss(batch['image'], outputs['rgb'])
+        d = self._get_downscale_factor()
+        if d > 1:
+            #use torchvision to resize
+            import torchvision.transforms.functional as TF
+            newsize = (batch['image'].shape[0]//d,batch['image'].shape[1]//d)
+            gt_img = TF.resize(batch['image'].permute(2,0,1),newsize).permute(1,2,0)
+        else:
+            gt_img = batch['image']
+        Ll1 = torch.nn.functional.l1_loss(gt_img, outputs['rgb'])
         # This simloss makes the results look weird, removing for now
         # simloss = self.ssim(batch['image'].permute(2,0,1)[None,...], outputs['rgb'].permute(2,0,1)[None,...])
         return {"main_loss": Ll1}
