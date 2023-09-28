@@ -37,6 +37,7 @@ import math
 
 from diff_rast.rasterize import RasterizeGaussians
 from diff_rast.project_gaussians import ProjectGaussians
+from diff_rast.sh import SphericalHarmonics, num_sh_bases
 
 
 def random_quat_tensor(N, **kwargs):
@@ -119,8 +120,11 @@ class GaussianSplattingModel(Model):
         init_scale = torch.log(torch.tensor(.01)).item()
         self.scales = torch.nn.Parameter(torch.full((self.num_points,3),init_scale))
         self.quats = torch.nn.Parameter(random_quat_tensor(self.num_points))
-        rgbinit = torch.clamp((self.seed_pts[1].float())/255.,0,1)
-        self.rgbs = torch.nn.Parameter(torch.logit(rgbinit))
+        self.degree = 3
+        dim_sh = num_sh_bases(self.degree)
+        self.colors = torch.nn.Parameter(torch.rand(self.num_points, dim_sh, 3))
+        # rgbinit = torch.clamp((self.seed_pts[1].float())/255.,0,1)
+        # self.colors = torch.nn.Parameter(torch.logit(rgbinit))
         self.opacities = torch.nn.Parameter(torch.zeros(self.num_points, 1))
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
@@ -191,7 +195,7 @@ class GaussianSplattingModel(Model):
             self.means_grad_norm = self.means_grad_norm[~culls]
             self.scales = Parameter(self.scales[~culls])
             self.quats = Parameter(self.quats[~culls])
-            self.rgbs = Parameter(self.rgbs[~culls])
+            self.colors = Parameter(self.colors[~culls])
             self.opacities = Parameter(self.opacities[~culls])
 
         print(f"Culled {n_bef - self.num_points} gaussians")
@@ -253,7 +257,7 @@ class GaussianSplattingModel(Model):
         """
         return {
             "xyz": [self.means],
-            "color": [self.rgbs],
+            "color": [self.colors],
             "opacity": [self.opacities],
             "scaling": [self.scales],
             "rotation": [self.quats],
@@ -317,6 +321,11 @@ class GaussianSplattingModel(Model):
             W,
             tile_bounds
         )
+        if self.degree > 0:
+            viewdirs = self.means - camera.camera_to_worlds[..., :3, 3]  # (N, 3)
+            rgbs = SphericalHarmonics.apply(self.degree, viewdirs, self.colors)  # (N, 3)
+        else:
+            rgbs = self.colors.squeeze()  # (N, 3)
         cx_delta = cx - W / 2
         cy_delta = cy - H / 2
         xys = xys.view(-1, 2) + torch.tensor([cx_delta, cy_delta], device=self.device)
@@ -326,7 +335,7 @@ class GaussianSplattingModel(Model):
             radii,
             conics,
             num_tiles_hit,
-            torch.sigmoid(self.rgbs),
+            torch.sigmoid(rgbs),
             torch.sigmoid(self.opacities),
             H,
             W,
