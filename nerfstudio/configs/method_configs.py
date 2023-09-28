@@ -596,7 +596,7 @@ method_configs["gaussian-splatting"] = TrainerConfig(
     mixed_precision=False,
     pipeline=VanillaPipelineConfig(
         datamanager=FullImageDatamanagerConfig(
-            dataparser=ColmapDataParserConfig(load_3D_points=True,downscale_factor=2),
+            dataparser=ColmapDataParserConfig(load_3D_points=True,downscale_factor=1),
         ),
         model=GaussianSplattingModelConfig(),
     ),
@@ -616,7 +616,7 @@ method_configs["gaussian-splatting"] = TrainerConfig(
             ),
         },
         "opacity": {
-            "optimizer": AdamOptimizerConfig(lr=0.01, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=0.05, eps=1e-15),
             "scheduler": None,
         },
         "scaling": {

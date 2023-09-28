@@ -81,7 +81,7 @@ def projection_matrix(znear, zfar, fovx, fovy, **kwargs):
 class GaussianSplattingModelConfig(ModelConfig):
     """Gaussian Splatting Model Config"""
     _target: Type = field(default_factory=lambda: GaussianSplattingModel)
-    warmup_length:int = 100
+    warmup_length:int = 300
     """period of steps where resolution is upscaled iteratively"""
     refine_every:int = 100
     """period of steps where gaussians are culled and densified"""
@@ -89,7 +89,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     """threshold of opacity for culling gaussians"""
     cull_scale_thresh:float = .5
     """threshold of scale for culling gaussians"""
-    reset_alpha_every:int = 10
+    reset_alpha_every:int = 30
     """Every this many refinement steps, reset the alpha"""
     densify_grad_thresh: float = .0002
     """threshold of positional gradient norm for densifying gaussians"""
@@ -141,13 +141,23 @@ class GaussianSplattingModel(Model):
         optimizer.state[param] = param_state
         optimizer.param_groups[0]['params'] = new_params
 
+    def dup_in_optim(self,optimizer, dup_mask, new_params):
+        """adds the parameters to the optimizer"""
+        param = optimizer.param_groups[0]['params'][0]
+        param_state = optimizer.state[param]
+        param_state['exp_avg'] = torch.cat([param_state['exp_avg'], param_state['exp_avg'][dup_mask.squeeze()]],dim=0)
+        param_state['exp_avg_sq'] = torch.cat([param_state['exp_avg_sq'], param_state['exp_avg_sq'][dup_mask.squeeze()]],dim=0)
+        del optimizer.state[param]
+        optimizer.state[param] = param_state
+        optimizer.param_groups[0]['params'] = new_params
+
     def after_train(self,step):
         with torch.no_grad():
             #keep track of a moving average of grad norms
             if self.means_grad_norm is None:
-                self.means_grad_norm = self.means.grad.norm(dim=-1,keepdim=True)
+                self.means_grad_norm = self.means.grad.norm(dim=-1,keepdim=True).detach()
             else:
-                self.means_grad_norm = .1 * self.means.grad.norm(dim=-1,keepdim=True) + .9 * self.means_grad_norm
+                self.means_grad_norm = .05 * self.means.grad.norm(dim=-1,keepdim=True).detach() + .95 * self.means_grad_norm
     
     def refinement_before(self, optimizers:Optimizers, step):
         print("Inside refinement before")
@@ -166,10 +176,27 @@ class GaussianSplattingModel(Model):
             high_grads = (self.means_grad_norm > self.config.densify_grad_thresh).squeeze()
             splits = (self.scales.exp().max(dim=-1).values > self.config.densify_size_thresh).squeeze()
             splits &= high_grads
-            dups = ~splits
+            split_means,split_colors,split_opacities,split_scales,split_quats = self.split_gaussians(splits)
+
+            dups = (self.scales.exp().max(dim=-1).values <= self.config.densify_size_thresh).squeeze()
             dups &= high_grads
-            self.split_gaussians(splits)
-            self.dup_gaussians(dups) 
+            dup_means,dup_colors,dup_opacities,dup_scales,dup_quats = self.dup_gaussians(dups)
+
+            self.means = Parameter(torch.cat([self.means,split_means, dup_means],dim=0))
+            self.rgbs = Parameter(torch.cat([self.rgbs,split_colors, dup_colors],dim=0))
+            self.opacities = Parameter(torch.cat([self.opacities,split_opacities, dup_opacities],dim=0))
+            self.scales = Parameter(torch.cat([self.scales,split_scales, dup_scales],dim=0))
+            self.quats = Parameter(torch.cat([self.quats,split_quats, dup_quats],dim=0))
+            
+            split_idcs = torch.where(splits)[0]
+            dup_idcs = torch.where(dups)[0]
+            add_idcs = torch.cat([split_idcs, dup_idcs], dim=0)
+            
+            param_groups = self.get_param_groups()
+            for group,param in param_groups.items():
+                print(f"adding {len(add_idcs)} params to {group} optimizer")
+                self.dup_in_optim(optimizers.optimizers[group],add_idcs,param)
+
             if self.step // self.config.refine_every % self.config.reset_alpha_every == 0:
                 print("Resetting alpha")
                 with torch.no_grad():
@@ -201,13 +228,61 @@ class GaussianSplattingModel(Model):
         """
         This function splits gaussians that are too large
         """
-        print(f"Would split {split_mask.sum().item()} gaussians")
+        with torch.no_grad():
+            n_splits = split_mask.sum().item()
+            print(f"Splitting {split_mask.sum().item()/self.num_points} gaussians: {n_splits}/{self.num_points}")
+            #step 1, sample new means
+            cov_mats = torch.eye(3,device=self.device)[None,...].repeat(n_splits,1,1)
+            cov3ds = self.cov3d[split_mask]
+            cov_mats[:,0,0]=cov3ds[:,0]
+            cov_mats[:,0,1]=cov3ds[:,1]
+            cov_mats[:,1,0]=cov3ds[:,1]
+            cov_mats[:,0,2]=cov3ds[:,2]
+            cov_mats[:,2,0]=cov3ds[:,2]
+            cov_mats[:,1,1]=cov3ds[:,3]
+            cov_mats[:,1,2]=cov3ds[:,4]
+            cov_mats[:,2,1]=cov3ds[:,4]
+            cov_mats[:,2,2]=cov3ds[:,5]
+            centered_samples = torch.randn((n_splits,3),device=self.device)
+            new_means = torch.bmm(cov_mats,centered_samples[...,None]).squeeze() + self.means[split_mask]
+            # step 2, sample new colors
+            new_colors = self.rgbs[split_mask]
+            # step 3, sample new opacities
+            new_opacities = self.opacities[split_mask]
+            # step 4, sample new scales
+            new_scales = torch.logit(torch.exp(self.scales[split_mask])/1.6)
+            self.scales[split_mask] = torch.logit(torch.exp(self.scales[split_mask])/1.6)
+            # step 5, sample new quats
+            new_quats = self.quats[split_mask]
+            return new_means,new_colors,new_opacities,new_scales,new_quats
+            # split_points = self.means[split_mask]
+            # split_colors = self.rgbs[split_mask]
+        #     self.vc.viser_server.add_point_cloud(
+        #         "Split gaussians",
+        #         split_points.detach().cpu().numpy()*10,
+        #         torch.sigmoid(split_colors).detach().cpu().numpy(),
+        #         point_size=.2
+        #     )
 
     def dup_gaussians(self,dup_mask):
         """
         This function duplicates gaussians that are too small
         """
-        print(f"Would duplicate {dup_mask.sum().item()} gaussians")
+        n_dups = dup_mask.sum().item()
+        print(f"Would duplicate {dup_mask.sum().item()/self.num_points} gaussians: {n_dups}/{self.num_points}")
+        dup_means = self.means[dup_mask]
+        dup_colors = self.rgbs[dup_mask]
+        dup_opacities = self.opacities[dup_mask]
+        dup_scales = self.scales[dup_mask]
+        dup_quats = self.quats[dup_mask]
+        return dup_means,dup_colors,dup_opacities,dup_scales,dup_quats
+        # with torch.no_grad():
+        #     self.vc.viser_server.add_point_cloud(
+        #         "Split gaussians",
+        #         dup_means.detach().cpu().numpy()*10,
+        #         torch.sigmoid(dup_colors).detach().cpu().numpy(),
+        #         point_size=.2
+        #     )
 
     @property
     def num_points(self):
@@ -233,13 +308,14 @@ class GaussianSplattingModel(Model):
                                     update_every_num_iters=self.config.refine_every,
                                     args=[training_callback_attributes.optimizers]
                                     ))
+        # The order of these matters
+        cbs.append(TrainingCallback([TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                                    self.after_train,))
         cbs.append(TrainingCallback([TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                                     self.refinement_after,
                                     update_every_num_iters=self.config.refine_every,
                                     args=[training_callback_attributes.optimizers]
                                     ))
-        cbs.append(TrainingCallback([TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-                                    self.after_train,))
         return cbs
     
     def step_cb(self,step):
@@ -304,7 +380,7 @@ class GaussianSplattingModel(Model):
             1,
         )
         background = torch.ones(3, device=self.device)
-        xys, depths, radii, conics, num_tiles_hit = ProjectGaussians.apply(
+        xys, depths, radii, conics, num_tiles_hit,self.cov3d = ProjectGaussians.apply(
             self.means,
             torch.exp(self.scales),
             1,
