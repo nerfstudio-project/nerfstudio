@@ -72,7 +72,7 @@ class ColmapDataParserConfig(DataParserConfig):
     """Path to depth maps directory. If not set, depths are not loaded."""
     colmap_path: Path = Path("sparse/0")
     """Path to the colmap reconstruction directory relative to the data path."""
-    load_3D_points: bool = True
+    load_3D_points: bool = False
     """Whether to load the 3D points from the colmap reconstruction."""
     max_2D_matches_per_3D_point: int = -1
     """Maximum number of 2D matches per 3D point. If set to -1, all 2D matches are loaded. If set to 0, no 2D matches are loaded."""
@@ -147,11 +147,11 @@ class ColmapDataParser(DataParser):
             frame.update(cameras[im_data.camera_id])
             if self.config.masks_path is not None:
                 frame["mask_path"] = (
-                    (self.config.data / self.config.masks_path / im_data.name).with_suffix(".png").as_posix(),
+                    (self.config.data / self.config.masks_path / im_data.name).with_suffix(".png").as_posix()
                 )
             if self.config.depths_path is not None:
                 frame["depth_path"] = (
-                    (self.config.data / self.config.depths_path / im_data.name).with_suffix(".png").as_posix(),
+                    (self.config.data / self.config.depths_path / im_data.name).with_suffix(".png").as_posix()
                 )
             frames.append(frame)
             if camera_model is not None:
