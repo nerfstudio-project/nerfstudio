@@ -399,10 +399,11 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
     ) -> Int[Tensor, "batch_size 3"]:
+        rays_to_sample = self.rays_to_sample
         if isinstance(mask, Tensor):
             m = erode_mask(mask.permute(0, 3, 1, 2).float(), pixel_radius=self.radius)
             nonzero_indices = torch.nonzero(m[:, 0], as_tuple=False).to(device)
-            chosen_indices = random.sample(range(len(nonzero_indices)), k=self.rays_to_sample)
+            chosen_indices = random.sample(range(len(nonzero_indices)), k=rays_to_sample)
             indices = nonzero_indices[chosen_indices]
         else:
             rays_to_sample = self.rays_to_sample
@@ -418,12 +419,12 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
             ws = torch.randint(self.radius, image_width - self.radius, s, dtype=torch.long, device=device)
             indices = torch.concat((ns, hs, ws), dim=1)
 
-            pair_indices = torch.hstack(
-                (
-                    torch.zeros(rays_to_sample, 1, device=device, dtype=torch.long),
-                    torch.randint(-self.radius, self.radius, (rays_to_sample, 2), device=device, dtype=torch.long),
-                )
+        pair_indices = torch.hstack(
+            (
+                torch.zeros(rays_to_sample, 1, device=device, dtype=torch.long),
+                torch.randint(-self.radius, self.radius, (rays_to_sample, 2), device=device, dtype=torch.long),
             )
-            pair_indices += indices
-            indices = torch.hstack((indices, pair_indices)).view(rays_to_sample * 2, 3)
+        )
+        pair_indices += indices
+        indices = torch.hstack((indices, pair_indices)).view(rays_to_sample * 2, 3)
         return indices
