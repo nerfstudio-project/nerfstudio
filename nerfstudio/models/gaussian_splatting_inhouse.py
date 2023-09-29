@@ -99,10 +99,10 @@ class GaussianSplattingModelConfig(ModelConfig):
     """Every this many refinement steps, reset the alpha"""
     densify_grad_thresh: float = .0002
     """threshold of positional gradient norm for densifying gaussians"""
-    densify_size_thresh: float = .007
+    densify_size_thresh: float = .01
     """below this size, gaussians are *duplicated*, otherwise split"""
     #set to 3 to effeectively turn off, it seems to make things worse? need to investigate
-    sh_degree_interval: int = 500
+    sh_degree_interval: int = 3
     """every n intervals turn on another sh degree"""
 
 class GaussianSplattingModel(Model):
@@ -149,6 +149,7 @@ class GaussianSplattingModel(Model):
         del optimizer.state[param]
         optimizer.state[param] = param_state
         optimizer.param_groups[0]['params'] = new_params
+        del param
 
     def dup_in_optim(self,optimizer, dup_mask, new_params):
         """adds the parameters to the optimizer"""
@@ -159,6 +160,7 @@ class GaussianSplattingModel(Model):
         del optimizer.state[param]
         optimizer.state[param] = param_state
         optimizer.param_groups[0]['params'] = new_params
+        del param
 
     def after_train(self,step):
         with torch.no_grad():
@@ -171,64 +173,64 @@ class GaussianSplattingModel(Model):
     def refinement_before(self, optimizers:Optimizers, step):
         print("Inside refinement before")
         if self.step > self.config.warmup_length:
-            # do all the refinement stuff here
-            #first we cull gaussians
-            deleted_mask = self.cull_gaussians()
-            param_groups = self.get_param_groups()
-            for group,param in param_groups.items(): 
-                self.remove_from_optim(optimizers.optimizers[group],deleted_mask,param)
+            with torch.no_grad():
+                # do all the refinement stuff here
+                #first we cull gaussians
+                deleted_mask = self.cull_gaussians()
+                param_groups = self.get_param_groups()
+                for group,param in param_groups.items(): 
+                    self.remove_from_optim(optimizers.optimizers[group],deleted_mask,param)
             
 
     def refinement_after(self, optimizers:Optimizers, step):
         if self.step > self.config.warmup_length:
-            #then we densify
-            high_grads = (self.means_grad_norm > self.config.densify_grad_thresh).squeeze()
-            splits = (self.scales.exp().max(dim=-1).values > self.config.densify_size_thresh).squeeze()
-            splits &= high_grads
-            split_means,split_colors,split_opacities,split_scales,split_quats = self.split_gaussians(splits)
+            with torch.no_grad():
+                #then we densify
+                high_grads = (self.means_grad_norm > self.config.densify_grad_thresh).squeeze()
+                splits = (self.scales.exp().max(dim=-1).values > self.config.densify_size_thresh).squeeze()
+                splits &= high_grads
+                split_means,split_colors,split_opacities,split_scales,split_quats = self.split_gaussians(splits)
 
-            dups = (self.scales.exp().max(dim=-1).values <= self.config.densify_size_thresh).squeeze()
-            dups &= high_grads
-            dup_means,dup_colors,dup_opacities,dup_scales,dup_quats = self.dup_gaussians(dups)
+                dups = (self.scales.exp().max(dim=-1).values <= self.config.densify_size_thresh).squeeze()
+                dups &= high_grads
+                dup_means,dup_colors,dup_opacities,dup_scales,dup_quats = self.dup_gaussians(dups)
 
-            self.means = Parameter(torch.cat([self.means,split_means, dup_means],dim=0))
-            self.colors = Parameter(torch.cat([self.colors,split_colors, dup_colors],dim=0))
-            self.opacities = Parameter(torch.cat([self.opacities,split_opacities, dup_opacities],dim=0))
-            self.scales = Parameter(torch.cat([self.scales,split_scales, dup_scales],dim=0))
-            self.quats = Parameter(torch.cat([self.quats,split_quats, dup_quats],dim=0))
-            
-            split_idcs = torch.where(splits)[0]
-            dup_idcs = torch.where(dups)[0]
-            add_idcs = torch.cat([split_idcs, dup_idcs], dim=0)
-            
-            param_groups = self.get_param_groups()
-            for group,param in param_groups.items():
-                print(f"adding {len(add_idcs)} params to {group} optimizer")
-                self.dup_in_optim(optimizers.optimizers[group],add_idcs,param)
+                self.means = Parameter(torch.cat([self.means,split_means, dup_means],dim=0))
+                self.colors = Parameter(torch.cat([self.colors,split_colors, dup_colors],dim=0))
+                self.opacities = Parameter(torch.cat([self.opacities,split_opacities, dup_opacities],dim=0))
+                self.scales = Parameter(torch.cat([self.scales,split_scales, dup_scales],dim=0))
+                self.quats = Parameter(torch.cat([self.quats,split_quats, dup_quats],dim=0))
+                
+                split_idcs = torch.where(splits)[0]
+                dup_idcs = torch.where(dups)[0]
+                add_idcs = torch.cat([split_idcs, dup_idcs], dim=0)
+                
+                param_groups = self.get_param_groups()
+                for group,param in param_groups.items():
+                    print(f"adding {len(add_idcs)} params to {group} optimizer")
+                    self.dup_in_optim(optimizers.optimizers[group],add_idcs,param)
 
-            if self.step // self.config.refine_every % self.config.reset_alpha_every == 0:
-                print("Resetting alpha")
-                with torch.no_grad():
+                if self.step // self.config.refine_every % self.config.reset_alpha_every == 0:
+                    print("Resetting alpha")
                     reset_value = .01
                     self.opacities.data = torch.full_like(self.opacities.data,torch.logit(torch.tensor(reset_value)).item())
-            self.means_grad_norm = None
+                self.means_grad_norm = None
             
     def cull_gaussians(self):
         """
         This function deletes gaussians with under a certain opacity threshold
         """
         n_bef = self.num_points
-        with torch.no_grad():
-            #cull transparent ones
-            culls = (torch.sigmoid(self.opacities) < self.config.cull_alpha_thresh).squeeze()
-            #cull huge ones
-            culls |= (torch.exp(self.scales).max(dim=-1).values > self.config.cull_scale_thresh).squeeze()
-            self.means = Parameter(self.means[~culls])
-            self.means_grad_norm = self.means_grad_norm[~culls]
-            self.scales = Parameter(self.scales[~culls])
-            self.quats = Parameter(self.quats[~culls])
-            self.colors = Parameter(self.colors[~culls])
-            self.opacities = Parameter(self.opacities[~culls])
+        #cull transparent ones
+        culls = (torch.sigmoid(self.opacities) < self.config.cull_alpha_thresh).squeeze()
+        #cull huge ones
+        culls |= (torch.exp(self.scales).max(dim=-1).values > self.config.cull_scale_thresh).squeeze()
+        self.means = Parameter(self.means[~culls])
+        self.means_grad_norm = self.means_grad_norm[~culls]
+        self.scales = Parameter(self.scales[~culls])
+        self.quats = Parameter(self.quats[~culls])
+        self.colors = Parameter(self.colors[~culls])
+        self.opacities = Parameter(self.opacities[~culls])
 
         print(f"Culled {n_bef - self.num_points} gaussians")
         return culls
@@ -237,33 +239,32 @@ class GaussianSplattingModel(Model):
         """
         This function splits gaussians that are too large
         """
-        with torch.no_grad():
-            n_splits = split_mask.sum().item()
-            print(f"Splitting {split_mask.sum().item()/self.num_points} gaussians: {n_splits}/{self.num_points}")
-            #step 1, sample new means
-            cov_mats = torch.eye(3,device=self.device)[None,...].repeat(n_splits,1,1)
-            cov3ds = self.cov3d[split_mask]
-            cov_mats[:,0,0]=cov3ds[:,0]
-            cov_mats[:,0,1]=cov3ds[:,1]
-            cov_mats[:,1,0]=cov3ds[:,1]
-            cov_mats[:,0,2]=cov3ds[:,2]
-            cov_mats[:,2,0]=cov3ds[:,2]
-            cov_mats[:,1,1]=cov3ds[:,3]
-            cov_mats[:,1,2]=cov3ds[:,4]
-            cov_mats[:,2,1]=cov3ds[:,4]
-            cov_mats[:,2,2]=cov3ds[:,5]
-            centered_samples = torch.randn((n_splits,3),device=self.device)
-            new_means = torch.bmm(cov_mats,centered_samples[...,None]).squeeze() + self.means[split_mask]
-            # step 2, sample new colors
-            new_colors = self.colors[split_mask]
-            # step 3, sample new opacities
-            new_opacities = self.opacities[split_mask]
-            # step 4, sample new scales
-            new_scales = torch.logit(torch.exp(self.scales[split_mask])/1.6)
-            self.scales[split_mask] = torch.logit(torch.exp(self.scales[split_mask])/1.6)
-            # step 5, sample new quats
-            new_quats = self.quats[split_mask]
-            return new_means,new_colors,new_opacities,new_scales,new_quats
+        n_splits = split_mask.sum().item()
+        print(f"Splitting {split_mask.sum().item()/self.num_points} gaussians: {n_splits}/{self.num_points}")
+        #step 1, sample new means
+        cov_mats = torch.eye(3,device=self.device)[None,...].repeat(n_splits,1,1)
+        cov3ds = self.cov3d[split_mask]
+        cov_mats[:,0,0]=cov3ds[:,0]
+        cov_mats[:,0,1]=cov3ds[:,1]
+        cov_mats[:,1,0]=cov3ds[:,1]
+        cov_mats[:,0,2]=cov3ds[:,2]
+        cov_mats[:,2,0]=cov3ds[:,2]
+        cov_mats[:,1,1]=cov3ds[:,3]
+        cov_mats[:,1,2]=cov3ds[:,4]
+        cov_mats[:,2,1]=cov3ds[:,4]
+        cov_mats[:,2,2]=cov3ds[:,5]
+        centered_samples = torch.randn((n_splits,3),device=self.device)
+        new_means = torch.bmm(cov_mats,centered_samples[...,None]).squeeze() + self.means[split_mask]
+        # step 2, sample new colors
+        new_colors = self.colors[split_mask]
+        # step 3, sample new opacities
+        new_opacities = self.opacities[split_mask]
+        # step 4, sample new scales
+        new_scales = torch.logit(torch.exp(self.scales[split_mask])/1.6)
+        self.scales[split_mask] = torch.logit(torch.exp(self.scales[split_mask])/1.6)
+        # step 5, sample new quats
+        new_quats = self.quats[split_mask]
+        return new_means,new_colors,new_opacities,new_scales,new_quats
 
     def dup_gaussians(self,dup_mask):
         """
@@ -371,7 +372,10 @@ class GaussianSplattingModel(Model):
             (H + BLOCK_Y - 1) // BLOCK_Y,
             1,
         )
-        background = torch.ones(3, device=self.device)
+        if self.training:
+            background = torch.rand(3, device=self.device)
+        else:
+            background = torch.zeros(3, device=self.device)
         xys, depths, radii, conics, num_tiles_hit,self.cov3d = ProjectGaussians.apply(
             self.means,
             torch.exp(self.scales),
@@ -438,7 +442,7 @@ class GaussianSplattingModel(Model):
             gt_img = batch['image']
         Ll1 = torch.nn.functional.l1_loss(gt_img, outputs['rgb'])
         # This simloss makes the results look weird, removing for now
-        # simloss = self.ssim(batch['image'].permute(2,0,1)[None,...], outputs['rgb'].permute(2,0,1)[None,...])
+        simloss = self.ssim(gt_img.permute(2,0,1)[None,...], outputs['rgb'].permute(2,0,1)[None,...])
         return {"main_loss": Ll1}
 
     @torch.no_grad()
