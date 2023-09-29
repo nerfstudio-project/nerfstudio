@@ -26,7 +26,7 @@ from torch.nn import Parameter
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image import PeakSignalNoiseRatio
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-
+import gc
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.engine.callbacks import (TrainingCallback,
                                          TrainingCallbackAttributes,
@@ -40,6 +40,8 @@ from diff_rast.rasterize import RasterizeGaussians
 from diff_rast.project_gaussians import ProjectGaussians
 from diff_rast.sh import SphericalHarmonics, num_sh_bases
 
+def get_references_to_object(obj):
+    return [ref for ref in gc.get_referrers(obj) if isinstance(ref, (list, dict, tuple)) or hasattr(ref, '__dict__')]
 
 def random_quat_tensor(N, **kwargs):
     u = torch.rand(N, **kwargs)
@@ -138,37 +140,45 @@ class GaussianSplattingModel(Model):
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
         self.step=0
         
-    def remove_from_optim(self,optimizer, deleted_mask, new_params):
+    def remove_from_optim(self, optimizer, deleted_mask, new_params):
         """removes the deleted_mask from the optimizer provided"""
         assert len(new_params) == 1
-        assert isinstance(optimizer,torch.optim.Adam),"Only works with Adam"
+        assert isinstance(optimizer, torch.optim.Adam), "Only works with Adam"
+        
         param = optimizer.param_groups[0]['params'][0]
         param_state = optimizer.state[param]
+        del optimizer.state[param]
+        
+        # Modify the state directly without deleting and reassigning.
         param_state['exp_avg'] = param_state['exp_avg'][~deleted_mask.squeeze()]
         param_state['exp_avg_sq'] = param_state['exp_avg_sq'][~deleted_mask.squeeze()]
-        del optimizer.state[param]
-        optimizer.state[param] = param_state
+        
+        # Update the parameter in the optimizer's param group.
+        del optimizer.param_groups[0]['params'][0]
+        del optimizer.param_groups[0]['params']
         optimizer.param_groups[0]['params'] = new_params
-        del param
+        optimizer.state[new_params[0]] = param_state
+
 
     def dup_in_optim(self,optimizer, dup_mask, new_params):
         """adds the parameters to the optimizer"""
         param = optimizer.param_groups[0]['params'][0]
         param_state = optimizer.state[param]
-        param_state['exp_avg'] = torch.cat([param_state['exp_avg'], param_state['exp_avg'][dup_mask.squeeze()]],dim=0)
-        param_state['exp_avg_sq'] = torch.cat([param_state['exp_avg_sq'], param_state['exp_avg_sq'][dup_mask.squeeze()]],dim=0)
+        param_state['exp_avg'] = torch.cat([param_state['exp_avg'], torch.zeros_like(param_state['exp_avg'][dup_mask.squeeze()])],dim=0)
+        param_state['exp_avg_sq'] = torch.cat([param_state['exp_avg_sq'], torch.zeros_like(param_state['exp_avg_sq'][dup_mask.squeeze()])],dim=0)
         del optimizer.state[param]
-        optimizer.state[param] = param_state
+        optimizer.state[new_params[0]] = param_state
         optimizer.param_groups[0]['params'] = new_params
         del param
 
     def after_train(self,step):
         with torch.no_grad():
             #keep track of a moving average of grad norms
+            weight = 1/self.config.refine_every
             if self.means_grad_norm is None:
-                self.means_grad_norm = self.means.grad.norm(dim=-1,keepdim=True).detach()
+                self.means_grad_norm = weight*self.means.grad.detach().norm(dim=-1,keepdim=True)
             else:
-                self.means_grad_norm = .05 * self.means.grad.norm(dim=-1,keepdim=True).detach() + .95 * self.means_grad_norm
+                self.means_grad_norm = weight*self.means.grad.detach().norm(dim=-1,keepdim=True) + self.means_grad_norm
     
     def refinement_before(self, optimizers:Optimizers, step):
         print("Inside refinement before")
@@ -194,12 +204,11 @@ class GaussianSplattingModel(Model):
                 dups = (self.scales.exp().max(dim=-1).values <= self.config.densify_size_thresh).squeeze()
                 dups &= high_grads
                 dup_means,dup_colors,dup_opacities,dup_scales,dup_quats = self.dup_gaussians(dups)
-
-                self.means = Parameter(torch.cat([self.means,split_means, dup_means],dim=0))
-                self.colors = Parameter(torch.cat([self.colors,split_colors, dup_colors],dim=0))
-                self.opacities = Parameter(torch.cat([self.opacities,split_opacities, dup_opacities],dim=0))
-                self.scales = Parameter(torch.cat([self.scales,split_scales, dup_scales],dim=0))
-                self.quats = Parameter(torch.cat([self.quats,split_quats, dup_quats],dim=0))
+                self.means = Parameter(torch.cat([self.means.detach(),split_means, dup_means],dim=0))
+                self.colors = Parameter(torch.cat([self.colors.detach(),split_colors, dup_colors],dim=0))
+                self.opacities = Parameter(torch.cat([self.opacities.detach(),split_opacities, dup_opacities],dim=0))
+                self.scales = Parameter(torch.cat([self.scales.detach(),split_scales, dup_scales],dim=0))
+                self.quats = Parameter(torch.cat([self.quats.detach(),split_quats, dup_quats],dim=0))
                 
                 split_idcs = torch.where(splits)[0]
                 dup_idcs = torch.where(dups)[0]
@@ -214,8 +223,14 @@ class GaussianSplattingModel(Model):
                     print("Resetting alpha")
                     reset_value = .01
                     self.opacities.data = torch.full_like(self.opacities.data,torch.logit(torch.tensor(reset_value)).item())
+                    #reset the exp of optimizer
+                    optim = optimizers.optimizers['opacity']
+                    param = optim.param_groups[0]['params'][0]
+                    param_state = optim.state[param]
+                    param_state['exp_avg'] = torch.zeros_like(param_state['exp_avg'])
+                    param_state['exp_avg_sq'] = torch.zeros_like(param_state['exp_avg_sq'])
                 self.means_grad_norm = None
-            
+
     def cull_gaussians(self):
         """
         This function deletes gaussians with under a certain opacity threshold
@@ -224,13 +239,13 @@ class GaussianSplattingModel(Model):
         #cull transparent ones
         culls = (torch.sigmoid(self.opacities) < self.config.cull_alpha_thresh).squeeze()
         #cull huge ones
-        culls |= (torch.exp(self.scales).max(dim=-1).values > self.config.cull_scale_thresh).squeeze()
-        self.means = Parameter(self.means[~culls])
-        self.means_grad_norm = self.means_grad_norm[~culls]
-        self.scales = Parameter(self.scales[~culls])
-        self.quats = Parameter(self.quats[~culls])
-        self.colors = Parameter(self.colors[~culls])
-        self.opacities = Parameter(self.opacities[~culls])
+        culls = culls | (torch.exp(self.scales).max(dim=-1).values > self.config.cull_scale_thresh).squeeze()
+        self.means_grad_norm = self.means_grad_norm[~culls].detach()
+        self.means = Parameter(self.means[~culls].detach())
+        self.scales = Parameter(self.scales[~culls].detach())
+        self.quats = Parameter(self.quats[~culls].detach())
+        self.colors = Parameter(self.colors[~culls].detach())
+        self.opacities = Parameter(self.opacities[~culls].detach())
 
         print(f"Culled {n_bef - self.num_points} gaussians")
         return culls
