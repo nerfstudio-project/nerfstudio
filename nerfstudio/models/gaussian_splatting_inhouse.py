@@ -35,6 +35,10 @@ from nerfstudio.viewer_beta.viewer_elements import ViewerControl
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.models.base_model import Model, ModelConfig
 import math
+import faiss
+import numpy as np
+from sklearn.neighbors import NearestNeighbors
+
 
 from diff_rast.rasterize import RasterizeGaussians
 from diff_rast.project_gaussians import ProjectGaussians
@@ -93,16 +97,16 @@ class GaussianSplattingModelConfig(ModelConfig):
     """at the beginning, resolution is 1/2^d, where d is this number"""
     cull_alpha_thresh:float = .01
     """threshold of opacity for culling gaussians"""
-    cull_scale_thresh:float = .5
+    cull_scale_thresh:float = 1.0
     """threshold of scale for culling gaussians"""
     reset_alpha_every:int = 30
     """Every this many refinement steps, reset the alpha"""
     densify_grad_thresh: float = .0002
     """threshold of positional gradient norm for densifying gaussians"""
-    densify_size_thresh: float = .007
+    densify_size_thresh: float = .01
     """below this size, gaussians are *duplicated*, otherwise split"""
     #set to 3 to effeectively turn off, it seems to make things worse? need to investigate
-    sh_degree_interval: int = 500
+    sh_degree_interval: int = 1
     """every n intervals turn on another sh degree"""
 
 class GaussianSplattingModel(Model):
@@ -122,21 +126,75 @@ class GaussianSplattingModel(Model):
 
     def populate_modules(self):
         # TODO (jake-austin): clean this up, this is transplanted code across all the implementation functions
-        self.means = torch.nn.Parameter(self.seed_pts[0])
+        self.means = torch.nn.Parameter(self.seed_pts[0]) # (Location, Color)
         self.means_grad_norm = None
-        init_scale = torch.log(torch.tensor(.01)).item()
-        self.scales = torch.nn.Parameter(torch.full((self.num_points,3),init_scale))
+        # init_scale = torch.log(torch.tensor(.01)).item()
+        # distances, _ = self.k_nearest_faiss(self.seed_pts[0].numpy(force=True), 5)
+        distances, _ = self.k_nearest_sklearn(self.seed_pts[0], 3)
+        distances = torch.from_numpy(distances)
+        #find the average of the three nearest neighbors for each point and use that as the scale
+        avg_dist = distances.mean(dim=-1,keepdim=True)
+        self.scales = torch.nn.Parameter(torch.log(avg_dist.repeat(1,3)))
+
+        # self.scales = torch.nn.Parameter(torch.full((self.num_points,3),init_scale))
         self.quats = torch.nn.Parameter(random_quat_tensor(self.num_points))
         self.degree = 3
         dim_sh = num_sh_bases(self.degree)
-        self.colors = torch.nn.Parameter(torch.rand(self.num_points, dim_sh, 3))
-        self.opacities = torch.nn.Parameter(torch.zeros(self.num_points, 1))
+        # self.colors = torch.nn.Parameter(torch.rand(self.num_points, dim_sh, 3))
+
+        fused_color = self.RGB2SH(self.seed_pts[1]/255)
+        shs = torch.zeros((fused_color.shape[0], dim_sh, 3)).float().cuda()
+        shs[:, 0, :] = fused_color
+        shs[:, 1:, :] = 0.0
+        self.colors = torch.nn.Parameter(shs)
+        
+        self.opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(self.num_points, 1)))
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         from torchmetrics.image import StructuralSimilarityIndexMeasure
         self.ssim = StructuralSimilarityIndexMeasure()
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
         self.step=0
+
+    def k_nearest_faiss(self, x, k):
+        """
+        Find k-nearest neighbors using FAISS.
+        x: The data matrix (NumPy array) of shape [num_samples, num_features]
+        k: The number of neighbors to retrieve
+        Returns: A tuple (distances, indices) where both are Numpy arrays of shape [num_samples, k]
+        """
+        num_samples = x.shape[0]
+
+        # Build the index
+        index = faiss.IndexFlatL2(x.shape[1])  # Here, using a flat (brute force) index for L2 distance
+        index.add(x)
+
+        # Search the index
+        distances, indices = index.search(x, k + 1)  # +1 because the point itself is always returned
+
+        # Exclude the point itself from the result and return
+        return distances[:, 1:], indices[:, 1:]
+    
+    def k_nearest_sklearn(self, x: torch.Tensor, k: int):
+        """
+        Find k-nearest neighbors using sklearn's NearestNeighbors.
+        x: The data tensor of shape [num_samples, num_features]
+        k: The number of neighbors to retrieve
+        """
+        num_samples = x.size(0)
+
+        # Convert tensor to numpy array
+        x_np = x.cpu().numpy()
+
+        # Build the nearest neighbors model
+        nn_model = NearestNeighbors(n_neighbors=k + 1, algorithm='auto', metric='euclidean').fit(x_np)
+
+        # Find the k-nearest neighbors
+        distances, indices = nn_model.kneighbors(x_np)
+
+        # Exclude the point itself from the result and return
+        return distances[:, 1:].astype(np.float32), indices[:, 1:].astype(np.float32)
+
         
     def remove_from_optim(self,optimizer, deleted_mask, new_params):
         """removes the deleted_mask from the optimizer provided"""
@@ -163,10 +221,11 @@ class GaussianSplattingModel(Model):
     def after_train(self,step):
         with torch.no_grad():
             #keep track of a moving average of grad norms
+            weight = 1/self.config.refine_every
             if self.means_grad_norm is None:
-                self.means_grad_norm = self.means.grad.norm(dim=-1,keepdim=True).detach()
+                self.means_grad_norm = weight*self.means.grad.norm(dim=-1,keepdim=True).detach()
             else:
-                self.means_grad_norm = .05 * self.means.grad.norm(dim=-1,keepdim=True).detach() + .95 * self.means_grad_norm
+                self.means_grad_norm = weight*self.means.grad.norm(dim=-1,keepdim=True).detach() + self.means_grad_norm
     
     def refinement_before(self, optimizers:Optimizers, step):
         print("Inside refinement before")
@@ -303,6 +362,7 @@ class GaussianSplattingModel(Model):
         return cbs
     
     def step_cb(self,step):
+        self.vc.viser_server.add_point_cloud("init_pc", self.seed_pts[0].numpy(force=True), self.seed_pts[1].numpy(force=True), 0.01)
         self.step = step
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
@@ -438,7 +498,7 @@ class GaussianSplattingModel(Model):
             gt_img = batch['image']
         Ll1 = torch.nn.functional.l1_loss(gt_img, outputs['rgb'])
         # This simloss makes the results look weird, removing for now
-        # simloss = self.ssim(batch['image'].permute(2,0,1)[None,...], outputs['rgb'].permute(2,0,1)[None,...])
+        # simloss = self.ssim(gt_img.permute(2,0,1)[None,...], outputs['rgb'].permute(2,0,1)[None,...])
         return {"main_loss": Ll1}
 
     @torch.no_grad()
@@ -487,3 +547,6 @@ class GaussianSplattingModel(Model):
 
         return metrics_dict, images_dict
 
+    def RGB2SH(self, rgb):
+        C0 = 0.28209479177387814
+        return (rgb - 0.5) / C0

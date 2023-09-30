@@ -604,12 +604,12 @@ method_configs["gaussian-splatting"] = TrainerConfig(
         "xyz": {
             "optimizer": AdamOptimizerConfig(lr=1.6e-4, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
-                lr_final=1e-5,
+                lr_final=1e-6,
                 max_steps=30000,
             ),
         },
         "color": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=2.5e-3, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
                 lr_final=1e-3,
                 max_steps=30000,
@@ -620,7 +620,7 @@ method_configs["gaussian-splatting"] = TrainerConfig(
             "scheduler": None,
         },
         "scaling": {
-            "optimizer": AdamOptimizerConfig(lr=0.01, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=0.005, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
                 lr_final=1e-3,
                 max_steps=3000,
