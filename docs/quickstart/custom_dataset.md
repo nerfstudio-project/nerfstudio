@@ -57,10 +57,16 @@ There are many ways to install COLMAP, unfortunately it can sometimes be a bit f
 ::::::{tab-set}
 :::::{tab-item} Linux
 
-We recommend trying `apt`:
+We recommend trying `conda`:
 
 ```
-sudo apt install colmap
+conda install -c conda-forge colmap
+```
+
+Check that COLMAP 3.8 with CUDA is successfully installed:
+
+```
+colmap -h
 ```
 
 If that doesn't work, you can try VKPG:
