@@ -164,7 +164,8 @@ class Model(nn.Module):
         """
 
     @torch.no_grad()
-    def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: Union[RayBundle, Cameras]) -> Dict[str, torch.Tensor]:
+    def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: Union[RayBundle, Cameras], 
+                                          camera:Optional[Cameras] = None) -> Dict[str, torch.Tensor]:
         """Takes in camera parameters and computes the output of the model.
         TODO (jake-austin): Make 2 cases for when this is a ray or camera based model
         Args:
