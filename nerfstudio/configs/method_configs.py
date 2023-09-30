@@ -592,11 +592,11 @@ method_configs["gaussian-splatting"] = TrainerConfig(
     steps_per_eval_batch=10,
     steps_per_save=2000000,#saving is broken
     steps_per_eval_all_images=1000000,  # set to a very large model so we don't eval with all images
-    max_num_iterations=30000,
+    max_num_iterations=3000000,
     mixed_precision=False,
     pipeline=VanillaPipelineConfig(
         datamanager=FullImageDatamanagerConfig(
-            dataparser=ColmapDataParserConfig(load_3D_points=True,downscale_factor=1),
+            dataparser=ColmapDataParserConfig(load_3D_points=True),
         ),
         model=GaussianSplattingModelConfig(),
     ),
@@ -604,7 +604,7 @@ method_configs["gaussian-splatting"] = TrainerConfig(
         "xyz": {
             "optimizer": AdamOptimizerConfig(lr=1.6e-4, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
-                lr_final=1e-6,
+                lr_final=1.6e-6,
                 max_steps=30000,
             ),
         },
