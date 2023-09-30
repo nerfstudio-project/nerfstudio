@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
 import torch
 from copy import deepcopy
+from nerfstudio.cameras.rays import RayBundle
 from torch.nn import Parameter
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image import PeakSignalNoiseRatio
@@ -109,10 +110,11 @@ class GaussianSplattingModelConfig(ModelConfig):
     #set to 3 to effeectively turn off, it seems to make things worse? need to investigate
     sh_degree_interval: int = 1000
     """every n intervals turn on another sh degree"""
-    max_screen_size: int = 1000
+    max_screen_size: int = 700
     """maximum screen size of a gaussian, in pixels"""
     random_init: bool = False
     """whether to initialize the positions uniformly randomly (not SFM points)"""
+    ssim_lambda: float = .2
 
 class GaussianSplattingModel(Model):
     """Gaussian Splatting model
@@ -133,7 +135,8 @@ class GaussianSplattingModel(Model):
     def populate_modules(self):
         # TODO (jake-austin): clean this up, this is transplanted code across all the implementation functions
         if self.seed_pts is not None and not self.config.random_init:
-            self.means = torch.nn.Parameter(self.seed_pts[0]) # (Location, Color)
+            randmeans = torch.rand((30000,3))*8-4
+            self.means = torch.nn.Parameter(torch.cat([self.seed_pts[0],randmeans],dim=0)) # (Location, Color)
         else:
             self.means = torch.nn.Parameter((torch.rand((100000,3))-.5)*2)
         self.means_grad_norm = None
@@ -153,10 +156,11 @@ class GaussianSplattingModel(Model):
 
         if self.seed_pts is not None and not self.config.random_init:
             fused_color = self.RGB2SH(self.seed_pts[1]/255)
-            shs = torch.zeros((fused_color.shape[0], dim_sh, 3)).float().cuda()
+            shs = torch.zeros((fused_color.shape[0], dim_sh, 3))
             shs[:, 0, :] = fused_color
             shs[:, 1:, :] = 0.0
-            self.colors = torch.nn.Parameter(shs)
+            randcolors = torch.rand((30000,dim_sh,3))
+            self.colors = torch.nn.Parameter(torch.cat([shs,randcolors]))
         else:
             self.colors = torch.nn.Parameter(torch.rand(self.num_points, dim_sh, 3))
         
@@ -167,34 +171,24 @@ class GaussianSplattingModel(Model):
         self.ssim = StructuralSimilarityIndexMeasure()
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
         self.step=0
-
-    def k_nearest_faiss(self, x, k):
-        """
-        Find k-nearest neighbors using FAISS.
-        x: The data matrix (NumPy array) of shape [num_samples, num_features]
-        k: The number of neighbors to retrieve
-        Returns: A tuple (distances, indices) where both are Numpy arrays of shape [num_samples, k]
-        """
-        num_samples = x.shape[0]
-
-        # Build the index
-        index = faiss.IndexFlatL2(x.shape[1])  # Here, using a flat (brute force) index for L2 distance
-        index.add(x)
-
-        # Search the index
-        distances, indices = index.search(x, k + 1)  # +1 because the point itself is always returned
-
-        # Exclude the point itself from the result and return
-        return distances[:, 1:], indices[:, 1:]
     
+    def load_state_dict(self,dict, **kwargs):
+        #resize the parameters to match the new number of points
+        self.step = 30000
+        newp = dict['means'].shape[0]
+        self.means = torch.nn.Parameter(torch.zeros(newp,3,device=self.device))
+        self.scales = torch.nn.Parameter(torch.zeros(newp,3,device=self.device))
+        self.quats = torch.nn.Parameter(torch.zeros(newp,4,device=self.device))
+        self.colors = torch.nn.Parameter(torch.zeros(self.num_points, num_sh_bases(self.degree), 3,device=self.device))
+        self.opacities = torch.nn.Parameter(torch.zeros(newp,1,device=self.device))
+        super().load_state_dict(dict,**kwargs)
+
     def k_nearest_sklearn(self, x: torch.Tensor, k: int):
         """
         Find k-nearest neighbors using sklearn's NearestNeighbors.
         x: The data tensor of shape [num_samples, num_features]
         k: The number of neighbors to retrieve
         """
-        num_samples = x.size(0)
-
         # Convert tensor to numpy array
         x_np = x.cpu().numpy()
 
@@ -206,7 +200,6 @@ class GaussianSplattingModel(Model):
 
         # Exclude the point itself from the result and return
         return distances[:, 1:].astype(np.float32), indices[:, 1:].astype(np.float32)
-
         
     def remove_from_optim(self, optimizer, deleted_mask, new_params):
         """removes the deleted_mask from the optimizer provided"""
@@ -226,7 +219,6 @@ class GaussianSplattingModel(Model):
         del optimizer.param_groups[0]['params']
         optimizer.param_groups[0]['params'] = new_params
         optimizer.state[new_params[0]] = param_state
-
 
     def dup_in_optim(self,optimizer, dup_mask, new_params):
         """adds the parameters to the optimizer"""
@@ -529,19 +521,18 @@ class GaussianSplattingModel(Model):
         else:
             gt_img = batch['image']
         Ll1 = torch.nn.functional.l1_loss(gt_img, outputs['rgb'])
-        # This simloss makes the results look weird, removing for now
-        # simloss = self.ssim(gt_img.permute(2,0,1)[None,...], outputs['rgb'].permute(2,0,1)[None,...])
-        return {"main_loss": Ll1}
+        simloss = (1-self.ssim(gt_img.permute(2,0,1)[None,...], outputs['rgb'].permute(2,0,1)[None,...]))/2.0
+        return {"main_loss": (1-self.config.ssim_lambda)*Ll1 + self.config.ssim_lambda*simloss}
 
     @torch.no_grad()
-    def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: Cameras) -> Dict[str, torch.Tensor]:
+    def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle, camera:Optional[Cameras]=None) -> Dict[str, torch.Tensor]:
         """Takes in camera parameters and computes the output of the model.
 
         Args:
             camera_ray_bundle: ray bundle to calculate outputs over
         """
-        outs = self.get_outputs(camera_ray_bundle.to(self.device))
-        outs["rgb"] = torch.clamp(outs["rgb"], 0.0, 1.0)
+        assert camera is not None,'must provide camera to gaussian model'
+        outs = self.get_outputs(camera.to(self.device))
         return outs
 
     def get_image_metrics_and_images(

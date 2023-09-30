@@ -590,11 +590,11 @@ method_configs["gaussian-splatting"] = TrainerConfig(
     method_name="gaussian-splatting",
     steps_per_eval_image=10,
     steps_per_eval_batch=10,
-    steps_per_save=2000000,#saving is broken
+    steps_per_save=2000,
     steps_per_eval_all_images=1000000,  # set to a very large model so we don't eval with all images
-    max_num_iterations=3000000,
+    max_num_iterations=30000,
     mixed_precision=False,
-    gradient_accumulation_steps=5,
+    gradient_accumulation_steps=1,
     pipeline=VanillaPipelineConfig(
         datamanager=FullImageDatamanagerConfig(
             dataparser=ColmapDataParserConfig(load_3D_points=True),

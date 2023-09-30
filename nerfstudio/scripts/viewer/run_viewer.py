@@ -104,7 +104,7 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
         viewer_state = ViewerBetaState(
             config.viewer,
             log_filename=viewer_log_path,
-            datapath=base_dir,
+            datapath=pipeline.datamanager.get_datapath(),
             pipeline=pipeline,
             share=config.viewer.make_share_url,
         )
