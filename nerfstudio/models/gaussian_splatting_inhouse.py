@@ -88,11 +88,11 @@ def projection_matrix(znear, zfar, fovx, fovy, **kwargs):
 class GaussianSplattingModelConfig(ModelConfig):
     """Gaussian Splatting Model Config"""
     _target: Type = field(default_factory=lambda: GaussianSplattingModel)
-    warmup_length:int = 1500
+    warmup_length:int = 900
     """period of steps where refinement is turned off"""
     refine_every:int = 100
     """period of steps where gaussians are culled and densified"""
-    resolution_schedule: int = 500
+    resolution_schedule: int = 300
     """training starts at 1/d resolution, every n steps this is doubled"""
     num_downscales: int = 2
     """at the beginning, resolution is 1/2^d, where d is this number"""
@@ -107,10 +107,12 @@ class GaussianSplattingModelConfig(ModelConfig):
     densify_size_thresh: float = .01
     """below this size, gaussians are *duplicated*, otherwise split"""
     #set to 3 to effeectively turn off, it seems to make things worse? need to investigate
-    sh_degree_interval: int = 3
+    sh_degree_interval: int = 1000
     """every n intervals turn on another sh degree"""
-    max_screen_size: int = 200
+    max_screen_size: int = 1000
     """maximum screen size of a gaussian, in pixels"""
+    random_init: bool = False
+    """whether to initialize the positions uniformly randomly (not SFM points)"""
 
 class GaussianSplattingModel(Model):
     """Gaussian Splatting model
@@ -121,18 +123,24 @@ class GaussianSplattingModel(Model):
 
     config: GaussianSplattingModelConfig
     def __init__(self,*args,**kwargs):
-        self.seed_pts = kwargs['seed_points']
+        if 'seed_points' in kwargs:
+            self.seed_pts = kwargs['seed_points']
+        else:
+            self.seed_pts = None
         super().__init__(*args,**kwargs)
         self.vc = ViewerControl()
 
     def populate_modules(self):
         # TODO (jake-austin): clean this up, this is transplanted code across all the implementation functions
-        self.means = torch.nn.Parameter(self.seed_pts[0]) # (Location, Color)
+        if self.seed_pts is not None and not self.config.random_init:
+            self.means = torch.nn.Parameter(self.seed_pts[0]) # (Location, Color)
+        else:
+            self.means = torch.nn.Parameter((torch.rand((100000,3))-.5)*2)
         self.means_grad_norm = None
         init_scale = torch.log(torch.tensor(.01)).item()
         self.scales = torch.nn.Parameter(torch.full((self.num_points,3),init_scale))
         self.max_2Dsize = None
-        distances, _ = self.k_nearest_sklearn(self.seed_pts[0], 3)
+        distances, _ = self.k_nearest_sklearn(self.means.data, 3)
         distances = torch.from_numpy(distances)
         #find the average of the three nearest neighbors for each point and use that as the scale
         avg_dist = distances.mean(dim=-1,keepdim=True)
@@ -142,15 +150,17 @@ class GaussianSplattingModel(Model):
         self.quats = torch.nn.Parameter(random_quat_tensor(self.num_points))
         self.degree = 4
         dim_sh = num_sh_bases(self.degree)
-        # self.colors = torch.nn.Parameter(torch.rand(self.num_points, dim_sh, 3))
 
-        fused_color = self.RGB2SH(self.seed_pts[1]/255)
-        shs = torch.zeros((fused_color.shape[0], dim_sh, 3)).float().cuda()
-        shs[:, 0, :] = fused_color
-        shs[:, 1:, :] = 0.0
-        self.colors = torch.nn.Parameter(shs)
+        if self.seed_pts is not None and not self.config.random_init:
+            fused_color = self.RGB2SH(self.seed_pts[1]/255)
+            shs = torch.zeros((fused_color.shape[0], dim_sh, 3)).float().cuda()
+            shs[:, 0, :] = fused_color
+            shs[:, 1:, :] = 0.0
+            self.colors = torch.nn.Parameter(shs)
+        else:
+            self.colors = torch.nn.Parameter(torch.rand(self.num_points, dim_sh, 3))
         
-        self.opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(self.num_points, 1)))
+        self.opacities = torch.nn.Parameter(torch.logit(0.01 * torch.ones(self.num_points, 1)))
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         from torchmetrics.image import StructuralSimilarityIndexMeasure
@@ -246,19 +256,6 @@ class GaussianSplattingModel(Model):
             newradii = self.radii[visible_mask]
             self.max_2Dsize[visible_mask] = torch.maximum(self.max_2Dsize[visible_mask],newradii)
 
-    
-    def refinement_before(self, optimizers:Optimizers, step):
-        print("Inside refinement before")
-        if self.step > self.config.warmup_length:
-            with torch.no_grad():
-                # do all the refinement stuff here
-                #first we cull gaussians
-                deleted_mask = self.cull_gaussians()
-                param_groups = self.get_param_groups()
-                for group,param in param_groups.items(): 
-                    self.remove_from_optim(optimizers.optimizers[group],deleted_mask,param)
-            
-
     def refinement_after(self, optimizers:Optimizers, step):
         if self.step > self.config.warmup_length:
             with torch.no_grad():
@@ -277,6 +274,8 @@ class GaussianSplattingModel(Model):
                 self.opacities = Parameter(torch.cat([self.opacities.detach(),split_opacities, dup_opacities],dim=0))
                 self.scales = Parameter(torch.cat([self.scales.detach(),split_scales, dup_scales],dim=0))
                 self.quats = Parameter(torch.cat([self.quats.detach(),split_quats, dup_quats],dim=0))
+                #append zeros to the max_2Dsize tensor
+                self.max_2Dsize = torch.cat([self.max_2Dsize,torch.zeros_like(split_scales[:,0]),torch.zeros_like(dup_scales[:,0])],dim=0)
                 
                 split_idcs = torch.where(splits)[0]
                 dup_idcs = torch.where(dups)[0]
@@ -285,6 +284,12 @@ class GaussianSplattingModel(Model):
                 param_groups = self.get_param_groups()
                 for group,param in param_groups.items():
                     self.dup_in_optim(optimizers.optimizers[group],add_idcs,param)
+                #then cull
+                deleted_mask = self.cull_gaussians()
+                param_groups = self.get_param_groups()
+                for group,param in param_groups.items(): 
+                    self.remove_from_optim(optimizers.optimizers[group],deleted_mask,param)
+
 
                 if self.step // self.config.refine_every % self.config.reset_alpha_every == 0:
                     print("Resetting alpha")
@@ -312,9 +317,6 @@ class GaussianSplattingModel(Model):
         #cull big screen space
         if self.step>self.config.refine_every*self.config.reset_alpha_every:
             culls = culls | (self.max_2Dsize > self.config.max_screen_size).squeeze()
-        self.means_grad_norm = self.means_grad_norm[~culls].detach()
-        self.max_2Dsize = self.max_2Dsize[~culls].detach()
-        self.vis_counts = self.vis_counts[~culls].detach()
         self.means = Parameter(self.means[~culls].detach())
         self.scales = Parameter(self.scales[~culls].detach())
         self.quats = Parameter(self.quats[~culls].detach())
@@ -361,7 +363,7 @@ class GaussianSplattingModel(Model):
         """
         n_dups = dup_mask.sum().item()
         print(f"Would duplicate {dup_mask.sum().item()/self.num_points} gaussians: {n_dups}/{self.num_points}")
-        dup_means = self.means[dup_mask]
+        dup_means = self.means[dup_mask] + self.means.grad[dup_mask]
         dup_colors = self.colors[dup_mask]
         dup_opacities = self.opacities[dup_mask]
         dup_scales = self.scales[dup_mask]
@@ -377,11 +379,6 @@ class GaussianSplattingModel(Model):
     ) -> List[TrainingCallback]:
         cbs = []
         cbs.append(TrainingCallback([TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],self.step_cb))
-        cbs.append(TrainingCallback([TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
-                                    self.refinement_before,
-                                    update_every_num_iters=self.config.refine_every,
-                                    args=[training_callback_attributes.optimizers]
-                                    ))
         # The order of these matters
         cbs.append(TrainingCallback([TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                                     self.after_train,))
@@ -454,7 +451,7 @@ class GaussianSplattingModel(Model):
         fovx = 2 * math.atan(camera.width / (2 * camera.fx))
         fovy = 2 * math.atan(camera.height / (2 * camera.fy))
         W, H = camera.width.item(), camera.height.item()
-        projmat = projection_matrix(.0001,1000,fovx,fovy).to(self.device)
+        projmat = projection_matrix(.1,1000,fovx,fovy).to(self.device)
         BLOCK_X, BLOCK_Y = 16, 16
         tile_bounds = (
             (W + BLOCK_X - 1) // BLOCK_X,
