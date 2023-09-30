@@ -594,6 +594,7 @@ method_configs["gaussian-splatting"] = TrainerConfig(
     steps_per_eval_all_images=1000000,  # set to a very large model so we don't eval with all images
     max_num_iterations=3000000,
     mixed_precision=False,
+    gradient_accumulation_steps=4,
     pipeline=VanillaPipelineConfig(
         datamanager=FullImageDatamanagerConfig(
             dataparser=ColmapDataParserConfig(load_3D_points=True),
@@ -627,7 +628,7 @@ method_configs["gaussian-splatting"] = TrainerConfig(
             ),
         },
         "rotation": {
-            "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=3e-4, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
                 lr_final=1e-4,
                 max_steps=3000,

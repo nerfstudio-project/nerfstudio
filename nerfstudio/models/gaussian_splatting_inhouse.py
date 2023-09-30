@@ -26,7 +26,7 @@ from torch.nn import Parameter
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image import PeakSignalNoiseRatio
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-import gc
+from diff_rast._torch_impl import compute_sh_color
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.engine.callbacks import (TrainingCallback,
                                          TrainingCallbackAttributes,
@@ -35,6 +35,9 @@ from nerfstudio.viewer_beta.viewer_elements import ViewerControl
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.models.base_model import Model, ModelConfig
 import math
+import numpy as np
+from sklearn.neighbors import NearestNeighbors
+
 
 from diff_rast.rasterize import RasterizeGaussians
 from diff_rast.project_gaussians import ProjectGaussians
@@ -95,7 +98,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     """at the beginning, resolution is 1/2^d, where d is this number"""
     cull_alpha_thresh:float = .005
     """threshold of opacity for culling gaussians"""
-    cull_scale_thresh:float = .1
+    cull_scale_thresh:float = .5
     """threshold of scale for culling gaussians"""
     reset_alpha_every:int = 30
     """Every this many refinement steps, reset the alpha"""
@@ -124,22 +127,76 @@ class GaussianSplattingModel(Model):
 
     def populate_modules(self):
         # TODO (jake-austin): clean this up, this is transplanted code across all the implementation functions
-        self.means = torch.nn.Parameter(self.seed_pts[0])
+        self.means = torch.nn.Parameter(self.seed_pts[0]) # (Location, Color)
         self.means_grad_norm = None
         init_scale = torch.log(torch.tensor(.01)).item()
         self.scales = torch.nn.Parameter(torch.full((self.num_points,3),init_scale))
         self.max_2Dsize = None
+        distances, _ = self.k_nearest_sklearn(self.seed_pts[0], 3)
+        distances = torch.from_numpy(distances)
+        #find the average of the three nearest neighbors for each point and use that as the scale
+        avg_dist = distances.mean(dim=-1,keepdim=True)
+        self.scales = torch.nn.Parameter(torch.log(avg_dist.repeat(1,3)))
+
+        # self.scales = torch.nn.Parameter(torch.full((self.num_points,3),init_scale))
         self.quats = torch.nn.Parameter(random_quat_tensor(self.num_points))
-        self.degree = 3
+        self.degree = 4
         dim_sh = num_sh_bases(self.degree)
-        self.colors = torch.nn.Parameter(torch.rand(self.num_points, dim_sh, 3))
-        self.opacities = torch.nn.Parameter(torch.zeros(self.num_points, 1))
+        # self.colors = torch.nn.Parameter(torch.rand(self.num_points, dim_sh, 3))
+
+        fused_color = self.RGB2SH(self.seed_pts[1]/255)
+        shs = torch.zeros((fused_color.shape[0], dim_sh, 3)).float().cuda()
+        shs[:, 0, :] = fused_color
+        shs[:, 1:, :] = 0.0
+        self.colors = torch.nn.Parameter(shs)
+        
+        self.opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(self.num_points, 1)))
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         from torchmetrics.image import StructuralSimilarityIndexMeasure
         self.ssim = StructuralSimilarityIndexMeasure()
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
         self.step=0
+
+    def k_nearest_faiss(self, x, k):
+        """
+        Find k-nearest neighbors using FAISS.
+        x: The data matrix (NumPy array) of shape [num_samples, num_features]
+        k: The number of neighbors to retrieve
+        Returns: A tuple (distances, indices) where both are Numpy arrays of shape [num_samples, k]
+        """
+        num_samples = x.shape[0]
+
+        # Build the index
+        index = faiss.IndexFlatL2(x.shape[1])  # Here, using a flat (brute force) index for L2 distance
+        index.add(x)
+
+        # Search the index
+        distances, indices = index.search(x, k + 1)  # +1 because the point itself is always returned
+
+        # Exclude the point itself from the result and return
+        return distances[:, 1:], indices[:, 1:]
+    
+    def k_nearest_sklearn(self, x: torch.Tensor, k: int):
+        """
+        Find k-nearest neighbors using sklearn's NearestNeighbors.
+        x: The data tensor of shape [num_samples, num_features]
+        k: The number of neighbors to retrieve
+        """
+        num_samples = x.size(0)
+
+        # Convert tensor to numpy array
+        x_np = x.cpu().numpy()
+
+        # Build the nearest neighbors model
+        nn_model = NearestNeighbors(n_neighbors=k + 1, algorithm='auto', metric='euclidean').fit(x_np)
+
+        # Find the k-nearest neighbors
+        distances, indices = nn_model.kneighbors(x_np)
+
+        # Exclude the point itself from the result and return
+        return distances[:, 1:].astype(np.float32), indices[:, 1:].astype(np.float32)
+
         
     def remove_from_optim(self, optimizer, deleted_mask, new_params):
         """removes the deleted_mask from the optimizer provided"""
@@ -423,9 +480,11 @@ class GaussianSplattingModel(Model):
         )
         if self.degree > 0:
             viewdirs = self.means - camera.camera_to_worlds[..., :3, 3]  # (N, 3)
+            viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
             n = min(self.step // self.config.sh_degree_interval,self.degree)
             n_bases = num_sh_bases(n)
-            rgbs = SphericalHarmonics.apply(n, viewdirs, self.colors[:,:n_bases])  # (N, 3)
+            rgbs = compute_sh_color(viewdirs, self.colors[:,:n_bases])
+            # rgbs = SphericalHarmonics.apply(n, viewdirs, self.colors[:,:n_bases])  # (N, 3)
         else:
             rgbs = self.colors.squeeze()  # (N, 3)
         cx_delta = cx - W / 2
@@ -474,7 +533,7 @@ class GaussianSplattingModel(Model):
             gt_img = batch['image']
         Ll1 = torch.nn.functional.l1_loss(gt_img, outputs['rgb'])
         # This simloss makes the results look weird, removing for now
-        simloss = self.ssim(gt_img.permute(2,0,1)[None,...], outputs['rgb'].permute(2,0,1)[None,...])
+        # simloss = self.ssim(gt_img.permute(2,0,1)[None,...], outputs['rgb'].permute(2,0,1)[None,...])
         return {"main_loss": Ll1}
 
     @torch.no_grad()
@@ -523,3 +582,6 @@ class GaussianSplattingModel(Model):
 
         return metrics_dict, images_dict
 
+    def RGB2SH(self, rgb):
+        C0 = 0.28209479177387814
+        return (rgb - 0.5) / C0
