@@ -93,9 +93,9 @@ class GaussianSplattingModelConfig(ModelConfig):
     """training starts at 1/d resolution, every n steps this is doubled"""
     num_downscales: int = 2
     """at the beginning, resolution is 1/2^d, where d is this number"""
-    cull_alpha_thresh:float = .01
+    cull_alpha_thresh:float = .005
     """threshold of opacity for culling gaussians"""
-    cull_scale_thresh:float = .5
+    cull_scale_thresh:float = .1
     """threshold of scale for culling gaussians"""
     reset_alpha_every:int = 30
     """Every this many refinement steps, reset the alpha"""
@@ -106,11 +106,11 @@ class GaussianSplattingModelConfig(ModelConfig):
     #set to 3 to effeectively turn off, it seems to make things worse? need to investigate
     sh_degree_interval: int = 3
     """every n intervals turn on another sh degree"""
+    max_screen_size: int = 200
+    """maximum screen size of a gaussian, in pixels"""
 
 class GaussianSplattingModel(Model):
     """Gaussian Splatting model
-
-    TODO (jake-austin): Figure out how to print out on the training log in terminal the number of splats
 
     Args:
         config: Gaussian Splatting configuration to instantiate model
@@ -128,6 +128,7 @@ class GaussianSplattingModel(Model):
         self.means_grad_norm = None
         init_scale = torch.log(torch.tensor(.01)).item()
         self.scales = torch.nn.Parameter(torch.full((self.num_points,3),init_scale))
+        self.max_2Dsize = None
         self.quats = torch.nn.Parameter(random_quat_tensor(self.num_points))
         self.degree = 3
         dim_sh = num_sh_bases(self.degree)
@@ -174,11 +175,20 @@ class GaussianSplattingModel(Model):
     def after_train(self,step):
         with torch.no_grad():
             #keep track of a moving average of grad norms
-            weight = 1/self.config.refine_every
+            visible_mask = self.radii>0
             if self.means_grad_norm is None:
-                self.means_grad_norm = weight*self.means.grad.detach().norm(dim=-1,keepdim=True)
+                self.means_grad_norm = self.means.grad.detach().norm(dim=-1,keepdim=True)
+                self.vis_counts = torch.zeros_like(self.means_grad_norm)
             else:
-                self.means_grad_norm = weight*self.means.grad.detach().norm(dim=-1,keepdim=True) + self.means_grad_norm
+                self.vis_counts[visible_mask] = self.vis_counts[visible_mask] + 1
+                self.means_grad_norm[visible_mask] = self.means.grad.detach()[visible_mask].norm(dim=-1,keepdim=True) + self.means_grad_norm[visible_mask]
+
+            #update the max screen size
+            if self.max_2Dsize is None:
+                self.max_2Dsize = torch.zeros_like(self.radii)
+            newradii = self.radii[visible_mask]
+            self.max_2Dsize[visible_mask] = torch.maximum(self.max_2Dsize[visible_mask],newradii)
+
     
     def refinement_before(self, optimizers:Optimizers, step):
         print("Inside refinement before")
@@ -196,7 +206,8 @@ class GaussianSplattingModel(Model):
         if self.step > self.config.warmup_length:
             with torch.no_grad():
                 #then we densify
-                high_grads = (self.means_grad_norm > self.config.densify_grad_thresh).squeeze()
+                avg_grad_norm = self.means_grad_norm / self.vis_counts
+                high_grads = (avg_grad_norm > self.config.densify_grad_thresh).squeeze()
                 splits = (self.scales.exp().max(dim=-1).values > self.config.densify_size_thresh).squeeze()
                 splits &= high_grads
                 split_means,split_colors,split_opacities,split_scales,split_quats = self.split_gaussians(splits)
@@ -216,7 +227,6 @@ class GaussianSplattingModel(Model):
                 
                 param_groups = self.get_param_groups()
                 for group,param in param_groups.items():
-                    print(f"adding {len(add_idcs)} params to {group} optimizer")
                     self.dup_in_optim(optimizers.optimizers[group],add_idcs,param)
 
                 if self.step // self.config.refine_every % self.config.reset_alpha_every == 0:
@@ -230,6 +240,8 @@ class GaussianSplattingModel(Model):
                     param_state['exp_avg'] = torch.zeros_like(param_state['exp_avg'])
                     param_state['exp_avg_sq'] = torch.zeros_like(param_state['exp_avg_sq'])
                 self.means_grad_norm = None
+                self.vis_counts = None
+                self.max_2Dsize = None
 
     def cull_gaussians(self):
         """
@@ -240,7 +252,12 @@ class GaussianSplattingModel(Model):
         culls = (torch.sigmoid(self.opacities) < self.config.cull_alpha_thresh).squeeze()
         #cull huge ones
         culls = culls | (torch.exp(self.scales).max(dim=-1).values > self.config.cull_scale_thresh).squeeze()
+        #cull big screen space
+        if self.step>self.config.refine_every*self.config.reset_alpha_every:
+            culls = culls | (self.max_2Dsize > self.config.max_screen_size).squeeze()
         self.means_grad_norm = self.means_grad_norm[~culls].detach()
+        self.max_2Dsize = self.max_2Dsize[~culls].detach()
+        self.vis_counts = self.vis_counts[~culls].detach()
         self.means = Parameter(self.means[~culls].detach())
         self.scales = Parameter(self.scales[~culls].detach())
         self.quats = Parameter(self.quats[~culls].detach())
@@ -391,7 +408,7 @@ class GaussianSplattingModel(Model):
             background = torch.rand(3, device=self.device)
         else:
             background = torch.zeros(3, device=self.device)
-        xys, depths, radii, conics, num_tiles_hit,self.cov3d = ProjectGaussians.apply(
+        xys, depths, self.radii, conics, num_tiles_hit,self.cov3d = ProjectGaussians.apply(
             self.means,
             torch.exp(self.scales),
             1,
@@ -414,10 +431,10 @@ class GaussianSplattingModel(Model):
         cx_delta = cx - W / 2
         cy_delta = cy - H / 2
         xys = xys.view(-1, 2) + torch.tensor([cx_delta, cy_delta], device=self.device)
-        rgb = RasterizeGaussians.apply(
+        rgb,gauss_ids_sorted = RasterizeGaussians.apply(
             xys,
             depths,
-            radii,
+            self.radii,
             conics,
             num_tiles_hit,
             torch.sigmoid(rgbs),
