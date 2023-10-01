@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Literal, Optional, Tuple
+from typing import Literal, Optional, Tuple, Callable
 
 import torch
 import yaml
@@ -69,6 +69,7 @@ def eval_setup(
     config_path: Path,
     eval_num_rays_per_chunk: Optional[int] = None,
     test_mode: Literal["test", "val", "inference"] = "test",
+    update_config_callback: Optional[Callable[[TrainerConfig], TrainerConfig]] = None,
 ) -> Tuple[TrainerConfig, Pipeline, Path, int]:
     """Shared setup for loading a saved pipeline for evaluation.
 
@@ -79,6 +80,7 @@ def eval_setup(
             'val': loads train/val datasets into memory
             'test': loads train/test dataset into memory
             'inference': does not load any dataset into memory
+        update_config_callback: Callback to update the config before loading the pipeline
 
 
     Returns:
@@ -91,6 +93,9 @@ def eval_setup(
     config.pipeline.datamanager._target = all_methods[config.method_name].pipeline.datamanager._target
     if eval_num_rays_per_chunk:
         config.pipeline.model.eval_num_rays_per_chunk = eval_num_rays_per_chunk
+
+    if update_config_callback is not None:
+        config = update_config_callback(config)
 
     # load checkpoints from wherever they were saved
     # TODO: expose the ability to choose an arbitrary checkpoint
