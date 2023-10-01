@@ -66,6 +66,7 @@ class NerfactoField(Field):
         use_pred_normals: whether to use predicted normals
         use_average_appearance_embedding: whether to use average appearance embedding or zeros for inference
         spatial_distortion: spatial distortion to apply to the scene
+        coarse_to_fine_iters: (start, end) iterations at which gradients of hash grid levels are modulated. Linear interpolation between (start, end) and full activation from end onwards.
     """
 
     aabb: Tensor
@@ -96,6 +97,7 @@ class NerfactoField(Field):
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
         implementation: Literal["tcnn", "torch"] = "tcnn",
+        coarse_to_fine_iters: Optional[Tuple[int, int]] = None,
     ) -> None:
         super().__init__()
 
@@ -116,6 +118,7 @@ class NerfactoField(Field):
         self.use_pred_normals = use_pred_normals
         self.pass_semantic_gradients = pass_semantic_gradients
         self.base_res = base_res
+        self.coarse_to_fine_iters = coarse_to_fine_iters
 
         self.direction_encoding = SHEncoding(
             levels=4,
@@ -133,6 +136,7 @@ class NerfactoField(Field):
             log2_hashmap_size=log2_hashmap_size,
             features_per_level=features_per_level,
             implementation=implementation,
+            coarse_to_fine_iters=coarse_to_fine_iters,
         )
         self.mlp_base_mlp = MLP(
             in_dim=self.mlp_base_grid.get_out_dim(),
@@ -199,6 +203,9 @@ class NerfactoField(Field):
             out_activation=nn.Sigmoid(),
             implementation=implementation,
         )
+
+    def set_step(self, step: int) -> None:
+        self.mlp_base_grid.set_step(step)
 
     def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
