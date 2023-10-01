@@ -616,6 +616,13 @@ method_configs["gaussian-splatting"] = TrainerConfig(
                 max_steps=30000,
             ),
         },
+        "shs": {
+            "optimizer": AdamOptimizerConfig(lr=2.5e-3/20, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                lr_final=1e-3/20,
+                max_steps=30000,
+            ),
+        },
         "opacity": {
             "optimizer": AdamOptimizerConfig(lr=0.05, eps=1e-15),
             "scheduler": None,

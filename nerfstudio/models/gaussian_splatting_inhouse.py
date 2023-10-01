@@ -135,13 +135,14 @@ class GaussianSplattingModel(Model):
     def populate_modules(self):
         # TODO (jake-austin): clean this up, this is transplanted code across all the implementation functions
         if self.seed_pts is not None and not self.config.random_init:
-            randmeans = torch.rand((30000,3))*8-4
-            self.means = torch.nn.Parameter(torch.cat([self.seed_pts[0],randmeans],dim=0)) # (Location, Color)
+            # randmeans = torch.rand((30000,3))*8-4
+            # self.means = torch.nn.Parameter(torch.cat([self.seed_pts[0],randmeans],dim=0)) # (Location, Color)
+            self.means = torch.nn.Parameter(self.seed_pts[0]) # (Location, Color)
         else:
             self.means = torch.nn.Parameter((torch.rand((100000,3))-.5)*2)
         self.means_grad_norm = None
-        init_scale = torch.log(torch.tensor(.01)).item()
-        self.scales = torch.nn.Parameter(torch.full((self.num_points,3),init_scale))
+        # init_scale = torch.log(torch.tensor(.01)).item()
+        # self.scales = torch.nn.Parameter(torch.full((self.num_points,3),init_scale))
         self.max_2Dsize = None
         distances, _ = self.k_nearest_sklearn(self.means.data, 3)
         distances = torch.from_numpy(distances)
@@ -151,26 +152,39 @@ class GaussianSplattingModel(Model):
 
         # self.scales = torch.nn.Parameter(torch.full((self.num_points,3),init_scale))
         self.quats = torch.nn.Parameter(random_quat_tensor(self.num_points))
-        self.degree = 4
+        self.degree = 3
         dim_sh = num_sh_bases(self.degree)
 
         if self.seed_pts is not None and not self.config.random_init:
+            # fused_color = self.RGB2SH(self.seed_pts[1]/255)
+            # shs = torch.zeros((fused_color.shape[0], dim_sh, 3))
+            # shs[:, 0, :] = fused_color
+            # shs[:, 1:, :] = 0.0
+            # randcolors = torch.rand((30000,dim_sh,3))
+            # self.colors = torch.nn.Parameter(torch.cat([shs,randcolors]))
             fused_color = self.RGB2SH(self.seed_pts[1]/255)
-            shs = torch.zeros((fused_color.shape[0], dim_sh, 3))
-            shs[:, 0, :] = fused_color
-            shs[:, 1:, :] = 0.0
-            randcolors = torch.rand((30000,dim_sh,3))
-            self.colors = torch.nn.Parameter(torch.cat([shs,randcolors]))
+            shs = torch.zeros((fused_color.shape[0], 3, dim_sh)).float().cuda()
+            shs[:, :3, 0 ] = fused_color
+            shs[:, 3:, 1:] = 0.0
+            self.colors = torch.nn.Parameter(shs[:,:,0:1])
+            self.shs_rest = torch.nn.Parameter(shs[:,:,1:])
         else:
-            self.colors = torch.nn.Parameter(torch.rand(self.num_points, dim_sh, 3))
+            self.colors = torch.nn.Parameter(torch.rand(self.num_points, 1, 3))
+            self.shs_rest = torch.nn.Parameter(torch.zeros((self.num_points, dim_sh - 1, 3)))
         
-        self.opacities = torch.nn.Parameter(torch.logit(0.01 * torch.ones(self.num_points, 1)))
+        self.opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(self.num_points, 1)))
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         from torchmetrics.image import StructuralSimilarityIndexMeasure
         self.ssim = StructuralSimilarityIndexMeasure()
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
         self.step=0
+    
+    @property
+    def get_colors(self):
+        color = self.colors
+        shs_rest = self.shs_rest
+        return torch.cat((color, shs_rest), dim=2)
     
     def load_state_dict(self,dict, **kwargs):
         #resize the parameters to match the new number of points
@@ -179,7 +193,8 @@ class GaussianSplattingModel(Model):
         self.means = torch.nn.Parameter(torch.zeros(newp,3,device=self.device))
         self.scales = torch.nn.Parameter(torch.zeros(newp,3,device=self.device))
         self.quats = torch.nn.Parameter(torch.zeros(newp,4,device=self.device))
-        self.colors = torch.nn.Parameter(torch.zeros(self.num_points, num_sh_bases(self.degree), 3,device=self.device))
+        self.colors = torch.nn.Parameter(torch.zeros(self.num_points, 1, 3,device=self.device))
+        self.shs_rest = torch.nn.Parameter(torch.zeros(self.num_points, num_sh_bases(self.degree)-1, 3,device=self.device))
         self.opacities = torch.nn.Parameter(torch.zeros(newp,1,device=self.device))
         super().load_state_dict(dict,**kwargs)
 
@@ -256,13 +271,14 @@ class GaussianSplattingModel(Model):
                 high_grads = (avg_grad_norm > self.config.densify_grad_thresh).squeeze()
                 splits = (self.scales.exp().max(dim=-1).values > self.config.densify_size_thresh).squeeze()
                 splits &= high_grads
-                split_means,split_colors,split_opacities,split_scales,split_quats = self.split_gaussians(splits)
+                split_means,split_colors,split_shs,split_opacities,split_scales,split_quats = self.split_gaussians(splits)
 
                 dups = (self.scales.exp().max(dim=-1).values <= self.config.densify_size_thresh).squeeze()
                 dups &= high_grads
-                dup_means,dup_colors,dup_opacities,dup_scales,dup_quats = self.dup_gaussians(dups)
+                dup_means,dup_colors,dup_shs,dup_opacities,dup_scales,dup_quats = self.dup_gaussians(dups)
                 self.means = Parameter(torch.cat([self.means.detach(),split_means, dup_means],dim=0))
                 self.colors = Parameter(torch.cat([self.colors.detach(),split_colors, dup_colors],dim=0))
+                self.shs_rest = Parameter(torch.cat([self.shs_rest.detach(),split_shs, dup_shs],dim=0))
                 self.opacities = Parameter(torch.cat([self.opacities.detach(),split_opacities, dup_opacities],dim=0))
                 self.scales = Parameter(torch.cat([self.scales.detach(),split_scales, dup_scales],dim=0))
                 self.quats = Parameter(torch.cat([self.quats.detach(),split_quats, dup_quats],dim=0))
@@ -313,6 +329,7 @@ class GaussianSplattingModel(Model):
         self.scales = Parameter(self.scales[~culls].detach())
         self.quats = Parameter(self.quats[~culls].detach())
         self.colors = Parameter(self.colors[~culls].detach())
+        self.shs_rest = Parameter(self.shs_rest[~culls].detach())
         self.opacities = Parameter(self.opacities[~culls].detach())
 
         print(f"Culled {n_bef - self.num_points} gaussians")
@@ -340,6 +357,8 @@ class GaussianSplattingModel(Model):
         new_means = torch.bmm(cov_mats,centered_samples[...,None]).squeeze() + self.means[split_mask]
         # step 2, sample new colors
         new_colors = self.colors[split_mask]
+        # step 3, sample new shs
+        new_shs = self.shs_rest[split_mask]
         # step 3, sample new opacities
         new_opacities = self.opacities[split_mask]
         # step 4, sample new scales
@@ -347,7 +366,7 @@ class GaussianSplattingModel(Model):
         self.scales[split_mask] = torch.logit(torch.exp(self.scales[split_mask])/1.6)
         # step 5, sample new quats
         new_quats = self.quats[split_mask]
-        return new_means,new_colors,new_opacities,new_scales,new_quats
+        return new_means,new_colors,new_shs,new_opacities,new_scales,new_quats
 
     def dup_gaussians(self,dup_mask):
         """
@@ -357,10 +376,11 @@ class GaussianSplattingModel(Model):
         print(f"Would duplicate {dup_mask.sum().item()/self.num_points} gaussians: {n_dups}/{self.num_points}")
         dup_means = self.means[dup_mask] + self.means.grad[dup_mask]
         dup_colors = self.colors[dup_mask]
+        dup_shs = self.shs_rest[dup_mask]
         dup_opacities = self.opacities[dup_mask]
         dup_scales = self.scales[dup_mask]
         dup_quats = self.quats[dup_mask]
-        return dup_means,dup_colors,dup_opacities,dup_scales,dup_quats
+        return dup_means,dup_colors,dup_shs,dup_opacities,dup_scales,dup_quats
     
     @property
     def num_points(self):
@@ -393,6 +413,7 @@ class GaussianSplattingModel(Model):
         return {
             "xyz": [self.means],
             "color": [self.colors],
+            "shs": [self.shs_rest],
             "opacity": [self.opacities],
             "scaling": [self.scales],
             "rotation": [self.quats],
@@ -472,13 +493,14 @@ class GaussianSplattingModel(Model):
             viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
             n = min(self.step // self.config.sh_degree_interval,self.degree)
             n_bases = num_sh_bases(n)
-            import pdb; pdb.set_trace()
-            rgbs = compute_sh_color(viewdirs, self.colors[:,:n_bases])
-            # sh2rgb = eval_sh(pc.active_sh_degree, shs_view, dir_pp_normalized)
-            # colors_precomp = torch.clamp_min(sh2rgb + 0.5, 0.0)
+            # rgbs = compute_sh_color(viewdirs, self.colors[:,:n_bases])
+            rgbs = eval_sh(n, self.get_colors, viewdirs)
+            # rgbs = torch.clamp_min(rgbs + 0.5, 0.0)
+            print("Min", rgbs.min(), "Max", rgbs.max())
+            # rgbs = torch.clamp_max(rgbs, 1.0)
             # rgbs = SphericalHarmonics.apply(n, viewdirs, self.colors[:,:n_bases])  # (N, 3)
         else:
-            rgbs = self.colors.squeeze()  # (N, 3)
+            rgbs = self.get_colors.squeeze()  # (N, 3)
         cx_delta = cx - W / 2
         cy_delta = cy - H / 2
         xys = xys.view(-1, 2) + torch.tensor([cx_delta, cy_delta], device=self.device)
@@ -489,6 +511,7 @@ class GaussianSplattingModel(Model):
             conics,
             num_tiles_hit,
             torch.sigmoid(rgbs),
+            # rgbs,
             torch.sigmoid(self.opacities),
             H,
             W,
