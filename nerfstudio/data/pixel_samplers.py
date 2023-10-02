@@ -243,12 +243,12 @@ class PixelSampler:
         collated_batch = {}
         for key, value in batch.items():
             if key != "image_idx" and key != "image" and key != "mask" and value is not None:
-                l = []
+                list_of_values_to_concat = []
                 for idx, image_idx in enumerate(c):
                     val = value[image_idx]
-                    l.append(val[y[idx], x[idx]])
+                    list_of_values_to_concat.append(val[y[idx], x[idx]])
                 
-                collated_batch.update({key:  torch.unsqueeze(torch.cat(l, dim=0), dim=1)})
+                collated_batch.update({key:  torch.unsqueeze(torch.cat(list_of_values_to_concat, dim=0), dim=1)})
 
 
         collated_batch["image"] = torch.cat(all_images, dim=0)
