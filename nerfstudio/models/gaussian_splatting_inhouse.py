@@ -264,7 +264,7 @@ class GaussianSplattingModel(Model):
             # keep track of a moving average of grad norms
             visible_mask = (self.radii > 0).flatten()
             grads = self.proj_means.grad.detach().norm(dim=-1)
-            # print(f"grad norm min {grads.min().item()} max {grads.max().item()} mean {grads.mean().item()}")
+            # print(f"grad norm min {grads.min().item()} max {grads.max().item()} mean {grads.mean().item()} size {grads.shape}")
             if self.xys_grad_norm is None:
                 self.xys_grad_norm = grads
                 self.vis_counts = torch.zeros_like(self.xys_grad_norm)
