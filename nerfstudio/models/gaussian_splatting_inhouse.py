@@ -515,9 +515,11 @@ class GaussianSplattingModel(Model):
             background = torch.rand(3, device=self.device)
         else:
             background = torch.zeros(3, device=self.device)
+        pix_fac = torch.tensor([0.5 * W, 0.5 * H], device=self.device)[None].repeat(self.num_points, 1)
+        pix_means = self.proj_means * pix_fac
         xys, depths, self.radii, conics, num_tiles_hit, self.cov3d = ProjectGaussians.apply(
             self.means,
-            self.proj_means,
+            pix_means,
             torch.exp(self.scales),
             1,
             self.quats,
