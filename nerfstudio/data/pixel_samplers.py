@@ -247,9 +247,8 @@ class PixelSampler:
                 for idx, image_idx in enumerate(c):
                     val = value[image_idx]
                     list_of_values_to_concat.append(val[y[idx], x[idx]])
-                
-                collated_batch.update({key:  torch.unsqueeze(torch.cat(list_of_values_to_concat, dim=0), dim=1)})
 
+                collated_batch.update({key: torch.unsqueeze(torch.cat(list_of_values_to_concat, dim=0), dim=1)})
 
         collated_batch["image"] = torch.cat(all_images, dim=0)
 
