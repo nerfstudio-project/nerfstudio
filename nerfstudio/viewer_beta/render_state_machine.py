@@ -127,6 +127,7 @@ class RenderStateMachine(threading.Thread):
         with TimeWriter(None, None, write=False) as vis_t:
             with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
                 camera_ray_bundle = camera.generate_rays(camera_indices=0, obb_box=obb)
+                self.viewer.get_model().set_crop(obb)
                 self.viewer.get_model().eval()
                 step = self.viewer.step
                 try:
