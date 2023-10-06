@@ -267,7 +267,7 @@ class GaussianSplattingModel(Model):
             # print(f"grad norm min {grads.min().item()} max {grads.max().item()} mean {grads.mean().item()} size {grads.shape}")
             if self.xys_grad_norm is None:
                 self.xys_grad_norm = grads
-                self.vis_counts = torch.zeros_like(self.xys_grad_norm)
+                self.vis_counts = torch.ones_like(self.xys_grad_norm)
             else:
                 self.vis_counts[visible_mask] = self.vis_counts[visible_mask] + 1
                 self.xys_grad_norm[visible_mask] = grads[visible_mask] + self.xys_grad_norm[visible_mask]
@@ -527,6 +527,8 @@ class GaussianSplattingModel(Model):
             projmat.squeeze() @ viewmat.squeeze(),
             camera.fx.item(),
             camera.fy.item(),
+            camera.cx.item(),
+            camera.cy.item(),
             H,
             W,
             tile_bounds,
@@ -544,9 +546,9 @@ class GaussianSplattingModel(Model):
             # rgbs = SphericalHarmonics.apply(n, viewdirs, self.colors[:,:n_bases])  # (N, 3)
         else:
             rgbs = self.get_colors.squeeze()  # (N, 3)
-        cx_delta = cx - W / 2
-        cy_delta = cy - H / 2
-        xys = xys.view(-1, 2) + torch.tensor([cx_delta, cy_delta], device=self.device)
+        # cx_delta = cx - W / 2
+        # cy_delta = cy - H / 2
+        # xys = xys.view(-1, 2) + torch.tensor([cx_delta, cy_delta], device=self.device)
         rgb = RasterizeGaussians.apply(
             xys,
             depths,
