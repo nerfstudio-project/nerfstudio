@@ -482,9 +482,10 @@ class TensorCPEncoding(Encoding):
             resolution: Target resolution.
         """
 
-        self.line_coef.data = F.interpolate(
+        line_coef = F.interpolate(
             self.line_coef.data, size=(resolution, 1), mode="bilinear", align_corners=True
         )
+        self.line_coef = torch.nn.Parameter(line_coef)
 
         self.resolution = resolution
 
