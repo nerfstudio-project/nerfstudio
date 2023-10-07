@@ -148,6 +148,7 @@ class GaussianSplattingModel(Model):
         self.quats = torch.nn.Parameter(random_quat_tensor(self.num_points))
         self.degree = 3
         dim_sh = num_sh_bases(self.degree)
+        self.num_channels = 4
 
         if self.seed_pts is not None and not self.config.random_init:
             # fused_color = self.RGB2SH(self.seed_pts[1]/255)
@@ -157,14 +158,14 @@ class GaussianSplattingModel(Model):
             # randcolors = torch.rand((30000,dim_sh,3))
             # self.colors = torch.nn.Parameter(torch.cat([shs,randcolors]))
             fused_color = self.RGB2SH(self.seed_pts[1] / 255)
-            shs = torch.zeros((fused_color.shape[0], 3, dim_sh)).float().cuda()
+            shs = torch.zeros((fused_color.shape[0], self.num_channels, dim_sh)).float().cuda()
             shs[:, :3, 0] = fused_color
             shs[:, 3:, 1:] = 0.0
             self.colors = torch.nn.Parameter(shs[:, :, 0:1])
             self.shs_rest = torch.nn.Parameter(shs[:, :, 1:])
         else:
-            self.colors = torch.nn.Parameter(torch.rand(self.num_points, 1, 3))
-            self.shs_rest = torch.nn.Parameter(torch.zeros((self.num_points, dim_sh - 1, 3)))
+            self.colors = torch.nn.Parameter(torch.rand(self.num_points, self.num_channels, 1))
+            self.shs_rest = torch.nn.Parameter(torch.zeros((self.num_points, self.num_channels, dim_sh - 1)))
 
         self.opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(self.num_points, 1)))
         # metrics
@@ -190,8 +191,8 @@ class GaussianSplattingModel(Model):
         self.means = torch.nn.Parameter(torch.zeros(newp,3,device=self.device))
         self.scales = torch.nn.Parameter(torch.zeros(newp,3,device=self.device))
         self.quats = torch.nn.Parameter(torch.zeros(newp,4,device=self.device))
-        self.colors = torch.nn.Parameter(torch.zeros(self.num_points, 3, 1,device=self.device))
-        self.shs_rest = torch.nn.Parameter(torch.zeros(self.num_points, 3,num_sh_bases(self.degree)-1,device=self.device))
+        self.colors = torch.nn.Parameter(torch.zeros(self.num_points, self.num_channels, 1,device=self.device))
+        self.shs_rest = torch.nn.Parameter(torch.zeros(self.num_points, self.num_channels, num_sh_bases(self.degree)-1,device=self.device))
         self.opacities = torch.nn.Parameter(torch.zeros(newp,1,device=self.device))
         super().load_state_dict(dict,**kwargs)
 
@@ -249,7 +250,7 @@ class GaussianSplattingModel(Model):
             # keep track of a moving average of grad norms
             visible_mask = (self.radii > 0).flatten()
             grads = self.proj_means.grad.detach().norm(dim=-1)
-            # print(f"grad norm min {grads.min().item()} max {grads.max().item()} mean {grads.mean().item()} size {grads.shape}")
+            print(f"grad norm min {grads.min().item()} max {grads.max().item()} mean {grads.mean().item()} size {grads.shape}")
             if self.xys_grad_norm is None:
                 self.xys_grad_norm = grads
                 self.vis_counts = torch.ones_like(self.xys_grad_norm)
@@ -496,10 +497,11 @@ class GaussianSplattingModel(Model):
             1,
         )
         if self.training:
-            background = torch.rand(3, device=self.device)
+            background = torch.rand(self.num_channels, device=self.device)
         else:
-            background = torch.zeros(3, device=self.device)
+            background = torch.zeros(self.num_channels, device=self.device)
         pix_fac = torch.tensor([0.5 * W, 0.5 * H], device=self.device)[None].repeat(self.num_points, 1)
+        # pix_fac = 1
         pix_means = self.proj_means * pix_fac
         xys, depths, self.radii, conics, num_tiles_hit, self.cov3d = ProjectGaussians.apply(
             self.means[crop_ids],
@@ -546,15 +548,15 @@ class GaussianSplattingModel(Model):
                 self.radii,
                 conics,
                 num_tiles_hit,
-                depths[:,None].repeat(1,3),
+                depths[:,None],
                 torch.sigmoid(self.opacities[crop_ids]),
                 H,
                 W,
-                torch.ones(3,device=self.device)*10,
+                torch.ones(1,device=self.device)*10,
             )[...,0:1]
         else:
             depth_im = None
-        return {"rgb": rgb,'depth':depth_im}
+        return {"rgb": rgb[..., :3],'depth':depth_im}
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.
