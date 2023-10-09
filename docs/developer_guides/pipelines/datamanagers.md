@@ -62,8 +62,6 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """number of rays per batch to use per eval iteration"""
     eval_num_images_to_sample_from: int = -1
     """number of images to sample during eval iteration"""
-    eval_image_indices: Optional[Tuple[int, ...]] = (0,)
-    """specifies the image indices to use during eval; if None, uses all"""
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """specifies the camera pose optimizer used during training"""
 ```
