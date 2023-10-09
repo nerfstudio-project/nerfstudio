@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Optional, Type
+from typing import Literal, Type
 
 import numpy as np
 import torch
