@@ -335,8 +335,6 @@ class VanillaDataManagerConfig(DataManagerConfig):
     eval_num_times_to_repeat_images: int = -1
     """When not evaluating on all images, number of iterations before picking
     new images. If -1, never pick new images."""
-    eval_image_indices: Optional[Tuple[int, ...]] = (0,)
-    """Specifies the image indices to use during eval; if None, uses all."""
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
     Record3D."""
