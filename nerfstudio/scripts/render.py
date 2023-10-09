@@ -624,7 +624,6 @@ class DatasetRender(BaseRender):
         def update_config(config: TrainerConfig) -> TrainerConfig:
             data_manager_config = config.pipeline.datamanager
             assert isinstance(data_manager_config, VanillaDataManagerConfig)
-            data_manager_config.eval_image_indices = None
             data_manager_config.eval_num_images_to_sample_from = -1
             data_manager_config.eval_num_times_to_repeat_images = -1
             data_manager_config.train_num_images_to_sample_from = -1
