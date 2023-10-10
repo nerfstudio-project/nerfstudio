@@ -115,7 +115,9 @@ class DataProcessor(mp.Process):
             batch = self.pixel_sampler.sample(self.img_data)
             ray_indices = batch["indices"]
             ray_bundle: RayBundle = self.ray_generator(ray_indices)
-            ray_bundle = ray_bundle.pin_memory()
+            # check that GPUs are available
+            if torch.cuda.is_available():
+                ray_bundle = ray_bundle.pin_memory()
             while True:
                 try:
                     self.out_queue.put_nowait((ray_bundle, batch))
@@ -234,6 +236,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         ]
         for proc in self.data_procs:
             proc.start()
+        print("Started threads")
 
         # Prime the executor with the first batch
         self.train_executor = concurrent.futures.ThreadPoolExecutor(max_workers=self.config.max_thread_workers)
