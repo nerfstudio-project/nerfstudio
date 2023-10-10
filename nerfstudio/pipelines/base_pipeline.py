@@ -259,7 +259,7 @@ class VanillaPipeline(Pipeline):
         self.datamanager: DataManager = config.datamanager.setup(
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
-        print("Inside base pipeline")
+        #TODO make this work with normal nerfacto too
         pts = self.datamanager.train_dataparser_outputs.metadata['points3D_xyz']
         pts_rgb = self.datamanager.train_dataparser_outputs.metadata['points3D_rgb']
         self.datamanager.to(device)

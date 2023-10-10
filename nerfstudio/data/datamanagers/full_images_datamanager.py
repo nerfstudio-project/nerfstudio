@@ -46,8 +46,8 @@ from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
 from nerfstudio.data.datamanagers.base_datamanager import (DataManager,
                                                            DataManagerConfig,TDataset)
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-from nerfstudio.data.dataparsers.blender_dataparser import \
-    BlenderDataParserConfig
+from nerfstudio.data.dataparsers.nerfstudio_dataparser import \
+    NerfstudioDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -57,7 +57,7 @@ CONSOLE = Console(width=120)
 @dataclass
 class FullImageDatamanagerConfig(DataManagerConfig):
     _target: Type = field(default_factory=lambda: FullImageDatamanager)
-    dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
+    dataparser: AnnotatedDataParserUnion = NerfstudioDataParserConfig()
     camera_res_scale_factor: float = 1.0
     """The scale factor for scaling spatial data such as images, mask, semantics
     along with relevant information about camera intrinsics
@@ -75,11 +75,8 @@ class FullImageDatamanagerConfig(DataManagerConfig):
 class FullImageDatamanager(DataManager, Generic[TDataset]):
     """
     A datamanager that outputs full images and cameras instead of raybundles. This makes the
-    datamanager far more lightweight since we dont have to do ray generation for things like
-    gaussian splatting that dont require it.
-
-    TODO (jake-austin): Figure out why the dataparser doesnt show up as a subcommand, preventing us
-    from specifying nerfstudio-data instead of blender-data
+    datamanager more lightweight since we don't have to do generate rays. Useful for full-image
+    training e.g. rasterization pipelines
     """
 
     config: FullImageDatamanagerConfig

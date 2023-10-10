@@ -100,7 +100,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     """below this size, gaussians are *duplicated*, otherwise split"""
     sh_degree_interval: int = 1000
     """every n intervals turn on another sh degree"""
-    max_screen_size: int = 300
+    max_screen_size: int = 100
     """maximum screen size of a gaussian, in pixels"""
     random_init: bool = False
     """whether to initialize the positions uniformly randomly (not SFM points)"""
@@ -108,6 +108,8 @@ class GaussianSplattingModelConfig(ModelConfig):
     """weight of ssim loss"""
     stop_split_at: int = 25000
     """stop splitting at this step"""
+    sh_degree: int = 4
+    """maximum degree of spherical harmonics to use"""
 
 class GaussianSplattingModel(Model):
     """Gaussian Splatting model
@@ -142,8 +144,7 @@ class GaussianSplattingModel(Model):
         self.scales = torch.nn.Parameter(torch.log(avg_dist.repeat(1, 3)))
 
         self.quats = torch.nn.Parameter(random_quat_tensor(self.num_points))
-        self.degree = 3
-        dim_sh = num_sh_bases(self.degree)
+        dim_sh = num_sh_bases(self.config.sh_degree)
 
         if self.seed_pts is not None and not self.config.random_init:
             fused_color = self.RGB2SH(self.seed_pts[1] / 255)
@@ -181,7 +182,7 @@ class GaussianSplattingModel(Model):
         self.scales = torch.nn.Parameter(torch.zeros(newp,3,device=self.device))
         self.quats = torch.nn.Parameter(torch.zeros(newp,4,device=self.device))
         self.colors = torch.nn.Parameter(torch.zeros(self.num_points, 3, 1,device=self.device))
-        self.shs_rest = torch.nn.Parameter(torch.zeros(self.num_points, 3, num_sh_bases(self.degree)-1,device=self.device))
+        self.shs_rest = torch.nn.Parameter(torch.zeros(self.num_points, 3, num_sh_bases(self.config.sh_degree)-1,device=self.device))
         self.opacities = torch.nn.Parameter(torch.zeros(newp,1,device=self.device))
         super().load_state_dict(dict,**kwargs)
 
@@ -261,7 +262,7 @@ class GaussianSplattingModel(Model):
             with torch.no_grad():
                 if self.step<self.config.stop_split_at:
                     #then we densify
-                    avg_grad_norm = (self.xys_grad_norm / self.vis_counts) * max(self.last_size[0],self.last_size[1])
+                    avg_grad_norm = (self.xys_grad_norm / self.vis_counts) * 0.5* max(self.last_size[0],self.last_size[1])
                     high_grads = (avg_grad_norm > self.config.densify_grad_thresh).squeeze()
                     splits = (self.scales.exp().max(dim=-1).values > self.config.densify_size_thresh).squeeze()
                     splits &= high_grads
@@ -284,7 +285,6 @@ class GaussianSplattingModel(Model):
                     for group,param in param_groups.items():
                         self.dup_in_optim(optimizers.optimizers[group],split_idcs,param,n=nsamps)
                     dup_idcs = torch.where(dups)[0]
-                    # add_idcs = torch.cat([split_idcs, dup_idcs], dim=0)
                     
                     param_groups = self.get_param_groups()
                     for group,param in param_groups.items():
@@ -318,10 +318,10 @@ class GaussianSplattingModel(Model):
         n_bef = self.num_points
         # cull transparent ones
         culls = (torch.sigmoid(self.opacities) < self.config.cull_alpha_thresh).squeeze()
-        # cull huge ones
-        culls = culls | (torch.exp(self.scales).max(dim=-1).values > self.config.cull_scale_thresh).squeeze()
-        # cull big screen space
         if self.step > self.config.refine_every * self.config.reset_alpha_every:
+            # cull huge ones
+            culls = culls | (torch.exp(self.scales).max(dim=-1).values > self.config.cull_scale_thresh).squeeze()
+            # cull big screen space
             culls = culls | (self.max_2Dsize > self.config.max_screen_size).squeeze()
         self.means = Parameter(self.means[~culls].detach())
         self.scales = Parameter(self.scales[~culls].detach())
@@ -342,7 +342,8 @@ class GaussianSplattingModel(Model):
         print(f"Splitting {split_mask.sum().item()/self.num_points} gaussians: {n_splits}/{self.num_points}")
         centered_samples = torch.randn((samps*n_splits,3),device=self.device) # Nx3 of axis-aligned scales
         scaled_samples = torch.exp(self.scales[split_mask].repeat(samps,1)) * centered_samples # how these scales are rotated
-        rots = quat_to_rotmat(self.quats[split_mask].repeat(samps,1)) # how these scales are rotated
+        quats = self.quats[split_mask]/self.quats[split_mask].norm(dim=-1,keepdim=True) #normalize them first
+        rots = quat_to_rotmat(quats.repeat(samps,1)) # how these scales are rotated
         rotated_samples = torch.bmm(rots,scaled_samples[...,None]).squeeze()
         new_means = rotated_samples + self.means[split_mask].repeat(samps,1)
         # step 2, sample new colors
@@ -352,8 +353,8 @@ class GaussianSplattingModel(Model):
         # step 3, sample new opacities
         new_opacities = self.opacities[split_mask].repeat(samps,1)
         # step 4, sample new scales
-        new_scales = torch.logit(torch.exp(self.scales[split_mask])/1.6).repeat(samps,1)
-        self.scales[split_mask] = torch.logit(torch.exp(self.scales[split_mask])/1.6)
+        new_scales = torch.log(torch.exp(self.scales[split_mask])/1.6).repeat(samps,1)
+        self.scales[split_mask] = torch.log(torch.exp(self.scales[split_mask])/1.6)
         # step 5, sample new quats
         new_quats = self.quats[split_mask].repeat(samps,1)
         return new_means,new_colors,new_shs,new_opacities,new_scales,new_quats
@@ -496,10 +497,10 @@ class GaussianSplattingModel(Model):
         #Important to allow xys grads to populate properly
         if self.training:
             self.xys.retain_grad()
-        if self.degree > 0:
+        if self.config.sh_degree > 0:
             viewdirs = self.means - camera.camera_to_worlds[..., :3, 3]  # (N, 3)
             viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
-            n = min(self.step // self.config.sh_degree_interval,self.degree)
+            n = min(self.step // self.config.sh_degree_interval,self.config.sh_degree)
             rgbs = eval_sh(n, self.get_colors, viewdirs)[crop_ids]
             rgbs = torch.clamp(rgbs + 0.5,0.0,1.0)
         else:
@@ -518,21 +519,18 @@ class GaussianSplattingModel(Model):
             W,
             background,
         )
-        if not self.training:
-            depth_im = RasterizeGaussians.apply(
-                self.xys,
-                depths,
-                self.radii,
-                conics,
-                num_tiles_hit,
-                depths[:,None],
-                torch.sigmoid(self.opacities[crop_ids]),
-                H,
-                W,
-                torch.ones(1,device=self.device)*10,
-            )[...,0:1]
-        else:
-            depth_im = None
+        depth_im = RasterizeGaussians.apply(
+            self.xys,
+            depths,
+            self.radii,
+            conics,
+            num_tiles_hit,
+            depths[:,None],
+            torch.sigmoid(self.opacities[crop_ids]),
+            H,
+            W,
+            torch.ones(1,device=self.device)*10,
+        )[...,0:1]
         return {"rgb": rgb[..., :3],'depth':depth_im}
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:

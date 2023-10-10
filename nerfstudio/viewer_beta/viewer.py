@@ -211,13 +211,14 @@ class Viewer:
 
     def update_camera_poses(self):
         # Update the train camera locations based on optimization
-        return
         assert self.camera_handles is not None
-        idxs = list(self.camera_handles.keys())
         if hasattr(self.pipeline.datamanager, "train_camera_optimizer"):
             camera_optimizer = self.pipeline.datamanager.train_camera_optimizer
-        else:
+        elif hasattr(self.pipeline.model, "camera_optimizer"):
             camera_optimizer = self.pipeline.model.camera_optimizer
+        else:
+            return
+        idxs = list(self.camera_handles.keys())
         with torch.no_grad():
             assert isinstance(camera_optimizer, CameraOptimizer)
             c2ws_delta = camera_optimizer(torch.tensor(idxs, device=camera_optimizer.device)).cpu().numpy()
