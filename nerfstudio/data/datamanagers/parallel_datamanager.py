@@ -185,7 +185,9 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         self.eval_dataset = self.create_eval_dataset()
         self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
         # Spawn is critical for not freezing the program (PyTorch compatability issue)
-        mp.set_start_method("spawn")
+        #check if spawn is already set
+        if mp.get_start_method(allow_none=True) is None:
+            mp.set_start_method("spawn")
         super().__init__()
 
     def create_train_dataset(self) -> TDataset:
