@@ -625,6 +625,7 @@ def populate_render_tab(
 
         # now write the json file
         json_outfile = datapath / "camera_paths" / f"{render_name_text.value}.json"
+        json_outfile.parent.mkdir(parents=True, exist_ok=True)
         with open(json_outfile.absolute(), "w") as outfile:
             json.dump(json_data, outfile)
         # now show the command
