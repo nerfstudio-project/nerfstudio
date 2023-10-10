@@ -181,7 +181,7 @@ class GaussianSplattingModel(Model):
         self.scales = torch.nn.Parameter(torch.zeros(newp,3,device=self.device))
         self.quats = torch.nn.Parameter(torch.zeros(newp,4,device=self.device))
         self.colors = torch.nn.Parameter(torch.zeros(self.num_points, 3, 1,device=self.device))
-        self.shs_rest = torch.nn.Parameter(torch.zeros(self.num_points, 3,num_sh_bases(self.degree)-1,device=self.device))
+        self.shs_rest = torch.nn.Parameter(torch.zeros(self.num_points, 3, num_sh_bases(self.degree)-1,device=self.device))
         self.opacities = torch.nn.Parameter(torch.zeros(newp,1,device=self.device))
         super().load_state_dict(dict,**kwargs)
 
@@ -242,7 +242,7 @@ class GaussianSplattingModel(Model):
             # print(f"grad norm min {grads.min().item()} max {grads.max().item()} mean {grads.mean().item()} size {grads.shape}")
             if self.xys_grad_norm is None:
                 self.xys_grad_norm = grads
-                self.vis_counts = torch.zeros_like(self.xys_grad_norm)
+                self.vis_counts = torch.ones_like(self.xys_grad_norm)
             else:
                 self.vis_counts[visible_mask] = self.vis_counts[visible_mask] + 1
                 self.xys_grad_norm[visible_mask] = grads[visible_mask] + self.xys_grad_norm[visible_mask]
@@ -525,15 +525,15 @@ class GaussianSplattingModel(Model):
                 self.radii,
                 conics,
                 num_tiles_hit,
-                depths[:,None].repeat(1,3),
+                depths[:,None],
                 torch.sigmoid(self.opacities[crop_ids]),
                 H,
                 W,
-                torch.ones(3,device=self.device)*10,
+                torch.ones(1,device=self.device)*10,
             )[...,0:1]
         else:
             depth_im = None
-        return {"rgb": rgb,'depth':depth_im}
+        return {"rgb": rgb[..., :3],'depth':depth_im}
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.
