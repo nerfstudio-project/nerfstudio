@@ -113,8 +113,6 @@ class DataManagerConfig(InstantiateConfig):
     """Target class to instantiate."""
     data: Optional[Path] = None
     """Source of data, may not be used by all models."""
-    camera_optimizer: Optional[CameraOptimizerConfig] = None
-    """Specifies the camera pose optimizer used during training. Helpful if poses are noisy."""
     masks_on_gpu: bool = False
     """Process masks on GPU for speed at the expense of memory, if True."""
     images_on_gpu: bool = False
@@ -335,9 +333,8 @@ class VanillaDataManagerConfig(DataManagerConfig):
     eval_num_times_to_repeat_images: int = -1
     """When not evaluating on all images, number of iterations before picking
     new images. If -1, never pick new images."""
-    camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
-    """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
-    Record3D."""
+    eval_image_indices: Optional[Tuple[int, ...]] = (0,)
+    """Specifies the image indices to use during eval; if None, uses all."""
     collate_fn: Callable[[Any], Any] = cast(Any, staticmethod(nerfstudio_collate))
     """Specifies the collate function to use for the train and eval dataloaders."""
     camera_res_scale_factor: float = 1.0
@@ -346,8 +343,20 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If >1, patch-based sampling will be used."""
+    camera_optimizer: Optional[CameraOptimizerConfig] = field(default=None)
+    """Deprecated, has been moved to the model config."""
     pixel_sampler: PixelSamplerConfig = PixelSamplerConfig()
     """Specifies the pixel sampler used to sample pixels from images."""
+
+    def __post_init__(self):
+        """Warn user of camera optimizer change."""
+        if self.camera_optimizer is not None:
+            import warnings
+
+            CONSOLE.print(
+                "\nCameraOptimizerConfig has been moved from the DataManager to the Model.\n", style="bold yellow"
+            )
+            warnings.warn("above message coming from", FutureWarning, stacklevel=3)
 
 
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
@@ -486,13 +495,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
-        self.train_camera_optimizer = self.config.camera_optimizer.setup(
-            num_cameras=self.train_dataset.cameras.size, device=self.device
-        )
-        self.train_ray_generator = RayGenerator(
-            self.train_dataset.cameras.to(self.device),
-            self.train_camera_optimizer,
-        )
+        self.train_ray_generator = RayGenerator(self.train_dataset.cameras.to(self.device))
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
@@ -510,13 +513,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
-        self.eval_camera_optimizer = self.config.camera_optimizer.setup(
-            num_cameras=self.eval_dataset.cameras.size, device=self.device
-        )
-        self.eval_ray_generator = RayGenerator(
-            self.eval_dataset.cameras.to(self.device),
-            self.eval_camera_optimizer,
-        )
+        self.eval_ray_generator = RayGenerator(self.eval_dataset.cameras.to(self.device))
         # for loading full images
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
             input_dataset=self.eval_dataset,
@@ -572,13 +569,4 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         Returns:
             A list of dictionaries containing the data manager's param groups.
         """
-        param_groups = {}
-
-        camera_opt_params = list(self.train_camera_optimizer.parameters())
-        if self.config.camera_optimizer.mode != "off":
-            assert len(camera_opt_params) > 0
-            param_groups[self.config.camera_optimizer.param_group] = camera_opt_params
-        else:
-            assert len(camera_opt_params) == 0
-
-        return param_groups
+        return {}
