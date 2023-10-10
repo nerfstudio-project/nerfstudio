@@ -88,7 +88,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     """training starts at 1/d resolution, every n steps this is doubled"""
     num_downscales: int = 2
     """at the beginning, resolution is 1/2^d, where d is this number"""
-    cull_alpha_thresh: float = 0.01
+    cull_alpha_thresh: float = 0.02
     """threshold of opacity for culling gaussians"""
     cull_scale_thresh: float = 0.5
     """threshold of scale for culling gaussians"""
@@ -100,7 +100,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     """below this size, gaussians are *duplicated*, otherwise split"""
     sh_degree_interval: int = 1000
     """every n intervals turn on another sh degree"""
-    max_screen_size: int = 100
+    max_screen_size: int = 300
     """maximum screen size of a gaussian, in pixels"""
     random_init: bool = False
     """whether to initialize the positions uniformly randomly (not SFM points)"""
@@ -130,8 +130,6 @@ class GaussianSplattingModel(Model):
 
     def populate_modules(self):
         if self.seed_pts is not None and not self.config.random_init:
-            # randmeans = torch.rand((30000,3))*8-4
-            # self.means = torch.nn.Parameter(torch.cat([self.seed_pts[0],randmeans],dim=0)) # (Location, Color)
             self.means = torch.nn.Parameter(self.seed_pts[0])  # (Location, Color)
         else:
             self.means = torch.nn.Parameter((torch.rand((100000, 3)) - 0.5) * 2)
@@ -289,14 +287,17 @@ class GaussianSplattingModel(Model):
                     param_groups = self.get_param_groups()
                     for group,param in param_groups.items():
                         self.dup_in_optim(optimizers.optimizers[group],dup_idcs,param,1)
-                #then cull
-                deleted_mask = self.cull_gaussians()
-                param_groups = self.get_param_groups()
-                for group, param in param_groups.items():
-                    self.remove_from_optim(optimizers.optimizers[group], deleted_mask, param)
+                
+                #only cull if we've seen every image since opacity reset
+                reset_interval = (self.config.reset_alpha_every * self.config.refine_every)
+                if self.step % reset_interval > self.num_train_data:
+                    #then cull
+                    deleted_mask = self.cull_gaussians()
+                    param_groups = self.get_param_groups()
+                    for group, param in param_groups.items():
+                        self.remove_from_optim(optimizers.optimizers[group], deleted_mask, param)
 
                 if self.step // self.config.refine_every % self.config.reset_alpha_every == 0:
-                    print("Resetting alpha")
                     reset_value = 0.01
                     self.opacities.data = torch.full_like(
                         self.opacities.data, torch.logit(torch.tensor(reset_value)).item()
