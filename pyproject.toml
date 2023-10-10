@@ -125,7 +125,7 @@ ns-dev-sync-viser-message-defs = "nerfstudio.scripts.viewer.sync_viser_message_d
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision
 dependency_links = [
-    "https://download.pytorch.org/whl/cu118"
+    "https://download.pytorch.org/whl/cu121"
 ]
 
 [tool.setuptools.packages.find]
