@@ -273,7 +273,7 @@ class ControlPanel:
             # TODO change to a .value call instead of remove() and add, this makes it jittery
             with self.viser_server.atomic():
                 self.markdown.remove()
-                self.markdown = self.viser_server.add_gui_markdown(f"Step: {step}")
+                self.markdown.content = f"Step: {step}"
 
     def update_output_options(self, new_options: List[str]):
         """
