@@ -267,21 +267,14 @@ class Trainer:
 
                 # Skip the first two steps to avoid skewed timings that break the viewer rendering speed estimate.
                 if step > 1:
-                    if isinstance(self.pipeline.model, GaussianSplattingModel):
-                        writer.put_scalar(
-                            name=EventName.GAUSSIAN_NUM,
-                            scalar=self.pipeline.model.get_gaussian_num,
-                            step=step,
-                        )
-                    else:
-                        writer.put_time(
-                            name=EventName.TRAIN_RAYS_PER_SEC,
-                            duration=self.world_size
-                            * self.pipeline.datamanager.get_train_rays_per_batch()
-                            / max(0.001, train_t.duration),
-                            step=step,
-                            avg_over_steps=True,
-                        )
+                    writer.put_time(
+                        name=EventName.TRAIN_RAYS_PER_SEC,
+                        duration=self.world_size
+                        * self.pipeline.datamanager.get_train_rays_per_batch()
+                        / max(0.001, train_t.duration),
+                        step=step,
+                        avg_over_steps=True,
+                    )
 
                 self._update_viewer_state(step)
 

@@ -59,7 +59,7 @@ from nerfstudio.field_components.temporal_distortions import \
     TemporalDistortionKind
 from nerfstudio.fields.sdf_field import SDFFieldConfig
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
-from nerfstudio.models.gaussian_splatting_inhouse import GaussianSplattingModelConfig
+from nerfstudio.models.gaussian_splatting import GaussianSplattingModelConfig
 from nerfstudio.models.generfacto import GenerfactoModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.data.dataparsers.colmap_dataparser import ColmapDataParserConfig
@@ -643,7 +643,7 @@ method_configs["gaussian-splatting"] = TrainerConfig(
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
-    vis="viewer",
+    vis="viewer_beta",
 )
 
 
