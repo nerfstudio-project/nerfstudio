@@ -148,6 +148,9 @@ class ViewerControl:
                 The callback should take a ViewerClick object as an argument
         """
         def wrapped_cb(scene_pointer_msg: ScenePointerEvent):
+            # only call the callback if the event is a click
+            if scene_pointer_msg.event != "click":
+                return
             click = ViewerClick(
                 origin=scene_pointer_msg.ray_origin, direction=scene_pointer_msg.ray_direction
             )
