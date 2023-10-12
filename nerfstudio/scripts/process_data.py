@@ -416,10 +416,10 @@ class ProcessODM(BaseConverterToNerfstudioDataset):
             raise ValueError(f"shots file {shots_file} doesn't exist")
         if not shots_file.exists:
             raise ValueError(f"cameras file {cameras_file} doesn't exist")
-        
+
         if not orig_images_dir.exists:
             raise ValueError(f"Images dir {orig_images_dir} doesn't exist")
-        
+
         if self.eval_data is not None:
             raise ValueError("Cannot use eval_data since cameras were already aligned with ODM.")
 
@@ -430,7 +430,9 @@ class ProcessODM(BaseConverterToNerfstudioDataset):
         summary_log = []
 
         # Copy images to output directory
-        image_filenames, num_orig_images = process_data_utils.get_image_filenames(orig_images_dir, self.max_dataset_size)
+        image_filenames, num_orig_images = process_data_utils.get_image_filenames(
+            orig_images_dir, self.max_dataset_size
+        )
         copied_image_paths = process_data_utils.copy_images_list(
             image_filenames,
             image_dir=image_dir,
@@ -480,7 +482,7 @@ Commands = Union[
     Annotated[ProcessMetashape, tyro.conf.subcommand(name="metashape")],
     Annotated[ProcessRealityCapture, tyro.conf.subcommand(name="realitycapture")],
     Annotated[ProcessRecord3D, tyro.conf.subcommand(name="record3d")],
-    Annotated[ProcessODM, tyro.conf.subcommand(name="odm")],    
+    Annotated[ProcessODM, tyro.conf.subcommand(name="odm")],
 ]
 
 

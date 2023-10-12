@@ -25,25 +25,25 @@ import numpy as np
 
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 
+
 def rodrigues_vec_to_rotation_mat(rodrigues_vec):
     theta = np.linalg.norm(rodrigues_vec)
-    if theta < sys.float_info.epsilon:              
+    if theta < sys.float_info.epsilon:
         rotation_mat = np.eye(3, dtype=float)
     else:
         r = rodrigues_vec / theta
         ident = np.eye(3, dtype=float)
-        r_rT = np.array([
-            [r[0]*r[0], r[0]*r[1], r[0]*r[2]],
-            [r[1]*r[0], r[1]*r[1], r[1]*r[2]],
-            [r[2]*r[0], r[2]*r[1], r[2]*r[2]]
-        ])
-        r_cross = np.array([
-            [0, -r[2], r[1]],
-            [r[2], 0, -r[0]],
-            [-r[1], r[0], 0]
-        ])
+        r_rT = np.array(
+            [
+                [r[0] * r[0], r[0] * r[1], r[0] * r[2]],
+                [r[1] * r[0], r[1] * r[1], r[1] * r[2]],
+                [r[2] * r[0], r[2] * r[1], r[2] * r[2]],
+            ]
+        )
+        r_cross = np.array([[0, -r[2], r[1]], [r[2], 0, -r[0]], [-r[1], r[0], 0]])
         rotation_mat = math.cos(theta) * ident + (1 - math.cos(theta)) * r_rT + math.sin(theta) * r_cross
-    return rotation_mat 
+    return rotation_mat
+
 
 def cameras2nerfds(
     image_filename_map: Dict[str, Path],
@@ -73,42 +73,39 @@ def cameras2nerfds(
     if len(camera_ids) > 1:
         raise ValueError("Only one camera is supported")
     camera_id = camera_ids[0]
-    camera = cameras[camera_id]    
+    camera = cameras[camera_id]
     data = {}
-    if camera['projection_type'] in ['brown', 'perspective']:
+    if camera["projection_type"] in ["brown", "perspective"]:
         data["camera_model"] = CAMERA_MODELS["perspective"].value
-    elif camera['projection_type'] in  ['fisheye', 'fisheye_opencv']:
+    elif camera["projection_type"] in ["fisheye", "fisheye_opencv"]:
         data["camera_model"] = CAMERA_MODELS["fisheye"].value
-    elif camera['projection_type'] in ['spherical', 'equirectangular']:
+    elif camera["projection_type"] in ["spherical", "equirectangular"]:
         data["camera_model"] = CAMERA_MODELS["equirectangular"].value
     else:
         raise ValueError("Unsupported ODM camera model: " + data["camera_model"])
 
     sensor_dict = {}
-    s = {
-        "w": int(camera["width"]),
-        "h": int(camera["height"])
-    }
+    s = {"w": int(camera["width"]), "h": int(camera["height"])}
 
-    s["fl_x"] = camera.get('focal_x', camera.get('focal')) * max(s["w"], s["h"])
-    s["fl_y"] = camera.get('focal_y', camera.get('focal')) * max(s["w"], s["h"])
-    
+    s["fl_x"] = camera.get("focal_x", camera.get("focal")) * max(s["w"], s["h"])
+    s["fl_y"] = camera.get("focal_y", camera.get("focal")) * max(s["w"], s["h"])
+
     s["cx"] = camera["c_x"] + (s["w"] - 1.0) / 2.0
     s["cy"] = camera["c_y"] + (s["h"] - 1.0) / 2.0
-    
-    for p in ["k1","k2","p1","p2","k3"]:
+
+    for p in ["k1", "k2", "p1", "p2", "k3"]:
         if p in camera:
             s[p] = camera[p]
-            
+
         sensor_dict[camera_id] = s
 
-    shots = shots['features']
+    shots = shots["features"]
     shots_dict = {}
     for shot in shots:
-        props = shot['properties']
-        filename = props['filename']
-        rotation = rodrigues_vec_to_rotation_mat(np.array(props['rotation']) * -1)
-        translation = np.array(props['translation'])
+        props = shot["properties"]
+        filename = props["filename"]
+        rotation = rodrigues_vec_to_rotation_mat(np.array(props["rotation"]) * -1)
+        translation = np.array(props["translation"])
 
         m = np.eye(4)
         m[:3, :3] = rotation
@@ -119,8 +116,7 @@ def cameras2nerfds(
 
     frames = []
     num_skipped = 0
-   
-    
+
     for fname in shots_dict:
         transform = shots_dict[fname]
         if fname not in image_filename_map:
