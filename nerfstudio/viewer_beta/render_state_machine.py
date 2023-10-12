@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 
 import torch
+import viser 
+
 from nerfstudio.model_components.renderers import background_color_override_context
 from nerfstudio.utils import colormaps, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
@@ -52,7 +54,7 @@ class RenderStateMachine(threading.Thread):
         viewer: the viewer state
     """
 
-    def __init__(self, viewer: Viewer, viser_scale_ratio: float):
+    def __init__(self, viewer: Viewer, viser_scale_ratio: float, client: viser.ClientHandle):
         threading.Thread.__init__(self)
         self.transitions: Dict[RenderStates, Dict[RenderActions, RenderStates]] = {
             s: {} for s in get_args(RenderStates)
@@ -77,6 +79,8 @@ class RenderStateMachine(threading.Thread):
         self.daemon = True
         self.output_keys = {}
         self.viser_scale_ratio = viser_scale_ratio
+        self.client = client
+        self.running = True
 
     def action(self, action: RenderAction):
         """Takes an action and updates the state machine
@@ -107,7 +111,7 @@ class RenderStateMachine(threading.Thread):
         self.render_trigger.set()
 
     def _render_img(self, camera_state: CameraState):
-        """Takes the current camera, generates rays, and renders the iamge
+        """Takes the current camera, generates rays, and renders the image
 
         Args:
             camera_state: the current camera state
@@ -166,7 +170,7 @@ class RenderStateMachine(threading.Thread):
 
     def run(self):
         """Main loop for the render thread"""
-        while True:
+        while self.running:
             if not self.render_trigger.wait(0.2):
                 # if we haven't received a trigger in a while, send a static action
                 if self.viewer.camera_state is not None:
@@ -237,14 +241,13 @@ class RenderStateMachine(threading.Thread):
         depth = (
             outputs["gl_z_buf_depth"].cpu().numpy() * self.viser_scale_ratio if "gl_z_buf_depth" in outputs else None
         )
-        clients = self.viewer.viser_server.get_clients()
-        for id in clients:
-            clients[id].set_background_image(
-                selected_output.cpu().numpy(),
-                format=self.viewer.config.image_format,
-                jpeg_quality=self.viewer.config.jpeg_quality,
-                depth=depth,
-            )
+        
+        self.client.set_background_image(
+            selected_output.cpu().numpy(),
+            format=self.viewer.config.image_format,
+            jpeg_quality=self.viewer.config.jpeg_quality,
+            depth=depth,
+        )
 
     def _calculate_image_res(self, aspect_ratio: float) -> Tuple[int, int]:
         """Calculate the maximum image height that can be rendered in the time budget
