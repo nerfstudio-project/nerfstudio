@@ -35,10 +35,10 @@ from viser import (
 )
 
 from nerfstudio.cameras.cameras import Cameras
-from nerfstudio.viewer_beta.utils import CameraState, get_camera
+from nerfstudio.viewer.utils import CameraState, get_camera
 
 if TYPE_CHECKING:
-    from nerfstudio.viewer_beta.viewer import Viewer
+    from nerfstudio.viewer.viewer import Viewer
 
 TValue = TypeVar("TValue")
 TString = TypeVar("TString", default=str, bound=str)
@@ -128,7 +128,7 @@ class ViewerControl:
         """
         assert self.viewer.client is not None
 
-        from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO
+        from nerfstudio.viewer.viewer import VISER_NERFSTUDIO_SCALE_RATIO
 
         R = vtf.SO3(wxyz=self.viewer.client.camera.wxyz)
         R = R @ vtf.SO3.from_x_radians(np.pi)

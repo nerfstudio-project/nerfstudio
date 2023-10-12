@@ -19,7 +19,7 @@ from pathlib import Path
 import viser
 import viser.transforms as vtf
 from nerfstudio.data.scene_box import OrientedBox
-from nerfstudio.viewer_beta.control_panel import ControlPanel
+from nerfstudio.viewer.control_panel import ControlPanel
 from typing_extensions import Literal
 
 

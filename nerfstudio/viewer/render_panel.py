@@ -20,7 +20,7 @@ import threading
 import time
 from typing import Dict, List, Optional, Tuple
 import datetime
-from nerfstudio.viewer_beta.control_panel import ControlPanel
+from nerfstudio.viewer.control_panel import ControlPanel
 import numpy as onp
 import splines
 import splines.quaternion
@@ -261,7 +261,7 @@ class CameraPath:
 def populate_render_tab(
     server: viser.ViserServer, config_path: Path, datapath: Path, control_panel: ControlPanel
 ) -> None:
-    from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO
+    from nerfstudio.viewer.viewer import VISER_NERFSTUDIO_SCALE_RATIO
 
     fov_degrees = server.add_gui_slider(
         "FOV",

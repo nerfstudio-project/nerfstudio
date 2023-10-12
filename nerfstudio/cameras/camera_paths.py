@@ -24,7 +24,7 @@ import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.camera_utils import get_interpolated_poses_many
 from nerfstudio.cameras.cameras import Cameras, CameraType
-from nerfstudio.viewer.server.utils import three_js_perspective_camera_focal_length
+from nerfstudio.viewer_legacy.server.utils import three_js_perspective_camera_focal_length
 
 
 def get_interpolated_camera_path(cameras: Cameras, steps: int, order_poses: bool) -> Cameras:

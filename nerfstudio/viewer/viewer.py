@@ -34,13 +34,13 @@ from nerfstudio.models.base_model import Model
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
-from nerfstudio.viewer.server import viewer_utils
-from nerfstudio.viewer_beta.control_panel import ControlPanel
-from nerfstudio.viewer_beta.export_panel import populate_export_tab
-from nerfstudio.viewer_beta.render_panel import populate_render_tab
-from nerfstudio.viewer_beta.render_state_machine import RenderAction, RenderStateMachine
-from nerfstudio.viewer_beta.utils import CameraState, parse_object
-from nerfstudio.viewer_beta.viewer_elements import ViewerControl, ViewerElement
+from nerfstudio.viewer_legacy.server import viewer_utils
+from nerfstudio.viewer.control_panel import ControlPanel
+from nerfstudio.viewer.export_panel import populate_export_tab
+from nerfstudio.viewer.render_panel import populate_render_tab
+from nerfstudio.viewer.render_state_machine import RenderAction, RenderStateMachine
+from nerfstudio.viewer.utils import CameraState, parse_object
+from nerfstudio.viewer.viewer_elements import ViewerControl, ViewerElement
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
@@ -95,7 +95,7 @@ class Viewer:
             websocket_port = self.config.websocket_port
         self.log_filename.parent.mkdir(exist_ok=True)
 
-        self.viewer_url = viewer_utils.get_viewer_url(websocket_port)
+        self.viewer_url = f"http://{self.config.websocket_host}:{websocket_port}"
 
         # viewer specific variables
         self.output_type_changed = True

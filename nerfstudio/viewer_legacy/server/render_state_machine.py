@@ -26,11 +26,11 @@ from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.model_components.renderers import background_color_override_context
 from nerfstudio.utils import colormaps, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
-from nerfstudio.viewer.server import viewer_utils
-from nerfstudio.viewer.viser.messages import CameraMessage
+from nerfstudio.viewer_legacy.server import viewer_utils
+from nerfstudio.viewer_legacy.viser.messages import CameraMessage
 
 if TYPE_CHECKING:
-    from nerfstudio.viewer.server.viewer_state import ViewerState
+    from nerfstudio.viewer_legacy.server.viewer_state import ViewerLegacyState
 
 RenderStates = Literal["low_move", "low_static", "high"]
 RenderActions = Literal["rerender", "move", "static", "step"]
@@ -54,7 +54,7 @@ class RenderStateMachine(threading.Thread):
         viewer: the viewer state
     """
 
-    def __init__(self, viewer: ViewerState):
+    def __init__(self, viewer: ViewerLegacyState):
         threading.Thread.__init__(self)
         self.transitions: Dict[RenderStates, Dict[RenderActions, RenderStates]] = {
             s: {} for s in get_args(RenderStates)
