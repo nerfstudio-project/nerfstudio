@@ -34,6 +34,7 @@ from typing import (Any, Callable, Dict, ForwardRef, Generic, List, Literal,
 import cv2
 import numpy as np
 import torch
+from copy import deepcopy
 from rich.progress import Console
 from torch import Tensor, nn
 from torch.nn import Parameter
@@ -270,7 +271,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         return {}
     
     def get_train_rays_per_batch(self):
-        # TODO (jake-austin): fix this to be the resolution of the last image rendered
+        # TODO: fix this to be the resolution of the last image rendered
         return 800*800
     
     def next_train(self, step: int) -> Tuple[Cameras, Dict]:
@@ -282,7 +283,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         if len(self.train_unseen_cameras) == 0:
             self.train_unseen_cameras = [i for i in range(len(self.train_dataset))]
         
-        data = self.cached_train[image_idx]
+        data = deepcopy(self.cached_train[image_idx])
         data["image"] = data["image"].to(self.device)
         
         assert len(self.train_dataset.cameras.shape) == 1, "Assumes single batch dimension"
@@ -308,7 +309,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         
         Returns a Camera instead of raybundle
         
-        TODO (jake-austin): Make sure this logic is consistent with the vanilladatamanager"""
+        TODO: Make sure this logic is consistent with the vanilladatamanager"""
         image_idx = self.eval_unseen_cameras.pop(random.randint(0, len(self.eval_unseen_cameras)-1))
         # Make sure to re-populate the unseen cameras list if we have exhausted it
         if len(self.eval_unseen_cameras) == 0:
