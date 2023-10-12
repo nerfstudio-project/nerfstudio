@@ -9,10 +9,10 @@ We provide support for custom viewer GUI elements that can be defined in any `nn
 
 ## Adding an Element
 
-To define a custom element, create an instance of one of the provided classes in `nerfstudio.viewer.server.viewer_elements`, and assign it as a class variable in your `nn.Module`.
+To define a custom element, create an instance of one of the provided classes in `nerfstudio.viewer.viewer_elements`, and assign it as a class variable in your `nn.Module`.
 
 ```python
-from nerfstudio.viewer.server.viewer_elements import ViewerNumber
+from nerfstudio.viewer.viewer_elements import ViewerNumber
 
 class MyClass(nn.Module):#must inherit from nn.Module
     def __init__(self):
@@ -20,7 +20,7 @@ class MyClass(nn.Module):#must inherit from nn.Module
         self.custom_value = ViewerNumber(name="My Value", default_value=1.0)
 ```
 **Element Hierarchy**
-The viewer recursively searches all `nn.Module` children of the base `Pipeline` object, and arranges parameters into folders based on their variable names. 
+The viewer recursively searches all `nn.Module` children of the base `Pipeline` object, and arranges parameters into folders based on their variable names.
 For example, a `ViewerElement` defined in `pipeline.model.field` will be in the "Custom/model/field" folder in the GUI.
 
 **Reading the value**
@@ -81,7 +81,7 @@ Updating module state while training can have unexpected side effects. It is up 
 This was created with the following elements:
 
 ```python
-from nerfstudio.viewer.server.viewer_elements import *
+from nerfstudio.viewer.viewer_elements import *
 
 class MyModel(Model):
     def __init__(self):
