@@ -26,7 +26,7 @@ import numpy as np
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 
 
-def rodrigues_vec_to_rotation_mat(rodrigues_vec):
+def rodrigues_vec_to_rotation_mat(rodrigues_vec: np.ndarray) -> np.ndarray:
     theta = np.linalg.norm(rodrigues_vec)
     if theta < sys.float_info.epsilon:
         rotation_mat = np.eye(3, dtype=float)
