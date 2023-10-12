@@ -24,7 +24,6 @@ import math
 import numpy as np
 
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
-from nerfstudio.utils.rich_utils import CONSOLE
 
 def rodrigues_vec_to_rotation_mat(rodrigues_vec):
     theta = np.linalg.norm(rodrigues_vec)
@@ -32,7 +31,7 @@ def rodrigues_vec_to_rotation_mat(rodrigues_vec):
         rotation_mat = np.eye(3, dtype=float)
     else:
         r = rodrigues_vec / theta
-        I = np.eye(3, dtype=float)
+        ident = np.eye(3, dtype=float)
         r_rT = np.array([
             [r[0]*r[0], r[0]*r[1], r[0]*r[2]],
             [r[1]*r[0], r[1]*r[1], r[1]*r[2]],
@@ -43,7 +42,7 @@ def rodrigues_vec_to_rotation_mat(rodrigues_vec):
             [r[2], 0, -r[0]],
             [-r[1], r[0], 0]
         ])
-        rotation_mat = math.cos(theta) * I + (1 - math.cos(theta)) * r_rT + math.sin(theta) * r_cross
+        rotation_mat = math.cos(theta) * ident + (1 - math.cos(theta)) * r_rT + math.sin(theta) * r_cross
     return rotation_mat 
 
 def cameras2nerfds(
