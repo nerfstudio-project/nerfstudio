@@ -28,7 +28,6 @@ from torch.nn import Parameter
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image import PeakSignalNoiseRatio
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-from diff_rast._torch_impl import compute_sh_color
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.viewer_beta.viewer_elements import ViewerControl
@@ -40,9 +39,9 @@ from sklearn.neighbors import NearestNeighbors
 import viser.transforms as vtf
 
 
-from diff_rast.rasterize import RasterizeGaussians
-from diff_rast.project_gaussians import ProjectGaussians
-from diff_rast.sh import SphericalHarmonics, num_sh_bases
+from gsplat.rasterize import RasterizeGaussians
+from gsplat.project_gaussians import ProjectGaussians
+from gsplat.sh import SphericalHarmonics, num_sh_bases
 
 def eval_sh(deg, sh, dirs):
     """
@@ -428,7 +427,7 @@ class GaussianSplattingModel(Model):
         """
         This function splits gaussians that are too large
         """
-        from diff_rast._torch_impl import quat_to_rotmat
+        from gsplat._torch_impl import quat_to_rotmat
         n_splits = split_mask.sum().item()
         print(f"Splitting {split_mask.sum().item()/self.num_points} gaussians: {n_splits}/{self.num_points}")
         centered_samples = torch.randn((samps*n_splits,3),device=self.device) # Nx3 of axis-aligned scales
@@ -600,7 +599,6 @@ class GaussianSplattingModel(Model):
         else:
             rgbs = self.get_colors.squeeze()[rend_mask]  # (N, 3)
             rgbs = torch.sigmoid(rgbs)
-        
         rgb = RasterizeGaussians.apply(
             self.xys[rend_mask],
             depths[rend_mask],
