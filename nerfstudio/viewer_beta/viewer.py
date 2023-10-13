@@ -194,7 +194,7 @@ class Viewer:
         c2w = torch.concatenate([R, pos[:, None]], dim=1)
         camera_state = CameraState(fov=client.camera.fov, aspect=client.camera.aspect, c2w=c2w)
         return camera_state
-    
+
     def handle_disconnect(self, client: viser.ClientHandle) -> None:
         self.render_statemachines[client.client_id].running = False
         self.render_statemachines.pop(client.client_id)

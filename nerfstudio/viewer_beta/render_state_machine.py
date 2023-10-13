@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 
 import torch
-import viser 
+import viser
 
 from nerfstudio.model_components.renderers import background_color_override_context
 from nerfstudio.utils import colormaps, writer
@@ -241,7 +241,7 @@ class RenderStateMachine(threading.Thread):
         depth = (
             outputs["gl_z_buf_depth"].cpu().numpy() * self.viser_scale_ratio if "gl_z_buf_depth" in outputs else None
         )
-        
+
         self.client.set_background_image(
             selected_output.cpu().numpy(),
             format=self.viewer.config.image_format,
