@@ -250,6 +250,7 @@ Using an existing dataset is great, but likely you want to use your own data! We
 | 📱 [Record3D](https://docs.nerf.studio/quickstart/custom_dataset.html#record3d-capture)    | IOS with LiDAR | [Record3D app](https://record3d.app/)                             | 🐇                      |
 | 🖥 [Metashape](https://docs.nerf.studio/quickstart/custom_dataset.html#metashape)           | Any            | [Metashape](https://www.agisoft.com/)                             | 🐇                      |
 | 🖥 [RealityCapture](https://docs.nerf.studio/quickstart/custom_dataset.html#realitycapture) | Any            | [RealityCapture](https://www.capturingreality.com/realitycapture) | 🐇                      |
+| 🖥 [ODM](https://docs.nerf.studio/quickstart/custom_dataset.html#ODM)                       | Any            | [ODM](https://github.com/OpenDroneMap/ODM)                        | 🐇                      |
 | 🛠 [Custom](https://docs.nerf.studio/quickstart/data_conventions.html)                      | Any            | Camera Poses                                                      | 🐇                      |
 
 ## 5. Advanced Options
