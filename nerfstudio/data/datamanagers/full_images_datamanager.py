@@ -25,27 +25,24 @@ import random
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
-from typing import (Dict, ForwardRef, Generic, List, Literal,
-                    Optional, Tuple, Type, Union, cast, get_args, get_origin)
+from typing import Dict, ForwardRef, Generic, List, Literal, Optional, Tuple, Type, Union, cast, get_args, get_origin
 
 import cv2
 import numpy as np
 import torch
 from copy import deepcopy
-from rich.progress import Console
 from torch.nn import Parameter
 from tqdm import tqdm
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
-from nerfstudio.data.datamanagers.base_datamanager import (DataManager,
-                                                           DataManagerConfig,TDataset)
+from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig, TDataset
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-from nerfstudio.data.dataparsers.nerfstudio_dataparser import \
-    NerfstudioDataParserConfig
+from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
+
 
 @dataclass
 class FullImageDatamanagerConfig(DataManagerConfig):
@@ -64,6 +61,7 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     """Specifies the image indices to use during eval; if None, uses all."""
     cache_images: Literal["no-cache", "cpu", "gpu"] = "cpu"
     """Whether to cache images in memory. If "numpy", caches as numpy arrays, if "torch", caches as torch tensors."""
+
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
     """
@@ -101,7 +99,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         if test_mode == "inference":
             self.dataparser.downscale_factor = 1  # Avoid opening images
         self.includes_time = self.dataparser.includes_time
-        
+
         self.train_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split="train")
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
@@ -119,7 +117,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
         super().__init__()
 
-
     def cache_images(self, cache_images_option):
         cached_train = []
         CONSOLE.log("Caching / undistorting train images")
@@ -132,10 +129,23 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             image = data["image"].numpy()
 
             if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
-                distortion_params = np.array([distortion_params[0], distortion_params[1], distortion_params[4], distortion_params[5], distortion_params[2], distortion_params[3], 0, 0])
-                image = cv2.undistort(image, K, distortion_params, None, K) # Should update K in-place
+                distortion_params = np.array(
+                    [
+                        distortion_params[0],
+                        distortion_params[1],
+                        distortion_params[4],
+                        distortion_params[5],
+                        distortion_params[2],
+                        distortion_params[3],
+                        0,
+                        0,
+                    ]
+                )
+                image = cv2.undistort(image, K, distortion_params, None, K)  # Should update K in-place
             elif camera.camera_type.item() == CameraType.FISHEYE.value:
-                distortion_params = np.array([distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]])
+                distortion_params = np.array(
+                    [distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]]
+                )
                 image = cv2.fisheye.undistortImage(image, K, distortion_params, None, K)
             else:
                 raise NotImplementedError("Only perspective and fisheye cameras are supported")
@@ -169,10 +179,23 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             image = data["image"].numpy()
 
             if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
-                distortion_params = np.array([distortion_params[0], distortion_params[1], distortion_params[4], distortion_params[5], distortion_params[2], distortion_params[3], 0, 0])
-                image = cv2.undistort(image, K, distortion_params, None, K) # Should update K in-place
+                distortion_params = np.array(
+                    [
+                        distortion_params[0],
+                        distortion_params[1],
+                        distortion_params[4],
+                        distortion_params[5],
+                        distortion_params[2],
+                        distortion_params[3],
+                        0,
+                        0,
+                    ]
+                )
+                image = cv2.undistort(image, K, distortion_params, None, K)  # Should update K in-place
             elif camera.camera_type.item() == CameraType.FISHEYE.value:
-                distortion_params = np.array([distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]])
+                distortion_params = np.array(
+                    [distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]]
+                )
                 image = cv2.fisheye.undistortImage(image, K, distortion_params, None, K)
             else:
                 raise NotImplementedError("Only perspective and fisheye cameras are supported")
@@ -245,7 +268,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                     if issubclass(value, InputDataset):
                         return cast(Type[TDataset], value)
         return default
-    
+
     def get_datapath(self) -> Path:
         return self.config.dataparser.data
 
@@ -261,32 +284,32 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             A list of dictionaries containing the data manager's param groups.
         """
         return {}
-    
+
     def get_train_rays_per_batch(self):
         # TODO: fix this to be the resolution of the last image rendered
-        return 800*800
-    
+        return 800 * 800
+
     def next_train(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next training batch
-        
+
         Returns a Camera instead of raybundle"""
-        image_idx = self.train_unseen_cameras.pop(random.randint(0, len(self.train_unseen_cameras)-1))
+        image_idx = self.train_unseen_cameras.pop(random.randint(0, len(self.train_unseen_cameras) - 1))
         # Make sure to re-populate the unseen cameras list if we have exhausted it
         if len(self.train_unseen_cameras) == 0:
             self.train_unseen_cameras = [i for i in range(len(self.train_dataset))]
-        
+
         data = deepcopy(self.cached_train[image_idx])
         data["image"] = data["image"].to(self.device)
-        
+
         assert len(self.train_dataset.cameras.shape) == 1, "Assumes single batch dimension"
-        camera = self.train_dataset.cameras[image_idx:image_idx+1].to(self.device)
+        camera = self.train_dataset.cameras[image_idx : image_idx + 1].to(self.device)
         return camera, data
 
     def next_eval(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next evaluation batch
-        
+
         Returns a Camera instead of raybundle"""
-        image_idx = self.eval_unseen_cameras.pop(random.randint(0, len(self.eval_unseen_cameras)-1))
+        image_idx = self.eval_unseen_cameras.pop(random.randint(0, len(self.eval_unseen_cameras) - 1))
         # Make sure to re-populate the unseen cameras list if we have exhausted it
         if len(self.eval_unseen_cameras) == 0:
             self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
@@ -298,11 +321,11 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
     def next_eval_image(self, step: int) -> Tuple[int, Cameras, Dict]:
         """Returns the next evaluation batch
-        
+
         Returns a Camera instead of raybundle
-        
+
         TODO: Make sure this logic is consistent with the vanilladatamanager"""
-        image_idx = self.eval_unseen_cameras.pop(random.randint(0, len(self.eval_unseen_cameras)-1))
+        image_idx = self.eval_unseen_cameras.pop(random.randint(0, len(self.eval_unseen_cameras) - 1))
         # Make sure to re-populate the unseen cameras list if we have exhausted it
         if len(self.eval_unseen_cameras) == 0:
             self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]

@@ -23,8 +23,7 @@ from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 import torch
 
 from nerfstudio.cameras.cameras import Cameras
-from nerfstudio.model_components.renderers import \
-    background_color_override_context
+from nerfstudio.model_components.renderers import background_color_override_context
 from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
 from nerfstudio.utils import colormaps, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
@@ -129,8 +128,8 @@ class RenderStateMachine(threading.Thread):
         assert camera is not None, "render called before viewer connected"
 
         with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
-            #TODO jake-austin: Make this check whether the model inherits from a camera based model or a ray based model
-            #TODO Zhuoyang: First made some dummy judgements, need to be fixed later
+            # TODO jake-austin: Make this check whether the model inherits from a camera based model or a ray based model
+            # TODO Zhuoyang: First made some dummy judgements, need to be fixed later
             isGaussianSplattingModel = isinstance(self.viewer.get_model(), GaussianSplattingModel)
             if isGaussianSplattingModel:
                 pass

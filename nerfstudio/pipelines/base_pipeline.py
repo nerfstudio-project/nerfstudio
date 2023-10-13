@@ -22,14 +22,12 @@ from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import time
-from typing import (Any, Dict, List, Literal, Mapping, Optional, Tuple, Type,
-                    Union, cast)
+from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Type, Union, cast
 
 import torch
 import torch.distributed as dist
 from PIL import Image
-from rich.progress import (BarColumn, MofNCompleteColumn, Progress, TextColumn,
-                           TimeElapsedColumn)
+from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeElapsedColumn
 from torch import nn
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn import Parameter
@@ -261,9 +259,9 @@ class VanillaPipeline(Pipeline):
         self.datamanager: DataManager = config.datamanager.setup(
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
-        #TODO make this work with normal nerfacto too
-        pts = self.datamanager.train_dataparser_outputs.metadata['points3D_xyz']
-        pts_rgb = self.datamanager.train_dataparser_outputs.metadata['points3D_rgb']
+        # TODO make this work with normal nerfacto too
+        pts = self.datamanager.train_dataparser_outputs.metadata["points3D_xyz"]
+        pts_rgb = self.datamanager.train_dataparser_outputs.metadata["points3D_rgb"]
         self.datamanager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_dataset is not None, "Missing input dataset"
@@ -274,7 +272,7 @@ class VanillaPipeline(Pipeline):
             metadata=self.datamanager.train_dataset.metadata,
             device=device,
             grad_scaler=grad_scaler,
-            seed_points = (pts,pts_rgb)
+            seed_points=(pts, pts_rgb),
         )
         self.model.to(device)
 

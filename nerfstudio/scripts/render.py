@@ -140,10 +140,14 @@ def _render_trajectory_video(
                     with renderers.background_color_override_context(
                         crop_data.background_color.to(pipeline.device)
                     ), torch.no_grad():
-                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle,camera=cameras[camera_idx:camera_idx+1])
+                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(
+                            camera_ray_bundle, camera=cameras[camera_idx : camera_idx + 1]
+                        )
                 else:
                     with torch.no_grad():
-                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle,camera=cameras[camera_idx:camera_idx+1])
+                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(
+                            camera_ray_bundle, camera=cameras[camera_idx : camera_idx + 1]
+                        )
 
                 render_image = []
                 for rendered_output_name in rendered_output_names:
