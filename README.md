@@ -9,6 +9,7 @@ This is a fork of the [NeRFstudio](https://github.com/nerfstudio-project/nerfstu
 git clone https://github.com/Stanford-NavLab/nerfstudio.git
 cd nerfstudio
 pip install --upgrade pip setuptools
+pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 pip install -e .
 ```
 

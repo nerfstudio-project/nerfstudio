@@ -152,6 +152,9 @@ class ViTExtractor:
         # pil_image = image.convert('RGB')
         # if load_size is not None:
         #     pil_image = transforms.Resize(load_size, interpolation=transforms.InterpolationMode.LANCZOS)(pil_image)
+        
+        image = image[:, :3, :, :]  # Remove alpha channel if exists
+        
         prep = transforms.Compose([
             # transforms.ToTensor(),
             transforms.Resize(load_size, antialias=None),

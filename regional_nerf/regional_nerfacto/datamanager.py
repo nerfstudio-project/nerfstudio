@@ -103,14 +103,53 @@ class RNerfDataManager(VanillaDataManager):
 
     def create_enu_mapping(self):
         transforms = self._find_transform(self.train_dataparser_outputs.image_filenames[0])
+
+        def lat_lon_to_tile_xy(lat, lon, zoom):
+            n = 2.0 ** zoom
+            xtile = (lon + 180.0) / 360.0 * n
+            ytile = (1.0 - log(math.tan(lat * pi / 180.0) + 1.0 / math.cos(lat * pi / 180.0)) / pi) / 2.0 * n
+            return int(xtile), int(ytile)
+
+        def osm_scale_in_meters_per_pixel(latitude_degrees, zoom):
+            earth_circumference = 40075016.686  # in meters
+            tile_size = 256  # OSM tile size in pixels
+            latitude_radians = latitude_degrees * pi / 180.0
+            scale = (earth_circumference * math.cos(latitude_radians)) / (tile_size * 2**zoom)
+            return scale
+
+        def get_osm_tile(lat, lon, zoom=15):
+            xtile, ytile = lat_lon_to_tile_xy(lat, lon, zoom)
+            # print(xtile, ytile)
+            # url = f"https://tile.openstreetmap.org/{zoom}/{xtile}/{ytile}.png"
+            # print(url)
+            # response = requests.get(url)
+            tile_path = f"regional_nerf/regional_nerfacto/map_tiles/{xtile}_{ytile}.png"
+            image = Image.open(tile_path).convert("RGB")
+            return image
+
         if transforms is not None:
             meta = json.load(open(transforms, "r"))
-            transform_scale = meta["scale"]
-            rclat = np.radians(meta["lat"])
-            rclng = np.radians(meta["lon"])
-            rot_ECEF2ENUV = np.array([[-math.sin(rclng),                math.cos(rclng),                              0],
-                              [-math.sin(rclat)*math.cos(rclng), -math.sin(rclat)*math.sin(rclng), math.cos(rclat)],
-                              [math.cos(rclat)*math.cos(rclng),  math.cos(rclat)*math.sin(rclng),  math.sin(rclat)]])
+            if "scale" in meta.keys():
+                transform_scale = meta["scale"]
+            else:
+                transform_scale = 1.0
+            if "lat" in meta.keys() and "lon" in meta.keys():
+                rclat = np.radians(meta["lat"])
+                rclng = np.radians(meta["lon"])
+                rot_ECEF2ENUV = np.array([[-math.sin(rclng),                math.cos(rclng),                              0],
+                                [-math.sin(rclat)*math.cos(rclng), -math.sin(rclat)*math.sin(rclng), math.cos(rclat)],
+                                [math.cos(rclat)*math.cos(rclng),  math.cos(rclat)*math.sin(rclng),  math.sin(rclat)]])
+            
+                osm_image = get_osm_tile(meta["lat"], meta["lon"], zoom=15)
+                osm_image = np.array(osm_image)
+                osm_scale = osm_scale_in_meters_per_pixel(meta["lat"], zoom=15)
+            else:
+                rot_ECEF2ENUV = np.eye(3)
+                osm_image = np.zeros((100, 100, 3))
+                osm_scale = 1.0
+            osm_image = torch.from_numpy(osm_image).permute(2, 0, 1).float() / 255.0
+            osm_image = osm_image.to(self.device)
+
         dataparser_scale = self.train_dataparser_outputs.dataparser_scale
         dataparser_transform = self.train_dataparser_outputs.dataparser_transform   # 3 x 4
 
@@ -185,37 +224,6 @@ class RNerfDataManager(VanillaDataManager):
             points /= transform_scale
             return points
 
-        def lat_lon_to_tile_xy(lat, lon, zoom):
-            n = 2.0 ** zoom
-            xtile = (lon + 180.0) / 360.0 * n
-            ytile = (1.0 - log(math.tan(lat * pi / 180.0) + 1.0 / math.cos(lat * pi / 180.0)) / pi) / 2.0 * n
-            return int(xtile), int(ytile)
-
-        def osm_scale_in_meters_per_pixel(latitude_degrees, zoom):
-            earth_circumference = 40075016.686  # in meters
-            tile_size = 256  # OSM tile size in pixels
-            latitude_radians = latitude_degrees * pi / 180.0
-            scale = (earth_circumference * math.cos(latitude_radians)) / (tile_size * 2**zoom)
-            return scale
-
-        def get_osm_tile(lat, lon, zoom=15):
-            xtile, ytile = lat_lon_to_tile_xy(lat, lon, zoom)
-            # print(xtile, ytile)
-            # url = f"https://tile.openstreetmap.org/{zoom}/{xtile}/{ytile}.png"
-            # print(url)
-            # response = requests.get(url)
-            tile_path = f"regional_nerf/regional_nerfacto/map_tiles/{xtile}_{ytile}.png"
-            image = Image.open(tile_path).convert("RGB")
-            return image
-
-        osm_image = get_osm_tile(meta["lat"], meta["lon"], zoom=15)
-        osm_image = np.array(osm_image)
-        osm_image = torch.from_numpy(osm_image).permute(2, 0, 1).float() / 255.0
-        osm_image = osm_image.to(self.device)
-
-        osm_scale = osm_scale_in_meters_per_pixel(meta["lat"], zoom=15)
-
-        
         return enu2nerf, nerf2enu, enu2nerf_points, nerf2enu_points, osm_image, osm_scale
 
 
