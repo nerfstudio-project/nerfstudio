@@ -19,18 +19,16 @@ NeRF implementation that combines many recent advancements.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
+from typing import Dict, List, Optional, Tuple, Type, Union
 import torch
 from nerfstudio.data.scene_box import OrientedBox
 from copy import deepcopy
 from nerfstudio.cameras.rays import RayBundle
 from torch.nn import Parameter
-from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image import PeakSignalNoiseRatio
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
-from nerfstudio.viewer_beta.viewer_elements import ViewerControl
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.models.base_model import Model, ModelConfig
 import math
@@ -572,7 +570,7 @@ class GaussianSplattingModel(Model):
             self.means[crop_ids],
             torch.exp(self.scales[crop_ids]),
             1,
-            self.quats[crop_ids],#/self.quats[crop_ids].norm(dim=-1,keepdim=True),
+            self.quats[crop_ids],
             viewmat.squeeze()[:3, :],
             projmat.squeeze() @ viewmat.squeeze(),
             camera.fx.item(),

@@ -41,7 +41,6 @@ from typing import (
 )
 
 import torch
-import tyro
 from torch import nn
 from torch.nn import Parameter
 from torch.utils.data.distributed import DistributedSampler
