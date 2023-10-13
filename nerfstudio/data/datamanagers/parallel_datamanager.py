@@ -303,10 +303,14 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
 
     def get_train_rays_per_batch(self) -> int:
         """Returns the number of rays per batch for training."""
+        if self.train_pixel_sampler is not None:
+            return self.train_pixel_sampler.num_rays_per_batch
         return self.config.train_num_rays_per_batch
 
     def get_eval_rays_per_batch(self) -> int:
         """Returns the number of rays per batch for evaluation."""
+        if self.eval_pixel_sampler is not None:
+            return self.eval_pixel_sampler.num_rays_per_batch
         return self.config.eval_num_rays_per_batch
 
     def get_datapath(self) -> Path:
