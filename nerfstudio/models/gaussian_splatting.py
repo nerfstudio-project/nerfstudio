@@ -611,19 +611,19 @@ class GaussianSplattingModel(Model):
             W,
             background,
         )
-        # depth_im = RasterizeGaussians.apply(
-        #     self.xys[rend_mask],
-        #     depths[rend_mask],
-        #     self.radii[rend_mask],
-        #     conics[rend_mask],
-        #     num_tiles_hit[rend_mask],
-        #     depths[rend_mask,None],
-        #     torch.sigmoid(opacities_crop[rend_mask]),
-        #     H,
-        #     W,
-        #     torch.ones(1,device=self.device)*10,
-        # )[...,0:1]
-        return {"rgb": rgb}#,'depth':depth_im}
+        depth_im = RasterizeGaussians.apply(
+            self.xys[rend_mask],
+            depths[rend_mask],
+            self.radii[rend_mask],
+            conics[rend_mask],
+            num_tiles_hit[rend_mask],
+            depths[rend_mask,None].repeat(1,3),
+            torch.sigmoid(opacities_crop[rend_mask]),
+            H,
+            W,
+            torch.ones(3,device=self.device)*10,
+        )[...,0:1]
+        return {"rgb": rgb,'depth':depth_im}
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.

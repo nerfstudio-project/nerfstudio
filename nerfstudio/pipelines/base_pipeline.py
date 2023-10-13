@@ -367,13 +367,7 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         metrics_dict_list = []
-<<<<<<< HEAD
-        # TODO (jake-austin): Can we remove this assert statement? Are all the needed functions
-        # abstract functions in the upper-most DataManager class?
-        assert isinstance(self.datamanager, VanillaDataManager)
-=======
         assert isinstance(self.datamanager, (VanillaDataManager, ParallelDataManager))
->>>>>>> 8e2a0651d0dc9bb9d6de5d4a934d0a195ad5032d
         num_images = len(self.datamanager.fixed_indices_eval_dataloader)
         with Progress(
             TextColumn("[progress.description]{task.description}"),

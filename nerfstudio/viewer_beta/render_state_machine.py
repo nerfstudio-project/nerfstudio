@@ -128,9 +128,9 @@ class RenderStateMachine(threading.Thread):
             with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
                 if isinstance(self.viewer.get_model(),GaussianSplattingModel):
                     camera_ray_bundle=None
+                    self.viewer.get_model().set_crop(obb)
                 else:
                     camera_ray_bundle = camera.generate_rays(camera_indices=0, obb_box=obb)
-                self.viewer.get_model().set_crop(obb)
                 self.viewer.get_model().eval()
                 step = self.viewer.step
                 try:
@@ -154,14 +154,19 @@ class RenderStateMachine(threading.Thread):
                     self.viewer.get_model().train()
                     raise
                 self.viewer.get_model().train()
-            num_rays = image_height*image_width
-            # num_rays = len(camera_ray_bundle)
-            # if self.viewer.control_panel.layer_depth:
-            #     # convert to z_depth if depth compositing is enabled
-            #     R = camera.camera_to_worlds[0:3, 0:3].T
-            #     pts = camera_ray_bundle.directions * outputs["depth"]
-            #     pts = (R @ (pts.view(-1, 3).T)).T.view(*camera_ray_bundle.directions.shape)
-            #     outputs["gl_z_buf_depth"] = -pts[..., 2:3]  # negative z axis is the coordinate convention
+            if isinstance(self.viewer.get_model(),GaussianSplattingModel):
+                num_rays = image_height*image_width
+            else:
+                num_rays = len(camera_ray_bundle)
+            if self.viewer.control_panel.layer_depth:
+                if isinstance(self.viewer.get_model(),GaussianSplattingModel):
+                    outputs["gl_z_buf_depth"] = outputs['depth']
+                else:
+                    # convert to z_depth if depth compositing is enabled
+                    R = camera.camera_to_worlds[0:3, 0:3].T
+                    pts = camera_ray_bundle.directions * outputs["depth"]
+                    pts = (R @ (pts.view(-1, 3).T)).T.view(*camera_ray_bundle.directions.shape)
+                    outputs["gl_z_buf_depth"] = -pts[..., 2:3]  # negative z axis is the coordinate convention
         render_time = vis_t.duration
         if writer.is_initialized():
             writer.put_time(
