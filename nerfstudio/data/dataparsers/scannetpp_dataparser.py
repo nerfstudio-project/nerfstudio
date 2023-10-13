@@ -31,7 +31,21 @@ from nerfstudio.utils.rich_utils import CONSOLE
 
 @dataclass
 class ScanNetppDataParserConfig(DataParserConfig):
-    """ScanNet++ dataset config."""
+    """ScanNet++ dataset config.
+    ScanNet++ dataset (https://kaldir.vc.in.tum.de/scannetpp/) is a large scale 3D indoor dataset for semantics understanding and novel view synthesis.
+    This dataparser follow the file structure of the dataset.
+    Expected structure of the directory:
+
+    .. code-block:: text
+
+        root/
+        ├── SCENE_ID0/
+            ├── resized_images
+            ├── resized_anon_masks
+            ├── dslr/nerfstudio/transforms.json
+        ├── SCENE_ID1/
+        ...
+    """
 
     _target: Type = field(default_factory=lambda: ScanNetpp)
     """target class to instantiate"""
