@@ -572,7 +572,7 @@ class GaussianSplattingModel(Model):
             self.means[crop_ids],
             torch.exp(self.scales[crop_ids]),
             1,
-            self.quats[crop_ids]/self.quats[crop_ids].norm(dim=-1,keepdim=True),
+            self.quats[crop_ids],#/self.quats[crop_ids].norm(dim=-1,keepdim=True),
             viewmat.squeeze()[:3, :],
             projmat.squeeze() @ viewmat.squeeze(),
             camera.fx.item(),

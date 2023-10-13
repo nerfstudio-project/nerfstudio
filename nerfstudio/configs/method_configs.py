@@ -643,14 +643,14 @@ method_configs["gaussian-splatting"] = TrainerConfig(
             "optimizer": AdamOptimizerConfig(lr=0.005, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
                 lr_final=1e-3,
-                max_steps=3000,
+                max_steps=15000,
             ),
         },
         "rotation": {
-            "optimizer": AdamOptimizerConfig(lr=3e-4, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=.001, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
                 lr_final=1e-4,
-                max_steps=3000,
+                max_steps=15000,
             ),
         },
     },
