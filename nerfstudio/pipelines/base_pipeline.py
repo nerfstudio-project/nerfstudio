@@ -37,11 +37,13 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.configs import base_config as cfg
-from nerfstudio.data.datamanagers.base_datamanager import (DataManager,
-                                                           DataManagerConfig,
-                                                           VanillaDataManager)
-from nerfstudio.engine.callbacks import (TrainingCallback,
-                                         TrainingCallbackAttributes)
+from nerfstudio.data.datamanagers.base_datamanager import (
+    DataManager,
+    DataManagerConfig,
+    VanillaDataManager,
+)
+from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
+from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
 
@@ -298,18 +300,6 @@ class VanillaPipeline(Pipeline):
         ray_bundle, batch = self.datamanager.next_train(step)
         model_outputs = self._model(ray_bundle)  # train distributed data parallel model if world_size > 1
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
-
-        if self.config.datamanager.camera_optimizer is not None:
-            camera_opt_param_group = self.config.datamanager.camera_optimizer.param_group
-            if camera_opt_param_group in self.datamanager.get_param_groups():
-                # Report the camera optimization metrics
-                metrics_dict["camera_opt_translation"] = (
-                    self.datamanager.get_param_groups()[camera_opt_param_group][0].data[:, :3].norm()
-                )
-                metrics_dict["camera_opt_rotation"] = (
-                    self.datamanager.get_param_groups()[camera_opt_param_group][0].data[:, 3:].norm()
-                )
-
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
 
         return model_outputs, loss_dict, metrics_dict
@@ -377,9 +367,13 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         metrics_dict_list = []
+<<<<<<< HEAD
         # TODO (jake-austin): Can we remove this assert statement? Are all the needed functions
         # abstract functions in the upper-most DataManager class?
         assert isinstance(self.datamanager, VanillaDataManager)
+=======
+        assert isinstance(self.datamanager, (VanillaDataManager, ParallelDataManager))
+>>>>>>> 8e2a0651d0dc9bb9d6de5d4a934d0a195ad5032d
         num_images = len(self.datamanager.fixed_indices_eval_dataloader)
         with Progress(
             TextColumn("[progress.description]{task.description}"),

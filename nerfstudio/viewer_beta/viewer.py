@@ -161,22 +161,40 @@ class Viewer:
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
             populate_export_tab(self.viser_server, self.control_panel, config_path)
 
-        def nested_folder_install(folder_labels: List[str], element: ViewerElement):
+        # Keep track of the pointers to generated GUI folders, because each generated folder holds a unique ID.
+        viewer_gui_folders = dict()
+
+        def nested_folder_install(folder_labels: List[str], prev_labels: List[str], element: ViewerElement):
             if len(folder_labels) == 0:
                 element.install(self.viser_server)
                 # also rewire the hook to rerender
                 prev_cb = element.cb_hook
                 element.cb_hook = lambda element: [prev_cb(element), self._interrupt_render(element)]
             else:
-                with self.viser_server.add_gui_folder(folder_labels[0]):
-                    nested_folder_install(folder_labels[1:], element)
+                # recursively create folders
+                # If the folder name is "Custom Elements/a/b", then:
+                #   in the beginning: folder_path will be
+                #       "/".join([] + ["Custom Elements"]) --> "Custom Elements"
+                #   later, folder_path will be
+                #       "/".join(["Custom Elements"] + ["a"]) --> "Custom Elements/a"
+                #       "/".join(["Custom Elements", "a"] + ["b"]) --> "Custom Elements/a/b"
+                #  --> the element will be installed in the folder "Custom Elements/a/b"
+                #
+                # Note that the gui_folder is created only when the folder is not in viewer_gui_folders,
+                # and we use the folder_path as the key to check if the folder is already created.
+                # Otherwise, use the existing folder as context manager.
+                folder_path = "/".join(prev_labels + [folder_labels[0]])
+                if folder_path not in viewer_gui_folders:
+                    viewer_gui_folders[folder_path] = self.viser_server.add_gui_folder(folder_labels[0])
+                with viewer_gui_folders[folder_path]:
+                    nested_folder_install(folder_labels[1:], prev_labels + [folder_labels[0]], element)
 
         with control_tab:
             self.viewer_elements = []
             self.viewer_elements.extend(parse_object(pipeline, ViewerElement, "Custom Elements"))
             for param_path, element in self.viewer_elements:
                 folder_labels = param_path.split("/")[:-1]
-                nested_folder_install(folder_labels, element)
+                nested_folder_install(folder_labels, [], element)
 
             # scrape the trainer/pipeline for any ViewerControl objects to initialize them
             self.viewer_controls: List[ViewerControl] = [

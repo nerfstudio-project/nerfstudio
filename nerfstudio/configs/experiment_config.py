@@ -83,7 +83,7 @@ class ExperimentConfig(InstantiateConfig):
 
     def is_viewer_enabled(self) -> bool:
         """Checks if a viewer is enabled."""
-        return ("viewer" == self.vis) | ("viewer+wandb" == self.vis) | ("viewer+tensorboard" == self.vis)
+        return self.vis in ("viewer", "viewer+wandb", "viewer+tensorboard", "viewer+comet")
 
     def is_viewer_beta_enabled(self) -> bool:
         """Checks if a viewer beta is enabled."""

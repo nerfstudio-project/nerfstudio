@@ -53,6 +53,7 @@ from nerfstudio.model_components.renderers import (
 from nerfstudio.model_components.scene_colliders import AABBBoxCollider
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps, colors, misc
+from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
 
 
 @dataclass
@@ -89,6 +90,8 @@ class TensoRFModelConfig(ModelConfig):
     tensorf_encoding: Literal["triplane", "vm", "cp"] = "vm"
     regularization: Literal["none", "l1", "tv"] = "l1"
     """Regularization method used in tensorf paper"""
+    camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig(mode="SO3xR3")
+    """Config of the camera optimizer to use"""
     background_color: Literal["random", "last_sample", "black", "white"] = "white"
     """Whether to randomize the background color."""
 
@@ -256,6 +259,11 @@ class TensoRFModel(Model):
         if self.config.tensorf_encoding == "cp" and self.config.regularization == "tv":
             raise RuntimeError("TV reg not supported for CP decomposition")
 
+        # (optional) camera optimizer
+        self.camera_optimizer: CameraOptimizer = self.config.camera_optimizer.setup(
+            num_cameras=self.num_train_data, device="cpu"
+        )
+
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
 
@@ -267,11 +275,14 @@ class TensoRFModel(Model):
         param_groups["encodings"] = list(self.field.color_encoding.parameters()) + list(
             self.field.density_encoding.parameters()
         )
+        self.camera_optimizer.get_param_groups(param_groups=param_groups)
 
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
         # uniform sampling
+        if self.training:
+            self.camera_optimizer.apply_to_raybundle(ray_bundle)
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
         dens = self.field.get_density(ray_samples_uniform)
         weights = ray_samples_uniform.get_weights(dens)
@@ -334,6 +345,8 @@ class TensoRFModel(Model):
         else:
             raise ValueError(f"Regularization {self.config.regularization} not supported")
 
+        self.camera_optimizer.get_loss_dict(loss_dict)
+
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         return loss_dict
 
@@ -367,5 +380,7 @@ class TensoRFModel(Model):
             "ssim": float(ssim.item()),
             "lpips": float(lpips.item()),
         }
+        self.camera_optimizer.get_metrics_dict(metrics_dict)
+
         images_dict = {"img": combined_rgb, "accumulation": acc, "depth": depth}
         return metrics_dict, images_dict

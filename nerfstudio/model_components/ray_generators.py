@@ -18,7 +18,6 @@ Ray generator.
 from jaxtyping import Int
 from torch import Tensor, nn
 
-from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 
@@ -34,10 +33,9 @@ class RayGenerator(nn.Module):
 
     image_coords: Tensor
 
-    def __init__(self, cameras: Cameras, pose_optimizer: CameraOptimizer) -> None:
+    def __init__(self, cameras: Cameras) -> None:
         super().__init__()
         self.cameras = cameras
-        self.pose_optimizer = pose_optimizer
         self.register_buffer("image_coords", cameras.get_image_coords(), persistent=False)
 
     def forward(self, ray_indices: Int[Tensor, "num_rays 3"]) -> RayBundle:
@@ -51,11 +49,8 @@ class RayGenerator(nn.Module):
         x = ray_indices[:, 2]  # col indices
         coords = self.image_coords[y, x]
 
-        camera_opt_to_camera = self.pose_optimizer(c)
-
         ray_bundle = self.cameras.generate_rays(
             camera_indices=c.unsqueeze(-1),
             coords=coords,
-            camera_opt_to_camera=camera_opt_to_camera,
         )
         return ray_bundle
