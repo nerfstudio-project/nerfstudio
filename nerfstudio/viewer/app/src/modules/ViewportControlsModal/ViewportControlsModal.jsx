@@ -30,7 +30,7 @@ export default function ControlsModal() {
           <center>
             <img
               style={{ height: 37, margin: 'auto' }}
-              src="https://docs.nerf.studio/en/latest/_images/logo-dark.png"
+              src="https://docs.nerf.studio/_images/logo-dark.png"
               alt="The favicon."
             />
             <img
