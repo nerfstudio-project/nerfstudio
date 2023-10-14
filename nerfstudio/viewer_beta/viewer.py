@@ -326,7 +326,7 @@ class Viewer:
             )
 
             @camera_handle.on_click
-            def _(event: viser.ClickEvent[viser.CameraFrustumHandle]) -> None:
+            def _(event: viser.SceneNodePointerEvent[viser.CameraFrustumHandle]) -> None:
                 assert self.client is not None
                 with self.client.atomic():
                     self.client.camera.position = event.target.position

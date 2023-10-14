@@ -19,6 +19,8 @@ from typing import Callable, DefaultDict, List, Tuple, get_args
 import numpy as np
 import torch
 import viser.transforms as vtf
+from viser import ViserServer
+
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
 from nerfstudio.viewer_beta.viewer_elements import (  # ViewerButtonGroup,
@@ -32,7 +34,6 @@ from nerfstudio.viewer_beta.viewer_elements import (  # ViewerButtonGroup,
     ViewerSlider,
     ViewerVec3,
 )
-from viser import ViserServer
 
 
 class ControlPanel:
@@ -147,7 +148,7 @@ class ControlPanel:
         self._crop_handle = self.viser_server.add_transform_controls("Crop", depth_test=False, line_width=4.0)
 
         def update_center(han):
-            self._crop_handle.position = tuple(p * self.viser_scale_ratio for p in han.value)
+            self._crop_handle.position = tuple(p * self.viser_scale_ratio for p in han.value)  # type: ignore
 
         self._crop_center = ViewerVec3(
             "Crop Center",
@@ -175,7 +176,7 @@ class ControlPanel:
         @self._crop_handle.on_update
         def _update_crop_handle(han):
             pos = self._crop_handle.position
-            self._crop_center.value = tuple(p / self.viser_scale_ratio for p in pos)
+            self._crop_center.value = tuple(p / self.viser_scale_ratio for p in pos)  # type: ignore
             rpy = vtf.SO3(self._crop_handle.wxyz).as_rpy_radians()
             self._crop_rot.value = (float(rpy.roll), float(rpy.pitch), float(rpy.yaw))
 
@@ -280,7 +281,7 @@ class ControlPanel:
         self._split_output_render.set_options(new_options)
         self._split_output_render.value = new_options[-1]
 
-    def add_element(self, e: ViewerElement, additional_tags: Tuple[str] = tuple()) -> None:
+    def add_element(self, e: ViewerElement, additional_tags: Tuple[str, ...] = tuple()) -> None:
         """Adds an element to the control panel
 
         Args:

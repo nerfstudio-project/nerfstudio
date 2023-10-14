@@ -239,6 +239,7 @@ def get_cube(
     if isinstance(side_length, float):
         pts *= side_length / 2.0
     else:
+        assert isinstance(side_length, torch.Tensor)
         pts[0] *= side_length[0].item() / 2.0
         pts[1] *= side_length[1].item() / 2.0
         pts[2] *= side_length[2].item() / 2.0
