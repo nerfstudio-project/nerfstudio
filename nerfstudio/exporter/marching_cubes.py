@@ -17,7 +17,7 @@ This module implements the Marching Cubes algorithm for extracting
 isosurfaces
 """
 
-from typing import Callable, List, Optional, Tuple, Union, cast
+from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
