@@ -406,7 +406,7 @@ This outputs two 180 deg equirectangular renders horizontally stacked, one for e
 </center>
 
 ### Setup instructions
-To render for VR video it is essential to adjust the NeRF to have an approximately true-to-life real world scale (adjustable in the camera path) to ensure that the scene depth and IPD (distance between the eyes) is appropriate for the render to be viewable in VR. You can adjust the scene scale with the [Nerfstudio Blender Add-on](https://docs.nerf.studio/en/latest/extensions/blender_addon.html) by appropriately scaling a point cloud representation of the NeRF.
+To render for VR video it is essential to adjust the NeRF to have an approximately true-to-life real world scale (adjustable in the camera path) to ensure that the scene depth and IPD (distance between the eyes) is appropriate for the render to be viewable in VR. You can adjust the scene scale with the [Nerfstudio Blender Add-on](https://docs.nerf.studio/extensions/blender_addon.html) by appropriately scaling a point cloud representation of the NeRF.
 Results may be unviewable if the scale is not set appropriately. The IPD is set at 64mm by default but only is accurate when the NeRF scene is true to scale.
 
 For good quality renders, it is recommended to render at high resolutions (For ODS: 4096x2048 per eye, or 2048x1024 per eye. For VR180: 4096x4096 per eye or 2048x2048 per eye). Render resolutions for a single eye are specified in the camera path. For VR180, resolutions must be in a 1:1 aspect ratio. For ODS, resolutions must be in a 2:1 aspect ratio. The final stacked render output will automatically be constructed (with aspect ratios for VR180 as 2:1 and ODS as 1:1).
@@ -417,7 +417,7 @@ If you are rendering an image sequence, it is recommended to render as png inste
 :::
 
 To render with the VR videos camera:
-1. Use the [Nerfstudio Blender Add-on](https://docs.nerf.studio/en/latest/extensions/blender_addon.html) to set the scale of the NeRF scene and create the camera path
+1. Use the [Nerfstudio Blender Add-on](https://docs.nerf.studio/extensions/blender_addon.html) to set the scale of the NeRF scene and create the camera path
     - Export a point cloud representation of the NeRF
    - Import the point cloud representation in Blender and enable the Nerfstudio Blender Add-on
     - Create a reference object such as a cube which may be 1x1x1 meter. You could also create a cylinder and scale it to an appropriate height of a viewer.
