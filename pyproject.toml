@@ -53,7 +53,7 @@ dependencies = [
     "torchvision>=0.14.1",
     "torchmetrics[image]>=1.0.1",
     "typing_extensions>=4.4.0",
-    "viser==0.1.6",
+    "viser==0.1.7",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
     "xatlas",
@@ -90,7 +90,7 @@ dev = [
     "diffusers==0.16.1",
     "opencv-stubs==0.0.7",
     "transformers==4.29.2",
-    "pyright==1.1.308",
+    "pyright==1.1.331",
 ]
 
 # Documentation related packages
