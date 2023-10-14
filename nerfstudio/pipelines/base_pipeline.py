@@ -259,9 +259,12 @@ class VanillaPipeline(Pipeline):
         self.datamanager: DataManager = config.datamanager.setup(
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
-        # TODO make this work with normal nerfacto too
-        pts = self.datamanager.train_dataparser_outputs.metadata["points3D_xyz"]
-        pts_rgb = self.datamanager.train_dataparser_outputs.metadata["points3D_rgb"]
+        # TODO make cleaner
+        seed_pts = None
+        if hasattr(self.datamanager, "train_dataparser_outputs") and 'points3D_xyz' in self.datamanager.train_dataparser_outputs.metadata:
+            pts = self.datamanager.train_dataparser_outputs.metadata["points3D_xyz"]
+            pts_rgb = self.datamanager.train_dataparser_outputs.metadata["points3D_rgb"]
+            seed_pts = (pts,pts_rgb)
         self.datamanager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_dataset is not None, "Missing input dataset"
@@ -272,7 +275,7 @@ class VanillaPipeline(Pipeline):
             metadata=self.datamanager.train_dataset.metadata,
             device=device,
             grad_scaler=grad_scaler,
-            seed_points=(pts, pts_rgb),
+            seed_points=seed_pts,
         )
         self.model.to(device)
 

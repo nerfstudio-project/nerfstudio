@@ -141,12 +141,25 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                         0,
                     ]
                 )
-                image = cv2.undistort(image, K, distortion_params, None, K)  # Should update K in-place
+                newK,roi = cv2.getOptimalNewCameraMatrix(K,distortion_params,(image.shape[1],image.shape[0]),0)
+                image = cv2.undistort(image, K, distortion_params, None, newK)
+                #crop the image and update the intrinsics accordingly
+                x,y,w,h = roi
+                image = image[y:y+h,x:x+w]
+                K = newK
+                #update the width, height
+                self.train_dataset.cameras.width[i] = w
+                self.train_dataset.cameras.height[i] = h
+                
             elif camera.camera_type.item() == CameraType.FISHEYE.value:
                 distortion_params = np.array(
                     [distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]]
                 )
-                image = cv2.fisheye.undistortImage(image, K, distortion_params, None, K)
+                newK = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(K, distortion_params, (image.shape[1],image.shape[0]), np.eye(3), balance=0)
+                map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, distortion_params, np.eye(3), newK, (image.shape[1],image.shape[0]), cv2.CV_32FC1)
+                # and then remap:
+                image = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+                K = newK
             else:
                 raise NotImplementedError("Only perspective and fisheye cameras are supported")
             data["image"] = torch.from_numpy(image)
@@ -163,10 +176,10 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
             cached_train.append(data)
 
-            self.train_dataset.cameras[i].fx = K[0, 0]
-            self.train_dataset.cameras[i].fy = K[1, 1]
-            self.train_dataset.cameras[i].cx = K[0, 2]
-            self.train_dataset.cameras[i].cy = K[1, 2]
+            self.train_dataset.cameras.fx[i] = float(K[0, 0])
+            self.train_dataset.cameras.fy[i] = float(K[1, 1])
+            self.train_dataset.cameras.cx[i] = float(K[0, 2])
+            self.train_dataset.cameras.cy[i] = float(K[1, 2])
 
         cached_eval = []
         CONSOLE.log("Caching / undistorting eval images")
@@ -191,12 +204,24 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                         0,
                     ]
                 )
-                image = cv2.undistort(image, K, distortion_params, None, K)  # Should update K in-place
+                newK,roi = cv2.getOptimalNewCameraMatrix(K,distortion_params,(image.shape[1],image.shape[0]),0)
+                image = cv2.undistort(image, K, distortion_params, None, newK)
+                #crop the image and update the intrinsics accordingly
+                x,y,w,h = roi
+                image = image[y:y+h,x:x+w]
+                K = newK
+                #update the width, height
+                self.train_dataset.cameras.width[i] = w
+                self.train_dataset.cameras.height[i] = h
             elif camera.camera_type.item() == CameraType.FISHEYE.value:
                 distortion_params = np.array(
                     [distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]]
                 )
-                image = cv2.fisheye.undistortImage(image, K, distortion_params, None, K)
+                newK = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(K, distortion_params, (image.shape[1],image.shape[0]), np.eye(3), balance=0)
+                map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, distortion_params, np.eye(3), newK, (image.shape[1],image.shape[0]), cv2.CV_32FC1)
+                # and then remap:
+                image = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+                K = newK
             else:
                 raise NotImplementedError("Only perspective and fisheye cameras are supported")
             data["image"] = torch.from_numpy(image)
@@ -300,6 +325,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
         data = deepcopy(self.cached_train[image_idx])
         data["image"] = data["image"].to(self.device)
+        data['cam_idx'] = torch.tensor(image_idx).to(self.device)
 
         assert len(self.train_dataset.cameras.shape) == 1, "Assumes single batch dimension"
         camera = self.train_dataset.cameras[image_idx : image_idx + 1].to(self.device)

@@ -190,7 +190,7 @@ class RenderStateMachine(threading.Thread):
     def run(self):
         """Main loop for the render thread"""
         while True:
-            if not self.render_trigger.wait(0.2):
+            if not self.render_trigger.wait(0.1):
                 # if we haven't received a trigger in a while, send a static action
                 if self.viewer.camera_state is not None:
                     self.action(RenderAction(action="static", camera_state=self.viewer.camera_state))
@@ -208,7 +208,7 @@ class RenderStateMachine(threading.Thread):
             except viewer_utils.IOChangeException:
                 # if we got interrupted, don't send the output to the viewer
                 continue
-            self._send_output_to_viewer(outputs)
+            self._send_output_to_viewer(outputs,static_render = (action.action in ["static",'step']))
 
     def check_interrupt(self, frame, event, arg):
         """Raises interrupt when flag has been set and not already on lowest resolution.
@@ -220,7 +220,7 @@ class RenderStateMachine(threading.Thread):
                 raise viewer_utils.IOChangeException
         return self.check_interrupt
 
-    def _send_output_to_viewer(self, outputs: Dict[str, Any]):
+    def _send_output_to_viewer(self, outputs: Dict[str, Any], static_render: bool = True):
         """Chooses the correct output and sends it to the viewer
 
         Args:
@@ -260,10 +260,11 @@ class RenderStateMachine(threading.Thread):
         depth = (
             outputs["gl_z_buf_depth"].cpu().numpy() * self.viser_scale_ratio if "gl_z_buf_depth" in outputs else None
         )
+        jpg_quality = self.viewer.config.jpeg_quality if static_render else 40
         self.viewer.viser_server.set_background_image(
             selected_output.cpu().numpy(),
             format=self.viewer.config.image_format,
-            jpeg_quality=self.viewer.config.jpeg_quality,
+            jpeg_quality=jpg_quality,
             depth=depth,
         )
 
