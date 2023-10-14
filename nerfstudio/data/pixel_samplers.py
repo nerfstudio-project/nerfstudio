@@ -98,7 +98,7 @@ class PixelSampler:
             chosen_indices = random.sample(range(len(nonzero_indices)), k=batch_size)
             indices = nonzero_indices[chosen_indices]
         else:
-            indices = torch.floor(
+            indices = (
                 torch.rand((batch_size, 3), device=device)
                 * torch.tensor([num_images, image_height, image_width], device=device)
             ).long()
@@ -172,13 +172,11 @@ class PixelSampler:
         collated_batch = {
             key: value[c, y, x] for key, value in batch.items() if key != "image_idx" and value is not None
         }
-
         assert collated_batch["image"].shape[0] == num_rays_per_batch
 
         # Needed to correct the random indices to their actual camera idx locations.
         indices[:, 0] = batch["image_idx"][c]
         collated_batch["indices"] = indices  # with the abs camera indices
-
         if keep_full_image:
             collated_batch["full_image"] = batch["image"]
 
@@ -399,10 +397,11 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
     ) -> Int[Tensor, "batch_size 3"]:
+        rays_to_sample = self.rays_to_sample
         if isinstance(mask, Tensor):
             m = erode_mask(mask.permute(0, 3, 1, 2).float(), pixel_radius=self.radius)
             nonzero_indices = torch.nonzero(m[:, 0], as_tuple=False).to(device)
-            chosen_indices = random.sample(range(len(nonzero_indices)), k=self.rays_to_sample)
+            chosen_indices = random.sample(range(len(nonzero_indices)), k=rays_to_sample)
             indices = nonzero_indices[chosen_indices]
         else:
             rays_to_sample = self.rays_to_sample
@@ -418,12 +417,12 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
             ws = torch.randint(self.radius, image_width - self.radius, s, dtype=torch.long, device=device)
             indices = torch.concat((ns, hs, ws), dim=1)
 
-            pair_indices = torch.hstack(
-                (
-                    torch.zeros(rays_to_sample, 1, device=device, dtype=torch.long),
-                    torch.randint(-self.radius, self.radius, (rays_to_sample, 2), device=device, dtype=torch.long),
-                )
+        pair_indices = torch.hstack(
+            (
+                torch.zeros(rays_to_sample, 1, device=device, dtype=torch.long),
+                torch.randint(-self.radius, self.radius, (rays_to_sample, 2), device=device, dtype=torch.long),
             )
-            pair_indices += indices
-            indices = torch.hstack((indices, pair_indices)).view(rays_to_sample * 2, 3)
+        )
+        pair_indices += indices
+        indices = torch.hstack((indices, pair_indices)).view(rays_to_sample * 2, 3)
         return indices

@@ -21,6 +21,7 @@ We Currently support the following custom data types:
 | 📱 [Record3D](record3d) | IOS with LiDAR | [Record3D app](https://record3d.app/) | 🐇 |
 | 🖥 [Metashape](metashape) | Any | [Metashape](https://www.agisoft.com/) | 🐇 |
 | 🖥 [RealityCapture](realitycapture) | Any | [RealityCapture](https://www.capturingreality.com/realitycapture) | 🐇 |
+| 🖥 [ODM](odm) | Any | [ODM](https://github.com/OpenDroneMap/ODM) | 🐇 |
 
 (images_and_video)=
 
@@ -57,10 +58,16 @@ There are many ways to install COLMAP, unfortunately it can sometimes be a bit f
 ::::::{tab-set}
 :::::{tab-item} Linux
 
-We recommend trying `apt`:
+We recommend trying `conda`:
 
 ```
-sudo apt install colmap
+conda install -c conda-forge colmap
+```
+
+Check that COLMAP 3.8 with CUDA is successfully installed:
+
+```
+colmap -h
 ```
 
 If that doesn't work, you can try VKPG:
@@ -308,6 +315,34 @@ ns-process-data realitycapture --data {data directory} --csv {csv file} --output
 ```
 
 4. Train with nerfstudio!
+
+```bash
+ns-train nerfacto --data {output directory}
+```
+
+(odm)=
+
+## ODM
+
+All images/videos must be captured with the same camera.
+
+1. Process a dataset using [ODM](https://github.com/OpenDroneMap/ODM#quickstart)
+
+```bash
+$ ls /path/to/dataset
+images
+odm_report
+odm_orthophoto
+...
+```
+
+2. Convert to nerfstudio format.
+
+```bash
+ns-process-data odm --data /path/to/dataset --output-dir {output directory}
+```
+
+4. Train!
 
 ```bash
 ns-train nerfacto --data {output directory}
