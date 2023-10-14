@@ -196,7 +196,7 @@ class ControlPanel:
         self._split_output_render.set_options(new_options)
         self._split_output_render.value = new_options[-1]
 
-    def add_element(self, e: ViewerElement, additional_tags: Tuple[str] = tuple()) -> None:
+    def add_element(self, e: ViewerElement, additional_tags: Tuple[str, ...] = tuple()) -> None:
         """Adds an element to the control panel
 
         Args:
