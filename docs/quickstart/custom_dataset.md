@@ -417,7 +417,7 @@ If you are rendering an image sequence, it is recommended to render as png inste
 :::
 
 To render with the VR videos camera:
-1. Use the [Nerfstudio Blender Add-on](https://docs.nerf.studio/en/latest/extensions/blender_addon.html) to set the scale of the NeRF scene and create the camera path
+1. Use the [Nerfstudio Blender Add-on](https://docs.nerf.studio/extensions/blender_addon.html) to set the scale of the NeRF scene and create the camera path
     - Export a point cloud representation of the NeRF
    - Import the point cloud representation in Blender and enable the Nerfstudio Blender Add-on
     - Create a reference object such as a cube which may be 1x1x1 meter. You could also create a cylinder and scale it to an appropriate height of a viewer.
