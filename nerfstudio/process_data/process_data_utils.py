@@ -477,7 +477,16 @@ def find_tool_feature_matcher_combination(
         "disk",
     ],
     matcher_type: Literal[
-        "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
+        "any",
+        "NN",
+        "superglue",
+        "superglue-fast",
+        "NN-superpoint",
+        "NN-ratio",
+        "NN-mutual",
+        "adalam",
+        "disk+lightglue",
+        "superpoint+lightglue",
     ],
 ) -> Union[
     Tuple[None, None, None],
@@ -493,7 +502,17 @@ def find_tool_feature_matcher_combination(
             "sosnet",
             "disk",
         ],
-        Literal["NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"],
+        Literal[
+            "NN",
+            "superglue",
+            "superglue-fast",
+            "NN-superpoint",
+            "NN-ratio",
+            "NN-mutual",
+            "adalam",
+            "disk+lightglue",
+            "superpoint+lightglue",
+        ],
     ],
 ]:
     """Find a valid combination of sfm tool, feature type, and matcher type.
