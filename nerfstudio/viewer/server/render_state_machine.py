@@ -132,7 +132,8 @@ class RenderStateMachine(threading.Thread):
             # TODO Zhuoyang: First made some dummy judgements, need to be fixed later
             isGaussianSplattingModel = isinstance(self.viewer.get_model(), GaussianSplattingModel)
             if isGaussianSplattingModel:
-                pass
+                # TODO fix me before ship
+                camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
             else:
                 camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
 
