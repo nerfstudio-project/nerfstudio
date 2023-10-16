@@ -16,7 +16,7 @@ Simply replace the arguments in brackets with the correct arguments.
 
 - `-m {METHOD_NAME}`: Name of the method you want to benchmark (e.g. `nerfacto`, `mipnerf`).
 - `-s`: Launch a single job per GPU.
-- `-v {VIS}`: Use another visualization than wandb, which is the default. Only other option is tensorboard.
+- `-v {VIS}`: Use another visualization than wandb, which is the default. Other options are comet & tensorboard.
 - `{GPU_LIST}`: (optional) Specify the list of gpus you want to use on your machine space separated. for instance, if you want to use GPU's 0-3, you will need to pass in `0 1 2 3`. If left empty, the script will automatically find available GPU's and distribute training jobs on the available GPUs.
 
 :::{admonition} Tip

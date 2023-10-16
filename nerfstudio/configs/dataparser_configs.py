@@ -54,7 +54,7 @@ dataparsers = {
     "colmap": ColmapDataParserConfig(),
 }
 
-external_dataparsers = discover_dataparsers()
+external_dataparsers, _ = discover_dataparsers()
 all_dataparsers = {**dataparsers, **external_dataparsers}
 
 if TYPE_CHECKING:
