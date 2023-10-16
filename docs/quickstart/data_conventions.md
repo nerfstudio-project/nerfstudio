@@ -31,10 +31,10 @@ If all of the images share the same camera intrinsics, the values can be placed 
   "cy": 1000.0, // principal point y
   "w": 3008, // image width
   "h": 2000, // image height
-  "k1": 0.0312, // first radial distorial parameter, used by [OPENCV, OPENCV_FISHEYE]
-  "k2": 0.0051, // second radial distorial parameter, used by [OPENCV, OPENCV_FISHEYE]
-  "k3": 0.0006, // third radial distorial parameter, used by [OPENCV_FISHEYE]
-  "k4": 0.0001, // fourth radial distorial parameter, used by [OPENCV_FISHEYE]
+  "k1": 0.0312, // first radial distortion parameter, used by [OPENCV, OPENCV_FISHEYE]
+  "k2": 0.0051, // second radial distortion parameter, used by [OPENCV, OPENCV_FISHEYE]
+  "k3": 0.0006, // third radial distortion parameter, used by [OPENCV_FISHEYE]
+  "k4": 0.0001, // fourth radial distortion parameter, used by [OPENCV_FISHEYE]
   "p1": -6.47e-5, // first tangential distortion parameter, used by [OPENCV]
   "p2": -1.37e-7, // second tangential distortion parameter, used by [OPENCV]
   "frames": // ... per-frame intrinsics and extrinsics parameters
