@@ -556,9 +556,13 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         raise ValueError("No more eval images")
 
     def get_train_rays_per_batch(self) -> int:
+        if self.train_pixel_sampler is not None:
+            return self.train_pixel_sampler.num_rays_per_batch
         return self.config.train_num_rays_per_batch
 
     def get_eval_rays_per_batch(self) -> int:
+        if self.eval_pixel_sampler is not None:
+            return self.eval_pixel_sampler.num_rays_per_batch
         return self.config.eval_num_rays_per_batch
 
     def get_datapath(self) -> Path:
