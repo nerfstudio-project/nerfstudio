@@ -37,15 +37,10 @@ from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.exporter import texture_utils, tsdf_utils
-from nerfstudio.exporter.exporter_utils import (
-    collect_camera_poses,
-    generate_point_cloud,
-    get_mesh_from_filename,
-)
-from nerfstudio.exporter.marching_cubes import (
-    generate_mesh_with_multires_marching_cubes,
-)
+from nerfstudio.exporter.exporter_utils import collect_camera_poses, generate_point_cloud, get_mesh_from_filename
+from nerfstudio.exporter.marching_cubes import generate_mesh_with_multires_marching_cubes
 from nerfstudio.fields.sdf_field import SDFField
+from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -469,6 +464,52 @@ class ExportCameraPoses(Exporter):
             CONSOLE.print(f"[bold green]:white_check_mark: Saved poses to {output_file_path}")
 
 
+@dataclass
+class ExportGaussianSplat(Exporter):
+    """
+    Export 3D Gaussian Splatting model to a .ply
+    """
+
+    def main(self) -> None:
+        if not self.output_dir.exists():
+            self.output_dir.mkdir(parents=True)
+
+        _, pipeline, _, _ = eval_setup(self.load_config)
+
+        assert isinstance(pipeline.model, GaussianSplattingModel)
+
+        model: GaussianSplattingModel = pipeline.model
+
+        filename = self.output_dir / "sdf_marching_cubes_mesh.ply"
+
+        pcd = o3d.geometry.PointCloud(pipeline.device)
+
+        pcd.point.positions = model.means.data
+        pcd.point.normals = torch.zeros_like(model.means.data)
+
+        colors = model.get_colors.data
+
+        for i in range(colors.shape[-1]):
+            if i < 3:
+                setattr(pcd.point, f"f_dc_{i}", colors[:, i])
+            else:
+                setattr(pcd.point, f"f_rest_{i - 3}", colors[:, i])
+
+        pcd.point.opacity = model.opacities.data
+
+        scales = model.scales.data
+
+        for i in range(3):
+            setattr(pcd.point, f"scale_{i}", scales[:, i])
+
+        quats = model.quats.data
+
+        for i in range(4):
+            setattr(pcd.point, f"rot_{i}", quats[:, i])
+
+        o3d.io.write_point_cloud(filename, pcd)
+
+
 Commands = tyro.conf.FlagConversionOff[
     Union[
         Annotated[ExportPointCloud, tyro.conf.subcommand(name="pointcloud")],
@@ -476,6 +517,7 @@ Commands = tyro.conf.FlagConversionOff[
         Annotated[ExportPoissonMesh, tyro.conf.subcommand(name="poisson")],
         Annotated[ExportMarchingCubesMesh, tyro.conf.subcommand(name="marching-cubes")],
         Annotated[ExportCameraPoses, tyro.conf.subcommand(name="cameras")],
+        Annotated[ExportGaussianSplat, tyro.conf.subcommand(name="gaussian-splat")],
     ]
 ]
 
