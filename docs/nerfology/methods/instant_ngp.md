@@ -34,7 +34,7 @@ Instant-NGP breaks NeRF training into 3 pillars and proposes improvements to eac
 
 The core idea behind the improved sampling technique is that sampling over empty space should be skipped and sampling behind high density areas should also be skipped. This is achieved by maintaining a set of multiscale occupancy grids which coarsely mark empty and non-empty space. Occupancy is stored as a single bit, and a sample on a ray is skipped if its occupancy is too low. These occupancy grids are stored independently of the trainable encoding and are updated throughout training based on the updated density predictions. The authors find they can increase sampling speed by 10-100x compared to naive approaches.
 
-Nerfstudio uses [NerfAcc](https://www.nerfacc.com/en/latest/index.html) as the sampling algorithm implementation. The details on NerfAcc's sampling and occupancy grid is discussed [here](https://www.nerfacc.com/en/stable/methodology/sampling.html#occupancy-grid-estimator).
+Nerfstudio uses [NerfAcc](https://www.nerfacc.com/index.html) as the sampling algorithm implementation. The details on NerfAcc's sampling and occupancy grid is discussed [here](https://www.nerfacc.com/en/stable/methodology/sampling.html#occupancy-grid-estimator).
 
 Another major bottleneck for NeRF's training speed has been querying the neural network. The authors of this work implement the network such that it runs entirely on a single CUDA kernel. The network is also shrunk down to be just 4 layers with 64 neurons in each layer. They show that their fully-fused neural network is 5-10x faster than a Tensorflow implementation.
 
