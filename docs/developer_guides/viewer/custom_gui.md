@@ -59,7 +59,7 @@ class MyModel(Model):
 
 
 **Writing to the element**
-You can write to a viewer element in Python, which provides a convenient way to track values in your code without the need for wandb/tensorboard or relying on `print` statements.
+You can write to a viewer element in Python, which provides a convenient way to track values in your code without the need for comet/wandb/tensorboard or relying on `print` statements.
 
 ```python
 self.custom_value.value = x

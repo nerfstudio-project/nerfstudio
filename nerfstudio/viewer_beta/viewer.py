@@ -26,6 +26,8 @@ import torchvision
 import viser
 import viser.theme
 import viser.transforms as vtf
+
+from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.models.base_model import Model
@@ -39,8 +41,6 @@ from nerfstudio.viewer_beta.render_panel import populate_render_tab
 from nerfstudio.viewer_beta.render_state_machine import RenderAction, RenderStateMachine
 from nerfstudio.viewer_beta.utils import CameraState, parse_object
 from nerfstudio.viewer_beta.viewer_elements import ViewerControl, ViewerElement
-
-from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
@@ -59,6 +59,7 @@ class Viewer:
         datapath: path to data
         pipeline: pipeline object to use
         trainer: trainer object to use
+        share: print a shareable URL
 
     Attributes:
         viewer_url: url to open viewer
@@ -77,6 +78,7 @@ class Viewer:
         pipeline: Pipeline,
         trainer: Optional[Trainer] = None,
         train_lock: Optional[threading.Lock] = None,
+        share: bool = False,
     ):
         self.config = config
         self.trainer = trainer
@@ -103,7 +105,7 @@ class Viewer:
         self._prev_train_state: Literal["training", "paused", "completed"] = "training"
 
         self.client: Optional[viser.ClientHandle] = None
-        self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
+        self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port, share=share)
         buttons = (
             viser.theme.TitlebarButton(
                 text="Getting Started",
@@ -122,8 +124,8 @@ class Viewer:
             ),
         )
         image = viser.theme.TitlebarImage(
-            image_url_light="https://docs.nerf.studio/en/latest/_static/imgs/logo.png",
-            image_url_dark="https://docs.nerf.studio/en/latest/_static/imgs/logo-dark.png",
+            image_url_light="https://docs.nerf.studio/_static/imgs/logo.png",
+            image_url_dark="https://docs.nerf.studio/_static/imgs/logo-dark.png",
             image_alt="NerfStudio Logo",
             href="https://docs.nerf.studio/",
         )
@@ -152,29 +154,47 @@ class Viewer:
                 self._toggle_training_state,
                 self.set_camera_visibility,
             )
+        config_path = self.log_filename.parents[0] / "config.yml"
         with tabs.add_tab("Render", viser.Icon.CAMERA):
-            populate_render_tab(self.viser_server)
+            populate_render_tab(self.viser_server, config_path, self.datapath, self.control_panel)
 
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
-            config_path = self.log_filename.parents[0] / "config.yml"
             populate_export_tab(self.viser_server, self.control_panel, config_path)
 
-        def nested_folder_install(folder_labels: List[str], element: ViewerElement):
+        # Keep track of the pointers to generated GUI folders, because each generated folder holds a unique ID.
+        viewer_gui_folders = dict()
+
+        def nested_folder_install(folder_labels: List[str], prev_labels: List[str], element: ViewerElement):
             if len(folder_labels) == 0:
                 element.install(self.viser_server)
                 # also rewire the hook to rerender
                 prev_cb = element.cb_hook
                 element.cb_hook = lambda element: [prev_cb(element), self._interrupt_render(element)]
             else:
-                with self.viser_server.add_gui_folder(folder_labels[0]):
-                    nested_folder_install(folder_labels[1:], element)
+                # recursively create folders
+                # If the folder name is "Custom Elements/a/b", then:
+                #   in the beginning: folder_path will be
+                #       "/".join([] + ["Custom Elements"]) --> "Custom Elements"
+                #   later, folder_path will be
+                #       "/".join(["Custom Elements"] + ["a"]) --> "Custom Elements/a"
+                #       "/".join(["Custom Elements", "a"] + ["b"]) --> "Custom Elements/a/b"
+                #  --> the element will be installed in the folder "Custom Elements/a/b"
+                #
+                # Note that the gui_folder is created only when the folder is not in viewer_gui_folders,
+                # and we use the folder_path as the key to check if the folder is already created.
+                # Otherwise, use the existing folder as context manager.
+                folder_path = "/".join(prev_labels + [folder_labels[0]])
+                if folder_path not in viewer_gui_folders:
+                    viewer_gui_folders[folder_path] = self.viser_server.add_gui_folder(folder_labels[0])
+                with viewer_gui_folders[folder_path]:
+                    nested_folder_install(folder_labels[1:], prev_labels + [folder_labels[0]], element)
 
         with control_tab:
             self.viewer_elements = []
             self.viewer_elements.extend(parse_object(pipeline, ViewerElement, "Custom Elements"))
             for param_path, element in self.viewer_elements:
                 folder_labels = param_path.split("/")[:-1]
-                nested_folder_install(folder_labels, element)
+                nested_folder_install(folder_labels, [], element)
 
             # scrape the trainer/pipeline for any ViewerControl objects to initialize them
             self.viewer_controls: List[ViewerControl] = [
@@ -191,14 +211,15 @@ class Viewer:
         @client.camera.on_update
         def _(cam: viser.CameraHandle) -> None:
             assert self.client is not None
-            self.last_move_time = time.time()
-            R = vtf.SO3(wxyz=self.client.camera.wxyz)
-            R = R @ vtf.SO3.from_x_radians(np.pi)
-            R = torch.tensor(R.as_matrix())
-            pos = torch.tensor(self.client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
-            c2w = torch.concatenate([R, pos[:, None]], dim=1)
-            self.camera_state = CameraState(fov=self.client.camera.fov, aspect=self.client.camera.aspect, c2w=c2w)
-            self.render_statemachine.action(RenderAction("move", self.camera_state))
+            with client.atomic():
+                self.last_move_time = time.time()
+                R = vtf.SO3(wxyz=self.client.camera.wxyz)
+                R = R @ vtf.SO3.from_x_radians(np.pi)
+                R = torch.tensor(R.as_matrix())
+                pos = torch.tensor(self.client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
+                c2w = torch.concatenate([R, pos[:, None]], dim=1)
+                self.camera_state = CameraState(fov=self.client.camera.fov, aspect=self.client.camera.aspect, c2w=c2w)
+                self.render_statemachine.action(RenderAction("move", self.camera_state))
 
     def set_camera_visibility(self, visible: bool) -> None:
         """Toggle the visibility of the training cameras."""
@@ -305,7 +326,7 @@ class Viewer:
             )
 
             @camera_handle.on_click
-            def _(event: viser.ClickEvent[viser.CameraFrustumHandle]) -> None:
+            def _(event: viser.SceneNodePointerEvent[viser.CameraFrustumHandle]) -> None:
                 assert self.client is not None
                 with self.client.atomic():
                     self.client.camera.position = event.target.position
