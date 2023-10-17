@@ -46,6 +46,7 @@ from nerfstudio.exporter.marching_cubes import (
     generate_mesh_with_multires_marching_cubes,
 )
 from nerfstudio.fields.sdf_field import SDFField
+from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -469,6 +470,56 @@ class ExportCameraPoses(Exporter):
             CONSOLE.print(f"[bold green]:white_check_mark: Saved poses to {output_file_path}")
 
 
+@dataclass
+class ExportGaussianSplat(Exporter):
+    """
+    Export 3D Gaussian Splatting model to a .ply
+    """
+
+    def main(self) -> None:
+        if not self.output_dir.exists():
+            self.output_dir.mkdir(parents=True)
+
+        _, pipeline, _, _ = eval_setup(self.load_config)
+
+        assert isinstance(pipeline.model, GaussianSplattingModel)
+
+        model: GaussianSplattingModel = pipeline.model
+
+        filename = self.output_dir / "point_cloud.ply"
+
+        device = o3d.core.Device("CPU:0")
+        pcd = o3d.t.geometry.PointCloud(device)
+
+        with torch.no_grad():
+            pcd.point.positions = model.means.cpu().numpy()
+            # pcd.point.normals = torch.zeros_like(model.means.data).cpu().numpy()
+
+            pcd.point.opacity = model.opacities.cpu().numpy()
+
+            colors = model.get_colors.cpu().numpy()
+            scales = model.scales.cpu().numpy()
+            quats = model.quats.cpu().numpy()
+
+        points_shape = (colors.shape[0], 1)
+
+        pcd.point.f_dc_0 = colors[:, 0, 0].reshape(points_shape)
+        pcd.point.f_dc_1 = colors[:, 1, 0].reshape(points_shape)
+        pcd.point.f_dc_2 = colors[:, 2, 0].reshape(points_shape)
+        # pcd.point.f_rest_0 = colors[:, 3].reshape(points_shape)
+
+        pcd.point.scale_0 = scales[:, 0].reshape(points_shape)
+        pcd.point.scale_1 = scales[:, 1].reshape(points_shape)
+        pcd.point.scale_2 = scales[:, 2].reshape(points_shape)
+
+        pcd.point.rot_0 = quats[:, 0].reshape(points_shape)
+        pcd.point.rot_1 = quats[:, 1].reshape(points_shape)
+        pcd.point.rot_2 = quats[:, 2].reshape(points_shape)
+        pcd.point.rot_3 = quats[:, 3].reshape(points_shape)
+
+        o3d.t.io.write_point_cloud(str(filename), pcd)
+
+
 Commands = tyro.conf.FlagConversionOff[
     Union[
         Annotated[ExportPointCloud, tyro.conf.subcommand(name="pointcloud")],
@@ -476,6 +527,7 @@ Commands = tyro.conf.FlagConversionOff[
         Annotated[ExportPoissonMesh, tyro.conf.subcommand(name="poisson")],
         Annotated[ExportMarchingCubesMesh, tyro.conf.subcommand(name="marching-cubes")],
         Annotated[ExportCameraPoses, tyro.conf.subcommand(name="cameras")],
+        Annotated[ExportGaussianSplat, tyro.conf.subcommand(name="gaussian-splat")],
     ]
 ]
 
