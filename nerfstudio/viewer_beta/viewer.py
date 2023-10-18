@@ -340,10 +340,9 @@ class Viewer:
 
             @camera_handle.on_click
             def _(event: viser.SceneNodePointerEvent[viser.CameraFrustumHandle]) -> None:
-                assert self.client is not None
-                with self.client.atomic():
-                    self.client.camera.position = event.target.position
-                    self.client.camera.wxyz = event.target.wxyz
+                with event.client.atomic():
+                    event.client.camera.position = event.target.position
+                    event.client.camera.wxyz = event.target.wxyz
 
             self.camera_handles[idx] = camera_handle
             self.original_c2w[idx] = c2w
