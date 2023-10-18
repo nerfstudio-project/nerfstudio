@@ -132,7 +132,8 @@ class RenderStateMachine(threading.Thread):
             # TODO Zhuoyang: First made some dummy judgements, need to be fixed later
             isGaussianSplattingModel = isinstance(self.viewer.get_model(), GaussianSplattingModel)
             if isGaussianSplattingModel:
-                pass
+                # TODO fix me before ship
+                camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
             else:
                 camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
 
@@ -150,13 +151,13 @@ class RenderStateMachine(threading.Thread):
                         )
                     with background_color_override_context(background_color), torch.no_grad():
                         if isGaussianSplattingModel:
-                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera)
+                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle, camera=camera)
                         else:
                             outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                 else:
                     with torch.no_grad():
                         if isGaussianSplattingModel:
-                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera)
+                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle, camera=camera)
                         else:
                             outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                 self.viewer.get_model().train()
