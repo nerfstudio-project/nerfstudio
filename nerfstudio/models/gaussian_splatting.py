@@ -600,8 +600,9 @@ class GaussianSplattingModel(Model):
             gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize).permute(1, 2, 0)
         else:
             gt_img = batch["image"]
-        Ll1 = torch.abs(gt_img - outputs["rgb"]).mean()
-        simloss = 1 - self.ssim(gt_img.permute(2, 0, 1)[None, ...], outputs["rgb"].permute(2, 0, 1)[None, ...])
+        gt_rgb = gt_img[..., :3]
+        Ll1 = torch.abs(gt_rgb - outputs["rgb"]).mean()
+        simloss = 1 - self.ssim(gt_rgb.permute(2, 0, 1)[None, ...], outputs["rgb"].permute(2, 0, 1)[None, ...])
         return {"main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss}
 
     @torch.no_grad()

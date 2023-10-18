@@ -166,6 +166,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
             if "mask" in data:
                 mask = data["mask"].numpy()
+                mask = mask.astype(np.uint8) * 255
                 if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
                     mask = cv2.undistort(mask, K, distortion_params, None, None)
                 elif camera.camera_type.item() == CameraType.FISHEYE.value:
@@ -228,6 +229,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
             if "mask" in data:
                 mask = data["mask"].numpy()
+                mask = mask.astype(np.uint8) * 255
                 if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
                     mask = cv2.undistort(mask, K, distortion_params, None, None)
                 elif camera.camera_type.item() == CameraType.FISHEYE.value:
