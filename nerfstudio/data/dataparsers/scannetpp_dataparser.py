@@ -22,8 +22,11 @@ from typing import Literal, Type
 import numpy as np
 import torch
 from nerfstudio.cameras import camera_utils
-from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
-from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
+from nerfstudio.cameras.cameras import (CAMERA_MODEL_TO_TYPE, Cameras,
+                                        CameraType)
+from nerfstudio.data.dataparsers.base_dataparser import (DataParser,
+                                                         DataParserConfig,
+                                                         DataparserOutputs)
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -32,37 +35,42 @@ from nerfstudio.utils.rich_utils import CONSOLE
 @dataclass
 class ScanNetppDataParserConfig(DataParserConfig):
     """ScanNet++ dataset config.
-    ScanNet++ dataset (https://kaldir.vc.in.tum.de/scannetpp/) is a large scale 3D indoor dataset for semantics understanding and novel view synthesis.
+    ScanNet++ dataset (https://kaldir.vc.in.tum.de/scannetpp/) is a real-world 3D indoor dataset for semantics understanding and novel view synthesis.
     This dataparser follow the file structure of the dataset.
     Expected structure of the directory:
 
     .. code-block:: text
 
         root/
-        ├── SCENE_ID0/
-            ├── resized_images
-            ├── resized_anon_masks
-            ├── dslr/nerfstudio/transforms.json
+        ├── SCENE_ID0
+            ├── dslr
+                ├── resized_images
+                ├── resized_anon_masks
+                ├── nerfstudio/transforms.json
         ├── SCENE_ID1/
         ...
     """
 
     _target: Type = field(default_factory=lambda: ScanNetpp)
     """target class to instantiate"""
-    data: Path = Path()
+    data: Path = Path("scannetpp/410c470782")
     """Directory to the root of the data."""
-    scene_id: str = ""
-    """The scene id to load."""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
-    scene_scale: float = 1.0
-    """How much to scale the region of interest by."""
+    scene_scale: float = 1.5
+    """How much to scale the region of interest by. Default is 1.5 since the cameras are inside the rooms."""
     orientation_method: Literal["pca", "up", "vertical", "none"] = "up"
     """The method to use for orientation."""
     center_method: Literal["poses", "focus", "none"] = "poses"
     """The method to use to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
+    images_dir: Path = Path("dslr/resized_images")
+    """Relative path to the images directory (default: resized_images)"""
+    masks_dir: Path = Path("dslr/resized_anon_masks")
+    """Relative path to the masks directory (default: resized_anon_masks)"""
+    transforms_path: Path = Path("dslr/nerfstudio/transforms.json")
+    """Relative path to the transforms.json file"""
 
 
 @dataclass
@@ -73,33 +81,13 @@ class ScanNetpp(DataParser):
 
     def _generate_dataparser_outputs(self, split="train"):
         assert self.config.data.exists(), f"Data directory {self.config.data} does not exist."
-        meta = load_from_json(self.config.data / self.config.scene_id / "dslr/nerfstudio/transforms.json")
-        data_dir = self.config.data / self.config.scene_id / "dslr/resized_images"
-        mask_dir = self.config.data / self.config.scene_id / "dslr/resized_anon_masks"
+        meta = load_from_json(self.config.data / self.config.transforms_path)
+        data_dir = self.config.data / self.config.images_dir
+        mask_dir = self.config.data / self.config.masks_dir
 
         image_filenames = []
         mask_filenames = []
         poses = []
-
-        fx_fixed = "fl_x" in meta
-        fy_fixed = "fl_y" in meta
-        cx_fixed = "cx" in meta
-        cy_fixed = "cy" in meta
-        height_fixed = "h" in meta
-        width_fixed = "w" in meta
-        distort_fixed = False
-        for distort_key in ["k1", "k2", "k3", "p1", "p2"]:
-            if distort_key in meta:
-                distort_fixed = True
-                break
-        fx = []
-        fy = []
-        cx = []
-        cy = []
-        height = []
-        width = []
-        distort = []
-
         i_train = []
         i_eval = []
         # sort the frames by fname
@@ -111,39 +99,9 @@ class ScanNetpp(DataParser):
             filepath = Path(frame["file_path"])
             fname = data_dir / filepath
 
-            if not fx_fixed:
-                assert "fl_x" in frame, "fx not specified in frame"
-                fx.append(float(frame["fl_x"]))
-            if not fy_fixed:
-                assert "fl_y" in frame, "fy not specified in frame"
-                fy.append(float(frame["fl_y"]))
-            if not cx_fixed:
-                assert "cx" in frame, "cx not specified in frame"
-                cx.append(float(frame["cx"]))
-            if not cy_fixed:
-                assert "cy" in frame, "cy not specified in frame"
-                cy.append(float(frame["cy"]))
-            if not height_fixed:
-                assert "h" in frame, "height not specified in frame"
-                height.append(int(frame["h"]))
-            if not width_fixed:
-                assert "w" in frame, "width not specified in frame"
-                width.append(int(frame["w"]))
-            if not distort_fixed:
-                distort.append(
-                    camera_utils.get_distortion_params(
-                        k1=float(frame["k1"]) if "k1" in frame else 0.0,
-                        k2=float(frame["k2"]) if "k2" in frame else 0.0,
-                        k3=float(frame["k3"]) if "k3" in frame else 0.0,
-                        k4=float(frame["k4"]) if "k4" in frame else 0.0,
-                        p1=float(frame["p1"]) if "p1" in frame else 0.0,
-                        p2=float(frame["p2"]) if "p2" in frame else 0.0,
-                    )
-                )
-
             image_filenames.append(fname)
             poses.append(np.array(frame["transform_matrix"]))
-            if "mask_path" in frame:
+            if meta.get("has_mask", True) and "mask_path" in frame:
                 mask_filepath = Path(frame["mask_path"])
                 mask_fname = mask_dir / mask_filepath
                 mask_filenames.append(mask_fname)
@@ -213,23 +171,20 @@ class ScanNetpp(DataParser):
         else:
             camera_type = CameraType.PERSPECTIVE
 
-        fx = float(meta["fl_x"]) if fx_fixed else torch.tensor(fx, dtype=torch.float32)[idx_tensor]
-        fy = float(meta["fl_y"]) if fy_fixed else torch.tensor(fy, dtype=torch.float32)[idx_tensor]
-        cx = float(meta["cx"]) if cx_fixed else torch.tensor(cx, dtype=torch.float32)[idx_tensor]
-        cy = float(meta["cy"]) if cy_fixed else torch.tensor(cy, dtype=torch.float32)[idx_tensor]
-        height = int(meta["h"]) if height_fixed else torch.tensor(height, dtype=torch.int32)[idx_tensor]
-        width = int(meta["w"]) if width_fixed else torch.tensor(width, dtype=torch.int32)[idx_tensor]
-        if distort_fixed:
-            distortion_params = camera_utils.get_distortion_params(
-                k1=float(meta["k1"]) if "k1" in meta else 0.0,
-                k2=float(meta["k2"]) if "k2" in meta else 0.0,
-                k3=float(meta["k3"]) if "k3" in meta else 0.0,
-                k4=float(meta["k4"]) if "k4" in meta else 0.0,
-                p1=float(meta["p1"]) if "p1" in meta else 0.0,
-                p2=float(meta["p2"]) if "p2" in meta else 0.0,
-            )
-        else:
-            distortion_params = torch.stack(distort, dim=0)[idx_tensor]
+        fx = float(meta["fl_x"])
+        fy = float(meta["fl_y"])
+        cx = float(meta["cx"])
+        cy = float(meta["cy"])
+        height = int(meta["h"])
+        width = int(meta["w"])
+        distortion_params = camera_utils.get_distortion_params(
+            k1=float(meta["k1"]) if "k1" in meta else 0.0,
+            k2=float(meta["k2"]) if "k2" in meta else 0.0,
+            k3=float(meta["k3"]) if "k3" in meta else 0.0,
+            k4=float(meta["k4"]) if "k4" in meta else 0.0,
+            p1=float(meta["p1"]) if "p1" in meta else 0.0,
+            p2=float(meta["p2"]) if "p2" in meta else 0.0,
+        )
 
         cameras = Cameras(
             fx=fx,
