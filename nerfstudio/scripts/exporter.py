@@ -482,30 +482,36 @@ class ExportGaussianSplat(Exporter):
 
         filename = self.output_dir / "sdf_marching_cubes_mesh.ply"
 
-        pcd = o3d.geometry.PointCloud(pipeline.device)
+        pcd = o3d.geometry.PointCloud("CPU:0")
 
-        pcd.point.positions = model.means.data
-        pcd.point.normals = torch.zeros_like(model.means.data)
+        map_to_tensors = {}
 
-        colors = model.get_colors.data
+        with torch.no_grad():
+            positions = model.means.cpu().numpy()
+            map_to_tensors["positions"] = o3d.core.Tensor(positions, o3d.core.float32)
+            map_to_tensors["normals"] = o3d.core.Tensor(np.zeros_like(positions), o3d.core.float32)
 
-        for i in range(colors.shape[-1]):
-            if i < 3:
-                setattr(pcd.point, f"f_dc_{i}", colors[:, i])
-            else:
-                setattr(pcd.point, f"f_rest_{i - 3}", colors[:, i])
+            colors = model.get_colors.data.cpu().numpy()
 
-        pcd.point.opacity = model.opacities.data
+            for i in range(colors.shape[-1]):
+                if i < 3:
+                    map_to_tensors[f"f_dc_{i}"] = colors[:, i]
+                else:
+                    map_to_tensors[f"f_rest_{i - 3}"] = colors[:, i]
 
-        scales = model.scales.data
+            map_to_tensors["opacity"] = model.opacities.data.cpu().numpy()
 
-        for i in range(3):
-            setattr(pcd.point, f"scale_{i}", scales[:, i])
+            scales = model.scales.data.cpu().numpy()
 
-        quats = model.quats.data
+            for i in range(3):
+                map_to_tensors[f"scale_{i}"] = scales[:, i]
 
-        for i in range(4):
-            setattr(pcd.point, f"rot_{i}", quats[:, i])
+            quats = model.quats.data.cpu().numpy()
+
+            for i in range(4):
+                map_to_tensors[f"rot_{i}"] = quats[:, i]
+
+        pcd = o3d.geometry.PointCloud(map_to_tensors)
 
         o3d.io.write_point_cloud(filename, pcd)
 
