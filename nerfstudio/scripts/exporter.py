@@ -480,9 +480,7 @@ class ExportGaussianSplat(Exporter):
 
         model: GaussianSplattingModel = pipeline.model
 
-        filename = self.output_dir / "sdf_marching_cubes_mesh.ply"
-
-        pcd = o3d.geometry.PointCloud("CPU:0")
+        filename = self.output_dir / "point_cloud.ply"
 
         map_to_tensors = {}
 
@@ -491,29 +489,29 @@ class ExportGaussianSplat(Exporter):
             map_to_tensors["positions"] = o3d.core.Tensor(positions, o3d.core.float32)
             map_to_tensors["normals"] = o3d.core.Tensor(np.zeros_like(positions), o3d.core.float32)
 
-            colors = model.get_colors.data.cpu().numpy()
+            colors = model.colors.data.cpu().numpy()
+            for i in range(colors.shape[1]):
+                map_to_tensors[f"f_dc_{i}"] = colors[:, i]
 
-            for i in range(colors.shape[-1]):
-                if i < 3:
-                    map_to_tensors[f"f_dc_{i}"] = colors[:, i]
-                else:
-                    map_to_tensors[f"f_rest_{i - 3}"] = colors[:, i]
+            shs = model.shs_rest.data.cpu().numpy()
+            shs = shs.reshape((colors.shape[0], -1, 1))
+            for i in range(shs.shape[-1]):
+                map_to_tensors[f"f_rest_{i - 3}"] = shs[:, i]
 
             map_to_tensors["opacity"] = model.opacities.data.cpu().numpy()
 
-            scales = model.scales.data.cpu().numpy()
-
+            scales = model.scales.data.cpu().unsqueeze(-1).numpy()
             for i in range(3):
                 map_to_tensors[f"scale_{i}"] = scales[:, i]
 
-            quats = model.quats.data.cpu().numpy()
+            quats = model.quats.data.cpu().unsqueeze(-1).numpy()
 
             for i in range(4):
                 map_to_tensors[f"rot_{i}"] = quats[:, i]
 
-        pcd = o3d.geometry.PointCloud(map_to_tensors)
+        pcd = o3d.t.geometry.PointCloud(map_to_tensors)
 
-        o3d.io.write_point_cloud(filename, pcd)
+        o3d.t.io.write_point_cloud(str(filename), pcd)
 
 
 Commands = tyro.conf.FlagConversionOff[
