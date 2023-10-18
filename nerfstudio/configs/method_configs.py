@@ -597,7 +597,8 @@ method_configs["neus-facto"] = TrainerConfig(
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",
 )
-
+from dataclasses import field
+from collections import defaultdict
 method_configs["gaussian-splatting"] = TrainerConfig(
     method_name="gaussian-splatting",
     steps_per_eval_image=10,
@@ -606,7 +607,7 @@ method_configs["gaussian-splatting"] = TrainerConfig(
     steps_per_eval_all_images=1000000,  # set to a very large model so we don't eval with all images
     max_num_iterations=30000,
     mixed_precision=False,
-    gradient_accumulation_steps=1,
+    gradient_accumulation_steps = {'camera_opt': 100},
     pipeline=VanillaPipelineConfig(
         datamanager=FullImageDatamanagerConfig(
             dataparser=ColmapDataParserConfig(load_3D_points=True),
@@ -618,7 +619,7 @@ method_configs["gaussian-splatting"] = TrainerConfig(
             "optimizer": AdamOptimizerConfig(lr=1.6e-4, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
                 lr_final=1.6e-6,
-                max_steps=15000,
+                max_steps=30000,
             ),
         },
         "color": {
@@ -641,17 +642,15 @@ method_configs["gaussian-splatting"] = TrainerConfig(
         },
         "scaling": {
             "optimizer": AdamOptimizerConfig(lr=0.005, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(
-                lr_final=1e-3,
-                max_steps=15000,
-            ),
+            "scheduler": None
         },
         "rotation": {
             "optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(
-                lr_final=1e-4,
-                max_steps=15000,
-            ),
+            "scheduler": None
+        },
+        "camera_opt": {
+            "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=5e-5, max_steps=30000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),

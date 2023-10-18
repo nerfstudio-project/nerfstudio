@@ -45,10 +45,10 @@ class CameraOptimizerConfig(InstantiateConfig):
     mode: Literal["off", "SO3xR3", "SE3"] = "off"
     """Pose optimization strategy to use. If enabled, we recommend SO3xR3."""
 
-    trans_l2_penalty: float = 1e-2
+    trans_l2_penalty: float = 1e-4
     """L2 penalty on translation parameters."""
 
-    rot_l2_penalty: float = 1e-3
+    rot_l2_penalty: float = 1e-4
     """L2 penalty on rotation parameters."""
 
     optimizer: Optional[OptimizerConfig] = field(default=None)
@@ -150,9 +150,12 @@ class CameraOptimizer(nn.Module):
     def apply_to_camera(self, camera: Cameras) -> None:
         """Apply the pose correction to the raybundle"""
         if self.config.mode != "off":
-            correction_matrices = self(raybundle.camera_indices.squeeze())  # type: ignore
-            raybundle.origins = raybundle.origins + correction_matrices[:, :3, 3]
-            raybundle.directions = torch.bmm(correction_matrices[:, :3, :3], raybundle.directions[..., None]).squeeze()
+            assert camera.metadata is not None, "Must provide id of camera in its metadata"
+            assert "cam_idx" in camera.metadata, "Must provide id of camera in its metadata"
+            camera_idx = camera.metadata["cam_idx"]
+            adj = self([camera_idx])  # type: ignore
+            adj = torch.cat([adj, torch.Tensor([0, 0, 0, 1])[None, None].to(adj)], dim=1)
+            camera.camera_to_worlds = torch.bmm(camera.camera_to_worlds, adj)
 
     def get_loss_dict(self, loss_dict: dict) -> None:
         """Add regularization"""

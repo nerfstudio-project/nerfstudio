@@ -208,7 +208,7 @@ class RenderStateMachine(threading.Thread):
             except viewer_utils.IOChangeException:
                 # if we got interrupted, don't send the output to the viewer
                 continue
-            self._send_output_to_viewer(outputs,static_render = (action.action in ["static",'step']))
+            self._send_output_to_viewer(outputs, static_render=(action.action in ["static", "step"]))
 
     def check_interrupt(self, frame, event, arg):
         """Raises interrupt when flag has been set and not already on lowest resolution.

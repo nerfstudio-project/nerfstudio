@@ -141,22 +141,26 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                         0,
                     ]
                 )
-                newK,roi = cv2.getOptimalNewCameraMatrix(K,distortion_params,(image.shape[1],image.shape[0]),0)
+                newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
                 image = cv2.undistort(image, K, distortion_params, None, newK)
-                #crop the image and update the intrinsics accordingly
-                x,y,w,h = roi
-                image = image[y:y+h,x:x+w]
+                # crop the image and update the intrinsics accordingly
+                x, y, w, h = roi
+                image = image[y : y + h, x : x + w]
                 K = newK
-                #update the width, height
+                # update the width, height
                 self.train_dataset.cameras.width[i] = w
                 self.train_dataset.cameras.height[i] = h
-                
+
             elif camera.camera_type.item() == CameraType.FISHEYE.value:
                 distortion_params = np.array(
                     [distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]]
                 )
-                newK = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(K, distortion_params, (image.shape[1],image.shape[0]), np.eye(3), balance=0)
-                map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, distortion_params, np.eye(3), newK, (image.shape[1],image.shape[0]), cv2.CV_32FC1)
+                newK = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(
+                    K, distortion_params, (image.shape[1], image.shape[0]), np.eye(3), balance=0
+                )
+                map1, map2 = cv2.fisheye.initUndistortRectifyMap(
+                    K, distortion_params, np.eye(3), newK, (image.shape[1], image.shape[0]), cv2.CV_32FC1
+                )
                 # and then remap:
                 image = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
                 K = newK
@@ -204,21 +208,25 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                         0,
                     ]
                 )
-                newK,roi = cv2.getOptimalNewCameraMatrix(K,distortion_params,(image.shape[1],image.shape[0]),0)
+                newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
                 image = cv2.undistort(image, K, distortion_params, None, newK)
-                #crop the image and update the intrinsics accordingly
-                x,y,w,h = roi
-                image = image[y:y+h,x:x+w]
+                # crop the image and update the intrinsics accordingly
+                x, y, w, h = roi
+                image = image[y : y + h, x : x + w]
                 K = newK
-                #update the width, height
+                # update the width, height
                 self.train_dataset.cameras.width[i] = w
                 self.train_dataset.cameras.height[i] = h
             elif camera.camera_type.item() == CameraType.FISHEYE.value:
                 distortion_params = np.array(
                     [distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]]
                 )
-                newK = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(K, distortion_params, (image.shape[1],image.shape[0]), np.eye(3), balance=0)
-                map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, distortion_params, np.eye(3), newK, (image.shape[1],image.shape[0]), cv2.CV_32FC1)
+                newK = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(
+                    K, distortion_params, (image.shape[1], image.shape[0]), np.eye(3), balance=0
+                )
+                map1, map2 = cv2.fisheye.initUndistortRectifyMap(
+                    K, distortion_params, np.eye(3), newK, (image.shape[1], image.shape[0]), cv2.CV_32FC1
+                )
                 # and then remap:
                 image = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
                 K = newK
@@ -325,10 +333,12 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
         data = deepcopy(self.cached_train[image_idx])
         data["image"] = data["image"].to(self.device)
-        data['cam_idx'] = torch.tensor(image_idx).to(self.device)
 
         assert len(self.train_dataset.cameras.shape) == 1, "Assumes single batch dimension"
         camera = self.train_dataset.cameras[image_idx : image_idx + 1].to(self.device)
+        if camera.metadata is None:
+            camera.metadata = {}
+        camera.metadata["cam_idx"] = image_idx
         return camera, data
 
     def next_eval(self, step: int) -> Tuple[Cameras, Dict]:
