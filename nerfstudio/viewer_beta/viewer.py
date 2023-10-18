@@ -124,8 +124,8 @@ class Viewer:
             ),
         )
         image = viser.theme.TitlebarImage(
-            image_url_light="https://docs.nerf.studio/en/latest/_static/imgs/logo.png",
-            image_url_dark="https://docs.nerf.studio/en/latest/_static/imgs/logo-dark.png",
+            image_url_light="https://docs.nerf.studio/_static/imgs/logo.png",
+            image_url_dark="https://docs.nerf.studio/_static/imgs/logo-dark.png",
             image_alt="NerfStudio Logo",
             href="https://docs.nerf.studio/",
         )
@@ -326,7 +326,7 @@ class Viewer:
             )
 
             @camera_handle.on_click
-            def _(event: viser.ClickEvent[viser.CameraFrustumHandle]) -> None:
+            def _(event: viser.SceneNodePointerEvent[viser.CameraFrustumHandle]) -> None:
                 assert self.client is not None
                 with self.client.atomic():
                     self.client.camera.position = event.target.position
