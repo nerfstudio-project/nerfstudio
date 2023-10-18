@@ -18,12 +18,12 @@ render.py
 """
 from __future__ import annotations
 
+import gzip
 import json
 import os
-import struct
 import shutil
+import struct
 import sys
-import gzip
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -54,11 +54,14 @@ from nerfstudio.cameras.camera_paths import (
     get_spiral_path,
 )
 from nerfstudio.cameras.cameras import Cameras, CameraType, RayBundle
+from nerfstudio.data.datamanagers.base_datamanager import (
+    VanillaDataManager,
+    VanillaDataManagerConfig,
+)
 from nerfstudio.data.datasets.base_dataset import Dataset
-from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager, VanillaDataManagerConfig
+from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.data.utils.dataloaders import FixedIndicesEvalDataloader
 from nerfstudio.engine.trainer import TrainerConfig
-from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.model_components import renderers
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import colormaps, install_checks
@@ -318,6 +321,9 @@ def get_crop_from_json(camera_json: Dict[str, Any]) -> Optional[CropData]:
     center = camera_json["crop"]["crop_center"]
     scale = camera_json["crop"]["crop_scale"]
     rot = (0.0, 0.0, 0.0) if "crop_rot" not in camera_json["crop"] else tuple(camera_json["crop"]["crop_rot"])
+    assert len(center) == 3
+    assert len(scale) == 3
+    assert len(rot) == 3
     return CropData(
         background_color=torch.Tensor([bg_color["r"] / 255.0, bg_color["g"] / 255.0, bg_color["b"] / 255.0]),
         obb=OrientedBox.from_params(center, rot, scale),
