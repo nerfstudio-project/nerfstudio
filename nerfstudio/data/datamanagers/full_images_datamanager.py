@@ -173,7 +173,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                     mask = cv2.fisheye.undistortImage(mask, K, distortion_params, None, None)
                 else:
                     raise NotImplementedError("Only perspective and fisheye cameras are supported")
-                data["mask"] = torch.from_numpy(mask)
+                data["mask"] = torch.from_numpy(mask).bool()
 
             cached_train.append(data)
 
@@ -236,7 +236,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                     mask = cv2.fisheye.undistortImage(mask, K, distortion_params, None, None)
                 else:
                     raise NotImplementedError("Only perspective and fisheye cameras are supported")
-                data["mask"] = torch.from_numpy(mask)
+                print(mask.dtype)
+                data["mask"] = torch.from_numpy(mask).bool()
 
             cached_eval.append(data)
 
