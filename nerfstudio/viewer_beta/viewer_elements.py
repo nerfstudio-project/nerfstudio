@@ -27,7 +27,6 @@ import torch
 import viser.transforms as vtf
 from typing_extensions import LiteralString, TypeVar
 from viser import (
-    ClientHandle,
     GuiButtonGroupHandle,
     GuiButtonHandle,
     GuiDropdownHandle,
