@@ -23,10 +23,10 @@
 <p align="center">
     <!-- pypi-strip -->
     <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://docs.nerf.studio/en/latest/_images/logo-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://docs.nerf.studio/en/latest/_images/logo.png">
+    <source media="(prefers-color-scheme: dark)" srcset="https://docs.nerf.studio/_images/logo-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://docs.nerf.studio/_images/logo.png">
     <!-- /pypi-strip -->
-    <img alt="nerfstudio" src="https://docs.nerf.studio/en/latest/_images/logo.png" width="400">
+    <img alt="nerfstudio" src="https://docs.nerf.studio/_images/logo.png" width="400">
     <!-- pypi-strip -->
     </picture>
     <!-- /pypi-strip -->
@@ -34,7 +34,7 @@
 
 <!-- Use this for pypi package (and disable above). Hacky workaround -->
 <!-- <p align="center">
-    <img alt="nerfstudio" src="https://docs.nerf.studio/en/latest/_images/logo.png" width="400">
+    <img alt="nerfstudio" src="https://docs.nerf.studio/_images/logo.png" width="400">
 </p> -->
 
 <p align="center"> A collaboration friendly studio for NeRFs </p>
@@ -70,7 +70,7 @@ Nerfstudio initially launched as an opensource project by Berkeley students in [
 
 We are committed to providing learning resources to help you understand the basics of (if you're just getting started), and keep up-to-date with (if you're a seasoned veteran) all things NeRF. As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
 
-Have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome [contributions](https://docs.nerf.studio/en/latest/reference/contributing.html)!** Please do not hesitate to reach out to the nerfstudio team with any questions via [Discord](https://discord.gg/uMbNqcraFc).
+Have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome [contributions](https://docs.nerf.studio/reference/contributing.html)!** Please do not hesitate to reach out to the nerfstudio team with any questions via [Discord](https://discord.gg/uMbNqcraFc).
 
 Have feedback? We'd love for you to fill out our [Nerfstudio Feedback Form](https://forms.gle/sqN5phJN7LfQVwnP9) if you want to let us know who you are, why you are interested in Nerfstudio, or provide any feedback!
 
@@ -118,7 +118,7 @@ You must have an NVIDIA video card with CUDA installed on the system. This libra
 
 ### Create environment
 
-Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
+Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/miniconda.html) before proceeding.
 
 ```bash
 conda create --name nerfstudio -y python=3.8
@@ -281,23 +281,23 @@ We support four different methods to track training progress, using the viewer[t
 
 And that's it for getting started with the basics of nerfstudio.
 
-If you're interested in learning more on how to create your own pipelines, develop with the viewer, run benchmarks, and more, please check out some of the quicklinks below or visit our [documentation](https://docs.nerf.studio/en/latest/) directly.
+If you're interested in learning more on how to create your own pipelines, develop with the viewer, run benchmarks, and more, please check out some of the quicklinks below or visit our [documentation](https://docs.nerf.studio/) directly.
 
 | Section                                                                                            | Description                                                                                        |
 | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [Documentation](https://docs.nerf.studio/en/latest/)                                               | Full API documentation and tutorials                                                               |
+| [Documentation](https://docs.nerf.studio/)                                               | Full API documentation and tutorials                                                               |
 | [Viewer](https://viewer.nerf.studio/)                                                              | Home page for our web viewer                                                                       |
 | 🎒 **Educational**                                                                                 |
-| [Model Descriptions](https://docs.nerf.studio/en/latest/nerfology/methods/index.html)              | Description of all the models supported by nerfstudio and explanations of component parts.         |
-| [Component Descriptions](https://docs.nerf.studio/en/latest/nerfology/model_components/index.html) | Interactive notebooks that explain notable/commonly used modules in various models.                |
+| [Model Descriptions](https://docs.nerf.studio/nerfology/methods/index.html)              | Description of all the models supported by nerfstudio and explanations of component parts.         |
+| [Component Descriptions](https://docs.nerf.studio/nerfology/model_components/index.html) | Interactive notebooks that explain notable/commonly used modules in various models.                |
 | 🏃 **Tutorials**                                                                                   |
-| [Getting Started](https://docs.nerf.studio/en/latest/quickstart/installation.html)                 | A more in-depth guide on how to get started with nerfstudio from installation to contributing.     |
-| [Using the Viewer](https://docs.nerf.studio/en/latest/quickstart/viewer_quickstart.html)           | A quick demo video on how to navigate the viewer.                                                  |
+| [Getting Started](https://docs.nerf.studio/quickstart/installation.html)                 | A more in-depth guide on how to get started with nerfstudio from installation to contributing.     |
+| [Using the Viewer](https://docs.nerf.studio/quickstart/viewer_quickstart.html)           | A quick demo video on how to navigate the viewer.                                                  |
 | [Using Record3D](https://www.youtube.com/watch?v=XwKq7qDQCQk)                                      | Demo video on how to run nerfstudio without using COLMAP.                                          |
 | 💻 **For Developers**                                                                              |
-| [Creating pipelines](https://docs.nerf.studio/en/latest/developer_guides/pipelines/index.html)     | Learn how to easily build new neural rendering pipelines by using and/or implementing new modules. |
-| [Creating datasets](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html)             | Have a new dataset? Learn how to run it with nerfstudio.                                           |
-| [Contributing](https://docs.nerf.studio/en/latest/reference/contributing.html)                     | Walk-through for how you can start contributing now.                                               |
+| [Creating pipelines](https://docs.nerf.studio/developer_guides/pipelines/index.html)     | Learn how to easily build new neural rendering pipelines by using and/or implementing new modules. |
+| [Creating datasets](https://docs.nerf.studio/quickstart/custom_dataset.html)             | Have a new dataset? Learn how to run it with nerfstudio.                                           |
+| [Contributing](https://docs.nerf.studio/reference/contributing.html)                     | Walk-through for how you can start contributing now.                                               |
 | 💖 **Community**                                                                                   |
 | [Discord](https://discord.gg/uMbNqcraFc)                                                           | Join our community to discuss more. We would love to hear from you!                                |
 | [Twitter](https://twitter.com/nerfstudioteam)                                                      | Follow us on Twitter @nerfstudioteam to see cool updates and announcements                         |
