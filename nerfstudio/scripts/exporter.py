@@ -494,9 +494,10 @@ class ExportGaussianSplat(Exporter):
                 map_to_tensors[f"f_dc_{i}"] = colors[:, i]
 
             shs = model.shs_rest.data.cpu().numpy()
-            shs = shs.reshape((colors.shape[0], -1, 1))
-            for i in range(shs.shape[-1]):
-                map_to_tensors[f"f_rest_{i - 3}"] = shs[:, i]
+            if shs.size > 0:
+                shs = shs.reshape((colors.shape[0], -1, 1))
+                for i in range(shs.shape[-1]):
+                    map_to_tensors[f"f_rest_{i}"] = shs[:, i]
 
             map_to_tensors["opacity"] = model.opacities.data.cpu().numpy()
 
