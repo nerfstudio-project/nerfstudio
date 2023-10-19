@@ -62,7 +62,7 @@ export default function Banner() {
       <div className="banner-logo">
         <img
           style={{ height: 30, margin: 'auto' }}
-          src="https://docs.nerf.studio/en/latest/_images/logo-dark.png"
+          src="https://docs.nerf.studio/_images/logo-dark.png"
           alt="The favicon."
         />
       </div>

@@ -148,7 +148,9 @@ RUN git clone --branch v1.0 --recursive https://github.com/cvg/pyceres.git && \
     cd ..
 
 # Install pixel perfect sfm.
-RUN git clone --branch v1.0 --recursive https://github.com/cvg/pixel-perfect-sfm.git && \
+RUN git clone --recursive https://github.com/cvg/pixel-perfect-sfm.git && \
+    git reset --hard 40f7c1339328b2a0c7cf71f76623fb848e0c0357 && \
+    git clean -df && \
     cd pixel-perfect-sfm && \
     python3.10 -m pip install -e . && \
     cd ..
