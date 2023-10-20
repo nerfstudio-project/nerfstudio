@@ -93,6 +93,7 @@ def run_colmap(
     gpu: bool = True,
     verbose: bool = False,
     matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
+    refine_intrinsics: bool = True,
     colmap_cmd: str = "colmap",
 ) -> None:
     """Runs COLMAP on the images.
@@ -105,6 +106,7 @@ def run_colmap(
         gpu: If True, use GPU.
         verbose: If True, logs the output of the command.
         matching_method: Matching method to use.
+        refine_intrinsics: If True, refine intrinsics.
         colmap_cmd: Path to the COLMAP executable.
     """
 
@@ -165,15 +167,17 @@ def run_colmap(
     ):
         run_command(mapper_cmd, verbose=verbose)
     CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
-    with status(msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose):
-        bundle_adjuster_cmd = [
-            f"{colmap_cmd} bundle_adjuster",
-            f"--input_path {sparse_dir}/0",
-            f"--output_path {sparse_dir}/0",
-            "--BundleAdjustment.refine_principal_point 1",
-        ]
-        run_command(" ".join(bundle_adjuster_cmd), verbose=verbose)
-    CONSOLE.log("[bold green]:tada: Done refining intrinsics.")
+
+    if refine_intrinsics:
+        with status(msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose):
+            bundle_adjuster_cmd = [
+                f"{colmap_cmd} bundle_adjuster",
+                f"--input_path {sparse_dir}/0",
+                f"--output_path {sparse_dir}/0",
+                "--BundleAdjustment.refine_principal_point 1",
+            ]
+            run_command(" ".join(bundle_adjuster_cmd), verbose=verbose)
+        CONSOLE.log("[bold green]:tada: Done refining intrinsics.")
 
 
 def parse_colmap_camera_params(camera) -> Dict[str, Any]:
