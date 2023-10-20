@@ -172,8 +172,7 @@ class RenderStateMachine(threading.Thread):
         while self.running:
             if not self.render_trigger.wait(0.2):
                 # if we haven't received a trigger in a while, send a static action
-                if self.viewer.camera_state is not None:
-                    self.action(RenderAction(action="static", camera_state=self.viewer.camera_state))
+                self.action(RenderAction(action="static", camera_state=self.viewer.get_camera_state(self.client)))
             action = self.next_action
             self.render_trigger.clear()
             if action is None:
