@@ -117,7 +117,7 @@ class ViewerControl:
         """
         raise NotImplementedError()
 
-    def get_camera(self, img_height: int, img_width: int) -> Optional[Cameras]:
+    def get_camera(self, img_height: int, img_width: int, client_id: Optional[int] = None) -> Optional[Cameras]:
         """
         Returns the Cameras object representing the current camera for the viewer, or None if the viewer
         is not connected yet
@@ -126,16 +126,21 @@ class ViewerControl:
             img_height: The height of the image to get camera intrinsics for
             img_width: The width of the image to get camera intrinsics for
         """
-        assert self.viewer.client is not None
+        clients = self.viser_server.get_clients()
+        if len(clients) == 0:
+            return None
+        if not client_id:
+            client_id = list(clients.keys())[0]
 
         from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO
 
-        R = vtf.SO3(wxyz=self.viewer.client.camera.wxyz)
+        client = clients[client_id]
+        R = vtf.SO3(wxyz=client.camera.wxyz)
         R = R @ vtf.SO3.from_x_radians(np.pi)
         R = torch.tensor(R.as_matrix())
-        pos = torch.tensor(self.viewer.client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
+        pos = torch.tensor(client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
         c2w = torch.concatenate([R, pos[:, None]], dim=1)
-        camera_state = CameraState(fov=self.viewer.client.camera.fov, aspect=self.viewer.client.camera.aspect, c2w=c2w)
+        camera_state = CameraState(fov=client.camera.fov, aspect=client.camera.aspect, c2w=c2w)
         return get_camera(camera_state, img_height, img_width)
 
     def register_click_cb(self, cb: Callable):
