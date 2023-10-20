@@ -342,7 +342,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     along with relevant information about camera intrinsics
     """
     patch_size: int = 1
-    """Size of patch to sample from. If >1, patch-based sampling will be used."""
+    """Size of patch to sample from. If > 1, patch-based sampling will be used."""
     camera_optimizer: Optional[CameraOptimizerConfig] = field(default=None)
     """Deprecated, has been moved to the model config."""
     pixel_sampler: PixelSamplerConfig = PixelSamplerConfig()
