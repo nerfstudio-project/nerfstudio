@@ -66,7 +66,7 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """specifies the camera pose optimizer used during training"""
 ```
 
-Let's take a quick look at how the `run_train` method is implemented. Here we sample images, then pixels, and then return the RayBundle and RayGT information.
+Let's take a quick look at how the `next_train` method is implemented. Here we sample images, then pixels, and then return the RayBundle and RayGT information.
 
 ```python
 def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
