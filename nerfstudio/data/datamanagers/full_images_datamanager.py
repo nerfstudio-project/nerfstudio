@@ -238,10 +238,11 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
             cached_eval.append(data)
 
-            self.eval_dataset.cameras[i].fx = K[0, 0]
-            self.eval_dataset.cameras[i].fy = K[1, 1]
-            self.eval_dataset.cameras[i].cx = K[0, 2]
-            self.eval_dataset.cameras[i].cy = K[1, 2]
+            self.eval_dataset.cameras.fx[i] = float(K[0, 0])
+            self.eval_dataset.cameras.fy[i] = float(K[1, 1])
+            self.eval_dataset.cameras.cx[i] = float(K[0, 2])
+            self.eval_dataset.cameras.cy[i] = float(K[1, 2])
+            # print(self.eval_dataset.cameras[i].reshape((1,)))
 
         if cache_images_option == "gpu":
             for cache in cached_train:
@@ -342,7 +343,10 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         data = self.eval_dataset.get_data(image_idx)
         data["image"] = data["image"].to(self.device)
         assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
-        camera = self.eval_dataset.cameras[image_idx].to(self.device)
+        camera = self.eval_dataset.cameras[image_idx : image_idx + 1].to(self.device)
+        # TODO: camera shape torch.Size([]) for eval dataset
+        # should be torch.Size([1])
+        print(camera.shape, data.keys())
         return camera, data
 
     def next_eval_image(self, step: int) -> Tuple[int, Cameras, Dict]:
@@ -358,5 +362,5 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         data = self.eval_dataset.get_data(image_idx)
         data["image"] = data["image"].to(self.device)
         assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
-        camera = self.eval_dataset.cameras[image_idx].to(self.device)
+        camera = self.eval_dataset.cameras[image_idx: image_idx + 1].to(self.device)
         return image_idx, camera, data

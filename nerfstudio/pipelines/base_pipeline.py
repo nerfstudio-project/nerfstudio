@@ -338,7 +338,7 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         image_idx, camera_ray_bundle, batch = self.datamanager.next_eval_image(step)
-        outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+        outputs = self.model.get_outputs_for_camera_ray_bundle(None, camera=camera_ray_bundle)
         metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
         assert "image_idx" not in metrics_dict
         metrics_dict["image_idx"] = image_idx
