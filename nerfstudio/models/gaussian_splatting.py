@@ -364,6 +364,11 @@ class GaussianSplattingModel(Model):
                 self.xys_grad_norm = None
                 self.vis_counts = None
                 self.max_2Dsize = None
+        # set gauss_scaling to the min size of each gaussian
+        #first convert the quats to rotation matrices to rotate the scales into world frame
+        # rots = quat_to_rotmat(self.quats.detach()/self.quats.detach().norm(dim=-1,keepdim=True))
+        # scales_rot = torch.bmm(rots, torch.exp(self.scales.detach())[..., None]).squeeze()
+        # optimizers.optimizers['xyz'].gauss_scaling = self.scales.detach().exp().abs().amin(dim=-1,keepdim=True)
 
     def cull_gaussians(self):
         """
@@ -575,7 +580,7 @@ class GaussianSplattingModel(Model):
         # if self.training:
         #     # experimental gradient scaling for floater removal
         #     depths_de = depths.detach()
-        #     opacities_crop = scale_gauss_gradients_by_distance_squared(opacities_crop,depths_de,far_dist=.5,padding_eps=.05)
+        #     opacities_crop = scale_gauss_gradients_by_distance_squared(opacities_crop,depths_de,far_dist=1,padding_eps=.3)
         # Important to allow xys grads to populate properly
         if self.training:
             self.xys.retain_grad()
