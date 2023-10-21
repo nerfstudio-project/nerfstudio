@@ -249,7 +249,7 @@ def generate_mesh_with_multires_marching_cubes(
                     )
                     verts = verts + np.array([x_min, y_min, z_min])
 
-                    meshcrop = trimesh.Trimesh(verts, faces, normals)
+                    meshcrop = trimesh.Trimesh(verts, faces, normals)  # type: ignore
                     meshes.append(meshcrop)
 
     combined_mesh: trimesh.Trimesh = trimesh.util.concatenate(meshes)  # type: ignore
