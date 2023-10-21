@@ -96,7 +96,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     """training starts at 1/d resolution, every n steps this is doubled"""
     num_downscales: int = 2
     """at the beginning, resolution is 1/2^d, where d is this number"""
-    cull_alpha_thresh: float = 0.01
+    cull_alpha_thresh: float = 0.05
     """threshold of opacity for culling gaussians"""
     cull_scale_thresh: float = 0.1
     """threshold of scale for culling gaussians"""
@@ -110,10 +110,10 @@ class GaussianSplattingModelConfig(ModelConfig):
     """number of samples to split gaussians into"""
     sh_degree_interval: int = 1000
     """every n intervals turn on another sh degree"""
-    cull_screen_size: int = 150
-    """if a gaussian is more than this many pixels, cull it"""
-    split_screen_size: int = 50
-    """if a gaussian is more than this many pixels, split it"""
+    cull_screen_size: float = 0.15
+    """if a gaussian is more than this percent of screen space, cull it"""
+    split_screen_size: float = 0.05
+    """if a gaussian is more than this percent of screen space, split it"""
     random_init: bool = False
     """whether to initialize the positions uniformly randomly (not SFM points)"""
     extra_points: int = 0
@@ -146,10 +146,10 @@ class GaussianSplattingModel(Model):
 
     def populate_modules(self):
         if self.seed_pts is not None and not self.config.random_init:
-            extra_means = (torch.rand((self.config.extra_points, 3)) - 0.5) * 20
+            extra_means = (torch.rand((self.config.extra_points, 3)) - 0.5) * 10
             self.means = torch.nn.Parameter(torch.cat([self.seed_pts[0],extra_means])) # (Location, Color)
         else:
-            self.means = torch.nn.Parameter((torch.rand((500000, 3)) - 0.5) * 20)
+            self.means = torch.nn.Parameter((torch.rand((1000000, 3)) - 0.5) * 10)
         self.xys_grad_norm = None
         self.max_2Dsize = None
         distances, _ = self.k_nearest_sklearn(self.means.data, 3)
@@ -280,11 +280,11 @@ class GaussianSplattingModel(Model):
                 self.vis_counts[visible_mask] = self.vis_counts[visible_mask] + 1
                 self.xys_grad_norm[visible_mask] = grads[visible_mask] + self.xys_grad_norm[visible_mask]
 
-            # update the max screen size
+            # update the max screen size, as a ratio of number of pixels
             if self.max_2Dsize is None:
-                self.max_2Dsize = torch.zeros_like(self.radii)
+                self.max_2Dsize = torch.zeros_like(self.radii,dtype=torch.float32)
             newradii = self.radii.detach()[visible_mask]
-            self.max_2Dsize[visible_mask] = torch.maximum(self.max_2Dsize[visible_mask], newradii)
+            self.max_2Dsize[visible_mask] = torch.maximum(self.max_2Dsize[visible_mask], newradii / float(max(self.last_size[0], self.last_size[1])))
 
     def set_crop(self, crop_box: OrientedBox):
         self.crop_box = crop_box
