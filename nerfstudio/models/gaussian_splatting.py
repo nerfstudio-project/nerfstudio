@@ -25,7 +25,7 @@ from nerfstudio.data.scene_box import OrientedBox
 from copy import deepcopy
 from nerfstudio.cameras.rays import RayBundle
 from torch.nn import Parameter
-from torchmetrics.image import PeakSignalNoiseRatio
+from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from nerfstudio.cameras.cameras import Cameras
 from gsplat._torch_impl import quat_to_rotmat
@@ -176,12 +176,13 @@ class GaussianSplattingModel(Model):
             self.shs_rest = torch.nn.Parameter(torch.zeros((self.num_points, 3, dim_sh - 1)))
 
         self.opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(self.num_points, 1)))
+
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
-
         self.ssim = StructuralSimilarityIndexMeasure()
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
         self.step = 0
+        
         self.crop_box: Optional[OrientedBox] = None
         self.back_color = torch.zeros(3)
 
@@ -483,7 +484,10 @@ class GaussianSplattingModel(Model):
         return gps
 
     def _get_downscale_factor(self):
-        return 2 ** max((self.config.num_downscales - self.step // self.config.resolution_schedule), 0)
+        if self.training:
+            return 2 ** max((self.config.num_downscales - self.step // self.config.resolution_schedule), 0)
+        else: 
+            return 1
 
     def get_outputs(self, camera: Cameras) -> Dict[str, Union[torch.Tensor, List]]:
         """Takes in a Ray Bundle and returns a dictionary of outputs.
@@ -501,12 +505,8 @@ class GaussianSplattingModel(Model):
         assert camera.shape[0] == 1, "Only one camera at a time"
         # dont mutate the input
         camera = deepcopy(camera)
-        if self.training:
-            #currently relies on the branch vickie/camera-grads
-            self.camera_optimizer.apply_to_camera(camera)
-        if self.training:
-            d = self._get_downscale_factor()
-            camera.rescale_output_resolution(1 / d)
+        d = self._get_downscale_factor()
+        camera.rescale_output_resolution(1 / d)
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
@@ -625,8 +625,23 @@ class GaussianSplattingModel(Model):
             outputs: the output to compute loss dict to
             batch: ground truth batch corresponding to outputs
         """
+        d = self._get_downscale_factor()
+        if d > 1:
+            # use torchvision to resize
+            import torchvision.transforms.functional as TF
 
-        return {}
+            newsize = (batch["image"].shape[0] // d, batch["image"].shape[1] // d)
+            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize).permute(1, 2, 0)
+        else:
+            gt_img = batch["image"]
+        metrics_dict = {}
+        gt_rgb = gt_img.to(self.device)  # RGB or RGBA image
+        # gt_rgb = self.renderer_rgb.blend_background(gt_rgb)  # Blend if RGBA
+        predicted_rgb = outputs["rgb"]
+        metrics_dict["psnr"] = self.psnr(predicted_rgb, gt_rgb)
+
+        self.camera_optimizer.get_metrics_dict(metrics_dict)
+        return metrics_dict
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
         """Computes and returns the losses dict.
