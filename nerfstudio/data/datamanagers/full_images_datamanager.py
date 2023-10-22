@@ -354,9 +354,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         data["image"] = data["image"].to(self.device)
         assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
         camera = self.eval_dataset.cameras[image_idx : image_idx + 1].to(self.device)
-        # TODO: camera shape torch.Size([]) for eval dataset
-        # should be torch.Size([1])
-        print(camera.shape, data.keys())
         return camera, data
 
     def next_eval_image(self, step: int) -> Tuple[int, Cameras, Dict]:
