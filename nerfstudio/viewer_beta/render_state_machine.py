@@ -161,7 +161,7 @@ class RenderStateMachine(threading.Thread):
                 pts = (R @ (pts.view(-1, 3).T)).T.view(*camera_ray_bundle.directions.shape)
                 outputs["gl_z_buf_depth"] = -pts[..., 2:3]  # negative z axis is the coordinate convention
         render_time = vis_t.duration
-        if writer.is_initialized():
+        if writer.is_initialized() and render_time != 0:
             writer.put_time(
                 name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=step, avg_over_steps=True
             )
