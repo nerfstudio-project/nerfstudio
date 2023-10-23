@@ -235,6 +235,7 @@ class Viewer:
                 self.camera_handles[idx].visible = visible
 
     def update_camera_poses(self):
+        #TODO this fn accounts for like ~5% of total train time
         # Update the train camera locations based on optimization
         assert self.camera_handles is not None
         if hasattr(self.pipeline.datamanager, "train_camera_optimizer"):
@@ -366,7 +367,6 @@ class Viewer:
         # this stops training while moving to make the response smoother
         while time.time() - self.last_move_time < 0.1:
             time.sleep(0.05)
-        # self.render_statemachine.action(RenderAction("static", self.camera_state))
         if self.trainer is not None and self.trainer.training_state == "training" and self.train_util != 1:
             if (
                 EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]
