@@ -289,7 +289,7 @@ def populate_render_tab(
         min=(50, 50),
         max=(10_000, 10_000),
         step=1,
-        hint="Tension parameter for adjusting smoothness of spline interpolation.",
+        hint="Render output resolution in pixels.",
     )
 
     @resolution.on_update
@@ -428,12 +428,12 @@ def populate_render_tab(
     playback_folder = server.add_gui_folder("Playback")
     with playback_folder:
         duration_number = server.add_gui_number("Duration (sec)", min=0.0, max=1e8, step=0.0001, initial_value=4.0)
-        framerate_slider = server.add_gui_slider("FPS", min=1.0, max=240.0, step=1e-8, initial_value=30.0)
+        framerate_number = server.add_gui_number("Frame rate (FPS)", min=0.1, max=240.0, step=1e-8, initial_value=30.0)
         framerate_buttons = server.add_gui_button_group("", ("24", "30", "60"))
 
         @framerate_buttons.on_click
         def _(_) -> None:
-            framerate_slider.value = float(framerate_buttons.value)
+            framerate_number.value = float(framerate_buttons.value)
 
         play_button = server.add_gui_button("Play", icon=viser.Icon.PLAYER_PLAY)
         pause_button = server.add_gui_button("Pause", icon=viser.Icon.PLAYER_PAUSE, visible=False)
@@ -451,7 +451,7 @@ def populate_render_tab(
     def add_preview_frame_slider() -> Optional[viser.GuiInputHandle[int]]:
         """Helper for creating the current frame # slider. This is removed and
         re-added anytime the `max` value changes."""
-        max_frame_index = int(framerate_slider.value * duration_number.value) - 1
+        max_frame_index = int(framerate_number.value * duration_number.value) - 1
 
         if max_frame_index <= 0:
             return None
@@ -468,7 +468,7 @@ def populate_render_tab(
 
         @preview_frame_slider.on_update
         def _(_) -> None:
-            max_frame_index = int(framerate_slider.value * duration_number.value) - 1
+            max_frame_index = int(framerate_number.value * duration_number.value) - 1
             maybe_pose_and_fov = camera_path.interpolate_pose_and_fov(
                 preview_frame_slider.value / max_frame_index if max_frame_index > 0 else 0
             )
@@ -507,7 +507,7 @@ def populate_render_tab(
     preview_frame_slider = add_preview_frame_slider()
 
     @duration_number.on_update
-    @framerate_slider.on_update
+    @framerate_number.on_update
     def _(_) -> None:
         nonlocal preview_frame_slider
         old = preview_frame_slider
@@ -527,11 +527,11 @@ def populate_render_tab(
 
         def play() -> None:
             while not play_button.visible:
-                max_frame = int(framerate_slider.value * duration_number.value)
+                max_frame = int(framerate_number.value * duration_number.value)
                 if max_frame > 0:
                     assert preview_frame_slider is not None
                     preview_frame_slider.value = (preview_frame_slider.value + 1) % max_frame
-                time.sleep(1.0 / framerate_slider.value)
+                time.sleep(1.0 / framerate_number.value)
 
         threading.Thread(target=play).start()
 
@@ -556,7 +556,7 @@ def populate_render_tab(
     @render_button.on_click
     def _(event: viser.GuiEvent) -> None:
         assert event.client is not None
-        num_frames = int(framerate_slider.value * duration_number.value)
+        num_frames = int(framerate_number.value * duration_number.value)
         json_data = {}
         # json data has the properties:
         # keyframes: list of keyframes with
@@ -594,7 +594,7 @@ def populate_render_tab(
         json_data["camera_type"] = camera_type.value.lower()
         json_data["render_height"] = resolution.value[1]
         json_data["render_width"] = resolution.value[0]
-        json_data["fps"] = framerate_slider.value
+        json_data["fps"] = framerate_number.value
         json_data["seconds"] = duration_number.value
         json_data["is_cycle"] = loop.value
         json_data["smoothness_value"] = smoothness.value
