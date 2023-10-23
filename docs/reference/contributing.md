@@ -94,7 +94,7 @@ python nerfstudio/scripts/docs/build_docs.py
 
 ### Auto build
 
-As you change or add models/components, the auto-generated [Reference API](https://docs.nerf.studio/en/latest/reference/api/index.html) may change.
+As you change or add models/components, the auto-generated [Reference API](https://docs.nerf.studio/reference/api/index.html) may change.
 If you want the code to build on save you can use [sphinx autobuild](https://github.com/executablebooks/sphinx-autobuild).
 
 :::{admonition} Tip

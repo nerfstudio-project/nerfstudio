@@ -198,8 +198,8 @@ class ViewerState:
         self.viser_server.send_crop_params(
             crop_enabled=self.control_panel.crop_viewport,
             crop_bg_color=self.control_panel.background_color,
-            crop_scale=tuple(crop_scale.tolist()),
-            crop_center=tuple(crop_center.tolist()),
+            crop_scale=tuple(crop_scale.tolist()),  # type: ignore
+            crop_center=tuple(crop_center.tolist()),  # type: ignore
         )
         if self.camera_message is not None:
             self.render_statemachine.action(RenderAction("rerender", self.camera_message))
@@ -258,8 +258,8 @@ class ViewerState:
         scale = np.array(message.crop_scale)
         crop_min = center - scale / 2.0
         crop_max = center + scale / 2.0
-        self.control_panel.crop_min = tuple(crop_min.tolist())
-        self.control_panel.crop_max = tuple(crop_max.tolist())
+        self.control_panel.crop_min = tuple(crop_min.tolist())  # type: ignore
+        self.control_panel.crop_max = tuple(crop_max.tolist())  # type: ignore
 
     def _handle_click_message(self, message: NerfstudioMessage) -> None:
         """Handle click message from viewer."""

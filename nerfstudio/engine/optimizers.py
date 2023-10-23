@@ -27,7 +27,6 @@ from torch.nn.parameter import Parameter
 from nerfstudio.configs import base_config
 from nerfstudio.utils import writer
 
-
 # Optimizer related configs
 @dataclass
 class OptimizerConfig(base_config.PrintableConfig):

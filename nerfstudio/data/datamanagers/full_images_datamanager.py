@@ -40,6 +40,7 @@ from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManag
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
+# from nerfstudio.data.utils.dataloaders import FixedIndicesEvalDataloader
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -146,6 +147,10 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 # crop the image and update the intrinsics accordingly
                 x, y, w, h = roi
                 image = image[y : y + h, x : x + w]
+                if 'mask' in data:
+                    data['mask'] = data['mask'][y : y + h, x : x + w]
+                if 'depth_image' in data:
+                    data['depth_image'] = data['depth_image'][y : y + h, x : x + w]
                 K = newK
                 # update the width, height
                 self.train_dataset.cameras.width[i] = w
@@ -215,8 +220,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 image = image[y : y + h, x : x + w]
                 K = newK
                 # update the width, height
-                self.train_dataset.cameras.width[i] = w
-                self.train_dataset.cameras.height[i] = h
+                self.eval_dataset.cameras.width[i] = w
+                self.eval_dataset.cameras.height[i] = h
             elif camera.camera_type.item() == CameraType.FISHEYE.value:
                 distortion_params = np.array(
                     [distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]]
@@ -250,7 +255,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             self.eval_dataset.cameras.fy[i] = float(K[1, 1])
             self.eval_dataset.cameras.cx[i] = float(K[0, 2])
             self.eval_dataset.cameras.cy[i] = float(K[1, 2])
-            # print(self.eval_dataset.cameras[i].reshape((1,)))
 
         if cache_images_option == "gpu":
             for cache in cached_train:
@@ -311,7 +315,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
-
+    
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Get the param groups for the data manager.
         Returns:
@@ -350,7 +354,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         # Make sure to re-populate the unseen cameras list if we have exhausted it
         if len(self.eval_unseen_cameras) == 0:
             self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
-        data = self.eval_dataset.get_data(image_idx)
+        data = deepcopy(self.cached_eval[image_idx])
         data["image"] = data["image"].to(self.device)
         assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
         camera = self.eval_dataset.cameras[image_idx : image_idx + 1].to(self.device)
@@ -366,7 +370,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         # Make sure to re-populate the unseen cameras list if we have exhausted it
         if len(self.eval_unseen_cameras) == 0:
             self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
-        data = self.eval_dataset.get_data(image_idx)
+        data = deepcopy(self.cached_eval[image_idx])
         data["image"] = data["image"].to(self.device)
         assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
         camera = self.eval_dataset.cameras[image_idx: image_idx + 1].to(self.device)
