@@ -20,13 +20,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Type, Union
-import torch
 from nerfstudio.data.scene_box import OrientedBox
 from copy import deepcopy
 from nerfstudio.cameras.rays import RayBundle
+
+import torch
 from torch.nn import Parameter
 from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure,MultiScaleStructuralSimilarityIndexMeasure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+import torchvision.transforms.functional as TF
+
 from nerfstudio.cameras.cameras import Cameras
 from gsplat._torch_impl import quat_to_rotmat
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
@@ -39,7 +42,6 @@ import viser.transforms as vtf
 from nerfstudio.model_components.losses import scale_gauss_gradients_by_distance_squared
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
 
-from torchmetrics.image import StructuralSimilarityIndexMeasure
 from gsplat.rasterize import RasterizeGaussians
 from gsplat.project_gaussians import ProjectGaussians
 from nerfstudio.model_components.losses import depth_ranking_loss
@@ -633,9 +635,6 @@ class GaussianSplattingModel(Model):
         """
         d = self._get_downscale_factor()
         if d > 1:
-            # use torchvision to resize
-            import torchvision.transforms.functional as TF
-
             newsize = (batch["image"].shape[0] // d, batch["image"].shape[1] // d)
             gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize).permute(1, 2, 0)
         else:
@@ -660,9 +659,6 @@ class GaussianSplattingModel(Model):
         """
         d = self._get_downscale_factor()
         if d > 1:
-            # use torchvision to resize
-            import torchvision.transforms.functional as TF
-
             newsize = (batch["image"].shape[0] // d, batch["image"].shape[1] // d)
             gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize).permute(1, 2, 0)
         else:
