@@ -148,3 +148,7 @@ class ViewerConfig(PrintableConfig):
     """Quality tradeoff to use for jpeg compression."""
     make_share_url: bool = False
     """Viewer beta feature: print a shareable URL. `vis` must be set to viewer_beta; this flag is otherwise ignored."""
+    camera_frustum_scale: float = 0.1
+    """Scale for the camera frustums in the viewer."""
+    default_composite_depth: bool = True
+    """The default value for compositing depth. Turn off if you want to see the camera frustums without occlusions."""
