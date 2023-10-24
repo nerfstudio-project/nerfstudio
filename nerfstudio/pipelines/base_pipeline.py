@@ -383,12 +383,17 @@ class VanillaPipeline(Pipeline):
             transient=True,
         ) as progress:
             task = progress.add_task("[green]Evaluating all eval images...", total=num_images)
+            cameras = self.datamanager.fixed_indices_eval_dataloader.cameras
+            print(cameras)
             for camera_ray_bundle, batch in self.datamanager.fixed_indices_eval_dataloader:
                 # time this the following line
                 inner_start = time()
                 height, width = camera_ray_bundle.shape
                 num_rays = height * width
-                outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                # TODO: hardcoded for gsplat
+                # proposal: fix with new func get_outputs_for_camera
+                # get_outputs_for_camera: offload generate rays to new func; calls get_outputs_for_camera_ray_bundle
+                outputs = self.model.get_outputs_for_camera_ray_bundle(None, camera=cameras[camera_ray_bundle.camera_indices])
                 metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
 
                 if output_path is not None:
