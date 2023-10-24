@@ -330,7 +330,7 @@ class Nerfstudio(DataParser):
             },
         )
         return dataparser_outputs
-    
+
     def _load_3D_points(self, ply_file_path: Path, transform_matrix: torch.Tensor, scale_factor: float):
         pcd = o3d.io.read_point_cloud(str(ply_file_path))
 
@@ -346,7 +346,6 @@ class Nerfstudio(DataParser):
             @ transform_matrix.T
         )
         points3D *= scale_factor
-
         points3D_rgb = torch.from_numpy((np.asarray(pcd.colors) * 255).astype(np.uint8))
 
         out = {
