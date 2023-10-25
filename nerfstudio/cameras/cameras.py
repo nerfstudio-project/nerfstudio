@@ -872,6 +872,7 @@ class Cameras(TensorDataclass):
         times = self.times[camera_indices, 0] if self.times is not None else None
 
         return RayBundle(
+            camera=self,
             origins=origins,
             directions=directions,
             pixel_area=pixel_area,

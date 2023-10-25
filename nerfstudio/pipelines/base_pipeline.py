@@ -342,8 +342,7 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         image_idx, camera_ray_bundle, batch = self.datamanager.next_eval_image(step)
-        # TODO ginawu: refactor(?) for gsplat without this hardcoded camera param below
-        outputs = self.model.get_outputs_for_camera_ray_bundle(None, camera=camera_ray_bundle)
+        outputs = self.model.get_outputs_for_camera(camera_ray_bundle.camera)
         metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
         assert "image_idx" not in metrics_dict
         metrics_dict["image_idx"] = image_idx
@@ -383,17 +382,12 @@ class VanillaPipeline(Pipeline):
             transient=True,
         ) as progress:
             task = progress.add_task("[green]Evaluating all eval images...", total=num_images)
-            cameras = self.datamanager.fixed_indices_eval_dataloader.cameras
-            print(cameras)
             for camera_ray_bundle, batch in self.datamanager.fixed_indices_eval_dataloader:
                 # time this the following line
                 inner_start = time()
                 height, width = camera_ray_bundle.shape
                 num_rays = height * width
-                # TODO: hardcoded for gsplat
-                # proposal: fix with new func get_outputs_for_camera
-                # get_outputs_for_camera: offload generate rays to new func; calls get_outputs_for_camera_ray_bundle
-                outputs = self.model.get_outputs_for_camera_ray_bundle(None, camera=cameras[camera_ray_bundle.camera_indices])
+                outputs = self.model.get_outputs_for_camera(camera=camera_ray_bundle.camera)
                 metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
 
                 if output_path is not None:

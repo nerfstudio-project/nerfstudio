@@ -15,9 +15,11 @@
 """
 Some ray datastructures.
 """
+from __future__ import annotations
+
 import random
 from dataclasses import dataclass, field
-from typing import Callable, Dict, Literal, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Callable, Dict, Literal, Optional, Tuple, Union, overload
 
 import torch
 from jaxtyping import Float, Int, Shaped
@@ -25,6 +27,9 @@ from torch import Tensor
 
 from nerfstudio.utils.math import Gaussians, conical_frustum_to_gaussian
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
+
+if TYPE_CHECKING:
+    from nerfstudio.cameras.cameras import Cameras
 
 TORCH_DEVICE = Union[str, torch.device]
 
@@ -192,6 +197,8 @@ class RaySamples(TensorDataclass):
 class RayBundle(TensorDataclass):
     """A bundle of ray parameters."""
 
+    camera: Cameras
+    """Camera from which RayBundle is generated"""
     # TODO(ethan): make sure the sizes with ... are correct
     origins: Float[Tensor, "*batch 3"]
     """Ray origins (XYZ)"""
@@ -209,8 +216,6 @@ class RayBundle(TensorDataclass):
     """Additional metadata or data needed for interpolation, will mimic shape of rays"""
     times: Optional[Float[Tensor, "*batch 1"]] = None
     """Times at which rays are sampled"""
-
-    # TODO Camera
 
     def set_camera_indices(self, camera_index: int) -> None:
         """Sets all the camera indices to a specific camera index.
