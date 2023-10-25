@@ -121,6 +121,9 @@ class ExportPointCloud(Exporter):
     """Number of rays to evaluate per batch. Decrease if you run out of memory."""
     std_ratio: float = 10.0
     """Threshold based on STD of the average distances across the point cloud to remove outliers."""
+    save_world_frame: bool = True
+    """If true, saves in the frame of the transform.json file, if false saves in the frame of the scaled 
+        dataparser transform"""
 
     def main(self) -> None:
         """Export point cloud."""
@@ -157,6 +160,15 @@ class ExportPointCloud(Exporter):
             crop_obb=crop_obb,
             std_ratio=self.std_ratio,
         )
+        if self.save_world_frame:
+            # apply the inverse dataparser transform to the point cloud
+            points = np.asarray(pcd.points)
+            poses = np.eye(4,dtype=np.float32)[None,...].repeat(points.shape[0], axis=0)[:,:3,:]
+            poses[:,:3,3] = points
+            poses = pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(torch.from_numpy(poses))
+            points = poses[:,:3,3].numpy()
+            pcd.points = o3d.utility.Vector3dVector(points)
+
         torch.cuda.empty_cache()
 
         CONSOLE.print(f"[bold green]:white_check_mark: Generated {pcd}")
