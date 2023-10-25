@@ -170,8 +170,7 @@ class Model(nn.Module):
         Args: 
             camera: generates raybundle
         """
-        # TODO move ray generation here
-        raise NotImplementedError
+        return self.get_outputs_for_camera_ray_bundle(camera)
 
     @torch.no_grad()
     def get_outputs_for_camera_ray_bundle(

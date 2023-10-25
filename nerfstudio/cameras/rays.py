@@ -197,6 +197,7 @@ class RaySamples(TensorDataclass):
 class RayBundle(TensorDataclass):
     """A bundle of ray parameters."""
 
+    # TODO: this shape is mismatched
     camera: Cameras
     """Camera from which RayBundle is generated"""
     # TODO(ethan): make sure the sizes with ... are correct
