@@ -341,18 +341,13 @@ class VanillaPipeline(Pipeline):
             step: current iteration step
         """
         self.eval()
-        image_idx, camera_ray_bundle, batch = self.datamanager.next_eval_image(step)
-        outputs = self.model.get_outputs_for_camera(camera_ray_bundle)
+        camera, batch = self.datamanager.next_eval_image(step)
+        outputs = self.model.get_outputs_for_camera(camera)
         metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
-        assert "image_idx" not in metrics_dict
-        metrics_dict["image_idx"] = image_idx
+        # assert "image_idx" not in metrics_dict
+        # metrics_dict["image_idx"] = image_idx
         assert "num_rays" not in metrics_dict
-        if type(camera_ray_bundle) is Cameras:
-            metrics_dict["num_rays"] = (
-                camera_ray_bundle.height * camera_ray_bundle.width * camera_ray_bundle.size
-            ).item()
-        else:
-            metrics_dict["num_rays"] = len(camera_ray_bundle)
+        metrics_dict["num_rays"] = (camera.height * camera.width * camera.size).item()
         self.train()
         return metrics_dict, images_dict
 
@@ -382,21 +377,22 @@ class VanillaPipeline(Pipeline):
             transient=True,
         ) as progress:
             task = progress.add_task("[green]Evaluating all eval images...", total=num_images)
-            for camera_ray_bundle, batch in self.datamanager.fixed_indices_eval_dataloader:
+            for camera, batch in self.datamanager.fixed_indices_eval_dataloader:
                 # time this the following line
                 inner_start = time()
-                height, width = camera_ray_bundle.shape
+                outputs = self.model.get_outputs_for_camera(camera=camera)
+                height, width = camera.height, camera.width
                 num_rays = height * width
-                outputs = self.model.get_outputs_for_camera(camera=camera_ray_bundle.camera)
                 metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
-
-                if output_path is not None:
-                    camera_indices = camera_ray_bundle.camera_indices
-                    assert camera_indices is not None
-                    for key, val in images_dict.items():
-                        Image.fromarray((val * 255).byte().cpu().numpy()).save(
-                            output_path / "{0:06d}-{1}.jpg".format(int(camera_indices[0, 0, 0]), key)
-                        )
+                
+                # TODO (ginawu): figure out camera_indices
+                # if output_path is not None:
+                #     camera_indices = camera_ray_bundle.camera_indices
+                #     assert camera_indices is not None
+                #     for key, val in images_dict.items():
+                #         Image.fromarray((val * 255).byte().cpu().numpy()).save(
+                #             output_path / "{0:06d}-{1}.jpg".format(int(camera_indices[0, 0, 0]), key)
+                #         )
                 assert "num_rays_per_sec" not in metrics_dict
                 metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)
                 fps_str = "fps"

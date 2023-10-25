@@ -170,7 +170,7 @@ class Model(nn.Module):
         Args: 
             camera: generates raybundle
         """
-        return self.get_outputs_for_camera_ray_bundle(camera)
+        return self.get_outputs_for_camera_ray_bundle(camera.generate_rays(camera_indices=0, keep_shape=True))
 
     @torch.no_grad()
     def get_outputs_for_camera_ray_bundle(

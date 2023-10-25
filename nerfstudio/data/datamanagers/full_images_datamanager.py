@@ -218,10 +218,15 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 # crop the image and update the intrinsics accordingly
                 x, y, w, h = roi
                 image = image[y : y + h, x : x + w]
+                if 'mask' in data:
+                    data['mask'] = data['mask'][y : y + h, x : x + w]
+                if 'depth_image' in data:
+                    data['depth_image'] = data['depth_image'][y : y + h, x : x + w]
                 K = newK
                 # update the width, height
                 self.eval_dataset.cameras.width[i] = w
                 self.eval_dataset.cameras.height[i] = h
+
             elif camera.camera_type.item() == CameraType.FISHEYE.value:
                 distortion_params = np.array(
                     [distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]]
@@ -365,7 +370,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         camera = self.eval_dataset.cameras[image_idx : image_idx + 1].to(self.device)
         return camera, data
 
-    def next_eval_image(self, step: int) -> Tuple[int, Cameras, Dict]:
+    def next_eval_image(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next evaluation batch
 
         Returns a Camera instead of raybundle
@@ -379,4 +384,4 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         data["image"] = data["image"].to(self.device)
         assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
         camera = self.eval_dataset.cameras[image_idx: image_idx + 1].to(self.device)
-        return image_idx, camera, data
+        return camera, data

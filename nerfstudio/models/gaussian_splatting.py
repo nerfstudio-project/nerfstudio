@@ -641,7 +641,6 @@ class GaussianSplattingModel(Model):
             gt_img = batch["image"]
         metrics_dict = {}
         gt_rgb = gt_img.to(self.device)  # RGB or RGBA image
-        # gt_rgb = self.renderer_rgb.blend_background(gt_rgb)  # Blend if RGBA
         predicted_rgb = outputs["rgb"]
         metrics_dict["psnr"] = self.psnr(predicted_rgb, gt_rgb)
 
@@ -675,6 +674,8 @@ class GaussianSplattingModel(Model):
         Args: 
             camera: generates raybundle
         """
+        if isinstance(camera, RayBundle):
+            camera = camera.metadata["camera"]
         assert camera is not None, "must provide camera to gaussian model"
         outs = self.get_outputs(camera.to(self.device))
         return outs
@@ -706,8 +707,16 @@ class GaussianSplattingModel(Model):
         Returns:
             A dictionary of metrics.
         """
-        gt_rgb = batch["image"].to(self.device)
-        predicted_rgb = outputs["rgb"]  # Blended with background (black if random background)
+        d = self._get_downscale_factor()
+        if d > 1:
+            newsize = (batch["image"].shape[0] // d, batch["image"].shape[1] // d)
+            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize).permute(1, 2, 0)
+            predicted_rgb = TF.resize(outputs["rgb"].permute(2, 0, 1), newsize).permute(1, 2, 0)
+        else:
+            gt_img = batch["image"]
+            predicted_rgb = outputs["rgb"]
+
+        gt_rgb = gt_img.to(self.device)
 
         combined_rgb = torch.cat([gt_rgb, predicted_rgb], dim=1)
 
