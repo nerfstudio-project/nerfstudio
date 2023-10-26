@@ -161,7 +161,7 @@ class RenderStateMachine(threading.Thread):
                 pts = (R @ (pts.view(-1, 3).T)).T.view(*camera_ray_bundle.directions.shape)
                 outputs["gl_z_buf_depth"] = -pts[..., 2:3]  # negative z axis is the coordinate convention
         render_time = vis_t.duration
-        if writer.is_initialized():
+        if writer.is_initialized() and render_time != 0:
             writer.put_time(
                 name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=step, avg_over_steps=True
             )
@@ -172,8 +172,7 @@ class RenderStateMachine(threading.Thread):
         while self.running:
             if not self.render_trigger.wait(0.2):
                 # if we haven't received a trigger in a while, send a static action
-                if self.viewer.camera_state is not None:
-                    self.action(RenderAction(action="static", camera_state=self.viewer.camera_state))
+                self.action(RenderAction(action="static", camera_state=self.viewer.get_camera_state(self.client)))
             action = self.next_action
             self.render_trigger.clear()
             if action is None:
