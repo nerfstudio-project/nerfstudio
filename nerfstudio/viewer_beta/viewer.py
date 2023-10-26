@@ -154,6 +154,7 @@ class Viewer:
                 self._output_split_type_change,
                 self._toggle_training_state,
                 self.set_camera_visibility,
+                default_composite_depth=self.config.default_composite_depth,
             )
         config_path = self.log_filename.parents[0] / "config.yml"
         with tabs.add_tab("Render", viser.Icon.CAMERA):
@@ -331,7 +332,7 @@ class Viewer:
             camera_handle = self.viser_server.add_camera_frustum(
                 name=f"/cameras/camera_{idx:05d}",
                 fov=float(2 * np.arctan(camera.cx / camera.fx[0])),
-                scale=0.1,
+                scale=self.config.camera_frustum_scale,
                 aspect=float(camera.cx[0] / camera.cy[0]),
                 image=image_uint8,
                 wxyz=R.wxyz,
