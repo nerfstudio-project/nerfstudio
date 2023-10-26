@@ -589,8 +589,8 @@ def populate_render_tab(
                             Keyframe(
                                 position=pose.translation() * VISER_NERFSTUDIO_SCALE_RATIO,
                                 wxyz=pose.rotation().wxyz,
-                                override_fov_enabled=False,
-                                override_fov_value=frame["fov"],
+                                override_fov_enabled=True,
+                                override_fov_value=frame["fov"] / 180.0 * onp.pi,
                                 aspect=frame["aspect"],
                             ),
                         )
