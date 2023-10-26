@@ -297,6 +297,13 @@ def populate_render_tab(
         """Update the aspect ratio for all cameras when the resolution changes."""
         camera_path.update_aspect(resolution.value[0] / resolution.value[1])
 
+    camera_type = server.add_gui_dropdown(
+        "Camera Type",
+        ("Perspective", "Fisheye", "Equirectangular"),
+        initial_value="Perspective",
+        hint="Camera model to render with.",
+    )
+
     add_button = server.add_gui_button(
         "Add keyframe",
         icon=viser.Icon.PLUS,
@@ -584,7 +591,7 @@ def populate_render_tab(
                 }
             )
         json_data["keyframes"] = keyframes
-        json_data["camera_type"] = "perspective"
+        json_data["camera_type"] = camera_type.value.lower()
         json_data["render_height"] = resolution.value[1]
         json_data["render_width"] = resolution.value[0]
         json_data["fps"] = framerate_slider.value

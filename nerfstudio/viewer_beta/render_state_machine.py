@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 
 import torch
+from viser import ClientHandle
 from nerfstudio.model_components.renderers import background_color_override_context
 from nerfstudio.utils import colormaps, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
@@ -53,7 +54,7 @@ class RenderStateMachine(threading.Thread):
         viewer: the viewer state
     """
 
-    def __init__(self, viewer: Viewer, viser_scale_ratio: float):
+    def __init__(self, viewer: Viewer, viser_scale_ratio: float, client: ClientHandle):
         threading.Thread.__init__(self)
         self.transitions: Dict[RenderStates, Dict[RenderActions, RenderStates]] = {
             s: {} for s in get_args(RenderStates)
@@ -78,6 +79,8 @@ class RenderStateMachine(threading.Thread):
         self.daemon = True
         self.output_keys = {}
         self.viser_scale_ratio = viser_scale_ratio
+        self.client = client
+        self.running = True
 
     def action(self, action: RenderAction):
         """Takes an action and updates the state machine
@@ -108,7 +111,7 @@ class RenderStateMachine(threading.Thread):
         self.render_trigger.set()
 
     def _render_img(self, camera_state: CameraState):
-        """Takes the current camera, generates rays, and renders the iamge
+        """Takes the current camera, generates rays, and renders the image
 
         Args:
             camera_state: the current camera state
@@ -176,7 +179,7 @@ class RenderStateMachine(threading.Thread):
                     pass
                 else:
                     # convert to z_depth if depth compositing is enabled
-                    R = camera.camera_to_worlds[0:3, 0:3].T
+                    R = camera.camera_to_worlds[0,0:3, 0:3].T
                     pts = camera_ray_bundle.directions * outputs["depth"]
                     pts = (R @ (pts.view(-1, 3).T)).T.view(*camera_ray_bundle.directions.shape)
                     outputs["gl_z_buf_depth"] = -pts[..., 2:3]  # negative z axis is the coordinate convention
@@ -189,11 +192,10 @@ class RenderStateMachine(threading.Thread):
 
     def run(self):
         """Main loop for the render thread"""
-        while True:
-            if not self.render_trigger.wait(0.1):
+        while self.running:
+            if not self.render_trigger.wait(0.2):
                 # if we haven't received a trigger in a while, send a static action
-                if self.viewer.camera_state is not None:
-                    self.action(RenderAction(action="static", camera_state=self.viewer.camera_state))
+                self.action(RenderAction(action="static", camera_state=self.viewer.get_camera_state(self.client)))
             action = self.next_action
             self.render_trigger.clear()
             if action is None:
@@ -208,7 +210,7 @@ class RenderStateMachine(threading.Thread):
             except viewer_utils.IOChangeException:
                 # if we got interrupted, don't send the output to the viewer
                 continue
-            self._send_output_to_viewer(outputs,static_render = (action.action in ["static",'step']))
+            self._send_output_to_viewer(outputs, static_render=(action.action in ["static", "step"]))
 
     def check_interrupt(self, frame, event, arg):
         """Raises interrupt when flag has been set and not already on lowest resolution.
@@ -261,7 +263,7 @@ class RenderStateMachine(threading.Thread):
             outputs["gl_z_buf_depth"].cpu().numpy() * self.viser_scale_ratio if "gl_z_buf_depth" in outputs else None
         )
         jpg_quality = self.viewer.config.jpeg_quality if static_render else 40
-        self.viewer.viser_server.set_background_image(
+        self.client.set_background_image(
             selected_output.cpu().numpy(),
             format=self.viewer.config.image_format,
             jpeg_quality=jpg_quality,

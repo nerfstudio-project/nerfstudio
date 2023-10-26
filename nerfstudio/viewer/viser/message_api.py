@@ -501,8 +501,8 @@ class MessageApi(abc.ABC):
         """
         self._queue(
             messages.SceneBoxMessage(
-                min=tuple(scene_box.aabb[0].tolist()),
-                max=tuple(scene_box.aabb[1].tolist()),
+                min=tuple(scene_box.aabb[0].tolist()),  # type: ignore
+                max=tuple(scene_box.aabb[1].tolist()),  # type: ignore
             )
         )
 

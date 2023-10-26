@@ -41,6 +41,7 @@ from nerfstudio.data.datamanagers.base_datamanager import (
     VanillaDataManager,
 )
 from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
+from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatamanager
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
@@ -261,10 +262,13 @@ class VanillaPipeline(Pipeline):
         )
         # TODO make cleaner
         seed_pts = None
-        if hasattr(self.datamanager, "train_dataparser_outputs") and 'points3D_xyz' in self.datamanager.train_dataparser_outputs.metadata:
+        if (
+            hasattr(self.datamanager, "train_dataparser_outputs")
+            and "points3D_xyz" in self.datamanager.train_dataparser_outputs.metadata
+        ):
             pts = self.datamanager.train_dataparser_outputs.metadata["points3D_xyz"]
             pts_rgb = self.datamanager.train_dataparser_outputs.metadata["points3D_rgb"]
-            seed_pts = (pts,pts_rgb)
+            seed_pts = (pts, pts_rgb)
         self.datamanager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_dataset is not None, "Missing input dataset"
@@ -338,7 +342,8 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         image_idx, camera_ray_bundle, batch = self.datamanager.next_eval_image(step)
-        outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+        # TODO ginawu: refactor(?) for gsplat without this hardcoded camera param below
+        outputs = self.model.get_outputs_for_camera_ray_bundle(None, camera=camera_ray_bundle)
         metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
         assert "image_idx" not in metrics_dict
         metrics_dict["image_idx"] = image_idx
@@ -368,7 +373,7 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         metrics_dict_list = []
-        assert isinstance(self.datamanager, (VanillaDataManager, ParallelDataManager))
+        assert isinstance(self.datamanager, (VanillaDataManager, ParallelDataManager,FullImageDatamanager))
         num_images = len(self.datamanager.fixed_indices_eval_dataloader)
         with Progress(
             TextColumn("[progress.description]{task.description}"),
