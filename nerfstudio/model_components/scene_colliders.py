@@ -172,7 +172,9 @@ class NearFarCollider(SceneCollider):
     Args:
         near_plane: distance to near plane
         far_plane: distance to far plane
-        reset_near_plane: whether to reset the near plane to 0.0 during inference
+        reset_near_plane: whether to reset the near plane to 0.0 during inference. The near plane can be
+            helpful for reducing floaters during training, but it can cause clipping artifacts during
+            inference when an evaluation or viewer camera moves closer to the object.
     """
 
     def __init__(self, near_plane: float, far_plane: float, reset_near_plane: bool = True, **kwargs) -> None:
