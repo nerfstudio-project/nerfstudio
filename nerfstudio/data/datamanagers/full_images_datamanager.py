@@ -104,6 +104,11 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.train_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split="train")
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
+        if len(self.train_dataset) > 500 and self.config.cache_images == 'gpu':
+            CONSOLE.print(
+                "Train dataset has over 500 images, overriding cach_images to cpu", style="bold yellow"
+            )
+            self.config.cache_images = "cpu"
         self.cached_train, self.cached_eval = self.cache_images(self.config.cache_images)
         self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
         if self.config.masks_on_gpu is True:
@@ -265,6 +270,15 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 cache["image"] = cache["image"].to(self.device)
                 if "mask" in cache:
                     cache["mask"] = cache["mask"].to(self.device)
+        else:
+            for cache in cached_train:
+                cache["image"] = cache["image"].pin_memory()
+                if "mask" in cache:
+                    cache["mask"] = cache["mask"].pin_memory()
+            for cache in cached_eval:
+                cache["image"] = cache["image"].pin_memory()
+                if "mask" in cache:
+                    cache["mask"] = cache["mask"].pin_memory()
 
         return cached_train, cached_eval
 
