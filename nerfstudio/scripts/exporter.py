@@ -505,10 +505,10 @@ class ExportGaussianSplat(Exporter):
 
             colors = model.colors_all.data.cpu().numpy()
 
-            colors_diffuse = colors[:, 0, ..., np.newaxis]
+            colors = colors[:, 0, ..., np.newaxis]
             shs = colors[:, 1:].reshape((colors.shape[0], -1, 1))
 
-            for i in range(colors_diffuse.shape[1]):
+            for i in range(colors.shape[1]):
                 if i < 3:
                     map_to_tensors[f"f_dc_{i}"] = colors[:, i]
             for i in range(shs.shape[1]):
