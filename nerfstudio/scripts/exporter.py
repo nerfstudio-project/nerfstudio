@@ -163,10 +163,12 @@ class ExportPointCloud(Exporter):
         if self.save_world_frame:
             # apply the inverse dataparser transform to the point cloud
             points = np.asarray(pcd.points)
-            poses = np.eye(4,dtype=np.float32)[None,...].repeat(points.shape[0], axis=0)[:,:3,:]
-            poses[:,:3,3] = points
-            poses = pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(torch.from_numpy(poses))
-            points = poses[:,:3,3].numpy()
+            poses = np.eye(4, dtype=np.float32)[None, ...].repeat(points.shape[0], axis=0)[:, :3, :]
+            poses[:, :3, 3] = points
+            poses = pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(
+                torch.from_numpy(poses)
+            )
+            points = poses[:, :3, 3].numpy()
             pcd.points = o3d.utility.Vector3dVector(points)
 
         torch.cuda.empty_cache()
@@ -501,15 +503,16 @@ class ExportGaussianSplat(Exporter):
             map_to_tensors["positions"] = o3d.core.Tensor(positions, o3d.core.float32)
             map_to_tensors["normals"] = o3d.core.Tensor(np.zeros_like(positions), o3d.core.float32)
 
-            colors = model.colors.data.cpu().numpy()
-            for i in range(colors.shape[1]):
-                map_to_tensors[f"f_dc_{i}"] = colors[:, i]
+            colors = model.colors_all.data.cpu().numpy()
 
-            shs = model.shs_rest.data.cpu().numpy()
-            if shs.size > 0:
-                shs = shs.reshape((colors.shape[0], -1, 1))
-                for i in range(shs.shape[-1]):
-                    map_to_tensors[f"f_rest_{i}"] = shs[:, i]
+            colors = colors[:, 0, ..., np.newaxis]
+            shs = colors[:, 1:].reshape((colors.shape[0], -1, 1))
+
+            for i in range(colors.shape[1]):
+                if i < 3:
+                    map_to_tensors[f"f_dc_{i}"] = colors[:, i]
+            for i in range(shs.shape[1]):
+                map_to_tensors[f"f_rest_{i}"] = shs[:, i]
 
             map_to_tensors["opacity"] = model.opacities.data.cpu().numpy()
 
