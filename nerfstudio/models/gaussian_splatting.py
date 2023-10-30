@@ -659,16 +659,23 @@ class GaussianSplattingModel(Model):
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
         d = self._get_downscale_factor()
+        mask = batch.get("mask", None)
         if d > 1:
             # use torchvision to resize
             import torchvision.transforms.functional as TF
 
             newsize = (batch["image"].shape[0] // d, batch["image"].shape[1] // d)
             gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize).permute(1, 2, 0)
+            
+            if mask is not None:
+                mask = TF.resize(mask[None, ...], newsize)[0]
         else:
             gt_img = batch["image"]
-        
         gt_rgb = gt_img[..., :3]
+        
+        if mask is not None:
+            Ll1 = torch.abs(gt_rgb[mask] - outputs["rgb"][mask]).mean()
+            return {"main_loss": Ll1}
         Ll1 = torch.abs(gt_rgb - outputs["rgb"]).mean()
         simloss = 1 - self.ssim(gt_rgb.permute(2, 0, 1)[None, ...], outputs["rgb"].permute(2, 0, 1)[None, ...])
         return {"main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss}
