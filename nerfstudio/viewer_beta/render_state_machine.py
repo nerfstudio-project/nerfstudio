@@ -179,7 +179,7 @@ class RenderStateMachine(threading.Thread):
                     pass
                 else:
                     # convert to z_depth if depth compositing is enabled
-                    R = camera.camera_to_worlds[0:3, 0:3].T
+                    R = camera.camera_to_worlds[0,0:3, 0:3].T
                     pts = camera_ray_bundle.directions * outputs["depth"]
                     pts = (R @ (pts.view(-1, 3).T)).T.view(*camera_ray_bundle.directions.shape)
                     outputs["gl_z_buf_depth"] = -pts[..., 2:3]  # negative z axis is the coordinate convention

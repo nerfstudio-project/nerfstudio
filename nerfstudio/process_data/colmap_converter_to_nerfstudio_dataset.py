@@ -41,6 +41,9 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     refine_pixsfm: bool = False
     """If True, runs refinement using Pixel Perfect SFM.
     Only works with hloc sfm_tool"""
+    refine_intrinsics: bool = True
+    """If True, do bundle adjustment to refine intrinsics.
+    Only works with colmap sfm_tool"""
     feature_type: Literal[
         "any",
         "sift",
@@ -204,6 +207,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 gpu=self.gpu,
                 verbose=self.verbose,
                 matching_method=self.matching_method,
+                refine_intrinsics=self.refine_intrinsics,
                 colmap_cmd=self.colmap_cmd,
             )
         elif sfm_tool == "hloc":
