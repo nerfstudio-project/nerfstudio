@@ -104,10 +104,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.train_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split="train")
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
-        if len(self.train_dataset) > 500 and self.config.cache_images == 'gpu':
-            CONSOLE.print(
-                "Train dataset has over 500 images, overriding cach_images to cpu", style="bold yellow"
-            )
+        if len(self.train_dataset) > 500 and self.config.cache_images == "gpu":
+            CONSOLE.print("Train dataset has over 500 images, overriding cach_images to cpu", style="bold yellow")
             self.config.cache_images = "cpu"
         self.cached_train, self.cached_eval = self.cache_images(self.config.cache_images)
         self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
@@ -152,10 +150,10 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 # crop the image and update the intrinsics accordingly
                 x, y, w, h = roi
                 image = image[y : y + h, x : x + w]
-                if 'mask' in data:
-                    data['mask'] = data['mask'][y : y + h, x : x + w]
-                if 'depth_image' in data:
-                    data['depth_image'] = data['depth_image'][y : y + h, x : x + w]
+                if "mask" in data:
+                    data["mask"] = data["mask"][y : y + h, x : x + w]
+                if "depth_image" in data:
+                    data["depth_image"] = data["depth_image"][y : y + h, x : x + w]
                 K = newK
                 # update the width, height
                 self.train_dataset.cameras.width[i] = w
@@ -223,10 +221,10 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 # crop the image and update the intrinsics accordingly
                 x, y, w, h = roi
                 image = image[y : y + h, x : x + w]
-                if 'mask' in data:
-                    data['mask'] = data['mask'][y : y + h, x : x + w]
-                if 'depth_image' in data:
-                    data['depth_image'] = data['depth_image'][y : y + h, x : x + w]
+                if "mask" in data:
+                    data["mask"] = data["mask"][y : y + h, x : x + w]
+                if "depth_image" in data:
+                    data["depth_image"] = data["depth_image"][y : y + h, x : x + w]
                 K = newK
                 # update the width, height
                 self.eval_dataset.cameras.width[i] = w
@@ -339,7 +337,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             device=self.device,
             num_workers=self.world_size * 4,
         )
-    
+
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Get the param groups for the data manager.
         Returns:
@@ -397,5 +395,5 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         data = deepcopy(self.cached_eval[image_idx])
         data["image"] = data["image"].to(self.device)
         assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
-        camera = self.eval_dataset.cameras[image_idx: image_idx + 1].to(self.device)
+        camera = self.eval_dataset.cameras[image_idx : image_idx + 1].to(self.device)
         return camera, data

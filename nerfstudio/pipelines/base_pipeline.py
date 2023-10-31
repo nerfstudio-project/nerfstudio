@@ -26,14 +26,12 @@ from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Type, Uni
 
 import torch
 import torch.distributed as dist
-from PIL import Image
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeElapsedColumn
 from torch import nn
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datamanagers.base_datamanager import (
     DataManager,
@@ -367,7 +365,7 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         metrics_dict_list = []
-        assert isinstance(self.datamanager, (VanillaDataManager, ParallelDataManager,FullImageDatamanager))
+        assert isinstance(self.datamanager, (VanillaDataManager, ParallelDataManager, FullImageDatamanager))
         num_images = len(self.datamanager.fixed_indices_eval_dataloader)
         with Progress(
             TextColumn("[progress.description]{task.description}"),
@@ -384,8 +382,7 @@ class VanillaPipeline(Pipeline):
                 height, width = camera.height, camera.width
                 num_rays = height * width
                 metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
-                
-                # TODO (ginawu): figure out camera_indices
+
                 # if output_path is not None:
                 #     camera_indices = camera_ray_bundle.camera_indices
                 #     assert camera_indices is not None

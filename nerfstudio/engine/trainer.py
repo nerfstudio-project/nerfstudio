@@ -24,7 +24,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Lock
-from typing import Dict, List, Literal, Optional, Tuple, Type, cast,Union,Dict,DefaultDict
+from typing import Dict, List, Literal, Optional, Tuple, Type, cast, Dict, DefaultDict
 from collections import defaultdict
 import torch
 from nerfstudio.configs.experiment_config import ExperimentConfig
@@ -463,7 +463,9 @@ class Trainer:
             step: Current training step.
         """
 
-        needs_zero = [group for group in self.optimizers.parameters.keys() if step % self.gradient_accumulation_steps[group] == 0]
+        needs_zero = [
+            group for group in self.optimizers.parameters.keys() if step % self.gradient_accumulation_steps[group] == 0
+        ]
         self.optimizers.zero_grad_some(needs_zero)
         cpu_or_cuda_str: str = self.device.split(":")[0]
 
@@ -471,8 +473,12 @@ class Trainer:
             _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
             loss = functools.reduce(torch.add, loss_dict.values())
         self.grad_scaler.scale(loss).backward()  # type: ignore
-        needs_step = [group for group in self.optimizers.parameters.keys() if step % self.gradient_accumulation_steps[group] == self.gradient_accumulation_steps[group]-1]
-        self.optimizers.optimizer_scaler_step_some(self.grad_scaler,needs_step)
+        needs_step = [
+            group
+            for group in self.optimizers.parameters.keys()
+            if step % self.gradient_accumulation_steps[group] == self.gradient_accumulation_steps[group] - 1
+        ]
+        self.optimizers.optimizer_scaler_step_some(self.grad_scaler, needs_step)
 
         if self.config.log_gradients:
             total_grad = 0

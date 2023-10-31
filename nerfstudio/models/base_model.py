@@ -163,19 +163,21 @@ class Model(nn.Module):
         """
 
     @torch.no_grad()
-    def get_outputs_for_camera(
-        self, camera: Cameras, obb_box: Optional[OrientedBox] = None) -> Dict[str, torch.Tensor]:
-        """Takes in a camera, generates the raybundle, and computes the output of the model. 
+    def get_outputs_for_camera(self, camera: Cameras, obb_box: Optional[OrientedBox] = None) -> Dict[str, torch.Tensor]:
+        """Takes in a camera, generates the raybundle, and computes the output of the model.
         Assumes a ray-based model.
 
-        Args: 
+        Args:
             camera: generates raybundle
         """
-        return self.get_outputs_for_camera_ray_bundle(camera.generate_rays(camera_indices=0, keep_shape=True, obb_box=obb_box))
+        return self.get_outputs_for_camera_ray_bundle(
+            camera.generate_rays(camera_indices=0, keep_shape=True, obb_box=obb_box)
+        )
 
     @torch.no_grad()
     def get_outputs_for_camera_ray_bundle(
-        self, camera_ray_bundle: Union[RayBundle, Cameras]) -> Dict[str, torch.Tensor]:
+        self, camera_ray_bundle: Union[RayBundle, Cameras]
+    ) -> Dict[str, torch.Tensor]:
         """Takes in camera parameters and computes the output of the model.
 
         Args:

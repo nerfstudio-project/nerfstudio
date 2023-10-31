@@ -181,12 +181,11 @@ class EvalDataloader(DataLoader):
         Args:
             image_idx: Camera image index
         """
-        camera = self.cameras[image_idx: image_idx + 1]
+        camera = self.cameras[image_idx : image_idx + 1]
         batch = self.input_dataset[image_idx]
         batch = get_dict_to_torch(batch, device=self.device, exclude=["image"])
         assert isinstance(batch, dict)
         return camera, batch
-    
 
     def get_data_from_image_idx(self, image_idx: int) -> Tuple[RayBundle, Dict]:
         """Returns the data for a specific image index.

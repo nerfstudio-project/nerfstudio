@@ -151,13 +151,17 @@ class RenderStateMachine(threading.Thread):
                         )
                     with background_color_override_context(background_color), torch.no_grad():
                         if isGaussianSplattingModel:
-                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle, camera=camera)
+                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(
+                                camera_ray_bundle, camera=camera
+                            )
                         else:
                             outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                 else:
                     with torch.no_grad():
                         if isGaussianSplattingModel:
-                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle, camera=camera)
+                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(
+                                camera_ray_bundle, camera=camera
+                            )
                         else:
                             outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                 self.viewer.get_model().train()

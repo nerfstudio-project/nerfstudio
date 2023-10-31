@@ -27,6 +27,7 @@ from torch.nn.parameter import Parameter
 from nerfstudio.configs import base_config
 from nerfstudio.utils import writer
 
+
 # Optimizer related configs
 @dataclass
 class OptimizerConfig(base_config.PrintableConfig):
@@ -134,7 +135,7 @@ class Optimizers:
         for _, optimizer in self.optimizers.items():
             optimizer.zero_grad()
 
-    def zero_grad_some(self,param_groups: List[str]) -> None:
+    def zero_grad_some(self, param_groups: List[str]) -> None:
         """Zero the gradients for the given parameter groups."""
         for param_group in param_groups:
             optimizer = self.optimizers[param_group]

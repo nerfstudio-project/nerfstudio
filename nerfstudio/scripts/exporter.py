@@ -163,10 +163,12 @@ class ExportPointCloud(Exporter):
         if self.save_world_frame:
             # apply the inverse dataparser transform to the point cloud
             points = np.asarray(pcd.points)
-            poses = np.eye(4,dtype=np.float32)[None,...].repeat(points.shape[0], axis=0)[:,:3,:]
-            poses[:,:3,3] = points
-            poses = pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(torch.from_numpy(poses))
-            points = poses[:,:3,3].numpy()
+            poses = np.eye(4, dtype=np.float32)[None, ...].repeat(points.shape[0], axis=0)[:, :3, :]
+            poses[:, :3, 3] = points
+            poses = pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(
+                torch.from_numpy(poses)
+            )
+            points = poses[:, :3, 3].numpy()
             pcd.points = o3d.utility.Vector3dVector(points)
 
         torch.cuda.empty_cache()
