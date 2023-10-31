@@ -44,6 +44,7 @@ from gsplat.rasterize import RasterizeGaussians
 from gsplat.project_gaussians import ProjectGaussians
 from nerfstudio.model_components.losses import depth_ranking_loss
 from gsplat.sh import SphericalHarmonics, num_sh_bases
+from pytorch_msssim import  SSIM
 
 
 def random_quat_tensor(N, **kwargs):
@@ -123,7 +124,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     """number of extra points to add to the model in addition to sfm points, randomly distributed"""
     ssim_lambda: float = 0.2
     """weight of ssim loss"""
-    stop_split_at: int = 30000
+    stop_split_at: int = 15000
     """stop splitting at this step"""
     sh_degree: int = 4
     """maximum degree of spherical harmonics to use"""
@@ -183,7 +184,7 @@ class GaussianSplattingModel(Model):
 
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
-        self.ssim = StructuralSimilarityIndexMeasure()
+        self.ssim = SSIM(data_range=1.0, size_average=True, channel=3)
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
         self.step = 0
         
@@ -570,10 +571,6 @@ class GaussianSplattingModel(Model):
             tile_bounds,
         )
         
-        # if self.training:
-        #     # experimental gradient scaling for floater removal
-        #     depths_de = depths.detach()
-        #     opacities_crop = scale_gauss_gradients_by_distance_squared(opacities_crop,depths_de,far_dist=1,padding_eps=.3)
         # Important to allow xys grads to populate properly
         if self.training:
             self.xys.retain_grad()
@@ -581,10 +578,7 @@ class GaussianSplattingModel(Model):
             viewdirs = means_crop.detach() - camera.camera_to_worlds.detach()[..., :3, 3]  # (N, 3)
             viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
             n = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
-            n_coeffs = num_sh_bases(n)
-            coeffs = colors_crop[:, :n_coeffs, :]
-            #input expects (N, n_coeffs, 3)
-            rgbs = SphericalHarmonics.apply(n, viewdirs, coeffs)
+            rgbs = SphericalHarmonics.apply(n, viewdirs, colors_crop)
             rgbs = torch.clamp(rgbs + 0.5, 0.0, 1.0)
         else:
             rgbs = self.get_colors.squeeze()  # (N, 3)
