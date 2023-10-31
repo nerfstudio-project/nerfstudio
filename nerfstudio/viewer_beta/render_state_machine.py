@@ -131,7 +131,6 @@ class RenderStateMachine(threading.Thread):
         with TimeWriter(None, None, write=False) as vis_t:
             with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
                 if isinstance(self.viewer.get_model(), GaussianSplattingModel):
-                    camera_ray_bundle = None
                     self.viewer.get_model().set_crop(obb)
                     color = self.viewer.control_panel.background_color
                     background_color = torch.tensor(
@@ -156,22 +155,15 @@ class RenderStateMachine(threading.Thread):
                         with background_color_override_context(
                             background_color
                         ), torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
-                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(
-                                camera_ray_bundle, camera=camera
-                            )
+                            outputs = self.viewer.get_model().get_outputs_for_camera(camera=camera)
                     else:
                         with torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
-                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(
-                                camera_ray_bundle, camera=camera
-                            )
+                            outputs = self.viewer.get_model().get_outputs_for_camera(camera=camera)
                 except viewer_utils.IOChangeException:
                     self.viewer.get_model().train()
                     raise
                 self.viewer.get_model().train()
-            if isinstance(self.viewer.get_model(), GaussianSplattingModel):
-                num_rays = image_height * image_width
-            else:
-                num_rays = len(camera_ray_bundle)
+            num_rays = (camera.height * camera.width * camera.size).item()
             if self.viewer.control_panel.layer_depth:
                 if isinstance(self.viewer.get_model(), GaussianSplattingModel):
                     # TODO: sending depth at high resolution lags the network a lot, figure out how to do this more efficiently

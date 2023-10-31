@@ -31,7 +31,7 @@ from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.configs.config_utils import to_immutable_dict
-from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.data.scene_box import SceneBox, OrientedBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.scene_colliders import NearFarCollider
 
@@ -163,14 +163,15 @@ class Model(nn.Module):
         """
 
     @torch.no_grad()
-    def get_outputs_for_camera(self, camera: Cameras) -> Dict[str, torch.Tensor]:
+    def get_outputs_for_camera(
+        self, camera: Cameras, obb_box: Optional[OrientedBox] = None) -> Dict[str, torch.Tensor]:
         """Takes in a camera, generates the raybundle, and computes the output of the model. 
         Assumes a ray-based model.
 
         Args: 
             camera: generates raybundle
         """
-        return self.get_outputs_for_camera_ray_bundle(camera.generate_rays(camera_indices=0, keep_shape=True))
+        return self.get_outputs_for_camera_ray_bundle(camera.generate_rays(camera_indices=0, keep_shape=True, obb_box=obb_box))
 
     @torch.no_grad()
     def get_outputs_for_camera_ray_bundle(
