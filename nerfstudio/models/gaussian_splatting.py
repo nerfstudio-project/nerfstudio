@@ -43,7 +43,7 @@ from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimize
 from gsplat.rasterize import RasterizeGaussians
 from gsplat.project_gaussians import ProjectGaussians
 from gsplat.sh import SphericalHarmonics, num_sh_bases
-from pytorch_msssim import  SSIM
+from pytorch_msssim import SSIM
 
 
 def random_quat_tensor(N, **kwargs):
