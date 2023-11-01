@@ -105,6 +105,8 @@ class Viewer:
 
         self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port, share=share)
         # Set the name of the URL either to the share link if available, or the localhost
+        # TODO: we should revisit this once a public API for share URL status is exposed in viser.
+        # https://github.com/nerfstudio-project/viser/issues/124
         if share:
             assert self.viser_server._share_tunnel is not None
             while self.viser_server._share_tunnel._shared_state["status"] == "connecting":
