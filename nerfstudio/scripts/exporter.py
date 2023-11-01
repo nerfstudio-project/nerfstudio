@@ -502,11 +502,12 @@ class ExportGaussianSplat(Exporter):
             map_to_tensors["normals"] = o3d.core.Tensor(np.zeros_like(positions), o3d.core.float32)
 
             colors = model.colors.data.cpu().numpy()
+            map_to_tensors["colors"] = (colors * 255).astype(np.uint8)
             for i in range(colors.shape[1]):
-                map_to_tensors[f"f_dc_{i}"] = colors[:, i]
+                map_to_tensors[f"f_dc_{i}"] = colors[:, i:i+1]
 
             shs = model.shs_rest.data.cpu().numpy()
-            if shs.size > 0:
+            if model.config.sh_degree > 0:
                 shs = shs.reshape((colors.shape[0], -1, 1))
                 for i in range(shs.shape[-1]):
                     map_to_tensors[f"f_rest_{i}"] = shs[:, i]

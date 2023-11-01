@@ -66,6 +66,9 @@ def RGB2SH(rgb):
     C0 = 0.28209479177387814
     return (rgb - 0.5) / C0
 
+def SH2RGB(sh):
+    C0 = 0.28209479177387814
+    return sh * C0 + 0.5
 
 def projection_matrix(znear, zfar, fovx, fovy, device="cpu"):
     t = znear * math.tan(0.5 * fovy)
@@ -196,8 +199,12 @@ class GaussianSplattingModel(Model):
         )
 
     @property
-    def get_colors(self):
-        return self.colors_all
+    def colors(self):
+        return SH2RGB(self.colors_all[:, 0, :])
+    
+    @property
+    def shs_rest(self):
+        return self.colors_all[:, 1:, :]
 
     def load_state_dict(self, dict, **kwargs):
         # resize the parameters to match the new number of points
@@ -546,13 +553,13 @@ class GaussianSplattingModel(Model):
         if crop_ids is not None:
             opacities_crop = self.opacities[crop_ids]
             means_crop = self.means[crop_ids]
-            colors_crop = self.get_colors[crop_ids]
+            colors_crop = self.colors_all[crop_ids]
             scales_crop = self.scales[crop_ids]
             quats_crop = self.quats[crop_ids]
         else:
             opacities_crop = self.opacities
             means_crop = self.means
-            colors_crop = self.get_colors
+            colors_crop = self.colors_all
             scales_crop = self.scales
             quats_crop = self.quats
         self.xys, depths, self.radii, conics, num_tiles_hit, cov3d = ProjectGaussians.apply(
