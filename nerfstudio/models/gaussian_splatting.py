@@ -65,9 +65,11 @@ def RGB2SH(rgb):
     C0 = 0.28209479177387814
     return (rgb - 0.5) / C0
 
+
 def SH2RGB(sh):
     C0 = 0.28209479177387814
     return sh * C0 + 0.5
+
 
 def projection_matrix(znear, zfar, fovx, fovy, device="cpu"):
     t = znear * math.tan(0.5 * fovy)
@@ -199,7 +201,7 @@ class GaussianSplattingModel(Model):
     @property
     def colors(self):
         return SH2RGB(self.colors_all[:, 0, :])
-    
+
     @property
     def shs_rest(self):
         return self.colors_all[:, 1:, :]
@@ -581,7 +583,7 @@ class GaussianSplattingModel(Model):
             W,
             tile_bounds,
         )
-        
+
         # Important to allow xys grads to populate properly
         if self.training:
             self.xys.retain_grad()

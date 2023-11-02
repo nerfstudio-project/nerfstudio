@@ -95,7 +95,6 @@ class Viewer:
             websocket_port = self.config.websocket_port
         self.log_filename.parent.mkdir(exist_ok=True)
 
-
         # viewer specific variables
         self.output_type_changed = True
         self.output_split_type_changed = True

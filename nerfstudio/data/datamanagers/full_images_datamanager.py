@@ -401,5 +401,3 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
         camera = self.eval_dataset.cameras[image_idx : image_idx + 1].to(self.device)
         return camera, data
-    
-

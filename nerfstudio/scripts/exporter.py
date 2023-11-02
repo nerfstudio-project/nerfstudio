@@ -506,7 +506,7 @@ class ExportGaussianSplat(Exporter):
             colors = model.colors.data.cpu().numpy()
             map_to_tensors["colors"] = (colors * 255).astype(np.uint8)
             for i in range(colors.shape[1]):
-                map_to_tensors[f"f_dc_{i}"] = colors[:, i:i+1]
+                map_to_tensors[f"f_dc_{i}"] = colors[:, i : i + 1]
 
             shs = model.shs_rest.data.cpu().numpy()
             if model.config.sh_degree > 0:

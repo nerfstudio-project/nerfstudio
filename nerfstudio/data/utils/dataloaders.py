@@ -252,17 +252,21 @@ class RandIndicesEvalDataloader(EvalDataloader):
         camera, batch = self.get_camera(image_idx)
         return camera, batch
 
+
 from copy import deepcopy
+
+
 class GaussianEvalDataloader(EvalDataloader):
     """Dataloader that returns random images.
     Args:
         input_dataset: InputDataset to load data from
         device: Device to load data to
     """
+
     def __init__(
-        self, 
+        self,
         input_dataset: InputDataset,
-        eval_unseen_cameras, 
+        eval_unseen_cameras,
         cached_eval,
         **kwargs,
     ):
