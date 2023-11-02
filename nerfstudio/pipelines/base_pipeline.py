@@ -392,12 +392,11 @@ class VanillaPipeline(Pipeline):
                 #             output_path / "{0:06d}-{1}.jpg".format(int(camera_indices[0, 0, 0]), key)
                 #         )
 
-                # TODO: needed for gsplat??
-                # assert "num_rays_per_sec" not in metrics_dict
-                # metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)
-                # fps_str = "fps"
-                # assert fps_str not in metrics_dict
-                # metrics_dict[fps_str] = metrics_dict["num_rays_per_sec"] / (height * width)
+                assert "num_rays_per_sec" not in metrics_dict
+                metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)
+                fps_str = "fps"
+                assert fps_str not in metrics_dict
+                metrics_dict[fps_str] = metrics_dict["num_rays_per_sec"] / (height * width)
                 metrics_dict_list.append(metrics_dict)
                 progress.advance(task)
         # average the metrics list

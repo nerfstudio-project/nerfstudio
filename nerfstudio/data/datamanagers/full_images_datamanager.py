@@ -40,7 +40,7 @@ from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManag
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.utils.dataloaders import FixedIndicesEvalDataloader, GaussianEvalDataloader
+from nerfstudio.data.utils.dataloaders import GaussianEvalDataloader
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
