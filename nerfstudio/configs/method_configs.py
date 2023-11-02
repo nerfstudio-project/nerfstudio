@@ -600,10 +600,10 @@ method_configs["neus-facto"] = TrainerConfig(
 
 method_configs["gaussian-splatting"] = TrainerConfig(
     method_name="gaussian-splatting",
-    steps_per_eval_image=100,
-    steps_per_eval_batch=100,
+    steps_per_eval_image=50,
+    steps_per_eval_batch=50,
     steps_per_save=2000,
-    steps_per_eval_all_images=1000,
+    steps_per_eval_all_images=100,
     max_num_iterations=30000,
     mixed_precision=False,
     gradient_accumulation_steps={"camera_opt": 100, "color": 10, "shs": 10},

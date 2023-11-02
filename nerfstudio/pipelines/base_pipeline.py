@@ -375,6 +375,7 @@ class VanillaPipeline(Pipeline):
             transient=True,
         ) as progress:
             task = progress.add_task("[green]Evaluating all eval images...", total=num_images)
+            print(self.datamanager.fixed_indices_eval_dataloader)
             for camera, batch in self.datamanager.fixed_indices_eval_dataloader:
                 # time this the following line
                 inner_start = time()
@@ -390,11 +391,13 @@ class VanillaPipeline(Pipeline):
                 #         Image.fromarray((val * 255).byte().cpu().numpy()).save(
                 #             output_path / "{0:06d}-{1}.jpg".format(int(camera_indices[0, 0, 0]), key)
                 #         )
-                assert "num_rays_per_sec" not in metrics_dict
-                metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)
-                fps_str = "fps"
-                assert fps_str not in metrics_dict
-                metrics_dict[fps_str] = metrics_dict["num_rays_per_sec"] / (height * width)
+
+                # TODO: needed for gsplat??
+                # assert "num_rays_per_sec" not in metrics_dict
+                # metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)
+                # fps_str = "fps"
+                # assert fps_str not in metrics_dict
+                # metrics_dict[fps_str] = metrics_dict["num_rays_per_sec"] / (height * width)
                 metrics_dict_list.append(metrics_dict)
                 progress.advance(task)
         # average the metrics list

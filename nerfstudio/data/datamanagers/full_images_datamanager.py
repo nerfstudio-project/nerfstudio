@@ -40,7 +40,7 @@ from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManag
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.utils.dataloaders import FixedIndicesEvalDataloader
+from nerfstudio.data.utils.dataloaders import FixedIndicesEvalDataloader, GaussianEvalDataloader
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -332,10 +332,14 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
-        self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
+        assert self.eval_dataset is not None
+        CONSOLE.print("Setting up evaluation dataset...")
+        self.fixed_indices_eval_dataloader = GaussianEvalDataloader(
             input_dataset=self.eval_dataset,
             device=self.device,
             num_workers=self.world_size * 4,
+            eval_unseen_cameras=self.eval_unseen_cameras,
+            cached_eval=self.cached_eval,
         )
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
@@ -397,3 +401,5 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
         camera = self.eval_dataset.cameras[image_idx : image_idx + 1].to(self.device)
         return camera, data
+    
+

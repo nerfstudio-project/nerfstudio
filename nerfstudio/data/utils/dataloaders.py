@@ -251,3 +251,39 @@ class RandIndicesEvalDataloader(EvalDataloader):
         image_idx = random.randint(0, len(self.cameras) - 1)
         camera, batch = self.get_camera(image_idx)
         return camera, batch
+
+from copy import deepcopy
+class GaussianEvalDataloader(EvalDataloader):
+    """Dataloader that returns random images.
+    Args:
+        input_dataset: InputDataset to load data from
+        device: Device to load data to
+    """
+    def __init__(
+        self, 
+        input_dataset: InputDataset,
+        eval_unseen_cameras, 
+        cached_eval,
+        **kwargs,
+    ):
+        super().__init__(input_dataset, **kwargs)
+        self.eval_unseen_cameras = eval_unseen_cameras
+        self.eval_dataset = input_dataset
+        self.cached_eval = cached_eval
+        self.count = 0
+        self.image_indices = list(range(len(self.eval_unseen_cameras)))
+
+    def __iter__(self):
+        self.count = 0
+        return self
+
+    def __next__(self):
+        if self.count < len(self.image_indices):
+            image_idx = self.image_indices[self.count]
+            data = deepcopy(self.cached_eval[image_idx])
+            data["image"] = data["image"].to(self.device)
+            assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
+            camera = self.eval_dataset.cameras[image_idx : image_idx + 1].to(self.device)
+            self.count += 1
+            return camera, data
+        raise StopIteration
