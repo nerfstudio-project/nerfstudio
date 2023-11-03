@@ -25,7 +25,7 @@ from nerfstudio.cameras.rays import RayBundle
 
 import torch
 from torch.nn import Parameter
-from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
+from torchmetrics.image import PeakSignalNoiseRatio
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 import torchvision.transforms.functional as TF
 

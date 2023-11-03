@@ -42,6 +42,8 @@ from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataPars
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
+
+
 @dataclass
 class FullImageDatamanagerConfig(DataManagerConfig):
     _target: Type = field(default_factory=lambda: FullImageDatamanager)
@@ -326,10 +328,10 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
     def setup_train(self):
         """Sets up the data loaders for training"""
-    
+
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
-       
+
     @property
     def fixed_indices_eval_dataloader(self):
         self.image_indices = list(range(len(self.eval_unseen_cameras)))
