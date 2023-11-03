@@ -375,7 +375,6 @@ class VanillaPipeline(Pipeline):
             transient=True,
         ) as progress:
             task = progress.add_task("[green]Evaluating all eval images...", total=num_images)
-            print(self.datamanager.fixed_indices_eval_dataloader)
             for camera, batch in self.datamanager.fixed_indices_eval_dataloader:
                 # time this the following line
                 inner_start = time()

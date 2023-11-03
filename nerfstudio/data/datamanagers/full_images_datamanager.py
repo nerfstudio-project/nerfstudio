@@ -40,11 +40,8 @@ from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManag
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.utils.dataloaders import GaussianEvalDataloader
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
-
-
 @dataclass
 class FullImageDatamanagerConfig(DataManagerConfig):
     _target: Type = field(default_factory=lambda: FullImageDatamanager)
@@ -329,18 +326,21 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
     def setup_train(self):
         """Sets up the data loaders for training"""
-
+    
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
-        assert self.eval_dataset is not None
-        CONSOLE.print("Setting up evaluation dataset...")
-        self.fixed_indices_eval_dataloader = GaussianEvalDataloader(
-            input_dataset=self.eval_dataset,
-            device=self.device,
-            num_workers=self.world_size * 4,
-            eval_unseen_cameras=self.eval_unseen_cameras,
-            cached_eval=self.cached_eval,
-        )
+       
+    @property
+    def fixed_indices_eval_dataloader(self):
+        self.image_indices = list(range(len(self.eval_unseen_cameras)))
+        data = deepcopy(self.cached_eval)
+        _cameras = deepcopy(self.eval_dataset.cameras).to(self.device)
+        cameras = []
+        for i in self.image_indices:
+            data[i]["image"] = data[i]["image"].to(self.device)
+            cameras.append(_cameras[i : i + 1])
+        assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
+        return list(zip(cameras, data))
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Get the param groups for the data manager.
