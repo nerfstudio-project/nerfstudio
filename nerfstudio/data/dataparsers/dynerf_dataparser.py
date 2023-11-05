@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Type, Union
+from typing import List, Type, Union
 
 import cv2
 import h5py

@@ -143,6 +143,15 @@ class DyNeRFDataManagerConfig(VanillaDataManagerConfig):
 
 
 class DyNeRFDataManager(DataManager, Generic[TDataset]):
+    """DataManager for Neural 3D Video Synthesis Dataset"""
+
+    config: DyNeRFDataManagerConfig
+    train_dataset: TDataset
+    eval_dataset: TDataset
+    train_dataparser_outputs: DataparserOutputs
+    train_pixel_sampler: Optional[PixelSampler] = None
+    eval_pixel_sampler: Optional[PixelSampler] = None
+
     def __init__(
         self,
         config: DyNeRFDataManagerConfig,
