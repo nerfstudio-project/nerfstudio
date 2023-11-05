@@ -45,6 +45,7 @@ class ControlPanel:
             (eg train speed, max res, etc)
         crop_update_cb: a callback that will be called when the user changes the crop parameters
         update_output_cb: a callback that will be called when the user changes the output render
+        default_composite_depth: whether to default to compositing depth or not
     """
 
     def __init__(
@@ -58,11 +59,13 @@ class ControlPanel:
         update_split_output_cb: Callable,
         toggle_training_state_cb: Callable,
         camera_vis: Callable,
+        default_composite_depth: bool = True,
     ):
         self.viser_scale_ratio = scale_ratio
         # elements holds a mapping from tag: [elements]
         self.viser_server = viser_server
         self._elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
+        self.default_composite_depth = default_composite_depth
 
         self._train_speed = ViewerButtonGroup(
             name="Train Speed",
@@ -131,7 +134,10 @@ class ControlPanel:
             hint="Target training utilization, 0.0 is slow, 1.0 is fast. Doesn't affect final render quality",
         )
         self._layer_depth = ViewerCheckbox(
-            "Composite Depth", True, cb_hook=rerender_cb, hint="Allow NeRF to occlude 3D browser objects"
+            "Composite Depth",
+            self.default_composite_depth,
+            cb_hook=rerender_cb,
+            hint="Allow NeRF to occlude 3D browser objects",
         )
         self._max_res = ViewerSlider(
             "Max Res", 512, 64, 2048, 100, cb_hook=rerender_cb, hint="Maximum resolution to render in viewport"

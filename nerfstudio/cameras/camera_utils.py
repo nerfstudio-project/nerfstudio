@@ -407,7 +407,7 @@ def _compute_residual_and_jacobian(
     return fx, fy, fx_x, fx_y, fy_x, fy_y
 
 
-@torch_compile(dynamic=True, mode="reduce-overhead", backend="eager")
+@torch_compile(dynamic=True, mode="reduce-overhead")
 def radial_and_tangential_undistort(
     coords: torch.Tensor,
     distortion_params: torch.Tensor,

@@ -95,8 +95,6 @@ class Viewer:
             websocket_port = self.config.websocket_port
         self.log_filename.parent.mkdir(exist_ok=True)
 
-        self.viewer_url = viewer_utils.get_viewer_url(websocket_port)
-
         # viewer specific variables
         self.output_type_changed = True
         self.output_split_type_changed = True
@@ -106,6 +104,21 @@ class Viewer:
         self.last_move_time = 0
 
         self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port, share=share)
+        # Set the name of the URL either to the share link if available, or the localhost
+        # TODO: we should revisit this once a public API for share URL status is exposed in viser.
+        # https://github.com/nerfstudio-project/viser/issues/124
+        if share:
+            assert self.viser_server._share_tunnel is not None
+            while self.viser_server._share_tunnel._shared_state["status"] == "connecting":
+                # wait for connection before grabbing URL
+                time.sleep(0.01)
+            url_maybe = self.viser_server._share_tunnel.get_url()
+            if url_maybe is not None:
+                self.viewer_url = url_maybe
+            else:
+                self.viewer_url = f"http://{config.websocket_host}:{websocket_port}"
+        else:
+            self.viewer_url = f"http://{config.websocket_host}:{websocket_port}"
         buttons = (
             viser.theme.TitlebarButton(
                 text="Getting Started",
@@ -154,6 +167,7 @@ class Viewer:
                 self._output_split_type_change,
                 self._toggle_training_state,
                 self.set_camera_visibility,
+                default_composite_depth=self.config.default_composite_depth,
             )
         config_path = self.log_filename.parents[0] / "config.yml"
         with tabs.add_tab("Render", viser.Icon.CAMERA):
@@ -331,7 +345,7 @@ class Viewer:
             camera_handle = self.viser_server.add_camera_frustum(
                 name=f"/cameras/camera_{idx:05d}",
                 fov=float(2 * np.arctan(camera.cx / camera.fx[0])),
-                scale=0.1,
+                scale=self.config.camera_frustum_scale,
                 aspect=float(camera.cx[0] / camera.cy[0]),
                 image=image_uint8,
                 wxyz=R.wxyz,
