@@ -312,7 +312,7 @@ class DyNeRFDataManager(DataManager, Generic[TDataset]):
                 self.train_num_cameras, image_batch["image"].shape[1], image_batch["image"].shape[2]
             )
             for camera in range(self.train_num_cameras):
-                importance_weights[camera] = torch.from_numpy(self.isg_cache_f[f"weights/{camera}"][frame_idx])
+                importance_weights[camera] = torch.from_numpy(self.isg_cache_f[f"weights/{camera}"][frame_idx])  # type: ignore
             importance_weights = torch.tensor(importance_weights)
             importance_weights /= importance_weights.sum()
             image_batch["importance"] = importance_weights
@@ -321,7 +321,7 @@ class DyNeRFDataManager(DataManager, Generic[TDataset]):
                 self.train_num_cameras, image_batch["image"].shape[1], image_batch["image"].shape[2]
             )
             for camera in range(self.train_num_cameras):
-                importance_weights[camera] = torch.from_numpy(self.ist_cache_f[f"weights/{camera}"][frame_idx])
+                importance_weights[camera] = torch.from_numpy(self.ist_cache_f[f"weights/{camera}"][frame_idx])  # type: ignore
             importance_weights = torch.tensor(importance_weights)
             importance_weights /= importance_weights.sum()
             image_batch["importance"] = importance_weights

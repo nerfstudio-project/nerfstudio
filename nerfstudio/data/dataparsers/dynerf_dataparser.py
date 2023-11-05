@@ -65,7 +65,7 @@ class DyNeRF(DataParser):
         out_folder = self.data / f"x{self.downscale_factor}" / camera_name
         if not out_folder.exists():
             CONSOLE.print(f"Downscale {video_path} to {out_folder}")
-            cap = cv2.VideoCapture(str(video_path))
+            cap = cv2.VideoCapture(str(video_path))  # type: ignore
             assert cap.isOpened(), f"Unable to open {video_path}"
 
             out_folder.mkdir(parents=True)
@@ -75,7 +75,7 @@ class DyNeRF(DataParser):
             h, w = ori_h // self.downscale_factor, ori_w // self.downscale_factor
             while ret:
                 out_path = out_folder / f"{frame_id:05d}.png"
-                cv2.imwrite(str(out_path), cv2.resize(frame, (w, h)))
+                cv2.imwrite(str(out_path), cv2.resize(frame, (w, h)))  # type: ignore
                 frame_id += 1
                 ret, frame = cap.read()
         all_frames = len(list(out_folder.iterdir()))
@@ -168,7 +168,8 @@ class DyNeRF(DataParser):
                     CONSOLE.print(f"Computing ISG of {aligned_image_paths[0, i].parent}")
                     imgs = torch.empty((num_frames, height, width, 3), dtype=torch.float32)
                     for j in range(num_frames):
-                        imgs[j] = torch.tensor(cv2.imread(str(aligned_image_paths[j, i])).astype(np.float32) / 255.0)
+                        img_u8 = cv2.imread(str(aligned_image_paths[j, i]))  # type: ignore
+                        imgs[j] = torch.tensor(img_u8.astype(np.float32) / 255.0)
                     imgs = imgs.to(precompute_device)
 
                     diffsq = (imgs - torch.median(imgs, dim=0).values).square()
@@ -214,7 +215,8 @@ class DyNeRF(DataParser):
                     CONSOLE.print(f"Computing IST of {aligned_image_paths[0,i].parent}")
                     imgs = torch.empty((num_frames, height, width, 3), dtype=torch.float32)
                     for j in range(num_frames):
-                        imgs[j] = torch.tensor(cv2.imread(str(aligned_image_paths[j, i])).astype(np.float32) / 255.0)
+                        img_u8 = cv2.imread(str(aligned_image_paths[j, i]))  # type: ignore
+                        imgs[j] = torch.tensor(img_u8.astype(np.float32) / 255.0)
                     imgs = imgs.to(precompute_device)
 
                     max_diff = torch.zeros_like(imgs[0])
