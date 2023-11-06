@@ -100,6 +100,7 @@ class PixelSampler:
         ).long()
 
         if isinstance(mask, torch.Tensor):
+            num_valid = 0
             for _ in range(max_num_iterations):
                 c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
                 chosen_indices_validity = mask[..., 0][c, y, x].bool()
