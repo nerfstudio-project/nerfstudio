@@ -84,7 +84,7 @@ class PixelSampler:
         image_width: int,
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
-        max_num_iterations = 100
+        max_num_iterations=100,
     ) -> Int[Tensor, "batch_size 3"]:
         """
         Naive pixel sampler, uniformly samples across all possible pixels of all possible images.
@@ -112,10 +112,10 @@ class PixelSampler:
                         * torch.tensor([num_images, image_height, image_width], device=device)
                     ).long()
                     indices[~chosen_indices_validity] = replacement_indices
-            
+
             if num_valid != batch_size:
                 raise RuntimeWarning("masked sampling failed, mask is either empty or mostly empty")
-        
+
         return indices
 
     def sample_method_equirectangular(
