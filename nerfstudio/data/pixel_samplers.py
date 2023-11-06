@@ -104,7 +104,7 @@ class PixelSampler:
             for _ in range(max_num_iterations):
                 c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
                 chosen_indices_validity = mask[..., 0][c, y, x].bool()
-                num_valid = torch.sum(chosen_indices_validity)
+                num_valid = torch.sum(chosen_indices_validity).item()
                 if num_valid == batch_size:
                     break
                 else:
