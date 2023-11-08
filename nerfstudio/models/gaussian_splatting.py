@@ -636,7 +636,7 @@ class GaussianSplattingModel(Model):
         d = self._get_downscale_factor()
         if d > 1:
             newsize = (batch["image"].shape[0] // d, batch["image"].shape[1] // d)
-            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize).permute(1, 2, 0)
+            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
             gt_img = batch["image"]
         metrics_dict = {}
@@ -659,7 +659,7 @@ class GaussianSplattingModel(Model):
         d = self._get_downscale_factor()
         if d > 1:
             newsize = (batch["image"].shape[0] // d, batch["image"].shape[1] // d)
-            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize).permute(1, 2, 0)
+            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
             gt_img = batch["image"]
         Ll1 = torch.abs(gt_img - outputs["rgb"]).mean()
@@ -703,8 +703,8 @@ class GaussianSplattingModel(Model):
         d = self._get_downscale_factor()
         if d > 1:
             newsize = (batch["image"].shape[0] // d, batch["image"].shape[1] // d)
-            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize).permute(1, 2, 0)
-            predicted_rgb = TF.resize(outputs["rgb"].permute(2, 0, 1), newsize).permute(1, 2, 0)
+            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
+            predicted_rgb = TF.resize(outputs["rgb"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
             gt_img = batch["image"]
             predicted_rgb = outputs["rgb"]
