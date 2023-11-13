@@ -18,9 +18,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from nerfstudio.process_data import equirect_utils, process_data_utils
-from nerfstudio.process_data.colmap_converter_to_nerfstudio_dataset import (
-    ColmapConverterToNerfstudioDataset,
-)
+from nerfstudio.process_data.colmap_converter_to_nerfstudio_dataset import ColmapConverterToNerfstudioDataset
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
@@ -31,6 +29,9 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
     1. Scales images to a specified size.
     2. Calculates the camera poses for each image using `COLMAP <https://colmap.github.io/>`_.
     """
+
+    percent_radius_crop: float = 1.0
+    """Create circle crop mask. The radius is the percent of the image diagonal."""
 
     def main(self) -> None:
         """Process images into a nerfstudio dataset."""
@@ -47,11 +48,15 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
 
         # Generate planar projections if equirectangular
         if self.camera_type == "equirectangular":
+            if self.eval_data is not None:
+                raise ValueError("Cannot use eval_data with camera_type equirectangular.")
+
             pers_size = equirect_utils.compute_resolution_from_equirect(self.data, self.images_per_equirect)
             CONSOLE.log(f"Generating {self.images_per_equirect} {pers_size} sized images per equirectangular image")
             self.data = equirect_utils.generate_planar_projections_from_equirectangular(
                 self.data, pers_size, self.images_per_equirect, crop_factor=self.crop_factor
             )
+
             self.camera_type = "perspective"
 
         summary_log = []
@@ -63,9 +68,25 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                 self.data,
                 image_dir=self.image_dir,
                 crop_factor=self.crop_factor,
+                image_prefix="frame_train_" if self.eval_data is not None else "frame_",
                 verbose=self.verbose,
                 num_downscales=self.num_downscales,
+                same_dimensions=self.same_dimensions,
+                keep_image_dir=False,
             )
+            if self.eval_data is not None:
+                eval_image_rename_map_paths = process_data_utils.copy_images(
+                    self.eval_data,
+                    image_dir=self.image_dir,
+                    crop_factor=self.crop_factor,
+                    image_prefix="frame_eval_",
+                    verbose=self.verbose,
+                    num_downscales=self.num_downscales,
+                    same_dimensions=self.same_dimensions,
+                    keep_image_dir=True,
+                )
+                image_rename_map_paths.update(eval_image_rename_map_paths)
+
             image_rename_map = dict((a.name, b.name) for a, b in image_rename_map_paths.items())
             num_frames = len(image_rename_map)
             summary_log.append(f"Starting with {num_frames} images")
@@ -75,6 +96,7 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                 image_dir=self.image_dir,
                 num_downscales=self.num_downscales,
                 crop_factor=(0.0, 0.0, 0.0, 0.0),
+                percent_radius=self.percent_radius_crop,
             )
             if mask_path is not None:
                 summary_log.append("Saved mask(s)")

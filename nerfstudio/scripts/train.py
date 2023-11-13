@@ -226,7 +226,6 @@ def launch(
 def main(config: TrainerConfig) -> None:
     """Main function."""
 
-    config.set_timestamp()
     if config.data:
         CONSOLE.log("Using --data alias for --data.pipeline.datamanager.data")
         config.pipeline.datamanager.data = config.data
@@ -238,6 +237,8 @@ def main(config: TrainerConfig) -> None:
     if config.load_config:
         CONSOLE.log(f"Loading pre-set config from: {config.load_config}")
         config = yaml.load(config.load_config.read_text(), Loader=yaml.Loader)
+
+    config.set_timestamp()
 
     # print and save config
     config.print_to_terminal()

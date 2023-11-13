@@ -5,22 +5,21 @@
 ::::::{tab-set}
 :::::{tab-item} Linux
 
-Install CUDA. This library has been tested with version 11.8. You can find CUDA download links [here](https://developer.nvidia.com/cuda-toolkit-archive) and more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html).
+Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 :::::
 :::::{tab-item} Windows
+
 Install [Git](https://git-scm.com/downloads).
 
 Install Visual Studio 2022. This must be done before installing CUDA. The necessary components are included in the `Desktop Development with C++` workflow (also called `C++ Build Tools` in the BuildTools edition).
 
-Install CUDA 11.8. You can find CUDA download links [here](https://developer.nvidia.com/cuda-toolkit-archive) and more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html).
+Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 :::::
 ::::::
 
 ## Create environment
-
-Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 ```bash
 conda create --name nerfstudio -y python=3.8
@@ -33,42 +32,45 @@ python -m pip install --upgrade pip
 
 (pytorch)=
 
-### pytorch
+### PyTorch
 
-::::{tab-set}
-:::{tab-item} Torch 2.0.1 with CUDA 11.8
-
-- To install 2.0.1 with CUDA 11.8:
-
-Note that if a pytorch version prior to 2.0.1 is installed,
+Note that if a PyTorch version prior to 2.0.1 is installed,
 the previous version of pytorch, functorch, and tiny-cuda-nn should be uninstalled.
 
 ```bash
 pip uninstall torch torchvision functorch tinycudann
 ```
 
-Install pytorch 2.0.1 with CUDA and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+::::{tab-set}
+:::{tab-item} Torch 2.0.1 with CUDA 11.8
+
+Install PyTorch 2.0.1 with CUDA 11.8:
 
 ```bash
 pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
 ```
 
+To build the necessary CUDA extensions, `cuda-toolkit` is also required. We
+recommend installing with conda:
+
+```bash
+conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
+```
+
 :::
 :::{tab-item} Torch 2.0.1 with CUDA 11.7
 
-- To install 2.0.1 with CUDA 11.7:
-
-Note that if a pytorch version prior to 2.0.1 is installed,
-the previous version of pytorch, functorch, and tiny-cuda-nn should be uninstalled.
-
-```bash
-pip uninstall torch torchvision functorch tinycudann
-```
-
-Install pytorch 2.0.1 with CUDA and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+Install PyTorch 2.0.1 with CUDA 11.7:
 
 ```bash
 pip install torch==2.0.1+cu117 torchvision==0.15.2+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
+```
+
+To build the necessary CUDA extensions, `cuda-toolkit` is also required. We
+recommend installing with conda:
+
+```bash
+conda install -c "nvidia/label/cuda-11.7.1" cuda-toolkit
 ```
 
 :::
@@ -152,12 +154,22 @@ docker build \
     --file Dockerfile .
 ```
 
+The user inside the container is called 'user' and is mapped to the local user with ID 1000 (usually the first non-root user on Linux systems).  
+If you suspect that your user might have a different id, override `USER_ID` during the build as follows:
+
+```bash
+docker build \
+    --build-arg USER_ID=$(id -u) \
+    --file Dockerfile .
+```
+
 ### Using an interactive container
 
 The docker container can be launched with an interactive terminal where nerfstudio commands can be entered as usual. Some parameters are required and some are strongly recommended for usage as following:
 
 ```bash
 docker run --gpus all \                                         # Give the container access to nvidia GPU (required).
+            -u $(id -u) \                                       # To prevent abusing of root privilege, please use custom user privilege to start.
             -v /folder/of/your/data:/workspace/ \               # Mount a folder from the local machine into the container to be able to process them (required).
             -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ \   # Mount cache folder to avoid re-downloading of models everytime (recommended).
             -p 7007:7007 \                                      # Map port from local machine to docker container (required to access the web interface/UI).
@@ -174,7 +186,7 @@ docker run --gpus all \                                         # Give the conta
 Besides, the container can also directly be used by adding the nerfstudio command to the end.
 
 ```bash
-docker run --gpus all -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ -p 7007:7007 --rm -it --shm-size=12gb  # Parameters.
+docker run --gpus all -u $(id -u) -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ -p 7007:7007 --rm -it --shm-size=12gb  # Parameters.
             dromni/nerfstudio:<tag> \                           # Docker image name
             ns-process-data video --data /workspace/video.mp4   # Smaple command of nerfstudio.
 ```
@@ -185,7 +197,6 @@ docker run --gpus all -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.
 - Paths on Windows use backslash '\\' while unix based systems use a frontslash '/' for paths, where backslashes might require an escape character depending on where they are used (e.g. C:\\\\folder1\\\\folder2...). Alternatively, mounts can be quoted (e.g. `-v 'C:\local_folder:/docker_folder'`). Ensure to use the correct paths when mounting folders or providing paths as parameters.
 - Always use full paths, relative paths are known to create issues when being used in mounts into docker.
 - Everything inside the container, what is not in a mounted folder (workspace in the above example), will be permanently removed after destroying the container. Always do all your tasks and output folder in workdir!
-- The user inside the container is called 'user' and is mapped to the local user with ID 1000 (usually the first non-root user on Linux systems).
 - The container currently is based on nvidia/cuda:11.8.0-devel-ubuntu22.04, consequently it comes with CUDA 11.8 which must be supported by the nvidia driver. No local CUDA installation is required or will be affected by using the docker image.
 - The docker image (respectively Ubuntu 22.04) comes with Python3.10, no older version of Python is installed.
 - If you call the container with commands directly, you still might want to add the interactive terminal ('-it') flag to get live log outputs of the nerfstudio scripts. In case the container is used in an automated environment the flag should be discarded.
@@ -258,7 +269,7 @@ While installing tiny-cuda, you run into: `The detected CUDA version mismatches 
 
 **Solution**:
 
-Reinstall pytorch with the correct CUDA version.
+Reinstall PyTorch with the correct CUDA version.
 See [pytorch](pytorch) under Dependencies, above.
 
  <br />
