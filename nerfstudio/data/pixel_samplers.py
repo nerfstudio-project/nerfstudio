@@ -19,6 +19,7 @@ Code for sampling pixels.
 import random
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Type, Union
+from collections import defaultdict
 
 import torch
 from jaxtyping import Int
@@ -235,7 +236,7 @@ class PixelSampler:
 
         # only sample within the mask, if the mask is in the batch
         all_indices = []
-        all_images = []
+        all_images = defaultdict(list)
 
         if "mask" in batch:
             num_rays_in_batch = num_rays_per_batch // num_images
@@ -250,7 +251,10 @@ class PixelSampler:
                 )
                 indices[:, 0] = i
                 all_indices.append(indices)
-                all_images.append(batch["image"][i][indices[:, 1], indices[:, 2]])
+                for key, value in batch.items():
+                    if key in ["image_idx", "mask"]:
+                        continue
+                    all_images[key].append(batch[key][i][indices[:, 1], indices[:, 2]])
 
         else:
             num_rays_in_batch = num_rays_per_batch // num_images
@@ -266,18 +270,15 @@ class PixelSampler:
                     indices = self.sample_method(num_rays_in_batch, 1, image_height, image_width, device=device)
                 indices[:, 0] = i
                 all_indices.append(indices)
-                all_images.append(batch["image"][i][indices[:, 1], indices[:, 2]])
+                for key, value in batch.items():
+                    if key in ["image_idx", "mask"]:
+                        continue
+                    all_images[key].append(batch[key][i][indices[:, 1], indices[:, 2]])
 
         indices = torch.cat(all_indices, dim=0)
 
         c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
-        collated_batch = {
-            key: value[c, y, x]
-            for key, value in batch.items()
-            if key != "image_idx" and key != "image" and key != "mask" and value is not None
-        }
-
-        collated_batch["image"] = torch.cat(all_images, dim=0)
+        collated_batch = {key: torch.cat(all_images[key], dim=0) for key in all_images}
 
         assert collated_batch["image"].shape[0] == num_rays_per_batch
 
