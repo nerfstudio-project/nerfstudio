@@ -150,6 +150,14 @@ def metashape_to_json(
     for camera in cameras:
         frame = {}
         camera_label = camera.get("label")
+
+        # Added, as "cameras" element may contain
+        # entries other than actual cameras, and
+        # will not have a tag called "label",
+        # returning None.
+        if camera_label is None:
+            continue
+
         assert isinstance(camera_label, str)
         if camera_label not in image_filename_map:
             # Labels sometimes have a file extension. Try without the extension.
