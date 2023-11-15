@@ -2,10 +2,12 @@
 # Input: Lat, Long, Alt of the region of interest
 # Output: EPS file with the required parameters for capturing images
 
-import json
 import copy
-import numpy as np
+import json
 import os
+
+import numpy as np
+
 
 def geodetic2ecef(geodetic_coords):
     lat = geodetic_coords[0]
@@ -87,9 +89,9 @@ if __name__ == '__main__':
 
     num_steps=len(template_json['attributes'][0]['attributes'][0]['attributes'][0]['attributes'][0]['keyframes'])
 
-    horizontal_scale=0.2
-    vertical_scale=0.3
-    delta_scale=0.65
+    horizontal_scale = 0.2 * (alt / 100)
+    vertical_scale = 0.3 * (alt / 100)
+    delta_scale = 0.65
 
     def update_keyframes(template_json, new_trajectory, attribute_idx, ges_value, ges_centerpoint, delta_scale, ges_scale):
         # Get the keyframes from the template_json object

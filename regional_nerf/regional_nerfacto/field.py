@@ -4,20 +4,20 @@ Regional Nerfacto Field
 Currently this subclasses the NerfactoField. Consider subclassing the base Field.
 """
 
-from typing import Literal, Optional
+from typing import Dict, Literal, Optional, Tuple
 
 import numpy as np
 import torch
 from torch import Tensor
 
-from nerfstudio.field_components.spatial_distortions import SpatialDistortion
-from nerfstudio.fields.nerfacto_field import NerfactoField  # for subclassing NerfactoField
-from nerfstudio.fields.base_field import Field  # for custom Field
-from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
-from typing import Dict, Literal, Optional, Tuple
+from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.field_heads import FieldHeadNames
+from nerfstudio.field_components.spatial_distortions import SpatialDistortion
+from nerfstudio.fields.base_field import Field  # for custom Field
+from nerfstudio.fields.nerfacto_field import \
+    NerfactoField  # for subclassing NerfactoField
 
 try:
     import tinycudann as tcnn
@@ -128,9 +128,10 @@ class RNerfField(NerfactoField):
             heightcaps = 10000.0
 
         # Selector to mask out positions with z higher than heightcaps
+        selector_hardthreshold = (unnorm_positions[..., 2] <= -0.5) # Zeros out density for height above -0.5 in NeRF scale
         selector_0 = (unnorm_positions[..., 2] <= heightcaps) # Navlab added
             
-        selector = selector_0 & ((positions > 0.0) & (positions < 1.0)).all(dim=-1)
+        selector = selector_hardthreshold & selector_0 & ((positions > 0.0) & (positions < 1.0)).all(dim=-1)
 
         positions = positions * selector[..., None]
         self._sample_locations = positions
@@ -190,3 +191,32 @@ class RNerfField(NerfactoField):
         outputs["heightcap"] = heightcap_pass
 
         return outputs
+    
+
+    def positions_to_heights(self, positions):
+        inp_shape = positions.shape
+        positions = torch.cat([positions, torch.zeros_like(positions[..., :1])], dim=-1)
+        positions = self.spatial_distortion(positions)
+        positions = (positions + 2.0) / 4.0
+
+        xs = [e(positions.view(-1, 3)[:, :2]) for e in self.encs2d]
+        x = torch.concat(xs, dim=-1)
+
+        # TODO: Reshape to multi-batch
+        heights = self.heightcap_net(x).view(*inp_shape[:-1], -1)
+        return heights
+
+
+    def xy_to_heights(self, x, y):
+        XY_grid = torch.stack((x, y), dim=-1)
+        positions = XY_grid.reshape(-1, 2)
+        positions = torch.cat([positions, torch.zeros_like(positions[:, :1])], dim=-1)
+        positions = self.spatial_distortion(positions)
+        positions = (positions + 2.0) / 4.0
+
+        xs = [e(positions.view(-1, 3)[:, :2]) for e in self.encs2d]
+        x = torch.concat(xs, dim=-1)
+
+        # TODO: Reshape to multi-batch
+        heights = self.heightcap_net(x)
+        return heights

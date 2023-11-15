@@ -3,32 +3,31 @@ Regional Nerfacto Model File
 
 Currently this subclasses the Nerfacto model. Consider subclassing from the base Model.
 """
+import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Type
 
+import nerfacc
 import numpy as np
 import torch
-
 from regional_nerfacto.field import RNerfField
 
-import nerfacc
-
-from nerfstudio.field_components.spatial_distortions import SceneContraction
-
-from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig  # for subclassing Nerfacto model
-from nerfstudio.models.base_model import Model, ModelConfig  # for custom Model
 from nerfstudio.cameras.rays import RayBundle, RaySamples
-from nerfstudio.model_components.losses import (
-    MSELoss,
-    distortion_loss,
-    interlevel_loss,
-    orientation_loss,
-    pred_normal_loss,
-    scale_gradients_by_distance_squared,
-)
 from nerfstudio.field_components.field_heads import FieldHeadNames
+from nerfstudio.field_components.spatial_distortions import SceneContraction
+from nerfstudio.model_components.losses import (
+    MSELoss, distortion_loss, interlevel_loss, orientation_loss,
+    pred_normal_loss, scale_gradients_by_distance_squared)
+from nerfstudio.models.base_model import Model, ModelConfig  # for custom Model
+from nerfstudio.models.nerfacto import (  # for subclassing Nerfacto model
+    NerfactoModel, NerfactoModelConfig)
 
-import math
+
+def gradient(y, x, grad_outputs=None):
+    if grad_outputs is None:
+        grad_outputs = torch.ones_like(y)
+    grad = torch.autograd.grad(y, [x], grad_outputs=grad_outputs, create_graph=True)[0]
+    return grad
 
 
 @dataclass
@@ -83,6 +82,7 @@ class RNerfModel(NerfactoModel):
 
         self.tall_loss_factor = 0.01
         self.max_height = 1.0
+        self.quantile_frac = 0.9
 
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples: RaySamples
@@ -151,8 +151,13 @@ class RNerfModel(NerfactoModel):
         height_weights = ray_samples.get_weights(height_density.detach())
 
         # Soft penalty for height exceeding the heightcap
-        heightcap_penalty = torch.relu(height - heightcap_field_outputs["heightcap"]) + 0.1*heightcap_field_outputs["heightcap"]
+        heightcap_penalty = torch.relu(height - heightcap_field_outputs["heightcap"]) + (1.0 - self.quantile_frac)*heightcap_field_outputs["heightcap"]
         outputs["height_penalty"] = torch.sum(height_weights * heightcap_penalty, dim=-2)
+
+        outputs["heightcap_net_output"] = torch.sum(height_weights * heightcap_field_outputs["heightcap"], dim=-2)
+
+        # TODO: compute Jacobian of heightnet wrt. points while retaining computational graph
+        # add to outputs to use in loss function
 
         # Map rendering
         enu_positions = self.field.nerf2enu_points(ray_samples.frustums.get_positions())[..., :2]
@@ -170,6 +175,33 @@ class RNerfModel(NerfactoModel):
         # print(field_outputs[FieldHeadNames.RGB].shape, rgb_values.shape)
 
         outputs["osm_rgb"] = self.renderer_rgb(rgb=rgb_values, weights=weights)
+
+        # Compute heightnet spatial derivatives
+        positions = ray_samples.frustums.get_positions().detach().clone()
+        xy = positions[..., :2]
+        init_shape = xy.shape
+        xy = xy.reshape(-1, 2)
+        h_xy = torch.zeros_like(xy)
+        delta = 1e-4
+        for i in range(2):
+            delta_vec = torch.zeros_like(xy)
+            delta_vec[:, i] = delta
+            height_vals_pos = self.field.positions_to_heights(xy + delta_vec)
+            height_vals_neg = self.field.positions_to_heights(xy - delta_vec)
+            h_xy[:, i] = (height_vals_pos - height_vals_neg).reshape(-1) / (2 * delta)
+        h_xy = h_xy.reshape(*init_shape)
+            
+            # x = positions[..., 0]
+            # y = positions[..., 1]
+            # print(x.requires_grad, y.requires_grad)
+            # height_vals = self.field.xy_to_heights(x, y)
+            # print(height_vals.requires_grad)
+            # h_x = gradient(height_vals, x)
+            # h_y = gradient(height_vals, y)
+            # outputs["heightnet_spatial_derivatives"] = torch.cat([h_x, h_y], dim=-1)
+        outputs["heightnet_dx"] = h_xy[..., 0]
+        outputs["heightnet_dy"] = h_xy[..., 1] 
+            #print("h_xy shape: ", h_xy.shape)
         
         return outputs
     
@@ -183,5 +215,14 @@ class RNerfModel(NerfactoModel):
 
         # Add height opacity loss by its average
         # TODO: NAVLAB
-            loss_dict["height_opacity_loss"] = self.tall_loss_factor *outputs["height_penalty"].sum(dim=-1).nanmean()
+            loss_dict["height_opacity_loss"] = self.tall_loss_factor * outputs["height_penalty"].sum(dim=-1).nanmean()
+
+            # TODO: add heightnet smoothness (Jacobian) loss
+            #loss_dict["height_smoothness_loss"] = 1.0 * outputs["heightnet_spatial_derivatives"].sum(dim=-1).nanmean()
+            #smoothness_loss = 1.0 * outputs["heightnet_spatial_derivatives"].sum(dim=-1).nanmean()
+            # smoothness_loss = 1.0 * torch.sum(torch.norm(outputs["heightnet_spatial_derivatives"][..., :2], dim=-1))
+            smoothness_loss = 0.001 * torch.nanmean(torch.square(outputs["heightnet_dx"]) + torch.square(outputs["heightnet_dy"]))
+            print("smoothness loss: ", smoothness_loss)
+            loss_dict["height_smoothness_loss"] = smoothness_loss
+        
         return loss_dict

@@ -52,11 +52,12 @@ if __name__ == '__main__':
     parser = config_parser()
     args = parser.parse_args()
  
-    import numpy as np
+    import json
     import math
     import os
-    import json
-    import imageio  
+
+    import imageio
+    import numpy as np  
 
     with open(os.path.join(args.datadir, args.filename), 'r') as f:
         data = json.load(f)
@@ -114,7 +115,7 @@ if __name__ == '__main__':
 
         c2w = np.concatenate([GES_rotmat[:3,:4], np.array([[0, 0, 0, 1]])], 0)
 
-        img_name_i = image_list[0][:-9] + str(i).zfill(4) + '.jpeg'
+        img_name_i = image_list[0][:-9] + '_' + str(i).zfill(3) + '.jpeg'
         img_path = os.path.join(args.imgdir, img_name_i)
         if img_name_i not in image_list:
             print("Image not found, skipping...", img_path)
