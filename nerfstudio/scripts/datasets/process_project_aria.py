@@ -16,15 +16,14 @@ import json
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import numpy as np
-import projectaria_tools.core.mps as mps
 import tyro
 from PIL import Image
+from projectaria_tools.core import mps
 from projectaria_tools.core.data_provider import VrsDataProvider, create_vrs_data_provider
 from projectaria_tools.core.sophus import SE3
-from tqdm import tqdm
 
 ARIA_CAMERA_MODEL = "FISHEYE624"
 
@@ -204,9 +203,11 @@ class ProcessProjectAria:
 
         # create the NerfStudio frames from the AriaImageFrames.
         print("Creating NerfStudio frames...")
+        RGB_VALID_RADIUS = 707.5
         nerfstudio_frames = {
             "camera_model": ARIA_CAMERA_MODEL,
             "frames": [to_nerfstudio_frame(frame) for frame in aria_frames],
+            "fisheye_crop_radius": RGB_VALID_RADIUS,
         }
 
         # write the json out to disk as transforms.json
