@@ -155,6 +155,8 @@ def metashape_to_json(
             # (maybe it's just a '.' in the image name)
             camera_label = camera_label.split(".")[0]  # type: ignore
             if camera_label not in image_filename_map:
+                if verbose:
+                    CONSOLE.print(f"Missing image for {camera.get('label')}, Skipping")
                 continue
         frame["file_path"] = image_filename_map[camera_label].as_posix()
 
