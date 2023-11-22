@@ -649,7 +649,7 @@ class Cameras(TensorDataclass):
                     ).reshape(-1, 2)
 
         # Switch from OpenCV to OpenGL
-        coords_stack[..., 1] *= -1
+        coord_stack[..., 1] *= -1
 
         # Make sure after we have undistorted our images, the shapes are still correct
         assert coord_stack.shape == (3,) + num_rays_shape + (2,)
