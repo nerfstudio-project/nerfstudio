@@ -79,7 +79,7 @@ class SurfaceModelConfig(ModelConfig):
     """Monocular normal consistency loss multiplier."""
     mono_depth_loss_mult: float = 0.0
     """Monocular depth consistency loss multiplier."""
-    sdf_field: SDFFieldConfig = SDFFieldConfig()
+    sdf_field: SDFFieldConfig = field(default_factory=lambda: SDFFieldConfig())
     """Config for SDF Field"""
     background_model: Literal["grid", "mlp", "none"] = "mlp"
     """background models"""
