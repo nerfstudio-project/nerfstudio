@@ -37,7 +37,7 @@ from nerfstudio.engine.callbacks import (
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.nerfacto_field import NerfactoField
-from nerfstudio.model_components.losses import MSELoss
+from nerfstudio.model_components.losses import MSELoss, scale_gradients_by_distance_squared
 from nerfstudio.model_components.ray_samplers import VolumetricSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
@@ -78,6 +78,8 @@ class InstantNGPModelConfig(ModelConfig):
     """How far along ray to start sampling."""
     far_plane: float = 1e3
     """How far along ray to stop sampling."""
+    use_gradient_scaling: bool = False
+    """Use gradient scaler where the gradients are lower for points closer to the camera."""
     use_appearance_embedding: bool = False
     """Whether to use an appearance embedding."""
     background_color: Literal["random", "black", "white"] = "random"
@@ -187,6 +189,8 @@ class NGPModel(Model):
             )
 
         field_outputs = self.field(ray_samples)
+        if self.config.use_gradient_scaling:
+            field_outputs = scale_gradients_by_distance_squared(field_outputs, ray_samples)
 
         # accumulation
         packed_info = nerfacc.pack_info(ray_indices, num_rays)
