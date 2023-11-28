@@ -45,9 +45,9 @@ from gsplat.sh import SphericalHarmonics, num_sh_bases
 
 from gsplat.compute_cumulative_intersects import compute_cumulative_intersects
 from pytorch_msssim import  SSIM
-
 # need following import for background color override
 from nerfstudio.model_components import renderers
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def random_quat_tensor(N):
@@ -118,10 +118,10 @@ class GaussianSplattingModelConfig(ModelConfig):
     """training starts at 1/d resolution, every n steps this is doubled"""
     num_downscales: int = 2
     """at the beginning, resolution is 1/2^d, where d is this number"""
-    cull_alpha_thresh: float = 0.1
-    """threshold of opacity for culling gaussians"""
+    cull_alpha_thresh: float = 0.005
+    """threshold of opacity for culling gaussians, ref: https://github.com/graphdeco-inria/gaussian-splatting/blob/main/train.py#L120"""
     cull_scale_thresh: float = 0.5
-    """threshold of scale for culling gaussians"""
+    """threshold of scale for culling huge gaussians"""
     reset_alpha_every: int = 30
     """Every this many refinement steps, reset the alpha"""
     densify_grad_thresh: float = 0.0002
@@ -320,14 +320,11 @@ class GaussianSplattingModel(Model):
         self.back_color = back_color
 
     def refinement_after(self, optimizers: Optimizers, step):
-        if self.step >= self.config.warmup_length:
+        if self.step >= self.config.warmup_length and self.step < self.config.stop_split_at:
             with torch.no_grad():
                 # only split/cull if we've seen every image since opacity reset
                 reset_interval = self.config.reset_alpha_every * self.config.refine_every
-                if (
-                    self.step < self.config.stop_split_at
-                    and self.step % reset_interval > self.num_train_data + self.config.refine_every
-                ):
+                if self.step % reset_interval > self.num_train_data + self.config.refine_every:
                     # then we densify
                     assert (
                         self.xys_grad_norm is not None and self.vis_counts is not None and self.max_2Dsize is not None
@@ -383,18 +380,22 @@ class GaussianSplattingModel(Model):
                     param_groups = self.get_gaussian_param_groups()
                     for group, param in param_groups.items():
                         self.remove_from_optim(optimizers.optimizers[group], deleted_mask, param)
+                    torch.cuda.empty_cache()
 
                 if self.step % reset_interval == self.config.refine_every:
-                    reset_value = self.config.cull_alpha_thresh * 0.8
-                    self.opacities.data = torch.full_like(
-                        self.opacities.data, torch.logit(torch.tensor(reset_value)).item()
-                    )
+                    # Reset value is set to be twice of the cull_alpha_thresh
+                    # https://github.com/graphdeco-inria/gaussian-splatting/blob/main/scene/gaussian_model.py#L211
+                    reset_value = self.config.cull_alpha_thresh * 2.0
+                    self.opacities.data = torch.clamp(self.opacities.data,
+                                                      max=torch.logit(torch.tensor(reset_value,
+                                                                                   device=self.device)).item())
                     # reset the exp of optimizer
                     optim = optimizers.optimizers["opacity"]
                     param = optim.param_groups[0]["params"][0]
                     param_state = optim.state[param]
                     param_state["exp_avg"] = torch.zeros_like(param_state["exp_avg"])
                     param_state["exp_avg_sq"] = torch.zeros_like(param_state["exp_avg_sq"])
+
                 self.xys_grad_norm = None
                 self.vis_counts = None
                 self.max_2Dsize = None
@@ -406,6 +407,7 @@ class GaussianSplattingModel(Model):
         n_bef = self.num_points
         # cull transparent ones
         culls = (torch.sigmoid(self.opacities) < self.config.cull_alpha_thresh).squeeze()
+        below_alpha_count = torch.sum(culls).item()
         if self.step > self.config.refine_every * self.config.reset_alpha_every:
             # cull huge ones
             toobigs = (torch.exp(self.scales).max(dim=-1).values > self.config.cull_scale_thresh).squeeze()
@@ -420,7 +422,8 @@ class GaussianSplattingModel(Model):
         self.colors_all = Parameter(self.colors_all[~culls].detach())
         self.opacities = Parameter(self.opacities[~culls].detach())
 
-        print(f"Culled {n_bef - self.num_points} gaussians")
+        CONSOLE.log(f"Culled {n_bef - self.num_points} gaussians "
+                    f"({below_alpha_count} below alpha thresh, {self.num_points} remaining)")
         return culls
 
     def split_gaussians(self, split_mask, samps):
@@ -429,7 +432,7 @@ class GaussianSplattingModel(Model):
         """
 
         n_splits = split_mask.sum().item()
-        print(f"Splitting {split_mask.sum().item()/self.num_points} gaussians: {n_splits}/{self.num_points}")
+        CONSOLE.log(f"Splitting {split_mask.sum().item()/self.num_points} gaussians: {n_splits}/{self.num_points}")
         centered_samples = torch.randn((samps * n_splits, 3), device=self.device)  # Nx3 of axis-aligned scales
         scaled_samples = (
             torch.exp(self.scales[split_mask].repeat(samps, 1)) * centered_samples
@@ -455,7 +458,7 @@ class GaussianSplattingModel(Model):
         This function duplicates gaussians that are too small
         """
         n_dups = dup_mask.sum().item()
-        print(f"Duplicating {dup_mask.sum().item()/self.num_points} gaussians: {n_dups}/{self.num_points}")
+        CONSOLE.log(f"Duplicating {dup_mask.sum().item()/self.num_points} gaussians: {n_dups}/{self.num_points}")
         dup_means = self.means[dup_mask]
         dup_colors = self.colors_all[dup_mask]
         dup_opacities = self.opacities[dup_mask]
