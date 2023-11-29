@@ -152,14 +152,14 @@ class ViewerControl:
             cb: The callback to call when a click is detected.
                 The callback should take a ViewerClick object as an argument
         """
+
         def wrapped_cb(scene_pointer_msg: ScenePointerEvent):
             # only call the callback if the event is a click
             if scene_pointer_msg.event != "click":
                 return
-            click = ViewerClick(
-                origin=scene_pointer_msg.ray_origin, direction=scene_pointer_msg.ray_direction
-            )
+            click = ViewerClick(origin=scene_pointer_msg.ray_origin, direction=scene_pointer_msg.ray_direction)
             cb(click)
+
         self._click_cbs[cb] = wrapped_cb
         self.viser_server.on_scene_click(wrapped_cb)
 
