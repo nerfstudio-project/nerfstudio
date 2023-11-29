@@ -71,7 +71,7 @@ def SH2RGB(sh):
     return sh * C0 + 0.5
 
 
-def projection_matrix(znear, zfar, fovx, fovy, device="cpu"):
+def projection_matrix(znear, zfar, fovx, fovy, device:Union[str,torch.device]="cpu"):
     t = znear * math.tan(0.5 * fovy)
     b = -t
     r = znear * math.tan(0.5 * fovx)
@@ -206,7 +206,7 @@ class GaussianSplattingModel(Model):
     def shs_rest(self):
         return self.colors_all[:, 1:, :]
 
-    def load_state_dict(self, dict, **kwargs):
+    def load_state_dict(self, dict, **kwargs): # type: ignore
         # resize the parameters to match the new number of points
         self.step = 30000
         newp = dict["means"].shape[0]
@@ -277,7 +277,7 @@ class GaussianSplattingModel(Model):
         optimizer.param_groups[0]["params"] = new_params
         del param
 
-    def after_train(self, step):
+    def after_train(self, _):
         with torch.no_grad():
             # keep track of a moving average of grad norms
             visible_mask = (self.radii > 0).flatten()
@@ -287,6 +287,7 @@ class GaussianSplattingModel(Model):
                 self.xys_grad_norm = grads
                 self.vis_counts = torch.ones_like(self.xys_grad_norm)
             else:
+                assert self.vis_counts is not None
                 self.vis_counts[visible_mask] = self.vis_counts[visible_mask] + 1
                 self.xys_grad_norm[visible_mask] = grads[visible_mask] + self.xys_grad_norm[visible_mask]
 
@@ -315,6 +316,7 @@ class GaussianSplattingModel(Model):
                     and self.step % reset_interval > self.num_train_data + self.config.refine_every
                 ):
                     # then we densify
+                    assert self.xys_grad_norm is not None and self.vis_counts is not None and self.max_2Dsize is not None
                     avg_grad_norm = (
                         (self.xys_grad_norm / self.vis_counts) * 0.5 * max(self.last_size[0], self.last_size[1])
                     )
@@ -395,6 +397,7 @@ class GaussianSplattingModel(Model):
             culls = culls | toobigs
             if self.step < self.config.stop_screen_size_at:
                 # cull big screen space
+                assert self.max_2Dsize is not None
                 culls = culls | (self.max_2Dsize > self.config.cull_screen_size).squeeze()
         self.means = Parameter(self.means[~culls].detach())
         self.scales = Parameter(self.scales[~culls].detach())
@@ -585,7 +588,7 @@ class GaussianSplattingModel(Model):
         )
         if (self.radii).sum() == 0:
             return {"rgb": background.repeat(camera.height.item(), camera.width.item(), 1)}
-        
+
         # Important to allow xys grads to populate properly
         if self.training:
             self.xys.retain_grad()
@@ -637,7 +640,7 @@ class GaussianSplattingModel(Model):
         """
         d = self._get_downscale_factor()
         if d > 1:
-            newsize = (batch["image"].shape[0] // d, batch["image"].shape[1] // d)
+            newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
             gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
             gt_img = batch["image"]
@@ -660,7 +663,7 @@ class GaussianSplattingModel(Model):
         """
         d = self._get_downscale_factor()
         if d > 1:
-            newsize = (batch["image"].shape[0] // d, batch["image"].shape[1] // d)
+            newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
             gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
             gt_img = batch["image"]
@@ -671,7 +674,7 @@ class GaussianSplattingModel(Model):
             # This is slow, instead we apply a regularization every few steps
             sh_reg = self.colors_all[:, 1:, :].norm(dim=1).mean()
         else:
-            sh_reg = 0.0
+            sh_reg = torch.tensor(0.0).to(self.device)
         return {"main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss, "sh_reg": sh_reg}
 
     @torch.no_grad()
@@ -685,7 +688,7 @@ class GaussianSplattingModel(Model):
         assert camera is not None, "must provide camera to gaussian model"
         self.set_crop(obb_box)
         outs = self.get_outputs(camera.to(self.device))
-        return outs # type: ignore
+        return outs  # type: ignore
 
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
@@ -703,7 +706,7 @@ class GaussianSplattingModel(Model):
         """
         d = self._get_downscale_factor()
         if d > 1:
-            newsize = (batch["image"].shape[0] // d, batch["image"].shape[1] // d)
+            newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
             gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
             predicted_rgb = TF.resize(outputs["rgb"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
