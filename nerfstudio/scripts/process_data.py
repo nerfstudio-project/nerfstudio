@@ -626,10 +626,6 @@ class StrayScanner:
         )
         if mask_path is not None:
             summary_log.append(f"Saved mask to {mask_path}")
-
-        # # Downscale images
-        # summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
-
         # Save transforms.json
         image_filenames, num_orig_images = process_data_utils.get_image_filenames(image_dir)  # self.data)
         print("Number of frames being used ", num_orig_images)
@@ -643,9 +639,6 @@ class StrayScanner:
                 output_dir=self.output_dir,
             )
             summary_log.append("Generated transforms.json from strayscan data")
-            # summary_log.append(f"Colmap matched {num_matched_frames} images")
-        # summary_log.append(colmap_utils.get_matching_summary(num_extracted_frames, num_matched_frames))
-
         for summary in summary_log:
             CONSOLE.print(summary, justify="center")
         CONSOLE.rule()

@@ -73,15 +73,6 @@ def quaternion_to_rotation_matrix(Q):
 
     return rot_matrix
 
-
-# def process_video(video_path: Path) -> List[str]:
-#     """
-#     Process video captures video converts into images and apend paths of images in json file along with camera poses.
-#     """
-#     convert_video_to_images(Path("./rgb.mp4"), Path("./images"), 1654)#6992)
-#     return ["Success"]
-
-
 def strayscan_to_json(
     image_filenames: List[Path],
     intrinsics_file_base_path: Path,
@@ -140,29 +131,10 @@ def strayscan_to_json(
         frame["file_path"] = "images/" + os.path.basename(image_path.as_posix())
         rotation_matrix = quaternion_to_rotation_matrix(odometry_data.loc[spacing * i][5:]).tolist()
         translation = odometry_data.loc[spacing * i][2:5]
-        # print("TTTTTT ", translation)
-        # Creating transformation matrix
         translation = np.array(translation).reshape(3, 1)
         w2c = np.concatenate([rotation_matrix, translation], 1)
         w2c = np.concatenate([w2c, np.array([[0, 0, 0, 1]])], 0)
-        # print("W2CCCCC")
-        # print(w2c)
-
-        # [r.append(translation[ind]) for ind, r in enumerate(rotation_matrix)]
-        # rotation_matrix.append([float(0.0), float(0.0), float(0.0), float(1.0)])
-        # w2c = np.array(rotation_matrix)
-        # c2w = np.linalg.inv(w2c)
         c2w = w2c
-        # c2w = w2c @ np.array(
-        #     [
-        #         [-0.09741108, -0.99470069, 0.03288782, 0.19306176],
-        #         [-0.99459386, 0.09855984, 0.03532749, 0.03942097],
-        #         [-0.0383817, -0.02926578, -0.9988345, -0.15099539],
-        #         [0, 0, 0, 1],
-        #     ]
-        # )
-        # c2w = w2c
-        # Convert from stray scanner's camera coordinate system (OpenCV) to ours (OpenGL)
         c2w[0:3, 1:3] *= -1
         c2w = c2w[np.array([1, 0, 2, 3]), :]
         c2w[2, :] *= -1
