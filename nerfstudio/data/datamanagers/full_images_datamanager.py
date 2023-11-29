@@ -333,12 +333,15 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         """Sets up the data loader for evaluation"""
 
     @property
-    def fixed_indices_eval_dataloader(self):
-        self.image_indices = list(range(len(self.eval_unseen_cameras)))
+    def fixed_indices_eval_dataloader(self) -> List[Tuple[Cameras, Dict]]:
+        """
+        Pretends to be the dataloader for evaluation, it returns a list of (camera, data) tuples
+        """
+        image_indices = list(range(len(self.eval_unseen_cameras)))
         data = deepcopy(self.cached_eval)
         _cameras = deepcopy(self.eval_dataset.cameras).to(self.device)
         cameras = []
-        for i in self.image_indices:
+        for i in image_indices:
             data[i]["image"] = data[i]["image"].to(self.device)
             cameras.append(_cameras[i : i + 1])
         assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"

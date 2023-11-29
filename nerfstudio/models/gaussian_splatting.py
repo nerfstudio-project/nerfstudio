@@ -673,18 +673,16 @@ class GaussianSplattingModel(Model):
         return {"main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss, "sh_reg": sh_reg}
 
     @torch.no_grad()
-    def get_outputs_for_camera(self, camera: Cameras) -> Dict[str, torch.Tensor]:
+    def get_outputs_for_camera(self, camera: Cameras, obb_box: Optional[OrientedBox] = None) -> Dict[str, torch.Tensor]:
         """Takes in a camera, generates the raybundle, and computes the output of the model.
         Overridden for a camera-based gaussian model.
 
         Args:
             camera: generates raybundle
         """
-        if isinstance(camera, RayBundle):
-            camera = camera.metadata["camera"]
         assert camera is not None, "must provide camera to gaussian model"
         outs = self.get_outputs(camera.to(self.device))
-        return outs
+        return outs # type: ignore
 
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
