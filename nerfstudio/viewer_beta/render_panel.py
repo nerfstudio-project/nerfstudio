@@ -13,20 +13,23 @@
 # limitations under the License.
 
 from __future__ import annotations
-from pathlib import Path
+
 import colorsys
 import dataclasses
+import datetime
+import json
 import threading
 import time
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-import datetime
-from nerfstudio.viewer_beta.control_panel import ControlPanel
+
 import numpy as onp
 import splines
 import splines.quaternion
 import viser
-import json
 import viser.transforms as tf
+
+from nerfstudio.viewer_beta.control_panel import ControlPanel
 
 
 @dataclasses.dataclass
@@ -540,6 +543,67 @@ def populate_render_tab(
     def _(_) -> None:
         play_button.visible = True
         pause_button.visible = False
+
+    # add button for loading existing path
+    load_camera_path_button = server.add_gui_button(
+        "Load Path", icon=viser.Icon.FOLDER_OPEN, hint="Load an existing camera path."
+    )
+
+    @load_camera_path_button.on_click
+    def _(event: viser.GuiEvent) -> None:
+        assert event.client is not None
+        camera_path_dir = datapath / "camera_paths"
+        camera_path_dir.mkdir(parents=True, exist_ok=True)
+        preexisting_camera_paths = list(camera_path_dir.glob("*.json"))
+        preexisting_camera_filenames = [p.name for p in preexisting_camera_paths]
+
+        with event.client.add_gui_modal("Load Path") as modal:
+            if len(preexisting_camera_filenames) == 0:
+                event.client.add_gui_markdown("No existing paths found")
+            else:
+                event.client.add_gui_markdown("Select existing camera path:")
+                camera_path_dropdown = event.client.add_gui_dropdown(
+                    label="Camera Path",
+                    options=[str(p) for p in preexisting_camera_filenames],
+                    initial_value=str(preexisting_camera_filenames[0]),
+                )
+                load_button = event.client.add_gui_button("Load")
+
+                @load_button.on_click
+                def _(_) -> None:
+                    # load the json file
+                    json_path = datapath / "camera_paths" / camera_path_dropdown.value
+                    with open(json_path, "r") as f:
+                        json_data = json.load(f)
+
+                    keyframes = json_data["keyframes"]
+                    camera_path.reset()
+                    for i in range(len(keyframes)):
+                        frame = keyframes[i]
+                        pose = tf.SE3.from_matrix(onp.array(frame["matrix"]).reshape(4, 4))
+                        # apply the x rotation by 180 deg
+                        pose = tf.SE3.from_rotation_and_translation(
+                            pose.rotation() @ tf.SO3.from_x_radians(onp.pi), pose.translation()
+                        )
+                        camera_path.add_camera(
+                            Keyframe(
+                                position=pose.translation() * VISER_NERFSTUDIO_SCALE_RATIO,
+                                wxyz=pose.rotation().wxyz,
+                                override_fov_enabled=True,
+                                override_fov_value=frame["fov"] / 180.0 * onp.pi,
+                                aspect=frame["aspect"],
+                            ),
+                        )
+                    # update the render name
+                    render_name_text.value = json_path.stem
+                    camera_path.update_spline()
+                    modal.close()
+
+            cancel_button = event.client.add_gui_button("Cancel")
+
+            @cancel_button.on_click
+            def _(_) -> None:
+                modal.close()
 
     # set the initial value to the current date-time string
     now = datetime.datetime.now()

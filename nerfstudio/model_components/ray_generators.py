@@ -28,7 +28,6 @@ class RayGenerator(nn.Module):
 
     Args:
         cameras: Camera objects containing camera info.
-        pose_optimizer: pose optimization module, for optimizing noisy camera intrinsics/extrinsics.
     """
 
     image_coords: Tensor
