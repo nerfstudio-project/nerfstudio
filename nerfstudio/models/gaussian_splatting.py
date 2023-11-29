@@ -46,10 +46,13 @@ from gsplat.sh import SphericalHarmonics, num_sh_bases
 from pytorch_msssim import SSIM
 
 
-def random_quat_tensor(N, **kwargs):
-    u = torch.rand(N, **kwargs)
-    v = torch.rand(N, **kwargs)
-    w = torch.rand(N, **kwargs)
+def random_quat_tensor(N):
+    """
+    Defines a random quaternion tensor of shape (N, 4)
+    """
+    u = torch.rand(N)
+    v = torch.rand(N)
+    w = torch.rand(N)
     return torch.stack(
         [
             torch.sqrt(1 - u) * torch.sin(2 * math.pi * v),
@@ -62,16 +65,25 @@ def random_quat_tensor(N, **kwargs):
 
 
 def RGB2SH(rgb):
+    """
+    Converts from RGB values [0,1] to the 0th spherical harmonic coefficient
+    """
     C0 = 0.28209479177387814
     return (rgb - 0.5) / C0
 
 
 def SH2RGB(sh):
+    """
+    Converts from the 0th spherical harmonic coefficient to RGB values [0,1]
+    """
     C0 = 0.28209479177387814
     return sh * C0 + 0.5
 
 
 def projection_matrix(znear, zfar, fovx, fovy, device:Union[str,torch.device]="cpu"):
+    """
+    Constructs an OpenGL-style perspective projection matrix.
+    """
     t = znear * math.tan(0.5 * fovy)
     b = -t
     r = znear * math.tan(0.5 * fovx)
@@ -124,8 +136,6 @@ class GaussianSplattingModelConfig(ModelConfig):
     """stop culling/splitting at this step WRT screen size of gaussians"""
     random_init: bool = False
     """whether to initialize the positions uniformly randomly (not SFM points)"""
-    extra_points: int = 0
-    """number of extra points to add to the model in addition to sfm points, randomly distributed"""
     ssim_lambda: float = 0.2
     """weight of ssim loss"""
     stop_split_at: int = 15000
@@ -134,6 +144,10 @@ class GaussianSplattingModelConfig(ModelConfig):
     """maximum degree of spherical harmonics to use"""
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig(mode="off")
     """camera optimizer config"""
+    max_gauss_ratio: float = 4.0
+    """threshold of ratio of gaussian max to min scale before applying regularization
+    loss from the PhysGaussian paper
+    """
 
 
 class GaussianSplattingModel(Model):
@@ -154,8 +168,7 @@ class GaussianSplattingModel(Model):
 
     def populate_modules(self):
         if self.seed_pts is not None and not self.config.random_init:
-            extra_means = (torch.rand((self.config.extra_points, 3)) - 0.5) * 10
-            self.means = torch.nn.Parameter(torch.cat([self.seed_pts[0], extra_means]))  # (Location, Color)
+            self.means = torch.nn.Parameter(self.seed_pts[0])  # (Location, Color)
         else:
             self.means = torch.nn.Parameter((torch.rand((500000, 3)) - 0.5) * 10)
         self.xys_grad_norm = None
@@ -173,10 +186,6 @@ class GaussianSplattingModel(Model):
             shs = torch.zeros((fused_color.shape[0], dim_sh, 3)).float().cuda()
             shs[:, 0, :3] = fused_color
             shs[:, 1:, 3:] = 0.0
-            # concat on extra_points amount of random ones at the end
-            extra_shs = torch.rand((self.config.extra_points, dim_sh, 3)).float().cuda()
-            extra_shs[:, 1:, :] = 0.0  # zero out the higher freq
-            shs = torch.cat([shs, extra_shs])
             self.colors_all = torch.nn.Parameter(shs)
         else:
             colors = torch.nn.Parameter(torch.rand(self.num_points, 1, 3))
@@ -277,7 +286,7 @@ class GaussianSplattingModel(Model):
         optimizer.param_groups[0]["params"] = new_params
         del param
 
-    def after_train(self, _):
+    def after_train(self, step: int):
         with torch.no_grad():
             # keep track of a moving average of grad norms
             visible_mask = (self.radii > 0).flatten()
@@ -601,7 +610,7 @@ class GaussianSplattingModel(Model):
         else:
             rgbs = self.get_colors.squeeze()  # (N, 3)
             rgbs = torch.sigmoid(rgbs)
-        rgb = RasterizeGaussians.apply(
+        rgb,_ = RasterizeGaussians.apply(
             self.xys,
             depths,
             self.radii,
@@ -626,7 +635,7 @@ class GaussianSplattingModel(Model):
                 H,
                 W,
                 torch.ones(3, device=self.device) * 10,
-            )[..., 0:1]
+            )[0][..., 0:1]
         # rescale the camera back to original dimensions
         camera.rescale_output_resolution(camera_downscale)
         return {"rgb": rgb, "depth": depth_im}
@@ -673,9 +682,13 @@ class GaussianSplattingModel(Model):
             # Before, we made split sh and colors onto different optimizer, with shs having a low learning rate
             # This is slow, instead we apply a regularization every few steps
             sh_reg = self.colors_all[:, 1:, :].norm(dim=1).mean()
+            scale_exp = torch.exp(self.scales)
+            scale_reg = torch.maximum(scale_exp.amax(dim=-1) / scale_exp.amin(dim=-1), torch.tensor(self.config.max_gauss_ratio)) - self.config.max_gauss_ratio
+            scale_reg = 0.1 * scale_reg.mean()
         else:
             sh_reg = torch.tensor(0.0).to(self.device)
-        return {"main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss, "sh_reg": sh_reg}
+            scale_reg = torch.tensor(0.0).to(self.device)
+        return {"main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss, "sh_reg": sh_reg,'scale_reg':scale_reg}
 
     @torch.no_grad()
     def get_outputs_for_camera(self, camera: Cameras, obb_box: Optional[OrientedBox] = None) -> Dict[str, torch.Tensor]:
