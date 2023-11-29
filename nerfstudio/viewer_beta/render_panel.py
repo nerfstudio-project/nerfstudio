@@ -63,7 +63,7 @@ class CameraPath:
         self._server = server
         self._keyframes: Dict[int, Tuple[Keyframe, viser.CameraFrustumHandle]] = {}
         self._keyframe_counter: int = 0
-        self._spline: Optional[viser.SceneNodeHandle] = None
+        self._spline_nodes: List[viser.SceneNodeHandle] = []
         self._camera_edit_panel: Optional[viser.Gui3dContainerHandle] = None
 
         self._orientation_spline: Optional[splines.quaternion.KochanekBartels] = None
@@ -79,6 +79,7 @@ class CameraPath:
         self.smoothness: float = 0.5  # Tension / alpha term.
         self.default_fov: float = 0.0
         self.default_transition_sec: float = 0.0
+        self.show_spline: bool = True
 
     def set_keyframes_visible(self, visible: bool) -> None:
         self._keyframes_visible = visible
@@ -104,9 +105,9 @@ class CameraPath:
             position=keyframe.position,
             visible=self._keyframes_visible,
         )
-        transition_sphere = self._server.add_icosphere(
+        self._server.add_icosphere(
             f"/render_cameras/{keyframe_index}/sphere",
-            radius=0.025,
+            radius=0.03,
             color=(127, 127, 127),
         )
 
@@ -247,10 +248,10 @@ class CameraPath:
 
     def update_spline(self) -> None:
         num_frames = int(self.compute_duration() * self.framerate)
-        if num_frames <= 0:
-            if self._spline is not None:
-                self._spline.remove()
-                self._spline = None
+        if num_frames <= 0 or not self.show_spline:
+            for node in self._spline_nodes:
+                node.remove()
+            self._spline_nodes.clear()
             return
 
         # Update internal splines.
@@ -277,18 +278,22 @@ class CameraPath:
             [self._position_spline.evaluate(t) for t in np.linspace(0, transition_times_cumsum[-1], num_frames)]
         )
         colors_array = np.array([colorsys.hls_to_rgb(h, 0.5, 1.0) for h in np.linspace(0.0, 1.0, len(points_array))])
-        self._spline = self._server.add_spline_catmull_rom(
-            "/render_camera_spline",
-            positions=points_array,
-            color=(220, 220, 220),
-            closed=self.loop,
-            line_width=1.0,
+        self._spline_nodes.append(
+            self._server.add_spline_catmull_rom(
+                "/render_camera_spline",
+                positions=points_array,
+                color=(220, 220, 220),
+                closed=self.loop,
+                line_width=1.0,
+            )
         )
-        self._spline = self._server.add_point_cloud(
-            "/render_camera_spline/points",
-            points=points_array,
-            colors=colors_array,
-            point_size=0.03,
+        self._spline_nodes.append(
+            self._server.add_point_cloud(
+                "/render_camera_spline/points",
+                points=points_array,
+                colors=colors_array,
+                point_size=0.04,
+            )
         )
 
         def make_transition_handle(i: int) -> None:
@@ -298,10 +303,11 @@ class CameraPath:
             )
             transition_sphere = self._server.add_icosphere(
                 f"/render_camera_spline/transition_{i}",
-                radius=0.025,
+                radius=0.04,
                 color=(255, 0, 0),
                 position=transition_pos,
             )
+            self._spline_nodes.append(transition_sphere)
 
             @transition_sphere.on_click
             def _(_) -> None:
@@ -570,15 +576,26 @@ def populate_render_tab(
             transform_controls.append(controls)
             _make_transform_controls_callback(keyframe, controls)
 
-    show_checkbox = server.add_gui_checkbox(
+    show_keyframe_checkbox = server.add_gui_checkbox(
         "Show keyframes",
         initial_value=True,
         hint="Show keyframes in the scene.",
     )
 
-    @show_checkbox.on_update
+    @show_keyframe_checkbox.on_update
     def _(_: viser.GuiEvent) -> None:
-        camera_path.set_keyframes_visible(show_checkbox.value)
+        camera_path.set_keyframes_visible(show_keyframe_checkbox.value)
+
+    show_spline_checkbox = server.add_gui_checkbox(
+        "Show spline",
+        initial_value=True,
+        hint="Show camera path spline in the scene.",
+    )
+
+    @show_spline_checkbox.on_update
+    def _(_) -> None:
+        camera_path.show_spline = show_spline_checkbox.value
+        camera_path.update_spline()
 
     playback_folder = server.add_gui_folder("Playback")
     with playback_folder:
