@@ -298,7 +298,7 @@ class GaussianSplattingModel(Model):
                 self.max_2Dsize[visible_mask], newradii / float(max(self.last_size[0], self.last_size[1]))
             )
 
-    def set_crop(self, crop_box: OrientedBox):
+    def set_crop(self, crop_box: Optional[OrientedBox]):
         self.crop_box = crop_box
 
     def set_background(self, back_color: torch.Tensor):
@@ -681,6 +681,7 @@ class GaussianSplattingModel(Model):
             camera: generates raybundle
         """
         assert camera is not None, "must provide camera to gaussian model"
+        self.set_crop(obb_box)
         outs = self.get_outputs(camera.to(self.device))
         return outs # type: ignore
 

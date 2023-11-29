@@ -132,7 +132,6 @@ class RenderStateMachine(threading.Thread):
         with TimeWriter(None, None, write=False) as vis_t:
             with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
                 if isinstance(self.viewer.get_model(), GaussianSplattingModel):
-                    self.viewer.get_model().set_crop(obb)
                     color = self.viewer.control_panel.background_color
                     background_color = torch.tensor(
                         [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0],
@@ -156,10 +155,10 @@ class RenderStateMachine(threading.Thread):
                         with background_color_override_context(
                             background_color
                         ), torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
-                            outputs = self.viewer.get_model().get_outputs_for_camera(camera)
+                            outputs = self.viewer.get_model().get_outputs_for_camera(camera,obb_box=obb)
                     else:
                         with torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
-                            outputs = self.viewer.get_model().get_outputs_for_camera(camera)
+                            outputs = self.viewer.get_model().get_outputs_for_camera(camera,obb_box=obb)
                 except viewer_utils.IOChangeException:
                     self.viewer.get_model().train()
                     raise
