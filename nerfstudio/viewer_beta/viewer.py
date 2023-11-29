@@ -213,7 +213,7 @@ class Viewer:
 
             # scrape the trainer/pipeline for any ViewerControl objects to initialize them
             self.viewer_controls: List[ViewerControl] = [
-                e for (_, e) in parse_object(self.trainer, ViewerControl, "Custom Elements")
+                e for (_, e) in parse_object(pipeline, ViewerControl, "Custom Elements")
             ]
         for c in self.viewer_controls:
             c._setup(self)
