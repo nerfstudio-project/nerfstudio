@@ -61,6 +61,12 @@ class ViewerControl:
     def __init__(self):
         # this should be a user-facing constructor, since it will be used inside the model/pipeline class
         self.click_cbs = []
+        from nerfstudio.utils.rich_utils import CONSOLE
+
+        CONSOLE.print(
+            "WARNING: viewer_legacy.server.viewer_elements is deprecated and will be removed in the future. Use the new nerfstudio.viewer instead",
+            style="bold yellow",
+        )
 
     def _setup(self, viewer_state: ViewerLegacyState):
         """
@@ -162,6 +168,12 @@ class ViewerElement(Generic[TValue]):
         self.gui_handle: Optional[GuiHandle[TValue]] = None
         self.disabled = disabled
         self.cb_hook = cb_hook
+        from nerfstudio.utils.rich_utils import CONSOLE
+
+        CONSOLE.print(
+            "WARNING: viewer_legacy.server.viewer_elements is deprecated and will be removed in the future. Use the new nerfstudio.viewer instead",
+            style="bold yellow",
+        )
 
     @abstractmethod
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
