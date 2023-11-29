@@ -152,12 +152,19 @@ class ViewerControl:
             cb: The callback to call when a click is detected.
                 The callback should take a ViewerClick object as an argument
         """
+        from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO
 
         def wrapped_cb(scene_pointer_msg: ScenePointerEvent):
             # only call the callback if the event is a click
             if scene_pointer_msg.event != "click":
                 return
-            click = ViewerClick(origin=scene_pointer_msg.ray_origin, direction=scene_pointer_msg.ray_direction)
+            origin = scene_pointer_msg.ray_origin
+            direction = scene_pointer_msg.ray_direction
+
+            origin = tuple([x / VISER_NERFSTUDIO_SCALE_RATIO for x in origin])
+            assert len(origin) == 3
+
+            click = ViewerClick(origin, direction)
             cb(click)
 
         self._click_cbs[cb] = wrapped_cb
