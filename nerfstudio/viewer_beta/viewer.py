@@ -95,7 +95,6 @@ class Viewer:
             websocket_port = self.config.websocket_port
         self.log_filename.parent.mkdir(exist_ok=True)
 
-
         # viewer specific variables
         self.output_type_changed = True
         self.output_split_type_changed = True
@@ -247,7 +246,7 @@ class Viewer:
                 self.camera_handles[idx].visible = visible
 
     def update_camera_poses(self):
-        #TODO this fn accounts for like ~5% of total train time
+        # TODO this fn accounts for like ~5% of total train time
         # Update the train camera locations based on optimization
         assert self.camera_handles is not None
         if hasattr(self.pipeline.datamanager, "train_camera_optimizer"):
@@ -337,7 +336,7 @@ class Viewer:
             camera = train_dataset.cameras[idx]
             image_uint8 = (image * 255).detach().type(torch.uint8)
             image_uint8 = image_uint8.permute(2, 0, 1)
-            image_uint8 = torchvision.transforms.functional.resize(image_uint8, 100)  # type: ignore
+            image_uint8 = torchvision.transforms.functional.resize(image_uint8, 100, antialias=None)  # type: ignore
             image_uint8 = image_uint8.permute(1, 2, 0)
             image_uint8 = image_uint8.cpu().numpy()
             c2w = camera.camera_to_worlds.cpu().numpy()

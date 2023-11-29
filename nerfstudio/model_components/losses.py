@@ -567,17 +567,18 @@ def scale_gradients_by_distance_squared(
         out[key], _ = cast(Tuple[Tensor, Tensor], _GradientScaler.apply(value, scaling))
     return out
 
+
 def scale_gauss_gradients_by_distance_squared(
     gauss_outs: torch.nn.Parameter,
-    gauss_depths: Float[Tensor,"n_gauss 1"],
-    padding_eps: float = .1,
+    gauss_depths: Float[Tensor, "n_gauss 1"],
+    padding_eps: float = 0.1,
     far_dist: float = 1,
 ) -> torch.nn.Parameter:
     """
     Scale gradients by the gaussian distance to the pixel
 
     """
-    scaling = (torch.square(gauss_depths/far_dist) + padding_eps).clamp(0, 1)
+    scaling = (torch.square(gauss_depths / far_dist) + padding_eps).clamp(0, 1)
     num_dims_to_add = len(gauss_outs.shape) - 1
     scaling = scaling.view(-1, *([1] * num_dims_to_add))
     out, _ = cast(Tuple[Tensor, Tensor], _GradientScaler.apply(gauss_outs, scaling))

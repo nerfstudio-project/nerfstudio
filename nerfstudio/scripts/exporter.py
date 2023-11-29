@@ -163,10 +163,12 @@ class ExportPointCloud(Exporter):
         if self.save_world_frame:
             # apply the inverse dataparser transform to the point cloud
             points = np.asarray(pcd.points)
-            poses = np.eye(4,dtype=np.float32)[None,...].repeat(points.shape[0], axis=0)[:,:3,:]
-            poses[:,:3,3] = points
-            poses = pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(torch.from_numpy(poses))
-            points = poses[:,:3,3].numpy()
+            poses = np.eye(4, dtype=np.float32)[None, ...].repeat(points.shape[0], axis=0)[:, :3, :]
+            poses[:, :3, 3] = points
+            poses = pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(
+                torch.from_numpy(poses)
+            )
+            points = poses[:, :3, 3].numpy()
             pcd.points = o3d.utility.Vector3dVector(points)
 
         torch.cuda.empty_cache()
@@ -504,7 +506,7 @@ class ExportGaussianSplat(Exporter):
             colors = model.colors.data.cpu().numpy()
             map_to_tensors["colors"] = (colors * 255).astype(np.uint8)
             for i in range(colors.shape[1]):
-                map_to_tensors[f"f_dc_{i}"] = colors[:, i:i+1]
+                map_to_tensors[f"f_dc_{i}"] = colors[:, i : i + 1]
 
             shs = model.shs_rest.data.cpu().numpy()
             if model.config.sh_degree > 0:
