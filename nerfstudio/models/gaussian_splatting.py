@@ -510,10 +510,14 @@ class GaussianSplattingModel(Model):
         if self.training:
             #currently relies on the branch vickie/camera-grads
             self.camera_optimizer.apply_to_camera(camera)
+        if self.training:
+            background = torch.rand(3, device=self.device)
+        else:
+            background = self.back_color
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
-                return {"rgb": torch.full((camera.height.item(), camera.width.item(), 3), 0.5, device=self.device)}
+                return {"rgb": background.repeat(camera.height.item(), camera.width.item(), 1)}
         else:
             crop_ids = None
         camera_downscale = self._get_downscale_factor()
@@ -544,10 +548,6 @@ class GaussianSplattingModel(Model):
             (H + BLOCK_Y - 1) // BLOCK_Y,
             1,
         )
-        if self.training:
-            background = torch.rand(3, device=self.device)
-        else:
-            background = self.back_color
 
 
         if crop_ids is not None:
@@ -577,6 +577,8 @@ class GaussianSplattingModel(Model):
             W,
             tile_bounds,
         )
+        if (self.radii).sum() == 0:
+            return {"rgb": background.repeat(camera.height.item(), camera.width.item(), 1)}
         
         # Important to allow xys grads to populate properly
         if self.training:
