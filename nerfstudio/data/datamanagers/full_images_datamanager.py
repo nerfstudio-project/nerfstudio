@@ -40,7 +40,6 @@ from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManag
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.utils.dataloaders import FixedIndicesEvalDataloader
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -332,11 +331,18 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
-        self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
-            input_dataset=self.eval_dataset,
-            device=self.device,
-            num_workers=self.world_size * 4,
-        )
+
+    @property
+    def fixed_indices_eval_dataloader(self):
+        self.image_indices = list(range(len(self.eval_unseen_cameras)))
+        data = deepcopy(self.cached_eval)
+        _cameras = deepcopy(self.eval_dataset.cameras).to(self.device)
+        cameras = []
+        for i in self.image_indices:
+            data[i]["image"] = data[i]["image"].to(self.device)
+            cameras.append(_cameras[i : i + 1])
+        assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
+        return list(zip(cameras, data))
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Get the param groups for the data manager.

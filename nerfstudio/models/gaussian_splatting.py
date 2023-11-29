@@ -25,7 +25,7 @@ from nerfstudio.cameras.rays import RayBundle
 
 import torch
 from torch.nn import Parameter
-from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
+from torchmetrics.image import PeakSignalNoiseRatio
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 import torchvision.transforms.functional as TF
 
@@ -43,6 +43,7 @@ from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimize
 from gsplat.rasterize import RasterizeGaussians
 from gsplat.project_gaussians import ProjectGaussians
 from gsplat.sh import SphericalHarmonics, num_sh_bases
+from pytorch_msssim import SSIM
 
 
 def random_quat_tensor(N, **kwargs):
@@ -63,6 +64,11 @@ def random_quat_tensor(N, **kwargs):
 def RGB2SH(rgb):
     C0 = 0.28209479177387814
     return (rgb - 0.5) / C0
+
+
+def SH2RGB(sh):
+    C0 = 0.28209479177387814
+    return sh * C0 + 0.5
 
 
 def projection_matrix(znear, zfar, fovx, fovy, device="cpu"):
@@ -122,7 +128,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     """number of extra points to add to the model in addition to sfm points, randomly distributed"""
     ssim_lambda: float = 0.2
     """weight of ssim loss"""
-    stop_split_at: int = 30000
+    stop_split_at: int = 15000
     """stop splitting at this step"""
     sh_degree: int = 4
     """maximum degree of spherical harmonics to use"""
@@ -181,7 +187,7 @@ class GaussianSplattingModel(Model):
 
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
-        self.ssim = StructuralSimilarityIndexMeasure()
+        self.ssim = SSIM(data_range=1.0, size_average=True, channel=3)
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
         self.step = 0
 
@@ -193,8 +199,12 @@ class GaussianSplattingModel(Model):
         )
 
     @property
-    def get_colors(self):
-        return self.colors_all
+    def colors(self):
+        return SH2RGB(self.colors_all[:, 0, :])
+
+    @property
+    def shs_rest(self):
+        return self.colors_all[:, 1:, :]
 
     def load_state_dict(self, dict, **kwargs):
         # resize the parameters to match the new number of points
@@ -549,13 +559,13 @@ class GaussianSplattingModel(Model):
         if crop_ids is not None:
             opacities_crop = self.opacities[crop_ids]
             means_crop = self.means[crop_ids]
-            colors_crop = self.get_colors[crop_ids]
+            colors_crop = self.colors_all[crop_ids]
             scales_crop = self.scales[crop_ids]
             quats_crop = self.quats[crop_ids]
         else:
             opacities_crop = self.opacities
             means_crop = self.means
-            colors_crop = self.get_colors
+            colors_crop = self.colors_all
             scales_crop = self.scales
             quats_crop = self.quats
         self.xys, depths, self.radii, conics, num_tiles_hit, cov3d = ProjectGaussians.apply(
@@ -574,10 +584,6 @@ class GaussianSplattingModel(Model):
             tile_bounds,
         )
 
-        # if self.training:
-        #     # experimental gradient scaling for floater removal
-        #     depths_de = depths.detach()
-        #     opacities_crop = scale_gauss_gradients_by_distance_squared(opacities_crop,depths_de,far_dist=1,padding_eps=.3)
         # Important to allow xys grads to populate properly
         if self.training:
             self.xys.retain_grad()
@@ -585,10 +591,7 @@ class GaussianSplattingModel(Model):
             viewdirs = means_crop.detach() - camera.camera_to_worlds.detach()[..., :3, 3]  # (N, 3)
             viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
             n = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
-            n_coeffs = num_sh_bases(n)
-            coeffs = colors_crop[:, :n_coeffs, :]
-            # input expects (N, n_coeffs, 3)
-            rgbs = SphericalHarmonics.apply(n, viewdirs, coeffs)
+            rgbs = SphericalHarmonics.apply(n, viewdirs, colors_crop)
             rgbs = torch.clamp(rgbs + 0.5, 0.0, 1.0)
         else:
             rgbs = self.get_colors.squeeze()  # (N, 3)
@@ -633,7 +636,7 @@ class GaussianSplattingModel(Model):
         d = self._get_downscale_factor()
         if d > 1:
             newsize = (batch["image"].shape[0] // d, batch["image"].shape[1] // d)
-            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize).permute(1, 2, 0)
+            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
             gt_img = batch["image"]
         metrics_dict = {}
@@ -656,7 +659,7 @@ class GaussianSplattingModel(Model):
         d = self._get_downscale_factor()
         if d > 1:
             newsize = (batch["image"].shape[0] // d, batch["image"].shape[1] // d)
-            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize).permute(1, 2, 0)
+            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
             gt_img = batch["image"]
         Ll1 = torch.abs(gt_img - outputs["rgb"]).mean()
@@ -700,8 +703,8 @@ class GaussianSplattingModel(Model):
         d = self._get_downscale_factor()
         if d > 1:
             newsize = (batch["image"].shape[0] // d, batch["image"].shape[1] // d)
-            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize).permute(1, 2, 0)
-            predicted_rgb = TF.resize(outputs["rgb"].permute(2, 0, 1), newsize).permute(1, 2, 0)
+            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
+            predicted_rgb = TF.resize(outputs["rgb"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
             gt_img = batch["image"]
             predicted_rgb = outputs["rgb"]
