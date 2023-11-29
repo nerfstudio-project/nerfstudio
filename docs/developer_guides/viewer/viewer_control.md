@@ -62,7 +62,7 @@ class MyModel(nn.Module):  # Must inherit from nn.Module
         self.viewer_button = ViewerButton(name="Dummy Button",cb_hook=button_cb)
 ```
 
-## Double-click Callbacks
+## Scene Click Callbacks
 We forward *single* clicks inside the viewer to the ViewerControl object, which you can use to interact with the scene. To do this, register a callback using `register_click_cb()`. The click is defined to be a ray that starts at the camera origin and passes through the click point on the screen, in world coordinates. 
 
 ```python
