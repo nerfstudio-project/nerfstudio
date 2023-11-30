@@ -73,10 +73,6 @@ class ControlPanel:
             options=["Slow", "Mid", "Fast"],
             cb_hook=lambda han: self._train_speed_cb(),
         )
-        self._reset_camera = ViewerButton(
-            name="Reset Up Direction",
-            cb_hook=lambda han: self._reset_camera_cb(),
-        )
         self._output_render = ViewerDropdown(
             "Output Render",
             "not set",
@@ -211,8 +207,15 @@ class ControlPanel:
         self.show_images.on_click(lambda _: camera_vis(True))
         self.show_images.on_click(lambda _: self.toggle_cameravis_button())
         self.show_images.visible = False
+        
+        self.add_element(self._train_speed)
+        self.add_element(self._train_util)
+        self._reset_camera = viser_server.add_gui_button(
+            label="Reset Up Dir", disabled=False, icon=viser.Icon.ARROW_UP_CIRCLE
+        )
+        self._reset_camera.on_click(self._reset_camera_cb)
         self.share_button = viser_server.add_gui_button(
-            label="Create Share Link", disabled=False, icon=viser.Icon.LINK, color="teal"
+            label="Share Link", disabled=False, icon=viser.Icon.SHARE_2, color="teal"
         )
 
         @self.share_button.on_click
@@ -225,10 +228,6 @@ class ControlPanel:
                 close_but.on_click(lambda _: modal.close())
                 url = self.viser_server.request_share_url()
                 mkdown.content = f"""#### Publicly Accessible URL:\n```{url}```\n\nAnyone can open this link, which expires in 24 hours. All compute is still on your local machine."""
-
-        self.add_element(self._train_speed)
-        self.add_element(self._train_util)
-        self.add_element(self._reset_camera)
         with self.viser_server.add_gui_folder("Render Options"):
             self.add_element(self._max_res)
             self.add_element(self._output_render)
@@ -277,7 +276,7 @@ class ControlPanel:
             self._train_util.value = 0.5
             self._max_res.value = 1024
 
-    def _reset_camera_cb(self) -> None:
+    def _reset_camera_cb(self, _) -> None:
         for client in self.viser_server.get_clients().values():
             client.camera.up_direction = vtf.SO3(client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
 

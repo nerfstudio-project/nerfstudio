@@ -103,18 +103,13 @@ class Viewer:
         self._prev_train_state: Literal["training", "paused", "completed"] = "training"
         self.last_move_time = 0
 
-        self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port, share=share)
+        self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
         # Set the name of the URL either to the share link if available, or the localhost
-        # TODO: we should revisit this once a public API for share URL status is exposed in viser.
-        # https://github.com/nerfstudio-project/viser/issues/124
         if share:
-            assert self.viser_server._share_tunnel is not None
-            while self.viser_server._share_tunnel._shared_state["status"] == "connecting":
-                # wait for connection before grabbing URL
-                time.sleep(0.01)
-            url_maybe = self.viser_server._share_tunnel.get_url()
-            if url_maybe is not None:
-                self.viewer_url = url_maybe
+            url = self.viser_server.request_share_url()
+            if url is not None:
+                print("Couldn't make share URL")
+                self.viewer_url = url
             else:
                 self.viewer_url = f"http://{config.websocket_host}:{websocket_port}"
         else:
