@@ -88,7 +88,7 @@ from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.plugins.types import MethodSpecification
 
 def MyMethodFunc():
-    return = MethodSpecification(
+    return MethodSpecification(
       config=TrainerConfig(...)
       description="Custom description"
     )
@@ -131,6 +131,15 @@ finally run the following to register the dataparser.
 ```
 pip install -e .
 ```
+
+Similarly to the method develomement, you can also use environment variables to register dataparsers.
+Use the `NERFSTUDIO_DATAPARSER_CONFIGS` environment variable:
+
+```
+export NERFSTUDIO_DATAPARSER_CONFIGS="my-dataparser=my_package.my_config:MyDataParser"
+```
+
+Same as with custom methods, `NERFSTUDIO_DATAPARSER_CONFIGS` environment variable additionally accepts a function or derived class to temporarily register your custom method.
 
 ## Running custom method
 

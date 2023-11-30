@@ -55,7 +55,7 @@ class Model:
         """Process a RayBundle object and return RayOutputs describing quanties for each ray."""
 
     def get_metrics_dict(self, outputs, batch):
-        """Returns metrics dictionary which will be plotted with wandb or tensorboard."""
+        """Returns metrics dictionary which will be plotted with comet, wandb or tensorboard."""
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         """Returns a dictionary of losses to be summed which will be your loss."""

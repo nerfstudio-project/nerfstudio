@@ -167,7 +167,6 @@ def convert_video_to_images(
             start_y = crop_factor[0]
             crop_cmd = f"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y},"
 
-        num_frames = get_num_frames_in_video(video_path)
         spacing = num_frames // num_frames_target
 
         downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}[out{i}]" for i in range(num_downscales + 1)]
@@ -184,9 +183,10 @@ def convert_video_to_images(
             + ";".join(downscale_chains)
         )
 
+        ffmpeg_cmd += " -vsync vfr"
+
         if spacing > 1:
             CONSOLE.print("Number of frames to extract:", math.ceil(num_frames / spacing))
-            ffmpeg_cmd += " -vsync vfr"
             select_cmd = f"thumbnail={spacing},setpts=N/TB,"
         else:
             CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
