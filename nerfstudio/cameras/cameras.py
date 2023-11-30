@@ -615,9 +615,9 @@ class Cameras(TensorDataclass):
 
         # Get our image coordinates and image coordinates offset by 1 (offsets used for dx, dy calculations)
         # Also make sure the shapes are correct
-        coord = torch.stack([(x - cx) / fx, -(y - cy) / fy], -1)  # (num_rays, 2)
-        coord_x_offset = torch.stack([(x - cx + 1) / fx, -(y - cy) / fy], -1)  # (num_rays, 2)
-        coord_y_offset = torch.stack([(x - cx) / fx, -(y - cy + 1) / fy], -1)  # (num_rays, 2)
+        coord = torch.stack([(x - cx) / fx, (y - cy) / fy], -1)  # (num_rays, 2)
+        coord_x_offset = torch.stack([(x - cx + 1) / fx, (y - cy) / fy], -1)  # (num_rays, 2)
+        coord_y_offset = torch.stack([(x - cx) / fx, (y - cy + 1) / fy], -1)  # (num_rays, 2)
         assert (
             coord.shape == num_rays_shape + (2,)
             and coord_x_offset.shape == num_rays_shape + (2,)
@@ -647,6 +647,9 @@ class Cameras(TensorDataclass):
                         coord_stack[coord_mask, :].reshape(3, -1, 2),
                         distortion_params[mask, :],
                     ).reshape(-1, 2)
+
+        # Switch from OpenCV to OpenGL
+        coord_stack[..., 1] *= -1
 
         # Make sure after we have undistorted our images, the shapes are still correct
         assert coord_stack.shape == (3,) + num_rays_shape + (2,)
