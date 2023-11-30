@@ -169,17 +169,18 @@ class NeRFEncoding(Encoding):
             encoded_inputs = expected_sin(
                 torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1), torch.cat(2 * [input_var], dim=-1)
             )
-
-        if self.include_input:
-            encoded_inputs = torch.cat([encoded_inputs, in_tensor], dim=-1)
         return encoded_inputs
 
     def forward(
         self, in_tensor: Float[Tensor, "*bs input_dim"], covs: Optional[Float[Tensor, "*bs input_dim input_dim"]] = None
     ) -> Float[Tensor, "*bs output_dim"]:
         if self.tcnn_encoding is not None:
-            return self.tcnn_encoding(in_tensor)
-        return self.pytorch_fwd(in_tensor, covs)
+            encoded_inputs = self.tcnn_encoding(in_tensor)
+        else:
+            encoded_inputs = self.pytorch_fwd(in_tensor, covs)
+        if self.include_input:
+            encoded_inputs = torch.cat([encoded_inputs, in_tensor], dim=-1)
+        return encoded_inputs
 
 
 class FFEncoding(Encoding):
