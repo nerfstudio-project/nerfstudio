@@ -20,7 +20,7 @@ import numpy as np
 import torch
 import viser.transforms as vtf
 from viser import ViserServer
-
+import viser
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
 from nerfstudio.viewer_beta.viewer_elements import (  # ViewerButtonGroup,
@@ -192,21 +192,39 @@ class ControlPanel:
         self.stat_folder = self.viser_server.add_gui_folder("Stats")
         with self.stat_folder:
             self.markdown = self.viser_server.add_gui_markdown("Step: 0")
-        self.pause_train = viser_server.add_gui_button(label="Pause Training", disabled=False)
+        self.pause_train = viser_server.add_gui_button(
+            label="Pause Training", disabled=False, icon=viser.Icon.PLAYER_PAUSE_FILLED
+        )
         self.pause_train.on_click(lambda _: self.toggle_pause_button())
         self.pause_train.on_click(lambda han: toggle_training_state_cb(han))
-        self.resume_train = viser_server.add_gui_button(label="Resume Training", disabled=False)
+        self.resume_train = viser_server.add_gui_button(
+            label="Resume Training", disabled=False, icon=viser.Icon.PLAYER_PLAY_FILLED
+        )
         self.resume_train.on_click(lambda _: self.toggle_pause_button())
         self.resume_train.on_click(lambda han: toggle_training_state_cb(han))
         self.resume_train.visible = False
         # Add buttons to toggle training image visibility
-        self.hide_images = viser_server.add_gui_button(label="Hide Train Cams", disabled=False)
+        self.hide_images = viser_server.add_gui_button(label="Hide Train Cams", disabled=False, icon=viser.Icon.EYE_OFF)
         self.hide_images.on_click(lambda _: camera_vis(False))
         self.hide_images.on_click(lambda _: self.toggle_cameravis_button())
-        self.show_images = viser_server.add_gui_button(label="Show Train Cams", disabled=False)
+        self.show_images = viser_server.add_gui_button(label="Show Train Cams", disabled=False, icon=viser.Icon.EYE)
         self.show_images.on_click(lambda _: camera_vis(True))
         self.show_images.on_click(lambda _: self.toggle_cameravis_button())
         self.show_images.visible = False
+        self.share_button = viser_server.add_gui_button(
+            label="Create Share Link", disabled=False, icon=viser.Icon.LINK, color="teal"
+        )
+
+        @self.share_button.on_click
+        def click(han):
+            # popup a modal sharing it
+            modal = self.viser_server.add_gui_modal("Share Link")
+            with modal:
+                mkdown = self.viser_server.add_gui_markdown("#### Creating link...")
+                close_but = self.viser_server.add_gui_button("Close")
+                close_but.on_click(lambda _: modal.close())
+                url = self.viser_server.request_share_url()
+                mkdown.content = f"""#### Publicly Accessible URL:\n```{url}```\n\nAnyone can open this link, which expires in 24 hours. All compute is still on your local machine."""
 
         self.add_element(self._train_speed)
         self.add_element(self._train_util)
