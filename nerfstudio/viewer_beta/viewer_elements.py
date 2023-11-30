@@ -31,6 +31,7 @@ from viser import (
     GuiButtonHandle,
     GuiDropdownHandle,
     GuiInputHandle,
+    ScenePointerEvent,
     ViserServer,
 )
 
@@ -68,7 +69,7 @@ class ViewerControl:
 
     def __init__(self):
         # this should be a user-facing constructor, since it will be used inside the model/pipeline class
-        self.click_cbs = []
+        self._click_cbs = {}
 
     def _setup(self, viewer: Viewer):
         """
@@ -151,13 +152,35 @@ class ViewerControl:
             cb: The callback to call when a click is detected.
                 The callback should take a ViewerClick object as an argument
         """
-        self.click_cbs.append(cb)
+        from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO
 
-    def on_click(self, msg):
+        def wrapped_cb(scene_pointer_msg: ScenePointerEvent):
+            # only call the callback if the event is a click
+            if scene_pointer_msg.event != "click":
+                return
+            origin = scene_pointer_msg.ray_origin
+            direction = scene_pointer_msg.ray_direction
+
+            origin = tuple([x / VISER_NERFSTUDIO_SCALE_RATIO for x in origin])
+            assert len(origin) == 3
+
+            click = ViewerClick(origin, direction)
+            cb(click)
+
+        self._click_cbs[cb] = wrapped_cb
+        self.viser_server.on_scene_click(wrapped_cb)
+
+    def unregister_click_cb(self, cb: Callable):
         """
-        Internal use only, register a click in the viewer which propagates to all self.click_cbs
+        Remove a callback which will be called when a click is detected in the viewer.
+
+        Args:
+            cb: The callback to remove
         """
-        raise NotImplementedError()
+        if cb not in self._click_cbs:
+            raise ValueError(f"Callback {cb} not registered, cannot remove")
+        self.viser_server.remove_scene_click_callback(self._click_cbs[cb])
+        self._click_cbs.pop(cb)
 
     @property
     def server(self):
