@@ -207,11 +207,11 @@ class ControlPanel:
         self.show_images.on_click(lambda _: camera_vis(True))
         self.show_images.on_click(lambda _: self.toggle_cameravis_button())
         self.show_images.visible = False
-        
+
         self.add_element(self._train_speed)
         self.add_element(self._train_util)
         self._reset_camera = viser_server.add_gui_button(
-            label="Reset Up Dir", disabled=False, icon=viser.Icon.ARROW_UP_CIRCLE
+            label="Reset Up Dir", disabled=False, icon=viser.Icon.ARROW_BIG_UP_LINES
         )
         self._reset_camera.on_click(self._reset_camera_cb)
         self.share_button = viser_server.add_gui_button(
@@ -228,6 +228,7 @@ class ControlPanel:
                 close_but.on_click(lambda _: modal.close())
                 url = self.viser_server.request_share_url()
                 mkdown.content = f"""#### Publicly Accessible URL:\n```{url}```\n\nAnyone can open this link, which expires in 24 hours. All compute is still on your local machine."""
+
         with self.viser_server.add_gui_folder("Render Options"):
             self.add_element(self._max_res)
             self.add_element(self._output_render)
