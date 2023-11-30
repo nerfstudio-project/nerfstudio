@@ -55,6 +55,8 @@ class RunViewer:
     """Viewer configuration"""
     vis: Literal["viewer", "viewer_beta"] = "viewer"
     """Type of viewer"""
+    make_share_url: bool = False
+    """Viewer beta feature: print a shareable URL. `vis` must be set to viewer_beta; this flag is otherwise ignored."""
 
     def main(self) -> None:
         """Main function."""
@@ -66,6 +68,7 @@ class RunViewer:
         num_rays_per_chunk = config.viewer.num_rays_per_chunk
         assert self.viewer.num_rays_per_chunk == -1
         config.vis = self.vis
+        config.viewer.make_share_url = self.make_share_url
         config.viewer = self.viewer.as_viewer_config()
         config.viewer.num_rays_per_chunk = num_rays_per_chunk
 
@@ -103,6 +106,7 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
             log_filename=viewer_log_path,
             datapath=base_dir,
             pipeline=pipeline,
+            share=config.viewer.make_share_url,
         )
         banner_messages = [f"Viewer Beta at: {viewer_state.viewer_url}"]
 
@@ -126,11 +130,11 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
     tyro.extras.set_accent_color("bright_yellow")
-    tyro.cli(RunViewer).main()
+    tyro.cli(tyro.conf.FlagConversionOff[RunViewer]).main()
 
 
 if __name__ == "__main__":
     entrypoint()
 
 # For sphinx docs
-get_parser_fn = lambda: tyro.extras.get_parser(RunViewer)  # noqa
+get_parser_fn = lambda: tyro.extras.get_parser(tyro.conf.FlagConversionOff[RunViewer])  # noqa

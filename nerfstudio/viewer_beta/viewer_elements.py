@@ -31,6 +31,7 @@ from viser import (
     GuiButtonHandle,
     GuiDropdownHandle,
     GuiInputHandle,
+    ScenePointerEvent,
     ViserServer,
 )
 
@@ -68,7 +69,7 @@ class ViewerControl:
 
     def __init__(self):
         # this should be a user-facing constructor, since it will be used inside the model/pipeline class
-        self.click_cbs = []
+        self._click_cbs = {}
 
     def _setup(self, viewer: Viewer):
         """
@@ -117,7 +118,7 @@ class ViewerControl:
         """
         raise NotImplementedError()
 
-    def get_camera(self, img_height: int, img_width: int) -> Optional[Cameras]:
+    def get_camera(self, img_height: int, img_width: int, client_id: Optional[int] = None) -> Optional[Cameras]:
         """
         Returns the Cameras object representing the current camera for the viewer, or None if the viewer
         is not connected yet
@@ -126,16 +127,21 @@ class ViewerControl:
             img_height: The height of the image to get camera intrinsics for
             img_width: The width of the image to get camera intrinsics for
         """
-        assert self.viewer.client is not None
+        clients = self.viser_server.get_clients()
+        if len(clients) == 0:
+            return None
+        if not client_id:
+            client_id = list(clients.keys())[0]
 
         from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO
 
-        R = vtf.SO3(wxyz=self.viewer.client.camera.wxyz)
+        client = clients[client_id]
+        R = vtf.SO3(wxyz=client.camera.wxyz)
         R = R @ vtf.SO3.from_x_radians(np.pi)
         R = torch.tensor(R.as_matrix())
-        pos = torch.tensor(self.viewer.client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
+        pos = torch.tensor(client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
         c2w = torch.concatenate([R, pos[:, None]], dim=1)
-        camera_state = CameraState(fov=self.viewer.client.camera.fov, aspect=self.viewer.client.camera.aspect, c2w=c2w)
+        camera_state = CameraState(fov=client.camera.fov, aspect=client.camera.aspect, c2w=c2w)
         return get_camera(camera_state, img_height, img_width)
 
     def register_click_cb(self, cb: Callable):
@@ -146,13 +152,35 @@ class ViewerControl:
             cb: The callback to call when a click is detected.
                 The callback should take a ViewerClick object as an argument
         """
-        self.click_cbs.append(cb)
+        from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO
 
-    def on_click(self, msg):
+        def wrapped_cb(scene_pointer_msg: ScenePointerEvent):
+            # only call the callback if the event is a click
+            if scene_pointer_msg.event != "click":
+                return
+            origin = scene_pointer_msg.ray_origin
+            direction = scene_pointer_msg.ray_direction
+
+            origin = tuple([x / VISER_NERFSTUDIO_SCALE_RATIO for x in origin])
+            assert len(origin) == 3
+
+            click = ViewerClick(origin, direction)
+            cb(click)
+
+        self._click_cbs[cb] = wrapped_cb
+        self.viser_server.on_scene_click(wrapped_cb)
+
+    def unregister_click_cb(self, cb: Callable):
         """
-        Internal use only, register a click in the viewer which propagates to all self.click_cbs
+        Remove a callback which will be called when a click is detected in the viewer.
+
+        Args:
+            cb: The callback to remove
         """
-        raise NotImplementedError()
+        if cb not in self._click_cbs:
+            raise ValueError(f"Callback {cb} not registered, cannot remove")
+        self.viser_server.remove_scene_click_callback(self._click_cbs[cb])
+        self._click_cbs.pop(cb)
 
     @property
     def server(self):

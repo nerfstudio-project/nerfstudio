@@ -31,10 +31,10 @@ If all of the images share the same camera intrinsics, the values can be placed 
   "cy": 1000.0, // principal point y
   "w": 3008, // image width
   "h": 2000, // image height
-  "k1": 0.0312, // first radial distorial parameter, used by [OPENCV, OPENCV_FISHEYE]
-  "k2": 0.0051, // second radial distorial parameter, used by [OPENCV, OPENCV_FISHEYE]
-  "k3": 0.0006, // third radial distorial parameter, used by [OPENCV_FISHEYE]
-  "k4": 0.0001, // fourth radial distorial parameter, used by [OPENCV_FISHEYE]
+  "k1": 0.0312, // first radial distortion parameter, used by [OPENCV, OPENCV_FISHEYE]
+  "k2": 0.0051, // second radial distortion parameter, used by [OPENCV, OPENCV_FISHEYE]
+  "k3": 0.0006, // third radial distortion parameter, used by [OPENCV_FISHEYE]
+  "k4": 0.0001, // fourth radial distortion parameter, used by [OPENCV_FISHEYE]
   "p1": -6.47e-5, // first tangential distortion parameter, used by [OPENCV]
   "p2": -1.37e-7, // second tangential distortion parameter, used by [OPENCV]
   "frames": // ... per-frame intrinsics and extrinsics parameters
@@ -82,7 +82,7 @@ For a transform matrix, the first 3 columns are the +X, +Y, and +Z defining the 
 
 ### Depth images
 
-To train with depth supervision, you can also provide a `depth_file_path` for each frame in your `transforms.json` and use one of the methods that support additional depth losses (e.g., depth-nerfacto). The depths are assumed to be 16-bit or 32-bit and to be in millimeters to remain consistent with [Polyform](https://github.com/PolyCam/polyform). You can adjust this scaling factor using the `depth_unit_scale_factor` parameter in `NerfstudioDataParserConfig`. Note that by default, we resize the depth images to match the shape of the RGB images.
+To train with depth supervision, you can also provide a `depth_file_path` for each frame in your `transforms.json` and use one of the methods that support additional depth losses (e.g., depth-nerfacto). The depths are assumed to be 16-bit or 32-bit and to be in millimeters to remain consistent with [Polyform](https://github.com/PolyCam/polyform). Zero-value in the depth image is treated as unknown depth. You can adjust this scaling factor using the `depth_unit_scale_factor` parameter in `NerfstudioDataParserConfig`. Note that by default, we resize the depth images to match the shape of the RGB images.
 
 ```json
 {

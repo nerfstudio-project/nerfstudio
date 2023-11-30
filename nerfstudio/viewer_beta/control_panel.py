@@ -19,6 +19,8 @@ from typing import Callable, DefaultDict, List, Tuple, get_args
 import numpy as np
 import torch
 import viser.transforms as vtf
+from viser import ViserServer
+
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
 from nerfstudio.viewer_beta.viewer_elements import (  # ViewerButtonGroup,
@@ -32,7 +34,6 @@ from nerfstudio.viewer_beta.viewer_elements import (  # ViewerButtonGroup,
     ViewerSlider,
     ViewerVec3,
 )
-from viser import ViserServer
 
 
 class ControlPanel:
@@ -44,6 +45,7 @@ class ControlPanel:
             (eg train speed, max res, etc)
         crop_update_cb: a callback that will be called when the user changes the crop parameters
         update_output_cb: a callback that will be called when the user changes the output render
+        default_composite_depth: whether to default to compositing depth or not
     """
 
     def __init__(
@@ -57,11 +59,13 @@ class ControlPanel:
         update_split_output_cb: Callable,
         toggle_training_state_cb: Callable,
         camera_vis: Callable,
+        default_composite_depth: bool = True,
     ):
         self.viser_scale_ratio = scale_ratio
         # elements holds a mapping from tag: [elements]
         self.viser_server = viser_server
         self._elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
+        self.default_composite_depth = default_composite_depth
 
         self._train_speed = ViewerButtonGroup(
             name="Train Speed",
@@ -130,7 +134,10 @@ class ControlPanel:
             hint="Target training utilization, 0.0 is slow, 1.0 is fast. Doesn't affect final render quality",
         )
         self._layer_depth = ViewerCheckbox(
-            "Composite Depth", True, cb_hook=rerender_cb, hint="Allow NeRF to occlude 3D browser objects"
+            "Composite Depth",
+            self.default_composite_depth,
+            cb_hook=rerender_cb,
+            hint="Allow NeRF to occlude 3D browser objects",
         )
         self._max_res = ViewerSlider(
             "Max Res", 512, 64, 2048, 100, cb_hook=rerender_cb, hint="Maximum resolution to render in viewport"
@@ -147,7 +154,7 @@ class ControlPanel:
         self._crop_handle = self.viser_server.add_transform_controls("Crop", depth_test=False, line_width=4.0)
 
         def update_center(han):
-            self._crop_handle.position = tuple(p * self.viser_scale_ratio for p in han.value)
+            self._crop_handle.position = tuple(p * self.viser_scale_ratio for p in han.value)  # type: ignore
 
         self._crop_center = ViewerVec3(
             "Crop Center",
@@ -175,7 +182,7 @@ class ControlPanel:
         @self._crop_handle.on_update
         def _update_crop_handle(han):
             pos = self._crop_handle.position
-            self._crop_center.value = tuple(p / self.viser_scale_ratio for p in pos)
+            self._crop_center.value = tuple(p / self.viser_scale_ratio for p in pos)  # type: ignore
             rpy = vtf.SO3(self._crop_handle.wxyz).as_rpy_radians()
             self._crop_rot.value = (float(rpy.roll), float(rpy.pitch), float(rpy.yaw))
 
@@ -269,11 +276,7 @@ class ControlPanel:
         Args:
             step: the train step to set the model to
         """
-        with self.viser_server.atomic(), self.stat_folder:
-            # TODO change to a .value call instead of remove() and add, this makes it jittery
-            with self.viser_server.atomic():
-                self.markdown.remove()
-                self.markdown = self.viser_server.add_gui_markdown(f"Step: {step}")
+        self.markdown.content = f"Step: {step}"
 
     def update_output_options(self, new_options: List[str]):
         """
@@ -284,7 +287,7 @@ class ControlPanel:
         self._split_output_render.set_options(new_options)
         self._split_output_render.value = new_options[-1]
 
-    def add_element(self, e: ViewerElement, additional_tags: Tuple[str] = tuple()) -> None:
+    def add_element(self, e: ViewerElement, additional_tags: Tuple[str, ...] = tuple()) -> None:
         """Adds an element to the control panel
 
         Args:
@@ -442,7 +445,7 @@ def _get_colormap_options(dimensions: int, dtype: type) -> List[Colormaps]:
     if dimensions == 3:
         colormap_options = ["default"]
     if dimensions == 1 and dtype in [torch.float64, torch.float32, torch.float16, torch.bfloat16]:
-        colormap_options = [c for c in list(get_args(Colormaps)) if c != "default"]
+        colormap_options = [c for c in list(get_args(Colormaps)) if c not in ("default", "pca")]
     if dimensions > 3:
         colormap_options = ["pca"]
     return colormap_options
