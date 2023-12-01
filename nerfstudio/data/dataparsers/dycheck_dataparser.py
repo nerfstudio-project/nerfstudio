@@ -322,7 +322,7 @@ class Dycheck(DataParser):
             for frame in frame_names:
                 cv2.imwrite(
                     str(self.data / f"rgb/{d}x/{frame}.png"),
-                    cv2.resize(cv2.imread(str(self.data / f"rgb/1x/{frame}.png")), (h, w)),
+                    cv2.resize(cv2.imread(str(self.data / f"rgb/1x/{frame}.png")), (w, h)),
                 )
             CONSOLE.print("finished")
 

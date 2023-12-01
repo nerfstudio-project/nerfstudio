@@ -116,6 +116,7 @@ class NerfactoField(Field):
         self.use_pred_normals = use_pred_normals
         self.pass_semantic_gradients = pass_semantic_gradients
         self.base_res = base_res
+        self.step = 0
 
         self.direction_encoding = SHEncoding(
             levels=4,

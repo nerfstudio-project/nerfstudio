@@ -35,7 +35,6 @@ EPS = 1.0e-7
 
 # Sigma scale factor from Urban Radiance Fields (Rematas et al., 2022)
 URF_SIGMA_SCALE_FACTOR = 3.0
-DEPTH_METRIC = 1
 
 
 class DepthLossType(Enum):
@@ -43,6 +42,11 @@ class DepthLossType(Enum):
 
     DS_NERF = 1
     URF = 2
+    SPARSENERF_RANKING = 3
+
+
+FORCE_PSEUDODEPTH_LOSS = False
+PSEUDODEPTH_COMPATIBLE_LOSSES = (DepthLossType.SPARSENERF_RANKING,)
 
 
 def outer(

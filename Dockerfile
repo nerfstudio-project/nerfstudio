@@ -3,6 +3,9 @@ ARG OS_VERSION=22.04
 ARG USER_ID=1000
 # Define base image.
 FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${OS_VERSION}
+ARG CUDA_VERSION
+ARG OS_VERSION
+ARG USER_ID
 
 # metainformation
 LABEL org.opencontainers.image.version = "0.1.18"
@@ -145,8 +148,10 @@ RUN git clone --branch v1.0 --recursive https://github.com/cvg/pyceres.git && \
     cd ..
 
 # Install pixel perfect sfm.
-RUN git clone --branch v1.0 --recursive https://github.com/cvg/pixel-perfect-sfm.git && \
+RUN git clone --recursive https://github.com/cvg/pixel-perfect-sfm.git && \
     cd pixel-perfect-sfm && \
+    git reset --hard 40f7c1339328b2a0c7cf71f76623fb848e0c0357 && \
+    git clean -df && \
     python3.10 -m pip install -e . && \
     cd ..
 
@@ -165,6 +170,8 @@ RUN cd nerfstudio && \
 # Change working directory
 WORKDIR /workspace
 
-# Install nerfstudio cli auto completion and enter shell if no command was provided.
-CMD ns-install-cli --mode install && /bin/bash
+# Install nerfstudio cli auto completion
+RUN ns-install-cli --mode install
 
+# Bash as default entrypoint.
+CMD /bin/bash -l

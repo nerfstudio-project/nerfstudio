@@ -32,7 +32,7 @@ import nerfstudio.utils.math
 import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.data.scene_box import SceneBox, OrientedBox
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
 TORCH_DEVICE = Union[torch.device, str]
@@ -323,30 +323,33 @@ class Cameras(TensorDataclass):
         keep_shape: Optional[bool] = None,
         disable_distortion: bool = False,
         aabb_box: Optional[SceneBox] = None,
+        obb_box: Optional[OrientedBox] = None,
     ) -> RayBundle:
         """Generates rays for the given camera indices.
 
         This function will standardize the input arguments and then call the _generate_rays_from_coords function
         to generate the rays. Our goal is to parse the arguments and then get them into the right shape:
-            - camera_indices: (num_rays:..., num_cameras_batch_dims)
-            - coords: (num_rays:..., 2)
-            - camera_opt_to_camera: (num_rays:..., 3, 4) or None
-            - distortion_params_delta: (num_rays:..., 6) or None
+
+        - camera_indices: (num_rays:..., num_cameras_batch_dims)
+        - coords: (num_rays:..., 2)
+        - camera_opt_to_camera: (num_rays:..., 3, 4) or None
+        - distortion_params_delta: (num_rays:..., 6) or None
 
         Read the docstring for _generate_rays_from_coords for more information on how we generate the rays
         after we have standardized the arguments.
 
         We are only concerned about different combinations of camera_indices and coords matrices, and the following
         are the 4 cases we have to deal with:
-            1. isinstance(camera_indices, int) and coords == None
-                - In this case we broadcast our camera_indices / coords shape (h, w, 1 / 2 respectively)
-            2. isinstance(camera_indices, int) and coords != None
-                - In this case, we broadcast camera_indices to the same batch dim as coords
-            3. not isinstance(camera_indices, int) and coords == None
-                - In this case, we will need to set coords so that it is of shape (h, w, num_rays, 2), and broadcast
-                    all our other args to match the new definition of num_rays := (h, w) + num_rays
-            4. not isinstance(camera_indices, int) and coords != None
-                - In this case, we have nothing to do, only check that the arguments are of the correct shape
+
+        1. isinstance(camera_indices, int) and coords == None
+            - In this case we broadcast our camera_indices / coords shape (h, w, 1 / 2 respectively)
+        2. isinstance(camera_indices, int) and coords != None
+            - In this case, we broadcast camera_indices to the same batch dim as coords
+        3. not isinstance(camera_indices, int) and coords == None
+            - In this case, we will need to set coords so that it is of shape (h, w, num_rays, 2), and broadcast
+                all our other args to match the new definition of num_rays := (h, w) + num_rays
+        4. not isinstance(camera_indices, int) and coords != None
+            - In this case, we have nothing to do, only check that the arguments are of the correct shape
 
         There is one more edge case we need to be careful with: when we have "jagged cameras" (ie: different heights
         and widths for each camera). This isn't problematic when we specify coords, since coords is already a tensor.
@@ -465,20 +468,24 @@ class Cameras(TensorDataclass):
         if keep_shape is False:
             raybundle = raybundle.flatten()
 
-        if aabb_box:
+        if aabb_box is not None or obb_box is not None:
             with torch.no_grad():
-                tensor_aabb = Parameter(aabb_box.aabb.flatten(), requires_grad=False)
-
                 rays_o = raybundle.origins.contiguous()
                 rays_d = raybundle.directions.contiguous()
 
-                tensor_aabb = tensor_aabb.to(rays_o.device)
                 shape = rays_o.shape
 
                 rays_o = rays_o.reshape((-1, 3))
                 rays_d = rays_d.reshape((-1, 3))
 
-                t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
+                if aabb_box is not None:
+                    tensor_aabb = Parameter(aabb_box.aabb.flatten(), requires_grad=False)
+                    tensor_aabb = tensor_aabb.to(rays_o.device)
+                    t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
+                elif obb_box is not None:
+                    t_min, t_max = nerfstudio.utils.math.intersect_obb(rays_o, rays_d, obb_box)
+                else:
+                    assert False
 
                 t_min = t_min.reshape([shape[0], shape[1], 1])
                 t_max = t_max.reshape([shape[0], shape[1], 1])
@@ -608,9 +615,9 @@ class Cameras(TensorDataclass):
 
         # Get our image coordinates and image coordinates offset by 1 (offsets used for dx, dy calculations)
         # Also make sure the shapes are correct
-        coord = torch.stack([(x - cx) / fx, -(y - cy) / fy], -1)  # (num_rays, 2)
-        coord_x_offset = torch.stack([(x - cx + 1) / fx, -(y - cy) / fy], -1)  # (num_rays, 2)
-        coord_y_offset = torch.stack([(x - cx) / fx, -(y - cy + 1) / fy], -1)  # (num_rays, 2)
+        coord = torch.stack([(x - cx) / fx, (y - cy) / fy], -1)  # (num_rays, 2)
+        coord_x_offset = torch.stack([(x - cx + 1) / fx, (y - cy) / fy], -1)  # (num_rays, 2)
+        coord_y_offset = torch.stack([(x - cx) / fx, (y - cy + 1) / fy], -1)  # (num_rays, 2)
         assert (
             coord.shape == num_rays_shape + (2,)
             and coord_x_offset.shape == num_rays_shape + (2,)
@@ -640,6 +647,9 @@ class Cameras(TensorDataclass):
                         coord_stack[coord_mask, :].reshape(3, -1, 2),
                         distortion_params[mask, :],
                     ).reshape(-1, 2)
+
+        # Switch from OpenCV to OpenGL
+        coord_stack[..., 1] *= -1
 
         # Make sure after we have undistorted our images, the shapes are still correct
         assert coord_stack.shape == (3,) + num_rays_shape + (2,)
@@ -746,8 +756,6 @@ class Cameras(TensorDataclass):
             vr180_cam_position = transposedC2W[3].repeat(c2w.shape[1], 1)
 
             rotation = c2w[..., :3, :3]
-
-            -torch.pi * ((x - cx) / fx)[0]
 
             # interocular axis of the VR180 camera
             vr180_x_axis = torch.tensor([1, 0, 0], device=c2w.device)

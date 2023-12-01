@@ -16,7 +16,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional
@@ -51,13 +51,13 @@ class ExperimentConfig(InstantiateConfig):
     """Project name."""
     timestamp: str = "{timestamp}"
     """Experiment timestamp."""
-    machine: MachineConfig = MachineConfig()
+    machine: MachineConfig = field(default_factory=lambda: MachineConfig())
     """Machine configuration"""
-    logging: LoggingConfig = LoggingConfig()
+    logging: LoggingConfig = field(default_factory=lambda: LoggingConfig())
     """Logging configuration"""
-    viewer: ViewerConfig = ViewerConfig()
+    viewer: ViewerConfig = field(default_factory=lambda: ViewerConfig())
     """Viewer configuration"""
-    pipeline: VanillaPipelineConfig = VanillaPipelineConfig()
+    pipeline: VanillaPipelineConfig = field(default_factory=lambda: VanillaPipelineConfig())
     """Pipeline configuration"""
     optimizers: Dict[str, Any] = to_immutable_dict(
         {
@@ -68,7 +68,9 @@ class ExperimentConfig(InstantiateConfig):
         }
     )
     """Dictionary of optimizer groups and their schedulers"""
-    vis: Literal["viewer", "wandb", "tensorboard", "viewer+wandb", "viewer+tensorboard", "viewer_beta"] = "wandb"
+    vis: Literal[
+        "viewer", "wandb", "tensorboard", "comet", "viewer+wandb", "viewer+tensorboard", "viewer+comet", "viewer_beta"
+    ] = "wandb"
     """Which visualizer to use."""
     data: Optional[Path] = None
     """Alias for --pipeline.datamanager.data"""
@@ -77,11 +79,11 @@ class ExperimentConfig(InstantiateConfig):
     relative_model_dir: Path = Path("nerfstudio_models/")
     """Relative path to save all checkpoints."""
     load_scheduler: bool = True
-    """Whether to load the scheduler state_dict to resume training, if exists"""
+    """Whether to load the scheduler state_dict to resume training, if it exists."""
 
     def is_viewer_enabled(self) -> bool:
         """Checks if a viewer is enabled."""
-        return ("viewer" == self.vis) | ("viewer+wandb" == self.vis) | ("viewer+tensorboard" == self.vis)
+        return self.vis in ("viewer", "viewer+wandb", "viewer+tensorboard", "viewer+comet")
 
     def is_viewer_beta_enabled(self) -> bool:
         """Checks if a viewer beta is enabled."""
@@ -94,6 +96,9 @@ class ExperimentConfig(InstantiateConfig):
     def is_tensorboard_enabled(self) -> bool:
         """Checks if tensorboard is enabled."""
         return ("tensorboard" == self.vis) | ("viewer+tensorboard" == self.vis)
+
+    def is_comet_enabled(self) -> bool:
+        return ("comet" == self.vis) | ("viewer+comet" == self.vis)
 
     def set_timestamp(self) -> None:
         """Dynamically set the experiment timestamp"""
