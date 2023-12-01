@@ -464,6 +464,7 @@ class Trainer:
 
         self.optimizers.zero_grad_all()
         cpu_or_cuda_str: str = self.device.split(":")[0]
+        cpu_or_cuda_str = "cpu" if cpu_or_cuda_str == "mps" else cpu_or_cuda_str
         assert (
             self.gradient_accumulation_steps > 0
         ), f"gradient_accumulation_steps must be > 0, not {self.gradient_accumulation_steps}"
