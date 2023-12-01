@@ -168,6 +168,7 @@ class Model(nn.Module):
         Args:
             camera_ray_bundle: ray bundle to calculate outputs over
         """
+        input_device = camera_ray_bundle.directions.device
         num_rays_per_chunk = self.config.eval_num_rays_per_chunk
         image_height, image_width = camera_ray_bundle.origins.shape[:2]
         num_rays = len(camera_ray_bundle)
@@ -176,16 +177,43 @@ class Model(nn.Module):
             start_idx = i
             end_idx = i + num_rays_per_chunk
             ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
+            # move the chunk inputs to the model device
+            ray_bundle = ray_bundle.to(self.device)
             outputs = self.forward(ray_bundle=ray_bundle)
             for output_name, output in outputs.items():  # type: ignore
-                if not torch.is_tensor(output):
+                if not isinstance(output, torch.Tensor):
                     # TODO: handle lists of tensors as well
                     continue
-                outputs_lists[output_name].append(output)
+                # move the chunk outputs from the model device back to the device of the inputs.
+                outputs_lists[output_name].append(output.to(input_device))
         outputs = {}
         for output_name, outputs_list in outputs_lists.items():
             outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)  # type: ignore
         return outputs
+
+    def get_rgba_image(self, outputs: Dict[str, torch.Tensor], output_name: str = "rgb") -> torch.Tensor:
+        """Returns the RGBA image from the outputs of the model.
+
+        Args:
+            outputs: Outputs of the model.
+
+        Returns:
+            RGBA image.
+        """
+        accumulation_name = output_name.replace("rgb", "accumulation")
+        if (
+            not hasattr(self, "renderer_rgb")
+            or not hasattr(self.renderer_rgb, "background_color")
+            or accumulation_name not in outputs
+        ):
+            raise NotImplementedError(f"get_rgba_image is not implemented for model {self.__class__.__name__}")
+        rgb = outputs[output_name]
+        if self.renderer_rgb.background_color == "random":  # type: ignore
+            acc = outputs[accumulation_name]
+            if acc.dim() < rgb.dim():
+                acc = acc.unsqueeze(-1)
+            return torch.cat((rgb / acc.clamp(min=1e-10), acc), dim=-1)
+        return torch.cat((rgb, torch.ones_like(rgb[..., :1])), dim=-1)
 
     @abstractmethod
     def get_image_metrics_and_images(

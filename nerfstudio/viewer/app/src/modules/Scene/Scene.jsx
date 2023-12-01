@@ -133,6 +133,21 @@ export function get_scene_tree() {
     }
   }
 
+  function translateForward(distance) {
+    const to = camera_controls.getTarget().add(
+      camera_controls.getTarget()
+        .sub(camera_controls.getPosition())
+        .normalize()
+        .multiplyScalar(distance)
+    );
+    camera_controls.moveTo(
+      to.x,
+      to.y,
+      to.z,
+      {enableTransition:true}
+    )
+  }
+
   function translate() {
     if (keyMap.KeyD === true) {
       camera_controls.truck(moveSpeed, 0, {enableTransition:true});
@@ -141,22 +156,10 @@ export function get_scene_tree() {
       camera_controls.truck(-moveSpeed, 0, {enableTransition:true});
     }
     if (keyMap.KeyW === true) {
-      const curPos = camera_controls.getPosition();
-      const newTar = camera_controls.getTarget();
-      const newDiff = newTar
-        .sub(curPos)
-        .normalize()
-        .multiplyScalar(curPos.length());
-      camera_controls.setTarget(
-        curPos.x + newDiff.x,
-        curPos.y + newDiff.y,
-        curPos.z + newDiff.z,
-        {enableTransition:true}
-      );
-      camera_controls.dolly(moveSpeed, {enableTransition:true});
+      translateForward(moveSpeed);
     }
     if (keyMap.KeyS === true) {
-      camera_controls.dolly(-moveSpeed, {enableTransition:true});
+      translateForward(-moveSpeed);
     }
     if (keyMap.KeyQ === true) {
       camera_controls.truck(0, moveSpeed, {enableTransition:true});

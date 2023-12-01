@@ -200,10 +200,10 @@ class NuScenes(DataParser):
         )
 
         cameras = Cameras(
-            fx=intrinsics[:, 0, 0],
-            fy=intrinsics[:, 1, 1],
-            cx=intrinsics[:, 0, 2],
-            cy=intrinsics[:, 1, 2],
+            fx=intrinsics[:, 0, 0].detach().clone(),
+            fy=intrinsics[:, 1, 1].detach().clone(),
+            cx=intrinsics[:, 0, 2].detach().clone(),
+            cy=intrinsics[:, 1, 2].detach().clone(),
             height=900,
             width=1600,
             camera_to_worlds=poses[:, :3, :4],

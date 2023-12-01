@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Tuple, Type
+from typing import Dict, Tuple, Type, Literal
 
 import imageio
 import numpy as np
@@ -32,6 +32,12 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataparserOutputs,
 )
 from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.data.utils.dataparsers_utils import (
+    get_train_eval_split_filename,
+    get_train_eval_split_fraction,
+    get_train_eval_split_interval,
+    get_train_eval_split_all,
+)
 from nerfstudio.utils.io import load_from_json
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -46,6 +52,18 @@ class InstantNGPDataParserConfig(DataParserConfig):
     """Directory or explicit json file path specifying location of data."""
     scene_scale: float = 0.3333
     """How much to scale the scene."""
+    eval_mode: Literal["fraction", "filename", "interval", "all"] = "fraction"
+    """
+    The method to use for splitting the dataset into train and eval.
+    Fraction splits based on a percentage for train and the remaining for eval.
+    Filename splits based on filenames containing train/eval.
+    Interval uses every nth frame for eval.
+    All uses all the images for any split.
+    """
+    train_split_fraction: float = 0.9
+    """The percentage of the dataset to use for training. Only used when eval_mode is train-split-fraction."""
+    eval_interval: int = 8
+    """The interval between frames to use for eval. Only used when eval_mode is eval-interval."""
 
 
 @dataclass
@@ -94,11 +112,39 @@ class InstantNGP(DataParser):
         assert (
             len(image_filenames) != 0
         ), """
-        No image files found. 
+        No image files found.
         You should check the file_paths in the transforms.json file to make sure they are correct.
         """
         poses = np.array(poses).astype(np.float32)
         poses[:, :3, 3] *= self.config.scene_scale
+
+        # find train and eval indices based on the eval_mode specified
+        if self.config.eval_mode == "fraction":
+            i_train, i_eval = get_train_eval_split_fraction(image_filenames, self.config.train_split_fraction)
+        elif self.config.eval_mode == "filename":
+            i_train, i_eval = get_train_eval_split_filename(image_filenames)
+        elif self.config.eval_mode == "interval":
+            i_train, i_eval = get_train_eval_split_interval(image_filenames, self.config.eval_interval)
+        elif self.config.eval_mode == "all":
+            CONSOLE.log(
+                "[yellow] Be careful with '--eval-mode=all'. If using camera optimization, the cameras may diverge in the current implementation, giving unpredictable results."
+            )
+            i_train, i_eval = get_train_eval_split_all(image_filenames)
+        else:
+            raise ValueError(f"Unknown eval mode {self.config.eval_mode}")
+
+        if split == "train":
+            indices = i_train
+        elif split in ["val", "test"]:
+            indices = i_eval
+        else:
+            raise ValueError(f"Unknown dataparser split {split}")
+        # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.
+        image_filenames = [image_filenames[i] for i in indices]
+        mask_filenames = [mask_filenames[i] for i in indices] if len(mask_filenames) > 0 else []
+
+        idx_tensor = torch.tensor(indices, dtype=torch.long)
+        poses = poses[idx_tensor]
 
         camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
 

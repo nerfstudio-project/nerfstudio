@@ -35,6 +35,8 @@ from typing_extensions import Annotated, Literal
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.data.datamanagers.random_cameras_datamanager import RandomCamerasDataManager
+from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
+from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.exporter import texture_utils, tsdf_utils
 from nerfstudio.exporter.exporter_utils import (
     collect_camera_poses,
@@ -110,10 +112,17 @@ class ExportPointCloud(Exporter):
     """Name of the RGB output."""
     use_bounding_box: bool = True
     """Only query points within the bounding box"""
-    bounding_box_min: Tuple[float, float, float] = (-1, -1, -1)
+    bounding_box_min: Optional[Tuple[float, float, float]] = (-1, -1, -1)
     """Minimum of the bounding box, used if use_bounding_box is True."""
-    bounding_box_max: Tuple[float, float, float] = (1, 1, 1)
+    bounding_box_max: Optional[Tuple[float, float, float]] = (1, 1, 1)
     """Maximum of the bounding box, used if use_bounding_box is True."""
+
+    obb_center: Optional[Tuple[float, float, float]] = None
+    """Center of the oriented bounding box."""
+    obb_rotation: Optional[Tuple[float, float, float]] = None
+    """Rotation of the oriented bounding box. Expressed as RPY Euler angles in radians"""
+    obb_scale: Optional[Tuple[float, float, float]] = None
+    """Scale of the oriented bounding box along each axis."""
     num_rays_per_batch: int = 32768
     """Number of rays to evaluate per batch. Decrease if you run out of memory."""
     std_ratio: float = 10.0
@@ -130,13 +139,15 @@ class ExportPointCloud(Exporter):
         validate_pipeline(self.normal_method, self.normal_output_name, pipeline)
 
         # Increase the batchsize to speed up the evaluation.
-        assert isinstance(pipeline.datamanager, VanillaDataManager)
+        assert isinstance(pipeline.datamanager, (VanillaDataManager, ParallelDataManager))
         assert pipeline.datamanager.train_pixel_sampler is not None
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
         # Whether the normals should be estimated based on the point cloud.
         estimate_normals = self.normal_method == "open3d"
-
+        crop_obb = None
+        if self.obb_center is not None and self.obb_rotation is not None and self.obb_scale is not None:
+            crop_obb = OrientedBox.from_params(self.obb_center, self.obb_rotation, self.obb_scale)
         pcd = generate_point_cloud(
             pipeline=pipeline,
             num_points=self.num_points,
@@ -149,6 +160,7 @@ class ExportPointCloud(Exporter):
             use_bounding_box=self.use_bounding_box,
             bounding_box_min=self.bounding_box_min,
             bounding_box_max=self.bounding_box_max,
+            crop_obb=crop_obb,
             std_ratio=self.std_ratio,
         )
         torch.cuda.empty_cache()
@@ -265,6 +277,12 @@ class ExportPoissonMesh(Exporter):
     """Minimum of the bounding box, used if use_bounding_box is True."""
     bounding_box_max: Tuple[float, float, float] = (1, 1, 1)
     """Minimum of the bounding box, used if use_bounding_box is True."""
+    obb_center: Optional[Tuple[float, float, float]] = None
+    """Center of the oriented bounding box."""
+    obb_rotation: Optional[Tuple[float, float, float]] = None
+    """Rotation of the oriented bounding box. Expressed as RPY Euler angles in radians"""
+    obb_scale: Optional[Tuple[float, float, float]] = None
+    """Scale of the oriented bounding box along each axis."""
     num_rays_per_batch: int = 32768
     """Number of rays to evaluate per batch. Decrease if you run out of memory."""
     texture_method: Literal["point_cloud", "nerf"] = "nerf"
@@ -291,12 +309,16 @@ class ExportPoissonMesh(Exporter):
         validate_pipeline(self.normal_method, self.normal_output_name, pipeline)
 
         # Increase the batchsize to speed up the evaluation.
-        assert isinstance(pipeline.datamanager, (VanillaDataManager, RandomCamerasDataManager))
+        assert isinstance(pipeline.datamanager, (VanillaDataManager, ParallelDataManager, RandomCamerasDatamanager))
         assert pipeline.datamanager.train_pixel_sampler is not None
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
         # Whether the normals should be estimated based on the point cloud.
         estimate_normals = self.normal_method == "open3d"
+        if self.obb_center is not None and self.obb_rotation is not None and self.obb_scale is not None:
+            crop_obb = OrientedBox.from_params(self.obb_center, self.obb_rotation, self.obb_scale)
+        else:
+            crop_obb = None
 
         pcd = generate_point_cloud(
             pipeline=pipeline,
@@ -310,6 +332,7 @@ class ExportPoissonMesh(Exporter):
             use_bounding_box=self.use_bounding_box,
             bounding_box_min=self.bounding_box_min,
             bounding_box_max=self.bounding_box_max,
+            crop_obb=crop_obb,
             std_ratio=self.std_ratio,
         )
         torch.cuda.empty_cache()

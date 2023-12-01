@@ -17,15 +17,12 @@
 
 from __future__ import annotations
 
-import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, List, Literal, Optional, Tuple, Type
 
 # model instances
 from nerfstudio.utils import writer
-
-warnings.filterwarnings("ignore", module="torchvision")
 
 
 # Pretty printing class
@@ -116,7 +113,7 @@ class LoggingConfig(PrintableConfig):
     max_buffer_size: int = 20
     """maximum history size to keep for computing running averages of stats.
      e.g. if 20, averages will be computed over past 20 occurrences."""
-    local_writer: LocalWriterConfig = LocalWriterConfig(enable=True)
+    local_writer: LocalWriterConfig = field(default_factory=lambda: LocalWriterConfig(enable=True))
     """if provided, will print stats locally. if None, will disable printing"""
     profiler: Literal["none", "basic", "pytorch"] = "basic"
     """how to profile the code;
@@ -149,3 +146,9 @@ class ViewerConfig(PrintableConfig):
     """Image format viewer should use; jpeg is lossy compression, while png is lossless."""
     jpeg_quality: int = 90
     """Quality tradeoff to use for jpeg compression."""
+    make_share_url: bool = False
+    """Viewer beta feature: print a shareable URL. `vis` must be set to viewer_beta; this flag is otherwise ignored."""
+    camera_frustum_scale: float = 0.1
+    """Scale for the camera frustums in the viewer."""
+    default_composite_depth: bool = True
+    """The default value for compositing depth. Turn off if you want to see the camera frustums without occlusions."""

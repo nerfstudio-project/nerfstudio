@@ -2,7 +2,7 @@
 
 Nerfstudio aims to offer researchers a codebase that they can utilize to extend and develop novel methods. Our vision is for users to establish a distinct repository that imports nerfstudio and overrides pipeline components to cater to specific functionality requirements of the new approach. If any of the new features require modifications to the core nerfstudio repository and can be generally useful, we encourage you to submit a PR to enable others to benefit from it.
 
-Examples are often the best way to learn, take a look at the [LERF](https://github.com/kerrj/lerf) repository for good example of how to use nerfstudio in your projects.
+You can use the [nerfstudio-method-template](https://github.com/nerfstudio-project/nerfstudio-method-template) repository as a minimal guide to register your new methods. Examples are often the best way to learn, take a look at the [LERF](https://github.com/kerrj/lerf) repository for a good example of how to extend and use nerfstudio in your projects.
 
 ## File Structure
 
@@ -78,6 +78,27 @@ Instead, you may use the `NERFSTUDIO_METHOD_CONFIGS` environment variable to tem
 export NERFSTUDIO_METHOD_CONFIGS="my-method=my_method.my_config:MyMethod"
 ```
 
+The `NERFSTUDIO_METHOD_CONFIGS` environment variable additionally accepts a function or derived class to temporarily register your custom method.
+
+```python
+"""my_method/my_config.py"""
+
+from dataclasses import dataclass
+from nerfstudio.engine.trainer import TrainerConfig
+from nerfstudio.plugins.types import MethodSpecification
+
+def MyMethodFunc():
+    return MethodSpecification(
+      config=TrainerConfig(...)
+      description="Custom description"
+    )
+
+@dataclass
+class MyMethodClass(MethodSpecification):
+    config: TrainerConfig = TrainerConfig(...)
+    description: str = "Custom description"
+```
+
 ## Registering custom dataparser with nerfstudio
 
 We also support adding new dataparsers in a similar way. In order to extend the NeRFstudio and register a customized dataparser, you can register it with Nerfstudio as a `nerfstudio.dataparser_configs` entrypoint in the `pyproject.toml` file. Nerfstudio will automatically look for all registered dataparsers and will register them to be used by methods such as `ns-train`.
@@ -110,6 +131,15 @@ finally run the following to register the dataparser.
 ```
 pip install -e .
 ```
+
+Similarly to the method develomement, you can also use environment variables to register dataparsers.
+Use the `NERFSTUDIO_DATAPARSER_CONFIGS` environment variable:
+
+```
+export NERFSTUDIO_DATAPARSER_CONFIGS="my-dataparser=my_package.my_config:MyDataParser"
+```
+
+Same as with custom methods, `NERFSTUDIO_DATAPARSER_CONFIGS` environment variable additionally accepts a function or derived class to temporarily register your custom method.
 
 ## Running custom method
 
