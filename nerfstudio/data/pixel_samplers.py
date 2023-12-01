@@ -17,13 +17,7 @@ Code for sampling pixels.
 """
 
 import random
-
-import torch
-from jaxtyping import Int
-from torch import Tensor
-
 from dataclasses import dataclass, field
-from nerfstudio.data.utils.pixel_sampling_utils import erode_mask
 from typing import (
     Dict,
     Optional,
@@ -31,9 +25,14 @@ from typing import (
     Union,
 )
 
+import torch
+from jaxtyping import Int
+from torch import Tensor
+
 from nerfstudio.configs.base_config import (
     InstantiateConfig,
 )
+from nerfstudio.data.utils.pixel_sampling_utils import erode_mask
 
 
 @dataclass
@@ -398,19 +397,18 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
         device: Union[torch.device, str] = "cpu",
     ) -> Int[Tensor, "batch_size 3"]:
         rays_to_sample = self.rays_to_sample
+        if batch_size is not None:
+            assert (
+                int(batch_size) % 2 == 0
+            ), f"PairPixelSampler can only return batch sizes in multiples of two (got {batch_size})"
+            rays_to_sample = batch_size // 2
+
         if isinstance(mask, Tensor):
             m = erode_mask(mask.permute(0, 3, 1, 2).float(), pixel_radius=self.radius)
             nonzero_indices = torch.nonzero(m[:, 0], as_tuple=False).to(device)
             chosen_indices = random.sample(range(len(nonzero_indices)), k=rays_to_sample)
             indices = nonzero_indices[chosen_indices]
         else:
-            rays_to_sample = self.rays_to_sample
-            if batch_size is not None:
-                assert (
-                    int(batch_size) % 2 == 0
-                ), f"PairPixelSampler can only return batch sizes in multiples of two (got {batch_size})"
-                rays_to_sample = batch_size // 2
-
             s = (rays_to_sample, 1)
             ns = torch.randint(0, num_images, s, dtype=torch.long, device=device)
             hs = torch.randint(self.radius, image_height - self.radius, s, dtype=torch.long, device=device)
