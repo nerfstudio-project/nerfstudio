@@ -51,6 +51,7 @@ class PixelSamplerConfig(InstantiateConfig):
     ignore_mask: bool = False
     """Whether to ignore the masks when sampling."""
 
+
 class PixelSampler:
     """Samples 'pixel_batch's from 'image_batch's.
 
