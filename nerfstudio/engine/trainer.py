@@ -192,6 +192,7 @@ class Trainer:
                 optimizers=self.optimizers,
                 grad_scaler=self.grad_scaler,
                 pipeline=self.pipeline,
+                trainer=self
             )
         )
 
