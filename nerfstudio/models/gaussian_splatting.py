@@ -144,7 +144,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     """maximum degree of spherical harmonics to use"""
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig(mode="off")
     """camera optimizer config"""
-    max_gauss_ratio: float = 4.0
+    max_gauss_ratio: float = 5.0
     """threshold of ratio of gaussian max to min scale before applying regularization
     loss from the PhysGaussian paper
     """
@@ -610,7 +610,7 @@ class GaussianSplattingModel(Model):
         else:
             rgbs = self.get_colors.squeeze()  # (N, 3)
             rgbs = torch.sigmoid(rgbs)
-        rgb,_ = RasterizeGaussians.apply(
+        rgb = RasterizeGaussians.apply(
             self.xys,
             depths,
             self.radii,
@@ -635,7 +635,7 @@ class GaussianSplattingModel(Model):
                 H,
                 W,
                 torch.ones(3, device=self.device) * 10,
-            )[0][..., 0:1]
+            )[..., 0:1]
         # rescale the camera back to original dimensions
         camera.rescale_output_resolution(camera_downscale)
         return {"rgb": rgb, "depth": depth_im}
