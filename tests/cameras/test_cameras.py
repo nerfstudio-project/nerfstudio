@@ -120,6 +120,18 @@ def test_pinhole_camera():
     pinhole_camera.generate_rays(camera_indices=0, coords=coords)
 
 
+def test_orthophoto_camera():
+    """Test that the orthophoto camera model works."""
+
+    c2w = torch.eye(4)[None, :3, :]
+    orthophoto_camera = Cameras(
+        cx=200.0, cy=400.0, fx=1.0, fy=1.0, camera_to_worlds=c2w, camera_type=CameraType.ORTHOPHOTO
+    )
+    camera_ray_bundle = orthophoto_camera.generate_rays(camera_indices=0)
+    assert isinstance(camera_ray_bundle, RayBundle)
+    assert camera_ray_bundle.shape == torch.Size([800, 400])
+
+
 def test_equirectangular_camera():
     """Test that the equirectangular camera model works."""
     height = 100  # width is twice the height
