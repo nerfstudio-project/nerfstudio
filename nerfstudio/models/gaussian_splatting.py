@@ -148,6 +148,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     """threshold of ratio of gaussian max to min scale before applying regularization
     loss from the PhysGaussian paper
     """
+    opacity_lambda: float = 0.001  # Weight of opacity loss
 
 
 class GaussianSplattingModel(Model):
@@ -378,17 +379,6 @@ class GaussianSplattingModel(Model):
                     for group, param in param_groups.items():
                         self.remove_from_optim(optimizers.optimizers[group], deleted_mask, param)
 
-                if self.step % reset_interval == self.config.refine_every:
-                    reset_value = self.config.cull_alpha_thresh * 0.8
-                    self.opacities.data = torch.full_like(
-                        self.opacities.data, torch.logit(torch.tensor(reset_value)).item()
-                    )
-                    # reset the exp of optimizer
-                    optim = optimizers.optimizers["opacity"]
-                    param = optim.param_groups[0]["params"][0]
-                    param_state = optim.state[param]
-                    param_state["exp_avg"] = torch.zeros_like(param_state["exp_avg"])
-                    param_state["exp_avg_sq"] = torch.zeros_like(param_state["exp_avg_sq"])
                 self.xys_grad_norm = None
                 self.vis_counts = None
                 self.max_2Dsize = None
@@ -678,6 +668,7 @@ class GaussianSplattingModel(Model):
             gt_img = batch["image"]
         Ll1 = torch.abs(gt_img - outputs["rgb"]).mean()
         simloss = 1 - self.ssim(gt_img.permute(2, 0, 1)[None, ...], outputs["rgb"].permute(2, 0, 1)[None, ...])
+        opacity_L1 = torch.sigmoid(self.opacities).mean() * self.config.opacity_lambda # Penalize for low opacity values
         if self.step % 10 == 0:
             # Before, we made split sh and colors onto different optimizer, with shs having a low learning rate
             # This is slow, instead we apply a regularization every few steps
@@ -688,7 +679,7 @@ class GaussianSplattingModel(Model):
         else:
             sh_reg = torch.tensor(0.0).to(self.device)
             scale_reg = torch.tensor(0.0).to(self.device)
-        return {"main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss, "sh_reg": sh_reg,'scale_reg':scale_reg}
+        return {"main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss, "sh_reg": sh_reg,'scale_reg':scale_reg, "opacity":opacity_L1}
 
     @torch.no_grad()
     def get_outputs_for_camera(self, camera: Cameras, obb_box: Optional[OrientedBox] = None) -> Dict[str, torch.Tensor]:

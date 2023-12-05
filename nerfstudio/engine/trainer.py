@@ -29,6 +29,7 @@ from collections import defaultdict
 import torch
 from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
+from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline
@@ -268,6 +269,10 @@ class Trainer:
                         step=step,
                         avg_over_steps=True,
                     )
+
+                # If gaussian_splat -> record number of gaussians
+                if isinstance(self.pipeline.model, GaussianSplattingModel):
+                    writer.put_scalar(name=EventName.GAUSSIAN_NUM, scalar=self.pipeline.model.num_points, step=step)
 
                 self._update_viewer_state(step)
 
