@@ -48,6 +48,7 @@ class CameraType(Enum):
     OMNIDIRECTIONALSTEREO_R = auto()
     VR180_L = auto()
     VR180_R = auto()
+    ORTHOPHOTO = auto()
 
 
 CAMERA_MODEL_TO_TYPE = {
@@ -62,6 +63,7 @@ CAMERA_MODEL_TO_TYPE = {
     "OMNIDIRECTIONALSTEREO_R": CameraType.OMNIDIRECTIONALSTEREO_R,
     "VR180_L": CameraType.VR180_L,
     "VR180_R": CameraType.VR180_R,
+    "ORTHOPHOTO": CameraType.ORTHOPHOTO,
 }
 
 
@@ -831,6 +833,35 @@ class Cameras(TensorDataclass):
                 vr180_origins, directions_stack = _compute_rays_for_vr180("right")
                 # assign final camera origins
                 c2w[..., :3, 3] = vr180_origins
+
+            elif CameraType.ORTHOPHOTO.value in cam_types:
+                mask = (self.camera_type[true_indices] == CameraType.ORTHOPHOTO.value).squeeze(-1)
+                mask = torch.stack([mask, mask, mask], dim=0)
+
+                # in orthophoto, all rays have same direction, dir = R @ [0, 0, 1], R will be applied following.
+                directions_stack[mask] = torch.tensor(
+                    [0.0, 0.0, -1.0], dtype=directions_stack.dtype, device=directions_stack.device
+                )
+
+                # create a meshgird as the rays' origins, we use the same intrinsics parameter like perspective cameras,
+                # but orthophoto cameras' focal length is meaningles, so focal length here determines the imaging areas,
+                # the bigger fx/fy, the bigger imaging areas.
+                image_height = torch.max(self.image_height.view(-1)).item()
+                image_width = torch.max(self.image_width.view(-1)).item()
+                coord_x, coord_y = torch.meshgrid(
+                    torch.arange(image_width, dtype=torch.float),
+                    torch.arange(image_height, dtype=torch.float),
+                    indexing="xy",
+                )
+                hw_scale = image_height / image_width
+                coord_x = (coord_x - self.cx) / image_width * self.fx / hw_scale
+                coord_y = (coord_y - self.cy) / image_height * self.fy
+                coord_z = torch.zeros_like(coord_x)
+                coord_h = torch.ones_like(coord_x)  # homogeneous coord.
+                homogeneous_grid_points = torch.stack([coord_x, coord_y, coord_z, coord_h], -1)
+
+                # transform meshgrid points with c2w matrix to get ray origins, c2w @ P.
+                c2w[..., :3, 3] = torch.einsum("...ij, ...j -> ...i", c2w, homogeneous_grid_points)
 
             else:
                 raise ValueError(f"Camera type {cam} not supported.")
