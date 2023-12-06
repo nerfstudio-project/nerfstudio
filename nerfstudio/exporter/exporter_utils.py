@@ -22,7 +22,9 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
+from pathlib import Path
 
+import mediapy
 import numpy as np
 import open3d as o3d
 import pymeshlab
@@ -343,3 +345,16 @@ def collect_camera_poses(pipeline: VanillaPipeline) -> Tuple[List[Dict[str, Any]
     eval_frames = collect_camera_poses_for_dataset(eval_dataset)
 
     return train_frames, eval_frames
+
+
+def export_frame_render(pipeline: Pipeline, output_path: Path, image_idx: int = -1) -> None:
+    """Export a frame render to a file."""
+    if image_idx < 0:
+        image_idx = pipeline.datamanager.train_dataset.image_filenames.index(
+            min(pipeline.datamanager.train_dataset.image_filenames))
+
+    with torch.no_grad():
+        cameras = pipeline.datamanager.train_dataset.cameras[image_idx:image_idx+1]
+        output = pipeline.model.get_outputs(cameras.to(pipeline.model.device))['rgb'].cpu()
+    mediapy.write_image(output_path, output)
+    CONSOLE.print(f'Wrote {output_path}')

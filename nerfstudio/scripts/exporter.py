@@ -37,7 +37,7 @@ from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.exporter import texture_utils, tsdf_utils
-from nerfstudio.exporter.exporter_utils import collect_camera_poses, generate_point_cloud, get_mesh_from_filename
+from nerfstudio.exporter.exporter_utils import collect_camera_poses, export_frame_render, generate_point_cloud, get_mesh_from_filename
 from nerfstudio.exporter.marching_cubes import generate_mesh_with_multires_marching_cubes
 from nerfstudio.fields.sdf_field import SDFField
 from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
@@ -528,6 +528,8 @@ class ExportGaussianSplat(Exporter):
         pcd = o3d.t.geometry.PointCloud(map_to_tensors)
 
         o3d.t.io.write_point_cloud(str(filename), pcd)
+
+        export_frame_render(pipeline, self.output_dir / "render.png")
 
 
 Commands = tyro.conf.FlagConversionOff[

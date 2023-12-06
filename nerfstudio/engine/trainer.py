@@ -32,6 +32,7 @@ from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
+from nerfstudio.exporter.exporter_utils import export_frame_render
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline
 from nerfstudio.utils import profiler, writer
 from nerfstudio.utils.decorators import check_eval_enabled, check_main_thread, check_viewer_enabled
@@ -304,6 +305,10 @@ class Trainer:
 
         # write out any remaining events (e.g., total train time)
         writer.write_out_storage()
+
+        # If gaussian_splat -> render first image
+        if isinstance(self.pipeline.model, GaussianSplattingModel):
+            export_frame_render(self.pipeline, self.checkpoint_dir / "render0.png")
 
         table = Table(
             title=None,
