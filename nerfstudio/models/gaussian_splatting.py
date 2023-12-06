@@ -144,7 +144,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     """weight of ssim loss"""
     stop_split_at: int = 15000
     """stop splitting at this step"""
-    sh_degree: int = 4
+    sh_degree: int = 3
     """maximum degree of spherical harmonics to use"""
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig(mode="off")
     """camera optimizer config"""
@@ -190,6 +190,11 @@ class GaussianSplattingModel(Model):
             shs = torch.zeros((fused_color.shape[0], dim_sh, 3)).float().cuda()
             shs[:, 0, :3] = fused_color
             shs[:, 1:, 3:] = 0.0
+            #concat on extra_points amount of random ones at the end
+            if self.config.extra_points > 0:
+                extra_shs = torch.rand((self.config.extra_points, dim_sh, 3)).float().cuda()
+                extra_shs[:,1:,:] = 0.0#zero out the higher freq
+                shs = torch.cat([shs, extra_shs])
             self.colors_all = torch.nn.Parameter(shs)
         else:
             colors = torch.nn.Parameter(torch.rand(self.num_points, 1, 3))
@@ -205,7 +210,7 @@ class GaussianSplattingModel(Model):
         self.step = 0
 
         self.crop_box: Optional[OrientedBox] = None
-        self.back_color = torch.zeros(3)
+        self.back_color = torch.zeros(3, device="cuda")
 
         self.camera_optimizer: CameraOptimizer = self.config.camera_optimizer.setup(
             num_cameras=self.num_train_data, device="cpu"
@@ -213,8 +218,12 @@ class GaussianSplattingModel(Model):
 
     @property
     def colors(self):
-        return self.colors_all[:, 0, :]
+        return SH2RGB(self.colors_all[:, 0, :])
 
+    @property
+    def shs_0(self):
+        return self.colors_all[:, 0, :]
+    
     @property
     def shs_rest(self):
         return self.colors_all[:, 1:, :]
