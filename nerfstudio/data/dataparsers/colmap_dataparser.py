@@ -26,6 +26,7 @@ import numpy as np
 import torch
 from PIL import Image
 from rich.prompt import Confirm
+import open3d as o3d
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras
@@ -72,10 +73,14 @@ class ColmapDataParserConfig(DataParserConfig):
     """Path to depth maps directory. If not set, depths are not loaded."""
     colmap_path: Path = Path("colmap/sparse/0")
     """Path to the colmap reconstruction directory relative to the data path."""
-    load_3D_points: bool = False
+    dense_point_cloud_path: Optional[Path] = Path("dense.ply")
+    """Path to the dense point cloud relative to the data path. If not set, the dense point cloud is not loaded."""
+    load_3D_points: bool = True
     """Whether to load the 3D points from the colmap reconstruction."""
     max_2D_matches_per_3D_point: int = -1
     """Maximum number of 2D matches per 3D point. If set to -1, all 2D matches are loaded. If set to 0, no 2D matches are loaded."""
+    max_dense_points_before_downsampling: int = 1_000_000
+    """When loading a dense point cloud, use voxel downsampling if the number of points is greater than this number."""
 
 
 class ColmapDataParser(DataParser):
@@ -358,6 +363,28 @@ class ColmapDataParser(DataParser):
         return dataparser_outputs
 
     def _load_3D_points(self, colmap_path: Path, transform_matrix: torch.Tensor, scale_factor: float):
+        if self.config.dense_point_cloud_path is not None:
+            dense_point_cloud_path = self.config.data / self.config.dense_point_cloud_path
+            if dense_point_cloud_path.exists():
+                CONSOLE.log(f'Loading {dense_point_cloud_path}')
+                pcd: o3d.geometry.PointCloud = o3d.io.read_point_cloud(str(dense_point_cloud_path))
+                if len(pcd.points) > 1000:
+                    if len(pcd.points) > self.config.max_dense_points_before_downsampling:
+                        voxel_size = 0.005
+                        while True:
+                            downsampled = pcd.voxel_down_sample(voxel_size)
+                            if len(downsampled.points) < self.config.max_dense_points_before_downsampling:
+                                break
+                            voxel_size *= 1.25
+                        CONSOLE.log(f'Downsampled dense point cloud {pcd} with voxel size {voxel_size}')
+                        pcd = downsampled
+                    CONSOLE.log(f'Loaded dense point cloud {pcd}')
+                    pcd.transform(np.vstack([transform_matrix.numpy(), [0, 0, 0, 1]]))
+                    pcd.scale(scale_factor, center=np.array([0, 0, 0]))
+                    return {
+                        "points3D_xyz": torch.from_numpy(np.array(pcd.points, dtype=np.float32)),
+                        "points3D_rgb": torch.from_numpy(np.array(pcd.colors) * 255),
+                    }
         if (colmap_path / "points3D.bin").exists():
             colmap_points = colmap_utils.read_points3D_binary(colmap_path / "points3D.bin")
         elif (colmap_path / "points3D.txt").exists():

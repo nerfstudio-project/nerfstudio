@@ -148,7 +148,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     """threshold of ratio of gaussian max to min scale before applying regularization
     loss from the PhysGaussian paper
     """
-    opacity_lambda: float = 0.001  # Weight of opacity loss
+    opacity_lambda: float = 0.003 # Weight of opacity loss
 
 
 class GaussianSplattingModel(Model):
@@ -589,7 +589,7 @@ class GaussianSplattingModel(Model):
             return {"rgb": background.repeat(camera.height.item(), camera.width.item(), 1)}
 
         # Important to allow xys grads to populate properly
-        if self.training:
+        if self.training and self.xys.requires_grad:
             self.xys.retain_grad()
         if self.config.sh_degree > 0:
             viewdirs = means_crop.detach() - camera.camera_to_worlds.detach()[..., :3, 3]  # (N, 3)
@@ -668,7 +668,7 @@ class GaussianSplattingModel(Model):
             gt_img = batch["image"]
         Ll1 = torch.abs(gt_img - outputs["rgb"]).mean()
         simloss = 1 - self.ssim(gt_img.permute(2, 0, 1)[None, ...], outputs["rgb"].permute(2, 0, 1)[None, ...])
-        opacity_L1 = torch.sigmoid(self.opacities).mean() * self.config.opacity_lambda # Penalize for low opacity values
+        opacity_L1 = torch.sigmoid(self.opacities).mean() * self.config.opacity_lambda if self.config.opacity_lambda > 0 else 0 # Penalize for low opacity values
         if self.step % 10 == 0:
             # Before, we made split sh and colors onto different optimizer, with shs having a low learning rate
             # This is slow, instead we apply a regularization every few steps
