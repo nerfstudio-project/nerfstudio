@@ -207,3 +207,4 @@ def metashape_to_json(
     summary.append(f"Final dataset is {len(data['frames'])} frames.")
 
     return summary
+    
