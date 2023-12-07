@@ -108,7 +108,7 @@ def eval_setup(
         try:
             importlib.import_module('intel_extension_for_pytorch')
             device_type = "xpu" if torch.xpu.is_available() else "cpu"
-        except:
+        except Exception:
             device_type = "cpu"
     device = torch.device(device_type)
     pipeline = config.pipeline.setup(device=device, test_mode=test_mode)
