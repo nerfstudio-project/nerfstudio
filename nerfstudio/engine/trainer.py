@@ -284,7 +284,7 @@ class Trainer:
                     # (https://pytorch.org/docs/stable/notes/cuda.html#cuda-memory-management)
                     # for more details about GPU memory management.
                     writer.put_scalar(
-                        name="GPU Memory (MB)", scalar=torch.cuda.max_memory_allocated() / (1024 ** 2), step=step
+                        name="GPU Memory (MB)", scalar=torch.cuda.max_memory_allocated() / (1024**2), step=step
                     )
 
                 # Do not perform evaluation if there are no validation images

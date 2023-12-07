@@ -109,7 +109,7 @@ def _distributed_worker(
     dist_url: str,
     config: TrainerConfig,
     timeout: timedelta = DEFAULT_TIMEOUT,
-    device_type: Literal["cpu", "cuda", "mps"] = "cuda",
+    device_type: Literal["cpu", "cuda", "mps", "xpu"] = "cuda",
 ) -> Any:
     """Spawned distributed worker that handles the initialization of process group and handles the
        training process on multiple processes.
@@ -165,7 +165,7 @@ def launch(
     dist_url: str = "auto",
     config: Optional[TrainerConfig] = None,
     timeout: timedelta = DEFAULT_TIMEOUT,
-    device_type: Literal["cpu", "cuda", "mps"] = "cuda",
+    device_type: Literal["cpu", "cuda", "mps", "xpu"] = "cuda",
 ) -> None:
     """Function that spawns multiple processes to call on main_func
 
