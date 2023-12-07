@@ -22,15 +22,16 @@ import tarfile
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Tuple, Union
 
+import awscli.clidriver
 import gdown
 import torch
 import tyro
-from nerfstudio.process_data import process_data_utils
 from typing_extensions import Annotated
 
 from nerfstudio.configs.base_config import PrintableConfig
+from nerfstudio.process_data import process_data_utils
 from nerfstudio.utils import install_checks
 from nerfstudio.utils.scripts import run_command
 
@@ -545,6 +546,108 @@ class Mill19Download(DatasetDownload):
         shutil.rmtree(target_path / "val")
 
 
+eyefultower_downloads = [
+    "all",
+    "apartment",
+    "kitchen",
+    "office1a",
+    "office1b",
+    "office2",
+    "office_view1",
+    "office_view2",
+    "riverview",
+    "seating_area",
+    "table",
+    "workshop",
+]
+
+eyefultower_resolutions = {
+    "all": None,
+    "jpeg_2k": "images-jpeg-2k",
+    "jpeg_4k": "images-jpeg-4k",
+    "jpeg_8k": "images-jpeg",
+    "exr_2k": "images-2k",
+}
+
+if TYPE_CHECKING:
+    EyefulTowerCaptureName = str
+    EyefulTowerResolution = str
+else:
+    EyefulTowerCaptureName = tyro.extras.literal_type_from_choices(eyefultower_downloads)
+    EyefulTowerResolution = tyro.extras.literal_type_from_choices(eyefultower_resolutions.keys())
+
+
+@dataclass
+class EyefulTowerDownload(DatasetDownload):
+    """Download the EyefulTower dataset.
+
+    Use the --help flag with the `eyefultower` subcommand to see all available datasets.
+    Find more information about the dataset at https://github.com/facebookresearch/EyefulTower.
+    """
+
+    capture_name: Tuple[EyefulTowerCaptureName, ...] = ()
+    resolution_name: Tuple[EyefulTowerResolution, ...] = ()
+
+    def download(self, save_dir: Path):
+        if len(self.capture_name) == 0:
+            self.capture_name = ("seating_area",)
+            print(
+                f"No capture specified, using {self.capture_name} by default.",
+                "Add `--help` to this command to see all available captures.",
+            )
+
+        if len(self.resolution_name) == 0:
+            self.resolution_name = ("jpeg_2k",)
+            print(
+                f"No resolution specified, using {self.resolution_name} by default.",
+                "Add `--help` to this command to see all available resolutions.",
+            )
+
+        captures = set()
+        for capture in self.capture_name:
+            if capture == "all":
+                captures.update([c for c in eyefultower_downloads if c != "all"])
+            else:
+                captures.add(capture)
+        captures = sorted(captures)
+        if len(captures) == 0:
+            print("WARNING: No EyefulTower captures specified. Nothing will be downloaded.")
+
+        resolutions = set()
+        for resolution in self.resolution_name:
+            if resolution == "all":
+                resolutions.update([r for r in eyefultower_resolutions.keys() if r != "all"])
+            else:
+                resolutions.add(resolution)
+        resolutions = sorted(resolutions)
+        if len(resolutions) == 0:
+            print("WARNING: No EyefulTower resolutions specified. Nothing will be downloaded.")
+
+        driver = awscli.clidriver.create_clidriver()
+
+        for i, capture in enumerate(captures):
+            base_url = f"s3://fb-baas-f32eacb9-8abb-11eb-b2b8-4857dd089e15/EyefulTower/{capture}/"
+            output_path = save_dir / "eyefultower" / capture
+            includes = []
+            for resolution in resolutions:
+                includes.extend(["--include", f"{eyefultower_resolutions[resolution]}/*"])
+            command = (
+                ["s3", "sync", "--no-sign-request", "--only-show-errors", "--exclude", "images*/*"]
+                + includes
+                + [base_url, str(output_path)]
+            )
+            print(
+                f"[Capture {i+1: >2d}/{len(captures)}]:",
+                f"Downloading resolutions {resolutions} from EyefulTower capture '{capture}'",
+                f"to '{output_path.resolve()}' with command `aws {' '.join(command)}`",
+                "...",
+                end=" ",
+                flush=True,
+            )
+            driver.main(command)
+            print("done!")
+
+
 Commands = Union[
     Annotated[BlenderDownload, tyro.conf.subcommand(name="blender")],
     Annotated[Sitcoms3DDownload, tyro.conf.subcommand(name="sitcoms3d")],
@@ -555,6 +658,7 @@ Commands = Union[
     Annotated[SDFstudioDemoDownload, tyro.conf.subcommand(name="sdfstudio")],
     Annotated[NeRFOSRDownload, tyro.conf.subcommand(name="nerfosr")],
     Annotated[Mill19Download, tyro.conf.subcommand(name="mill19")],
+    Annotated[EyefulTowerDownload, tyro.conf.subcommand(name="eyefultower")],
 ]
 
 
@@ -562,15 +666,7 @@ def main(
     dataset: DatasetDownload,
 ):
     """Script to download existing datasets.
-    We currently support the following datasets:
-    - nerfstudio: Growing collection of real-world scenes. Use the `capture_name` argument to specify
-        which capture to download.
-    - blender: Blender synthetic scenes realeased with NeRF.
-    - sitcoms3d: Friends TV show scenes.
-    - record3d: Record3d dataset.
-    - dnerf: D-NeRF dataset.
-    - phototourism: PhotoTourism dataset. Use the `capture_name` argument to specify which capture to download.
-    - mill19: Mill 19 dataset. Use the `capture_name` argument to specify which capture to download.
+    We currently support the datasets listed above in the Commands.
 
     Args:
         dataset: The dataset to download (from).
