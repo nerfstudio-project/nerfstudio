@@ -106,7 +106,7 @@ def eval_setup(
         device_type = "cuda"
     else:
         try:
-            importlib.import_module('intel_extension_for_pytorch')
+            importlib.import_module("intel_extension_for_pytorch")
             device_type = "xpu" if torch.xpu.is_available() else "cpu"
         except Exception:
             device_type = "cpu"

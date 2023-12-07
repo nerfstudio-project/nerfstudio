@@ -118,7 +118,7 @@ class Trainer:
         if self.device == "cuda":
             self.device += f":{local_rank}"
         elif self.device == "xpu":
-            importlib.import_module('intel_extension_for_pytorch')
+            importlib.import_module("intel_extension_for_pytorch")
         self.mixed_precision: bool = self.config.mixed_precision
         self.use_grad_scaler: bool = self.mixed_precision or self.config.use_grad_scaler
         self.training_state: Literal["training", "paused", "completed"] = "training"
@@ -284,7 +284,7 @@ class Trainer:
                     # (https://pytorch.org/docs/stable/notes/cuda.html#cuda-memory-management)
                     # for more details about GPU memory management.
                     writer.put_scalar(
-                        name="GPU Memory (MB)", scalar=torch.cuda.max_memory_allocated() / (1024**2), step=step
+                        name="GPU Memory (MB)", scalar=torch.cuda.max_memory_allocated() / (1024 ** 2), step=step
                     )
 
                 # Do not perform evaluation if there are no validation images
