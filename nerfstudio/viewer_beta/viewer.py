@@ -18,7 +18,7 @@ from __future__ import annotations
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Literal, Optional
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Union
 
 import numpy as np
 import torch
@@ -149,6 +149,42 @@ class Viewer:
         self.viser_server.on_client_disconnect(self.handle_disconnect)
         self.viser_server.on_client_connect(self.handle_new_client)
 
+        # Populate the header, which includes the pause button, train cam button, and stats
+        self.pause_train = self.viser_server.add_gui_button(
+            label="Pause Training", disabled=False, icon=viser.Icon.PLAYER_PAUSE_FILLED
+        )
+        self.pause_train.on_click(lambda _: self.toggle_pause_button())
+        self.pause_train.on_click(lambda han: self._toggle_training_state(han))
+        self.resume_train = self.viser_server.add_gui_button(
+            label="Resume Training", disabled=False, icon=viser.Icon.PLAYER_PLAY_FILLED
+        )
+        self.resume_train.on_click(lambda _: self.toggle_pause_button())
+        self.resume_train.on_click(lambda han: self._toggle_training_state(han))
+        self.resume_train.visible = False
+        # Add buttons to toggle training image visibility
+        self.hide_images = self.viser_server.add_gui_button(label="Hide Train Cams", disabled=False, icon=viser.Icon.EYE_OFF, color=None)
+        self.hide_images.on_click(lambda _: self.set_camera_visibility(False))
+        self.hide_images.on_click(lambda _: self.toggle_cameravis_button())
+        self.show_images = self.viser_server.add_gui_button(label="Show Train Cams", disabled=False, icon=viser.Icon.EYE, color=None)
+        self.show_images.on_click(lambda _: self.set_camera_visibility(True))
+        self.show_images.on_click(lambda _: self.toggle_cameravis_button())
+        self.show_images.visible = False
+        self.share_button = self.viser_server.add_gui_button(
+            label="Share Link", disabled=False, icon=viser.Icon.SHARE_2
+        )
+
+        @self.share_button.on_click
+        def click(han):
+            # popup a modal sharing it
+            modal = self.viser_server.add_gui_modal("Share Link")
+            with modal:
+                mkdown = self.viser_server.add_gui_markdown("#### Creating link...")
+                close_but = self.viser_server.add_gui_button("Close")
+                close_but.on_click(lambda _: modal.close())
+                url = self.viser_server.request_share_url()
+                mkdown.content = f"""#### Publicly Accessible URL:\n```{url}```\n\nAnyone can open this link, which expires in 24 hours. All compute is still on your local machine."""
+        mkdown = self.make_stats_markdown(0, 0)
+        self.stats_markdown = self.viser_server.add_gui_markdown(mkdown)
         tabs = self.viser_server.add_gui_tab_group()
         control_tab = tabs.add_tab("Control", viser.Icon.SETTINGS)
         with control_tab:
@@ -160,8 +196,6 @@ class Viewer:
                 self._crop_params_update,
                 self._output_type_change,
                 self._output_split_type_change,
-                self._toggle_training_state,
-                self.set_camera_visibility,
                 default_composite_depth=self.config.default_composite_depth,
             )
         config_path = self.log_filename.parents[0] / "config.yml"
@@ -212,6 +246,28 @@ class Viewer:
             ]
         for c in self.viewer_controls:
             c._setup(self)
+    def toggle_pause_button(self) -> None:
+        self.pause_train.visible = not self.pause_train.visible
+        self.resume_train.visible = not self.resume_train.visible
+
+    def toggle_cameravis_button(self) -> None:
+        self.hide_images.visible = not self.hide_images.visible
+        self.show_images.visible = not self.show_images.visible
+
+    def make_stats_markdown(self, step: Optional[int], res: Optional[Union[int,str]]) -> str:
+        # if either are None, read it from the current stats_markdown content
+        if step is None:
+            step = int(self.stats_markdown.content.split("\n")[0].split(": ")[1])
+        if res is None:
+            res = (self.stats_markdown.content.split("\n")[1].split(": ")[1]).strip()
+        return f"Step: {step}  \nResolution: {res}"
+    
+    def update_step(self, step):
+        """
+        Args:
+            step: the train step to set the model to
+        """
+        self.stats_markdown.content = self.make_stats_markdown(step, None)
 
     def get_camera_state(self, client: viser.ClientHandle) -> CameraState:
         R = vtf.SO3(wxyz=client.camera.wxyz)
@@ -398,7 +454,7 @@ class Viewer:
                     if camera_state is not None:
                         self.render_statemachines[id].action(RenderAction("step", camera_state))
                 self.update_camera_poses()
-                self.control_panel.update_step(step)
+                self.update_step(step)
 
     def update_colormap_options(self, dimensions: int, dtype: type) -> None:
         """update the colormap options based on the current render

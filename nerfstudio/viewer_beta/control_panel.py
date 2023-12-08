@@ -14,7 +14,7 @@
 
 """ Control panel for the viewer """
 from collections import defaultdict
-from typing import Callable, DefaultDict, List, Tuple, get_args
+from typing import Callable, DefaultDict, List, Tuple, get_args, Optional, Union
 
 import numpy as np
 import torch
@@ -24,7 +24,6 @@ import viser
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
 from nerfstudio.viewer_beta.viewer_elements import (  # ViewerButtonGroup,
-    ViewerButton,
     ViewerButtonGroup,
     ViewerCheckbox,
     ViewerDropdown,
@@ -57,8 +56,6 @@ class ControlPanel:
         crop_update_cb: Callable,
         update_output_cb: Callable,
         update_split_output_cb: Callable,
-        toggle_training_state_cb: Callable,
-        camera_vis: Callable,
         default_composite_depth: bool = True,
     ):
         self.viser_scale_ratio = scale_ratio
@@ -185,28 +182,6 @@ class ControlPanel:
         self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=rerender_cb, hint="Time to render")
         self._time_enabled = time_enabled
 
-        self.stat_folder = self.viser_server.add_gui_folder("Stats")
-        with self.stat_folder:
-            self.markdown = self.viser_server.add_gui_markdown("Step: 0")
-        self.pause_train = viser_server.add_gui_button(
-            label="Pause Training", disabled=False, icon=viser.Icon.PLAYER_PAUSE_FILLED
-        )
-        self.pause_train.on_click(lambda _: self.toggle_pause_button())
-        self.pause_train.on_click(lambda han: toggle_training_state_cb(han))
-        self.resume_train = viser_server.add_gui_button(
-            label="Resume Training", disabled=False, icon=viser.Icon.PLAYER_PLAY_FILLED
-        )
-        self.resume_train.on_click(lambda _: self.toggle_pause_button())
-        self.resume_train.on_click(lambda han: toggle_training_state_cb(han))
-        self.resume_train.visible = False
-        # Add buttons to toggle training image visibility
-        self.hide_images = viser_server.add_gui_button(label="Hide Train Cams", disabled=False, icon=viser.Icon.EYE_OFF)
-        self.hide_images.on_click(lambda _: camera_vis(False))
-        self.hide_images.on_click(lambda _: self.toggle_cameravis_button())
-        self.show_images = viser_server.add_gui_button(label="Show Train Cams", disabled=False, icon=viser.Icon.EYE)
-        self.show_images.on_click(lambda _: camera_vis(True))
-        self.show_images.on_click(lambda _: self.toggle_cameravis_button())
-        self.show_images.visible = False
 
         self.add_element(self._train_speed)
         self.add_element(self._train_util)
@@ -214,20 +189,6 @@ class ControlPanel:
             label="Reset Up Dir", disabled=False, icon=viser.Icon.ARROW_BIG_UP_LINES
         )
         self._reset_camera.on_click(self._reset_camera_cb)
-        self.share_button = viser_server.add_gui_button(
-            label="Share Link", disabled=False, icon=viser.Icon.SHARE_2, color="teal"
-        )
-
-        @self.share_button.on_click
-        def click(han):
-            # popup a modal sharing it
-            modal = self.viser_server.add_gui_modal("Share Link")
-            with modal:
-                mkdown = self.viser_server.add_gui_markdown("#### Creating link...")
-                close_but = self.viser_server.add_gui_button("Close")
-                close_but.on_click(lambda _: modal.close())
-                url = self.viser_server.request_share_url()
-                mkdown.content = f"""#### Publicly Accessible URL:\n```{url}```\n\nAnyone can open this link, which expires in 24 hours. All compute is still on your local machine."""
 
         with self.viser_server.add_gui_folder("Render Options"):
             self.add_element(self._max_res)
@@ -280,21 +241,6 @@ class ControlPanel:
     def _reset_camera_cb(self, _) -> None:
         for client in self.viser_server.get_clients().values():
             client.camera.up_direction = vtf.SO3(client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
-
-    def toggle_pause_button(self) -> None:
-        self.pause_train.visible = not self.pause_train.visible
-        self.resume_train.visible = not self.resume_train.visible
-
-    def toggle_cameravis_button(self) -> None:
-        self.hide_images.visible = not self.hide_images.visible
-        self.show_images.visible = not self.show_images.visible
-
-    def update_step(self, step):
-        """
-        Args:
-            step: the train step to set the model to
-        """
-        self.markdown.content = f"Step: {step}"
 
     def update_output_options(self, new_options: List[str]):
         """
