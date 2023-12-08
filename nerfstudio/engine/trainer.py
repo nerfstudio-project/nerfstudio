@@ -28,7 +28,6 @@ from typing import Dict, List, Literal, Optional, Tuple, Type, cast
 
 import torch
 from nerfstudio.configs.experiment_config import ExperimentConfig
-from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline
