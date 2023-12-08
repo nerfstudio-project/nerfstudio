@@ -225,11 +225,9 @@ class Trainer:
         """Train the model."""
         assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
 
-        # don't want to call save_dataparser_transform if pipeline's datamanager does not have a dataparser
-        if isinstance(self.pipeline.datamanager, VanillaDataManager):
-            self.pipeline.datamanager.train_dataparser_outputs.save_dataparser_transform(
-                self.base_dir / "dataparser_transforms.json"
-            )
+        self.pipeline.datamanager.train_dataparser_outputs.save_dataparser_transform(
+            self.base_dir / "dataparser_transforms.json"
+        )
 
         self._init_viewer_state()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
