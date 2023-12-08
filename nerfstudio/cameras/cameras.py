@@ -848,20 +848,22 @@ class Cameras(TensorDataclass):
                 # the bigger fx/fy, the bigger imaging areas.
                 image_height = torch.max(self.image_height.view(-1)).item()
                 image_width = torch.max(self.image_width.view(-1)).item()
-                coord_x, coord_y = torch.meshgrid(
-                    torch.arange(image_width, dtype=torch.float),
+                coord_y, coord_x = torch.meshgrid(
                     torch.arange(image_height, dtype=torch.float),
-                    indexing="xy",
-                )
-                hw_scale = image_height / image_width
-                coord_x = (coord_x - self.cx) / image_width * self.fx / hw_scale
-                coord_y = (coord_y - self.cy) / image_height * self.fy
+                    torch.arange(image_width, dtype=torch.float),
+                    indexing="ij",
+                )  # stored as (y, x) coordinates
+
+                # scale the imaging area to an appropriate range.
+                scale = max(image_height, image_width)
+                coord_x = (coord_x + 0.5 - self.cx) / scale * self.fx
+                coord_y = -(coord_y + 0.5 - self.cy) / scale * self.fy  # convert to right-handed system by inverting y.
                 coord_z = torch.zeros_like(coord_x)
                 coord_h = torch.ones_like(coord_x)  # homogeneous coord.
-                homogeneous_grid_points = torch.stack([coord_x, coord_y, coord_z, coord_h], -1)
+                homogeneous_grid_points = torch.stack([coord_x, coord_y, coord_z, coord_h], dim=-1)
 
                 # transform meshgrid points with c2w matrix to get ray origins, c2w @ P.
-                c2w[..., :3, 3] = torch.einsum("...ij, ...j -> ...i", c2w, homogeneous_grid_points)
+                c2w[..., :3, 3] = torch.matmul(c2w, homogeneous_grid_points[..., None]).squeeze(-1)
 
             else:
                 raise ValueError(f"Camera type {cam} not supported.")
