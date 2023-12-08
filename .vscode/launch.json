@@ -39,6 +39,20 @@
       ]
     },
     {
+      "name": "Python: train gs",
+      "type": "python",
+      "request": "launch",
+      "program": "nerfstudio/scripts/train.py",
+      "console": "integratedTerminal",
+      "args": [
+        "gaussian-splatting",
+        "--experiment-name", "gsplats",
+        "colmap", "--colmap_path", "sparse/0",
+        "--train-split-fraction", "1.0",
+        "--data", "data/Rocket_Center__Jet_Engine"
+      ]
+    },
+    {
       "name": "Python: train ngp",
       "type": "python",
       "request": "launch",
