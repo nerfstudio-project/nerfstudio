@@ -28,6 +28,8 @@ from typing import List, Optional, Tuple, Union, cast
 
 import numpy as np
 import open3d as o3d
+from plyfile import PlyData, PlyElement
+from pyquaternion import Quaternion
 import torch
 import tyro
 from typing_extensions import Annotated, Literal
@@ -36,6 +38,7 @@ from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
 from nerfstudio.data.scene_box import OrientedBox
+from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.exporter import texture_utils, tsdf_utils
 from nerfstudio.exporter.exporter_utils import collect_camera_poses, export_frame_render, generate_point_cloud, get_mesh_from_filename
 from nerfstudio.exporter.marching_cubes import generate_mesh_with_multires_marching_cubes
@@ -484,11 +487,23 @@ class ExportGaussianSplat(Exporter):
     Export 3D Gaussian Splatting model to a .ply
     """
 
+    output_dir: Optional[int] = None
+    load_step: Optional[int] = None
+    transform_to_colmap_coordinates: bool = False
+
     def main(self) -> None:
+        if self.output_dir is None:
+            self.output_dir = self.load_config.parent
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _, _ = eval_setup(self.load_config)
+        def update_config_callback(config: TrainerConfig):
+            config.pipeline.datamanager.dataparser.load_3D_points = False
+            config.load_step = self.load_step
+            return config
+
+        _, pipeline, _, step = eval_setup(self.load_config,
+                                          update_config_callback=update_config_callback)
 
         assert isinstance(pipeline.model, GaussianSplattingModel)
 
@@ -496,40 +511,128 @@ class ExportGaussianSplat(Exporter):
 
         filename = self.output_dir / "point_cloud.ply"
 
-        map_to_tensors = {}
+        data = np.zeros(model.means.shape[0], dtype=np.dtype([
+            # Position
+            ('x', 'f4'), ('y', 'f4'), ('z', 'f4'),
+            # Always zero
+            ('nx', 'f4'), ('ny', 'f4'), ('nz', 'f4'),
+            # 0-th order spherical harmonics
+            ('f_dc_0', 'f4'), ('f_dc_1', 'f4'), ('f_dc_2', 'f4'),
+            # Three orders of spherical harmonics, regardless of how many we actually have
+            *[(f'f_rest_{i}', 'f4') for i in range(45)],
+            # Sigmoid of the opacity
+            ('opacity', 'f4'),
+            # Log of the scale
+            ('scale_0', 'f4'), ('scale_1', 'f4'), ('scale_2', 'f4'),
+            # Rotation quaternion
+            ('rot_0', 'f4'), ('rot_1', 'f4'), ('rot_2', 'f4'), ('rot_3', 'f4'),
+        ]))
 
         with torch.no_grad():
             positions = model.means.cpu().numpy()
-            map_to_tensors["positions"] = o3d.core.Tensor(positions, o3d.core.float32)
-            map_to_tensors["normals"] = o3d.core.Tensor(np.zeros_like(positions), o3d.core.float32)
+            data['x'] = positions[:, 0]
+            data['y'] = positions[:, 1]
+            data['z'] = positions[:, 2]
 
-            colors = model.colors.data.cpu().numpy()
-            map_to_tensors["colors"] = (colors * 255).astype(np.uint8)
-            for i in range(colors.shape[1]):
-                map_to_tensors[f"f_dc_{i}"] = colors[:, i : i + 1]
+            data['opacity'] = model.opacities.cpu().numpy().reshape(data.shape)
 
-            shs = model.shs_rest.data.cpu().numpy()
-            if model.config.sh_degree > 0:
-                shs = shs.reshape((colors.shape[0], -1, 1))
-                for i in range(shs.shape[-1]):
-                    map_to_tensors[f"f_rest_{i}"] = shs[:, i]
+            colors = model.colors_all.cpu().numpy()
+            scales = model.scales.cpu().numpy()
+            quats = model.quats.cpu().numpy()
 
-            map_to_tensors["opacity"] = model.opacities.data.cpu().numpy()
+        data['f_dc_0'] = colors[:, 0, 0].reshape(data.shape)
+        data['f_dc_1'] = colors[:, 0, 1].reshape(data.shape)
+        data['f_dc_2'] = colors[:, 0, 2].reshape(data.shape)
+        sh_count = min(colors.shape[1] - 1, 15)
+        for c in range(3):
+            for i in range(sh_count):
+                data[f'f_rest_{c * sh_count + i}'] = colors[:, i + 1, c].reshape(data.shape)
 
-            scales = model.scales.data.cpu().unsqueeze(-1).numpy()
-            for i in range(3):
-                map_to_tensors[f"scale_{i}"] = scales[:, i]
+        data['scale_0'] = scales[:, 0].reshape(data.shape)
+        data['scale_1'] = scales[:, 1].reshape(data.shape)
+        data['scale_2'] = scales[:, 2].reshape(data.shape)
 
-            quats = model.quats.data.cpu().unsqueeze(-1).numpy()
+        data['rot_0'] = quats[:, 0].reshape(data.shape)
+        data['rot_1'] = quats[:, 1].reshape(data.shape)
+        data['rot_2'] = quats[:, 2].reshape(data.shape)
+        data['rot_3'] = quats[:, 3].reshape(data.shape)
 
-            for i in range(4):
-                map_to_tensors[f"rot_{i}"] = quats[:, i]
+        with open(filename, mode='wb') as f:
+            PlyData([PlyElement.describe(data, 'vertex')]).write(f)
+        CONSOLE.print(f'Wrote {filename}')
 
-        pcd = o3d.t.geometry.PointCloud(map_to_tensors)
+        first_image_idx = pipeline.datamanager.train_dataset.image_filenames.index(
+            min(pipeline.datamanager.train_dataset.image_filenames))
 
-        o3d.t.io.write_point_cloud(str(filename), pcd)
+        initial_camera_transform = np.vstack([
+            pipeline.datamanager.train_dataset.cameras[first_image_idx].camera_to_worlds.numpy(),
+            [0, 0, 0, 1],
+        ])
 
-        export_frame_render(pipeline, self.output_dir / "render.png")
+        scale_transform = np.eye(4)
+        scale_transform[:3, :3] *= pipeline.datamanager.train_dataparser_outputs.dataparser_scale
+        dataparser_transform = np.vstack([
+            pipeline.datamanager.train_dataparser_outputs.dataparser_transform.numpy(),
+            [0, 0, 0, 1],
+        ])
+        # dataparser_transform is applied before scaling
+        input_transform = scale_transform @ dataparser_transform
+
+        with open(self.output_dir / "splat_info.json", "w") as f:
+            json.dump({
+                # Camera pose of the first image in the dataset, as a column-major 4x4 matrix.
+                'initialCameraTransform': initial_camera_transform.ravel('F').tolist(),
+                # Transformation matrix applied to colmap poses to convert them to the same
+                # coordinate system as the output splats.
+                'inputTransform': input_transform.ravel('F').tolist(),
+                'steps': step + 1,
+            }, f)
+        CONSOLE.print(f'Wrote {self.output_dir / "splat_info.json"}')
+
+        export_frame_render(pipeline, self.output_dir / 'render.png', first_image_idx)
+
+        if self.transform_to_colmap_coordinates:
+            self.write_transformed_ply(
+                data=data, positions=positions, scales=scales,
+                rotation_transform=dataparser_transform,
+                position_transform=input_transform,
+                scale_transform=pipeline.datamanager.train_dataparser_outputs.dataparser_scale,
+            )
+
+    def write_transformed_ply(
+        self,
+        data: np.ndarray,
+        positions: np.ndarray,
+        scales: np.ndarray,
+        rotation_transform: np.ndarray,
+        position_transform: np.ndarray,
+        scale_transform: float,
+    ):
+        filename = self.output_dir / 'transformed.ply'
+        transformed_positions = np.linalg.inv(position_transform) @ np.concatenate([
+            positions,
+            np.ones((positions.shape[0], 1)),
+        ], axis=1).T
+        data['x'] = transformed_positions[0]
+        data['y'] = transformed_positions[1]
+        data['z'] = transformed_positions[2]
+        transformed_scales = torch.sigmoid(torch.from_numpy(scales))
+        transformed_scales = (transformed_scales / scale_transform).T
+        transformed_scales = torch.logit(transformed_scales).numpy()
+        data['scale_0'] = transformed_scales[0]
+        data['scale_1'] = transformed_scales[1]
+        data['scale_2'] = transformed_scales[2]
+        rotation_transform = Quaternion(matrix=np.linalg.inv(rotation_transform))
+        for i in range(len(data['rot_0'])):
+            quat = Quaternion(data['rot_0'][i], data['rot_1'][i], data['rot_2'][i], data['rot_3'][i])
+            quat = rotation_transform * quat
+            data['rot_0'][i] = quat[0]
+            data['rot_1'][i] = quat[1]
+            data['rot_2'][i] = quat[2]
+            data['rot_3'][i] = quat[3]
+        with open(filename, mode='wb') as f:
+            PlyData([PlyElement.describe(data, 'vertex')]).write(f)
+        CONSOLE.print(f'Wrote {filename}')
 
 
 Commands = tyro.conf.FlagConversionOff[

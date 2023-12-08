@@ -29,7 +29,7 @@ from rich.prompt import Confirm
 import open3d as o3d
 
 from nerfstudio.cameras import camera_utils
-from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras
+from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.data.utils import colmap_parsing_utils as colmap_utils
@@ -221,6 +221,32 @@ class ColmapDataParser(DataParser):
         colmap_path = self.config.data / self.config.colmap_path
         assert colmap_path.exists(), f"Colmap path {colmap_path} does not exist."
 
+        # in x,y,z order
+        # assumes that the scene is centered at the origin
+        aabb_scale = self.config.scene_scale
+        scene_box = SceneBox(
+            aabb=torch.tensor(
+                [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
+            )
+        )
+
+        if split == "val" and self.config.train_split_fraction >= 1.0:
+            dataparser_outputs = DataparserOutputs(
+                image_filenames=[],
+                cameras=Cameras( # dummy cameras
+                    fx=torch.tensor([1.0], dtype=torch.float32),
+                    fy=torch.tensor([1.0], dtype=torch.float32),
+                    cx=torch.tensor([0.0], dtype=torch.float32),
+                    cy=torch.tensor([0.0], dtype=torch.float32),
+                    height=torch.tensor([1], dtype=torch.int32),
+                    width=torch.tensor([1], dtype=torch.int32),
+                    camera_to_worlds=torch.eye(4, dtype=torch.float32).unsqueeze(0),
+                    camera_type=CameraType.PERSPECTIVE,
+                ),
+                scene_box=scene_box,
+            )
+            return dataparser_outputs
+            
         meta = self._get_all_images_and_cameras(colmap_path)
         camera_type = CAMERA_MODEL_TO_TYPE[meta["camera_model"]]
 
@@ -301,15 +327,6 @@ class ColmapDataParser(DataParser):
 
         idx_tensor = torch.tensor(indices, dtype=torch.long)
         poses = poses[idx_tensor]
-
-        # in x,y,z order
-        # assumes that the scene is centered at the origin
-        aabb_scale = self.config.scene_scale
-        scene_box = SceneBox(
-            aabb=torch.tensor(
-                [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
-            )
-        )
 
         fx = torch.tensor(fx, dtype=torch.float32)[idx_tensor]
         fy = torch.tensor(fy, dtype=torch.float32)[idx_tensor]

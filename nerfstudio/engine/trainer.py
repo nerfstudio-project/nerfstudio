@@ -308,7 +308,7 @@ class Trainer:
 
         # If gaussian_splat -> render first image
         if isinstance(self.pipeline.model, GaussianSplattingModel):
-            export_frame_render(self.pipeline, self.checkpoint_dir / "render0.png")
+            export_frame_render(self.pipeline, self.checkpoint_dir.parent / "render0.png")
 
         table = Table(
             title=None,

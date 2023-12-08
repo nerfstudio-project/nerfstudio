@@ -138,9 +138,9 @@ class GaussianSplattingModelConfig(ModelConfig):
     """whether to initialize the positions uniformly randomly (not SFM points)"""
     ssim_lambda: float = 0.2
     """weight of ssim loss"""
-    stop_split_at: int = 15000
+    stop_split_at: int = 13000
     """stop splitting at this step"""
-    sh_degree: int = 4
+    sh_degree: int = 3
     """maximum degree of spherical harmonics to use"""
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig(mode="off")
     """camera optimizer config"""
@@ -522,7 +522,7 @@ class GaussianSplattingModel(Model):
         if self.training:
             background = torch.rand(3, device=self.device)
         else:
-            background = self.back_color
+            background = self.back_color.to(device=self.device)
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
@@ -668,7 +668,10 @@ class GaussianSplattingModel(Model):
             gt_img = batch["image"]
         Ll1 = torch.abs(gt_img - outputs["rgb"]).mean()
         simloss = 1 - self.ssim(gt_img.permute(2, 0, 1)[None, ...], outputs["rgb"].permute(2, 0, 1)[None, ...])
-        opacity_L1 = torch.sigmoid(self.opacities).mean() * self.config.opacity_lambda if self.config.opacity_lambda > 0 else 0 # Penalize for low opacity values
+        if self.step >= self.config.stop_split_at or self.config.opacity_lambda <= 0:
+            opacity_L1 = 0
+        else:
+            opacity_L1 = torch.sigmoid(self.opacities).mean() * self.config.opacity_lambda # Penalize for low opacity values
         if self.step % 10 == 0:
             # Before, we made split sh and colors onto different optimizer, with shs having a low learning rate
             # This is slow, instead we apply a regularization every few steps
