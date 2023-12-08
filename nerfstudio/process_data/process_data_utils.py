@@ -61,12 +61,12 @@ def list_images(data: Path) -> List[Path]:
     """Lists all supported images in a directory
 
     Args:
-        data: Path to the directory of images.
+        data: Path to the directory of images. Nested folders are searched as well.
     Returns:
         Paths to images contained in the directory
     """
     allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"] + ALLOWED_RAW_EXTS
-    image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+    image_paths = sorted([p for p in data.glob("**/[!.]*") if p.suffix.lower() in allowed_exts])
     return image_paths
 
 
