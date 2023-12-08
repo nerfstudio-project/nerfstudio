@@ -61,6 +61,10 @@ from nerfstudio.data.datamanagers.base_datamanager import (
     VanillaDataManager,
     VanillaDataManagerConfig,
 )
+from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
+from nerfstudio.data.datamanagers.random_cameras_datamanager import (
+    RandomCamerasDataManager,
+)
 from nerfstudio.data.datasets.base_dataset import Dataset
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.data.utils.dataloaders import FixedIndicesEvalDataloader
@@ -666,7 +670,14 @@ class SpiralRender(BaseRender):
 
         install_checks.check_ffmpeg_installed()
 
-        assert isinstance(pipeline.datamanager, VanillaDataManager)
+        assert isinstance(
+            pipeline.datamanager,
+            (
+                VanillaDataManager,
+                ParallelDataManager,
+                RandomCamerasDataManager,
+            ),
+        )
         steps = int(self.frame_rate * self.seconds)
         camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
         camera_path = get_spiral_path(camera_start, steps=steps, radius=self.radius)

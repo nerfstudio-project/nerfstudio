@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, List, Literal, Optional, Tuple, Type
 
@@ -113,7 +113,7 @@ class LoggingConfig(PrintableConfig):
     max_buffer_size: int = 20
     """maximum history size to keep for computing running averages of stats.
      e.g. if 20, averages will be computed over past 20 occurrences."""
-    local_writer: LocalWriterConfig = LocalWriterConfig(enable=True)
+    local_writer: LocalWriterConfig = field(default_factory=lambda: LocalWriterConfig(enable=True))
     """if provided, will print stats locally. if None, will disable printing"""
     profiler: Literal["none", "basic", "pytorch"] = "basic"
     """how to profile the code;
