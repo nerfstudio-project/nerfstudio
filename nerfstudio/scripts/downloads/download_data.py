@@ -15,10 +15,12 @@
 """Download datasets and specific captures from the datasets."""
 from __future__ import annotations
 
+import copy
 import json
 import os
 import shutil
 import tarfile
+import xml.etree.ElementTree as ET
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -561,12 +563,20 @@ eyefultower_downloads = [
     "workshop",
 ]
 
+
+@dataclass
+class EyefulTowerResolutionMetadata:
+    folder_name: str
+    width: int
+    height: int
+
+
 eyefultower_resolutions = {
     "all": None,
-    "jpeg_2k": "images-jpeg-2k",
-    "jpeg_4k": "images-jpeg-4k",
-    "jpeg_8k": "images-jpeg",
-    "exr_2k": "images-2k",
+    "jpeg_2k": EyefulTowerResolutionMetadata("images-jpeg-2k", 1368, 2048),
+    "jpeg_4k": EyefulTowerResolutionMetadata("images-jpeg-4k", 2736, 4096),
+    "jpeg_8k": EyefulTowerResolutionMetadata("images-jpeg", 5784, 8660),
+    "exr_2k": EyefulTowerResolutionMetadata("images-2k", 1368, 2048),
 }
 
 if TYPE_CHECKING:
@@ -588,9 +598,62 @@ class EyefulTowerDownload(DatasetDownload):
     capture_name: Tuple[EyefulTowerCaptureName, ...] = ()
     resolution_name: Tuple[EyefulTowerResolution, ...] = ()
 
+    @staticmethod
+    def scale_metashape_transform(xml_tree: ET.ElementTree, target_width: int, target_height: int):
+        transformed = copy.deepcopy(xml_tree)
+
+        root = transformed.getroot()
+        assert len(root) == 1
+        chunk = root[0]
+        sensors = chunk.find("sensors")
+        assert sensors is not None
+
+        for sensor in sensors:
+            resolution = sensor.find("resolution")
+            assert resolution is not None, "Resolution not found in EyefulTower camera.xml"
+            original_width = int(resolution.get("width"))  # type: ignore
+            original_height = int(resolution.get("height"))  # type: ignore
+
+            if original_width > original_height:
+                target_width, target_height = max(target_width, target_height), min(target_width, target_height)
+            else:
+                target_height, target_width = max(target_width, target_height), min(target_width, target_height)
+
+            resolution.set("width", str(target_width))
+            resolution.set("height", str(target_height))
+
+            calib = sensor.find("calibration")
+            assert calib is not None, "Calibration not found in EyefulTower sensor"
+
+            calib_resolution = calib.find("resolution")
+            assert calib_resolution is not None
+            calib_resolution.set("width", str(target_width))
+            calib_resolution.set("height", str(target_height))
+
+            # Compute each scale individually and average for better rounding
+            x_scale = target_width / original_width
+            y_scale = target_height / original_height
+            scale = (x_scale + y_scale) / 2.0
+
+            f = calib.find("f")
+            assert f is not None and f.text is not None, "f not found in calib"
+            f.text = str(float(f.text) * scale)
+
+            cx = calib.find("cx")
+            assert cx is not None and cx.text is not None, "cx not found in calib"
+            cx.text = str(float(cx.text) * x_scale)
+
+            cy = calib.find("cy")
+            assert cy is not None and cy.text is not None, "cy not found in calib"
+            cy.text = str(float(cy.text) * y_scale)
+
+            # TODO: Maybe update pixel_width / pixel_height / focal_length / layer_index?
+
+        return transformed
+
     def download(self, save_dir: Path):
         if len(self.capture_name) == 0:
-            self.capture_name = ("seating_area",)
+            self.capture_name = ("riverview",)
             print(
                 f"No capture specified, using {self.capture_name} by default.",
                 "Add `--help` to this command to see all available captures.",
@@ -630,22 +693,43 @@ class EyefulTowerDownload(DatasetDownload):
             output_path = save_dir / "eyefultower" / capture
             includes = []
             for resolution in resolutions:
-                includes.extend(["--include", f"{eyefultower_resolutions[resolution]}/*"])
+                includes.extend(["--include", f"{eyefultower_resolutions[resolution].folder_name}/*"])
             command = (
                 ["s3", "sync", "--no-sign-request", "--only-show-errors", "--exclude", "images*/*"]
                 + includes
                 + [base_url, str(output_path)]
             )
+            print(f"[EyefulTower Capture {i+1: >2d}/{len(captures)}]: '{capture}'")
             print(
-                f"[Capture {i+1: >2d}/{len(captures)}]:",
-                f"Downloading resolutions {resolutions} from EyefulTower capture '{capture}'",
-                f"to '{output_path.resolve()}' with command `aws {' '.join(command)}`",
-                "...",
+                f"    Downloading resolutions {resolutions}",
+                f"to '{output_path.resolve()}' with command `aws {' '.join(command)}` ...",
                 end=" ",
                 flush=True,
             )
             driver.main(command)
             print("done!")
+
+            # After downloading, we'll insert an appropriate cameras.xml file into each directory
+            # It's quick enough that we can just redo it every time this is called, regardless
+            # of whether new data is downloaded.
+            xml_input_path = output_path / "cameras.xml"
+            if not xml_input_path.exists:
+                print("    WARNING: cameras.xml not found. Scaled cameras.xml will not be generated.")
+                continue
+
+            tree = ET.parse(output_path / "cameras.xml")
+
+            for resolution in resolutions:
+                metadata = eyefultower_resolutions[resolution]
+                xml_output_path = output_path / metadata.folder_name / "cameras.xml"
+                print(
+                    f"    Generating cameras.xml for '{resolution}' to {xml_output_path.resolve()} ... ",
+                    end=" ",
+                    flush=True,
+                )
+                scaled_tree = self.scale_metashape_transform(tree, metadata.width, metadata.height)
+                scaled_tree.write(xml_output_path)
+                print("done!")
 
 
 Commands = Union[
