@@ -872,8 +872,6 @@ class Cameras(TensorDataclass):
         else:
             metadata = {"directions_norm": directions_norm[0].detach()}
 
-        times = self.times[camera_indices, 0] if self.times is not None else None
-
         return RayBundle(
             origins=origins,
             directions=directions,
