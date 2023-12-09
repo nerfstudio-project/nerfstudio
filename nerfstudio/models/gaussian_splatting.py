@@ -21,7 +21,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Type, Union
 from nerfstudio.data.scene_box import OrientedBox
-from nerfstudio.cameras.rays import RayBundle
 
 import torch
 from torch.nn import Parameter
@@ -44,6 +43,8 @@ from gsplat.rasterize import RasterizeGaussians
 from gsplat.project_gaussians import ProjectGaussians
 from gsplat.sh import SphericalHarmonics, num_sh_bases
 from pytorch_msssim import SSIM
+# need following import for background color override
+from nerfstudio.model_components import renderers
 
 
 def random_quat_tensor(N):
@@ -144,7 +145,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     """maximum degree of spherical harmonics to use"""
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig(mode="off")
     """camera optimizer config"""
-    max_gauss_ratio: float = 5.0
+    max_gauss_ratio: float = 10.0
     """threshold of ratio of gaussian max to min scale before applying regularization
     loss from the PhysGaussian paper
     """
@@ -532,7 +533,11 @@ class GaussianSplattingModel(Model):
         if self.training:
             background = torch.rand(3, device=self.device)
         else:
-            background = self.back_color
+            # logic for setting the background of the scene
+            if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
+                background = renderers.BACKGROUND_COLOR_OVERRIDE
+            else:
+                background = self.back_color.to(self.device)
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:

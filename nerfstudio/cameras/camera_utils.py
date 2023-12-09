@@ -25,7 +25,6 @@ from jaxtyping import Float
 from numpy.typing import NDArray
 from torch import Tensor
 
-from nerfstudio.utils.misc import torch_compile
 
 _EPS = np.finfo(float).eps * 4.0
 

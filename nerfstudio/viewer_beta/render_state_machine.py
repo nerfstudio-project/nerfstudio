@@ -28,7 +28,6 @@ from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer_beta.utils import CameraState, get_camera
 from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
-from nerfstudio.cameras.cameras import Cameras
 
 if TYPE_CHECKING:
     from nerfstudio.viewer_beta.viewer import Viewer

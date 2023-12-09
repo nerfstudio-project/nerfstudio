@@ -24,7 +24,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Lock
-from typing import Dict, List, Literal, Optional, Tuple, Type, cast, Dict, DefaultDict
+from typing import Dict, List, Literal, Optional, Tuple, Type, cast, DefaultDict
 from collections import defaultdict
 import torch
 from nerfstudio.configs.experiment_config import ExperimentConfig
