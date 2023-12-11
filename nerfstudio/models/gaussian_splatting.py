@@ -149,6 +149,11 @@ class GaussianSplattingModelConfig(ModelConfig):
     loss from the PhysGaussian paper
     """
     opacity_lambda: float = 0.003 # Weight of opacity loss
+    init_pts_sphere_num: int = 20000 # Initialize gaussians at a sphere with this many randomly placed points. Set to 0 to disable
+    init_pts_sphere_rad_pct: float = 0.98 # Initialize gaussians at a sphere: set radius based on looking at the 99th percentile of initial points' distance from origin
+    init_pts_sphere_rad_mult: float = 1.1 # Initialize gaussians at a sphere: set radius based on init_pts_sphere_rad_pct * this value
+    init_pts_sphere_rad_min: float = 5.0 # Initialize gaussians at a sphere with this as the minimum radius
+    init_pts_sphere_rad_max: float = 20.0 # Initialize gaussians at a sphere with this as the maximum radius
 
 
 class GaussianSplattingModel(Model):
@@ -166,6 +171,34 @@ class GaussianSplattingModel(Model):
         else:
             self.seed_pts = None
         super().__init__(*args, **kwargs)
+
+    def add_init_sphere_pts(self):
+        # Estimate phere radius
+        dists = torch.linalg.vector_norm(self.means, dim=1).detach().numpy()
+        dist_raw = np.percentile(dists, self.config.init_pts_sphere_rad_pct*100, overwrite_input=False) * self.config.init_pts_sphere_rad_mult
+        self.outer_sphere_rad = max(min(dist_raw, self.config.init_pts_sphere_rad_max), self.config.init_pts_sphere_rad_min)
+        # Generate sphere points
+        sphere_pts = (torch.rand((self.config.init_pts_sphere_num, 3)) - 0.5) * 2
+        dists = torch.linalg.vector_norm(sphere_pts, dim=1, keepdim=True)
+        rescale = self.outer_sphere_rad / (dists + 1e-8)
+        sphere_pts = sphere_pts * torch.cat([rescale, rescale, rescale], dim=1)
+        dim_sh = num_sh_bases(self.config.sh_degree)
+        distances, _ = self.k_nearest_sklearn(sphere_pts.data, 3)
+        distances = torch.from_numpy(distances)
+        avg_dist = distances.mean(dim=-1, keepdim=True)
+        sphere_colors     = torch.rand(self.config.init_pts_sphere_num, 1, 3).to(self.colors_all.device)
+        sphere_shs_rest   = torch.zeros((self.config.init_pts_sphere_num, dim_sh - 1, 3)).to(self.colors_all.device)
+        sphere_colors_all = torch.nn.Parameter(torch.cat([sphere_colors, sphere_shs_rest], dim=1))
+        sphere_scales     = torch.log(avg_dist.repeat(1, 3)).to(self.scales.device)
+        sphere_opacities  = torch.logit(0.1 * torch.ones(self.config.init_pts_sphere_num, 1)).to(self.opacities.device)
+        sphere_quats      = random_quat_tensor(self.config.init_pts_sphere_num).to(self.quats.device)
+        # Add to model
+        self.means        = torch.nn.Parameter(torch.cat([self.means.detach(),      sphere_pts],        dim=0))
+        self.colors_all   = torch.nn.Parameter(torch.cat([self.colors_all.detach(), sphere_colors_all], dim=0))
+        self.scales       = torch.nn.Parameter(torch.cat([self.scales.detach(),     sphere_scales],     dim=0))
+        self.opacities    = torch.nn.Parameter(torch.cat([self.opacities.detach(),  sphere_opacities],  dim=0))
+        self.quats        = torch.nn.Parameter(torch.cat([self.quats.detach(),      sphere_quats],      dim=0))
+        print(f"Initialized {self.config.init_pts_sphere_num} gaussian splats on a sphere with radius {self.outer_sphere_rad}")
 
     def populate_modules(self):
         if self.seed_pts is not None and not self.config.random_init:
@@ -194,6 +227,10 @@ class GaussianSplattingModel(Model):
             self.colors_all = torch.nn.Parameter(torch.cat([colors, shs_rest], dim=1))
 
         self.opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(self.num_points, 1)))
+
+        # Init outer sphere dimensions & points
+        if self.config.init_pts_sphere_num > 0 and self.training:
+            self.add_init_sphere_pts()
 
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)

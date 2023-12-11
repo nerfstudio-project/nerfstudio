@@ -499,6 +499,7 @@ class ExportGaussianSplat(Exporter):
 
         def update_config_callback(config: TrainerConfig):
             config.pipeline.datamanager.dataparser.load_3D_points = False
+            config.pipeline.model.init_pts_sphere_num = 0
             config.load_step = self.load_step
             return config
 
