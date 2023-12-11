@@ -90,7 +90,7 @@ class TensoRFModelConfig(ModelConfig):
     tensorf_encoding: Literal["triplane", "vm", "cp"] = "vm"
     regularization: Literal["none", "l1", "tv"] = "l1"
     """Regularization method used in tensorf paper"""
-    camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig(mode="SO3xR3")
+    camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="SO3xR3"))
     """Config of the camera optimizer to use"""
     use_gradient_scaling: bool = False
     """Use gradient scaler where the gradients are lower for points closer to the camera."""
