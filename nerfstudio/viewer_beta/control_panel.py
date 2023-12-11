@@ -14,7 +14,7 @@
 
 """ Control panel for the viewer """
 from collections import defaultdict
-from typing import Callable, DefaultDict, List, Tuple, get_args, Optional, Union
+from typing import Callable, DefaultDict, List, Tuple, get_args
 
 import numpy as np
 import torch
@@ -182,13 +182,8 @@ class ControlPanel:
         self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=rerender_cb, hint="Time to render")
         self._time_enabled = time_enabled
 
-
         self.add_element(self._train_speed)
         self.add_element(self._train_util)
-        self._reset_camera = viser_server.add_gui_button(
-            label="Reset Up Dir", disabled=False, icon=viser.Icon.ARROW_BIG_UP_LINES
-        )
-        self._reset_camera.on_click(self._reset_camera_cb)
 
         with self.viser_server.add_gui_folder("Render Options"):
             self.add_element(self._max_res)
@@ -223,6 +218,10 @@ class ControlPanel:
             self.add_element(self._crop_rot, additional_tags=("crop",))
 
         self.add_element(self._time, additional_tags=("time",))
+        self._reset_camera = viser_server.add_gui_button(
+            label="Reset Up Dir", disabled=False, icon=viser.Icon.ARROW_BIG_UP_LINES, color="gray"
+        )
+        self._reset_camera.on_click(self._reset_camera_cb)
 
     def _train_speed_cb(self) -> None:
         pass
