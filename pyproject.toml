@@ -43,8 +43,7 @@ dependencies = [
     "pyngrok>=5.1.0",
     "python-socketio>=5.7.1",
     "pyquaternion>=0.9.9",
-    "rawpy>=0.18.1; platform_machine != 'arm64'",
-    "newrawpy>=0.18.1; platform_machine == 'arm64'",
+    "newrawpy>=0.18.1",  # https://github.com/letmaik/rawpy/issues/171#issuecomment-1572627747
     "requests",
     "rich>=12.5.1",
     "scikit-image>=0.19.3",
