@@ -132,7 +132,7 @@ finally run the following to register the dataparser.
 pip install -e .
 ```
 
-Similarly to the method develomement, you can also use environment variables to register dataparsers.
+Similarly to the method development, you can also use environment variables to register dataparsers.
 Use the `NERFSTUDIO_DATAPARSER_CONFIGS` environment variable:
 
 ```
