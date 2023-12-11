@@ -173,7 +173,7 @@ class Viewer:
         self.show_images.on_click(lambda _: self.set_camera_visibility(True))
         self.show_images.on_click(lambda _: self.toggle_cameravis_button())
         self.show_images.visible = False
-        mkdown = self.make_stats_markdown(0, 0)
+        mkdown = self.make_stats_markdown(0, "0x0px")
         self.stats_markdown = self.viser_server.add_gui_markdown(mkdown)
         tabs = self.viser_server.add_gui_tab_group()
         control_tab = tabs.add_tab("Control", viser.Icon.SETTINGS)
