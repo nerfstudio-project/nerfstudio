@@ -32,7 +32,7 @@ import nerfstudio.utils.math
 import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.data.scene_box import SceneBox, OrientedBox
+from nerfstudio.data.scene_box import OrientedBox, SceneBox
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
 TORCH_DEVICE = Union[torch.device, str]
@@ -631,8 +631,8 @@ class Cameras(TensorDataclass):
         assert coord_stack.shape == (3,) + num_rays_shape + (2,)
 
         # Undistorts our images according to our distortion parameters
+        distortion_params = None
         if not disable_distortion:
-            distortion_params = None
             if self.distortion_params is not None:
                 distortion_params = self.distortion_params[true_indices]
                 if distortion_params_delta is not None:
@@ -846,6 +846,7 @@ class Cameras(TensorDataclass):
                 # Stack image coordinates and image coordinates offset by 1, check shapes too
                 pcoord_stack = torch.stack([pcoord, pcoord_x_offset, pcoord_y_offset], dim=0)  # (3, num_rays, 2)
 
+                assert distortion_params is not None
                 masked_coords = pcoord_stack[coord_mask, :]
                 # The fisheye unprojection does not rely on planar/pinhold unprojection, thus the method needs
                 # to access the focal length and principle points directly.

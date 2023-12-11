@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import json
+import sys
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,9 +22,14 @@ from typing import Dict, List
 import numpy as np
 import tyro
 from PIL import Image
-from projectaria_tools.core import mps
-from projectaria_tools.core.data_provider import VrsDataProvider, create_vrs_data_provider
-from projectaria_tools.core.sophus import SE3
+
+try:
+    from projectaria_tools.core import mps
+    from projectaria_tools.core.data_provider import VrsDataProvider, create_vrs_data_provider
+    from projectaria_tools.core.sophus import SE3
+except ImportError:
+    print("projectaria_tools not found, please install with pip3 install projectaria-tools'[all]'")
+    sys.exit(1)
 
 ARIA_CAMERA_MODEL = "FISHEYE624"
 
@@ -180,6 +186,7 @@ class ProcessProjectAria:
     def main(self) -> None:
         """Generate a nerfstudio dataset from ProjectAria data (VRS) and MPS attachments."""
         # Create output directory if it doesn't exist.
+        self.output_dir = self.output_dir.absolute()
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         provider = create_vrs_data_provider(self.vrs_file.absolute().as_posix())
@@ -203,18 +210,20 @@ class ProcessProjectAria:
 
         # create the NerfStudio frames from the AriaImageFrames.
         print("Creating NerfStudio frames...")
-        RGB_VALID_RADIUS = 707.5
+        CANONICAL_RGB_VALID_RADIUS = 707.5
+        CANONICAL_RGB_WIDTH = 1408
+        rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (aria_frames[0].camera.width / CANONICAL_RGB_WIDTH)
         nerfstudio_frames = {
             "camera_model": ARIA_CAMERA_MODEL,
             "frames": [to_nerfstudio_frame(frame) for frame in aria_frames],
-            "fisheye_crop_radius": RGB_VALID_RADIUS,
+            "fisheye_crop_radius": rgb_valid_radius,
         }
 
         # write the json out to disk as transforms.json
         print("Writing transforms.json")
         transform_file = self.output_dir / "transforms.json"
-        with open(transform_file, "w", encoding="UTF-8") as file:
-            json.dump(nerfstudio_frames, file, indent=4)
+        with open(transform_file, "w", encoding="UTF-8"):
+            transform_file.write_text(json.dumps(nerfstudio_frames))
 
 
 def entrypoint():
