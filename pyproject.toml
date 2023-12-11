@@ -45,7 +45,8 @@ dependencies = [
     "pyquaternion>=0.9.9",
     # TODO we can switch back to (non-new) rawpy if they start releasing arm64
     # wheels. https://github.com/letmaik/rawpy/issues/171#issuecomment-1572627747
-    "newrawpy>=0.18.1",
+    "rawpy>=0.18.1; platform_machine != 'arm64'",
+    "newrawpy>=0.18.1; platform_machine == 'arm64'",
     "requests",
     "rich>=12.5.1",
     "scikit-image>=0.19.3",

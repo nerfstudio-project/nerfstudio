@@ -24,7 +24,12 @@ from typing import List, Literal, Optional, OrderedDict, Tuple, Union
 
 import cv2
 import imageio
-import newrawpy as rawpy
+
+try:
+    import rawpy
+except ImportError:
+    import newrawpy as rawpy  # type: ignore
+
 import numpy as np
 from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
