@@ -21,12 +21,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 
 import torch
-from viser import ClientHandle
 from nerfstudio.model_components.renderers import background_color_override_context
 from nerfstudio.utils import colormaps, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer_beta.utils import CameraState, get_camera
+from viser import ClientHandle
 
 if TYPE_CHECKING:
     from nerfstudio.viewer_beta.viewer import Viewer

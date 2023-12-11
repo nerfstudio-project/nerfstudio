@@ -26,7 +26,6 @@ import torchvision
 import viser
 import viser.theme
 import viser.transforms as vtf
-
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
