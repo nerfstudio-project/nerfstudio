@@ -56,9 +56,7 @@ class Keyframe:
 
 
 class CameraPath:
-    def __init__(
-        self, server: viser.ViserServer, duration_element: viser.GuiInputHandle[float]
-    ):
+    def __init__(self, server: viser.ViserServer, duration_element: viser.GuiInputHandle[float]):
         self._server = server
         self._keyframes: Dict[int, Tuple[Keyframe, viser.CameraFrustumHandle]] = {}
         self._keyframe_counter: int = 0
@@ -85,9 +83,7 @@ class CameraPath:
         for keyframe in self._keyframes.values():
             keyframe[1].visible = visible
 
-    def add_camera(
-        self, keyframe: Keyframe, keyframe_index: Optional[int] = None
-    ) -> None:
+    def add_camera(self, keyframe: Keyframe, keyframe_index: Optional[int] = None) -> None:
         """Add a new camera, or replace an old one if `keyframe_index` is passed in."""
         server = self._server
 
@@ -98,9 +94,7 @@ class CameraPath:
 
         frustum_handle = server.add_camera_frustum(
             f"/render_cameras/{keyframe_index}",
-            fov=keyframe.override_fov_rad
-            if keyframe.override_fov_enabled
-            else self.default_fov,
+            fov=keyframe.override_fov_rad if keyframe.override_fov_enabled else self.default_fov,
             aspect=keyframe.aspect,
             scale=0.1,
             color=(200, 10, 30),
@@ -125,9 +119,7 @@ class CameraPath:
                 position=keyframe.position,
             ) as camera_edit_panel:
                 self._camera_edit_panel = camera_edit_panel
-                override_fov = server.add_gui_checkbox(
-                    "Override FOV", initial_value=keyframe.override_fov_enabled
-                )
+                override_fov = server.add_gui_checkbox("Override FOV", initial_value=keyframe.override_fov_enabled)
                 override_fov_degrees = server.add_gui_slider(
                     "Override FOV (degrees)",
                     5.0,
@@ -136,9 +128,7 @@ class CameraPath:
                     initial_value=keyframe.override_fov_rad * 180.0 / np.pi,
                     disabled=not keyframe.override_fov_enabled,
                 )
-                delete_button = server.add_gui_button(
-                    "Delete", color="red", icon=viser.Icon.TRASH
-                )
+                delete_button = server.add_gui_button("Delete", color="red", icon=viser.Icon.TRASH)
                 go_to_button = server.add_gui_button("Go to")
                 close_button = server.add_gui_button("Close")
 
@@ -158,9 +148,7 @@ class CameraPath:
                 assert event.client is not None
                 with event.client.add_gui_modal("Confirm") as modal:
                     event.client.add_gui_markdown("Delete keyframe?")
-                    confirm_button = event.client.add_gui_button(
-                        "Yes", color="red", icon=viser.Icon.TRASH
-                    )
+                    confirm_button = event.client.add_gui_button("Yes", color="red", icon=viser.Icon.TRASH)
                     exit_button = event.client.add_gui_button("Cancel")
 
                     @confirm_button.on_click
@@ -199,9 +187,7 @@ class CameraPath:
                 T_current_target = T_world_current.inverse() @ T_world_target
 
                 for j in range(10):
-                    T_world_set = T_world_current @ tf.SE3.exp(
-                        T_current_target.log() * j / 9.0
-                    )
+                    T_world_set = T_world_current @ tf.SE3.exp(T_current_target.log() * j / 9.0)
 
                     # Important bit: we atomically set both the orientation and the position
                     # of the camera.
@@ -251,29 +237,21 @@ class CameraPath:
                     ],
                     axis=0,
                 ),
-                y=np.concatenate(
-                    [[-1], spline_indices, [spline_indices[-1] + 1]], axis=0
-                ),
+                y=np.concatenate([[-1], spline_indices, [spline_indices[-1] + 1]], axis=0),
             )
         else:
-            interpolator = scipy.interpolate.PchipInterpolator(
-                x=transition_times_cumsum, y=spline_indices
-            )
+            interpolator = scipy.interpolate.PchipInterpolator(x=transition_times_cumsum, y=spline_indices)
 
         # Clip to account for floating point error.
         return np.clip(interpolator(time), 0, spline_indices[-1])
 
-    def interpolate_pose_and_fov_rad(
-        self, normalized_t: float
-    ) -> Optional[Tuple[tf.SE3, float]]:
+    def interpolate_pose_and_fov_rad(self, normalized_t: float) -> Optional[Tuple[tf.SE3, float]]:
         if len(self._keyframes) < 2:
             return None
 
         self._fov_spline = splines.KochanekBartels(
             [
-                keyframe[0].override_fov_rad
-                if keyframe[0].override_fov_enabled
-                else self.default_fov
+                keyframe[0].override_fov_rad if keyframe[0].override_fov_enabled else self.default_fov
                 for keyframe in self._keyframes.values()
             ],
             tcb=(self.tension, 0.0, 0.0),
@@ -311,9 +289,7 @@ class CameraPath:
 
         self._orientation_spline = splines.quaternion.KochanekBartels(
             [
-                splines.quaternion.UnitQuaternion.from_unit_xyzw(
-                    np.roll(keyframe[0].wxyz, shift=-1)
-                )
+                splines.quaternion.UnitQuaternion.from_unit_xyzw(np.roll(keyframe[0].wxyz, shift=-1))
                 for keyframe in keyframes
             ],
             tcb=(self.tension, 0.0, 0.0),
@@ -327,16 +303,9 @@ class CameraPath:
 
         # Update visualized spline.
         points_array = self._position_spline.evaluate(
-            self.spline_t_from_t_sec(
-                np.linspace(0, transition_times_cumsum[-1], num_frames)
-            )
+            self.spline_t_from_t_sec(np.linspace(0, transition_times_cumsum[-1], num_frames))
         )
-        colors_array = np.array(
-            [
-                colorsys.hls_to_rgb(h, 0.5, 1.0)
-                for h in np.linspace(0.0, 1.0, len(points_array))
-            ]
-        )
+        colors_array = np.array([colorsys.hls_to_rgb(h, 0.5, 1.0) for h in np.linspace(0.0, 1.0, len(points_array))])
 
         # Clear prior spline nodes.
         for node in self._spline_nodes:
@@ -367,8 +336,7 @@ class CameraPath:
             transition_pos = self._position_spline.evaluate(
                 float(
                     self.spline_t_from_t_sec(
-                        (transition_times_cumsum[i] + transition_times_cumsum[i + 1])
-                        / 2.0,
+                        (transition_times_cumsum[i] + transition_times_cumsum[i + 1]) / 2.0,
                     )
                 )
             )
@@ -414,12 +382,8 @@ class CameraPath:
 
                 @override_transition_enabled.on_update
                 def _(_) -> None:
-                    keyframe.override_transition_enabled = (
-                        override_transition_enabled.value
-                    )
-                    override_transition_sec.disabled = (
-                        not override_transition_enabled.value
-                    )
+                    keyframe.override_transition_enabled = override_transition_enabled.value
+                    override_transition_sec.disabled = not override_transition_enabled.value
                     self._duration_element.value = self.compute_duration()
 
                 @override_transition_sec.on_update
@@ -448,8 +412,7 @@ class CameraPath:
             del frustum
             total += (
                 keyframe.override_transition_sec
-                if keyframe.override_transition_enabled
-                and keyframe.override_transition_sec is not None
+                if keyframe.override_transition_enabled and keyframe.override_transition_sec is not None
                 else self.default_transition_sec
             )
         return total
@@ -464,8 +427,7 @@ class CameraPath:
             del frustum
             total += (
                 keyframe.override_transition_sec
-                if keyframe.override_transition_enabled
-                and keyframe.override_transition_sec is not None
+                if keyframe.override_transition_enabled and keyframe.override_transition_sec is not None
                 else self.default_transition_sec
             )
             out.append(total)
@@ -474,8 +436,7 @@ class CameraPath:
             keyframe = next(iter(self._keyframes.values()))[0]
             total += (
                 keyframe.override_transition_sec
-                if keyframe.override_transition_enabled
-                and keyframe.override_transition_sec is not None
+                if keyframe.override_transition_enabled and keyframe.override_transition_sec is not None
                 else self.default_transition_sec
             )
             out.append(total)
@@ -519,9 +480,7 @@ def populate_render_tab(
         step=1,
         hint="Render output resolution in pixels.",
     )
-    resolution.on_update(
-        lambda _: camera_path.update_aspect(resolution.value[0] / resolution.value[1])
-    )
+    resolution.on_update(lambda _: camera_path.update_aspect(resolution.value[0] / resolution.value[1]))
 
     camera_type = server.add_gui_dropdown(
         "Camera Type",
@@ -559,9 +518,7 @@ def populate_render_tab(
     @reset_up_button.on_click
     def _(event: viser.GuiEvent) -> None:
         assert event.client is not None
-        event.client.camera.up_direction = tf.SO3(event.client.camera.wxyz) @ np.array(
-            [0.0, -1.0, 0.0]
-        )
+        event.client.camera.up_direction = tf.SO3(event.client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
 
     clear_keyframes_button = server.add_gui_button(
         "Clear keyframes",
@@ -575,9 +532,7 @@ def populate_render_tab(
         client = server.get_clients()[event.client_id]
         with client.atomic(), client.add_gui_modal("Confirm") as modal:
             client.add_gui_markdown("Clear all keyframes?")
-            confirm_button = client.add_gui_button(
-                "Yes", color="red", icon=viser.Icon.TRASH
-            )
+            confirm_button = client.add_gui_button("Yes", color="red", icon=viser.Icon.TRASH)
             exit_button = client.add_gui_button("Cancel")
 
             @confirm_button.on_click
@@ -598,9 +553,7 @@ def populate_render_tab(
             def _(_) -> None:
                 modal.close()
 
-    loop = server.add_gui_checkbox(
-        "Loop", False, hint="Add a segment between the first and last keyframes."
-    )
+    loop = server.add_gui_checkbox("Loop", False, hint="Add a segment between the first and last keyframes.")
 
     @loop.on_update
     def _(_) -> None:
@@ -686,12 +639,8 @@ def populate_render_tab(
     playback_folder = server.add_gui_folder("Playback")
     with playback_folder:
         play_button = server.add_gui_button("Play", icon=viser.Icon.PLAYER_PLAY)
-        pause_button = server.add_gui_button(
-            "Pause", icon=viser.Icon.PLAYER_PAUSE, visible=False
-        )
-        attach_viewport_checkbox = server.add_gui_checkbox(
-            "Attach viewport", initial_value=False
-        )
+        pause_button = server.add_gui_button("Pause", icon=viser.Icon.PLAYER_PAUSE, visible=False)
+        attach_viewport_checkbox = server.add_gui_checkbox("Attach viewport", initial_value=False)
         transition_sec_number = server.add_gui_number(
             "Transition (sec)",
             min=0.001,
@@ -700,9 +649,7 @@ def populate_render_tab(
             initial_value=0.5,
             hint="Time in seconds between each keyframe, which can also be overridden on a per-transition basis.",
         )
-        framerate_number = server.add_gui_number(
-            "FPS", min=0.1, max=240.0, step=1e-2, initial_value=30.0
-        )
+        framerate_number = server.add_gui_number("FPS", min=0.1, max=240.0, step=1e-2, initial_value=30.0)
         framerate_buttons = server.add_gui_button_group("", ("24", "30", "60"))
         duration_number = server.add_gui_number(
             "Duration (sec)",
@@ -852,9 +799,7 @@ def populate_render_tab(
                 max_frame = int(framerate_number.value * duration_number.value)
                 if max_frame > 0:
                     assert preview_frame_slider is not None
-                    preview_frame_slider.value = (
-                        preview_frame_slider.value + 1
-                    ) % max_frame
+                    preview_frame_slider.value = (preview_frame_slider.value + 1) % max_frame
                 time.sleep(1.0 / framerate_number.value)
 
         threading.Thread(target=play).start()
@@ -901,9 +846,7 @@ def populate_render_tab(
                     camera_path.reset()
                     for i in range(len(keyframes)):
                         frame = keyframes[i]
-                        pose = tf.SE3.from_matrix(
-                            np.array(frame["matrix"]).reshape(4, 4)
-                        )
+                        pose = tf.SE3.from_matrix(np.array(frame["matrix"]).reshape(4, 4))
                         # apply the x rotation by 180 deg
                         pose = tf.SE3.from_rotation_and_translation(
                             pose.rotation() @ tf.SO3.from_x_radians(np.pi),
@@ -911,24 +854,17 @@ def populate_render_tab(
                         )
                         camera_path.add_camera(
                             Keyframe(
-                                position=pose.translation()
-                                * VISER_NERFSTUDIO_SCALE_RATIO,
+                                position=pose.translation() * VISER_NERFSTUDIO_SCALE_RATIO,
                                 wxyz=pose.rotation().wxyz,
                                 override_fov_enabled=True,
                                 override_fov_rad=frame["fov"] / 180.0 * np.pi,
                                 aspect=frame["aspect"],
-                                override_transition_enabled=frame.get(
-                                    "override_transition_enabled", None
-                                ),
-                                override_transition_sec=frame.get(
-                                    "override_transition_sec", None
-                                ),
+                                override_transition_enabled=frame.get("override_transition_enabled", None),
+                                override_transition_sec=frame.get("override_transition_sec", None),
                             ),
                         )
 
-                    transition_sec_number.value = json_data.get(
-                        "default_transition_sec", 0.5
-                    )
+                    transition_sec_number.value = json_data.get("default_transition_sec", 0.5)
 
                     # update the render name
                     render_name_text.value = json_path.stem
@@ -1006,9 +942,7 @@ def populate_render_tab(
         # now populate the camera path:
         camera_path_list = []
         for i in range(num_frames):
-            maybe_pose_and_fov = camera_path.interpolate_pose_and_fov_rad(
-                i / num_frames
-            )
+            maybe_pose_and_fov = camera_path.interpolate_pose_and_fov_rad(i / num_frames)
             if maybe_pose_and_fov is None:
                 return
             pose, fov = maybe_pose_and_fov
