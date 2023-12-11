@@ -66,15 +66,11 @@ def list_images(data: Path) -> List[Path]:
         Paths to images contained in the directory
     """
     allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"] + ALLOWED_RAW_EXTS
-    image_paths = sorted(
-        [p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts]
-    )
+    image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
     return image_paths
 
 
-def get_image_filenames(
-    directory: Path, max_num_images: int = -1
-) -> Tuple[List[Path], int]:
+def get_image_filenames(directory: Path, max_num_images: int = -1) -> Tuple[List[Path], int]:
     """Returns a list of image filenames in a directory.
 
     Args:
@@ -148,23 +144,17 @@ def convert_video_to_images(
 
     for i in crop_factor:
         if i < 0 or i > 1:
-            CONSOLE.print(
-                "[bold red]Error: Invalid crop factor. All crops must be in [0,1]."
-            )
+            CONSOLE.print("[bold red]Error: Invalid crop factor. All crops must be in [0,1].")
             sys.exit(1)
 
     if video_path.is_dir():
-        CONSOLE.print(
-            f"[bold red]Error: Video path is a directory, not a path: {video_path}"
-        )
+        CONSOLE.print(f"[bold red]Error: Video path is a directory, not a path: {video_path}")
         sys.exit(1)
     if video_path.exists() is False:
         CONSOLE.print(f"[bold red]Error: Video does not exist: {video_path}")
         sys.exit(1)
 
-    with status(
-        msg="Converting video to images...", spinner="bouncingBall", verbose=verbose
-    ):
+    with status(msg="Converting video to images...", spinner="bouncingBall", verbose=verbose):
         num_frames = get_num_frames_in_video(video_path)
         if num_frames == 0:
             CONSOLE.print(f"[bold red]Error: Video has no frames: {video_path}")
@@ -183,18 +173,9 @@ def convert_video_to_images(
 
         spacing = num_frames // num_frames_target
 
-        downscale_chains = [
-            f"[t{i}]scale=iw/{2**i}:ih/{2**i}[out{i}]"
-            for i in range(num_downscales + 1)
-        ]
-        downscale_dirs = [
-            Path(str(image_dir) + (f"_{2**i}" if i > 0 else ""))
-            for i in range(num_downscales + 1)
-        ]
-        downscale_paths = [
-            downscale_dirs[i] / f"{image_prefix}%05d.png"
-            for i in range(num_downscales + 1)
-        ]
+        downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}[out{i}]" for i in range(num_downscales + 1)]
+        downscale_dirs = [Path(str(image_dir) + (f"_{2**i}" if i > 0 else "")) for i in range(num_downscales + 1)]
+        downscale_paths = [downscale_dirs[i] / f"{image_prefix}%05d.png" for i in range(num_downscales + 1)]
 
         for dir in downscale_dirs:
             dir.mkdir(parents=True, exist_ok=True)
@@ -209,25 +190,15 @@ def convert_video_to_images(
         ffmpeg_cmd += " -vsync vfr"
 
         if spacing > 1:
-            CONSOLE.print(
-                "Number of frames to extract:", math.ceil(num_frames / spacing)
-            )
+            CONSOLE.print("Number of frames to extract:", math.ceil(num_frames / spacing))
             select_cmd = f"thumbnail={spacing},setpts=N/TB,"
         else:
-            CONSOLE.print(
-                "[bold red]Can't satisfy requested number of frames. Extracting all frames."
-            )
+            CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
             ffmpeg_cmd += " -pix_fmt bgr8"
             select_cmd = ""
 
-        downscale_cmd = (
-            f' -filter_complex "{select_cmd}{crop_cmd}{downscale_chain}"'
-            + "".join(
-                [
-                    f' -map "[out{i}]" "{downscale_paths[i]}"'
-                    for i in range(num_downscales + 1)
-                ]
-            )
+        downscale_cmd = f' -filter_complex "{select_cmd}{crop_cmd}{downscale_chain}"' + "".join(
+            [f' -map "[out{i}]" "{downscale_paths[i]}"' for i in range(num_downscales + 1)]
         )
 
         ffmpeg_cmd += downscale_cmd
@@ -237,9 +208,7 @@ def convert_video_to_images(
         num_final_frames = len(list(image_dir.glob("*.png")))
         summary_log = []
         summary_log.append(f"Starting with {num_frames} video frames")
-        summary_log.append(
-            f"We extracted {num_final_frames} images with prefix '{image_prefix}'"
-        )
+        summary_log.append(f"We extracted {num_final_frames} images with prefix '{image_prefix}'")
         CONSOLE.log("[bold green]:tada: Done converting video to images.")
 
         return summary_log, num_final_frames
@@ -288,15 +257,11 @@ def copy_images_list(
     for idx, image_path in enumerate(image_paths):
         if verbose:
             CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
-        copied_image_path = (
-            image_dir / f"{image_prefix}{idx + 1:05d}{image_path.suffix}"
-        )
+        copied_image_path = image_dir / f"{image_prefix}{idx + 1:05d}{image_path.suffix}"
         try:
             # if CR2 raw, we want to read raw and write RAW_CONVERTED_SUFFIX, and change the file suffix for downstream processing
             if image_path.suffix.lower() in ALLOWED_RAW_EXTS:
-                copied_image_path = (
-                    image_dir / f"{image_prefix}{idx + 1:05d}{RAW_CONVERTED_SUFFIX}"
-                )
+                copied_image_path = image_dir / f"{image_prefix}{idx + 1:05d}{RAW_CONVERTED_SUFFIX}"
                 with rawpy.imread(str(image_path)) as raw:
                     rgb = raw.postprocess()
                 imageio.imsave(copied_image_path, rgb)
@@ -315,14 +280,8 @@ def copy_images_list(
         copied_image_paths.append(copied_image_path)
 
     nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
-    downscale_chains = [
-        f"[t{i}]scale=iw/{2**i}:ih/{2**i}{nn_flag}[out{i}]"
-        for i in range(num_downscales + 1)
-    ]
-    downscale_dirs = [
-        Path(str(image_dir) + (f"_{2**i}" if i > 0 else ""))
-        for i in range(num_downscales + 1)
-    ]
+    downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}{nn_flag}[out{i}]" for i in range(num_downscales + 1)]
+    downscale_dirs = [Path(str(image_dir) + (f"_{2**i}" if i > 0 else "")) for i in range(num_downscales + 1)]
 
     for dir in downscale_dirs:
         dir.mkdir(parents=True, exist_ok=True)
@@ -339,11 +298,7 @@ def copy_images_list(
     # When this is not the case (e.g. mixed portrait and landscape images), we need to do individually.
     # (Unfortunately, that is much slower.)
     for framenum in range(1, (1 if same_dimensions else num_frames) + 1):
-        framename = (
-            f"{image_prefix}%05d"
-            if same_dimensions
-            else f"{image_prefix}{framenum:05d}"
-        )
+        framename = f"{image_prefix}%05d" if same_dimensions else f"{image_prefix}{framenum:05d}"
         ffmpeg_cmd = f'ffmpeg -y -noautorotate -i "{image_dir / f"{framename}{copied_image_paths[0].suffix}"}" -q:v 2 '
 
         crop_cmd = ""
@@ -360,14 +315,11 @@ def copy_images_list(
         if upscale_factor is not None:
             select_cmd = f"[0:v]scale=iw*{upscale_factor}:ih*{upscale_factor}:flags=neighbor[upscaled];[upscaled]"
 
-        downscale_cmd = (
-            f' -filter_complex "{select_cmd}{crop_cmd}{downscale_chain}"'
-            + "".join(
-                [
-                    f' -map "[out{i}]" "{downscale_dirs[i] / f"{framename}{copied_image_paths[0].suffix}"}"'
-                    for i in range(num_downscales + 1)
-                ]
-            )
+        downscale_cmd = f' -filter_complex "{select_cmd}{crop_cmd}{downscale_chain}"' + "".join(
+            [
+                f' -map "[out{i}]" "{downscale_dirs[i] / f"{framename}{copied_image_paths[0].suffix}"}"'
+                for i in range(num_downscales + 1)
+            ]
         )
 
         ffmpeg_cmd += downscale_cmd
@@ -378,9 +330,7 @@ def copy_images_list(
     if num_frames == 0:
         CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
     else:
-        CONSOLE.log(
-            f"[bold green]:tada: Done copying images with prefix '{image_prefix}'."
-        )
+        CONSOLE.log(f"[bold green]:tada: Done copying images with prefix '{image_prefix}'.")
 
     return copied_image_paths
 
@@ -451,9 +401,7 @@ def copy_images(
     Returns:
         The mapping from the original filenames to the new ones.
     """
-    with status(
-        msg="[bold yellow]Copying images...", spinner="bouncingBall", verbose=verbose
-    ):
+    with status(msg="[bold yellow]Copying images...", spinner="bouncingBall", verbose=verbose):
         image_paths = list_images(data)
 
         if len(image_paths) == 0:
@@ -470,10 +418,7 @@ def copy_images(
             num_downscales=num_downscales,
             same_dimensions=same_dimensions,
         )
-        return OrderedDict(
-            (original_path, new_path)
-            for original_path, new_path in zip(image_paths, copied_images)
-        )
+        return OrderedDict((original_path, new_path) for original_path, new_path in zip(image_paths, copied_images))
 
 
 def downscale_images(
@@ -524,9 +469,7 @@ def downscale_images(
                 run_command(ffmpeg_cmd, verbose=verbose)
 
     CONSOLE.log("[bold green]:tada: Done downscaling images.")
-    downscale_text = [
-        f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)
-    ]
+    downscale_text = [f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)]
     downscale_text = ", ".join(downscale_text[:-1]) + " and " + downscale_text[-1]
     return f"We downsampled the images by {downscale_text}"
 
@@ -619,9 +562,7 @@ def find_tool_feature_matcher_combination(
     return (None, None, None)
 
 
-def generate_circle_mask(
-    height: int, width: int, percent_radius
-) -> Optional[np.ndarray]:
+def generate_circle_mask(height: int, width: int, percent_radius) -> Optional[np.ndarray]:
     """generate a circle mask of the given size.
 
     Args:
@@ -644,9 +585,7 @@ def generate_circle_mask(
     return mask
 
 
-def generate_crop_mask(
-    height: int, width: int, crop_factor: Tuple[float, float, float, float]
-) -> Optional[np.ndarray]:
+def generate_crop_mask(height: int, width: int, crop_factor: Tuple[float, float, float, float]) -> Optional[np.ndarray]:
     """generate a crop mask of the given size.
 
     Args:
