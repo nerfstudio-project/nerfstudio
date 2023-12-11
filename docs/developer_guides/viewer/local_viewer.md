@@ -1,6 +1,6 @@
 # Local Server
 
-If you are unable to connect to `https://viewer.nerf.studio`, want to use Safari, or want develop the viewer codebase, you can launch your own local viewer.
+If you are unable to connect to `https://viewer.nerf.studio`, want to use Safari, or want to develop the viewer codebase, you can launch your own local viewer.
 
 ## Installing Dependencies
 

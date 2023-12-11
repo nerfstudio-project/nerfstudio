@@ -66,6 +66,8 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         "NN-ratio",
         "NN-mutual",
         "adalam",
+        "disk+lightglue",
+        "superpoint+lightglue",
     ] = "any"
     """Matching algorithm."""
     num_downscales: int = 3
