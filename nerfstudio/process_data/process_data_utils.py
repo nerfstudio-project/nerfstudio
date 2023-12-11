@@ -24,9 +24,13 @@ from typing import List, Literal, Optional, OrderedDict, Tuple, Union
 
 import cv2
 import imageio
-import numpy as np
-import rawpy
 
+try:
+    import rawpy
+except ImportError:
+    import newrawpy as rawpy  # type: ignore
+
+import numpy as np
 from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
 
@@ -352,7 +356,11 @@ def copy_and_upscale_polycam_depth_maps_list(
     depth_dir.mkdir(parents=True, exist_ok=True)
 
     # copy and upscale them to new directory
-    with status(msg="[bold yellow] Upscaling depth maps...", spinner="growVertical", verbose=verbose):
+    with status(
+        msg="[bold yellow] Upscaling depth maps...",
+        spinner="growVertical",
+        verbose=verbose,
+    ):
         upscale_factor = 2**POLYCAM_UPSCALING_TIMES
         assert upscale_factor > 1
         assert isinstance(upscale_factor, int)
@@ -437,7 +445,11 @@ def downscale_images(
     if num_downscales == 0:
         return "No downscaling performed."
 
-    with status(msg="[bold yellow]Downscaling images...", spinner="growVertical", verbose=verbose):
+    with status(
+        msg="[bold yellow]Downscaling images...",
+        spinner="growVertical",
+        verbose=verbose,
+    ):
         downscale_factors = [2**i for i in range(num_downscales + 1)[1:]]
         for downscale_factor in downscale_factors:
             assert downscale_factor > 1
@@ -600,7 +612,10 @@ def generate_crop_mask(height: int, width: int, crop_factor: Tuple[float, float,
 
 
 def generate_mask(
-    height: int, width: int, crop_factor: Tuple[float, float, float, float], percent_radius: float
+    height: int,
+    width: int,
+    crop_factor: Tuple[float, float, float, float],
+    percent_radius: float,
 ) -> Optional[np.ndarray]:
     """generate a mask of the given size.
 
