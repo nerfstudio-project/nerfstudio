@@ -135,7 +135,7 @@ This documentation is organized into 3 parts:
 
 ### Included Methods
 
-- [**Nerfacto**](nerfology/methods/nerfacto.md): Recommended method, integrates mutiple methods into one.
+- [**Nerfacto**](nerfology/methods/nerfacto.md): Recommended method, integrates multiple methods into one.
 - [Instant-NGP](nerfology/methods/instant_ngp.md): Instant Neural Graphics Primitives with a Multiresolution Hash Encoding
 - [NeRF](nerfology/methods/nerf.md): OG Neural Radiance Fields
 - [Mip-NeRF](nerfology/methods/mipnerf.md): A Multiscale Representation for Anti-Aliasing Neural Radiance Fields
