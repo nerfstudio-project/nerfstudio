@@ -36,7 +36,6 @@ dependencies = [
     "opencv-python==4.6.0.66",
     "Pillow>=9.3.0",
     "plotly>=5.7.0",
-    "projectaria_tools[all]>=1.2.0",
     "protobuf<=3.20.3,!=3.20.0",
     # TODO(1480) enable when pycolmap windows wheels are available
     # "pycolmap==0.3.0",
@@ -95,6 +94,7 @@ dev = [
     "opencv-stubs==0.0.7",
     "transformers==4.29.2",
     "pyright==1.1.331",
+    "projectaria_tools[all]>=1.2.0",
 ]
 
 # Documentation related packages

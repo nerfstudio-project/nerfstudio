@@ -22,7 +22,7 @@ We currently support the following custom data types:
 | 🖥 [Metashape](metashape) | Any | [Metashape](https://www.agisoft.com/) | 🐇 |
 | 🖥 [RealityCapture](realitycapture) | Any | [RealityCapture](https://www.capturingreality.com/realitycapture) | 🐇 |
 | 🖥 [ODM](odm) | Any | [ODM](https://github.com/OpenDroneMap/ODM) | 🐇 |
-| 👓 [Aria](aria) | Project Aria glasses | [Project Aria](https://projectaria.com/) | 🐇 |
+| 👓 [Aria](aria) | Aria glasses | [Project Aria](https://projectaria.com/) | 🐇 |
 
 (images_and_video)=
 
@@ -349,19 +349,26 @@ ns-process-data odm --data /path/to/dataset --output-dir {output directory}
 ns-train nerfacto --data {output directory}
 ```
 
-(360_data)=
+(aria)=
 
 ## Aria
 
-1. Download a VRS file from Project Aria glasses, and run Machine Perception Services to extract poses.
+1. Install projectaria_tools:
 
-2. Convert to nerfstudio format.
+```bash
+conda activate nerfstudio
+pip install projectaria-tools'[all]'
+```
+
+2. Download a VRS file from Project Aria glasses, and run Machine Perception Services to extract poses.
+
+3. Convert to nerfstudio format.
 
 ```bash
 ns-process-data aria --vrs-file /path/to/vrs/file --mps-data-dir /path/to/mps/data --output-dir {output directory}
 ```
 
-3. Train!
+4. Train!
 
 ```bash
 ns-train nerfacto --data {output directory}

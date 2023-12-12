@@ -38,7 +38,6 @@ from nerfstudio.process_data.colmap_converter_to_nerfstudio_dataset import BaseC
 from nerfstudio.process_data.images_to_nerfstudio_dataset import ImagesToNerfstudioDataset
 from nerfstudio.process_data.video_to_nerfstudio_dataset import VideoToNerfstudioDataset
 from nerfstudio.utils.rich_utils import CONSOLE
-from nerfstudio.scripts.datasets.process_project_aria import ProcessProjectAria
 
 
 @dataclass
@@ -476,6 +475,12 @@ class ProcessODM(BaseConverterToNerfstudioDataset):
         CONSOLE.rule()
 
 
+@dataclass
+class NotInstalled:
+    def main(self) -> None:
+        ...
+
+
 Commands = Union[
     Annotated[ImagesToNerfstudioDataset, tyro.conf.subcommand(name="images")],
     Annotated[VideoToNerfstudioDataset, tyro.conf.subcommand(name="video")],
@@ -484,8 +489,30 @@ Commands = Union[
     Annotated[ProcessRealityCapture, tyro.conf.subcommand(name="realitycapture")],
     Annotated[ProcessRecord3D, tyro.conf.subcommand(name="record3d")],
     Annotated[ProcessODM, tyro.conf.subcommand(name="odm")],
-    Annotated[ProcessProjectAria, tyro.conf.subcommand(name="aria")],
 ]
+
+# Add aria subcommand if projectaria_tools is installed.
+try:
+    import projectaria_tools
+except ImportError:
+    projectaria_tools = None
+
+if projectaria_tools is not None:
+    from nerfstudio.scripts.datasets.process_project_aria import ProcessProjectAria
+
+    # Note that Union[A, Union[B, C]] == Union[A, B, C].
+    Commands = Union[Commands, Annotated[ProcessProjectAria, tyro.conf.subcommand(name="aria")]]
+else:
+    Commands = Union[
+        Commands,
+        Annotated[
+            NotInstalled,
+            tyro.conf.subcommand(
+                name="aria",
+                description="**Not installed.** Processing Project Aria data requires `pip install projectaria_tools'[all]'`.",
+            ),
+        ],
+    ]
 
 
 def entrypoint():

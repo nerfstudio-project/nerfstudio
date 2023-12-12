@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import json
+import sys
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,12 +23,13 @@ import numpy as np
 import tyro
 from PIL import Image
 
-from projectaria_tools.core import mps
-from projectaria_tools.core.data_provider import (
-    VrsDataProvider,
-    create_vrs_data_provider,
-)
-from projectaria_tools.core.sophus import SE3
+try:
+    from projectaria_tools.core import mps
+    from projectaria_tools.core.data_provider import VrsDataProvider, create_vrs_data_provider
+    from projectaria_tools.core.sophus import SE3
+except ImportError:
+    print("projectaria_tools import failed, please install with pip3 install projectaria-tools'[all]'")
+    sys.exit(1)
 
 ARIA_CAMERA_MODEL = "FISHEYE624"
 
