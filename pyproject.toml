@@ -162,6 +162,7 @@ pythonVersion = "3.8"
 pythonPlatform = "Linux"
 
 [tool.ruff]
+line-length = 120
 select = [
     "E",  # pycodestyle errors.
     "F",  # Pyflakes rules.
