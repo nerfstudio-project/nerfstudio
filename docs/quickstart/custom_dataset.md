@@ -268,7 +268,7 @@ ns-process-data record3d --data {data directory} --output-dir {output directory}
 ns-train nerfacto --data {output directory}
 ```
 
-(spectacularai=)
+(spectacularai)=
 
 ## Spectacular AI
 
