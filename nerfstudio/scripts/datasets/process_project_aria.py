@@ -23,13 +23,12 @@ import numpy as np
 import tyro
 from PIL import Image
 
-try:
-    from projectaria_tools.core import mps
-    from projectaria_tools.core.data_provider import VrsDataProvider, create_vrs_data_provider
-    from projectaria_tools.core.sophus import SE3
-except ImportError:
-    print("projectaria_tools not found, please install with pip3 install projectaria-tools'[all]'")
-    sys.exit(1)
+from projectaria_tools.core import mps
+from projectaria_tools.core.data_provider import (
+    VrsDataProvider,
+    create_vrs_data_provider,
+)
+from projectaria_tools.core.sophus import SE3
 
 ARIA_CAMERA_MODEL = "FISHEYE624"
 
@@ -226,11 +225,6 @@ class ProcessProjectAria:
             transform_file.write_text(json.dumps(nerfstudio_frames))
 
 
-def entrypoint():
-    """Entrypoint for use with pyproject scripts."""
+if __name__ == "__main__":
     tyro.extras.set_accent_color("bright_yellow")
     tyro.cli(ProcessProjectAria).main()
-
-
-if __name__ == "__main__":
-    entrypoint()
