@@ -94,6 +94,7 @@ dev = [
     "opencv-stubs==0.0.7",
     "transformers==4.29.2",
     "pyright==1.1.331",
+    "projectaria_tools[all]>=1.2.0",
 ]
 
 # Documentation related packages

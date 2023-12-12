@@ -10,7 +10,7 @@ ns-process-data {video,images,polycam,record3d} --data {DATA_PATH} --output-dir 
 
 A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`.
 
-We Currently support the following custom data types:
+We currently support the following custom data types:
 | Data | Capture Device | Requirements | `ns-process-data` Speed |
 | ----------------------------- | -------------- | ----------------------------------------------- | ----------------------- |
 | 📷 [Images](images_and_video) | Any | [COLMAP](https://colmap.github.io/install.html) | 🐢 |
@@ -22,6 +22,7 @@ We Currently support the following custom data types:
 | 🖥 [Metashape](metashape) | Any | [Metashape](https://www.agisoft.com/) | 🐇 |
 | 🖥 [RealityCapture](realitycapture) | Any | [RealityCapture](https://www.capturingreality.com/realitycapture) | 🐇 |
 | 🖥 [ODM](odm) | Any | [ODM](https://github.com/OpenDroneMap/ODM) | 🐇 |
+| 👓 [Aria](aria) | Aria glasses | [Project Aria](https://projectaria.com/) | 🐇 |
 
 (images_and_video)=
 
@@ -340,6 +341,31 @@ odm_orthophoto
 
 ```bash
 ns-process-data odm --data /path/to/dataset --output-dir {output directory}
+```
+
+4. Train!
+
+```bash
+ns-train nerfacto --data {output directory}
+```
+
+(aria)=
+
+## Aria
+
+1. Install projectaria_tools:
+
+```bash
+conda activate nerfstudio
+pip install projectaria-tools'[all]'
+```
+
+2. Download a VRS file from Project Aria glasses, and run Machine Perception Services to extract poses.
+
+3. Convert to nerfstudio format.
+
+```bash
+ns-process-data aria --vrs-file /path/to/vrs/file --mps-data-dir /path/to/mps/data --output-dir {output directory}
 ```
 
 4. Train!

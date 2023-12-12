@@ -32,7 +32,7 @@ import nerfstudio.utils.math
 import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.data.scene_box import SceneBox, OrientedBox
+from nerfstudio.data.scene_box import OrientedBox, SceneBox
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
 TORCH_DEVICE = Union[torch.device, str]
@@ -48,6 +48,7 @@ class CameraType(Enum):
     OMNIDIRECTIONALSTEREO_R = auto()
     VR180_L = auto()
     VR180_R = auto()
+    FISHEYE624 = auto()
 
 
 CAMERA_MODEL_TO_TYPE = {
@@ -62,6 +63,7 @@ CAMERA_MODEL_TO_TYPE = {
     "OMNIDIRECTIONALSTEREO_R": CameraType.OMNIDIRECTIONALSTEREO_R,
     "VR180_L": CameraType.VR180_L,
     "VR180_R": CameraType.VR180_R,
+    "FISHEYE624": CameraType.FISHEYE624,
 }
 
 
@@ -79,7 +81,7 @@ class Cameras(TensorDataclass):
         cy: Principal point y
         width: Image width
         height: Image height
-        distortion_params: OpenCV 6 radial distortion coefficients
+        distortion_params: distortion coefficients (OpenCV 6 radial or 6-2-4 radial, tangential, thin-prism for Fisheye624)
         camera_type: Type of camera model. This will be an int corresponding to the CameraType enum.
         times: Timestamps for each camera
         metadata: Additional metadata or data needed for interpolation, will mimic shape of the cameras
@@ -629,8 +631,8 @@ class Cameras(TensorDataclass):
         assert coord_stack.shape == (3,) + num_rays_shape + (2,)
 
         # Undistorts our images according to our distortion parameters
+        distortion_params = None
         if not disable_distortion:
-            distortion_params = None
             if self.distortion_params is not None:
                 distortion_params = self.distortion_params[true_indices]
                 if distortion_params_delta is not None:
@@ -831,6 +833,34 @@ class Cameras(TensorDataclass):
                 vr180_origins, directions_stack = _compute_rays_for_vr180("right")
                 # assign final camera origins
                 c2w[..., :3, 3] = vr180_origins
+
+            elif CameraType.FISHEYE624.value in cam_types:
+                mask = (self.camera_type[true_indices] == CameraType.FISHEYE624.value).squeeze(-1)  # (num_rays)
+                coord_mask = torch.stack([mask, mask, mask], dim=0)
+
+                # fisheye624 requires pixel coordinates to unproject, so we need to recomput the offsets in pixel coords.
+                pcoord = torch.stack([x, y], -1)  # (num_rays, 2)
+                pcoord_x_offset = torch.stack([x + 1, y], -1)  # (num_rays, 2)
+                pcoord_y_offset = torch.stack([x, y + 1], -1)  # (num_rays, 2)
+
+                # Stack image coordinates and image coordinates offset by 1, check shapes too
+                pcoord_stack = torch.stack([pcoord, pcoord_x_offset, pcoord_y_offset], dim=0)  # (3, num_rays, 2)
+
+                assert distortion_params is not None
+                masked_coords = pcoord_stack[coord_mask, :]
+                # The fisheye unprojection does not rely on planar/pinhold unprojection, thus the method needs
+                # to access the focal length and principle points directly.
+                camera_params = torch.cat(
+                    [
+                        fx[mask].unsqueeze(1),
+                        fy[mask].unsqueeze(1),
+                        cx[mask].unsqueeze(1),
+                        cy[mask].unsqueeze(1),
+                        distortion_params[mask, :],
+                    ],
+                    dim=1,
+                )
+                directions_stack[coord_mask] = camera_utils.fisheye624_unproject(masked_coords, camera_params)
 
             else:
                 raise ValueError(f"Camera type {cam} not supported.")
