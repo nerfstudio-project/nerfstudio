@@ -189,14 +189,14 @@ class ProcessProjectAria:
         self.output_dir = self.output_dir.absolute()
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        provider = create_vrs_data_provider(self.vrs_file.absolute().as_posix())
+        provider = create_vrs_data_provider(str(self.vrs_file.absolute()))
         assert provider is not None, "Cannot open file"
 
         name_to_camera = get_camera_calibs(provider)
 
         print("Getting poses from closed loop trajectory CSV...")
         trajectory_csv = self.mps_data_dir / "closed_loop_trajectory.csv"
-        t_world_devices = read_trajectory_csv_to_dict(trajectory_csv.absolute().as_posix())
+        t_world_devices = read_trajectory_csv_to_dict(str(trajectory_csv.absolute()))
 
         name = "camera-rgb"
         stream_id = provider.get_stream_id_from_label(name)
