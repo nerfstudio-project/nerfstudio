@@ -279,7 +279,7 @@ Spectacular AI SDK and apps can be used to capture data from various devices:
  * RealSense D455/D435i
  * Azure Kinect DK
 
-The SDK also records IMU data, which is fused with camera and (if available) LiDAR/ToF data when computing the camera poses. This approach, VISLAM, is more robust than purely image based methods (e.g., COLMAP) and can work better and faster for difficult data (monotonic environments, fast montions, narrow FoV, etc.).
+The SDK also records IMU data, which is fused with camera and (if available) LiDAR/ToF data when computing the camera poses. This approach, VISLAM, is more robust than purely image based methods (e.g., COLMAP) and can work better and faster for difficult data (monotonic environments, fast motions, narrow FoV, etc.).
 
 Instructions:
 
