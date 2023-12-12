@@ -39,11 +39,14 @@ dependencies = [
     "protobuf<=3.20.3,!=3.20.0",
     # TODO(1480) enable when pycolmap windows wheels are available
     # "pycolmap==0.3.0",
-    "pymeshlab>=2022.2.post2",
+    "pymeshlab>=2022.2.post2; platform_machine != 'arm64'",
     "pyngrok>=5.1.0",
     "python-socketio>=5.7.1",
     "pyquaternion>=0.9.9",
-    "rawpy>=0.18.1",
+    # TODO we can switch back to (non-new) rawpy if they start releasing arm64
+    # wheels. https://github.com/letmaik/rawpy/issues/171#issuecomment-1572627747
+    "rawpy>=0.18.1; platform_machine != 'arm64'",
+    "newrawpy>=0.18.1; platform_machine == 'arm64'",
     "requests",
     "rich>=12.5.1",
     "scikit-image>=0.19.3",
