@@ -293,7 +293,7 @@ pip install spectacularAI[full]
 
 3. Data capture. See [here for specific instructions for each supported device](https://github.com/SpectacularAI/sdk-examples/tree/main/python/mapping#recording-data).
   
-4. Process and export. Once you have recorded a dataset in Spectacular AI format an have it in `{data directory}` it can be converted into Nerfstudio format as:
+4. Process and export. Once you have recorded a dataset in Spectacular AI format and have it stored in `{data directory}` it can be converted into a Nerfstudio supported format with:
 
 ```bash
 sai-cli process {data directory} --preview3d --key_frame_distance=0.05 {output directory}
