@@ -374,6 +374,8 @@ ns-process-data aria --vrs-file /path/to/vrs/file --mps-data-dir /path/to/mps/da
 ns-train nerfacto --data {output directory}
 ```
 
+(360_data)=
+
 ## 360 Data (Equirectangular)
 
 Equirectangular data is data that has been taken by a 360 camera such as Insta360. Both equirectangular image sets and videos can be processed by nerfstudio.
