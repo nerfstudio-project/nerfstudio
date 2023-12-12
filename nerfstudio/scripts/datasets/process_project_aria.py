@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import json
-import sys
 import threading
 from dataclasses import dataclass
 from pathlib import Path
