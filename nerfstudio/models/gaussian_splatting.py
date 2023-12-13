@@ -36,13 +36,13 @@ from nerfstudio.models.base_model import Model, ModelConfig
 import math
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
-import viser.transforms as vtf
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
 
 from gsplat.rasterize import RasterizeGaussians
 from gsplat.project_gaussians import ProjectGaussians
 from gsplat.sh import SphericalHarmonics, num_sh_bases
 from pytorch_msssim import SSIM
+
 # need following import for background color override
 from nerfstudio.model_components import renderers
 
@@ -81,7 +81,7 @@ def SH2RGB(sh):
     return sh * C0 + 0.5
 
 
-def projection_matrix(znear, zfar, fovx, fovy, device:Union[str,torch.device]="cpu"):
+def projection_matrix(znear, zfar, fovx, fovy, device: Union[str, torch.device] = "cpu"):
     """
     Constructs an OpenGL-style perspective projection matrix.
     """
@@ -216,7 +216,7 @@ class GaussianSplattingModel(Model):
     def shs_rest(self):
         return self.colors_all[:, 1:, :]
 
-    def load_state_dict(self, dict, **kwargs): # type: ignore
+    def load_state_dict(self, dict, **kwargs):  # type: ignore
         # resize the parameters to match the new number of points
         self.step = 30000
         newp = dict["means"].shape[0]
@@ -326,7 +326,9 @@ class GaussianSplattingModel(Model):
                     and self.step % reset_interval > self.num_train_data + self.config.refine_every
                 ):
                     # then we densify
-                    assert self.xys_grad_norm is not None and self.vis_counts is not None and self.max_2Dsize is not None
+                    assert (
+                        self.xys_grad_norm is not None and self.vis_counts is not None and self.max_2Dsize is not None
+                    )
                     avg_grad_norm = (
                         (self.xys_grad_norm / self.vis_counts) * 0.5 * max(self.last_size[0], self.last_size[1])
                     )
@@ -549,8 +551,8 @@ class GaussianSplattingModel(Model):
         # shift the camera to center of scene looking at center
         R = camera.camera_to_worlds[0, :3, :3]  # 3 x 3
         T = camera.camera_to_worlds[0, :3, 3:4]  # 3 x 1
-        # flip the z axis to align with gsplat conventions
-        R_edit = torch.tensor(vtf.SO3.from_x_radians(np.pi).as_matrix(), device=R.device, dtype=R.dtype)
+        # flip the z and y axes to align with gsplat conventions
+        R_edit = torch.diag(torch.tensor([1, -1, -1], device="cuda", dtype=R.dtype))
         R = R @ R_edit
         # analytic matrix inverse to get world2camera matrix
         R_inv = R.T
@@ -585,7 +587,7 @@ class GaussianSplattingModel(Model):
             colors_crop = self.colors_all
             scales_crop = self.scales
             quats_crop = self.quats
-        self.xys, depths, self.radii, conics, num_tiles_hit, cov3d = ProjectGaussians.apply(
+        self.xys, depths, self.radii, conics, num_tiles_hit, _ = ProjectGaussians.apply(  # type: ignore
             means_crop,
             torch.exp(scales_crop),
             1,
@@ -629,7 +631,7 @@ class GaussianSplattingModel(Model):
         )
         depth_im = None
         if not self.training:
-            depth_im = RasterizeGaussians.apply(
+            depth_im = RasterizeGaussians.apply(  # type: ignore
                 self.xys,
                 depths,
                 self.radii,
@@ -643,7 +645,7 @@ class GaussianSplattingModel(Model):
             )[..., 0:1]
         # rescale the camera back to original dimensions
         camera.rescale_output_resolution(camera_downscale)
-        return {"rgb": rgb, "depth": depth_im}
+        return {"rgb": rgb, "depth": depth_im}  # type: ignore
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.
@@ -688,12 +690,21 @@ class GaussianSplattingModel(Model):
             # This is slow, instead we apply a regularization every few steps
             sh_reg = self.colors_all[:, 1:, :].norm(dim=1).mean()
             scale_exp = torch.exp(self.scales)
-            scale_reg = torch.maximum(scale_exp.amax(dim=-1) / scale_exp.amin(dim=-1), torch.tensor(self.config.max_gauss_ratio)) - self.config.max_gauss_ratio
+            scale_reg = (
+                torch.maximum(
+                    scale_exp.amax(dim=-1) / scale_exp.amin(dim=-1), torch.tensor(self.config.max_gauss_ratio)
+                )
+                - self.config.max_gauss_ratio
+            )
             scale_reg = 0.1 * scale_reg.mean()
         else:
             sh_reg = torch.tensor(0.0).to(self.device)
             scale_reg = torch.tensor(0.0).to(self.device)
-        return {"main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss, "sh_reg": sh_reg,'scale_reg':scale_reg}
+        return {
+            "main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,
+            "sh_reg": sh_reg,
+            "scale_reg": scale_reg,
+        }
 
     @torch.no_grad()
     def get_outputs_for_camera(self, camera: Cameras, obb_box: Optional[OrientedBox] = None) -> Dict[str, torch.Tensor]:

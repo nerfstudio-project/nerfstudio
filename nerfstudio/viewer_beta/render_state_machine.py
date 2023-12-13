@@ -154,10 +154,10 @@ class RenderStateMachine(threading.Thread):
                         with background_color_override_context(
                             background_color
                         ), torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
-                            outputs = self.viewer.get_model().get_outputs_for_camera(camera,obb_box=obb)
+                            outputs = self.viewer.get_model().get_outputs_for_camera(camera, obb_box=obb)
                     else:
                         with torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
-                            outputs = self.viewer.get_model().get_outputs_for_camera(camera,obb_box=obb)
+                            outputs = self.viewer.get_model().get_outputs_for_camera(camera, obb_box=obb)
                 except viewer_utils.IOChangeException:
                     self.viewer.get_model().train()
                     raise
