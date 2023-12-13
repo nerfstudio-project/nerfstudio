@@ -342,8 +342,6 @@ class VanillaPipeline(Pipeline):
         camera, batch = self.datamanager.next_eval_image(step)
         outputs = self.model.get_outputs_for_camera(camera)
         metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
-        # assert "image_idx" not in metrics_dict
-        # metrics_dict["image_idx"] = image_idx
         assert "num_rays" not in metrics_dict
         metrics_dict["num_rays"] = (camera.height * camera.width * camera.size).item()
         self.train()
