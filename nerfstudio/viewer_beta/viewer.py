@@ -106,13 +106,10 @@ class Viewer:
         self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port, share=share)
         # Set the name of the URL either to the share link if available, or the localhost
         if share:
-            assert self.viser_server._share_tunnel is not None
-            while self.viser_server._share_tunnel._shared_state["status"] == "connecting":
-                # wait for connection before grabbing URL
-                time.sleep(0.01)
-            url_maybe = self.viser_server._share_tunnel.get_url()
-            if url_maybe is not None:
-                self.viewer_url = url_maybe
+            url = self.viser_server.request_share_url()
+            if url is not None:
+                print("Couldn't make share URL")
+                self.viewer_url = url
             else:
                 self.viewer_url = f"http://{config.websocket_host}:{websocket_port}"
         else:
