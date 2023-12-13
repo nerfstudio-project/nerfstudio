@@ -56,7 +56,7 @@ dependencies = [
     "torchvision>=0.14.1",
     "torchmetrics[image]>=1.0.1",
     "typing_extensions>=4.4.0",
-    "viser==0.1.12",
+    "viser==0.1.13",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
     "xatlas",
