@@ -28,6 +28,7 @@ from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer_beta.utils import CameraState, get_camera
 from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
+from nerfstudio.cameras.cameras import Cameras
 
 if TYPE_CHECKING:
     from nerfstudio.viewer_beta.viewer import Viewer
@@ -126,6 +127,7 @@ class RenderStateMachine(threading.Thread):
 
         camera = get_camera(camera_state, image_height, image_width)
         camera = camera.to(self.viewer.get_model().device)
+        assert isinstance(camera,Cameras)
         assert camera is not None, "render called before viewer connected"
 
         with TimeWriter(None, None, write=False) as vis_t:
@@ -137,8 +139,6 @@ class RenderStateMachine(threading.Thread):
                         device=self.viewer.get_model().device,
                     )
                     self.viewer.get_model().set_background(background_color)
-                else:
-                    camera_ray_bundle = camera.generate_rays(camera_indices=0, obb_box=obb)
                 self.viewer.get_model().eval()
                 step = self.viewer.step
                 try:
@@ -171,6 +171,7 @@ class RenderStateMachine(threading.Thread):
                 else:
                     # convert to z_depth if depth compositing is enabled
                     R = camera.camera_to_worlds[0, 0:3, 0:3].T
+                    camera_ray_bundle = camera.generate_rays(camera_indices=0, obb_box=obb)
                     pts = camera_ray_bundle.directions * outputs["depth"]
                     pts = (R @ (pts.view(-1, 3).T)).T.view(*camera_ray_bundle.directions.shape)
                     outputs["gl_z_buf_depth"] = -pts[..., 2:3]  # negative z axis is the coordinate convention
