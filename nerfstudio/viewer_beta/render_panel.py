@@ -485,7 +485,7 @@ def populate_render_tab(
 
     reset_up_button = server.add_gui_button(
         "Reset up direction",
-        icon=viser.Icon.ARROW_AUTOFIT_UP,
+        icon=viser.Icon.ARROW_BIG_UP_LINES,
         hint="Reset the orbit up direction.",
     )
 

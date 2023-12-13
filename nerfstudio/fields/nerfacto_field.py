@@ -26,7 +26,7 @@ from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.embedding import Embedding
-from nerfstudio.field_components.encodings import HashEncoding, NeRFEncoding, SHEncoding
+from nerfstudio.field_components.encodings import NeRFEncoding, SHEncoding
 from nerfstudio.field_components.field_heads import (
     FieldHeadNames,
     PredNormalsFieldHead,
@@ -35,13 +35,13 @@ from nerfstudio.field_components.field_heads import (
     TransientRGBFieldHead,
     UncertaintyFieldHead,
 )
-from nerfstudio.field_components.mlp import MLP
+from nerfstudio.field_components.mlp import MLP, MLPWithHashEncoding
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.base_field import Field, get_normalized_directions
 
 
 class NerfactoField(Field):
-    """Compound Field that uses TCNN
+    """Compound Field
 
     Args:
         aabb: parameters of scene aabb bounds
@@ -127,16 +127,12 @@ class NerfactoField(Field):
             in_dim=3, num_frequencies=2, min_freq_exp=0, max_freq_exp=2 - 1, implementation=implementation
         )
 
-        self.mlp_base_grid = HashEncoding(
+        self.mlp_base = MLPWithHashEncoding(
             num_levels=num_levels,
             min_res=base_res,
             max_res=max_res,
             log2_hashmap_size=log2_hashmap_size,
             features_per_level=features_per_level,
-            implementation=implementation,
-        )
-        self.mlp_base_mlp = MLP(
-            in_dim=self.mlp_base_grid.get_out_dim(),
             num_layers=num_layers,
             layer_width=hidden_dim,
             out_dim=1 + self.geo_feat_dim,
@@ -144,7 +140,6 @@ class NerfactoField(Field):
             out_activation=None,
             implementation=implementation,
         )
-        self.mlp_base = torch.nn.Sequential(self.mlp_base_grid, self.mlp_base_mlp)
 
         # transients
         if self.use_transient_embedding:
