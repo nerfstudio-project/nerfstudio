@@ -20,11 +20,10 @@ import numpy as np
 import torch
 import viser.transforms as vtf
 from viser import ViserServer
-
+import viser
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
 from nerfstudio.viewer_beta.viewer_elements import (  # ViewerButtonGroup,
-    ViewerButton,
     ViewerButtonGroup,
     ViewerCheckbox,
     ViewerDropdown,
@@ -45,6 +44,7 @@ class ControlPanel:
             (eg train speed, max res, etc)
         crop_update_cb: a callback that will be called when the user changes the crop parameters
         update_output_cb: a callback that will be called when the user changes the output render
+        default_composite_depth: whether to default to compositing depth or not
     """
 
     def __init__(
@@ -56,23 +56,19 @@ class ControlPanel:
         crop_update_cb: Callable,
         update_output_cb: Callable,
         update_split_output_cb: Callable,
-        toggle_training_state_cb: Callable,
-        camera_vis: Callable,
+        default_composite_depth: bool = True,
     ):
         self.viser_scale_ratio = scale_ratio
         # elements holds a mapping from tag: [elements]
         self.viser_server = viser_server
         self._elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
+        self.default_composite_depth = default_composite_depth
 
         self._train_speed = ViewerButtonGroup(
             name="Train Speed",
             default_value="Mid",
             options=["Slow", "Mid", "Fast"],
             cb_hook=lambda han: self._train_speed_cb(),
-        )
-        self._reset_camera = ViewerButton(
-            name="Reset Up Direction",
-            cb_hook=lambda han: self._reset_camera_cb(),
         )
         self._output_render = ViewerDropdown(
             "Output Render",
@@ -131,7 +127,10 @@ class ControlPanel:
             hint="Target training utilization, 0.0 is slow, 1.0 is fast. Doesn't affect final render quality",
         )
         self._layer_depth = ViewerCheckbox(
-            "Composite Depth", True, cb_hook=rerender_cb, hint="Allow NeRF to occlude 3D browser objects"
+            "Composite Depth",
+            self.default_composite_depth,
+            cb_hook=rerender_cb,
+            hint="Allow NeRF to occlude 3D browser objects",
         )
         self._max_res = ViewerSlider(
             "Max Res", 512, 64, 2048, 100, cb_hook=rerender_cb, hint="Maximum resolution to render in viewport"
@@ -183,28 +182,9 @@ class ControlPanel:
         self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=rerender_cb, hint="Time to render")
         self._time_enabled = time_enabled
 
-        self.stat_folder = self.viser_server.add_gui_folder("Stats")
-        with self.stat_folder:
-            self.markdown = self.viser_server.add_gui_markdown("Step: 0")
-        self.pause_train = viser_server.add_gui_button(label="Pause Training", disabled=False)
-        self.pause_train.on_click(lambda _: self.toggle_pause_button())
-        self.pause_train.on_click(lambda han: toggle_training_state_cb(han))
-        self.resume_train = viser_server.add_gui_button(label="Resume Training", disabled=False)
-        self.resume_train.on_click(lambda _: self.toggle_pause_button())
-        self.resume_train.on_click(lambda han: toggle_training_state_cb(han))
-        self.resume_train.visible = False
-        # Add buttons to toggle training image visibility
-        self.hide_images = viser_server.add_gui_button(label="Hide Train Cams", disabled=False)
-        self.hide_images.on_click(lambda _: camera_vis(False))
-        self.hide_images.on_click(lambda _: self.toggle_cameravis_button())
-        self.show_images = viser_server.add_gui_button(label="Show Train Cams", disabled=False)
-        self.show_images.on_click(lambda _: camera_vis(True))
-        self.show_images.on_click(lambda _: self.toggle_cameravis_button())
-        self.show_images.visible = False
-
         self.add_element(self._train_speed)
         self.add_element(self._train_util)
-        self.add_element(self._reset_camera)
+
         with self.viser_server.add_gui_folder("Render Options"):
             self.add_element(self._max_res)
             self.add_element(self._output_render)
@@ -238,6 +218,10 @@ class ControlPanel:
             self.add_element(self._crop_rot, additional_tags=("crop",))
 
         self.add_element(self._time, additional_tags=("time",))
+        self._reset_camera = viser_server.add_gui_button(
+            label="Reset Up Dir", disabled=False, icon=viser.Icon.ARROW_BIG_UP_LINES, color="gray"
+        )
+        self._reset_camera.on_click(self._reset_camera_cb)
 
     def _train_speed_cb(self) -> None:
         pass
@@ -253,24 +237,9 @@ class ControlPanel:
             self._train_util.value = 0.5
             self._max_res.value = 1024
 
-    def _reset_camera_cb(self) -> None:
+    def _reset_camera_cb(self, _) -> None:
         for client in self.viser_server.get_clients().values():
             client.camera.up_direction = vtf.SO3(client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
-
-    def toggle_pause_button(self) -> None:
-        self.pause_train.visible = not self.pause_train.visible
-        self.resume_train.visible = not self.resume_train.visible
-
-    def toggle_cameravis_button(self) -> None:
-        self.hide_images.visible = not self.hide_images.visible
-        self.show_images.visible = not self.show_images.visible
-
-    def update_step(self, step):
-        """
-        Args:
-            step: the train step to set the model to
-        """
-        self.markdown.content = f"Step: {step}"
 
     def update_output_options(self, new_options: List[str]):
         """
@@ -439,7 +408,7 @@ def _get_colormap_options(dimensions: int, dtype: type) -> List[Colormaps]:
     if dimensions == 3:
         colormap_options = ["default"]
     if dimensions == 1 and dtype in [torch.float64, torch.float32, torch.float16, torch.bfloat16]:
-        colormap_options = [c for c in list(get_args(Colormaps)) if c != "default"]
+        colormap_options = [c for c in list(get_args(Colormaps)) if c not in ("default", "pca")]
     if dimensions > 3:
         colormap_options = ["pca"]
     return colormap_options

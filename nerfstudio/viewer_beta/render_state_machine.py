@@ -176,7 +176,7 @@ class RenderStateMachine(threading.Thread):
                     pts = (R @ (pts.view(-1, 3).T)).T.view(*camera_ray_bundle.directions.shape)
                     outputs["gl_z_buf_depth"] = -pts[..., 2:3]  # negative z axis is the coordinate convention
         render_time = vis_t.duration
-        if writer.is_initialized():
+        if writer.is_initialized() and render_time != 0:
             writer.put_time(
                 name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=step, avg_over_steps=True
             )
@@ -261,6 +261,8 @@ class RenderStateMachine(threading.Thread):
             jpeg_quality=jpg_quality,
             depth=depth,
         )
+        res = f"{selected_output.shape[0]}x{selected_output.shape[1]}px"
+        self.viewer.stats_markdown.content = self.viewer.make_stats_markdown(None, res)
 
     def _calculate_image_res(self, aspect_ratio: float) -> Tuple[int, int]:
         """Calculate the maximum image height that can be rendered in the time budget
