@@ -94,6 +94,7 @@ dev = [
     "opencv-stubs==0.0.7",
     "transformers==4.29.2",
     "pyright==1.1.331",
+    "projectaria_tools[all]>=1.2.0",
 ]
 
 # Documentation related packages
@@ -162,6 +163,7 @@ pythonVersion = "3.8"
 pythonPlatform = "Linux"
 
 [tool.ruff]
+line-length = 120
 select = [
     "E",  # pycodestyle errors.
     "F",  # Pyflakes rules.

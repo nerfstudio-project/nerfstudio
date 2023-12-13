@@ -104,10 +104,11 @@ class Nerfstudio(DataParser):
         height_fixed = "h" in meta
         width_fixed = "w" in meta
         distort_fixed = False
-        for distort_key in ["k1", "k2", "k3", "p1", "p2"]:
+        for distort_key in ["k1", "k2", "k3", "p1", "p2", "distortion_params"]:
             if distort_key in meta:
                 distort_fixed = True
                 break
+        fisheye_crop_radius = meta.get("fisheye_crop_radius", None)
         fx = []
         fy = []
         cx = []
@@ -149,7 +150,9 @@ class Nerfstudio(DataParser):
                 width.append(int(frame["w"]))
             if not distort_fixed:
                 distort.append(
-                    camera_utils.get_distortion_params(
+                    torch.tensor(frame["distortion_params"], dtype=torch.float32)
+                    if "distortion_params" in frame
+                    else camera_utils.get_distortion_params(
                         k1=float(frame["k1"]) if "k1" in frame else 0.0,
                         k2=float(frame["k2"]) if "k2" in frame else 0.0,
                         k3=float(frame["k3"]) if "k3" in frame else 0.0,
@@ -274,17 +277,22 @@ class Nerfstudio(DataParser):
         height = int(meta["h"]) if height_fixed else torch.tensor(height, dtype=torch.int32)[idx_tensor]
         width = int(meta["w"]) if width_fixed else torch.tensor(width, dtype=torch.int32)[idx_tensor]
         if distort_fixed:
-            distortion_params = camera_utils.get_distortion_params(
-                k1=float(meta["k1"]) if "k1" in meta else 0.0,
-                k2=float(meta["k2"]) if "k2" in meta else 0.0,
-                k3=float(meta["k3"]) if "k3" in meta else 0.0,
-                k4=float(meta["k4"]) if "k4" in meta else 0.0,
-                p1=float(meta["p1"]) if "p1" in meta else 0.0,
-                p2=float(meta["p2"]) if "p2" in meta else 0.0,
+            distortion_params = (
+                torch.tensor(meta["distortion_params"], dtype=torch.float32)
+                if "distortion_params" in meta
+                else camera_utils.get_distortion_params(
+                    k1=float(meta["k1"]) if "k1" in meta else 0.0,
+                    k2=float(meta["k2"]) if "k2" in meta else 0.0,
+                    k3=float(meta["k3"]) if "k3" in meta else 0.0,
+                    k4=float(meta["k4"]) if "k4" in meta else 0.0,
+                    p1=float(meta["p1"]) if "p1" in meta else 0.0,
+                    p2=float(meta["p2"]) if "p2" in meta else 0.0,
+                )
             )
         else:
             distortion_params = torch.stack(distort, dim=0)[idx_tensor]
 
+        metadata = {"fisheye_crop_radius": fisheye_crop_radius} if fisheye_crop_radius is not None else None
         cameras = Cameras(
             fx=fx,
             fy=fy,
@@ -295,6 +303,7 @@ class Nerfstudio(DataParser):
             width=width,
             camera_to_worlds=poses[:, :3, :4],
             camera_type=camera_type,
+            metadata=metadata,
         )
 
         assert self.downscale_factor is not None
