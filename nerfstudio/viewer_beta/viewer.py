@@ -103,7 +103,7 @@ class Viewer:
         self._prev_train_state: Literal["training", "paused", "completed"] = "training"
         self.last_move_time = 0
 
-        self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port, share=share)
+        self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
         # Set the name of the URL either to the share link if available, or the localhost
         if share:
             url = self.viser_server.request_share_url()
