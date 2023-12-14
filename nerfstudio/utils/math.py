@@ -16,7 +16,9 @@
 
 import itertools
 import math
+import numpy as np
 from dataclasses import dataclass
+from scipy import stats
 from typing import Literal, Tuple
 
 import torch
@@ -518,3 +520,24 @@ def generate_polyhedron_basis(
 
     basis = verts.flip(-1)
     return basis
+
+
+
+def compute_statistics(
+    values: np.ndarray,
+    header: str = "Statistics:",
+) -> None:
+    # Calculating statistics using numpay and scipy.stats
+    min_val = np.min(values)
+    max_val = np.max(values)
+    mean_val = np.mean(values)
+    median_val = np.median(values)
+    std_dev_val = np.std(values)
+    variance_val = std_dev_val ** 2
+    skewness_val = stats.skew(values)
+    kurtosis_val = stats.kurtosis(values)
+
+    # Displaying all statistics
+    print(header)
+    print(f"\tMin: {min_val}, Mean: {mean_val}, Median: {median_val}, Max: {max_val}")
+    print(f"\tStd-dev: {std_dev_val}, Variance: {variance_val}, Skewness: {skewness_val}, Kurtosis: {kurtosis_val}")

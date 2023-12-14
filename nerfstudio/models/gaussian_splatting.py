@@ -29,7 +29,6 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 import torchvision.transforms.functional as TF
 
 from nerfstudio.cameras.cameras import Cameras
-from gsplat._torch_impl import quat_to_rotmat
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.models.base_model import Model, ModelConfig
@@ -38,6 +37,7 @@ import numpy as np
 from sklearn.neighbors import NearestNeighbors
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
 
+from gsplat._torch_impl import quat_to_rotmat
 from gsplat.rasterize import RasterizeGaussians
 from gsplat.project_gaussians import ProjectGaussians
 from gsplat.sh import SphericalHarmonics, num_sh_bases

@@ -35,6 +35,7 @@ from nerfstudio.exporter.exporter_utils import export_frame_render
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline
 from nerfstudio.utils import profiler, writer
 from nerfstudio.utils.decorators import check_eval_enabled, check_main_thread, check_viewer_enabled
+from nerfstudio.utils.math import compute_statistics
 from nerfstudio.utils.misc import step_check
 from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import EventName, TimeWriter
@@ -306,6 +307,9 @@ class Trainer:
         # If gaussian_splat -> render first image
         if isinstance(self.pipeline.model, GaussianSplattingModel):
             export_frame_render(self.pipeline, self.checkpoint_dir.parent / "render0.png")
+            compute_statistics(torch.sigmoid(self.pipeline.model.opacities).squeeze(1).detach().cpu().numpy(), "Opacity statistics:")
+            compute_statistics(torch.exp(self.pipeline.model.scales).amin(dim=-1).detach().cpu().numpy(), "Scale-min statistics:")
+            compute_statistics(torch.exp(self.pipeline.model.scales).amax(dim=-1).detach().cpu().numpy(), "Scale-max statistics:")
 
         table = Table(
             title=None,
