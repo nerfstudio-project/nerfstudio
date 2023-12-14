@@ -149,6 +149,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     loss from the PhysGaussian paper
     """
     opacity_lambda: float = 0.003 # Weight of opacity loss
+    scale_lambda: float = 0.1 # Weight of scale loss
     init_pts_sphere_num: int = 20000 # Initialize gaussians at a sphere with this many randomly placed points. Set to 0 to disable
     init_pts_sphere_rad_pct: float = 0.98 # Initialize gaussians at a sphere: set radius based on looking at the 99th percentile of initial points' distance from origin
     init_pts_sphere_rad_mult: float = 1.1 # Initialize gaussians at a sphere: set radius based on init_pts_sphere_rad_pct * this value
@@ -334,7 +335,7 @@ class GaussianSplattingModel(Model):
                 self.xys_grad_norm = grads
                 self.vis_counts = torch.ones_like(self.xys_grad_norm)
             else:
-                assert self.vis_counts is not None
+                assert self.vis_counts is not None and len(visible_mask) == len(self.vis_counts)
                 self.vis_counts[visible_mask] = self.vis_counts[visible_mask] + 1
                 self.xys_grad_norm[visible_mask] = grads[visible_mask] + self.xys_grad_norm[visible_mask]
 
@@ -556,7 +557,6 @@ class GaussianSplattingModel(Model):
         if self.training:
             # currently relies on the branch vickie/camera-grads
             self.camera_optimizer.apply_to_camera(camera)
-        if self.training:
             background = torch.rand(3, device=self.device)
         else:
             background = self.back_color.to(device=self.device)
@@ -586,7 +586,8 @@ class GaussianSplattingModel(Model):
         fovx = 2 * math.atan(camera.width / (2 * camera.fx))
         fovy = 2 * math.atan(camera.height / (2 * camera.fy))
         W, H = camera.width.item(), camera.height.item()
-        self.last_size = (H, W)
+        if self.training:
+            self.last_size = (H, W)
         projmat = projection_matrix(0.001, 1000, fovx, fovy, device=self.device)
         BLOCK_X, BLOCK_Y = 16, 16
         tile_bounds = (
@@ -607,7 +608,7 @@ class GaussianSplattingModel(Model):
             colors_crop = self.colors_all
             scales_crop = self.scales
             quats_crop = self.quats
-        self.xys, depths, self.radii, conics, num_tiles_hit, cov3d = ProjectGaussians.apply(
+        xys, depths, radii, conics, num_tiles_hit, cov3d = ProjectGaussians.apply(
             means_crop,
             torch.exp(scales_crop),
             1,
@@ -622,25 +623,23 @@ class GaussianSplattingModel(Model):
             W,
             tile_bounds,
         )
-        if (self.radii).sum() == 0:
-            return {"rgb": background.repeat(camera.height.item(), camera.width.item(), 1)}
+        if (radii).sum() == 0:
+            return {"rgb": background.repeat(H, W, 1)}
 
         # Important to allow xys grads to populate properly
-        if self.training and self.xys.requires_grad:
-            self.xys.retain_grad()
+        if self.training and xys.requires_grad:
+            xys.retain_grad()
         if self.config.sh_degree > 0:
             viewdirs = means_crop.detach() - camera.camera_to_worlds.detach()[..., :3, 3]  # (N, 3)
             viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
             n = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
-            rgbs = SphericalHarmonics.apply(n, viewdirs, colors_crop)
-            rgbs = torch.clamp(rgbs + 0.5, 0.0, 1.0)
+            rgbs = torch.clamp(SphericalHarmonics.apply(n, viewdirs, colors_crop) + 0.5, 0.0, 1.0)
         else:
-            rgbs = self.get_colors.squeeze()  # (N, 3)
-            rgbs = torch.sigmoid(rgbs)
+            rgbs = torch.sigmoid(self.get_colors.squeeze())  # (N, 3)
         rgb = RasterizeGaussians.apply(
-            self.xys,
+            xys,
             depths,
-            self.radii,
+            radii,
             conics,
             num_tiles_hit,
             rgbs,
@@ -649,12 +648,16 @@ class GaussianSplattingModel(Model):
             W,
             background,
         )
-        depth_im = None
-        if not self.training:
+        if self.training:
+            # Only save xys and radii if we're training
+            self.xys = xys
+            self.radii = radii
+            depth_im = None
+        else:
             depth_im = RasterizeGaussians.apply(
-                self.xys,
+                xys,
                 depths,
-                self.radii,
+                radii,
                 conics,
                 num_tiles_hit,
                 depths[:, None].repeat(1, 3),
@@ -705,21 +708,20 @@ class GaussianSplattingModel(Model):
             gt_img = batch["image"]
         Ll1 = torch.abs(gt_img - outputs["rgb"]).mean()
         simloss = 1 - self.ssim(gt_img.permute(2, 0, 1)[None, ...], outputs["rgb"].permute(2, 0, 1)[None, ...])
-        if self.step >= self.config.stop_split_at or self.config.opacity_lambda <= 0:
-            opacity_L1 = 0
-        else:
-            opacity_L1 = torch.sigmoid(self.opacities).mean() * self.config.opacity_lambda # Penalize for low opacity values
-        if self.step % 10 == 0:
+        if self.step % 10 == 0 and self.step < self.config.stop_split_at:
             # Before, we made split sh and colors onto different optimizer, with shs having a low learning rate
             # This is slow, instead we apply a regularization every few steps
             sh_reg = self.colors_all[:, 1:, :].norm(dim=1).mean()
             scale_exp = torch.exp(self.scales)
-            scale_reg = torch.maximum(scale_exp.amax(dim=-1) / scale_exp.amin(dim=-1), torch.tensor(self.config.max_gauss_ratio)) - self.config.max_gauss_ratio
-            scale_reg = 0.1 * scale_reg.mean()
+            scale_reg = (torch.maximum(scale_exp.amax(dim=-1) / scale_exp.amin(dim=-1), torch.tensor(self.config.max_gauss_ratio)) - self.config.max_gauss_ratio).mean() * 0.1
+            scale_L1 = scale_exp.amin(dim=-1).mean() * self.config.scale_lambda # Penalize for high scale values
+            opacity_L1 = torch.sigmoid(self.opacities).mean() * self.config.opacity_lambda # Penalize for high opacity values
         else:
             sh_reg = torch.tensor(0.0).to(self.device)
             scale_reg = torch.tensor(0.0).to(self.device)
-        return {"main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss, "sh_reg": sh_reg,'scale_reg':scale_reg, "opacity":opacity_L1}
+            scale_L1 = torch.tensor(0.0).to(self.device)
+            opacity_L1 = torch.tensor(0.0).to(self.device)
+        return {"main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss, "sh_reg": sh_reg, "scale_reg": scale_reg, "scale": scale_L1, "opacity": opacity_L1}
 
     @torch.no_grad()
     def get_outputs_for_camera(self, camera: Cameras, obb_box: Optional[OrientedBox] = None) -> Dict[str, torch.Tensor]:
