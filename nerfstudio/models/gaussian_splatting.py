@@ -1,3 +1,4 @@
+# ruff: noqa: E741
 # Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -613,7 +614,7 @@ class GaussianSplattingModel(Model):
             viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
             n = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
             rgbs = SphericalHarmonics.apply(n, viewdirs, colors_crop)
-            rgbs = torch.clamp(rgbs + 0.5, 0.0, 1.0) # type: ignore
+            rgbs = torch.clamp(rgbs + 0.5, 0.0, 1.0)  # type: ignore
         else:
             rgbs = self.get_colors.squeeze()  # (N, 3)
             rgbs = torch.sigmoid(rgbs)

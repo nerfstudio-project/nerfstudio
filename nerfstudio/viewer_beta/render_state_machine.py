@@ -127,7 +127,7 @@ class RenderStateMachine(threading.Thread):
 
         camera = get_camera(camera_state, image_height, image_width)
         camera = camera.to(self.viewer.get_model().device)
-        assert isinstance(camera,Cameras)
+        assert isinstance(camera, Cameras)
         assert camera is not None, "render called before viewer connected"
 
         with TimeWriter(None, None, write=False) as vis_t:

@@ -147,7 +147,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                     ]
                 )
                 newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
-                image = cv2.undistort(image, K, distortion_params, None, newK) # type: ignore
+                image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
                 # crop the image and update the intrinsics accordingly
                 x, y, w, h = roi
                 image = image[y : y + h, x : x + w]
@@ -180,7 +180,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             if "mask" in data:
                 mask = data["mask"].numpy()
                 if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
-                    mask = cv2.undistort(mask, K, distortion_params, None, None) # type: ignore
+                    mask = cv2.undistort(mask, K, distortion_params, None, None)  # type: ignore
                 elif camera.camera_type.item() == CameraType.FISHEYE.value:
                     mask = cv2.fisheye.undistortImage(mask, K, distortion_params, None, None)
                 else:
@@ -220,7 +220,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                     ]
                 )
                 newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
-                image = cv2.undistort(image, K, distortion_params, None, newK) # type: ignore
+                image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
                 # crop the image and update the intrinsics accordingly
                 x, y, w, h = roi
                 image = image[y : y + h, x : x + w]
@@ -252,8 +252,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
             if "mask" in data:
                 mask = data["mask"].numpy()
-                if camera.camera_type.item() == CameraType.PERSPECTIVE.value: 
-                    mask = cv2.undistort(mask, K, distortion_params, None, None) # type: ignore
+                if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
+                    mask = cv2.undistort(mask, K, distortion_params, None, None)  # type: ignore
                 elif camera.camera_type.item() == CameraType.FISHEYE.value:
                     mask = cv2.fisheye.undistortImage(mask, K, distortion_params, None, None)
                 else:
