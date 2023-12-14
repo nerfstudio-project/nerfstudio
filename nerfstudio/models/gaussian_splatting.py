@@ -719,6 +719,9 @@ class GaussianSplattingModel(Model):
             # Before, we made split sh and colors onto different optimizer, with shs having a low learning rate
             # This is slow, instead we apply a regularization every few steps
             sh_reg = self.colors_all[:, 1:, :].norm(dim=1).mean()
+        else:
+            sh_reg = torch.tensor(0.0).to(self.device)
+        if self.step < self.config.stop_split_at:
             scale_exp = torch.exp(self.scales)
             scale_reg = (
                 torch.maximum(
@@ -729,7 +732,6 @@ class GaussianSplattingModel(Model):
             scale_L1 = scale_exp.amin(dim=-1).mean() * self.config.scale_lambda # Penalize for high scale values
             opacity_L1 = torch.sigmoid(self.opacities).mean() * self.config.opacity_lambda # Penalize for high opacity values
         else:
-            sh_reg = torch.tensor(0.0).to(self.device)
             scale_reg = torch.tensor(0.0).to(self.device)
             scale_L1 = torch.tensor(0.0).to(self.device)
             opacity_L1 = torch.tensor(0.0).to(self.device)
