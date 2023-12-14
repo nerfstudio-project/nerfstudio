@@ -255,6 +255,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                     mask = mask.astype(np.uint8) * 255
                     mask = cv2.fisheye.undistortImage(mask, K, distortion_params, None, newK)
                     data["mask"] = torch.from_numpy(mask).bool()
+                K = newK
             else:
                 raise NotImplementedError("Only perspective and fisheye cameras are supported")
             data["image"] = torch.from_numpy(image)
