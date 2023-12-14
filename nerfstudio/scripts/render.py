@@ -682,7 +682,7 @@ class SpiralRender(BaseRender):
             ),
         )
         steps = int(self.frame_rate * self.seconds)
-        camera_start,_ = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0)
+        camera_start, _ = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0)
         camera_path = get_spiral_path(camera_start, steps=steps, radius=self.radius)
 
         _render_trajectory_video(
