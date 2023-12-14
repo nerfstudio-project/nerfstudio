@@ -133,7 +133,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             distortion_params = camera.distortion_params.numpy()
             image = data["image"].numpy()
             newK = K
-            
+
             if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
                 distortion_params = np.array(
                     [

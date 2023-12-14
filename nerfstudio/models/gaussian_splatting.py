@@ -679,14 +679,13 @@ class GaussianSplattingModel(Model):
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
         d = self._get_downscale_factor()
-        mask = batch.get("mask", None)
         if d > 1:
             newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
             gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
             gt_img = batch["image"]
-        gt_rgb = gt_img[..., :3]
-        
+        Ll1 = torch.abs(gt_img - outputs["rgb"]).mean()
+        simloss = 1 - self.ssim(gt_img.permute(2, 0, 1)[None, ...], outputs["rgb"].permute(2, 0, 1)[None, ...])
         if self.step % 10 == 0:
             # Before, we made split sh and colors onto different optimizer, with shs having a low learning rate
             # This is slow, instead we apply a regularization every few steps
