@@ -144,12 +144,12 @@ class GaussianSplattingModelConfig(ModelConfig):
     """maximum degree of spherical harmonics to use"""
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig(mode="off")
     """camera optimizer config"""
-    max_gauss_ratio: float = 5.0
+    max_gauss_ratio: float = 10.0
     """threshold of ratio of gaussian max to min scale before applying regularization
     loss from the PhysGaussian paper
     """
     opacity_lambda: float = 0.003 # Weight of opacity loss
-    scale_lambda: float = 0.1 # Weight of scale loss
+    scale_lambda: float = 0.01 # Weight of scale loss
     init_pts_sphere_num: int = 20000 # Initialize gaussians at a sphere with this many randomly placed points. Set to 0 to disable
     init_pts_sphere_rad_pct: float = 0.98 # Initialize gaussians at a sphere: set radius based on looking at the 99th percentile of initial points' distance from origin
     init_pts_sphere_rad_mult: float = 1.1 # Initialize gaussians at a sphere: set radius based on init_pts_sphere_rad_pct * this value
