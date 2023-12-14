@@ -130,7 +130,7 @@ class DataManager(nn.Module):
     To get data, use the next_train and next_eval functions.
     This data manager's next_train and next_eval methods will return 2 things:
 
-    1. A rays: This will contain the rays/camera we are sampling, with latents and
+    1. 'rays': This will contain the rays or camera we are sampling, with latents and
         conditionals attached (everything needed at inference)
     2. A "batch" of auxiliary information: This will contain the mask, the ground truth
         pixels, etc needed to actually train, score, etc the model
@@ -316,7 +316,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
 
     _target: Type = field(default_factory=lambda: VanillaDataManager)
     """Target class to instantiate."""
-    dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
+    dataparser: AnnotatedDataParserUnion = field(default_factory=lambda: BlenderDataParserConfig())
     """Specifies the dataparser used to unpack the data."""
     train_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per training iteration."""
@@ -341,10 +341,10 @@ class VanillaDataManagerConfig(DataManagerConfig):
     along with relevant information about camera intrinsics
     """
     patch_size: int = 1
-    """Size of patch to sample from. If >1, patch-based sampling will be used."""
+    """Size of patch to sample from. If > 1, patch-based sampling will be used."""
     camera_optimizer: Optional[CameraOptimizerConfig] = field(default=None)
     """Deprecated, has been moved to the model config."""
-    pixel_sampler: PixelSamplerConfig = PixelSamplerConfig()
+    pixel_sampler: PixelSamplerConfig = field(default_factory=lambda: PixelSamplerConfig())
     """Specifies the pixel sampler used to sample pixels from images."""
 
     def __post_init__(self):
@@ -474,8 +474,14 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
         if is_equirectangular.any():
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
+
+        fisheye_crop_radius = (
+            None if dataset.cameras.metadata is None else dataset.cameras.metadata["fisheye_crop_radius"]
+        )
         return self.config.pixel_sampler.setup(
-            is_equirectangular=is_equirectangular, num_rays_per_batch=num_rays_per_batch
+            is_equirectangular=is_equirectangular,
+            num_rays_per_batch=num_rays_per_batch,
+            fisheye_crop_radius=fisheye_crop_radius,
         )
 
     def setup_train(self):

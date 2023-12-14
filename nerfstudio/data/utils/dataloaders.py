@@ -175,7 +175,7 @@ class EvalDataloader(DataLoader):
     def __next__(self) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data"""
 
-    def get_camera(self, image_idx: int = 0) -> Tuple[Cameras,Dict]:
+    def get_camera(self, image_idx: int = 0) -> Tuple[Cameras, Dict]:
         """Get camera for the given image index
 
         Args:

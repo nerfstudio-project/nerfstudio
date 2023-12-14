@@ -606,7 +606,7 @@ method_configs["gaussian-splatting"] = TrainerConfig(
     steps_per_eval_all_images=1000,
     max_num_iterations=15000,
     mixed_precision=False,
-    gradient_accumulation_steps={"camera_opt": 100, "color": 10, "shs": 10},
+    gradient_accumulation_steps={"camera_opt": 100, "color": 2},
     pipeline=VanillaPipelineConfig(
         datamanager=FullImageDatamanagerConfig(
             dataparser=ColmapDataParserConfig(load_3D_points=True),

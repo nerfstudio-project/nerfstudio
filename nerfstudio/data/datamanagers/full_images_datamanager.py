@@ -128,6 +128,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             data = self.train_dataset.get_data(i)
             camera = self.train_dataset.cameras[i].reshape(())
             K = camera.get_intrinsics_matrices().numpy()
+            if camera.distortion_params is None:
+                continue
             distortion_params = camera.distortion_params.numpy()
             image = data["image"].numpy()
 
@@ -145,7 +147,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                     ]
                 )
                 newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
-                image = cv2.undistort(image, K, distortion_params, None, newK)
+                image = cv2.undistort(image, K, distortion_params, None, newK) # type: ignore
                 # crop the image and update the intrinsics accordingly
                 x, y, w, h = roi
                 image = image[y : y + h, x : x + w]
@@ -178,7 +180,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             if "mask" in data:
                 mask = data["mask"].numpy()
                 if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
-                    mask = cv2.undistort(mask, K, distortion_params, None, None)
+                    mask = cv2.undistort(mask, K, distortion_params, None, None) # type: ignore
                 elif camera.camera_type.item() == CameraType.FISHEYE.value:
                     mask = cv2.fisheye.undistortImage(mask, K, distortion_params, None, None)
                 else:
@@ -199,6 +201,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             data = self.eval_dataset.get_data(i)
             camera = self.eval_dataset.cameras[i].reshape(())
             K = camera.get_intrinsics_matrices().numpy()
+            if camera.distortion_params is None:
+                continue
             distortion_params = camera.distortion_params.numpy()
             image = data["image"].numpy()
 
@@ -216,7 +220,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                     ]
                 )
                 newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
-                image = cv2.undistort(image, K, distortion_params, None, newK)
+                image = cv2.undistort(image, K, distortion_params, None, newK) # type: ignore
                 # crop the image and update the intrinsics accordingly
                 x, y, w, h = roi
                 image = image[y : y + h, x : x + w]
@@ -248,8 +252,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
             if "mask" in data:
                 mask = data["mask"].numpy()
-                if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
-                    mask = cv2.undistort(mask, K, distortion_params, None, None)
+                if camera.camera_type.item() == CameraType.PERSPECTIVE.value: 
+                    mask = cv2.undistort(mask, K, distortion_params, None, None) # type: ignore
                 elif camera.camera_type.item() == CameraType.FISHEYE.value:
                     mask = cv2.fisheye.undistortImage(mask, K, distortion_params, None, None)
                 else:
