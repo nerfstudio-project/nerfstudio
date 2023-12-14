@@ -1,3 +1,4 @@
+# ruff: noqa: E741
 # Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,13 +21,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Type, Union
-import torch
 from nerfstudio.data.scene_box import OrientedBox
-from copy import deepcopy
-from nerfstudio.cameras.rays import RayBundle
+
+import torch
 from torch.nn import Parameter
-from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
+from torchmetrics.image import PeakSignalNoiseRatio
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+import torchvision.transforms.functional as TF
+
 from nerfstudio.cameras.cameras import Cameras
 from gsplat._torch_impl import quat_to_rotmat
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
@@ -35,21 +37,24 @@ from nerfstudio.models.base_model import Model, ModelConfig
 import math
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
-import viser.transforms as vtf
-from nerfstudio.model_components.losses import scale_gauss_gradients_by_distance_squared
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
 
-from torchmetrics.image import StructuralSimilarityIndexMeasure
 from gsplat.rasterize import RasterizeGaussians
 from gsplat.project_gaussians import ProjectGaussians
-from nerfstudio.model_components.losses import depth_ranking_loss
 from gsplat.sh import SphericalHarmonics, num_sh_bases
+from pytorch_msssim import SSIM
+
+# need following import for background color override
+from nerfstudio.model_components import renderers
 
 
-def random_quat_tensor(N, **kwargs):
-    u = torch.rand(N, **kwargs)
-    v = torch.rand(N, **kwargs)
-    w = torch.rand(N, **kwargs)
+def random_quat_tensor(N):
+    """
+    Defines a random quaternion tensor of shape (N, 4)
+    """
+    u = torch.rand(N)
+    v = torch.rand(N)
+    w = torch.rand(N)
     return torch.stack(
         [
             torch.sqrt(1 - u) * torch.sin(2 * math.pi * v),
@@ -62,11 +67,25 @@ def random_quat_tensor(N, **kwargs):
 
 
 def RGB2SH(rgb):
+    """
+    Converts from RGB values [0,1] to the 0th spherical harmonic coefficient
+    """
     C0 = 0.28209479177387814
     return (rgb - 0.5) / C0
 
 
-def projection_matrix(znear, zfar, fovx, fovy, device="cpu"):
+def SH2RGB(sh):
+    """
+    Converts from the 0th spherical harmonic coefficient to RGB values [0,1]
+    """
+    C0 = 0.28209479177387814
+    return sh * C0 + 0.5
+
+
+def projection_matrix(znear, zfar, fovx, fovy, device: Union[str, torch.device] = "cpu"):
+    """
+    Constructs an OpenGL-style perspective projection matrix.
+    """
     t = znear * math.tan(0.5 * fovy)
     b = -t
     r = znear * math.tan(0.5 * fovx)
@@ -119,16 +138,18 @@ class GaussianSplattingModelConfig(ModelConfig):
     """stop culling/splitting at this step WRT screen size of gaussians"""
     random_init: bool = False
     """whether to initialize the positions uniformly randomly (not SFM points)"""
-    extra_points: int = 0
-    """number of extra points to add to the model in addition to sfm points, randomly distributed"""
     ssim_lambda: float = 0.2
     """weight of ssim loss"""
-    stop_split_at: int = 30000
+    stop_split_at: int = 15000
     """stop splitting at this step"""
     sh_degree: int = 4
     """maximum degree of spherical harmonics to use"""
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig(mode="off")
     """camera optimizer config"""
+    max_gauss_ratio: float = 10.0
+    """threshold of ratio of gaussian max to min scale before applying regularization
+    loss from the PhysGaussian paper
+    """
 
 
 class GaussianSplattingModel(Model):
@@ -149,8 +170,7 @@ class GaussianSplattingModel(Model):
 
     def populate_modules(self):
         if self.seed_pts is not None and not self.config.random_init:
-            extra_means = (torch.rand((self.config.extra_points, 3)) - 0.5) * 10
-            self.means = torch.nn.Parameter(torch.cat([self.seed_pts[0],extra_means])) # (Location, Color)
+            self.means = torch.nn.Parameter(self.seed_pts[0])  # (Location, Color)
         else:
             self.means = torch.nn.Parameter((torch.rand((500000, 3)) - 0.5) * 10)
         self.xys_grad_norm = None
@@ -168,25 +188,20 @@ class GaussianSplattingModel(Model):
             shs = torch.zeros((fused_color.shape[0], dim_sh, 3)).float().cuda()
             shs[:, 0, :3] = fused_color
             shs[:, 1:, 3:] = 0.0
-            #concat on extra_points amount of random ones at the end
-            extra_shs = torch.rand((self.config.extra_points, dim_sh, 3)).float().cuda()
-            extra_shs[:,1:,:] = 0.0#zero out the higher freq
-            shs = torch.cat([shs, extra_shs])
             self.colors_all = torch.nn.Parameter(shs)
         else:
             colors = torch.nn.Parameter(torch.rand(self.num_points, 1, 3))
             shs_rest = torch.nn.Parameter(torch.zeros((self.num_points, dim_sh - 1, 3)))
             self.colors_all = torch.nn.Parameter(torch.cat([colors, shs_rest], dim=1))
 
-
         self.opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(self.num_points, 1)))
 
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
-        self.ssim = StructuralSimilarityIndexMeasure()
+        self.ssim = SSIM(data_range=1.0, size_average=True, channel=3)
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
         self.step = 0
-        
+
         self.crop_box: Optional[OrientedBox] = None
         self.back_color = torch.zeros(3)
 
@@ -195,10 +210,14 @@ class GaussianSplattingModel(Model):
         )
 
     @property
-    def get_colors(self):
-        return self.colors_all
+    def colors(self):
+        return SH2RGB(self.colors_all[:, 0, :])
 
-    def load_state_dict(self, dict, **kwargs):
+    @property
+    def shs_rest(self):
+        return self.colors_all[:, 1:, :]
+
+    def load_state_dict(self, dict, **kwargs):  # type: ignore
         # resize the parameters to match the new number of points
         self.step = 30000
         newp = dict["means"].shape[0]
@@ -206,7 +225,9 @@ class GaussianSplattingModel(Model):
         self.scales = torch.nn.Parameter(torch.zeros(newp, 3, device=self.device))
         self.quats = torch.nn.Parameter(torch.zeros(newp, 4, device=self.device))
         self.opacities = torch.nn.Parameter(torch.zeros(newp, 1, device=self.device))
-        self.colors_all = torch.nn.Parameter(torch.zeros(newp, num_sh_bases(self.config.sh_degree), 3, device=self.device))
+        self.colors_all = torch.nn.Parameter(
+            torch.zeros(newp, num_sh_bases(self.config.sh_degree), 3, device=self.device)
+        )
         super().load_state_dict(dict, **kwargs)
 
     def k_nearest_sklearn(self, x: torch.Tensor, k: int):
@@ -267,7 +288,7 @@ class GaussianSplattingModel(Model):
         optimizer.param_groups[0]["params"] = new_params
         del param
 
-    def after_train(self, step):
+    def after_train(self, step: int):
         with torch.no_grad():
             # keep track of a moving average of grad norms
             visible_mask = (self.radii > 0).flatten()
@@ -277,16 +298,19 @@ class GaussianSplattingModel(Model):
                 self.xys_grad_norm = grads
                 self.vis_counts = torch.ones_like(self.xys_grad_norm)
             else:
+                assert self.vis_counts is not None
                 self.vis_counts[visible_mask] = self.vis_counts[visible_mask] + 1
                 self.xys_grad_norm[visible_mask] = grads[visible_mask] + self.xys_grad_norm[visible_mask]
 
             # update the max screen size, as a ratio of number of pixels
             if self.max_2Dsize is None:
-                self.max_2Dsize = torch.zeros_like(self.radii,dtype=torch.float32)
+                self.max_2Dsize = torch.zeros_like(self.radii, dtype=torch.float32)
             newradii = self.radii.detach()[visible_mask]
-            self.max_2Dsize[visible_mask] = torch.maximum(self.max_2Dsize[visible_mask], newradii / float(max(self.last_size[0], self.last_size[1])))
+            self.max_2Dsize[visible_mask] = torch.maximum(
+                self.max_2Dsize[visible_mask], newradii / float(max(self.last_size[0], self.last_size[1]))
+            )
 
-    def set_crop(self, crop_box: OrientedBox):
+    def set_crop(self, crop_box: Optional[OrientedBox]):
         self.crop_box = crop_box
 
     def set_background(self, back_color: torch.Tensor):
@@ -298,8 +322,14 @@ class GaussianSplattingModel(Model):
             with torch.no_grad():
                 # only split/cull if we've seen every image since opacity reset
                 reset_interval = self.config.reset_alpha_every * self.config.refine_every
-                if self.step < self.config.stop_split_at and self.step % reset_interval > self.num_train_data + self.config.refine_every:
+                if (
+                    self.step < self.config.stop_split_at
+                    and self.step % reset_interval > self.num_train_data + self.config.refine_every
+                ):
                     # then we densify
+                    assert (
+                        self.xys_grad_norm is not None and self.vis_counts is not None and self.max_2Dsize is not None
+                    )
                     avg_grad_norm = (
                         (self.xys_grad_norm / self.vis_counts) * 0.5 * max(self.last_size[0], self.last_size[1])
                     )
@@ -321,7 +351,7 @@ class GaussianSplattingModel(Model):
                     dups &= high_grads
                     dup_means, dup_colors, dup_opacities, dup_scales, dup_quats = self.dup_gaussians(dups)
                     self.means = Parameter(torch.cat([self.means.detach(), split_means, dup_means], dim=0))
-                    self.colors_all = Parameter(torch.cat([self.colors_all.detach(), split_colors,dup_colors], dim=0))
+                    self.colors_all = Parameter(torch.cat([self.colors_all.detach(), split_colors, dup_colors], dim=0))
 
                     self.opacities = Parameter(
                         torch.cat([self.opacities.detach(), split_opacities, dup_opacities], dim=0)
@@ -380,6 +410,7 @@ class GaussianSplattingModel(Model):
             culls = culls | toobigs
             if self.step < self.config.stop_screen_size_at:
                 # cull big screen space
+                assert self.max_2Dsize is not None
                 culls = culls | (self.max_2Dsize > self.config.cull_screen_size).squeeze()
         self.means = Parameter(self.means[~culls].detach())
         self.scales = Parameter(self.scales[~culls].detach())
@@ -500,12 +531,20 @@ class GaussianSplattingModel(Model):
             return {}
         assert camera.shape[0] == 1, "Only one camera at a time"
         if self.training:
-            #currently relies on the branch vickie/camera-grads
+            # currently relies on the branch vickie/camera-grads
             self.camera_optimizer.apply_to_camera(camera)
+        if self.training:
+            background = torch.rand(3, device=self.device)
+        else:
+            # logic for setting the background of the scene
+            if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
+                background = renderers.BACKGROUND_COLOR_OVERRIDE
+            else:
+                background = self.back_color.to(self.device)
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
-                return {"rgb": torch.full((camera.height.item(), camera.width.item(), 3), 0.5, device=self.device)}
+                return {"rgb": background.repeat(int(camera.height.item()), int(camera.width.item()), 1)}
         else:
             crop_ids = None
         camera_downscale = self._get_downscale_factor()
@@ -513,8 +552,8 @@ class GaussianSplattingModel(Model):
         # shift the camera to center of scene looking at center
         R = camera.camera_to_worlds[0, :3, :3]  # 3 x 3
         T = camera.camera_to_worlds[0, :3, 3:4]  # 3 x 1
-        # flip the z axis to align with gsplat conventions
-        R_edit = torch.tensor(vtf.SO3.from_x_radians(np.pi).as_matrix(), device=R.device, dtype=R.dtype)
+        # flip the z and y axes to align with gsplat conventions
+        R_edit = torch.diag(torch.tensor([1, -1, -1], device="cuda", dtype=R.dtype))
         R = R @ R_edit
         # analytic matrix inverse to get world2camera matrix
         R_inv = R.T
@@ -536,25 +575,20 @@ class GaussianSplattingModel(Model):
             (H + BLOCK_Y - 1) // BLOCK_Y,
             1,
         )
-        if self.training:
-            background = torch.rand(3, device=self.device)
-        else:
-            background = self.back_color
-
 
         if crop_ids is not None:
             opacities_crop = self.opacities[crop_ids]
             means_crop = self.means[crop_ids]
-            colors_crop = self.get_colors[crop_ids]
+            colors_crop = self.colors_all[crop_ids]
             scales_crop = self.scales[crop_ids]
             quats_crop = self.quats[crop_ids]
         else:
             opacities_crop = self.opacities
             means_crop = self.means
-            colors_crop = self.get_colors
+            colors_crop = self.colors_all
             scales_crop = self.scales
             quats_crop = self.quats
-        self.xys, depths, self.radii, conics, num_tiles_hit, cov3d = ProjectGaussians.apply(
+        self.xys, depths, self.radii, conics, num_tiles_hit, _ = ProjectGaussians.apply(  # type: ignore
             means_crop,
             torch.exp(scales_crop),
             1,
@@ -569,11 +603,9 @@ class GaussianSplattingModel(Model):
             W,
             tile_bounds,
         )
-        
-        # if self.training:
-        #     # experimental gradient scaling for floater removal
-        #     depths_de = depths.detach()
-        #     opacities_crop = scale_gauss_gradients_by_distance_squared(opacities_crop,depths_de,far_dist=1,padding_eps=.3)
+        if (self.radii).sum() == 0:
+            return {"rgb": background.repeat(int(camera.height.item()), int(camera.width.item()), 1)}
+
         # Important to allow xys grads to populate properly
         if self.training:
             self.xys.retain_grad()
@@ -581,11 +613,8 @@ class GaussianSplattingModel(Model):
             viewdirs = means_crop.detach() - camera.camera_to_worlds.detach()[..., :3, 3]  # (N, 3)
             viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
             n = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
-            n_coeffs = num_sh_bases(n)
-            coeffs = colors_crop[:, :n_coeffs, :]
-            #input expects (N, n_coeffs, 3)
-            rgbs = SphericalHarmonics.apply(n, viewdirs, coeffs)
-            rgbs = torch.clamp(rgbs + 0.5, 0.0, 1.0)
+            rgbs = SphericalHarmonics.apply(n, viewdirs, colors_crop)
+            rgbs = torch.clamp(rgbs + 0.5, 0.0, 1.0)  # type: ignore
         else:
             rgbs = self.get_colors.squeeze()  # (N, 3)
             rgbs = torch.sigmoid(rgbs)
@@ -603,7 +632,7 @@ class GaussianSplattingModel(Model):
         )
         depth_im = None
         if not self.training:
-            depth_im = RasterizeGaussians.apply(
+            depth_im = RasterizeGaussians.apply(  # type: ignore
                 self.xys,
                 depths,
                 self.radii,
@@ -617,7 +646,7 @@ class GaussianSplattingModel(Model):
             )[..., 0:1]
         # rescale the camera back to original dimensions
         camera.rescale_output_resolution(camera_downscale)
-        return {"rgb": rgb, "depth": depth_im}
+        return {"rgb": rgb, "depth": depth_im}  # type: ignore
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.
@@ -628,21 +657,17 @@ class GaussianSplattingModel(Model):
         """
         d = self._get_downscale_factor()
         if d > 1:
-            # use torchvision to resize
-            import torchvision.transforms.functional as TF
-
-            newsize = (batch["image"].shape[0] // d, batch["image"].shape[1] // d)
-            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize).permute(1, 2, 0)
+            newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
+            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
             gt_img = batch["image"]
         metrics_dict = {}
         gt_rgb = gt_img.to(self.device)  # RGB or RGBA image
-        # gt_rgb = self.renderer_rgb.blend_background(gt_rgb)  # Blend if RGBA
         predicted_rgb = outputs["rgb"]
         metrics_dict["psnr"] = self.psnr(predicted_rgb, gt_rgb)
 
         self.camera_optimizer.get_metrics_dict(metrics_dict)
-        metrics_dict['gaussian_count'] = self.num_points
+        metrics_dict["gaussian_count"] = self.num_points
         return metrics_dict
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
@@ -656,14 +681,8 @@ class GaussianSplattingModel(Model):
         d = self._get_downscale_factor()
         mask = batch.get("mask", None)
         if d > 1:
-            # use torchvision to resize
-            import torchvision.transforms.functional as TF
-
-            newsize = (batch["image"].shape[0] // d, batch["image"].shape[1] // d)
-            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize).permute(1, 2, 0)
-            
-            if mask is not None:
-                mask = TF.resize(mask[None, ...], newsize)[0]
+            newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
+            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
             gt_img = batch["image"]
         gt_rgb = gt_img[..., :3]
@@ -671,28 +690,36 @@ class GaussianSplattingModel(Model):
         if self.step % 10 == 0:
             # Before, we made split sh and colors onto different optimizer, with shs having a low learning rate
             # This is slow, instead we apply a regularization every few steps
-            sh_reg = self.colors_all[:,1:,:].norm(dim=1).mean()
+            sh_reg = self.colors_all[:, 1:, :].norm(dim=1).mean()
+            scale_exp = torch.exp(self.scales)
+            scale_reg = (
+                torch.maximum(
+                    scale_exp.amax(dim=-1) / scale_exp.amin(dim=-1), torch.tensor(self.config.max_gauss_ratio)
+                )
+                - self.config.max_gauss_ratio
+            )
+            scale_reg = 0.1 * scale_reg.mean()
         else:
-            sh_reg = 0.0
-        if mask is not None:
-            Ll1 = torch.abs(gt_rgb[mask] - outputs["rgb"][mask]).mean()
-            return {"main_loss": Ll1, "sh_reg": sh_reg}
-        Ll1 = torch.abs(gt_rgb - outputs["rgb"]).mean()
-        simloss = 1 - self.ssim(gt_rgb.permute(2, 0, 1)[None, ...], outputs["rgb"].permute(2, 0, 1)[None, ...])
-        return {"main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,"sh_reg":sh_reg}
+            sh_reg = torch.tensor(0.0).to(self.device)
+            scale_reg = torch.tensor(0.0).to(self.device)
+        return {
+            "main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,
+            "sh_reg": sh_reg,
+            "scale_reg": scale_reg,
+        }
 
     @torch.no_grad()
-    def get_outputs_for_camera_ray_bundle(
-        self, camera_ray_bundle: RayBundle, camera: Optional[Cameras] = None
-    ) -> Dict[str, torch.Tensor]:
-        """Takes in camera parameters and computes the output of the model.
+    def get_outputs_for_camera(self, camera: Cameras, obb_box: Optional[OrientedBox] = None) -> Dict[str, torch.Tensor]:
+        """Takes in a camera, generates the raybundle, and computes the output of the model.
+        Overridden for a camera-based gaussian model.
 
         Args:
-            camera_ray_bundle: ray bundle to calculate outputs over
+            camera: generates raybundle
         """
         assert camera is not None, "must provide camera to gaussian model"
+        self.set_crop(obb_box)
         outs = self.get_outputs(camera.to(self.device))
-        return outs
+        return outs  # type: ignore
 
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
@@ -708,8 +735,16 @@ class GaussianSplattingModel(Model):
         Returns:
             A dictionary of metrics.
         """
-        gt_rgb = batch["image"].to(self.device)
-        predicted_rgb = outputs["rgb"]  # Blended with background (black if random background)
+        d = self._get_downscale_factor()
+        if d > 1:
+            newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
+            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
+            predicted_rgb = TF.resize(outputs["rgb"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
+        else:
+            gt_img = batch["image"]
+            predicted_rgb = outputs["rgb"]
+
+        gt_rgb = gt_img.to(self.device)
 
         combined_rgb = torch.cat([gt_rgb, predicted_rgb], dim=1)
 

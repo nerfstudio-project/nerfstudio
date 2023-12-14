@@ -28,6 +28,7 @@ from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer_beta.utils import CameraState, get_camera
 from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
+from nerfstudio.cameras.cameras import Cameras
 
 if TYPE_CHECKING:
     from nerfstudio.viewer_beta.viewer import Viewer
@@ -126,21 +127,18 @@ class RenderStateMachine(threading.Thread):
 
         camera = get_camera(camera_state, image_height, image_width)
         camera = camera.to(self.viewer.get_model().device)
+        assert isinstance(camera, Cameras)
         assert camera is not None, "render called before viewer connected"
 
         with TimeWriter(None, None, write=False) as vis_t:
             with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
                 if isinstance(self.viewer.get_model(), GaussianSplattingModel):
-                    camera_ray_bundle = None
-                    self.viewer.get_model().set_crop(obb)
                     color = self.viewer.control_panel.background_color
                     background_color = torch.tensor(
                         [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0],
                         device=self.viewer.get_model().device,
                     )
                     self.viewer.get_model().set_background(background_color)
-                else:
-                    camera_ray_bundle = camera.generate_rays(camera_indices=0, obb_box=obb)
                 self.viewer.get_model().eval()
                 step = self.viewer.step
                 try:
@@ -156,22 +154,15 @@ class RenderStateMachine(threading.Thread):
                         with background_color_override_context(
                             background_color
                         ), torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
-                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(
-                                camera_ray_bundle, camera=camera
-                            )
+                            outputs = self.viewer.get_model().get_outputs_for_camera(camera, obb_box=obb)
                     else:
                         with torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
-                            outputs = self.viewer.get_model().get_outputs_for_camera_ray_bundle(
-                                camera_ray_bundle, camera=camera
-                            )
+                            outputs = self.viewer.get_model().get_outputs_for_camera(camera, obb_box=obb)
                 except viewer_utils.IOChangeException:
                     self.viewer.get_model().train()
                     raise
                 self.viewer.get_model().train()
-            if isinstance(self.viewer.get_model(), GaussianSplattingModel):
-                num_rays = image_height * image_width
-            else:
-                num_rays = len(camera_ray_bundle)
+            num_rays = (camera.height * camera.width).item()
             if self.viewer.control_panel.layer_depth:
                 if isinstance(self.viewer.get_model(), GaussianSplattingModel):
                     # TODO: sending depth at high resolution lags the network a lot, figure out how to do this more efficiently
@@ -179,12 +170,13 @@ class RenderStateMachine(threading.Thread):
                     pass
                 else:
                     # convert to z_depth if depth compositing is enabled
-                    R = camera.camera_to_worlds[0,0:3, 0:3].T
+                    R = camera.camera_to_worlds[0, 0:3, 0:3].T
+                    camera_ray_bundle = camera.generate_rays(camera_indices=0, obb_box=obb)
                     pts = camera_ray_bundle.directions * outputs["depth"]
                     pts = (R @ (pts.view(-1, 3).T)).T.view(*camera_ray_bundle.directions.shape)
                     outputs["gl_z_buf_depth"] = -pts[..., 2:3]  # negative z axis is the coordinate convention
         render_time = vis_t.duration
-        if writer.is_initialized():
+        if writer.is_initialized() and render_time != 0:
             writer.put_time(
                 name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=step, avg_over_steps=True
             )
@@ -269,6 +261,8 @@ class RenderStateMachine(threading.Thread):
             jpeg_quality=jpg_quality,
             depth=depth,
         )
+        res = f"{selected_output.shape[0]}x{selected_output.shape[1]}px"
+        self.viewer.stats_markdown.content = self.viewer.make_stats_markdown(None, res)
 
     def _calculate_image_res(self, aspect_ratio: float) -> Tuple[int, int]:
         """Calculate the maximum image height that can be rendered in the time budget
