@@ -682,7 +682,7 @@ class SpiralRender(BaseRender):
             ),
         )
         steps = int(self.frame_rate * self.seconds)
-        camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
+        camera_start,_ = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0)
         camera_path = get_spiral_path(camera_start, steps=steps, radius=self.radius)
 
         _render_trajectory_video(
@@ -791,10 +791,9 @@ class DatasetRender(BaseRender):
                 TimeRemainingColumn(elapsed_when_finished=False, compact=False),
                 TimeElapsedColumn(),
             ) as progress:
-                for camera_idx, (ray_bundle, batch) in enumerate(progress.track(dataloader, total=len(dataset))):
-                    ray_bundle: RayBundle
+                for camera_idx, (camera, batch) in enumerate(progress.track(dataloader, total=len(dataset))):
                     with torch.no_grad():
-                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(ray_bundle)
+                        outputs = pipeline.model.get_outputs_for_camera(camera)
 
                     gt_batch = batch.copy()
                     gt_batch["rgb"] = gt_batch.pop("image")

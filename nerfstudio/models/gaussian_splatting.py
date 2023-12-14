@@ -544,7 +544,7 @@ class GaussianSplattingModel(Model):
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
-                return {"rgb": background.repeat(camera.height.item(), camera.width.item(), 1)}
+                return {"rgb": background.repeat(int(camera.height.item()), int(camera.width.item()), 1)}
         else:
             crop_ids = None
         camera_downscale = self._get_downscale_factor()
@@ -604,7 +604,7 @@ class GaussianSplattingModel(Model):
             tile_bounds,
         )
         if (self.radii).sum() == 0:
-            return {"rgb": background.repeat(camera.height.item(), camera.width.item(), 1)}
+            return {"rgb": background.repeat(int(camera.height.item()), int(camera.width.item()), 1)}
 
         # Important to allow xys grads to populate properly
         if self.training:
