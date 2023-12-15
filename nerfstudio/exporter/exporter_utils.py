@@ -36,6 +36,7 @@ from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
+from nerfstudio.data.datamanagers.random_cameras_datamanager import RandomCamerasDataManager
 
 
 @dataclass
@@ -129,7 +130,10 @@ def generate_point_cloud(
             normal = None
 
             with torch.no_grad():
-                ray_bundle, _ = pipeline.datamanager.next_train(0)
+                if isinstance(pipeline.datamanager, RandomCamerasDataManager):
+                    ray_bundle, _ = pipeline.datamanager.random_train(0)
+                else:
+                    ray_bundle, _ = pipeline.datamanager.next_train(0)
                 outputs = pipeline.model(ray_bundle)
             if rgb_output_name not in outputs:
                 CONSOLE.rule("Error", style="red")
