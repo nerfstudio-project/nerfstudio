@@ -379,15 +379,9 @@ class VanillaPipeline(Pipeline):
                 outputs = self.model.get_outputs_for_camera(camera=camera)
                 height, width = camera.height, camera.width
                 num_rays = height * width
-                metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
-
-                # if output_path is not None:
-                #     camera_indices = camera_ray_bundle.camera_indices
-                #     assert camera_indices is not None
-                #     for key, val in images_dict.items():
-                #         Image.fromarray((val * 255).byte().cpu().numpy()).save(
-                #             output_path / "{0:06d}-{1}.jpg".format(int(camera_indices[0, 0, 0]), key)
-                #         )
+                metrics_dict, _ = self.model.get_image_metrics_and_images(outputs, batch)
+                if output_path is not None:
+                    raise NotImplementedError("Saving images is not implemented yet")
 
                 assert "num_rays_per_sec" not in metrics_dict
                 metrics_dict["num_rays_per_sec"] = (num_rays / (time() - inner_start)).item()
