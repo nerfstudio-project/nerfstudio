@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Literal, Optional, Type
 
 import numpy as np
+import open3d as o3d
 import torch
 from PIL import Image
 
@@ -318,6 +319,12 @@ class Nerfstudio(DataParser):
             applied_scale = float(meta["applied_scale"])
             scale_factor *= applied_scale
 
+        # Load 3D points
+        metadata = {}
+        if "ply_file_path" in meta:
+            ply_file_path = data_dir / meta["ply_file_path"]
+            metadata.update(self._load_3D_points(ply_file_path, transform_matrix, scale_factor))
+
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
@@ -328,9 +335,33 @@ class Nerfstudio(DataParser):
             metadata={
                 "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
+                **metadata,
             },
         )
         return dataparser_outputs
+
+    def _load_3D_points(self, ply_file_path: Path, transform_matrix: torch.Tensor, scale_factor: float):
+        pcd = o3d.io.read_point_cloud(str(ply_file_path))
+
+        points3D = torch.from_numpy(np.asarray(pcd.points, dtype=np.float32))
+        points3D = (
+            torch.cat(
+                (
+                    points3D,
+                    torch.ones_like(points3D[..., :1]),
+                ),
+                -1,
+            )
+            @ transform_matrix.T
+        )
+        points3D *= scale_factor
+        points3D_rgb = torch.from_numpy((np.asarray(pcd.colors) * 255).astype(np.uint8))
+
+        out = {
+            "points3D_xyz": points3D,
+            "points3D_rgb": points3D_rgb,
+        }
+        return out
 
     def _get_fname(self, filepath: Path, data_dir: Path, downsample_folder_prefix="images_") -> Path:
         """Get the filename of the image file.

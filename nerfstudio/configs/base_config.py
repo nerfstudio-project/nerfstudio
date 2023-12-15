@@ -144,7 +144,7 @@ class ViewerConfig(PrintableConfig):
     """Whether to kill the training job when it has completed. Note this will stop rendering in the viewer."""
     image_format: Literal["jpeg", "png"] = "jpeg"
     """Image format viewer should use; jpeg is lossy compression, while png is lossless."""
-    jpeg_quality: int = 90
+    jpeg_quality: int = 75
     """Quality tradeoff to use for jpeg compression."""
     make_share_url: bool = False
     """Viewer beta feature: print a shareable URL. `vis` must be set to viewer_beta; this flag is otherwise ignored."""
