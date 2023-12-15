@@ -62,8 +62,8 @@ class MyModel(nn.Module):  # Must inherit from nn.Module
         self.viewer_button = ViewerButton(name="Dummy Button",cb_hook=button_cb)
 ```
 
-## Double-click Callbacks
-We forward *double* clicks inside the viewer to the ViewerControl object, which you can use to interact with the scene. To do this, register a callback using `register_click_cb()`. The click is defined to be a ray that starts at the camera origin and passes through the click point on the screen, in world coordinates. 
+## Scene Click Callbacks
+We forward *single* clicks inside the viewer to the ViewerControl object, which you can use to interact with the scene. To do this, register a callback using `register_click_cb()`. The click is defined to be a ray that starts at the camera origin and passes through the click point on the screen, in world coordinates. 
 
 ```python
 from nerfstudio.viewer.server.viewer_elements import ViewerControl,ViewerClick
@@ -74,6 +74,16 @@ class MyModel(nn.Module):  # must inherit from nn.Module
         self.viewer_control = ViewerControl()  # no arguments
         def click_cb(click: ViewerClick):
             print(f"Click at {click.origin} in direction {click.direction}")
+        self.viewer_control.register_click_cb(click_cb)
+```
+
+You can also use `unregister_click_cb()` to remove callbacks that are no longer needed. A good example is a "Click on Scene" button, that when pressed, would register a callback that would wait for the next click, and then unregister itself.
+```python
+    ...
+    def button_cb(button: ViewerButton):
+        def click_cb(click: ViewerClick):
+            print(f"Click at {click.origin} in direction {click.direction}")
+            self.viewer_control.unregister_click_cb(click_cb)
         self.viewer_control.register_click_cb(click_cb)
 ```
 
