@@ -291,13 +291,16 @@ class Viewer:
                 self.camera_handles[idx].visible = visible
 
     def update_camera_poses(self):
+        # TODO this fn accounts for like ~5% of total train time
         # Update the train camera locations based on optimization
         assert self.camera_handles is not None
-        idxs = list(self.camera_handles.keys())
         if hasattr(self.pipeline.datamanager, "train_camera_optimizer"):
             camera_optimizer = self.pipeline.datamanager.train_camera_optimizer
-        else:
+        elif hasattr(self.pipeline.model, "camera_optimizer"):
             camera_optimizer = self.pipeline.model.camera_optimizer
+        else:
+            return
+        idxs = list(self.camera_handles.keys())
         with torch.no_grad():
             assert isinstance(camera_optimizer, CameraOptimizer)
             c2ws_delta = camera_optimizer(torch.tensor(idxs, device=camera_optimizer.device)).cpu().numpy()
@@ -378,7 +381,7 @@ class Viewer:
             camera = train_dataset.cameras[idx]
             image_uint8 = (image * 255).detach().type(torch.uint8)
             image_uint8 = image_uint8.permute(2, 0, 1)
-            image_uint8 = torchvision.transforms.functional.resize(image_uint8, 100)  # type: ignore
+            image_uint8 = torchvision.transforms.functional.resize(image_uint8, 100, antialias=None)  # type: ignore
             image_uint8 = image_uint8.permute(1, 2, 0)
             image_uint8 = image_uint8.cpu().numpy()
             c2w = camera.camera_to_worlds.cpu().numpy()
@@ -420,7 +423,6 @@ class Viewer:
         # this stops training while moving to make the response smoother
         while time.time() - self.last_move_time < 0.1:
             time.sleep(0.05)
-        # self.render_statemachine.action(RenderAction("static", self.camera_state))
         if self.trainer is not None and self.trainer.training_state == "training" and self.train_util != 1:
             if (
                 EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]

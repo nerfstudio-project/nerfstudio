@@ -135,6 +135,12 @@ class Optimizers:
         for _, optimizer in self.optimizers.items():
             optimizer.zero_grad()
 
+    def zero_grad_some(self, param_groups: List[str]) -> None:
+        """Zero the gradients for the given parameter groups."""
+        for param_group in param_groups:
+            optimizer = self.optimizers[param_group]
+            optimizer.zero_grad()
+
     def optimizer_scaler_step_all(self, grad_scaler: GradScaler) -> None:
         """Take an optimizer step using a grad scaler.
 
@@ -142,6 +148,21 @@ class Optimizers:
             grad_scaler: GradScaler to use
         """
         for param_group, optimizer in self.optimizers.items():
+            max_norm = self.config[param_group]["optimizer"].max_norm
+            if max_norm is not None:
+                grad_scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(self.parameters[param_group], max_norm)
+            if any(any(p.grad is not None for p in g["params"]) for g in optimizer.param_groups):
+                grad_scaler.step(optimizer)
+
+    def optimizer_scaler_step_some(self, grad_scaler: GradScaler, param_groups: List[str]) -> None:
+        """Take an optimizer step using a grad scaler ONLY on the specified param groups.
+
+        Args:
+            grad_scaler: GradScaler to use
+        """
+        for param_group in param_groups:
+            optimizer = self.optimizers[param_group]
             max_norm = self.config[param_group]["optimizer"].max_norm
             if max_norm is not None:
                 grad_scaler.unscale_(optimizer)

@@ -24,8 +24,8 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Lock
-from typing import Dict, List, Literal, Optional, Tuple, Type, cast
-
+from typing import Dict, List, Literal, Optional, Tuple, Type, cast, DefaultDict
+from collections import defaultdict
 import torch
 from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
@@ -80,8 +80,8 @@ class TrainerConfig(ExperimentConfig):
     """Path to checkpoint file."""
     log_gradients: bool = False
     """Optionally log gradients during training"""
-    gradient_accumulation_steps: int = 1
-    """Number of steps to accumulate gradients over."""
+    gradient_accumulation_steps: Dict = field(default_factory=lambda: {})
+    """Number of steps to accumulate gradients over. Contains a mapping of {param_group:num}"""
 
 
 class Trainer:
@@ -118,7 +118,8 @@ class Trainer:
         self.mixed_precision: bool = self.config.mixed_precision
         self.use_grad_scaler: bool = self.mixed_precision or self.config.use_grad_scaler
         self.training_state: Literal["training", "paused", "completed"] = "training"
-        self.gradient_accumulation_steps: int = self.config.gradient_accumulation_steps
+        self.gradient_accumulation_steps: DefaultDict = defaultdict(lambda: 1)
+        self.gradient_accumulation_steps.update(self.config.gradient_accumulation_steps)
 
         if self.device == "cpu":
             self.mixed_precision = False
@@ -459,19 +460,23 @@ class Trainer:
             step: Current training step.
         """
 
-        self.optimizers.zero_grad_all()
+        needs_zero = [
+            group for group in self.optimizers.parameters.keys() if step % self.gradient_accumulation_steps[group] == 0
+        ]
+        self.optimizers.zero_grad_some(needs_zero)
         cpu_or_cuda_str: str = self.device.split(":")[0]
         cpu_or_cuda_str = "cpu" if cpu_or_cuda_str == "mps" else cpu_or_cuda_str
-        assert (
-            self.gradient_accumulation_steps > 0
-        ), f"gradient_accumulation_steps must be > 0, not {self.gradient_accumulation_steps}"
-        for _ in range(self.gradient_accumulation_steps):
-            with torch.autocast(device_type=cpu_or_cuda_str, enabled=self.mixed_precision):
-                _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
-                loss = functools.reduce(torch.add, loss_dict.values())
-                loss /= self.gradient_accumulation_steps
-            self.grad_scaler.scale(loss).backward()  # type: ignore
-        self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
+
+        with torch.autocast(device_type=cpu_or_cuda_str, enabled=self.mixed_precision):
+            _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
+            loss = functools.reduce(torch.add, loss_dict.values())
+        self.grad_scaler.scale(loss).backward()  # type: ignore
+        needs_step = [
+            group
+            for group in self.optimizers.parameters.keys()
+            if step % self.gradient_accumulation_steps[group] == self.gradient_accumulation_steps[group] - 1
+        ]
+        self.optimizers.optimizer_scaler_step_some(self.grad_scaler, needs_step)
 
         if self.config.log_gradients:
             total_grad = 0

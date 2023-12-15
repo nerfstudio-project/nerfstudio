@@ -26,18 +26,11 @@ from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Type, Uni
 
 import torch
 import torch.distributed as dist
-from PIL import Image
-from rich.progress import (
-    BarColumn,
-    MofNCompleteColumn,
-    Progress,
-    TextColumn,
-    TimeElapsedColumn,
-)
+from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeElapsedColumn
 from torch import nn
+from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datamanagers.base_datamanager import (
@@ -46,6 +39,7 @@ from nerfstudio.data.datamanagers.base_datamanager import (
     VanillaDataManager,
 )
 from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
+from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatamanager
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
@@ -264,6 +258,15 @@ class VanillaPipeline(Pipeline):
         self.datamanager: DataManager = config.datamanager.setup(
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
+        # TODO make cleaner
+        seed_pts = None
+        if (
+            hasattr(self.datamanager, "train_dataparser_outputs")
+            and "points3D_xyz" in self.datamanager.train_dataparser_outputs.metadata
+        ):
+            pts = self.datamanager.train_dataparser_outputs.metadata["points3D_xyz"]
+            pts_rgb = self.datamanager.train_dataparser_outputs.metadata["points3D_rgb"]
+            seed_pts = (pts, pts_rgb)
         self.datamanager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_dataset is not None, "Missing input dataset"
@@ -274,6 +277,7 @@ class VanillaPipeline(Pipeline):
             metadata=self.datamanager.train_dataset.metadata,
             device=device,
             grad_scaler=grad_scaler,
+            seed_points=seed_pts,
         )
         self.model.to(device)
 
@@ -335,13 +339,11 @@ class VanillaPipeline(Pipeline):
             step: current iteration step
         """
         self.eval()
-        image_idx, camera_ray_bundle, batch = self.datamanager.next_eval_image(step)
-        outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+        camera, batch = self.datamanager.next_eval_image(step)
+        outputs = self.model.get_outputs_for_camera(camera)
         metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
-        assert "image_idx" not in metrics_dict
-        metrics_dict["image_idx"] = image_idx
         assert "num_rays" not in metrics_dict
-        metrics_dict["num_rays"] = len(camera_ray_bundle)
+        metrics_dict["num_rays"] = (camera.height * camera.width * camera.size).item()
         self.train()
         return metrics_dict, images_dict
 
@@ -361,7 +363,7 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         metrics_dict_list = []
-        assert isinstance(self.datamanager, (VanillaDataManager, ParallelDataManager))
+        assert isinstance(self.datamanager, (VanillaDataManager, ParallelDataManager, FullImageDatamanager))
         num_images = len(self.datamanager.fixed_indices_eval_dataloader)
         with Progress(
             TextColumn("[progress.description]{task.description}"),
@@ -371,26 +373,21 @@ class VanillaPipeline(Pipeline):
             transient=True,
         ) as progress:
             task = progress.add_task("[green]Evaluating all eval images...", total=num_images)
-            for camera_ray_bundle, batch in self.datamanager.fixed_indices_eval_dataloader:
+            for camera, batch in self.datamanager.fixed_indices_eval_dataloader:
                 # time this the following line
                 inner_start = time()
-                height, width = camera_ray_bundle.shape
+                outputs = self.model.get_outputs_for_camera(camera=camera)
+                height, width = camera.height, camera.width
                 num_rays = height * width
-                outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
-
+                metrics_dict, _ = self.model.get_image_metrics_and_images(outputs, batch)
                 if output_path is not None:
-                    camera_indices = camera_ray_bundle.camera_indices
-                    assert camera_indices is not None
-                    for key, val in images_dict.items():
-                        Image.fromarray((val * 255).byte().cpu().numpy()).save(
-                            output_path / "{0:06d}-{1}.jpg".format(int(camera_indices[0, 0, 0]), key)
-                        )
+                    raise NotImplementedError("Saving images is not implemented yet")
+
                 assert "num_rays_per_sec" not in metrics_dict
-                metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)
+                metrics_dict["num_rays_per_sec"] = (num_rays / (time() - inner_start)).item()
                 fps_str = "fps"
                 assert fps_str not in metrics_dict
-                metrics_dict[fps_str] = metrics_dict["num_rays_per_sec"] / (height * width)
+                metrics_dict[fps_str] = (metrics_dict["num_rays_per_sec"] / (height * width)).item()
                 metrics_dict_list.append(metrics_dict)
                 progress.advance(task)
         # average the metrics list

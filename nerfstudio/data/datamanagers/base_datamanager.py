@@ -21,12 +21,13 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
-from pathlib import Path
 from functools import cached_property
+from pathlib import Path
 from typing import (
     Any,
     Callable,
     Dict,
+    ForwardRef,
     Generic,
     List,
     Literal,
@@ -35,9 +36,8 @@ from typing import (
     Type,
     Union,
     cast,
-    ForwardRef,
-    get_origin,
     get_args,
+    get_origin,
 )
 
 import torch
@@ -47,7 +47,7 @@ from torch.utils.data.distributed import DistributedSampler
 from typing_extensions import TypeVar
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
-from nerfstudio.cameras.cameras import CameraType
+from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
@@ -55,9 +55,9 @@ from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import (
+    PatchPixelSamplerConfig,
     PixelSampler,
     PixelSamplerConfig,
-    PatchPixelSamplerConfig,
 )
 from nerfstudio.data.utils.dataloaders import (
     CacheDataloader,
@@ -67,9 +67,8 @@ from nerfstudio.data.utils.dataloaders import (
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
-from nerfstudio.utils.misc import IterableWrapper
+from nerfstudio.utils.misc import IterableWrapper, get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
-from nerfstudio.utils.misc import get_orig_class
 
 
 def variable_res_collate(batch: List[Dict]) -> Dict:
@@ -131,7 +130,7 @@ class DataManager(nn.Module):
     To get data, use the next_train and next_eval functions.
     This data manager's next_train and next_eval methods will return 2 things:
 
-    1. A Raybundle: This will contain the rays we are sampling, with latents and
+    1. 'rays': This will contain the rays or camera we are sampling, with latents and
         conditionals attached (everything needed at inference)
     2. A "batch" of auxiliary information: This will contain the mask, the ground truth
         pixels, etc needed to actually train, score, etc the model
@@ -246,7 +245,7 @@ class DataManager(nn.Module):
         """Sets up the data manager for evaluation"""
 
     @abstractmethod
-    def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
+    def next_train(self, step: int) -> Tuple[Union[RayBundle, Cameras], Dict]:
         """Returns the next batch of data from the train data manager.
 
         Args:
@@ -258,25 +257,25 @@ class DataManager(nn.Module):
         raise NotImplementedError
 
     @abstractmethod
-    def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
+    def next_eval(self, step: int) -> Tuple[Union[RayBundle, Cameras], Dict]:
         """Returns the next batch of data from the eval data manager.
 
         Args:
             step: the step number of the eval image to retrieve
         Returns:
-            A tuple of the ray bundle for the image, and a dictionary of additional batch information
+            A tuple of the ray/camera for the image, and a dictionary of additional batch information
             such as the groundtruth image.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
+    def next_eval_image(self, step: int) -> Tuple[Cameras, Dict]:
         """Retrieve the next eval image.
 
         Args:
             step: the step number of the eval image to retrieve
         Returns:
-            A tuple of the step number, the ray bundle for the image, and a dictionary of
+            A tuple of the step number, the ray/camera for the image, and a dictionary of
             additional batch information such as the groundtruth image.
         """
         raise NotImplementedError
@@ -313,7 +312,7 @@ class DataManager(nn.Module):
 
 @dataclass
 class VanillaDataManagerConfig(DataManagerConfig):
-    """A basic data manager"""
+    """A basic data manager for a ray-based model"""
 
     _target: Type = field(default_factory=lambda: VanillaDataManager)
     """Target class to instantiate."""
@@ -555,11 +554,10 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         ray_bundle = self.eval_ray_generator(ray_indices)
         return ray_bundle, batch
 
-    def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
-        for camera_ray_bundle, batch in self.eval_dataloader:
-            assert camera_ray_bundle.camera_indices is not None
-            image_idx = int(camera_ray_bundle.camera_indices[0, 0, 0])
-            return image_idx, camera_ray_bundle, batch
+    def next_eval_image(self, step: int) -> Tuple[Cameras, Dict]:
+        for camera, batch in self.eval_dataloader:
+            assert camera.shape[0] == 1
+            return camera, batch
         raise ValueError("No more eval images")
 
     def get_train_rays_per_batch(self) -> int:

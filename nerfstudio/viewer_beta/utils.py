@@ -65,7 +65,7 @@ def get_camera(
         cx=pp_w,
         cy=pp_h,
         camera_type=camera_type,
-        camera_to_worlds=camera_state.c2w.to(torch.float32),
+        camera_to_worlds=camera_state.c2w.to(torch.float32)[None, ...],
         times=torch.tensor([0.0], dtype=torch.float32),
     )
     return camera
