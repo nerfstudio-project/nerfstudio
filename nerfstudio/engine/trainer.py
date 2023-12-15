@@ -42,6 +42,7 @@ from rich import box, style
 from rich.panel import Panel
 from rich.table import Table
 from torch.cuda.amp.grad_scaler import GradScaler
+import importlib
 
 TRAIN_INTERATION_OUTPUT = Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
 TORCH_DEVICE = str
@@ -115,12 +116,14 @@ class Trainer:
         self.device: TORCH_DEVICE = config.machine.device_type
         if self.device == "cuda":
             self.device += f":{local_rank}"
+        elif self.device == "xpu":
+            importlib.import_module("intel_extension_for_pytorch")
         self.mixed_precision: bool = self.config.mixed_precision
         self.use_grad_scaler: bool = self.mixed_precision or self.config.use_grad_scaler
         self.training_state: Literal["training", "paused", "completed"] = "training"
         self.gradient_accumulation_steps: int = self.config.gradient_accumulation_steps
 
-        if self.device == "cpu":
+        if self.device == "cpu" or self.device == "xpu":
             self.mixed_precision = False
             CONSOLE.print("Mixed precision is disabled for CPU training.")
         self._start_step: int = 0
@@ -460,13 +463,13 @@ class Trainer:
         """
 
         self.optimizers.zero_grad_all()
-        cpu_or_cuda_str: str = self.device.split(":")[0]
-        cpu_or_cuda_str = "cpu" if cpu_or_cuda_str == "mps" else cpu_or_cuda_str
+        cpu_or_gpu_str: str = self.device.split(":")[0]
+        cpu_or_gpu_str = "cpu" if cpu_or_gpu_str == "mps" else cpu_or_gpu_str
         assert (
             self.gradient_accumulation_steps > 0
         ), f"gradient_accumulation_steps must be > 0, not {self.gradient_accumulation_steps}"
         for _ in range(self.gradient_accumulation_steps):
-            with torch.autocast(device_type=cpu_or_cuda_str, enabled=self.mixed_precision):
+            with torch.autocast(device_type=cpu_or_gpu_str, enabled=self.mixed_precision):
                 _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
                 loss = functools.reduce(torch.add, loss_dict.values())
                 loss /= self.gradient_accumulation_steps
