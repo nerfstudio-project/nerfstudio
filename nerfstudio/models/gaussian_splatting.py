@@ -42,7 +42,9 @@ from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimize
 from gsplat.rasterize import RasterizeGaussians
 from gsplat.project_gaussians import ProjectGaussians
 from gsplat.sh import SphericalHarmonics, num_sh_bases
-from pytorch_msssim import SSIM
+
+from gsplat.compute_cumulative_intersects import compute_cumulative_intersects
+from pytorch_msssim import  SSIM
 
 # need following import for background color override
 from nerfstudio.model_components import renderers
@@ -618,6 +620,12 @@ class GaussianSplattingModel(Model):
         else:
             rgbs = self.get_colors.squeeze()  # (N, 3)
             rgbs = torch.sigmoid(rgbs)
+
+        # rescale the camera back to original dimensions
+        camera.rescale_output_resolution(camera_downscale)
+
+        num_intersects, _ = compute_cumulative_intersects(self.xys.size(0), num_tiles_hit)
+        assert(num_intersects > 0) # avoid empty rasterization
         rgb = RasterizeGaussians.apply(
             self.xys,
             depths,
@@ -644,9 +652,8 @@ class GaussianSplattingModel(Model):
                 W,
                 torch.ones(3, device=self.device) * 10,
             )[..., 0:1]
-        # rescale the camera back to original dimensions
-        camera.rescale_output_resolution(camera_downscale)
-        return {"rgb": rgb, "depth": depth_im}  # type: ignore
+
+        return {"rgb": rgb, "depth": depth_im}
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.
