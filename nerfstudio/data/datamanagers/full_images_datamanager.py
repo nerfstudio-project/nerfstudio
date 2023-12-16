@@ -54,10 +54,7 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     """
     eval_num_images_to_sample_from: int = -1
     """Number of images to sample during eval iteration."""
-    eval_num_times_to_repeat_images: int = -1
-    """When not evaluating on all images, number of iterations before picking
-    new images. If -1, never pick new images."""
-    eval_image_indices: Optional[Tuple[int, ...]] = (0,)
+    eval_image_indices: Optional[Tuple[int, ...]] = None
     """Specifies the image indices to use during eval; if None, uses all."""
     cache_images: Literal["no-cache", "cpu", "gpu"] = "cpu"
     """Whether to cache images in memory. If "numpy", caches as numpy arrays, if "torch", caches as torch tensors."""
@@ -103,6 +100,23 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.train_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split="train")
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
+
+        self.cache_all_eval_images = (self.config.eval_num_images_to_sample_from == -1) or (
+            self.config.eval_num_images_to_sample_from >= len(self.eval_dataset)
+        )
+        self.eval_num_images_to_sample_from = (
+            len(self.eval_dataset) if self.cache_all_eval_images else self.config.eval_num_images_to_sample_from
+        )
+
+        if self.config.eval_image_indices is not None:
+            self.eval_indices = self.config.eval_image_indices
+        else:
+            self.eval_indices = (
+                [i for i in range(len(self.eval_dataset))]
+                if self.cache_all_eval_images
+                else random.sample(range(len(self.eval_dataset)), k=self.eval_num_images_to_sample_from)
+            )
+        print(self.eval_indices)
         if len(self.train_dataset) > 500 and self.config.cache_images == "gpu":
             CONSOLE.print("Train dataset has over 500 images, overriding cach_images to cpu", style="bold yellow")
             self.config.cache_images = "cpu"
@@ -115,7 +129,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
         # Some logic to make sure we sample every camera in equal amounts
         self.train_unseen_cameras = [i for i in range(len(self.train_dataset))]
-        self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
+        self.eval_unseen_cameras = [i for i in range(len(self.eval_indices))]
         assert len(self.train_unseen_cameras) > 0, "No data found in dataset"
 
         super().__init__()
@@ -197,7 +211,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
         cached_eval = []
         CONSOLE.log("Caching / undistorting eval images")
-        for i in tqdm(range(len(self.eval_dataset)), leave=False):
+        for i in tqdm(self.eval_indices, leave=False):
             # cv2.undistort the images / cameras
             data = self.eval_dataset.get_data(i)
             camera = self.eval_dataset.cameras[i].reshape(())
@@ -386,7 +400,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         image_idx = self.eval_unseen_cameras.pop(random.randint(0, len(self.eval_unseen_cameras) - 1))
         # Make sure to re-populate the unseen cameras list if we have exhausted it
         if len(self.eval_unseen_cameras) == 0:
-            self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
+            self.eval_unseen_cameras = [i for i in range(len(self.eval_indices))]
         data = deepcopy(self.cached_eval[image_idx])
         data["image"] = data["image"].to(self.device)
         assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
@@ -402,7 +416,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         image_idx = self.eval_unseen_cameras.pop(random.randint(0, len(self.eval_unseen_cameras) - 1))
         # Make sure to re-populate the unseen cameras list if we have exhausted it
         if len(self.eval_unseen_cameras) == 0:
-            self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
+            self.eval_unseen_cameras = [i for i in range(len(self.eval_indices))]
         data = deepcopy(self.cached_eval[image_idx])
         data["image"] = data["image"].to(self.device)
         assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
