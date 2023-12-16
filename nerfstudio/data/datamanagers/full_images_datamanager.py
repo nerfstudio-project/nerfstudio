@@ -22,6 +22,7 @@ paradigm
 from __future__ import annotations
 
 import random
+from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
@@ -30,7 +31,6 @@ from typing import Dict, ForwardRef, Generic, List, Literal, Optional, Tuple, Ty
 import cv2
 import numpy as np
 import torch
-from copy import deepcopy
 from torch.nn import Parameter
 from tqdm import tqdm
 
@@ -150,19 +150,19 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
                 # crop the image and update the intrinsics accordingly
                 x, y, w, h = roi
-                image = image[y : y + h, x : x + w]
+                image = image[y : y + h + 1, x : x + w + 1]
                 if "mask" in data:
-                    data["mask"] = data["mask"][y : y + h, x : x + w]
+                    data["mask"] = data["mask"][y : y + h + 1, x : x + w + 1]
                 if "depth_image" in data:
-                    data["depth_image"] = data["depth_image"][y : y + h, x : x + w]
+                    data["depth_image"] = data["depth_image"][y : y + h + 1, x : x + w + 1]
                 # update the width, height
-                self.train_dataset.cameras.width[i] = w
-                self.train_dataset.cameras.height[i] = h
+                self.train_dataset.cameras.width[i] = w + 1
+                self.train_dataset.cameras.height[i] = h + 1
                 if "mask" in data:
                     mask = data["mask"].numpy()
                     mask = mask.astype(np.uint8) * 255
                     mask = cv2.undistort(mask, K, distortion_params, None, newK)  # type: ignore
-                    mask = mask[y : y + h, x : x + w]
+                    mask = mask[y : y + h + 1, x : x + w + 1]
                     data["mask"] = torch.from_numpy(mask).bool()
                 K = newK
 
@@ -224,15 +224,15 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
                 # crop the image and update the intrinsics accordingly
                 x, y, w, h = roi
-                image = image[y : y + h, x : x + w]
+                image = image[y : y + h + 1, x : x + w + 1]
                 # update the width, height
-                self.eval_dataset.cameras.width[i] = w
-                self.eval_dataset.cameras.height[i] = h
+                self.eval_dataset.cameras.width[i] = w + 1
+                self.eval_dataset.cameras.height[i] = h + 1
                 if "mask" in data:
                     mask = data["mask"].numpy()
                     mask = mask.astype(np.uint8) * 255
                     mask = cv2.undistort(mask, K, distortion_params, None, newK)  # type: ignore
-                    mask = mask[y : y + h, x : x + w]
+                    mask = mask[y : y + h + 1, x : x + w + 1]
                     data["mask"] = torch.from_numpy(mask).bool()
                 K = newK
 
