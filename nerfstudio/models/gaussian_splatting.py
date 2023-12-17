@@ -60,7 +60,7 @@ def random_quat_tensor(N):
             torch.sqrt(1 - u) * torch.sin(2 * math.pi * v),
             torch.sqrt(1 - u) * torch.cos(2 * math.pi * v),
             torch.sqrt(u) * torch.sin(2 * math.pi * w),
-            torch.sqrt(u) * torch.sin(2 * math.pi * w),
+            torch.sqrt(u) * torch.cos(2 * math.pi * w),
         ],
         dim=-1,
     )
