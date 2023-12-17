@@ -116,7 +116,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 if self.cache_all_eval_images
                 else random.sample(range(len(self.eval_dataset)), k=self.eval_num_images_to_sample_from)
             )
-        print(self.eval_indices)
         if len(self.train_dataset) > 500 and self.config.cache_images == "gpu":
             CONSOLE.print("Train dataset has over 500 images, overriding cach_images to cpu", style="bold yellow")
             self.config.cache_images = "cpu"
