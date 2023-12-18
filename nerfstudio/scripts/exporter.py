@@ -528,6 +528,21 @@ class ExportGaussianSplat(Exporter):
             for i in range(4):
                 map_to_tensors[f"rot_{i}"] = quats[:, i, None]
 
+        # post optimization, it is possible have NaN/Inf values in some attributes
+        # to ensure the exported ply file has finite values, we enforce finite filters.
+        select = np.ones(n, dtype=bool)
+        for k, t in map_to_tensors.items():
+            n_before = np.sum(select)
+            select = np.logical_and(select, np.isfinite(t).all(axis=1))
+            n_after = np.sum(select)
+            if n_after < n_before:
+                print(f"{n_before - n_after} NaN/Inf elements in {k}")
+
+        if np.sum(select) < n:
+            print(f"values have NaN/Inf in map_to_tensors, only export {np.sum(select)}/{n}")
+            for k, t in map_to_tensors.items():
+                map_to_tensors[k] = map_to_tensors[k][select, :]
+
         pcd = o3d.t.geometry.PointCloud(map_to_tensors)
 
         o3d.t.io.write_point_cloud(str(filename), pcd)
