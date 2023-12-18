@@ -157,6 +157,10 @@ RUN git clone --recursive https://github.com/cvg/pixel-perfect-sfm.git && \
     cd ..
 
 RUN python3.10 -m pip install omegaconf
+
+# Install gsplat
+RUN python3.10 -m pip install git+https://github.com/nerfstudio-project/gsplat.git@v0.1.0
+
 # Copy nerfstudio folder and give ownership to user.
 ADD . /home/user/nerfstudio
 USER root
