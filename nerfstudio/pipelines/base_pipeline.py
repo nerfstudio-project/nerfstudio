@@ -380,8 +380,8 @@ class VanillaPipeline(Pipeline):
                 height, width = camera.height, camera.width
                 num_rays = height * width
                 metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
-
-                # if output_path is not None:
+                if output_path is not None:
+                    raise NotImplementedError("Saving images is not implemented yet")
                 #     camera_indices = camera_ray_bundle.camera_indices
                 #     assert camera_indices is not None
                 #     for key, val in images_dict.items():
@@ -390,10 +390,10 @@ class VanillaPipeline(Pipeline):
                 #         )
 
                 assert "num_rays_per_sec" not in metrics_dict
-                metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)
+                metrics_dict["num_rays_per_sec"] = (num_rays / (time() - inner_start)).item()
                 fps_str = "fps"
                 assert fps_str not in metrics_dict
-                metrics_dict[fps_str] = metrics_dict["num_rays_per_sec"] / (height * width)
+                metrics_dict[fps_str] = (metrics_dict["num_rays_per_sec"] / (height * width)).item()
                 metrics_dict_list.append(metrics_dict)
                 progress.advance(task)
         # average the metrics list
