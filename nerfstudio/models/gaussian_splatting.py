@@ -145,7 +145,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     """maximum degree of spherical harmonics to use"""
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig(mode="off")
     """camera optimizer config"""
-    max_gauss_ratio: float = 10.0
+    max_gauss_ratio: float = 50.0
     """threshold of ratio of gaussian max to min scale before applying regularization
     loss from the PhysGaussian paper
     """
