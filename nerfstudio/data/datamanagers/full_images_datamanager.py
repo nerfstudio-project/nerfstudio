@@ -122,6 +122,11 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
     def cache_images(self, cache_images_option):
         cached_train = []
+        cached_eval = []
+
+        if self.config.cache_images == "no-cache":
+            return cached_train, cached_eval
+
         CONSOLE.log("Caching / undistorting train images")
         for i in tqdm(range(len(self.train_dataset)), leave=False):
             # cv2.undistort the images / cameras
@@ -195,7 +200,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             self.train_dataset.cameras.cx[i] = float(K[0, 2])
             self.train_dataset.cameras.cy[i] = float(K[1, 2])
 
-        cached_eval = []
         CONSOLE.log("Caching / undistorting eval images")
         for i in tqdm(range(len(self.eval_dataset)), leave=False):
             # cv2.undistort the images / cameras
