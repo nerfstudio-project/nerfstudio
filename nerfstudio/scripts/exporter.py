@@ -595,7 +595,7 @@ class ExportGaussianSplat(Exporter):
         if self.transform_to_colmap_coordinates:
             self.write_transformed_ply(
                 data=data, positions=positions, scales=scales,
-                rotation_transform=dataparser_transform,
+                rotation_transform=dataparser_transform[:3, :3],
                 position_transform=input_transform,
                 scale_transform=pipeline.datamanager.train_dataparser_outputs.dataparser_scale,
             )
@@ -623,7 +623,7 @@ class ExportGaussianSplat(Exporter):
         data['scale_0'] = transformed_scales[0]
         data['scale_1'] = transformed_scales[1]
         data['scale_2'] = transformed_scales[2]
-        rotation_transform = Quaternion(matrix=np.linalg.inv(rotation_transform))
+        rotation_transform = Quaternion(matrix=np.linalg.inv(rotation_transform), rtol=1e-05, atol=1e-06)
         for i in range(len(data['rot_0'])):
             quat = Quaternion(data['rot_0'][i], data['rot_1'][i], data['rot_2'][i], data['rot_3'][i])
             quat = rotation_transform * quat
