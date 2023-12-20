@@ -899,7 +899,9 @@ def populate_render_tab(
                             Keyframe(
                                 position=pose.translation() * VISER_NERFSTUDIO_SCALE_RATIO,
                                 wxyz=pose.rotation().wxyz,
-                                override_fov_enabled=True,
+                                # There are some floating point conversions between degrees and radians, so the fov and
+                                # default_Fov values will not be exactly matched.
+                                override_fov_enabled=abs(frame["fov"] - json_data.get("default_fov", 0.0)) < 1e-3,
                                 override_fov_rad=frame["fov"] / 180.0 * np.pi,
                                 aspect=frame["aspect"],
                                 override_transition_enabled=frame.get("override_transition_enabled", None),
@@ -985,6 +987,7 @@ def populate_render_tab(
                     "override_transition_sec": keyframe.override_transition_sec,
                 }
             )
+        json_data["default_fov"] = fov_degrees.value
         json_data["default_transition_sec"] = transition_sec_number.value
         json_data["keyframes"] = keyframes
         json_data["camera_type"] = camera_type.value.lower()
