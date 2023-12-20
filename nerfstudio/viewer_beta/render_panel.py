@@ -21,7 +21,7 @@ import json
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Literal, Optional, Tuple
 
 import numpy as np
 import scipy.interpolate
@@ -30,6 +30,7 @@ import splines.quaternion
 import viser
 import viser.transforms as tf
 from nerfstudio.viewer_beta.control_panel import ControlPanel
+from torchvision.transforms.functional import perspective
 
 
 @dataclasses.dataclass
@@ -208,6 +209,11 @@ class CameraPath:
         for keyframe_index, frame in self._keyframes.items():
             frame = dataclasses.replace(frame[0], aspect=aspect)
             self.add_camera(frame, keyframe_index=keyframe_index)
+
+    def get_aspect(self) -> float:
+        """Get W/H aspect ratio, which is shared across all keyframes."""
+        assert len(self._keyframes) > 0
+        return next(iter(self._keyframes.values()))[0].aspect
 
     def reset(self) -> None:
         for frame in self._keyframes.values():
@@ -444,13 +450,30 @@ class CameraPath:
         return np.array(out)
 
 
+@dataclasses.dataclass
+class RenderTabState:
+    """Useful GUI handles exposed by the render tab."""
+
+    preview_render: bool
+    preview_fov: float
+    preview_aspect: float
+    preview_camera_type: Literal["Perspective", "Fisheye", "Equirectangular"]
+
+
 def populate_render_tab(
     server: viser.ViserServer,
     config_path: Path,
     datapath: Path,
     control_panel: Optional[ControlPanel] = None,
-) -> None:
+) -> RenderTabState:
     from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO
+
+    render_tab_state = RenderTabState(
+        preview_render=False,
+        preview_fov=0.0,
+        preview_aspect=1.0,
+        preview_camera_type="Perspective",
+    )
 
     fov_degrees = server.add_gui_slider(
         "Default FOV",
@@ -580,6 +603,8 @@ def populate_render_tab(
         hint="Toggle move handles for keyframes in the scene.",
     )
 
+    transform_controls: List[viser.SceneNodeHandle] = []
+
     @move_checkbox.on_update
     def _(event: viser.GuiEvent) -> None:
         # Clear move handles when toggled off.
@@ -640,7 +665,7 @@ def populate_render_tab(
     with playback_folder:
         play_button = server.add_gui_button("Play", icon=viser.Icon.PLAYER_PLAY)
         pause_button = server.add_gui_button("Pause", icon=viser.Icon.PLAYER_PAUSE, visible=False)
-        attach_viewport_checkbox = server.add_gui_checkbox("Attach viewport", initial_value=False)
+        preview_render_checkbox = server.add_gui_checkbox("Preview render", initial_value=False)
         transition_sec_number = server.add_gui_number(
             "Transition (sec)",
             min=0.001,
@@ -693,6 +718,7 @@ def populate_render_tab(
                 initial_value=0,
                 # Place right after the pause button.
                 order=pause_button.order + 0.01,
+                disabled=get_max_frame_index() == 1,
             )
 
         @preview_frame_slider.on_update
@@ -706,6 +732,9 @@ def populate_render_tab(
                 remove_preview_camera()
                 return
             pose, fov_rad = maybe_pose_and_fov_rad
+            render_tab_state.preview_fov = fov_rad
+            render_tab_state.preview_aspect = camera_path.get_aspect()
+            render_tab_state.preview_camera_type = camera_type.value
 
             preview_camera_handle = server.add_camera_frustum(
                 "/preview_camera",
@@ -715,14 +744,8 @@ def populate_render_tab(
                 wxyz=pose.rotation().wxyz,
                 position=pose.translation(),
                 color=(10, 200, 30),
-                # Hack: hide green frustum if the viewport is attached.
-                # This is a waste of bandwidth, but will ensure that any old
-                # frustums are removed/aren't rendered.
-                #
-                # Easy to fix with a global variable.
-                visible=not attach_viewport_checkbox.value,
             )
-            if attach_viewport_checkbox.value:
+            if preview_render_checkbox.value:
                 for client in server.get_clients().values():
                     client.camera.wxyz = pose.rotation().wxyz
                     client.camera.position = pose.translation()
@@ -730,8 +753,26 @@ def populate_render_tab(
 
         return preview_frame_slider
 
-    @attach_viewport_checkbox.on_update
+    # We back up the camera poses before and after we start previewing renders.
+    camera_pose_backup_from_id: Dict[int, tuple] = {}
+
+    @preview_render_checkbox.on_update
     def _(_) -> None:
+        render_tab_state.preview_render = preview_render_checkbox.value
+
+        # Update render tab state with current frame.
+        assert preview_frame_slider is not None
+        maybe_pose_and_fov_rad = camera_path.interpolate_pose_and_fov_rad(
+            preview_frame_slider.value / get_max_frame_index()
+        )
+        if maybe_pose_and_fov_rad is None:
+            remove_preview_camera()
+            return
+        pose, fov_rad = maybe_pose_and_fov_rad
+        render_tab_state.preview_fov = fov_rad
+        render_tab_state.preview_aspect = camera_path.get_aspect()
+        render_tab_state.preview_camera_type = camera_type.value
+
         if preview_frame_slider is None:
             remove_preview_camera()
             return
@@ -742,27 +783,32 @@ def populate_render_tab(
             remove_preview_camera()
             return
         pose, fov = maybe_pose_and_fov_rad
-        server.add_camera_frustum(
-            "/preview_camera",
-            fov=fov,
-            aspect=resolution.value[0] / resolution.value[1],
-            scale=0.35,
-            wxyz=pose.rotation().wxyz,
-            position=pose.translation(),
-            color=(10, 200, 30),
-            # Hack: hide green frustum if the viewport is attached.
-            # This is a waste of bandwidth, but will ensure that any old
-            # frustums are removed/aren't rendered.
-            #
-            # Easy to fix with a global variable.
-            visible=not attach_viewport_checkbox.value,
-        )
-        if not attach_viewport_checkbox.value:
+
+        if preview_render_checkbox.value is False:
+            # Revert camera poses.
             for client in server.get_clients().values():
-                client.camera.fov = fov_degrees.value / 180 * np.pi
+                if client.client_id not in camera_pose_backup_from_id:
+                    continue
+                cam_position, cam_look_at, cam_up, cam_fov = camera_pose_backup_from_id.pop(client.client_id)
+                client.camera.position = cam_position
+                client.camera.look_at = cam_look_at
+                client.camera.up_direction = cam_up
+                client.camera.fov = cam_fov
+                client.flush()
+
+            # Un-hide scene nodes.
+            server.set_global_scene_node_visibility(True)
         else:
-            if attach_viewport_checkbox.value:
+            # Hide all scene nodes when we're previewing the render.
+            server.set_global_scene_node_visibility(False)
+            if preview_render_checkbox.value:
                 for client in server.get_clients().values():
+                    camera_pose_backup_from_id[client.client_id] = (
+                        client.camera.position,
+                        client.camera.look_at,
+                        client.camera.up_direction,
+                        client.camera.fov,
+                    )
                     client.camera.wxyz = pose.rotation().wxyz
                     client.camera.position = pose.translation()
                     client.camera.fov = fov
@@ -1009,7 +1055,7 @@ def populate_render_tab(
     camera_path.default_fov = fov_degrees.value / 180.0 * np.pi
     camera_path.default_transition_sec = transition_sec_number.value
 
-    transform_controls: List[viser.SceneNodeHandle] = []
+    return render_tab_state
 
 
 if __name__ == "__main__":

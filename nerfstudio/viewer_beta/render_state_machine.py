@@ -20,6 +20,7 @@ import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 
+import numpy as np
 import torch
 from nerfstudio.model_components.renderers import background_color_override_context
 from nerfstudio.utils import colormaps, writer
@@ -240,8 +241,25 @@ class RenderStateMachine(threading.Thread):
             outputs["gl_z_buf_depth"].cpu().numpy() * self.viser_scale_ratio if "gl_z_buf_depth" in outputs else None
         )
 
+        # Convert to numpy.
+        selected_output = selected_output.cpu().numpy()
+        assert selected_output.shape[-1] == 3
+
+        # Pad image if the aspect ratio (W/H) doesn't match the client!
+        current_h, current_w = selected_output.shape[:2]
+        desired_aspect = self.client.camera.aspect
+        pad_width = int(max(0, (desired_aspect * current_h - current_w) // 2))
+        pad_height = int(max(0, (current_w / desired_aspect - current_h) // 2))
+        if pad_width > 5 or pad_height > 5:
+            selected_output = np.pad(
+                selected_output,
+                ((pad_height, pad_height), (pad_width, pad_width), (0, 0)),
+                mode="constant",
+                constant_values=0,
+            )
+
         self.client.set_background_image(
-            selected_output.cpu().numpy(),
+            selected_output,
             format=self.viewer.config.image_format,
             jpeg_quality=self.viewer.config.jpeg_quality,
             depth=depth,
