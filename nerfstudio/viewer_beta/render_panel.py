@@ -494,6 +494,7 @@ def populate_render_tab(
         # Updating the aspect ratio will also re-render the camera frustums.
         # Could rethink this.
         camera_path.update_aspect(resolution.value[0] / resolution.value[1])
+        compute_and_update_preview_state()
 
     resolution = server.add_gui_vector2(
         "Resolution",
@@ -503,7 +504,11 @@ def populate_render_tab(
         step=1,
         hint="Render output resolution in pixels.",
     )
-    resolution.on_update(lambda _: camera_path.update_aspect(resolution.value[0] / resolution.value[1]))
+
+    @resolution.on_update
+    def _(_) -> None:
+        camera_path.update_aspect(resolution.value[0] / resolution.value[1])
+        compute_and_update_preview_state()
 
     camera_type = server.add_gui_dropdown(
         "Camera Type",
@@ -705,6 +710,24 @@ def populate_render_tab(
             preview_camera_handle.remove()
             preview_camera_handle = None
 
+    def compute_and_update_preview_state() -> Optional[Tuple[tf.SE3, float]]:
+        """Update the render tab state with the current preview camera pose.
+        Returns current camera pose + FOV if available."""
+
+        if preview_frame_slider is None:
+            return
+        maybe_pose_and_fov_rad = camera_path.interpolate_pose_and_fov_rad(
+            preview_frame_slider.value / get_max_frame_index()
+        )
+        if maybe_pose_and_fov_rad is None:
+            remove_preview_camera()
+            return
+        pose, fov_rad = maybe_pose_and_fov_rad
+        render_tab_state.preview_fov = fov_rad
+        render_tab_state.preview_aspect = camera_path.get_aspect()
+        render_tab_state.preview_camera_type = camera_type.value
+        return pose, fov_rad
+
     def add_preview_frame_slider() -> Optional[viser.GuiInputHandle[int]]:
         """Helper for creating the current frame # slider. This is removed and
         re-added anytime the `max` value changes."""
@@ -724,17 +747,10 @@ def populate_render_tab(
         @preview_frame_slider.on_update
         def _(_) -> None:
             nonlocal preview_camera_handle
-
-            maybe_pose_and_fov_rad = camera_path.interpolate_pose_and_fov_rad(
-                preview_frame_slider.value / get_max_frame_index()
-            )
+            maybe_pose_and_fov_rad = compute_and_update_preview_state()
             if maybe_pose_and_fov_rad is None:
-                remove_preview_camera()
                 return
             pose, fov_rad = maybe_pose_and_fov_rad
-            render_tab_state.preview_fov = fov_rad
-            render_tab_state.preview_aspect = camera_path.get_aspect()
-            render_tab_state.preview_camera_type = camera_type.value
 
             preview_camera_handle = server.add_camera_frustum(
                 "/preview_camera",
@@ -760,17 +776,7 @@ def populate_render_tab(
         render_tab_state.preview_render = preview_render_checkbox.value
 
         # Update render tab state with current frame.
-        assert preview_frame_slider is not None
-        maybe_pose_and_fov_rad = camera_path.interpolate_pose_and_fov_rad(
-            preview_frame_slider.value / get_max_frame_index()
-        )
-        if maybe_pose_and_fov_rad is None:
-            remove_preview_camera()
-            return
-        pose, fov_rad = maybe_pose_and_fov_rad
-        render_tab_state.preview_fov = fov_rad
-        render_tab_state.preview_aspect = camera_path.get_aspect()
-        render_tab_state.preview_camera_type = camera_type.value
+        compute_and_update_preview_state()
 
         if preview_frame_slider is None:
             remove_preview_camera()
