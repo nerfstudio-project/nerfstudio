@@ -30,7 +30,6 @@ import splines.quaternion
 import viser
 import viser.transforms as tf
 from nerfstudio.viewer_beta.control_panel import ControlPanel
-from torchvision.transforms.functional import perspective
 
 
 @dataclasses.dataclass
@@ -494,7 +493,7 @@ def populate_render_tab(
         # Updating the aspect ratio will also re-render the camera frustums.
         # Could rethink this.
         camera_path.update_aspect(resolution.value[0] / resolution.value[1])
-        compute_and_update_preview_state()
+        compute_and_update_preview_camera_state()
 
     resolution = server.add_gui_vector2(
         "Resolution",
@@ -508,16 +507,16 @@ def populate_render_tab(
     @resolution.on_update
     def _(_) -> None:
         camera_path.update_aspect(resolution.value[0] / resolution.value[1])
-        compute_and_update_preview_state()
+        compute_and_update_preview_camera_state()
 
     camera_type = server.add_gui_dropdown(
-        "Camera Type",
+        "Camera type",
         ("Perspective", "Fisheye", "Equirectangular"),
         initial_value="Perspective",
         hint="Camera model to render with. This is applied to all keyframes.",
     )
     add_button = server.add_gui_button(
-        "Add keyframe",
+        "Add Keyframe",
         icon=viser.Icon.PLUS,
         hint="Add a new keyframe at the current pose.",
     )
@@ -538,7 +537,7 @@ def populate_render_tab(
         camera_path.update_spline()
 
     reset_up_button = server.add_gui_button(
-        "Reset up direction",
+        "Reset Up Direction",
         icon=viser.Icon.ARROW_AUTOFIT_UP,
         hint="Reset the orbit up direction.",
     )
@@ -549,7 +548,7 @@ def populate_render_tab(
         event.client.camera.up_direction = tf.SO3(event.client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
 
     clear_keyframes_button = server.add_gui_button(
-        "Clear keyframes",
+        "Clear Keyframes",
         icon=viser.Icon.TRASH,
         hint="Remove all keyframes from the render path.",
     )
@@ -589,7 +588,7 @@ def populate_render_tab(
         duration_number.value = camera_path.compute_duration()
 
     tension_slider = server.add_gui_slider(
-        "Spline Tension",
+        "Spline tension",
         min=0.0,
         max=1.0,
         initial_value=0.0,
@@ -670,7 +669,11 @@ def populate_render_tab(
     with playback_folder:
         play_button = server.add_gui_button("Play", icon=viser.Icon.PLAYER_PLAY)
         pause_button = server.add_gui_button("Pause", icon=viser.Icon.PLAYER_PAUSE, visible=False)
-        preview_render_checkbox = server.add_gui_checkbox("Preview render", initial_value=False)
+        preview_render_button = server.add_gui_button(
+            "Preview Render", hint="Show a preview of the render in the viewport."
+        )
+        preview_render_stop_button = server.add_gui_button("Exit Render Preview", color="red", visible=False)
+
         transition_sec_number = server.add_gui_number(
             "Transition (sec)",
             min=0.001,
@@ -710,7 +713,7 @@ def populate_render_tab(
             preview_camera_handle.remove()
             preview_camera_handle = None
 
-    def compute_and_update_preview_state() -> Optional[Tuple[tf.SE3, float]]:
+    def compute_and_update_preview_camera_state() -> Optional[Tuple[tf.SE3, float]]:
         """Update the render tab state with the current preview camera pose.
         Returns current camera pose + FOV if available."""
 
@@ -740,14 +743,16 @@ def populate_render_tab(
                 step=1,
                 initial_value=0,
                 # Place right after the pause button.
-                order=pause_button.order + 0.01,
+                order=preview_render_stop_button.order + 0.01,
                 disabled=get_max_frame_index() == 1,
             )
+            play_button.disabled = preview_frame_slider.disabled
+            preview_render_button.disabled = preview_frame_slider.disabled
 
         @preview_frame_slider.on_update
         def _(_) -> None:
             nonlocal preview_camera_handle
-            maybe_pose_and_fov_rad = compute_and_update_preview_state()
+            maybe_pose_and_fov_rad = compute_and_update_preview_camera_state()
             if maybe_pose_and_fov_rad is None:
                 return
             pose, fov_rad = maybe_pose_and_fov_rad
@@ -761,7 +766,7 @@ def populate_render_tab(
                 position=pose.translation(),
                 color=(10, 200, 30),
             )
-            if preview_render_checkbox.value:
+            if render_tab_state.preview_render:
                 for client in server.get_clients().values():
                     client.camera.wxyz = pose.rotation().wxyz
                     client.camera.position = pose.translation()
@@ -771,49 +776,50 @@ def populate_render_tab(
     # We back up the camera poses before and after we start previewing renders.
     camera_pose_backup_from_id: Dict[int, tuple] = {}
 
-    @preview_render_checkbox.on_update
+    @preview_render_button.on_click
     def _(_) -> None:
-        render_tab_state.preview_render = preview_render_checkbox.value
+        render_tab_state.preview_render = True
+        preview_render_button.visible = False
+        preview_render_stop_button.visible = True
 
-        # Update render tab state with current frame.
-        compute_and_update_preview_state()
-
-        if preview_frame_slider is None:
-            remove_preview_camera()
-            return
-        maybe_pose_and_fov_rad = camera_path.interpolate_pose_and_fov_rad(
-            preview_frame_slider.value / get_max_frame_index()
-        )
+        maybe_pose_and_fov_rad = compute_and_update_preview_camera_state()
         if maybe_pose_and_fov_rad is None:
             remove_preview_camera()
             return
         pose, fov = maybe_pose_and_fov_rad
+        del fov
 
-        if preview_render_checkbox.value is False:
-            # Revert camera poses.
-            for client in server.get_clients().values():
-                if client.client_id not in camera_pose_backup_from_id:
-                    continue
-                cam_position, cam_look_at, cam_up = camera_pose_backup_from_id.pop(client.client_id)
-                client.camera.position = cam_position
-                client.camera.look_at = cam_look_at
-                client.camera.up_direction = cam_up
-                client.flush()
+        # Hide all scene nodes when we're previewing the render.
+        server.set_global_scene_node_visibility(False)
 
-            # Un-hide scene nodes.
-            server.set_global_scene_node_visibility(True)
-        else:
-            # Hide all scene nodes when we're previewing the render.
-            server.set_global_scene_node_visibility(False)
-            if preview_render_checkbox.value:
-                for client in server.get_clients().values():
-                    camera_pose_backup_from_id[client.client_id] = (
-                        client.camera.position,
-                        client.camera.look_at,
-                        client.camera.up_direction,
-                    )
-                    client.camera.wxyz = pose.rotation().wxyz
-                    client.camera.position = pose.translation()
+        # Back up and then set camera poses.
+        for client in server.get_clients().values():
+            camera_pose_backup_from_id[client.client_id] = (
+                client.camera.position,
+                client.camera.look_at,
+                client.camera.up_direction,
+            )
+            client.camera.wxyz = pose.rotation().wxyz
+            client.camera.position = pose.translation()
+
+    @preview_render_stop_button.on_click
+    def _(_) -> None:
+        render_tab_state.preview_render = False
+        preview_render_button.visible = True
+        preview_render_stop_button.visible = False
+
+        # Revert camera poses.
+        for client in server.get_clients().values():
+            if client.client_id not in camera_pose_backup_from_id:
+                continue
+            cam_position, cam_look_at, cam_up = camera_pose_backup_from_id.pop(client.client_id)
+            client.camera.position = cam_position
+            client.camera.look_at = cam_look_at
+            client.camera.up_direction = cam_up
+            client.flush()
+
+        # Un-hide scene nodes.
+        server.set_global_scene_node_visibility(True)
 
     preview_frame_slider = add_preview_frame_slider()
 
@@ -928,7 +934,7 @@ def populate_render_tab(
     # set the initial value to the current date-time string
     now = datetime.datetime.now()
     render_name_text = server.add_gui_text(
-        "Render Name",
+        "Render name",
         initial_value=now.strftime("%Y-%m-%d-%H-%M-%S"),
         hint="Name of the render",
     )

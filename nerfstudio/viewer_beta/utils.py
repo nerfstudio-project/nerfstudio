@@ -59,9 +59,16 @@ def get_camera(
     focal_length = pp_h / np.tan(fov / 2.0)
     intrinsics_matrix = torch.tensor([[focal_length, 0, pp_w], [0, focal_length, pp_h], [0, 0, 1]], dtype=torch.float32)
 
+    if camera_state.camera_type is CameraType.EQUIRECTANGULAR:
+        fx = float(image_width / 2)
+        fy = float(image_height)
+    else:
+        fx = intrinsics_matrix[0, 0]
+        fy = intrinsics_matrix[1, 1]
+
     camera = Cameras(
-        fx=intrinsics_matrix[0, 0],
-        fy=intrinsics_matrix[1, 1],
+        fx=fx,
+        fy=fy,
         cx=pp_w,
         cy=pp_h,
         camera_type=camera_state.camera_type,

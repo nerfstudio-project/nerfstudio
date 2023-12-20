@@ -163,8 +163,7 @@ class Viewer:
                 self.viser_server,
                 self.include_time,
                 VISER_NERFSTUDIO_SCALE_RATIO,
-                self._interrupt_render,
-                self._crop_params_update,
+                self._trigger_rerender,
                 self._output_type_change,
                 self._output_split_type_change,
                 self._toggle_training_state,
@@ -188,7 +187,7 @@ class Viewer:
                 element.install(self.viser_server)
                 # also rewire the hook to rerender
                 prev_cb = element.cb_hook
-                element.cb_hook = lambda element: [prev_cb(element), self._interrupt_render(element)]
+                element.cb_hook = lambda element: [prev_cb(element), self._trigger_rerender()]
             else:
                 # recursively create folders
                 # If the folder name is "Custom Elements/a/b", then:
@@ -297,13 +296,14 @@ class Viewer:
             self.camera_handles[idx].position = c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO
             self.camera_handles[idx].wxyz = R.wxyz
 
-    def _interrupt_render(self, _) -> None:
+    def _trigger_rerender(self) -> None:
         """Interrupt current render."""
+        if not self.ready:
+            return
         clients = self.viser_server.get_clients()
         for id in clients:
             camera_state = self.get_camera_state(clients[id])
-            if camera_state is not None:
-                self.render_statemachines[id].action(RenderAction("rerender", camera_state))
+            self.render_statemachines[id].action(RenderAction("move", camera_state))
 
     def _toggle_training_state(self, _) -> None:
         """Toggle the trainer's training state."""
@@ -312,14 +312,6 @@ class Viewer:
                 self.trainer.training_state = "paused"
             elif self.trainer.training_state == "paused":
                 self.trainer.training_state = "training"
-
-    def _crop_params_update(self, _) -> None:
-        """Update crop parameters"""
-        clients = self.viser_server.get_clients()
-        for id in clients:
-            camera_state = self.get_camera_state(clients[id])
-            if camera_state is not None:
-                self.render_statemachines[id].action(RenderAction("move", camera_state))
 
     def _output_type_change(self, _):
         self.output_type_changed = True

@@ -95,7 +95,7 @@ class RenderStateMachine(threading.Thread):
             #  1. we are in low_moving state
             #  2. the current next_action is move, static, or rerender
             return
-        elif self.next_action == "rerender":
+        elif self.next_action.action == "rerender":
             # never overwrite rerenders
             pass
         elif action.action == "static" and self.next_action.action == "move":
