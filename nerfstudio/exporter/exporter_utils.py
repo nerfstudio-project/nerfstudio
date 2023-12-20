@@ -28,6 +28,7 @@ import open3d as o3d
 import pymeshlab
 import torch
 from jaxtyping import Float
+from nerfstudio.cameras.rays import RayBundle
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeRemainingColumn
 from torch import Tensor
 
@@ -130,6 +131,7 @@ def generate_point_cloud(
 
             with torch.no_grad():
                 ray_bundle, _ = pipeline.datamanager.next_train(0)
+                assert isinstance(ray_bundle, RayBundle)
                 outputs = pipeline.model(ray_bundle)
             if rgb_output_name not in outputs:
                 CONSOLE.rule("Error", style="red")

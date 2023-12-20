@@ -33,6 +33,7 @@ from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.utils import poses as pose_utils
 from nerfstudio.engine.optimizers import OptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
+from nerfstudio.cameras.cameras import Cameras
 
 
 @dataclass
@@ -145,6 +146,16 @@ class CameraOptimizer(nn.Module):
             correction_matrices = self(raybundle.camera_indices.squeeze())  # type: ignore
             raybundle.origins = raybundle.origins + correction_matrices[:, :3, 3]
             raybundle.directions = torch.bmm(correction_matrices[:, :3, :3], raybundle.directions[..., None]).squeeze()
+
+    def apply_to_camera(self, camera: Cameras) -> None:
+        """Apply the pose correction to the raybundle"""
+        if self.config.mode != "off":
+            assert camera.metadata is not None, "Must provide id of camera in its metadata"
+            assert "cam_idx" in camera.metadata, "Must provide id of camera in its metadata"
+            camera_idx = camera.metadata["cam_idx"]
+            adj = self([camera_idx])  # type: ignore
+            adj = torch.cat([adj, torch.Tensor([0, 0, 0, 1])[None, None].to(adj)], dim=1)
+            camera.camera_to_worlds = torch.bmm(camera.camera_to_worlds, adj)
 
     def get_loss_dict(self, loss_dict: dict) -> None:
         """Add regularization"""
