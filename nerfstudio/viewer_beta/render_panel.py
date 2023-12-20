@@ -749,7 +749,6 @@ def populate_render_tab(
                 for client in server.get_clients().values():
                     client.camera.wxyz = pose.rotation().wxyz
                     client.camera.position = pose.translation()
-                    client.camera.fov = fov_rad
 
         return preview_frame_slider
 
@@ -789,11 +788,10 @@ def populate_render_tab(
             for client in server.get_clients().values():
                 if client.client_id not in camera_pose_backup_from_id:
                     continue
-                cam_position, cam_look_at, cam_up, cam_fov = camera_pose_backup_from_id.pop(client.client_id)
+                cam_position, cam_look_at, cam_up = camera_pose_backup_from_id.pop(client.client_id)
                 client.camera.position = cam_position
                 client.camera.look_at = cam_look_at
                 client.camera.up_direction = cam_up
-                client.camera.fov = cam_fov
                 client.flush()
 
             # Un-hide scene nodes.
@@ -807,11 +805,9 @@ def populate_render_tab(
                         client.camera.position,
                         client.camera.look_at,
                         client.camera.up_direction,
-                        client.camera.fov,
                     )
                     client.camera.wxyz = pose.rotation().wxyz
                     client.camera.position = pose.translation()
-                    client.camera.fov = fov
 
     preview_frame_slider = add_preview_frame_slider()
 
