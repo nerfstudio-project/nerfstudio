@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Type, Union
-from nerfstudio.data.scene_box import OrientedBox
+from pyquaternion import Quaternion
 
 import torch
 from torch.nn import Parameter
@@ -29,6 +29,7 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 import torchvision.transforms.functional as TF
 
 from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.models.base_model import Model, ModelConfig
@@ -174,6 +175,22 @@ class GaussianSplattingModel(Model):
             self.seed_pts = None
         super().__init__(*args, **kwargs)
 
+    def init_scale_rotation(
+        self, points: torch.Tensor, normals: Optional[torch.Tensor] = None
+    ) -> [torch.Tensor, torch.Tensor]:
+        distances, _ = self.k_nearest_sklearn(points, 3)
+        distances = torch.from_numpy(distances)
+        # find the average of the three nearest neighbors for each point and use that as the scale
+        avg_dist = distances.mean(dim=-1, keepdim=True)
+        scales = torch.log(avg_dist.repeat(1, 3))
+        if normals is None:
+            # use random initialization of the covariance
+            quats = random_quat_tensor(self.num_points)
+        else:
+            # use the normals to initialize the covariance
+            quats = torch.from_numpy(np.array([Quaternion(axis=n, radians=np.pi).q.astype(np.float32) for n in normals.cpu().numpy()]))
+        return scales, quats
+
     def add_init_sphere_pts(self):
         # Estimate phere radius
         dists = torch.linalg.vector_norm(self.means, dim=1).detach().numpy()
@@ -184,16 +201,14 @@ class GaussianSplattingModel(Model):
         dists = torch.linalg.vector_norm(sphere_pts, dim=1, keepdim=True)
         rescale = self.outer_sphere_rad / (dists + 1e-8)
         sphere_pts = sphere_pts * torch.cat([rescale, rescale, rescale], dim=1)
+        # Initialize points, scale and rotation; use negated positions as normals
+        sphere_scales, sphere_quats = self.init_scale_rotation(sphere_pts, -sphere_pts / self.outer_sphere_rad)
+        # Initialize colors, opacities
         dim_sh = num_sh_bases(self.config.sh_degree)
-        distances, _ = self.k_nearest_sklearn(sphere_pts.data, 3)
-        distances = torch.from_numpy(distances)
-        avg_dist = distances.mean(dim=-1, keepdim=True)
         sphere_colors     = torch.rand(self.config.init_pts_sphere_num, 1, 3).to(self.colors_all.device)
         sphere_shs_rest   = torch.zeros((self.config.init_pts_sphere_num, dim_sh - 1, 3)).to(self.colors_all.device)
         sphere_colors_all = torch.nn.Parameter(torch.cat([sphere_colors, sphere_shs_rest], dim=1))
-        sphere_scales     = torch.log(avg_dist.repeat(1, 3)).to(self.scales.device)
         sphere_opacities  = torch.logit(0.1 * torch.ones(self.config.init_pts_sphere_num, 1)).to(self.opacities.device)
-        sphere_quats      = random_quat_tensor(self.config.init_pts_sphere_num).to(self.quats.device)
         # Add to model
         self.means        = torch.nn.Parameter(torch.cat([self.means.detach(),      sphere_pts],        dim=0))
         self.colors_all   = torch.nn.Parameter(torch.cat([self.colors_all.detach(), sphere_colors_all], dim=0))
@@ -203,31 +218,29 @@ class GaussianSplattingModel(Model):
         print(f"Initialized {self.config.init_pts_sphere_num} gaussian splats on a sphere with radius {self.outer_sphere_rad}")
 
     def populate_modules(self):
-        if self.seed_pts is not None and not self.config.random_init:
-            self.means = torch.nn.Parameter(self.seed_pts[0])  # (Location, Color)
-        else:
-            self.means = torch.nn.Parameter((torch.rand((500000, 3)) - 0.5) * 10)
         self.xys_grad_norm = None
         self.max_2Dsize = None
-        distances, _ = self.k_nearest_sklearn(self.means.data, 3)
-        distances = torch.from_numpy(distances)
-        # find the average of the three nearest neighbors for each point and use that as the scale
-        avg_dist = distances.mean(dim=-1, keepdim=True)
-        self.scales = torch.nn.Parameter(torch.log(avg_dist.repeat(1, 3)))
-        self.quats = torch.nn.Parameter(random_quat_tensor(self.num_points))
         dim_sh = num_sh_bases(self.config.sh_degree)
-
+        # self.seed_pts contains (Location, Color, Normal)
         if self.seed_pts is not None and not self.config.random_init:
+            points = self.seed_pts[0]
+            scales, quats = self.init_scale_rotation(points, self.seed_pts[2] if len(self.seed_pts) > 2 else None)
             fused_color = RGB2SH(self.seed_pts[1] / 255)
-            shs = torch.zeros((fused_color.shape[0], dim_sh, 3)).float().cuda()
+            shs = torch.zeros((fused_color.shape[0], dim_sh, 3), dtype=torch.float)
             shs[:, 0, :3] = fused_color
             shs[:, 1:, 3:] = 0.0
             self.colors_all = torch.nn.Parameter(shs)
         else:
-            colors = torch.nn.Parameter(torch.rand(self.num_points, 1, 3))
-            shs_rest = torch.nn.Parameter(torch.zeros((self.num_points, dim_sh - 1, 3)))
-            self.colors_all = torch.nn.Parameter(torch.cat([colors, shs_rest], dim=1))
+            points = (torch.rand((500000, 3), dtype=torch.float) - 0.5) * 10
+            scales, quats = self.init_scale_rotation(points)
+            colors = torch.rand(self.num_points, 1, 3)
+            shs_rest = torch.zeros((self.num_points, dim_sh - 1, 3))
+            shs = torch.cat([colors, shs_rest], dim=1, dtype=torch.float)
 
+        self.means = torch.nn.Parameter(points)
+        self.scales = torch.nn.Parameter(scales)
+        self.quats = torch.nn.Parameter(quats)
+        self.colors_all = torch.nn.Parameter(shs)
         self.opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(self.num_points, 1)))
 
         # Init outer sphere dimensions & points

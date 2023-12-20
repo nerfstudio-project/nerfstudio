@@ -266,7 +266,12 @@ class VanillaPipeline(Pipeline):
         ):
             pts = self.datamanager.train_dataparser_outputs.metadata["points3D_xyz"]
             pts_rgb = self.datamanager.train_dataparser_outputs.metadata["points3D_rgb"]
-            seed_pts = (pts, pts_rgb)
+            if "points3D_normal" in self.datamanager.train_dataparser_outputs.metadata:
+                # concatenate the normals to the seed points
+                pts_normals = self.datamanager.train_dataparser_outputs.metadata["points3D_normal"]
+                seed_pts = (pts, pts_rgb, pts_normals)
+            else:
+                seed_pts = (pts, pts_rgb)
         self.datamanager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_dataset is not None, "Missing input dataset"

@@ -398,10 +398,13 @@ class ColmapDataParser(DataParser):
                     CONSOLE.log(f'Loaded dense point cloud {pcd}')
                     pcd.transform(np.vstack([transform_matrix.numpy(), [0, 0, 0, 1]]))
                     pcd.scale(scale_factor, center=np.array([0, 0, 0]))
-                    return {
+                    out = {
                         "points3D_xyz": torch.from_numpy(np.array(pcd.points, dtype=np.float32)),
                         "points3D_rgb": torch.from_numpy(np.array(pcd.colors) * 255),
                     }
+                    if len(pcd.normals) > 0:
+                        out["points3D_normal"] = torch.from_numpy(np.array(pcd.normals, dtype=np.float32))
+                    return out
         if (colmap_path / "points3D.bin").exists():
             colmap_points = colmap_utils.read_points3D_binary(colmap_path / "points3D.bin")
         elif (colmap_path / "points3D.txt").exists():
