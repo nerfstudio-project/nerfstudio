@@ -271,7 +271,7 @@ class Viewer:
         R = torch.tensor(R.as_matrix())
         pos = torch.tensor(client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
         c2w = torch.concatenate([R, pos[:, None]], dim=1)
-        if self.render_tab_state.preview_render:
+        if self.ready and self.render_tab_state.preview_render:
             camera_type = self.render_tab_state.preview_camera_type
             camera_state = CameraState(
                 fov=self.render_tab_state.preview_fov,

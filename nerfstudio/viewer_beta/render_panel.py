@@ -536,17 +536,6 @@ def populate_render_tab(
         duration_number.value = camera_path.compute_duration()
         camera_path.update_spline()
 
-    reset_up_button = server.add_gui_button(
-        "Reset up direction",
-        icon=viser.Icon.ARROW_BIG_UP_LINES,
-        hint="Reset the orbit up direction.",
-    )
-
-    @reset_up_button.on_click
-    def _(event: viser.GuiEvent) -> None:
-        assert event.client is not None
-        event.client.camera.up_direction = tf.SO3(event.client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
-
     clear_keyframes_button = server.add_gui_button(
         "Clear Keyframes",
         icon=viser.Icon.TRASH,
@@ -944,6 +933,18 @@ def populate_render_tab(
         icon=viser.Icon.FILE_EXPORT,
         hint="Generate the ns-render command for rendering the camera path.",
     )
+
+    reset_up_button = server.add_gui_button(
+        "Reset Up Direction",
+        icon=viser.Icon.ARROW_BIG_UP_LINES,
+        color="gray",
+        hint="Set the up direction of the camera orbit controls to the camera's current up direction.",
+    )
+
+    @reset_up_button.on_click
+    def _(event: viser.GuiEvent) -> None:
+        assert event.client is not None
+        event.client.camera.up_direction = tf.SO3(event.client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
 
     @render_button.on_click
     def _(event: viser.GuiEvent) -> None:

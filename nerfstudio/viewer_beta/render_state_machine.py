@@ -273,7 +273,7 @@ class RenderStateMachine(threading.Thread):
                 constant_values=0,
             )
 
-        jpg_quality = self.viewer.config.jpeg_quality if static_render else 40
+        jpg_quality = self.viewer.config.jpeg_quality if static_render else 70
         self.client.set_background_image(
             selected_output,
             format=self.viewer.config.image_format,
