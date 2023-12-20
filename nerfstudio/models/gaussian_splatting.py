@@ -60,7 +60,7 @@ def random_quat_tensor(N):
             torch.sqrt(1 - u) * torch.sin(2 * math.pi * v),
             torch.sqrt(1 - u) * torch.cos(2 * math.pi * v),
             torch.sqrt(u) * torch.sin(2 * math.pi * w),
-            torch.sqrt(u) * torch.sin(2 * math.pi * w),
+            torch.sqrt(u) * torch.cos(2 * math.pi * w),
         ],
         dim=-1,
     )
@@ -262,7 +262,7 @@ class GaussianSplattingModel(Model):
 
     @property
     def colors(self):
-        return SH2RGB(self.colors_all[:, 0, :])
+        return self.colors_all[:, 0, :]
 
     @property
     def shs_rest(self):
