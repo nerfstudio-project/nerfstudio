@@ -20,15 +20,16 @@ import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 
+import numpy as np
 import torch
-from viser import ClientHandle
+from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.model_components.renderers import background_color_override_context
+from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
 from nerfstudio.utils import colormaps, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
 from nerfstudio.viewer_beta.utils import CameraState, get_camera
-from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
-from nerfstudio.cameras.cameras import Cameras
+from viser import ClientHandle
 
 if TYPE_CHECKING:
     from nerfstudio.viewer_beta.viewer import Viewer
@@ -96,7 +97,7 @@ class RenderStateMachine(threading.Thread):
             #  1. we are in low_moving state
             #  2. the current next_action is move, static, or rerender
             return
-        elif self.next_action == "rerender":
+        elif self.next_action.action == "rerender":
             # never overwrite rerenders
             pass
         elif action.action == "static" and self.next_action.action == "move":
@@ -254,9 +255,33 @@ class RenderStateMachine(threading.Thread):
         depth = (
             outputs["gl_z_buf_depth"].cpu().numpy() * self.viser_scale_ratio if "gl_z_buf_depth" in outputs else None
         )
-        jpg_quality = self.viewer.config.jpeg_quality if static_render else 40
+
+        # Convert to numpy.
+        selected_output = selected_output.cpu().numpy()
+        assert selected_output.shape[-1] == 3
+
+        # Pad image if the aspect ratio (W/H) doesn't match the client!
+        current_h, current_w = selected_output.shape[:2]
+        desired_aspect = self.client.camera.aspect
+        pad_width = int(max(0, (desired_aspect * current_h - current_w) // 2))
+        pad_height = int(max(0, (current_w / desired_aspect - current_h) // 2))
+        if pad_width > 5 or pad_height > 5:
+            selected_output = np.pad(
+                selected_output,
+                ((pad_height, pad_height), (pad_width, pad_width), (0, 0)),
+                mode="constant",
+                constant_values=0,
+            )
+
+        jpg_quality = (
+            self.viewer.config.jpeg_quality
+            if static_render
+            else 75
+            if self.viewer.render_tab_state.preview_render
+            else 40
+        )
         self.client.set_background_image(
-            selected_output.cpu().numpy(),
+            selected_output,
             format=self.viewer.config.image_format,
             jpeg_quality=jpg_quality,
             depth=depth,
