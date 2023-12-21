@@ -162,6 +162,13 @@ pip install --upgrade pip setuptools
 pip install -e .
 ```
 
+If you want tab completion (bash & zsh)
+(This needs to be rerun when the CLI changes, for example if nerfstudio is updated.)
+```
+ns-install-cli
+```
+
+
 **OR** if you want to skip all installation steps and directly start using nerfstudio, use the docker image:
 
 See [Installation](https://github.com/nerfstudio-project/nerfstudio/blob/main/docs/quickstart/installation.md) - **Use docker image**.
