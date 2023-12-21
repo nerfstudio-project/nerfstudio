@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -31,11 +31,13 @@ class CameraState:
     """A dataclass for storing the camera state."""
 
     fov: float
-    """ The field of view of the camera. """
+    """The field of view of the camera."""
     aspect: float
-    """ The aspect ratio of the image. """
+    """The aspect ratio of the image. """
     c2w: Float[torch.Tensor, "3 4"]
-    """ The camera matrix. """
+    """The camera matrix."""
+    camera_type: Literal[CameraType.PERSPECTIVE, CameraType.EQUIRECTANGULAR, CameraType.FISHEYE]
+    """Type of camera to render."""
 
 
 def get_camera(
@@ -57,14 +59,19 @@ def get_camera(
     focal_length = pp_h / np.tan(fov / 2.0)
     intrinsics_matrix = torch.tensor([[focal_length, 0, pp_w], [0, focal_length, pp_h], [0, 0, 1]], dtype=torch.float32)
 
-    camera_type = CameraType.PERSPECTIVE
+    if camera_state.camera_type is CameraType.EQUIRECTANGULAR:
+        fx = float(image_width / 2)
+        fy = float(image_height)
+    else:
+        fx = intrinsics_matrix[0, 0]
+        fy = intrinsics_matrix[1, 1]
 
     camera = Cameras(
-        fx=intrinsics_matrix[0, 0],
-        fy=intrinsics_matrix[1, 1],
+        fx=fx,
+        fy=fy,
         cx=pp_w,
         cy=pp_h,
-        camera_type=camera_type,
+        camera_type=camera_state.camera_type,
         camera_to_worlds=camera_state.c2w.to(torch.float32)[None, ...],
         times=torch.tensor([0.0], dtype=torch.float32),
     )

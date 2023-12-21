@@ -26,8 +26,8 @@ import torchvision
 import viser
 import viser.theme
 import viser.transforms as vtf
-
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer
+from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.models.base_model import Model
@@ -41,6 +41,7 @@ from nerfstudio.viewer_beta.render_panel import populate_render_tab
 from nerfstudio.viewer_beta.render_state_machine import RenderAction, RenderStateMachine
 from nerfstudio.viewer_beta.utils import CameraState, parse_object
 from nerfstudio.viewer_beta.viewer_elements import ViewerControl, ViewerElement
+from typing_extensions import assert_never
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
@@ -80,6 +81,7 @@ class Viewer:
         train_lock: Optional[threading.Lock] = None,
         share: bool = False,
     ):
+        self.ready = False  # Set to True at end of constructor.
         self.config = config
         self.trainer = trainer
         self.last_step = 0
@@ -182,15 +184,16 @@ class Viewer:
                 self.viser_server,
                 self.include_time,
                 VISER_NERFSTUDIO_SCALE_RATIO,
-                self._interrupt_render,
-                self._crop_params_update,
+                self._trigger_rerender,
                 self._output_type_change,
                 self._output_split_type_change,
                 default_composite_depth=self.config.default_composite_depth,
             )
         config_path = self.log_filename.parents[0] / "config.yml"
         with tabs.add_tab("Render", viser.Icon.CAMERA):
-            populate_render_tab(self.viser_server, config_path, self.datapath, self.control_panel)
+            self.render_tab_state = populate_render_tab(
+                self.viser_server, config_path, self.datapath, self.control_panel
+            )
 
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
             populate_export_tab(self.viser_server, self.control_panel, config_path)
@@ -203,7 +206,7 @@ class Viewer:
                 element.install(self.viser_server)
                 # also rewire the hook to rerender
                 prev_cb = element.cb_hook
-                element.cb_hook = lambda element: [prev_cb(element), self._interrupt_render(element)]
+                element.cb_hook = lambda element: [prev_cb(element), self._trigger_rerender()]
             else:
                 # recursively create folders
                 # If the folder name is "Custom Elements/a/b", then:
@@ -237,6 +240,8 @@ class Viewer:
         for c in self.viewer_controls:
             c._setup(self)
 
+        self.ready = True
+
     def toggle_pause_button(self) -> None:
         self.pause_train.visible = not self.pause_train.visible
         self.resume_train.visible = not self.resume_train.visible
@@ -266,7 +271,27 @@ class Viewer:
         R = torch.tensor(R.as_matrix())
         pos = torch.tensor(client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
         c2w = torch.concatenate([R, pos[:, None]], dim=1)
-        camera_state = CameraState(fov=client.camera.fov, aspect=client.camera.aspect, c2w=c2w)
+        if self.ready and self.render_tab_state.preview_render:
+            camera_type = self.render_tab_state.preview_camera_type
+            camera_state = CameraState(
+                fov=self.render_tab_state.preview_fov,
+                aspect=self.render_tab_state.preview_aspect,
+                c2w=c2w,
+                camera_type=CameraType.PERSPECTIVE
+                if camera_type == "Perspective"
+                else CameraType.FISHEYE
+                if camera_type == "Fisheye"
+                else CameraType.EQUIRECTANGULAR
+                if camera_type == "Equirectangular"
+                else assert_never(camera_type),
+            )
+        else:
+            camera_state = CameraState(
+                fov=client.camera.fov,
+                aspect=client.camera.aspect,
+                c2w=c2w,
+                camera_type=CameraType.PERSPECTIVE,
+            )
         return camera_state
 
     def handle_disconnect(self, client: viser.ClientHandle) -> None:
@@ -278,7 +303,9 @@ class Viewer:
         self.render_statemachines[client.client_id].start()
 
         @client.camera.on_update
-        def _(cam: viser.CameraHandle) -> None:
+        def _(_: viser.CameraHandle) -> None:
+            if not self.ready:
+                return
             self.last_move_time = time.time()
             with self.viser_server.atomic():
                 camera_state = self.get_camera_state(client)
@@ -314,13 +341,14 @@ class Viewer:
             self.camera_handles[key].position = c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO
             self.camera_handles[key].wxyz = R.wxyz
 
-    def _interrupt_render(self, _) -> None:
+    def _trigger_rerender(self) -> None:
         """Interrupt current render."""
+        if not self.ready:
+            return
         clients = self.viser_server.get_clients()
         for id in clients:
             camera_state = self.get_camera_state(clients[id])
-            if camera_state is not None:
-                self.render_statemachines[id].action(RenderAction("rerender", camera_state))
+            self.render_statemachines[id].action(RenderAction("move", camera_state))
 
     def _toggle_training_state(self, _) -> None:
         """Toggle the trainer's training state."""
@@ -329,14 +357,6 @@ class Viewer:
                 self.trainer.training_state = "paused"
             elif self.trainer.training_state == "paused":
                 self.trainer.training_state = "training"
-
-    def _crop_params_update(self, _) -> None:
-        """Update crop parameters"""
-        clients = self.viser_server.get_clients()
-        for id in clients:
-            camera_state = self.get_camera_state(clients[id])
-            if camera_state is not None:
-                self.render_statemachines[id].action(RenderAction("move", camera_state))
 
     def _output_type_change(self, _):
         self.output_type_changed = True
