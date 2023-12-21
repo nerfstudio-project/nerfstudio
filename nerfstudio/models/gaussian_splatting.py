@@ -221,7 +221,10 @@ class GaussianSplattingModel(Model):
 
     @property
     def colors(self):
-        return SH2RGB(self.features_dc)
+        if self.config.sh_degree > 0:
+            return SH2RGB(self.features_dc)
+        else:
+            return torch.sigmoid(self.features_dc)
 
     @property
     def shs_0(self):

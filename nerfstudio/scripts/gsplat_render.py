@@ -48,7 +48,9 @@ class GaussianModel(object):
         """
         Load Gaussian Splat model from a PLY format file
         """
-        pc = meshio.read(point_cloud)
+        ## pc must be copied otherwise the following error might be possible when converting to torch.Tensor:
+        ## ValueError: given numpy array strides not a multiple of the element byte size. Copy the numpy array to reallocate the memory.
+        pc = meshio.read(point_cloud).copy()
 
         self.xyz = torch.tensor(pc.points)
         num_points = self.xyz.shape[0]
@@ -66,28 +68,41 @@ class GaussianModel(object):
         z = torch.tensor(pc.point_data["rot_3"])
         self.rots = torch.cat((w[:, None], x[:, None], y[:, None], z[:, None]), dim=1)
 
-        r = torch.tensor(pc.point_data["f_dc_0"])
-        g = torch.tensor(pc.point_data["f_dc_1"])
-        b = torch.tensor(pc.point_data["f_dc_2"])
-        sh_0 = torch.cat((r[:, None], g[:, None], b[:, None]), dim=1)
+        if "f_dc_0" in pc.point_data:
+            r = torch.tensor(pc.point_data["f_dc_0"])
+            g = torch.tensor(pc.point_data["f_dc_1"])
+            b = torch.tensor(pc.point_data["f_dc_2"])
+            sh_0 = torch.cat((r[:, None], g[:, None], b[:, None]), dim=1)
 
-        f_rest_highest_idx = max([int(k.split('_')[-1]) for k in pc.point_data.keys() if k.startswith("f_rest_")])
-        sh_rest = torch.zeros((num_points, f_rest_highest_idx+1), dtype=torch.float32)
-        f_rest_range = list(range(0, f_rest_highest_idx + 1))
-        for idx in f_rest_range:
-            sh_rest[:, idx] = torch.tensor(pc.point_data[f"f_rest_{idx}"])
-        self.n_sh_coefs = (f_rest_highest_idx + 1) // 3 + 1
-        self.n_sh_level = n_sh_level(self.n_sh_coefs)
+            f_rest_highest_idx = max([int(k.split('_')[-1]) for k in pc.point_data.keys() if k.startswith("f_rest_")])
+            sh_rest = torch.zeros((num_points, f_rest_highest_idx+1), dtype=torch.float32)
+            f_rest_range = list(range(0, f_rest_highest_idx + 1))
+            for idx in f_rest_range:
+                sh_rest[:, idx] = torch.tensor(pc.point_data[f"f_rest_{idx}"])
+            self.n_sh_coefs = (f_rest_highest_idx + 1) // 3 + 1
+            self.n_sh_level = n_sh_level(self.n_sh_coefs)
+            assert self.n_sh_level > 0
 
-        self.sh_coefs = torch.zeros((num_points, self.n_sh_coefs, 3), dtype=torch.float32)
-        self.sh_coefs[:, 0, :] = sh_0
-        self.sh_coefs[:, 1:, :] = sh_rest.reshape(num_points, 3, self.n_sh_coefs-1).transpose(1, 2)
+            self.sh_coefs = torch.zeros((num_points, self.n_sh_coefs, 3), dtype=torch.float32)
+            self.sh_coefs[:, 0, :] = sh_0
+            self.sh_coefs[:, 1:, :] = sh_rest.reshape(num_points, 3, self.n_sh_coefs-1).transpose(1, 2)
+        elif "red" in pc.point_data:
+            self.colors = torch.zeros((num_points, 3), dtype=torch.float32)
+            self.colors[:, 0] = torch.tensor(pc.point_data["red"], dtype=torch.uint8).float() / 255.
+            self.colors[:, 1] = torch.tensor(pc.point_data["green"], dtype=torch.uint8).float() / 255.
+            self.colors[:, 2] = torch.tensor(pc.point_data["blue"], dtype=torch.uint8).float() / 255.
+            self.n_sh_level = 0
+        else:
+            raise RuntimeError("Cannot import model color or spherical harmonics from PLY.")
 
         self.xyz = self.xyz.to(device="cuda")
         self.opacity = self.opacity.to(device="cuda")
         self.scales = self.scales.to(device="cuda")
         self.rots = self.rots.to(device="cuda")
-        self.sh_coefs = self.sh_coefs.to(device="cuda")
+        if self.n_sh_level > 0:
+            self.sh_coefs = self.sh_coefs.to(device="cuda")
+        else:
+            self.colors = self.colors.to(device="cuda")
 
 
     def render(self, cam_info: CameraInfo, background: torch.Tensor):
@@ -121,11 +136,14 @@ class GaussianModel(object):
         )
         torch.cuda.synchronize()
 
-        c2w = torch.inverse(viewmat)
-        viewdirs = self.xyz - c2w[None, :3, 3]  # (N, 3)
-        viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
-        rgbs = SphericalHarmonics.apply(self.n_sh_level, viewdirs, self.sh_coefs)
-        rgbs = torch.clamp(rgbs + 0.5, 0.0, 1.0)
+        if self.n_sh_level > 0:
+            c2w = torch.inverse(viewmat)
+            viewdirs = self.xyz - c2w[None, :3, 3]  # (N, 3)
+            viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
+            rgbs = SphericalHarmonics.apply(self.n_sh_level, viewdirs, self.sh_coefs)
+            rgbs = torch.clamp(rgbs + 0.5, min=0.0)
+        else:
+            rgbs = self.colors
         rgb = RasterizeGaussians.apply(
             xys,
             depths,
@@ -140,7 +158,7 @@ class GaussianModel(object):
         )
         torch.cuda.synchronize()
 
-        return rgb
+        return torch.clamp(rgb, max=1.0)
 
 
 def projection_matrix(znear, zfar, fovx, fovy, device="cpu"):
