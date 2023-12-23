@@ -211,7 +211,7 @@ class GaussianSplattingModel(Model):
 
     @property
     def colors(self):
-        return SH2RGB(self.colors_all[:, 0, :])
+        return self.colors_all[:, 0, :]
 
     @property
     def shs_rest(self):

@@ -35,7 +35,7 @@ from viser import (
     ViserServer,
 )
 
-from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.viewer_beta.utils import CameraState, get_camera
 
 if TYPE_CHECKING:
@@ -141,7 +141,9 @@ class ViewerControl:
         R = torch.tensor(R.as_matrix())
         pos = torch.tensor(client.camera.position, dtype=torch.float64) / VISER_NERFSTUDIO_SCALE_RATIO
         c2w = torch.concatenate([R, pos[:, None]], dim=1)
-        camera_state = CameraState(fov=client.camera.fov, aspect=client.camera.aspect, c2w=c2w)
+        camera_state = CameraState(
+            fov=client.camera.fov, aspect=client.camera.aspect, c2w=c2w, camera_type=CameraType.PERSPECTIVE
+        )
         return get_camera(camera_state, img_height, img_width)
 
     def register_click_cb(self, cb: Callable):
@@ -483,7 +485,11 @@ class ViewerDropdown(ViewerParameter[TString], Generic[TString]):
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
         self.gui_handle = viser_server.add_gui_dropdown(
-            self.name, self.options, self.default_value, disabled=self.disabled, hint=self.hint  # type: ignore
+            self.name,
+            self.options,
+            self.default_value,
+            disabled=self.disabled,
+            hint=self.hint,  # type: ignore
         )
 
     def set_options(self, new_options: List[TString]) -> None:
