@@ -6,7 +6,7 @@
 
 ## Overview
 
-This Blender add-on allows for compositing with a Nerfstudio render as a background layer by generating a camera path JSON file from the Blender camera path, as well as a way to import Nerfstudio JSON files as a Blender camera baked with the Nerfstudio camera path. This add-on also allows compositing multiple NeRF objects into a NeRF scene. This is achieved by importing a mesh or point-cloud representation of the NeRF scene from Nerfstudio into Blender and getting the camera coordinates relative to the transformations of the NeRF representation. Dynamic FOV from the Blender camera is supported and will match the Nerfstudio render. Perspective, equirectangular, VR180, and omnidirectional stereo (VR 360) cameras are supported.
+This Blender add-on allows for compositing with a Nerfstudio render as a background layer by generating a camera path JSON file from the Blender camera path, as well as a way to import Nerfstudio JSON files as a Blender camera baked with the Nerfstudio camera path. This add-on also allows compositing multiple NeRF objects into a NeRF scene. This is achieved by importing a mesh or point-cloud representation of the NeRF scene from Nerfstudio into Blender and getting the camera coordinates relative to the transformations of the NeRF representation. Dynamic FOV from the Blender camera is supported and will match the Nerfstudio render. Perspective, equirectangular, VR180, and omnidirectional stereo (VR 360) cameras are supported. This add-on also supports Gaussian Splatting scenes as well, however equirectangular and VR video rendering is not currently supported.
 
 <center>
  <img width="800" alt="image" src="https://user-images.githubusercontent.com/9502341/211442247-99d1ebc7-3ef9-46f7-9bcc-0e18553f19b7.PNG">
@@ -30,7 +30,7 @@ This Blender add-on allows for compositing with a Nerfstudio render as a backgro
 
 ## Scene Setup
 
-1. Export the mesh or point cloud representation of the NeRF from Nerfstudio, which will be used as reference for the actual NeRF in the Blender scene. Mesh export at a good quality is preferred, however, if the export is not clear or the NeRF is large, a detailed point cloud export will also work.
+1. Export the mesh or point cloud representation of the NeRF from Nerfstudio, which will be used as reference for the actual NeRF in the Blender scene. Mesh export at a good quality is preferred, however, if the export is not clear or the NeRF is large, a detailed point cloud export will also work. Keep the `save_world_frame` flag as False or in the viewer, de-select the "Save in world frame" checkbox to keep the correct coordinate system for the add-on.
 
 2. Import the mesh or point cloud representation of the NeRF into the scene. You may need to crop the mesh further. Since it is used as a reference and won't be visible in the final render, only the parts that the blender animation will interact with may be necessary to import.
 

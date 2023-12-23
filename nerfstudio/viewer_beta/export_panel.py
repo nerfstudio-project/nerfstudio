@@ -83,7 +83,7 @@ def populate_point_cloud_tab(
     num_points = server.add_gui_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
     world_frame = server.add_gui_checkbox(
         "Save in world frame",
-        True,
+        False,
         hint="Save the point cloud in the transforms.json frame, rather than scaled scene frame",
     )
     remove_outliers = server.add_gui_checkbox("Remove outliers", True)

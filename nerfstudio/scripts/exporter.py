@@ -121,7 +121,7 @@ class ExportPointCloud(Exporter):
     """Number of rays to evaluate per batch. Decrease if you run out of memory."""
     std_ratio: float = 10.0
     """Threshold based on STD of the average distances across the point cloud to remove outliers."""
-    save_world_frame: bool = True
+    save_world_frame: bool = False
     """If true, saves in the frame of the transform.json file, if false saves in the frame of the scaled 
         dataparser transform"""
 
