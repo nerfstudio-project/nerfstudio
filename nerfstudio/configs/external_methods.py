@@ -147,12 +147,11 @@ For more information visit: https://docs.nerf.studio/nerfology/methods/igs2gs.ht
 
 To enable Instruct-GS2GS, you must install it first by running:
   [grey]pip install git+https://github.com/cvachha/instruct-gs2gs[/grey]""",
-        configurations=[
-            ("igs2gs", "Instruct-GS2GS. Full model, used in paper")
-        ],
+        configurations=[("igs2gs", "Instruct-GS2GS. Full model, used in paper")],
         pip_package="git+https://github.com/cvachha/instruct-gs2gs",
     )
 )
+
 
 @dataclass
 class ExternalMethodTrainerConfig(TrainerConfig):
