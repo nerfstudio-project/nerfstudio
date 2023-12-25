@@ -96,6 +96,7 @@ class Blender(DataParser):
             fy=focal_length,
             cx=cx,
             cy=cy,
+            distortion_params=torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
             camera_type=CameraType.PERSPECTIVE,
         )
 
