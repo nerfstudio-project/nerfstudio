@@ -51,9 +51,14 @@ def background_color_override_context(mode: Float[Tensor, "3"]) -> Generator[Non
     try:
         BACKGROUND_COLOR_OVERRIDE = mode
         yield
-    except Exception:
+    finally:
         BACKGROUND_COLOR_OVERRIDE = old_background_color
-        raise (Exception)
+
+
+def force_background_color_override(mode: Float[Tensor, "3"]) -> None:
+    """Force background color override."""
+    global BACKGROUND_COLOR_OVERRIDE
+    BACKGROUND_COLOR_OVERRIDE = mode
 
 
 class RGBRenderer(nn.Module):

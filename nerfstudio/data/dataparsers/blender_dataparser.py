@@ -32,7 +32,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.io import load_from_json
-from nerfstudio.model_components.renderers import background_color_override_context
+from nerfstudio.model_components.renderers import force_background_color_override
 
 
 @dataclass
@@ -64,7 +64,7 @@ class Blender(DataParser):
         self.alpha_color = config.alpha_color
         if self.alpha_color is not None:
             self.alpha_color_tensor = get_color(self.alpha_color)
-            background_color_override_context(self.alpha_color_tensor)
+            force_background_color_override(self.alpha_color_tensor)
         else:
             self.alpha_color_tensor = None
 
