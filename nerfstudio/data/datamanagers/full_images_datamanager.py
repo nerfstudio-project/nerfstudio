@@ -129,6 +129,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             camera = self.train_dataset.cameras[i].reshape(())
             K = camera.get_intrinsics_matrices().numpy()
             if camera.distortion_params is None:
+                cached_train.append(data)
                 continue
             distortion_params = camera.distortion_params.numpy()
             image = data["image"].numpy()
@@ -203,6 +204,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             camera = self.eval_dataset.cameras[i].reshape(())
             K = camera.get_intrinsics_matrices().numpy()
             if camera.distortion_params is None:
+                cached_eval.append(data)
                 continue
             distortion_params = camera.distortion_params.numpy()
             image = data["image"].numpy()
