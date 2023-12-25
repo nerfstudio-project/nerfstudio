@@ -533,14 +533,14 @@ class GaussianSplattingModel(Model):
         if self.training:
             # currently relies on the branch vickie/camera-grads
             self.camera_optimizer.apply_to_camera(camera)
-        if self.training:
+        # get the background color
+        if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
+            background = renderers.BACKGROUND_COLOR_OVERRIDE.to(self.device)
+        elif self.training:
             background = torch.rand(3, device=self.device)
         else:
-            # logic for setting the background of the scene
-            if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
-                background = renderers.BACKGROUND_COLOR_OVERRIDE
-            else:
-                background = self.back_color.to(self.device)
+            background = self.back_color.to(self.device)
+            
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:

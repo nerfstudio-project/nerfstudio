@@ -60,7 +60,7 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """Specifies the image indices to use during eval; if None, uses all."""
     cache_images: Literal["no-cache", "cpu", "gpu"] = "cpu"
-    """Whether to cache images in memory. If "numpy", caches as numpy arrays, if "torch", caches as torch tensors."""
+    """Whether to cache images in memory. If "gpu", images are cached on the GPU."""
 
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
@@ -104,7 +104,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
         if len(self.train_dataset) > 500 and self.config.cache_images == "gpu":
-            CONSOLE.print("Train dataset has over 500 images, overriding cach_images to cpu", style="bold yellow")
+            CONSOLE.print("Train dataset has over 500 images, overriding cache_images to cpu", style="bold yellow")
             self.config.cache_images = "cpu"
         self.cached_train, self.cached_eval = self.cache_images(self.config.cache_images)
         self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device

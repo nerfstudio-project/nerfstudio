@@ -50,8 +50,7 @@ def background_color_override_context(mode: Float[Tensor, "3"]) -> Generator[Non
     old_background_color = BACKGROUND_COLOR_OVERRIDE
     try:
         BACKGROUND_COLOR_OVERRIDE = mode
-        yield
-    finally:
+    except:
         BACKGROUND_COLOR_OVERRIDE = old_background_color
 
 
