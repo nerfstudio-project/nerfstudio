@@ -56,8 +56,8 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     """Number of images to sample during eval iteration."""
     eval_image_indices: Optional[Tuple[int, ...]] = None
     """Specifies the image indices to use during eval; if None, uses all."""
-    cache_images: Literal["no-cache", "cpu", "gpu"] = "cpu"
-    """Whether to cache images in memory. If "numpy", caches as numpy arrays, if "torch", caches as torch tensors."""
+    cache_images: Literal["cpu", "gpu"] = "cpu"
+    """Whether to cache images in memory. If "cpu", caches on cpu. If "gpu", caches on device."""
 
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):

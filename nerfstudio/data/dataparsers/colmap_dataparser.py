@@ -61,6 +61,8 @@ class ColmapDataParserConfig(DataParserConfig):
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
     train_split_fraction: float = 0.9
     """The fraction of images to use for training. The remaining images are for eval."""
+    skip_every_for_val_split: Optional[int] = None
+    """Hold out every nth image for test/eval dataset. For MipNerf-360 like evaluation, set this to 8."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
 
@@ -194,15 +196,21 @@ class ColmapDataParser(DataParser):
             raise RuntimeError(f"The dataset's list of filenames for split {split} is missing.")
         else:
             # filter image_filenames and poses based on train/eval split percentage
-            num_images = len(image_filenames)
-            num_train_images = math.ceil(num_images * self.config.train_split_fraction)
-            num_eval_images = num_images - num_train_images
-            i_all = np.arange(num_images)
-            i_train = np.linspace(
-                0, num_images - 1, num_train_images, dtype=int
-            )  # equally spaced training images starting and ending at 0 and num_images-1
-            i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
-            assert len(i_eval) == num_eval_images
+            if self.config.skip_every_for_val_split is None:
+                num_images = len(image_filenames)
+                num_train_images = math.ceil(num_images * self.config.train_split_fraction)
+                num_eval_images = num_images - num_train_images
+                i_all = np.arange(num_images)
+                i_train = np.linspace(
+                    0, num_images - 1, num_train_images, dtype=int
+                )  # equally spaced training images starting and ending at 0 and num_images-1
+                i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
+                assert len(i_eval) == num_eval_images
+            else:
+                num_images = len(image_filenames)
+                indices = list(range(num_images))
+                i_train = [i for i in indices if i % self.config.skip_every_for_val_split != 0]
+                i_eval = indices[:: self.config.skip_every_for_val_split]
             if split == "train":
                 indices = i_train
             elif split in ["val", "test"]:
