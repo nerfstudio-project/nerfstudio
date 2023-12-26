@@ -103,7 +103,7 @@ def get_camera_calibs(provider: VrsDataProvider) -> Dict[str, AriaCameraCalibrat
 
 
 def read_trajectory_csv_to_dict(file_iterable_csv: str) -> TimedPoses:
-    closed_loop_traj = mps.read_closed_loop_trajectory(file_iterable_csv)
+    closed_loop_traj = mps.read_closed_loop_trajectory(file_iterable_csv)  # type: ignore
 
     timestamps_secs, poses = zip(
         *[(it.tracking_timestamp.total_seconds(), it.transform_world_device) for it in closed_loop_traj]

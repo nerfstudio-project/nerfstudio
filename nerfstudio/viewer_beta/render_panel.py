@@ -21,14 +21,14 @@ import json
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Literal, Optional, Tuple
 
 import numpy as np
+import scipy.interpolate
 import splines
 import splines.quaternion
 import viser
 import viser.transforms as tf
-
 from nerfstudio.viewer_beta.control_panel import ControlPanel
 
 
@@ -209,21 +209,50 @@ class CameraPath:
             frame = dataclasses.replace(frame[0], aspect=aspect)
             self.add_camera(frame, keyframe_index=keyframe_index)
 
+    def get_aspect(self) -> float:
+        """Get W/H aspect ratio, which is shared across all keyframes."""
+        assert len(self._keyframes) > 0
+        return next(iter(self._keyframes.values()))[0].aspect
+
     def reset(self) -> None:
         for frame in self._keyframes.values():
             frame[1].remove()
         self._keyframes.clear()
         self.update_spline()
 
-    def interpolate_pose_and_fov_rad(self, normalized_t: float) -> Optional[Tuple[tf.SE3, float]]:
-        if len(self._keyframes) < 2:
-            return None
+    def spline_t_from_t_sec(self, time: np.ndarray) -> np.ndarray:
+        """From a time value in seconds, compute a t value for our geometric
+        spline interpolation. An increment of 1 for the latter will move the
+        camera forward by one keyframe.
 
+        We use a PCHIP spline here to guarantee monotonicity.
+        """
         transition_times_cumsum = self.compute_transition_times_cumsum()
         spline_indices = np.arange(transition_times_cumsum.shape[0])
 
-        def spline_t_from_t_sec(time: Union[float, np.ndarray]) -> np.ndarray:
-            return np.interp(time, transition_times_cumsum, spline_indices)
+        if self.loop:
+            # In the case of a loop, we pad the spline to match the start/end
+            # slopes.
+            interpolator = scipy.interpolate.PchipInterpolator(
+                x=np.concatenate(
+                    [
+                        [-(transition_times_cumsum[-1] - transition_times_cumsum[-2])],
+                        transition_times_cumsum,
+                        transition_times_cumsum[-1:] + transition_times_cumsum[1:2],
+                    ],
+                    axis=0,
+                ),
+                y=np.concatenate([[-1], spline_indices, [spline_indices[-1] + 1]], axis=0),
+            )
+        else:
+            interpolator = scipy.interpolate.PchipInterpolator(x=transition_times_cumsum, y=spline_indices)
+
+        # Clip to account for floating point error.
+        return np.clip(interpolator(time), 0, spline_indices[-1])
+
+    def interpolate_pose_and_fov_rad(self, normalized_t: float) -> Optional[Tuple[tf.SE3, float]]:
+        if len(self._keyframes) < 2:
+            return None
 
         self._fov_spline = splines.KochanekBartels(
             [
@@ -239,32 +268,29 @@ class CameraPath:
         assert self._fov_spline is not None
         max_t = self.compute_duration()
         t = max_t * normalized_t
+        spline_t = float(self.spline_t_from_t_sec(np.array(t)))
 
-        quat = self._orientation_spline.evaluate(spline_t_from_t_sec(t))
+        quat = self._orientation_spline.evaluate(spline_t)
         assert isinstance(quat, splines.quaternion.UnitQuaternion)
         return (
             tf.SE3.from_rotation_and_translation(
                 tf.SO3(np.array([quat.scalar, *quat.vector])),
-                self._position_spline.evaluate(spline_t_from_t_sec(t)),
+                self._position_spline.evaluate(spline_t),
             ),
-            float(self._fov_spline.evaluate(spline_t_from_t_sec(t))),
+            float(self._fov_spline.evaluate(spline_t)),
         )
 
     def update_spline(self) -> None:
         num_frames = int(self.compute_duration() * self.framerate)
-        if num_frames <= 0 or not self.show_spline:
+        keyframes = list(self._keyframes.values())
+
+        if num_frames <= 0 or not self.show_spline or len(keyframes) < 2:
             for node in self._spline_nodes:
                 node.remove()
             self._spline_nodes.clear()
             return
 
-        # Update internal splines.
-        keyframes = list(self._keyframes.values())
         transition_times_cumsum = self.compute_transition_times_cumsum()
-        spline_indices = np.arange(transition_times_cumsum.shape[0])
-
-        def spline_t_from_t_sec(time: Union[float, np.ndarray]) -> np.ndarray:
-            return np.interp(time, transition_times_cumsum, spline_indices)
 
         self._orientation_spline = splines.quaternion.KochanekBartels(
             [
@@ -282,7 +308,7 @@ class CameraPath:
 
         # Update visualized spline.
         points_array = self._position_spline.evaluate(
-            spline_t_from_t_sec(np.linspace(0, transition_times_cumsum[-1], num_frames))
+            self.spline_t_from_t_sec(np.linspace(0, transition_times_cumsum[-1], num_frames))
         )
         colors_array = np.array([colorsys.hls_to_rgb(h, 0.5, 1.0) for h in np.linspace(0.0, 1.0, len(points_array))])
 
@@ -313,7 +339,11 @@ class CameraPath:
         def make_transition_handle(i: int) -> None:
             assert self._position_spline is not None
             transition_pos = self._position_spline.evaluate(
-                spline_t_from_t_sec((transition_times_cumsum[i] + transition_times_cumsum[i + 1]) / 2.0)
+                float(
+                    self.spline_t_from_t_sec(
+                        (transition_times_cumsum[i] + transition_times_cumsum[i + 1]) / 2.0,
+                    )
+                )
             )
             transition_sphere = self._server.add_icosphere(
                 f"/render_camera_spline/transition_{i}",
@@ -340,7 +370,8 @@ class CameraPath:
                 ) as camera_edit_panel:
                     self._camera_edit_panel = camera_edit_panel
                     override_transition_enabled = server.add_gui_checkbox(
-                        "Override transition", initial_value=keyframe.override_transition_enabled
+                        "Override transition",
+                        initial_value=keyframe.override_transition_enabled,
                     )
                     override_transition_sec = server.add_gui_number(
                         "Override transition (sec)",
@@ -418,13 +449,30 @@ class CameraPath:
         return np.array(out)
 
 
+@dataclasses.dataclass
+class RenderTabState:
+    """Useful GUI handles exposed by the render tab."""
+
+    preview_render: bool
+    preview_fov: float
+    preview_aspect: float
+    preview_camera_type: Literal["Perspective", "Fisheye", "Equirectangular"]
+
+
 def populate_render_tab(
     server: viser.ViserServer,
     config_path: Path,
     datapath: Path,
     control_panel: Optional[ControlPanel] = None,
-) -> None:
+) -> RenderTabState:
     from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO
+
+    render_tab_state = RenderTabState(
+        preview_render=False,
+        preview_fov=0.0,
+        preview_aspect=1.0,
+        preview_camera_type="Perspective",
+    )
 
     fov_degrees = server.add_gui_slider(
         "Default FOV",
@@ -445,6 +493,7 @@ def populate_render_tab(
         # Updating the aspect ratio will also re-render the camera frustums.
         # Could rethink this.
         camera_path.update_aspect(resolution.value[0] / resolution.value[1])
+        compute_and_update_preview_camera_state()
 
     resolution = server.add_gui_vector2(
         "Resolution",
@@ -454,16 +503,20 @@ def populate_render_tab(
         step=1,
         hint="Render output resolution in pixels.",
     )
-    resolution.on_update(lambda _: camera_path.update_aspect(resolution.value[0] / resolution.value[1]))
+
+    @resolution.on_update
+    def _(_) -> None:
+        camera_path.update_aspect(resolution.value[0] / resolution.value[1])
+        compute_and_update_preview_camera_state()
 
     camera_type = server.add_gui_dropdown(
-        "Camera Type",
+        "Camera type",
         ("Perspective", "Fisheye", "Equirectangular"),
         initial_value="Perspective",
         hint="Camera model to render with. This is applied to all keyframes.",
     )
     add_button = server.add_gui_button(
-        "Add keyframe",
+        "Add Keyframe",
         icon=viser.Icon.PLUS,
         hint="Add a new keyframe at the current pose.",
     )
@@ -483,19 +536,8 @@ def populate_render_tab(
         duration_number.value = camera_path.compute_duration()
         camera_path.update_spline()
 
-    reset_up_button = server.add_gui_button(
-        "Reset up direction",
-        icon=viser.Icon.ARROW_BIG_UP_LINES,
-        hint="Reset the orbit up direction.",
-    )
-
-    @reset_up_button.on_click
-    def _(event: viser.GuiEvent) -> None:
-        assert event.client is not None
-        event.client.camera.up_direction = tf.SO3(event.client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
-
     clear_keyframes_button = server.add_gui_button(
-        "Clear keyframes",
+        "Clear Keyframes",
         icon=viser.Icon.TRASH,
         hint="Remove all keyframes from the render path.",
     )
@@ -535,7 +577,7 @@ def populate_render_tab(
         duration_number.value = camera_path.compute_duration()
 
     tension_slider = server.add_gui_slider(
-        "Spline Tension",
+        "Spline tension",
         min=0.0,
         max=1.0,
         initial_value=0.0,
@@ -553,6 +595,8 @@ def populate_render_tab(
         initial_value=False,
         hint="Toggle move handles for keyframes in the scene.",
     )
+
+    transform_controls: List[viser.SceneNodeHandle] = []
 
     @move_checkbox.on_update
     def _(event: viser.GuiEvent) -> None:
@@ -614,7 +658,11 @@ def populate_render_tab(
     with playback_folder:
         play_button = server.add_gui_button("Play", icon=viser.Icon.PLAYER_PLAY)
         pause_button = server.add_gui_button("Pause", icon=viser.Icon.PLAYER_PAUSE, visible=False)
-        attach_viewport_checkbox = server.add_gui_checkbox("Attach viewport", initial_value=False)
+        preview_render_button = server.add_gui_button(
+            "Preview Render", hint="Show a preview of the render in the viewport."
+        )
+        preview_render_stop_button = server.add_gui_button("Exit Render Preview", color="red", visible=False)
+
         transition_sec_number = server.add_gui_number(
             "Transition (sec)",
             min=0.001,
@@ -654,6 +702,24 @@ def populate_render_tab(
             preview_camera_handle.remove()
             preview_camera_handle = None
 
+    def compute_and_update_preview_camera_state() -> Optional[Tuple[tf.SE3, float]]:
+        """Update the render tab state with the current preview camera pose.
+        Returns current camera pose + FOV if available."""
+
+        if preview_frame_slider is None:
+            return
+        maybe_pose_and_fov_rad = camera_path.interpolate_pose_and_fov_rad(
+            preview_frame_slider.value / get_max_frame_index()
+        )
+        if maybe_pose_and_fov_rad is None:
+            remove_preview_camera()
+            return
+        pose, fov_rad = maybe_pose_and_fov_rad
+        render_tab_state.preview_fov = fov_rad
+        render_tab_state.preview_aspect = camera_path.get_aspect()
+        render_tab_state.preview_camera_type = camera_type.value
+        return pose, fov_rad
+
     def add_preview_frame_slider() -> Optional[viser.GuiInputHandle[int]]:
         """Helper for creating the current frame # slider. This is removed and
         re-added anytime the `max` value changes."""
@@ -666,18 +732,17 @@ def populate_render_tab(
                 step=1,
                 initial_value=0,
                 # Place right after the pause button.
-                order=pause_button.order + 0.01,
+                order=preview_render_stop_button.order + 0.01,
+                disabled=get_max_frame_index() == 1,
             )
+            play_button.disabled = preview_frame_slider.disabled
+            preview_render_button.disabled = preview_frame_slider.disabled
 
         @preview_frame_slider.on_update
         def _(_) -> None:
             nonlocal preview_camera_handle
-
-            maybe_pose_and_fov_rad = camera_path.interpolate_pose_and_fov_rad(
-                preview_frame_slider.value / get_max_frame_index()
-            )
+            maybe_pose_and_fov_rad = compute_and_update_preview_camera_state()
             if maybe_pose_and_fov_rad is None:
-                remove_preview_camera()
                 return
             pose, fov_rad = maybe_pose_and_fov_rad
 
@@ -689,57 +754,61 @@ def populate_render_tab(
                 wxyz=pose.rotation().wxyz,
                 position=pose.translation(),
                 color=(10, 200, 30),
-                # Hack: hide green frustum if the viewport is attached.
-                # This is a waste of bandwidth, but will ensure that any old
-                # frustums are removed/aren't rendered.
-                #
-                # Easy to fix with a global variable.
-                visible=not attach_viewport_checkbox.value,
             )
-            if attach_viewport_checkbox.value:
+            if render_tab_state.preview_render:
                 for client in server.get_clients().values():
                     client.camera.wxyz = pose.rotation().wxyz
                     client.camera.position = pose.translation()
-                    client.camera.fov = fov_rad
 
         return preview_frame_slider
 
-    @attach_viewport_checkbox.on_update
+    # We back up the camera poses before and after we start previewing renders.
+    camera_pose_backup_from_id: Dict[int, tuple] = {}
+
+    @preview_render_button.on_click
     def _(_) -> None:
-        if preview_frame_slider is None:
-            remove_preview_camera()
-            return
-        maybe_pose_and_fov_rad = camera_path.interpolate_pose_and_fov_rad(
-            preview_frame_slider.value / get_max_frame_index()
-        )
+        render_tab_state.preview_render = True
+        preview_render_button.visible = False
+        preview_render_stop_button.visible = True
+
+        maybe_pose_and_fov_rad = compute_and_update_preview_camera_state()
         if maybe_pose_and_fov_rad is None:
             remove_preview_camera()
             return
         pose, fov = maybe_pose_and_fov_rad
-        server.add_camera_frustum(
-            "/preview_camera",
-            fov=fov,
-            aspect=resolution.value[0] / resolution.value[1],
-            scale=0.35,
-            wxyz=pose.rotation().wxyz,
-            position=pose.translation(),
-            color=(10, 200, 30),
-            # Hack: hide green frustum if the viewport is attached.
-            # This is a waste of bandwidth, but will ensure that any old
-            # frustums are removed/aren't rendered.
-            #
-            # Easy to fix with a global variable.
-            visible=not attach_viewport_checkbox.value,
-        )
-        if not attach_viewport_checkbox.value:
-            for client in server.get_clients().values():
-                client.camera.fov = fov_degrees.value / 180 * np.pi
-        else:
-            if attach_viewport_checkbox.value:
-                for client in server.get_clients().values():
-                    client.camera.wxyz = pose.rotation().wxyz
-                    client.camera.position = pose.translation()
-                    client.camera.fov = fov
+        del fov
+
+        # Hide all scene nodes when we're previewing the render.
+        server.set_global_scene_node_visibility(False)
+
+        # Back up and then set camera poses.
+        for client in server.get_clients().values():
+            camera_pose_backup_from_id[client.client_id] = (
+                client.camera.position,
+                client.camera.look_at,
+                client.camera.up_direction,
+            )
+            client.camera.wxyz = pose.rotation().wxyz
+            client.camera.position = pose.translation()
+
+    @preview_render_stop_button.on_click
+    def _(_) -> None:
+        render_tab_state.preview_render = False
+        preview_render_button.visible = True
+        preview_render_stop_button.visible = False
+
+        # Revert camera poses.
+        for client in server.get_clients().values():
+            if client.client_id not in camera_pose_backup_from_id:
+                continue
+            cam_position, cam_look_at, cam_up = camera_pose_backup_from_id.pop(client.client_id)
+            client.camera.position = cam_position
+            client.camera.look_at = cam_look_at
+            client.camera.up_direction = cam_up
+            client.flush()
+
+        # Un-hide scene nodes.
+        server.set_global_scene_node_visibility(True)
 
     preview_frame_slider = add_preview_frame_slider()
 
@@ -823,13 +892,16 @@ def populate_render_tab(
                         pose = tf.SE3.from_matrix(np.array(frame["matrix"]).reshape(4, 4))
                         # apply the x rotation by 180 deg
                         pose = tf.SE3.from_rotation_and_translation(
-                            pose.rotation() @ tf.SO3.from_x_radians(np.pi), pose.translation()
+                            pose.rotation() @ tf.SO3.from_x_radians(np.pi),
+                            pose.translation(),
                         )
                         camera_path.add_camera(
                             Keyframe(
                                 position=pose.translation() * VISER_NERFSTUDIO_SCALE_RATIO,
                                 wxyz=pose.rotation().wxyz,
-                                override_fov_enabled=True,
+                                # There are some floating point conversions between degrees and radians, so the fov and
+                                # default_Fov values will not be exactly matched.
+                                override_fov_enabled=abs(frame["fov"] - json_data.get("default_fov", 0.0)) < 1e-3,
                                 override_fov_rad=frame["fov"] / 180.0 * np.pi,
                                 aspect=frame["aspect"],
                                 override_transition_enabled=frame.get("override_transition_enabled", None),
@@ -853,7 +925,9 @@ def populate_render_tab(
     # set the initial value to the current date-time string
     now = datetime.datetime.now()
     render_name_text = server.add_gui_text(
-        "Render Name", initial_value=now.strftime("%Y-%m-%d-%H-%M-%S"), hint="Name of the render"
+        "Render name",
+        initial_value=now.strftime("%Y-%m-%d-%H-%M-%S"),
+        hint="Name of the render",
     )
     render_button = server.add_gui_button(
         "Generate Command",
@@ -861,6 +935,18 @@ def populate_render_tab(
         icon=viser.Icon.FILE_EXPORT,
         hint="Generate the ns-render command for rendering the camera path.",
     )
+
+    reset_up_button = server.add_gui_button(
+        "Reset Up Direction",
+        icon=viser.Icon.ARROW_BIG_UP_LINES,
+        color="gray",
+        hint="Set the up direction of the camera orbit controls to the camera's current up direction.",
+    )
+
+    @reset_up_button.on_click
+    def _(event: viser.GuiEvent) -> None:
+        assert event.client is not None
+        event.client.camera.up_direction = tf.SO3(event.client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
 
     @render_button.on_click
     def _(event: viser.GuiEvent) -> None:
@@ -901,6 +987,7 @@ def populate_render_tab(
                     "override_transition_sec": keyframe.override_transition_sec,
                 }
             )
+        json_data["default_fov"] = fov_degrees.value
         json_data["default_transition_sec"] = transition_sec_number.value
         json_data["keyframes"] = keyframes
         json_data["camera_type"] = camera_type.value.lower()
@@ -980,7 +1067,7 @@ def populate_render_tab(
     camera_path.default_fov = fov_degrees.value / 180.0 * np.pi
     camera_path.default_transition_sec = transition_sec_number.value
 
-    transform_controls: List[viser.SceneNodeHandle] = []
+    return render_tab_state
 
 
 if __name__ == "__main__":
