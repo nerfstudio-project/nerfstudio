@@ -10,7 +10,7 @@ ns-process-data {video,images,polycam,record3d} --data {DATA_PATH} --output-dir 
 
 A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`.
 
-We Currently support the following custom data types:
+We currently support the following custom data types:
 | Data | Capture Device | Requirements | `ns-process-data` Speed |
 | ----------------------------- | -------------- | ----------------------------------------------- | ----------------------- |
 | 📷 [Images](images_and_video) | Any | [COLMAP](https://colmap.github.io/install.html) | 🐢 |
@@ -19,9 +19,11 @@ We Currently support the following custom data types:
 | 📱 [Polycam](polycam) | IOS with LiDAR | [Polycam App](https://poly.cam/) | 🐇 |
 | 📱 [KIRI Engine](kiri) | IOS or Android | [KIRI Engine App](https://www.kiriengine.com/) | 🐇 |
 | 📱 [Record3D](record3d) | IOS with LiDAR | [Record3D app](https://record3d.app/) | 🐇 |
+| 📱 [Spectacular AI](spectacularai) | IOS, OAK, others| [App](https://apps.apple.com/us/app/spectacular-rec/id6473188128) / [`sai-cli`](https://www.spectacularai.com/mapping) | 🐇 |
 | 🖥 [Metashape](metashape) | Any | [Metashape](https://www.agisoft.com/) | 🐇 |
 | 🖥 [RealityCapture](realitycapture) | Any | [RealityCapture](https://www.capturingreality.com/realitycapture) | 🐇 |
 | 🖥 [ODM](odm) | Any | [ODM](https://github.com/OpenDroneMap/ODM) | 🐇 |
+| 👓 [Aria](aria) | Aria glasses | [Project Aria](https://projectaria.com/) | 🐇 |
 
 (images_and_video)=
 
@@ -266,6 +268,44 @@ ns-process-data record3d --data {data directory} --output-dir {output directory}
 ns-train nerfacto --data {output directory}
 ```
 
+(spectacularai)=
+
+## Spectacular AI
+
+Spectacular AI SDK and apps can be used to capture data from various devices:
+
+ * iPhones (with LiDAR)
+ * OAK-D cameras
+ * RealSense D455/D435i
+ * Azure Kinect DK
+
+The SDK also records IMU data, which is fused with camera and (if available) LiDAR/ToF data when computing the camera poses. This approach, VISLAM, is more robust than purely image based methods (e.g., COLMAP) and can work better and faster for difficult data (monotonic environments, fast motions, narrow FoV, etc.).
+
+Instructions:
+
+1. Installation. With the Nerfstudio Conda environment active, first install the Spectacular AI Python library
+
+```bash
+pip install spectacularAI[full]
+```
+
+2. Install FFmpeg. Linux: `apt install ffmpeg` (or similar, if using another package manager). Windows: [see here](https://www.editframe.com/guides/how-to-install-and-start-using-ffmpeg-in-under-10-minutes). FFmpeg must be in your `PATH` so that `ffmpeg` works on the command line.
+
+3. Data capture. See [here for specific instructions for each supported device](https://github.com/SpectacularAI/sdk-examples/tree/main/python/mapping#recording-data).
+  
+4. Process and export. Once you have recorded a dataset in Spectacular AI format and have it stored in `{data directory}` it can be converted into a Nerfstudio supported format with:
+
+```bash
+sai-cli process {data directory} --preview3d --key_frame_distance=0.05 {output directory}
+```
+The optional `--preview3d` flag shows a 3D preview of the point cloud and estimated trajectory live while VISLAM is running. The `--key_frame_distance` argument can be tuned based on the recorded scene size: 0.05 (5cm) is good for small scans and 0.15 for room-sized scans. If the processing gets slow, you can also try adding a --fast flag to `sai-cli process` to trade off quality for speed. 
+
+5. Train. No separate `ns-process-data` step is needed. The data in `{output directory}` can now be trained with Nerfstudio:
+
+```bash
+ns-train nerfacto --data {output directory}
+```
+
 (metashape)=
 
 ## Metashape
@@ -340,6 +380,31 @@ odm_orthophoto
 
 ```bash
 ns-process-data odm --data /path/to/dataset --output-dir {output directory}
+```
+
+4. Train!
+
+```bash
+ns-train nerfacto --data {output directory}
+```
+
+(aria)=
+
+## Aria
+
+1. Install projectaria_tools:
+
+```bash
+conda activate nerfstudio
+pip install projectaria-tools'[all]'
+```
+
+2. Download a VRS file from Project Aria glasses, and run Machine Perception Services to extract poses.
+
+3. Convert to nerfstudio format.
+
+```bash
+ns-process-data aria --vrs-file /path/to/vrs/file --mps-data-dir /path/to/mps/data --output-dir {output directory}
 ```
 
 4. Train!
