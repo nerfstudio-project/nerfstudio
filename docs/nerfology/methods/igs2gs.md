@@ -1,6 +1,6 @@
 # Instruct-GS2GS
 
-<h4>Editing 3D Scenes with Instructions</h4>
+<h4>Editing Gaussian Splatting Scenes with Instructions</h4>
 
 ```{button-link} https://instruct-gs2gs.github.io/
 :color: primary
@@ -18,7 +18,7 @@ Code
     <source id="mp4" src="https://instruct-gs2gs.github.io/data/videos/face.mp4" type="video/mp4">
 </video>
 
-**Instruct-GS2GS enables instruction-based editing of Gaussian Splatting scenes via a 2D diffusion model**
+**Instruct-GS2GS enables instruction-based editing of 3D Gaussian Splatting scenes via a 2D diffusion model**
 
 ## Installation
 
