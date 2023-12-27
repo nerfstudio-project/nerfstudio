@@ -34,9 +34,11 @@ def populate_export_tab(server: viser.ViserServer, control_panel: ControlPanel, 
         populate_point_cloud_tab(server, control_panel, config_path)
     with server.add_gui_folder("Mesh"):
         populate_mesh_tab(server, control_panel, config_path)
+    with server.add_gui_folder("Splat"):
+        populate_splat_tab(server, control_panel, config_path)
 
 
-def show_command_modal(client: viser.ClientHandle, what: Literal["mesh", "point cloud"], command: str) -> None:
+def show_command_modal(client: viser.ClientHandle, what: Literal["mesh", "point cloud", "splat"], command: str) -> None:
     """Show a modal to each currently connected client.
 
     In the future, we should only show the modal to the client that pushes the
@@ -157,3 +159,26 @@ def populate_mesh_tab(
             ]
         )
         show_command_modal(event.client, "mesh", command)
+
+
+def populate_splat_tab(
+    server: viser.ViserServer,
+    control_panel: ControlPanel,
+    config_path: Path,
+) -> None:
+    server.add_gui_markdown("<small>Generate ply export of Gaussian Splat.</small>")
+
+    output_directory = server.add_gui_text("Output Directory", initial_value="exports/splat/")
+    generate_command = server.add_gui_button("Generate Command", icon=viser.Icon.TERMINAL_2)
+
+    @generate_command.on_click
+    def _(event: viser.GuiEvent) -> None:
+        assert event.client is not None
+        command = " ".join(
+            [
+                "ns-export gaussian-splat",
+                f"--load-config {config_path}",
+                f"--output-dir {output_directory.value}",
+            ]
+        )
+        show_command_modal(event.client, "splat", command)

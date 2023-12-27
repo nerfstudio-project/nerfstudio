@@ -494,7 +494,7 @@ class ExportGaussianSplat(Exporter):
 
         model: GaussianSplattingModel = pipeline.model
 
-        filename = self.output_dir / "point_cloud.ply"
+        filename = self.output_dir / "splat.ply"
 
         map_to_tensors = {}
 
