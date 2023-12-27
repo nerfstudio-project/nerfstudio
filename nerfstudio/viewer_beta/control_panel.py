@@ -18,13 +18,11 @@ from typing import Callable, DefaultDict, List, Tuple, get_args
 
 import numpy as np
 import torch
+import viser
 import viser.transforms as vtf
-from viser import ViserServer
-
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
 from nerfstudio.viewer_beta.viewer_elements import (  # ViewerButtonGroup,
-    ViewerButton,
     ViewerButtonGroup,
     ViewerCheckbox,
     ViewerDropdown,
@@ -34,6 +32,7 @@ from nerfstudio.viewer_beta.viewer_elements import (  # ViewerButtonGroup,
     ViewerSlider,
     ViewerVec3,
 )
+from viser import ViserServer
 
 
 class ControlPanel:
@@ -43,7 +42,6 @@ class ControlPanel:
         time_enabled: whether or not the time slider should be enabled
         rerender_cb: a callback that will be called when the user changes a parameter that requires a rerender
             (eg train speed, max res, etc)
-        crop_update_cb: a callback that will be called when the user changes the crop parameters
         update_output_cb: a callback that will be called when the user changes the output render
         default_composite_depth: whether to default to compositing depth or not
     """
@@ -53,12 +51,9 @@ class ControlPanel:
         viser_server: ViserServer,
         time_enabled: bool,
         scale_ratio: float,
-        rerender_cb: Callable,
-        crop_update_cb: Callable,
+        rerender_cb: Callable[[], None],
         update_output_cb: Callable,
         update_split_output_cb: Callable,
-        toggle_training_state_cb: Callable,
-        camera_vis: Callable,
         default_composite_depth: bool = True,
     ):
         self.viser_scale_ratio = scale_ratio
@@ -73,56 +68,54 @@ class ControlPanel:
             options=["Slow", "Mid", "Fast"],
             cb_hook=lambda han: self._train_speed_cb(),
         )
-        self._reset_camera = ViewerButton(
-            name="Reset Up Direction",
-            cb_hook=lambda han: self._reset_camera_cb(),
-        )
         self._output_render = ViewerDropdown(
-            "Output Render",
+            "Output type",
             "not set",
             ["not set"],
-            cb_hook=lambda han: [self.update_control_panel(), update_output_cb(han), rerender_cb(han)],
+            cb_hook=lambda han: [self.update_control_panel(), update_output_cb(han), rerender_cb()],
             hint="The output to render",
         )
         self._colormap = ViewerDropdown[Colormaps](
-            "Colormap", "default", ["default"], cb_hook=rerender_cb, hint="The colormap to use"
+            "Colormap", "default", ["default"], cb_hook=lambda _: rerender_cb(), hint="The colormap to use"
         )
-        self._invert = ViewerCheckbox("Invert", False, cb_hook=rerender_cb, hint="Invert the colormap")
-        self._normalize = ViewerCheckbox("Normalize", True, cb_hook=rerender_cb, hint="Normalize the colormap")
-        self._min = ViewerNumber("Min", 0.0, cb_hook=rerender_cb, hint="Min value of the colormap")
-        self._max = ViewerNumber("Max", 1.0, cb_hook=rerender_cb, hint="Max value of the colormap")
+        self._invert = ViewerCheckbox("Invert", False, cb_hook=lambda _: rerender_cb(), hint="Invert the colormap")
+        self._normalize = ViewerCheckbox(
+            "Normalize", True, cb_hook=lambda _: rerender_cb(), hint="Normalize the colormap"
+        )
+        self._min = ViewerNumber("Min", 0.0, cb_hook=lambda _: rerender_cb(), hint="Min value of the colormap")
+        self._max = ViewerNumber("Max", 1.0, cb_hook=lambda _: rerender_cb(), hint="Max value of the colormap")
 
         self._split = ViewerCheckbox(
             "Enable",
             False,
-            cb_hook=lambda han: [self.update_control_panel(), rerender_cb(han)],
+            cb_hook=lambda han: [self.update_control_panel(), rerender_cb()],
             hint="Render two outputs",
         )
         self._split_percentage = ViewerSlider(
-            "Split Percentage", 0.5, 0.0, 1.0, 0.01, cb_hook=rerender_cb, hint="Where to split"
+            "Split percentage", 0.5, 0.0, 1.0, 0.01, cb_hook=lambda _: rerender_cb(), hint="Where to split"
         )
         self._split_output_render = ViewerDropdown(
-            "Output Render Split",
+            "Output render split",
             "not set",
             ["not set"],
-            cb_hook=lambda han: [self.update_control_panel(), update_split_output_cb(han), rerender_cb(han)],
+            cb_hook=lambda han: [self.update_control_panel(), update_split_output_cb(han), rerender_cb()],
             hint="The second output",
         )
         # Hack: spaces are after at the end of the names to make them unique
         self._split_colormap = ViewerDropdown[Colormaps](
-            "Colormap ", "default", ["default"], cb_hook=rerender_cb, hint="Colormap of the second output"
+            "Colormap ", "default", ["default"], cb_hook=lambda _: rerender_cb(), hint="Colormap of the second output"
         )
         self._split_invert = ViewerCheckbox(
-            "Invert ", False, cb_hook=rerender_cb, hint="Invert the colormap of the second output"
+            "Invert ", False, cb_hook=lambda _: rerender_cb(), hint="Invert the colormap of the second output"
         )
         self._split_normalize = ViewerCheckbox(
-            "Normalize ", True, cb_hook=rerender_cb, hint="Normalize the colormap of the second output"
+            "Normalize ", True, cb_hook=lambda _: rerender_cb(), hint="Normalize the colormap of the second output"
         )
         self._split_min = ViewerNumber(
-            "Min ", 0.0, cb_hook=rerender_cb, hint="Min value of the colormap of the second output"
+            "Min ", 0.0, cb_hook=lambda _: rerender_cb(), hint="Min value of the colormap of the second output"
         )
         self._split_max = ViewerNumber(
-            "Max ", 1.0, cb_hook=rerender_cb, hint="Max value of the colormap of the second output"
+            "Max ", 1.0, cb_hook=lambda _: rerender_cb(), hint="Max value of the colormap of the second output"
         )
 
         self._train_util = ViewerSlider(
@@ -134,22 +127,28 @@ class ControlPanel:
             hint="Target training utilization, 0.0 is slow, 1.0 is fast. Doesn't affect final render quality",
         )
         self._layer_depth = ViewerCheckbox(
-            "Composite Depth",
+            "Composite depth",
             self.default_composite_depth,
-            cb_hook=rerender_cb,
+            cb_hook=lambda _: rerender_cb(),
             hint="Allow NeRF to occlude 3D browser objects",
         )
         self._max_res = ViewerSlider(
-            "Max Res", 512, 64, 2048, 100, cb_hook=rerender_cb, hint="Maximum resolution to render in viewport"
+            "Max res",
+            512,
+            64,
+            2048,
+            100,
+            cb_hook=lambda _: rerender_cb(),
+            hint="Maximum resolution to render in viewport",
         )
         self._crop_viewport = ViewerCheckbox(
             "Enable ",
             False,
-            cb_hook=lambda han: [self.update_control_panel(), crop_update_cb(han), rerender_cb(han)],
+            cb_hook=lambda han: [self.update_control_panel(), rerender_cb()],
             hint="Crop the scene to a specified box",
         )
         self._background_color = ViewerRGB(
-            "Background color", (38, 42, 55), cb_hook=crop_update_cb, hint="Color of the background"
+            "Background color", (38, 42, 55), cb_hook=lambda _: rerender_cb(), hint="Color of the background"
         )
         self._crop_handle = self.viser_server.add_transform_controls("Crop", depth_test=False, line_width=4.0)
 
@@ -157,10 +156,10 @@ class ControlPanel:
             self._crop_handle.position = tuple(p * self.viser_scale_ratio for p in han.value)  # type: ignore
 
         self._crop_center = ViewerVec3(
-            "Crop Center",
+            "Crop center",
             (0.0, 0.0, 0.0),
             step=0.01,
-            cb_hook=lambda e: [crop_update_cb(e), update_center(e)],
+            cb_hook=lambda e: [rerender_cb(), update_center(e)],
             hint="Center of the crop box",
         )
 
@@ -168,15 +167,15 @@ class ControlPanel:
             self._crop_handle.wxyz = vtf.SO3.from_rpy_radians(*han.value).wxyz
 
         self._crop_rot = ViewerVec3(
-            "Crop Rotation",
+            "Crop rotation",
             (0.0, 0.0, 0.0),
             step=0.01,
-            cb_hook=lambda e: [crop_update_cb(e), update_rot(e)],
+            cb_hook=lambda e: [rerender_cb(), update_rot(e)],
             hint="Rotation of the crop box",
         )
 
         self._crop_scale = ViewerVec3(
-            "Crop Scale", (1.0, 1.0, 1.0), step=0.01, cb_hook=crop_update_cb, hint="Scale of the crop box"
+            "Crop scale", (1.0, 1.0, 1.0), step=0.01, cb_hook=lambda _: rerender_cb(), hint="Size of the crop box."
         )
 
         @self._crop_handle.on_update
@@ -186,31 +185,12 @@ class ControlPanel:
             rpy = vtf.SO3(self._crop_handle.wxyz).as_rpy_radians()
             self._crop_rot.value = (float(rpy.roll), float(rpy.pitch), float(rpy.yaw))
 
-        self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=rerender_cb, hint="Time to render")
+        self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=lambda _: rerender_cb(), hint="Time to render")
         self._time_enabled = time_enabled
-
-        self.stat_folder = self.viser_server.add_gui_folder("Stats")
-        with self.stat_folder:
-            self.markdown = self.viser_server.add_gui_markdown("Step: 0")
-        self.pause_train = viser_server.add_gui_button(label="Pause Training", disabled=False)
-        self.pause_train.on_click(lambda _: self.toggle_pause_button())
-        self.pause_train.on_click(lambda han: toggle_training_state_cb(han))
-        self.resume_train = viser_server.add_gui_button(label="Resume Training", disabled=False)
-        self.resume_train.on_click(lambda _: self.toggle_pause_button())
-        self.resume_train.on_click(lambda han: toggle_training_state_cb(han))
-        self.resume_train.visible = False
-        # Add buttons to toggle training image visibility
-        self.hide_images = viser_server.add_gui_button(label="Hide Train Cams", disabled=False)
-        self.hide_images.on_click(lambda _: camera_vis(False))
-        self.hide_images.on_click(lambda _: self.toggle_cameravis_button())
-        self.show_images = viser_server.add_gui_button(label="Show Train Cams", disabled=False)
-        self.show_images.on_click(lambda _: camera_vis(True))
-        self.show_images.on_click(lambda _: self.toggle_cameravis_button())
-        self.show_images.visible = False
 
         self.add_element(self._train_speed)
         self.add_element(self._train_util)
-        self.add_element(self._reset_camera)
+
         with self.viser_server.add_gui_folder("Render Options"):
             self.add_element(self._max_res)
             self.add_element(self._output_render)
@@ -244,6 +224,13 @@ class ControlPanel:
             self.add_element(self._crop_rot, additional_tags=("crop",))
 
         self.add_element(self._time, additional_tags=("time",))
+        self._reset_camera = viser_server.add_gui_button(
+            label="Reset Up Direction",
+            icon=viser.Icon.ARROW_BIG_UP_LINES,
+            color="gray",
+            hint="Set the up direction of the camera orbit controls to the camera's current up direction.",
+        )
+        self._reset_camera.on_click(self._reset_camera_cb)
 
     def _train_speed_cb(self) -> None:
         pass
@@ -259,24 +246,9 @@ class ControlPanel:
             self._train_util.value = 0.5
             self._max_res.value = 1024
 
-    def _reset_camera_cb(self) -> None:
+    def _reset_camera_cb(self, _) -> None:
         for client in self.viser_server.get_clients().values():
             client.camera.up_direction = vtf.SO3(client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
-
-    def toggle_pause_button(self) -> None:
-        self.pause_train.visible = not self.pause_train.visible
-        self.resume_train.visible = not self.resume_train.visible
-
-    def toggle_cameravis_button(self) -> None:
-        self.hide_images.visible = not self.hide_images.visible
-        self.show_images.visible = not self.show_images.visible
-
-    def update_step(self, step):
-        """
-        Args:
-            step: the train step to set the model to
-        """
-        self.markdown.content = f"Step: {step}"
 
     def update_output_options(self, new_options: List[str]):
         """
@@ -445,7 +417,7 @@ def _get_colormap_options(dimensions: int, dtype: type) -> List[Colormaps]:
     if dimensions == 3:
         colormap_options = ["default"]
     if dimensions == 1 and dtype in [torch.float64, torch.float32, torch.float16, torch.bfloat16]:
-        colormap_options = [c for c in list(get_args(Colormaps)) if c != "default"]
+        colormap_options = [c for c in list(get_args(Colormaps)) if c not in ("default", "pca")]
     if dimensions > 3:
         colormap_options = ["pca"]
     return colormap_options

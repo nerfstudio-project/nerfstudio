@@ -25,7 +25,6 @@ from jaxtyping import Float
 from numpy.typing import NDArray
 from torch import Tensor
 
-
 _EPS = np.finfo(float).eps * 4.0
 
 
@@ -622,3 +621,224 @@ def auto_orient_and_center_poses(
         raise ValueError(f"Unknown value for method: {method}")
 
     return oriented_poses, transform
+
+
+@torch.jit.script
+def fisheye624_project(xyz, params):
+    """
+    Batched implementation of the FisheyeRadTanThinPrism (aka Fisheye624) camera
+    model project() function.
+    Inputs:
+        xyz: BxNx3 tensor of 3D points to be projected
+        params: Bx16 tensor of Fisheye624 parameters formatted like this:
+                [f_u f_v c_u c_v {k_0 ... k_5} {p_0 p_1} {s_0 s_1 s_2 s_3}]
+                or Bx15 tensor of Fisheye624 parameters formatted like this:
+                [f c_u c_v {k_0 ... k_5} {p_0 p_1} {s_0 s_1 s_2 s_3}]
+    Outputs:
+        uv: BxNx2 tensor of 2D projections of xyz in image plane
+    Model for fisheye cameras with radial, tangential, and thin-prism distortion.
+    This model allows fu != fv.
+    Specifically, the model is:
+    uvDistorted = [x_r]  + tangentialDistortion  + thinPrismDistortion
+                  [y_r]
+    proj = diag(fu,fv) * uvDistorted + [cu;cv];
+    where:
+      a = x/z, b = y/z, r = (a^2+b^2)^(1/2)
+      th = atan(r)
+      cosPhi = a/r, sinPhi = b/r
+      [x_r]  = (th+ k0 * th^3 + k1* th^5 + ...) [cosPhi]
+      [y_r]                                     [sinPhi]
+      the number of terms in the series is determined by the template parameter numK.
+      tangentialDistortion = [(2 x_r^2 + rd^2)*p_0 + 2*x_r*y_r*p_1]
+                             [(2 y_r^2 + rd^2)*p_1 + 2*x_r*y_r*p_0]
+      where rd^2 = x_r^2 + y_r^2
+      thinPrismDistortion = [s0 * rd^2 + s1 rd^4]
+                            [s2 * rd^2 + s3 rd^4]
+    Author: Daniel DeTone (ddetone@meta.com)
+    """
+
+    assert xyz.ndim == 3
+    assert params.ndim == 2
+    assert params.shape[-1] == 16 or params.shape[-1] == 15, "This model allows fx != fy"
+    eps = 1e-9
+    B, N = xyz.shape[0], xyz.shape[1]
+
+    # Radial correction.
+    z = xyz[:, :, 2].reshape(B, N, 1)
+    z = torch.where(torch.abs(z) < eps, eps * torch.sign(z), z)
+    ab = xyz[:, :, :2] / z
+    r = torch.norm(ab, dim=-1, p=2, keepdim=True)
+    th = torch.atan(r)
+    th_divr = torch.where(r < eps, torch.ones_like(ab), ab / r)
+    th_k = th.reshape(B, N, 1).clone()
+    for i in range(6):
+        th_k = th_k + params[:, -12 + i].reshape(B, 1, 1) * torch.pow(th, 3 + i * 2)
+    xr_yr = th_k * th_divr
+    uv_dist = xr_yr
+
+    # Tangential correction.
+    p0 = params[:, -6].reshape(B, 1)
+    p1 = params[:, -5].reshape(B, 1)
+    xr = xr_yr[:, :, 0].reshape(B, N)
+    yr = xr_yr[:, :, 1].reshape(B, N)
+    xr_yr_sq = torch.square(xr_yr)
+    xr_sq = xr_yr_sq[:, :, 0].reshape(B, N)
+    yr_sq = xr_yr_sq[:, :, 1].reshape(B, N)
+    rd_sq = xr_sq + yr_sq
+    uv_dist_tu = uv_dist[:, :, 0] + ((2.0 * xr_sq + rd_sq) * p0 + 2.0 * xr * yr * p1)
+    uv_dist_tv = uv_dist[:, :, 1] + ((2.0 * yr_sq + rd_sq) * p1 + 2.0 * xr * yr * p0)
+    uv_dist = torch.stack([uv_dist_tu, uv_dist_tv], dim=-1)  # Avoids in-place complaint.
+
+    # Thin Prism correction.
+    s0 = params[:, -4].reshape(B, 1)
+    s1 = params[:, -3].reshape(B, 1)
+    s2 = params[:, -2].reshape(B, 1)
+    s3 = params[:, -1].reshape(B, 1)
+    rd_4 = torch.square(rd_sq)
+    uv_dist[:, :, 0] = uv_dist[:, :, 0] + (s0 * rd_sq + s1 * rd_4)
+    uv_dist[:, :, 1] = uv_dist[:, :, 1] + (s2 * rd_sq + s3 * rd_4)
+
+    # Finally, apply standard terms: focal length and camera centers.
+    if params.shape[-1] == 15:
+        fx_fy = params[:, 0].reshape(B, 1, 1)
+        cx_cy = params[:, 1:3].reshape(B, 1, 2)
+    else:
+        fx_fy = params[:, 0:2].reshape(B, 1, 2)
+        cx_cy = params[:, 2:4].reshape(B, 1, 2)
+    result = uv_dist * fx_fy + cx_cy
+
+    return result
+
+
+# Core implementation of fisheye 624 unprojection. More details are documented here:
+# https://facebookresearch.github.io/projectaria_tools/docs/tech_insights/camera_intrinsic_models#the-fisheye62-model
+@torch.jit.script
+def fisheye624_unproject_helper(uv, params, max_iters: int = 5):
+    """
+    Batched implementation of the FisheyeRadTanThinPrism (aka Fisheye624) camera
+    model. There is no analytical solution for the inverse of the project()
+    function so this solves an optimization problem using Newton's method to get
+    the inverse.
+    Inputs:
+        uv: BxNx3 tensor of 2D pixels to be projected
+        params: Bx16 tensor of Fisheye624 parameters formatted like this:
+                [f_u f_v c_u c_v {k_0 ... k_5} {p_0 p_1} {s_0 s_1 s_2 s_3}]
+                or Bx15 tensor of Fisheye624 parameters formatted like this:
+                [f c_u c_v {k_0 ... k_5} {p_0 p_1} {s_0 s_1 s_2 s_3}]
+    Outputs:
+        xyz: BxNx3 tensor of 3D rays of uv points with z = 1.
+    Model for fisheye cameras with radial, tangential, and thin-prism distortion.
+    This model assumes fu=fv. This unproject function holds that:
+    X = unproject(project(X))     [for X=(x,y,z) in R^3, z>0]
+    and
+    x = project(unproject(s*x))   [for s!=0 and x=(u,v) in R^2]
+    Author: Daniel DeTone (ddetone@meta.com)
+    """
+
+    assert uv.ndim == 3, "Expected batched input shaped BxNx3"
+    assert params.ndim == 2
+    assert params.shape[-1] == 16 or params.shape[-1] == 15, "This model allows fx != fy"
+    eps = 1e-6
+    B, N = uv.shape[0], uv.shape[1]
+
+    if params.shape[-1] == 15:
+        fx_fy = params[:, 0].reshape(B, 1, 1)
+        cx_cy = params[:, 1:3].reshape(B, 1, 2)
+    else:
+        fx_fy = params[:, 0:2].reshape(B, 1, 2)
+        cx_cy = params[:, 2:4].reshape(B, 1, 2)
+
+    uv_dist = (uv - cx_cy) / fx_fy
+
+    # Compute xr_yr using Newton's method.
+    xr_yr = uv_dist.clone()  # Initial guess.
+    for _ in range(max_iters):
+        uv_dist_est = xr_yr.clone()
+        # Tangential terms.
+        p0 = params[:, -6].reshape(B, 1)
+        p1 = params[:, -5].reshape(B, 1)
+        xr = xr_yr[:, :, 0].reshape(B, N)
+        yr = xr_yr[:, :, 1].reshape(B, N)
+        xr_yr_sq = torch.square(xr_yr)
+        xr_sq = xr_yr_sq[:, :, 0].reshape(B, N)
+        yr_sq = xr_yr_sq[:, :, 1].reshape(B, N)
+        rd_sq = xr_sq + yr_sq
+        uv_dist_est[:, :, 0] = uv_dist_est[:, :, 0] + ((2.0 * xr_sq + rd_sq) * p0 + 2.0 * xr * yr * p1)
+        uv_dist_est[:, :, 1] = uv_dist_est[:, :, 1] + ((2.0 * yr_sq + rd_sq) * p1 + 2.0 * xr * yr * p0)
+        # Thin Prism terms.
+        s0 = params[:, -4].reshape(B, 1)
+        s1 = params[:, -3].reshape(B, 1)
+        s2 = params[:, -2].reshape(B, 1)
+        s3 = params[:, -1].reshape(B, 1)
+        rd_4 = torch.square(rd_sq)
+        uv_dist_est[:, :, 0] = uv_dist_est[:, :, 0] + (s0 * rd_sq + s1 * rd_4)
+        uv_dist_est[:, :, 1] = uv_dist_est[:, :, 1] + (s2 * rd_sq + s3 * rd_4)
+        # Compute the derivative of uv_dist w.r.t. xr_yr.
+        duv_dist_dxr_yr = uv.new_ones(B, N, 2, 2)
+        duv_dist_dxr_yr[:, :, 0, 0] = 1.0 + 6.0 * xr_yr[:, :, 0] * p0 + 2.0 * xr_yr[:, :, 1] * p1
+        offdiag = 2.0 * (xr_yr[:, :, 0] * p1 + xr_yr[:, :, 1] * p0)
+        duv_dist_dxr_yr[:, :, 0, 1] = offdiag
+        duv_dist_dxr_yr[:, :, 1, 0] = offdiag
+        duv_dist_dxr_yr[:, :, 1, 1] = 1.0 + 6.0 * xr_yr[:, :, 1] * p1 + 2.0 * xr_yr[:, :, 0] * p0
+        xr_yr_sq_norm = xr_yr_sq[:, :, 0] + xr_yr_sq[:, :, 1]
+        temp1 = 2.0 * (s0 + 2.0 * s1 * xr_yr_sq_norm)
+        duv_dist_dxr_yr[:, :, 0, 0] = duv_dist_dxr_yr[:, :, 0, 0] + (xr_yr[:, :, 0] * temp1)
+        duv_dist_dxr_yr[:, :, 0, 1] = duv_dist_dxr_yr[:, :, 0, 1] + (xr_yr[:, :, 1] * temp1)
+        temp2 = 2.0 * (s2 + 2.0 * s3 * xr_yr_sq_norm)
+        duv_dist_dxr_yr[:, :, 1, 0] = duv_dist_dxr_yr[:, :, 1, 0] + (xr_yr[:, :, 0] * temp2)
+        duv_dist_dxr_yr[:, :, 1, 1] = duv_dist_dxr_yr[:, :, 1, 1] + (xr_yr[:, :, 1] * temp2)
+        # Compute 2x2 inverse manually here since torch.inverse() is very slow.
+        # Because this is slow: inv = duv_dist_dxr_yr.inverse()
+        # About a 10x reduction in speed with above line.
+        mat = duv_dist_dxr_yr.reshape(-1, 2, 2)
+        a = mat[:, 0, 0].reshape(-1, 1, 1)
+        b = mat[:, 0, 1].reshape(-1, 1, 1)
+        c = mat[:, 1, 0].reshape(-1, 1, 1)
+        d = mat[:, 1, 1].reshape(-1, 1, 1)
+        det = 1.0 / ((a * d) - (b * c))
+        top = torch.cat([d, -b], dim=2)
+        bot = torch.cat([-c, a], dim=2)
+        inv = det * torch.cat([top, bot], dim=1)
+        inv = inv.reshape(B, N, 2, 2)
+        # Manually compute 2x2 @ 2x1 matrix multiply.
+        # Because this is slow: step = (inv @ (uv_dist - uv_dist_est)[..., None])[..., 0]
+        diff = uv_dist - uv_dist_est
+        a = inv[:, :, 0, 0]
+        b = inv[:, :, 0, 1]
+        c = inv[:, :, 1, 0]
+        d = inv[:, :, 1, 1]
+        e = diff[:, :, 0]
+        f = diff[:, :, 1]
+        step = torch.stack([a * e + b * f, c * e + d * f], dim=-1)
+        # Newton step.
+        xr_yr = xr_yr + step
+
+    # Compute theta using Newton's method.
+    xr_yr_norm = xr_yr.norm(p=2, dim=2).reshape(B, N, 1)
+    th = xr_yr_norm.clone()
+    for _ in range(max_iters):
+        th_radial = uv.new_ones(B, N, 1)
+        dthd_th = uv.new_ones(B, N, 1)
+        for k in range(6):
+            r_k = params[:, -12 + k].reshape(B, 1, 1)
+            th_radial = th_radial + (r_k * torch.pow(th, 2 + k * 2))
+            dthd_th = dthd_th + ((3.0 + 2.0 * k) * r_k * torch.pow(th, 2 + k * 2))
+        th_radial = th_radial * th
+        step = (xr_yr_norm - th_radial) / dthd_th
+        # handle dthd_th close to 0.
+        step = torch.where(dthd_th.abs() > eps, step, torch.sign(step) * eps * 10.0)
+        th = th + step
+    # Compute the ray direction using theta and xr_yr.
+    close_to_zero = torch.logical_and(th.abs() < eps, xr_yr_norm.abs() < eps)
+    ray_dir = torch.where(close_to_zero, xr_yr, torch.tan(th) / xr_yr_norm * xr_yr)
+    ray = torch.cat([ray_dir, uv.new_ones(B, N, 1)], dim=2)
+    return ray
+
+
+# unproject 2D point to 3D with fisheye624 model
+def fisheye624_unproject(coords: torch.Tensor, distortion_params: torch.Tensor) -> torch.Tensor:
+    dirs = fisheye624_unproject_helper(coords.unsqueeze(0), distortion_params[0].unsqueeze(0))
+    # correct for camera space differences:
+    dirs[..., 1] = -dirs[..., 1]
+    dirs[..., 2] = -dirs[..., 2]
+    return dirs
