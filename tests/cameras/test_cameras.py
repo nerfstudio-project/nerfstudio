@@ -175,7 +175,7 @@ def test_multi_camera_type():
     assert ray1.shape == torch.Size([40, 20, *num_rays])
 
     # test `_generate_rays_from_coords`, 1 cam.
-    coords = torch.randint(0, 10, [*num_rays, 2])  # (*num_rays 2)
+    coords = torch.randint(0, 10, [*num_rays, 2]).float()  # (*num_rays 2)
     ray2 = multitype_cameras.generate_rays(camera_indices=0, coords=coords)
     assert ray2.shape == torch.Size([*num_rays])
 
