@@ -835,35 +835,19 @@ class Cameras(TensorDataclass):
                 c2w[..., :3, 3] = vr180_origins
 
             elif CameraType.ORTHOPHOTO.value in cam_types:
+                # here the focal length determine the imaging area, the smaller fx, the bigger imaging area.
                 mask = (self.camera_type[true_indices] == CameraType.ORTHOPHOTO.value).squeeze(-1)
-                mask = torch.stack([mask, mask, mask], dim=0)
-
-                # in orthophoto, all rays have same direction, dir = R @ [0, 0, 1], R will be applied following.
-                directions_stack[mask] = torch.tensor(
+                dir_mask = torch.stack([mask, mask, mask], dim=0)
+                # in orthophoto cam, all rays have same direction, dir = R @ [0, 0, 1], R will be applied following.
+                directions_stack[dir_mask] = torch.tensor(
                     [0.0, 0.0, -1.0], dtype=directions_stack.dtype, device=directions_stack.device
                 )
-
-                # create a meshgird as the rays' origins, we use the same intrinsics parameter like perspective cameras,
-                # but orthophoto cameras' focal length is meaningles, so focal length here determines the imaging areas,
-                # the bigger fx/fy, the bigger imaging areas.
-                image_height = torch.max(self.image_height.view(-1)).item()
-                image_width = torch.max(self.image_width.view(-1)).item()
-                coord_y, coord_x = torch.meshgrid(
-                    torch.arange(image_height, dtype=torch.float),
-                    torch.arange(image_width, dtype=torch.float),
-                    indexing="ij",
-                )  # stored as (y, x) coordinates
-
-                # scale the imaging area to an appropriate range.
-                scale = max(image_height, image_width)
-                coord_x = (coord_x + 0.5 - self.cx) / scale * self.fx
-                coord_y = -(coord_y + 0.5 - self.cy) / scale * self.fy  # convert to right-handed system by inverting y.
-                coord_z = torch.zeros_like(coord_x)
-                coord_h = torch.ones_like(coord_x)  # homogeneous coord.
-                homogeneous_grid_points = torch.stack([coord_x, coord_y, coord_z, coord_h], dim=-1)
-
-                # transform meshgrid points with c2w matrix to get ray origins, c2w @ P.
-                c2w[..., :3, 3] = torch.matmul(c2w, homogeneous_grid_points[..., None]).squeeze(-1)
+                # in orthophoto cam, ray origins are grids, then transform grids with c2w, c2w @ P.
+                grids = coord[mask]
+                grids[..., 1] *= -1.0  # convert to left-hand system.
+                grids = torch.cat([grids, torch.zeros_like(grids[..., -1:]), torch.ones_like(grids[..., -1:])], dim=-1)
+                grids = torch.matmul(c2w[mask], grids[..., None]).squeeze(-1)
+                c2w[..., :3, 3][mask] = grids
 
             else:
                 raise ValueError(f"Camera type {cam} not supported.")
