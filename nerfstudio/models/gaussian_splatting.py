@@ -402,7 +402,7 @@ class GaussianSplattingModel(Model):
 
                     # After a guassian is split into two new gaussians, the original one should be also pruned.
                     splits_mask = torch.cat(
-                        (splits, torch.zeros(nsamps * splits.sum() + dups.sum(), device="cuda", dtype=bool))
+                        (splits, torch.zeros(nsamps * splits.sum() + dups.sum(), device="cuda", dtype=torch.bool))
                     )
                     deleted_mask = self.cull_gaussians(splits_mask)
                     param_groups = self.get_gaussian_param_groups()
@@ -649,7 +649,7 @@ class GaussianSplattingModel(Model):
             H,
             W,
             tile_bounds,
-        )
+        )  # type: ignore
         if (self.radii).sum() == 0:
             return {"rgb": background.repeat(int(camera.height.item()), int(camera.width.item()), 1)}
 
@@ -661,9 +661,8 @@ class GaussianSplattingModel(Model):
             viewdirs = means_crop.detach() - camera.camera_to_worlds.detach()[..., :3, 3]  # (N, 3)
             viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
             n = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
-            n_coefs_use = num_sh_bases(n)
-            rgbs = SphericalHarmonics.apply(n, viewdirs, colors_crop[:, :n_coefs_use, :])
-            rgbs = torch.clamp(rgbs + 0.5, min=0.0)
+            rgbs = SphericalHarmonics.apply(n, viewdirs, colors_crop)
+            rgbs = torch.clamp(rgbs + 0.5, min=0.0)  # type: ignore
         else:
             rgbs = torch.sigmoid(colors_crop[:, 0, :])
 
@@ -685,8 +684,8 @@ class GaussianSplattingModel(Model):
             H,
             W,
             background,
-        )
-        rgb = torch.clamp(rgb, max=1.0)
+        )  # type: ignore
+        rgb = torch.clamp(rgb, max=1.0)  # type: ignore
         depth_im = None
         if not self.training:
             depth_im = RasterizeGaussians.apply(  # type: ignore
@@ -700,9 +699,11 @@ class GaussianSplattingModel(Model):
                 H,
                 W,
                 torch.ones(3, device=self.device) * 10,
-            )[..., 0:1]
+            )[
+                ..., 0:1
+            ]  # type: ignore
 
-        return {"rgb": rgb, "depth": depth_im}
+        return {"rgb": rgb, "depth": depth_im}  # type: ignore
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.

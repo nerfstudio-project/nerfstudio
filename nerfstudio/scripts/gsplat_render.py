@@ -39,8 +39,8 @@ class CameraInfo(NamedTuple):
     uid: int
     viewmat: torch.Tensor
     projmat: torch.Tensor
-    FovY: np.array
-    FovX: np.array
+    FovY: float
+    FovX: float
     image_name: str
     width: int
     height: int
@@ -149,7 +149,7 @@ class GaussianModel(object):
             cam_info.height,
             cam_info.width,
             tile_bounds,
-        )
+        )  # type: ignore
         torch.cuda.synchronize()
 
         if self.n_sh_level > 0:
@@ -157,7 +157,7 @@ class GaussianModel(object):
             viewdirs = self.xyz - c2w[None, :3, 3]  # (N, 3)
             viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
             rgbs = SphericalHarmonics.apply(self.n_sh_level, viewdirs, self.sh_coefs)
-            rgbs = torch.clamp(rgbs + 0.5, min=0.0)
+            rgbs = torch.clamp(rgbs + 0.5, min=0.0)  # type: ignore
         else:
             rgbs = self.colors
         rgb = RasterizeGaussians.apply(
@@ -171,10 +171,10 @@ class GaussianModel(object):
             cam_info.height,
             cam_info.width,
             background,
-        )
+        )  # type: ignore
         torch.cuda.synchronize()
 
-        return torch.clamp(rgb, max=1.0)
+        return torch.clamp(rgb, max=1.0)  # type: ignore
 
 
 def projection_matrix(znear, zfar, fovx, fovy, device="cpu"):
@@ -203,7 +203,7 @@ def focal2fov(focal, pixels):
     return 2 * math.atan(pixels / (2 * focal))
 
 
-def load_trajectory(filename: Path) -> List[CameraInfo]:
+def load_trajectory(filename: Path):
     """Loads the cameras from a trajectory.json file like the ones used for rendering in nerfstudio
 
     Parameters
@@ -351,7 +351,7 @@ def main(
         assert len(bg_color) == 3
         bg = bg_color
 
-    render_set(render_path, point_cloud, cam_infos, bg)
+    render_set(render_path=render_path, point_cloud=point_cloud, cam_infos=cam_infos, bg_color=bg)
 
 
 def entrypoint():
