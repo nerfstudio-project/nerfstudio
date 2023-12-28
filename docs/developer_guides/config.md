@@ -89,7 +89,7 @@ Often times, you just want to play with the parameters of an existing model with
   ns-train --help
   ```
 
-- List out all exist configurable parameters for `{METHOD_NAME}`
+- List out all existing configurable parameters for `{METHOD_NAME}`
 
   ```bash
   ns-train {METHOD_NAME} --help

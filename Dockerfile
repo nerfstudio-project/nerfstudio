@@ -135,9 +135,10 @@ RUN git clone --branch v0.4.0 --recursive https://github.com/colmap/pycolmap.git
     python3.10 -m pip install . && \
     cd ..
 
-# Install hloc master (last release (1.3) is too old) as alternative feature detector and matcher option for nerfstudio.
+# Install hloc 1.4 as alternative feature detector and matcher option for nerfstudio.
 RUN git clone --branch master --recursive https://github.com/cvg/Hierarchical-Localization.git && \
     cd Hierarchical-Localization && \
+    git checkout v1.4 && \
     python3.10 -m pip install -e . && \
     cd ..
 

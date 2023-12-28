@@ -575,6 +575,10 @@ def depth_ranking_loss(rendered_depth, gt_depth):
     and rendered_depth are from pixels with a radius of each other
     """
     m = 1e-4
+    if rendered_depth.shape[0] % 2 != 0:
+        # chop off one index
+        rendered_depth = rendered_depth[:-1, :]
+        gt_depth = gt_depth[:-1, :]
     dpt_diff = gt_depth[::2, :] - gt_depth[1::2, :]
     out_diff = rendered_depth[::2, :] - rendered_depth[1::2, :] + m
     differing_signs = torch.sign(dpt_diff) != torch.sign(out_diff)

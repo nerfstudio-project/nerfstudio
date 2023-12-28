@@ -37,15 +37,10 @@ from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.exporter import texture_utils, tsdf_utils
-from nerfstudio.exporter.exporter_utils import (
-    collect_camera_poses,
-    generate_point_cloud,
-    get_mesh_from_filename,
-)
-from nerfstudio.exporter.marching_cubes import (
-    generate_mesh_with_multires_marching_cubes,
-)
+from nerfstudio.exporter.exporter_utils import collect_camera_poses, generate_point_cloud, get_mesh_from_filename
+from nerfstudio.exporter.marching_cubes import generate_mesh_with_multires_marching_cubes
 from nerfstudio.fields.sdf_field import SDFField
+from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -126,6 +121,9 @@ class ExportPointCloud(Exporter):
     """Number of rays to evaluate per batch. Decrease if you run out of memory."""
     std_ratio: float = 10.0
     """Threshold based on STD of the average distances across the point cloud to remove outliers."""
+    save_world_frame: bool = True
+    """If true, saves in the frame of the transform.json file, if false saves in the frame of the scaled 
+        dataparser transform"""
 
     def main(self) -> None:
         """Export point cloud."""
@@ -162,6 +160,17 @@ class ExportPointCloud(Exporter):
             crop_obb=crop_obb,
             std_ratio=self.std_ratio,
         )
+        if self.save_world_frame:
+            # apply the inverse dataparser transform to the point cloud
+            points = np.asarray(pcd.points)
+            poses = np.eye(4, dtype=np.float32)[None, ...].repeat(points.shape[0], axis=0)[:, :3, :]
+            poses[:, :3, 3] = points
+            poses = pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(
+                torch.from_numpy(poses)
+            )
+            points = poses[:, :3, 3].numpy()
+            pcd.points = o3d.utility.Vector3dVector(points)
+
         torch.cuda.empty_cache()
 
         CONSOLE.print(f"[bold green]:white_check_mark: Generated {pcd}")
@@ -469,6 +478,58 @@ class ExportCameraPoses(Exporter):
             CONSOLE.print(f"[bold green]:white_check_mark: Saved poses to {output_file_path}")
 
 
+@dataclass
+class ExportGaussianSplat(Exporter):
+    """
+    Export 3D Gaussian Splatting model to a .ply
+    """
+
+    def main(self) -> None:
+        if not self.output_dir.exists():
+            self.output_dir.mkdir(parents=True)
+
+        _, pipeline, _, _ = eval_setup(self.load_config)
+
+        assert isinstance(pipeline.model, GaussianSplattingModel)
+
+        model: GaussianSplattingModel = pipeline.model
+
+        filename = self.output_dir / "point_cloud.ply"
+
+        map_to_tensors = {}
+
+        with torch.no_grad():
+            positions = model.means.cpu().numpy()
+            map_to_tensors["positions"] = o3d.core.Tensor(positions, o3d.core.float32)
+            map_to_tensors["normals"] = o3d.core.Tensor(np.zeros_like(positions), o3d.core.float32)
+
+            colors = model.colors.data.cpu().numpy()
+            map_to_tensors["colors"] = (colors * 255).astype(np.uint8)
+            for i in range(colors.shape[1]):
+                map_to_tensors[f"f_dc_{i}"] = colors[:, i : i + 1]
+
+            shs = model.shs_rest.data.cpu().numpy()
+            if model.config.sh_degree > 0:
+                shs = shs.reshape((colors.shape[0], -1, 1))
+                for i in range(shs.shape[-1]):
+                    map_to_tensors[f"f_rest_{i}"] = shs[:, i]
+
+            map_to_tensors["opacity"] = model.opacities.data.cpu().numpy()
+
+            scales = model.scales.data.cpu().unsqueeze(-1).numpy()
+            for i in range(3):
+                map_to_tensors[f"scale_{i}"] = scales[:, i]
+
+            quats = model.quats.data.cpu().unsqueeze(-1).numpy()
+
+            for i in range(4):
+                map_to_tensors[f"rot_{i}"] = quats[:, i]
+
+        pcd = o3d.t.geometry.PointCloud(map_to_tensors)
+
+        o3d.t.io.write_point_cloud(str(filename), pcd)
+
+
 Commands = tyro.conf.FlagConversionOff[
     Union[
         Annotated[ExportPointCloud, tyro.conf.subcommand(name="pointcloud")],
@@ -476,6 +537,7 @@ Commands = tyro.conf.FlagConversionOff[
         Annotated[ExportPoissonMesh, tyro.conf.subcommand(name="poisson")],
         Annotated[ExportMarchingCubesMesh, tyro.conf.subcommand(name="marching-cubes")],
         Annotated[ExportCameraPoses, tyro.conf.subcommand(name="cameras")],
+        Annotated[ExportGaussianSplat, tyro.conf.subcommand(name="gaussian-splat")],
     ]
 ]
 
