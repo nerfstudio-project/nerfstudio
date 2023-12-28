@@ -606,7 +606,7 @@ method_configs["gaussian-splatting"] = TrainerConfig(
     steps_per_eval_all_images=1000,
     max_num_iterations=30000,
     mixed_precision=False,
-    gradient_accumulation_steps={'camera_opt': 100},
+    gradient_accumulation_steps={"camera_opt": 100},
     pipeline=VanillaPipelineConfig(
         datamanager=FullImageDatamanagerConfig(
             dataparser=ColmapDataParserConfig(load_3D_points=True),
@@ -637,10 +637,7 @@ method_configs["gaussian-splatting"] = TrainerConfig(
             "optimizer": AdamOptimizerConfig(lr=0.005, eps=1e-15),
             "scheduler": None,
         },
-        "rotation": {
-            "optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15),
-            "scheduler": None
-        },
+        "rotation": {"optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15), "scheduler": None},
         "camera_opt": {
             "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(lr_final=5e-5, max_steps=30000),

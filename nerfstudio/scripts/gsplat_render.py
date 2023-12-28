@@ -1,3 +1,17 @@
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 #!/usr/bin/env python
 """
 This is a standalone PLY renderer based on gsplat lib (https://github.com/nerfstudio-project/gsplat)
@@ -20,6 +34,7 @@ import torchvision
 from tqdm import tqdm
 import meshio
 
+
 class CameraInfo(NamedTuple):
     uid: int
     viewmat: torch.Tensor
@@ -29,6 +44,7 @@ class CameraInfo(NamedTuple):
     image_name: str
     width: int
     height: int
+
 
 def n_sh_level(n_sh_coefs: int):
     if n_sh_coefs == 1:
@@ -42,6 +58,7 @@ def n_sh_level(n_sh_coefs: int):
     if n_sh_coefs == 25:
         return 4
     raise ValueError(f"unsupported n_sh_coefs={n_sh_coefs}")
+
 
 class GaussianModel(object):
     def __init__(self, point_cloud):
@@ -74,8 +91,8 @@ class GaussianModel(object):
             b = torch.tensor(pc.point_data["f_dc_2"])
             sh_0 = torch.cat((r[:, None], g[:, None], b[:, None]), dim=1)
 
-            f_rest_highest_idx = max([int(k.split('_')[-1]) for k in pc.point_data.keys() if k.startswith("f_rest_")])
-            sh_rest = torch.zeros((num_points, f_rest_highest_idx+1), dtype=torch.float32)
+            f_rest_highest_idx = max([int(k.split("_")[-1]) for k in pc.point_data.keys() if k.startswith("f_rest_")])
+            sh_rest = torch.zeros((num_points, f_rest_highest_idx + 1), dtype=torch.float32)
             f_rest_range = list(range(0, f_rest_highest_idx + 1))
             for idx in f_rest_range:
                 sh_rest[:, idx] = torch.tensor(pc.point_data[f"f_rest_{idx}"])
@@ -85,12 +102,12 @@ class GaussianModel(object):
 
             self.sh_coefs = torch.zeros((num_points, self.n_sh_coefs, 3), dtype=torch.float32)
             self.sh_coefs[:, 0, :] = sh_0
-            self.sh_coefs[:, 1:, :] = sh_rest.reshape(num_points, 3, self.n_sh_coefs-1).transpose(1, 2)
+            self.sh_coefs[:, 1:, :] = sh_rest.reshape(num_points, 3, self.n_sh_coefs - 1).transpose(1, 2)
         elif "red" in pc.point_data:
             self.colors = torch.zeros((num_points, 3), dtype=torch.float32)
-            self.colors[:, 0] = torch.tensor(pc.point_data["red"], dtype=torch.uint8).float() / 255.
-            self.colors[:, 1] = torch.tensor(pc.point_data["green"], dtype=torch.uint8).float() / 255.
-            self.colors[:, 2] = torch.tensor(pc.point_data["blue"], dtype=torch.uint8).float() / 255.
+            self.colors[:, 0] = torch.tensor(pc.point_data["red"], dtype=torch.uint8).float() / 255.0
+            self.colors[:, 1] = torch.tensor(pc.point_data["green"], dtype=torch.uint8).float() / 255.0
+            self.colors[:, 2] = torch.tensor(pc.point_data["blue"], dtype=torch.uint8).float() / 255.0
             self.n_sh_level = 0
         else:
             raise RuntimeError("Cannot import model color or spherical harmonics from PLY.")
@@ -104,12 +121,11 @@ class GaussianModel(object):
         else:
             self.colors = self.colors.to(device="cuda")
 
-
     def render(self, cam_info: CameraInfo, background: torch.Tensor):
         fx = fov2focal(cam_info.FovX, cam_info.width)
         fy = fov2focal(cam_info.FovY, cam_info.height)
-        cx = cam_info.width / 2.
-        cy = cam_info.height / 2.
+        cx = cam_info.width / 2.0
+        cy = cam_info.height / 2.0
         BLOCK_X, BLOCK_Y = 16, 16
         tile_bounds = (
             (cam_info.width + BLOCK_X - 1) // BLOCK_X,
@@ -164,13 +180,13 @@ class GaussianModel(object):
 def projection_matrix(znear, zfar, fovx, fovy, device="cpu"):
     t = znear * math.tan(0.5 * fovy)
     b = -t
-    r = znear * math.tan(0.5 * fovx)
-    l = -r
+    right = znear * math.tan(0.5 * fovx)
+    left = -right
     n = znear
     f = zfar
     return torch.tensor(
         [
-            [2 * n / (r - l), 0.0, (r + l) / (r - l), 0.0],
+            [2 * n / (right - left), 0.0, (right + left) / (right - left), 0.0],
             [0.0, 2 * n / (t - b), (t + b) / (t - b), 0.0],
             [0.0, 0.0, (f + n) / (f - n), -1.0 * f * n / (f - n)],
             [0.0, 0.0, 1.0, 0.0],
@@ -178,11 +194,14 @@ def projection_matrix(znear, zfar, fovx, fovy, device="cpu"):
         device=device,
     )
 
+
 def fov2focal(fov, pixels):
     return pixels / (2 * math.tan(fov / 2))
 
+
 def focal2fov(focal, pixels):
-    return 2*math.atan(pixels/(2*focal))
+    return 2 * math.atan(pixels / (2 * focal))
+
 
 def load_trajectory(filename: Path) -> List[CameraInfo]:
     """Loads the cameras from a trajectory.json file like the ones used for rendering in nerfstudio
@@ -240,6 +259,7 @@ def load_trajectory(filename: Path) -> List[CameraInfo]:
     cam_infos = [cam_info(i, cam) for i, cam in enumerate(trajectory)]
     return cam_infos, bg_color, metadata, crop
 
+
 def load_ns_transforms(filename: Path) -> List[CameraInfo]:
     """Loads the cameras from a nerfstudio transform.json file
 
@@ -291,33 +311,29 @@ def load_ns_transforms(filename: Path) -> List[CameraInfo]:
     cam_infos = [cam_info(cam) for cam in trajectory]
     return cam_infos
 
+
 def render_set(
-        render_path: Path,
-        point_cloud: Path,
-        cam_infos: List[CameraInfo],
-        bg_color: Optional[List[float]] = None
-    ):
+    render_path: Path, point_cloud: Path, cam_infos: List[CameraInfo], bg_color: Optional[List[float]] = None
+):
     with torch.inference_mode():
         gaussians = GaussianModel(point_cloud)
         if bg_color is None:
-            bg_color = [1, 1, 1] # white background
+            bg_color = [1, 1, 1]  # white background
 
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
         for idx, cam_info in enumerate(tqdm(cam_infos, desc="Rendering progress")):
             with torch.no_grad():
                 image = gaussians.render(cam_info, background)
             # writing image to disk may be slow, a better way is to directly encode a video
-            torchvision.utils.save_image(
-                image.permute(2, 0, 1), render_path / (cam_info.image_name + ".png")
-            )
+            torchvision.utils.save_image(image.permute(2, 0, 1), render_path / (cam_info.image_name + ".png"))
 
 
 def main(
-        point_cloud: Path,
-        render_path: Path,
-        camera_trajectory: Optional[Path] = None,
-        ns_transform: Optional[Path] = None,
-        bg_color: Optional[List[float]] = None
+    point_cloud: Path,
+    render_path: Path,
+    camera_trajectory: Optional[Path] = None,
+    ns_transform: Optional[Path] = None,
+    bg_color: Optional[List[float]] = None,
 ):
     print(f"Rendering using PLY={point_cloud}")
     render_path.mkdir(parents=True, exist_ok=True)
@@ -342,6 +358,7 @@ def entrypoint():
     """Entrypoint for use with pyproject scripts."""
     tyro.extras.set_accent_color("bright_yellow")
     tyro.cli(main)
+
 
 if __name__ == "__main__":
     entrypoint()

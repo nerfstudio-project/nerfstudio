@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import math
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -41,6 +40,7 @@ from nerfstudio.data.utils.dataparsers_utils import (
     get_train_eval_split_interval,
     get_train_eval_split_all,
 )
+
 MAX_AUTO_RESOLUTION = 1600
 
 
@@ -69,7 +69,7 @@ class ColmapDataParserConfig(DataParserConfig):
     The method to use for splitting the dataset into train and eval. 
     Fraction splits based on a percentage for train and the remaining for eval.
     Filename splits based on filenames containing train/eval.
-    Interval uses every nth frame for eval.
+    Interval uses every nth frame for eval (used by most academic papers, e.g. MipNerf360, GSplat).
     All uses all the images for any split.
     """
     train_split_fraction: float = 0.9

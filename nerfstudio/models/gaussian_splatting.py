@@ -44,7 +44,8 @@ from gsplat.project_gaussians import ProjectGaussians
 from gsplat.sh import SphericalHarmonics, num_sh_bases
 
 from gsplat.compute_cumulative_intersects import compute_cumulative_intersects
-from pytorch_msssim import  SSIM
+from pytorch_msssim import SSIM
+
 # need following import for background color override
 from nerfstudio.model_components import renderers
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -119,7 +120,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     num_downscales: int = 0
     """at the beginning, resolution is 1/2^d, where d is this number"""
     cull_alpha_thresh: float = 0.005
-    """threshold of opacity for culling gaussians, ref: https://github.com/graphdeco-inria/gaussian-splatting/blob/main/train.py#L120"""
+    """threshold of opacity for culling gaussians"""
     cull_scale_thresh: float = 0.5
     """threshold of scale for culling huge gaussians"""
     reset_alpha_every: int = 30
@@ -193,11 +194,6 @@ class GaussianSplattingModel(Model):
             else:
                 CONSOLE.log("use color only optimization with sigmoid activation")
                 shs[:, 0, :3] = torch.logit(self.seed_pts[1] / 255, eps=1e-10)
-            # concat on extra_points amount of random ones at the end
-            if self.config.extra_points > 0:
-                extra_shs = torch.rand((self.config.extra_points, dim_sh, 3)).float().cuda()
-                extra_shs[:, 1:, :] = 0.0 # zero out the higher freq
-                shs = torch.cat([shs, extra_shs])
             self.features_dc = torch.nn.Parameter(shs[:, 0, :])
             self.features_rest = torch.nn.Parameter(shs[:, 1:, :])
         else:
@@ -229,7 +225,7 @@ class GaussianSplattingModel(Model):
     @property
     def shs_0(self):
         return self.features_dc
-    
+
     @property
     def shs_rest(self):
         return self.features_rest
@@ -243,7 +239,9 @@ class GaussianSplattingModel(Model):
         self.quats = torch.nn.Parameter(torch.zeros(newp, 4, device=self.device))
         self.opacities = torch.nn.Parameter(torch.zeros(newp, 1, device=self.device))
         self.features_dc = torch.nn.Parameter(torch.zeros(newp, 3, device=self.device))
-        self.features_rest = torch.nn.Parameter(torch.zeros(newp, num_sh_bases(self.config.sh_degree) - 1, 3, device=self.device))
+        self.features_rest = torch.nn.Parameter(
+            torch.zeros(newp, num_sh_bases(self.config.sh_degree) - 1, 3, device=self.device)
+        )
         super().load_state_dict(dict, **kwargs)
 
     def k_nearest_sklearn(self, x: torch.Tensor, k: int):
@@ -289,10 +287,7 @@ class GaussianSplattingModel(Model):
         param_state = optimizer.state[param]
         repeat_dims = (n,) + tuple(1 for _ in range(param_state["exp_avg"].dim() - 1))
         param_state["exp_avg"] = torch.cat(
-            [
-                param_state["exp_avg"],
-                torch.zeros_like(param_state["exp_avg"][dup_mask.squeeze()]).repeat(*repeat_dims)
-            ],
+            [param_state["exp_avg"], torch.zeros_like(param_state["exp_avg"][dup_mask.squeeze()]).repeat(*repeat_dims)],
             dim=0,
         )
         param_state["exp_avg_sq"] = torch.cat(
@@ -326,7 +321,8 @@ class GaussianSplattingModel(Model):
                 self.max_2Dsize = torch.zeros_like(self.radii, dtype=torch.float32)
             newradii = self.radii.detach()[visible_mask]
             self.max_2Dsize[visible_mask] = torch.maximum(
-                self.max_2Dsize[visible_mask], newradii / float(max(self.last_size[0], self.last_size[1])))
+                self.max_2Dsize[visible_mask], newradii / float(max(self.last_size[0], self.last_size[1]))
+            )
 
     def set_crop(self, crop_box: Optional[OrientedBox]):
         self.crop_box = crop_box
@@ -377,12 +373,12 @@ class GaussianSplattingModel(Model):
                         dup_quats,
                     ) = self.dup_gaussians(dups)
                     self.means = Parameter(torch.cat([self.means.detach(), split_means, dup_means], dim=0))
-                    self.features_dc = Parameter(torch.cat([self.features_dc.detach(),
-                                                            split_features_dc,
-                                                            dup_features_dc], dim=0))
-                    self.features_rest = Parameter(torch.cat([self.features_rest.detach(),
-                                                              split_features_rest,
-                                                              dup_features_rest], dim=0))
+                    self.features_dc = Parameter(
+                        torch.cat([self.features_dc.detach(), split_features_dc, dup_features_dc], dim=0)
+                    )
+                    self.features_rest = Parameter(
+                        torch.cat([self.features_rest.detach(), split_features_rest, dup_features_rest], dim=0)
+                    )
                     self.opacities = Parameter(
                         torch.cat([self.opacities.detach(), split_opacities, dup_opacities], dim=0)
                     )
@@ -405,9 +401,9 @@ class GaussianSplattingModel(Model):
                         self.dup_in_optim(optimizers.optimizers[group], dup_idcs, param, 1)
 
                     # After a guassian is split into two new gaussians, the original one should be also pruned.
-                    splits_mask = torch.cat((splits,
-                                             torch.zeros(nsamps * splits.sum() + dups.sum(),
-                                                         device="cuda", dtype=bool)))
+                    splits_mask = torch.cat(
+                        (splits, torch.zeros(nsamps * splits.sum() + dups.sum(), device="cuda", dtype=bool))
+                    )
                     deleted_mask = self.cull_gaussians(splits_mask)
                     param_groups = self.get_gaussian_param_groups()
                     for group, param in param_groups.items():
@@ -416,11 +412,10 @@ class GaussianSplattingModel(Model):
 
                 if self.step % reset_interval == self.config.refine_every:
                     # Reset value is set to be twice of the cull_alpha_thresh
-                    # https://github.com/graphdeco-inria/gaussian-splatting/blob/main/scene/gaussian_model.py#L211
                     reset_value = self.config.cull_alpha_thresh * 2.0
-                    self.opacities.data = torch.clamp(self.opacities.data,
-                                                      max=torch.logit(torch.tensor(reset_value,
-                                                                                   device=self.device)).item())
+                    self.opacities.data = torch.clamp(
+                        self.opacities.data, max=torch.logit(torch.tensor(reset_value, device=self.device)).item()
+                    )
                     # reset the exp of optimizer
                     optim = optimizers.optimizers["opacity"]
                     param = optim.param_groups[0]["params"][0]
@@ -458,8 +453,10 @@ class GaussianSplattingModel(Model):
         self.features_rest = Parameter(self.features_rest[~culls].detach())
         self.opacities = Parameter(self.opacities[~culls].detach())
 
-        CONSOLE.log(f"Culled {n_bef - self.num_points} gaussians "
-                    f"({below_alpha_count} below alpha thresh, {self.num_points} remaining)")
+        CONSOLE.log(
+            f"Culled {n_bef - self.num_points} gaussians "
+            f"({below_alpha_count} below alpha thresh, {self.num_points} remaining)"
+        )
 
         return culls
 
@@ -636,7 +633,6 @@ class GaussianSplattingModel(Model):
             scales_crop = self.scales
             quats_crop = self.quats
 
-
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
 
         self.xys, depths, self.radii, conics, num_tiles_hit, cov3d = ProjectGaussians.apply(
@@ -661,7 +657,6 @@ class GaussianSplattingModel(Model):
         if self.training:
             self.xys.retain_grad()
 
-
         if self.config.sh_degree > 0:
             viewdirs = means_crop.detach() - camera.camera_to_worlds.detach()[..., :3, 3]  # (N, 3)
             viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
@@ -675,8 +670,10 @@ class GaussianSplattingModel(Model):
         # rescale the camera back to original dimensions
         camera.rescale_output_resolution(camera_downscale)
 
+        # avoid empty rasterization
         num_intersects, _ = compute_cumulative_intersects(self.xys.size(0), num_tiles_hit)
-        assert(num_intersects > 0) # avoid empty rasterization
+        assert num_intersects > 0
+
         rgb = RasterizeGaussians.apply(
             self.xys,
             depths,
