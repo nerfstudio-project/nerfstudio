@@ -209,7 +209,7 @@ class GaussianSplattingModel(Model):
         self.step = 0
 
         self.crop_box: Optional[OrientedBox] = None
-        self.back_color = torch.zeros(3, device="cuda")
+        self.back_color = torch.zeros(3)
 
         self.camera_optimizer: CameraOptimizer = self.config.camera_optimizer.setup(
             num_cameras=self.num_train_data, device="cpu"
@@ -400,9 +400,9 @@ class GaussianSplattingModel(Model):
                     for group, param in param_groups.items():
                         self.dup_in_optim(optimizers.optimizers[group], dup_idcs, param, 1)
 
-                    # After a guassian is split into two new gaussians, the original one should be also pruned.
+                    # After a guassian is split into two new gaussians, the original one should also be pruned.
                     splits_mask = torch.cat(
-                        (splits, torch.zeros(nsamps * splits.sum() + dups.sum(), device="cuda", dtype=torch.bool))
+                        (splits, torch.zeros(nsamps * splits.sum() + dups.sum(), device=self.device, dtype=torch.bool))
                     )
                     deleted_mask = self.cull_gaussians(splits_mask)
                     param_groups = self.get_gaussian_param_groups()
@@ -595,7 +595,7 @@ class GaussianSplattingModel(Model):
         R = camera.camera_to_worlds[0, :3, :3]  # 3 x 3
         T = camera.camera_to_worlds[0, :3, 3:4]  # 3 x 1
         # flip the z and y axes to align with gsplat conventions
-        R_edit = torch.diag(torch.tensor([1, -1, -1], device="cuda", dtype=R.dtype))
+        R_edit = torch.diag(torch.tensor([1, -1, -1], device=self.device, dtype=R.dtype))
         R = R @ R_edit
         # analytic matrix inverse to get world2camera matrix
         R_inv = R.T
