@@ -34,7 +34,7 @@ from typing import (
 )
 
 import torch
-import torch.multiprocessing as mp
+from pathos.helpers import mp
 from rich.progress import track
 from torch.nn import Parameter
 
@@ -223,7 +223,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         """Sets up parallel python data processes for training."""
         assert self.train_dataset is not None
         self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)  # type: ignore
-        self.data_queue = mp.Manager().Queue(maxsize=self.config.queue_size)
+        self.data_queue = mp.Queue(maxsize=self.config.queue_size)
         self.data_procs = [
             DataProcessor(
                 out_queue=self.data_queue,  # type: ignore
