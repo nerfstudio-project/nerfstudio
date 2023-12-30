@@ -17,13 +17,7 @@ Code for sampling pixels.
 """
 
 import random
-
-import torch
-from jaxtyping import Int
-from torch import Tensor
-
 from dataclasses import dataclass, field
-from nerfstudio.data.utils.pixel_sampling_utils import erode_mask
 from typing import (
     Dict,
     Optional,
@@ -31,9 +25,14 @@ from typing import (
     Union,
 )
 
+import torch
+from jaxtyping import Int
+from torch import Tensor
+
 from nerfstudio.configs.base_config import (
     InstantiateConfig,
 )
+from nerfstudio.data.utils.pixel_sampling_utils import erode_mask
 
 
 @dataclass
@@ -48,6 +47,8 @@ class PixelSamplerConfig(InstantiateConfig):
     """Whether or not to include a reference to the full image in returned batch."""
     is_equirectangular: bool = False
     """List of whether or not camera i is equirectangular."""
+    fisheye_crop_radius: Optional[float] = None
+    """Set to the radius (in pixels) for fisheye cameras."""
 
 
 class PixelSampler:
@@ -66,6 +67,7 @@ class PixelSampler:
         self.config.num_rays_per_batch = self.kwargs.get("num_rays_per_batch", self.config.num_rays_per_batch)
         self.config.keep_full_image = self.kwargs.get("keep_full_image", self.config.keep_full_image)
         self.config.is_equirectangular = self.kwargs.get("is_equirectangular", self.config.is_equirectangular)
+        self.config.fisheye_crop_radius = self.kwargs.get("fisheye_crop_radius", self.config.fisheye_crop_radius)
         self.set_num_rays_per_batch(self.config.num_rays_per_batch)
 
     def set_num_rays_per_batch(self, num_rays_per_batch: int):
@@ -98,7 +100,7 @@ class PixelSampler:
             chosen_indices = random.sample(range(len(nonzero_indices)), k=batch_size)
             indices = nonzero_indices[chosen_indices]
         else:
-            indices = torch.floor(
+            indices = (
                 torch.rand((batch_size, 3), device=device)
                 * torch.tensor([num_images, image_height, image_width], device=device)
             ).long()
@@ -135,6 +137,36 @@ class PixelSampler:
 
         return indices
 
+    def sample_method_fisheye(
+        self,
+        batch_size: int,
+        num_images: int,
+        image_height: int,
+        image_width: int,
+        mask: Optional[Tensor] = None,
+        device: Union[torch.device, str] = "cpu",
+    ) -> Int[Tensor, "batch_size 3"]:
+        if isinstance(mask, torch.Tensor):
+            indices = self.sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)
+        else:
+            rand_samples = torch.rand((batch_size, 3), device=device)
+            # convert random samples tto radius and theta
+            radii = self.config.fisheye_crop_radius * torch.sqrt(rand_samples[:, 1])
+            theta = 2.0 * torch.pi * rand_samples[:, 2]
+
+            # convert radius and theta to x and y between -radii and radii
+            x = radii * torch.cos(theta)
+            y = radii * torch.sin(theta)
+
+            # Multiply by the batch size and height/width to get pixel indices.
+            indices = torch.floor(
+                torch.stack([rand_samples[:, 0], y, x], dim=1)
+                * torch.tensor([num_images, image_height // 2, image_width // 2], device=device)
+                + torch.tensor([0, image_height // 2, image_width // 2], device=device)
+            ).long()
+
+        return indices
+
     def collate_image_dataset_batch(self, batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
         """
         Operates on a batch of images and samples pixels to use for generating rays.
@@ -155,6 +187,10 @@ class PixelSampler:
                 indices = self.sample_method_equirectangular(
                     num_rays_per_batch, num_images, image_height, image_width, mask=batch["mask"], device=device
                 )
+            elif self.config.fisheye_crop_radius is not None:
+                indices = self.sample_method_fisheye(
+                    num_rays_per_batch, num_images, image_height, image_width, mask=batch["mask"], device=device
+                )
             else:
                 indices = self.sample_method(
                     num_rays_per_batch, num_images, image_height, image_width, mask=batch["mask"], device=device
@@ -162,6 +198,10 @@ class PixelSampler:
         else:
             if self.config.is_equirectangular:
                 indices = self.sample_method_equirectangular(
+                    num_rays_per_batch, num_images, image_height, image_width, device=device
+                )
+            elif self.config.fisheye_crop_radius is not None:
+                indices = self.sample_method_fisheye(
                     num_rays_per_batch, num_images, image_height, image_width, device=device
                 )
             else:
@@ -172,13 +212,11 @@ class PixelSampler:
         collated_batch = {
             key: value[c, y, x] for key, value in batch.items() if key != "image_idx" and value is not None
         }
-
         assert collated_batch["image"].shape[0] == num_rays_per_batch
 
         # Needed to correct the random indices to their actual camera idx locations.
         indices[:, 0] = batch["image_idx"][c]
         collated_batch["indices"] = indices  # with the abs camera indices
-
         if keep_full_image:
             collated_batch["full_image"] = batch["image"]
 
@@ -215,7 +253,7 @@ class PixelSampler:
                     num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
 
                 indices = self.sample_method(
-                    num_rays_in_batch, 1, image_height, image_width, mask=batch["mask"][i], device=device
+                    num_rays_in_batch, 1, image_height, image_width, mask=batch["mask"][i].unsqueeze(0), device=device
                 )
                 indices[:, 0] = i
                 all_indices.append(indices)
@@ -399,31 +437,31 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
     ) -> Int[Tensor, "batch_size 3"]:
+        rays_to_sample = self.rays_to_sample
+        if batch_size is not None:
+            assert (
+                int(batch_size) % 2 == 0
+            ), f"PairPixelSampler can only return batch sizes in multiples of two (got {batch_size})"
+            rays_to_sample = batch_size // 2
+
         if isinstance(mask, Tensor):
             m = erode_mask(mask.permute(0, 3, 1, 2).float(), pixel_radius=self.radius)
             nonzero_indices = torch.nonzero(m[:, 0], as_tuple=False).to(device)
-            chosen_indices = random.sample(range(len(nonzero_indices)), k=self.rays_to_sample)
+            chosen_indices = random.sample(range(len(nonzero_indices)), k=rays_to_sample)
             indices = nonzero_indices[chosen_indices]
         else:
-            rays_to_sample = self.rays_to_sample
-            if batch_size is not None:
-                assert (
-                    int(batch_size) % 2 == 0
-                ), f"PairPixelSampler can only return batch sizes in multiples of two (got {batch_size})"
-                rays_to_sample = batch_size // 2
-
             s = (rays_to_sample, 1)
             ns = torch.randint(0, num_images, s, dtype=torch.long, device=device)
             hs = torch.randint(self.radius, image_height - self.radius, s, dtype=torch.long, device=device)
             ws = torch.randint(self.radius, image_width - self.radius, s, dtype=torch.long, device=device)
             indices = torch.concat((ns, hs, ws), dim=1)
 
-            pair_indices = torch.hstack(
-                (
-                    torch.zeros(rays_to_sample, 1, device=device, dtype=torch.long),
-                    torch.randint(-self.radius, self.radius, (rays_to_sample, 2), device=device, dtype=torch.long),
-                )
+        pair_indices = torch.hstack(
+            (
+                torch.zeros(rays_to_sample, 1, device=device, dtype=torch.long),
+                torch.randint(-self.radius, self.radius, (rays_to_sample, 2), device=device, dtype=torch.long),
             )
-            pair_indices += indices
-            indices = torch.hstack((indices, pair_indices)).view(rays_to_sample * 2, 3)
+        )
+        pair_indices += indices
+        indices = torch.hstack((indices, pair_indices)).view(rays_to_sample * 2, 3)
         return indices

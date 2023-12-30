@@ -21,12 +21,13 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
-from pathlib import Path
 from functools import cached_property
+from pathlib import Path
 from typing import (
     Any,
     Callable,
     Dict,
+    ForwardRef,
     Generic,
     List,
     Literal,
@@ -35,9 +36,8 @@ from typing import (
     Type,
     Union,
     cast,
-    ForwardRef,
-    get_origin,
     get_args,
+    get_origin,
 )
 
 import torch
@@ -47,7 +47,7 @@ from torch.utils.data.distributed import DistributedSampler
 from typing_extensions import TypeVar
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
-from nerfstudio.cameras.cameras import CameraType
+from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
@@ -55,9 +55,9 @@ from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import (
+    PatchPixelSamplerConfig,
     PixelSampler,
     PixelSamplerConfig,
-    PatchPixelSamplerConfig,
 )
 from nerfstudio.data.utils.dataloaders import (
     CacheDataloader,
@@ -67,9 +67,8 @@ from nerfstudio.data.utils.dataloaders import (
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
-from nerfstudio.utils.misc import IterableWrapper
+from nerfstudio.utils.misc import IterableWrapper, get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
-from nerfstudio.utils.misc import get_orig_class
 
 
 def variable_res_collate(batch: List[Dict]) -> Dict:
@@ -113,8 +112,6 @@ class DataManagerConfig(InstantiateConfig):
     """Target class to instantiate."""
     data: Optional[Path] = None
     """Source of data, may not be used by all models."""
-    camera_optimizer: Optional[CameraOptimizerConfig] = None
-    """Specifies the camera pose optimizer used during training. Helpful if poses are noisy."""
     masks_on_gpu: bool = False
     """Process masks on GPU for speed at the expense of memory, if True."""
     images_on_gpu: bool = False
@@ -133,7 +130,7 @@ class DataManager(nn.Module):
     To get data, use the next_train and next_eval functions.
     This data manager's next_train and next_eval methods will return 2 things:
 
-    1. A Raybundle: This will contain the rays we are sampling, with latents and
+    1. 'rays': This will contain the rays or camera we are sampling, with latents and
         conditionals attached (everything needed at inference)
     2. A "batch" of auxiliary information: This will contain the mask, the ground truth
         pixels, etc needed to actually train, score, etc the model
@@ -248,7 +245,7 @@ class DataManager(nn.Module):
         """Sets up the data manager for evaluation"""
 
     @abstractmethod
-    def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
+    def next_train(self, step: int) -> Tuple[Union[RayBundle, Cameras], Dict]:
         """Returns the next batch of data from the train data manager.
 
         Args:
@@ -260,25 +257,25 @@ class DataManager(nn.Module):
         raise NotImplementedError
 
     @abstractmethod
-    def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
+    def next_eval(self, step: int) -> Tuple[Union[RayBundle, Cameras], Dict]:
         """Returns the next batch of data from the eval data manager.
 
         Args:
             step: the step number of the eval image to retrieve
         Returns:
-            A tuple of the ray bundle for the image, and a dictionary of additional batch information
+            A tuple of the ray/camera for the image, and a dictionary of additional batch information
             such as the groundtruth image.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
+    def next_eval_image(self, step: int) -> Tuple[Cameras, Dict]:
         """Retrieve the next eval image.
 
         Args:
             step: the step number of the eval image to retrieve
         Returns:
-            A tuple of the step number, the ray bundle for the image, and a dictionary of
+            A tuple of the step number, the ray/camera for the image, and a dictionary of
             additional batch information such as the groundtruth image.
         """
         raise NotImplementedError
@@ -315,11 +312,11 @@ class DataManager(nn.Module):
 
 @dataclass
 class VanillaDataManagerConfig(DataManagerConfig):
-    """A basic data manager"""
+    """A basic data manager for a ray-based model"""
 
     _target: Type = field(default_factory=lambda: VanillaDataManager)
     """Target class to instantiate."""
-    dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
+    dataparser: AnnotatedDataParserUnion = field(default_factory=lambda: BlenderDataParserConfig())
     """Specifies the dataparser used to unpack the data."""
     train_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per training iteration."""
@@ -337,9 +334,6 @@ class VanillaDataManagerConfig(DataManagerConfig):
     new images. If -1, never pick new images."""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """Specifies the image indices to use during eval; if None, uses all."""
-    camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
-    """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
-    Record3D."""
     collate_fn: Callable[[Any], Any] = cast(Any, staticmethod(nerfstudio_collate))
     """Specifies the collate function to use for the train and eval dataloaders."""
     camera_res_scale_factor: float = 1.0
@@ -347,9 +341,21 @@ class VanillaDataManagerConfig(DataManagerConfig):
     along with relevant information about camera intrinsics
     """
     patch_size: int = 1
-    """Size of patch to sample from. If >1, patch-based sampling will be used."""
-    pixel_sampler: PixelSamplerConfig = PixelSamplerConfig()
+    """Size of patch to sample from. If > 1, patch-based sampling will be used."""
+    camera_optimizer: Optional[CameraOptimizerConfig] = field(default=None)
+    """Deprecated, has been moved to the model config."""
+    pixel_sampler: PixelSamplerConfig = field(default_factory=lambda: PixelSamplerConfig())
     """Specifies the pixel sampler used to sample pixels from images."""
+
+    def __post_init__(self):
+        """Warn user of camera optimizer change."""
+        if self.camera_optimizer is not None:
+            import warnings
+
+            CONSOLE.print(
+                "\nCameraOptimizerConfig has been moved from the DataManager to the Model.\n", style="bold yellow"
+            )
+            warnings.warn("above message coming from", FutureWarning, stacklevel=3)
 
 
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
@@ -468,8 +474,15 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
         if is_equirectangular.any():
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
+
+        fisheye_crop_radius = None
+        if dataset.cameras.metadata is not None and "fisheye_crop_radius" in dataset.cameras.metadata:
+            fisheye_crop_radius = dataset.cameras.metadata["fisheye_crop_radius"]
+
         return self.config.pixel_sampler.setup(
-            is_equirectangular=is_equirectangular, num_rays_per_batch=num_rays_per_batch
+            is_equirectangular=is_equirectangular,
+            num_rays_per_batch=num_rays_per_batch,
+            fisheye_crop_radius=fisheye_crop_radius,
         )
 
     def setup_train(self):
@@ -488,13 +501,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
-        self.train_camera_optimizer = self.config.camera_optimizer.setup(
-            num_cameras=self.train_dataset.cameras.size, device=self.device
-        )
-        self.train_ray_generator = RayGenerator(
-            self.train_dataset.cameras.to(self.device),
-            self.train_camera_optimizer,
-        )
+        self.train_ray_generator = RayGenerator(self.train_dataset.cameras.to(self.device))
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
@@ -512,13 +519,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
-        self.eval_camera_optimizer = self.config.camera_optimizer.setup(
-            num_cameras=self.eval_dataset.cameras.size, device=self.device
-        )
-        self.eval_ray_generator = RayGenerator(
-            self.eval_dataset.cameras.to(self.device),
-            self.eval_camera_optimizer,
-        )
+        self.eval_ray_generator = RayGenerator(self.eval_dataset.cameras.to(self.device))
         # for loading full images
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
             input_dataset=self.eval_dataset,
@@ -553,17 +554,20 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         ray_bundle = self.eval_ray_generator(ray_indices)
         return ray_bundle, batch
 
-    def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
-        for camera_ray_bundle, batch in self.eval_dataloader:
-            assert camera_ray_bundle.camera_indices is not None
-            image_idx = int(camera_ray_bundle.camera_indices[0, 0, 0])
-            return image_idx, camera_ray_bundle, batch
+    def next_eval_image(self, step: int) -> Tuple[Cameras, Dict]:
+        for camera, batch in self.eval_dataloader:
+            assert camera.shape[0] == 1
+            return camera, batch
         raise ValueError("No more eval images")
 
     def get_train_rays_per_batch(self) -> int:
+        if self.train_pixel_sampler is not None:
+            return self.train_pixel_sampler.num_rays_per_batch
         return self.config.train_num_rays_per_batch
 
     def get_eval_rays_per_batch(self) -> int:
+        if self.eval_pixel_sampler is not None:
+            return self.eval_pixel_sampler.num_rays_per_batch
         return self.config.eval_num_rays_per_batch
 
     def get_datapath(self) -> Path:
@@ -574,13 +578,4 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         Returns:
             A list of dictionaries containing the data manager's param groups.
         """
-        param_groups = {}
-
-        camera_opt_params = list(self.train_camera_optimizer.parameters())
-        if self.config.camera_optimizer.mode != "off":
-            assert len(camera_opt_params) > 0
-            param_groups[self.config.camera_optimizer.param_group] = camera_opt_params
-        else:
-            assert len(camera_opt_params) == 0
-
-        return param_groups
+        return {}

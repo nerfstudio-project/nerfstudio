@@ -26,6 +26,7 @@ BLACKLIST = [
     "neus",
     "generfacto",
     "neus-facto",
+    "gaussian-splatting",
 ]
 
 

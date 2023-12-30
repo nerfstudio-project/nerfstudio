@@ -81,6 +81,11 @@ def populate_point_cloud_tab(
 ) -> None:
     server.add_gui_markdown("<small>Render depth, project to an oriented point cloud, and filter.</small> ")
     num_points = server.add_gui_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
+    world_frame = server.add_gui_checkbox(
+        "Save in world frame",
+        True,
+        hint="Save the point cloud in the transforms.json frame, rather than scaled scene frame",
+    )
     remove_outliers = server.add_gui_checkbox("Remove outliers", True)
     normals = server.add_gui_dropdown(
         "Normals",
@@ -104,6 +109,7 @@ def populate_point_cloud_tab(
                 f"--remove-outliers {remove_outliers.value}",
                 f"--normal-method {normals.value}",
                 f"--use_bounding_box {control_panel.crop_viewport}",
+                f"--save-world-frame {world_frame.value}",
                 get_crop_string(control_panel.crop_obb),
             ]
         )
