@@ -120,7 +120,7 @@ class DataProcessor(mp.Process):
                 ray_bundle = ray_bundle.pin_memory()
             while True:
                 try:
-                    self.out_queue.put_nowait((ray_bundle, batch))
+                    self.out_queue.put((ray_bundle, batch))
                     break
                 except queue.Full:
                     time.sleep(0.0001)
@@ -238,10 +238,6 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             proc.start()
         print("Started threads")
 
-        # Prime the executor with the first batch
-        self.train_executor = concurrent.futures.ThreadPoolExecutor(max_workers=self.config.max_thread_workers)
-        self.train_batch_fut = self.train_executor.submit(self.data_queue.get)
-
     def setup_eval(self):
         """Sets up the data loader for evaluation."""
         assert self.eval_dataset is not None
@@ -274,11 +270,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the parallel training processes."""
         self.train_count += 1
-
-        # Fetch the next batch in an executor to parallelize the queue get() operation
-        # with the train step
-        bundle, batch = self.train_batch_fut.result()
-        self.train_batch_fut = self.train_executor.submit(self.data_queue.get)
+        bundle, batch = self.data_queue.get()
         ray_bundle = bundle.to(self.device)
         return ray_bundle, batch
 
