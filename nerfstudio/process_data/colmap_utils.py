@@ -54,7 +54,6 @@ except ImportError:
 try:
     from pixsfm.refine_colmap import PixSfM
     from pixsfm.util.database import COLMAPDatabase, pair_id_to_image_ids
-    from omegaconf import DictConfig
 except ImportError:
     _HAS_PIXSFM = False
 else:
@@ -247,7 +246,7 @@ def pairs_from_db(pairs_path: Path, database_path: Path):
 
 def colmap_refine_pixsfm(colmap_dir: Path,
                          image_dir: Path,
-                         config: DictConfig,
+                         config: Dict,
                          verbose=False) -> None:
     # Setup the paths
     images = image_dir
