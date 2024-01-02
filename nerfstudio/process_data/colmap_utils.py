@@ -54,12 +54,11 @@ except ImportError:
 try:
     from pixsfm.refine_colmap import PixSfM
     from pixsfm.util.database import COLMAPDatabase, pair_id_to_image_ids
+    from omegaconf import DictConfig
 except ImportError:
     _HAS_PIXSFM = False
 else:
     _HAS_PIXSFM = True
-
-from omegaconf import DictConfig
 
 
 class OutputCapture:
