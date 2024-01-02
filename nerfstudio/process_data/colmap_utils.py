@@ -253,13 +253,13 @@ def colmap_refine_pixsfm(colmap_dir: Path,
     # Setup the paths
     images = image_dir
     sfm_dir = colmap_dir / 'sparse/0'
-    output_path = colmap_dir / "pixsfm_output/"
+    output_path = colmap_dir / 'pixsfm_output/'
     database_path = colmap_dir / "database.db"
 
     if not os.path.exists(output_path):
         output_path.mkdir(parents=True)
-    pairs_path = output_path / "pairs.txt"
-    cache = output_path / f'dense_features_pixsfm.h5'
+    pairs_path = output_path / 'pairs.txt'
+    cache = output_path / 'dense_features_pixsfm.h5'
 
     refiner = PixSfM(config)
 
