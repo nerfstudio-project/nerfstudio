@@ -49,7 +49,6 @@ try:
     import pycolmap
 except ImportError:
     CONSOLE.print("[bold red]Error: import pycolmap failed!!")
-    
 
 try:
     from pixsfm.refine_colmap import PixSfM
@@ -237,36 +236,29 @@ def pairs_from_db(pairs_path: Path, database_path: Path):
     pair_ids = db.execute("SELECT pair_id FROM matches").fetchall()
     pairs = [pair_id_to_image_ids(pids[0]) for pids in pair_ids]
     image_id_to_name = db.image_id_to_name()
-    pairs = [(image_id_to_name[id1], image_id_to_name[id2])
-             for id1, id2 in pairs]
+    pairs = [(image_id_to_name[id1], image_id_to_name[id2]) for id1, id2 in pairs]
     with open(pairs_path, "w") as doc:
         [doc.write(" ".join(pair) + "\n") for pair in pairs]
     db.close()
 
 
-def colmap_refine_pixsfm(colmap_dir: Path,
-                         image_dir: Path,
-                         config: Dict,
-                         verbose=False) -> None:
+def colmap_refine_pixsfm(colmap_dir: Path, image_dir: Path, config: Dict, verbose=False) -> None:
     # Setup the paths
     images = image_dir
-    sfm_dir = colmap_dir / 'sparse/0'
-    output_path = colmap_dir / 'pixsfm_output/'
+    sfm_dir = colmap_dir / "sparse/0"
+    output_path = colmap_dir / "pixsfm_output/"
     database_path = colmap_dir / "database.db"
 
     if not os.path.exists(output_path):
         output_path.mkdir(parents=True)
-    pairs_path = output_path / 'pairs.txt'
-    cache = output_path / 'dense_features_pixsfm.h5'
+    pairs_path = output_path / "pairs.txt"
+    cache = output_path / "dense_features_pixsfm.h5"
 
     refiner = PixSfM(config)
 
     # Refine keypoints in database
     _, _, feature_manager = refiner.refine_keypoints_from_db(
-        output_path=database_path,
-        database_path=database_path,
-        image_dir=images,
-        cache_path=cache
+        output_path=database_path, database_path=database_path, image_dir=images, cache_path=cache
     )
 
     pairs_from_db(pairs_path, database_path)
@@ -278,12 +270,10 @@ def colmap_refine_pixsfm(colmap_dir: Path,
             # triangulate new points with poses from original model
             reference_model = pycolmap.Reconstruction(sfm_dir)
 
-            reconstruction = pycolmap.triangulate_points(
-                reference_model, database_path, images, sfm_dir)
+            reconstruction = pycolmap.triangulate_points(reference_model, database_path, images, sfm_dir)
 
     # Refine the resulting reconstruction
-    refiner.run_ba(reconstruction, images, cache_path=cache,
-                   feature_manager=feature_manager)
+    refiner.run_ba(reconstruction, images, cache_path=cache, feature_manager=feature_manager)
 
     os.remove(cache)
     reconstruction.write(sfm_dir)
