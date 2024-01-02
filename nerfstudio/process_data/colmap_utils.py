@@ -30,7 +30,6 @@ from rich.progress import track
 import sys
 import os
 import contextlib
-import pycolmap
 import io
 
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
@@ -45,6 +44,12 @@ from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils import colormaps
 from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
+
+try:
+    import pycolmap
+except ImportError:
+    CONSOLE.print("[bold red]Error: import pycolmap failed!!")
+    
 
 try:
     from pixsfm.refine_colmap import PixSfM
