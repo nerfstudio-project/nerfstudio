@@ -46,13 +46,18 @@ from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
 
 try:
-    import pycolmap
+    import pycolmap  # type: ignore
 except ImportError:
-    CONSOLE.print("[bold red]Error: import pycolmap failed!!")
+    _HAS_PYCOLMAP = False
+else:
+    _HAS_PYCOLMAP = True
 
 try:
-    from pixsfm.refine_colmap import PixSfM
-    from pixsfm.util.database import COLMAPDatabase, pair_id_to_image_ids
+    from pixsfm.refine_colmap import PixSfM  # type: ignore
+    from pixsfm.util.database import (  # type: ignore
+        COLMAPDatabase,
+        pair_id_to_image_ids,
+    )
 except ImportError:
     _HAS_PIXSFM = False
 else:
@@ -152,6 +157,10 @@ def run_colmap(
         CONSOLE.print("[bold red]Error: use refine_pixsfm, you must install pixel-perfect-sfm toolbox!!")
         sys.exit(1)
 
+    if refine_pixsfm and not _HAS_PYCOLMAP:
+        CONSOLE.print("[bold red]Error: use refine_pixsfm, you must install pycolmap!!")
+        sys.exit(1)
+
     colmap_version = get_colmap_version(colmap_cmd)
 
     colmap_database_path = colmap_dir / "database.db"
@@ -232,10 +241,10 @@ def run_colmap(
 
 
 def pairs_from_db(pairs_path: Path, database_path: Path):
-    db = COLMAPDatabase.connect(str(database_path))
+    db = COLMAPDatabase.connect(str(database_path))  # type: ignore
     pair_ids = db.execute("SELECT pair_id FROM matches").fetchall()
     pairs = [pair_id_to_image_ids(pids[0]) for pids in pair_ids]
-    image_id_to_name = db.image_id_to_name()
+    image_id_to_name = db.image_id_to_name()  # type: ignore
     pairs = [(image_id_to_name[id1], image_id_to_name[id2]) for id1, id2 in pairs]
     with open(pairs_path, "w") as doc:
         [doc.write(" ".join(pair) + "\n") for pair in pairs]
@@ -254,7 +263,7 @@ def colmap_refine_pixsfm(colmap_dir: Path, image_dir: Path, config: Dict, verbos
     pairs_path = output_path / "pairs.txt"
     cache = output_path / "dense_features_pixsfm.h5"
 
-    refiner = PixSfM(config)
+    refiner = PixSfM(config)  # type: ignore
 
     # Refine keypoints in database
     _, _, feature_manager = refiner.refine_keypoints_from_db(
@@ -264,13 +273,13 @@ def colmap_refine_pixsfm(colmap_dir: Path, image_dir: Path, config: Dict, verbos
     pairs_from_db(pairs_path, database_path)
 
     with OutputCapture(verbose):
-        with pycolmap.ostream():
-            pycolmap.verify_matches(database_path, pairs_path)
+        with pycolmap.ostream():  # type: ignore
+            pycolmap.verify_matches(database_path, pairs_path)  # type: ignore
 
             # triangulate new points with poses from original model
-            reference_model = pycolmap.Reconstruction(sfm_dir)
+            reference_model = pycolmap.Reconstruction(sfm_dir)  # type: ignore
 
-            reconstruction = pycolmap.triangulate_points(reference_model, database_path, images, sfm_dir)
+            reconstruction = pycolmap.triangulate_points(reference_model, database_path, images, sfm_dir)  # type: ignore
 
     # Refine the resulting reconstruction
     refiner.run_ba(reconstruction, images, cache_path=cache, feature_manager=feature_manager)
