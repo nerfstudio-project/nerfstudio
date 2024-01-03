@@ -986,5 +986,5 @@ class Cameras(TensorDataclass):
         self.fy = self.fy * scaling_factor
         self.cx = self.cx * scaling_factor
         self.cy = self.cy * scaling_factor
-        self.height = (self.height * scaling_factor).to(torch.int64)
-        self.width = (self.width * scaling_factor).to(torch.int64)
+        self.height = torch.round(self.height * scaling_factor).to(torch.int64)
+        self.width = torch.round(self.width * scaling_factor).to(torch.int64)

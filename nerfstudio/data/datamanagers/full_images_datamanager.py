@@ -59,7 +59,7 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     new images. If -1, never pick new images."""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """Specifies the image indices to use during eval; if None, uses all."""
-    cache_images: Literal["no-cache", "cpu", "gpu"] = "cpu"
+    cache_images: Literal["no-cache", "cpu", "gpu"] = "gpu"
     """Whether to cache images in memory. If "numpy", caches as numpy arrays, if "torch", caches as torch tensors."""
 
 
@@ -132,20 +132,20 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 continue
             distortion_params = camera.distortion_params.numpy()
             image = data["image"].numpy()
+            distortion_params = np.array(
+                [
+                    distortion_params[0],
+                    distortion_params[1],
+                    distortion_params[4],
+                    distortion_params[5],
+                    distortion_params[2],
+                    distortion_params[3],
+                    0,
+                    0,
+                ]
+            )
 
-            if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
-                distortion_params = np.array(
-                    [
-                        distortion_params[0],
-                        distortion_params[1],
-                        distortion_params[4],
-                        distortion_params[5],
-                        distortion_params[2],
-                        distortion_params[3],
-                        0,
-                        0,
-                    ]
-                )
+            if camera.camera_type.item() == CameraType.PERSPECTIVE.value and np.any(distortion_params):
                 newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
                 image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
                 # crop the image and update the intrinsics accordingly
@@ -184,10 +184,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                     mask = cv2.fisheye.undistortImage(mask, K, distortion_params, None, newK)
                     data["mask"] = torch.from_numpy(mask).bool()
                 K = newK
-            else:
-                raise NotImplementedError("Only perspective and fisheye cameras are supported")
             data["image"] = torch.from_numpy(image)
-
             cached_train.append(data)
 
             self.train_dataset.cameras.fx[i] = float(K[0, 0])
@@ -206,20 +203,20 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 continue
             distortion_params = camera.distortion_params.numpy()
             image = data["image"].numpy()
+            distortion_params = np.array(
+                [
+                    distortion_params[0],
+                    distortion_params[1],
+                    distortion_params[4],
+                    distortion_params[5],
+                    distortion_params[2],
+                    distortion_params[3],
+                    0,
+                    0,
+                ]
+            )
 
-            if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
-                distortion_params = np.array(
-                    [
-                        distortion_params[0],
-                        distortion_params[1],
-                        distortion_params[4],
-                        distortion_params[5],
-                        distortion_params[2],
-                        distortion_params[3],
-                        0,
-                        0,
-                    ]
-                )
+            if camera.camera_type.item() == CameraType.PERSPECTIVE.value and np.any(distortion_params):
                 newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
                 image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
                 # crop the image and update the intrinsics accordingly
@@ -254,8 +251,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                     mask = cv2.fisheye.undistortImage(mask, K, distortion_params, None, newK)
                     data["mask"] = torch.from_numpy(mask).bool()
                 K = newK
-            else:
-                raise NotImplementedError("Only perspective and fisheye cameras are supported")
+
             data["image"] = torch.from_numpy(image)
 
             cached_eval.append(data)
