@@ -31,6 +31,8 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
 
     camera_type: Literal["perspective", "fisheye", "equirectangular"] = "perspective"
     """Camera model to use."""
+    camera_mode: Literal["auto", "single", "per_image"] = "single"
+    """What camera mode to use for the reconstruction. Only works with hloc sfm_tool"""
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed
     and accuracy. Exhaustive is slower but more accurate. Sequential is faster but
@@ -219,6 +221,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
             assert feature_type is not None
             assert matcher_type is not None
             assert matcher_type != "NN"  # Only used for colmap.
+
             hloc_utils.run_hloc(
                 image_dir=image_dir,
                 colmap_dir=self.absolute_colmap_path,
@@ -228,6 +231,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 feature_type=feature_type,
                 matcher_type=matcher_type,
                 refine_pixsfm=self.refine_pixsfm,
+                camera_mode=self.camera_mode,
             )
         else:
             raise RuntimeError("Invalid combination of sfm_tool, feature_type, and matcher_type, " "exiting")
