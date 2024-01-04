@@ -63,7 +63,7 @@ dependencies = [
     "xatlas",
     "trimesh>=3.20.2",
     "timm==0.6.7",
-    "gsplat>=0.1.6",
+    "gsplat>=0.1.9",
     "pytorch-msssim",
     "pathos",
     "packaging"
