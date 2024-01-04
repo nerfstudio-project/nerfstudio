@@ -173,7 +173,7 @@ def convert_video_to_images(
 
         spacing = num_frames // num_frames_target
 
-        downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}[out{i}]" for i in range(num_downscales + 1)]
+        downscale_chains = [f"[t{i}]scale=round(iw/{2**i}):round(ih/{2**i})[out{i}]" for i in range(num_downscales + 1)]
         downscale_dirs = [Path(str(image_dir) + (f"_{2**i}" if i > 0 else "")) for i in range(num_downscales + 1)]
         downscale_paths = [downscale_dirs[i] / f"{image_prefix}%05d.png" for i in range(num_downscales + 1)]
 
@@ -280,7 +280,7 @@ def copy_images_list(
         copied_image_paths.append(copied_image_path)
 
     nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
-    downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}{nn_flag}[out{i}]" for i in range(num_downscales + 1)]
+    downscale_chains = [f"[t{i}]scale=round(iw/{2**i}):round(ih/{2**i}){nn_flag}[out{i}]" for i in range(num_downscales + 1)]
     downscale_dirs = [Path(str(image_dir) + (f"_{2**i}" if i > 0 else "")) for i in range(num_downscales + 1)]
 
     for dir in downscale_dirs:
@@ -462,7 +462,7 @@ def downscale_images(
                 nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
                 ffmpeg_cmd = [
                     f'ffmpeg -y -noautorotate -i "{image_dir / filename}" ',
-                    f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor}{nn_flag} ",
+                    f"-q:v 2 -vf scale=round(iw/{downscale_factor}):round(ih/{downscale_factor}){nn_flag} ",
                     f'"{downscale_dir / filename}"',
                 ]
                 ffmpeg_cmd = " ".join(ffmpeg_cmd)

@@ -434,7 +434,7 @@ class ColmapDataParser(DataParser):
                 path_out.parent.mkdir(parents=True, exist_ok=True)
                 ffmpeg_cmd = [
                     f'ffmpeg -y -noautorotate -i "{path}" ',
-                    f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor}{nn_flag} ",
+                    f"-q:v 2 -vf scale=round(iw/{downscale_factor}):round(ih/{downscale_factor}){nn_flag} ",
                     f'"{path_out}"',
                 ]
                 ffmpeg_cmd = " ".join(ffmpeg_cmd)
