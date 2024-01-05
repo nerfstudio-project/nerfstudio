@@ -368,7 +368,14 @@ class ViewerSlider(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
         self.gui_handle = viser_server.add_gui_slider(
-            self.name, self.min, self.max, self.step, self.default_value, disabled=self.disabled, visible=self.visible, hint=self.hint
+            self.name,
+            self.min,
+            self.max,
+            self.step,
+            self.default_value,
+            disabled=self.disabled,
+            visible=self.visible,
+            hint=self.hint,
         )
 
 
