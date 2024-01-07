@@ -119,8 +119,8 @@ class GaussianSplattingModelConfig(ModelConfig):
     """training starts at 1/d resolution, every n steps this is doubled"""
     num_downscales: int = 0
     """at the beginning, resolution is 1/2^d, where d is this number"""
-    cull_alpha_thresh: float = 0.005
-    """threshold of opacity for culling gaussians"""
+    cull_alpha_thresh: float = 0.1
+    """threshold of opacity for culling gaussians. One can set it to a lower value (e.g. 0.005) for higher quality."""
     cull_scale_thresh: float = 0.5
     """threshold of scale for culling huge gaussians"""
     reset_alpha_every: int = 30
@@ -436,16 +436,18 @@ class GaussianSplattingModel(Model):
         # cull transparent ones
         culls = (torch.sigmoid(self.opacities) < self.config.cull_alpha_thresh).squeeze()
         below_alpha_count = torch.sum(culls).item()
+        toobigs_count = 0
         if extra_cull_mask is not None:
             culls = culls | extra_cull_mask
         if self.step > self.config.refine_every * self.config.reset_alpha_every:
             # cull huge ones
             toobigs = (torch.exp(self.scales).max(dim=-1).values > self.config.cull_scale_thresh).squeeze()
-            culls = culls | toobigs
             if self.step < self.config.stop_screen_size_at:
                 # cull big screen space
                 assert self.max_2Dsize is not None
-                culls = culls | (self.max_2Dsize > self.config.cull_screen_size).squeeze()
+                toobigs = toobigs | (self.max_2Dsize > self.config.cull_screen_size).squeeze()
+            culls = culls | toobigs
+            toobigs_count = torch.sum(toobigs).item()
         self.means = Parameter(self.means[~culls].detach())
         self.scales = Parameter(self.scales[~culls].detach())
         self.quats = Parameter(self.quats[~culls].detach())
@@ -455,7 +457,7 @@ class GaussianSplattingModel(Model):
 
         CONSOLE.log(
             f"Culled {n_bef - self.num_points} gaussians "
-            f"({below_alpha_count} below alpha thresh, {self.num_points} remaining)"
+            f"({below_alpha_count} below alpha thresh, {toobigs_count} too bigs, {self.num_points} remaining)"
         )
 
         return culls
