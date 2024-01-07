@@ -19,6 +19,7 @@ Pose and Intrinsics Optimizers
 from __future__ import annotations
 
 import functools
+import math
 from dataclasses import dataclass, field
 from typing import Literal, Optional, Type, Union
 
@@ -176,8 +177,11 @@ class CameraOptimizer(nn.Module):
     def get_metrics_dict(self, metrics_dict: dict) -> None:
         """Get camera optimizer metrics"""
         if self.config.mode != "off":
-            metrics_dict["camera_opt_translation"] = self.pose_adjustment[:, :3].norm()
-            metrics_dict["camera_opt_rotation"] = self.pose_adjustment[:, 3:].norm()
+            rad2deg = lambda x: x / math.pi * 180.0
+            metrics_dict["camera_opt_translation_max"] = self.pose_adjustment[:, :3].norm(dim=-1).max()
+            metrics_dict["camera_opt_translation_mean"] = self.pose_adjustment[:, :3].norm(dim=-1).mean()
+            metrics_dict["camera_opt_rotation_mean"] = rad2deg(self.pose_adjustment[:, 3:].norm(dim=-1).mean())
+            metrics_dict["camera_opt_rotation_max"] = rad2deg(self.pose_adjustment[:, 3:].norm(dim=-1).max())
 
     def get_param_groups(self, param_groups: dict) -> None:
         """Get camera optimizer parameters"""
