@@ -22,6 +22,7 @@ import functools
 from dataclasses import dataclass, field
 from typing import Literal, Optional, Type, Union
 
+import numpy
 import torch
 import tyro
 from jaxtyping import Float, Int
@@ -181,8 +182,10 @@ class CameraOptimizer(nn.Module):
     def get_metrics_dict(self, metrics_dict: dict) -> None:
         """Get camera optimizer metrics"""
         if self.config.mode != "off":
-            metrics_dict["camera_opt_translation"] = self.pose_adjustment[:, :3].norm()
-            metrics_dict["camera_opt_rotation"] = self.pose_adjustment[:, 3:].norm()
+            metrics_dict["camera_opt_translation_max"] = self.pose_adjustment[:, :3].norm(dim=-1).max()
+            metrics_dict["camera_opt_translation_mean"] = self.pose_adjustment[:, :3].norm(dim=-1).mean()
+            metrics_dict["camera_opt_rotation_mean"] = numpy.rad2deg(self.pose_adjustment[:, 3:].norm(dim=-1).mean())
+            metrics_dict["camera_opt_rotation_max"] = numpy.rad2deg(self.pose_adjustment[:, 3:].norm(dim=-1).max())
 
     def get_param_groups(self, param_groups: dict) -> None:
         """Get camera optimizer parameters"""
