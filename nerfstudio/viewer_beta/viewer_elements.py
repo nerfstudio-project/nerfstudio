@@ -195,17 +195,20 @@ class ViewerElement(Generic[TValue]):
     Args:
         name: The name of the element
         disabled: If the element is disabled
+        visible: If the element is visible
     """
 
     def __init__(
         self,
         name: str,
         disabled: bool = False,
+        visible: bool = True,
         cb_hook: Callable = lambda element: None,
     ) -> None:
         self.name = name
         self.gui_handle: Optional[Union[GuiInputHandle[TValue], GuiButtonHandle, GuiButtonGroupHandle]] = None
         self.disabled = disabled
+        self.visible = visible
         self.cb_hook = cb_hook
 
     @abstractmethod
@@ -234,6 +237,11 @@ class ViewerElement(Generic[TValue]):
         assert self.gui_handle is not None
         self.gui_handle.disabled = disabled
 
+    def set_visible(self, visible: bool) -> None:
+        """Sets the visible state of the gui element"""
+        assert self.gui_handle is not None
+        self.gui_handle.visible = visible
+
     @abstractmethod
     def install(self, viser_server: ViserServer) -> None:
         """Installs the gui element into the given viser_server"""
@@ -247,15 +255,16 @@ class ViewerButton(ViewerElement[bool]):
         name: The name of the button
         cb_hook: The function to call when the button is pressed
         disabled: If the button is disabled
+        visible: If the button is visible
     """
 
     gui_handle: GuiButtonHandle
 
-    def __init__(self, name: str, cb_hook: Callable[[ViewerButton], Any], disabled: bool = False):
-        super().__init__(name, disabled=disabled, cb_hook=cb_hook)
+    def __init__(self, name: str, cb_hook: Callable[[ViewerButton], Any], disabled: bool = False, visible: bool = True):
+        super().__init__(name, disabled=disabled, visible=visible, cb_hook=cb_hook)
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        self.gui_handle = viser_server.add_gui_button(label=self.name, disabled=self.disabled)
+        self.gui_handle = viser_server.add_gui_button(label=self.name, disabled=self.disabled, visible=self.visible)
 
     def install(self, viser_server: ViserServer) -> None:
         self._create_gui_handle(viser_server)
@@ -271,6 +280,7 @@ class ViewerParameter(ViewerElement[TValue], Generic[TValue]):
         name: The name of the element
         default_value: The default value of the element
         disabled: If the element is disabled
+        visible: If the element is visible
         cb_hook: Callback to call on update
     """
 
@@ -281,9 +291,10 @@ class ViewerParameter(ViewerElement[TValue], Generic[TValue]):
         name: str,
         default_value: TValue,
         disabled: bool = False,
+        visible: bool = True,
         cb_hook: Callable = lambda element: None,
     ) -> None:
-        super().__init__(name, disabled=disabled, cb_hook=cb_hook)
+        super().__init__(name, disabled=disabled, visible=visible, cb_hook=cb_hook)
         self.default_value = default_value
 
     def install(self, viser_server: ViserServer) -> None:
@@ -330,6 +341,7 @@ class ViewerSlider(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
         max_value: The maximum value of the slider
         step: The step size of the slider
         disabled: If the slider is disabled
+        visible: If the slider is visible
         cb_hook: Callback to call on update
         hint: The hint text
     """
@@ -342,11 +354,12 @@ class ViewerSlider(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
         max_value: IntOrFloat,
         step: IntOrFloat = 0.1,
         disabled: bool = False,
+        visible: bool = True,
         cb_hook: Callable[[ViewerSlider], Any] = lambda element: None,
         hint: Optional[str] = None,
     ):
         assert isinstance(default_value, (float, int))
-        super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
+        super().__init__(name, default_value, disabled=disabled, visible=visible, cb_hook=cb_hook)
         self.min = min_value
         self.max = max_value
         self.step = step
@@ -355,7 +368,14 @@ class ViewerSlider(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
         self.gui_handle = viser_server.add_gui_slider(
-            self.name, self.min, self.max, self.step, self.default_value, disabled=self.disabled, hint=self.hint
+            self.name,
+            self.min,
+            self.max,
+            self.step,
+            self.default_value,
+            disabled=self.disabled,
+            visible=self.visible,
+            hint=self.hint,
         )
 
 
@@ -366,6 +386,7 @@ class ViewerText(ViewerParameter[str]):
         name: The name of the text field
         default_value: The default value of the text field
         disabled: If the text field is disabled
+        visible: If the text field is visible
         cb_hook: Callback to call on update
         hint: The hint text
     """
@@ -375,17 +396,18 @@ class ViewerText(ViewerParameter[str]):
         name: str,
         default_value: str,
         disabled: bool = False,
+        visible: bool = True,
         cb_hook: Callable[[ViewerText], Any] = lambda element: None,
         hint: Optional[str] = None,
     ):
         assert isinstance(default_value, str)
-        super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
+        super().__init__(name, default_value, disabled=disabled, visible=visible, cb_hook=cb_hook)
         self.hint = hint
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
         self.gui_handle = viser_server.add_gui_text(
-            self.name, self.default_value, disabled=self.disabled, hint=self.hint
+            self.name, self.default_value, disabled=self.disabled, visible=self.visible, hint=self.hint
         )
 
 
@@ -396,6 +418,7 @@ class ViewerNumber(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
         name: The name of the number field
         default_value: The default value of the number field
         disabled: If the number field is disabled
+        visible: If the number field is visible
         cb_hook: Callback to call on update
         hint: The hint text
     """
@@ -407,17 +430,18 @@ class ViewerNumber(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
         name: str,
         default_value: IntOrFloat,
         disabled: bool = False,
+        visible: bool = True,
         cb_hook: Callable[[ViewerNumber], Any] = lambda element: None,
         hint: Optional[str] = None,
     ):
         assert isinstance(default_value, (float, int))
-        super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
+        super().__init__(name, default_value, disabled=disabled, visible=visible, cb_hook=cb_hook)
         self.hint = hint
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
         self.gui_handle = viser_server.add_gui_number(
-            self.name, self.default_value, disabled=self.disabled, hint=self.hint
+            self.name, self.default_value, disabled=self.disabled, visible=self.visible, hint=self.hint
         )
 
 
@@ -428,6 +452,7 @@ class ViewerCheckbox(ViewerParameter[bool]):
         name: The name of the checkbox
         default_value: The default value of the checkbox
         disabled: If the checkbox is disabled
+        visible: If the checkbox is visible
         cb_hook: Callback to call on update
         hint: The hint text
     """
@@ -437,17 +462,18 @@ class ViewerCheckbox(ViewerParameter[bool]):
         name: str,
         default_value: bool,
         disabled: bool = False,
+        visible: bool = True,
         cb_hook: Callable[[ViewerCheckbox], Any] = lambda element: None,
         hint: Optional[str] = None,
     ):
         assert isinstance(default_value, bool)
-        super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
+        super().__init__(name, default_value, disabled=disabled, visible=visible, cb_hook=cb_hook)
         self.hint = hint
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
         self.gui_handle = viser_server.add_gui_checkbox(
-            self.name, self.default_value, disabled=self.disabled, hint=self.hint
+            self.name, self.default_value, disabled=self.disabled, visible=self.visible, hint=self.hint
         )
 
 
@@ -462,6 +488,7 @@ class ViewerDropdown(ViewerParameter[TString], Generic[TString]):
         default_value: The default value of the dropdown
         options: The options of the dropdown
         disabled: If the dropdown is disabled
+        visible: If the dropdown is visible
         cb_hook: Callback to call on update
         hint: The hint text
     """
@@ -474,11 +501,12 @@ class ViewerDropdown(ViewerParameter[TString], Generic[TString]):
         default_value: TString,
         options: List[TString],
         disabled: bool = False,
+        visible: bool = True,
         cb_hook: Callable[[ViewerDropdown], Any] = lambda element: None,
         hint: Optional[str] = None,
     ):
         assert default_value in options
-        super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
+        super().__init__(name, default_value, disabled=disabled, visible=visible, cb_hook=cb_hook)
         self.options = options
         self.hint = hint
 
@@ -489,6 +517,7 @@ class ViewerDropdown(ViewerParameter[TString], Generic[TString]):
             self.options,
             self.default_value,
             disabled=self.disabled,
+            visible=self.visible,
             hint=self.hint,  # type: ignore
         )
 
@@ -509,6 +538,7 @@ class ViewerButtonGroup(ViewerParameter[TString], Generic[TString]):
 
     Args:
         name: The name of the button group
+        visible: If the button group is visible
         options: The options of the button group
         cb_hook: Callback to call on update
     """
@@ -520,14 +550,15 @@ class ViewerButtonGroup(ViewerParameter[TString], Generic[TString]):
         name: str,
         default_value: TString,
         options: List[TString],
+        visible: bool = True,
         cb_hook: Callable[[ViewerDropdown], Any] = lambda element: None,
     ):
-        super().__init__(name, disabled=False, default_value=default_value, cb_hook=cb_hook)
+        super().__init__(name, disabled=False, visible=visible, default_value=default_value, cb_hook=cb_hook)
         self.options = options
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_button_group(self.name, self.options)
+        self.gui_handle = viser_server.add_gui_button_group(self.name, self.options, visible=self.visible)
 
     def install(self, viser_server: ViserServer) -> None:
         self._create_gui_handle(viser_server)
@@ -544,6 +575,7 @@ class ViewerRGB(ViewerParameter[Tuple[int, int, int]]):
         name: The name of the color picker
         default_value: The default value of the color picker
         disabled: If the color picker is disabled
+        visible: If the color picker is visible
         cb_hook: Callback to call on update
         hint: The hint text
     """
@@ -553,16 +585,17 @@ class ViewerRGB(ViewerParameter[Tuple[int, int, int]]):
         name,
         default_value: Tuple[int, int, int],
         disabled=False,
+        visible=True,
         cb_hook: Callable[[ViewerRGB], Any] = lambda element: None,
         hint: Optional[str] = None,
     ):
         assert len(default_value) == 3
-        super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
+        super().__init__(name, default_value, disabled=disabled, visible=visible, cb_hook=cb_hook)
         self.hint = hint
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         self.gui_handle = viser_server.add_gui_rgb(
-            self.name, self.default_value, disabled=self.disabled, hint=self.hint
+            self.name, self.default_value, disabled=self.disabled, visible=self.visible, hint=self.hint
         )
 
 
@@ -575,6 +608,7 @@ class ViewerVec3(ViewerParameter[Tuple[float, float, float]]):
         default_value: The default value of the vector
         step: The step of the vector
         disabled: If the vector is disabled
+        visible: If the vector is visible
         cb_hook: Callback to call on update
         hint: The hint text
     """
@@ -585,15 +619,16 @@ class ViewerVec3(ViewerParameter[Tuple[float, float, float]]):
         default_value: Tuple[float, float, float],
         step=0.1,
         disabled=False,
+        visible=True,
         cb_hook: Callable[[ViewerVec3], Any] = lambda element: None,
         hint: Optional[str] = None,
     ):
         assert len(default_value) == 3
-        super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
+        super().__init__(name, default_value, disabled=disabled, visible=visible, cb_hook=cb_hook)
         self.step = step
         self.hint = hint
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         self.gui_handle = viser_server.add_gui_vector3(
-            self.name, self.default_value, step=self.step, disabled=self.disabled, hint=self.hint
+            self.name, self.default_value, step=self.step, disabled=self.disabled, visible=self.visible, hint=self.hint
         )
