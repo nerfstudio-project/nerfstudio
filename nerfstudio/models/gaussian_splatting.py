@@ -149,6 +149,8 @@ class GaussianSplattingModelConfig(ModelConfig):
     """maximum degree of spherical harmonics to use"""
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig(mode="off")
     """camera optimizer config"""
+    use_scale_regularization: bool = False
+    """If enabled, a scale regularization introduced in PhysGauss (https://xpandora.github.io/PhysGaussian/) is used for reducing huge spikey gaussians."""
     max_gauss_ratio: float = 10.0
     """threshold of ratio of gaussian max to min scale before applying regularization
     loss from the PhysGaussian paper
@@ -745,8 +747,22 @@ class GaussianSplattingModel(Model):
             gt_img = batch["image"]
         Ll1 = torch.abs(gt_img - outputs["rgb"]).mean()
         simloss = 1 - self.ssim(gt_img.permute(2, 0, 1)[None, ...], outputs["rgb"].permute(2, 0, 1)[None, ...])
+        if self.config.use_scale_regularization and self.step % 10 == 0:
+            scale_exp = torch.exp(self.scales)
+            scale_reg = (
+                torch.maximum(
+                    scale_exp.amax(dim=-1) / scale_exp.amin(dim=-1), torch.tensor(self.config.max_gauss_ratio)
+                )
+                - self.config.max_gauss_ratio
+            )
+            scale_reg = 0.1 * scale_reg.mean()
+        else:
+            scale_reg = torch.tensor(0.0).to(self.device)
 
-        return {"main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss}
+        return {
+            "main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,
+            "scale_reg": scale_reg,
+        }
 
     @torch.no_grad()
     def get_outputs_for_camera(self, camera: Cameras, obb_box: Optional[OrientedBox] = None) -> Dict[str, torch.Tensor]:
