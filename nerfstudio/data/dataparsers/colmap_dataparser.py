@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import math
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -35,6 +34,12 @@ from nerfstudio.data.utils import colmap_parsing_utils as colmap_utils
 from nerfstudio.process_data.colmap_utils import parse_colmap_camera_params
 from nerfstudio.utils.scripts import run_command
 from nerfstudio.utils.rich_utils import CONSOLE, status
+from nerfstudio.data.utils.dataparsers_utils import (
+    get_train_eval_split_filename,
+    get_train_eval_split_fraction,
+    get_train_eval_split_interval,
+    get_train_eval_split_all,
+)
 
 MAX_AUTO_RESOLUTION = 1600
 
@@ -59,8 +64,18 @@ class ColmapDataParserConfig(DataParserConfig):
     """The method to use to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
+    eval_mode: Literal["fraction", "filename", "interval", "all"] = "interval"
+    """
+    The method to use for splitting the dataset into train and eval. 
+    Fraction splits based on a percentage for train and the remaining for eval.
+    Filename splits based on filenames containing train/eval.
+    Interval uses every nth frame for eval (used by most academic papers, e.g. MipNerf360, GSplat).
+    All uses all the images for any split.
+    """
     train_split_fraction: float = 0.9
     """The fraction of images to use for training. The remaining images are for eval."""
+    eval_interval: int = 8
+    """The interval between frames to use for eval. Only used when eval_mode is eval-interval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
 
@@ -74,7 +89,7 @@ class ColmapDataParserConfig(DataParserConfig):
     """Path to the colmap reconstruction directory relative to the data path."""
     load_3D_points: bool = False
     """Whether to load the 3D points from the colmap reconstruction."""
-    max_2D_matches_per_3D_point: int = -1
+    max_2D_matches_per_3D_point: int = 0
     """Maximum number of 2D matches per 3D point. If set to -1, all 2D matches are loaded. If set to 0, no 2D matches are loaded."""
 
 
@@ -124,7 +139,10 @@ class ColmapDataParser(DataParser):
             cameras[cam_id] = parse_colmap_camera_params(cam_data)
 
         # Parse frames
-        for im_id, im_data in im_id_to_image.items():
+        # we want to sort all images based on im_id
+        ordered_im_id = sorted(im_id_to_image.keys())
+        for im_id in ordered_im_id:
+            im_data = im_id_to_image[im_id]
             # NB: COLMAP uses Eigen / scalar-first quaternions
             # * https://colmap.github.io/format.html
             # * https://github.com/colmap/colmap/blob/bf3e19140f491c3042bfd85b7192ef7d249808ec/src/base/pose.cc#L75
@@ -136,6 +154,8 @@ class ColmapDataParser(DataParser):
             c2w = np.linalg.inv(w2c)
             # Convert from COLMAP's camera coordinate system (OpenCV) to ours (OpenGL)
             c2w[0:3, 1:3] *= -1
+            # Why do we want to flip Z with a handedness transform?
+            # See https://github.com/nerfstudio-project/nerfstudio/issues/1504
             c2w = c2w[np.array([1, 0, 2, 3]), :]
             c2w[2, :] *= -1
 
@@ -161,6 +181,8 @@ class ColmapDataParser(DataParser):
 
         out = {}
         out["frames"] = frames
+        # Why do we want to flip Z with a handedness transform?
+        # See https://github.com/nerfstudio-project/nerfstudio/issues/1504
         applied_transform = np.eye(4)[:3, :]
         applied_transform = applied_transform[np.array([1, 0, 2]), :]
         applied_transform[2, :] *= -1
@@ -193,16 +215,21 @@ class ColmapDataParser(DataParser):
         elif has_split_files_spec:
             raise RuntimeError(f"The dataset's list of filenames for split {split} is missing.")
         else:
-            # filter image_filenames and poses based on train/eval split percentage
-            num_images = len(image_filenames)
-            num_train_images = math.ceil(num_images * self.config.train_split_fraction)
-            num_eval_images = num_images - num_train_images
-            i_all = np.arange(num_images)
-            i_train = np.linspace(
-                0, num_images - 1, num_train_images, dtype=int
-            )  # equally spaced training images starting and ending at 0 and num_images-1
-            i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
-            assert len(i_eval) == num_eval_images
+            # find train and eval indices based on the eval_mode specified
+            if self.config.eval_mode == "fraction":
+                i_train, i_eval = get_train_eval_split_fraction(image_filenames, self.config.train_split_fraction)
+            elif self.config.eval_mode == "filename":
+                i_train, i_eval = get_train_eval_split_filename(image_filenames)
+            elif self.config.eval_mode == "interval":
+                i_train, i_eval = get_train_eval_split_interval(image_filenames, self.config.eval_interval)
+            elif self.config.eval_mode == "all":
+                CONSOLE.log(
+                    "[yellow] Be careful with '--eval-mode=all'. If using camera optimization, the cameras may diverge in the current implementation, giving unpredictable results."
+                )
+                i_train, i_eval = get_train_eval_split_all(image_filenames)
+            else:
+                raise ValueError(f"Unknown eval mode {self.config.eval_mode}")
+
             if split == "train":
                 indices = i_train
             elif split in ["val", "test"]:
