@@ -16,7 +16,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional
@@ -51,13 +51,13 @@ class ExperimentConfig(InstantiateConfig):
     """Project name."""
     timestamp: str = "{timestamp}"
     """Experiment timestamp."""
-    machine: MachineConfig = MachineConfig()
+    machine: MachineConfig = field(default_factory=lambda: MachineConfig())
     """Machine configuration"""
-    logging: LoggingConfig = LoggingConfig()
+    logging: LoggingConfig = field(default_factory=lambda: LoggingConfig())
     """Logging configuration"""
-    viewer: ViewerConfig = ViewerConfig()
+    viewer: ViewerConfig = field(default_factory=lambda: ViewerConfig())
     """Viewer configuration"""
-    pipeline: VanillaPipelineConfig = VanillaPipelineConfig()
+    pipeline: VanillaPipelineConfig = field(default_factory=lambda: VanillaPipelineConfig())
     """Pipeline configuration"""
     optimizers: Dict[str, Any] = to_immutable_dict(
         {
@@ -69,7 +69,7 @@ class ExperimentConfig(InstantiateConfig):
     )
     """Dictionary of optimizer groups and their schedulers"""
     vis: Literal[
-        "viewer", "wandb", "tensorboard", "comet", "viewer+wandb", "viewer+tensorboard", "viewer+comet", "viewer_beta"
+        "viewer", "wandb", "tensorboard", "comet", "viewer+wandb", "viewer+tensorboard", "viewer+comet", "viewer_legacy"
     ] = "wandb"
     """Which visualizer to use."""
     data: Optional[Path] = None
@@ -81,13 +81,13 @@ class ExperimentConfig(InstantiateConfig):
     load_scheduler: bool = True
     """Whether to load the scheduler state_dict to resume training, if it exists."""
 
-    def is_viewer_enabled(self) -> bool:
-        """Checks if a viewer is enabled."""
-        return ("viewer" == self.vis) | ("viewer+wandb" == self.vis) | ("viewer+tensorboard" == self.vis)
+    def is_viewer_legacy_enabled(self) -> bool:
+        """Checks if the legacy viewer is enabled."""
+        return "viewer_legacy" == self.vis
 
-    def is_viewer_beta_enabled(self) -> bool:
-        """Checks if a viewer beta is enabled."""
-        return "viewer_beta" == self.vis
+    def is_viewer_enabled(self) -> bool:
+        """Checks if the viewer is enabled."""
+        return self.vis in ("viewer", "viewer+wandb", "viewer+tensorboard", "viewer+comet")
 
     def is_wandb_enabled(self) -> bool:
         """Checks if wandb is enabled."""

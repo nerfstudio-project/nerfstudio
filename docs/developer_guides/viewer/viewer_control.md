@@ -14,7 +14,7 @@ Just like `ViewerElements`, you can create an instance inside any class which in
 and is contained within the `Pipeline` object (for example the `Model`)
 
 ```python
-from nerfstudio.viewer.server.viewer_elements import ViewerControl
+from nerfstudio.viewer.viewer_elements import ViewerControl
 
 class MyModel(nn.Module):  # Must inherit from nn.Module
     def __init__(self):
@@ -25,7 +25,7 @@ class MyModel(nn.Module):  # Must inherit from nn.Module
 To get the current camera intrinsics and extrinsics, use the `get_camera` function. This returns a `nerfstudio.cameras.cameras.Cameras` object. This object can be used to generate `RayBundles`, retrieve intrinsics and extrinsics, and more.
 
 ```python
-from nerfstudio.viewer.server.viewer_elements import ViewerControl, ViewerButton
+from nerfstudio.viewer.viewer_elements import ViewerControl, ViewerButton
 
 class MyModel(nn.Module):  # Must inherit from nn.Module
     def __init__(self):
@@ -47,10 +47,10 @@ class MyModel(nn.Module):  # Must inherit from nn.Module
 ```
 
 ## Set Camera Properties
-You can set the viewer camera position and FOV from python. 
+You can set the viewer camera position and FOV from python.
 To set position, you must define a new camera position as well as a 3D "look at" point which the camera aims towards.
 ```python
-from nerfstudio.viewer.server.viewer_elements import ViewerControl,ViewerButton
+from nerfstudio.viewer.viewer_elements import ViewerControl,ViewerButton
 
 class MyModel(nn.Module):  # Must inherit from nn.Module
     def __init__(self):
@@ -62,11 +62,11 @@ class MyModel(nn.Module):  # Must inherit from nn.Module
         self.viewer_button = ViewerButton(name="Dummy Button",cb_hook=button_cb)
 ```
 
-## Double-click Callbacks
-We forward *double* clicks inside the viewer to the ViewerControl object, which you can use to interact with the scene. To do this, register a callback using `register_click_cb()`. The click is defined to be a ray that starts at the camera origin and passes through the click point on the screen, in world coordinates. 
+## Scene Click Callbacks
+We forward *single* clicks inside the viewer to the ViewerControl object, which you can use to interact with the scene. To do this, register a callback using `register_click_cb()`. The click is defined to be a ray that starts at the camera origin and passes through the click point on the screen, in world coordinates. 
 
 ```python
-from nerfstudio.viewer.server.viewer_elements import ViewerControl,ViewerClick
+from nerfstudio.viewer.viewer_elements import ViewerControl,ViewerClick
 
 class MyModel(nn.Module):  # must inherit from nn.Module
     def __init__(self):
@@ -77,6 +77,15 @@ class MyModel(nn.Module):  # must inherit from nn.Module
         self.viewer_control.register_click_cb(click_cb)
 ```
 
+You can also use `unregister_click_cb()` to remove callbacks that are no longer needed. A good example is a "Click on Scene" button, that when pressed, would register a callback that would wait for the next click, and then unregister itself.
+```python
+    ...
+    def button_cb(button: ViewerButton):
+        def click_cb(click: ViewerClick):
+            print(f"Click at {click.origin} in direction {click.direction}")
+            self.viewer_control.unregister_click_cb(click_cb)
+        self.viewer_control.register_click_cb(click_cb)
+```
+
 ### Thread safety
 Just like `ViewerElement` callbacks, click callbacks are asynchronous to training and can potentially interrupt a call to `get_outputs()`.
-

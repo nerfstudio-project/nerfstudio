@@ -1,0 +1,96 @@
+{
+  "name": "viewer",
+  "homepage": ".",
+  "version": "23-05-15-1",
+  "private": true,
+  "dependencies": {
+    "@emotion/react": "^11.10.4",
+    "@emotion/styled": "^11.10.4",
+    "@mui/icons-material": "^5.10.3",
+    "@mui/lab": "^5.0.0-alpha.98",
+    "@mui/material": "^5.10.3",
+    "@mui/system": "^5.10.6",
+    "@mui/x-date-pickers": "^5.0.0",
+    "@reduxjs/toolkit": "^1.8.3",
+    "@testing-library/jest-dom": "^5.16.4",
+    "@testing-library/react": "^13.3.0",
+    "@testing-library/user-event": "^14.2.0",
+    "await-lock": "^2.2.2",
+    "camera-controls": "^2.0",
+    "classnames": "^2.3.1",
+    "dat.gui": "^0.7.9",
+    "dayjs": "^1.11.5",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-unused-imports": "^2.0.0",
+    "leva": "^0.9.29",
+    "lodash": "^4.17.21",
+    "meshline": "^2.0.4",
+    "msgpack-lite": "^0.1.26",
+    "msgpackr": "^1.8.5",
+    "prop-types": "^15.8.1",
+    "re-resizable": "^6.9.9",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
+    "react-icons": "^4.4.0",
+    "react-pro-sidebar": "^0.7.1",
+    "react-redux": "^8.0.2",
+    "redux": "^4.2.0",
+    "sass": "^1.54.8",
+    "socket.io-client": "^4.5.1",
+    "three": "^0.142.0",
+    "three-wtm": "^1.0",
+    "websocket": "^1.0.34",
+    "wwobjloader2": "^4.0"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "electron": "electron .",
+    "lint": "eslint --ext .js,.jsx .",
+    "lint:fix": "eslint --fix --ext .js,.jsx ."
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "main": "public/electron.js",
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "concurrently": "^7.2.1",
+    "eslint": "^8.2.0",
+    "eslint-config-airbnb": "19.0.4",
+    "eslint-plugin-import": "^2.25.3",
+    "eslint-plugin-jsx-a11y": "^6.5.1",
+    "eslint-plugin-react": "^7.28.0",
+    "eslint-plugin-react-hooks": "^4.3.0",
+    "prettier": "2.7.1",
+    "react-scripts": "^5.0.1",
+    "typescript": "^5.0.3",
+    "wait-on": "^6.0.1"
+  },
+  "resolutions": {
+    "babel-loader": "^9.1.2",
+    "json5": "^2.2.3",
+    "loader-utils": "^3.2.1",
+    "nth-check": "^2.0.1",
+    "@pmmmwh/react-refresh-webpack-plugin": "^0.5.10",
+    "recursive-readdir": "^2.2.3",
+    "resolve-url-loader": "^5.0.0",
+    "yaml": "^2.2.2"
+  }
+}
