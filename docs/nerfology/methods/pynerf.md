@@ -54,7 +54,7 @@ Most NeRF methods assume that training and test-time cameras capture scene conte
         <tr>
             <td style="width: 48%;">
                 <div style="display: flex; justify-content: center; align-items: center;">
-                    <img src="https://haithemturki.com/pynerf/images/ficus-cameras.jpg" style="width: 80%;">
+                    <img src="https://haithemturki.com/pynerf/images/ficus-cameras.jpg">
                 </div>
             </td>
             <td style="width: 4%;"><img src="https://haithemturki.com/pynerf/images/arrow-right-white.png" style="width: 100%;"></td>
@@ -74,7 +74,7 @@ They degrade and render blurry views in less constrained settings:
         <tr>
             <td style="width: 48%;">
                 <div style="display: flex; justify-content: center; align-items: center;">
-                    <img src="https://haithemturki.com/pynerf//images/ficus-cameras-different.jpg" style="width: 80%;">
+                    <img src="https://haithemturki.com/pynerf//images/ficus-cameras-different.jpg">
                 </div>
             </td>
             <td style="width: 4%;"><img src="https://haithemturki.com/pynerf/images/arrow-right-white.png" style="width: 100%;"></td>
