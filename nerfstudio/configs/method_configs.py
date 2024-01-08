@@ -601,12 +601,12 @@ method_configs["neus-facto"] = TrainerConfig(
 method_configs["gaussian-splatting"] = TrainerConfig(
     method_name="gaussian-splatting",
     steps_per_eval_image=100,
-    steps_per_eval_batch=100,
+    steps_per_eval_batch=0,
     steps_per_save=2000,
     steps_per_eval_all_images=1000,
     max_num_iterations=30000,
     mixed_precision=False,
-    gradient_accumulation_steps={"camera_opt": 100, "color": 2},
+    gradient_accumulation_steps={"camera_opt": 100},
     pipeline=VanillaPipelineConfig(
         datamanager=FullImageDatamanagerConfig(
             dataparser=ColmapDataParserConfig(load_3D_points=True),
@@ -621,12 +621,13 @@ method_configs["gaussian-splatting"] = TrainerConfig(
                 max_steps=30000,
             ),
         },
-        "color": {
-            "optimizer": AdamOptimizerConfig(lr=5e-4, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(
-                lr_final=1e-4,
-                max_steps=30000,
-            ),
+        "features_dc": {
+            "optimizer": AdamOptimizerConfig(lr=0.0025, eps=1e-15),
+            "scheduler": None,
+        },
+        "features_rest": {
+            "optimizer": AdamOptimizerConfig(lr=0.0025 / 20, eps=1e-15),
+            "scheduler": None,
         },
         "opacity": {
             "optimizer": AdamOptimizerConfig(lr=0.05, eps=1e-15),
@@ -634,7 +635,7 @@ method_configs["gaussian-splatting"] = TrainerConfig(
         },
         "scaling": {
             "optimizer": AdamOptimizerConfig(lr=0.005, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-3, max_steps=30000),
+            "scheduler": None,
         },
         "rotation": {"optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15), "scheduler": None},
         "camera_opt": {

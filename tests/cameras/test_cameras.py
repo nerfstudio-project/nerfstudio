@@ -120,6 +120,70 @@ def test_pinhole_camera():
     pinhole_camera.generate_rays(camera_indices=0, coords=coords)
 
 
+def test_orthophoto_camera():
+    """Test that the orthographic camera model works."""
+    c2w = torch.eye(4)[None, :3, :]
+    # apply R and T.
+    R = torch.Tensor(
+        [
+            [0.5, -0.14644661, 0.85355339],
+            [0.5, 0.85355339, -0.14644661],
+            [-0.70710678, 0.5, 0.5],
+        ]
+    ).unsqueeze(0)
+    T = torch.Tensor([[0.5, 0, -0.5]])
+    c2w[..., :3, :3] = R
+    c2w[..., :3, 3] = T
+
+    ortho_cam = Cameras(cx=1.5, cy=1.5, fx=1.0, fy=1.0, camera_to_worlds=c2w, camera_type=CameraType.ORTHOPHOTO)
+    ortho_rays = ortho_cam.generate_rays(camera_indices=0)
+    # campare with `PERSPECTIVE` to validate `ORTHOPHOTO`.
+    pinhole_cam = Cameras(cx=1.5, cy=1.5, fx=1.0, fy=1.0, camera_to_worlds=c2w, camera_type=CameraType.PERSPECTIVE)
+    pinhole_rays = pinhole_cam.generate_rays(camera_indices=0)
+
+    assert ortho_rays.shape == pinhole_rays.shape
+    # `ortho_rays.directions` should equal to the center ray of `pinhole_rays.directions`.
+    assert torch.allclose(
+        ortho_rays.directions, pinhole_rays.directions[1, 1].broadcast_to(ortho_rays.directions.shape)
+    )
+    # `ortho_rays.origins` should be grid points with a mean value of `pinhole_rays.origins`.
+    assert torch.allclose(ortho_rays.origins.mean(dim=(0, 1)), pinhole_rays.origins[1, 1])
+
+
+def test_multi_camera_type():
+    """Test that the orthographic camera model works."""
+    # here we test two different camera types.
+    num_cams = [2]
+    c2w = torch.eye(4)[None, :3, :].broadcast_to(*num_cams, 3, 4)
+    cx = torch.Tensor([20]).broadcast_to(*num_cams, 1)
+    cy = torch.Tensor([10]).broadcast_to(*num_cams, 1)
+    fx = torch.Tensor([10]).broadcast_to(*num_cams, 1)
+    fy = torch.Tensor([10]).broadcast_to(*num_cams, 1)
+    h = torch.Tensor([40]).long().broadcast_to(*num_cams, 1)
+    w = torch.Tensor([20]).long().broadcast_to(*num_cams, 1)
+    camera_type = [CameraType.PERSPECTIVE, CameraType.ORTHOPHOTO]
+    multitype_cameras = Cameras(c2w, fx, fy, cx, cy, w, h, camera_type=camera_type)
+
+    # test `generate_rays`, 1 cam.
+    ray0 = multitype_cameras.generate_rays(camera_indices=0)
+    assert ray0.shape == torch.Size([40, 20])
+
+    # test `generate_rays`, multiple cams.
+    num_rays = [30, 30]
+    camera_indices = torch.randint(0, 2, [*num_rays, len(num_cams)])  # (*num_rays, num_cameras_batch_dims)
+    ray1 = multitype_cameras.generate_rays(camera_indices=camera_indices)
+    assert ray1.shape == torch.Size([40, 20, *num_rays])
+
+    # test `_generate_rays_from_coords`, 1 cam.
+    coords = torch.randint(0, 10, [*num_rays, 2]).float()  # (*num_rays 2)
+    ray2 = multitype_cameras.generate_rays(camera_indices=0, coords=coords)
+    assert ray2.shape == torch.Size([*num_rays])
+
+    # test `_generate_rays_from_coords`, multiple cam.
+    ray3 = multitype_cameras.generate_rays(camera_indices=camera_indices, coords=coords)
+    assert ray3.shape == torch.Size([*num_rays])
+
+
 def test_equirectangular_camera():
     """Test that the equirectangular camera model works."""
     height = 100  # width is twice the height
@@ -311,3 +375,5 @@ if __name__ == "__main__":
     test_pinhole_camera()
     test_equirectangular_camera()
     test_camera_as_tensordataclass()
+    test_orthophoto_camera()
+    test_multi_camera_type()

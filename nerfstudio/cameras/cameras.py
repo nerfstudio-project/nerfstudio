@@ -48,6 +48,7 @@ class CameraType(Enum):
     OMNIDIRECTIONALSTEREO_R = auto()
     VR180_L = auto()
     VR180_R = auto()
+    ORTHOPHOTO = auto()
     FISHEYE624 = auto()
 
 
@@ -63,6 +64,7 @@ CAMERA_MODEL_TO_TYPE = {
     "OMNIDIRECTIONALSTEREO_R": CameraType.OMNIDIRECTIONALSTEREO_R,
     "VR180_L": CameraType.VR180_L,
     "VR180_R": CameraType.VR180_R,
+    "ORTHOPHOTO": CameraType.ORTHOPHOTO,
     "FISHEYE624": CameraType.FISHEYE624,
 }
 
@@ -833,6 +835,21 @@ class Cameras(TensorDataclass):
                 vr180_origins, directions_stack = _compute_rays_for_vr180("right")
                 # assign final camera origins
                 c2w[..., :3, 3] = vr180_origins
+
+            elif CameraType.ORTHOPHOTO.value in cam_types:
+                # here the focal length determine the imaging area, the smaller fx, the bigger imaging area.
+                mask = (self.camera_type[true_indices] == CameraType.ORTHOPHOTO.value).squeeze(-1)
+                dir_mask = torch.stack([mask, mask, mask], dim=0)
+                # in orthophoto cam, all rays have same direction, dir = R @ [0, 0, 1], R will be applied following.
+                directions_stack[dir_mask] = torch.tensor(
+                    [0.0, 0.0, -1.0], dtype=directions_stack.dtype, device=directions_stack.device
+                )
+                # in orthophoto cam, ray origins are grids, then transform grids with c2w, c2w @ P.
+                grids = coord[mask]
+                grids[..., 1] *= -1.0  # convert to left-hand system.
+                grids = torch.cat([grids, torch.zeros_like(grids[..., -1:]), torch.ones_like(grids[..., -1:])], dim=-1)
+                grids = torch.matmul(c2w[mask], grids[..., None]).squeeze(-1)
+                c2w[..., :3, 3][mask] = grids
 
             elif CameraType.FISHEYE624.value in cam_types:
                 mask = (self.camera_type[true_indices] == CameraType.FISHEYE624.value).squeeze(-1)  # (num_rays)

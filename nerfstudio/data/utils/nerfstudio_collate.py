@@ -102,7 +102,7 @@ def nerfstudio_collate(batch: Any, extra_mappings: Union[Dict[type, Callable], N
             out = elem.new(storage).resize_(len(batch), *list(elem.size()))
         return torch.stack(batch, 0, out=out)
     elif elem_type.__module__ == "numpy" and elem_type.__name__ != "str_" and elem_type.__name__ != "string_":
-        if elem_type.__name__ == "ndarray" or elem_type.__name__ == "memmap":
+        if elem_type.__name__ in ("ndarray", "memmap"):
             # array of string classes and object
             if np_str_obj_array_pattern.search(elem.dtype.str) is not None:
                 raise TypeError(NERFSTUDIO_COLLATE_ERR_MSG_FORMAT.format(elem.dtype))

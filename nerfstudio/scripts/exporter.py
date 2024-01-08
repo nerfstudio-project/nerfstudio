@@ -39,7 +39,7 @@ from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.exporter import texture_utils, tsdf_utils
 from nerfstudio.exporter.exporter_utils import collect_camera_poses, generate_point_cloud, get_mesh_from_filename
 from nerfstudio.exporter.marching_cubes import generate_mesh_with_multires_marching_cubes
-from nerfstudio.fields.sdf_field import SDFField
+from nerfstudio.fields.sdf_field import SDFField  # noqa
 from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
@@ -500,30 +500,48 @@ class ExportGaussianSplat(Exporter):
 
         with torch.no_grad():
             positions = model.means.cpu().numpy()
-            map_to_tensors["positions"] = o3d.core.Tensor(positions, o3d.core.float32)
-            map_to_tensors["normals"] = o3d.core.Tensor(np.zeros_like(positions), o3d.core.float32)
+            n = positions.shape[0]
+            map_to_tensors["positions"] = positions
+            map_to_tensors["normals"] = np.zeros_like(positions, dtype=np.float32)
 
-            colors = model.colors.data.cpu().numpy()
-            map_to_tensors["colors"] = (colors * 255).astype(np.uint8)
-            for i in range(colors.shape[1]):
-                map_to_tensors[f"f_dc_{i}"] = colors[:, i : i + 1]
-
-            shs = model.shs_rest.data.cpu().numpy()
             if model.config.sh_degree > 0:
-                shs = shs.reshape((colors.shape[0], -1, 1))
-                for i in range(shs.shape[-1]):
-                    map_to_tensors[f"f_rest_{i}"] = shs[:, i]
+                shs_0 = model.shs_0.contiguous().cpu().numpy()
+                for i in range(shs_0.shape[1]):
+                    map_to_tensors[f"f_dc_{i}"] = shs_0[:, i, None]
+
+                # transpose(1, 2) was needed to match the sh order in Inria version
+                shs_rest = model.shs_rest.transpose(1, 2).contiguous().cpu().numpy()
+                shs_rest = shs_rest.reshape((n, -1))
+                for i in range(shs_rest.shape[-1]):
+                    map_to_tensors[f"f_rest_{i}"] = shs_rest[:, i, None]
+            else:
+                colors = torch.clamp(model.colors.clone(), 0.0, 1.0).data.cpu().numpy()
+                map_to_tensors["colors"] = (colors * 255).astype(np.uint8)
 
             map_to_tensors["opacity"] = model.opacities.data.cpu().numpy()
 
-            scales = model.scales.data.cpu().unsqueeze(-1).numpy()
+            scales = model.scales.data.cpu().numpy()
             for i in range(3):
-                map_to_tensors[f"scale_{i}"] = scales[:, i]
+                map_to_tensors[f"scale_{i}"] = scales[:, i, None]
 
-            quats = model.quats.data.cpu().unsqueeze(-1).numpy()
-
+            quats = model.quats.data.cpu().numpy()
             for i in range(4):
-                map_to_tensors[f"rot_{i}"] = quats[:, i]
+                map_to_tensors[f"rot_{i}"] = quats[:, i, None]
+
+        # post optimization, it is possible have NaN/Inf values in some attributes
+        # to ensure the exported ply file has finite values, we enforce finite filters.
+        select = np.ones(n, dtype=bool)
+        for k, t in map_to_tensors.items():
+            n_before = np.sum(select)
+            select = np.logical_and(select, np.isfinite(t).all(axis=1))
+            n_after = np.sum(select)
+            if n_after < n_before:
+                CONSOLE.print(f"{n_before - n_after} NaN/Inf elements in {k}")
+
+        if np.sum(select) < n:
+            CONSOLE.print(f"values have NaN/Inf in map_to_tensors, only export {np.sum(select)}/{n}")
+            for k, t in map_to_tensors.items():
+                map_to_tensors[k] = map_to_tensors[k][select, :]
 
         pcd = o3d.t.geometry.PointCloud(map_to_tensors)
 
