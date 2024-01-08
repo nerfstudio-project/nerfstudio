@@ -59,8 +59,8 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     new images. If -1, never pick new images."""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """Specifies the image indices to use during eval; if None, uses all."""
-    cache_images: Literal["no-cache", "cpu", "gpu"] = "cpu"
-    """Whether to cache images in memory. If "numpy", caches as numpy arrays, if "torch", caches as torch tensors."""
+    cache_images: Literal["cpu", "gpu"] = "cpu"
+    """Whether to cache images in memory. If "cpu", caches on cpu. If "gpu", caches on device."""
 
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
@@ -122,6 +122,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
     def cache_images(self, cache_images_option):
         cached_train = []
+        cached_eval = []
         CONSOLE.log("Caching / undistorting train images")
         for i in tqdm(range(len(self.train_dataset)), leave=False):
             # cv2.undistort the images / cameras
@@ -195,7 +196,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             self.train_dataset.cameras.cx[i] = float(K[0, 2])
             self.train_dataset.cameras.cy[i] = float(K[1, 2])
 
-        cached_eval = []
         CONSOLE.log("Caching / undistorting eval images")
         for i in tqdm(range(len(self.eval_dataset)), leave=False):
             # cv2.undistort the images / cameras
