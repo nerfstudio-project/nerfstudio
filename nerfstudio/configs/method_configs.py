@@ -644,7 +644,7 @@ method_configs["gaussian-splatting"] = TrainerConfig(
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
-    vis="viewer_beta",
+    vis="viewer",
 )
 
 

@@ -35,11 +35,11 @@ from viser import (
     ViserServer,
 )
 
+from nerfstudio.viewer.utils import CameraState, get_camera
 from nerfstudio.cameras.cameras import Cameras, CameraType
-from nerfstudio.viewer_beta.utils import CameraState, get_camera
 
 if TYPE_CHECKING:
-    from nerfstudio.viewer_beta.viewer import Viewer
+    from nerfstudio.viewer.viewer import Viewer
 
 TValue = TypeVar("TValue")
 TString = TypeVar("TString", default=str, bound=str)
@@ -133,7 +133,7 @@ class ViewerControl:
         if not client_id:
             client_id = list(clients.keys())[0]
 
-        from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO
+        from nerfstudio.viewer.viewer import VISER_NERFSTUDIO_SCALE_RATIO
 
         client = clients[client_id]
         R = vtf.SO3(wxyz=client.camera.wxyz)
@@ -154,7 +154,7 @@ class ViewerControl:
             cb: The callback to call when a click is detected.
                 The callback should take a ViewerClick object as an argument
         """
-        from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO
+        from nerfstudio.viewer.viewer import VISER_NERFSTUDIO_SCALE_RATIO
 
         def wrapped_cb(scene_pointer_msg: ScenePointerEvent):
             # only call the callback if the event is a click
