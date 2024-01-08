@@ -667,7 +667,7 @@ def populate_render_tab(
             min=0.001,
             max=30.0,
             step=0.001,
-            initial_value=0.5,
+            initial_value=2.0,
             hint="Time in seconds between each keyframe, which can also be overridden on a per-transition basis.",
         )
         framerate_number = server.add_gui_number("FPS", min=0.1, max=240.0, step=1e-2, initial_value=30.0)
