@@ -290,11 +290,10 @@ class RandomCamerasDataManager(DataManager):  # pylint: disable=abstract-method
 
         return ray_bundle, {"vertical": vertical_rotation, "central": central_rotation}
 
-    def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
-        for camera_ray_bundle, batch in self.eval_dataloader:
-            assert camera_ray_bundle.camera_indices is not None
-            image_idx = int(camera_ray_bundle.camera_indices[0, 0, 0])
-            return image_idx, camera_ray_bundle, batch
+    def next_eval_image(self, step: int) -> Tuple[Cameras, Dict]:
+        for camera, batch in self.eval_dataloader:
+            assert camera.shape[0] == 1
+            return camera, batch
         raise ValueError("No more eval images")
 
     def get_train_rays_per_batch(self) -> int:

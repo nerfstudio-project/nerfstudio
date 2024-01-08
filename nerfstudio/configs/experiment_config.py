@@ -16,7 +16,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional
@@ -51,13 +51,13 @@ class ExperimentConfig(InstantiateConfig):
     """Project name."""
     timestamp: str = "{timestamp}"
     """Experiment timestamp."""
-    machine: MachineConfig = MachineConfig()
+    machine: MachineConfig = field(default_factory=lambda: MachineConfig())
     """Machine configuration"""
-    logging: LoggingConfig = LoggingConfig()
+    logging: LoggingConfig = field(default_factory=lambda: LoggingConfig())
     """Logging configuration"""
-    viewer: ViewerConfig = ViewerConfig()
+    viewer: ViewerConfig = field(default_factory=lambda: ViewerConfig())
     """Viewer configuration"""
-    pipeline: VanillaPipelineConfig = VanillaPipelineConfig()
+    pipeline: VanillaPipelineConfig = field(default_factory=lambda: VanillaPipelineConfig())
     """Pipeline configuration"""
     optimizers: Dict[str, Any] = to_immutable_dict(
         {

@@ -45,7 +45,7 @@ external_methods = []
 external_methods.append(
     ExternalMethod(
         """[bold yellow]Instruct-NeRF2NeRF[/bold yellow]
-For more information visit: https://docs.nerf.studio/en/latest/nerfology/methods/in2n.html
+For more information visit: https://docs.nerf.studio/nerfology/methods/in2n.html
 
 To enable Instruct-NeRF2NeRF, you must install it first by running:
   [grey]pip install git+https://github.com/ayaanzhaque/instruct-nerf2nerf[/grey]""",
@@ -62,7 +62,7 @@ To enable Instruct-NeRF2NeRF, you must install it first by running:
 external_methods.append(
     ExternalMethod(
         """[bold yellow]K-Planes[/bold yellow]
-For more information visit https://docs.nerf.studio/en/latest/nerfology/methods/kplanes.html
+For more information visit https://docs.nerf.studio/nerfology/methods/kplanes.html
 
 To enable K-Planes, you must install it first by running:
   [grey]pip install kplanes-nerfstudio[/grey]""",
@@ -78,7 +78,7 @@ To enable K-Planes, you must install it first by running:
 external_methods.append(
     ExternalMethod(
         """[bold yellow]LERF[/bold yellow]
-For more information visit: https://docs.nerf.studio/en/latest/nerfology/methods/lerf.html
+For more information visit: https://docs.nerf.studio/nerfology/methods/lerf.html
 
 To enable LERF, you must install it first by running:
   [grey]pip install git+https://github.com/kerrj/lerf[/grey]""",
@@ -95,7 +95,7 @@ To enable LERF, you must install it first by running:
 external_methods.append(
     ExternalMethod(
         """[bold yellow]Tetra-NeRF[/bold yellow]
-For more information visit: https://docs.nerf.studio/en/latest/nerfology/methods/tetranerf.html
+For more information visit: https://docs.nerf.studio/nerfology/methods/tetranerf.html
 
 To enable Tetra-NeRF, you must install it first. Please follow the instructions here:
   https://github.com/jkulhanek/tetra-nerf/blob/master/README.md#installation""",
@@ -110,7 +110,7 @@ To enable Tetra-NeRF, you must install it first. Please follow the instructions 
 external_methods.append(
     ExternalMethod(
         """[bold yellow]NeRFPlayer[/bold yellow]
-For more information visit: https://docs.nerf.studio/en/latest/nerfology/methods/nerfplayer.html
+For more information visit: https://docs.nerf.studio/nerfology/methods/nerfplayer.html
 
 To enable NeRFPlayer, you must install it first by running:
   [grey]pip install git+https://github.com/lsongx/nerfplayer-nerfstudio[/grey]""",
@@ -125,7 +125,7 @@ To enable NeRFPlayer, you must install it first by running:
 external_methods.append(
     ExternalMethod(
         """[bold yellow]Volinga[/bold yellow]
-For more information visit: https://docs.nerf.studio/en/latest/extensions/unreal_engine.html
+For more information visit: https://docs.nerf.studio/extensions/unreal_engine.html
 
 To enable Volinga, you must install it first by running:
   [grey]pip install git+https://github.com/Volinga/volinga-model[/grey]""",
@@ -136,6 +136,19 @@ To enable Volinga, you must install it first by running:
             ),
         ],
         pip_package="git+https://github.com/Volinga/volinga-model",
+    )
+)
+
+# Instruct-GS2GS
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]Instruct-GS2GS[/bold yellow]
+For more information visit: https://docs.nerf.studio/nerfology/methods/igs2gs.html
+
+To enable Instruct-GS2GS, you must install it first by running:
+  [grey]pip install git+https://github.com/cvachha/instruct-gs2gs[/grey]""",
+        configurations=[("igs2gs", "Instruct-GS2GS. Full model, used in paper")],
+        pip_package="git+https://github.com/cvachha/instruct-gs2gs",
     )
 )
 

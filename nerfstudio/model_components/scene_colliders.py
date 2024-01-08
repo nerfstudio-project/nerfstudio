@@ -172,16 +172,20 @@ class NearFarCollider(SceneCollider):
     Args:
         near_plane: distance to near plane
         far_plane: distance to far plane
+        reset_near_plane: whether to reset the near plane to 0.0 during inference. The near plane can be
+            helpful for reducing floaters during training, but it can cause clipping artifacts during
+            inference when an evaluation or viewer camera moves closer to the object.
     """
 
-    def __init__(self, near_plane: float, far_plane: float, **kwargs) -> None:
+    def __init__(self, near_plane: float, far_plane: float, reset_near_plane: bool = True, **kwargs) -> None:
         self.near_plane = near_plane
         self.far_plane = far_plane
+        self.reset_near_plane = reset_near_plane
         super().__init__(**kwargs)
 
     def set_nears_and_fars(self, ray_bundle: RayBundle) -> RayBundle:
         ones = torch.ones_like(ray_bundle.origins[..., 0:1])
-        near_plane = self.near_plane if self.training else 0
+        near_plane = self.near_plane if (self.training or not self.reset_near_plane) else 0
         ray_bundle.nears = ones * near_plane
         ray_bundle.fars = ones * self.far_plane
         return ray_bundle
