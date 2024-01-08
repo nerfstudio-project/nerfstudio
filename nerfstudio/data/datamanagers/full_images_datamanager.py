@@ -132,20 +132,19 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 continue
             distortion_params = camera.distortion_params.numpy()
             image = data["image"].numpy()
-            distortion_params = np.array(
-                [
-                    distortion_params[0],
-                    distortion_params[1],
-                    distortion_params[4],
-                    distortion_params[5],
-                    distortion_params[2],
-                    distortion_params[3],
-                    0,
-                    0,
-                ]
-            )
-
             if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
+                distortion_params = np.array(
+                    [
+                        distortion_params[0],
+                        distortion_params[1],
+                        distortion_params[4],
+                        distortion_params[5],
+                        distortion_params[2],
+                        distortion_params[3],
+                        0,
+                        0,
+                    ]
+                )
                 if np.any(distortion_params):
                     newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
                     image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
@@ -209,20 +208,19 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 continue
             distortion_params = camera.distortion_params.numpy()
             image = data["image"].numpy()
-            distortion_params = np.array(
-                [
-                    distortion_params[0],
-                    distortion_params[1],
-                    distortion_params[4],
-                    distortion_params[5],
-                    distortion_params[2],
-                    distortion_params[3],
-                    0,
-                    0,
-                ]
-            )
-
             if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
+                distortion_params = np.array(
+                    [
+                        distortion_params[0],
+                        distortion_params[1],
+                        distortion_params[4],
+                        distortion_params[5],
+                        distortion_params[2],
+                        distortion_params[3],
+                        0,
+                        0,
+                    ]
+                )
                 if np.any(distortion_params):
                     newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
                     image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
