@@ -50,11 +50,11 @@ def check_profiler_enabled(func: Callable) -> Callable:
 
 
 def check_viewer_enabled(func: Callable) -> Callable:
-    """Decorator: check if the viewer or beta viewer is enabled and only run on main process"""
+    """Decorator: check if the viewer or legacy viewer is enabled and only run on main process"""
 
     def wrapper(self, *args, **kwargs):
         ret = None
-        if (self.config.is_viewer_enabled() or self.config.is_viewer_beta_enabled()) and comms.is_main_process():
+        if (self.config.is_viewer_enabled() or self.config.is_viewer_legacy_enabled()) and comms.is_main_process():
             ret = func(self, *args, **kwargs)
         return ret
 

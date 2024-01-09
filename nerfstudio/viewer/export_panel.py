@@ -19,7 +19,7 @@ from pathlib import Path
 import viser
 import viser.transforms as vtf
 from nerfstudio.data.scene_box import OrientedBox
-from nerfstudio.viewer_beta.control_panel import ControlPanel
+from nerfstudio.viewer.control_panel import ControlPanel
 from typing_extensions import Literal
 
 
@@ -68,9 +68,9 @@ def get_crop_string(obb: OrientedBox):
     rpy = vtf.SO3.from_matrix(obb.R.numpy(force=True)).as_rpy_radians()
     pos = obb.T.squeeze().tolist()
     scale = obb.S.squeeze().tolist()
-    rpystring = " ".join([str(x) for x in rpy])
-    posstring = " ".join([str(x) for x in pos])
-    scalestring = " ".join([str(x) for x in scale])
+    rpystring = " ".join([f"{x:.10f}" for x in rpy])
+    posstring = " ".join([f"{x:.10f}" for x in pos])
+    scalestring = " ".join([f"{x:.10f}" for x in scale])
     return f"--obb_center {posstring} --obb_rotation {rpystring} --obb_scale {scalestring}"
 
 
@@ -81,6 +81,11 @@ def populate_point_cloud_tab(
 ) -> None:
     server.add_gui_markdown("<small>Render depth, project to an oriented point cloud, and filter.</small> ")
     num_points = server.add_gui_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
+    world_frame = server.add_gui_checkbox(
+        "Save in world frame",
+        True,
+        hint="Save the point cloud in the transforms.json frame, rather than scaled scene frame",
+    )
     remove_outliers = server.add_gui_checkbox("Remove outliers", True)
     normals = server.add_gui_dropdown(
         "Normals",
@@ -104,6 +109,7 @@ def populate_point_cloud_tab(
                 f"--remove-outliers {remove_outliers.value}",
                 f"--normal-method {normals.value}",
                 f"--use_bounding_box {control_panel.crop_viewport}",
+                f"--save-world-frame {world_frame.value}",
                 get_crop_string(control_panel.crop_obb),
             ]
         )

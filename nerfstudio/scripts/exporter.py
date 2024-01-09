@@ -37,15 +37,10 @@ from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.exporter import texture_utils, tsdf_utils
-from nerfstudio.exporter.exporter_utils import (
-    collect_camera_poses,
-    generate_point_cloud,
-    get_mesh_from_filename,
-)
-from nerfstudio.exporter.marching_cubes import (
-    generate_mesh_with_multires_marching_cubes,
-)
-from nerfstudio.fields.sdf_field import SDFField
+from nerfstudio.exporter.exporter_utils import collect_camera_poses, generate_point_cloud, get_mesh_from_filename
+from nerfstudio.exporter.marching_cubes import generate_mesh_with_multires_marching_cubes
+from nerfstudio.fields.sdf_field import SDFField  # noqa
+from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -126,6 +121,9 @@ class ExportPointCloud(Exporter):
     """Number of rays to evaluate per batch. Decrease if you run out of memory."""
     std_ratio: float = 10.0
     """Threshold based on STD of the average distances across the point cloud to remove outliers."""
+    save_world_frame: bool = True
+    """If true, saves in the frame of the transform.json file, if false saves in the frame of the scaled 
+        dataparser transform"""
 
     def main(self) -> None:
         """Export point cloud."""
@@ -162,6 +160,17 @@ class ExportPointCloud(Exporter):
             crop_obb=crop_obb,
             std_ratio=self.std_ratio,
         )
+        if self.save_world_frame:
+            # apply the inverse dataparser transform to the point cloud
+            points = np.asarray(pcd.points)
+            poses = np.eye(4, dtype=np.float32)[None, ...].repeat(points.shape[0], axis=0)[:, :3, :]
+            poses[:, :3, 3] = points
+            poses = pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(
+                torch.from_numpy(poses)
+            )
+            points = poses[:, :3, 3].numpy()
+            pcd.points = o3d.utility.Vector3dVector(points)
+
         torch.cuda.empty_cache()
 
         CONSOLE.print(f"[bold green]:white_check_mark: Generated {pcd}")
@@ -469,6 +478,76 @@ class ExportCameraPoses(Exporter):
             CONSOLE.print(f"[bold green]:white_check_mark: Saved poses to {output_file_path}")
 
 
+@dataclass
+class ExportGaussianSplat(Exporter):
+    """
+    Export 3D Gaussian Splatting model to a .ply
+    """
+
+    def main(self) -> None:
+        if not self.output_dir.exists():
+            self.output_dir.mkdir(parents=True)
+
+        _, pipeline, _, _ = eval_setup(self.load_config)
+
+        assert isinstance(pipeline.model, GaussianSplattingModel)
+
+        model: GaussianSplattingModel = pipeline.model
+
+        filename = self.output_dir / "point_cloud.ply"
+
+        map_to_tensors = {}
+
+        with torch.no_grad():
+            positions = model.means.cpu().numpy()
+            n = positions.shape[0]
+            map_to_tensors["positions"] = positions
+            map_to_tensors["normals"] = np.zeros_like(positions, dtype=np.float32)
+
+            if model.config.sh_degree > 0:
+                shs_0 = model.shs_0.contiguous().cpu().numpy()
+                for i in range(shs_0.shape[1]):
+                    map_to_tensors[f"f_dc_{i}"] = shs_0[:, i, None]
+
+                # transpose(1, 2) was needed to match the sh order in Inria version
+                shs_rest = model.shs_rest.transpose(1, 2).contiguous().cpu().numpy()
+                shs_rest = shs_rest.reshape((n, -1))
+                for i in range(shs_rest.shape[-1]):
+                    map_to_tensors[f"f_rest_{i}"] = shs_rest[:, i, None]
+            else:
+                colors = torch.clamp(model.colors.clone(), 0.0, 1.0).data.cpu().numpy()
+                map_to_tensors["colors"] = (colors * 255).astype(np.uint8)
+
+            map_to_tensors["opacity"] = model.opacities.data.cpu().numpy()
+
+            scales = model.scales.data.cpu().numpy()
+            for i in range(3):
+                map_to_tensors[f"scale_{i}"] = scales[:, i, None]
+
+            quats = model.quats.data.cpu().numpy()
+            for i in range(4):
+                map_to_tensors[f"rot_{i}"] = quats[:, i, None]
+
+        # post optimization, it is possible have NaN/Inf values in some attributes
+        # to ensure the exported ply file has finite values, we enforce finite filters.
+        select = np.ones(n, dtype=bool)
+        for k, t in map_to_tensors.items():
+            n_before = np.sum(select)
+            select = np.logical_and(select, np.isfinite(t).all(axis=1))
+            n_after = np.sum(select)
+            if n_after < n_before:
+                CONSOLE.print(f"{n_before - n_after} NaN/Inf elements in {k}")
+
+        if np.sum(select) < n:
+            CONSOLE.print(f"values have NaN/Inf in map_to_tensors, only export {np.sum(select)}/{n}")
+            for k, t in map_to_tensors.items():
+                map_to_tensors[k] = map_to_tensors[k][select, :]
+
+        pcd = o3d.t.geometry.PointCloud(map_to_tensors)
+
+        o3d.t.io.write_point_cloud(str(filename), pcd)
+
+
 Commands = tyro.conf.FlagConversionOff[
     Union[
         Annotated[ExportPointCloud, tyro.conf.subcommand(name="pointcloud")],
@@ -476,6 +555,7 @@ Commands = tyro.conf.FlagConversionOff[
         Annotated[ExportPoissonMesh, tyro.conf.subcommand(name="poisson")],
         Annotated[ExportMarchingCubesMesh, tyro.conf.subcommand(name="marching-cubes")],
         Annotated[ExportCameraPoses, tyro.conf.subcommand(name="cameras")],
+        Annotated[ExportGaussianSplat, tyro.conf.subcommand(name="gaussian-splat")],
     ]
 ]
 
