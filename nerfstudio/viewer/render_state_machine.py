@@ -27,12 +27,12 @@ from nerfstudio.model_components.renderers import background_color_override_cont
 from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
 from nerfstudio.utils import colormaps, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
-from nerfstudio.viewer.server import viewer_utils
-from nerfstudio.viewer_beta.utils import CameraState, get_camera
+from nerfstudio.viewer_legacy.server import viewer_utils
+from nerfstudio.viewer.utils import CameraState, get_camera
 from viser import ClientHandle
 
 if TYPE_CHECKING:
-    from nerfstudio.viewer_beta.viewer import Viewer
+    from nerfstudio.viewer.viewer import Viewer
 
 RenderStates = Literal["low_move", "low_static", "high"]
 RenderActions = Literal["rerender", "move", "static", "step"]

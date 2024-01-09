@@ -19,7 +19,7 @@ from pathlib import Path
 import viser
 import viser.transforms as vtf
 from nerfstudio.data.scene_box import OrientedBox
-from nerfstudio.viewer_beta.control_panel import ControlPanel
+from nerfstudio.viewer.control_panel import ControlPanel
 from typing_extensions import Literal
 
 
@@ -68,9 +68,9 @@ def get_crop_string(obb: OrientedBox):
     rpy = vtf.SO3.from_matrix(obb.R.numpy(force=True)).as_rpy_radians()
     pos = obb.T.squeeze().tolist()
     scale = obb.S.squeeze().tolist()
-    rpystring = " ".join([str(x) for x in rpy])
-    posstring = " ".join([str(x) for x in pos])
-    scalestring = " ".join([str(x) for x in scale])
+    rpystring = " ".join([f"{x:.10f}" for x in rpy])
+    posstring = " ".join([f"{x:.10f}" for x in pos])
+    scalestring = " ".join([f"{x:.10f}" for x in scale])
     return f"--obb_center {posstring} --obb_rotation {rpystring} --obb_scale {scalestring}"
 
 

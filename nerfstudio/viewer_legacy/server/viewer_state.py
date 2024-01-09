@@ -35,14 +35,14 @@ from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
 from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
-from nerfstudio.viewer.server import viewer_utils
-from nerfstudio.viewer.server.control_panel import ControlPanel
-from nerfstudio.viewer.server.gui_utils import parse_object
-from nerfstudio.viewer.server.render_state_machine import RenderAction, RenderStateMachine
-from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
-from nerfstudio.viewer.server.viewer_elements import ViewerControl, ViewerElement
-from nerfstudio.viewer.viser import ViserServer
-from nerfstudio.viewer.viser.messages import (
+from nerfstudio.viewer_legacy.server import viewer_utils
+from nerfstudio.viewer_legacy.server.control_panel import ControlPanel
+from nerfstudio.viewer_legacy.server.gui_utils import parse_object
+from nerfstudio.viewer_legacy.server.render_state_machine import RenderAction, RenderStateMachine
+from nerfstudio.viewer_legacy.server.utils import get_intrinsics_matrix_and_camera_to_world_h
+from nerfstudio.viewer_legacy.server.viewer_elements import ViewerControl, ViewerElement
+from nerfstudio.viewer_legacy.viser import ViserServer
+from nerfstudio.viewer_legacy.viser.messages import (
     CameraMessage,
     CameraPathOptionsRequest,
     CameraPathPayloadMessage,
@@ -59,7 +59,7 @@ if TYPE_CHECKING:
 
 
 @decorate_all([check_main_thread])
-class ViewerState:
+class ViewerLegacyState:
     """Class to hold state for viewer variables
 
     Args:

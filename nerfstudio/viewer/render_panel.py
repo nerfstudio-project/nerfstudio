@@ -20,16 +20,15 @@ import datetime
 import json
 import threading
 import time
+from typing import Dict, List, Optional, Tuple, Literal
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Tuple
-
-import numpy as np
-import scipy.interpolate
+from nerfstudio.viewer.control_panel import ControlPanel
 import splines
 import splines.quaternion
 import viser
 import viser.transforms as tf
-from nerfstudio.viewer_beta.control_panel import ControlPanel
+import numpy as np
+import scipy
 
 
 @dataclasses.dataclass
@@ -465,7 +464,7 @@ def populate_render_tab(
     datapath: Path,
     control_panel: Optional[ControlPanel] = None,
 ) -> RenderTabState:
-    from nerfstudio.viewer_beta.viewer import VISER_NERFSTUDIO_SCALE_RATIO
+    from nerfstudio.viewer.viewer import VISER_NERFSTUDIO_SCALE_RATIO
 
     render_tab_state = RenderTabState(
         preview_render=False,
@@ -668,7 +667,7 @@ def populate_render_tab(
             min=0.001,
             max=30.0,
             step=0.001,
-            initial_value=0.5,
+            initial_value=2.0,
             hint="Time in seconds between each keyframe, which can also be overridden on a per-transition basis.",
         )
         framerate_number = server.add_gui_number("FPS", min=0.1, max=240.0, step=1e-2, initial_value=30.0)

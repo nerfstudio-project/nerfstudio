@@ -69,7 +69,7 @@ class ExperimentConfig(InstantiateConfig):
     )
     """Dictionary of optimizer groups and their schedulers"""
     vis: Literal[
-        "viewer", "wandb", "tensorboard", "comet", "viewer+wandb", "viewer+tensorboard", "viewer+comet", "viewer_beta"
+        "viewer", "wandb", "tensorboard", "comet", "viewer+wandb", "viewer+tensorboard", "viewer+comet", "viewer_legacy"
     ] = "wandb"
     """Which visualizer to use."""
     data: Optional[Path] = None
@@ -81,13 +81,13 @@ class ExperimentConfig(InstantiateConfig):
     load_scheduler: bool = True
     """Whether to load the scheduler state_dict to resume training, if it exists."""
 
-    def is_viewer_enabled(self) -> bool:
-        """Checks if a viewer is enabled."""
-        return self.vis in ("viewer", "viewer+wandb", "viewer+tensorboard", "viewer+comet")
+    def is_viewer_legacy_enabled(self) -> bool:
+        """Checks if the legacy viewer is enabled."""
+        return "viewer_legacy" == self.vis
 
-    def is_viewer_beta_enabled(self) -> bool:
-        """Checks if a viewer beta is enabled."""
-        return "viewer_beta" == self.vis
+    def is_viewer_enabled(self) -> bool:
+        """Checks if the viewer is enabled."""
+        return self.vis in ("viewer", "viewer+wandb", "viewer+tensorboard", "viewer+comet")
 
     def is_wandb_enabled(self) -> bool:
         """Checks if wandb is enabled."""

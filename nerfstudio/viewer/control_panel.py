@@ -22,7 +22,7 @@ import viser
 import viser.transforms as vtf
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
-from nerfstudio.viewer_beta.viewer_elements import (  # ViewerButtonGroup,
+from nerfstudio.viewer.viewer_elements import (  # ViewerButtonGroup,
     ViewerButtonGroup,
     ViewerCheckbox,
     ViewerDropdown,

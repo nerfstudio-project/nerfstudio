@@ -116,7 +116,7 @@ interface OutputOptionsMessage {
   options: any;
 }
 
-export type Message = 
+export type Message =
   | BackgroundImageMessage
   | GuiAddMessage
   | GuiRemoveMessage

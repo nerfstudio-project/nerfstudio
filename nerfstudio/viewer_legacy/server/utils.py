@@ -21,7 +21,7 @@ import numpy as np
 import torch
 from typing_extensions import assert_never
 
-from nerfstudio.viewer.viser.messages import CameraMessage
+from nerfstudio.viewer_legacy.viser.messages import CameraMessage
 
 
 def get_chunks(

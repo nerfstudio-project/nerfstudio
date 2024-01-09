@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from nerfstudio.viewer.server.state.node import Node
+from nerfstudio.viewer_legacy.server.state.node import Node
 
 
 class StateNode(Node):

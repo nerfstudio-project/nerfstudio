@@ -333,7 +333,7 @@ export default function ViewerWindow(props) {
         mouseVector.y > 1 ||
         mouseVector.y < -1
       );
-      if (!mouse_in_scene) { return; } 
+      if (!mouse_in_scene) { return; }
 
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(mouseVector, sceneTree.metadata.camera);
@@ -341,13 +341,13 @@ export default function ViewerWindow(props) {
       throttledClickSender({
         type: 'ClickMessage',
         origin: [
-          raycaster.ray.origin.x, 
-          raycaster.ray.origin.y, 
+          raycaster.ray.origin.x,
+          raycaster.ray.origin.y,
           raycaster.ray.origin.z
         ],
         direction: [
-          raycaster.ray.direction.x, 
-          raycaster.ray.direction.y, 
+          raycaster.ray.direction.x,
+          raycaster.ray.direction.y,
           raycaster.ray.direction.z
         ],
       });

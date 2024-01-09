@@ -36,8 +36,8 @@ from nerfstudio.utils.decorators import check_eval_enabled, check_main_thread, c
 from nerfstudio.utils.misc import step_check
 from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import EventName, TimeWriter
-from nerfstudio.viewer.server.viewer_state import ViewerState
-from nerfstudio.viewer_beta.viewer import Viewer as ViewerBetaState
+from nerfstudio.viewer_legacy.server.viewer_state import ViewerLegacyState
+from nerfstudio.viewer.viewer import Viewer as ViewerState
 from rich import box, style
 from rich.panel import Panel
 from rich.table import Table
@@ -156,6 +156,19 @@ class Trainer:
         # set up viewer if enabled
         viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
         self.viewer_state, banner_messages = None, None
+        if self.config.is_viewer_legacy_enabled() and self.local_rank == 0:
+            datapath = self.config.data
+            if datapath is None:
+                datapath = self.base_dir
+            self.viewer_state = ViewerLegacyState(
+                self.config.viewer,
+                log_filename=viewer_log_path,
+                datapath=datapath,
+                pipeline=self.pipeline,
+                trainer=self,
+                train_lock=self.train_lock,
+            )
+            banner_messages = [f"Legacy viewer at: {self.viewer_state.viewer_url}"]
         if self.config.is_viewer_enabled() and self.local_rank == 0:
             datapath = self.config.data
             if datapath is None:
@@ -167,22 +180,9 @@ class Trainer:
                 pipeline=self.pipeline,
                 trainer=self,
                 train_lock=self.train_lock,
-            )
-            banner_messages = [f"Viewer at: {self.viewer_state.viewer_url}"]
-        if self.config.is_viewer_beta_enabled() and self.local_rank == 0:
-            datapath = self.config.data
-            if datapath is None:
-                datapath = self.base_dir
-            self.viewer_state = ViewerBetaState(
-                self.config.viewer,
-                log_filename=viewer_log_path,
-                datapath=datapath,
-                pipeline=self.pipeline,
-                trainer=self,
-                train_lock=self.train_lock,
                 share=self.config.viewer.make_share_url,
             )
-            banner_messages = [f"Viewer Beta at: {self.viewer_state.viewer_url}"]
+            banner_messages = [f"Viewer at: {self.viewer_state.viewer_url}"]
         self._check_viewer_warnings()
 
         self._load_checkpoint()
@@ -318,7 +318,7 @@ class Trainer:
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
         if (
-            (self.config.is_viewer_enabled() or self.config.is_viewer_beta_enabled())
+            (self.config.is_viewer_legacy_enabled() or self.config.is_viewer_enabled())
             and not self.config.is_tensorboard_enabled()
             and not self.config.is_wandb_enabled()
             and not self.config.is_comet_enabled()

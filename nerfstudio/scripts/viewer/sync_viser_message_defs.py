@@ -20,7 +20,7 @@ from datetime import datetime
 import tyro
 from viser.infra import generate_typescript_interfaces
 
-from nerfstudio.viewer.viser import NerfstudioMessage
+from nerfstudio.viewer_legacy.viser import NerfstudioMessage
 
 
 def main() -> None:
