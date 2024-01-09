@@ -23,6 +23,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from time import time
 from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Type, Union, cast
+import mediapy as media
+import os
 
 import torch
 import torch.distributed as dist
@@ -369,6 +371,18 @@ class VanillaPipeline(Pipeline):
             transient=True,
         ) as progress:
             task = progress.add_task("[green]Evaluating all eval images...", total=num_images)
+
+            gt_image_dir = None
+            pred_image_dir = None
+            combined_image_dir = None
+            if output_path is not None:
+                gt_image_dir = output_path / "gt"
+                pred_image_dir = output_path / "pred"
+                combined_image_dir = output_path / "combined"
+                os.makedirs(gt_image_dir, exist_ok=True)
+                os.makedirs(pred_image_dir, exist_ok=True)
+                os.makedirs(combined_image_dir, exist_ok=True)
+
             for camera, batch in self.datamanager.fixed_indices_eval_dataloader:
                 # time this the following line
                 inner_start = time()
@@ -377,7 +391,17 @@ class VanillaPipeline(Pipeline):
                 num_rays = height * width
                 metrics_dict, _ = self.model.get_image_metrics_and_images(outputs, batch)
                 if output_path is not None:
-                    raise NotImplementedError("Saving images is not implemented yet")
+                    image_idx = batch["image_idx"]
+                    gt_image_path = gt_image_dir / f"{image_idx}.png"  # type: ignore
+                    pred_image_path = pred_image_dir / f"{image_idx}.png"  # type: ignore
+                    combined_image_path = combined_image_dir / f"{image_idx}_gt_pred.png"  # type: ignore
+
+                    gt_image = batch["image"].numpy()
+                    media.write_image(gt_image_path, gt_image, fmt="png")
+                    pred_image = outputs["rgb"].cpu().numpy()
+                    media.write_image(pred_image_path, pred_image, fmt="png")
+                    combined_image = torch.cat((batch["image"], outputs["rgb"].cpu()), dim=1).numpy()
+                    media.write_image(combined_image_path, combined_image, fmt="png")
 
                 assert "num_rays_per_sec" not in metrics_dict
                 metrics_dict["num_rays_per_sec"] = (num_rays / (time() - inner_start)).item()
