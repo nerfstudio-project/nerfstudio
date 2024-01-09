@@ -42,10 +42,13 @@ from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimize
 from gsplat.rasterize import RasterizeGaussians
 from gsplat.project_gaussians import ProjectGaussians
 from gsplat.sh import SphericalHarmonics, num_sh_bases
+
+from gsplat.compute_cumulative_intersects import compute_cumulative_intersects
 from pytorch_msssim import SSIM
 
 # need following import for background color override
 from nerfstudio.model_components import renderers
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def random_quat_tensor(N):
@@ -114,12 +117,14 @@ class GaussianSplattingModelConfig(ModelConfig):
     """period of steps where gaussians are culled and densified"""
     resolution_schedule: int = 250
     """training starts at 1/d resolution, every n steps this is doubled"""
-    num_downscales: int = 2
+    num_downscales: int = 0
     """at the beginning, resolution is 1/2^d, where d is this number"""
     cull_alpha_thresh: float = 0.1
-    """threshold of opacity for culling gaussians"""
+    """threshold of opacity for culling gaussians. One can set it to a lower value (e.g. 0.005) for higher quality."""
     cull_scale_thresh: float = 0.5
-    """threshold of scale for culling gaussians"""
+    """threshold of scale for culling huge gaussians"""
+    continue_cull_post_densification: bool = True
+    """If True, continue to cull gaussians post refinement"""
     reset_alpha_every: int = 30
     """Every this many refinement steps, reset the alpha"""
     densify_grad_thresh: float = 0.0002
@@ -142,10 +147,12 @@ class GaussianSplattingModelConfig(ModelConfig):
     """weight of ssim loss"""
     stop_split_at: int = 15000
     """stop splitting at this step"""
-    sh_degree: int = 4
+    sh_degree: int = 3
     """maximum degree of spherical harmonics to use"""
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig(mode="off")
     """camera optimizer config"""
+    use_scale_regularization: bool = False
+    """If enabled, a scale regularization introduced in PhysGauss (https://xpandora.github.io/PhysGaussian/) is used for reducing huge spikey gaussians."""
     max_gauss_ratio: float = 10.0
     """threshold of ratio of gaussian max to min scale before applying regularization
     loss from the PhysGaussian paper
@@ -184,15 +191,18 @@ class GaussianSplattingModel(Model):
         dim_sh = num_sh_bases(self.config.sh_degree)
 
         if self.seed_pts is not None and not self.config.random_init:
-            fused_color = RGB2SH(self.seed_pts[1] / 255)
-            shs = torch.zeros((fused_color.shape[0], dim_sh, 3)).float().cuda()
-            shs[:, 0, :3] = fused_color
-            shs[:, 1:, 3:] = 0.0
-            self.colors_all = torch.nn.Parameter(shs)
+            shs = torch.zeros((self.seed_pts[1].shape[0], dim_sh, 3)).float().cuda()
+            if self.config.sh_degree > 0:
+                shs[:, 0, :3] = RGB2SH(self.seed_pts[1] / 255)
+                shs[:, 1:, 3:] = 0.0
+            else:
+                CONSOLE.log("use color only optimization with sigmoid activation")
+                shs[:, 0, :3] = torch.logit(self.seed_pts[1] / 255, eps=1e-10)
+            self.features_dc = torch.nn.Parameter(shs[:, 0, :])
+            self.features_rest = torch.nn.Parameter(shs[:, 1:, :])
         else:
-            colors = torch.nn.Parameter(torch.rand(self.num_points, 1, 3))
-            shs_rest = torch.nn.Parameter(torch.zeros((self.num_points, dim_sh - 1, 3)))
-            self.colors_all = torch.nn.Parameter(torch.cat([colors, shs_rest], dim=1))
+            self.features_dc = torch.nn.Parameter(torch.rand(self.num_points, 3))
+            self.features_rest = torch.nn.Parameter(torch.zeros((self.num_points, dim_sh - 1, 3)))
 
         self.opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(self.num_points, 1)))
 
@@ -211,11 +221,18 @@ class GaussianSplattingModel(Model):
 
     @property
     def colors(self):
-        return self.colors_all[:, 0, :]
+        if self.config.sh_degree > 0:
+            return SH2RGB(self.features_dc)
+        else:
+            return torch.sigmoid(self.features_dc)
+
+    @property
+    def shs_0(self):
+        return self.features_dc
 
     @property
     def shs_rest(self):
-        return self.colors_all[:, 1:, :]
+        return self.features_rest
 
     def load_state_dict(self, dict, **kwargs):  # type: ignore
         # resize the parameters to match the new number of points
@@ -225,8 +242,9 @@ class GaussianSplattingModel(Model):
         self.scales = torch.nn.Parameter(torch.zeros(newp, 3, device=self.device))
         self.quats = torch.nn.Parameter(torch.zeros(newp, 4, device=self.device))
         self.opacities = torch.nn.Parameter(torch.zeros(newp, 1, device=self.device))
-        self.colors_all = torch.nn.Parameter(
-            torch.zeros(newp, num_sh_bases(self.config.sh_degree), 3, device=self.device)
+        self.features_dc = torch.nn.Parameter(torch.zeros(newp, 3, device=self.device))
+        self.features_rest = torch.nn.Parameter(
+            torch.zeros(newp, num_sh_bases(self.config.sh_degree) - 1, 3, device=self.device)
         )
         super().load_state_dict(dict, **kwargs)
 
@@ -267,6 +285,12 @@ class GaussianSplattingModel(Model):
         optimizer.param_groups[0]["params"] = new_params
         optimizer.state[new_params[0]] = param_state
 
+    def remove_from_all_optim(self, optimizers, deleted_mask):
+        param_groups = self.get_gaussian_param_groups()
+        for group, param in param_groups.items():
+            self.remove_from_optim(optimizers.optimizers[group], deleted_mask, param)
+        torch.cuda.empty_cache()
+
     def dup_in_optim(self, optimizer, dup_mask, new_params, n=2):
         """adds the parameters to the optimizer"""
         param = optimizer.param_groups[0]["params"][0]
@@ -288,7 +312,16 @@ class GaussianSplattingModel(Model):
         optimizer.param_groups[0]["params"] = new_params
         del param
 
+    def dup_in_all_optim(self, optimizers, dup_mask, n):
+        param_groups = self.get_gaussian_param_groups()
+        for group, param in param_groups.items():
+            self.dup_in_optim(optimizers.optimizers[group], dup_mask, param, n)
+
     def after_train(self, step: int):
+        assert step == self.step
+        # to save some training time, we no longer need to update those stats post refinement
+        if self.step >= self.config.stop_split_at:
+            return
         with torch.no_grad():
             # keep track of a moving average of grad norms
             visible_mask = (self.radii > 0).flatten()
@@ -318,107 +351,135 @@ class GaussianSplattingModel(Model):
         self.back_color = back_color
 
     def refinement_after(self, optimizers: Optimizers, step):
-        if self.step >= self.config.warmup_length:
-            with torch.no_grad():
-                # only split/cull if we've seen every image since opacity reset
-                reset_interval = self.config.reset_alpha_every * self.config.refine_every
-                if (
-                    self.step < self.config.stop_split_at
-                    and self.step % reset_interval > self.num_train_data + self.config.refine_every
-                ):
-                    # then we densify
-                    assert (
-                        self.xys_grad_norm is not None and self.vis_counts is not None and self.max_2Dsize is not None
-                    )
-                    avg_grad_norm = (
-                        (self.xys_grad_norm / self.vis_counts) * 0.5 * max(self.last_size[0], self.last_size[1])
-                    )
-                    high_grads = (avg_grad_norm > self.config.densify_grad_thresh).squeeze()
-                    splits = (self.scales.exp().max(dim=-1).values > self.config.densify_size_thresh).squeeze()
-                    if self.step < self.config.stop_screen_size_at:
-                        splits |= (self.max_2Dsize > self.config.split_screen_size).squeeze()
-                    splits &= high_grads
-                    nsamps = self.config.n_split_samples
-                    (
-                        split_means,
-                        split_colors,
-                        split_opacities,
-                        split_scales,
-                        split_quats,
-                    ) = self.split_gaussians(splits, nsamps)
+        assert step == self.step
+        if self.step <= self.config.warmup_length:
+            return
+        with torch.no_grad():
+            # Offset all the opacity reset logic by refine_every so that we don't
+            # save checkpoints right when the opacity is reset (saves every 2k)
+            # then cull
+            # only split/cull if we've seen every image since opacity reset
+            reset_interval = self.config.reset_alpha_every * self.config.refine_every
+            do_densification = (
+                self.step < self.config.stop_split_at
+                and self.step % reset_interval > self.num_train_data + self.config.refine_every
+            )
+            if do_densification:
+                # then we densify
+                assert self.xys_grad_norm is not None and self.vis_counts is not None and self.max_2Dsize is not None
+                avg_grad_norm = (self.xys_grad_norm / self.vis_counts) * 0.5 * max(self.last_size[0], self.last_size[1])
+                high_grads = (avg_grad_norm > self.config.densify_grad_thresh).squeeze()
+                splits = (self.scales.exp().max(dim=-1).values > self.config.densify_size_thresh).squeeze()
+                if self.step < self.config.stop_screen_size_at:
+                    splits |= (self.max_2Dsize > self.config.split_screen_size).squeeze()
+                splits &= high_grads
+                nsamps = self.config.n_split_samples
+                (
+                    split_means,
+                    split_features_dc,
+                    split_features_rest,
+                    split_opacities,
+                    split_scales,
+                    split_quats,
+                ) = self.split_gaussians(splits, nsamps)
 
-                    dups = (self.scales.exp().max(dim=-1).values <= self.config.densify_size_thresh).squeeze()
-                    dups &= high_grads
-                    dup_means, dup_colors, dup_opacities, dup_scales, dup_quats = self.dup_gaussians(dups)
-                    self.means = Parameter(torch.cat([self.means.detach(), split_means, dup_means], dim=0))
-                    self.colors_all = Parameter(torch.cat([self.colors_all.detach(), split_colors, dup_colors], dim=0))
+                dups = (self.scales.exp().max(dim=-1).values <= self.config.densify_size_thresh).squeeze()
+                dups &= high_grads
+                (
+                    dup_means,
+                    dup_features_dc,
+                    dup_features_rest,
+                    dup_opacities,
+                    dup_scales,
+                    dup_quats,
+                ) = self.dup_gaussians(dups)
+                self.means = Parameter(torch.cat([self.means.detach(), split_means, dup_means], dim=0))
+                self.features_dc = Parameter(
+                    torch.cat([self.features_dc.detach(), split_features_dc, dup_features_dc], dim=0)
+                )
+                self.features_rest = Parameter(
+                    torch.cat([self.features_rest.detach(), split_features_rest, dup_features_rest], dim=0)
+                )
+                self.opacities = Parameter(torch.cat([self.opacities.detach(), split_opacities, dup_opacities], dim=0))
+                self.scales = Parameter(torch.cat([self.scales.detach(), split_scales, dup_scales], dim=0))
+                self.quats = Parameter(torch.cat([self.quats.detach(), split_quats, dup_quats], dim=0))
+                # append zeros to the max_2Dsize tensor
+                self.max_2Dsize = torch.cat(
+                    [self.max_2Dsize, torch.zeros_like(split_scales[:, 0]), torch.zeros_like(dup_scales[:, 0])],
+                    dim=0,
+                )
 
-                    self.opacities = Parameter(
-                        torch.cat([self.opacities.detach(), split_opacities, dup_opacities], dim=0)
-                    )
-                    self.scales = Parameter(torch.cat([self.scales.detach(), split_scales, dup_scales], dim=0))
-                    self.quats = Parameter(torch.cat([self.quats.detach(), split_quats, dup_quats], dim=0))
-                    # append zeros to the max_2Dsize tensor
-                    self.max_2Dsize = torch.cat(
-                        [self.max_2Dsize, torch.zeros_like(split_scales[:, 0]), torch.zeros_like(dup_scales[:, 0])],
-                        dim=0,
-                    )
-                    split_idcs = torch.where(splits)[0]
-                    param_groups = self.get_gaussian_param_groups()
-                    for group, param in param_groups.items():
-                        self.dup_in_optim(optimizers.optimizers[group], split_idcs, param, n=nsamps)
-                    dup_idcs = torch.where(dups)[0]
+                split_idcs = torch.where(splits)[0]
+                self.dup_in_all_optim(optimizers, split_idcs, nsamps)
 
-                    param_groups = self.get_gaussian_param_groups()
-                    for group, param in param_groups.items():
-                        self.dup_in_optim(optimizers.optimizers[group], dup_idcs, param, 1)
+                dup_idcs = torch.where(dups)[0]
+                self.dup_in_all_optim(optimizers, dup_idcs, 1)
 
-                # Offset all the opacity reset logic by refine_every so that we don't
-                # save checkpoints right when the opacity is reset (saves every 2k)
-                if self.step % reset_interval > self.num_train_data + self.config.refine_every:
-                    # then cull
-                    deleted_mask = self.cull_gaussians()
-                    param_groups = self.get_gaussian_param_groups()
-                    for group, param in param_groups.items():
-                        self.remove_from_optim(optimizers.optimizers[group], deleted_mask, param)
+                # After a guassian is split into two new gaussians, the original one should also be pruned.
+                splits_mask = torch.cat(
+                    (splits, torch.zeros(nsamps * splits.sum() + dups.sum(), device=self.device, dtype=torch.bool))
+                )
 
-                if self.step % reset_interval == self.config.refine_every:
-                    reset_value = self.config.cull_alpha_thresh * 0.8
-                    self.opacities.data = torch.full_like(
-                        self.opacities.data, torch.logit(torch.tensor(reset_value)).item()
-                    )
-                    # reset the exp of optimizer
-                    optim = optimizers.optimizers["opacity"]
-                    param = optim.param_groups[0]["params"][0]
-                    param_state = optim.state[param]
-                    param_state["exp_avg"] = torch.zeros_like(param_state["exp_avg"])
-                    param_state["exp_avg_sq"] = torch.zeros_like(param_state["exp_avg_sq"])
-                self.xys_grad_norm = None
-                self.vis_counts = None
-                self.max_2Dsize = None
+                deleted_mask = self.cull_gaussians(splits_mask)
+            elif self.step >= self.config.stop_split_at and self.config.continue_cull_post_densification:
+                deleted_mask = self.cull_gaussians()
+            else:
+                # if we donot allow culling post refinement, no more gaussians will be pruned.
+                deleted_mask = None
 
-    def cull_gaussians(self):
+            if deleted_mask is not None:
+                self.remove_from_all_optim(optimizers, deleted_mask)
+
+            if self.step < self.config.stop_split_at and self.step % reset_interval == self.config.refine_every:
+                # Reset value is set to be twice of the cull_alpha_thresh
+                reset_value = self.config.cull_alpha_thresh * 2.0
+                self.opacities.data = torch.clamp(
+                    self.opacities.data, max=torch.logit(torch.tensor(reset_value, device=self.device)).item()
+                )
+                # reset the exp of optimizer
+                optim = optimizers.optimizers["opacity"]
+                param = optim.param_groups[0]["params"][0]
+                param_state = optim.state[param]
+                param_state["exp_avg"] = torch.zeros_like(param_state["exp_avg"])
+                param_state["exp_avg_sq"] = torch.zeros_like(param_state["exp_avg_sq"])
+
+            self.xys_grad_norm = None
+            self.vis_counts = None
+            self.max_2Dsize = None
+
+    def cull_gaussians(self, extra_cull_mask: Optional[torch.Tensor] = None):
         """
         This function deletes gaussians with under a certain opacity threshold
+        extra_cull_mask: a mask indicates extra gaussians to cull besides existing culling criterion
         """
         n_bef = self.num_points
         # cull transparent ones
         culls = (torch.sigmoid(self.opacities) < self.config.cull_alpha_thresh).squeeze()
+        below_alpha_count = torch.sum(culls).item()
+        toobigs_count = 0
+        if extra_cull_mask is not None:
+            culls = culls | extra_cull_mask
         if self.step > self.config.refine_every * self.config.reset_alpha_every:
             # cull huge ones
             toobigs = (torch.exp(self.scales).max(dim=-1).values > self.config.cull_scale_thresh).squeeze()
-            culls = culls | toobigs
             if self.step < self.config.stop_screen_size_at:
                 # cull big screen space
                 assert self.max_2Dsize is not None
-                culls = culls | (self.max_2Dsize > self.config.cull_screen_size).squeeze()
+                toobigs = toobigs | (self.max_2Dsize > self.config.cull_screen_size).squeeze()
+            culls = culls | toobigs
+            toobigs_count = torch.sum(toobigs).item()
         self.means = Parameter(self.means[~culls].detach())
         self.scales = Parameter(self.scales[~culls].detach())
         self.quats = Parameter(self.quats[~culls].detach())
-        self.colors_all = Parameter(self.colors_all[~culls].detach())
+        self.features_dc = Parameter(self.features_dc[~culls].detach())
+        self.features_rest = Parameter(self.features_rest[~culls].detach())
         self.opacities = Parameter(self.opacities[~culls].detach())
 
-        print(f"Culled {n_bef - self.num_points} gaussians")
+        CONSOLE.log(
+            f"Culled {n_bef - self.num_points} gaussians "
+            f"({below_alpha_count} below alpha thresh, {toobigs_count} too bigs, {self.num_points} remaining)"
+        )
+
         return culls
 
     def split_gaussians(self, split_mask, samps):
@@ -427,7 +488,7 @@ class GaussianSplattingModel(Model):
         """
 
         n_splits = split_mask.sum().item()
-        print(f"Splitting {split_mask.sum().item()/self.num_points} gaussians: {n_splits}/{self.num_points}")
+        CONSOLE.log(f"Splitting {split_mask.sum().item()/self.num_points} gaussians: {n_splits}/{self.num_points}")
         centered_samples = torch.randn((samps * n_splits, 3), device=self.device)  # Nx3 of axis-aligned scales
         scaled_samples = (
             torch.exp(self.scales[split_mask].repeat(samps, 1)) * centered_samples
@@ -437,7 +498,8 @@ class GaussianSplattingModel(Model):
         rotated_samples = torch.bmm(rots, scaled_samples[..., None]).squeeze()
         new_means = rotated_samples + self.means[split_mask].repeat(samps, 1)
         # step 2, sample new colors
-        new_colors_all = self.colors_all[split_mask].repeat(samps, 1, 1)
+        new_features_dc = self.features_dc[split_mask].repeat(samps, 1)
+        new_features_rest = self.features_rest[split_mask].repeat(samps, 1, 1)
         # step 3, sample new opacities
         new_opacities = self.opacities[split_mask].repeat(samps, 1)
         # step 4, sample new scales
@@ -446,20 +508,21 @@ class GaussianSplattingModel(Model):
         self.scales[split_mask] = torch.log(torch.exp(self.scales[split_mask]) / size_fac)
         # step 5, sample new quats
         new_quats = self.quats[split_mask].repeat(samps, 1)
-        return new_means, new_colors_all, new_opacities, new_scales, new_quats
+        return new_means, new_features_dc, new_features_rest, new_opacities, new_scales, new_quats
 
     def dup_gaussians(self, dup_mask):
         """
         This function duplicates gaussians that are too small
         """
         n_dups = dup_mask.sum().item()
-        print(f"Duplicating {dup_mask.sum().item()/self.num_points} gaussians: {n_dups}/{self.num_points}")
+        CONSOLE.log(f"Duplicating {dup_mask.sum().item()/self.num_points} gaussians: {n_dups}/{self.num_points}")
         dup_means = self.means[dup_mask]
-        dup_colors = self.colors_all[dup_mask]
+        dup_features_dc = self.features_dc[dup_mask]
+        dup_features_rest = self.features_rest[dup_mask]
         dup_opacities = self.opacities[dup_mask]
         dup_scales = self.scales[dup_mask]
         dup_quats = self.quats[dup_mask]
-        return dup_means, dup_colors, dup_opacities, dup_scales, dup_quats
+        return dup_means, dup_features_dc, dup_features_rest, dup_opacities, dup_scales, dup_quats
 
     @property
     def num_points(self):
@@ -493,7 +556,8 @@ class GaussianSplattingModel(Model):
     def get_gaussian_param_groups(self) -> Dict[str, List[Parameter]]:
         return {
             "xyz": [self.means],
-            "color": [self.colors_all],
+            "features_dc": [self.features_dc],
+            "features_rest": [self.features_rest],
             "opacity": [self.opacities],
             "scaling": [self.scales],
             "rotation": [self.quats],
@@ -553,7 +617,7 @@ class GaussianSplattingModel(Model):
         R = camera.camera_to_worlds[0, :3, :3]  # 3 x 3
         T = camera.camera_to_worlds[0, :3, 3:4]  # 3 x 1
         # flip the z and y axes to align with gsplat conventions
-        R_edit = torch.diag(torch.tensor([1, -1, -1], device="cuda", dtype=R.dtype))
+        R_edit = torch.diag(torch.tensor([1, -1, -1], device=self.device, dtype=R.dtype))
         R = R @ R_edit
         # analytic matrix inverse to get world2camera matrix
         R_inv = R.T
@@ -579,16 +643,21 @@ class GaussianSplattingModel(Model):
         if crop_ids is not None:
             opacities_crop = self.opacities[crop_ids]
             means_crop = self.means[crop_ids]
-            colors_crop = self.colors_all[crop_ids]
+            features_dc_crop = self.features_dc[crop_ids]
+            features_rest_crop = self.features_rest[crop_ids]
             scales_crop = self.scales[crop_ids]
             quats_crop = self.quats[crop_ids]
         else:
             opacities_crop = self.opacities
             means_crop = self.means
-            colors_crop = self.colors_all
+            features_dc_crop = self.features_dc
+            features_rest_crop = self.features_rest
             scales_crop = self.scales
             quats_crop = self.quats
-        self.xys, depths, self.radii, conics, num_tiles_hit, _ = ProjectGaussians.apply(  # type: ignore
+
+        colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
+
+        self.xys, depths, self.radii, conics, num_tiles_hit, cov3d = ProjectGaussians.apply(
             means_crop,
             torch.exp(scales_crop),
             1,
@@ -602,22 +671,30 @@ class GaussianSplattingModel(Model):
             H,
             W,
             tile_bounds,
-        )
+        )  # type: ignore
         if (self.radii).sum() == 0:
             return {"rgb": background.repeat(int(camera.height.item()), int(camera.width.item()), 1)}
 
         # Important to allow xys grads to populate properly
         if self.training:
             self.xys.retain_grad()
+
         if self.config.sh_degree > 0:
             viewdirs = means_crop.detach() - camera.camera_to_worlds.detach()[..., :3, 3]  # (N, 3)
             viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
             n = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
             rgbs = SphericalHarmonics.apply(n, viewdirs, colors_crop)
-            rgbs = torch.clamp(rgbs + 0.5, 0.0, 1.0)  # type: ignore
+            rgbs = torch.clamp(rgbs + 0.5, min=0.0)  # type: ignore
         else:
-            rgbs = self.get_colors.squeeze()  # (N, 3)
-            rgbs = torch.sigmoid(rgbs)
+            rgbs = torch.sigmoid(colors_crop[:, 0, :])
+
+        # rescale the camera back to original dimensions
+        camera.rescale_output_resolution(camera_downscale)
+
+        # avoid empty rasterization
+        num_intersects, _ = compute_cumulative_intersects(self.xys.size(0), num_tiles_hit)
+        assert num_intersects > 0
+
         rgb = RasterizeGaussians.apply(
             self.xys,
             depths,
@@ -629,7 +706,8 @@ class GaussianSplattingModel(Model):
             H,
             W,
             background,
-        )
+        )  # type: ignore
+        rgb = torch.clamp(rgb, max=1.0)  # type: ignore
         depth_im = None
         if not self.training:
             depth_im = RasterizeGaussians.apply(  # type: ignore
@@ -643,9 +721,10 @@ class GaussianSplattingModel(Model):
                 H,
                 W,
                 torch.ones(3, device=self.device) * 10,
-            )[..., 0:1]
-        # rescale the camera back to original dimensions
-        camera.rescale_output_resolution(camera_downscale)
+            )[
+                ..., 0:1
+            ]  # type: ignore
+
         return {"rgb": rgb, "depth": depth_im}  # type: ignore
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
@@ -686,10 +765,7 @@ class GaussianSplattingModel(Model):
             gt_img = batch["image"]
         Ll1 = torch.abs(gt_img - outputs["rgb"]).mean()
         simloss = 1 - self.ssim(gt_img.permute(2, 0, 1)[None, ...], outputs["rgb"].permute(2, 0, 1)[None, ...])
-        if self.step % 10 == 0:
-            # Before, we made split sh and colors onto different optimizer, with shs having a low learning rate
-            # This is slow, instead we apply a regularization every few steps
-            sh_reg = self.colors_all[:, 1:, :].norm(dim=1).mean()
+        if self.config.use_scale_regularization and self.step % 10 == 0:
             scale_exp = torch.exp(self.scales)
             scale_reg = (
                 torch.maximum(
@@ -699,11 +775,10 @@ class GaussianSplattingModel(Model):
             )
             scale_reg = 0.1 * scale_reg.mean()
         else:
-            sh_reg = torch.tensor(0.0).to(self.device)
             scale_reg = torch.tensor(0.0).to(self.device)
+
         return {
             "main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,
-            "sh_reg": sh_reg,
             "scale_reg": scale_reg,
         }
 

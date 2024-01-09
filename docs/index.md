@@ -161,7 +161,6 @@ This documentation is organized into 3 parts:
 | ---------------------------------------------------------- | ---------------------- |
 | [Github](https://github.com/nerfstudio-project/nerfstudio) | Official Github Repo   |
 | [Discord](https://discord.gg/RyVk6w5WWP)                   | Join Discord Community |
-| [Viewer](https://viewer.nerf.studio/)                      | Web-based Nerf Viewer  |
 | [Feedback Form](https://forms.gle/sqN5phJN7LfQVwnP9)       | Provide Nerfstudio Feedback |
 
 ## Sponsors
