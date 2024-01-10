@@ -152,13 +152,13 @@ To enable Instruct-GS2GS, you must install it first by running:
     )
 )
 
-# K-Planes
+# PyNeRF
 external_methods.append(
     ExternalMethod(
         """[bold yellow]PyNeRF[/bold yellow]
 For more information visit https://docs.nerf.studio/nerfology/methods/pynerf.html
 
-To enable K-Planes, you must install it first by running:
+To enable PyNeRF, you must install it first by running:
   [grey]pip install git+https://github.com/hturki/pynerf[/grey]""",
         configurations=[
             ("pynerf", "PyNeRF with proposal network. The default parameters are suited for outdoor scenes."),
