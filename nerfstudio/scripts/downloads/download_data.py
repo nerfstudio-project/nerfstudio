@@ -15,6 +15,7 @@
 """Download datasets and specific captures from the datasets."""
 from __future__ import annotations
 
+import collections
 import copy
 import json
 import os
@@ -654,7 +655,7 @@ class EyefulTowerDownload(DatasetDownload):
         return transformed
 
     def convert_cameras_to_nerfstudio_transforms(
-        self, cameras: dict, target_width: int, target_height: int, extension: str
+        self, cameras: dict, splits: dict, target_width: int, target_height: int, extension: str
     ):
         output = {}
 
@@ -669,11 +670,17 @@ class EyefulTowerDownload(DatasetDownload):
         else:
             raise NotImplementedError(f"Camera model {distortion_model} not implemented")
 
+        split_sets = {k: set(v) for k, v in splits.items()}
+
         frames = []
+        split_filenames = collections.defaultdict(list)
         for camera in cameras["KRT"]:
             frame = {}
             # TODO EXR
             frame["file_path"] = camera["cameraId"] + f".{extension}"
+            for split in split_sets:
+                if camera["cameraId"] in split_sets[split]:
+                    split_filenames[split].append(frame["file_path"])
 
             original_width = camera["width"]
             original_height = camera["height"]
@@ -721,6 +728,8 @@ class EyefulTowerDownload(DatasetDownload):
         frames = sorted(frames, key=lambda f: f["file_path"])
 
         output["frames"] = frames
+        output["train_filenames"] = split_filenames["train"]
+        output["val_filenames"] = split_filenames["test"]
         return output
 
     def subsample_nerfstudio_transforms(self, transforms: dict, n: int):
@@ -733,6 +742,11 @@ class EyefulTowerDownload(DatasetDownload):
 
         output = copy.deepcopy(transforms)
         output["frames"] = frames
+
+        # Remove the unused files from the splits
+        filenames = {f["file_path"] for f in frames}
+        for key in ["train_filenames", "val_filenames"]:
+            output[key] = sorted(list(set(transforms[key]) & filenames))
 
         return output
 
@@ -816,11 +830,17 @@ class EyefulTowerDownload(DatasetDownload):
                     print("done!")
 
             json_input_path = output_path / "cameras.json"
+            splits_input_path = output_path / "splits.json"
             if not json_input_path.exists:
                 print("    WARNING: cameras.json not found. transforms.json will not be generated.")
+            elif not splits_input_path.exists:
+                print("    WARNING: splits.json not found. transforms.json will not be generated.")
             else:
                 with open(json_input_path, "r") as f:
                     cameras = json.load(f)
+
+                with open(splits_input_path, "r") as f:
+                    splits = json.load(f)
 
                 for resolution in resolutions:
                     metadata = eyefultower_resolutions[resolution]
@@ -831,7 +851,7 @@ class EyefulTowerDownload(DatasetDownload):
                         flush=True,
                     )
                     transforms = self.convert_cameras_to_nerfstudio_transforms(
-                        cameras, metadata.width, metadata.height, metadata.extension
+                        cameras, splits, metadata.width, metadata.height, metadata.extension
                     )
 
                     with open(json_output_path, "w", encoding="utf8") as f:
