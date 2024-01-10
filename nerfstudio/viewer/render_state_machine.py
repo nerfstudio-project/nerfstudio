@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.model_components.renderers import background_color_override_context
 from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
@@ -171,15 +172,16 @@ class RenderStateMachine(threading.Thread):
                     # Gaussians render much faster than we can send depth images, so we do some downsampling.
                     assert len(outputs["depth"].shape) == 3
                     assert outputs["depth"].shape[-1] == 1
-                    if self.state == "low_move":
-                        outputs["gl_z_buf_depth"] = outputs["depth"][
-                            :: max(outputs["depth"].shape[0] // 64, 1), :: max(outputs["depth"].shape[1] // 64, 1)
-                        ]
-                    else:
-                        outputs["gl_z_buf_depth"] = outputs["depth"]
-                        outputs["gl_z_buf_depth"] = outputs["depth"][
-                            :: max(outputs["depth"].shape[0] // 512, 1), :: max(outputs["depth"].shape[1] // 512, 1)
-                        ]
+
+                    desired_depth_pixels = {"low_move": 128, "low_static": 128, "high": 512}[self.state] ** 2
+                    current_depth_pixels = outputs["depth"].shape[0] * outputs["depth"].shape[1]
+                    scale = min(desired_depth_pixels / current_depth_pixels, 1.0)
+
+                    outputs["gl_z_buf_depth"] = F.interpolate(
+                        outputs["depth"].squeeze(dim=-1)[None, None, ...],
+                        size=(int(outputs["depth"].shape[0] * scale), int(outputs["depth"].shape[1] * scale)),
+                        mode="bilinear",
+                    )[0, 0, :, :, None]
                 else:
                     # Convert to z_depth if depth compositing is enabled.
                     R = camera.camera_to_worlds[0, 0:3, 0:3].T
