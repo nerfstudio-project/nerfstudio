@@ -474,7 +474,7 @@ class Mill19Download(DatasetDownload):
 
     capture_name: Mill19CaptureName = "building"
 
-    def download(self, save_dir: Path):
+    def download(self, save_dir: Path) -> None:
         """Download a Mill 19 dataset: https://meganerf.cmusatyalab.org/#data"""
 
         install_checks.check_curl_installed()
@@ -488,28 +488,27 @@ class Mill19Download(DatasetDownload):
             self.capture_name in mill19_downloads
         ), f"Capture name {self.capture_name} not found in {mill19_downloads.keys()}"
         url = mill19_downloads[self.capture_name]
-        target_path = str(save_dir / f"mill19/{self.capture_name}")
-        os.makedirs(target_path, exist_ok=True)
+        target_path = save_dir / f"mill19/{self.capture_name}"
+        target_path.mkdir(parents=True, exist_ok=True)
         download_path = Path(f"{target_path}.tgz")
-        tmp_path = str(save_dir / ".temp")
+        tmp_path = save_dir / ".temp"
         shutil.rmtree(tmp_path, ignore_errors=True)
-        os.makedirs(tmp_path, exist_ok=True)
+        tmp_path.mkdir(parents=True, exist_ok=True)
 
         os.system(f"curl -L {url} > {download_path}")
 
         with tarfile.open(download_path, "r:gz") as tar_ref:
-            tar_ref.extractall(str(tmp_path))
+            tar_ref.extractall(tmp_path)
 
-        inner_folders = os.listdir(tmp_path)
+        inner_folders = list(tmp_path.iterdir())
         assert len(inner_folders) == 1, "There is more than one folder inside this zip file."
-        folder = os.path.join(tmp_path, inner_folders[0])
+        folder = inner_folders[0]
         shutil.rmtree(target_path)
-        shutil.move(folder, target_path)
+        folder.rename(target_path)
         shutil.rmtree(tmp_path)
-        os.remove(download_path)
+        download_path.unlink()
 
         # Convert data layout into what the nerfstudio dataparser expects
-        target_path = Path(target_path)
         frames = []
         for subdir, prefix in [("train", "train_"), ("val", "eval_")]:
             copied_images = process_data_utils.copy_images(
