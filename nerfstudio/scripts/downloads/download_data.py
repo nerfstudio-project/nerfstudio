@@ -15,6 +15,7 @@
 """Download datasets and specific captures from the datasets."""
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import tarfile
@@ -24,7 +25,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Union
 
 import gdown
+import torch
 import tyro
+from nerfstudio.process_data import process_data_utils
 from typing_extensions import Annotated
 
 from nerfstudio.configs.base_config import PrintableConfig
@@ -453,6 +456,95 @@ class NeRFOSRDownload(DatasetDownload):
         os.remove(download_path)
 
 
+mill19_downloads = {
+    "building": "https://storage.cmusatyalab.org/mega-nerf-data/building-pixsfm.tgz",
+    "rubble": "https://storage.cmusatyalab.org/mega-nerf-data/rubble-pixsfm.tgz",
+    "all": None,
+}
+
+if TYPE_CHECKING:
+    Mill19CaptureName = str
+else:
+    Mill19CaptureName = tyro.extras.literal_type_from_choices(mill19_downloads.keys())
+
+
+@dataclass
+class Mill19Download(DatasetDownload):
+    """Download the Mill 19 dataset."""
+
+    capture_name: Mill19CaptureName = "building"
+
+    def download(self, save_dir: Path) -> None:
+        """Download a Mill 19 dataset: https://meganerf.cmusatyalab.org/#data"""
+
+        install_checks.check_curl_installed()
+        if self.capture_name == "all":
+            for capture_name in mill19_downloads:
+                if capture_name != "all":
+                    Mill19Download(capture_name=capture_name).download(save_dir)
+            return
+
+        assert (
+            self.capture_name in mill19_downloads
+        ), f"Capture name {self.capture_name} not found in {mill19_downloads.keys()}"
+        url = mill19_downloads[self.capture_name]
+        target_path = save_dir / f"mill19/{self.capture_name}"
+        target_path.mkdir(parents=True, exist_ok=True)
+        download_path = Path(f"{target_path}.tgz")
+        tmp_path = save_dir / ".temp"
+        shutil.rmtree(tmp_path, ignore_errors=True)
+        tmp_path.mkdir(parents=True, exist_ok=True)
+
+        os.system(f"curl -L {url} > {download_path}")
+
+        with tarfile.open(download_path, "r:gz") as tar_ref:
+            tar_ref.extractall(tmp_path)
+
+        inner_folders = list(tmp_path.iterdir())
+        assert len(inner_folders) == 1, "There is more than one folder inside this zip file."
+        folder = inner_folders[0]
+        shutil.rmtree(target_path)
+        folder.rename(target_path)
+        shutil.rmtree(tmp_path)
+        download_path.unlink()
+
+        # Convert data layout into what the nerfstudio dataparser expects
+        frames = []
+        for subdir, prefix in [("train", "train_"), ("val", "eval_")]:
+            copied_images = process_data_utils.copy_images(
+                target_path / subdir / "rgbs",
+                image_dir=target_path / "images",
+                image_prefix=prefix,
+                num_downscales=3,
+                verbose=True,
+                keep_image_dir=True,
+            )
+
+            for image_path, new_image_path in copied_images.items():
+                metadata_path = image_path.parent.parent / "metadata" / f"{image_path.stem}.pt"
+                metadata = torch.load(metadata_path, map_location="cpu")
+                c2w = torch.eye(4)
+                c2w[:3] = metadata["c2w"]
+                frames.append(
+                    {
+                        "file_path": str(Path("images") / f"{new_image_path.name}"),
+                        "fl_x": metadata["intrinsics"][0].item(),
+                        "fl_y": metadata["intrinsics"][1].item(),
+                        "cx": metadata["intrinsics"][2].item(),
+                        "cy": metadata["intrinsics"][3].item(),
+                        "w": metadata["W"],
+                        "h": metadata["H"],
+                        "transform_matrix": c2w.tolist(),
+                    }
+                )
+
+        with (target_path / "transforms.json").open("w") as f:
+            json.dump({"frames": frames}, f, indent=4)
+
+        shutil.rmtree(target_path / "train")
+        shutil.rmtree(target_path / "val")
+
+
 Commands = Union[
     Annotated[BlenderDownload, tyro.conf.subcommand(name="blender")],
     Annotated[Sitcoms3DDownload, tyro.conf.subcommand(name="sitcoms3d")],
@@ -462,6 +554,7 @@ Commands = Union[
     Annotated[PhototourismDownload, tyro.conf.subcommand(name="phototourism")],
     Annotated[SDFstudioDemoDownload, tyro.conf.subcommand(name="sdfstudio")],
     Annotated[NeRFOSRDownload, tyro.conf.subcommand(name="nerfosr")],
+    Annotated[Mill19Download, tyro.conf.subcommand(name="mill19")],
 ]
 
 
@@ -477,6 +570,7 @@ def main(
     - record3d: Record3d dataset.
     - dnerf: D-NeRF dataset.
     - phototourism: PhotoTourism dataset. Use the `capture_name` argument to specify which capture to download.
+    - mill19: Mill 19 dataset. Use the `capture_name` argument to specify which capture to download.
 
     Args:
         dataset: The dataset to download (from).
