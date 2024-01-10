@@ -152,6 +152,7 @@ This documentation is organized into 3 parts:
 - [NeRFPlayer](nerfology/methods/nerfplayer.md): 4D Radiance Fields by Streaming Feature Channels
 - [Tetra-NeRF](nerfology/methods/tetranerf.md): Representing Neural Radiance Fields Using Tetrahedra
 - [Instruct-GS2GS](nerfology/methods/igs2gs.md): Editing 3DGS Scenes with Instructions
+- [PyNeRF](nerfology/methods/pynerf.md): Pyramidal Neural Radiance Fields
 
 **Eager to contribute a method?** We'd love to see you use nerfstudio in implementing new (or even existing) methods! Please view our {ref}`guide<own_method_docs>` for more details about how to add to this list!
 
