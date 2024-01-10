@@ -49,10 +49,11 @@ class PixelSamplerConfig(InstantiateConfig):
     """List of whether or not camera i is equirectangular."""
     fisheye_crop_radius: Optional[float] = None
     """Set to the radius (in pixels) for fisheye cameras."""
-    rejection_sample_mask : bool = True
+    rejection_sample_mask: bool = True
     """Whether or not to use rejection sampling when sampling images with masks"""
-    max_num_iterations : int = 100
+    max_num_iterations: int = 100
     """If rejection sampling masks, the maximum number of times to sample"""
+
 
 class PixelSampler:
     """Samples 'pixel_batch's from 'image_batch's.
