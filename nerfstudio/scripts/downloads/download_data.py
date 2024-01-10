@@ -807,7 +807,7 @@ class EyefulTowerDownload(DatasetDownload):
                     metadata = eyefultower_resolutions[resolution]
                     xml_output_path = output_path / metadata.folder_name / "cameras.xml"
                     print(
-                        f"    Generating cameras.xml for '{resolution}' to {xml_output_path.resolve()} ... ",
+                        f"    Generating cameras.xml for '{resolution}' to '{xml_output_path.resolve()}' ... ",
                         end=" ",
                         flush=True,
                     )
@@ -826,7 +826,7 @@ class EyefulTowerDownload(DatasetDownload):
                     metadata = eyefultower_resolutions[resolution]
                     json_output_path = output_path / metadata.folder_name / "transforms.json"
                     print(
-                        f"    Generating transforms.json for '{resolution}' to {json_output_path.resolve()} ... ",
+                        f"    Generating transforms.json for '{resolution}' to '{json_output_path.resolve()}' ... ",
                         end=" ",
                         flush=True,
                     )
