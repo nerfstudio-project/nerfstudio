@@ -32,14 +32,10 @@ from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from nerfstudio.configs import base_config as cfg
-from nerfstudio.data.datamanagers.base_datamanager import (
-    DataManager,
-    DataManagerConfig,
-    VanillaDataManager,
-)
-from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
+from nerfstudio.configs.base_config import InstantiateConfig
+from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig, VanillaDataManager
 from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatamanager
+from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
@@ -213,14 +209,14 @@ class Pipeline(nn.Module):
 
 
 @dataclass
-class VanillaPipelineConfig(cfg.InstantiateConfig):
+class VanillaPipelineConfig(InstantiateConfig):
     """Configuration for pipeline instantiation"""
 
     _target: Type = field(default_factory=lambda: VanillaPipeline)
     """target class to instantiate"""
-    datamanager: DataManagerConfig = field(default_factory=lambda: DataManagerConfig())
+    datamanager: DataManagerConfig = field(default_factory=DataManagerConfig)
     """specifies the datamanager config"""
-    model: ModelConfig = field(default_factory=lambda: ModelConfig())
+    model: ModelConfig = field(default_factory=ModelConfig)
     """specifies the model config"""
 
 

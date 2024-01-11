@@ -39,6 +39,7 @@ The following methods are supported in nerfstudio:
     TensoRF<tensorf.md>
     Generfacto<generfacto.md>
     Instruct-GS2GS<igs2gs.md>
+    PyNeRF<pynerf.md>
 ```
 
 (own_method_docs)=

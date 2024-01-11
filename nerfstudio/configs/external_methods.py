@@ -152,6 +152,29 @@ To enable Instruct-GS2GS, you must install it first by running:
     )
 )
 
+# PyNeRF
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]PyNeRF[/bold yellow]
+For more information visit https://docs.nerf.studio/nerfology/methods/pynerf.html
+
+To enable PyNeRF, you must install it first by running:
+  [grey]pip install git+https://github.com/hturki/pynerf[/grey]""",
+        configurations=[
+            ("pynerf", "PyNeRF with proposal network. The default parameters are suited for outdoor scenes."),
+            (
+                "pynerf-synthetic",
+                "PyNeRF with proposal network. The default parameters are suited for synthetic scenes.",
+            ),
+            (
+                "pynerf-occupancy-grid",
+                "PyNeRF with occupancy grid. The default parameters are suited for synthetic scenes.",
+            ),
+        ],
+        pip_package="git+https://github.com/hturki/pynerf",
+    )
+)
+
 
 @dataclass
 class ExternalMethodTrainerConfig(TrainerConfig):
