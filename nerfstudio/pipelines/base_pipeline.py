@@ -396,11 +396,11 @@ class VanillaPipeline(Pipeline):
                     pred_image_path = pred_image_dir / f"{image_idx}.png"  # type: ignore
                     combined_image_path = combined_image_dir / f"{image_idx}_gt_pred.png"  # type: ignore
 
-                    gt_image = batch["image"].numpy()
+                    gt_image = batch["image"].cpu().numpy()
                     media.write_image(gt_image_path, gt_image, fmt="png")
                     pred_image = outputs["rgb"].cpu().numpy()
                     media.write_image(pred_image_path, pred_image, fmt="png")
-                    combined_image = torch.cat((batch["image"], outputs["rgb"].cpu()), dim=1).numpy()
+                    combined_image = torch.cat((batch["image"].cpu(), outputs["rgb"].cpu()), dim=1).numpy()
                     media.write_image(combined_image_path, combined_image, fmt="png")
 
                 assert "num_rays_per_sec" not in metrics_dict
