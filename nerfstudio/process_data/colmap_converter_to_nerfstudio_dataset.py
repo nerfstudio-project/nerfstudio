@@ -208,6 +208,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 matching_method=self.matching_method,
                 refine_intrinsics=self.refine_intrinsics,
                 colmap_cmd=self.colmap_cmd,
+                refine_pixsfm=self.refine_pixsfm,
             )
         elif sfm_tool == "hloc":
             if mask_path is not None:
