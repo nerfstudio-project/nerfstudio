@@ -36,19 +36,9 @@ from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.nerfacto_field import NerfactoField
 from nerfstudio.fields.sdf_field import SDFFieldConfig
 from nerfstudio.fields.vanilla_nerf_field import NeRFField
-from nerfstudio.model_components.losses import (
-    L1Loss,
-    MSELoss,
-    ScaleAndShiftInvariantLoss,
-    monosdf_normal_loss,
-)
+from nerfstudio.model_components.losses import L1Loss, MSELoss, ScaleAndShiftInvariantLoss, monosdf_normal_loss
 from nerfstudio.model_components.ray_samplers import LinearDisparitySampler
-from nerfstudio.model_components.renderers import (
-    AccumulationRenderer,
-    DepthRenderer,
-    RGBRenderer,
-    SemanticRenderer,
-)
+from nerfstudio.model_components.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer, SemanticRenderer
 from nerfstudio.model_components.scene_colliders import AABBBoxCollider, NearFarCollider
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
@@ -79,7 +69,7 @@ class SurfaceModelConfig(ModelConfig):
     """Monocular normal consistency loss multiplier."""
     mono_depth_loss_mult: float = 0.0
     """Monocular depth consistency loss multiplier."""
-    sdf_field: SDFFieldConfig = field(default_factory=lambda: SDFFieldConfig())
+    sdf_field: SDFFieldConfig = field(default_factory=SDFFieldConfig)
     """Config for SDF Field"""
     background_model: Literal["grid", "mlp", "none"] = "mlp"
     """background models"""
