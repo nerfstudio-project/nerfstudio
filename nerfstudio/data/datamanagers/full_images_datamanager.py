@@ -22,6 +22,7 @@ paradigm
 from __future__ import annotations
 
 import random
+from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
@@ -30,7 +31,6 @@ from typing import Dict, ForwardRef, Generic, List, Literal, Optional, Tuple, Ty
 import cv2
 import numpy as np
 import torch
-from copy import deepcopy
 from torch.nn import Parameter
 from tqdm import tqdm
 
@@ -47,7 +47,7 @@ from nerfstudio.utils.rich_utils import CONSOLE
 @dataclass
 class FullImageDatamanagerConfig(DataManagerConfig):
     _target: Type = field(default_factory=lambda: FullImageDatamanager)
-    dataparser: AnnotatedDataParserUnion = NerfstudioDataParserConfig()
+    dataparser: AnnotatedDataParserUnion = field(default_factory=NerfstudioDataParserConfig)
     camera_res_scale_factor: float = 1.0
     """The scale factor for scaling spatial data such as images, mask, semantics
     along with relevant information about camera intrinsics
