@@ -18,6 +18,7 @@ Code for sampling pixels.
 
 import random
 from dataclasses import dataclass, field
+import warnings
 from typing import (
     Dict,
     Optional,
@@ -121,13 +122,15 @@ class PixelSampler:
                         indices[~chosen_indices_validity] = replacement_indices
 
                 if num_valid != batch_size:
-                    raise RuntimeWarning(
+                    warnings.warn(
                         """
-                        Masked sampling failed, mask is either empty or mostly empty. Consider setting
-                        pipeline.datamanager.pixel-sampler.rejection-sample-mask to False or increasing
-                        pipeline.datamanager.pixel-sampler.max-num-iterations
+                        Masked sampling failed, mask is either empty or mostly empty.
+                        Reverting behavior to non-rejection sampling. Consider setting
+                        pipeline.datamanager.pixel-sampler.rejection-sample-mask to False
+                        or increasing pipeline.datamanager.pixel-sampler.max-num-iterations
                         """
                     )
+                    self.config.rejection_sample_mask = False
             else:
                 nonzero_indices = torch.nonzero(mask[..., 0], as_tuple=False)
                 chosen_indices = random.sample(range(len(nonzero_indices)), k=batch_size)
