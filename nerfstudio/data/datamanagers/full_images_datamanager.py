@@ -133,7 +133,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 continue
             distortion_params = camera.distortion_params.numpy()
             image = data["image"].numpy()
-
             if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
                 distortion_params = np.array(
                     [
@@ -147,13 +146,15 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                         0,
                     ]
                 )
-                newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
-                image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
+                if np.any(distortion_params):
+                    newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
+                    image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
+                else:
+                    newK = K
+                    roi = 0, 0, image.shape[1], image.shape[0]
                 # crop the image and update the intrinsics accordingly
                 x, y, w, h = roi
                 image = image[y : y + h, x : x + w]
-                if "mask" in data:
-                    data["mask"] = data["mask"][y : y + h, x : x + w]
                 if "depth_image" in data:
                     data["depth_image"] = data["depth_image"][y : y + h, x : x + w]
                 # update the width, height
@@ -162,7 +163,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 if "mask" in data:
                     mask = data["mask"].numpy()
                     mask = mask.astype(np.uint8) * 255
-                    mask = cv2.undistort(mask, K, distortion_params, None, newK)  # type: ignore
+                    if np.any(distortion_params):
+                        mask = cv2.undistort(mask, K, distortion_params, None, newK)  # type: ignore
                     mask = mask[y : y + h, x : x + w]
                     data["mask"] = torch.from_numpy(mask).bool()
                 K = newK
@@ -206,7 +208,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 continue
             distortion_params = camera.distortion_params.numpy()
             image = data["image"].numpy()
-
             if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
                 distortion_params = np.array(
                     [
@@ -220,8 +221,12 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                         0,
                     ]
                 )
-                newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
-                image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
+                if np.any(distortion_params):
+                    newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
+                    image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
+                else:
+                    newK = K
+                    roi = 0, 0, image.shape[1], image.shape[0]
                 # crop the image and update the intrinsics accordingly
                 x, y, w, h = roi
                 image = image[y : y + h, x : x + w]
@@ -231,7 +236,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 if "mask" in data:
                     mask = data["mask"].numpy()
                     mask = mask.astype(np.uint8) * 255
-                    mask = cv2.undistort(mask, K, distortion_params, None, newK)  # type: ignore
+                    if np.any(distortion_params):
+                        mask = cv2.undistort(mask, K, distortion_params, None, newK)  # type: ignore
                     mask = mask[y : y + h, x : x + w]
                     data["mask"] = torch.from_numpy(mask).bool()
                 K = newK
