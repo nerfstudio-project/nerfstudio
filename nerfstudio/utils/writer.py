@@ -28,12 +28,13 @@ import comet_ml
 import torch
 import wandb
 from jaxtyping import Float
+from torch import Tensor
+from torch.utils.tensorboard import SummaryWriter
+
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.printing import human_format
 from nerfstudio.utils.rich_utils import CONSOLE
-from torch import Tensor
-from torch.utils.tensorboard import SummaryWriter
 
 
 def to8b(x):

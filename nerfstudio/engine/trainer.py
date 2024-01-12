@@ -21,12 +21,18 @@ import dataclasses
 import functools
 import os
 import time
+from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Lock
-from typing import Dict, List, Literal, Optional, Tuple, Type, cast, DefaultDict
-from collections import defaultdict
+from typing import DefaultDict, Dict, List, Literal, Optional, Tuple, Type, cast
+
 import torch
+from rich import box, style
+from rich.panel import Panel
+from rich.table import Table
+from torch.cuda.amp.grad_scaler import GradScaler
+
 from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
@@ -36,12 +42,8 @@ from nerfstudio.utils.decorators import check_eval_enabled, check_main_thread, c
 from nerfstudio.utils.misc import step_check
 from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import EventName, TimeWriter
-from nerfstudio.viewer_legacy.server.viewer_state import ViewerLegacyState
 from nerfstudio.viewer.viewer import Viewer as ViewerState
-from rich import box, style
-from rich.panel import Panel
-from rich.table import Table
-from torch.cuda.amp.grad_scaler import GradScaler
+from nerfstudio.viewer_legacy.server.viewer_state import ViewerLegacyState
 
 TRAIN_INTERATION_OUTPUT = Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
 TORCH_DEVICE = str

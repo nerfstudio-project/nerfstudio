@@ -26,6 +26,8 @@ import torchvision
 import viser
 import viser.theme
 import viser.transforms as vtf
+from typing_extensions import assert_never
+
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.configs import base_config as cfg
@@ -34,14 +36,13 @@ from nerfstudio.models.base_model import Model
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
-from nerfstudio.viewer_legacy.server import viewer_utils
 from nerfstudio.viewer.control_panel import ControlPanel
 from nerfstudio.viewer.export_panel import populate_export_tab
 from nerfstudio.viewer.render_panel import populate_render_tab
 from nerfstudio.viewer.render_state_machine import RenderAction, RenderStateMachine
 from nerfstudio.viewer.utils import CameraState, parse_object
 from nerfstudio.viewer.viewer_elements import ViewerControl, ViewerElement
-from typing_extensions import assert_never
+from nerfstudio.viewer_legacy.server import viewer_utils
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
