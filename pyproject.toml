@@ -86,6 +86,7 @@ gen = [
 # Development packages
 dev = [
     "black[jupyter]==23.3.0",
+    "isort==5.13.2",
     "pre-commit==3.3.2",
     "pytest==7.1.2",
     "pytest-xdist==2.5.0",
@@ -144,6 +145,12 @@ include = ["nerfstudio*"]
 
 [tool.black]
 line-length = 120
+
+[tool.isort]
+combine_as_imports = true
+known_first_party = ["nerfstudio"]
+line_length = 120
+profile = "black"
 
 [tool.pytest.ini_options]
 addopts = "-n=4 --typeguard-packages=nerfstudio --disable-warnings"
