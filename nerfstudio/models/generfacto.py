@@ -35,9 +35,9 @@ from nerfstudio.engine.callbacks import (
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.generfacto_field import GenerfactoField
-from nerfstudio.generative.stable_diffusion import StableDiffusion
 from nerfstudio.generative.deepfloyd import DeepFloyd
 from nerfstudio.generative.positional_text_embeddings import PositionalTextEmbeddings
+from nerfstudio.generative.stable_diffusion import StableDiffusion
 from nerfstudio.model_components.losses import (
     MSELoss,
     distortion_loss,
@@ -233,7 +233,7 @@ class GenerfactoModel(Model):
                 self.scene_box.aabb, **prop_net_args, implementation=self.config.implementation
             )
             self.proposal_networks.append(network)
-        self.density_fns.extend([network.density_fn for network in self.proposal_networks])
+        self.density_fns.extend([network.get_density for network in self.proposal_networks])
 
         def update_schedule(step):
             return np.clip(
