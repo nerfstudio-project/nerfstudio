@@ -99,7 +99,7 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
             datapath=pipeline.datamanager.get_datapath(),
             pipeline=pipeline,
         )
-        banner_messages = [f"Legaccy viewer at: {viewer_state.viewer_url}"]
+        banner_messages = [f"Legacy viewer at: {viewer_state.viewer_url}"]
     if config.vis == "viewer":
         viewer_state = ViewerState(
             config.viewer,
@@ -108,7 +108,7 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
             pipeline=pipeline,
             share=config.viewer.make_share_url,
         )
-        banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
+        banner_messages = viewer_state.viewer_info
 
     # We don't need logging, but writer.GLOBAL_BUFFER needs to be populated
     config.logging.local_writer.enable = False
