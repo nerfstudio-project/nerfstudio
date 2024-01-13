@@ -116,6 +116,10 @@ class Viewer:
         if share_url is not None:
             self.viewer_info = [f"Viewer at: http://localhost:{websocket_port} or {share_url}"]
         elif config.websocket_host == "0.0.0.0":
+            # 0.0.0.0 is not a real IP address and was confusing people, so
+            # we'll just print localhost instead. There are some security
+            # (and IPv6 compatibility) implications here though, so we should
+            # note that the server is bound to 0.0.0.0!
             self.viewer_info = [f"Viewer running locally at: http://localhost:{websocket_port} (listening on 0.0.0.0)"]
         else:
             self.viewer_info = [f"Viewer running locally at: http://{config.websocket_host}:{websocket_port}"]
