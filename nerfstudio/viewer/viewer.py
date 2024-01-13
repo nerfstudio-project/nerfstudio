@@ -110,7 +110,7 @@ class Viewer:
         share_url = None
         if share:
             share_url = self.viser_server.request_share_url()
-            if url is None:
+            if share_url is None:
                 print("Couldn't make share URL!")
 
         if share_url is not None:
