@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING, Dict, List, Literal, Optional
 import numpy as np
 import torch
 import torchvision
-import viser
 import viser.theme
 import viser.transforms as vtf
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer
@@ -34,14 +33,16 @@ from nerfstudio.models.base_model import Model
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
-from nerfstudio.viewer_legacy.server import viewer_utils
 from nerfstudio.viewer.control_panel import ControlPanel
 from nerfstudio.viewer.export_panel import populate_export_tab
 from nerfstudio.viewer.render_panel import populate_render_tab
 from nerfstudio.viewer.render_state_machine import RenderAction, RenderStateMachine
 from nerfstudio.viewer.utils import CameraState, parse_object
 from nerfstudio.viewer.viewer_elements import ViewerControl, ViewerElement
+from nerfstudio.viewer_legacy.server import viewer_utils
 from typing_extensions import assert_never
+
+import viser
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
@@ -63,13 +64,12 @@ class Viewer:
         share: print a shareable URL
 
     Attributes:
-        viewer_url: url to open viewer
+        viewer_info: information string for the viewer
         viser_server: the viser server
     """
 
-    viewer_url: str
+    viewer_info: List[str]
     viser_server: viser.ViserServer
-    camera_state: Optional[CameraState] = None
 
     def __init__(
         self,
@@ -107,15 +107,23 @@ class Viewer:
 
         self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
         # Set the name of the URL either to the share link if available, or the localhost
+        share_url = None
         if share:
-            url = self.viser_server.request_share_url()
-            if url is not None:
-                print("Couldn't make share URL")
-                self.viewer_url = url
-            else:
-                self.viewer_url = f"http://{config.websocket_host}:{websocket_port}"
+            share_url = self.viser_server.request_share_url()
+            if share_url is None:
+                print("Couldn't make share URL!")
+
+        if share_url is not None:
+            self.viewer_info = [f"Viewer at: http://localhost:{websocket_port} or {share_url}"]
+        elif config.websocket_host == "0.0.0.0":
+            # 0.0.0.0 is not a real IP address and was confusing people, so
+            # we'll just print localhost instead. There are some security
+            # (and IPv6 compatibility) implications here though, so we should
+            # note that the server is bound to 0.0.0.0!
+            self.viewer_info = [f"Viewer running locally at: http://localhost:{websocket_port} (listening on 0.0.0.0)"]
         else:
-            self.viewer_url = f"http://{config.websocket_host}:{websocket_port}"
+            self.viewer_info = [f"Viewer running locally at: http://{config.websocket_host}:{websocket_port}"]
+
         buttons = (
             viser.theme.TitlebarButton(
                 text="Getting Started",
