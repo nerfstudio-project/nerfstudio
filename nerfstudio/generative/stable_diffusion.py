@@ -58,10 +58,6 @@ class StableDiffusion(nn.Module):
             CONSOLE.print(r"or [yellow]pip install -e .\[gen][/yellow] if installing from source.")
             sys.exit(1)
 
-        assert not isinstance(DiffusionPipeline, CatchMissingPackages)
-        assert not isinstance(PNDMScheduler, CatchMissingPackages)
-        assert not isinstance(StableDiffusionPipeline, CatchMissingPackages)
-
         self.device = device
         self.num_train_timesteps = num_train_timesteps
 
