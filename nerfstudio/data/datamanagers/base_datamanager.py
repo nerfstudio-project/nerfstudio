@@ -316,7 +316,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
 
     _target: Type = field(default_factory=lambda: VanillaDataManager)
     """Target class to instantiate."""
-    dataparser: AnnotatedDataParserUnion = field(default_factory=lambda: BlenderDataParserConfig())
+    dataparser: AnnotatedDataParserUnion = field(default_factory=BlenderDataParserConfig)
     """Specifies the dataparser used to unpack the data."""
     train_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per training iteration."""
@@ -344,7 +344,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
     camera_optimizer: Optional[CameraOptimizerConfig] = field(default=None)
     """Deprecated, has been moved to the model config."""
-    pixel_sampler: PixelSamplerConfig = field(default_factory=lambda: PixelSamplerConfig())
+    pixel_sampler: PixelSamplerConfig = field(default_factory=PixelSamplerConfig)
     """Specifies the pixel sampler used to sample pixels from images."""
 
     def __post_init__(self):
