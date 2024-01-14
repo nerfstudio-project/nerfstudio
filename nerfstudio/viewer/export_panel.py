@@ -24,9 +24,7 @@ from typing_extensions import Literal
 from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
 
 
-def populate_export_tab(
-    viewer: Viewer, server: viser.ViserServer, control_panel: ControlPanel, config_path: Path
-) -> None:
+def populate_export_tab(viewer: any, server: viser.ViserServer, control_panel: ControlPanel, config_path: Path) -> None:
     viewing_gsplat = isinstance(viewer.get_model(), GaussianSplattingModel)
     if not viewing_gsplat:
         crop_output = server.add_gui_checkbox("Use Crop", False)
