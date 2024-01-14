@@ -23,12 +23,7 @@ from typing import Any, Dict, Literal, Optional
 
 import yaml
 
-from nerfstudio.configs.base_config import (
-    InstantiateConfig,
-    LoggingConfig,
-    MachineConfig,
-    ViewerConfig,
-)
+from nerfstudio.configs.base_config import InstantiateConfig, LoggingConfig, MachineConfig, ViewerConfig
 from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.engine.optimizers import OptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
@@ -51,13 +46,13 @@ class ExperimentConfig(InstantiateConfig):
     """Project name."""
     timestamp: str = "{timestamp}"
     """Experiment timestamp."""
-    machine: MachineConfig = field(default_factory=lambda: MachineConfig())
+    machine: MachineConfig = field(default_factory=MachineConfig)
     """Machine configuration"""
-    logging: LoggingConfig = field(default_factory=lambda: LoggingConfig())
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
     """Logging configuration"""
-    viewer: ViewerConfig = field(default_factory=lambda: ViewerConfig())
+    viewer: ViewerConfig = field(default_factory=ViewerConfig)
     """Viewer configuration"""
-    pipeline: VanillaPipelineConfig = field(default_factory=lambda: VanillaPipelineConfig())
+    pipeline: VanillaPipelineConfig = field(default_factory=VanillaPipelineConfig)
     """Pipeline configuration"""
     optimizers: Dict[str, Any] = to_immutable_dict(
         {
