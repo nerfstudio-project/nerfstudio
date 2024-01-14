@@ -196,7 +196,7 @@ class Viewer:
             )
 
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
-            populate_export_tab(self.viser_server, self.control_panel, config_path)
+            populate_export_tab(self, self.viser_server, self.control_panel, config_path)
 
         # Keep track of the pointers to generated GUI folders, because each generated folder holds a unique ID.
         viewer_gui_folders = dict()
