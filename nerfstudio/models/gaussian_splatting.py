@@ -719,9 +719,7 @@ class GaussianSplattingModel(Model):
                 H,
                 W,
                 torch.ones(3, device=self.device) * 10,
-            )[
-                ..., 0:1
-            ]  # type: ignore
+            )[..., 0:1]  # type: ignore
 
         return {"rgb": rgb, "depth": depth_im}  # type: ignore
 

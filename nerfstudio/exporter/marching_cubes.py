@@ -169,9 +169,7 @@ def generate_mesh_with_multires_marching_cubes(
         A torch tensor with the SDF values evaluated at the given points.
     """
     # Check if resolution is divisible by 512
-    assert (
-        resolution % 512 == 0
-    ), f"""resolution must be divisible by 512, got {resolution}.
+    assert resolution % 512 == 0, f"""resolution must be divisible by 512, got {resolution}.
        This is important because the algorithm uses a multi-resolution approach
        to evaluate the SDF where the mimimum resolution is 512."""
     # Prepare coarse mask if provided

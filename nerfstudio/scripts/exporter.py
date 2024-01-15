@@ -122,7 +122,7 @@ class ExportPointCloud(Exporter):
     std_ratio: float = 10.0
     """Threshold based on STD of the average distances across the point cloud to remove outliers."""
     save_world_frame: bool = True
-    """If true, saves in the frame of the transform.json file, if false saves in the frame of the scaled 
+    """If true, saves in the frame of the transform.json file, if false saves in the frame of the scaled
         dataparser transform"""
 
     def main(self) -> None:
@@ -417,9 +417,7 @@ class ExportMarchingCubesMesh(Exporter):
 
         CONSOLE.print("Extracting mesh with marching cubes... which may take a while")
 
-        assert (
-            self.resolution % 512 == 0
-        ), f"""resolution must be divisible by 512, got {self.resolution}.
+        assert self.resolution % 512 == 0, f"""resolution must be divisible by 512, got {self.resolution}.
         This is important because the algorithm uses a multi-resolution approach
         to evaluate the SDF where the minimum resolution is 512."""
 
