@@ -23,9 +23,6 @@ from typing import Any, Dict, List, Literal, Tuple, Type
 
 import torch
 from torch.nn import Parameter
-from torchmetrics.functional import structural_similarity_index_measure
-from torchmetrics.image import PeakSignalNoiseRatio
-from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.config_utils import to_immutable_dict
@@ -118,6 +115,10 @@ class NeRFModel(Model):
         self.rgb_loss = MSELoss()
 
         # metrics
+        from torchmetrics.functional import structural_similarity_index_measure
+        from torchmetrics.image import PeakSignalNoiseRatio
+        from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)

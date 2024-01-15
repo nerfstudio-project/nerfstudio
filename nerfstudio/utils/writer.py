@@ -24,9 +24,7 @@ from pathlib import Path
 from time import time
 from typing import Any, Dict, List, Optional, Union
 
-import comet_ml
 import torch
-import wandb
 from jaxtyping import Float
 from torch import Tensor
 from torch.utils.tensorboard import SummaryWriter
@@ -307,6 +305,8 @@ class WandbWriter(Writer):
     """WandDB Writer Class"""
 
     def __init__(self, log_dir: Path, experiment_name: str, project_name: str = "nerfstudio-project"):
+        import wandb  # wandb is slow to import, so we only import it if we need it.
+
         wandb.init(
             project=os.environ.get("WANDB_PROJECT", project_name),
             dir=os.environ.get("WANDB_DIR", str(log_dir)),
@@ -315,10 +315,14 @@ class WandbWriter(Writer):
         )
 
     def write_image(self, name: str, image: Float[Tensor, "H W C"], step: int) -> None:
+        import wandb  # wandb is slow to import, so we only import it if we need it.
+
         image = torch.permute(image, (2, 0, 1))
         wandb.log({name: wandb.Image(image)}, step=step)
 
     def write_scalar(self, name: str, scalar: Union[float, torch.Tensor], step: int) -> None:
+        import wandb  # wandb is slow to import, so we only import it if we need it.
+
         wandb.log({name: scalar}, step=step)
 
     def write_config(self, name: str, config_dict: Dict[str, Any], step: int):
@@ -327,6 +331,8 @@ class WandbWriter(Writer):
         Args:
             config: config dictionary to write out
         """
+        import wandb  # wandb is slow to import, so we only import it if we need it.
+
         wandb.config.update(config_dict, allow_val_change=True)
 
 
@@ -358,6 +364,9 @@ class CometWriter(Writer):
     """Comet_ML Writer Class"""
 
     def __init__(self, log_dir: Path, experiment_name: str, project_name: str = "nerfstudio-project"):
+        # comet_ml is slow to import, so we only do it if we need it.
+        import comet_ml
+
         self.experiment = comet_ml.Experiment(project_name=project_name)
         if experiment_name != "unnamed":
             self.experiment.set_name(experiment_name)
