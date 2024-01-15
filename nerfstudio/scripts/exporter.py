@@ -122,8 +122,8 @@ class ExportPointCloud(Exporter):
     std_ratio: float = 10.0
     """Threshold based on STD of the average distances across the point cloud to remove outliers."""
     save_world_frame: bool = False
-	"""If set, saves the point cloud in the same frame as the original dataset. Otherwise, uses the
-	scaled and reoriented coordinate space expected by the NeRF models."""
+    """If set, saves the point cloud in the same frame as the original dataset. Otherwise, uses the
+    scaled and reoriented coordinate space expected by the NeRF models."""
 
     def main(self) -> None:
         """Export point cloud."""
