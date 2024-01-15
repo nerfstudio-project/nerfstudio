@@ -18,20 +18,13 @@ Code for sampling pixels.
 
 import random
 from dataclasses import dataclass, field
-from typing import (
-    Dict,
-    Optional,
-    Type,
-    Union,
-)
+from typing import Dict, Optional, Type, Union
 
 import torch
 from jaxtyping import Int
 from torch import Tensor
 
-from nerfstudio.configs.base_config import (
-    InstantiateConfig,
-)
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.utils.pixel_sampling_utils import erode_mask
 
 

@@ -27,12 +27,7 @@ from typing import Type
 import torch
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
-from nerfstudio.data.dataparsers.base_dataparser import (
-    DataParser,
-    DataParserConfig,
-    DataparserOutputs,
-    Semantics,
-)
+from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs, Semantics
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
 

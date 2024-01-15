@@ -15,8 +15,8 @@
 """ Pixel sampling utils such as eroding of valid masks that we sample from. """
 
 import torch
-from torch import Tensor
 from jaxtyping import Float
+from torch import Tensor
 
 
 def dilate(tensor: Float[Tensor, "bs 1 H W"], kernel_size=3) -> Float[Tensor, "bs 1 H W"]:

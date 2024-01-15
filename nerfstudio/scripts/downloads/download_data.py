@@ -27,10 +27,10 @@ from typing import TYPE_CHECKING, Union
 import gdown
 import torch
 import tyro
-from nerfstudio.process_data import process_data_utils
 from typing_extensions import Annotated
 
 from nerfstudio.configs.base_config import PrintableConfig
+from nerfstudio.process_data import process_data_utils
 from nerfstudio.utils import install_checks
 from nerfstudio.utils.scripts import run_command
 
