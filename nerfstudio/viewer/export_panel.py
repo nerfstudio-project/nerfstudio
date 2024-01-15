@@ -97,7 +97,10 @@ def populate_point_cloud_tab(
         world_frame = server.add_gui_checkbox(
             "Save in world frame",
             False,
-            hint="If checked, saves the point cloud in the same frame as the original dataset. Otherwise, uses the scaled and reoriented coordinate space expected by the NeRF models.",
+            hint=(
+				"If checked, saves the point cloud in the same frame as the original dataset. Otherwise, uses the "
+				"scaled and reoriented coordinate space expected by the NeRF models."
+			),
         )
         remove_outliers = server.add_gui_checkbox("Remove outliers", True)
         normals = server.add_gui_dropdown(
