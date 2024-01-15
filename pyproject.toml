@@ -27,7 +27,7 @@ dependencies = [
     "ipywidgets>=7.6",
     "jaxtyping>=0.2.15",
     "jupyterlab>=3.3.4",
-    "matplotlib>=3.5.3",
+    "matplotlib>=3.6.0",
     "mediapy>=1.1.0",
     "msgpack>=1.0.4",
     "msgpack_numpy>=0.4.8",
@@ -46,7 +46,7 @@ dependencies = [
     # TODO we can switch back to (non-new) rawpy if they start releasing arm64
     # wheels. https://github.com/letmaik/rawpy/issues/171#issuecomment-1572627747
     "rawpy>=0.18.1; platform_machine != 'arm64'",
-    "newrawpy>=0.18.1; platform_machine == 'arm64'",
+    "newrawpy>=1.0.0b0; platform_machine == 'arm64'",
     "requests",
     "rich>=12.5.1",
     "scikit-image>=0.19.3",
