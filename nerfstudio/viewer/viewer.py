@@ -23,8 +23,11 @@ from typing import TYPE_CHECKING, Dict, List, Literal, Optional
 import numpy as np
 import torch
 import torchvision
+import viser
 import viser.theme
 import viser.transforms as vtf
+from typing_extensions import assert_never
+
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.configs import base_config as cfg
@@ -40,9 +43,6 @@ from nerfstudio.viewer.render_state_machine import RenderAction, RenderStateMach
 from nerfstudio.viewer.utils import CameraState, parse_object
 from nerfstudio.viewer.viewer_elements import ViewerControl, ViewerElement
 from nerfstudio.viewer_legacy.server import viewer_utils
-from typing_extensions import assert_never
-
-import viser
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer

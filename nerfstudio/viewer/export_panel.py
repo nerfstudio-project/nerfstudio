@@ -18,11 +18,12 @@ from pathlib import Path
 
 import viser
 import viser.transforms as vtf
-from nerfstudio.data.scene_box import OrientedBox
-from nerfstudio.viewer.control_panel import ControlPanel
 from typing_extensions import Literal
+
+from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.models.base_model import Model
 from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
+from nerfstudio.viewer.control_panel import ControlPanel
 
 
 def populate_export_tab(
