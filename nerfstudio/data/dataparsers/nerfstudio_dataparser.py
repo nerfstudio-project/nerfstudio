@@ -29,10 +29,10 @@ from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.data.utils.dataparsers_utils import (
+    get_train_eval_split_all,
     get_train_eval_split_filename,
     get_train_eval_split_fraction,
     get_train_eval_split_interval,
-    get_train_eval_split_all,
 )
 from nerfstudio.utils.io import load_from_json
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -62,7 +62,7 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
     eval_mode: Literal["fraction", "filename", "interval", "all"] = "fraction"
     """
-    The method to use for splitting the dataset into train and eval. 
+    The method to use for splitting the dataset into train and eval.
     Fraction splits based on a percentage for train and the remaining for eval.
     Filename splits based on filenames containing train/eval.
     Interval uses every nth frame for eval.
@@ -179,15 +179,11 @@ class Nerfstudio(DataParser):
                 depth_fname = self._get_fname(depth_filepath, data_dir, downsample_folder_prefix="depths_")
                 depth_filenames.append(depth_fname)
 
-        assert len(mask_filenames) == 0 or (
-            len(mask_filenames) == len(image_filenames)
-        ), """
+        assert len(mask_filenames) == 0 or (len(mask_filenames) == len(image_filenames)), """
         Different number of image and mask filenames.
         You should check that mask_path is specified for every frame (or zero frames) in transforms.json.
         """
-        assert len(depth_filenames) == 0 or (
-            len(depth_filenames) == len(image_filenames)
-        ), """
+        assert len(depth_filenames) == 0 or (len(depth_filenames) == len(image_filenames)), """
         Different number of image and depth filenames.
         You should check that depth_file_path is specified for every frame (or zero frames) in transforms.json.
         """
