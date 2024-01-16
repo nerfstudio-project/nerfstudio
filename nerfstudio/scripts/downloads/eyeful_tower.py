@@ -46,7 +46,7 @@ eyefultower_downloads = [
 eyefultower_fisheye_radii = {
     "office1a": 0.43,
     "office2": 0.45,
-    "seating_area": 0.375, # could be .45 except for camera 2
+    "seating_area": 0.375,  # could be .45 except for camera 2
     "table": 0.45,
     "workshop": 0.45,
 }
