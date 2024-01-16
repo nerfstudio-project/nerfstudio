@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Literal
 
 import tyro
+
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
