@@ -18,7 +18,6 @@
 
 from pathlib import Path
 from typing import List, Optional, Union
-from nerfstudio.utils.rich_utils import CONSOLE
 
 import mediapy
 import numpy as np
@@ -30,10 +29,10 @@ from torch import Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.generative.utils import CatchMissingPackages
-
+from nerfstudio.utils.rich_utils import CONSOLE
 
 try:
-    from diffusers import PNDMScheduler, StableDiffusionPipeline, DiffusionPipeline
+    from diffusers import DiffusionPipeline, PNDMScheduler, StableDiffusionPipeline
 
 except ImportError:
     PNDMScheduler = StableDiffusionPipeline = CatchMissingPackages()
