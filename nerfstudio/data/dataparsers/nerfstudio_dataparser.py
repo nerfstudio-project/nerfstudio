@@ -25,15 +25,15 @@ import torch
 from PIL import Image
 
 from nerfstudio.cameras import camera_utils
-from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
-from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
+from nerfstudio.cameras.cameras import (CAMERA_MODEL_TO_TYPE, Cameras,
+                                        CameraType)
+from nerfstudio.data.dataparsers.base_dataparser import (DataParser,
+                                                         DataParserConfig,
+                                                         DataparserOutputs)
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.data.utils.dataparsers_utils import (
-    get_train_eval_split_all,
-    get_train_eval_split_filename,
-    get_train_eval_split_fraction,
-    get_train_eval_split_interval,
-)
+    get_train_eval_split_all, get_train_eval_split_filename,
+    get_train_eval_split_fraction, get_train_eval_split_interval)
 from nerfstudio.utils.io import load_from_json
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -289,7 +289,12 @@ class Nerfstudio(DataParser):
         else:
             distortion_params = torch.stack(distort, dim=0)[idx_tensor]
 
-        metadata = {"fisheye_crop_radius": fisheye_crop_radius} if fisheye_crop_radius is not None else None
+        # Only add fisheye crop radius parameter if the images are actually fisheye, to allow the same config to be used
+        # for both fisheye and non-fisheye datasets.
+        metadata = {}
+        if (camera_type in [CameraType.FISHEYE, CameraType.FISHEYE624]) and (fisheye_crop_radius is not None):
+            metadata['fisheye_crop_radius'] = fisheye_crop_radius
+
         cameras = Cameras(
             fx=fx,
             fy=fy,

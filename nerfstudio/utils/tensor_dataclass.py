@@ -16,7 +16,8 @@
 
 import dataclasses
 from copy import deepcopy
-from typing import Callable, Dict, List, NoReturn, Optional, Tuple, TypeVar, Union
+from typing import (Callable, Dict, List, NoReturn, Optional, Tuple, TypeVar,
+                    Union)
 
 import numpy as np
 import torch
@@ -141,6 +142,9 @@ class TensorDataclass:
                 new_dict[k] = v.broadcast_to(batch_shape)
             elif isinstance(v, Dict):
                 new_dict[k] = self._broadcast_dict_fields(v, batch_shape)
+            else:
+                # Don't broadcast the remaining fields
+                new_dict[k] = v
         return new_dict
 
     def __getitem__(self: TensorDataclassT, indices) -> TensorDataclassT:

@@ -32,14 +32,13 @@ from torch.nn import Parameter
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datamanagers.base_datamanager import (
-    DataManager,
-    TDataset,
-    VanillaDataManagerConfig,
-    variable_res_collate,
-)
+    DataManager, TDataset, VanillaDataManagerConfig, variable_res_collate)
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
-from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
+from nerfstudio.data.pixel_samplers import (PatchPixelSamplerConfig,
+                                            PixelSampler, PixelSamplerConfig)
+from nerfstudio.data.utils.dataloaders import (CacheDataloader,
+                                               FixedIndicesEvalDataloader,
+                                               RandIndicesEvalDataloader)
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -198,8 +197,15 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
         if is_equirectangular.any():
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
+
+        fisheye_crop_radius = None
+        if dataset.cameras.metadata is not None:
+            fisheye_crop_radius = dataset.cameras.metadata.get("fisheye_crop_radius")
+
         return self.config.pixel_sampler.setup(
-            is_equirectangular=is_equirectangular, num_rays_per_batch=num_rays_per_batch
+            is_equirectangular=is_equirectangular,
+            num_rays_per_batch=num_rays_per_batch,
+            fisheye_crop_radius=fisheye_crop_radius,
         )
 
     def setup_train(self):

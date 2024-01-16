@@ -42,6 +42,15 @@ eyefultower_downloads = [
     "workshop",
 ]
 
+# Crop radii empirically chosen to try to avoid hitting the rig base or go out of bounds
+eyefultower_fisheye_radii = {
+    "office1a": 0.43,
+    "office2": 0.45,
+    "seating_area": 0.375, # could be .45 except for camera 2
+    "table": 0.45,
+    "workshop": 0.45,
+}
+
 
 @dataclass
 class EyefulTowerResolutionMetadata:
@@ -132,7 +141,7 @@ class EyefulTowerDownload(DatasetDownload):
         return transformed
 
     def convert_cameras_to_nerfstudio_transforms(
-        self, cameras: dict, splits: dict, target_width: int, target_height: int, extension: str
+        self, capture_name: str, cameras: dict, splits: dict, target_width: int, target_height: int, extension: str
     ):
         output = {}
 
@@ -144,6 +153,7 @@ class EyefulTowerDownload(DatasetDownload):
             output["camera_model"] = "OPENCV"
         elif distortion_model == "Fisheye":
             output["camera_model"] = "OPENCV_FISHEYE"
+            output["fisheye_crop_radius"] = eyefultower_fisheye_radii[capture_name]
         else:
             raise NotImplementedError(f"Camera model {distortion_model} not implemented")
 
@@ -328,7 +338,7 @@ class EyefulTowerDownload(DatasetDownload):
                         flush=True,
                     )
                     transforms = self.convert_cameras_to_nerfstudio_transforms(
-                        cameras, splits, metadata.width, metadata.height, metadata.extension
+                        capture, cameras, splits, metadata.width, metadata.height, metadata.extension
                     )
 
                     with open(json_output_path, "w", encoding="utf8") as f:
