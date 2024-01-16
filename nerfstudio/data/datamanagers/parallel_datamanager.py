@@ -32,13 +32,14 @@ from torch.nn import Parameter
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datamanagers.base_datamanager import (
-    DataManager, TDataset, VanillaDataManagerConfig, variable_res_collate)
+    DataManager,
+    TDataset,
+    VanillaDataManagerConfig,
+    variable_res_collate,
+)
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-from nerfstudio.data.pixel_samplers import (PatchPixelSamplerConfig,
-                                            PixelSampler, PixelSamplerConfig)
-from nerfstudio.data.utils.dataloaders import (CacheDataloader,
-                                               FixedIndicesEvalDataloader,
-                                               RandIndicesEvalDataloader)
+from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
+from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.rich_utils import CONSOLE
 

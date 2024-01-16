@@ -16,8 +16,7 @@
 
 import dataclasses
 from copy import deepcopy
-from typing import (Callable, Dict, List, NoReturn, Optional, Tuple, TypeVar,
-                    Union)
+from typing import Callable, Dict, List, NoReturn, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import torch

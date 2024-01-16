@@ -23,8 +23,22 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
-from typing import (Any, Callable, Dict, ForwardRef, Generic, List, Literal,
-                    Optional, Tuple, Type, Union, cast, get_args, get_origin)
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    ForwardRef,
+    Generic,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+    get_args,
+    get_origin,
+)
 
 import torch
 from torch import nn
@@ -38,17 +52,12 @@ from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-from nerfstudio.data.dataparsers.blender_dataparser import \
-    BlenderDataParserConfig
+from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.pixel_samplers import (PatchPixelSamplerConfig,
-                                            PixelSampler, PixelSamplerConfig)
-from nerfstudio.data.utils.dataloaders import (CacheDataloader,
-                                               FixedIndicesEvalDataloader,
-                                               RandIndicesEvalDataloader)
+from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
+from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
-from nerfstudio.engine.callbacks import (TrainingCallback,
-                                         TrainingCallbackAttributes)
+from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper, get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
