@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, get_args
 import numpy as np
 import torch
 import torch.nn.functional as F
+from viser import ClientHandle
+
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.model_components.renderers import background_color_override_context
 from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
@@ -31,8 +33,6 @@ from nerfstudio.utils import colormaps, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.utils import CameraState, get_camera
 from nerfstudio.viewer_legacy.server import viewer_utils
-
-from viser import ClientHandle
 
 if TYPE_CHECKING:
     from nerfstudio.viewer.viewer import Viewer

@@ -119,33 +119,33 @@ ENV PATH="${PATH}:/home/user/.local/bin"
 SHELL ["/bin/bash", "-c"]
 
 # Upgrade pip and install packages.
-RUN python3.10 -m pip install --upgrade pip setuptools pathtools promise pybind11
+RUN python3.10 -m pip install --no-cache-dir --upgrade pip setuptools pathtools promise pybind11
 # Install pytorch and submodules
-RUN CUDA_VER=${CUDA_VERSION%.*} && CUDA_VER=${CUDA_VER//./} && python3.10 -m pip install \
+RUN CUDA_VER=${CUDA_VERSION%.*} && CUDA_VER=${CUDA_VER//./} && python3.10 -m pip install --no-cache-dir \
     torch==2.0.1+cu${CUDA_VER} \
     torchvision==0.15.2+cu${CUDA_VER} \
         --extra-index-url https://download.pytorch.org/whl/cu${CUDA_VER}
 # Install tynyCUDNN (we need to set the target architectures as environment variable first).
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
-RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch
+RUN python3.10 -m pip install --no-cache-dir git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch
 
 # Install pycolmap, required by hloc.
 RUN git clone --branch v0.4.0 --recursive https://github.com/colmap/pycolmap.git && \
     cd pycolmap && \
-    python3.10 -m pip install . && \
+    python3.10 -m pip install --no-cache-dir . && \
     cd ..
 
 # Install hloc 1.4 as alternative feature detector and matcher option for nerfstudio.
 RUN git clone --branch master --recursive https://github.com/cvg/Hierarchical-Localization.git && \
     cd Hierarchical-Localization && \
     git checkout v1.4 && \
-    python3.10 -m pip install -e . && \
+    python3.10 -m pip install --no-cache-dir -e . && \
     cd ..
 
 # Install pyceres from source
 RUN git clone --branch v1.0 --recursive https://github.com/cvg/pyceres.git && \
     cd pyceres && \
-    python3.10 -m pip install -e . && \
+    python3.10 -m pip install --no-cache-dir -e . && \
     cd ..
 
 # Install pixel perfect sfm.
@@ -153,10 +153,10 @@ RUN git clone --recursive https://github.com/cvg/pixel-perfect-sfm.git && \
     cd pixel-perfect-sfm && \
     git reset --hard 40f7c1339328b2a0c7cf71f76623fb848e0c0357 && \
     git clean -df && \
-    python3.10 -m pip install -e . && \
+    python3.10 -m pip install --no-cache-dir -e . && \
     cd ..
 
-RUN python3.10 -m pip install omegaconf
+RUN python3.10 -m pip install --no-cache-dir omegaconf
 # Copy nerfstudio folder and give ownership to user.
 ADD . /home/user/nerfstudio
 USER root
@@ -165,7 +165,7 @@ USER ${USER_ID}
 
 # Install nerfstudio dependencies.
 RUN cd nerfstudio && \
-    python3.10 -m pip install -e . && \
+    python3.10 -m pip install --no-cache-dir -e . && \
     cd ..
 
 # Change working directory
