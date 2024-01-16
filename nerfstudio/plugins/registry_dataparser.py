@@ -16,8 +16,8 @@
 Module that keeps all registered plugins and allows for plugin discovery.
 """
 
-import os
 import importlib
+import os
 import sys
 import typing as t
 from dataclasses import dataclass

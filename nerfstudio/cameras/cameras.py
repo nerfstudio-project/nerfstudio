@@ -670,7 +670,7 @@ class Cameras(TensorDataclass):
         assert c2w.shape == num_rays_shape + (3, 4)
 
         def _compute_rays_for_omnidirectional_stereo(
-            eye: Literal["left", "right"]
+            eye: Literal["left", "right"],
         ) -> Tuple[Float[Tensor, "num_rays_shape 3"], Float[Tensor, "3 num_rays_shape 3"]]:
             """Compute the rays for an omnidirectional stereo camera
 
@@ -727,7 +727,7 @@ class Cameras(TensorDataclass):
             return ods_origins_circle, directions_stack
 
         def _compute_rays_for_vr180(
-            eye: Literal["left", "right"]
+            eye: Literal["left", "right"],
         ) -> Tuple[Float[Tensor, "num_rays_shape 3"], Float[Tensor, "3 num_rays_shape 3"]]:
             """Compute the rays for a VR180 camera
 
