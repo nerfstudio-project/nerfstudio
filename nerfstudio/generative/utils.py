@@ -15,6 +15,7 @@
 """Utility helper functions for diffusion models"""
 
 import sys
+
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
