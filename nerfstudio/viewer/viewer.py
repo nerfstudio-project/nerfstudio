@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Dict, List, Literal, Optional
 
 import numpy as np
 import torch
-import torchvision
 import viser
 import viser.theme
 import viser.transforms as vtf
@@ -409,6 +408,10 @@ class Viewer:
             camera = train_dataset.cameras[idx]
             image_uint8 = (image * 255).detach().type(torch.uint8)
             image_uint8 = image_uint8.permute(2, 0, 1)
+
+            # torchvision can be slow to import, so we do it lazily.
+            import torchvision
+
             image_uint8 = torchvision.transforms.functional.resize(image_uint8, 100, antialias=None)  # type: ignore
             image_uint8 = image_uint8.permute(1, 2, 0)
             image_uint8 = image_uint8.cpu().numpy()

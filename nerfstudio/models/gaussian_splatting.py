@@ -25,17 +25,13 @@ from typing import Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
-import torchvision.transforms.functional as TF
 from gsplat._torch_impl import quat_to_rotmat
 from gsplat.compute_cumulative_intersects import compute_cumulative_intersects
 from gsplat.project_gaussians import ProjectGaussians
 from gsplat.rasterize import RasterizeGaussians
 from gsplat.sh import SphericalHarmonics, num_sh_bases
 from pytorch_msssim import SSIM
-from sklearn.neighbors import NearestNeighbors
 from torch.nn import Parameter
-from torchmetrics.image import PeakSignalNoiseRatio
-from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
 from nerfstudio.cameras.cameras import Cameras
@@ -205,6 +201,9 @@ class GaussianSplattingModel(Model):
         self.opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(self.num_points, 1)))
 
         # metrics
+        from torchmetrics.image import PeakSignalNoiseRatio
+        from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = SSIM(data_range=1.0, size_average=True, channel=3)
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
@@ -248,7 +247,7 @@ class GaussianSplattingModel(Model):
 
     def k_nearest_sklearn(self, x: torch.Tensor, k: int):
         """
-        Find k-nearest neighbors using sklearn's NearestNeighbors.
+            Find k-nearest neighbors using sklearn's NearestNeighbors.
         x: The data tensor of shape [num_samples, num_features]
         k: The number of neighbors to retrieve
         """
@@ -256,6 +255,8 @@ class GaussianSplattingModel(Model):
         x_np = x.cpu().numpy()
 
         # Build the nearest neighbors model
+        from sklearn.neighbors import NearestNeighbors
+
         nn_model = NearestNeighbors(n_neighbors=k + 1, algorithm="auto", metric="euclidean").fit(x_np)
 
         # Find the k-nearest neighbors
@@ -733,6 +734,10 @@ class GaussianSplattingModel(Model):
         d = self._get_downscale_factor()
         if d > 1:
             newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
+
+            # torchvision can be slow to import, so we do it lazily.
+            import torchvision.transforms.functional as TF
+
             gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
             gt_img = batch["image"]
@@ -756,6 +761,10 @@ class GaussianSplattingModel(Model):
         d = self._get_downscale_factor()
         if d > 1:
             newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
+
+            # torchvision can be slow to import, so we do it lazily.
+            import torchvision.transforms.functional as TF
+
             gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
             gt_img = batch["image"]
@@ -807,6 +816,9 @@ class GaussianSplattingModel(Model):
         """
         d = self._get_downscale_factor()
         if d > 1:
+            # torchvision can be slow to import, so we do it lazily.
+            import torchvision.transforms.functional as TF
+
             newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
             gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
             predicted_rgb = TF.resize(outputs["rgb"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
