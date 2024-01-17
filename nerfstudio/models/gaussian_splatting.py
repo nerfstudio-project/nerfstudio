@@ -29,7 +29,6 @@ from gsplat._torch_impl import quat_to_rotmat
 from gsplat.project_gaussians import project_gaussians
 from gsplat.rasterize import rasterize_gaussians
 from gsplat.sh import num_sh_bases, spherical_harmonics
-from gsplat.utils import compute_cumulative_intersects
 from pytorch_msssim import SSIM
 from torch.nn import Parameter
 
@@ -691,7 +690,7 @@ class GaussianSplattingModel(Model):
         # rescale the camera back to original dimensions
         camera.rescale_output_resolution(camera_downscale)
 
-        assert (num_tiles_hit > 0).any() # type: ignore
+        assert (num_tiles_hit > 0).any()  # type: ignore
 
         rgb = rasterize_gaussians(  # type: ignore
             self.xys,
