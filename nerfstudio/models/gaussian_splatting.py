@@ -704,7 +704,7 @@ class GaussianSplattingModel(Model):
             torch.sigmoid(opacities_crop),
             H,
             W,
-            background=background,
+            background=background
         )  # type: ignore
         rgb = torch.clamp(rgb, max=1.0)  # type: ignore
         depth_im = None
@@ -719,7 +719,7 @@ class GaussianSplattingModel(Model):
                 torch.sigmoid(opacities_crop),
                 H,
                 W,
-                torch.ones(3, device=self.device) * 10,
+                background = torch.ones(3, device=self.device) * 10,
             )[..., 0:1]  # type: ignore
 
         return {"rgb": rgb, "depth": depth_im}  # type: ignore
