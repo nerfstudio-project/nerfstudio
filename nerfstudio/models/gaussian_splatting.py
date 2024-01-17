@@ -26,10 +26,10 @@ from typing import Dict, List, Optional, Tuple, Type, Union
 import numpy as np
 import torch
 from gsplat._torch_impl import quat_to_rotmat
-from gsplat.utils import compute_cumulative_intersects
 from gsplat.project_gaussians import project_gaussians
 from gsplat.rasterize import rasterize_gaussians
 from gsplat.sh import num_sh_bases, spherical_harmonics
+from gsplat.utils import compute_cumulative_intersects
 from pytorch_msssim import SSIM
 from torch.nn import Parameter
 
@@ -704,7 +704,7 @@ class GaussianSplattingModel(Model):
             torch.sigmoid(opacities_crop),
             H,
             W,
-            background=background
+            background=background,
         )  # type: ignore
         rgb = torch.clamp(rgb, max=1.0)  # type: ignore
         depth_im = None
@@ -719,7 +719,7 @@ class GaussianSplattingModel(Model):
                 torch.sigmoid(opacities_crop),
                 H,
                 W,
-                background = torch.ones(3, device=self.device) * 10,
+                background=torch.ones(3, device=self.device) * 10,
             )[..., 0:1]  # type: ignore
 
         return {"rgb": rgb, "depth": depth_im}  # type: ignore
