@@ -324,7 +324,8 @@ class GaussianSplattingModel(Model):
         with torch.no_grad():
             # keep track of a moving average of grad norms
             visible_mask = (self.radii > 0).flatten()
-            grads = self.xys.grad.detach().norm(dim=-1)  # TODO fill in
+            assert self.xys.grad is not None
+            grads = self.xys.grad.detach().norm(dim=-1)
             # print(f"grad norm min {grads.min().item()} max {grads.max().item()} mean {grads.mean().item()} size {grads.shape}")
             if self.xys_grad_norm is None:
                 self.xys_grad_norm = grads
@@ -634,8 +635,8 @@ class GaussianSplattingModel(Model):
         projmat = projection_matrix(0.001, 1000, fovx, fovy, device=self.device)
         BLOCK_X, BLOCK_Y = 16, 16
         tile_bounds = (
-            (W + BLOCK_X - 1) // BLOCK_X,
-            (H + BLOCK_Y - 1) // BLOCK_Y,
+            int((W + BLOCK_X - 1) // BLOCK_X),
+            int((H + BLOCK_Y - 1) // BLOCK_Y),
             1,
         )
 
