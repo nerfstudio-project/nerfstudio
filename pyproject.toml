@@ -39,7 +39,7 @@ dependencies = [
     "protobuf<=3.20.3,!=3.20.0",
     # TODO(1480) enable when pycolmap windows wheels are available
     # "pycolmap==0.3.0",
-    "pymeshlab>=2022.2.post2; platform_machine != 'arm64'",
+    "pymeshlab>=2022.2.post2; platform_machine != 'arm64' and platform_machine != 'aarch64'",
     "pyngrok>=5.1.0",
     "python-socketio>=5.7.1",
     "pyquaternion>=0.9.9",
@@ -85,12 +85,11 @@ gen = [
 
 # Development packages
 dev = [
-    "black[jupyter]==23.3.0",
     "pre-commit==3.3.2",
     "pytest==7.1.2",
     "pytest-xdist==2.5.0",
     "typeguard==2.13.3",
-    "ruff==0.0.267",
+    "ruff==0.1.13",
     "sshconf==0.2.5",
     "pycolmap>=0.3.0",  # NOTE: pycolmap==0.3.0 is not available on newer python versions
     "diffusers==0.16.1",
@@ -130,20 +129,11 @@ ns-export = "nerfstudio.scripts.exporter:entrypoint"
 ns-dev-test = "nerfstudio.scripts.github.run_actions:entrypoint"
 ns-dev-sync-viser-message-defs = "nerfstudio.scripts.viewer.sync_viser_message_defs:entrypoint"
 
-[options]
-# equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision
-dependency_links = [
-    "https://download.pytorch.org/whl/cu118"
-]
-
 [tool.setuptools.packages.find]
 include = ["nerfstudio*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.cu", "*.json", "py.typed", "setup.bash", "setup.zsh"]
-
-[tool.black]
-line-length = 120
 
 [tool.pytest.ini_options]
 addopts = "-n=4 --typeguard-packages=nerfstudio --disable-warnings"
@@ -167,9 +157,11 @@ pythonPlatform = "Linux"
 
 [tool.ruff]
 line-length = 120
+respect-gitignore = false
 select = [
     "E",  # pycodestyle errors.
     "F",  # Pyflakes rules.
+    "I",  # isort formatting.
     "PLC",  # Pylint convention warnings.
     "PLE",  # Pylint errors.
     "PLR",  # Pylint refactor recommendations.
@@ -190,3 +182,8 @@ ignore = [
     "PLW0603",  # Globa statement updates are discouraged.
     "PLW2901",  # For loop variable overwritten.
 ]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+known-first-party = ["nerfstudio"]
+split-on-trailing-comma = false
