@@ -19,21 +19,16 @@ from typing import List, Optional, Union
 import torch
 import torch.nn.functional as F
 import tyro
-
 from jaxtyping import Float
 from PIL import Image
 from torch import Generator, Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
 
-
 from nerfstudio.generative.utils import CatchMissingPackages
 
 try:
-    from diffusers import IFPipeline as IFOrig
-    from diffusers.pipelines.deepfloyd_if import IFPipelineOutput as IFOutputOrig
-
-    from diffusers import IFPipeline, DiffusionPipeline
-    from diffusers.pipelines.deepfloyd_if import IFPipelineOutput
+    from diffusers import DiffusionPipeline, IFPipeline, IFPipeline as IFOrig
+    from diffusers.pipelines.deepfloyd_if import IFPipelineOutput, IFPipelineOutput as IFOutputOrig
     from transformers import T5EncoderModel
 
 except ImportError:

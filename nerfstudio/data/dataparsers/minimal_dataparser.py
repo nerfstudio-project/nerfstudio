@@ -24,12 +24,7 @@ import numpy as np
 import torch
 
 from nerfstudio.cameras.cameras import Cameras
-from nerfstudio.data.dataparsers.base_dataparser import (
-    DataParser,
-    DataParserConfig,
-    DataparserOutputs,
-    Semantics,
-)
+from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs, Semantics
 from nerfstudio.data.scene_box import SceneBox
 
 
