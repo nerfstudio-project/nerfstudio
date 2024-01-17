@@ -55,8 +55,6 @@ class RunViewer:
     """Viewer configuration"""
     vis: Literal["viewer", "viewer_legacy"] = "viewer"
     """Type of viewer"""
-    make_share_url: bool = True
-    """Print a shareable URL"""
 
     def main(self) -> None:
         """Main function."""
@@ -68,7 +66,6 @@ class RunViewer:
         num_rays_per_chunk = config.viewer.num_rays_per_chunk
         assert self.viewer.num_rays_per_chunk == -1
         config.vis = self.vis
-        config.viewer.make_share_url = self.make_share_url
         config.viewer = self.viewer.as_viewer_config()
         config.viewer.num_rays_per_chunk = num_rays_per_chunk
 
