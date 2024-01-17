@@ -24,8 +24,7 @@ import shutil
 import stat
 import subprocess
 import sys
-from typing import List, Literal, Optional, Union
-from typing import get_args as typing_get_args
+from typing import List, Literal, Optional, Union, get_args as typing_get_args
 
 import tyro
 from rich.prompt import Confirm

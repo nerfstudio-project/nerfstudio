@@ -19,35 +19,29 @@ NeRF implementation that combines many recent advancements.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Type, Union
-from nerfstudio.data.scene_box import OrientedBox
 
+import numpy as np
 import torch
-from torch.nn import Parameter
-from torchmetrics.image import PeakSignalNoiseRatio
-from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-import torchvision.transforms.functional as TF
-
-from nerfstudio.cameras.cameras import Cameras
 from gsplat._torch_impl import quat_to_rotmat
+from gsplat.compute_cumulative_intersects import compute_cumulative_intersects
+from gsplat.project_gaussians import ProjectGaussians
+from gsplat.rasterize import RasterizeGaussians
+from gsplat.sh import SphericalHarmonics, num_sh_bases
+from pytorch_msssim import SSIM
+from torch.nn import Parameter
+
+from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
+from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
-from nerfstudio.models.base_model import Model, ModelConfig
-import math
-import numpy as np
-from sklearn.neighbors import NearestNeighbors
-from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
-
-from gsplat.rasterize import RasterizeGaussians
-from gsplat.project_gaussians import ProjectGaussians
-from gsplat.sh import SphericalHarmonics, num_sh_bases
-
-from gsplat.compute_cumulative_intersects import compute_cumulative_intersects
-from pytorch_msssim import SSIM
 
 # need following import for background color override
 from nerfstudio.model_components import renderers
+from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
@@ -149,7 +143,7 @@ class GaussianSplattingModelConfig(ModelConfig):
     """stop splitting at this step"""
     sh_degree: int = 3
     """maximum degree of spherical harmonics to use"""
-    camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig(mode="off")
+    camera_optimizer: CameraOptimizerConfig = field(default_factory=CameraOptimizerConfig)
     """camera optimizer config"""
     use_scale_regularization: bool = False
     """If enabled, a scale regularization introduced in PhysGauss (https://xpandora.github.io/PhysGaussian/) is used for reducing huge spikey gaussians."""
@@ -207,6 +201,9 @@ class GaussianSplattingModel(Model):
         self.opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(self.num_points, 1)))
 
         # metrics
+        from torchmetrics.image import PeakSignalNoiseRatio
+        from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = SSIM(data_range=1.0, size_average=True, channel=3)
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
@@ -250,7 +247,7 @@ class GaussianSplattingModel(Model):
 
     def k_nearest_sklearn(self, x: torch.Tensor, k: int):
         """
-        Find k-nearest neighbors using sklearn's NearestNeighbors.
+            Find k-nearest neighbors using sklearn's NearestNeighbors.
         x: The data tensor of shape [num_samples, num_features]
         k: The number of neighbors to retrieve
         """
@@ -258,6 +255,8 @@ class GaussianSplattingModel(Model):
         x_np = x.cpu().numpy()
 
         # Build the nearest neighbors model
+        from sklearn.neighbors import NearestNeighbors
+
         nn_model = NearestNeighbors(n_neighbors=k + 1, algorithm="auto", metric="euclidean").fit(x_np)
 
         # Find the k-nearest neighbors
@@ -721,9 +720,7 @@ class GaussianSplattingModel(Model):
                 H,
                 W,
                 torch.ones(3, device=self.device) * 10,
-            )[
-                ..., 0:1
-            ]  # type: ignore
+            )[..., 0:1]  # type: ignore
 
         return {"rgb": rgb, "depth": depth_im}  # type: ignore
 
@@ -737,6 +734,10 @@ class GaussianSplattingModel(Model):
         d = self._get_downscale_factor()
         if d > 1:
             newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
+
+            # torchvision can be slow to import, so we do it lazily.
+            import torchvision.transforms.functional as TF
+
             gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
             gt_img = batch["image"]
@@ -760,6 +761,10 @@ class GaussianSplattingModel(Model):
         d = self._get_downscale_factor()
         if d > 1:
             newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
+
+            # torchvision can be slow to import, so we do it lazily.
+            import torchvision.transforms.functional as TF
+
             gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
             gt_img = batch["image"]
@@ -811,6 +816,9 @@ class GaussianSplattingModel(Model):
         """
         d = self._get_downscale_factor()
         if d > 1:
+            # torchvision can be slow to import, so we do it lazily.
+            import torchvision.transforms.functional as TF
+
             newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
             gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
             predicted_rgb = TF.resize(outputs["rgb"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
