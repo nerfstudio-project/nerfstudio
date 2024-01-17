@@ -5,21 +5,25 @@ provided a camera pose, and rasterized to obtain per-pixel colors. Because raste
 of radiance fields.
 
 ### Installation
-[] talk about gsplat installation, if pip doesn't work use git
+Nerfstudio uses [gplsat](https://github.com/nerfstudio-project/gsplat) as its gaussian rasterization backend, an in-house re-implementation which is meant to be more developer friendly. This can be installed with `pip install gsplat`. The associated CUDA code will be compiled the first time gaussian splatting is executed. Some users with PyTorch 2.0 have experienced issues with this, which can be resolved by either installing gsplat from source, or upgrading torch to 2.1.
 
 ### Data
-todo:
-[] talk about colmap initialization
-[] talk about how it currently assumes a colmap dataset type for loading 3d points
-[] what about other data sources? polycam etc, not yet supported but in the works
+Gaussian Splatting works much better if you initialize it from pre-existing geometry, such as SfM points rom COLMAP. COLMAP datasets or datasets from `ns-process-data` will automatically save these points and initialize gaussians on them. Other datasets currently do not support initialization, and will initialize gaussians randomly. Initializing from other data inputs (i.e. depth from phone app scanners) may be supported in the future.
+
+Because gaussian splatting trains on *full images* instead of bundles of rays, there is a new datamanager in `full_images_datamanager.py` which undistorts input images, caches them, and provides single images at each train step.
 
 
 ### Running the Method
+To run gaussian splatting, run `ns-train gaussian-splatting --data <data>`. Just like NeRF methods, the splat can be interactively viewed in the web-viewer, rendered, and exported.
 
 ### Details
-todo:
-brief summary, link to original paper, link to gsplat, link to vickie's gradient derivation
+For more details on the method, see the [original paper](https://arxiv.org/abs/2308.04079). Additionally, for a detailed derivation of the gradients used in the gsplat library, see [here](https://arxiv.org/abs/2312.02121).
 
 ### Exporting splats
-todo:
-discuss different web viewers, talk about export script
+Gaussian splats can be exported as a `.ply` file which are ingestable by a variety of online web viewers. You can do this via the viewer, or `ns-export gaussian-splat`. Currently splats can only be exported from trained splats, not from nerfacto.
+
+### FAQ
+- Can I export a mesh or pointcloud?
+Currently these export options are not supported, but may in the future and contributions are always welcome!
+- Can I render fisheye, equirectangular, orthographic images?
+Currently, no. Gaussian splatting assumes a perspective camera for its rasterization pipeline. Implementing other camera models is of interest but not currently planned.
