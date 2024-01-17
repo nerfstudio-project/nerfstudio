@@ -691,7 +691,7 @@ class GaussianSplattingModel(Model):
         camera.rescale_output_resolution(camera_downscale)
 
         # avoid empty rasterization
-        num_intersects, _ = compute_cumulative_intersects(self.xys.size(0), num_tiles_hit)
+        num_intersects, _ = compute_cumulative_intersects(num_tiles_hit)
         assert num_intersects > 0
 
         rgb = rasterize_gaussians(
