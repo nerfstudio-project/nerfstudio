@@ -657,7 +657,7 @@ class GaussianSplattingModel(Model):
 
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
 
-        self.xys, depths, self.radii, conics, num_tiles_hit, cov3d = project_gaussians(
+        self.xys, depths, self.radii, conics, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
             means_crop,
             torch.exp(scales_crop),
             1,
@@ -691,11 +691,9 @@ class GaussianSplattingModel(Model):
         # rescale the camera back to original dimensions
         camera.rescale_output_resolution(camera_downscale)
 
-        # avoid empty rasterization
-        num_intersects, _ = compute_cumulative_intersects(num_tiles_hit)
-        assert num_intersects > 0
+        assert (num_tiles_hit > 0).any() # type: ignore
 
-        rgb = rasterize_gaussians(
+        rgb = rasterize_gaussians(  # type: ignore
             self.xys,
             depths,
             self.radii,
