@@ -6,7 +6,6 @@ from typing import Generic, Optional, TypeVar
 
 import pytest
 import torch
-
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
 
@@ -177,6 +176,12 @@ def test_iter():
         assert batch.shape == (4,)
         assert batch.a.shape == (4, 5)
         assert batch.b.shape == (4, 5)
+
+
+def test_non_tensor():
+    """Test iterating over tensor dataclass"""
+    # We shouldn't throw away non-dataclass values.
+    assert DummyTensorDataclass(a=torch.ones((3, 10)), b={"k": 2}, c=None).b == {"k": 2}  # type: ignore
 
 
 if __name__ == "__main__":
