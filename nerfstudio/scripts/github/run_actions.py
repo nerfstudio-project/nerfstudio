@@ -60,9 +60,10 @@ def run_github_actions_file(filename: str, continue_on_fail: bool = False):
             if curr_command.startswith("ruff"):
                 if "ruff check" in curr_command:
                     curr_command = f"{curr_command} --fix"
-                else:
-                    curr_command = curr_command.replace("--check", "")
-                    curr_command = curr_command.replace(" --output-format=github", "")
+
+                curr_command = curr_command.replace(" --check", "")
+                curr_command = curr_command.replace(" --diff", "")
+                curr_command = curr_command.replace(" --output-format=github", "")
 
             CONSOLE.line()
             CONSOLE.rule(f"[bold green]Running: {curr_command}")

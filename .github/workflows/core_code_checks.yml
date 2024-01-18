@@ -35,7 +35,7 @@ jobs:
       - name: Run Ruff Linter
         run: ruff check docs/ nerfstudio/ tests/ --output-format=github
       - name: Run Ruff Formatter
-        run: ruff format docs/ nerfstudio/ tests/ --check --output-format=github
+        run: ruff format docs/ nerfstudio/ tests/ --diff
       - name: Run Pyright
         run: |
           pyright
