@@ -21,6 +21,7 @@ from typing import Dict
 
 import numpy as np
 import torch
+from torch import Tensor
 
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.datasets.base_dataset import InputDataset
@@ -64,7 +65,7 @@ class SDFDataset(InputDataset):
 
         return metadata
 
-    def get_depths_and_normals(self, depth_filepath: Path, normal_filename: Path, camtoworld: np.ndarray):
+    def get_depths_and_normals(self, depth_filepath: Path, normal_filename: Path, camtoworld: Tensor):
         """function to process additional depths and normal information
         Args:
             depth_filepath: path to depth file
@@ -83,7 +84,7 @@ class SDFDataset(InputDataset):
         normal = normal * 2.0 - 1.0  # omnidata output is normalized so we convert it back to normal here
         normal = torch.from_numpy(normal).float()
 
-        rot = torch.from_numpy(camtoworld[:3, :3])
+        rot = camtoworld[:3, :3]
 
         normal_map = normal.reshape(3, -1)
         normal_map = torch.nn.functional.normalize(normal_map, p=2, dim=0)

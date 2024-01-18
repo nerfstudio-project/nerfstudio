@@ -24,16 +24,16 @@
   "typescript.suggestionActions.enabled": false,
   "javascript.suggestionActions.enabled": false,
   "[python]": {
-    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.defaultFormatter": "charliermarsh.ruff",
     "editor.codeActionsOnSave": {
-      "source.organizeImports": true,
-      "source.fixAll": true
+      "source.organizeImports": "explicit",
+      "source.fixAll": "explicit"
     }
   },
   "editor.formatOnSave": true,
+  "editor.rulers": [120],
   "python.envFile": "${workspaceFolder}/.env",
   "python.formatting.provider": "none",
-  "black-formatter.args": ["--line-length=120"],
   "python.linting.pylintEnabled": false,
   "python.linting.flake8Enabled": false,
   "python.linting.enabled": true,

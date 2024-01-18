@@ -17,8 +17,8 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass, field
-from pathlib import Path
 from functools import partial
+from pathlib import Path
 from typing import List, Literal, Optional, Type
 
 import numpy as np
@@ -31,15 +31,15 @@ from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras
 from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.data.utils import colmap_parsing_utils as colmap_utils
-from nerfstudio.process_data.colmap_utils import parse_colmap_camera_params
-from nerfstudio.utils.scripts import run_command
-from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.data.utils.dataparsers_utils import (
+    get_train_eval_split_all,
     get_train_eval_split_filename,
     get_train_eval_split_fraction,
     get_train_eval_split_interval,
-    get_train_eval_split_all,
 )
+from nerfstudio.process_data.colmap_utils import parse_colmap_camera_params
+from nerfstudio.utils.rich_utils import CONSOLE, status
+from nerfstudio.utils.scripts import run_command
 
 MAX_AUTO_RESOLUTION = 1600
 
@@ -66,7 +66,7 @@ class ColmapDataParserConfig(DataParserConfig):
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
     eval_mode: Literal["fraction", "filename", "interval", "all"] = "interval"
     """
-    The method to use for splitting the dataset into train and eval. 
+    The method to use for splitting the dataset into train and eval.
     Fraction splits based on a percentage for train and the remaining for eval.
     Filename splits based on filenames containing train/eval.
     Interval uses every nth frame for eval (used by most academic papers, e.g. MipNerf360, GSplat).
@@ -284,15 +284,11 @@ class ColmapDataParser(DataParser):
             if "depth_path" in frame:
                 depth_filenames.append(Path(frame["depth_path"]))
 
-        assert len(mask_filenames) == 0 or (
-            len(mask_filenames) == len(image_filenames)
-        ), """
+        assert len(mask_filenames) == 0 or (len(mask_filenames) == len(image_filenames)), """
         Different number of image and mask filenames.
         You should check that mask_path is specified for every frame (or zero frames) in transforms.json.
         """
-        assert len(depth_filenames) == 0 or (
-            len(depth_filenames) == len(image_filenames)
-        ), """
+        assert len(depth_filenames) == 0 or (len(depth_filenames) == len(image_filenames)), """
         Different number of image and depth filenames.
         You should check that depth_file_path is specified for every frame (or zero frames) in transforms.json.
         """
