@@ -322,7 +322,7 @@ class Nerfstudio(DataParser):
         # _generate_dataparser_outputs might be called more than once so we check if we already loaded the point cloud
         try:
             self.loaded_points
-        except:
+        except AttributeError:
             self.loaded_points = False
 
         # Load 3D points
@@ -340,6 +340,7 @@ class Nerfstudio(DataParser):
                 
                 if self.create_pc:
                     import json
+
                     from nerfstudio.process_data.colmap_utils import create_ply_from_colmap
 
                     with open(self.config.data / "transforms.json") as f:
