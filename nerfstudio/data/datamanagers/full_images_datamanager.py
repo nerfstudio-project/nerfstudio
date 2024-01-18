@@ -171,6 +171,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             self.eval_dataset.cameras.fy[i] = float(K[1, 1])
             self.eval_dataset.cameras.cx[i] = float(K[0, 2])
             self.eval_dataset.cameras.cy[i] = float(K[1, 2])
+            self.eval_dataset.cameras.width[i] = image.shape[1]
+            self.eval_dataset.cameras.height[i] = image.shape[0]
 
         if cache_images_option == "gpu":
             for cache in cached_train:
