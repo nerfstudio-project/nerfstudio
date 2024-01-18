@@ -121,9 +121,9 @@ class ExportPointCloud(Exporter):
     """Number of rays to evaluate per batch. Decrease if you run out of memory."""
     std_ratio: float = 10.0
     """Threshold based on STD of the average distances across the point cloud to remove outliers."""
-    save_world_frame: bool = True
-    """If true, saves in the frame of the transform.json file, if false saves in the frame of the scaled 
-        dataparser transform"""
+    save_world_frame: bool = False
+    """If set, saves the point cloud in the same frame as the original dataset. Otherwise, uses the
+    scaled and reoriented coordinate space expected by the NeRF models."""
 
     def main(self) -> None:
         """Export point cloud."""
@@ -417,9 +417,7 @@ class ExportMarchingCubesMesh(Exporter):
 
         CONSOLE.print("Extracting mesh with marching cubes... which may take a while")
 
-        assert (
-            self.resolution % 512 == 0
-        ), f"""resolution must be divisible by 512, got {self.resolution}.
+        assert self.resolution % 512 == 0, f"""resolution must be divisible by 512, got {self.resolution}.
         This is important because the algorithm uses a multi-resolution approach
         to evaluate the SDF where the minimum resolution is 512."""
 
@@ -494,7 +492,7 @@ class ExportGaussianSplat(Exporter):
 
         model: GaussianSplattingModel = pipeline.model
 
-        filename = self.output_dir / "point_cloud.ply"
+        filename = self.output_dir / "splat.ply"
 
         map_to_tensors = {}
 
