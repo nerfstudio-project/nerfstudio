@@ -629,7 +629,7 @@ class GaussianSplattingModel(Model):
         cy = camera.cy.item()
         fovx = 2 * math.atan(camera.width / (2 * camera.fx))
         fovy = 2 * math.atan(camera.height / (2 * camera.fy))
-        W, H = camera.width.item(), camera.height.item()
+        W, H = int(camera.width.item()), int(camera.height.item())
         self.last_size = (H, W)
         projmat = projection_matrix(0.001, 1000, fovx, fovy, device=self.device)
         BLOCK_X, BLOCK_Y = 16, 16
@@ -697,7 +697,7 @@ class GaussianSplattingModel(Model):
             depths,
             self.radii,
             conics,
-            num_tiles_hit,
+            num_tiles_hit,  # type: ignore
             rgbs,
             torch.sigmoid(opacities_crop),
             H,
@@ -712,7 +712,7 @@ class GaussianSplattingModel(Model):
                 depths,
                 self.radii,
                 conics,
-                num_tiles_hit,
+                num_tiles_hit,  # type: ignore
                 depths[:, None].repeat(1, 3),
                 torch.sigmoid(opacities_crop),
                 H,
