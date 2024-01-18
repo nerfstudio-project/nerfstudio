@@ -3,14 +3,13 @@ Tests for the nerfstudio.plugins.registry module.
 """
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
-from nerfstudio.plugins import registry
+from nerfstudio.plugins import registry, registry_dataparser
+from nerfstudio.plugins.registry_dataparser import DataParserConfig, DataParserSpecification, discover_dataparsers
 from nerfstudio.plugins.types import MethodSpecification
-from nerfstudio.plugins import registry_dataparser
-from nerfstudio.plugins.registry_dataparser import DataParserSpecification, discover_dataparsers, DataParserConfig
 
 if sys.version_info < (3, 10):
     import importlib_metadata
@@ -100,7 +99,7 @@ def test_discover_methods_from_environment_variable_instance():
 
 @dataclass
 class TestDataparserConfigClass(DataParserSpecification):
-    config: DataParserConfig = DataParserConfig()
+    config: DataParserConfig = field(default_factory=DataParserConfig)
     description: str = "Test description"
 
 
