@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional, Type, Union
 
 import torch
+import tyro
 from jaxtyping import Float, Int
 from torch import Tensor, nn
 from typing_extensions import assert_never
@@ -51,10 +52,11 @@ class CameraOptimizerConfig(InstantiateConfig):
     rot_l2_penalty: float = 1e-3
     """L2 penalty on rotation parameters."""
 
-    optimizer: Optional[OptimizerConfig] = field(default=None)
+    # tyro.conf.Suppress prevents us from creating CLI arguments for these fields.
+    optimizer: tyro.conf.Suppress[Optional[OptimizerConfig]] = field(default=None)
     """Deprecated, now specified inside the optimizers dict"""
 
-    scheduler: Optional[SchedulerConfig] = field(default=None)
+    scheduler: tyro.conf.Suppress[Optional[SchedulerConfig]] = field(default=None)
     """Deprecated, now specified inside the optimizers dict"""
 
     def __post_init__(self):

@@ -22,7 +22,6 @@ from typing import Literal, Optional, Tuple, Type
 import numpy as np
 import pyquaternion
 import torch
-from nuscenes.nuscenes import NuScenes as NuScenesDatabase
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
@@ -81,6 +80,9 @@ class NuScenes(DataParser):
     config: NuScenesDataParserConfig
 
     def _generate_dataparser_outputs(self, split="train"):
+        # nuscenes is slow to import, so we only do it if we need it.
+        from nuscenes.nuscenes import NuScenes as NuScenesDatabase
+
         nusc = NuScenesDatabase(
             version=self.config.version,
             dataroot=str(self.config.data_dir.absolute()),
