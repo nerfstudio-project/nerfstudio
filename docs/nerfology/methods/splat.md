@@ -1,11 +1,33 @@
 # Gaussian Splatting
+<h4>Real-Time Radiance Field Rendering</h4>
+
+<img id="gif" src="https://docs.gsplat.studio/_images/training.gif" alt="Training GIF" style="width:100%;">
+
+```{button-link} https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/
+:color: primary
+:outline:
+Paper Website
+```
+
+```{button-link} https://docs.gsplat.studio/
+:color: primary
+:outline:
+GSplat 
+```
+
 [3D Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) was proposed in SIGGRAPH 2023 from INRIA, and is a completely 
 different method of representing radiance fields by explicitly storing a collection of 3D volumetric gaussians. These can be "splatted", or projected, onto a 2D image
 provided a camera pose, and rasterized to obtain per-pixel colors. Because rasterization is very fast on GPUs, this method can render much faster than neural representations
 of radiance fields.
 
 ### Installation
-Nerfstudio uses [gsplat](https://github.com/nerfstudio-project/gsplat) as its gaussian rasterization backend, an in-house re-implementation which is meant to be more developer friendly. This can be installed with `pip install gsplat`. The associated CUDA code will be compiled the first time gaussian splatting is executed. Some users with PyTorch 2.0 have experienced issues with this, which can be resolved by either installing gsplat from source, or upgrading torch to 2.1.
+Nerfstudio uses [gsplat](https://github.com/nerfstudio-project/gsplat) as its gaussian rasterization backend, an in-house re-implementation which is meant to be more developer friendly. This can be installed with:
+ 
+ ```
+ pip install gsplat
+ ``` 
+
+ The associated CUDA code will be compiled the first time gaussian splatting is executed. Some users with PyTorch 2.0 have experienced issues with this, which can be resolved by either installing gsplat from source, or upgrading torch to 2.1.
 
 ### Data
 Gaussian Splatting works much better if you initialize it from pre-existing geometry, such as SfM points rom COLMAP. COLMAP datasets or datasets from `ns-process-data` will automatically save these points and initialize gaussians on them. Other datasets currently do not support initialization, and will initialize gaussians randomly. Initializing from other data inputs (i.e. depth from phone app scanners) may be supported in the future.
@@ -14,7 +36,12 @@ Because gaussian splatting trains on *full images* instead of bundles of rays, t
 
 
 ### Running the Method
-To run gaussian splatting, run `ns-train gaussian-splatting --data <data>`. Just like NeRF methods, the splat can be interactively viewed in the web-viewer, rendered, and exported.
+To run gaussian splatting, run:
+ ```
+ ns-train gaussian-splatting --data <data>
+ ```
+ 
+ Just like NeRF methods, the splat can be interactively viewed in the web-viewer, rendered, and exported.
 
 ### Details
 For more details on the method, see the [original paper](https://arxiv.org/abs/2308.04079). Additionally, for a detailed derivation of the gradients used in the gsplat library, see [here](https://arxiv.org/abs/2312.02121).
