@@ -722,6 +722,26 @@ class GaussianSplattingModel(Model):
 
         return {"rgb": rgb, "depth": depth_im}  # type: ignore
 
+    def get_gt_img(self, image: torch.Tensor):
+        """Compute groundtruth image with iteration dependent downscale factor for evaluation purpose
+
+        Args:
+            image: tensor.Tensor in type uint8 or float32
+        """
+        if image.dtype == torch.uint8:
+            image = image.float() / 255.0
+        d = self._get_downscale_factor()
+        if d > 1:
+            newsize = [image.shape[0] // d, image.shape[1] // d]
+
+            # torchvision can be slow to import, so we do it lazily.
+            import torchvision.transforms.functional as TF
+
+            gt_img = TF.resize(image.permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
+        else:
+            gt_img = image
+        return gt_img.to(self.device)
+
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.
 
@@ -729,18 +749,8 @@ class GaussianSplattingModel(Model):
             outputs: the output to compute loss dict to
             batch: ground truth batch corresponding to outputs
         """
-        d = self._get_downscale_factor()
-        if d > 1:
-            newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
-
-            # torchvision can be slow to import, so we do it lazily.
-            import torchvision.transforms.functional as TF
-
-            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
-        else:
-            gt_img = batch["image"]
+        gt_rgb = self.get_gt_img(batch["image"])
         metrics_dict = {}
-        gt_rgb = gt_img.to(self.device)  # RGB or RGBA image
         predicted_rgb = outputs["rgb"]
         metrics_dict["psnr"] = self.psnr(predicted_rgb, gt_rgb)
 
@@ -756,16 +766,7 @@ class GaussianSplattingModel(Model):
             batch: ground truth batch corresponding to outputs
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
-        d = self._get_downscale_factor()
-        if d > 1:
-            newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
-
-            # torchvision can be slow to import, so we do it lazily.
-            import torchvision.transforms.functional as TF
-
-            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
-        else:
-            gt_img = batch["image"]
+        gt_img = self.get_gt_img(batch["image"])
         Ll1 = torch.abs(gt_img - outputs["rgb"]).mean()
         simloss = 1 - self.ssim(gt_img.permute(2, 0, 1)[None, ...], outputs["rgb"].permute(2, 0, 1)[None, ...])
         if self.config.use_scale_regularization and self.step % 10 == 0:
@@ -812,19 +813,16 @@ class GaussianSplattingModel(Model):
         Returns:
             A dictionary of metrics.
         """
+        gt_rgb = self.get_gt_img(batch["image"])
         d = self._get_downscale_factor()
         if d > 1:
             # torchvision can be slow to import, so we do it lazily.
             import torchvision.transforms.functional as TF
 
             newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
-            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
             predicted_rgb = TF.resize(outputs["rgb"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
-            gt_img = batch["image"]
             predicted_rgb = outputs["rgb"]
-
-        gt_rgb = gt_img.to(self.device)
 
         combined_rgb = torch.cat([gt_rgb, predicted_rgb], dim=1)
 
