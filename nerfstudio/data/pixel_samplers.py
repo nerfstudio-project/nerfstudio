@@ -17,8 +17,8 @@ Code for sampling pixels.
 """
 
 import random
-from dataclasses import dataclass, field
 import warnings
+from dataclasses import dataclass, field
 from typing import Dict, Optional, Type, Union
 
 import torch
