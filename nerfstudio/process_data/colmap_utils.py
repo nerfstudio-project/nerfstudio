@@ -462,7 +462,7 @@ def colmap_to_json(
 
     # create ply from colmap
     create_ply_from_colmap(recon_dir, output_dir)
-    out["ply_file_path"] = 'sparse_pc.ply'
+    out["ply_file_path"] = "sparse_pc.ply"
 
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
         json.dump(out, f, indent=4)
@@ -657,14 +657,14 @@ def create_ply_from_colmap(recon_dir, output_dir):
         colmap_points = read_points3D_text(recon_dir / "points3D.txt")
     else:
         raise ValueError(f"Could not find points3D.txt or points3D.bin in {recon_dir}")
-    
+
     # Load point Positions
     points3D = torch.from_numpy(np.array([p.xyz for p in colmap_points.values()], dtype=np.float32))
     # Load point colours
     points3D_rgb = torch.from_numpy(np.array([p.rgb for p in colmap_points.values()], dtype=np.uint8))
 
     # write ply
-    with open(output_dir / 'sparse_pc.ply', 'w') as f:
+    with open(output_dir / "sparse_pc.ply", "w") as f:
         # Header
         f.write("ply\n")
         f.write("format ascii 1.0\n")

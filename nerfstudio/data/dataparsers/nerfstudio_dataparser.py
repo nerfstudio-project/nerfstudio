@@ -335,9 +335,11 @@ class Nerfstudio(DataParser):
             elif colmap_path.exists():
                 from rich.prompt import Confirm
 
-                # check if user wants to make a point cloud from colmap points 
-                self.create_pc = Confirm.ask("load_3D_points is true, but the dataset was processed with an outdated ns-process-data that didn't convert colmap points to .ply! Update the colmap dataset automatically?")
-                
+                # check if user wants to make a point cloud from colmap points
+                self.create_pc = Confirm.ask(
+                    "load_3D_points is true, but the dataset was processed with an outdated ns-process-data that didn't convert colmap points to .ply! Update the colmap dataset automatically?"
+                )
+
                 if self.create_pc:
                     import json
 
@@ -345,10 +347,10 @@ class Nerfstudio(DataParser):
 
                     with open(self.config.data / "transforms.json") as f:
                         transforms = json.load(f)
-                    
+
                     print(self.config.data)
                     create_ply_from_colmap(recon_dir=colmap_path, output_dir=self.config.data)
-                    ply_file_path = data_dir / 'sparse_pc.ply'
+                    ply_file_path = data_dir / "sparse_pc.ply"
                     transforms["ply_file_path"] = "sparse_pc.ply"
 
                     with open(self.config.data / "transforms.json", "w", encoding="utf-8") as f:
@@ -356,9 +358,11 @@ class Nerfstudio(DataParser):
                 else:
                     ply_file_path = None
             else:
-                CONSOLE.print("[bold yellow]Warning: load_3D_points set to true but no point cloud found. gaussian-splatting models will use random point cloud initialization.")
+                CONSOLE.print(
+                    "[bold yellow]Warning: load_3D_points set to true but no point cloud found. gaussian-splatting models will use random point cloud initialization."
+                )
                 ply_file_path = None
-                
+
             if ply_file_path:
                 sparse_points = self._load_3D_points(ply_file_path, transform_matrix, scale_factor)
                 if sparse_points is not None:
@@ -392,7 +396,6 @@ class Nerfstudio(DataParser):
             A dictionary of points: points3D_xyz and colors: points3D_rgb
         """
         import open3d as o3d  # Importing open3d is slow, so we only do it if we need it.
-
 
         pcd = o3d.io.read_point_cloud(str(ply_file_path))
 
