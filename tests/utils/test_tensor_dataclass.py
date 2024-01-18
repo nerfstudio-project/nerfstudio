@@ -6,6 +6,7 @@ from typing import Generic, Optional, TypeVar
 
 import pytest
 import torch
+
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
 
