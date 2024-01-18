@@ -66,6 +66,7 @@ eyefultower_resolutions = {
     "jpeg_2k": EyefulTowerResolutionMetadata("images-jpeg-2k", 1368, 2048, "jpg"),
     "jpeg_4k": EyefulTowerResolutionMetadata("images-jpeg-4k", 2736, 4096, "jpg"),
     "jpeg_8k": EyefulTowerResolutionMetadata("images-jpeg", 5784, 8660, "jpg"),
+    "exr_1k": EyefulTowerResolutionMetadata("images-1k", 684, 1024, "exr"),
     "exr_2k": EyefulTowerResolutionMetadata("images-2k", 1368, 2048, "exr"),
 }
 
