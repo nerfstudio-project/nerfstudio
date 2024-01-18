@@ -319,6 +319,7 @@ class Nerfstudio(DataParser):
         if "ply_file_path" in meta:
             ply_file_path = data_dir / meta["ply_file_path"]
             metadata.update(self._load_3D_points(ply_file_path, transform_matrix, scale_factor))
+            print("loaded points!")
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,

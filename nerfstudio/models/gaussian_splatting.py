@@ -162,16 +162,18 @@ class GaussianSplattingModel(Model):
 
     config: GaussianSplattingModelConfig
 
-    def __init__(self, *args, **kwargs):
-        if "seed_points" in kwargs:
-            self.seed_pts = kwargs["seed_points"]
-        else:
-            self.seed_pts = None
+    def __init__(
+        self,
+        *args,
+        seed_points: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+        **kwargs,
+    ):
+        self.seed_points = seed_points
         super().__init__(*args, **kwargs)
 
     def populate_modules(self):
-        if self.seed_pts is not None and not self.config.random_init:
-            self.means = torch.nn.Parameter(self.seed_pts[0])  # (Location, Color)
+        if self.seed_points is not None and not self.config.random_init:
+            self.means = torch.nn.Parameter(self.seed_points[0])  # (Location, Color)
         else:
             self.means = torch.nn.Parameter((torch.rand((500000, 3)) - 0.5) * 10)
         self.xys_grad_norm = None
@@ -184,14 +186,19 @@ class GaussianSplattingModel(Model):
         self.quats = torch.nn.Parameter(random_quat_tensor(self.num_points))
         dim_sh = num_sh_bases(self.config.sh_degree)
 
-        if self.seed_pts is not None and not self.config.random_init:
-            shs = torch.zeros((self.seed_pts[1].shape[0], dim_sh, 3)).float().cuda()
+        if (
+            self.seed_points is not None
+            and not self.config.random_init
+            # We can have colors without points.
+            and self.seed_points[1].shape[0] > 0
+        ):
+            shs = torch.zeros((self.seed_points[1].shape[0], dim_sh, 3)).float().cuda()
             if self.config.sh_degree > 0:
-                shs[:, 0, :3] = RGB2SH(self.seed_pts[1] / 255)
+                shs[:, 0, :3] = RGB2SH(self.seed_points[1] / 255)
                 shs[:, 1:, 3:] = 0.0
             else:
                 CONSOLE.log("use color only optimization with sigmoid activation")
-                shs[:, 0, :3] = torch.logit(self.seed_pts[1] / 255, eps=1e-10)
+                shs[:, 0, :3] = torch.logit(self.seed_points[1] / 255, eps=1e-10)
             self.features_dc = torch.nn.Parameter(shs[:, 0, :])
             self.features_rest = torch.nn.Parameter(shs[:, 1:, :])
         else:

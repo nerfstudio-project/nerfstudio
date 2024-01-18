@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
+import open3d as o3d
+import pandas as pd
 import tyro
 from PIL import Image
 
@@ -218,6 +220,21 @@ class ProcessProjectAria:
             "frames": [to_nerfstudio_frame(frame) for frame in aria_frames],
             "fisheye_crop_radius": rgb_valid_radius,
         }
+
+        # save global point cloud, which is useful for Gaussian Splatting.
+        points_path = self.mps_data_dir / "global_points.csv.gz"
+        if points_path.exists():
+            print("Found global points, saving to PLY...")
+            df = pd.read_csv(points_path, compression="gzip")
+            points = df[["px_world", "py_world", "pz_world"]].values
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(points)
+            ply_file_path = self.output_dir / "global_points.ply"
+            o3d.io.write_point_cloud(str(ply_file_path), pcd)
+
+            nerfstudio_frames["ply_file_path"] = "global_points.ply"
+        else:
+            print("No global points found!")
 
         # write the json out to disk as transforms.json
         print("Writing transforms.json")
