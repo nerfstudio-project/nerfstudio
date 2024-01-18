@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import Literal, Optional, Type
 
 import numpy as np
-import open3d as o3d
 import torch
 from PIL import Image
 
@@ -337,6 +336,8 @@ class Nerfstudio(DataParser):
         return dataparser_outputs
 
     def _load_3D_points(self, ply_file_path: Path, transform_matrix: torch.Tensor, scale_factor: float):
+        import open3d as o3d  # Importing open3d is slow, so we only do it if we need it.
+
         pcd = o3d.io.read_point_cloud(str(ply_file_path))
 
         points3D = torch.from_numpy(np.asarray(pcd.points, dtype=np.float32))
@@ -375,7 +376,7 @@ class Nerfstudio(DataParser):
                 max_res = max(h, w)
                 df = 0
                 while True:
-                    if (max_res / 2 ** (df)) < MAX_AUTO_RESOLUTION:
+                    if (max_res / 2 ** (df)) <= MAX_AUTO_RESOLUTION:
                         break
                     if not (data_dir / f"{downsample_folder_prefix}{2**(df+1)}" / filepath.name).exists():
                         break
