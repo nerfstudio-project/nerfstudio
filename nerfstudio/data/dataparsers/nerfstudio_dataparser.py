@@ -376,7 +376,7 @@ class Nerfstudio(DataParser):
                 max_res = max(h, w)
                 df = 0
                 while True:
-                    if (max_res / 2 ** (df)) < MAX_AUTO_RESOLUTION:
+                    if (max_res / 2 ** (df)) <= MAX_AUTO_RESOLUTION:
                         break
                     if not (data_dir / f"{downsample_folder_prefix}{2**(df+1)}" / filepath.name).exists():
                         break
