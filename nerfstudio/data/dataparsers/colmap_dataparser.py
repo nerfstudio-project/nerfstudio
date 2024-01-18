@@ -486,7 +486,7 @@ class ColmapDataParser(DataParser):
                 max_res = max(h, w)
                 df = 0
                 while True:
-                    if (max_res / 2 ** (df)) < MAX_AUTO_RESOLUTION:
+                    if (max_res / 2 ** (df)) <= MAX_AUTO_RESOLUTION:
                         break
                     df += 1
 
