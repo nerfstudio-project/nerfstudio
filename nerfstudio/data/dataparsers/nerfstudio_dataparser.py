@@ -73,6 +73,8 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The interval between frames to use for eval. Only used when eval_mode is eval-interval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
+    load_3D_points: bool = False
+    """Whether to load the 3D points from the colmap reconstruction."""
 
 
 @dataclass
@@ -314,11 +316,53 @@ class Nerfstudio(DataParser):
             applied_scale = float(meta["applied_scale"])
             scale_factor *= applied_scale
 
-        # Load 3D points
+        # reinitialize metadata for dataparser_outputs
         metadata = {}
-        if "ply_file_path" in meta:
-            ply_file_path = data_dir / meta["ply_file_path"]
-            metadata.update(self._load_3D_points(ply_file_path, transform_matrix, scale_factor))
+
+        # _generate_dataparser_outputs might be called more than once so we check if we already loaded the point cloud
+        try:
+            self.loaded_points
+        except:
+            self.loaded_points = False
+
+        # Load 3D points
+        if self.config.load_3D_points and not self.loaded_points:
+            colmap_path = self.config.data / "colmap/sparse/0"
+
+            if "ply_file_path" in meta:
+                ply_file_path = data_dir / meta["ply_file_path"]
+
+            elif colmap_path.exists():
+                from rich.prompt import Confirm
+
+                # check if user wants to make a point cloud from colmap points 
+                self.create_pc = Confirm.ask("load_3D_points is true, but the dataset was processed with an outdated ns-process-data that didn't convert colmap points to .ply! Update the colmap dataset automatically?")
+                
+                if self.create_pc:
+                    import json
+                    from nerfstudio.process_data.colmap_utils import create_ply_from_colmap
+
+                    with open(self.config.data / "transforms.json") as f:
+                        transforms = json.load(f)
+                    
+                    print(self.config.data)
+                    create_ply_from_colmap(recon_dir=colmap_path, output_dir=self.config.data)
+                    ply_file_path = data_dir / 'sparse_pc.ply'
+                    transforms["ply_file_path"] = "sparse_pc.ply"
+
+                    with open(self.config.data / "transforms.json", "w", encoding="utf-8") as f:
+                        json.dump(transforms, f, indent=4)
+                else:
+                    ply_file_path = None
+            else:
+                CONSOLE.print("[bold yellow]Warning: load_3D_points set to true but no point cloud found. gaussian-splatting models will use random point cloud initialization.")
+                ply_file_path = None
+                
+            if ply_file_path:
+                sparse_points = self._load_3D_points(ply_file_path, transform_matrix, scale_factor)
+                if sparse_points is not None:
+                    metadata.update(sparse_points)
+            self.loaded_points = True
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
@@ -338,7 +382,12 @@ class Nerfstudio(DataParser):
     def _load_3D_points(self, ply_file_path: Path, transform_matrix: torch.Tensor, scale_factor: float):
         import open3d as o3d  # Importing open3d is slow, so we only do it if we need it.
 
+
         pcd = o3d.io.read_point_cloud(str(ply_file_path))
+
+        # if no points found don't read in an initial point cloud
+        if len(pcd.points) == 0:
+            return None
 
         points3D = torch.from_numpy(np.asarray(pcd.points, dtype=np.float32))
         points3D = (

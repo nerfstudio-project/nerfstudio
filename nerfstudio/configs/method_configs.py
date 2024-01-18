@@ -600,7 +600,7 @@ method_configs["gaussian-splatting"] = TrainerConfig(
     gradient_accumulation_steps={"camera_opt": 100},
     pipeline=VanillaPipelineConfig(
         datamanager=FullImageDatamanagerConfig(
-            dataparser=ColmapDataParserConfig(load_3D_points=True),
+            dataparser=NerfstudioDataParserConfig(load_3D_points=True),
         ),
         model=GaussianSplattingModelConfig(),
     ),

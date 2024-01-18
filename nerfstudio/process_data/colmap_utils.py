@@ -460,6 +460,10 @@ def colmap_to_json(
     applied_transform[2, :] *= -1
     out["applied_transform"] = applied_transform.tolist()
 
+    # create ply from colmap
+    create_ply_from_colmap(recon_dir, output_dir)
+    out["ply_file_path"] = 'sparse_pc.ply'
+
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
         json.dump(out, f, indent=4)
 
@@ -638,3 +642,44 @@ def get_matching_summary(num_initial_frames: int, num_matched_frames: int) -> st
         result += " or large exposure changes."
         return result
     return f"[bold green]COLMAP found poses for {num_matched_frames / num_initial_frames * 100:.2f}% of the images."
+
+
+def create_ply_from_colmap(recon_dir, output_dir):
+    """Writes a ply file from colmap.
+
+    Args:
+        output_dir: The number of initial frames.
+
+    Returns:
+        A summary of the matching results.
+    """
+    if (recon_dir / "points3D.bin").exists():
+        colmap_points = read_points3D_binary(recon_dir / "points3D.bin")
+    elif (recon_dir / "points3D.txt").exists():
+        colmap_points = read_points3D_text(recon_dir / "points3D.txt")
+    else:
+        raise ValueError(f"Could not find points3D.txt or points3D.bin in {recon_dir}")
+    
+    # Load point Positions
+    points3D = torch.from_numpy(np.array([p.xyz for p in colmap_points.values()], dtype=np.float32))
+    # Load point colours
+    points3D_rgb = torch.from_numpy(np.array([p.rgb for p in colmap_points.values()], dtype=np.uint8))
+
+    # write ply
+    with open(output_dir / 'sparse_pc.ply', 'w') as f:
+        # Header
+        f.write("ply\n")
+        f.write("format ascii 1.0\n")
+        f.write(f"element vertex {len(points3D)}\n")
+        f.write("property float x\n")
+        f.write("property float y\n")
+        f.write("property float z\n")
+        f.write("property uint8 red\n")
+        f.write("property uint8 green\n")
+        f.write("property uint8 blue\n")
+        f.write("end_header\n")
+
+        for coord, color in zip(points3D, points3D_rgb):
+            x, y, z = coord.to(torch.float)
+            r, g, b = (color * 255).to(torch.uint8)
+            f.write(f"{x:8f} {y:8f} {z:8f} {r} {g} {b}\n")
