@@ -380,6 +380,16 @@ class Nerfstudio(DataParser):
         return dataparser_outputs
 
     def _load_3D_points(self, ply_file_path: Path, transform_matrix: torch.Tensor, scale_factor: float):
+        """Loads point clouds positions and colors from .ply
+
+        Args:
+            ply_file_path: Path to .ply file
+            transform_matrix: Matrix to transform world coordinates
+            scale_factor: How much to scale the camera origins by.
+
+        Returns:
+            A dictionary of points: points3D_xyz and colors: points3D_rgb
+        """
         import open3d as o3d  # Importing open3d is slow, so we only do it if we need it.
 
 

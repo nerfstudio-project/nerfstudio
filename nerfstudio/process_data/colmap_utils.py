@@ -648,10 +648,8 @@ def create_ply_from_colmap(recon_dir, output_dir):
     """Writes a ply file from colmap.
 
     Args:
-        output_dir: The number of initial frames.
-
-    Returns:
-        A summary of the matching results.
+        recon_dir: Directory to grab colmap points
+        output_dir: Directory to output .ply
     """
     if (recon_dir / "points3D.bin").exists():
         colmap_points = read_points3D_binary(recon_dir / "points3D.bin")
