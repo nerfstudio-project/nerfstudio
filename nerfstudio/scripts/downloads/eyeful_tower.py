@@ -62,6 +62,7 @@ class EyefulTowerResolutionMetadata:
 
 eyefultower_resolutions = {
     "all": None,
+    "jpeg_1k": EyefulTowerResolutionMetadata("images-jpeg-1k", 684, 1024, "jpg"),
     "jpeg_2k": EyefulTowerResolutionMetadata("images-jpeg-2k", 1368, 2048, "jpg"),
     "jpeg_4k": EyefulTowerResolutionMetadata("images-jpeg-4k", 2736, 4096, "jpg"),
     "jpeg_8k": EyefulTowerResolutionMetadata("images-jpeg", 5784, 8660, "jpg"),
