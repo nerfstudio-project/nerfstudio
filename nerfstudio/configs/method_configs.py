@@ -80,7 +80,7 @@ descriptions = {
     "generfacto": "Generative Text to NeRF model",
     "neus": "Implementation of NeuS. (slow)",
     "neus-facto": "Implementation of NeuS-Facto. (slow)",
-    "gaussian-splatting": "Gaussian Splatting model",
+    "splatfacto": "Gaussian Splatting model",
 }
 
 method_configs["nerfacto"] = TrainerConfig(
@@ -588,8 +588,8 @@ method_configs["neus-facto"] = TrainerConfig(
     vis="viewer",
 )
 
-method_configs["gaussian-splatting"] = TrainerConfig(
-    method_name="gaussian-splatting",
+method_configs["splatfacto"] = TrainerConfig(
+    method_name="splatfacto",
     steps_per_eval_image=100,
     steps_per_eval_batch=0,
     steps_per_save=2000,
