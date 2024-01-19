@@ -94,7 +94,8 @@ class ColmapDataParserConfig(DataParserConfig):
     colmap_path: Path = Path("colmap/sparse/0")
     """Path to the colmap reconstruction directory relative to the data path."""
     load_3D_points: bool = True
-    """Whether to load the 3D points from the colmap reconstruction."""
+    """Whether to load the 3D points from the colmap reconstruction. This is needed for Gaussian splatting but
+    otherwise typically harmless, so we default to True."""
     max_2D_matches_per_3D_point: int = 0
     """Maximum number of 2D matches per 3D point. If set to -1, all 2D matches are loaded. If set to 0, no 2D matches are loaded."""
 
