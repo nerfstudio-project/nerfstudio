@@ -474,7 +474,7 @@ def colmap_to_json(
         ply_filename,
         recon_dir,
         output_dir,
-        torch.from_numpy(applied_transform) if applied_transform is not None else None,
+        torch.from_numpy(applied_transform).float() if applied_transform is not None else None,
     )
     out["ply_file_path"] = ply_filename
 
