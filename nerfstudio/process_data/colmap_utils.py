@@ -34,6 +34,7 @@ from nerfstudio.data.utils.colmap_parsing_utils import (
     read_cameras_binary,
     read_images_binary,
     read_points3D_binary,
+    read_points3D_text
 )
 from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils import colormaps
