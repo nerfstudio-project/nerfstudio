@@ -389,11 +389,6 @@ def _undistort_image(
         )
         fisheye_crop_radius = camera.metadata["fisheye_crop_radius"]
 
-        # Desired parameters of the undistorted image.
-        import warnings
-
-        warnings.warn("Fisheye624 support in the full images datamanager currently assumes data from Project Aria.")
-
         # Approximate the FOV of the unmasked region of the camera.
         upper, lower, left, right = fisheye624_unproject_helper(
             torch.tensor(
@@ -412,7 +407,7 @@ def _undistort_image(
             torch.acos(torch.sum(left * right / torch.linalg.norm(left) / torch.linalg.norm(right))),
         )
 
-        # Heuristic to determine the parameters of the undistorted image.
+        # Heuristics to determine parameters of an undistorted image.
         undist_h = int(fisheye_crop_radius * 2)
         undist_w = int(fisheye_crop_radius * 2)
         undistort_focal = undist_h / (2 * torch.tan(fov_radians / 2.0))
@@ -422,7 +417,8 @@ def _undistort_image(
         undist_K[0, 2] = (undist_w - 1) / 2.0  # cx; for a 1x1 image, center should be at (0, 0).
         undist_K[1, 2] = (undist_h - 1) / 2.0  # cy
 
-        undistort_uv_homog = torch.stack(
+        # Undistorted 2D coordinates -> rays -> reproject to distorted UV coordinates.
+        undist_uv_homog = torch.stack(
             [
                 *torch.meshgrid(
                     torch.arange(undist_w, dtype=torch.float32),
@@ -432,15 +428,14 @@ def _undistort_image(
             ],
             dim=-1,
         )
-        assert undistort_uv_homog.shape == (undist_w, undist_h, 3)
-
-        unproj = (
+        assert undist_uv_homog.shape == (undist_w, undist_h, 3)
+        dist_uv = (
             fisheye624_project(
                 xyz=(
                     torch.einsum(
                         "ij,bj->bi",
                         torch.linalg.inv(undist_K),
-                        undistort_uv_homog.reshape((undist_w * undist_h, 3)),
+                        undist_uv_homog.reshape((undist_w * undist_h, 3)),
                     )[None]
                 ),
                 params=fisheye624_params[None, :],
@@ -448,15 +443,15 @@ def _undistort_image(
             .reshape((undist_w, undist_h, 2))
             .numpy()
         )
-        map1 = unproj[..., 1]
-        map2 = unproj[..., 0]
+        map1 = dist_uv[..., 1]
+        map2 = dist_uv[..., 0]
 
+        # Use correspondence to undistort image.
         image = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR)
 
+        # Compute undistorted mask as well.
         dist_h = camera.height.item()
         dist_w = camera.width.item()
-
-        # Compute distorted mask.
         mask = np.mgrid[:dist_h, :dist_w]
         mask[0, ...] -= dist_h // 2
         mask[1, ...] -= dist_w // 2
@@ -473,7 +468,6 @@ def _undistort_image(
             / 255.0
         ).bool()
         K = undist_K.numpy()
-
     else:
         raise NotImplementedError("Only perspective and fisheye cameras are supported")
 
