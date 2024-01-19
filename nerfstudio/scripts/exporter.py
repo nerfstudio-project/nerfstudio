@@ -40,7 +40,7 @@ from nerfstudio.exporter import texture_utils, tsdf_utils
 from nerfstudio.exporter.exporter_utils import collect_camera_poses, generate_point_cloud, get_mesh_from_filename
 from nerfstudio.exporter.marching_cubes import generate_mesh_with_multires_marching_cubes
 from nerfstudio.fields.sdf_field import SDFField  # noqa
-from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
+from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -488,9 +488,9 @@ class ExportGaussianSplat(Exporter):
 
         _, pipeline, _, _ = eval_setup(self.load_config)
 
-        assert isinstance(pipeline.model, GaussianSplattingModel)
+        assert isinstance(pipeline.model, SplatfactoModel)
 
-        model: GaussianSplattingModel = pipeline.model
+        model: SplatfactoModel = pipeline.model
 
         filename = self.output_dir / "splat.ply"
 

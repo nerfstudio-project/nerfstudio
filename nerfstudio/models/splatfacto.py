@@ -99,10 +99,10 @@ def projection_matrix(znear, zfar, fovx, fovy, device: Union[str, torch.device] 
 
 
 @dataclass
-class GaussianSplattingModelConfig(ModelConfig):
+class SplatfactoModelConfig(ModelConfig):
     """Gaussian Splatting Model Config"""
 
-    _target: Type = field(default_factory=lambda: GaussianSplattingModel)
+    _target: Type = field(default_factory=lambda: SplatfactoModel)
     warmup_length: int = 500
     """period of steps where refinement is turned off"""
     refine_every: int = 100
@@ -149,14 +149,14 @@ class GaussianSplattingModelConfig(ModelConfig):
     """
 
 
-class GaussianSplattingModel(Model):
+class SplatfactoModel(Model):
     """Gaussian Splatting model
 
     Args:
         config: Gaussian Splatting configuration to instantiate model
     """
 
-    config: GaussianSplattingModelConfig
+    config: SplatfactoModelConfig
 
     def __init__(
         self,

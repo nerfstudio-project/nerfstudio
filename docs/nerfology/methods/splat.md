@@ -27,11 +27,11 @@ Because gaussian splatting trains on *full images* instead of bundles of rays, t
 
 
 ### Running the Method
-To run gaussian splatting, run `ns-train gaussian-splatting --data <data>`. Just like NeRF methods, the splat can be interactively viewed in the web-viewer, loaded from a checkpoint, rendered, and exported.
+To run gaussian splatting, run `ns-train splatfacto --data <data>`. Just like NeRF methods, the splat can be interactively viewed in the web-viewer, loaded from a checkpoint, rendered, and exported.
 
 #### Quality and Regularization
 The default settings provided maintain a balance between speed, quality, and splat file size, but if you care more about quality than training speed or size, you can decrease the alpha cull threshold 
-(threshold to delete translucent gaussians) and disable culling after 15k steps like so: `ns-train gaussian-splatting --pipeline.model.cull_scale_thresh=0.005 --pipeline.model.continue_cull_post_densification=False --data <data>`
+(threshold to delete translucent gaussians) and disable culling after 15k steps like so: `ns-train splatfacto --pipeline.model.cull_scale_thresh=0.005 --pipeline.model.continue_cull_post_densification=False --data <data>`
 
 A common artifact in splatting is long, spikey gaussians. [PhysGaussian](https://xpandora.github.io/PhysGaussian/) proposes an example of a scale-regularizer that encourages gaussians to be more evenly shaped. To enable this, set the `use_scale_regularization` flag to `True`.
 
