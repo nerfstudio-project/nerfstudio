@@ -21,8 +21,6 @@ from typing import Literal, Optional, Type
 
 import numpy as np
 import torch
-from PIL import Image
-
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
@@ -35,6 +33,7 @@ from nerfstudio.data.utils.dataparsers_utils import (
 )
 from nerfstudio.utils.io import load_from_json
 from nerfstudio.utils.rich_utils import CONSOLE
+from PIL import Image
 
 MAX_AUTO_RESOLUTION = 1600
 
@@ -350,7 +349,7 @@ class Nerfstudio(DataParser):
                         transforms = json.load(f)
 
                     ply_filename = "sparse_pc.ply"
-                    create_ply_from_colmap(filename=ply_filename, recon_dir=colmap_path, output_dir=self.config.data)
+                    create_ply_from_colmap(ply_filename, recon_dir=colmap_path, output_dir=self.config.data)
                     ply_file_path = data_dir / ply_filename
                     transforms["ply_file_path"] = ply_filename
 
