@@ -664,6 +664,9 @@ def create_ply_from_colmap(filename: str, recon_dir: Path, output_dir: Path):
 
     # Load point Positions
     points3D = torch.from_numpy(np.array([p.xyz for p in colmap_points.values()], dtype=np.float32))
+    # convert to nerfstudio coordinate system
+    points3D = points3D[..., torch.tensor([1, 0, 2])]
+    points3D[..., 2] *= -1
     # Load point colours
     points3D_rgb = torch.from_numpy(np.array([p.rgb for p in colmap_points.values()], dtype=np.uint8))
 
