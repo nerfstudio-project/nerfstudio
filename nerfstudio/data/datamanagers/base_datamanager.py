@@ -41,6 +41,7 @@ from typing import (
 )
 
 import torch
+import tyro
 from torch import nn
 from torch.nn import Parameter
 from torch.utils.data.distributed import DistributedSampler
@@ -334,7 +335,9 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
-    camera_optimizer: Optional[CameraOptimizerConfig] = field(default=None)
+
+    # tyro.conf.Suppress prevents us from creating CLI arguments for this field.
+    camera_optimizer: tyro.conf.Suppress[Optional[CameraOptimizerConfig]] = field(default=None)
     """Deprecated, has been moved to the model config."""
     pixel_sampler: PixelSamplerConfig = field(default_factory=PixelSamplerConfig)
     """Specifies the pixel sampler used to sample pixels from images."""

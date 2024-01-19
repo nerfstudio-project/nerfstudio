@@ -25,19 +25,13 @@ from typing import Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
-import torchvision.transforms.functional as TF
 from gsplat._torch_impl import quat_to_rotmat
-from gsplat.compute_cumulative_intersects import compute_cumulative_intersects
-from gsplat.project_gaussians import ProjectGaussians
-from gsplat.rasterize import RasterizeGaussians
-from gsplat.sh import SphericalHarmonics, num_sh_bases
+from gsplat.project_gaussians import project_gaussians
+from gsplat.rasterize import rasterize_gaussians
+from gsplat.sh import num_sh_bases, spherical_harmonics
 from pytorch_msssim import SSIM
-from sklearn.neighbors import NearestNeighbors
 from torch.nn import Parameter
-from torchmetrics.image import PeakSignalNoiseRatio
-from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
-from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
@@ -147,8 +141,6 @@ class GaussianSplattingModelConfig(ModelConfig):
     """stop splitting at this step"""
     sh_degree: int = 3
     """maximum degree of spherical harmonics to use"""
-    camera_optimizer: CameraOptimizerConfig = field(default_factory=CameraOptimizerConfig)
-    """camera optimizer config"""
     use_scale_regularization: bool = False
     """If enabled, a scale regularization introduced in PhysGauss (https://xpandora.github.io/PhysGaussian/) is used for reducing huge spikey gaussians."""
     max_gauss_ratio: float = 10.0
@@ -205,6 +197,9 @@ class GaussianSplattingModel(Model):
         self.opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(self.num_points, 1)))
 
         # metrics
+        from torchmetrics.image import PeakSignalNoiseRatio
+        from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = SSIM(data_range=1.0, size_average=True, channel=3)
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
@@ -212,10 +207,6 @@ class GaussianSplattingModel(Model):
 
         self.crop_box: Optional[OrientedBox] = None
         self.back_color = torch.zeros(3)
-
-        self.camera_optimizer: CameraOptimizer = self.config.camera_optimizer.setup(
-            num_cameras=self.num_train_data, device="cpu"
-        )
 
     @property
     def colors(self):
@@ -248,7 +239,7 @@ class GaussianSplattingModel(Model):
 
     def k_nearest_sklearn(self, x: torch.Tensor, k: int):
         """
-        Find k-nearest neighbors using sklearn's NearestNeighbors.
+            Find k-nearest neighbors using sklearn's NearestNeighbors.
         x: The data tensor of shape [num_samples, num_features]
         k: The number of neighbors to retrieve
         """
@@ -256,6 +247,8 @@ class GaussianSplattingModel(Model):
         x_np = x.cpu().numpy()
 
         # Build the nearest neighbors model
+        from sklearn.neighbors import NearestNeighbors
+
         nn_model = NearestNeighbors(n_neighbors=k + 1, algorithm="auto", metric="euclidean").fit(x_np)
 
         # Find the k-nearest neighbors
@@ -323,7 +316,8 @@ class GaussianSplattingModel(Model):
         with torch.no_grad():
             # keep track of a moving average of grad norms
             visible_mask = (self.radii > 0).flatten()
-            grads = self.xys.grad.detach().norm(dim=-1)  # TODO fill in
+            assert self.xys.grad is not None
+            grads = self.xys.grad.detach().norm(dim=-1)
             # print(f"grad norm min {grads.min().item()} max {grads.max().item()} mean {grads.mean().item()} size {grads.shape}")
             if self.xys_grad_norm is None:
                 self.xys_grad_norm = grads
@@ -568,8 +562,6 @@ class GaussianSplattingModel(Model):
             Mapping of different parameter groups
         """
         gps = self.get_gaussian_param_groups()
-        # add camera optimizer param groups
-        self.camera_optimizer.get_param_groups(gps)
         return gps
 
     def _get_downscale_factor(self):
@@ -592,9 +584,6 @@ class GaussianSplattingModel(Model):
             print("Called get_outputs with not a camera")
             return {}
         assert camera.shape[0] == 1, "Only one camera at a time"
-        if self.training:
-            # currently relies on the branch vickie/camera-grads
-            self.camera_optimizer.apply_to_camera(camera)
         if self.training:
             background = torch.rand(3, device=self.device)
         else:
@@ -628,13 +617,13 @@ class GaussianSplattingModel(Model):
         cy = camera.cy.item()
         fovx = 2 * math.atan(camera.width / (2 * camera.fx))
         fovy = 2 * math.atan(camera.height / (2 * camera.fy))
-        W, H = camera.width.item(), camera.height.item()
+        W, H = int(camera.width.item()), int(camera.height.item())
         self.last_size = (H, W)
         projmat = projection_matrix(0.001, 1000, fovx, fovy, device=self.device)
         BLOCK_X, BLOCK_Y = 16, 16
         tile_bounds = (
-            (W + BLOCK_X - 1) // BLOCK_X,
-            (H + BLOCK_Y - 1) // BLOCK_Y,
+            int((W + BLOCK_X - 1) // BLOCK_X),
+            int((H + BLOCK_Y - 1) // BLOCK_Y),
             1,
         )
 
@@ -655,7 +644,7 @@ class GaussianSplattingModel(Model):
 
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
 
-        self.xys, depths, self.radii, conics, num_tiles_hit, cov3d = ProjectGaussians.apply(
+        self.xys, depths, self.radii, conics, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
             means_crop,
             torch.exp(scales_crop),
             1,
@@ -681,7 +670,7 @@ class GaussianSplattingModel(Model):
             viewdirs = means_crop.detach() - camera.camera_to_worlds.detach()[..., :3, 3]  # (N, 3)
             viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
             n = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
-            rgbs = SphericalHarmonics.apply(n, viewdirs, colors_crop)
+            rgbs = spherical_harmonics(n, viewdirs, colors_crop)
             rgbs = torch.clamp(rgbs + 0.5, min=0.0)  # type: ignore
         else:
             rgbs = torch.sigmoid(colors_crop[:, 0, :])
@@ -689,39 +678,57 @@ class GaussianSplattingModel(Model):
         # rescale the camera back to original dimensions
         camera.rescale_output_resolution(camera_downscale)
 
-        # avoid empty rasterization
-        num_intersects, _ = compute_cumulative_intersects(self.xys.size(0), num_tiles_hit)
-        assert num_intersects > 0
+        assert (num_tiles_hit > 0).any()  # type: ignore
 
-        rgb = RasterizeGaussians.apply(
+        rgb = rasterize_gaussians(  # type: ignore
             self.xys,
             depths,
             self.radii,
             conics,
-            num_tiles_hit,
+            num_tiles_hit,  # type: ignore
             rgbs,
             torch.sigmoid(opacities_crop),
             H,
             W,
-            background,
+            background=background,
         )  # type: ignore
         rgb = torch.clamp(rgb, max=1.0)  # type: ignore
         depth_im = None
         if not self.training:
-            depth_im = RasterizeGaussians.apply(  # type: ignore
+            depth_im = rasterize_gaussians(  # type: ignore
                 self.xys,
                 depths,
                 self.radii,
                 conics,
-                num_tiles_hit,
+                num_tiles_hit,  # type: ignore
                 depths[:, None].repeat(1, 3),
                 torch.sigmoid(opacities_crop),
                 H,
                 W,
-                torch.ones(3, device=self.device) * 10,
+                background=torch.ones(3, device=self.device) * 10,
             )[..., 0:1]  # type: ignore
 
         return {"rgb": rgb, "depth": depth_im}  # type: ignore
+
+    def get_gt_img(self, image: torch.Tensor):
+        """Compute groundtruth image with iteration dependent downscale factor for evaluation purpose
+
+        Args:
+            image: tensor.Tensor in type uint8 or float32
+        """
+        if image.dtype == torch.uint8:
+            image = image.float() / 255.0
+        d = self._get_downscale_factor()
+        if d > 1:
+            newsize = [image.shape[0] // d, image.shape[1] // d]
+
+            # torchvision can be slow to import, so we do it lazily.
+            import torchvision.transforms.functional as TF
+
+            gt_img = TF.resize(image.permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
+        else:
+            gt_img = image
+        return gt_img.to(self.device)
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.
@@ -730,18 +737,11 @@ class GaussianSplattingModel(Model):
             outputs: the output to compute loss dict to
             batch: ground truth batch corresponding to outputs
         """
-        d = self._get_downscale_factor()
-        if d > 1:
-            newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
-            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
-        else:
-            gt_img = batch["image"]
+        gt_rgb = self.get_gt_img(batch["image"])
         metrics_dict = {}
-        gt_rgb = gt_img.to(self.device)  # RGB or RGBA image
         predicted_rgb = outputs["rgb"]
         metrics_dict["psnr"] = self.psnr(predicted_rgb, gt_rgb)
 
-        self.camera_optimizer.get_metrics_dict(metrics_dict)
         metrics_dict["gaussian_count"] = self.num_points
         return metrics_dict
 
@@ -753,12 +753,7 @@ class GaussianSplattingModel(Model):
             batch: ground truth batch corresponding to outputs
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
-        d = self._get_downscale_factor()
-        if d > 1:
-            newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
-            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
-        else:
-            gt_img = batch["image"]
+        gt_img = self.get_gt_img(batch["image"])
         Ll1 = torch.abs(gt_img - outputs["rgb"]).mean()
         simloss = 1 - self.ssim(gt_img.permute(2, 0, 1)[None, ...], outputs["rgb"].permute(2, 0, 1)[None, ...])
         if self.config.use_scale_regularization and self.step % 10 == 0:
@@ -805,16 +800,16 @@ class GaussianSplattingModel(Model):
         Returns:
             A dictionary of metrics.
         """
+        gt_rgb = self.get_gt_img(batch["image"])
         d = self._get_downscale_factor()
         if d > 1:
+            # torchvision can be slow to import, so we do it lazily.
+            import torchvision.transforms.functional as TF
+
             newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
-            gt_img = TF.resize(batch["image"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
             predicted_rgb = TF.resize(outputs["rgb"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         else:
-            gt_img = batch["image"]
             predicted_rgb = outputs["rgb"]
-
-        gt_rgb = gt_img.to(self.device)
 
         combined_rgb = torch.cat([gt_rgb, predicted_rgb], dim=1)
 
