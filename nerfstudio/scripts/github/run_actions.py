@@ -56,11 +56,14 @@ def run_github_actions_file(filename: str, continue_on_fail: bool = False):
 
     for step in steps:
         if "name" in step and step["name"] in LOCAL_TESTS:
-            compressed = step["run"].replace("\n", ";").replace("\\", "")
-            if "ruff check" in compressed:
-                curr_command = f"{compressed} --fix"
-            else:
-                curr_command = compressed.replace("--check", "")
+            curr_command = step["run"].replace("\n", ";").replace("\\", "")
+            if curr_command.startswith("ruff"):
+                if "ruff check" in curr_command:
+                    curr_command = f"{curr_command} --fix"
+
+                curr_command = curr_command.replace(" --check", "")
+                curr_command = curr_command.replace(" --diff", "")
+                curr_command = curr_command.replace(" --output-format=github", "")
 
             CONSOLE.line()
             CONSOLE.rule(f"[bold green]Running: {curr_command}")
