@@ -321,12 +321,12 @@ class Nerfstudio(DataParser):
 
         # _generate_dataparser_outputs might be called more than once so we check if we already loaded the point cloud
         try:
-            self.loaded_points
+            self.prompted_user
         except AttributeError:
-            self.loaded_points = False
+            self.prompted_user = False
 
         # Load 3D points
-        if self.config.load_3D_points and not self.loaded_points:
+        if self.config.load_3D_points:
             colmap_path = self.config.data / "colmap/sparse/0"
 
             if "ply_file_path" in meta:
@@ -336,9 +336,10 @@ class Nerfstudio(DataParser):
                 from rich.prompt import Confirm
 
                 # check if user wants to make a point cloud from colmap points
-                self.create_pc = Confirm.ask(
-                    "load_3D_points is true, but the dataset was processed with an outdated ns-process-data that didn't convert colmap points to .ply! Update the colmap dataset automatically?"
-                )
+                if not self.prompted_user:
+                    self.create_pc = Confirm.ask(
+                        "load_3D_points is true, but the dataset was processed with an outdated ns-process-data that didn't convert colmap points to .ply! Update the colmap dataset automatically?"
+                    )
 
                 if self.create_pc:
                     import json
@@ -358,9 +359,10 @@ class Nerfstudio(DataParser):
                 else:
                     ply_file_path = None
             else:
-                CONSOLE.print(
-                    "[bold yellow]Warning: load_3D_points set to true but no point cloud found. gaussian-splatting models will use random point cloud initialization."
-                )
+                if not self.prompted_user:
+                    CONSOLE.print(
+                        "[bold yellow]Warning: load_3D_points set to true but no point cloud found. gaussian-splatting models will use random point cloud initialization."
+                    )
                 ply_file_path = None
 
             if ply_file_path:

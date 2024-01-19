@@ -392,6 +392,7 @@ def colmap_to_json(
     camera_mask_path: Optional[Path] = None,
     image_id_to_depth_path: Optional[Dict[int, Path]] = None,
     image_rename_map: Optional[Dict[str, str]] = None,
+    ply_filename="sparse_pc.ply",
 ) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
 
@@ -462,8 +463,8 @@ def colmap_to_json(
     out["applied_transform"] = applied_transform.tolist()
 
     # create ply from colmap
-    create_ply_from_colmap(recon_dir, output_dir)
-    out["ply_file_path"] = "sparse_pc.ply"
+    assert ply_filename.endswith(".ply"), f"ply_filename: {ply_filename} does not end with '.ply'"
+    out["ply_file_path"] = ply_filename
 
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
         json.dump(out, f, indent=4)
@@ -645,10 +646,11 @@ def get_matching_summary(num_initial_frames: int, num_matched_frames: int) -> st
     return f"[bold green]COLMAP found poses for {num_matched_frames / num_initial_frames * 100:.2f}% of the images."
 
 
-def create_ply_from_colmap(recon_dir, output_dir):
+def create_ply_from_colmap(filename: str, recon_dir: Path, output_dir: Path):
     """Writes a ply file from colmap.
 
     Args:
+        filename: file name for .ply
         recon_dir: Directory to grab colmap points
         output_dir: Directory to output .ply
     """
@@ -665,7 +667,7 @@ def create_ply_from_colmap(recon_dir, output_dir):
     points3D_rgb = torch.from_numpy(np.array([p.rgb for p in colmap_points.values()], dtype=np.uint8))
 
     # write ply
-    with open(output_dir / "sparse_pc.ply", "w") as f:
+    with open(output_dir / filename, "w") as f:
         # Header
         f.write("ply\n")
         f.write("format ascii 1.0\n")
