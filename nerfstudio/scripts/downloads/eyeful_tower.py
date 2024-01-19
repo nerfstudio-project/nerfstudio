@@ -26,6 +26,7 @@ import numpy as np
 import tyro
 
 from nerfstudio.scripts.downloads.utils import DatasetDownload
+from nerfstudio.utils.rich_utils import CONSOLE
 
 eyefultower_downloads = [
     "all",
@@ -90,7 +91,23 @@ class EyefulTowerDownload(DatasetDownload):
     resolution_name: Tuple[EyefulTowerResolution, ...] = ()
 
     @staticmethod
-    def scale_metashape_transform(xml_tree: ET.ElementTree, target_width: int, target_height: int):
+    def scale_metashape_transform(xml_tree: ET.ElementTree, target_width: int, target_height: int) -> ET.ElementTree:
+        """Rescales parameters in metashape's cameras.xml format to match target width/height.
+
+        The EyefulTower dataset provides images which have already been rescaled to smaller sizes from the original ~8K
+        resolution. However, the cameras.xml file provided, which contains the camera intrinsics in metashape's format,
+        only contains valid parameters for the original resolution. This function generates a new set of parameters
+        corresponding to a smaller resolution dataset by scaling the original values from cameras.xml. Non-uniform
+        scaling (different in X and Y) can be performed due to slight rounding differences.
+
+        Args:
+            xml_tree: XML tree loaded from Metashape's cameras.xml file
+            target_width: Width of output images
+            target_height: Height of output images
+
+        Returns:
+            Updated XML tree with scaled intrinsics and width/height parameters
+        """
         transformed = copy.deepcopy(xml_tree)
 
         root = transformed.getroot()
@@ -142,9 +159,34 @@ class EyefulTowerDownload(DatasetDownload):
 
         return transformed
 
+    @staticmethod
     def convert_cameras_to_nerfstudio_transforms(
-        self, capture_name: str, cameras: dict, splits: dict, target_width: int, target_height: int, extension: str
-    ):
+        capture_name: str, cameras: dict, splits: dict, target_width: int, target_height: int, extension: str
+    ) -> dict:
+        """Converts EyefulTower cameras.json format to Nerfstudio's transforms.json format
+
+        The EyefulTower dataset provides a cameras.json file containing geometric calibration information for the
+        original resolution ~8K images, similar to the cameras.xml file from Metashape. The main advantage is that data
+        is provided for each individual image, rather than being structured hierarchically with rig constraints (as in
+        the Metashape cameras.xml).
+
+        This function takes the cameras.json file and converts it to the transforms.json Nerfstudio expects, with the
+        necessary scaling of intrinsics parameters applied. This function also handles the EyefulTower splits.json file,
+        describing the breakdown of training and validation images, and adds the appropriate fields to transforms.json.
+        This function works for both fisheye (V1) and pinhole (V2) cameras. Scene-specific fisheye mask radii are added
+        to the returned dictionary if needed.
+
+        Args:
+            capture_name: Which specific EyefulTower capture is being converted
+            cameras: Data loaded from EyefulTower cameras.json
+            splits: Data loaded from EyefulTower splits.json
+            target_width: Width of output images
+            target_height: Height of output images
+            extension: Extension of output images
+
+        Returns:
+            Dict in the Nerfstudio transforms.json format, with scaled camera parameters, splits, and optional metadata.
+        """
         output = {}
 
         distortion_models = [c["distortionModel"] for c in cameras["KRT"]]
@@ -221,7 +263,17 @@ class EyefulTowerDownload(DatasetDownload):
         output["val_filenames"] = split_filenames["test"]
         return output
 
-    def subsample_nerfstudio_transforms(self, transforms: dict, n: int):
+    @staticmethod
+    def subsample_nerfstudio_transforms(transforms: dict, n: int):
+        """Uniformly samples n frames from a Nerfstudio transforms.json dict.
+
+        Args:
+            transforms: Dictionary in Nerfstudio transforms.json format
+            n: Number of frames to uniformly subsample
+
+        Returns:
+            New transforms.json dict with n frames. All other parameters are copied.
+        """
         target = min(len(transforms["frames"]), n)
         indices = np.round(np.linspace(0, len(transforms["frames"]) - 1, target)).astype(int)
 
@@ -239,17 +291,29 @@ class EyefulTowerDownload(DatasetDownload):
 
         return output
 
-    def download(self, save_dir: Path):
+    def download(self, save_dir: Path) -> None:
+        """Entrypoint to download the EyefulTower dataset.
+
+        * Fetches the specified dataset(s) at the specified resolution(s) from the EyefulTower AWS S3 bucket. Redundant
+          data is not downloaded, so this function can safely (and performantly) be called multiple times with
+          increasing scope of datasets and resolutions.
+        * Generates updated Metashape cameras.xml for lower resolution downloads.
+        * Generates Nerfstudio transform.json for each resolution. Additionally generates transforms_300.json and
+          transforms_half.json containing subsets (300 frames, half the frames) of the full set to help with iteration.
+
+        Args:
+            save_dir: Directory to save dataset. Output will be in save_dir/eyefultower/<dataset>
+        """
         if len(self.capture_name) == 0:
             self.capture_name = ("riverview",)
-            print(
+            CONSOLE.print(
                 f"No capture specified, using {self.capture_name} by default.",
                 "Add `--help` to this command to see all available captures.",
             )
 
         if len(self.resolution_name) == 0:
             self.resolution_name = ("jpeg_2k",)
-            print(
+            CONSOLE.print(
                 f"No resolution specified, using {self.resolution_name} by default.",
                 "Add `--help` to this command to see all available resolutions.",
             )
@@ -262,7 +326,7 @@ class EyefulTowerDownload(DatasetDownload):
                 captures.add(capture)
         captures = sorted(captures)
         if len(captures) == 0:
-            print("WARNING: No EyefulTower captures specified. Nothing will be downloaded.")
+            CONSOLE.print("[bold yellow]WARNING: No EyefulTower captures specified. Nothing will be downloaded.")
 
         resolutions = set()
         for resolution in self.resolution_name:
@@ -272,7 +336,7 @@ class EyefulTowerDownload(DatasetDownload):
                 resolutions.add(resolution)
         resolutions = sorted(resolutions)
         if len(resolutions) == 0:
-            print("WARNING: No EyefulTower resolutions specified. Nothing will be downloaded.")
+            CONSOLE.print("[bold yellow]WARNING: No EyefulTower resolutions specified. Nothing will be downloaded.")
 
         driver = awscli.clidriver.create_clidriver()
 
@@ -287,9 +351,9 @@ class EyefulTowerDownload(DatasetDownload):
                 + includes
                 + [base_url, str(output_path)]
             )
-            print(f"[EyefulTower Capture {i+1: >2d}/{len(captures)}]: '{capture}'")
+            CONSOLE.print(f"[EyefulTower Capture {i+1: >2d}/{len(captures)}]: '{capture}'")
             print(
-                f"    Downloading resolutions {resolutions}",
+                f"\tDownloading resolutions {resolutions}",
                 f"to '{output_path.resolve()}' with command `aws {' '.join(command)}` ...",
                 end=" ",
                 flush=True,
@@ -297,12 +361,13 @@ class EyefulTowerDownload(DatasetDownload):
             driver.main(command)
             print("done!")
 
-            # After downloading, we'll insert an appropriate cameras.xml file into each directory
-            # It's quick enough that we can just redo it every time this is called, regardless
-            # of whether new data is downloaded.
+            # After downloading, we'll insert an appropriate cameras.xml file into each directory. It's quick enough
+            # that we can just redo it every time this is called, regardless of whether new data is downloaded.
             xml_input_path = output_path / "cameras.xml"
             if not xml_input_path.exists:
-                print("    WARNING: cameras.xml not found. Scaled cameras.xml will not be generated.")
+                CONSOLE.print(
+                    "\t[bold yellow]WARNING: cameras.xml not found. Scaled cameras.xml will not be generated."
+                )
             else:
                 tree = ET.parse(output_path / "cameras.xml")
 
@@ -310,7 +375,7 @@ class EyefulTowerDownload(DatasetDownload):
                     metadata = eyefultower_resolutions[resolution]
                     xml_output_path = output_path / metadata.folder_name / "cameras.xml"
                     print(
-                        f"    Generating cameras.xml for '{resolution}' to '{xml_output_path.resolve()}' ... ",
+                        f"\tGenerating cameras.xml for '{resolution}' to '{xml_output_path.resolve()}' ... ",
                         end=" ",
                         flush=True,
                     )
@@ -321,9 +386,9 @@ class EyefulTowerDownload(DatasetDownload):
             json_input_path = output_path / "cameras.json"
             splits_input_path = output_path / "splits.json"
             if not json_input_path.exists:
-                print("    WARNING: cameras.json not found. transforms.json will not be generated.")
+                CONSOLE.print("\t[bold yellow]WARNING: cameras.json not found. transforms.json will not be generated.")
             elif not splits_input_path.exists:
-                print("    WARNING: splits.json not found. transforms.json will not be generated.")
+                CONSOLE.print("\t[bold yellow]WARNING: splits.json not found. transforms.json will not be generated.")
             else:
                 with open(json_input_path, "r") as f:
                     cameras = json.load(f)
@@ -335,7 +400,7 @@ class EyefulTowerDownload(DatasetDownload):
                     metadata = eyefultower_resolutions[resolution]
                     json_output_path = output_path / metadata.folder_name / "transforms.json"
                     print(
-                        f"    Generating transforms.json for '{resolution}' to '{json_output_path.resolve()}' ... ",
+                        f"\tGenerating transforms.json for '{resolution}' to '{json_output_path.resolve()}' ... ",
                         end=" ",
                         flush=True,
                     )
