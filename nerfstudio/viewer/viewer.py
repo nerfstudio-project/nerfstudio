@@ -22,9 +22,11 @@ from typing import TYPE_CHECKING, Dict, List, Literal, Optional
 
 import numpy as np
 import torch
-import torchvision
+import viser
 import viser.theme
 import viser.transforms as vtf
+from typing_extensions import assert_never
+
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.configs import base_config as cfg
@@ -40,9 +42,6 @@ from nerfstudio.viewer.render_state_machine import RenderAction, RenderStateMach
 from nerfstudio.viewer.utils import CameraState, parse_object
 from nerfstudio.viewer.viewer_elements import ViewerControl, ViewerElement
 from nerfstudio.viewer_legacy.server import viewer_utils
-from typing_extensions import assert_never
-
-import viser
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
@@ -204,7 +203,7 @@ class Viewer:
             )
 
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
-            populate_export_tab(self.viser_server, self.control_panel, config_path)
+            populate_export_tab(self.viser_server, self.control_panel, config_path, self.pipeline.model)
 
         # Keep track of the pointers to generated GUI folders, because each generated folder holds a unique ID.
         viewer_gui_folders = dict()
@@ -409,6 +408,10 @@ class Viewer:
             camera = train_dataset.cameras[idx]
             image_uint8 = (image * 255).detach().type(torch.uint8)
             image_uint8 = image_uint8.permute(2, 0, 1)
+
+            # torchvision can be slow to import, so we do it lazily.
+            import torchvision
+
             image_uint8 = torchvision.transforms.functional.resize(image_uint8, 100, antialias=None)  # type: ignore
             image_uint8 = image_uint8.permute(1, 2, 0)
             image_uint8 = image_uint8.cpu().numpy()
