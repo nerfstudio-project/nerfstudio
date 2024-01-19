@@ -464,6 +464,7 @@ def colmap_to_json(
 
     # create ply from colmap
     assert ply_filename.endswith(".ply"), f"ply_filename: {ply_filename} does not end with '.ply'"
+    create_ply_from_colmap(ply_filename, recon_dir, output_dir)
     out["ply_file_path"] = ply_filename
 
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:

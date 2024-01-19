@@ -349,9 +349,10 @@ class Nerfstudio(DataParser):
                     with open(self.config.data / "transforms.json") as f:
                         transforms = json.load(f)
 
-                    create_ply_from_colmap(recon_dir=colmap_path, output_dir=self.config.data)
-                    ply_file_path = data_dir / "sparse_pc.ply"
-                    transforms["ply_file_path"] = "sparse_pc.ply"
+                    ply_filename = "sparse_pc.ply"
+                    create_ply_from_colmap(filename=ply_filename, recon_dir=colmap_path, output_dir=self.config.data)
+                    ply_file_path = data_dir / ply_filename
+                    transforms["ply_file_path"] = ply_filename
 
                     with open(self.config.data / "transforms.json", "w", encoding="utf-8") as f:
                         json.dump(transforms, f, indent=4)
