@@ -55,12 +55,6 @@ def background_color_override_context(mode: Float[Tensor, "3"]) -> Generator[Non
         BACKGROUND_COLOR_OVERRIDE = old_background_color
 
 
-def force_background_color_override(mode: Float[Tensor, "3"]) -> None:
-    """Force background color override."""
-    global BACKGROUND_COLOR_OVERRIDE
-    BACKGROUND_COLOR_OVERRIDE = mode
-
-
 class RGBRenderer(nn.Module):
     """Standard volumetric rendering.
 

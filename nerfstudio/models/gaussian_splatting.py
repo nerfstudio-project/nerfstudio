@@ -22,6 +22,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Type, Union
+from typing_extensions import Literal
 
 import numpy as np
 import torch
@@ -46,6 +47,7 @@ from nerfstudio.engine.optimizers import Optimizers
 # need following import for background color override
 from nerfstudio.model_components import renderers
 from nerfstudio.models.base_model import Model, ModelConfig
+from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
@@ -111,10 +113,12 @@ class GaussianSplattingModelConfig(ModelConfig):
     _target: Type = field(default_factory=lambda: GaussianSplattingModel)
     warmup_length: int = 500
     """period of steps where refinement is turned off"""
-    refine_every: int = 100
+    refine_every: int = 150
     """period of steps where gaussians are culled and densified"""
     resolution_schedule: int = 250
     """training starts at 1/d resolution, every n steps this is doubled"""
+    background_color: Literal["random", "black", "white"] = "random"
+    """Whether to randomize the background color."""
     num_downscales: int = 0
     """at the beginning, resolution is 1/2^d, where d is this number"""
     cull_alpha_thresh: float = 0.1
@@ -211,7 +215,10 @@ class GaussianSplattingModel(Model):
         self.step = 0
 
         self.crop_box: Optional[OrientedBox] = None
-        self.back_color = torch.zeros(3)
+        if self.config.background_color == "random":
+            self.back_color = torch.rand(3)
+        else:
+            self.back_color = get_color(self.config.background_color)
 
         self.camera_optimizer: CameraOptimizer = self.config.camera_optimizer.setup(
             num_cameras=self.num_train_data, device="cpu"
@@ -596,11 +603,15 @@ class GaussianSplattingModel(Model):
             # currently relies on the branch vickie/camera-grads
             self.camera_optimizer.apply_to_camera(camera)
         # get the background color
-        if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
-            background = renderers.BACKGROUND_COLOR_OVERRIDE.to(self.device)
-        else:
-            if self.training:
+
+        if self.training:
+            if self.config.background_color == "random":
                 background = torch.rand(3, device=self.device)
+            else:
+                background = self.back_color.to(self.device)
+        else:
+            if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
+                background = renderers.BACKGROUND_COLOR_OVERRIDE.to(self.device)
             else:
                 background = self.back_color.to(self.device)
 
