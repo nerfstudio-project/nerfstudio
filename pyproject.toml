@@ -14,7 +14,6 @@ classifiers = [
     "Programming Language :: Python",
 ]
 dependencies = [
-    "awscli>=1.31.10",
     "appdirs>=1.4",
     "av>=9.2.0",
     "comet_ml>=3.33.8",
@@ -92,15 +91,12 @@ dev = [
     "typeguard==2.13.3",
     "ruff==0.1.13",
     "sshconf==0.2.5",
-    # TODO(1480) enable when pycolmap windows wheels are available
-    # "pycolmap>=0.3.0",  # NOTE: pycolmap==0.3.0 is not available on newer python versions
+    "pycolmap>=0.3.0",  # NOTE: pycolmap==0.3.0 is not available on newer python versions
     "diffusers==0.16.1",
     "opencv-stubs==0.0.7",
     "transformers==4.29.2",
     "pyright==1.1.331",
-    # NOTE: Disabling projectaria-tools because it doesn't have prebuilt windows wheels
-    # Syntax comes from here: https://pip.pypa.io/en/stable/reference/requirement-specifiers/
-    "projectaria-tools>=1.3.1; sys_platform != 'win32'",
+    "projectaria_tools[all]>=1.2.0",
 ]
 
 # Documentation related packages
