@@ -682,6 +682,6 @@ def create_ply_from_colmap(filename: str, recon_dir: Path, output_dir: Path):
         f.write("end_header\n")
 
         for coord, color in zip(points3D, points3D_rgb):
-            x, y, z = coord.to(torch.float)
-            r, g, b = (color * 255).to(torch.uint8)
+            x, y, z = coord
+            r, g, b = color
             f.write(f"{x:8f} {y:8f} {z:8f} {r} {g} {b}\n")
