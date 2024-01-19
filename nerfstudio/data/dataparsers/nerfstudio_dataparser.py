@@ -386,7 +386,7 @@ class Nerfstudio(DataParser):
             else:
                 if not self.prompted_user:
                     CONSOLE.print(
-                        "[bold yellow]Warning: load_3D_points set to true but no point cloud found. gaussian-splatting models will use random point cloud initialization."
+                        "[bold yellow]Warning: load_3D_points set to true but no point cloud found. splatfacto will use random point cloud initialization."
                     )
                 ply_file_path = None
 

@@ -51,7 +51,7 @@ from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.fields.sdf_field import SDFFieldConfig
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
-from nerfstudio.models.gaussian_splatting import GaussianSplattingModelConfig
+from nerfstudio.models.splatfacto import SplatfactoModelConfig
 from nerfstudio.models.generfacto import GenerfactoModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
@@ -601,7 +601,7 @@ method_configs["splatfacto"] = TrainerConfig(
         datamanager=FullImageDatamanagerConfig(
             dataparser=NerfstudioDataParserConfig(load_3D_points=True),
         ),
-        model=GaussianSplattingModelConfig(),
+        model=SplatfactoModelConfig(),
     ),
     optimizers={
         "xyz": {
