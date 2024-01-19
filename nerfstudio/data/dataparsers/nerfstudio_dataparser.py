@@ -349,7 +349,6 @@ class Nerfstudio(DataParser):
                     with open(self.config.data / "transforms.json") as f:
                         transforms = json.load(f)
 
-                    print(self.config.data)
                     create_ply_from_colmap(recon_dir=colmap_path, output_dir=self.config.data)
                     ply_file_path = data_dir / "sparse_pc.ply"
                     transforms["ply_file_path"] = "sparse_pc.ply"
@@ -369,7 +368,7 @@ class Nerfstudio(DataParser):
                 sparse_points = self._load_3D_points(ply_file_path, transform_matrix, scale_factor)
                 if sparse_points is not None:
                     metadata.update(sparse_points)
-            self.loaded_points = True
+            self.prompted_user = True
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
