@@ -32,6 +32,7 @@ from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.models.base_model import Model
+from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
@@ -247,6 +248,17 @@ class Viewer:
         for c in self.viewer_controls:
             c._setup(self)
 
+        # Diagnostics for Gaussian Splatting: where the points are at the start of training.
+        # This is hidden by default, it can be shown from the Viser UI's scene tree table.
+        if isinstance(pipeline.model, GaussianSplattingModel):
+            self.viser_server.add_point_cloud(
+                "/gaussian_splatting_initial_points",
+                points=pipeline.model.means.numpy(force=True) * VISER_NERFSTUDIO_SCALE_RATIO,
+                colors=(255, 0, 0),
+                point_size=0.01,
+                point_shape="circle",
+                visible=False,  # Hidden by default.
+            )
         self.ready = True
 
     def toggle_pause_button(self) -> None:
