@@ -16,6 +16,7 @@ classifiers = [
 dependencies = [
     "appdirs>=1.4",
     "av>=9.2.0",
+    "awscli>=1.31.10",
     "comet_ml>=3.33.8",
     "cryptography>=38",
     "tyro>=0.6.6",
