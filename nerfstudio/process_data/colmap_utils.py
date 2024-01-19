@@ -18,7 +18,7 @@ Tools supporting the execution of COLMAP and preparation of COLMAP-based dataset
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Literal, Optional, Union
 
 import appdirs
 import cv2
@@ -34,6 +34,7 @@ from nerfstudio.data.utils.colmap_parsing_utils import (
     read_cameras_binary,
     read_images_binary,
     read_points3D_binary,
+    read_points3D_text,
 )
 from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils import colormaps
@@ -391,6 +392,8 @@ def colmap_to_json(
     camera_mask_path: Optional[Path] = None,
     image_id_to_depth_path: Optional[Dict[int, Path]] = None,
     image_rename_map: Optional[Dict[str, str]] = None,
+    ply_filename="sparse_pc.ply",
+    keep_original_world_coordinate: bool = False,
 ) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
 
@@ -401,7 +404,9 @@ def colmap_to_json(
         camera_mask_path: Path to the camera mask.
         image_id_to_depth_path: When including sfm-based depth, embed these depth file paths in the exported json
         image_rename_map: Use these image names instead of the names embedded in the COLMAP db
-
+        keep_original_world_coordinate: If True, no extra transform will be applied to world coordinate.
+                    Colmap optimized world often have y direction of the first camera pointing towards down direction,
+                    while nerfstudio world set z direction to be up direction for viewer.
     Returns:
         The number of registered images.
     """
@@ -430,8 +435,9 @@ def colmap_to_json(
         c2w = np.linalg.inv(w2c)
         # Convert from COLMAP's camera coordinate system (OpenCV) to ours (OpenGL)
         c2w[0:3, 1:3] *= -1
-        c2w = c2w[np.array([1, 0, 2, 3]), :]
-        c2w[2, :] *= -1
+        if not keep_original_world_coordinate:
+            c2w = c2w[np.array([0, 2, 1, 3]), :]
+            c2w[2, :] *= -1
 
         name = im_data.name
         if image_rename_map is not None:
@@ -455,10 +461,22 @@ def colmap_to_json(
     out = parse_colmap_camera_params(cam_id_to_camera[1])
     out["frames"] = frames
 
-    applied_transform = np.eye(4)[:3, :]
-    applied_transform = applied_transform[np.array([1, 0, 2]), :]
-    applied_transform[2, :] *= -1
-    out["applied_transform"] = applied_transform.tolist()
+    applied_transform = None
+    if not keep_original_world_coordinate:
+        applied_transform = np.eye(4)[:3, :]
+        applied_transform = applied_transform[np.array([0, 2, 1]), :]
+        applied_transform[2, :] *= -1
+        out["applied_transform"] = applied_transform.tolist()
+
+    # create ply from colmap
+    assert ply_filename.endswith(".ply"), f"ply_filename: {ply_filename} does not end with '.ply'"
+    create_ply_from_colmap(
+        ply_filename,
+        recon_dir,
+        output_dir,
+        torch.from_numpy(applied_transform).float() if applied_transform is not None else None,
+    )
+    out["ply_file_path"] = ply_filename
 
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
         json.dump(out, f, indent=4)
@@ -638,3 +656,49 @@ def get_matching_summary(num_initial_frames: int, num_matched_frames: int) -> st
         result += " or large exposure changes."
         return result
     return f"[bold green]COLMAP found poses for {num_matched_frames / num_initial_frames * 100:.2f}% of the images."
+
+
+def create_ply_from_colmap(
+    filename: str, recon_dir: Path, output_dir: Path, applied_transform: Union[torch.Tensor, None]
+) -> None:
+    """Writes a ply file from colmap.
+
+    Args:
+        filename: file name for .ply
+        recon_dir: Directory to grab colmap points
+        output_dir: Directory to output .ply
+    """
+    if (recon_dir / "points3D.bin").exists():
+        colmap_points = read_points3D_binary(recon_dir / "points3D.bin")
+    elif (recon_dir / "points3D.txt").exists():
+        colmap_points = read_points3D_text(recon_dir / "points3D.txt")
+    else:
+        raise ValueError(f"Could not find points3D.txt or points3D.bin in {recon_dir}")
+
+    # Load point Positions
+    points3D = torch.from_numpy(np.array([p.xyz for p in colmap_points.values()], dtype=np.float32))
+    if applied_transform is not None:
+        assert applied_transform.shape == (3, 4)
+        points3D = torch.einsum("ij,bj->bi", applied_transform[:3, :3], points3D) + applied_transform[:3, 3]
+
+    # Load point colours
+    points3D_rgb = torch.from_numpy(np.array([p.rgb for p in colmap_points.values()], dtype=np.uint8))
+
+    # write ply
+    with open(output_dir / filename, "w") as f:
+        # Header
+        f.write("ply\n")
+        f.write("format ascii 1.0\n")
+        f.write(f"element vertex {len(points3D)}\n")
+        f.write("property float x\n")
+        f.write("property float y\n")
+        f.write("property float z\n")
+        f.write("property uint8 red\n")
+        f.write("property uint8 green\n")
+        f.write("property uint8 blue\n")
+        f.write("end_header\n")
+
+        for coord, color in zip(points3D, points3D_rgb):
+            x, y, z = coord
+            r, g, b = color
+            f.write(f"{x:8f} {y:8f} {z:8f} {r} {g} {b}\n")
