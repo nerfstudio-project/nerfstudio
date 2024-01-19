@@ -25,6 +25,7 @@ import cv2
 import numpy as np
 import requests
 import torch
+from rich.progress import track
 
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
 # import pycolmap
@@ -39,7 +40,6 @@ from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils import colormaps
 from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
-from rich.progress import track
 
 
 def get_colmap_version(colmap_cmd: str, default_version=3.8) -> float:
