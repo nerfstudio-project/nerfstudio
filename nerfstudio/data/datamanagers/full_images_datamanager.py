@@ -26,7 +26,20 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
-from typing import Dict, ForwardRef, Generic, List, Literal, Optional, Tuple, Type, Union, cast, get_args, get_origin
+from typing import (
+    Dict,
+    ForwardRef,
+    Generic,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+    get_args,
+    get_origin,
+)
 
 import cv2
 import numpy as np
@@ -36,7 +49,11 @@ from tqdm import tqdm
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
-from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig, TDataset
+from nerfstudio.data.datamanagers.base_datamanager import (
+    DataManager,
+    DataManagerConfig,
+    TDataset,
+)
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
@@ -106,7 +123,10 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
         if len(self.train_dataset) > 500 and self.config.cache_images == "gpu":
-            CONSOLE.print("Train dataset has over 500 images, overriding cache_images to cpu", style="bold yellow")
+            CONSOLE.print(
+                "Train dataset has over 500 images, overriding cache_images to cpu",
+                style="bold yellow",
+            )
             self.config.cache_images = "cpu"
         self.cached_train, self.cached_eval = self.cache_images(self.config.cache_images)
         self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
@@ -174,16 +194,36 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
             elif camera.camera_type.item() == CameraType.FISHEYE.value:
                 distortion_params = np.array(
-                    [distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]]
+                    [
+                        distortion_params[0],
+                        distortion_params[1],
+                        distortion_params[2],
+                        distortion_params[3],
+                    ]
                 )
                 newK = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(
-                    K, distortion_params, (image.shape[1], image.shape[0]), np.eye(3), balance=0
+                    K,
+                    distortion_params,
+                    (image.shape[1], image.shape[0]),
+                    np.eye(3),
+                    balance=0,
                 )
                 map1, map2 = cv2.fisheye.initUndistortRectifyMap(
-                    K, distortion_params, np.eye(3), newK, (image.shape[1], image.shape[0]), cv2.CV_32FC1
+                    K,
+                    distortion_params,
+                    np.eye(3),
+                    newK,
+                    (image.shape[1], image.shape[0]),
+                    cv2.CV_32FC1,
                 )
                 # and then remap:
-                image = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+                image = cv2.remap(
+                    image,
+                    map1,
+                    map2,
+                    interpolation=cv2.INTER_LINEAR,
+                    borderMode=cv2.BORDER_CONSTANT,
+                )
                 if "mask" in data:
                     mask = data["mask"].numpy()
                     mask = mask.astype(np.uint8) * 255
@@ -248,16 +288,36 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
             elif camera.camera_type.item() == CameraType.FISHEYE.value:
                 distortion_params = np.array(
-                    [distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]]
+                    [
+                        distortion_params[0],
+                        distortion_params[1],
+                        distortion_params[2],
+                        distortion_params[3],
+                    ]
                 )
                 newK = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(
-                    K, distortion_params, (image.shape[1], image.shape[0]), np.eye(3), balance=0
+                    K,
+                    distortion_params,
+                    (image.shape[1], image.shape[0]),
+                    np.eye(3),
+                    balance=0,
                 )
                 map1, map2 = cv2.fisheye.initUndistortRectifyMap(
-                    K, distortion_params, np.eye(3), newK, (image.shape[1], image.shape[0]), cv2.CV_32FC1
+                    K,
+                    distortion_params,
+                    np.eye(3),
+                    newK,
+                    (image.shape[1], image.shape[0]),
+                    cv2.CV_32FC1,
                 )
                 # and then remap:
-                image = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+                image = cv2.remap(
+                    image,
+                    map1,
+                    map2,
+                    interpolation=cv2.INTER_LINEAR,
+                    borderMode=cv2.BORDER_CONSTANT,
+                )
                 if "mask" in data:
                     mask = data["mask"].numpy()
                     mask = mask.astype(np.uint8) * 255
