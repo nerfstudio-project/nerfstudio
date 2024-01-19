@@ -307,9 +307,9 @@ class Nerfstudio(DataParser):
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
 
         # The naming is somewhat confusing, but:
-        # - transform_matrix contains the transformation to the local frame from the saved frame.
-        # - dataparser_transform_matrix contains the transformation to the local frame from the original data frame.
-        # - applied_transform contains the transformation to the saved frame the original data frame.
+        # - transform_matrix contains the transformation to dataparser output coordinates from saved coordinates.
+        # - dataparser_transform_matrix contains the transformation to dataparser output coordinates from original data coordinates.
+        # - applied_transform contains the transformation to saved coordinates from original data coordinates.
         if "applied_transform" not in meta:
             # For converting from colmap, this was the effective value of applied_transform that was being
             # used before we added the applied_transform field to the output dataformat.
