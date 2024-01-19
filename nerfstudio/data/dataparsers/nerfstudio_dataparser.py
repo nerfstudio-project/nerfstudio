@@ -311,16 +311,22 @@ class Nerfstudio(DataParser):
         # - transform_matrix contains the transformation to dataparser output coordinates from saved coordinates.
         # - dataparser_transform_matrix contains the transformation to dataparser output coordinates from original data coordinates.
         # - applied_transform contains the transformation to saved coordinates from original data coordinates.
-        if "applied_transform" not in meta:
+        applied_transform = None
+        colmap_path = self.config.data / "colmap/sparse/0"
+        if "applied_transform" in meta:
+            applied_transform = torch.tensor(meta["applied_transform"], dtype=transform_matrix.dtype)
+        elif colmap_path.exists():
             # For converting from colmap, this was the effective value of applied_transform that was being
             # used before we added the applied_transform field to the output dataformat.
             meta["applied_transform"] = [[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, -1, 0]]
+            applied_transform = torch.tensor(meta["applied_transform"], dtype=transform_matrix.dtype)
 
-        applied_transform = torch.tensor(meta["applied_transform"], dtype=transform_matrix.dtype)
-
-        dataparser_transform_matrix = transform_matrix @ torch.cat(
-            [applied_transform, torch.tensor([[0, 0, 0, 1]], dtype=transform_matrix.dtype)], 0
-        )
+        if applied_transform is not None:
+            dataparser_transform_matrix = transform_matrix @ torch.cat(
+                [applied_transform, torch.tensor([[0, 0, 0, 1]], dtype=transform_matrix.dtype)], 0
+            )
+        else:
+            dataparser_transform_matrix = transform_matrix
 
         if "applied_scale" in meta:
             applied_scale = float(meta["applied_scale"])
@@ -337,8 +343,6 @@ class Nerfstudio(DataParser):
 
         # Load 3D points
         if self.config.load_3D_points:
-            colmap_path = self.config.data / "colmap/sparse/0"
-
             if "ply_file_path" in meta:
                 ply_file_path = data_dir / meta["ply_file_path"]
 
