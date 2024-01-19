@@ -62,6 +62,8 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     """Specifies the image indices to use during eval; if None, uses all."""
     cache_images: Literal["cpu", "gpu"] = "cpu"
     """Whether to cache images in memory. If "cpu", caches on cpu. If "gpu", caches on device."""
+    cache_images_type: Literal["uint8", "float32"] = "float32"
+    """The image type returned from manager, caching images in uint8 saves memory"""
 
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
@@ -127,7 +129,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         CONSOLE.log("Caching / undistorting train images")
         for i in tqdm(range(len(self.train_dataset)), leave=False):
             # cv2.undistort the images / cameras
-            data = self.train_dataset.get_data(i)
+            data = self.train_dataset.get_data(i, image_type=self.config.cache_images_type)
             camera = self.train_dataset.cameras[i].reshape(())
             K = camera.get_intrinsics_matrices().numpy()
             if camera.distortion_params is None:
@@ -152,7 +154,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         CONSOLE.log("Caching / undistorting eval images")
         for i in tqdm(range(len(self.eval_dataset)), leave=False):
             # cv2.undistort the images / cameras
-            data = self.eval_dataset.get_data(i)
+            data = self.eval_dataset.get_data(i, image_type=self.config.cache_images_type)
             camera = self.eval_dataset.cameras[i].reshape(())
             K = camera.get_intrinsics_matrices().numpy()
             if camera.distortion_params is None:
