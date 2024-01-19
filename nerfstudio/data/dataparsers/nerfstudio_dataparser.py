@@ -306,11 +306,21 @@ class Nerfstudio(DataParser):
         assert self.downscale_factor is not None
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
 
-        if "applied_transform" in meta:
-            applied_transform = torch.tensor(meta["applied_transform"], dtype=transform_matrix.dtype)
-            transform_matrix = transform_matrix @ torch.cat(
-                [applied_transform, torch.tensor([[0, 0, 0, 1]], dtype=transform_matrix.dtype)], 0
-            )
+        # The naming is somewhat confusing, but:
+        # - transform_matrix contains the transformation to the local frame from the saved frame.
+        # - dataparser_transform_matrix contains the transformation to the local frame from the original data frame.
+        # - applied_transform contains the transformation to the saved frame the original data frame.
+        if "applied_transform" not in meta:
+            # For converting from colmap, this was the effective value of applied_transform that was being
+            # used before we added the applied_transform field to the output dataformat.
+            meta["applied_transform"] = [[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, -1, 0]]
+
+        applied_transform = torch.tensor(meta["applied_transform"], dtype=transform_matrix.dtype)
+
+        dataparser_transform_matrix = transform_matrix @ torch.cat(
+            [applied_transform, torch.tensor([[0, 0, 0, 1]], dtype=transform_matrix.dtype)], 0
+        )
+
         if "applied_scale" in meta:
             applied_scale = float(meta["applied_scale"])
             scale_factor *= applied_scale
@@ -348,10 +358,21 @@ class Nerfstudio(DataParser):
                     with open(self.config.data / "transforms.json") as f:
                         transforms = json.load(f)
 
+                    # Update dataset if missing the applied_transform field.
+                    if "applied_transform" not in transforms:
+                        transforms["applied_transform"] = meta["applied_transform"]
+
                     ply_filename = "sparse_pc.ply"
-                    create_ply_from_colmap(ply_filename, recon_dir=colmap_path, output_dir=self.config.data)
+                    create_ply_from_colmap(
+                        filename=ply_filename,
+                        recon_dir=colmap_path,
+                        output_dir=self.config.data,
+                        applied_transform=applied_transform,
+                    )
                     ply_file_path = data_dir / ply_filename
                     transforms["ply_file_path"] = ply_filename
+
+                    # This was the applied_transform value
 
                     with open(self.config.data / "transforms.json", "w", encoding="utf-8") as f:
                         json.dump(transforms, f, indent=4)
@@ -376,7 +397,7 @@ class Nerfstudio(DataParser):
             scene_box=scene_box,
             mask_filenames=mask_filenames if len(mask_filenames) > 0 else None,
             dataparser_scale=scale_factor,
-            dataparser_transform=transform_matrix,
+            dataparser_transform=dataparser_transform_matrix,
             metadata={
                 "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,

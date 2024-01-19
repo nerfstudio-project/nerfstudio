@@ -18,14 +18,13 @@ Tools supporting the execution of COLMAP and preparation of COLMAP-based dataset
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Literal, Optional, Union
 
 import appdirs
 import cv2
 import numpy as np
 import requests
 import torch
-from rich.progress import track
 
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
 # import pycolmap
@@ -40,6 +39,7 @@ from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils import colormaps
 from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
+from rich.progress import track
 
 
 def get_colmap_version(colmap_cmd: str, default_version=3.8) -> float:
@@ -461,6 +461,7 @@ def colmap_to_json(
     out = parse_colmap_camera_params(cam_id_to_camera[1])
     out["frames"] = frames
 
+    applied_transform = None
     if not keep_original_world_coordinate:
         applied_transform = np.eye(4)[:3, :]
         applied_transform = applied_transform[np.array([0, 2, 1]), :]
@@ -469,7 +470,12 @@ def colmap_to_json(
 
     # create ply from colmap
     assert ply_filename.endswith(".ply"), f"ply_filename: {ply_filename} does not end with '.ply'"
-    create_ply_from_colmap(ply_filename, recon_dir, output_dir)
+    create_ply_from_colmap(
+        ply_filename,
+        recon_dir,
+        output_dir,
+        torch.from_numpy(applied_transform) if applied_transform is not None else None,
+    )
     out["ply_file_path"] = ply_filename
 
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
@@ -652,7 +658,9 @@ def get_matching_summary(num_initial_frames: int, num_matched_frames: int) -> st
     return f"[bold green]COLMAP found poses for {num_matched_frames / num_initial_frames * 100:.2f}% of the images."
 
 
-def create_ply_from_colmap(filename: str, recon_dir: Path, output_dir: Path):
+def create_ply_from_colmap(
+    filename: str, recon_dir: Path, output_dir: Path, applied_transform: Union[torch.Tensor, None]
+) -> None:
     """Writes a ply file from colmap.
 
     Args:
@@ -669,9 +677,10 @@ def create_ply_from_colmap(filename: str, recon_dir: Path, output_dir: Path):
 
     # Load point Positions
     points3D = torch.from_numpy(np.array([p.xyz for p in colmap_points.values()], dtype=np.float32))
-    # convert to nerfstudio coordinate system
-    points3D = points3D[..., torch.tensor([1, 0, 2])]
-    points3D[..., 2] *= -1
+    if applied_transform is not None:
+        assert applied_transform.shape == (3, 4)
+        points3D = torch.einsum("ij,bj->bi", applied_transform[:3, :3], points3D) + applied_transform[:3, 3]
+
     # Load point colours
     points3D_rgb = torch.from_numpy(np.array([p.rgb for p in colmap_points.values()], dtype=np.uint8))
 
