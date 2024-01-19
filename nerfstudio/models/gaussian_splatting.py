@@ -158,16 +158,18 @@ class GaussianSplattingModel(Model):
 
     config: GaussianSplattingModelConfig
 
-    def __init__(self, *args, **kwargs):
-        if "seed_points" in kwargs:
-            self.seed_pts = kwargs["seed_points"]
-        else:
-            self.seed_pts = None
+    def __init__(
+        self,
+        *args,
+        seed_points: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+        **kwargs,
+    ):
+        self.seed_points = seed_points
         super().__init__(*args, **kwargs)
 
     def populate_modules(self):
-        if self.seed_pts is not None and not self.config.random_init:
-            self.means = torch.nn.Parameter(self.seed_pts[0])  # (Location, Color)
+        if self.seed_points is not None and not self.config.random_init:
+            self.means = torch.nn.Parameter(self.seed_points[0])  # (Location, Color)
         else:
             self.means = torch.nn.Parameter((torch.rand((500000, 3)) - 0.5) * 10)
         self.xys_grad_norm = None
@@ -180,14 +182,19 @@ class GaussianSplattingModel(Model):
         self.quats = torch.nn.Parameter(random_quat_tensor(self.num_points))
         dim_sh = num_sh_bases(self.config.sh_degree)
 
-        if self.seed_pts is not None and not self.config.random_init:
-            shs = torch.zeros((self.seed_pts[1].shape[0], dim_sh, 3)).float().cuda()
+        if (
+            self.seed_points is not None
+            and not self.config.random_init
+            # We can have colors without points.
+            and self.seed_points[1].shape[0] > 0
+        ):
+            shs = torch.zeros((self.seed_points[1].shape[0], dim_sh, 3)).float().cuda()
             if self.config.sh_degree > 0:
-                shs[:, 0, :3] = RGB2SH(self.seed_pts[1] / 255)
+                shs[:, 0, :3] = RGB2SH(self.seed_points[1] / 255)
                 shs[:, 1:, 3:] = 0.0
             else:
                 CONSOLE.log("use color only optimization with sigmoid activation")
-                shs[:, 0, :3] = torch.logit(self.seed_pts[1] / 255, eps=1e-10)
+                shs[:, 0, :3] = torch.logit(self.seed_points[1] / 255, eps=1e-10)
             self.features_dc = torch.nn.Parameter(shs[:, 0, :])
             self.features_rest = torch.nn.Parameter(shs[:, 1:, :])
         else:
@@ -754,8 +761,18 @@ class GaussianSplattingModel(Model):
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
         gt_img = self.get_gt_img(batch["image"])
-        Ll1 = torch.abs(gt_img - outputs["rgb"]).mean()
-        simloss = 1 - self.ssim(gt_img.permute(2, 0, 1)[None, ...], outputs["rgb"].permute(2, 0, 1)[None, ...])
+        pred_img = outputs["rgb"]
+
+        # Set masked part of both ground-truth and rendered image to black.
+        # This is a little bit sketchy for the SSIM loss.
+        if "mask" in batch:
+            assert batch["mask"].shape == gt_img.shape[:2] == pred_img.shape[:2]
+            mask = batch["mask"][..., None].to(self.device)
+            gt_img = gt_img * mask
+            pred_img = pred_img * mask
+
+        Ll1 = torch.abs(gt_img - pred_img).mean()
+        simloss = 1 - self.ssim(gt_img.permute(2, 0, 1)[None, ...], pred_img.permute(2, 0, 1)[None, ...])
         if self.config.use_scale_regularization and self.step % 10 == 0:
             scale_exp = torch.exp(self.scales)
             scale_reg = (
