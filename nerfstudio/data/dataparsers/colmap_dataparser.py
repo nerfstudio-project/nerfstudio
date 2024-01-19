@@ -67,8 +67,8 @@ class ColmapDataParserConfig(DataParserConfig):
     assume_colmap_world_coordinate_convention: bool = True
     """Colmap optimized world often have y direction of the first camera pointing towards down direction,
     while nerfstudio world set z direction to be up direction for viewer. Therefore, we usually need to apply an extra
-    transform when orientation_method=none. This parameter has no effects if orientation_method is set other than none. 
-    When this parameter is set to False, no extra transform is applied when reading data from colmap. 
+    transform when orientation_method=none. This parameter has no effects if orientation_method is set other than none.
+    When this parameter is set to False, no extra transform is applied when reading data from colmap.
     """
     eval_mode: Literal["fraction", "filename", "interval", "all"] = "interval"
     """
@@ -93,8 +93,9 @@ class ColmapDataParserConfig(DataParserConfig):
     """Path to depth maps directory. If not set, depths are not loaded."""
     colmap_path: Path = Path("colmap/sparse/0")
     """Path to the colmap reconstruction directory relative to the data path."""
-    load_3D_points: bool = False
-    """Whether to load the 3D points from the colmap reconstruction."""
+    load_3D_points: bool = True
+    """Whether to load the 3D points from the colmap reconstruction. This is helpful for Gaussian splatting and
+    generally unused otherwise, but it's typically harmless so we default to True."""
     max_2D_matches_per_3D_point: int = 0
     """Maximum number of 2D matches per 3D point. If set to -1, all 2D matches are loaded. If set to 0, no 2D matches are loaded."""
 
