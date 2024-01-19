@@ -91,8 +91,7 @@ dev = [
     "typeguard==2.13.3",
     "ruff==0.1.13",
     "sshconf==0.2.5",
-    # TODO(1480) enable when pycolmap windows wheels are available
-    # "pycolmap>=0.3.0",  # NOTE: pycolmap==0.3.0 is not available on newer python versions
+    "pycolmap>=0.3.0",  # NOTE: pycolmap==0.3.0 is not available on newer python versions
     "diffusers==0.16.1",
     "opencv-stubs==0.0.7",
     "transformers==4.29.2",
