@@ -64,6 +64,12 @@ class ColmapDataParserConfig(DataParserConfig):
     """The method to use to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
+    assume_colmap_world_coordinate_convention: bool = True
+    """Colmap optimized world often have y direction of the first camera pointing towards down direction,
+    while nerfstudio world set z direction to be up direction for viewer. Therefore, we usually need to apply an extra
+    transform when orientation_method=none. This parameter has no effects if orientation_method is set other than none. 
+    When this parameter is set to False, no extra transform is applied when reading data from colmap. 
+    """
     eval_mode: Literal["fraction", "filename", "interval", "all"] = "interval"
     """
     The method to use for splitting the dataset into train and eval.
@@ -154,10 +160,10 @@ class ColmapDataParser(DataParser):
             c2w = np.linalg.inv(w2c)
             # Convert from COLMAP's camera coordinate system (OpenCV) to ours (OpenGL)
             c2w[0:3, 1:3] *= -1
-            # Why do we want to flip Z with a handedness transform?
-            # See https://github.com/nerfstudio-project/nerfstudio/issues/1504
-            c2w = c2w[np.array([1, 0, 2, 3]), :]
-            c2w[2, :] *= -1
+            if self.config.assume_colmap_world_coordinate_convention:
+                # world coordinate transform: map colmap gravity guess (-y) to nerfstudio convention (+z)
+                c2w = c2w[np.array([0, 2, 1, 3]), :]
+                c2w[2, :] *= -1
 
             frame = {
                 "file_path": (self.config.data / self.config.images_path / im_data.name).as_posix(),
@@ -181,12 +187,12 @@ class ColmapDataParser(DataParser):
 
         out = {}
         out["frames"] = frames
-        # Why do we want to flip Z with a handedness transform?
-        # See https://github.com/nerfstudio-project/nerfstudio/issues/1504
-        applied_transform = np.eye(4)[:3, :]
-        applied_transform = applied_transform[np.array([1, 0, 2]), :]
-        applied_transform[2, :] *= -1
-        out["applied_transform"] = applied_transform.tolist()
+        if self.config.assume_colmap_world_coordinate_convention:
+            # world coordinate transform: map colmap gravity guess (-y) to nerfstudio convention (+z)
+            applied_transform = np.eye(4)[:3, :]
+            applied_transform = applied_transform[np.array([0, 2, 1]), :]
+            applied_transform[2, :] *= -1
+            out["applied_transform"] = applied_transform.tolist()
         out["camera_model"] = camera_model
         assert len(frames) > 0, "No images found in the colmap model"
         return out
@@ -304,7 +310,6 @@ class ColmapDataParser(DataParser):
         if self.config.auto_scale_poses:
             scale_factor /= float(torch.max(torch.abs(poses[:, :3, 3])))
         scale_factor *= self.config.scale_factor
-
         poses[:, :3, 3] *= scale_factor
 
         # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.
