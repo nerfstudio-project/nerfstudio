@@ -275,22 +275,30 @@ class GenerfactoModel(Model):
     ) -> List[TrainingCallback]:
         # the callback that we want to run every X iterations after the training iteration
         def taper_density(
-            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
+            self,
+            training_callback_attributes: TrainingCallbackAttributes,
+            step: int,  # pylint: disable=unused-argument
         ):
             self.density_strength = np.interp(step, self.config.taper_range, self.config.taper_strength)
 
         def start_training_normals(
-            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
+            self,
+            training_callback_attributes: TrainingCallbackAttributes,
+            step: int,  # pylint: disable=unused-argument
         ):
             self.train_normals = True
 
         def start_shaded_training(
-            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
+            self,
+            training_callback_attributes: TrainingCallbackAttributes,
+            step: int,  # pylint: disable=unused-argument
         ):
             self.train_shaded = True
 
         def update_orientation_loss_mult(
-            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
+            self,
+            training_callback_attributes: TrainingCallbackAttributes,
+            step: int,  # pylint: disable=unused-argument
         ):
             if step <= self.config.start_normals_training:
                 self.orientation_loss_mult = 0
