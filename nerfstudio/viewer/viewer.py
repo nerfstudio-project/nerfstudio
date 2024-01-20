@@ -32,7 +32,7 @@ from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.models.base_model import Model
-from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
+from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
@@ -235,6 +235,15 @@ class Viewer:
                     nested_folder_install(folder_labels[1:], prev_labels + [folder_labels[0]], element)
 
         with control_tab:
+            from nerfstudio.viewer_legacy.server.viewer_elements import ViewerElement as LegacyViewerElement
+
+            if len(parse_object(pipeline, LegacyViewerElement, "Custom Elements")) > 0:
+                from nerfstudio.utils.rich_utils import CONSOLE
+
+                CONSOLE.print(
+                    "Legacy ViewerElements detected in model, please import nerfstudio.viewer.viewer_elements instead",
+                    style="bold yellow",
+                )
             self.viewer_elements = []
             self.viewer_elements.extend(parse_object(pipeline, ViewerElement, "Custom Elements"))
             for param_path, element in self.viewer_elements:
@@ -250,7 +259,7 @@ class Viewer:
 
         # Diagnostics for Gaussian Splatting: where the points are at the start of training.
         # This is hidden by default, it can be shown from the Viser UI's scene tree table.
-        if isinstance(pipeline.model, GaussianSplattingModel):
+        if isinstance(pipeline.model, SplatfactoModel):
             self.viser_server.add_point_cloud(
                 "/gaussian_splatting_initial_points",
                 points=pipeline.model.means.numpy(force=True) * VISER_NERFSTUDIO_SCALE_RATIO,
