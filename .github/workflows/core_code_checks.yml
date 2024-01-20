@@ -32,10 +32,10 @@ jobs:
       - name: Check notebook cell metadata
         run: |
           python ./nerfstudio/scripts/docs/add_nb_tags.py --check
-      - name: Run Ruff
-        run: ruff docs/ nerfstudio/ tests/
-      - name: Run Black
-        run: black docs/ nerfstudio/ tests/ --check
+      - name: Run Ruff Linter
+        run: ruff check docs/ nerfstudio/ tests/
+      - name: Run Ruff Formatter
+        run: ruff format docs/ nerfstudio/ tests/ --check
       - name: Run Pyright
         run: |
           pyright
