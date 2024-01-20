@@ -471,8 +471,8 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
 
         fisheye_crop_radius = None
-        if dataset.cameras.metadata is not None and "fisheye_crop_radius" in dataset.cameras.metadata:
-            fisheye_crop_radius = dataset.cameras.metadata["fisheye_crop_radius"]
+        if dataset.cameras.metadata is not None:
+            fisheye_crop_radius = dataset.cameras.metadata.get("fisheye_crop_radius")
 
         return self.config.pixel_sampler.setup(
             is_equirectangular=is_equirectangular,
