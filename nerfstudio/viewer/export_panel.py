@@ -22,7 +22,7 @@ from typing_extensions import Literal
 
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.models.base_model import Model
-from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
+from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.viewer.control_panel import ControlPanel
 
 
@@ -32,7 +32,7 @@ def populate_export_tab(
     config_path: Path,
     viewer_model: Model,
 ) -> None:
-    viewing_gsplat = isinstance(viewer_model, GaussianSplattingModel)
+    viewing_gsplat = isinstance(viewer_model, SplatfactoModel)
     if not viewing_gsplat:
         crop_output = server.add_gui_checkbox("Use Crop", False)
 
