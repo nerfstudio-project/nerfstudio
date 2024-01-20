@@ -16,4 +16,4 @@
 
 Resolves issues like: https://github.com/ayaanzhaque/instruct-nerf2nerf/pull/88
 """
-from ..viewer_elements import *
+from ..viewer_elements import *  # noqa
