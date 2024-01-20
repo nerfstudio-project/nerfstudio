@@ -222,5 +222,5 @@ def get_external_methods() -> Tuple[Dict[str, TrainerConfig], Dict[str, str]]:
                 TrainerConfig,
                 ExternalMethodDummyTrainerConfig(method_name=config_slug, method=external_method),
             )
-            descriptions[config_slug] = f"""[External, run to install] {config_description}"""
+            descriptions[config_slug] = f"""[External, run 'ns-train {config_slug}' to install] {config_description}"""
     return method_configs, descriptions
