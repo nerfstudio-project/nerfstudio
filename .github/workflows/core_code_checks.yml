@@ -33,9 +33,9 @@ jobs:
         run: |
           python ./nerfstudio/scripts/docs/add_nb_tags.py --check
       - name: Run Ruff Linter
-        run: ruff check docs/ nerfstudio/ tests/
+        run: ruff check docs/ nerfstudio/ tests/ --output-format=github
       - name: Run Ruff Formatter
-        run: ruff format docs/ nerfstudio/ tests/ --check
+        run: ruff format docs/ nerfstudio/ tests/ --diff
       - name: Run Pyright
         run: |
           pyright

@@ -12,9 +12,11 @@ from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataPars
 from nerfstudio.data.utils.colmap_parsing_utils import (
     Camera,
     Image as ColmapImage,
+    Point3D,
     qvec2rotmat,
     write_cameras_binary,
     write_images_binary,
+    write_points3D_binary,
 )
 from nerfstudio.process_data.images_to_nerfstudio_dataset import ImagesToNerfstudioDataset
 
@@ -49,6 +51,19 @@ def test_process_images_skip_colmap(tmp_path: Path):
     write_cameras_binary(
         {1: Camera(1, "OPENCV", width, height, [110, 110, 50, 75, 0, 0, 0, 0, 0, 0])},
         sparse_path / "cameras.bin",
+    )
+    write_points3D_binary(
+        {
+            1: Point3D(
+                id=1,
+                xyz=np.array([0, 0, 0]),
+                rgb=np.array([0, 0, 0]),
+                error=np.array([0]),
+                image_ids=np.array([1]),
+                point2D_idxs=np.array([0]),
+            ),
+        },
+        sparse_path / "points3D.bin",
     )
     frames = {}
     num_frames = 10

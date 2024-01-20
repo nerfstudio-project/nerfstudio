@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import gc
+import sys
 from pathlib import Path
 from typing import List, Optional, Union
 
@@ -24,15 +25,7 @@ from PIL import Image
 from torch import Generator, Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
 
-from nerfstudio.generative.utils import CatchMissingPackages
-
-try:
-    from diffusers import DiffusionPipeline, IFPipeline, IFPipeline as IFOrig
-    from diffusers.pipelines.deepfloyd_if import IFPipelineOutput, IFPipelineOutput as IFOutputOrig
-    from transformers import T5EncoderModel
-
-except ImportError:
-    IFPipeline = IFPipelineOutput = T5EncoderModel = CatchMissingPackages()
+from nerfstudio.utils.rich_utils import CONSOLE
 
 IMG_DIM = 64
 
@@ -46,6 +39,16 @@ class DeepFloyd(nn.Module):
     def __init__(self, device: Union[torch.device, str]):
         super().__init__()
         self.device = device
+
+        try:
+            from diffusers import DiffusionPipeline, IFPipeline
+            from transformers import T5EncoderModel
+
+        except ImportError:
+            CONSOLE.print("[bold red]Missing Stable Diffusion packages.")
+            CONSOLE.print(r"Install using [yellow]pip install nerfstudio\[gen][/yellow]")
+            CONSOLE.print(r"or [yellow]pip install -e .\[gen][/yellow] if installing from source.")
+            sys.exit(1)
 
         self.text_encoder = T5EncoderModel.from_pretrained(
             "DeepFloyd/IF-I-L-v1.0",
@@ -90,6 +93,8 @@ class DeepFloyd(nn.Module):
         gc.collect()
         torch.cuda.empty_cache()
 
+        from diffusers import DiffusionPipeline, IFPipeline
+
         self.pipe = IFPipeline.from_pretrained(
             "DeepFloyd/IF-I-L-v1.0",
             text_encoder=None,
@@ -125,6 +130,8 @@ class DeepFloyd(nn.Module):
         """
         prompt = [prompt] if isinstance(prompt, str) else prompt
         negative_prompt = [negative_prompt] if isinstance(negative_prompt, str) else negative_prompt
+
+        from diffusers import DiffusionPipeline
 
         assert isinstance(self.pipe, DiffusionPipeline)
         with torch.no_grad():
@@ -199,6 +206,9 @@ class DeepFloyd(nn.Module):
         Returns:
             The generated image.
         """
+
+        from diffusers import DiffusionPipeline, IFPipeline as IFOrig
+        from diffusers.pipelines.deepfloyd_if import IFPipelineOutput as IFOutputOrig
 
         prompts = [prompts] if isinstance(prompts, str) else prompts
         negative_prompts = [negative_prompts] if isinstance(negative_prompts, str) else negative_prompts

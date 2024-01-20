@@ -140,6 +140,7 @@ This documentation is organized into 3 parts:
 - [NeRF](nerfology/methods/nerf.md): OG Neural Radiance Fields
 - [Mip-NeRF](nerfology/methods/mipnerf.md): A Multiscale Representation for Anti-Aliasing Neural Radiance Fields
 - [TensoRF](nerfology/methods/tensorf.md): Tensorial Radiance Fields
+- [Splatfacto](nerfology/methods/splat.md): Nerfstudio's Gaussian Splatting implementation
 
 (third_party_methods)=
 

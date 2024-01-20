@@ -31,7 +31,6 @@ from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatama
 from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManagerConfig
 from nerfstudio.data.datamanagers.random_cameras_datamanager import RandomCamerasDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
-from nerfstudio.data.dataparsers.colmap_dataparser import ColmapDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
 from nerfstudio.data.dataparsers.instant_ngp_dataparser import InstantNGPDataParserConfig
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
@@ -52,7 +51,6 @@ from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.fields.sdf_field import SDFFieldConfig
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
-from nerfstudio.models.gaussian_splatting import GaussianSplattingModelConfig
 from nerfstudio.models.generfacto import GenerfactoModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
@@ -60,6 +58,7 @@ from nerfstudio.models.nerfacto import NerfactoModelConfig
 from nerfstudio.models.neus import NeuSModelConfig
 from nerfstudio.models.neus_facto import NeuSFactoModelConfig
 from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
+from nerfstudio.models.splatfacto import SplatfactoModelConfig
 from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
@@ -81,7 +80,7 @@ descriptions = {
     "generfacto": "Generative Text to NeRF model",
     "neus": "Implementation of NeuS. (slow)",
     "neus-facto": "Implementation of NeuS-Facto. (slow)",
-    "gaussian-splatting": "Gaussian Splatting model",
+    "splatfacto": "Gaussian Splatting model",
 }
 
 method_configs["nerfacto"] = TrainerConfig(
@@ -589,8 +588,8 @@ method_configs["neus-facto"] = TrainerConfig(
     vis="viewer",
 )
 
-method_configs["gaussian-splatting"] = TrainerConfig(
-    method_name="gaussian-splatting",
+method_configs["splatfacto"] = TrainerConfig(
+    method_name="splatfacto",
     steps_per_eval_image=100,
     steps_per_eval_batch=0,
     steps_per_save=2000,
@@ -600,9 +599,9 @@ method_configs["gaussian-splatting"] = TrainerConfig(
     gradient_accumulation_steps={"camera_opt": 100},
     pipeline=VanillaPipelineConfig(
         datamanager=FullImageDatamanagerConfig(
-            dataparser=ColmapDataParserConfig(load_3D_points=True),
+            dataparser=NerfstudioDataParserConfig(load_3D_points=True),
         ),
-        model=GaussianSplattingModelConfig(),
+        model=SplatfactoModelConfig(),
     ),
     optimizers={
         "xyz": {

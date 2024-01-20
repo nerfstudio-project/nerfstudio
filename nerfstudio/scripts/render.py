@@ -234,7 +234,7 @@ def _render_trajectory_video(
                 if render_nearest_camera:
                     assert train_dataset is not None
                     assert train_cameras is not None
-                    img = train_dataset.get_image(max_idx)
+                    img = train_dataset.get_image_float32(max_idx)
                     height = cameras.image_height[0]
                     # maintain the resolution of the img to calculate the width from the height
                     width = int(img.shape[1] * (height / img.shape[0]))
