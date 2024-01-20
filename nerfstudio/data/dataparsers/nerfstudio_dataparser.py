@@ -73,7 +73,7 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The interval between frames to use for eval. Only used when eval_mode is eval-interval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
-    load_3D_points: bool = False
+    load_3D_points: bool = True
     """Whether to load the 3D points from the colmap reconstruction."""
 
 
