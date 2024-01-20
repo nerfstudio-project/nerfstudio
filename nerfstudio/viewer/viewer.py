@@ -235,6 +235,15 @@ class Viewer:
                     nested_folder_install(folder_labels[1:], prev_labels + [folder_labels[0]], element)
 
         with control_tab:
+            from nerfstudio.viewer_legacy.server.viewer_elements import ViewerElement as LegacyViewerElement
+
+            if len(parse_object(pipeline, LegacyViewerElement, "Custom Elements")) > 0:
+                from nerfstudio.utils.rich_utils import CONSOLE
+
+                CONSOLE.print(
+                    "Legacy ViewerElements detected in model, please import nerfstudio.viewer.viewer_elements instead",
+                    style="bold yellow",
+                )
             self.viewer_elements = []
             self.viewer_elements.extend(parse_object(pipeline, ViewerElement, "Custom Elements"))
             for param_path, element in self.viewer_elements:

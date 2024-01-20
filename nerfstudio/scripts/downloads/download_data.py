@@ -29,24 +29,11 @@ import torch
 import tyro
 from typing_extensions import Annotated
 
-from nerfstudio.configs.base_config import PrintableConfig
 from nerfstudio.process_data import process_data_utils
+from nerfstudio.scripts.downloads.eyeful_tower import EyefulTowerDownload
+from nerfstudio.scripts.downloads.utils import DatasetDownload
 from nerfstudio.utils import install_checks
 from nerfstudio.utils.scripts import run_command
-
-
-@dataclass
-class DatasetDownload(PrintableConfig):
-    """Download a dataset"""
-
-    capture_name = None
-
-    save_dir: Path = Path("data/")
-    """The directory to save the dataset to"""
-
-    def download(self, save_dir: Path) -> None:
-        """Download the dataset"""
-        raise NotImplementedError
 
 
 @dataclass
@@ -555,6 +542,7 @@ Commands = Union[
     Annotated[SDFstudioDemoDownload, tyro.conf.subcommand(name="sdfstudio")],
     Annotated[NeRFOSRDownload, tyro.conf.subcommand(name="nerfosr")],
     Annotated[Mill19Download, tyro.conf.subcommand(name="mill19")],
+    Annotated[EyefulTowerDownload, tyro.conf.subcommand(name="eyefultower")],
 ]
 
 
@@ -562,15 +550,7 @@ def main(
     dataset: DatasetDownload,
 ):
     """Script to download existing datasets.
-    We currently support the following datasets:
-    - nerfstudio: Growing collection of real-world scenes. Use the `capture_name` argument to specify
-        which capture to download.
-    - blender: Blender synthetic scenes realeased with NeRF.
-    - sitcoms3d: Friends TV show scenes.
-    - record3d: Record3d dataset.
-    - dnerf: D-NeRF dataset.
-    - phototourism: PhotoTourism dataset. Use the `capture_name` argument to specify which capture to download.
-    - mill19: Mill 19 dataset. Use the `capture_name` argument to specify which capture to download.
+    We currently support the datasets listed above in the Commands.
 
     Args:
         dataset: The dataset to download (from).

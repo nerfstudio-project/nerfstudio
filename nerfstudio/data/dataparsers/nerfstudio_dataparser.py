@@ -290,7 +290,12 @@ class Nerfstudio(DataParser):
         else:
             distortion_params = torch.stack(distort, dim=0)[idx_tensor]
 
-        metadata = {"fisheye_crop_radius": fisheye_crop_radius} if fisheye_crop_radius is not None else None
+        # Only add fisheye crop radius parameter if the images are actually fisheye, to allow the same config to be used
+        # for both fisheye and non-fisheye datasets.
+        metadata = {}
+        if (camera_type in [CameraType.FISHEYE, CameraType.FISHEYE624]) and (fisheye_crop_radius is not None):
+            metadata["fisheye_crop_radius"] = fisheye_crop_radius
+
         cameras = Cameras(
             fx=fx,
             fy=fy,
