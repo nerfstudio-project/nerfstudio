@@ -21,9 +21,10 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, cast
 
 import tyro
+from rich.prompt import Confirm
+
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.utils.rich_utils import CONSOLE
-from rich.prompt import Confirm
 
 
 @dataclass
