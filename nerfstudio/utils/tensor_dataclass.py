@@ -142,6 +142,7 @@ class TensorDataclass:
             elif isinstance(v, Dict):
                 new_dict[k] = self._broadcast_dict_fields(v, batch_shape)
             else:
+                # Don't broadcast the remaining fields
                 new_dict[k] = v
         return new_dict
 
