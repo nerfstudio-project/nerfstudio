@@ -218,9 +218,9 @@ class GaussianSplattingModel(Model):
 
         self.crop_box: Optional[OrientedBox] = None
         if self.config.background_color == "random":
-            self.back_color = torch.rand(3)
+            self.background_color = torch.rand(3)
         else:
-            self.back_color = get_color(self.config.background_color)
+            self.background_color = get_color(self.config.background_color)
 
     @property
     def colors(self):
@@ -356,9 +356,9 @@ class GaussianSplattingModel(Model):
     def set_crop(self, crop_box: Optional[OrientedBox]):
         self.crop_box = crop_box
 
-    def set_background(self, back_color: torch.Tensor):
-        assert back_color.shape == (3,)
-        self.back_color = back_color
+    def set_background(self, background_color: torch.Tensor):
+        assert background_color.shape == (3,)
+        self.background_color = background_color
 
     def refinement_after(self, optimizers: Optimizers, step):
         assert step == self.step
@@ -647,12 +647,12 @@ class GaussianSplattingModel(Model):
             if self.config.background_color == "random":
                 background = torch.rand(3, device=self.device)
             else:
-                background = self.back_color.to(self.device)
+                background = self.background_color.to(self.device)
         else:
             if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
                 background = renderers.BACKGROUND_COLOR_OVERRIDE.to(self.device)
             else:
-                background = self.back_color.to(self.device)
+                background = self.background_color.to(self.device)
 
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
