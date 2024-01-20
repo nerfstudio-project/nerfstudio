@@ -18,12 +18,11 @@ import inspect
 import subprocess
 import sys
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, cast
+from typing import Dict, List, Optional, Tuple
 
 import tyro
 from rich.prompt import Confirm
 
-from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
@@ -212,15 +211,14 @@ class ExternalMethodDummyTrainerConfig:
         sys.exit(0)
 
 
-def get_external_methods() -> Tuple[Dict[str, TrainerConfig], Dict[str, str]]:
+def get_external_methods() -> Tuple[Dict[str, ExternalMethodDummyTrainerConfig], Dict[str, str]]:
     """Returns the external methods trainer configs and the descriptions."""
-    method_configs: Dict[str, TrainerConfig] = {}
+    method_configs: Dict[str, ExternalMethodDummyTrainerConfig] = {}
     descriptions: Dict[str, str] = {}
     for external_method in external_methods:
         for config_slug, config_description in external_method.configurations:
-            method_configs[config_slug] = cast(  # Need a cast because this is not a real TrainerConfig.
-                TrainerConfig,
-                ExternalMethodDummyTrainerConfig(method_name=config_slug, method=external_method),
+            method_configs[config_slug] = ExternalMethodDummyTrainerConfig(
+                method_name=config_slug, method=external_method
             )
             descriptions[config_slug] = f"""[External, run to install] {config_description}"""
     return method_configs, descriptions

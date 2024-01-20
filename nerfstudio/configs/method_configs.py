@@ -19,13 +19,13 @@ Put all the method implementations in one location.
 from __future__ import annotations
 
 from collections import OrderedDict
-from typing import Dict
+from typing import Dict, Union
 
 import tyro
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import ViewerConfig
-from nerfstudio.configs.external_methods import get_external_methods
+from nerfstudio.configs.external_methods import ExternalMethodDummyTrainerConfig, get_external_methods
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager, VanillaDataManagerConfig
 from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatamanagerConfig
 from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManagerConfig
@@ -65,7 +65,7 @@ from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 from nerfstudio.plugins.registry import discover_methods
 
-method_configs: Dict[str, TrainerConfig] = {}
+method_configs: Dict[str, Union[TrainerConfig, ExternalMethodDummyTrainerConfig]] = {}
 descriptions = {
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
     "depth-nerfacto": "Nerfacto with depth supervision.",
