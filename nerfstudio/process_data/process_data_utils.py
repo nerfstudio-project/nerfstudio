@@ -58,16 +58,18 @@ CAMERA_MODELS = {
 }
 
 
-def list_images(data: Path) -> List[Path]:
+def list_images(data: Path, recursive: bool = False) -> List[Path]:
     """Lists all supported images in a directory
 
     Args:
         data: Path to the directory of images.
+        recursive: Whether to search check nested folders in `data`.
     Returns:
         Paths to images contained in the directory
     """
     allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"] + ALLOWED_RAW_EXTS
-    image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+    glob_str = "**/[!.]*" if recursive else "[!.]*"
+    image_paths = sorted([p for p in data.glob(glob_str) if p.suffix.lower() in allowed_exts])
     return image_paths
 
 
