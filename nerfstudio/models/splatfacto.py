@@ -31,6 +31,7 @@ from gsplat.rasterize import rasterize_gaussians
 from gsplat.sh import num_sh_bases, spherical_harmonics
 from pytorch_msssim import SSIM
 from torch.nn import Parameter
+from typing_extensions import Literal
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.scene_box import OrientedBox
@@ -40,6 +41,7 @@ from nerfstudio.engine.optimizers import Optimizers
 # need following import for background color override
 from nerfstudio.model_components import renderers
 from nerfstudio.models.base_model import Model, ModelConfig
+from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
@@ -109,6 +111,8 @@ class SplatfactoModelConfig(ModelConfig):
     """period of steps where gaussians are culled and densified"""
     resolution_schedule: int = 250
     """training starts at 1/d resolution, every n steps this is doubled"""
+    background_color: Literal["random", "black", "white"] = "random"
+    """Whether to randomize the background color."""
     num_downscales: int = 0
     """at the beginning, resolution is 1/2^d, where d is this number"""
     cull_alpha_thresh: float = 0.1
@@ -135,6 +139,10 @@ class SplatfactoModelConfig(ModelConfig):
     """stop culling/splitting at this step WRT screen size of gaussians"""
     random_init: bool = False
     """whether to initialize the positions uniformly randomly (not SFM points)"""
+    num_random: int = 50000
+    """Number of gaussians to initialize if random init is used"""
+    random_scale: float = 10.0
+    "Size of the cube to initialize random gaussians within"
     ssim_lambda: float = 0.2
     """weight of ssim loss"""
     stop_split_at: int = 15000
@@ -171,7 +179,7 @@ class SplatfactoModel(Model):
         if self.seed_points is not None and not self.config.random_init:
             self.means = torch.nn.Parameter(self.seed_points[0])  # (Location, Color)
         else:
-            self.means = torch.nn.Parameter((torch.rand((500000, 3)) - 0.5) * 10)
+            self.means = torch.nn.Parameter((torch.rand((self.config.num_random, 3)) - 0.5) * self.config.random_scale)
         self.xys_grad_norm = None
         self.max_2Dsize = None
         distances, _ = self.k_nearest_sklearn(self.means.data, 3)
@@ -213,7 +221,10 @@ class SplatfactoModel(Model):
         self.step = 0
 
         self.crop_box: Optional[OrientedBox] = None
-        self.back_color = torch.zeros(3)
+        if self.config.background_color == "random":
+            self.background_color = torch.rand(3)
+        else:
+            self.background_color = get_color(self.config.background_color)
 
     @property
     def colors(self):
@@ -295,7 +306,10 @@ class SplatfactoModel(Model):
         param_state = optimizer.state[param]
         repeat_dims = (n,) + tuple(1 for _ in range(param_state["exp_avg"].dim() - 1))
         param_state["exp_avg"] = torch.cat(
-            [param_state["exp_avg"], torch.zeros_like(param_state["exp_avg"][dup_mask.squeeze()]).repeat(*repeat_dims)],
+            [
+                param_state["exp_avg"],
+                torch.zeros_like(param_state["exp_avg"][dup_mask.squeeze()]).repeat(*repeat_dims),
+            ],
             dim=0,
         )
         param_state["exp_avg_sq"] = torch.cat(
@@ -339,15 +353,16 @@ class SplatfactoModel(Model):
                 self.max_2Dsize = torch.zeros_like(self.radii, dtype=torch.float32)
             newradii = self.radii.detach()[visible_mask]
             self.max_2Dsize[visible_mask] = torch.maximum(
-                self.max_2Dsize[visible_mask], newradii / float(max(self.last_size[0], self.last_size[1]))
+                self.max_2Dsize[visible_mask],
+                newradii / float(max(self.last_size[0], self.last_size[1])),
             )
 
     def set_crop(self, crop_box: Optional[OrientedBox]):
         self.crop_box = crop_box
 
-    def set_background(self, back_color: torch.Tensor):
-        assert back_color.shape == (3,)
-        self.back_color = back_color
+    def set_background(self, background_color: torch.Tensor):
+        assert background_color.shape == (3,)
+        self.background_color = background_color
 
     def refinement_after(self, optimizers: Optimizers, step):
         assert step == self.step
@@ -394,17 +409,31 @@ class SplatfactoModel(Model):
                 ) = self.dup_gaussians(dups)
                 self.means = Parameter(torch.cat([self.means.detach(), split_means, dup_means], dim=0))
                 self.features_dc = Parameter(
-                    torch.cat([self.features_dc.detach(), split_features_dc, dup_features_dc], dim=0)
+                    torch.cat(
+                        [self.features_dc.detach(), split_features_dc, dup_features_dc],
+                        dim=0,
+                    )
                 )
                 self.features_rest = Parameter(
-                    torch.cat([self.features_rest.detach(), split_features_rest, dup_features_rest], dim=0)
+                    torch.cat(
+                        [
+                            self.features_rest.detach(),
+                            split_features_rest,
+                            dup_features_rest,
+                        ],
+                        dim=0,
+                    )
                 )
                 self.opacities = Parameter(torch.cat([self.opacities.detach(), split_opacities, dup_opacities], dim=0))
                 self.scales = Parameter(torch.cat([self.scales.detach(), split_scales, dup_scales], dim=0))
                 self.quats = Parameter(torch.cat([self.quats.detach(), split_quats, dup_quats], dim=0))
                 # append zeros to the max_2Dsize tensor
                 self.max_2Dsize = torch.cat(
-                    [self.max_2Dsize, torch.zeros_like(split_scales[:, 0]), torch.zeros_like(dup_scales[:, 0])],
+                    [
+                        self.max_2Dsize,
+                        torch.zeros_like(split_scales[:, 0]),
+                        torch.zeros_like(dup_scales[:, 0]),
+                    ],
                     dim=0,
                 )
 
@@ -416,7 +445,14 @@ class SplatfactoModel(Model):
 
                 # After a guassian is split into two new gaussians, the original one should also be pruned.
                 splits_mask = torch.cat(
-                    (splits, torch.zeros(nsamps * splits.sum() + dups.sum(), device=self.device, dtype=torch.bool))
+                    (
+                        splits,
+                        torch.zeros(
+                            nsamps * splits.sum() + dups.sum(),
+                            device=self.device,
+                            dtype=torch.bool,
+                        ),
+                    )
                 )
 
                 deleted_mask = self.cull_gaussians(splits_mask)
@@ -433,7 +469,8 @@ class SplatfactoModel(Model):
                 # Reset value is set to be twice of the cull_alpha_thresh
                 reset_value = self.config.cull_alpha_thresh * 2.0
                 self.opacities.data = torch.clamp(
-                    self.opacities.data, max=torch.logit(torch.tensor(reset_value, device=self.device)).item()
+                    self.opacities.data,
+                    max=torch.logit(torch.tensor(reset_value, device=self.device)).item(),
                 )
                 # reset the exp of optimizer
                 optim = optimizers.optimizers["opacity"]
@@ -507,7 +544,14 @@ class SplatfactoModel(Model):
         self.scales[split_mask] = torch.log(torch.exp(self.scales[split_mask]) / size_fac)
         # step 5, sample new quats
         new_quats = self.quats[split_mask].repeat(samps, 1)
-        return new_means, new_features_dc, new_features_rest, new_opacities, new_scales, new_quats
+        return (
+            new_means,
+            new_features_dc,
+            new_features_rest,
+            new_opacities,
+            new_scales,
+            new_quats,
+        )
 
     def dup_gaussians(self, dup_mask):
         """
@@ -521,7 +565,14 @@ class SplatfactoModel(Model):
         dup_opacities = self.opacities[dup_mask]
         dup_scales = self.scales[dup_mask]
         dup_quats = self.quats[dup_mask]
-        return dup_means, dup_features_dc, dup_features_rest, dup_opacities, dup_scales, dup_quats
+        return (
+            dup_means,
+            dup_features_dc,
+            dup_features_rest,
+            dup_opacities,
+            dup_scales,
+            dup_quats,
+        )
 
     @property
     def num_points(self):
@@ -573,7 +624,10 @@ class SplatfactoModel(Model):
 
     def _get_downscale_factor(self):
         if self.training:
-            return 2 ** max((self.config.num_downscales - self.step // self.config.resolution_schedule), 0)
+            return 2 ** max(
+                (self.config.num_downscales - self.step // self.config.resolution_schedule),
+                0,
+            )
         else:
             return 1
 
@@ -591,14 +645,23 @@ class SplatfactoModel(Model):
             print("Called get_outputs with not a camera")
             return {}
         assert camera.shape[0] == 1, "Only one camera at a time"
+
+        # get the background color
         if self.training:
-            background = torch.rand(3, device=self.device)
-        else:
-            # logic for setting the background of the scene
-            if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
-                background = renderers.BACKGROUND_COLOR_OVERRIDE
+            if self.config.background_color == "random":
+                background = torch.rand(3, device=self.device)
+            elif self.config.background_color == "white":
+                background = torch.ones(3, device=self.device)
+            elif self.config.background_color == "black":
+                background = torch.zeros(3, device=self.device)
             else:
-                background = self.back_color.to(self.device)
+                background = self.background_color.to(self.device)
+        else:
+            if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
+                background = renderers.BACKGROUND_COLOR_OVERRIDE.to(self.device)
+            else:
+                background = self.background_color.to(self.device)
+
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
@@ -684,9 +747,7 @@ class SplatfactoModel(Model):
 
         # rescale the camera back to original dimensions
         camera.rescale_output_resolution(camera_downscale)
-
         assert (num_tiles_hit > 0).any()  # type: ignore
-
         rgb = rasterize_gaussians(  # type: ignore
             self.xys,
             depths,
@@ -777,7 +838,8 @@ class SplatfactoModel(Model):
             scale_exp = torch.exp(self.scales)
             scale_reg = (
                 torch.maximum(
-                    scale_exp.amax(dim=-1) / scale_exp.amin(dim=-1), torch.tensor(self.config.max_gauss_ratio)
+                    scale_exp.amax(dim=-1) / scale_exp.amin(dim=-1),
+                    torch.tensor(self.config.max_gauss_ratio),
                 )
                 - self.config.max_gauss_ratio
             )
