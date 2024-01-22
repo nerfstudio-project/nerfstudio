@@ -139,6 +139,10 @@ class SplatfactoModelConfig(ModelConfig):
     """stop culling/splitting at this step WRT screen size of gaussians"""
     random_init: bool = False
     """whether to initialize the positions uniformly randomly (not SFM points)"""
+    num_random: int = 50000
+    """Number of gaussians to initialize if random init is used"""
+    random_scale: float = 10.0
+    "Size of the cube to initialize random gaussians within"
     ssim_lambda: float = 0.2
     """weight of ssim loss"""
     stop_split_at: int = 15000
@@ -175,7 +179,7 @@ class SplatfactoModel(Model):
         if self.seed_points is not None and not self.config.random_init:
             self.means = torch.nn.Parameter(self.seed_points[0])  # (Location, Color)
         else:
-            self.means = torch.nn.Parameter((torch.rand((500000, 3)) - 0.5) * 10)
+            self.means = torch.nn.Parameter((torch.rand((self.config.num_random, 3)) - 0.5) * self.config.random_scale)
         self.xys_grad_norm = None
         self.max_2Dsize = None
         distances, _ = self.k_nearest_sklearn(self.means.data, 3)
@@ -218,9 +222,9 @@ class SplatfactoModel(Model):
 
         self.crop_box: Optional[OrientedBox] = None
         if self.config.background_color == "random":
-            self.back_color = torch.rand(3)
+            self.background_color = torch.rand(3)
         else:
-            self.back_color = get_color(self.config.background_color)
+            self.background_color = get_color(self.config.background_color)
 
     @property
     def colors(self):
@@ -356,9 +360,9 @@ class SplatfactoModel(Model):
     def set_crop(self, crop_box: Optional[OrientedBox]):
         self.crop_box = crop_box
 
-    def set_background(self, back_color: torch.Tensor):
-        assert back_color.shape == (3,)
-        self.back_color = back_color
+    def set_background(self, background_color: torch.Tensor):
+        assert background_color.shape == (3,)
+        self.background_color = background_color
 
     def refinement_after(self, optimizers: Optimizers, step):
         assert step == self.step
@@ -646,13 +650,17 @@ class SplatfactoModel(Model):
         if self.training:
             if self.config.background_color == "random":
                 background = torch.rand(3, device=self.device)
+            elif self.config.background_color == "white":
+                background = torch.ones(3, device=self.device)
+            elif self.config.background_color == "black":
+                background = torch.zeros(3, device=self.device)
             else:
-                background = self.back_color.to(self.device)
+                background = self.background_color.to(self.device)
         else:
             if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
                 background = renderers.BACKGROUND_COLOR_OVERRIDE.to(self.device)
             else:
-                background = self.back_color.to(self.device)
+                background = self.background_color.to(self.device)
 
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
@@ -739,7 +747,6 @@ class SplatfactoModel(Model):
 
         # rescale the camera back to original dimensions
         camera.rescale_output_resolution(camera_downscale)
-
         assert (num_tiles_hit > 0).any()  # type: ignore
         rgb = rasterize_gaussians(  # type: ignore
             self.xys,
