@@ -346,7 +346,7 @@ def _compute_residual_and_jacobian(
     xd: torch.Tensor,
     yd: torch.Tensor,
     distortion_params: torch.Tensor,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor,]:
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """Auxiliary function of radial_and_tangential_undistort() that computes residuals and jacobians.
     Adapted from MultiNeRF:
     https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L427-L474
@@ -720,7 +720,7 @@ def fisheye624_unproject_helper(uv, params, max_iters: int = 5):
     function so this solves an optimization problem using Newton's method to get
     the inverse.
     Inputs:
-        uv: BxNx3 tensor of 2D pixels to be projected
+        uv: BxNx2 tensor of 2D pixels to be unprojected
         params: Bx16 tensor of Fisheye624 parameters formatted like this:
                 [f_u f_v c_u c_v {k_0 ... k_5} {p_0 p_1} {s_0 s_1 s_2 s_3}]
                 or Bx15 tensor of Fisheye624 parameters formatted like this:

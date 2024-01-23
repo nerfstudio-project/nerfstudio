@@ -40,7 +40,7 @@ from nerfstudio.exporter import texture_utils, tsdf_utils
 from nerfstudio.exporter.exporter_utils import collect_camera_poses, generate_point_cloud, get_mesh_from_filename
 from nerfstudio.exporter.marching_cubes import generate_mesh_with_multires_marching_cubes
 from nerfstudio.fields.sdf_field import SDFField  # noqa
-from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
+from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -121,9 +121,9 @@ class ExportPointCloud(Exporter):
     """Number of rays to evaluate per batch. Decrease if you run out of memory."""
     std_ratio: float = 10.0
     """Threshold based on STD of the average distances across the point cloud to remove outliers."""
-    save_world_frame: bool = True
-    """If true, saves in the frame of the transform.json file, if false saves in the frame of the scaled 
-        dataparser transform"""
+    save_world_frame: bool = False
+    """If set, saves the point cloud in the same frame as the original dataset. Otherwise, uses the
+    scaled and reoriented coordinate space expected by the NeRF models."""
 
     def main(self) -> None:
         """Export point cloud."""
@@ -417,9 +417,7 @@ class ExportMarchingCubesMesh(Exporter):
 
         CONSOLE.print("Extracting mesh with marching cubes... which may take a while")
 
-        assert (
-            self.resolution % 512 == 0
-        ), f"""resolution must be divisible by 512, got {self.resolution}.
+        assert self.resolution % 512 == 0, f"""resolution must be divisible by 512, got {self.resolution}.
         This is important because the algorithm uses a multi-resolution approach
         to evaluate the SDF where the minimum resolution is 512."""
 
@@ -490,11 +488,11 @@ class ExportGaussianSplat(Exporter):
 
         _, pipeline, _, _ = eval_setup(self.load_config)
 
-        assert isinstance(pipeline.model, GaussianSplattingModel)
+        assert isinstance(pipeline.model, SplatfactoModel)
 
-        model: GaussianSplattingModel = pipeline.model
+        model: SplatfactoModel = pipeline.model
 
-        filename = self.output_dir / "point_cloud.ply"
+        filename = self.output_dir / "splat.ply"
 
         map_to_tensors = {}
 

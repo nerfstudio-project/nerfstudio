@@ -15,11 +15,11 @@
 """Helper utils for processing ODM data into the nerfstudio format."""
 
 import json
-from pathlib import Path
-from typing import Dict, List
+import math
 import os
 import sys
-import math
+from pathlib import Path
+from typing import Dict, List
 
 import numpy as np
 

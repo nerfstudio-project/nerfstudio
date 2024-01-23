@@ -109,7 +109,7 @@ class DataProcessor(mp.Process):  # type: ignore
                     time.sleep(0.0001)
                 except Exception:
                     CONSOLE.print_exception()
-                    CONSOLE.print("[bold red]Error: Error occured in parallel datamanager queue.")
+                    CONSOLE.print("[bold red]Error: Error occurred in parallel datamanager queue.")
 
     def cache_images(self):
         """Caches all input images into a NxHxWx3 tensor."""
@@ -198,8 +198,15 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
         if is_equirectangular.any():
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
+
+        fisheye_crop_radius = None
+        if dataset.cameras.metadata is not None:
+            fisheye_crop_radius = dataset.cameras.metadata.get("fisheye_crop_radius")
+
         return self.config.pixel_sampler.setup(
-            is_equirectangular=is_equirectangular, num_rays_per_batch=num_rays_per_batch
+            is_equirectangular=is_equirectangular,
+            num_rays_per_batch=num_rays_per_batch,
+            fisheye_crop_radius=fisheye_crop_radius,
         )
 
     def setup_train(self):

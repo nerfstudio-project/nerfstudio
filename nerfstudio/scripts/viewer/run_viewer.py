@@ -30,8 +30,8 @@ from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import writer
 from nerfstudio.utils.eval_utils import eval_setup
-from nerfstudio.viewer_legacy.server.viewer_state import ViewerLegacyState
 from nerfstudio.viewer.viewer import Viewer as ViewerState
+from nerfstudio.viewer_legacy.server.viewer_state import ViewerLegacyState
 
 
 @dataclass
@@ -55,8 +55,6 @@ class RunViewer:
     """Viewer configuration"""
     vis: Literal["viewer", "viewer_legacy"] = "viewer"
     """Type of viewer"""
-    make_share_url: bool = True
-    """Print a shareable URL"""
 
     def main(self) -> None:
         """Main function."""
@@ -68,7 +66,6 @@ class RunViewer:
         num_rays_per_chunk = config.viewer.num_rays_per_chunk
         assert self.viewer.num_rays_per_chunk == -1
         config.vis = self.vis
-        config.viewer.make_share_url = self.make_share_url
         config.viewer = self.viewer.as_viewer_config()
         config.viewer.num_rays_per_chunk = num_rays_per_chunk
 
@@ -99,7 +96,7 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
             datapath=pipeline.datamanager.get_datapath(),
             pipeline=pipeline,
         )
-        banner_messages = [f"Legaccy viewer at: {viewer_state.viewer_url}"]
+        banner_messages = [f"Legacy viewer at: {viewer_state.viewer_url}"]
     if config.vis == "viewer":
         viewer_state = ViewerState(
             config.viewer,
@@ -108,7 +105,7 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
             pipeline=pipeline,
             share=config.viewer.make_share_url,
         )
-        banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
+        banner_messages = viewer_state.viewer_info
 
     # We don't need logging, but writer.GLOBAL_BUFFER needs to be populated
     config.logging.local_writer.enable = False

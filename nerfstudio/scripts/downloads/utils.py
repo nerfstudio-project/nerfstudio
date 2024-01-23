@@ -12,7 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""init field modules"""
-from .base_field_component import FieldComponent as FieldComponent
-from .encodings import Encoding as Encoding, ScalingAndOffset as ScalingAndOffset
-from .mlp import MLP as MLP
+from dataclasses import dataclass
+from pathlib import Path
+
+from nerfstudio.configs.base_config import PrintableConfig
+
+
+@dataclass
+class DatasetDownload(PrintableConfig):
+    """Download a dataset"""
+
+    capture_name = None
+
+    save_dir: Path = Path("data/")
+    """The directory to save the dataset to"""
+
+    def download(self, save_dir: Path) -> None:
+        """Download the dataset"""
+        raise NotImplementedError
