@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import subprocess
 import tarfile
 import zipfile
 from dataclasses import dataclass
@@ -143,10 +144,10 @@ def download_capture_name(save_dir: Path, dataset_name: str, capture_name: str, 
     file_id_or_zip_url = capture_name_to_file_id[capture_name]
     if file_id_or_zip_url.endswith(".zip"):
         url = file_id_or_zip_url  # zip url
-        target_path = str(save_dir / f"{dataset_name}/{capture_name}")
+        target_path = str(save_dir / dataset_name / capture_name)
         os.makedirs(target_path, exist_ok=True)
         download_path = Path(f"{target_path}.zip")
-        tmp_path = str(save_dir / ".temp")
+        tmp_path = str(save_dir / dataset_name / f".temp_{capture_name}")
         shutil.rmtree(tmp_path, ignore_errors=True)
         os.makedirs(tmp_path, exist_ok=True)
         try:
@@ -156,10 +157,10 @@ def download_capture_name(save_dir: Path, dataset_name: str, capture_name: str, 
         run_command(f"wget {url} -O {download_path}", verbose=True)
     else:
         url = f"https://drive.google.com/uc?id={file_id_or_zip_url}"  # file id
-        target_path = str(save_dir / f"{dataset_name}/{capture_name}")
+        target_path = str(save_dir / dataset_name / capture_name)
         os.makedirs(target_path, exist_ok=True)
         download_path = Path(f"{target_path}.zip")
-        tmp_path = str(save_dir / ".temp")
+        tmp_path = str(save_dir / dataset_name / f".temp_{capture_name}")
         shutil.rmtree(tmp_path, ignore_errors=True)
         os.makedirs(tmp_path, exist_ok=True)
         try:
@@ -170,7 +171,7 @@ def download_capture_name(save_dir: Path, dataset_name: str, capture_name: str, 
     with zipfile.ZipFile(download_path, "r") as zip_ref:
         zip_ref.extractall(tmp_path)
     inner_folders = os.listdir(tmp_path)
-    assert len(inner_folders) == 1, "There is more than one folder inside this zip file."
+    assert len(inner_folders) == 1, f"There is more than one folder inside this zip file: {inner_folders}"
     folder = os.path.join(tmp_path, inner_folders[0])
     shutil.rmtree(target_path)
     shutil.move(folder, target_path)
@@ -239,7 +240,9 @@ class DNerfDownload(DatasetDownload):
         if os.path.exists(final_path):
             shutil.rmtree(str(final_path))
         download_path = save_dir / "dnerf_data.zip"
-        os.system(f"curl -L https://www.dropbox.com/s/raw/0bf6fl0ye2vz3vr/data.zip > {download_path}")
+        subprocess.run(
+            ["curl", "-L", "https://www.dropbox.com/s/raw/0bf6fl0ye2vz3vr/data.zip", "-o", download_path], check=True
+        )
         with zipfile.ZipFile(download_path, "r") as zip_ref:
             zip_ref.extractall(str(save_dir))
         unzip_path = save_dir / Path("data")
@@ -289,20 +292,20 @@ class PhototourismDownload(DatasetDownload):
             self.capture_name in phototourism_downloads
         ), f"Capture name {self.capture_name} not found in {phototourism_downloads.keys()}"
         url = phototourism_downloads[self.capture_name]
-        target_path = str(save_dir / f"phototourism/{self.capture_name}")
+        target_path = str(save_dir / "phototourism" / self.capture_name)
         os.makedirs(target_path, exist_ok=True)
         download_path = Path(f"{target_path}.tar.gz")
-        tmp_path = str(save_dir / ".temp")
+        tmp_path = str(save_dir / "phototourism" / f".temp_{self.capture_name}")
         shutil.rmtree(tmp_path, ignore_errors=True)
         os.makedirs(tmp_path, exist_ok=True)
 
-        os.system(f"curl -L {url} > {download_path}")
+        subprocess.run(["curl", "-L", url, "-o", download_path], check=True)
 
         with tarfile.open(download_path, "r:gz") as tar_ref:
             tar_ref.extractall(str(tmp_path))
 
         inner_folders = os.listdir(tmp_path)
-        assert len(inner_folders) == 1, "There is more than one folder inside this zip file."
+        assert len(inner_folders) == 1, f"There is more than one folder inside this zip file: {inner_folders}"
         folder = os.path.join(tmp_path, inner_folders[0])
         shutil.rmtree(target_path)
         shutil.move(folder, target_path)
@@ -337,7 +340,7 @@ class SDFstudioDemoDownload(DatasetDownload):
     dataset_name: SDFstudioCaptureName = "sdfstudio-demo-data"
 
     def download(self, save_dir: Path):
-        """Download the D-NeRF dataset (https://github.com/albertpumarola/D-NeRF)."""
+        """Download the sdfstudio dataset (https://autonomousvision.github.io/sdfstudio/)."""
         # TODO: give this code the same structure as download_nerfstudio
 
         if self.dataset_name == "all":
@@ -352,17 +355,17 @@ class SDFstudioDemoDownload(DatasetDownload):
 
         url = sdfstudio_downloads[self.dataset_name]
 
-        target_path = str(save_dir / self.dataset_name)
+        target_path = str(save_dir / "sdfstudio" / self.dataset_name)
         os.makedirs(target_path, exist_ok=True)
 
         file_format = url[-4:]
 
         download_path = Path(f"{target_path}{file_format}")
-        tmp_path = str(save_dir / ".temp")
+        tmp_path = str(save_dir / "sdfstudio" / f".temp_{self.dataset_name}")
         shutil.rmtree(tmp_path, ignore_errors=True)
         os.makedirs(tmp_path, exist_ok=True)
 
-        os.system(f"curl -L {url} > {download_path}")
+        subprocess.run(["curl", "-L", url, "-o", download_path], check=True)
         if file_format == ".tar":
             with tarfile.open(download_path, "r") as tar_ref:
                 tar_ref.extractall(str(tmp_path))
@@ -374,7 +377,7 @@ class SDFstudioDemoDownload(DatasetDownload):
             raise NotImplementedError
 
         inner_folders = os.listdir(tmp_path)
-        assert len(inner_folders) == 1, "There is more than one folder inside this zip file."
+        assert len(inner_folders) == 1, f"There is more than one folder inside this zip file: {inner_folders}"
         folder = os.path.join(tmp_path, inner_folders[0])
         shutil.rmtree(target_path)
         shutil.move(folder, target_path)
@@ -421,21 +424,21 @@ class NeRFOSRDownload(DatasetDownload):
             self.capture_name in nerfosr_downloads
         ), f"Capture name {self.capture_name} not found in {nerfosr_downloads.keys()}"
         url = nerfosr_downloads[self.capture_name]
-        target_path = str(save_dir / f"NeRF-OSR/Data/{self.capture_name}")
+        target_path = str(save_dir / "nerfosr" / self.capture_name)
         os.makedirs(target_path, exist_ok=True)
         download_path = Path(f"{target_path}.zip")
-        tmp_path = str(save_dir / ".temp")
+        tmp_path = str(save_dir / "nerfosr" / f".temp_{self.capture_name}")
         shutil.rmtree(tmp_path, ignore_errors=True)
         os.makedirs(tmp_path, exist_ok=True)
 
-        os.system(f"curl -L '{url}' > {download_path}")
+        subprocess.run(["curl", "-L", url, "-o", download_path], check=True)
 
         # Extract the zip file
         with zipfile.ZipFile(download_path, "r") as zip_ref:
             zip_ref.extractall(tmp_path)
 
         inner_folders = os.listdir(tmp_path)
-        assert len(inner_folders) == 1, "There is more than one folder inside this zip file."
+        assert len(inner_folders) == 1, f"There is more than one folder inside this zip file: {inner_folders}"
         folder = os.path.join(tmp_path, inner_folders[0])
         shutil.rmtree(target_path)
         shutil.move(folder, target_path)
@@ -475,20 +478,20 @@ class Mill19Download(DatasetDownload):
             self.capture_name in mill19_downloads
         ), f"Capture name {self.capture_name} not found in {mill19_downloads.keys()}"
         url = mill19_downloads[self.capture_name]
-        target_path = save_dir / f"mill19/{self.capture_name}"
+        target_path = save_dir / "mill19" / self.capture_name
         target_path.mkdir(parents=True, exist_ok=True)
         download_path = Path(f"{target_path}.tgz")
-        tmp_path = save_dir / ".temp"
+        tmp_path = save_dir / "mill19" / f".temp_{self.capture_name}"
         shutil.rmtree(tmp_path, ignore_errors=True)
         tmp_path.mkdir(parents=True, exist_ok=True)
 
-        os.system(f"curl -L {url} > {download_path}")
+        subprocess.run(["curl", "-L", url, "-o", download_path], check=True)
 
         with tarfile.open(download_path, "r:gz") as tar_ref:
             tar_ref.extractall(tmp_path)
 
         inner_folders = list(tmp_path.iterdir())
-        assert len(inner_folders) == 1, "There is more than one folder inside this zip file."
+        assert len(inner_folders) == 1, f"There is more than one folder inside this zip file: {inner_folders}"
         folder = inner_folders[0]
         shutil.rmtree(target_path)
         folder.rename(target_path)
