@@ -499,7 +499,7 @@ class Mill19Download(DatasetDownload):
         download_path.unlink()
 
         # Convert data layout into what the nerfstudio dataparser expects
-        frames = []
+        meta = {"frames": []}
         for subdir, prefix in [("train", "train_"), ("val", "eval_")]:
             copied_images = process_data_utils.copy_images(
                 target_path / subdir / "rgbs",
@@ -510,14 +510,17 @@ class Mill19Download(DatasetDownload):
                 keep_image_dir=True,
             )
 
+            split_filepaths = []
             for image_path, new_image_path in copied_images.items():
                 metadata_path = image_path.parent.parent / "metadata" / f"{image_path.stem}.pt"
                 metadata = torch.load(metadata_path, map_location="cpu")
                 c2w = torch.eye(4)
                 c2w[:3] = metadata["c2w"]
-                frames.append(
+                file_path = str(Path("images") / f"{new_image_path.name}")
+                split_filepaths.append(file_path)
+                meta["frames"].append(
                     {
-                        "file_path": str(Path("images") / f"{new_image_path.name}"),
+                        "file_path": file_path,
                         "fl_x": metadata["intrinsics"][0].item(),
                         "fl_y": metadata["intrinsics"][1].item(),
                         "cx": metadata["intrinsics"][2].item(),
@@ -527,9 +530,10 @@ class Mill19Download(DatasetDownload):
                         "transform_matrix": c2w.tolist(),
                     }
                 )
+            meta[f"{subdir}_filenames"] = split_filepaths
 
         with (target_path / "transforms.json").open("w") as f:
-            json.dump({"frames": frames}, f, indent=4)
+            json.dump(meta, f, indent=4)
 
         shutil.rmtree(target_path / "train")
         shutil.rmtree(target_path / "val")
