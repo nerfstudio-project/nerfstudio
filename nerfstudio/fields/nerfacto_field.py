@@ -94,6 +94,7 @@ class NerfactoField(Field):
         pass_semantic_gradients: bool = False,
         use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
+        use_appearance_embedding: bool = True,
         spatial_distortion: Optional[SpatialDistortion] = None,
         implementation: Literal["tcnn", "torch"] = "tcnn",
     ) -> None:
@@ -109,6 +110,9 @@ class NerfactoField(Field):
         self.spatial_distortion = spatial_distortion
         self.num_images = num_images
         self.appearance_embedding_dim = appearance_embedding_dim
+        self.use_appearance_embedding = use_appearance_embedding
+        if not self.use_appearance_embedding:
+            self.appearance_embedding_dim = 128
         self.embedding_appearance = Embedding(self.num_images, self.appearance_embedding_dim)
         self.use_average_appearance_embedding = use_average_appearance_embedding
         self.use_transient_embedding = use_transient_embedding
@@ -186,8 +190,14 @@ class NerfactoField(Field):
             )
             self.field_head_pred_normals = PredNormalsFieldHead(in_dim=self.mlp_pred_normals.get_out_dim())
 
+        # appearance
+        if self.use_appearance_embedding:
+            mlp_head_in_dim = self.direction_encoding.get_out_dim() + self.geo_feat_dim + self.appearance_embedding_dim
+        else:
+            mlp_head_in_dim = self.direction_encoding.get_out_dim() + self.geo_feat_dim
+
         self.mlp_head = MLP(
-            in_dim=self.direction_encoding.get_out_dim() + self.geo_feat_dim + self.appearance_embedding_dim,
+            in_dim=mlp_head_in_dim,
             num_layers=num_layers_color,
             layer_width=hidden_dim_color,
             out_dim=3,
@@ -195,6 +205,18 @@ class NerfactoField(Field):
             out_activation=nn.Sigmoid(),
             implementation=implementation,
         )
+
+        if not self.use_appearance_embedding:
+            self.affine_mlp = MLP(
+                in_dim=self.appearance_embedding_dim,
+                num_layers=2,
+                layer_width=128,
+                out_dim=self.geo_feat_dim * 2,
+                activation=nn.ReLU(),
+                # Change MLP to accept callable function Tensor -> Tensor
+                out_activation=None,
+                implementation=implementation,
+            )
 
     def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
@@ -237,8 +259,15 @@ class NerfactoField(Field):
         outputs_shape = ray_samples.frustums.directions.shape[:-1]
 
         # appearance
+        scale = 1
+        shift = 0
         if self.training:
             embedded_appearance = self.embedding_appearance(camera_indices)
+            if not self.use_appearance_embedding:
+                output = self.affine_mlp(embedded_appearance.view(-1, self.appearance_embedding_dim))
+                scale, shift = torch.split(output, [self.geo_feat_dim, self.geo_feat_dim], dim=-1)
+                scale = trunc_exp(scale)
+
         else:
             if self.use_average_appearance_embedding:
                 embedded_appearance = torch.ones(
@@ -283,14 +312,23 @@ class NerfactoField(Field):
             x = self.mlp_pred_normals(pred_normals_inp).view(*outputs_shape, -1).to(directions)
             outputs[FieldHeadNames.PRED_NORMALS] = self.field_head_pred_normals(x)
 
-        h = torch.cat(
-            [
-                d,
-                density_embedding.view(-1, self.geo_feat_dim),
-                embedded_appearance.view(-1, self.appearance_embedding_dim),
-            ],
-            dim=-1,
-        )
+        if self.use_appearance_embedding:
+            h = torch.cat(
+                [
+                    d,
+                    density_embedding.view(-1, self.geo_feat_dim),
+                    embedded_appearance.view(-1, self.appearance_embedding_dim),
+                ],
+                dim=-1,
+            )
+        else:
+            h = torch.cat(
+                [
+                    d,
+                    density_embedding.view(-1, self.geo_feat_dim) * scale + shift,
+                ],
+                dim=-1,
+            )
         rgb = self.mlp_head(h).view(*outputs_shape, -1).to(directions)
         outputs.update({FieldHeadNames.RGB: rgb})
 
