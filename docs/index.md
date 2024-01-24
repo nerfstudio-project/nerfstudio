@@ -140,6 +140,7 @@ This documentation is organized into 3 parts:
 - [NeRF](nerfology/methods/nerf.md): OG Neural Radiance Fields
 - [Mip-NeRF](nerfology/methods/mipnerf.md): A Multiscale Representation for Anti-Aliasing Neural Radiance Fields
 - [TensoRF](nerfology/methods/tensorf.md): Tensorial Radiance Fields
+- [Splatfacto](nerfology/methods/splat.md): Nerfstudio's Gaussian Splatting implementation
 
 (third_party_methods)=
 
@@ -151,6 +152,8 @@ This documentation is organized into 3 parts:
 - [Nerfbusters](nerfology/methods/nerfbusters.md): Removing Ghostly Artifacts from Casually Captured NeRFs
 - [NeRFPlayer](nerfology/methods/nerfplayer.md): 4D Radiance Fields by Streaming Feature Channels
 - [Tetra-NeRF](nerfology/methods/tetranerf.md): Representing Neural Radiance Fields Using Tetrahedra
+- [Instruct-GS2GS](nerfology/methods/igs2gs.md): Editing 3DGS Scenes with Instructions
+- [PyNeRF](nerfology/methods/pynerf.md): Pyramidal Neural Radiance Fields
 
 **Eager to contribute a method?** We'd love to see you use nerfstudio in implementing new (or even existing) methods! Please view our {ref}`guide<own_method_docs>` for more details about how to add to this list!
 
@@ -160,7 +163,6 @@ This documentation is organized into 3 parts:
 | ---------------------------------------------------------- | ---------------------- |
 | [Github](https://github.com/nerfstudio-project/nerfstudio) | Official Github Repo   |
 | [Discord](https://discord.gg/RyVk6w5WWP)                   | Join Discord Community |
-| [Viewer](https://viewer.nerf.studio/)                      | Web-based Nerf Viewer  |
 | [Feedback Form](https://forms.gle/sqN5phJN7LfQVwnP9)       | Provide Nerfstudio Feedback |
 
 ## Sponsors

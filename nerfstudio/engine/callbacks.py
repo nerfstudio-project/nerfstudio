@@ -27,8 +27,8 @@ from torch.cuda.amp.grad_scaler import GradScaler
 from nerfstudio.engine.optimizers import Optimizers
 
 if TYPE_CHECKING:
-    from nerfstudio.pipelines.base_pipeline import Pipeline
     from nerfstudio.engine.trainer import Trainer
+    from nerfstudio.pipelines.base_pipeline import Pipeline
 
 
 @dataclass
