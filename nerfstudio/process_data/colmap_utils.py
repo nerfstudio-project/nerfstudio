@@ -19,13 +19,13 @@ Tools supporting the execution of COLMAP and preparation of COLMAP-based dataset
 import json
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional, Union
-from packaging.version import Version
 
 import appdirs
 import cv2
 import numpy as np
 import requests
 import torch
+from packaging.version import Version
 from rich.progress import track
 
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
