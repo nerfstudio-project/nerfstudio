@@ -43,7 +43,7 @@ from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
 
 
-def get_colmap_version(colmap_cmd: str, default_version=3.8) -> Version:
+def get_colmap_version(colmap_cmd: str, default_version: str = "3.8") -> Version:
     """Returns the version of COLMAP.
     This code assumes that colmap returns a version string of the form
     "COLMAP 3.8 ..." which may not be true for all versions of COLMAP.
@@ -61,8 +61,7 @@ def get_colmap_version(colmap_cmd: str, default_version=3.8) -> Version:
             version = Version(version)
             return version
     CONSOLE.print(f"[bold red]Could not find COLMAP version. Using default {default_version}")
-    default_version = Version(str(default_version))
-    return default_version
+    return Version(default_version)
 
 
 def get_vocab_tree() -> Path:
