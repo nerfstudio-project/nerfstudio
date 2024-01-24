@@ -82,6 +82,7 @@ We hope nerfstudio enables you to build faster 🔨 learn together 📚 and cont
 
 quickstart/installation
 quickstart/first_nerf
+quickstart/existing_dataset
 quickstart/custom_dataset
 quickstart/viewer_quickstart
 quickstart/export_geometry

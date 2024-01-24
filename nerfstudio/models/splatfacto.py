@@ -827,8 +827,9 @@ class SplatfactoModel(Model):
         # Set masked part of both ground-truth and rendered image to black.
         # This is a little bit sketchy for the SSIM loss.
         if "mask" in batch:
-            assert batch["mask"].shape == gt_img.shape[:2] == pred_img.shape[:2]
-            mask = batch["mask"][..., None].to(self.device)
+            # batch["mask"] : [H, W, 1]
+            assert batch["mask"].shape[:2] == gt_img.shape[:2] == pred_img.shape[:2]
+            mask = batch["mask"].to(self.device)
             gt_img = gt_img * mask
             pred_img = pred_img * mask
 

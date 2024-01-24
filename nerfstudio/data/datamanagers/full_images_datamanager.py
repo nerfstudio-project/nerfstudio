@@ -471,7 +471,8 @@ def _undistort_image(
                 borderValue=0,
             )
             / 255.0
-        ).bool()
+        ).bool()[..., None]
+        assert mask.shape == (undist_h, undist_w, 1)
         K = undist_K.numpy()
     else:
         raise NotImplementedError("Only perspective and fisheye cameras are supported")
