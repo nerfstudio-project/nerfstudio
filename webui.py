@@ -127,7 +127,9 @@ def vis_model_args(method):
 
 def browse():
     root = tk.Tk()
+    root.wm_attributes("-topmost", 1)
     root.withdraw()  # Hide the main window
+    root.lift()  # Move to the top of all windows
     folder_path = filedialog.askdirectory(title="Select Folder")
     return folder_path
 
