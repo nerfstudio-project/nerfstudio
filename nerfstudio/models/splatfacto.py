@@ -780,7 +780,7 @@ class SplatfactoModel(Model):
             depth_im[alpha > 0] = depth_im[alpha > 0] / alpha[alpha > 0]
             depth_im[alpha == 0] = 1000
 
-        return {"rgb": rgb, "depth": depth_im, "transmittance": alpha}  # type: ignore
+        return {"rgb": rgb, "depth": depth_im, "accumulation": alpha}  # type: ignore
 
     def get_gt_img(self, image: torch.Tensor):
         """Compute groundtruth image with iteration dependent downscale factor for evaluation purpose
