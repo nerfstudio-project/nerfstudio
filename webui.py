@@ -11,6 +11,7 @@ from nerfstudio.configs import dataparser_configs as dc, method_configs as mc
 
 def run_ns_train_realtime(cmd):
     # TODO: add direct CLI support
+    # TODO: NOT SAFE!!!
     try:
         process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 
@@ -147,11 +148,13 @@ model_arg_names = []  # keep track of the model args names
 model_arg_idx = {}  # record the start and end index of the model args
 
 with gr.Blocks() as demo:
+    status = gr.Textbox(label="Status", lines=1, placeholder="Waiting for input")
     with gr.Row():
         run_button = gr.Button(
             value="Run",
         )
-        viser_button = gr.Button(value="Open Viser", link="http://127.0.0.1:7007")
+        viser_button = gr.Button(value="Open Viser", link="http://localhost:7007/")
+
     # TODO: Add a progress bar
     # TODO: Make the run button disabled when the process is running
 
@@ -229,10 +232,14 @@ with gr.Blocks() as demo:
         inputs=[dataparser] + dataparser_arg_list,
         outputs=None,
     ).then(
+        lambda: "Your model is running!",
+        inputs=None,
+        outputs=status,
+    ).then(
         run,
         inputs=[data_path, method, max_num_iterations, steps_per_save, dataparser, visualizer],
         outputs=None,
     )
 
 
-demo.launch()
+demo.launch(inbrowser=True)
