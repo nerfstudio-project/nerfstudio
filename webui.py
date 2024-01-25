@@ -86,7 +86,7 @@ def generate_args(config, visible=True):
             config_inputs.append(gr.Checkbox(label=key, value=value, visible=visible, interactive=True))
         # if type is int, then add a number
         elif isinstance(value, int):
-            config_inputs.append(gr.Textbox(label=key, lines=1, value=value, visible=visible, interactive=True))
+            config_inputs.append(gr.Number(label=key, value=value, visible=visible, interactive=True))
         # if type is Literal, then add a radio
         # TODO: fix this
         elif hasattr(value, "__origin__") and value.__origin__ is Literal:
