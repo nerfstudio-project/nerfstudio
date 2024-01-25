@@ -29,40 +29,43 @@ def run_ns_train_realtime(cmd):
 
 def run(data_path, method, max_num_iterations, steps_per_save, data_parser):
     # generate the command
-    model_args = (
-        get_model_args(method) + f" --steps-per-save {steps_per_save} --max-num-iterations {max_num_iterations}"
-    )
+    # model_args = (
+    #     get_model_args(method) + f" --steps-per-save {steps_per_save} --max-num-iterations {max_num_iterations}"
+    # )
     # TODO: add data parser args, idk why it doesn't work
-    data_parser_args = get_data_parser_args(data_parser)
-    cmd = f"ns-train {method} {model_args} --data {data_path} {data_parser}"
+    # data_parser_args = get_data_parser_args(data_parser)
+    print(model_args)
+    print(dataparser_args)
+    cmd = f"ns-train {method} {model_args} --steps-per-save {steps_per_save} --max-num-iterations {max_num_iterations} --data {data_path} {data_parser}"
     # run the command
     result = run_ns_train_realtime(cmd)
     return result
 
 
-def get_model_args(method):
+def get_model_args(method, *args):
+    args = list(args)
+    global model_args
     cmd = ""
-    args = model_args[method]
-    for arg in args:
-        key, value = arg.label, arg.value
-        # change key to --pipeline.model.{key}
-        key = key.replace("_", "-")
+    values = args[model_args_idx[method][0] : model_args_idx[method][1]]
+    names = model_args_names[model_args_idx[method][0] : model_args_idx[method][1]]
+    for key, value in zip(names, values):
         cmd += f"--pipeline.model.{key} {value} "
     # remove the last space
-    cmd = cmd[:-1]
-    return cmd
+    model_args = cmd[:-1]
 
 
-def get_data_parser_args(dataparser):
+def get_data_parser_args(dataparser, *args):
+    args = list(args)
+    global dataparser_args
     cmd = ""
-    args = dataparser_args[dataparser]
-    for arg in args:
-        key, value = arg.label, arg.value
-        key = key.replace("_", "-")
+    names = dataparser_args_names[dataparser_args_idx[dataparser][0] : dataparser_args_idx[dataparser][1]]
+    values = args[dataparser_args_idx[dataparser][0] : dataparser_args_idx[dataparser][1]]
+    for key, value in zip(names, values):
+        # change key to --{key}
         cmd += f"--{key} {value} "
     # remove the last space
     cmd = cmd[:-1]
-    return cmd
+    dataparser_args = cmd
 
 
 def get_model_description(method):
@@ -125,13 +128,20 @@ def browse():
     return folder_path
 
 
+model_args = ""
+dataparser_args = ""
+
 dataparser_groups = []  # keep track of the dataparser groups
 dp_group_idx = {}  # keep track of the dataparser group index
-dataparser_args = {}  # keep track of the dataparser args
+dataparser_args_list = []  # keep track of the dataparser args
+dataparser_args_names = []  # keep track of the dataparser args names
+dataparser_args_idx = {}  # record the start and end index of the dataparser args
 
 model_groups = []  # keep track of the model groups
 model_group_idx = {}  # keep track of the model group index
-model_args = {}
+model_args_list = []
+model_args_names = []  # keep track of the model args names
+model_args_idx = {}  # record the start and end index of the model args
 
 with gr.Blocks() as demo:
     with gr.Row():
@@ -162,7 +172,9 @@ with gr.Blocks() as demo:
     with gr.Accordion("Data Parser Args"):
         for key, value in dc.all_dataparsers.items():
             with gr.Group(visible=False) as group:
-                dataparser_args[key] = generate_args(value, visible=True)
+                generated_args = generate_args(value, visible=True)
+                dataparser_args_list += generated_args
+                dataparser_args_idx[key] = [len(dataparser_args_list) - len(generated_args), len(dataparser_args_list)]
                 dataparser_groups.append(group)
                 dp_group_idx[key] = len(dataparser_groups) - 1
 
@@ -174,12 +186,31 @@ with gr.Blocks() as demo:
             with gr.Group(visible=False) as group:
                 if key in mc.method_configs:
                     model_config = mc.method_configs[key].pipeline.model
-                    model_args[key] = generate_args(model_config, visible=True)
+                    generated_args = generate_args(model_config, visible=True)
+                    model_args_list += generated_args
+                    model_args_idx[key] = [len(model_args_list) - len(generated_args), len(model_args_list)]
+
                     model_groups.append(group)
                     model_group_idx[key] = len(model_groups) - 1
         # when the model changes, make the corresponding model args visible
         method.change(fn=vis_model_args, inputs=method, outputs=model_groups)
+    for item in dataparser_args_list:
+        dataparser_args_names.append(item.label)
+    for item in model_args_list:
+        model_args_names.append(item.label)
+    run_button.click(
+        get_model_args,
+        inputs=[method] + model_args_list,
+        outputs=None,
+    ).then(
+        get_data_parser_args,
+        inputs=[dataparser] + dataparser_args_list,
+        outputs=None,
+    ).then(
+        run,
+        inputs=[data_path, method, max_num_iterations, steps_per_save, dataparser],
+        outputs=None,
+    )
 
-    run_button.click(run, inputs=[data_path, method, max_num_iterations, steps_per_save, dataparser], outputs=None)
 
 demo.launch()
