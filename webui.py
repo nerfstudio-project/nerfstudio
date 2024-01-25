@@ -27,7 +27,7 @@ def run_ns_train_realtime(cmd):
         return f"Error: {e}"
 
 
-def run(data_path, method, max_num_iterations, steps_per_save, data_parser):
+def run(data_path, method, max_num_iterations, steps_per_save, data_parser, visualizer):
     # generate the command
     # model_args = (
     #     get_model_args(method) + f" --steps-per-save {steps_per_save} --max-num-iterations {max_num_iterations}"
@@ -36,7 +36,7 @@ def run(data_path, method, max_num_iterations, steps_per_save, data_parser):
     # data_parser_args = get_data_parser_args(data_parser)
     # print(model_args)
     # print(dataparser_args)
-    cmd = f"ns-train {method} {model_args} --max-num-iterations {max_num_iterations} --steps-per-save {steps_per_save}  --data {data_path} {data_parser}"
+    cmd = f"ns-train {method} {model_args} --vis {visualizer} --max-num-iterations {max_num_iterations} --steps-per-save {steps_per_save}  --data {data_path} {data_parser} {dataparser_args}"
     # run the command
     result = run_ns_train_realtime(cmd)
     return result
@@ -170,10 +170,24 @@ with gr.Blocks() as demo:
             method = gr.Radio(choices=mc.all_descriptions.keys(), label="Method")
             description = gr.Textbox(label="Description", visible=True)
             method.change(fn=get_model_description, inputs=method, outputs=description)
+        with gr.Column():
+            dataparser = gr.Radio(choices=dc.all_dataparsers.keys(), label="Data Parser")
+            visualizer = gr.Radio(
+                choices=[
+                    "viewer",
+                    "wandb",
+                    "tensorboard",
+                    "comet",
+                    "viewer+wandb",
+                    "viewer+tensorboard",
+                    "viewer+comet",
+                    "viewer_legacy",
+                ],
+                label="Visualizer",
+                value="viewer",
+            )
 
-        dataparser = gr.Radio(choices=dc.all_dataparsers.keys(), label="Data Parser")
-
-    with gr.Accordion("Model Args", open=False):
+    with gr.Accordion("Model Config", open=False):
         for key, value in mc.all_descriptions.items():
             with gr.Group(visible=False) as group:
                 if key in mc.method_configs:
@@ -190,7 +204,7 @@ with gr.Blocks() as demo:
         # when the model changes, make the corresponding model args visible
         method.change(fn=vis_model_args, inputs=method, outputs=model_groups)
 
-    with gr.Accordion("Data Parser Args", open=False):
+    with gr.Accordion("Data Parser Config", open=False):
         for key, parser_config in dc.all_dataparsers.items():
             with gr.Group(visible=False) as group:
                 generated_args, labels = generate_args(parser_config, visible=True)
@@ -216,7 +230,7 @@ with gr.Blocks() as demo:
         outputs=None,
     ).then(
         run,
-        inputs=[data_path, method, max_num_iterations, steps_per_save, dataparser],
+        inputs=[data_path, method, max_num_iterations, steps_per_save, dataparser, visualizer],
         outputs=None,
     )
 
