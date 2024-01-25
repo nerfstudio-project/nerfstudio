@@ -170,25 +170,10 @@ with gr.Blocks() as demo:
             method = gr.Radio(choices=mc.all_descriptions.keys(), label="Method")
             description = gr.Textbox(label="Description", visible=True)
             method.change(fn=get_model_description, inputs=method, outputs=description)
+
         dataparser = gr.Radio(choices=dc.all_dataparsers.keys(), label="Data Parser")
 
-    with gr.Accordion("Data Parser Args"):
-        for key, parser_config in dc.all_dataparsers.items():
-            with gr.Group(visible=False) as group:
-                generated_args, labels = generate_args(parser_config, visible=True)
-
-                dataparser_arg_list += generated_args
-                dataparser_arg_names += labels
-
-                dataparser_arg_idx[key] = [len(dataparser_arg_list) - len(generated_args), len(dataparser_arg_list)]
-
-                dataparser_groups.append(group)
-                dataparser_group_idx[key] = len(dataparser_groups) - 1
-
-        # when the dataparser changes, make the corresponding dataparser args visible
-        dataparser.change(fn=vis_data_parser_args, inputs=dataparser, outputs=dataparser_groups)
-
-    with gr.Accordion("Model Args"):
+    with gr.Accordion("Model Args", open=False):
         for key, value in mc.all_descriptions.items():
             with gr.Group(visible=False) as group:
                 if key in mc.method_configs:
@@ -204,6 +189,22 @@ with gr.Blocks() as demo:
                     model_group_idx[key] = len(model_groups) - 1
         # when the model changes, make the corresponding model args visible
         method.change(fn=vis_model_args, inputs=method, outputs=model_groups)
+
+    with gr.Accordion("Data Parser Args", open=False):
+        for key, parser_config in dc.all_dataparsers.items():
+            with gr.Group(visible=False) as group:
+                generated_args, labels = generate_args(parser_config, visible=True)
+
+                dataparser_arg_list += generated_args
+                dataparser_arg_names += labels
+
+                dataparser_arg_idx[key] = [len(dataparser_arg_list) - len(generated_args), len(dataparser_arg_list)]
+
+                dataparser_groups.append(group)
+                dataparser_group_idx[key] = len(dataparser_groups) - 1
+
+        # when the dataparser changes, make the corresponding dataparser args visible
+        dataparser.change(fn=vis_data_parser_args, inputs=dataparser, outputs=dataparser_groups)
 
     run_button.click(
         get_model_args,
