@@ -10,6 +10,7 @@ from nerfstudio.configs import dataparser_configs as dc, method_configs as mc
 
 
 def run_ns_train_realtime(cmd):
+    # TODO: add direct CLI support
     try:
         process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 
@@ -28,9 +29,12 @@ def run_ns_train_realtime(cmd):
 
 def run(data_path, method, max_num_iterations, steps_per_save, data_parser):
     # generate the command
-    model_args = get_model_args(method) + " --steps_per_save {steps_per_save} --max_num_iterations {max_num_iterations}"
+    model_args = (
+        get_model_args(method) + f" --steps-per-save {steps_per_save} --max-num-iterations {max_num_iterations}"
+    )
+    # TODO: add data parser args, idk why it doesn't work
     data_parser_args = get_data_parser_args(data_parser)
-    cmd = f"ns-train {method} {model_args} --data {data_path} {data_parser} {data_parser_args}"
+    cmd = f"ns-train {method} {model_args} --data {data_path} {data_parser}"
     # run the command
     result = run_ns_train_realtime(cmd)
     return result
@@ -41,7 +45,6 @@ def get_model_args(method):
     args = model_args[method]
     for arg in args:
         key, value = arg.label, arg.value
-        print(key, value)
         # change key to --pipeline.model.{key}
         key = key.replace("_", "-")
         cmd += f"--pipeline.model.{key} {value} "
@@ -55,10 +58,8 @@ def get_data_parser_args(dataparser):
     args = dataparser_args[dataparser]
     for arg in args:
         key, value = arg.label, arg.value
-        print(key, value)
-        # change key to --pipeline.model.{key}
         key = key.replace("_", "-")
-        cmd += f"--pipeline.datamanager.{key} {value} "
+        cmd += f"--{key} {value} "
     # remove the last space
     cmd = cmd[:-1]
     return cmd
@@ -83,6 +84,7 @@ def generate_args(config, visible=True):
         elif isinstance(value, int):
             config_inputs.append(gr.Textbox(label=key, lines=1, value=value, visible=visible, interactive=True))
         # if type is Literal, then add a radio
+        # TODO: fix this
         elif hasattr(value, "__origin__") and value.__origin__ is Literal:
             print(value.__args__)
             config_inputs.append(gr.Radio(choices=value.__args__, label=key, visible=visible, interactive=True))
@@ -132,9 +134,13 @@ model_group_idx = {}  # keep track of the model group index
 model_args = {}
 
 with gr.Blocks() as demo:
-    run_button = gr.Button(
-        value="Run",
-    )
+    with gr.Row():
+        run_button = gr.Button(
+            value="Run",
+        )
+        viser_button = gr.Button(value="Open Viser", link="http://127.0.0.1:7007")
+    # TODO: Add a progress bar
+    # TODO: Make the run button disabled when the process is running
 
     # input data path
     with gr.Row():
@@ -174,6 +180,6 @@ with gr.Blocks() as demo:
         # when the model changes, make the corresponding model args visible
         method.change(fn=vis_model_args, inputs=method, outputs=model_groups)
 
-    run_button.click(run, inputs=[data_path, method, dataparser])
+    run_button.click(run, inputs=[data_path, method, max_num_iterations, steps_per_save, dataparser], outputs=None)
 
 demo.launch()
