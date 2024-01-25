@@ -775,7 +775,7 @@ class SplatfactoModel(Model):
                 torch.sigmoid(opacities_crop),
                 H,
                 W,
-                background=torch.zeros(3, device=self.device) * 10,
+                background=torch.zeros(3, device=self.device),
             )[..., 0:1]  # type: ignore
             depth_im[alpha > 0] = depth_im[alpha > 0] / alpha[alpha > 0]
             depth_im[alpha == 0] = 1000
