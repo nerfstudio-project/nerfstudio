@@ -34,8 +34,8 @@ def run(data_path, method, max_num_iterations, steps_per_save, data_parser):
     # )
     # TODO: add data parser args, idk why it doesn't work
     # data_parser_args = get_data_parser_args(data_parser)
-    print(model_args)
-    print(dataparser_args)
+    # print(model_args)
+    # print(dataparser_args)
     cmd = f"ns-train {method} {model_args} --steps-per-save {steps_per_save} --max-num-iterations {max_num_iterations} --data {data_path} {data_parser}"
     # run the command
     result = run_ns_train_realtime(cmd)
@@ -43,11 +43,11 @@ def run(data_path, method, max_num_iterations, steps_per_save, data_parser):
 
 
 def get_model_args(method, *args):
-    args = list(args)
     global model_args
+    args = list(args)
     cmd = ""
-    values = args[model_args_idx[method][0] : model_args_idx[method][1]]
-    names = model_args_names[model_args_idx[method][0] : model_args_idx[method][1]]
+    values = args[model_arg_idx[method][0] : model_arg_idx[method][1]]
+    names = model_arg_names[model_arg_idx[method][0] : model_arg_idx[method][1]]
     for key, value in zip(names, values):
         cmd += f"--pipeline.model.{key} {value} "
     # remove the last space
@@ -55,17 +55,16 @@ def get_model_args(method, *args):
 
 
 def get_data_parser_args(dataparser, *args):
-    args = list(args)
     global dataparser_args
+    args = list(args)
     cmd = ""
-    names = dataparser_args_names[dataparser_args_idx[dataparser][0] : dataparser_args_idx[dataparser][1]]
-    values = args[dataparser_args_idx[dataparser][0] : dataparser_args_idx[dataparser][1]]
+    names = dataparser_arg_names[dataparser_arg_idx[dataparser][0] : dataparser_arg_idx[dataparser][1]]
+    values = args[dataparser_arg_idx[dataparser][0] : dataparser_arg_idx[dataparser][1]]
     for key, value in zip(names, values):
         # change key to --{key}
         cmd += f"--{key} {value} "
     # remove the last space
-    cmd = cmd[:-1]
-    dataparser_args = cmd
+    dataparser_args = cmd[:-1]
 
 
 def get_model_description(method):
@@ -75,9 +74,11 @@ def get_model_description(method):
 def generate_args(config, visible=True):
     config_dict = asdict(config)
     config_inputs = []
+    config_labels = []
     # print(config_dict)
     for key, value in config_dict.items():
         # if type is float, then add a textbox
+        config_labels.append(key)
         if isinstance(value, float):
             config_inputs.append(gr.Textbox(label=key, lines=1, value=value, visible=visible, interactive=True))
         # if type is bool, then add a checkbox
@@ -95,15 +96,17 @@ def generate_args(config, visible=True):
         elif isinstance(value, str):
             config_inputs.append(gr.Textbox(label=key, lines=1, value=value, visible=visible, interactive=True))
         else:
+            # erase the last one
+            config_labels.pop()
             continue
     # print(config_inputs)
-    return config_inputs
+    return config_inputs, config_labels
 
 
 def vis_data_parser_args(dataparser):
     # print(group_keys)
     # print(dataparser_args)
-    idx = dp_group_idx[dataparser]
+    idx = dataparser_group_idx[dataparser]
     # if the dataparser is not the current one, then hide the dataparser args
     update_info = [gr.update(visible=False)] * len(dataparser_groups)
     update_info[idx] = gr.update(visible=True)
@@ -132,16 +135,16 @@ model_args = ""
 dataparser_args = ""
 
 dataparser_groups = []  # keep track of the dataparser groups
-dp_group_idx = {}  # keep track of the dataparser group index
-dataparser_args_list = []  # keep track of the dataparser args
-dataparser_args_names = []  # keep track of the dataparser args names
-dataparser_args_idx = {}  # record the start and end index of the dataparser args
+dataparser_group_idx = {}  # keep track of the dataparser group index
+dataparser_arg_list = []  # gr components for the dataparser args
+dataparser_arg_names = []  # keep track of the dataparser args names
+dataparser_arg_idx = {}  # record the start and end index of the dataparser args
 
 model_groups = []  # keep track of the model groups
 model_group_idx = {}  # keep track of the model group index
-model_args_list = []
-model_args_names = []  # keep track of the model args names
-model_args_idx = {}  # record the start and end index of the model args
+model_arg_list = []  # gr components for the model args
+model_arg_names = []  # keep track of the model args names
+model_arg_idx = {}  # record the start and end index of the model args
 
 with gr.Blocks() as demo:
     with gr.Row():
@@ -170,13 +173,17 @@ with gr.Blocks() as demo:
         dataparser = gr.Radio(choices=dc.all_dataparsers.keys(), label="Data Parser")
 
     with gr.Accordion("Data Parser Args"):
-        for key, value in dc.all_dataparsers.items():
+        for key, parser_config in dc.all_dataparsers.items():
             with gr.Group(visible=False) as group:
-                generated_args = generate_args(value, visible=True)
-                dataparser_args_list += generated_args
-                dataparser_args_idx[key] = [len(dataparser_args_list) - len(generated_args), len(dataparser_args_list)]
+                generated_args, labels = generate_args(parser_config, visible=True)
+
+                dataparser_arg_list += generated_args
+                dataparser_arg_names += labels
+
+                dataparser_arg_idx[key] = [len(dataparser_arg_list) - len(generated_args), len(dataparser_arg_list)]
+
                 dataparser_groups.append(group)
-                dp_group_idx[key] = len(dataparser_groups) - 1
+                dataparser_group_idx[key] = len(dataparser_groups) - 1
 
         # when the dataparser changes, make the corresponding dataparser args visible
         dataparser.change(fn=vis_data_parser_args, inputs=dataparser, outputs=dataparser_groups)
@@ -186,25 +193,25 @@ with gr.Blocks() as demo:
             with gr.Group(visible=False) as group:
                 if key in mc.method_configs:
                     model_config = mc.method_configs[key].pipeline.model
-                    generated_args = generate_args(model_config, visible=True)
-                    model_args_list += generated_args
-                    model_args_idx[key] = [len(model_args_list) - len(generated_args), len(model_args_list)]
+                    generated_args, labels = generate_args(model_config, visible=True)
+
+                    model_arg_list += generated_args
+                    model_arg_names += labels
+
+                    model_arg_idx[key] = [len(model_arg_list) - len(generated_args), len(model_arg_list)]
 
                     model_groups.append(group)
                     model_group_idx[key] = len(model_groups) - 1
         # when the model changes, make the corresponding model args visible
         method.change(fn=vis_model_args, inputs=method, outputs=model_groups)
-    for item in dataparser_args_list:
-        dataparser_args_names.append(item.label)
-    for item in model_args_list:
-        model_args_names.append(item.label)
+
     run_button.click(
         get_model_args,
-        inputs=[method] + model_args_list,
+        inputs=[method] + model_arg_list,
         outputs=None,
     ).then(
         get_data_parser_args,
-        inputs=[dataparser] + dataparser_args_list,
+        inputs=[dataparser] + dataparser_arg_list,
         outputs=None,
     ).then(
         run,
