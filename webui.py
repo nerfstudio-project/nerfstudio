@@ -36,7 +36,7 @@ def run(data_path, method, max_num_iterations, steps_per_save, data_parser):
     # data_parser_args = get_data_parser_args(data_parser)
     # print(model_args)
     # print(dataparser_args)
-    cmd = f"ns-train {method} {model_args} --steps-per-save {steps_per_save} --max-num-iterations {max_num_iterations} --data {data_path} {data_parser}"
+    cmd = f"ns-train {method} {model_args} --max-num-iterations {max_num_iterations} --steps-per-save {steps_per_save}  --data {data_path} {data_parser}"
     # run the command
     result = run_ns_train_realtime(cmd)
     return result
