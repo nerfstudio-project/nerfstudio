@@ -56,7 +56,7 @@ Legacy viewer tutorial video
 In the tutorial video below, we walk you through how you can turn a simple capture into a 3D video 📸 🎬
 
 This video is for the legacy viewer, which was the default in :code:`nerfstudio<1.0`. It has some visual differences from the current viewer. However, the core functionality is the same.
-The legacy viewer can still be enabled with the :code:`--vis viewer_legacy` option, for example, :code:`ns-train nerfcato --vis viewer_legacy`.
+The legacy viewer can still be enabled with the :code:`--vis viewer_legacy` option, for example, :code:`ns-train nerfacto --vis viewer_legacy`.
 
 .. raw:: html
 
