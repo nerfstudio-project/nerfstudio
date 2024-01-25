@@ -109,7 +109,7 @@ class DataProcessor(mp.Process):  # type: ignore
                     time.sleep(0.0001)
                 except Exception:
                     CONSOLE.print_exception()
-                    CONSOLE.print("[bold red]Error: Error occured in parallel datamanager queue.")
+                    CONSOLE.print("[bold red]Error: Error occurred in parallel datamanager queue.")
 
     def cache_images(self):
         """Caches all input images into a NxHxWx3 tensor."""

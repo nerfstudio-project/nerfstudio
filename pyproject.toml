@@ -65,7 +65,8 @@ dependencies = [
     "timm==0.6.7",
     "gsplat==0.1.2.1",
     "pytorch-msssim",
-    "pathos"
+    "pathos",
+    "packaging"
 ]
 
 [project.urls]
