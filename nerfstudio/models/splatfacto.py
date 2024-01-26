@@ -222,9 +222,9 @@ class SplatfactoModel(Model):
 
         self.crop_box: Optional[OrientedBox] = None
         if self.config.background_color == "random":
-            self.background_color = torch.rand(3)
+            self.background_color = torch.tensor([0.1490, 0.1647, 0.2157])
         elif self.config.background_color == "flip":
-            self.background_color = torch.ones(3)
+            self.background_color = torch.tensor([0.1490, 0.1647, 0.2157])
         else:
             self.background_color = get_color(self.config.background_color)
 
