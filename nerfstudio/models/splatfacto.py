@@ -756,7 +756,7 @@ class SplatfactoModel(Model):
         # rescale the camera back to original dimensions
         camera.rescale_output_resolution(camera_downscale)
         assert (num_tiles_hit > 0).any()  # type: ignore
-        rgb = rasterize_gaussians(  # type: ignore
+        rgb, alpha = rasterize_gaussians(  # type: ignore
             self.xys,
             depths,
             self.radii,
@@ -767,7 +767,9 @@ class SplatfactoModel(Model):
             H,
             W,
             background=background,
+            return_alpha=True,
         )  # type: ignore
+        alpha = alpha[..., None]
         rgb = torch.clamp(rgb, max=1.0)  # type: ignore
         depth_im = None
         if not self.training:
@@ -781,10 +783,12 @@ class SplatfactoModel(Model):
                 torch.sigmoid(opacities_crop),
                 H,
                 W,
-                background=torch.ones(3, device=self.device) * 10,
+                background=torch.zeros(3, device=self.device),
             )[..., 0:1]  # type: ignore
+            depth_im[alpha > 0] = depth_im[alpha > 0] / alpha[alpha > 0]
+            depth_im[alpha == 0] = 1000
 
-        return {"rgb": rgb, "depth": depth_im}  # type: ignore
+        return {"rgb": rgb, "depth": depth_im, "accumulation": alpha}  # type: ignore
 
     def get_gt_img(self, image: torch.Tensor):
         """Compute groundtruth image with iteration dependent downscale factor for evaluation purpose

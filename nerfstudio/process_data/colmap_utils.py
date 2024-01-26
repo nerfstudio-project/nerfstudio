@@ -25,6 +25,7 @@ import cv2
 import numpy as np
 import requests
 import torch
+from packaging.version import Version
 from rich.progress import track
 
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
@@ -42,7 +43,7 @@ from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
 
 
-def get_colmap_version(colmap_cmd: str, default_version=3.8) -> float:
+def get_colmap_version(colmap_cmd: str, default_version: str = "3.8") -> Version:
     """Returns the version of COLMAP.
     This code assumes that colmap returns a version string of the form
     "COLMAP 3.8 ..." which may not be true for all versions of COLMAP.
@@ -57,10 +58,10 @@ def get_colmap_version(colmap_cmd: str, default_version=3.8) -> float:
     for line in output.split("\n"):
         if line.startswith("COLMAP"):
             version = line.split(" ")[1]
-            version = "".join([c for c in version if c.isdigit() or c == "."])
-            return float(version)
+            version = Version(version)
+            return version
     CONSOLE.print(f"[bold red]Could not find COLMAP version. Using default {default_version}")
-    return default_version
+    return Version(default_version)
 
 
 def get_vocab_tree() -> Path:
@@ -158,7 +159,7 @@ def run_colmap(
         f"--image_path {image_dir}",
         f"--output_path {sparse_dir}",
     ]
-    if colmap_version >= 3.7:
+    if colmap_version >= Version("3.7"):
         mapper_cmd.append("--Mapper.ba_global_function_tolerance=1e-6")
 
     mapper_cmd = " ".join(mapper_cmd)
