@@ -1,4 +1,3 @@
-import subprocess
 import tkinter as tk
 from dataclasses import asdict
 from pathlib import Path
