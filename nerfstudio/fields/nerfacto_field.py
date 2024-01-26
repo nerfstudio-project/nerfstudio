@@ -37,13 +37,13 @@ from nerfstudio.field_components.field_heads import (
     TransientRGBFieldHead,
     UncertaintyFieldHead,
 )
-from nerfstudio.field_components.mlp import MLP
+from nerfstudio.field_components.mlp import MLP, MLPWithHashEncoding
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.base_field import Field, get_normalized_directions
 
 
 class NerfactoField(Field):
-    """Compound Field that uses TCNN
+    """Compound Field
 
     Args:
         aabb: parameters of scene aabb bounds

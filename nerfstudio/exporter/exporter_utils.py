@@ -21,10 +21,9 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import numpy as np
-import open3d as o3d
 import pymeshlab
 import torch
 from jaxtyping import Float
@@ -32,10 +31,16 @@ from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, T
 from torch import Tensor
 
 from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
+
+if TYPE_CHECKING:
+    # Importing open3d can take ~1 second, so only do it below if we actually
+    # need it.
+    import open3d as o3d
 
 
 @dataclass
@@ -130,6 +135,7 @@ def generate_point_cloud(
 
             with torch.no_grad():
                 ray_bundle, _ = pipeline.datamanager.next_train(0)
+                assert isinstance(ray_bundle, RayBundle)
                 outputs = pipeline.model(ray_bundle)
             if rgb_output_name not in outputs:
                 CONSOLE.rule("Error", style="red")
@@ -190,6 +196,8 @@ def generate_point_cloud(
     points = torch.cat(points, dim=0)
     rgbs = torch.cat(rgbs, dim=0)
     view_directions = torch.cat(view_directions, dim=0).cpu()
+
+    import open3d as o3d
 
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points.double().cpu().numpy())

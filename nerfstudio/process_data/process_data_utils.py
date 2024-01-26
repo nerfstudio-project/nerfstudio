@@ -24,8 +24,13 @@ from typing import List, Literal, Optional, OrderedDict, Tuple, Union
 
 import cv2
 import imageio
+
+try:
+    import rawpy
+except ImportError:
+    import newrawpy as rawpy  # type: ignore
+
 import numpy as np
-import rawpy
 
 from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
@@ -53,16 +58,18 @@ CAMERA_MODELS = {
 }
 
 
-def list_images(data: Path) -> List[Path]:
+def list_images(data: Path, recursive: bool = False) -> List[Path]:
     """Lists all supported images in a directory
 
     Args:
         data: Path to the directory of images.
+        recursive: Whether to search check nested folders in `data`.
     Returns:
         Paths to images contained in the directory
     """
     allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"] + ALLOWED_RAW_EXTS
-    image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+    glob_str = "**/[!.]*" if recursive else "[!.]*"
+    image_paths = sorted([p for p in data.glob(glob_str) if p.suffix.lower() in allowed_exts])
     return image_paths
 
 
@@ -352,7 +359,11 @@ def copy_and_upscale_polycam_depth_maps_list(
     depth_dir.mkdir(parents=True, exist_ok=True)
 
     # copy and upscale them to new directory
-    with status(msg="[bold yellow] Upscaling depth maps...", spinner="growVertical", verbose=verbose):
+    with status(
+        msg="[bold yellow] Upscaling depth maps...",
+        spinner="growVertical",
+        verbose=verbose,
+    ):
         upscale_factor = 2**POLYCAM_UPSCALING_TIMES
         assert upscale_factor > 1
         assert isinstance(upscale_factor, int)
@@ -437,7 +448,11 @@ def downscale_images(
     if num_downscales == 0:
         return "No downscaling performed."
 
-    with status(msg="[bold yellow]Downscaling images...", spinner="growVertical", verbose=verbose):
+    with status(
+        msg="[bold yellow]Downscaling images...",
+        spinner="growVertical",
+        verbose=verbose,
+    ):
         downscale_factors = [2**i for i in range(num_downscales + 1)[1:]]
         for downscale_factor in downscale_factors:
             assert downscale_factor > 1
@@ -477,7 +492,16 @@ def find_tool_feature_matcher_combination(
         "disk",
     ],
     matcher_type: Literal[
-        "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
+        "any",
+        "NN",
+        "superglue",
+        "superglue-fast",
+        "NN-superpoint",
+        "NN-ratio",
+        "NN-mutual",
+        "adalam",
+        "disk+lightglue",
+        "superpoint+lightglue",
     ],
 ) -> Union[
     Tuple[None, None, None],
@@ -493,7 +517,17 @@ def find_tool_feature_matcher_combination(
             "sosnet",
             "disk",
         ],
-        Literal["NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"],
+        Literal[
+            "NN",
+            "superglue",
+            "superglue-fast",
+            "NN-superpoint",
+            "NN-ratio",
+            "NN-mutual",
+            "adalam",
+            "disk+lightglue",
+            "superpoint+lightglue",
+        ],
     ],
 ]:
     """Find a valid combination of sfm tool, feature type, and matcher type.
@@ -581,7 +615,10 @@ def generate_crop_mask(height: int, width: int, crop_factor: Tuple[float, float,
 
 
 def generate_mask(
-    height: int, width: int, crop_factor: Tuple[float, float, float, float], percent_radius: float
+    height: int,
+    width: int,
+    crop_factor: Tuple[float, float, float, float],
+    percent_radius: float,
 ) -> Optional[np.ndarray]:
     """generate a mask of the given size.
 

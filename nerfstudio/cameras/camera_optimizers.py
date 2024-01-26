@@ -23,16 +23,18 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional, Type, Union
 
 import torch
+import tyro
 from jaxtyping import Float, Int
 from torch import Tensor, nn
 from typing_extensions import assert_never
 
+from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.lie_groups import exp_map_SE3, exp_map_SO3xR3
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
-from nerfstudio.utils import poses as pose_utils
 from nerfstudio.engine.optimizers import OptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
+from nerfstudio.utils import poses as pose_utils
 
 
 @dataclass
@@ -50,15 +52,17 @@ class CameraOptimizerConfig(InstantiateConfig):
     rot_l2_penalty: float = 1e-3
     """L2 penalty on rotation parameters."""
 
-    optimizer: Optional[OptimizerConfig] = field(default=None)
+    # tyro.conf.Suppress prevents us from creating CLI arguments for these fields.
+    optimizer: tyro.conf.Suppress[Optional[OptimizerConfig]] = field(default=None)
     """Deprecated, now specified inside the optimizers dict"""
 
-    scheduler: Optional[SchedulerConfig] = field(default=None)
+    scheduler: tyro.conf.Suppress[Optional[SchedulerConfig]] = field(default=None)
     """Deprecated, now specified inside the optimizers dict"""
 
     def __post_init__(self):
         if self.optimizer is not None:
             import warnings
+
             from nerfstudio.utils.rich_utils import CONSOLE
 
             CONSOLE.print(
@@ -69,6 +73,7 @@ class CameraOptimizerConfig(InstantiateConfig):
 
         if self.scheduler is not None:
             import warnings
+
             from nerfstudio.utils.rich_utils import CONSOLE
 
             CONSOLE.print(
@@ -145,6 +150,16 @@ class CameraOptimizer(nn.Module):
             correction_matrices = self(raybundle.camera_indices.squeeze())  # type: ignore
             raybundle.origins = raybundle.origins + correction_matrices[:, :3, 3]
             raybundle.directions = torch.bmm(correction_matrices[:, :3, :3], raybundle.directions[..., None]).squeeze()
+
+    def apply_to_camera(self, camera: Cameras) -> None:
+        """Apply the pose correction to the raybundle"""
+        if self.config.mode != "off":
+            assert camera.metadata is not None, "Must provide id of camera in its metadata"
+            assert "cam_idx" in camera.metadata, "Must provide id of camera in its metadata"
+            camera_idx = camera.metadata["cam_idx"]
+            adj = self([camera_idx])  # type: ignore
+            adj = torch.cat([adj, torch.Tensor([0, 0, 0, 1])[None, None].to(adj)], dim=1)
+            camera.camera_to_worlds = torch.bmm(camera.camera_to_worlds, adj)
 
     def get_loss_dict(self, loss_dict: dict) -> None:
         """Add regularization"""

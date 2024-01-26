@@ -15,11 +15,10 @@
 
 from __future__ import annotations
 
-import math
 import sys
 from dataclasses import dataclass, field
-from pathlib import Path
 from functools import partial
+from pathlib import Path
 from typing import List, Literal, Optional, Type
 
 import numpy as np
@@ -32,9 +31,15 @@ from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras
 from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.data.utils import colmap_parsing_utils as colmap_utils
+from nerfstudio.data.utils.dataparsers_utils import (
+    get_train_eval_split_all,
+    get_train_eval_split_filename,
+    get_train_eval_split_fraction,
+    get_train_eval_split_interval,
+)
 from nerfstudio.process_data.colmap_utils import parse_colmap_camera_params
-from nerfstudio.utils.scripts import run_command
 from nerfstudio.utils.rich_utils import CONSOLE, status
+from nerfstudio.utils.scripts import run_command
 
 MAX_AUTO_RESOLUTION = 1600
 
@@ -59,8 +64,24 @@ class ColmapDataParserConfig(DataParserConfig):
     """The method to use to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
+    assume_colmap_world_coordinate_convention: bool = True
+    """Colmap optimized world often have y direction of the first camera pointing towards down direction,
+    while nerfstudio world set z direction to be up direction for viewer. Therefore, we usually need to apply an extra
+    transform when orientation_method=none. This parameter has no effects if orientation_method is set other than none.
+    When this parameter is set to False, no extra transform is applied when reading data from colmap.
+    """
+    eval_mode: Literal["fraction", "filename", "interval", "all"] = "interval"
+    """
+    The method to use for splitting the dataset into train and eval.
+    Fraction splits based on a percentage for train and the remaining for eval.
+    Filename splits based on filenames containing train/eval.
+    Interval uses every nth frame for eval (used by most academic papers, e.g. MipNerf360, GSplat).
+    All uses all the images for any split.
+    """
     train_split_fraction: float = 0.9
     """The fraction of images to use for training. The remaining images are for eval."""
+    eval_interval: int = 8
+    """The interval between frames to use for eval. Only used when eval_mode is eval-interval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
 
@@ -70,11 +91,12 @@ class ColmapDataParserConfig(DataParserConfig):
     """Path to masks directory. If not set, masks are not loaded."""
     depths_path: Optional[Path] = None
     """Path to depth maps directory. If not set, depths are not loaded."""
-    colmap_path: Path = Path("sparse/0")
+    colmap_path: Path = Path("colmap/sparse/0")
     """Path to the colmap reconstruction directory relative to the data path."""
-    load_3D_points: bool = False
-    """Whether to load the 3D points from the colmap reconstruction."""
-    max_2D_matches_per_3D_point: int = -1
+    load_3D_points: bool = True
+    """Whether to load the 3D points from the colmap reconstruction. This is helpful for Gaussian splatting and
+    generally unused otherwise, but it's typically harmless so we default to True."""
+    max_2D_matches_per_3D_point: int = 0
     """Maximum number of 2D matches per 3D point. If set to -1, all 2D matches are loaded. If set to 0, no 2D matches are loaded."""
 
 
@@ -124,7 +146,10 @@ class ColmapDataParser(DataParser):
             cameras[cam_id] = parse_colmap_camera_params(cam_data)
 
         # Parse frames
-        for im_id, im_data in im_id_to_image.items():
+        # we want to sort all images based on im_id
+        ordered_im_id = sorted(im_id_to_image.keys())
+        for im_id in ordered_im_id:
+            im_data = im_id_to_image[im_id]
             # NB: COLMAP uses Eigen / scalar-first quaternions
             # * https://colmap.github.io/format.html
             # * https://github.com/colmap/colmap/blob/bf3e19140f491c3042bfd85b7192ef7d249808ec/src/base/pose.cc#L75
@@ -136,8 +161,10 @@ class ColmapDataParser(DataParser):
             c2w = np.linalg.inv(w2c)
             # Convert from COLMAP's camera coordinate system (OpenCV) to ours (OpenGL)
             c2w[0:3, 1:3] *= -1
-            c2w = c2w[np.array([1, 0, 2, 3]), :]
-            c2w[2, :] *= -1
+            if self.config.assume_colmap_world_coordinate_convention:
+                # world coordinate transform: map colmap gravity guess (-y) to nerfstudio convention (+z)
+                c2w = c2w[np.array([0, 2, 1, 3]), :]
+                c2w[2, :] *= -1
 
             frame = {
                 "file_path": (self.config.data / self.config.images_path / im_data.name).as_posix(),
@@ -161,10 +188,12 @@ class ColmapDataParser(DataParser):
 
         out = {}
         out["frames"] = frames
-        applied_transform = np.eye(4)[:3, :]
-        applied_transform = applied_transform[np.array([1, 0, 2]), :]
-        applied_transform[2, :] *= -1
-        out["applied_transform"] = applied_transform.tolist()
+        if self.config.assume_colmap_world_coordinate_convention:
+            # world coordinate transform: map colmap gravity guess (-y) to nerfstudio convention (+z)
+            applied_transform = np.eye(4)[:3, :]
+            applied_transform = applied_transform[np.array([0, 2, 1]), :]
+            applied_transform[2, :] *= -1
+            out["applied_transform"] = applied_transform.tolist()
         out["camera_model"] = camera_model
         assert len(frames) > 0, "No images found in the colmap model"
         return out
@@ -193,16 +222,21 @@ class ColmapDataParser(DataParser):
         elif has_split_files_spec:
             raise RuntimeError(f"The dataset's list of filenames for split {split} is missing.")
         else:
-            # filter image_filenames and poses based on train/eval split percentage
-            num_images = len(image_filenames)
-            num_train_images = math.ceil(num_images * self.config.train_split_fraction)
-            num_eval_images = num_images - num_train_images
-            i_all = np.arange(num_images)
-            i_train = np.linspace(
-                0, num_images - 1, num_train_images, dtype=int
-            )  # equally spaced training images starting and ending at 0 and num_images-1
-            i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
-            assert len(i_eval) == num_eval_images
+            # find train and eval indices based on the eval_mode specified
+            if self.config.eval_mode == "fraction":
+                i_train, i_eval = get_train_eval_split_fraction(image_filenames, self.config.train_split_fraction)
+            elif self.config.eval_mode == "filename":
+                i_train, i_eval = get_train_eval_split_filename(image_filenames)
+            elif self.config.eval_mode == "interval":
+                i_train, i_eval = get_train_eval_split_interval(image_filenames, self.config.eval_interval)
+            elif self.config.eval_mode == "all":
+                CONSOLE.log(
+                    "[yellow] Be careful with '--eval-mode=all'. If using camera optimization, the cameras may diverge in the current implementation, giving unpredictable results."
+                )
+                i_train, i_eval = get_train_eval_split_all(image_filenames)
+            else:
+                raise ValueError(f"Unknown eval mode {self.config.eval_mode}")
+
             if split == "train":
                 indices = i_train
             elif split in ["val", "test"]:
@@ -257,15 +291,11 @@ class ColmapDataParser(DataParser):
             if "depth_path" in frame:
                 depth_filenames.append(Path(frame["depth_path"]))
 
-        assert len(mask_filenames) == 0 or (
-            len(mask_filenames) == len(image_filenames)
-        ), """
+        assert len(mask_filenames) == 0 or (len(mask_filenames) == len(image_filenames)), """
         Different number of image and mask filenames.
         You should check that mask_path is specified for every frame (or zero frames) in transforms.json.
         """
-        assert len(depth_filenames) == 0 or (
-            len(depth_filenames) == len(image_filenames)
-        ), """
+        assert len(depth_filenames) == 0 or (len(depth_filenames) == len(image_filenames)), """
         Different number of image and depth filenames.
         You should check that depth_file_path is specified for every frame (or zero frames) in transforms.json.
         """
@@ -281,7 +311,6 @@ class ColmapDataParser(DataParser):
         if self.config.auto_scale_poses:
             scale_factor /= float(torch.max(torch.abs(poses[:, :3, 3])))
         scale_factor *= self.config.scale_factor
-
         poses[:, :3, 3] *= scale_factor
 
         # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.
@@ -463,7 +492,7 @@ class ColmapDataParser(DataParser):
                 max_res = max(h, w)
                 df = 0
                 while True:
-                    if (max_res / 2 ** (df)) < MAX_AUTO_RESOLUTION:
+                    if (max_res / 2 ** (df)) <= MAX_AUTO_RESOLUTION:
                         break
                     df += 1
 
