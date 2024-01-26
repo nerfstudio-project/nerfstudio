@@ -1,31 +1,14 @@
 import subprocess
 import tkinter as tk
 from dataclasses import asdict
+from pathlib import Path
 from tkinter import filedialog
 from typing import Literal
 
 import gradio as gr
 
 from nerfstudio.configs import dataparser_configs as dc, method_configs as mc
-
-
-def run_ns_train_realtime(cmd):
-    # TODO: add direct CLI support
-    # TODO: NOT SAFE!!!
-    try:
-        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-
-        for line in iter(process.stdout.readline, ""):
-            print(line, end="")
-
-        return_code = process.wait()
-
-        if return_code != 0:
-            return f"Error: ns-train returned non-zero exit code {return_code}"
-
-        return "ns-train completed successfully"
-    except Exception as e:
-        return f"Error: {e}"
+from nerfstudio.scripts import train
 
 
 def run(data_path, method, max_num_iterations, steps_per_save, data_parser, visualizer):
@@ -45,10 +28,24 @@ def run(data_path, method, max_num_iterations, steps_per_save, data_parser, visu
         raise gr.Error("Please select a data path")
     if visualizer == "":
         raise gr.Error("Please select a visualizer")
-    cmd = f"ns-train {method} {model_args} --vis {visualizer} --max-num-iterations {max_num_iterations} --steps-per-save {steps_per_save}  --data {data_path} {data_parser} {dataparser_args}"
+    cmd = f"ns-train {method} {model_args_cmd} --vis {visualizer} --max-num-iterations {max_num_iterations} --steps-per-save {steps_per_save}  --data {data_path} {data_parser} {dataparser_args_cmd}"
     # run the command
-    result = run_ns_train_realtime(cmd)
-    return result
+    # result = run_ns_train_realtime(cmd)
+
+    # generate the cofig
+    config = mc.all_methods[method]
+    data_path = Path(data_path)
+    config.data = data_path
+    config.max_num_iterations = max_num_iterations
+    config.steps_per_save = steps_per_save
+    config.vis = visualizer
+    config.pipeline.datamanager.dataparser = dc.all_dataparsers[data_parser]
+    for key, value in dataparser_args.items():
+        setattr(config.pipeline.datamanager.dataparser, key, value)
+    for key, value in model_args.items():
+        setattr(config.pipeline.model, key, value)
+    train.main(config)
+    return cmd
 
 
 def check(data_path, method, data_parser, visualizer):
@@ -65,19 +62,25 @@ def check(data_path, method, data_parser, visualizer):
 
 
 def get_model_args(method, *args):
+    global model_args_cmd
     global model_args
+    temp_args = {}
     args = list(args)
     cmd = ""
     values = args[model_arg_idx[method][0] : model_arg_idx[method][1]]
     names = model_arg_names[model_arg_idx[method][0] : model_arg_idx[method][1]]
     for key, value in zip(names, values):
         cmd += f"--pipeline.model.{key} {value} "
+        temp_args[key] = value
     # remove the last space
-    model_args = cmd[:-1]
+    model_args_cmd = cmd[:-1]
+    model_args = temp_args
 
 
 def get_data_parser_args(dataparser, *args):
+    global dataparser_args_cmd
     global dataparser_args
+    temp_args = {}
     args = list(args)
     cmd = ""
     names = dataparser_arg_names[dataparser_arg_idx[dataparser][0] : dataparser_arg_idx[dataparser][1]]
@@ -85,8 +88,10 @@ def get_data_parser_args(dataparser, *args):
     for key, value in zip(names, values):
         # change key to --{key}
         cmd += f"--{key} {value} "
+        temp_args[key] = value
     # remove the last space
-    dataparser_args = cmd[:-1]
+    dataparser_args_cmd = cmd[:-1]
+    dataparser_args = temp_args
 
 
 def get_model_description(method):
@@ -102,13 +107,13 @@ def generate_args(config, visible=True):
         # if type is float, then add a textbox
         config_labels.append(key)
         if isinstance(value, float):
-            config_inputs.append(gr.Textbox(label=key, lines=1, value=value, visible=visible, interactive=True))
+            config_inputs.append(gr.Number(label=key, value=value, visible=visible, interactive=True, step=0.01))
         # if type is bool, then add a checkbox
         elif isinstance(value, bool):
             config_inputs.append(gr.Checkbox(label=key, value=value, visible=visible, interactive=True))
         # if type is int, then add a number
         elif isinstance(value, int):
-            config_inputs.append(gr.Number(label=key, value=value, visible=visible, interactive=True))
+            config_inputs.append(gr.Number(label=key, value=value, visible=visible, interactive=True, precision=0))
         # if type is Literal, then add a radio
         # TODO: fix this
         elif hasattr(value, "__origin__") and value.__origin__ is Literal:
@@ -155,8 +160,10 @@ def browse():
     return folder_path
 
 
-model_args = ""
-dataparser_args = ""
+model_args_cmd = ""
+dataparser_args_cmd = ""
+model_args = {}
+dataparser_args = {}
 
 dataparser_groups = []  # keep track of the dataparser groups
 dataparser_group_idx = {}  # keep track of the dataparser group index
