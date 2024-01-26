@@ -111,7 +111,7 @@ class SplatfactoModelConfig(ModelConfig):
     """period of steps where gaussians are culled and densified"""
     resolution_schedule: int = 250
     """training starts at 1/d resolution, every n steps this is doubled"""
-    background_color: Literal["random", "black", "white"] = "random"
+    background_color: Literal["random", "black", "white", "flip"] = "random"
     """Whether to randomize the background color."""
     num_downscales: int = 0
     """at the beginning, resolution is 1/2^d, where d is this number"""
@@ -223,6 +223,8 @@ class SplatfactoModel(Model):
         self.crop_box: Optional[OrientedBox] = None
         if self.config.background_color == "random":
             self.background_color = torch.rand(3)
+        elif self.config.background_color == "flip":
+            self.background_color = torch.ones(3)
         else:
             self.background_color = get_color(self.config.background_color)
 
@@ -650,6 +652,12 @@ class SplatfactoModel(Model):
         if self.training:
             if self.config.background_color == "random":
                 background = torch.rand(3, device=self.device)
+            elif self.config.background_color == "flip":
+                p = np.random.random_sample()
+                if p < 0.5:
+                    background = torch.ones(3, device=self.device)
+                else:
+                    background = torch.zeros(3, device=self.device)
             elif self.config.background_color == "white":
                 background = torch.ones(3, device=self.device)
             elif self.config.background_color == "black":
