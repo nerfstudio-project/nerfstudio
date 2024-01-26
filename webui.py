@@ -37,10 +37,31 @@ def run(data_path, method, max_num_iterations, steps_per_save, data_parser, visu
     # data_parser_args = get_data_parser_args(data_parser)
     # print(model_args)
     # print(dataparser_args)
+    if data_parser == "":
+        raise gr.Error("Please select a data parser")
+    if method == "":
+        raise gr.Error("Please select a method")
+    if data_path == "":
+        raise gr.Error("Please select a data path")
+    if visualizer == "":
+        raise gr.Error("Please select a visualizer")
     cmd = f"ns-train {method} {model_args} --vis {visualizer} --max-num-iterations {max_num_iterations} --steps-per-save {steps_per_save}  --data {data_path} {data_parser} {dataparser_args}"
     # run the command
     result = run_ns_train_realtime(cmd)
     return result
+
+
+def check(data_path, method, data_parser, visualizer):
+    if data_path == "":
+        return "Please select a data path"
+    elif method == "":
+        return "Please select a method"
+    elif data_parser == "":
+        return "Please select a data parser"
+    elif visualizer == "":
+        return "Please select a visualizer"
+    else:
+        return "Running..."
 
 
 def get_model_args(method, *args):
@@ -234,8 +255,8 @@ with gr.Blocks() as demo:
         inputs=[dataparser] + dataparser_arg_list,
         outputs=None,
     ).then(
-        lambda: "Your model is running!",
-        inputs=None,
+        check,
+        inputs=[data_path, method, dataparser, visualizer],
         outputs=status,
     ).then(
         run,
