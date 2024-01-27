@@ -53,17 +53,17 @@ def get_reconstruction(reconstruction_file: Path):
 
 
 def reconstruction_to_ply(reconstruction: dict, output_ply: Path):
-    points = reconstruction.get('points', [])
+    points = reconstruction.get("points", [])
     vertices = []
     colors = []
     transform = np.array([[0, 0, 1, 0], [0, -1, 0, 0], [1, 0, 0, 0]])
 
     for pid in points:
         point = points[pid]
-        p, c = point['coordinates'], point['color']
+        p, c = point["coordinates"], point["color"]
         vertices.append(p)
         colors.append(c)
-    
+
     vertices = np.array(vertices)
     coords = []
 
@@ -71,9 +71,7 @@ def reconstruction_to_ply(reconstruction: dict, output_ply: Path):
     for i in range(len(vertices)):
         v = vertices[i]
         c = colors[i]
-        coords.append("{} {} {} {} {} {}".format(
-            v[0], v[1], v[2], int(c[0]), int(c[1]), int(c[2])
-        ))
+        coords.append("{} {} {} {} {} {}".format(v[0], v[1], v[2], int(c[0]), int(c[1]), int(c[2])))
 
     header = [
         "ply",
@@ -85,7 +83,7 @@ def reconstruction_to_ply(reconstruction: dict, output_ply: Path):
         "property uchar red",
         "property uchar green",
         "property uchar blue",
-        "end_header"
+        "end_header",
     ]
 
     with open(output_ply, "w", encoding="utf-8") as of:
@@ -116,7 +114,7 @@ def cameras2nerfds(
 
     with open(cameras_file, "r", encoding="utf-8") as f:
         cameras = json.loads(f.read())
-    
+
     camera_ids = list(cameras.keys())
     if len(camera_ids) > 1:
         raise ValueError("Only one camera is supported")
@@ -152,7 +150,7 @@ def cameras2nerfds(
 
     if reconstruction_file.exists:
         reconstruction = get_reconstruction(reconstruction_file)
-        shots = reconstruction.get('shots', [])
+        shots = reconstruction.get("shots", [])
         for filename in shots:
             shot = shots[filename]
             rotation = rodrigues_vec_to_rotation_mat(np.array(shot["rotation"]) * -1)
