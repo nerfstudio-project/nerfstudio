@@ -42,13 +42,47 @@ def rodrigues_vec_to_rotation_mat(rodrigues_vec: np.ndarray) -> np.ndarray:
         )
         r_cross = np.array([[0, -r[2], r[1]], [r[2], 0, -r[0]], [-r[1], r[0], 0]], dtype=float)
         rotation_mat = math.cos(theta) * ident + (1 - math.cos(theta)) * r_rT + math.sin(theta) * r_cross
+
     return rotation_mat
+
+
+def reconstruction_to_ply(reconstruction_file: Path, output_ply: Path):
+    with open(reconstruction_file, "r", encoding="utf-8") as f:
+        reconstructions = json.loads(f.read())
+        points = reconstructions[0].get('points', [])
+
+        vertices = []
+
+        for pid in points:
+            point = points[pid]
+            p, c = point['coordinates'], point['color']
+            s = "{} {} {} {} {} {}".format(
+                p[0], p[1], p[2], int(c[0]), int(c[1]), int(c[2])
+            )
+            vertices.append(s)
+
+        header = [
+            "ply",
+            "format ascii 1.0",
+            "element vertex {}".format(len(vertices)),
+            "property float x",
+            "property float y",
+            "property float z",
+            "property uchar red",
+            "property uchar green",
+            "property uchar blue",
+            "end_header"
+        ]
+
+        with open(output_ply, "w", encoding="utf-8") as of:
+            of.write("\n".join(header + vertices + [""]))
 
 
 def cameras2nerfds(
     image_filename_map: Dict[str, Path],
     cameras_file: Path,
     shots_file: Path,
+    reconstruction_file: Path,
     output_dir: Path,
     verbose: bool = False,
 ) -> List[str]:
@@ -56,7 +90,9 @@ def cameras2nerfds(
 
     Args:
         image_filename_map: Mapping of original image filenames to their saved locations.
+        cameras_file: Path to ODM's cameras.json
         shots_file: Path to ODM's shots.geojson
+        reconstruction_file: Path to ODM's reconstruction.json
         output_dir: Path to the output directory.
         verbose: Whether to print verbose output.
 
@@ -68,7 +104,7 @@ def cameras2nerfds(
         cameras = json.loads(f.read())
     with open(shots_file, "r", encoding="utf-8") as f:
         shots = json.loads(f.read())
-
+    
     camera_ids = list(cameras.keys())
     if len(camera_ids) > 1:
         raise ValueError("Only one camera is supported")
@@ -133,6 +169,10 @@ def cameras2nerfds(
         frames.append(frame)
 
     data["frames"] = frames
+
+    if reconstruction_file.exists:
+        reconstruction_to_ply(reconstruction_file, output_dir / "reconstruction.ply")
+        data["ply_file_path"] = "reconstruction.ply"
 
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
