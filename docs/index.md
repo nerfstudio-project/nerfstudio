@@ -82,6 +82,7 @@ We hope nerfstudio enables you to build faster 🔨 learn together 📚 and cont
 
 quickstart/installation
 quickstart/first_nerf
+quickstart/existing_dataset
 quickstart/custom_dataset
 quickstart/viewer_quickstart
 quickstart/export_geometry
@@ -140,6 +141,7 @@ This documentation is organized into 3 parts:
 - [NeRF](nerfology/methods/nerf.md): OG Neural Radiance Fields
 - [Mip-NeRF](nerfology/methods/mipnerf.md): A Multiscale Representation for Anti-Aliasing Neural Radiance Fields
 - [TensoRF](nerfology/methods/tensorf.md): Tensorial Radiance Fields
+- [Splatfacto](nerfology/methods/splat.md): Nerfstudio's Gaussian Splatting implementation
 
 (third_party_methods)=
 

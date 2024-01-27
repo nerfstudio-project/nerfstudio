@@ -17,10 +17,10 @@ Dataset input structures.
 """
 
 from dataclasses import dataclass
-from typing import Union, Tuple
-import viser.transforms as vtf
+from typing import Tuple, Union
 
 import torch
+import viser.transforms as vtf
 from jaxtyping import Float
 from torch import Tensor
 

@@ -22,26 +22,27 @@ from typing import TYPE_CHECKING, Dict, List, Literal, Optional
 
 import numpy as np
 import torch
-import torchvision
 import viser
 import viser.theme
 import viser.transforms as vtf
+from typing_extensions import assert_never
+
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.models.base_model import Model
+from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
-from nerfstudio.viewer_legacy.server import viewer_utils
 from nerfstudio.viewer.control_panel import ControlPanel
 from nerfstudio.viewer.export_panel import populate_export_tab
 from nerfstudio.viewer.render_panel import populate_render_tab
 from nerfstudio.viewer.render_state_machine import RenderAction, RenderStateMachine
 from nerfstudio.viewer.utils import CameraState, parse_object
 from nerfstudio.viewer.viewer_elements import ViewerControl, ViewerElement
-from typing_extensions import assert_never
+from nerfstudio.viewer_legacy.server import viewer_utils
 
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
@@ -63,13 +64,12 @@ class Viewer:
         share: print a shareable URL
 
     Attributes:
-        viewer_url: url to open viewer
+        viewer_info: information string for the viewer
         viser_server: the viser server
     """
 
-    viewer_url: str
+    viewer_info: List[str]
     viser_server: viser.ViserServer
-    camera_state: Optional[CameraState] = None
 
     def __init__(
         self,
@@ -107,15 +107,23 @@ class Viewer:
 
         self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
         # Set the name of the URL either to the share link if available, or the localhost
+        share_url = None
         if share:
-            url = self.viser_server.request_share_url()
-            if url is not None:
-                print("Couldn't make share URL")
-                self.viewer_url = url
-            else:
-                self.viewer_url = f"http://{config.websocket_host}:{websocket_port}"
+            share_url = self.viser_server.request_share_url()
+            if share_url is None:
+                print("Couldn't make share URL!")
+
+        if share_url is not None:
+            self.viewer_info = [f"Viewer at: http://localhost:{websocket_port} or {share_url}"]
+        elif config.websocket_host == "0.0.0.0":
+            # 0.0.0.0 is not a real IP address and was confusing people, so
+            # we'll just print localhost instead. There are some security
+            # (and IPv6 compatibility) implications here though, so we should
+            # note that the server is bound to 0.0.0.0!
+            self.viewer_info = [f"Viewer running locally at: http://localhost:{websocket_port} (listening on 0.0.0.0)"]
         else:
-            self.viewer_url = f"http://{config.websocket_host}:{websocket_port}"
+            self.viewer_info = [f"Viewer running locally at: http://{config.websocket_host}:{websocket_port}"]
+
         buttons = (
             viser.theme.TitlebarButton(
                 text="Getting Started",
@@ -196,7 +204,7 @@ class Viewer:
             )
 
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
-            populate_export_tab(self.viser_server, self.control_panel, config_path)
+            populate_export_tab(self.viser_server, self.control_panel, config_path, self.pipeline.model)
 
         # Keep track of the pointers to generated GUI folders, because each generated folder holds a unique ID.
         viewer_gui_folders = dict()
@@ -227,6 +235,15 @@ class Viewer:
                     nested_folder_install(folder_labels[1:], prev_labels + [folder_labels[0]], element)
 
         with control_tab:
+            from nerfstudio.viewer_legacy.server.viewer_elements import ViewerElement as LegacyViewerElement
+
+            if len(parse_object(pipeline, LegacyViewerElement, "Custom Elements")) > 0:
+                from nerfstudio.utils.rich_utils import CONSOLE
+
+                CONSOLE.print(
+                    "Legacy ViewerElements detected in model, please import nerfstudio.viewer.viewer_elements instead",
+                    style="bold yellow",
+                )
             self.viewer_elements = []
             self.viewer_elements.extend(parse_object(pipeline, ViewerElement, "Custom Elements"))
             for param_path, element in self.viewer_elements:
@@ -240,6 +257,17 @@ class Viewer:
         for c in self.viewer_controls:
             c._setup(self)
 
+        # Diagnostics for Gaussian Splatting: where the points are at the start of training.
+        # This is hidden by default, it can be shown from the Viser UI's scene tree table.
+        if isinstance(pipeline.model, SplatfactoModel):
+            self.viser_server.add_point_cloud(
+                "/gaussian_splatting_initial_points",
+                points=pipeline.model.means.numpy(force=True) * VISER_NERFSTUDIO_SCALE_RATIO,
+                colors=(255, 0, 0),
+                point_size=0.01,
+                point_shape="circle",
+                visible=False,  # Hidden by default.
+            )
         self.ready = True
 
     def toggle_pause_button(self) -> None:
@@ -401,6 +429,10 @@ class Viewer:
             camera = train_dataset.cameras[idx]
             image_uint8 = (image * 255).detach().type(torch.uint8)
             image_uint8 = image_uint8.permute(2, 0, 1)
+
+            # torchvision can be slow to import, so we do it lazily.
+            import torchvision
+
             image_uint8 = torchvision.transforms.functional.resize(image_uint8, 100, antialias=None)  # type: ignore
             image_uint8 = image_uint8.permute(1, 2, 0)
             image_uint8 = image_uint8.cpu().numpy()
