@@ -42,13 +42,59 @@ def rodrigues_vec_to_rotation_mat(rodrigues_vec: np.ndarray) -> np.ndarray:
         )
         r_cross = np.array([[0, -r[2], r[1]], [r[2], 0, -r[0]], [-r[1], r[0], 0]], dtype=float)
         rotation_mat = math.cos(theta) * ident + (1 - math.cos(theta)) * r_rT + math.sin(theta) * r_cross
+
     return rotation_mat
+
+
+def get_reconstruction(reconstruction_file: Path):
+    with open(reconstruction_file, "r", encoding="utf-8") as f:
+        reconstructions = json.loads(f.read())
+        return reconstructions[0]
+
+
+def reconstruction_to_ply(reconstruction: dict, output_ply: Path):
+    points = reconstruction.get("points", [])
+    vertices = []
+    colors = []
+    transform = np.array([[0, 0, 1, 0], [0, -1, 0, 0], [1, 0, 0, 0]])
+
+    for pid in points:
+        point = points[pid]
+        p, c = point["coordinates"], point["color"]
+        vertices.append(p)
+        colors.append(c)
+
+    vertices = np.array(vertices)
+    coords = []
+
+    vertices = np.einsum("ij,bj->bi", transform[:3, :3], vertices) + transform[:3, 3]
+    for i in range(len(vertices)):
+        v = vertices[i]
+        c = colors[i]
+        coords.append("{} {} {} {} {} {}".format(v[0], v[1], v[2], int(c[0]), int(c[1]), int(c[2])))
+
+    header = [
+        "ply",
+        "format ascii 1.0",
+        "element vertex {}".format(len(coords)),
+        "property float x",
+        "property float y",
+        "property float z",
+        "property uchar red",
+        "property uchar green",
+        "property uchar blue",
+        "end_header",
+    ]
+
+    with open(output_ply, "w", encoding="utf-8") as of:
+        of.write("\n".join(header + coords + [""]))
 
 
 def cameras2nerfds(
     image_filename_map: Dict[str, Path],
     cameras_file: Path,
     shots_file: Path,
+    reconstruction_file: Path,
     output_dir: Path,
     verbose: bool = False,
 ) -> List[str]:
@@ -56,7 +102,9 @@ def cameras2nerfds(
 
     Args:
         image_filename_map: Mapping of original image filenames to their saved locations.
+        cameras_file: Path to ODM's cameras.json
         shots_file: Path to ODM's shots.geojson
+        reconstruction_file: Path to ODM's reconstruction.json
         output_dir: Path to the output directory.
         verbose: Whether to print verbose output.
 
@@ -66,8 +114,6 @@ def cameras2nerfds(
 
     with open(cameras_file, "r", encoding="utf-8") as f:
         cameras = json.loads(f.read())
-    with open(shots_file, "r", encoding="utf-8") as f:
-        shots = json.loads(f.read())
 
     camera_ids = list(cameras.keys())
     if len(camera_ids) > 1:
@@ -99,20 +145,40 @@ def cameras2nerfds(
 
         sensor_dict[camera_id] = s
 
-    shots = shots["features"]
     shots_dict = {}
-    for shot in shots:
-        props = shot["properties"]
-        filename = props["filename"]
-        rotation = rodrigues_vec_to_rotation_mat(np.array(props["rotation"]) * -1)
-        translation = np.array(props["translation"])
+    reconstruction = None
 
-        m = np.eye(4)
-        m[:3, :3] = rotation
-        m[:3, 3] = translation
+    if reconstruction_file.exists:
+        reconstruction = get_reconstruction(reconstruction_file)
+        shots = reconstruction.get("shots", [])
+        for filename in shots:
+            shot = shots[filename]
+            rotation = rodrigues_vec_to_rotation_mat(np.array(shot["rotation"]) * -1)
+            origin = -rodrigues_vec_to_rotation_mat(np.array(shot["rotation"])).T.dot(np.array(shot["translation"]))
 
-        name, ext = os.path.splitext(filename)
-        shots_dict[name] = m
+            m = np.eye(4)
+            m[:3, :3] = rotation
+            m[:3, 3] = origin
+
+            name, ext = os.path.splitext(filename)
+            shots_dict[name] = m
+    else:
+        with open(shots_file, "r", encoding="utf-8") as f:
+            shots = json.loads(f.read())
+
+        shots = shots["features"]
+        for shot in shots:
+            props = shot["properties"]
+            filename = props["filename"]
+            rotation = rodrigues_vec_to_rotation_mat(np.array(props["rotation"]) * -1)
+            translation = np.array(props["translation"])
+
+            m = np.eye(4)
+            m[:3, :3] = rotation
+            m[:3, 3] = translation
+
+            name, ext = os.path.splitext(filename)
+            shots_dict[name] = m
 
     frames = []
     num_skipped = 0
@@ -133,6 +199,10 @@ def cameras2nerfds(
         frames.append(frame)
 
     data["frames"] = frames
+
+    if reconstruction is not None:
+        reconstruction_to_ply(reconstruction, output_dir / "reconstruction.ply")
+        data["ply_file_path"] = "reconstruction.ply"
 
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
