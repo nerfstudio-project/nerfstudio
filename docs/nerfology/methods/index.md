@@ -41,6 +41,7 @@ The following methods are supported in nerfstudio:
     Generfacto<generfacto.md>
     Instruct-GS2GS<igs2gs.md>
     PyNeRF<pynerf.md>
+    SeaThru-NeRF<seathru_nerf.md>
 ```
 
 (own_method_docs)=
