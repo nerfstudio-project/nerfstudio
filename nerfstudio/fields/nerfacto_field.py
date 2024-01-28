@@ -95,6 +95,7 @@ class NerfactoField(Field):
         use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
+        average_init_density: float = 1.0,
         implementation: Literal["tcnn", "torch"] = "tcnn",
     ) -> None:
         super().__init__()
@@ -116,6 +117,7 @@ class NerfactoField(Field):
         self.use_pred_normals = use_pred_normals
         self.pass_semantic_gradients = pass_semantic_gradients
         self.base_res = base_res
+        self.average_init_density = average_init_density
         self.step = 0
 
         self.direction_encoding = SHEncoding(
@@ -218,7 +220,7 @@ class NerfactoField(Field):
         # Rectifying the density with an exponential is much more stable than a ReLU or
         # softplus, because it enables high post-activation (float32) density outputs
         # from smaller internal (float16) parameters.
-        density = trunc_exp(density_before_activation.to(positions))
+        density = self.average_init_density * trunc_exp(density_before_activation.to(positions))
         density = density * selector[..., None]
         return density, base_mlp_out
 
