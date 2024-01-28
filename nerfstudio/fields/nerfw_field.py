@@ -75,7 +75,8 @@ class VanillaNerfWField(Field):
         self.appearance_embedding_dim = appearance_embedding_dim
         self.transient_embedding_dim = transient_embedding_dim
 
-        self.embedding_appearance = Embedding(self.num_images, self.appearance_embedding_dim)
+        if self.appearance_embedding_dim > 0:
+            self.embedding_appearance = Embedding(self.num_images, self.appearance_embedding_dim)
         self.embedding_transient = Embedding(self.num_images, self.transient_embedding_dim)
 
         self.mlp_base = MLP(
@@ -96,7 +97,7 @@ class VanillaNerfWField(Field):
         self.mlp_head = MLP(
             in_dim=self.mlp_base.get_out_dim()
             + self.direction_encoding.get_out_dim()
-            + self.embedding_appearance.get_out_dim(),
+            + (self.embedding_appearance.get_out_dim() if self.appearance_embedding_dim > 0 else 0),
             num_layers=head_mlp_num_layers,
             layer_width=head_mlp_layer_width,
             out_activation=nn.ReLU(),
@@ -134,9 +135,11 @@ class VanillaNerfWField(Field):
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
         camera_indices = ray_samples.camera_indices.squeeze().to(ray_samples.frustums.origins.device)
-        embedded_appearance = self.embedding_appearance(camera_indices)
-        mlp_in = torch.cat([density_embedding, encoded_dir, embedded_appearance], dim=-1)  # type: ignore
-        mlp_head_out = self.mlp_head(mlp_in)
+        mlp_in = [density_embedding, encoded_dir]
+        if self.appearance_embedding_dim > 0:
+            embedded_appearance = self.embedding_appearance(camera_indices)
+            mlp_in.append(embedded_appearance)
+        mlp_head_out = self.mlp_head(torch.cat(mlp_in, dim=-1))
         outputs[self.field_head_rgb.field_head_name] = self.field_head_rgb(mlp_head_out)  # static rgb
         embedded_transient = self.embedding_transient(camera_indices)
         transient_mlp_in = torch.cat([density_embedding, embedded_transient], dim=-1)  # type: ignore
