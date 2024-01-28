@@ -1,9 +1,16 @@
 # SeaThru-NeRF
+```{button-link} https://github.com/hturki/pynerf
+:color: primary
+:outline:
+Official Paper Website
+```
+
 ```{button-link} https://github.com/AkerBP/seathru_nerf
 :color: primary
 :outline:
-Code
+Code (nerfstudio implementation)
 ```
+
 <p align="center">
   <img src="https://github.com/AkerBP/seathru_nerf/blob/main/imgs/comp.gif?raw=true" alt="Example Render">
 </p>
