@@ -1,5 +1,5 @@
 # SeaThru-NeRF
-```{button-link} https://github.com/hturki/pynerf
+```{button-link} https://sea-thru-nerf.github.io
 :color: primary
 :outline:
 Official Paper Website
