@@ -175,7 +175,7 @@ class PixelSampler:
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
     ) -> Int[Tensor, "batch_size 3"]:
-        if isinstance(mask, torch.Tensor):
+        if isinstance(mask, torch.Tensor) and not self.config.ignore_mask:
             indices = self.sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)
         else:
             rand_samples = torch.rand((batch_size, 3), device=device)
