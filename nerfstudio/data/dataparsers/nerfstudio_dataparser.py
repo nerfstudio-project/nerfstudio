@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Optional, Type
+from typing import Literal, Optional, Tuple, Type
 
 import numpy as np
 import torch
@@ -73,6 +73,8 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The interval between frames to use for eval. Only used when eval_mode is eval-interval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
+    mask_color: Optional[Tuple[float, float, float]] = None
+    """Replace the unknown pixels with this color. Relevant if you have a mask but still sample everywhere."""
     load_3D_points: bool = False
     """Whether to load the 3D points from the colmap reconstruction."""
 
@@ -411,6 +413,7 @@ class Nerfstudio(DataParser):
             metadata={
                 "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
+                "mask_color": self.config.mask_color,
                 **metadata,
             },
         )
