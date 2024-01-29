@@ -305,11 +305,15 @@ class PixelSampler:
         indices = torch.cat(all_indices, dim=0)
 
         c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
-        collated_batch = {
-            key: value[c, y, x]
-            for key, value in batch.items()
-            if key != "image_idx" and key != "image" and key != "mask" and value is not None
-        }
+        collated_batch = {}
+        for key, value in batch.items():
+            if key != "image_idx" and key != "image" and key != "mask" and value is not None:
+                list_of_values_to_concat = []
+                for idx, image_idx in enumerate(c):
+                    val = value[image_idx]
+                    list_of_values_to_concat.append(val[y[idx], x[idx]])
+
+                collated_batch.update({key: torch.unsqueeze(torch.cat(list_of_values_to_concat, dim=0), dim=1)})
 
         collated_batch["image"] = torch.cat(all_images, dim=0)
 
