@@ -176,6 +176,22 @@ To enable PyNeRF, you must install it first by running:
     )
 )
 
+# SeaThru-NeRF
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]Seathru-NeRF[/bold yellow]
+For more information visit https://docs.nerf.studio/nerfology/methods/seathru_nerf.html
+
+To enable Seathru-NeRF, you must install it first by running:
+  [grey]pip install git+https://github.com/AkerBP/seathru_nerf[/grey]""",
+        configurations=[
+            ("seathru-nerf", "SeaThru-NeRF for underwater scenes."),
+            ("seathru-nerf-lite", "SeaThru-NeRF for underwater scenes (smaller networks and batches)."),
+        ],
+        pip_package="git+https://github.com/AkerBP/seathru_nerf",
+    )
+)
+
 
 @dataclass
 class ExternalMethodDummyTrainerConfig:

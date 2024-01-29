@@ -190,7 +190,7 @@ def cameras2nerfds(
     data["frames"] = frames
 
     if reconstruction is not None:
-        reconstruction_to_ply(reconstruction, output_dir / "reconstruction.ply", shots_dict)
+        reconstruction_to_ply(reconstruction, output_dir / "reconstruction.ply")
         data["ply_file_path"] = "reconstruction.ply"
 
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
