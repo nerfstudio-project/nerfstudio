@@ -97,6 +97,7 @@ method_configs["nerfacto"] = TrainerConfig(
         ),
         model=NerfactoModelConfig(
             eval_num_rays_per_chunk=1 << 15,
+            average_init_density=0.01,
             camera_optimizer=CameraOptimizerConfig(mode="SO3xR3"),
         ),
     ),
@@ -140,6 +141,7 @@ method_configs["nerfacto-big"] = TrainerConfig(
             max_res=4096,
             proposal_weights_anneal_max_num_iters=5000,
             log2_hashmap_size=21,
+            average_init_density=0.01,
             camera_optimizer=CameraOptimizerConfig(mode="SO3xR3"),
         ),
     ),
@@ -187,6 +189,7 @@ method_configs["nerfacto-huge"] = TrainerConfig(
             max_res=8192,
             proposal_weights_anneal_max_num_iters=5000,
             log2_hashmap_size=21,
+            average_init_density=0.01,
             camera_optimizer=CameraOptimizerConfig(mode="SO3xR3"),
         ),
     ),
