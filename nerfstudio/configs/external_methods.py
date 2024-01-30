@@ -192,6 +192,19 @@ To enable Seathru-NeRF, you must install it first by running:
     )
 )
 
+# Zip-NeRF
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]Zip-NeRF[/bold yellow]
+For more information visit https://docs.nerf.studio/nerfology/methods/zipnerf.html
+
+To enable Zip-NeRF, you must install it first by running:
+  [grey]pip install git+https://github.com/Jing1Ling/zipnerf-pytorch@support_nerfstudio#subdirectory=extensions/cuda 
+  and pip install git+https://github.com/Jing1Ling/zipnerf-pytorch@support_nerfstudio[/grey]""",
+        configurations=[("zipnerf", "A pytorch implementation of 'Zip-NeRF: Anti-Aliased Grid-Based Neural Radiance Fields'")],
+        pip_package="pip install git+https://github.com/Jing1Ling/zipnerf-pytorch@support_nerfstudio",
+    )
+)
 
 @dataclass
 class ExternalMethodDummyTrainerConfig:
