@@ -95,7 +95,7 @@ class DepthNerfactoModel(NerfactoModel):
                         weights=outputs["weights_list"][i],
                         ray_samples=outputs["ray_samples_list"][i],
                         termination_depth=termination_depth,
-                        predicted_depth=outputs["depth"],
+                        predicted_depth=outputs["expected_depth"],
                         sigma=sigma,
                         directions_norm=outputs["directions_norm"],
                         is_euclidean=self.config.is_euclidean_depth,
