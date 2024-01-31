@@ -26,22 +26,22 @@ The following methods are supported in nerfstudio:
 
 ```{toctree}
     :maxdepth: 1
-    Instant-NGP<instant_ngp.md>
+    Nerfacto<nerfacto.md>
     Splatfacto<splat.md>
+    Generfacto<generfacto.md>
+    Instant-NGP<instant_ngp.md>
+    Instruct-GS2GS<igs2gs.md>
     Instruct-NeRF2NeRF<in2n.md>
     K-Planes<kplanes.md>
     LERF<lerf.md>
     Mip-NeRF<mipnerf.md>
     NeRF<nerf.md>
-    Nerfacto<nerfacto.md>
     Nerfbusters<nerfbusters.md>
     NeRFPlayer<nerfplayer.md>
-    Tetra-NeRF<tetranerf.md>
-    TensoRF<tensorf.md>
-    Generfacto<generfacto.md>
-    Instruct-GS2GS<igs2gs.md>
     PyNeRF<pynerf.md>
     SeaThru-NeRF<seathru_nerf.md>
+    TensoRF<tensorf.md>
+    Tetra-NeRF<tetranerf.md>
 ```
 
 (own_method_docs)=
