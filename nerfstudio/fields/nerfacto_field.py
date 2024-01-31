@@ -112,6 +112,8 @@ class NerfactoField(Field):
         self.appearance_embedding_dim = appearance_embedding_dim
         if self.appearance_embedding_dim > 0:
             self.embedding_appearance = Embedding(self.num_images, self.appearance_embedding_dim)
+        else:
+            self.embedding_appearance = None
         self.use_average_appearance_embedding = use_average_appearance_embedding
         self.use_transient_embedding = use_transient_embedding
         self.use_semantics = use_semantics
@@ -241,7 +243,7 @@ class NerfactoField(Field):
 
         # appearance
         embedded_appearance = None
-        if self.appearance_embedding_dim > 0:
+        if self.embedding_appearance is not None:
             if self.training:
                 embedded_appearance = self.embedding_appearance(camera_indices)
             else:

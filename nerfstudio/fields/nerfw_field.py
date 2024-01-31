@@ -77,6 +77,8 @@ class VanillaNerfWField(Field):
 
         if self.appearance_embedding_dim > 0:
             self.embedding_appearance = Embedding(self.num_images, self.appearance_embedding_dim)
+        else:
+            self.embedding_appearance = None
         self.embedding_transient = Embedding(self.num_images, self.transient_embedding_dim)
 
         self.mlp_base = MLP(
@@ -97,7 +99,7 @@ class VanillaNerfWField(Field):
         self.mlp_head = MLP(
             in_dim=self.mlp_base.get_out_dim()
             + self.direction_encoding.get_out_dim()
-            + (self.embedding_appearance.get_out_dim() if self.appearance_embedding_dim > 0 else 0),
+            + (self.embedding_appearance.get_out_dim() if self.embedding_appearance is not None else 0),
             num_layers=head_mlp_num_layers,
             layer_width=head_mlp_layer_width,
             out_activation=nn.ReLU(),
@@ -136,7 +138,7 @@ class VanillaNerfWField(Field):
             raise AttributeError("Camera indices are not provided.")
         camera_indices = ray_samples.camera_indices.squeeze().to(ray_samples.frustums.origins.device)
         mlp_in = [density_embedding, encoded_dir]
-        if self.appearance_embedding_dim > 0:
+        if self.embedding_appearance is not None:
             embedded_appearance = self.embedding_appearance(camera_indices)
             mlp_in.append(embedded_appearance)
         mlp_head_out = self.mlp_head(torch.cat(mlp_in, dim=-1))
