@@ -204,7 +204,6 @@ To enable Zip-NeRF, you must install it first by running:
         configurations=[
             ("zipnerf", "A pytorch implementation of 'Zip-NeRF: Anti-Aliased Grid-Based Neural Radiance Fields'")
         ],
-         pip_package="pip install git+https://github.com/Jing1Ling/zipnerf-pytorch@support_nerfstudio",
         pip_package="pip install git+https://github.com/Jing1Ling/zipnerf-pytorch@support_nerfstudio",
     )
 )
