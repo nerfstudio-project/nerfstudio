@@ -201,7 +201,10 @@ For more information visit https://docs.nerf.studio/nerfology/methods/zipnerf.ht
 To enable Zip-NeRF, you must install it first by running:
   [grey]pip install git+https://github.com/Jing1Ling/zipnerf-pytorch@support_nerfstudio#subdirectory=extensions/cuda 
   and pip install git+https://github.com/Jing1Ling/zipnerf-pytorch@support_nerfstudio[/grey]""",
-        configurations=[("zipnerf", "A pytorch implementation of 'Zip-NeRF: Anti-Aliased Grid-Based Neural Radiance Fields'")],
+        configurations=[
+            ("zipnerf", "A pytorch implementation of 'Zip-NeRF: Anti-Aliased Grid-Based Neural Radiance Fields'")
+        ],
+         pip_package="pip install git+https://github.com/Jing1Ling/zipnerf-pytorch@support_nerfstudio",
         pip_package="pip install git+https://github.com/Jing1Ling/zipnerf-pytorch@support_nerfstudio",
     )
 )

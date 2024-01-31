@@ -7,6 +7,11 @@
 :outline:
 Paper Website
 ```
+```{button-link} https://github.com/SuLvXiangXin/zipnerf-pytorch
+:color: primary
+:outline:
+Code
+```
 ### Installation
 First, install nerfstudio and its dependencies. Then run:
 ```
