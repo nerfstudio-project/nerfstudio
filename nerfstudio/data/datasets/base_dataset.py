@@ -53,6 +53,7 @@ class InputDataset(Dataset):
         self.metadata = deepcopy(dataparser_outputs.metadata)
         self.cameras = deepcopy(dataparser_outputs.cameras)
         self.cameras.rescale_output_resolution(scaling_factor=scale_factor)
+        self.mask_color = dataparser_outputs.metadata.get("mask_color", None)
 
     def __len__(self):
         return len(self._dataparser_outputs.image_filenames)
@@ -129,6 +130,10 @@ class InputDataset(Dataset):
             assert (
                 data["mask"].shape[:2] == data["image"].shape[:2]
             ), f"Mask and image have different shapes. Got {data['mask'].shape[:2]} and {data['image'].shape[:2]}"
+        if self.mask_color:
+            data["image"] = torch.where(
+                data["mask"] == 1.0, data["image"], torch.ones_like(data["image"]) * torch.tensor(self.mask_color)
+            )
         metadata = self.get_metadata(data)
         data.update(metadata)
         return data
