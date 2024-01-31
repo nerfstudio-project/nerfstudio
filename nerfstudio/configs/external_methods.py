@@ -208,6 +208,7 @@ To enable Zip-NeRF, you must install it first by running:
     )
 )
 
+
 @dataclass
 class ExternalMethodDummyTrainerConfig:
     """Dummy trainer config for external methods (a) which do not have an
