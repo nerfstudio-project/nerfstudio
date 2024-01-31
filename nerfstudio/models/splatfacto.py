@@ -779,8 +779,7 @@ class SplatfactoModel(Model):
                 W,
                 background=torch.zeros(3, device=self.device),
             )[..., 0:1]  # type: ignore
-            depth_im[alpha > 0] = depth_im[alpha > 0] / alpha[alpha > 0]
-            depth_im[alpha == 0] = 1000
+            depth_im = torch.where(alpha > 0, depth_im / alpha, depth_im.detach().max())
 
         return {"rgb": rgb, "depth": depth_im, "accumulation": alpha}  # type: ignore
 
