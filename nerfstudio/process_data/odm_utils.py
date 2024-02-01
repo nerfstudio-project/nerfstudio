@@ -54,24 +54,12 @@ def get_reconstruction(reconstruction_file: Path):
 
 def reconstruction_to_ply(reconstruction: dict, output_ply: Path):
     points = reconstruction.get("points", [])
-    vertices = []
-    colors = []
-    transform = np.array([[0, 0, 1, 0], [0, -1, 0, 0], [1, 0, 0, 0]])
+    coords = []
 
     for pid in points:
         point = points[pid]
         p, c = point["coordinates"], point["color"]
-        vertices.append(p)
-        colors.append(c)
-
-    vertices = np.array(vertices)
-    coords = []
-
-    vertices = np.einsum("ij,bj->bi", transform[:3, :3], vertices) + transform[:3, 3]
-    for i in range(len(vertices)):
-        v = vertices[i]
-        c = colors[i]
-        coords.append("{} {} {} {} {} {}".format(v[0], v[1], v[2], int(c[0]), int(c[1]), int(c[2])))
+        coords.append("{} {} {} {} {} {}".format(p[0], p[1], p[2], int(c[0]), int(c[1]), int(c[2])))
 
     header = [
         "ply",
@@ -153,12 +141,15 @@ def cameras2nerfds(
         shots = reconstruction.get("shots", [])
         for filename in shots:
             shot = shots[filename]
-            rotation = rodrigues_vec_to_rotation_mat(np.array(shot["rotation"]) * -1)
-            origin = -rodrigues_vec_to_rotation_mat(np.array(shot["rotation"])).T.dot(np.array(shot["translation"]))
+            rotation = rodrigues_vec_to_rotation_mat(np.array(shot["rotation"]))
+            translation = np.array(shot["translation"]).reshape(3, 1)
 
-            m = np.eye(4)
-            m[:3, :3] = rotation
-            m[:3, 3] = origin
+            w2c = np.concatenate([rotation, translation], 1)
+            w2c = np.concatenate([w2c, np.array([[0, 0, 0, 1]])], 0)
+            m = np.linalg.inv(w2c)
+
+            # Convert to OpenGL
+            m[0:3, 1:3] *= -1
 
             name, ext = os.path.splitext(filename)
             shots_dict[name] = m
@@ -193,8 +184,6 @@ def cameras2nerfds(
         frame["file_path"] = image_filename_map[fname].as_posix()
         frame.update(sensor_dict[camera_id])
 
-        transform = transform[[2, 0, 1, 3], :]
-        transform[:, 1:3] *= -1
         frame["transform_matrix"] = transform.tolist()
         frames.append(frame)
 
