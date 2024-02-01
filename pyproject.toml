@@ -54,7 +54,7 @@ dependencies = [
     "splines==0.3.0",
     "tensorboard>=2.13.0",
     # pin torch to <=2.1 to fix https://github.com/pytorch/pytorch/issues/118736
-    "torch>=1.13.1,<=2.1",
+    "torch>=1.13.1,<2.2",
     "torchvision>=0.14.1",
     "torchmetrics[image]>=1.0.1",
     "typing_extensions>=4.4.0",
