@@ -222,7 +222,9 @@ class SplatfactoModel(Model):
 
         self.crop_box: Optional[OrientedBox] = None
         if self.config.background_color == "random":
-            self.background_color = torch.rand(3)
+            self.background_color = torch.tensor(
+                [0.1490, 0.1647, 0.2157]
+            )  # This color is the same as the default background color in Viser. This would only affect the background color when rendering.
         else:
             self.background_color = get_color(self.config.background_color)
 
@@ -777,8 +779,7 @@ class SplatfactoModel(Model):
                 W,
                 background=torch.zeros(3, device=self.device),
             )[..., 0:1]  # type: ignore
-            depth_im[alpha > 0] = depth_im[alpha > 0] / alpha[alpha > 0]
-            depth_im[alpha == 0] = 1000
+            depth_im = torch.where(alpha > 0, depth_im / alpha, depth_im.detach().max())
 
         return {"rgb": rgb, "depth": depth_im, "accumulation": alpha}  # type: ignore
 
