@@ -18,6 +18,7 @@ Data manager that outputs cameras / images instead of raybundles
 Good for things like gaussian splatting which require full cameras instead of the standard ray
 paradigm
 """
+
 from __future__ import annotations
 
 import multiprocessing
@@ -115,9 +116,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 style="bold yellow",
             )
             self.config.cache_images = "cpu"
-
         self.cached_train, self.cached_eval = self.cache_images(self.config.cache_images)
-
         self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
         if self.config.masks_on_gpu is True:
             self.exclude_batch_keys_from_device.remove("mask")
