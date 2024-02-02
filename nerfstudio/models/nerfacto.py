@@ -106,6 +106,8 @@ class NerfactoModelConfig(ModelConfig):
     """Predicted normal loss multiplier."""
     use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""
+    use_appearance_embedding: bool = True
+    """Whether to use an appearance embedding."""
     use_average_appearance_embedding: bool = True
     """Whether to use average appearance embedding or zeros for inference."""
     proposal_weights_anneal_slope: float = 10.0
@@ -124,6 +126,8 @@ class NerfactoModelConfig(ModelConfig):
     """Which implementation to use for the model."""
     appearance_embed_dim: int = 32
     """Dimension of the appearance embedding."""
+    average_init_density: float = 1.0
+    """Average initial density output from MLP. """
     camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="SO3xR3"))
     """Config of the camera optimizer to use"""
 
@@ -146,6 +150,8 @@ class NerfactoModel(Model):
         else:
             scene_contraction = SceneContraction(order=float("inf"))
 
+        appearance_embedding_dim = self.config.appearance_embed_dim if self.config.use_appearance_embedding else 0
+
         # Fields
         self.field = NerfactoField(
             self.scene_box.aabb,
@@ -161,7 +167,8 @@ class NerfactoModel(Model):
             num_images=self.num_train_data,
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
-            appearance_embedding_dim=self.config.appearance_embed_dim,
+            appearance_embedding_dim=appearance_embedding_dim,
+            average_init_density=self.config.average_init_density,
             implementation=self.config.implementation,
         )
 
@@ -179,6 +186,7 @@ class NerfactoModel(Model):
                 self.scene_box.aabb,
                 spatial_distortion=scene_contraction,
                 **prop_net_args,
+                average_init_density=self.config.average_init_density,
                 implementation=self.config.implementation,
             )
             self.proposal_networks.append(network)
@@ -190,6 +198,7 @@ class NerfactoModel(Model):
                     self.scene_box.aabb,
                     spatial_distortion=scene_contraction,
                     **prop_net_args,
+                    average_init_density=self.config.average_init_density,
                     implementation=self.config.implementation,
                 )
                 self.proposal_networks.append(network)
