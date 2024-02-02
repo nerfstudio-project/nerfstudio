@@ -302,7 +302,7 @@ def copy_images_list(
     # (Unfortunately, that is much slower.)
     for framenum in range(1, (1 if same_dimensions else num_frames) + 1):
         framename = f"{image_prefix}%05d" if same_dimensions else f"{image_prefix}{framenum:05d}"
-        ffmpeg_cmd = f'ffmpeg -y -noautorotate -i "{image_dir / f"{framename}{copied_image_paths[0].suffix}"}" -q:v 2 '
+        ffmpeg_cmd = f'ffmpeg -y -noautorotate -i "{image_dir / f"{framename}{copied_image_paths[0].suffix}"}" '
 
         crop_cmd = ""
         if crop_border_pixels is not None:
@@ -320,7 +320,7 @@ def copy_images_list(
 
         downscale_cmd = f' -filter_complex "{select_cmd}{crop_cmd}{downscale_chain}"' + "".join(
             [
-                f' -map "[out{i}]" "{downscale_dirs[i] / f"{framename}{copied_image_paths[0].suffix}"}"'
+                f' -map "[out{i}]" -q:v 2 "{downscale_dirs[i] / f"{framename}{copied_image_paths[0].suffix}"}"'
                 for i in range(num_downscales + 1)
             ]
         )
