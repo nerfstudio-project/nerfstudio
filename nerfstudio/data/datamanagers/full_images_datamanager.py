@@ -180,23 +180,29 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             self.eval_dataset.cameras.height[idx] = image.shape[0]
             return data
 
-        result_list = []
         CONSOLE.log("Caching / undistorting train images")
-        with ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
-            for idx in range(len(self.train_dataset)):
-                result = executor.submit(process_train_data, idx)
-                result_list.append(result)
-            for data in track(result_list, description="Caching / undistorting train images", transient=True):
-                cached_train.append(data.result())
+        with ThreadPoolExecutor() as executor:
+            cached_train = list(
+                executor.map(
+                    process_train_data,
+                    track(
+                        range(len(self.train_dataset)),
+                        description="Caching / undistorting train images",
+                        transient=True,
+                    ),
+                )
+            )
 
-        result_list = []
         CONSOLE.log("Caching / undistorting eval images")
-        with ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
-            for idx in range(len(self.eval_dataset)):
-                result = executor.submit(process_eval_data, idx)
-                result_list.append(result)
-            for data in track(result_list, description="Caching / undistorting eval images", transient=True):
-                cached_eval.append(data.result())
+        with ThreadPoolExecutor() as executor:
+            cached_eval = list(
+                executor.map(
+                    process_eval_data,
+                    track(
+                        range(len(self.eval_dataset)), description="Caching / undistorting eval images", transient=True
+                    ),
+                )
+            )
 
         if cache_images_option == "gpu":
             for cache in cached_train:
