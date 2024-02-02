@@ -134,9 +134,9 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
     def cache_images(self, cache_images_option):
         cached_train = []
         cached_eval = []
-        CONSOLE.log("Caching / undistorting train images")
 
         def process_train_data(idx):
+            # cv2.undistort the images / cameras
             data = self.train_dataset.get_data(idx, image_type=self.config.cache_images_type)
             camera = self.train_dataset.cameras[idx].reshape(())
             K = camera.get_intrinsics_matrices().numpy()
@@ -159,6 +159,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             return data
 
         def process_eval_data(idx):
+            # cv2.undistort the images / cameras
             data = self.eval_dataset.get_data(idx, image_type=self.config.cache_images_type)
             camera = self.eval_dataset.cameras[idx].reshape(())
             K = camera.get_intrinsics_matrices().numpy()
@@ -181,7 +182,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             return data
 
         result_list = []
-
+        CONSOLE.log("Caching / undistorting train images")
         with ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
             for idx in range(len(self.train_dataset)):
                 result = executor.submit(process_train_data, idx)
@@ -189,8 +190,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             for data in track(result_list, description="Caching / undistorting train images", transient=True):
                 cached_train.append(data.result())
 
-        CONSOLE.log("Caching / undistorting eval images")
         result_list = []
+        CONSOLE.log("Caching / undistorting eval images")
         with ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
             for idx in range(len(self.eval_dataset)):
                 result = executor.submit(process_eval_data, idx)
