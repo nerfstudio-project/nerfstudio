@@ -14,13 +14,6 @@ from nerfstudio.configs import dataparser_configs as dc, method_configs as mc
 
 def run(data_path, method, max_num_iterations, steps_per_save, data_parser, visualizer):
     # generate the command
-    # model_args = (
-    #     get_model_args(method) + f" --steps-per-save {steps_per_save} --max-num-iterations {max_num_iterations}"
-    # )
-    # TODO: add data parser args, idk why it doesn't work
-    # data_parser_args = get_data_parser_args(data_parser)
-    # print(model_args)
-    # print(dataparser_args)
     if data_parser == "":
         raise gr.Error("Please select a data parser")
     if method == "":
@@ -50,13 +43,6 @@ def run(data_path, method, max_num_iterations, steps_per_save, data_parser, visu
 
 def generate_cmd(data_path, method, max_num_iterations, steps_per_save, data_parser, visualizer):
     # generate the command
-    # model_args = (
-    #     get_model_args(method) + f" --steps-per-save {steps_per_save} --max-num-iterations {max_num_iterations}"
-    # )
-    # TODO: add data parser args, idk why it doesn't work
-    # data_parser_args = get_data_parser_args(data_parser)
-    # print(model_args)
-    # print(dataparser_args)
     if data_parser == "":
         raise gr.Error("Please select a data parser")
     if method == "":
