@@ -21,7 +21,6 @@ paradigm
 
 from __future__ import annotations
 
-import multiprocessing
 import random
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
