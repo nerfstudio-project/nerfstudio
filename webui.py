@@ -1,3 +1,4 @@
+import subprocess
 import tkinter as tk
 from dataclasses import asdict
 from pathlib import Path
@@ -7,7 +8,8 @@ from typing import Literal
 import gradio as gr
 
 from nerfstudio.configs import dataparser_configs as dc, method_configs as mc
-from nerfstudio.scripts import train
+
+# from nerfstudio.scripts import train
 
 
 def run(data_path, method, max_num_iterations, steps_per_save, data_parser, visualizer):
@@ -27,14 +29,13 @@ def run(data_path, method, max_num_iterations, steps_per_save, data_parser, visu
         raise gr.Error("Please select a data path")
     if visualizer == "":
         raise gr.Error("Please select a visualizer")
-    cmd = f"ns-train {method} {model_args_cmd} --vis {visualizer} --max-num-iterations {max_num_iterations} --steps-per-save {steps_per_save}  --data {data_path} {data_parser} {dataparser_args_cmd}"
+    # this only works on windows
+    cmd = f"start cmd /k ns-train {method} {model_args_cmd} --vis {visualizer} --max-num-iterations {max_num_iterations} --steps-per-save {steps_per_save}  --data {data_path} {data_parser} {dataparser_args_cmd}"
     # run the command
-    # result = run_ns_train_realtime(cmd)
-
-    # generate the cofig
+    subprocess.run(cmd, shell=True, check=False)
+    # generate the cofig, useless for now
     config = mc.all_methods[method]
-    data_path = Path(data_path)
-    config.data = data_path
+    config.data = Path(data_path)
     config.max_num_iterations = max_num_iterations
     config.steps_per_save = steps_per_save
     config.vis = visualizer
@@ -43,7 +44,47 @@ def run(data_path, method, max_num_iterations, steps_per_save, data_parser, visu
         setattr(config.pipeline.datamanager.dataparser, key, value)
     for key, value in model_args.items():
         setattr(config.pipeline.model, key, value)
-    train.main(config)
+    # train.main(config)
+    return cmd
+
+
+def generate_cmd(data_path, method, max_num_iterations, steps_per_save, data_parser, visualizer):
+    # generate the command
+    # model_args = (
+    #     get_model_args(method) + f" --steps-per-save {steps_per_save} --max-num-iterations {max_num_iterations}"
+    # )
+    # TODO: add data parser args, idk why it doesn't work
+    # data_parser_args = get_data_parser_args(data_parser)
+    # print(model_args)
+    # print(dataparser_args)
+    if data_parser == "":
+        raise gr.Error("Please select a data parser")
+    if method == "":
+        raise gr.Error("Please select a method")
+    if data_path == "":
+        raise gr.Error("Please select a data path")
+    if visualizer == "":
+        raise gr.Error("Please select a visualizer")
+    # this only works on windows
+    cmd = f"ns-train {method} {model_args_cmd} --vis {visualizer} --max-num-iterations {max_num_iterations} \
+    --steps-per-save {steps_per_save} --data {data_path} {data_parser} {dataparser_args_cmd}"
+    # run the command
+    # result = run_ns_train_realtime(cmd)
+
+    # generate the cofig
+    # config = mc.all_methods[method]
+    # data_path = Path(data_path)
+    # config.data = data_path
+    # config.max_num_iterations = max_num_iterations
+    # config.steps_per_save = steps_per_save
+    # config.vis = visualizer
+    # config.pipeline.datamanager.dataparser = dc.all_dataparsers[data_parser]
+    # for key, value in dataparser_args.items():
+    #     setattr(config.pipeline.datamanager.dataparser, key, value)
+    # for key, value in model_args.items():
+    #     setattr(config.pipeline.model, key, value)
+    # train.main(config)
+    print(cmd)
     return cmd
 
 
@@ -182,6 +223,7 @@ with gr.Blocks() as demo:
         run_button = gr.Button(
             value="Run",
         )
+        cmd_button = gr.Button(value="Show Command")
         viser_button = gr.Button(value="Open Viser", link="http://localhost:7007/")
 
     # TODO: Add a progress bar
@@ -268,6 +310,20 @@ with gr.Blocks() as demo:
         run,
         inputs=[data_path, method, max_num_iterations, steps_per_save, dataparser, visualizer],
         outputs=None,
+    )
+
+    cmd_button.click(
+        get_model_args,
+        inputs=[method] + model_arg_list,
+        outputs=None,
+    ).then(
+        get_data_parser_args,
+        inputs=[dataparser] + dataparser_arg_list,
+        outputs=None,
+    ).then(
+        generate_cmd,
+        inputs=[data_path, method, max_num_iterations, steps_per_save, dataparser, visualizer],
+        outputs=status,
     )
 
 
