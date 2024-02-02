@@ -15,8 +15,8 @@ Code
 ### Installation
 First, install nerfstudio and its dependencies. Then run:
 ```
-pip install git+https://github.com/Jing1Ling/zipnerf-pytorch@support_nerfstudio#subdirectory=extensions/cuda
-pip install git+https://github.com/Jing1Ling/zipnerf-pytorch@support_nerfstudio
+pip install git+https://github.com/SuLvXiangXin/zipnerf-pytorch#subdirectory=extensions/cuda
+pip install git+https://github.com/SuLvXiangXin/zipnerf-pytorch
 ```
 Finally, install torch_scatter corresponding to your cuda version(https://pytorch-geometric.com/whl/torch-2.0.1%2Bcu118.html).
 
