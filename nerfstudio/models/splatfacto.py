@@ -157,6 +157,16 @@ class SplatfactoModelConfig(ModelConfig):
     """
     output_depth_during_training: bool = False
     """If True, output depth during training. Otherwise, only output depth during evaluation."""
+    rasterize_mode: Literal["classic", "antialiased"] = "classic"
+    """
+    Classic mode of rendering will use the EWA volume splatting with a [0.3, 0.3] screen space blurring kernel. This
+    approach is however not suitable to render tiny gaussians at higher or lower resolution than the captured, which
+    results "aliasing-like" artifacts. The antialiased mode overcomes this limitation by calculating compensation factors
+    and apply them to the opacities of gaussians to preserve the total integrated density of splats.
+
+    However, PLY exported with antialiased rasterize mode is not compatible with classic mode. Thus many web viewers that
+    were implemented for classic mode can not render antialiased mode PLY properly without modifications.
+    """
 
 
 class SplatfactoModel(Model):
@@ -721,7 +731,7 @@ class SplatfactoModel(Model):
 
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
 
-        self.xys, depths, self.radii, conics, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
+        self.xys, depths, self.radii, conics, comp, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
             means_crop,
             torch.exp(scales_crop),
             1,
@@ -736,6 +746,7 @@ class SplatfactoModel(Model):
             W,
             tile_bounds,
         )  # type: ignore
+
         if (self.radii).sum() == 0:
             rgb = background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
             depth = background.new_ones(*rgb.shape[:2], 1) * 10
@@ -758,6 +769,16 @@ class SplatfactoModel(Model):
         # rescale the camera back to original dimensions
         camera.rescale_output_resolution(camera_downscale)
         assert (num_tiles_hit > 0).any()  # type: ignore
+
+        # apply the compensation of screen space blurring to gaussians
+        opacities = None
+        if self.config.rasterize_mode == "antialiased":
+            opacities = torch.sigmoid(opacities_crop) * comp[:, None]
+        elif self.config.rasterize_mode == "classic":
+            opacities = torch.sigmoid(opacities_crop)
+        else:
+            raise ValueError("Unknown rasterize_mode: %s", self.config.rasterize_mode)
+
         rgb, alpha = rasterize_gaussians(  # type: ignore
             self.xys,
             depths,
@@ -765,7 +786,7 @@ class SplatfactoModel(Model):
             conics,
             num_tiles_hit,  # type: ignore
             rgbs,
-            torch.sigmoid(opacities_crop),
+            opacities,
             H,
             W,
             background=background,
