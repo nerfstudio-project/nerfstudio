@@ -22,6 +22,7 @@ paradigm
 from __future__ import annotations
 
 import random
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import cached_property
@@ -31,8 +32,8 @@ from typing import Dict, ForwardRef, Generic, List, Literal, Optional, Tuple, Ty
 import cv2
 import numpy as np
 import torch
+from rich.progress import track
 from torch.nn import Parameter
-from tqdm import tqdm
 
 from nerfstudio.cameras.camera_utils import fisheye624_project, fisheye624_unproject_helper
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -64,6 +65,8 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     """Whether to cache images in memory. If "cpu", caches on cpu. If "gpu", caches on device."""
     cache_images_type: Literal["uint8", "float32"] = "float32"
     """The image type returned from manager, caching images in uint8 saves memory"""
+    max_thread_workers: Optional[int] = None
+    """The maximum number of threads to use for caching images. If None, uses all available threads."""
 
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
@@ -129,15 +132,14 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
     def cache_images(self, cache_images_option):
         cached_train = []
         cached_eval = []
-        CONSOLE.log("Caching / undistorting train images")
-        for i in tqdm(range(len(self.train_dataset)), leave=False):
+
+        def process_train_data(idx):
             # cv2.undistort the images / cameras
-            data = self.train_dataset.get_data(i, image_type=self.config.cache_images_type)
-            camera = self.train_dataset.cameras[i].reshape(())
+            data = self.train_dataset.get_data(idx, image_type=self.config.cache_images_type)
+            camera = self.train_dataset.cameras[idx].reshape(())
             K = camera.get_intrinsics_matrices().numpy()
             if camera.distortion_params is None:
-                cached_train.append(data)
-                continue
+                return data
             distortion_params = camera.distortion_params.numpy()
             image = data["image"].numpy()
 
@@ -146,40 +148,60 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             if mask is not None:
                 data["mask"] = mask
 
-            cached_train.append(data)
+            self.train_dataset.cameras.fx[idx] = float(K[0, 0])
+            self.train_dataset.cameras.fy[idx] = float(K[1, 1])
+            self.train_dataset.cameras.cx[idx] = float(K[0, 2])
+            self.train_dataset.cameras.cy[idx] = float(K[1, 2])
+            self.train_dataset.cameras.width[idx] = image.shape[1]
+            self.train_dataset.cameras.height[idx] = image.shape[0]
+            return data
 
-            self.train_dataset.cameras.fx[i] = float(K[0, 0])
-            self.train_dataset.cameras.fy[i] = float(K[1, 1])
-            self.train_dataset.cameras.cx[i] = float(K[0, 2])
-            self.train_dataset.cameras.cy[i] = float(K[1, 2])
-            self.train_dataset.cameras.width[i] = image.shape[1]
-            self.train_dataset.cameras.height[i] = image.shape[0]
+        def process_eval_data(idx):
+            # cv2.undistort the images / cameras
+            data = self.eval_dataset.get_data(idx, image_type=self.config.cache_images_type)
+            camera = self.eval_dataset.cameras[idx].reshape(())
+            K = camera.get_intrinsics_matrices().numpy()
+            if camera.distortion_params is None:
+                return data
+            distortion_params = camera.distortion_params.numpy()
+            image = data["image"].numpy()
+
+            K, image, mask = _undistort_image(camera, distortion_params, data, image, K)
+            data["image"] = torch.from_numpy(image)
+            if mask is not None:
+                data["mask"] = mask
+
+            self.eval_dataset.cameras.fx[idx] = float(K[0, 0])
+            self.eval_dataset.cameras.fy[idx] = float(K[1, 1])
+            self.eval_dataset.cameras.cx[idx] = float(K[0, 2])
+            self.eval_dataset.cameras.cy[idx] = float(K[1, 2])
+            self.eval_dataset.cameras.width[idx] = image.shape[1]
+            self.eval_dataset.cameras.height[idx] = image.shape[0]
+            return data
+
+        CONSOLE.log("Caching / undistorting train images")
+        with ThreadPoolExecutor() as executor:
+            cached_train = list(
+                executor.map(
+                    process_train_data,
+                    track(
+                        range(len(self.train_dataset)),
+                        description="Caching / undistorting train images",
+                        transient=True,
+                    ),
+                )
+            )
 
         CONSOLE.log("Caching / undistorting eval images")
-        for i in tqdm(range(len(self.eval_dataset)), leave=False):
-            # cv2.undistort the images / cameras
-            data = self.eval_dataset.get_data(i, image_type=self.config.cache_images_type)
-            camera = self.eval_dataset.cameras[i].reshape(())
-            K = camera.get_intrinsics_matrices().numpy()
-            if camera.distortion_params is None:
-                cached_eval.append(data)
-                continue
-            distortion_params = camera.distortion_params.numpy()
-            image = data["image"].numpy()
-
-            K, image, mask = _undistort_image(camera, distortion_params, data, image, K)
-            data["image"] = torch.from_numpy(image)
-            if mask is not None:
-                data["mask"] = mask
-
-            cached_eval.append(data)
-
-            self.eval_dataset.cameras.fx[i] = float(K[0, 0])
-            self.eval_dataset.cameras.fy[i] = float(K[1, 1])
-            self.eval_dataset.cameras.cx[i] = float(K[0, 2])
-            self.eval_dataset.cameras.cy[i] = float(K[1, 2])
-            self.eval_dataset.cameras.width[i] = image.shape[1]
-            self.eval_dataset.cameras.height[i] = image.shape[0]
+        with ThreadPoolExecutor() as executor:
+            cached_eval = list(
+                executor.map(
+                    process_eval_data,
+                    track(
+                        range(len(self.eval_dataset)), description="Caching / undistorting eval images", transient=True
+                    ),
+                )
+            )
 
         if cache_images_option == "gpu":
             for cache in cached_train:
