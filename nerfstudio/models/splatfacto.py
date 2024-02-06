@@ -732,7 +732,10 @@ class SplatfactoModel(Model):
             tile_bounds,
         )  # type: ignore
         if (self.radii).sum() == 0:
-            return {"rgb": background.repeat(int(camera.height.item()), int(camera.width.item()), 1)}
+            return {
+                "rgb": background.repeat(int(camera.height.item()), int(camera.width.item()), 1),
+                "depth": torch.ones(int(camera.height.item()), int(camera.width.item()), 1) * 10,
+            }
 
         # Important to allow xys grads to populate properly
         if self.training:
