@@ -40,11 +40,12 @@ def run(data_path, method, max_num_iterations, steps_per_save, data_parser, visu
     # train.main(config)
     return cmd
 
+
 def run_vis(config_path):
     # generate the command
     if config_path == "":
         raise gr.Error("Please select a config path")
-   
+
     # this only works on windows
     cmd = f"start cmd /k ns-viewer --load-config {config_path}"
     # run the command
@@ -69,6 +70,7 @@ def generate_cmd(data_path, method, max_num_iterations, steps_per_save, data_par
     # result = run_ns_train_realtime(cmd)
     print(cmd)
     return cmd
+
 
 def generate_vis_cmd(config_path):
     # generate the command
@@ -191,6 +193,16 @@ def browse():
     root.withdraw()  # Hide the main window
     root.lift()  # Move to the top of all windows
     folder_path = filedialog.askdirectory(title="Select Folder")
+    return folder_path
+
+
+def browse_cfg():
+    root = tk.Tk()
+    root.wm_attributes("-topmost", 1)
+    root.withdraw()  # Hide the main window
+    root.lift()  # Move to the top of all windows
+    # select a file ending with .yml
+    folder_path = filedialog.askopenfilename(title="Select Config", filetypes=[("YAML files", "*.yml")])
     return folder_path
 
 
@@ -328,8 +340,8 @@ with gr.Blocks() as demo:
 
         with gr.Row():
             config_path = gr.Textbox(label="Config Path", lines=1, placeholder="Path to the config", scale=4)
-            browse_button = gr.Button(value="Browse", scale=1)
-            browse_button.click(browse, None, outputs=config_path)
+            cfg_browse_button = gr.Button(value="Browse", scale=1)
+            cfg_browse_button.click(browse_cfg, None, outputs=config_path)
             gr.ClearButton(components=[data_path], scale=1)
 
         vis_button.click(
