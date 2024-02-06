@@ -135,7 +135,7 @@ class CreateJSONCameraPath(bpy.types.Operator):
             render_seconds = 1 / render_fps
         else:
             render_seconds = (
-                ((bpy.context.scene.frame_end - bpy.context.scene.frame_start) // (bpy.context.scene.frame_step) + 1)
+                (bpy.context.scene.frame_end - bpy.context.scene.frame_start) // (bpy.context.scene.frame_step) + 1
             ) / render_fps
 
         smoothness_value = 0

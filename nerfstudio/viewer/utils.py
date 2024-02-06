@@ -20,10 +20,11 @@ from typing import Any, List, Literal, Optional, Tuple, Union
 import numpy as np
 import torch
 from jaxtyping import Float
+from torch import nn
+
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.models.base_model import Model
-from torch import nn
 
 
 @dataclass

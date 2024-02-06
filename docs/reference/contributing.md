@@ -14,15 +14,14 @@ In addition to code contributions, we also encourage contributors to add their o
 
 Below are the various tooling features our team uses to maintain this codebase.
 
-| Tooling         | Support                                                    |
-| --------------- | ---------------------------------------------------------- |
-| Formatting      | [Black](https://black.readthedocs.io/en/stable/)           |
-| Linter          | [Ruff](https://beta.ruff.rs/docs/)                         |
-| Type checking   | [Pyright](https://github.com/microsoft/pyright)            |
-| Testing         | [pytest](https://docs.pytest.org/en/7.1.x/)                |
-| Docs            | [Sphinx](https://www.sphinx-doc.org/en/master/)            |
-| Docstring style | [Google](https://google.github.io/styleguide/pyguide.html) |
-| JS Linting      | [eslint](https://eslint.org/)                              |
+| Tooling              | Support                                                    |
+| -------------------- | ---------------------------------------------------------- |
+| Formatting & Linting | [Ruff](https://beta.ruff.rs/docs/)                         |
+| Type checking        | [Pyright](https://github.com/microsoft/pyright)            |
+| Testing              | [pytest](https://docs.pytest.org/en/7.1.x/)                |
+| Docs                 | [Sphinx](https://www.sphinx-doc.org/en/master/)            |
+| Docstring style      | [Google](https://google.github.io/styleguide/pyguide.html) |
+| JS Linting           | [eslint](https://eslint.org/)                              |
 
 ## Requirements
 

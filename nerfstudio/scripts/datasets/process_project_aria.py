@@ -17,15 +17,17 @@ import sys
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List, cast
 
 import numpy as np
+import open3d as o3d
 import tyro
 from PIL import Image
 
 try:
     from projectaria_tools.core import mps
     from projectaria_tools.core.data_provider import VrsDataProvider, create_vrs_data_provider
+    from projectaria_tools.core.mps.utils import filter_points_from_confidence
     from projectaria_tools.core.sophus import SE3
 except ImportError:
     print("projectaria_tools import failed, please install with pip3 install projectaria-tools'[all]'")
@@ -218,6 +220,21 @@ class ProcessProjectAria:
             "frames": [to_nerfstudio_frame(frame) for frame in aria_frames],
             "fisheye_crop_radius": rgb_valid_radius,
         }
+
+        # save global point cloud, which is useful for Gaussian Splatting.
+        points_path = self.mps_data_dir / "global_points.csv.gz"
+        if points_path.exists():
+            print("Found global points, saving to PLY...")
+            points_data = mps.read_global_point_cloud(str(points_path))  # type: ignore
+            points_data = filter_points_from_confidence(points_data)
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(np.array([cast(Any, it).position_world for it in points_data]))
+            ply_file_path = self.output_dir / "global_points.ply"
+            o3d.io.write_point_cloud(str(ply_file_path), pcd)
+
+            nerfstudio_frames["ply_file_path"] = "global_points.ply"
+        else:
+            print("No global points found!")
 
         # write the json out to disk as transforms.json
         print("Writing transforms.json")

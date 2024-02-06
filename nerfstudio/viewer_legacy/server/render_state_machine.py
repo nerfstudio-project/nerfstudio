@@ -24,7 +24,7 @@ import torch
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.model_components.renderers import background_color_override_context
-from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
+from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.utils import colormaps, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer_legacy.server import viewer_utils
@@ -130,7 +130,7 @@ class RenderStateMachine(threading.Thread):
         with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
             # TODO jake-austin: Make this check whether the model inherits from a camera based model or a ray based model
             # TODO Zhuoyang: First made some dummy judgements, need to be fixed later
-            isGaussianSplattingModel = isinstance(self.viewer.get_model(), GaussianSplattingModel)
+            isGaussianSplattingModel = isinstance(self.viewer.get_model(), SplatfactoModel)
             if isGaussianSplattingModel:
                 # TODO fix me before ship
                 camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)

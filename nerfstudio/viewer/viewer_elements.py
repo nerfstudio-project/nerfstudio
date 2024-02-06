@@ -35,8 +35,8 @@ from viser import (
     ViserServer,
 )
 
-from nerfstudio.viewer.utils import CameraState, get_camera
 from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.viewer.utils import CameraState, get_camera
 
 if TYPE_CHECKING:
     from nerfstudio.viewer.viewer import Viewer

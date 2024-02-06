@@ -21,28 +21,12 @@ from __future__ import annotations
 
 import dataclasses
 import time
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Generic,
-    List,
-    Optional,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, Union
 
 import numpy as onp
 from viser.infra import ClientId
 
-from .messages import (
-    GuiRemoveMessage,
-    GuiSetHiddenMessage,
-    GuiSetLevaConfMessage,
-    GuiSetValueMessage,
-)
+from .messages import GuiRemoveMessage, GuiSetHiddenMessage, GuiSetLevaConfMessage, GuiSetValueMessage
 
 if TYPE_CHECKING:
     from .message_api import MessageApi

@@ -33,9 +33,9 @@ from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataPars
 from nerfstudio.data.dataparsers.nuscenes_dataparser import NuScenesDataParserConfig
 from nerfstudio.data.dataparsers.phototourism_dataparser import PhototourismDataParserConfig
 from nerfstudio.data.dataparsers.scannet_dataparser import ScanNetDataParserConfig
+from nerfstudio.data.dataparsers.scannetpp_dataparser import ScanNetppDataParserConfig
 from nerfstudio.data.dataparsers.sdfstudio_dataparser import SDFStudioDataParserConfig
 from nerfstudio.data.dataparsers.sitcoms3d_dataparser import Sitcoms3DDataParserConfig
-from nerfstudio.data.dataparsers.scannetpp_dataparser import ScanNetppDataParserConfig
 from nerfstudio.plugins.registry_dataparser import discover_dataparsers
 
 dataparsers = {

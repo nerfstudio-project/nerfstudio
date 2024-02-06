@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Literal, Optional, Tuple, Callable
+from typing import Callable, Literal, Optional, Tuple
 
 import torch
 import yaml

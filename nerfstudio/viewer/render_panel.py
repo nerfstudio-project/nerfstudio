@@ -20,15 +20,17 @@ import datetime
 import json
 import threading
 import time
-from typing import Dict, List, Optional, Tuple, Literal
 from pathlib import Path
-from nerfstudio.viewer.control_panel import ControlPanel
+from typing import Dict, List, Literal, Optional, Tuple
+
+import numpy as np
+import scipy
 import splines
 import splines.quaternion
 import viser
 import viser.transforms as tf
-import numpy as np
-import scipy
+
+from nerfstudio.viewer.control_panel import ControlPanel
 
 
 @dataclasses.dataclass

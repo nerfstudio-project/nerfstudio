@@ -27,18 +27,11 @@ import torch
 from torch.nn import Parameter
 
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.engine.callbacks import (
-    TrainingCallback,
-    TrainingCallbackAttributes,
-    TrainingCallbackLocation,
-)
+from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.model_components.losses import interlevel_loss
-from nerfstudio.model_components.ray_samplers import (
-    ProposalNetworkSampler,
-    UniformSampler,
-)
+from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler, UniformSampler
 from nerfstudio.models.neus import NeuSModel, NeuSModelConfig
 from nerfstudio.utils import colormaps
 

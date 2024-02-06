@@ -24,11 +24,7 @@ import numpy as np
 import torch
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
-from nerfstudio.data.dataparsers.base_dataparser import (
-    DataParser,
-    DataParserConfig,
-    DataparserOutputs,
-)
+from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.io import load_from_json
@@ -61,13 +57,12 @@ class Blender(DataParser):
         self.data: Path = config.data
         self.scale_factor: float = config.scale_factor
         self.alpha_color = config.alpha_color
+        if self.alpha_color is not None:
+            self.alpha_color_tensor = get_color(self.alpha_color)
+        else:
+            self.alpha_color_tensor = None
 
     def _generate_dataparser_outputs(self, split="train"):
-        if self.alpha_color is not None:
-            alpha_color_tensor = get_color(self.alpha_color)
-        else:
-            alpha_color_tensor = None
-
         meta = load_from_json(self.data / f"transforms_{split}.json")
         image_filenames = []
         poses = []
@@ -102,7 +97,7 @@ class Blender(DataParser):
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
-            alpha_color=alpha_color_tensor,
+            alpha_color=self.alpha_color_tensor,
             scene_box=scene_box,
             dataparser_scale=self.scale_factor,
         )

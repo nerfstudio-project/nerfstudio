@@ -21,6 +21,7 @@ from typing import Literal, Type
 
 import numpy as np
 import torch
+
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
@@ -108,9 +109,7 @@ class ScanNetpp(DataParser):
             else:
                 i_train.append(idx)
 
-        assert len(mask_filenames) == 0 or (
-            len(mask_filenames) == len(image_filenames)
-        ), """
+        assert len(mask_filenames) == 0 or (len(mask_filenames) == len(image_filenames)), """
         Different number of image and mask filenames.
         You should check that mask_path is specified for every frame (or zero frames) in transforms.json.
         """

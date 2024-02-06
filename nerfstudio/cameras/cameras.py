@@ -23,7 +23,6 @@ from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import cv2
 import torch
-import torchvision
 from jaxtyping import Float, Int, Shaped
 from torch import Tensor
 from torch.nn import Parameter
@@ -670,7 +669,7 @@ class Cameras(TensorDataclass):
         assert c2w.shape == num_rays_shape + (3, 4)
 
         def _compute_rays_for_omnidirectional_stereo(
-            eye: Literal["left", "right"]
+            eye: Literal["left", "right"],
         ) -> Tuple[Float[Tensor, "num_rays_shape 3"], Float[Tensor, "3 num_rays_shape 3"]]:
             """Compute the rays for an omnidirectional stereo camera
 
@@ -727,7 +726,7 @@ class Cameras(TensorDataclass):
             return ods_origins_circle, directions_stack
 
         def _compute_rays_for_vr180(
-            eye: Literal["left", "right"]
+            eye: Literal["left", "right"],
         ) -> Tuple[Float[Tensor, "num_rays_shape 3"], Float[Tensor, "3 num_rays_shape 3"]]:
             """Compute the rays for a VR180 camera
 
@@ -865,7 +864,7 @@ class Cameras(TensorDataclass):
 
                 assert distortion_params is not None
                 masked_coords = pcoord_stack[coord_mask, :]
-                # The fisheye unprojection does not rely on planar/pinhold unprojection, thus the method needs
+                # The fisheye unprojection does not rely on planar/pinhole unprojection, thus the method needs
                 # to access the focal length and principle points directly.
                 camera_params = torch.cat(
                     [
@@ -959,7 +958,11 @@ class Cameras(TensorDataclass):
             image_uint8 = (image * 255).detach().type(torch.uint8)
             if max_size is not None:
                 image_uint8 = image_uint8.permute(2, 0, 1)
-                image_uint8 = torchvision.transforms.functional.resize(image_uint8, max_size, antialias=None)  # type: ignore
+
+                # torchvision can be slow to import, so we do it lazily.
+                import torchvision.transforms.functional as TF
+
+                image_uint8 = TF.resize(image_uint8, max_size, antialias=None)  # type: ignore
                 image_uint8 = image_uint8.permute(1, 2, 0)
             image_uint8 = image_uint8.cpu().numpy()
             data = cv2.imencode(".jpg", image_uint8)[1].tobytes()  # type: ignore

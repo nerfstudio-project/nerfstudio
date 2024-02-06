@@ -82,6 +82,7 @@ We hope nerfstudio enables you to build faster 🔨 learn together 📚 and cont
 
 quickstart/installation
 quickstart/first_nerf
+quickstart/existing_dataset
 quickstart/custom_dataset
 quickstart/viewer_quickstart
 quickstart/export_geometry
@@ -140,6 +141,7 @@ This documentation is organized into 3 parts:
 - [NeRF](nerfology/methods/nerf.md): OG Neural Radiance Fields
 - [Mip-NeRF](nerfology/methods/mipnerf.md): A Multiscale Representation for Anti-Aliasing Neural Radiance Fields
 - [TensoRF](nerfology/methods/tensorf.md): Tensorial Radiance Fields
+- [Splatfacto](nerfology/methods/splat.md): Nerfstudio's Gaussian Splatting implementation
 
 (third_party_methods)=
 
@@ -153,6 +155,7 @@ This documentation is organized into 3 parts:
 - [Tetra-NeRF](nerfology/methods/tetranerf.md): Representing Neural Radiance Fields Using Tetrahedra
 - [Instruct-GS2GS](nerfology/methods/igs2gs.md): Editing 3DGS Scenes with Instructions
 - [PyNeRF](nerfology/methods/pynerf.md): Pyramidal Neural Radiance Fields
+- [SeaThru-NeRF](nerfology/methods/seathru_nerf.md): Neural Radiance Field for subsea scenes
 
 **Eager to contribute a method?** We'd love to see you use nerfstudio in implementing new (or even existing) methods! Please view our {ref}`guide<own_method_docs>` for more details about how to add to this list!
 

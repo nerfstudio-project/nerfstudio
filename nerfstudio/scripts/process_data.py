@@ -28,11 +28,11 @@ from typing_extensions import Annotated
 
 from nerfstudio.process_data import (
     metashape_utils,
+    odm_utils,
     polycam_utils,
     process_data_utils,
     realitycapture_utils,
     record3d_utils,
-    odm_utils,
 )
 from nerfstudio.process_data.colmap_converter_to_nerfstudio_dataset import BaseConverterToNerfstudioDataset
 from nerfstudio.process_data.images_to_nerfstudio_dataset import ImagesToNerfstudioDataset
@@ -411,6 +411,7 @@ class ProcessODM(BaseConverterToNerfstudioDataset):
         orig_images_dir = self.data / "images"
         cameras_file = self.data / "cameras.json"
         shots_file = self.data / "odm_report" / "shots.geojson"
+        reconstruction_file = self.data / "opensfm" / "reconstruction.json"
 
         if not shots_file.exists:
             raise ValueError(f"shots file {shots_file} doesn't exist")
@@ -463,6 +464,7 @@ class ProcessODM(BaseConverterToNerfstudioDataset):
                 image_filename_map=image_filename_map,
                 cameras_file=cameras_file,
                 shots_file=shots_file,
+                reconstruction_file=reconstruction_file,
                 output_dir=self.output_dir,
                 verbose=self.verbose,
             )

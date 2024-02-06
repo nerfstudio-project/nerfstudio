@@ -41,6 +41,7 @@ from typing import (
 )
 
 import torch
+import tyro
 from torch import nn
 from torch.nn import Parameter
 from torch.utils.data.distributed import DistributedSampler
@@ -54,16 +55,8 @@ from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.pixel_samplers import (
-    PatchPixelSamplerConfig,
-    PixelSampler,
-    PixelSamplerConfig,
-)
-from nerfstudio.data.utils.dataloaders import (
-    CacheDataloader,
-    FixedIndicesEvalDataloader,
-    RandIndicesEvalDataloader,
-)
+from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
+from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
@@ -342,7 +335,9 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
-    camera_optimizer: Optional[CameraOptimizerConfig] = field(default=None)
+
+    # tyro.conf.Suppress prevents us from creating CLI arguments for this field.
+    camera_optimizer: tyro.conf.Suppress[Optional[CameraOptimizerConfig]] = field(default=None)
     """Deprecated, has been moved to the model config."""
     pixel_sampler: PixelSamplerConfig = field(default_factory=PixelSamplerConfig)
     """Specifies the pixel sampler used to sample pixels from images."""
@@ -411,9 +406,9 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
         self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
-        if self.config.masks_on_gpu is True:
+        if self.config.masks_on_gpu is True and "mask" in self.exclude_batch_keys_from_device:
             self.exclude_batch_keys_from_device.remove("mask")
-        if self.config.images_on_gpu is True:
+        if self.config.images_on_gpu is True and "image" in self.exclude_batch_keys_from_device:
             self.exclude_batch_keys_from_device.remove("image")
 
         if self.train_dataparser_outputs is not None:
@@ -476,8 +471,8 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
 
         fisheye_crop_radius = None
-        if dataset.cameras.metadata is not None and "fisheye_crop_radius" in dataset.cameras.metadata:
-            fisheye_crop_radius = dataset.cameras.metadata["fisheye_crop_radius"]
+        if dataset.cameras.metadata is not None:
+            fisheye_crop_radius = dataset.cameras.metadata.get("fisheye_crop_radius")
 
         return self.config.pixel_sampler.setup(
             is_equirectangular=is_equirectangular,

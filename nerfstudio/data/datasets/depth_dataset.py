@@ -16,23 +16,21 @@
 Depth dataset.
 """
 
-from typing import Dict
+import json
+from pathlib import Path
+from typing import Dict, Union
 
 import numpy as np
+import torch
+from PIL import Image
+from rich.progress import track
 
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-from nerfstudio.model_components import losses
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.data_utils import get_depth_image_from_path
+from nerfstudio.model_components import losses
 from nerfstudio.utils.misc import torch_compile
 from nerfstudio.utils.rich_utils import CONSOLE
-
-from typing import Union
-from PIL import Image
-import torch
-from rich.progress import track
-from pathlib import Path
-import json
 
 
 class DepthDataset(InputDataset):

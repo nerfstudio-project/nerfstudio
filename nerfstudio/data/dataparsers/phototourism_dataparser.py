@@ -25,19 +25,12 @@ import torch
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
-from nerfstudio.data.dataparsers.base_dataparser import (
-    DataParser,
-    DataParserConfig,
-    DataparserOutputs,
-)
+from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
 from nerfstudio.data.scene_box import SceneBox
 
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
 # import pycolmap
-from nerfstudio.data.utils.colmap_parsing_utils import (
-    read_cameras_binary,
-    read_images_binary,
-)
+from nerfstudio.data.utils.colmap_parsing_utils import read_cameras_binary, read_images_binary
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
