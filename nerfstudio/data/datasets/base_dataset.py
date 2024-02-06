@@ -103,7 +103,7 @@ class InputDataset(Dataset):
             assert (self._dataparser_outputs.alpha_color >= 0).all() and (
                 self._dataparser_outputs.alpha_color <= 1
             ).all(), "alpha color given is out of range between [0, 1]."
-            image = image[:, :, :3] * image[:, :, -1:] / 255.0 + 255.0 * self._dataparser_outputs.alpha_color * (
+            image = image[:, :, :3] * (image[:, :, -1:] / 255.0) + 255.0 * self._dataparser_outputs.alpha_color * (
                 1.0 - image[:, :, -1:] / 255.0
             )
             image = torch.clamp(image, min=0, max=255).to(torch.uint8)
