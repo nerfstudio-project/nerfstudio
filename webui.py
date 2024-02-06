@@ -40,6 +40,17 @@ def run(data_path, method, max_num_iterations, steps_per_save, data_parser, visu
     # train.main(config)
     return cmd
 
+def run_vis(config_path):
+    # generate the command
+    if config_path == "":
+        raise gr.Error("Please select a config path")
+   
+    # this only works on windows
+    cmd = f"start cmd /k ns-viewer --load-config {config_path}"
+    # run the command
+    subprocess.run(cmd, shell=True, check=False)
+    return cmd
+
 
 def generate_cmd(data_path, method, max_num_iterations, steps_per_save, data_parser, visualizer):
     # generate the command
@@ -56,20 +67,17 @@ def generate_cmd(data_path, method, max_num_iterations, steps_per_save, data_par
     --steps-per-save {steps_per_save} --data {data_path} {data_parser} {dataparser_args_cmd}"
     # run the command
     # result = run_ns_train_realtime(cmd)
+    print(cmd)
+    return cmd
 
-    # generate the cofig
-    # config = mc.all_methods[method]
-    # data_path = Path(data_path)
-    # config.data = data_path
-    # config.max_num_iterations = max_num_iterations
-    # config.steps_per_save = steps_per_save
-    # config.vis = visualizer
-    # config.pipeline.datamanager.dataparser = dc.all_dataparsers[data_parser]
-    # for key, value in dataparser_args.items():
-    #     setattr(config.pipeline.datamanager.dataparser, key, value)
-    # for key, value in model_args.items():
-    #     setattr(config.pipeline.model, key, value)
-    # train.main(config)
+def generate_vis_cmd(config_path):
+    # generate the command
+    if config_path == "":
+        raise gr.Error("Please select a config path")
+    # this only works on windows
+    cmd = f"ns-viewer --load-config {config_path}"
+    # run the command
+    # result = run_ns_train_realtime(cmd)
     print(cmd)
     return cmd
 
@@ -204,113 +212,136 @@ model_arg_names = []  # keep track of the model args names
 model_arg_idx = {}  # record the start and end index of the model args
 
 with gr.Blocks() as demo:
-    status = gr.Textbox(label="Status", lines=1, placeholder="Waiting for input")
-    with gr.Row():
-        run_button = gr.Button(
-            value="Run",
-        )
-        cmd_button = gr.Button(value="Show Command")
-        viser_button = gr.Button(value="Open Viser", link="http://localhost:7007/")
-
-    # TODO: Add a progress bar
-    # TODO: Make the run button disabled when the process is running
-
-    # input data path
-    with gr.Row():
-        max_num_iterations = gr.Slider(minimum=0, maximum=50000, step=100, label="Max Num Iterations", value=30000)
-        steps_per_save = gr.Slider(minimum=0, maximum=10000, step=100, label="Steps Per Save", value=2000)
-    with gr.Row():
-        data_path = gr.Textbox(label="Data Path", lines=1, placeholder="Path to the data folder", scale=4)
-        browse_button = gr.Button(value="Browse", scale=1)
-        browse_button.click(browse, None, outputs=data_path)
-        gr.ClearButton(components=[data_path], scale=1)
-
-    with gr.Row():
-        with gr.Column():
-            method = gr.Radio(choices=mc.all_descriptions.keys(), label="Method")
-            description = gr.Textbox(label="Description", visible=True)
-            method.change(fn=get_model_description, inputs=method, outputs=description)
-        with gr.Column():
-            dataparser = gr.Radio(choices=dc.all_dataparsers.keys(), label="Data Parser")
-            visualizer = gr.Radio(
-                choices=[
-                    "viewer",
-                    "wandb",
-                    "tensorboard",
-                    "comet",
-                    "viewer+wandb",
-                    "viewer+tensorboard",
-                    "viewer+comet",
-                    "viewer_legacy",
-                ],
-                label="Visualizer",
-                value="viewer",
+    with gr.Tab(label="Train"):
+        status = gr.Textbox(label="Status", lines=1, placeholder="Waiting for input")
+        with gr.Row():
+            run_button = gr.Button(
+                value="Run",
             )
+            cmd_button = gr.Button(value="Show Command")
+            viser_button = gr.Button(value="Open Viser", link="http://localhost:7007/")
 
-    with gr.Accordion("Model Config", open=False):
-        for key, value in mc.all_descriptions.items():
-            with gr.Group(visible=False) as group:
-                if key in mc.method_configs:
-                    model_config = mc.method_configs[key].pipeline.model
-                    generated_args, labels = generate_args(model_config, visible=True)
+        # TODO: Add a progress bar
+        # TODO: Make the run button disabled when the process is running
 
-                    model_arg_list += generated_args
-                    model_arg_names += labels
+        # input data path
+        with gr.Row():
+            max_num_iterations = gr.Slider(minimum=0, maximum=50000, step=100, label="Max Num Iterations", value=30000)
+            steps_per_save = gr.Slider(minimum=0, maximum=10000, step=100, label="Steps Per Save", value=2000)
+        with gr.Row():
+            data_path = gr.Textbox(label="Data Path", lines=1, placeholder="Path to the data folder", scale=4)
+            browse_button = gr.Button(value="Browse", scale=1)
+            browse_button.click(browse, None, outputs=data_path)
+            gr.ClearButton(components=[data_path], scale=1)
 
-                    model_arg_idx[key] = [len(model_arg_list) - len(generated_args), len(model_arg_list)]
+        with gr.Row():
+            with gr.Column():
+                method = gr.Radio(choices=mc.all_descriptions.keys(), label="Method")
+                description = gr.Textbox(label="Description", visible=True)
+                method.change(fn=get_model_description, inputs=method, outputs=description)
+            with gr.Column():
+                dataparser = gr.Radio(choices=dc.all_dataparsers.keys(), label="Data Parser")
+                visualizer = gr.Radio(
+                    choices=[
+                        "viewer",
+                        "wandb",
+                        "tensorboard",
+                        "comet",
+                        "viewer+wandb",
+                        "viewer+tensorboard",
+                        "viewer+comet",
+                        "viewer_legacy",
+                    ],
+                    label="Visualizer",
+                    value="viewer",
+                )
 
-                    model_groups.append(group)
-                    model_group_idx[key] = len(model_groups) - 1
-        # when the model changes, make the corresponding model args visible
-        method.change(fn=vis_model_args, inputs=method, outputs=model_groups)
+        with gr.Accordion("Model Config", open=False):
+            for key, value in mc.all_descriptions.items():
+                with gr.Group(visible=False) as group:
+                    if key in mc.method_configs:
+                        model_config = mc.method_configs[key].pipeline.model
+                        generated_args, labels = generate_args(model_config, visible=True)
+                        model_arg_list += generated_args
+                        model_arg_names += labels
+                        model_arg_idx[key] = [len(model_arg_list) - len(generated_args), len(model_arg_list)]
 
-    with gr.Accordion("Data Parser Config", open=False):
-        for key, parser_config in dc.all_dataparsers.items():
-            with gr.Group(visible=False) as group:
-                generated_args, labels = generate_args(parser_config, visible=True)
+                        model_groups.append(group)
+                        model_group_idx[key] = len(model_groups) - 1
+            # when the model changes, make the corresponding model args visible
+            method.change(fn=vis_model_args, inputs=method, outputs=model_groups)
 
-                dataparser_arg_list += generated_args
-                dataparser_arg_names += labels
+        with gr.Accordion("Data Parser Config", open=False):
+            for key, parser_config in dc.all_dataparsers.items():
+                with gr.Group(visible=False) as group:
+                    generated_args, labels = generate_args(parser_config, visible=True)
+                    dataparser_arg_list += generated_args
+                    dataparser_arg_names += labels
+                    dataparser_arg_idx[key] = [len(dataparser_arg_list) - len(generated_args), len(dataparser_arg_list)]
 
-                dataparser_arg_idx[key] = [len(dataparser_arg_list) - len(generated_args), len(dataparser_arg_list)]
+                    dataparser_groups.append(group)
+                    dataparser_group_idx[key] = len(dataparser_groups) - 1
 
-                dataparser_groups.append(group)
-                dataparser_group_idx[key] = len(dataparser_groups) - 1
+            # when the dataparser changes, make the corresponding dataparser args visible
+            dataparser.change(fn=vis_data_parser_args, inputs=dataparser, outputs=dataparser_groups)
 
-        # when the dataparser changes, make the corresponding dataparser args visible
-        dataparser.change(fn=vis_data_parser_args, inputs=dataparser, outputs=dataparser_groups)
+        run_button.click(
+            get_model_args,
+            inputs=[method] + model_arg_list,
+            outputs=None,
+        ).then(
+            get_data_parser_args,
+            inputs=[dataparser] + dataparser_arg_list,
+            outputs=None,
+        ).then(
+            check,
+            inputs=[data_path, method, dataparser, visualizer],
+            outputs=status,
+        ).then(
+            run,
+            inputs=[data_path, method, max_num_iterations, steps_per_save, dataparser, visualizer],
+            outputs=None,
+        )
 
-    run_button.click(
-        get_model_args,
-        inputs=[method] + model_arg_list,
-        outputs=None,
-    ).then(
-        get_data_parser_args,
-        inputs=[dataparser] + dataparser_arg_list,
-        outputs=None,
-    ).then(
-        check,
-        inputs=[data_path, method, dataparser, visualizer],
-        outputs=status,
-    ).then(
-        run,
-        inputs=[data_path, method, max_num_iterations, steps_per_save, dataparser, visualizer],
-        outputs=None,
-    )
+        cmd_button.click(
+            get_model_args,
+            inputs=[method] + model_arg_list,
+            outputs=None,
+        ).then(
+            get_data_parser_args,
+            inputs=[dataparser] + dataparser_arg_list,
+            outputs=None,
+        ).then(
+            generate_cmd,
+            inputs=[data_path, method, max_num_iterations, steps_per_save, dataparser, visualizer],
+            outputs=status,
+        )
 
-    cmd_button.click(
-        get_model_args,
-        inputs=[method] + model_arg_list,
-        outputs=None,
-    ).then(
-        get_data_parser_args,
-        inputs=[dataparser] + dataparser_arg_list,
-        outputs=None,
-    ).then(
-        generate_cmd,
-        inputs=[data_path, method, max_num_iterations, steps_per_save, dataparser, visualizer],
-        outputs=status,
-    )
+    with gr.Tab(label="Visualize"):
+        status = gr.Textbox(label="Status", lines=1, placeholder="Waiting for input")
+        with gr.Row():
+            vis_button = gr.Button(
+                value="Run Viser",
+            )
+            vis_cmd_button = gr.Button(value="Show Command")
+            viser_button = gr.Button(value="Open Viser", link="http://localhost:7007/")
+
+        with gr.Row():
+            config_path = gr.Textbox(label="Config Path", lines=1, placeholder="Path to the config", scale=4)
+            browse_button = gr.Button(value="Browse", scale=1)
+            browse_button.click(browse, None, outputs=config_path)
+            gr.ClearButton(components=[data_path], scale=1)
+
+        vis_button.click(
+            run_vis,
+            inputs=[config_path],
+            outputs=status,
+        )
+        vis_cmd_button.click(
+            generate_vis_cmd,
+            inputs=[config_path],
+            outputs=status,
+        )
 
 
 demo.launch(inbrowser=True)
