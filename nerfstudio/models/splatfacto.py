@@ -667,7 +667,11 @@ class SplatfactoModel(Model):
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
-                return {"rgb": background.repeat(int(camera.height.item()), int(camera.width.item()), 1)}
+                return {
+                    "rgb": background.repeat(int(camera.height.item()), int(camera.width.item()), 1),
+                    "depth": torch.ones(int(camera.height.item()), int(camera.width.item()), 1) * 10,
+                    "accumulation": torch.zeros(int(camera.height.item()), int(camera.width.item()), 1),
+                }
         else:
             crop_ids = None
         camera_downscale = self._get_downscale_factor()
@@ -735,6 +739,7 @@ class SplatfactoModel(Model):
             return {
                 "rgb": background.repeat(int(camera.height.item()), int(camera.width.item()), 1),
                 "depth": torch.ones(int(camera.height.item()), int(camera.width.item()), 1) * 10,
+                "accumulation": torch.zeros(int(camera.height.item()), int(camera.width.item()), 1),
             }
 
         # Important to allow xys grads to populate properly
