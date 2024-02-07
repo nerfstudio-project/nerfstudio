@@ -33,6 +33,7 @@ from pytorch_msssim import SSIM
 from torch.nn import Parameter
 from typing_extensions import Literal
 
+from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
@@ -146,6 +147,8 @@ class SplatfactoModelConfig(ModelConfig):
     However, PLY exported with antialiased rasterize mode is not compatible with classic mode. Thus many web viewers that
     were implemented for classic mode can not render antialiased mode PLY properly without modifications.
     """
+    camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="SO3xR3"))
+    """Config of the camera optimizer to use"""
 
 
 class SplatfactoModel(Model):
@@ -211,6 +214,10 @@ class SplatfactoModel(Model):
                 "features_rest": features_rest,
                 "opacities": opacities,
             }
+        )
+
+        self.camera_optimizer: CameraOptimizer = self.config.camera_optimizer.setup(
+            num_cameras=self.num_train_data, device="cpu"
         )
 
         # metrics
@@ -609,6 +616,7 @@ class SplatfactoModel(Model):
             Mapping of different parameter groups
         """
         gps = self.get_gaussian_param_groups()
+        self.camera_optimizer.get_param_groups(param_groups=gps)
         return gps
 
     def _get_downscale_factor(self):
@@ -656,6 +664,7 @@ class SplatfactoModel(Model):
                 background = torch.zeros(3, device=self.device)
             else:
                 background = self.background_color.to(self.device)
+            self.camera_optimizer.apply_to_camera(camera)
         else:
             if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
                 background = renderers.BACKGROUND_COLOR_OVERRIDE.to(self.device)
@@ -829,6 +838,8 @@ class SplatfactoModel(Model):
         metrics_dict["psnr"] = self.psnr(predicted_rgb, gt_rgb)
 
         metrics_dict["gaussian_count"] = self.num_points
+
+        self.camera_optimizer.get_metrics_dict(metrics_dict)
         return metrics_dict
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
@@ -867,10 +878,16 @@ class SplatfactoModel(Model):
         else:
             scale_reg = torch.tensor(0.0).to(self.device)
 
-        return {
+        loss_dict = {
             "main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,
             "scale_reg": scale_reg,
         }
+
+        if self.training:
+            # Add loss from camera optimizer
+            self.camera_optimizer.get_loss_dict(loss_dict)
+
+        return loss_dict
 
     @torch.no_grad()
     def get_outputs_for_camera(self, camera: Cameras, obb_box: Optional[OrientedBox] = None) -> Dict[str, torch.Tensor]:
