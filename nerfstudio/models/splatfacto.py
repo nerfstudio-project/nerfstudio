@@ -721,7 +721,7 @@ class SplatfactoModel(Model):
 
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
 
-        self.xys, depths, self.radii, conics, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
+        self.xys, self.depths, self.radii, self.conics, self.num_tiles_hit, cov3d = project_gaussians(  # type: ignore
             means_crop,
             torch.exp(scales_crop),
             1,
@@ -757,13 +757,13 @@ class SplatfactoModel(Model):
 
         # rescale the camera back to original dimensions
         camera.rescale_output_resolution(camera_downscale)
-        assert (num_tiles_hit > 0).any()  # type: ignore
+        assert (self.num_tiles_hit > 0).any()  # type: ignore
         rgb, alpha = rasterize_gaussians(  # type: ignore
             self.xys,
-            depths,
+            self.depths,
             self.radii,
-            conics,
-            num_tiles_hit,  # type: ignore
+            self.conics,
+            self.num_tiles_hit,  # type: ignore
             rgbs,
             torch.sigmoid(opacities_crop),
             H,
@@ -777,11 +777,11 @@ class SplatfactoModel(Model):
         if self.config.output_depth_during_training or not self.training:
             depth_im = rasterize_gaussians(  # type: ignore
                 self.xys,
-                depths,
+                self.depths,
                 self.radii,
-                conics,
-                num_tiles_hit,  # type: ignore
-                depths[:, None].repeat(1, 3),
+                self.conics,
+                self.num_tiles_hit,  # type: ignore
+                self.depths[:, None].repeat(1, 3),
                 torch.sigmoid(opacities_crop),
                 H,
                 W,
