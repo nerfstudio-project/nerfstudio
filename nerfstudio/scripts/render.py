@@ -804,9 +804,7 @@ class DatasetRender(BaseRender):
                         image_name = f"{camera_idx:05d}"
 
                         # Try to get the original filename
-                        image_name = (
-                            dataparser_outputs.image_filenames[camera_idx].with_suffix("").relative_to(images_root)
-                        )
+                        image_name = dataparser_outputs.image_filenames[camera_idx].relative_to(images_root)
 
                         output_path = self.output_path / split / rendered_output_name / image_name
                         output_path.parent.mkdir(exist_ok=True, parents=True)
