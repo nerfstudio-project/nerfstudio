@@ -23,20 +23,7 @@ import time
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
-from typing import (
-    Dict,
-    Generic,
-    List,
-    Literal,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-    get_args,
-    get_origin,
-    ForwardRef,
-    cast,
-)
+from typing import Dict, ForwardRef, Generic, List, Literal, Optional, Tuple, Type, Union, cast, get_args, get_origin
 
 import torch
 from pathos.helpers import mp
@@ -53,16 +40,8 @@ from nerfstudio.data.datamanagers.base_datamanager import (
 )
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.pixel_samplers import (
-    PatchPixelSamplerConfig,
-    PixelSampler,
-    PixelSamplerConfig,
-)
-from nerfstudio.data.utils.dataloaders import (
-    CacheDataloader,
-    FixedIndicesEvalDataloader,
-    RandIndicesEvalDataloader,
-)
+from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
+from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
