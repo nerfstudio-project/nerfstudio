@@ -21,8 +21,9 @@ import concurrent.futures
 import queue
 import time
 from dataclasses import dataclass, field
+from functools import cached_property
 from pathlib import Path
-from typing import Dict, Generic, List, Literal, Optional, Tuple, Type, Union
+from typing import Dict, ForwardRef, Generic, List, Literal, Optional, Tuple, Type, Union, cast, get_args, get_origin
 
 import torch
 from pathos.helpers import mp
@@ -38,9 +39,11 @@ from nerfstudio.data.datamanagers.base_datamanager import (
     variable_res_collate,
 )
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
+from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
 from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
 from nerfstudio.model_components.ray_generators import RayGenerator
+from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
@@ -141,7 +144,6 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         local_rank: int = 0,
         **kwargs,
     ):
-        self.dataset_type: Type[TDataset] = kwargs.get("_dataset_type", getattr(TDataset, "__default__"))
         self.config = config
         self.device = device
         self.world_size = world_size
@@ -174,6 +176,31 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         if mp.get_start_method(allow_none=True) is None:  # type: ignore
             mp.set_start_method("spawn")  # type: ignore
         super().__init__()
+
+    @cached_property
+    def dataset_type(self) -> Type[TDataset]:
+        """Returns the dataset type passed as the generic argument"""
+        default: Type[TDataset] = cast(TDataset, TDataset.__default__)  # type: ignore
+        orig_class: Type[ParallelDataManager] = get_orig_class(self, default=None)  # type: ignore
+        if type(self) is ParallelDataManager and orig_class is None:
+            return default
+        if orig_class is not None and get_origin(orig_class) is ParallelDataManager:
+            return get_args(orig_class)[0]
+
+        # For inherited classes, we need to find the correct type to instantiate
+        for base in getattr(self, "__orig_bases__", []):
+            if get_origin(base) is ParallelDataManager:
+                for value in get_args(base):
+                    if isinstance(value, ForwardRef):
+                        if value.__forward_evaluated__:
+                            value = value.__forward_value__
+                        elif value.__forward_module__ is None:
+                            value.__forward_module__ = type(self).__module__
+                            value = getattr(value, "_evaluate")(None, None, set())
+                    assert isinstance(value, type)
+                    if issubclass(value, InputDataset):
+                        return cast(Type[TDataset], value)
+        return default
 
     def create_train_dataset(self) -> TDataset:
         """Sets up the data loaders for training."""
