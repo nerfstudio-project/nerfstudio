@@ -656,6 +656,8 @@ class SplatfactoModel(Model):
 
         # get the background color
         if self.training:
+            optimized_camera_to_world = self.camera_optimizer.apply_to_camera(camera)[0, ...]
+
             if self.config.background_color == "random":
                 background = torch.rand(3, device=self.device)
             elif self.config.background_color == "white":
@@ -664,8 +666,9 @@ class SplatfactoModel(Model):
                 background = torch.zeros(3, device=self.device)
             else:
                 background = self.background_color.to(self.device)
-            self.camera_optimizer.apply_to_camera(camera)
         else:
+            optimized_camera_to_world = camera.camera_to_worlds[0, ...]
+
             if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
                 background = renderers.BACKGROUND_COLOR_OVERRIDE.to(self.device)
             else:
@@ -683,8 +686,9 @@ class SplatfactoModel(Model):
         camera_downscale = self._get_downscale_factor()
         camera.rescale_output_resolution(1 / camera_downscale)
         # shift the camera to center of scene looking at center
-        R = camera.camera_to_worlds[0, :3, :3]  # 3 x 3
-        T = camera.camera_to_worlds[0, :3, 3:4]  # 3 x 1
+        R = optimized_camera_to_world[:3, :3]  # 3 x 3
+        T = optimized_camera_to_world[:3, 3:4]  # 3 x 1
+
         # flip the z and y axes to align with gsplat conventions
         R_edit = torch.diag(torch.tensor([1, -1, -1], device=self.device, dtype=R.dtype))
         R = R @ R_edit
@@ -747,7 +751,7 @@ class SplatfactoModel(Model):
             self.xys.retain_grad()
 
         if self.config.sh_degree > 0:
-            viewdirs = means_crop.detach() - camera.camera_to_worlds.detach()[..., :3, 3]  # (N, 3)
+            viewdirs = means_crop.detach() - optimized_camera_to_world.detach()[:3, 3]  # (N, 3)
             viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
             n = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
             rgbs = spherical_harmonics(n, viewdirs, colors_crop)
