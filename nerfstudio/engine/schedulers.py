@@ -102,7 +102,7 @@ class ExponentialDecaySchedulerConfig(SchedulerConfig):
     """Number of warmup steps."""
     max_steps: int = 100000
     """The maximum number of steps."""
-    ramp: Literal["linear", "cosine"] = "cosine"
+    ramp: Literal["linear", "cosine", "step"] = "cosine"
     """The ramp function to use during the warmup."""
 
 
@@ -125,6 +125,8 @@ class ExponentialDecayScheduler(Scheduler):
                     lr = self.config.lr_pre_warmup + (lr_init - self.config.lr_pre_warmup) * np.sin(
                         0.5 * np.pi * np.clip(step / self.config.warmup_steps, 0, 1)
                     )
+                elif self.config.ramp == "step":
+                    lr = self.config.lr_pre_warmup
                 else:
                     lr = (
                         self.config.lr_pre_warmup
