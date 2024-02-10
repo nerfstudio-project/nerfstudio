@@ -51,7 +51,7 @@ class ProcessRecord3D(BaseConverterToNerfstudioDataset):
 
     This script does the following:
 
-    1. Scales images to a specified snum_downscalesize.
+    1. Scales images to a specified size.
     2. Converts Record3D poses into the nerfstudio format.
     """
 
