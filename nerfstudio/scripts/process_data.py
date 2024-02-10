@@ -42,7 +42,7 @@ from nerfstudio.process_data.colmap_converter_to_nerfstudio_dataset import BaseC
 from nerfstudio.process_data.images_to_nerfstudio_dataset import ImagesToNerfstudioDataset
 from nerfstudio.process_data.video_to_nerfstudio_dataset import VideoToNerfstudioDataset
 from nerfstudio.utils.rich_utils import CONSOLE
-from nerfstudio.process_data import colmap_utils, hloc_utils
+from nerfstudio.process_data import colmap_utils
 
 
 @dataclass
@@ -498,15 +498,13 @@ class ProcessSplatfacto(BaseConverterToNerfstudioDataset):
             source_path = str(self.data)
             output_path = str(self.output_dir)
             resize = 1 if not self.resize else 0
-            use_gpu = True if not self.use_gpu else False
-            skip_matching = False if not self.skip_matching else True
             colmap_command = str(self.colmap_command)
             magick_command = str(self.magick_command)
             camera = "OPENCV"
             if self.eval_data is not None:
                 raise ValueError("Cannot use eval_data since cameras were already aligned with it.")
 
-            if self.skip_matching==False:
+            if skip_matching==False:
                 os.makedirs(output_path + "/distorted/sparse", exist_ok=True)
 
                 ## Feature extraction
@@ -519,7 +517,7 @@ class ProcessSplatfacto(BaseConverterToNerfstudioDataset):
                 exit_code = os.system(feat_extracton_cmd)
                 if exit_code != 0:
                     logging.error(f"Feature extraction failed with code {exit_code}. Exiting.")
-                    exit(exit_code)
+                    sys.exit()
 
                 ## Feature matching
                 feat_matching_cmd = colmap_command + " exhaustive_matcher \
@@ -528,7 +526,7 @@ class ProcessSplatfacto(BaseConverterToNerfstudioDataset):
                 exit_code = os.system(feat_matching_cmd)
                 if exit_code != 0:
                     logging.error(f"Feature matching failed with code {exit_code}. Exiting.")
-                    exit(exit_code)
+                    sys.exit()
 
                 ### Bundle adjustment
                 # The default Mapper tolerance is unnecessarily large,
@@ -541,7 +539,7 @@ class ProcessSplatfacto(BaseConverterToNerfstudioDataset):
                 exit_code = os.system(mapper_cmd)
                 if exit_code != 0:
                     logging.error(f"Mapper failed with code {exit_code}. Exiting.")
-                    exit(exit_code)
+                    sys.exit()
 
             ### Image undistortion
             ## We need to undistort our images into ideal pinhole intrinsics.
@@ -553,7 +551,7 @@ class ProcessSplatfacto(BaseConverterToNerfstudioDataset):
             exit_code = os.system(img_undist_cmd)
             if exit_code != 0:
                 logging.error(f"Mapper failed with code {exit_code}. Exiting.")
-                exit(exit_code)
+                sys.exit()
 
             files = os.listdir(output_path + "/sparse")
             os.makedirs(output_path + "/colmap/sparse/0", exist_ok=True)
@@ -583,21 +581,21 @@ class ProcessSplatfacto(BaseConverterToNerfstudioDataset):
                     exit_code = os.system(magick_command + " mogrify -resize 50% " + destination_file)
                     if exit_code != 0:
                         logging.error(f"50% resize failed with code {exit_code}. Exiting.")
-                        exit(exit_code)
+                        sys.exit()
 
                     destination_file = os.path.join(output_path, "images_4", file)
                     shutil.copy2(source_file, destination_file)
                     exit_code = os.system(magick_command + " mogrify -resize 25% " + destination_file)
                     if exit_code != 0:
                         logging.error(f"25% resize failed with code {exit_code}. Exiting.")
-                        exit(exit_code)
+                        sys.exit()
 
                     destination_file = os.path.join(output_path, "images_8", file)
                     shutil.copy2(source_file, destination_file)
                     exit_code = os.system(magick_command + " mogrify -resize 12.5% " + destination_file)
                     if exit_code != 0:
                         logging.error(f"12.5% resize failed with code {exit_code}. Exiting.")
-                        exit(exit_code)
+                        sys.exit()
             
             print("Creating 'transforms.json` and `sparse_pc.ply`.")
             recon_dir = Path(output_path + "/colmap/sparse/0")
