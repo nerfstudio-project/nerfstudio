@@ -743,7 +743,7 @@ class SplatfactoModel(Model):
 
             # rescale the camera back to original dimensions before returning
             camera.rescale_output_resolution(camera_downscale)
-            
+
             return {"rgb": rgb, "depth": depth, "accumulation": accumulation}
 
         # Important to allow xys grads to populate properly
