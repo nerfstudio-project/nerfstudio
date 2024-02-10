@@ -22,6 +22,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Union
 
+import os
+import logging
+import shutil
+
 import numpy as np
 import tyro
 from typing_extensions import Annotated
@@ -38,6 +42,7 @@ from nerfstudio.process_data.colmap_converter_to_nerfstudio_dataset import BaseC
 from nerfstudio.process_data.images_to_nerfstudio_dataset import ImagesToNerfstudioDataset
 from nerfstudio.process_data.video_to_nerfstudio_dataset import VideoToNerfstudioDataset
 from nerfstudio.utils.rich_utils import CONSOLE
+from nerfstudio.process_data import colmap_utils, hloc_utils
 
 
 @dataclass
@@ -46,7 +51,7 @@ class ProcessRecord3D(BaseConverterToNerfstudioDataset):
 
     This script does the following:
 
-    1. Scales images to a specified size.
+    1. Scales images to a specified snum_downscalesize.
     2. Converts Record3D poses into the nerfstudio format.
     """
 
@@ -476,6 +481,129 @@ class ProcessODM(BaseConverterToNerfstudioDataset):
             CONSOLE.print(summary, justify="center")
         CONSOLE.rule()
 
+@dataclass
+class ProcessSplatfacto(BaseConverterToNerfstudioDataset):
+        resize:bool = False
+        """If true, it will downscale the images by 2x, 4x, and 8x. It needs magick library"""
+        use_gpu:bool = True
+        """If true, it will use GPU for Sift Extraction."""
+        skip_matching:bool = False
+        """If you already matching the dataset, set True for it."""
+        colmap_command:str = "colmap"
+        """Use it if you want customize how to run colmap."""
+        magick_command:str = "magick"
+        """Use it if you want customize how to run magick."""
+
+        def main(self) -> None:
+            source_path = str(self.data)
+            output_path = str(self.output_dir)
+            resize = 1 if not self.resize else 0
+            use_gpu = True if not self.use_gpu else False
+            skip_matching = False if not self.skip_matching else True
+            colmap_command = str(self.colmap_command)
+            magick_command = str(self.magick_command)
+            camera = "OPENCV"
+            if self.eval_data is not None:
+                raise ValueError("Cannot use eval_data since cameras were already aligned with it.")
+
+            if self.skip_matching==False:
+                os.makedirs(output_path + "/distorted/sparse", exist_ok=True)
+
+                ## Feature extraction
+                feat_extracton_cmd = colmap_command + " feature_extractor "\
+                    "--database_path " + output_path + "/distorted/database.db \
+                    --image_path " + source_path + " \
+                    --ImageReader.single_camera 1 \
+                    --ImageReader.camera_model " + camera + " \
+                    --SiftExtraction.use_gpu " + str(self.use_gpu)
+                exit_code = os.system(feat_extracton_cmd)
+                if exit_code != 0:
+                    logging.error(f"Feature extraction failed with code {exit_code}. Exiting.")
+                    exit(exit_code)
+
+                ## Feature matching
+                feat_matching_cmd = colmap_command + " exhaustive_matcher \
+                    --database_path " + output_path + "/distorted/database.db \
+                    --SiftMatching.use_gpu " + str(self.use_gpu)
+                exit_code = os.system(feat_matching_cmd)
+                if exit_code != 0:
+                    logging.error(f"Feature matching failed with code {exit_code}. Exiting.")
+                    exit(exit_code)
+
+                ### Bundle adjustment
+                # The default Mapper tolerance is unnecessarily large,
+                # decreasing it speeds up bundle adjustment steps.
+                mapper_cmd = (colmap_command + " mapper \
+                    --database_path " + output_path + "/distorted/database.db \
+                    --image_path "  + source_path + " \
+                    --output_path "  + output_path + "/distorted/sparse \
+                    --Mapper.ba_global_function_tolerance=0.000001")
+                exit_code = os.system(mapper_cmd)
+                if exit_code != 0:
+                    logging.error(f"Mapper failed with code {exit_code}. Exiting.")
+                    exit(exit_code)
+
+            ### Image undistortion
+            ## We need to undistort our images into ideal pinhole intrinsics.
+            img_undist_cmd = (colmap_command + " image_undistorter \
+                --image_path " + source_path + " \
+                --input_path " + output_path + "/distorted/sparse/0 \
+                --output_path " + output_path + "\
+                --output_type COLMAP")
+            exit_code = os.system(img_undist_cmd)
+            if exit_code != 0:
+                logging.error(f"Mapper failed with code {exit_code}. Exiting.")
+                exit(exit_code)
+
+            files = os.listdir(output_path + "/sparse")
+            os.makedirs(output_path + "/colmap/sparse/0", exist_ok=True)
+            # Copy each file from the source directory to the destination directory
+            for file in files:
+                if file == '0':
+                    continue
+                source_file = os.path.join(output_path, "sparse", file)
+                destination_file = os.path.join(output_path, "colmap", "sparse", "0", file)
+                shutil.move(source_file, destination_file)
+
+            if(self.resize==True):
+                print("Copying and resizing...")
+
+                # Resize images.
+                os.makedirs(output_path + "/images_2", exist_ok=True)
+                os.makedirs(output_path + "/images_4", exist_ok=True)
+                os.makedirs(output_path + "/images_8", exist_ok=True)
+                # Get the list of files in the source directory
+                files = os.listdir(output_path + "/images")
+                # Copy each file from the source directory to the destination directory
+                for file in files:
+                    source_file = os.path.join(output_path, "images", file)
+
+                    destination_file = os.path.join(output_path, "images_2", file)
+                    shutil.copy2(source_file, destination_file)
+                    exit_code = os.system(magick_command + " mogrify -resize 50% " + destination_file)
+                    if exit_code != 0:
+                        logging.error(f"50% resize failed with code {exit_code}. Exiting.")
+                        exit(exit_code)
+
+                    destination_file = os.path.join(output_path, "images_4", file)
+                    shutil.copy2(source_file, destination_file)
+                    exit_code = os.system(magick_command + " mogrify -resize 25% " + destination_file)
+                    if exit_code != 0:
+                        logging.error(f"25% resize failed with code {exit_code}. Exiting.")
+                        exit(exit_code)
+
+                    destination_file = os.path.join(output_path, "images_8", file)
+                    shutil.copy2(source_file, destination_file)
+                    exit_code = os.system(magick_command + " mogrify -resize 12.5% " + destination_file)
+                    if exit_code != 0:
+                        logging.error(f"12.5% resize failed with code {exit_code}. Exiting.")
+                        exit(exit_code)
+            
+            print("Creating 'transforms.json` and `sparse_pc.ply`.")
+            recon_dir = Path(output_path + "/colmap/sparse/0")
+            output_dir = Path(output_path)
+            colmap_utils.colmap_to_json(recon_dir, output_dir)
+            print("Done.")
 
 @dataclass
 class NotInstalled:
@@ -491,6 +619,7 @@ Commands = Union[
     Annotated[ProcessRealityCapture, tyro.conf.subcommand(name="realitycapture")],
     Annotated[ProcessRecord3D, tyro.conf.subcommand(name="record3d")],
     Annotated[ProcessODM, tyro.conf.subcommand(name="odm")],
+    Annotated[ProcessSplatfacto, tyro.conf.subcommand(name="splatfacto")],
 ]
 
 # Add aria subcommand if projectaria_tools is installed.
