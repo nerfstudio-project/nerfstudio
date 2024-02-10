@@ -155,6 +155,8 @@ class SplatfactoModelConfig(ModelConfig):
     """threshold of ratio of gaussian max to min scale before applying regularization
     loss from the PhysGaussian paper
     """
+    output_depth_during_training: bool = False
+    """If True, output depth during training. Otherwise, only output depth during evaluation."""
 
 
 class SplatfactoModel(Model):
@@ -667,7 +669,10 @@ class SplatfactoModel(Model):
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
-                return {"rgb": background.repeat(int(camera.height.item()), int(camera.width.item()), 1)}
+                rgb = background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
+                depth = background.new_ones(*rgb.shape[:2], 1) * 10
+                accumulation = background.new_zeros(*rgb.shape[:2], 1)
+                return {"rgb": rgb, "depth": depth, "accumulation": accumulation}
         else:
             crop_ids = None
         camera_downscale = self._get_downscale_factor()
@@ -732,7 +737,10 @@ class SplatfactoModel(Model):
             tile_bounds,
         )  # type: ignore
         if (self.radii).sum() == 0:
-            return {"rgb": background.repeat(int(camera.height.item()), int(camera.width.item()), 1)}
+            rgb = background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
+            depth = background.new_ones(*rgb.shape[:2], 1) * 10
+            accumulation = background.new_zeros(*rgb.shape[:2], 1)
+            return {"rgb": rgb, "depth": depth, "accumulation": accumulation}
 
         # Important to allow xys grads to populate properly
         if self.training:
@@ -766,7 +774,7 @@ class SplatfactoModel(Model):
         alpha = alpha[..., None]
         rgb = torch.clamp(rgb, max=1.0)  # type: ignore
         depth_im = None
-        if not self.training:
+        if self.config.output_depth_during_training or not self.training:
             depth_im = rasterize_gaussians(  # type: ignore
                 self.xys,
                 depths,
