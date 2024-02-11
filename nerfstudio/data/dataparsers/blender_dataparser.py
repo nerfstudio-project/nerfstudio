@@ -43,8 +43,8 @@ class BlenderDataParserConfig(DataParserConfig):
     """How much to scale the camera origins by."""
     alpha_color: str = "white"
     """alpha color of background"""
-    colmap_path: Path = Path("sparse_pc.ply")
-    """Path to the colmap reconstruction directory relative to the data path."""
+    ply_path: Path = Path("sparse_pc.ply")
+    """Path to the pointcloud file relative to the data path."""
     load_3D_points: bool = True
     """Whether to load the 3D points from the colmap reconstruction. This is helpful for Gaussian splatting and
     generally unused otherwise, but it's typically harmless so we default to True."""
