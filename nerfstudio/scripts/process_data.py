@@ -504,7 +504,7 @@ class ProcessSplatfacto(BaseConverterToNerfstudioDataset):
             if self.eval_data is not None:
                 raise ValueError("Cannot use eval_data since cameras were already aligned with it.")
 
-            if skip_matching==False:
+            if self.skip_matching==False:
                 os.makedirs(output_path + "/distorted/sparse", exist_ok=True)
 
                 ## Feature extraction
