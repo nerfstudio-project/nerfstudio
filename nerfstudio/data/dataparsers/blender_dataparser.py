@@ -104,7 +104,7 @@ class Blender(DataParser):
         metadata = {}
         if self.config.load_3D_points:
             # Load 3D points
-                    # TODO: Check if we need to use `transform_matrix` and `scaling_factor`
+            # TODO: Check if we need to use `transform_matrix` and `scaling_factor`
             metadata.update(self._load_3D_points(ply_path))
 
 
@@ -114,6 +114,7 @@ class Blender(DataParser):
             alpha_color=self.alpha_color_tensor,
             scene_box=scene_box,
             dataparser_scale=self.scale_factor,
+            metadata=metadata,
         )
 
         return dataparser_outputs
