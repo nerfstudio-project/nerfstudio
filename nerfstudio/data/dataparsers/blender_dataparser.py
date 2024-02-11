@@ -46,7 +46,7 @@ class BlenderDataParserConfig(DataParserConfig):
     ply_path: Path = Path("sparse_pc.ply")
     """Path to the pointcloud file relative to the data path."""
     load_3D_points: bool = True
-    """Whether to load the 3D points from the colmap reconstruction. This is helpful for Gaussian splatting and
+    """Whether to load the 3D points from ply file. This is helpful for Gaussian splatting and
     generally unused otherwise, but it's typically harmless so we default to True."""
 
 
