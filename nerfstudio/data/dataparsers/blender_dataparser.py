@@ -21,6 +21,7 @@ from typing import Type
 
 import imageio
 import numpy as np
+import open3d as o3d
 import torch
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -42,6 +43,11 @@ class BlenderDataParserConfig(DataParserConfig):
     """How much to scale the camera origins by."""
     alpha_color: str = "white"
     """alpha color of background"""
+    colmap_path: Path = Path("sparse_pc.ply")
+    """Path to the colmap reconstruction directory relative to the data path."""
+    load_3D_points: bool = True
+    """Whether to load the 3D points from the colmap reconstruction. This is helpful for Gaussian splatting and
+    generally unused otherwise, but it's typically harmless so we default to True."""
 
 
 @dataclass
@@ -64,6 +70,7 @@ class Blender(DataParser):
 
     def _generate_dataparser_outputs(self, split="train"):
         meta = load_from_json(self.data / f"transforms_{split}.json")
+        ply_path = self.config.data / self.config.ply_path
         image_filenames = []
         poses = []
         for frame in meta["frames"]:
@@ -93,6 +100,13 @@ class Blender(DataParser):
             cy=cy,
             camera_type=CameraType.PERSPECTIVE,
         )
+        
+        metadata = {}
+        if self.config.load_3D_points:
+            # Load 3D points
+                    # TODO: Check if we need to use `transform_matrix` and `scaling_factor`
+            metadata.update(self._load_3D_points(ply_path))
+
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
@@ -103,3 +117,16 @@ class Blender(DataParser):
         )
 
         return dataparser_outputs
+
+    def _load_3D_points(self, ply_file_path: Path):
+        pcd = o3d.io.read_point_cloud(str(ply_file_path))
+
+        points3D = torch.from_numpy(np.asarray(pcd.points, dtype=np.float32))
+        # TODO: Check if we need to use `transform_matrix` and `scaling_factor`
+        points3D_rgb = torch.from_numpy((np.asarray(pcd.colors) * 255).astype(np.uint8))
+
+        out = {
+            "points3D_xyz": points3D,
+            "points3D_rgb": points3D_rgb,
+        }
+        return out
