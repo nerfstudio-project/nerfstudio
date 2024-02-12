@@ -28,6 +28,7 @@ import shutil
 
 import numpy as np
 import tyro
+import cv2
 from typing_extensions import Annotated
 
 from nerfstudio.process_data import (
@@ -484,27 +485,24 @@ class ProcessODM(BaseConverterToNerfstudioDataset):
 @dataclass
 class ProcessSplatfacto(BaseConverterToNerfstudioDataset):
         resize:bool = False
-        """If true, it will downscale the images by 2x, 4x, and 8x. It needs magick library"""
+        """If true, it will downscale the images by 2x, 4x, and 8x. It useful if you run ns-train splatfacto with
+        extra argument --downscale-factor of 2, 4, or 8"""
         use_gpu:bool = True
         """If true, it will use GPU for Sift Extraction."""
         skip_matching:bool = False
         """If you already matching the dataset, set True for it."""
         colmap_command:str = "colmap"
         """Use it if you want customize how to run colmap."""
-        magick_command:str = "magick"
-        """Use it if you want customize how to run magick."""
 
         def main(self) -> None:
             source_path = str(self.data)
             output_path = str(self.output_dir)
-            resize = 1 if not self.resize else 0
             colmap_command = str(self.colmap_command)
-            magick_command = str(self.magick_command)
             camera = "OPENCV"
             if self.eval_data is not None:
                 raise ValueError("Cannot use eval_data since cameras were already aligned with it.")
 
-            if self.skip_matching==False:
+            if self.skip_matching is False:
                 os.makedirs(output_path + "/distorted/sparse", exist_ok=True)
 
                 ## Feature extraction
@@ -563,39 +561,38 @@ class ProcessSplatfacto(BaseConverterToNerfstudioDataset):
                 destination_file = os.path.join(output_path, "colmap", "sparse", "0", file)
                 shutil.move(source_file, destination_file)
 
-            if(self.resize==True):
-                print("Copying and resizing...")
-
-                # Resize images.
-                os.makedirs(output_path + "/images_2", exist_ok=True)
-                os.makedirs(output_path + "/images_4", exist_ok=True)
-                os.makedirs(output_path + "/images_8", exist_ok=True)
-                # Get the list of files in the source directory
-                files = os.listdir(output_path + "/images")
-                # Copy each file from the source directory to the destination directory
+            def resize_images(input_folder, output_folder, factor):
+                # Create the output folder if it doesn't exist
+                if not os.path.exists(output_folder):
+                    os.makedirs(output_folder)
+            
+                # List all files in the input folder
+                files = os.listdir(input_folder)
+            
                 for file in files:
-                    source_file = os.path.join(output_path, "images", file)
+                    # Check if the file is an image (you may need to adjust this check based on your file types)
+                    if file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
+                        # Read the image
+                        img_path = os.path.join(input_folder, file)
+                        img = cv2.imread(img_path)
+            
+                        # Resize the image to half of its original resolution
+                        height, width = img.shape[:2]
+                        resized_img = cv2.resize(img, (int(width * 1/factor), int(height * 0.5)))
+            
+                        # Write the resized image to the output folder
+                        output_path = os.path.join(output_folder, file)
+                        cv2.imwrite(output_path, resized_img)
 
-                    destination_file = os.path.join(output_path, "images_2", file)
-                    shutil.copy2(source_file, destination_file)
-                    exit_code = os.system(magick_command + " mogrify -resize 50% " + destination_file)
-                    if exit_code != 0:
-                        logging.error(f"50% resize failed with code {exit_code}. Exiting.")
-                        sys.exit()
+            # Resize images.
+            if self.resize is True:
+                for i in [2,4,8]:
+                    print(f"Start copying and resizing to {1/i*100} %")
+                    input_folder = Path(output_path + "/images")
+                    output_folder = Path(output_path + f"/images_{i}")
+                    resize_images(input_folder, output_folder, i)
+                    print(f"Successfully copying and resizing to {1/i*100} %")
 
-                    destination_file = os.path.join(output_path, "images_4", file)
-                    shutil.copy2(source_file, destination_file)
-                    exit_code = os.system(magick_command + " mogrify -resize 25% " + destination_file)
-                    if exit_code != 0:
-                        logging.error(f"25% resize failed with code {exit_code}. Exiting.")
-                        sys.exit()
-
-                    destination_file = os.path.join(output_path, "images_8", file)
-                    shutil.copy2(source_file, destination_file)
-                    exit_code = os.system(magick_command + " mogrify -resize 12.5% " + destination_file)
-                    if exit_code != 0:
-                        logging.error(f"12.5% resize failed with code {exit_code}. Exiting.")
-                        sys.exit()
             
             print("Creating 'transforms.json` and `sparse_pc.ply`.")
             recon_dir = Path(output_path + "/colmap/sparse/0")
