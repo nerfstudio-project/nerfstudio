@@ -157,7 +157,7 @@ class CameraOptimizer(nn.Module):
             assert camera.metadata is not None, "Must provide id of camera in its metadata"
             assert "cam_idx" in camera.metadata, "Must provide id of camera in its metadata"
             camera_idx = camera.metadata["cam_idx"]
-            adj = self([camera_idx])  # type: ignore
+            adj = self(torch.tensor([camera_idx], dtype=torch.long, device=camera.device))  # type: ignore
             adj = torch.cat([adj, torch.Tensor([0, 0, 0, 1])[None, None].to(adj)], dim=1)
             camera.camera_to_worlds = torch.bmm(camera.camera_to_worlds, adj)
 
