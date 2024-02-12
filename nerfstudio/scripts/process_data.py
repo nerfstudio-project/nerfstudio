@@ -578,7 +578,7 @@ class ProcessSplatfacto(BaseConverterToNerfstudioDataset):
             
                         # Resize the image to half of its original resolution
                         height, width = img.shape[:2]
-                        resized_img = cv2.resize(img, (int(width * 1/factor), int(height * 0.5)))
+                        resized_img = cv2.resize(img, (int(width * 1/factor), int(height * 1/factor)))
             
                         # Write the resized image to the output folder
                         output_path = os.path.join(output_folder, file)
