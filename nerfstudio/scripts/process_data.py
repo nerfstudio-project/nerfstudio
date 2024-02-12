@@ -32,6 +32,7 @@ import cv2
 from typing_extensions import Annotated
 
 from nerfstudio.process_data import (
+    colmap_utils,
     metashape_utils,
     odm_utils,
     polycam_utils,
@@ -44,8 +45,6 @@ from nerfstudio.process_data.colmap_converter_to_nerfstudio_dataset import BaseC
 from nerfstudio.process_data.images_to_nerfstudio_dataset import ImagesToNerfstudioDataset
 from nerfstudio.process_data.video_to_nerfstudio_dataset import VideoToNerfstudioDataset
 from nerfstudio.utils.rich_utils import CONSOLE
-from nerfstudio.process_data import colmap_utils
-
 
 @dataclass
 class ProcessRecord3D(BaseConverterToNerfstudioDataset):
