@@ -484,7 +484,7 @@ class ProcessODM(BaseConverterToNerfstudioDataset):
 
 @dataclass
 class ProcessSplatfacto(BaseConverterToNerfstudioDataset):
-        resize:bool = False
+        resize:bool = True
         """If true, it will downscale the images by 2x, 4x, and 8x. It useful if you run ns-train splatfacto with
         extra argument --downscale-factor of 2, 4, or 8"""
         use_gpu:bool = True
