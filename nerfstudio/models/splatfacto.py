@@ -770,8 +770,6 @@ class SplatfactoModel(Model):
         else:
             rgbs = torch.sigmoid(colors_crop[:, 0, :])
 
-        # rescale the camera back to original dimensions
-        camera.rescale_output_resolution(camera_downscale)
         assert (num_tiles_hit > 0).any()  # type: ignore
 
         # apply the compensation of screen space blurring to gaussians
