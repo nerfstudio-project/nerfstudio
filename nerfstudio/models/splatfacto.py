@@ -672,7 +672,7 @@ class SplatfactoModel(Model):
                 rgb = background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
                 depth = background.new_ones(*rgb.shape[:2], 1) * 10
                 accumulation = background.new_zeros(*rgb.shape[:2], 1)
-                return {"rgb": rgb, "depth": depth, "accumulation": accumulation}
+                return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
         else:
             crop_ids = None
         camera_downscale = self._get_downscale_factor()
@@ -740,7 +740,7 @@ class SplatfactoModel(Model):
             rgb = background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
             depth = background.new_ones(*rgb.shape[:2], 1) * 10
             accumulation = background.new_zeros(*rgb.shape[:2], 1)
-            return {"rgb": rgb, "depth": depth, "accumulation": accumulation}
+            return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
 
         # Important to allow xys grads to populate properly
         if self.training:
@@ -789,7 +789,7 @@ class SplatfactoModel(Model):
             )[..., 0:1]  # type: ignore
             depth_im = torch.where(alpha > 0, depth_im / alpha, depth_im.detach().max())
 
-        return {"rgb": rgb, "depth": depth_im, "accumulation": alpha}  # type: ignore
+        return {"rgb": rgb, "depth": depth_im, "accumulation": alpha, "background": background}  # type: ignore
 
     def get_gt_img(self, image: torch.Tensor):
         """Compute groundtruth image with iteration dependent downscale factor for evaluation purpose
@@ -811,6 +811,19 @@ class SplatfactoModel(Model):
             gt_img = image
         return gt_img.to(self.device)
 
+    def composite_with_background(self, image, background) -> torch.Tensor:
+        """Composite the ground truth image with a background color when it has an alpha channel.
+
+        Args:
+            image: the image to composite
+            background: the background color
+        """
+        if image.shape[2] == 4:
+            alpha = image[..., -1].unsqueeze(-1).repeat((1, 1, 3))
+            return alpha * image[..., :3] + (1 - alpha) * background
+        else:
+            return image
+
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.
 
@@ -818,7 +831,7 @@ class SplatfactoModel(Model):
             outputs: the output to compute loss dict to
             batch: ground truth batch corresponding to outputs
         """
-        gt_rgb = self.get_gt_img(batch["image"])
+        gt_rgb = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         metrics_dict = {}
         predicted_rgb = outputs["rgb"]
         metrics_dict["psnr"] = self.psnr(predicted_rgb, gt_rgb)
@@ -834,7 +847,7 @@ class SplatfactoModel(Model):
             batch: ground truth batch corresponding to outputs
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
-        gt_img = self.get_gt_img(batch["image"])
+        gt_img = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         pred_img = outputs["rgb"]
 
         # Set masked part of both ground-truth and rendered image to black.
@@ -893,7 +906,7 @@ class SplatfactoModel(Model):
         Returns:
             A dictionary of metrics.
         """
-        gt_rgb = self.get_gt_img(batch["image"])
+        gt_rgb = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         d = self._get_downscale_factor()
         if d > 1:
             # torchvision can be slow to import, so we do it lazily.
