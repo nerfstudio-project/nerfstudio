@@ -45,6 +45,7 @@ from typing_extensions import Annotated
 from nerfstudio.cameras.camera_paths import get_interpolated_camera_path, get_path_from_json, get_spiral_path
 from nerfstudio.cameras.cameras import Cameras, CameraType, RayBundle
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager, VanillaDataManagerConfig
+from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatamanagerConfig
 from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
 from nerfstudio.data.datamanagers.random_cameras_datamanager import RandomCamerasDataManager
 from nerfstudio.data.datasets.base_dataset import Dataset
@@ -718,7 +719,8 @@ class DatasetRender(BaseRender):
 
         def update_config(config: TrainerConfig) -> TrainerConfig:
             data_manager_config = config.pipeline.datamanager
-            assert isinstance(data_manager_config, VanillaDataManagerConfig)
+            assert isinstance(data_manager_config, VanillaDataManagerConfig) or \
+                   isinstance(data_manager_config, FullImageDatamanagerConfig)
             data_manager_config.eval_num_images_to_sample_from = -1
             data_manager_config.eval_num_times_to_repeat_images = -1
             data_manager_config.train_num_images_to_sample_from = -1
@@ -737,7 +739,8 @@ class DatasetRender(BaseRender):
             update_config_callback=update_config,
         )
         data_manager_config = config.pipeline.datamanager
-        assert isinstance(data_manager_config, VanillaDataManagerConfig)
+        assert isinstance(data_manager_config, VanillaDataManagerConfig) or \
+               isinstance(data_manager_config, FullImageDatamanagerConfig)
 
         for split in self.split.split("+"):
             datamanager: VanillaDataManager
