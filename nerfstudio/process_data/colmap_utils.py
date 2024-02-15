@@ -155,7 +155,10 @@ def get_colmap_version(colmap_cmd: str, default_version=3.8) -> float:
     assert output is not None
     for line in output.split("\n"):
         if line.startswith("COLMAP"):
-            return float(line.split(" ")[1])
+            s = line.split(" ")[1]
+            if s.count('.') > 1:
+                s = s[:s.rfind('.')]
+            return float(s)
     CONSOLE.print(f"[bold red]Could not find COLMAP version. Using default {default_version}")
     return default_version
 
@@ -515,20 +518,40 @@ def run_colmap(
     colmap_version = get_colmap_version(colmap_cmd)
 
     colmap_database_path = colmap_dir / "database.db"
-    if colmap_database_path.exists():
-        # Can't use missing_ok argument because of Python 3.7 compatibility.
-        colmap_database_path.unlink()
+    # if colmap_database_path.exists():
+    #     # Can't use missing_ok argument because of Python 3.7 compatibility.
+    #     colmap_database_path.unlink()
 
     # Feature extraction
+    # feature_extractor_cmd = [
+    #     f"{colmap_cmd} feature_extractor",
+    #     f"--database_path {colmap_dir / 'database.db'}",
+    #     f"--image_path {image_dir}",
+    #     "--ImageReader.single_camera 1",
+    #     # f"--ImageReader.camera_model {camera_model.value}",
+    #     f"--ImageReader.camera_model PINHOLE",
+    #     f"--SiftExtraction.use_gpu {int(gpu)}",
+    # ]
+
     feature_extractor_cmd = [
         f"{colmap_cmd} feature_extractor",
         f"--database_path {colmap_dir / 'database.db'}",
         f"--image_path {image_dir}",
-        "--ImageReader.single_camera 1",
-        # f"--ImageReader.camera_model {camera_model.value}",
+        f"--ImageReader.single_camera 1",
+        f"--ImageReader.default_focal_length_factor 1.374",
         f"--ImageReader.camera_model PINHOLE",
         f"--SiftExtraction.use_gpu {int(gpu)}",
     ]
+
+    #   colmap feature_extractor \
+    #       --database_path $DATASET_PATH/database.db \
+    #       --image_path $DATASET_PATH/images \
+    #       --ImageReader.single_camera 1 \
+    #       --ImageReader.default_focal_length_factor 1.374 \
+    #       --ImageReader.camera_model SIMPLE_PINHOLE \
+    #       >> $LOGFILE 2>&1
+    #       # 40deg FOV, 640px -> 0.5/tan(20deg) = 1.3737
+
     if camera_mask_path is not None:
         feature_extractor_cmd.append(f"--ImageReader.camera_mask_path {camera_mask_path}")
     feature_extractor_cmd = " ".join(feature_extractor_cmd)
@@ -538,17 +561,33 @@ def run_colmap(
     CONSOLE.log("[bold green]:tada: Done extracting COLMAP features.")
 
     # Feature matching
+    # feature_matcher_cmd = [
+    #     f"{colmap_cmd} {matching_method}_matcher",
+    #     f"--SiftMatching.min_num_inliers 25",
+    #     f"--SiftMatching.max_error 2",
+    #     f"--SiftMatching.min_inlier_ratio 0.7",
+    #     f"--database_path {colmap_dir / 'database.db'}",
+    #     f"--SiftMatching.use_gpu {int(gpu)}",
+    # ]
+
     feature_matcher_cmd = [
-        f"{colmap_cmd} {matching_method}_matcher",
-        f"--SiftMatching.min_num_inliers 25",
-        f"--SiftMatching.max_error 2",
-        f"--SiftMatching.min_inlier_ratio 0.7",
+        f"{colmap_cmd} exhaustive_matcher",
         f"--database_path {colmap_dir / 'database.db'}",
-        f"--SiftMatching.use_gpu {int(gpu)}",
+        f"--TwoViewGeometry.min_inlier_ratio 0.5",
+        f"--TwoViewGeometry.min_num_inliers 25",
+        f"--TwoViewGeometry.max_error 2",
     ]
-    if matching_method == "vocab_tree":
-        vocab_tree_filename = get_vocab_tree()
-        feature_matcher_cmd.append(f"--VocabTreeMatching.vocab_tree_path {vocab_tree_filename}")
+
+    #   colmap exhaustive_matcher \
+    #       --database_path $DATASET_PATH/database.db \
+    #       --TwoViewGeometry.min_inlier_ratio 0.5 \
+    #       --TwoViewGeometry.min_num_inliers 25 \
+    #       --TwoViewGeometry.max_error 2 \
+    #       >> $LOGFILE 2>&1
+
+    # if matching_method == "vocab_tree":
+    #     vocab_tree_filename = get_vocab_tree()
+    #     feature_matcher_cmd.append(f"--VocabTreeMatching.vocab_tree_path {vocab_tree_filename}")
     feature_matcher_cmd = " ".join(feature_matcher_cmd)
     with status(msg="[bold yellow]Running COLMAP feature matcher...", spinner="runner", verbose=verbose):
         run_command(feature_matcher_cmd, verbose=verbose)
@@ -557,14 +596,26 @@ def run_colmap(
     # Bundle adjustment
     sparse_dir = colmap_dir / "sparse"
     sparse_dir.mkdir(parents=True, exist_ok=True)
+    # Edit the .ini file
+    with open('/home/gchen328/Dropbox/Hydroponics/HyperNeRF/colmap/mapper_conf.ini', 'r') as i:
+        with open(colmap_dir / 'sparse' / 'conf.ini', 'w') as o:
+            for l in i.readlines():
+                if 'database_path' in l:
+                    l = f"database_path={colmap_dir / 'database.db'}\n"
+                elif 'image_path' in l:
+                    l = f"image_path={image_dir}\n"
+                elif 'output_path' in l:
+                    l = f"output_path={sparse_dir}\n"
+                o.write(l)
     mapper_cmd = [
         f"{colmap_cmd} mapper",
+        f"--project_path {(colmap_dir / 'sparse' / 'conf.ini').as_posix()}",
         f"--database_path {colmap_dir / 'database.db'}",
         f"--image_path {image_dir}",
         f"--output_path {sparse_dir}",
     ]
-    if colmap_version >= 3.7:
-        mapper_cmd.append("--Mapper.ba_global_function_tolerance 1e-6")
+    # if colmap_version >= 3.7:
+    #     mapper_cmd.append("--Mapper.ba_global_function_tolerance 1e-6")
 
     mapper_cmd = " ".join(mapper_cmd)
 
