@@ -157,7 +157,7 @@ class SplatfactoModelConfig(ModelConfig):
     """
     output_depth_during_training: bool = False
     """If True, output depth during training. Otherwise, only output depth during evaluation."""
-    use_nd: bool = True # TODO: set this back to False. where to set this to true?
+    use_nd: bool = False
     """Whether to rasterize nd values."""
     nd_dim: int = 1
     """Dimension for nd rasterizing."""
