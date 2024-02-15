@@ -157,9 +157,9 @@ class SplatfactoModelConfig(ModelConfig):
     """
     output_depth_during_training: bool = False
     """If True, output depth during training. Otherwise, only output depth during evaluation."""
-    use_nd: bool = False
+    use_nd: bool = True # TODO: set this back to False. where to set this to true?
     """Whether to rasterize nd values."""
-    nd_dim: int = 8
+    nd_dim: int = 1
     """Dimension for nd rasterizing."""
     nd_detach: bool = True
     """Whether to detach gaussian from nd values."""
@@ -235,6 +235,14 @@ class SplatfactoModel(Model):
             )  # This color is the same as the default background color in Viser. This would only affect the background color when rendering.
         else:
             self.background_color = get_color(self.config.background_color)
+        
+        if self.config.use_nd:
+            self.nd_values = torch.nn.Parameter(torch.rand(self.num_points, self.config.nd_dim))
+
+    def get_nd_values(self):
+        """Returns the nd values, called before rendering which enables overridding
+        this method and projecting from nd to a different dimension."""
+        return self.nd_values
 
     @property
     def colors(self):
@@ -263,6 +271,8 @@ class SplatfactoModel(Model):
         self.features_rest = torch.nn.Parameter(
             torch.zeros(newp, num_sh_bases(self.config.sh_degree) - 1, 3, device=self.device)
         )
+        if self.config.use_nd:
+            self.nd_values = torch.nn.Parameter(torch.zeros(self.num_points, self.config.nd_dim, device=self.device))
         super().load_state_dict(dict, **kwargs)
 
     def k_nearest_sklearn(self, x: torch.Tensor, k: int):
@@ -294,9 +304,10 @@ class SplatfactoModel(Model):
         param_state = optimizer.state[param]
         del optimizer.state[param]
 
-        # Modify the state directly without deleting and reassigning.
-        param_state["exp_avg"] = param_state["exp_avg"][~deleted_mask]
-        param_state["exp_avg_sq"] = param_state["exp_avg_sq"][~deleted_mask]
+        if "exp_avg" in param_state and "exp_avg_sq" in param_state:
+            # Modify the state directly without deleting and reassigning.
+            param_state["exp_avg"] = param_state["exp_avg"][~deleted_mask]
+            param_state["exp_avg_sq"] = param_state["exp_avg_sq"][~deleted_mask]
 
         # Update the parameter in the optimizer's param group.
         del optimizer.param_groups[0]["params"][0]
@@ -314,21 +325,23 @@ class SplatfactoModel(Model):
         """adds the parameters to the optimizer"""
         param = optimizer.param_groups[0]["params"][0]
         param_state = optimizer.state[param]
-        repeat_dims = (n,) + tuple(1 for _ in range(param_state["exp_avg"].dim() - 1))
-        param_state["exp_avg"] = torch.cat(
-            [
-                param_state["exp_avg"],
-                torch.zeros_like(param_state["exp_avg"][dup_mask.squeeze()]).repeat(*repeat_dims),
-            ],
-            dim=0,
-        )
-        param_state["exp_avg_sq"] = torch.cat(
-            [
-                param_state["exp_avg_sq"],
-                torch.zeros_like(param_state["exp_avg_sq"][dup_mask.squeeze()]).repeat(*repeat_dims),
-            ],
-            dim=0,
-        )
+
+        if "exp_avg" in param_state and "exp_avg_sq" in param_state:
+            repeat_dims = (n,) + tuple(1 for _ in range(param_state["exp_avg"].dim() - 1))
+            param_state["exp_avg"] = torch.cat(
+                [
+                    param_state["exp_avg"],
+                    torch.zeros_like(param_state["exp_avg"][dup_mask.squeeze()]).repeat(*repeat_dims),
+                ],
+                dim=0,
+            )
+            param_state["exp_avg_sq"] = torch.cat(
+                [
+                    param_state["exp_avg_sq"],
+                    torch.zeros_like(param_state["exp_avg_sq"][dup_mask.squeeze()]).repeat(*repeat_dims),
+                ],
+                dim=0,
+            )
         del optimizer.state[param]
         optimizer.state[new_params[0]] = param_state
         optimizer.param_groups[0]["params"] = new_params
@@ -405,6 +418,7 @@ class SplatfactoModel(Model):
                     split_opacities,
                     split_scales,
                     split_quats,
+                    split_nd_values,
                 ) = self.split_gaussians(splits, nsamps)
 
                 dups = (self.scales.exp().max(dim=-1).values <= self.config.densify_size_thresh).squeeze()
@@ -416,6 +430,7 @@ class SplatfactoModel(Model):
                     dup_opacities,
                     dup_scales,
                     dup_quats,
+                    dup_nd_values,
                 ) = self.dup_gaussians(dups)
                 self.means = Parameter(torch.cat([self.means.detach(), split_means, dup_means], dim=0))
                 self.features_dc = Parameter(
@@ -434,6 +449,10 @@ class SplatfactoModel(Model):
                         dim=0,
                     )
                 )
+
+                if self.config.use_nd:
+                    self.nd_values = Parameter(torch.cat([self.nd_values.detach(), split_nd_values, dup_nd_values], dim=0))
+
                 self.opacities = Parameter(torch.cat([self.opacities.detach(), split_opacities, dup_opacities], dim=0))
                 self.scales = Parameter(torch.cat([self.scales.detach(), split_scales, dup_scales], dim=0))
                 self.quats = Parameter(torch.cat([self.quats.detach(), split_quats, dup_quats], dim=0))
@@ -448,12 +467,13 @@ class SplatfactoModel(Model):
                 )
 
                 split_idcs = torch.where(splits)[0]
+
                 self.dup_in_all_optim(optimizers, split_idcs, nsamps)
 
                 dup_idcs = torch.where(dups)[0]
                 self.dup_in_all_optim(optimizers, dup_idcs, 1)
 
-                # After a guassian is split into two new gaussians, the original one should also be pruned.
+                # After a gaussian is split into two new gaussians, the original one should also be pruned.
                 splits_mask = torch.cat(
                     (
                         splits,
@@ -521,6 +541,9 @@ class SplatfactoModel(Model):
         self.features_rest = Parameter(self.features_rest[~culls].detach())
         self.opacities = Parameter(self.opacities[~culls].detach())
 
+        if self.config.use_nd:
+            self.nd_values = Parameter(self.nd_values[~culls].detach())
+
         CONSOLE.log(
             f"Culled {n_bef - self.num_points} gaussians "
             f"({below_alpha_count} below alpha thresh, {toobigs_count} too bigs, {self.num_points} remaining)"
@@ -554,6 +577,12 @@ class SplatfactoModel(Model):
         self.scales[split_mask] = torch.log(torch.exp(self.scales[split_mask]) / size_fac)
         # step 5, sample new quats
         new_quats = self.quats[split_mask].repeat(samps, 1)
+
+        if self.config.use_nd:
+            new_nd_values = self.nd_values[split_mask].repeat(samps, 1)
+        else:
+            new_nd_values = None
+
         return (
             new_means,
             new_features_dc,
@@ -561,6 +590,7 @@ class SplatfactoModel(Model):
             new_opacities,
             new_scales,
             new_quats,
+            new_nd_values,
         )
 
     def dup_gaussians(self, dup_mask):
@@ -575,6 +605,11 @@ class SplatfactoModel(Model):
         dup_opacities = self.opacities[dup_mask]
         dup_scales = self.scales[dup_mask]
         dup_quats = self.quats[dup_mask]
+        if self.config.use_nd:
+            dup_nd_values = self.nd_values[dup_mask]
+        else:
+            dup_nd_values = None
+
         return (
             dup_means,
             dup_features_dc,
@@ -582,6 +617,7 @@ class SplatfactoModel(Model):
             dup_opacities,
             dup_scales,
             dup_quats,
+            dup_nd_values,
         )
 
     @property
@@ -614,7 +650,7 @@ class SplatfactoModel(Model):
         self.step = step
 
     def get_gaussian_param_groups(self) -> Dict[str, List[Parameter]]:
-        return {
+        gpg = {
             "xyz": [self.means],
             "features_dc": [self.features_dc],
             "features_rest": [self.features_rest],
@@ -622,6 +658,11 @@ class SplatfactoModel(Model):
             "scaling": [self.scales],
             "rotation": [self.quats],
         }
+
+        if self.config.use_nd:
+            gpg["nd_values"] = [self.nd_values]
+
+        return gpg
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Obtain the parameter groups for the optimizers
@@ -656,21 +697,30 @@ class SplatfactoModel(Model):
             return {}
         assert camera.shape[0] == 1, "Only one camera at a time"
 
+        out = {}
+
         # get the background color
-        if self.training:
+        dims = self.config.nd_dim if self.config.use_nd else 3
+        if self.training:    
             if self.config.background_color == "random":
                 background = torch.rand(3, device=self.device)
+                nd_background = torch.rand(dims, device=self.device)
             elif self.config.background_color == "white":
                 background = torch.ones(3, device=self.device)
+                nd_background = torch.ones(dims, device=self.device)
             elif self.config.background_color == "black":
                 background = torch.zeros(3, device=self.device)
+                nd_background = torch.zeros(dims, device=self.device)
             else:
                 background = self.background_color.to(self.device)
+                nd_background = torch.rand(dims, device=self.device)
         else:
+            nd_background = torch.ones(dims, device=self.device)
             if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
                 background = renderers.BACKGROUND_COLOR_OVERRIDE.to(self.device)
             else:
                 background = self.background_color.to(self.device)
+                
 
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
@@ -678,7 +728,12 @@ class SplatfactoModel(Model):
                 rgb = background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
                 depth = background.new_ones(*rgb.shape[:2], 1) * 10
                 accumulation = background.new_zeros(*rgb.shape[:2], 1)
-                return {"rgb": rgb, "depth": depth, "accumulation": accumulation}
+
+                if self.config.use_nd:
+                    out["nd_value"] = nd_background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
+
+                out.update({"rgb": rgb, "depth": depth, "accumulation": accumulation})
+                return out
         else:
             crop_ids = None
         camera_downscale = self._get_downscale_factor()
@@ -746,7 +801,10 @@ class SplatfactoModel(Model):
             rgb = background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
             depth = background.new_ones(*rgb.shape[:2], 1) * 10
             accumulation = background.new_zeros(*rgb.shape[:2], 1)
-            return {"rgb": rgb, "depth": depth, "accumulation": accumulation}
+            if self.config.use_nd:
+                out["nd_value"] = nd_background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
+            out.update({"rgb": rgb, "depth": depth, "accumulation": accumulation})
+            return out
 
         # Important to allow xys grads to populate properly
         if self.training:
@@ -794,8 +852,25 @@ class SplatfactoModel(Model):
                 background=torch.zeros(3, device=self.device),
             )[..., 0:1]  # type: ignore
             depth_im = torch.where(alpha > 0, depth_im / alpha, depth_im.detach().max())
+     
+        if self.config.use_nd:
+            nd_values = self.get_nd_values()
+            nd_value = rasterize_gaussians(  # type: ignore
+                self.xys.detach() if self.config.nd_detach else self.xys,
+                depths,
+                self.radii,
+                conics.detach() if self.config.nd_detach else conics,
+                num_tiles_hit,  # type: ignore
+                nd_values,
+                torch.sigmoid(opacities_crop.detach()) if self.config.nd_detach else torch.sigmoid(opacities_crop),
+                H,
+                W,
+                background= nd_background,
+            ) 
+            out["nd_value"] = nd_value
 
-        return {"rgb": rgb, "depth": depth_im, "accumulation": alpha}  # type: ignore
+        out.update({"rgb": rgb, "depth": depth_im, "accumulation": alpha})
+        return out # type: ignore
 
     def get_gt_img(self, image: torch.Tensor):
         """Compute groundtruth image with iteration dependent downscale factor for evaluation purpose
