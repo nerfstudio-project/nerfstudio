@@ -722,8 +722,9 @@ class DatasetRender(BaseRender):
             assert isinstance(data_manager_config, (VanillaDataManagerConfig, FullImageDatamanagerConfig))
             data_manager_config.eval_num_images_to_sample_from = -1
             data_manager_config.eval_num_times_to_repeat_images = -1
-            data_manager_config.train_num_images_to_sample_from = -1
-            data_manager_config.train_num_times_to_repeat_images = -1
+            if isinstance(data_manager_config, VanillaDataManagerConfig):
+                data_manager_config.train_num_images_to_sample_from = -1
+                data_manager_config.train_num_times_to_repeat_images = -1
             if self.data is not None:
                 data_manager_config.data = self.data
             if self.downscale_factor is not None:
