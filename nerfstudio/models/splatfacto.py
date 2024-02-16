@@ -157,6 +157,16 @@ class SplatfactoModelConfig(ModelConfig):
     """
     output_depth_during_training: bool = False
     """If True, output depth during training. Otherwise, only output depth during evaluation."""
+    rasterize_mode: Literal["classic", "antialiased"] = "classic"
+    """
+    Classic mode of rendering will use the EWA volume splatting with a [0.3, 0.3] screen space blurring kernel. This
+    approach is however not suitable to render tiny gaussians at higher or lower resolution than the captured, which
+    results "aliasing-like" artifacts. The antialiased mode overcomes this limitation by calculating compensation factors
+    and apply them to the opacities of gaussians to preserve the total integrated density of splats.
+
+    However, PLY exported with antialiased rasterize mode is not compatible with classic mode. Thus many web viewers that
+    were implemented for classic mode can not render antialiased mode PLY properly without modifications.
+    """
     use_nd: bool = False
     """Whether to rasterize nd values."""
     nd_dim: int = 1
@@ -235,7 +245,6 @@ class SplatfactoModel(Model):
             )  # This color is the same as the default background color in Viser. This would only affect the background color when rendering.
         else:
             self.background_color = get_color(self.config.background_color)
-        
         if self.config.use_nd:
             self.nd_values = torch.nn.Parameter(torch.rand(self.num_points, self.config.nd_dim))
 
@@ -449,9 +458,10 @@ class SplatfactoModel(Model):
                         dim=0,
                     )
                 )
-
                 if self.config.use_nd:
-                    self.nd_values = Parameter(torch.cat([self.nd_values.detach(), split_nd_values, dup_nd_values], dim=0))
+                    self.nd_values = Parameter(
+                        torch.cat([self.nd_values.detach(), split_nd_values, dup_nd_values], dim=0)
+                    )
 
                 self.opacities = Parameter(torch.cat([self.opacities.detach(), split_opacities, dup_opacities], dim=0))
                 self.scales = Parameter(torch.cat([self.scales.detach(), split_scales, dup_scales], dim=0))
@@ -701,7 +711,7 @@ class SplatfactoModel(Model):
 
         # get the background color
         dims = self.config.nd_dim if self.config.use_nd else 3
-        if self.training:    
+        if self.training:
             if self.config.background_color == "random":
                 background = torch.rand(3, device=self.device)
                 nd_background = torch.rand(dims, device=self.device)
@@ -720,7 +730,6 @@ class SplatfactoModel(Model):
                 background = renderers.BACKGROUND_COLOR_OVERRIDE.to(self.device)
             else:
                 background = self.background_color.to(self.device)
-                
 
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
@@ -732,7 +741,7 @@ class SplatfactoModel(Model):
                 if self.config.use_nd:
                     out["nd_value"] = nd_background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
 
-                out.update({"rgb": rgb, "depth": depth, "accumulation": accumulation})
+                out.update({"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background})
                 return out
         else:
             crop_ids = None
@@ -782,7 +791,7 @@ class SplatfactoModel(Model):
 
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
 
-        self.xys, depths, self.radii, conics, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
+        self.xys, depths, self.radii, conics, comp, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
             means_crop,
             torch.exp(scales_crop),
             1,
@@ -797,13 +806,18 @@ class SplatfactoModel(Model):
             W,
             tile_bounds,
         )  # type: ignore
+
+        # rescale the camera back to original dimensions before returning
+        camera.rescale_output_resolution(camera_downscale)
+
         if (self.radii).sum() == 0:
-            rgb = background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
+            rgb = background.repeat(H, W, 1)
             depth = background.new_ones(*rgb.shape[:2], 1) * 10
             accumulation = background.new_zeros(*rgb.shape[:2], 1)
+
             if self.config.use_nd:
                 out["nd_value"] = nd_background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
-            out.update({"rgb": rgb, "depth": depth, "accumulation": accumulation})
+            out.update({"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background})
             return out
 
         # Important to allow xys grads to populate properly
@@ -819,9 +833,17 @@ class SplatfactoModel(Model):
         else:
             rgbs = torch.sigmoid(colors_crop[:, 0, :])
 
-        # rescale the camera back to original dimensions
-        camera.rescale_output_resolution(camera_downscale)
         assert (num_tiles_hit > 0).any()  # type: ignore
+
+        # apply the compensation of screen space blurring to gaussians
+        opacities = None
+        if self.config.rasterize_mode == "antialiased":
+            opacities = torch.sigmoid(opacities_crop) * comp[:, None]
+        elif self.config.rasterize_mode == "classic":
+            opacities = torch.sigmoid(opacities_crop)
+        else:
+            raise ValueError("Unknown rasterize_mode: %s", self.config.rasterize_mode)
+
         rgb, alpha = rasterize_gaussians(  # type: ignore
             self.xys,
             depths,
@@ -829,7 +851,7 @@ class SplatfactoModel(Model):
             conics,
             num_tiles_hit,  # type: ignore
             rgbs,
-            torch.sigmoid(opacities_crop),
+            opacities,
             H,
             W,
             background=background,
@@ -852,7 +874,6 @@ class SplatfactoModel(Model):
                 background=torch.zeros(3, device=self.device),
             )[..., 0:1]  # type: ignore
             depth_im = torch.where(alpha > 0, depth_im / alpha, depth_im.detach().max())
-     
         if self.config.use_nd:
             nd_values = self.get_nd_values()
             nd_value = rasterize_gaussians(  # type: ignore
@@ -865,12 +886,12 @@ class SplatfactoModel(Model):
                 torch.sigmoid(opacities_crop.detach()) if self.config.nd_detach else torch.sigmoid(opacities_crop),
                 H,
                 W,
-                background= nd_background,
-            ) 
+                background=nd_background,
+            )
             out["nd_value"] = nd_value
 
-        out.update({"rgb": rgb, "depth": depth_im, "accumulation": alpha})
-        return out # type: ignore
+        out.update({"rgb": rgb, "depth": depth_im, "accumulation": alpha, "background": background})
+        return out  # type: ignore
 
     def get_gt_img(self, image: torch.Tensor):
         """Compute groundtruth image with iteration dependent downscale factor for evaluation purpose
@@ -892,6 +913,19 @@ class SplatfactoModel(Model):
             gt_img = image
         return gt_img.to(self.device)
 
+    def composite_with_background(self, image, background) -> torch.Tensor:
+        """Composite the ground truth image with a background color when it has an alpha channel.
+
+        Args:
+            image: the image to composite
+            background: the background color
+        """
+        if image.shape[2] == 4:
+            alpha = image[..., -1].unsqueeze(-1).repeat((1, 1, 3))
+            return alpha * image[..., :3] + (1 - alpha) * background
+        else:
+            return image
+
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.
 
@@ -899,7 +933,7 @@ class SplatfactoModel(Model):
             outputs: the output to compute loss dict to
             batch: ground truth batch corresponding to outputs
         """
-        gt_rgb = self.get_gt_img(batch["image"])
+        gt_rgb = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         metrics_dict = {}
         predicted_rgb = outputs["rgb"]
         metrics_dict["psnr"] = self.psnr(predicted_rgb, gt_rgb)
@@ -915,7 +949,7 @@ class SplatfactoModel(Model):
             batch: ground truth batch corresponding to outputs
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
-        gt_img = self.get_gt_img(batch["image"])
+        gt_img = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         pred_img = outputs["rgb"]
 
         # Set masked part of both ground-truth and rendered image to black.
@@ -974,7 +1008,7 @@ class SplatfactoModel(Model):
         Returns:
             A dictionary of metrics.
         """
-        gt_rgb = self.get_gt_img(batch["image"])
+        gt_rgb = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         d = self._get_downscale_factor()
         if d > 1:
             # torchvision can be slow to import, so we do it lazily.
