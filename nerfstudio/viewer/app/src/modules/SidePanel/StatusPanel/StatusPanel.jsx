@@ -1,7 +1,6 @@
 import * as React from 'react';
 
 import Button from '@mui/material/Button';
-import { ButtonGroup } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -24,9 +23,6 @@ export default function StatusPanel(props: StatusPanelProps) {
 
   const isWebsocketConnected = useSelector(
     (state) => state.websocketState.isConnected,
-  );
-  const isWebrtcConnected = useSelector(
-    (state) => state.webrtcState.isConnected,
   );
   const eval_res = useSelector((state) => state.renderingState.eval_res);
   const vis_train_ratio = useSelector(
@@ -78,13 +74,9 @@ export default function StatusPanel(props: StatusPanelProps) {
   const training_icon = isTraining ? <PauseIcon /> : <PlayArrowIcon />;
 
   const websocket_connected_text = isWebsocketConnected
-    ? 'Server Connected'
-    : 'Server Disconnected';
-  const webrtc_connected_text = isWebrtcConnected
-    ? 'Render Connected'
-    : 'Render Disconnected';
+    ? 'Renderer Connected'
+    : 'Renderer Disconnected';
   const websocket_connected_color = isWebsocketConnected ? 'success' : 'error';
-  const webrtc_connected_color = isWebrtcConnected ? 'success' : 'error';
 
   return (
     <div className="StatusPanel">
@@ -143,26 +135,13 @@ export default function StatusPanel(props: StatusPanelProps) {
           <b>Time Allocation:</b> {vis_train_ratio}
         </div>
       </div>
-      <ButtonGroup
-        className="StatusPanel-button-group"
-        variant="text"
-        aria-label="text button group"
+      <Button
+        className="StatusPanel-button"
+        color={websocket_connected_color}
+        style={{ textTransform: 'none' }}
       >
-        <Button
-          className="StatusPanel-button"
-          color={websocket_connected_color}
-          style={{ textTransform: 'none' }}
-        >
-          {websocket_connected_text}
-        </Button>
-        <Button
-          className="StatusPanel-button"
-          color={webrtc_connected_color}
-          style={{ textTransform: 'none' }}
-        >
-          {webrtc_connected_text}
-        </Button>
-      </ButtonGroup>
+        {websocket_connected_text}
+      </Button>
     </div>
   );
 }
