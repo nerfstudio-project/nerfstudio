@@ -21,18 +21,48 @@ def canonicalize_camera_poses(frames):
 
     # Indices for non-duplicate images
     to_take = list(range(len(frames)))
+    print(len(duplicates), len(frames))
+    duplicates = []
+    print('cleared duplicates')
     for _, dup in filter(lambda dup: dup[0] < dup[1], duplicates):
         to_take.remove(dup)
 
     # The images come in 2 rings.  Find which is the bigger ring
-    if dists[to_take[0], to_take[11]] > dists[to_take[24], to_take[35]]:
-        big_circle = to_take[:24]
-    else:
-        big_circle = to_take[24:]
+    for i in range(len(to_take) - 1):
+        print(dists[to_take[i], to_take[i + 1]])
+    ring_n20 = 0, 69
+    ring_0 = 70, 138
+    a, b = ring_0
+    big_circle = to_take[a:b + 1]
+    print(dists[a - 1, a], dists[a, a + 1], dists[b - 1, b], dists[b, b + 1])
+    dx = []
+    for i in range(a, b):
+        print(f'{dists[i, i + 1]:.2f}', end=' ')
+        dx.append(dists[i, i + 1])
+    dx = np.array(dx)
+    print()
+    print(dx.mean())
+    print(dx / dx.mean())
+    positions = (dx / dx.mean()).round()
+    print(positions)
+    print(sum(positions))
+    assert sum(positions) == 71, f'Expected 72 intervals in positions, but instead got {sum(positions) + 1}'
+
+    indices = np.concatenate(([0], np.cumsum(positions)))
+    print(indices)
+    print(len(indices), len(positions))
+    theta = (indices / 72 * 2 * np.pi).reshape(-1, 1)
+
+    # raise Exception()
+    # if dists[to_take[ring_n20], to_take[11]] > dists[to_take[24], to_take[35]]:
+    #     big_circle = to_take[:24]
+    # else:
+    #     big_circle = to_take[24:]
 
     # The turntable turned CCW, so the camera moves in a CW circle
-    theta = -(np.arange(0, 360, 15) * np.pi / 180).reshape(-1, 1)
+    # theta = -(np.arange(0, 360, 15) * np.pi / 180).reshape(-1, 1)
     expected = np.hstack((np.cos(theta), np.sin(theta), np.zeros_like(theta)))
+    assert len(expected) == len(big_circle), f'Expected {len(big_circle)} images, but got {len(expected)}'
 
     # Now run ICP
     _, sR, t = ICP_transform_with_scale(ts[big_circle], expected)
