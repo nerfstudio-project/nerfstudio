@@ -640,6 +640,7 @@ class SplatfactoModel(Model):
 
             # torchvision can be slow to import, so we do it lazily.
             import torchvision.transforms.functional as TF
+
             return TF.resize(image.permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
         return image
 
