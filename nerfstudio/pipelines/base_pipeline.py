@@ -255,13 +255,11 @@ class VanillaPipeline(Pipeline):
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
         # TODO make cleaner
-        print("Metadata: ", self.datamanager.train_dataparser_outputs.metadata)
         seed_pts = None
         if (
             hasattr(self.datamanager, "train_dataparser_outputs")
             and "points3D_xyz" in self.datamanager.train_dataparser_outputs.metadata
         ):
-            print("Loading seed points in pipeline")
             pts = self.datamanager.train_dataparser_outputs.metadata["points3D_xyz"]
             pts_rgb = self.datamanager.train_dataparser_outputs.metadata["points3D_rgb"]
             seed_pts = (pts, pts_rgb)
