@@ -15,6 +15,7 @@
 """Data parser for blender dataset"""
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Type
@@ -44,10 +45,8 @@ class BlenderDataParserConfig(DataParserConfig):
     alpha_color: str = "white"
     """alpha color of background"""
     ply_path: Path = Path("sparse_pc.ply")
-    """Path to the pointcloud file relative to the data path."""
-    load_3D_points: bool = True
-    """Whether to load the 3D points from ply file. This is helpful for Gaussian splatting and
-    generally unused otherwise, but it's typically harmless so we default to True."""
+    """Plyfile path to load the 3D points. This is helpful for Gaussian splatting and
+    generally unused otherwise. If the file doesn't exist, the points are initialized randomly."""
 
 
 @dataclass
@@ -100,13 +99,10 @@ class Blender(DataParser):
             cy=cy,
             camera_type=CameraType.PERSPECTIVE,
         )
-        
-        metadata = {}
-        if self.config.load_3D_points:
-            # Load 3D points
-            # TODO: Check if we need to use `transform_matrix` and `scaling_factor`
-            metadata.update(self._load_3D_points(ply_path))
 
+        metadata = {}
+        if os.path.exists(ply_path):
+            metadata.update(self._load_3D_points(ply_path))
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
