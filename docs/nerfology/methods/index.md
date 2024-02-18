@@ -42,6 +42,7 @@ The following methods are supported in nerfstudio:
     Instruct-GS2GS<igs2gs.md>
     PyNeRF<pynerf.md>
     SeaThru-NeRF<seathru_nerf.md>
+    Zip-NeRF<zipnerf.md>
 ```
 
 (own_method_docs)=
