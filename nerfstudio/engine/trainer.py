@@ -82,7 +82,7 @@ class TrainerConfig(ExperimentConfig):
     """Path to checkpoint file."""
     log_gradients: bool = False
     """Optionally log gradients during training"""
-    gradient_accumulation_steps: Dict = field(default_factory=lambda: {})
+    gradient_accumulation_steps: Dict[str, int] = field(default_factory=lambda: {})
     """Number of steps to accumulate gradients over. Contains a mapping of {param_group:num}"""
 
 
@@ -191,9 +191,7 @@ class Trainer:
 
         self.callbacks = self.pipeline.get_training_callbacks(
             TrainingCallbackAttributes(
-                optimizers=self.optimizers,
-                grad_scaler=self.grad_scaler,
-                pipeline=self.pipeline,
+                optimizers=self.optimizers, grad_scaler=self.grad_scaler, pipeline=self.pipeline, trainer=self
             )
         )
 

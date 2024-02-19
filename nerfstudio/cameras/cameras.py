@@ -864,7 +864,7 @@ class Cameras(TensorDataclass):
 
                 assert distortion_params is not None
                 masked_coords = pcoord_stack[coord_mask, :]
-                # The fisheye unprojection does not rely on planar/pinhold unprojection, thus the method needs
+                # The fisheye unprojection does not rely on planar/pinhole unprojection, thus the method needs
                 # to access the focal length and principle points directly.
                 camera_params = torch.cat(
                     [

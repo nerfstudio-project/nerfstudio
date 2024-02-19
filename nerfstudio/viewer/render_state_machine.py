@@ -28,7 +28,7 @@ from viser import ClientHandle
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.model_components.renderers import background_color_override_context
-from nerfstudio.models.gaussian_splatting import GaussianSplattingModel
+from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.utils import colormaps, writer
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.utils import CameraState, get_camera
@@ -136,7 +136,7 @@ class RenderStateMachine(threading.Thread):
 
         with TimeWriter(None, None, write=False) as vis_t:
             with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
-                if isinstance(self.viewer.get_model(), GaussianSplattingModel):
+                if isinstance(self.viewer.get_model(), SplatfactoModel):
                     color = self.viewer.control_panel.background_color
                     background_color = torch.tensor(
                         [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0],
@@ -168,7 +168,7 @@ class RenderStateMachine(threading.Thread):
                 self.viewer.get_model().train()
             num_rays = (camera.height * camera.width).item()
             if self.viewer.control_panel.layer_depth:
-                if isinstance(self.viewer.get_model(), GaussianSplattingModel):
+                if isinstance(self.viewer.get_model(), SplatfactoModel):
                     # Gaussians render much faster than we can send depth images, so we do some downsampling.
                     assert len(outputs["depth"].shape) == 3
                     assert outputs["depth"].shape[-1] == 1

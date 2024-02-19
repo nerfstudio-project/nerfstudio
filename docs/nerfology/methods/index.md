@@ -27,7 +27,7 @@ The following methods are supported in nerfstudio:
 ```{toctree}
     :maxdepth: 1
     Instant-NGP<instant_ngp.md>
-    3D Gaussian Splatting<splat.md>
+    Splatfacto<splat.md>
     Instruct-NeRF2NeRF<in2n.md>
     K-Planes<kplanes.md>
     LERF<lerf.md>
@@ -41,6 +41,8 @@ The following methods are supported in nerfstudio:
     Generfacto<generfacto.md>
     Instruct-GS2GS<igs2gs.md>
     PyNeRF<pynerf.md>
+    SeaThru-NeRF<seathru_nerf.md>
+    Zip-NeRF<zipnerf.md>
 ```
 
 (own_method_docs)=

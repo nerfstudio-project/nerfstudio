@@ -1,6 +1,6 @@
 <p align="center">
     <!-- community badges -->
-    <a href="https://discord.gg/uMbNqcraFc"><img src="https://img.shields.io/badge/Join-Discord-blue.svg"/></a>
+    <a href="https://discord.gg/uMbNqcraFc"><img src="https://dcbadge.vercel.app/api/server/uMbNqcraFc?style=plastic"/></a>
     <!-- doc badges -->
     <a href='https://docs.nerf.studio/'>
         <img src='https://readthedocs.com/projects/plenoptix-nerfstudio/badge/?version=latest' alt='Documentation Status' /></a>
@@ -9,8 +9,6 @@
     <!-- code check badges -->
     <a href='https://github.com/nerfstudio-project/nerfstudio/actions/workflows/core_code_checks.yml'>
         <img src='https://github.com/nerfstudio-project/nerfstudio/actions/workflows/core_code_checks.yml/badge.svg' alt='Test Status' /></a>
-    <a href='https://github.com/nerfstudio-project/nerfstudio/actions/workflows/viewer_build_deploy.yml'>
-        <img src='https://github.com/nerfstudio-project/nerfstudio/actions/workflows/viewer_build_deploy.yml/badge.svg' alt='Viewer build Status' /></a>
     <!-- license badge -->
     <a href="https://github.com/nerfstudio-project/nerfstudio/blob/master/LICENSE">
         <img alt="License" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg"></a>

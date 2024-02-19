@@ -234,7 +234,7 @@ def _render_trajectory_video(
                 if render_nearest_camera:
                     assert train_dataset is not None
                     assert train_cameras is not None
-                    img = train_dataset.get_image(max_idx)
+                    img = train_dataset.get_image_float32(max_idx)
                     height = cameras.image_height[0]
                     # maintain the resolution of the img to calculate the width from the height
                     width = int(img.shape[1] * (height / img.shape[0]))
@@ -364,7 +364,7 @@ class CropData:
 
     background_color: Float[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
     """background color"""
-    obb: OrientedBox = OrientedBox(R=torch.eye(3), T=torch.zeros(3), S=torch.ones(3) * 2)
+    obb: OrientedBox = field(default_factory=lambda: OrientedBox(R=torch.eye(3), T=torch.zeros(3), S=torch.ones(3) * 2))
     """Oriented box representing the crop region"""
 
     # properties for backwards-compatibility interface
@@ -804,9 +804,7 @@ class DatasetRender(BaseRender):
                         image_name = f"{camera_idx:05d}"
 
                         # Try to get the original filename
-                        image_name = (
-                            dataparser_outputs.image_filenames[camera_idx].with_suffix("").relative_to(images_root)
-                        )
+                        image_name = dataparser_outputs.image_filenames[camera_idx].relative_to(images_root)
 
                         output_path = self.output_path / split / rendered_output_name / image_name
                         output_path.parent.mkdir(exist_ok=True, parents=True)

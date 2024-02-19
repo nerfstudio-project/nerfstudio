@@ -720,7 +720,7 @@ def fisheye624_unproject_helper(uv, params, max_iters: int = 5):
     function so this solves an optimization problem using Newton's method to get
     the inverse.
     Inputs:
-        uv: BxNx3 tensor of 2D pixels to be projected
+        uv: BxNx2 tensor of 2D pixels to be unprojected
         params: Bx16 tensor of Fisheye624 parameters formatted like this:
                 [f_u f_v c_u c_v {k_0 ... k_5} {p_0 p_1} {s_0 s_1 s_2 s_3}]
                 or Bx15 tensor of Fisheye624 parameters formatted like this:
