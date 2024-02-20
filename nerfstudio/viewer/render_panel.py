@@ -149,6 +149,17 @@ class CameraPath:
                         initial_value=keyframe.override_time_val,
                         disabled=not keyframe.override_time_enabled,
                     )
+
+                    @override_time.on_update
+                    def _(_) -> None:
+                        keyframe.override_time_enabled = override_time.value
+                        override_time_val.disabled = not override_time.value
+                        self.add_camera(keyframe, keyframe_index)
+
+                    @override_time_val.on_update
+                    def _(_) -> None:
+                        keyframe.override_time_val = override_time_val.value
+                        self.add_camera(keyframe, keyframe_index)
                 delete_button = server.add_gui_button("Delete", color="red", icon=viser.Icon.TRASH)
                 go_to_button = server.add_gui_button("Go to")
                 close_button = server.add_gui_button("Close")
@@ -162,17 +173,6 @@ class CameraPath:
             @override_fov_degrees.on_update
             def _(_) -> None:
                 keyframe.override_fov_rad = override_fov_degrees.value / 180.0 * np.pi
-                self.add_camera(keyframe, keyframe_index)
-
-            @override_time.on_update
-            def _(_) -> None:
-                keyframe.override_time_enabled = override_time.value
-                override_time_val.disabled = not override_time.value
-                self.add_camera(keyframe, keyframe_index)
-
-            @override_time_val.on_update
-            def _(_) -> None:
-                keyframe.override_time_val = override_time_val.value
                 self.add_camera(keyframe, keyframe_index)
 
             @delete_button.on_click
