@@ -30,6 +30,7 @@ import splines.quaternion
 import viser
 import viser.transforms as tf
 
+from nerfstudio import viewer
 from nerfstudio.viewer.control_panel import ControlPanel
 
 
@@ -39,6 +40,8 @@ class Keyframe:
     wxyz: np.ndarray
     override_fov_enabled: bool
     override_fov_rad: float
+    override_time_enabled: bool
+    override_time_val: float
     aspect: float
     override_transition_enabled: bool
     override_transition_sec: Optional[float]
@@ -50,6 +53,8 @@ class Keyframe:
             camera.wxyz,
             override_fov_enabled=False,
             override_fov_rad=camera.fov,
+            override_time_enabled=False,
+            override_time_val=0.0,
             aspect=aspect,
             override_transition_enabled=False,
             override_transition_sec=None,
@@ -129,6 +134,17 @@ class CameraPath:
                     initial_value=keyframe.override_fov_rad * 180.0 / np.pi,
                     disabled=not keyframe.override_fov_enabled,
                 )
+                # TODO
+                if True: #self.viewer.include_time:
+                    override_time = server.add_gui_checkbox("Override Time", initial_value=keyframe.override_time_enabled)
+                    override_time_val = server.add_gui_slider(
+                        "Override Time",
+                        0.0,
+                        1.0,
+                        step=0.01,
+                        initial_value=keyframe.override_time_val,
+                        disabled=not keyframe.override_time_enabled,
+                    )
                 delete_button = server.add_gui_button("Delete", color="red", icon=viser.Icon.TRASH)
                 go_to_button = server.add_gui_button("Go to")
                 close_button = server.add_gui_button("Close")
@@ -142,6 +158,17 @@ class CameraPath:
             @override_fov_degrees.on_update
             def _(_) -> None:
                 keyframe.override_fov_rad = override_fov_degrees.value / 180.0 * np.pi
+                self.add_camera(keyframe, keyframe_index)
+
+            @override_time.on_update
+            def _(_) -> None:
+                keyframe.override_time_enabled = override_time.value
+                override_time_val.disabled = not override_time.value
+                self.add_camera(keyframe, keyframe_index)
+
+            @override_time_val.on_update
+            def _(_) -> None:
+                keyframe.override_time_val = override_time_val.value
                 self.add_camera(keyframe, keyframe_index)
 
             @delete_button.on_click
@@ -483,6 +510,17 @@ def populate_render_tab(
         step=0.01,
         hint="Field-of-view for rendering, which can also be overridden on a per-keyframe basis.",
     )
+
+    # TODO check for temporal scene
+    if True:
+        render_time = server.add_gui_slider(
+            "Default Time",
+            initial_value=0.0,
+            min=0.0,
+            max=1.0,
+            step=0.01,
+            hint="Rendering time step, which can also be overridden on a per-keyframe basis.",
+        )
 
     @fov_degrees.on_update
     def _(_) -> None:
@@ -904,6 +942,8 @@ def populate_render_tab(
                                 # default_Fov values will not be exactly matched.
                                 override_fov_enabled=abs(frame["fov"] - json_data.get("default_fov", 0.0)) < 1e-3,
                                 override_fov_rad=frame["fov"] / 180.0 * np.pi,
+                                override_time_enabled=False,
+                                override_time_val=frame.get("render_time", None),
                                 aspect=frame["aspect"],
                                 override_transition_enabled=frame.get("override_transition_enabled", None),
                                 override_transition_sec=frame.get("override_transition_sec", None),
@@ -983,6 +1023,10 @@ def populate_render_tab(
                     "fov": np.rad2deg(keyframe.override_fov_rad)
                     if keyframe.override_fov_enabled
                     else fov_degrees.value,
+                    # TODO interpolate
+                    "render_time": keyframe.override_time_val
+                    if keyframe.override_time_enabled
+                    else render_time.value,
                     "aspect": keyframe.aspect,
                     "override_transition_enabled": keyframe.override_transition_enabled,
                     "override_transition_sec": keyframe.override_transition_sec,
@@ -1010,11 +1054,15 @@ def populate_render_tab(
                 pose.rotation() @ tf.SO3.from_x_radians(np.pi),
                 pose.translation() / VISER_NERFSTUDIO_SCALE_RATIO,
             )
+            # Get closest keyframe
+            closest_keyframe = camera_path._keyframes[min(camera_path._keyframes, key=lambda k: np.linalg.norm(k - i))]
             camera_path_list.append(
                 {
                     "camera_to_world": pose.as_matrix().flatten().tolist(),
                     "fov": np.rad2deg(fov),
                     "aspect": resolution.value[0] / resolution.value[1],
+                    # TODO Interpolate for render time
+                    "render_time": closest_keyframe[0].override_time_val,
                 }
             )
         json_data["camera_path"] = camera_path_list
