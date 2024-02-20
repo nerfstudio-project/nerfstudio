@@ -541,6 +541,7 @@ def populate_render_tab(
         hint="Field-of-view for rendering, which can also be overridden on a per-keyframe basis.",
     )
 
+    render_time = None
     if control_panel is not None and control_panel._time_enabled:
         render_time = server.add_gui_slider(
             "Default Time",
@@ -553,8 +554,6 @@ def populate_render_tab(
 
         @render_time.on_update
         def _(_) -> None:
-            for client in server.get_clients().values():
-                client.camera.time = render_time.value
             camera_path.default_render_time = render_time.value
 
     @fov_degrees.on_update
@@ -788,6 +787,7 @@ def populate_render_tab(
         if maybe_pose_and_fov_rad is None:
             remove_preview_camera()
             return
+        time = None
         if len(maybe_pose_and_fov_rad) == 3:  # Time is enabled.
             pose, fov_rad, time = maybe_pose_and_fov_rad
             render_tab_state.preview_time = time
@@ -797,7 +797,7 @@ def populate_render_tab(
         render_tab_state.preview_aspect = camera_path.get_aspect()
         render_tab_state.preview_camera_type = camera_type.value
 
-        if control_panel is not None and control_panel._time_enabled:
+        if time is not None:
             return pose, fov_rad, time
         else:
             return pose, fov_rad
@@ -1073,7 +1073,7 @@ def populate_render_tab(
                 "override_transition_enabled": keyframe.override_transition_enabled,
                 "override_transition_sec": keyframe.override_transition_sec,
             }
-            if control_panel is not None and control_panel._time_enabled:
+            if render_time is not None:
                 keyframe_dict.update(
                     {"render_time": keyframe.override_time_val if keyframe.override_time_enabled else render_time.value}
                 )
@@ -1094,6 +1094,7 @@ def populate_render_tab(
             maybe_pose_and_fov = camera_path.interpolate_pose_and_fov_rad(i / num_frames)
             if maybe_pose_and_fov is None:
                 return
+            time = None
             if len(maybe_pose_and_fov) == 3:  # Time is enabled.
                 pose, fov, time = maybe_pose_and_fov
             else:
@@ -1103,14 +1104,14 @@ def populate_render_tab(
                 pose.rotation() @ tf.SO3.from_x_radians(np.pi),
                 pose.translation() / VISER_NERFSTUDIO_SCALE_RATIO,
             )
-            camera_path_list.append(
-                {
-                    "camera_to_world": pose.as_matrix().flatten().tolist(),
-                    "fov": np.rad2deg(fov),
-                    "aspect": resolution.value[0] / resolution.value[1],
-                    "render_time": time,
-                }
-            )
+            camera_path_list_dict = {
+                "camera_to_world": pose.as_matrix().flatten().tolist(),
+                "fov": np.rad2deg(fov),
+                "aspect": resolution.value[0] / resolution.value[1],
+            }
+            if time is not None:
+                camera_path_list_dict["render_time"] = time
+            camera_path_list.append(camera_path_list_dict)
         json_data["camera_path"] = camera_path_list
         # finally add crop data if crop is enabled
         if control_panel is not None:
@@ -1158,7 +1159,10 @@ def populate_render_tab(
             def _(_) -> None:
                 modal.close()
 
-    camera_path = CameraPath(server, duration_number, control_panel._time_enabled)
+    if control_panel is not None:
+        camera_path = CameraPath(server, duration_number, control_panel._time_enabled)
+    else:
+        camera_path = CameraPath(server, duration_number)
     camera_path.default_fov = fov_degrees.value / 180.0 * np.pi
     camera_path.default_transition_sec = transition_sec_number.value
 
