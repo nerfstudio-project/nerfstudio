@@ -76,11 +76,10 @@ class TimedPoses:
     t_world_devices: List[SE3]
 
 
-def get_camera_calibs(provider: VrsDataProvider) -> Dict[str, AriaCameraCalibration]:
+def get_camera_calibs(provider: VrsDataProvider, name="camera-rgb") -> AriaCameraCalibration:
     """Retrieve the per-camera factory calibration from within the VRS."""
 
     factory_calib = {}
-    name = "camera-rgb"
     device_calib = provider.get_device_calibration()
     assert device_calib is not None, "Could not find device calibration"
     sensor_calib = device_calib.get_camera_calib(name)
@@ -101,7 +100,7 @@ def get_camera_calibs(provider: VrsDataProvider) -> Dict[str, AriaCameraCalibrat
         t_device_camera=sensor_calib.get_transform_device_camera(),
     )
 
-    return factory_calib
+    return factory_calib[name]
 
 
 def read_trajectory_csv_to_dict(file_iterable_csv: str) -> TimedPoses:
@@ -124,8 +123,8 @@ def to_aria_image_frame(
     name_to_camera: Dict[str, AriaCameraCalibration],
     t_world_devices: TimedPoses,
     output_dir: Path,
+    name = "camera-rgb",
 ) -> AriaImageFrame:
-    name = "camera-rgb"
 
     camera_calibration = name_to_camera[name]
     stream_id = provider.get_stream_id_from_label(name)
@@ -193,31 +192,55 @@ class ProcessProjectAria:
 
         provider = create_vrs_data_provider(str(self.vrs_file.absolute()))
         assert provider is not None, "Cannot open file"
-
-        name_to_camera = get_camera_calibs(provider)
-
+        
+        names = ["camera-rgb", "camera-slam-left", "camera-slam-right"]
+        name_to_camera = {name: get_camera_calibs(provider, name) for name in names} # name_to_camera is of type Dict[str, Dict[str, AriaCameraCalibration]]
+        
         print("Getting poses from closed loop trajectory CSV...")
         trajectory_csv = self.mps_data_dir / "closed_loop_trajectory.csv"
         t_world_devices = read_trajectory_csv_to_dict(str(trajectory_csv.absolute()))
 
-        name = "camera-rgb"
-        stream_id = provider.get_stream_id_from_label(name)
-
+        stream_ids = [provider.get_stream_id_from_label(name) for name in names] # prints [214-1, 1201-1, 1201-2], which is correct
+        #test_slam_img = provider.get_image_data_by_index(stream_ids[1], 1)
+        #print("HIHIII", test_slam_img.to_numpy_array().shape)
         # create an AriaImageFrame for each image in the VRS.
         print("Creating Aria frames...")
-        aria_frames = [
-            to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir)
-            for index in range(0, provider.get_num_data(stream_id))
+        # aria_frames = [
+        #     to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir)
+        #     for index in range(0, provider.get_num_data(stream_id))
+        # ]
+        aria_camera_frames = [
+            [
+                to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[i])
+                for index in range(0, provider.get_num_data(stream_id))
+            ] 
+            for i, stream_id in enumerate(stream_ids)
         ]
 
         # create the NerfStudio frames from the AriaImageFrames.
         print("Creating NerfStudio frames...")
         CANONICAL_RGB_VALID_RADIUS = 707.5
         CANONICAL_RGB_WIDTH = 1408
-        rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (aria_frames[0].camera.width / CANONICAL_RGB_WIDTH)
+        rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (aria_camera_frames[0][0].camera.width / CANONICAL_RGB_WIDTH)
         nerfstudio_frames = {
             "camera_model": ARIA_CAMERA_MODEL,
-            "frames": [to_nerfstudio_frame(frame) for frame in aria_frames],
+            "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[0]],
+            "fisheye_crop_radius": rgb_valid_radius,
+        }
+        # found here https://github.com/facebookresearch/projectaria_tools/blob/4aee633cb667ab927825dc10477cad0df8393a34/core/calibration/loader/SensorCalibrationJson.cpp#L102C5-L104C18 and divided by 2
+        CANONICAL_SLAM_VALID_RADIUS = 165
+        CANONICAL_SLAM_WIDTH = 640
+        # print(aria_camera_frames[1][0].camera.width) prints 640
+        slam_valid_radius = CANONICAL_SLAM_VALID_RADIUS * (aria_camera_frames[1][0].camera.width / CANONICAL_SLAM_WIDTH) # equal to 165.0 in the end
+        print(slam_valid_radius)
+        nerfstudio2_frames = {
+            "camera_model": ARIA_CAMERA_MODEL,
+            "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[1]],
+            "fisheye_crop_radius": rgb_valid_radius,
+        }
+        nerfstudio2_frames = {
+            "camera_model": ARIA_CAMERA_MODEL,
+            "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[2]],
             "fisheye_crop_radius": rgb_valid_radius,
         }
 
