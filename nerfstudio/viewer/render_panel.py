@@ -991,7 +991,7 @@ def populate_render_tab(
                                 # default_Fov values will not be exactly matched.
                                 override_fov_enabled=abs(frame["fov"] - json_data.get("default_fov", 0.0)) < 1e-3,
                                 override_fov_rad=frame["fov"] / 180.0 * np.pi,
-                                override_time_enabled=False,
+                                override_time_enabled=frame.get("override_time_enabled", False),
                                 override_time_val=frame.get("render_time", None),
                                 aspect=frame["aspect"],
                                 override_transition_enabled=frame.get("override_transition_enabled", None),
@@ -1074,11 +1074,14 @@ def populate_render_tab(
                 "override_transition_sec": keyframe.override_transition_sec,
             }
             if render_time is not None:
-                keyframe_dict.update(
-                    {"render_time": keyframe.override_time_val if keyframe.override_time_enabled else render_time.value}
+                keyframe_dict["render_time"] = (
+                    keyframe.override_time_val if keyframe.override_time_enabled else render_time.value
                 )
+                keyframe_dict["override_time_enabled"] = keyframe.override_time_enabled
             keyframes.append(keyframe_dict)
         json_data["default_fov"] = fov_degrees.value
+        if render_time is not None:
+            json_data["default_time"] = render_time.value if render_time is not None else None
         json_data["default_transition_sec"] = transition_sec_number.value
         json_data["keyframes"] = keyframes
         json_data["camera_type"] = camera_type.value.lower()
