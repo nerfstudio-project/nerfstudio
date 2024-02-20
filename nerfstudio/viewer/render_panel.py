@@ -989,7 +989,7 @@ def populate_render_tab(
                                 wxyz=pose.rotation().wxyz,
                                 # There are some floating point conversions between degrees and radians, so the fov and
                                 # default_Fov values will not be exactly matched.
-                                override_fov_enabled=abs(frame["fov"] - json_data.get("default_fov", 0.0)) < 1e-3,
+                                override_fov_enabled=abs(frame["fov"] - json_data.get("default_fov", 0.0)) > 1e-3,
                                 override_fov_rad=frame["fov"] / 180.0 * np.pi,
                                 override_time_enabled=frame.get("override_time_enabled", False),
                                 override_time_val=frame.get("render_time", None),
