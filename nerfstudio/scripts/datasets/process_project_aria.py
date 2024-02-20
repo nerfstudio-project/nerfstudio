@@ -222,17 +222,26 @@ class ProcessProjectAria:
         CANONICAL_RGB_VALID_RADIUS = 707.5
         CANONICAL_RGB_WIDTH = 1408
         rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (aria_camera_frames[0][0].camera.width / CANONICAL_RGB_WIDTH)
-        nerfstudio_frames = {
-            "camera_model": ARIA_CAMERA_MODEL,
-            "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[0]],
-            "fisheye_crop_radius": rgb_valid_radius,
-        }
+        
         # found here https://github.com/facebookresearch/projectaria_tools/blob/4aee633cb667ab927825dc10477cad0df8393a34/core/calibration/loader/SensorCalibrationJson.cpp#L102C5-L104C18 and divided by 2
         CANONICAL_SLAM_VALID_RADIUS = 165
         CANONICAL_SLAM_WIDTH = 640
         # print(aria_camera_frames[1][0].camera.width) prints 640
         slam_valid_radius = CANONICAL_SLAM_VALID_RADIUS * (aria_camera_frames[1][0].camera.width / CANONICAL_SLAM_WIDTH) # equal to 165.0 in the end
-        print(slam_valid_radius)
+        valid_radii = [rgb_valid_radius, slam_valid_radius, slam_valid_radius]
+        nerfstudio_frames = [
+            {
+                "camera_model": ARIA_CAMERA_MODEL,
+                "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[i]],
+                "fisheye_crop_radius": valid_radius,
+            }
+            for i, valid_radius in enumerate(valid_radii)
+        ]
+        # nerfstudio_frames = {
+        #     "camera_model": ARIA_CAMERA_MODEL,
+        #     "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[0]],
+        #     "fisheye_crop_radius": rgb_valid_radius,
+        # }
         nerfstudio2_frames = {
             "camera_model": ARIA_CAMERA_MODEL,
             "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[1]],
@@ -254,16 +263,17 @@ class ProcessProjectAria:
             pcd.points = o3d.utility.Vector3dVector(np.array([cast(Any, it).position_world for it in points_data]))
             ply_file_path = self.output_dir / "global_points.ply"
             o3d.io.write_point_cloud(str(ply_file_path), pcd)
-
-            nerfstudio_frames["ply_file_path"] = "global_points.ply"
+            for i, name in enumerate(names):
+                nerfstudio_frames[i]["ply_file_path"] = "global_points.ply"
         else:
             print("No global points found!")
 
         # write the json out to disk as transforms.json
         print("Writing transforms.json")
-        transform_file = self.output_dir / "transforms.json"
-        with open(transform_file, "w", encoding="UTF-8"):
-            transform_file.write_text(json.dumps(nerfstudio_frames))
+        transform_files = [self.output_dir / f"{name}_transforms.json" for name in names]
+        for i, transform_file in enumerate(transform_files):
+            with open(transform_file, "w", encoding="UTF-8"):
+                transform_file.write_text(json.dumps(nerfstudio_frames[i]))
 
 
 if __name__ == "__main__":
