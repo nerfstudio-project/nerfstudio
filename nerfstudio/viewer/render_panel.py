@@ -160,6 +160,7 @@ class CameraPath:
                     def _(_) -> None:
                         keyframe.override_time_val = override_time_val.value
                         self.add_camera(keyframe, keyframe_index)
+
                 delete_button = server.add_gui_button("Delete", color="red", icon=viser.Icon.TRASH)
                 go_to_button = server.add_gui_button("Go to")
                 close_button = server.add_gui_button("Close")
