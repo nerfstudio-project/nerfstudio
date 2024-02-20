@@ -39,8 +39,7 @@ from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
 from nerfstudio.viewer.control_panel import ControlPanel
 from nerfstudio.viewer.export_panel import populate_export_tab
 from nerfstudio.viewer.render_panel import populate_render_tab
-from nerfstudio.viewer.render_state_machine import (RenderAction,
-                                                    RenderStateMachine)
+from nerfstudio.viewer.render_state_machine import RenderAction, RenderStateMachine
 from nerfstudio.viewer.utils import CameraState, parse_object
 from nerfstudio.viewer.viewer_elements import ViewerControl, ViewerElement
 from nerfstudio.viewer_legacy.server import viewer_utils
@@ -236,8 +235,7 @@ class Viewer:
                     nested_folder_install(folder_labels[1:], prev_labels + [folder_labels[0]], element)
 
         with control_tab:
-            from nerfstudio.viewer_legacy.server.viewer_elements import \
-                ViewerElement as LegacyViewerElement
+            from nerfstudio.viewer_legacy.server.viewer_elements import ViewerElement as LegacyViewerElement
 
             if len(parse_object(pipeline, LegacyViewerElement, "Custom Elements")) > 0:
                 from nerfstudio.utils.rich_utils import CONSOLE
