@@ -707,12 +707,6 @@ class SplatfactoModel(Model):
         W, H = int(camera.width.item()), int(camera.height.item())
         self.last_size = (H, W)
         projmat = projection_matrix(0.001, 1000, fovx, fovy, device=self.device)
-        BLOCK_X, BLOCK_Y = 16, 16
-        tile_bounds = (
-            int((W + BLOCK_X - 1) // BLOCK_X),
-            int((H + BLOCK_Y - 1) // BLOCK_Y),
-            1,
-        )
 
         if crop_ids is not None:
             opacities_crop = self.opacities[crop_ids]
@@ -744,7 +738,7 @@ class SplatfactoModel(Model):
             cy,
             H,
             W,
-            tile_bounds,
+            block_width=16,
         )  # type: ignore
 
         # rescale the camera back to original dimensions before returning
@@ -791,6 +785,7 @@ class SplatfactoModel(Model):
             opacities,
             H,
             W,
+            block_width=16,
             background=background,
             return_alpha=True,
         )  # type: ignore
@@ -808,6 +803,7 @@ class SplatfactoModel(Model):
                 torch.sigmoid(opacities_crop),
                 H,
                 W,
+                block_width=16,
                 background=torch.zeros(3, device=self.device),
             )[..., 0:1]  # type: ignore
             depth_im = torch.where(alpha > 0, depth_im / alpha, depth_im.detach().max())
