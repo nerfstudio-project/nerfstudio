@@ -692,6 +692,17 @@ class SplatfactoModel(Model):
         else:
             return 1
 
+    def _downscale_if_required(self, image):
+        d = self._get_downscale_factor()
+        if d > 1:
+            newsize = [image.shape[0] // d, image.shape[1] // d]
+
+            # torchvision can be slow to import, so we do it lazily.
+            import torchvision.transforms.functional as TF
+
+            return TF.resize(image.permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
+        return image
+
     def get_outputs(self, camera: Cameras) -> Dict[str, Union[torch.Tensor, List]]:
         """Takes in a Ray Bundle and returns a dictionary of outputs.
 
@@ -767,12 +778,6 @@ class SplatfactoModel(Model):
         W, H = int(camera.width.item()), int(camera.height.item())
         self.last_size = (H, W)
         projmat = projection_matrix(0.001, 1000, fovx, fovy, device=self.device)
-        BLOCK_X, BLOCK_Y = 16, 16
-        tile_bounds = (
-            int((W + BLOCK_X - 1) // BLOCK_X),
-            int((H + BLOCK_Y - 1) // BLOCK_Y),
-            1,
-        )
 
         if crop_ids is not None:
             opacities_crop = self.opacities[crop_ids]
@@ -790,7 +795,7 @@ class SplatfactoModel(Model):
             quats_crop = self.quats
 
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
-
+        BLOCK_WIDTH = 16  # this controls the tile size of rasterization, 16 is a good default
         self.xys, depths, self.radii, conics, comp, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
             means_crop,
             torch.exp(scales_crop),
@@ -804,7 +809,7 @@ class SplatfactoModel(Model):
             cy,
             H,
             W,
-            tile_bounds,
+            BLOCK_WIDTH,
         )  # type: ignore
 
         # rescale the camera back to original dimensions before returning
@@ -854,6 +859,7 @@ class SplatfactoModel(Model):
             opacities,
             H,
             W,
+            BLOCK_WIDTH,
             background=background,
             return_alpha=True,
         )  # type: ignore
@@ -871,6 +877,7 @@ class SplatfactoModel(Model):
                 torch.sigmoid(opacities_crop),
                 H,
                 W,
+                BLOCK_WIDTH,
                 background=torch.zeros(3, device=self.device),
             )[..., 0:1]  # type: ignore
             depth_im = torch.where(alpha > 0, depth_im / alpha, depth_im.detach().max())
@@ -901,16 +908,7 @@ class SplatfactoModel(Model):
         """
         if image.dtype == torch.uint8:
             image = image.float() / 255.0
-        d = self._get_downscale_factor()
-        if d > 1:
-            newsize = [image.shape[0] // d, image.shape[1] // d]
-
-            # torchvision can be slow to import, so we do it lazily.
-            import torchvision.transforms.functional as TF
-
-            gt_img = TF.resize(image.permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
-        else:
-            gt_img = image
+        gt_img = self._downscale_if_required(image)
         return gt_img.to(self.device)
 
     def composite_with_background(self, image, background) -> torch.Tensor:
@@ -956,8 +954,9 @@ class SplatfactoModel(Model):
         # This is a little bit sketchy for the SSIM loss.
         if "mask" in batch:
             # batch["mask"] : [H, W, 1]
-            assert batch["mask"].shape[:2] == gt_img.shape[:2] == pred_img.shape[:2]
-            mask = batch["mask"].to(self.device)
+            mask = self._downscale_if_required(batch["mask"])
+            mask = mask.to(self.device)
+            assert mask.shape[:2] == gt_img.shape[:2] == pred_img.shape[:2]
             gt_img = gt_img * mask
             pred_img = pred_img * mask
 
