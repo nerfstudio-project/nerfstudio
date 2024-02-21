@@ -317,7 +317,7 @@ class PixelSampler:
 
         c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
         collated_batch = {
-            key: value[c][y, x]
+            key: value[c, y, x]
             for key, value in batch.items()
             if key != "image_idx" and key != "image" and key != "mask" and key != "depth_image" and value is not None
         }
