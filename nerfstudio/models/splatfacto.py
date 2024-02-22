@@ -383,7 +383,6 @@ class SplatfactoModel(Model):
         # to save some training time, we no longer need to update those stats post refinement
         if self.step >= self.config.stop_split_at:
             return
-        # just manually step the 'dino_feats' in the direction of their gradient lmao
         with torch.no_grad():
             # keep track of a moving average of grad norms
             visible_mask = (self.radii > 0).flatten()
