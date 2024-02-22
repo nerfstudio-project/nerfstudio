@@ -1,3 +1,4 @@
+import os
 import subprocess
 import tkinter as tk
 from dataclasses import asdict
@@ -9,47 +10,53 @@ import gradio as gr
 
 from nerfstudio.configs import dataparser_configs as dc, method_configs as mc
 
+
 # from nerfstudio.scripts import train
+def get_shell_command():
+    if os.name == "nt":  # Windows
+        return ["cmd.exe"]
+    else:  # POSIX (Linux, Unix, etc.)
+        return ["/bin/bash"]
 
 
 def run(data_path, method, max_num_iterations, steps_per_save, data_parser, visualizer):
     # generate the command
-    if data_parser == "":
-        raise gr.Error("Please select a data parser")
-    if method == "":
-        raise gr.Error("Please select a method")
-    if data_path == "":
-        raise gr.Error("Please select a data path")
-    if visualizer == "":
-        raise gr.Error("Please select a visualizer")
-    # this only works on windows
-    cmd = f"start cmd /k ns-train {method} {model_args_cmd} --vis {visualizer} --max-num-iterations {max_num_iterations} --steps-per-save {steps_per_save}  --data {data_path} {data_parser} {dataparser_args_cmd}"
+    cmd = generate_cmd(data_path, method, max_num_iterations, steps_per_save, data_parser, visualizer)
     # run the command
-    subprocess.run(cmd, shell=True, check=False)
+    process = subprocess.Popen(get_shell_command(), stdin=subprocess.PIPE, text=True)
+    process.stdin.write(cmd + "\n")
+    process.stdin.flush()
+    import time
+
+    time.sleep(1)
+    process.stdin.close()
+    process.wait()
     # generate the cofig, useless for now
-    config = mc.all_methods[method]
-    config.data = Path(data_path)
-    config.max_num_iterations = max_num_iterations
-    config.steps_per_save = steps_per_save
-    config.vis = visualizer
-    config.pipeline.datamanager.dataparser = dc.all_dataparsers[data_parser]
-    for key, value in dataparser_args.items():
-        setattr(config.pipeline.datamanager.dataparser, key, value)
-    for key, value in model_args.items():
-        setattr(config.pipeline.model, key, value)
+    # config = mc.all_methods[method]
+    # config.data = Path(data_path)
+    # config.max_num_iterations = max_num_iterations
+    # config.steps_per_save = steps_per_save
+    # config.vis = visualizer
+    # config.pipeline.datamanager.dataparser = dc.all_dataparsers[data_parser]
+    # for key, value in dataparser_args.items():
+    #     setattr(config.pipeline.datamanager.dataparser, key, value)
+    # for key, value in model_args.items():
+    #     setattr(config.pipeline.model, key, value)
     # train.main(config)
     return cmd
 
 
 def run_vis(config_path):
-    # generate the command
-    if config_path == "":
-        raise gr.Error("Please select a config path")
-
-    # this only works on windows
-    cmd = f"start cmd /k ns-viewer --load-config {config_path}"
+    cmd = generate_vis_cmd(config_path)
     # run the command
-    subprocess.run(cmd, shell=True, check=False)
+    process = subprocess.Popen(get_shell_command(), stdin=subprocess.PIPE, text=True)
+    process.stdin.write(cmd + "\n")
+    process.stdin.flush()
+    import time
+
+    time.sleep(1)
+    process.stdin.close()
+    process.wait()
     return cmd
 
 
@@ -188,21 +195,33 @@ def vis_model_args(method):
 
 
 def browse():
-    root = tk.Tk()
-    root.wm_attributes("-topmost", 1)
-    root.withdraw()  # Hide the main window
-    root.lift()  # Move to the top of all windows
-    folder_path = filedialog.askdirectory(title="Select Folder")
+    if os.name == "nt":
+        root = tk.Tk()
+        root.wm_attributes("-topmost", 1)
+        root.withdraw()  # Hide the main window
+        root.lift()  # Move to the top of all windows
+        folder_path = filedialog.askdirectory(title="Select Folder")
+        root.destroy()
+    else:
+        # not supported on linux
+        folder_path = ""
+        raise gr.Error("Not supported on linux,please input the path manually")
     return folder_path
 
 
 def browse_cfg():
-    root = tk.Tk()
-    root.wm_attributes("-topmost", 1)
-    root.withdraw()  # Hide the main window
-    root.lift()  # Move to the top of all windows
-    # select a file ending with .yml
-    folder_path = filedialog.askopenfilename(title="Select Config", filetypes=[("YAML files", "*.yml")])
+    if os.name == "nt":
+        # select a file ending with .yml
+        root = tk.Tk()
+        root.wm_attributes("-topmost", 1)
+        root.withdraw()  # Hide the main window
+        root.lift()  # Move to the top of all windows
+        folder_path = filedialog.askopenfilename(title="Select Config", filetypes=[("YAML files", "*.yml")])
+        root.destroy()
+    else:
+        # not supported on linux
+        folder_path = ""
+        raise gr.Error("Not supported on linux,please input the path manually")
     return folder_path
 
 
@@ -223,13 +242,12 @@ model_arg_list = []  # gr components for the model args
 model_arg_names = []  # keep track of the model args names
 model_arg_idx = {}  # record the start and end index of the model args
 
+
 with gr.Blocks() as demo:
     with gr.Tab(label="Train"):
         status = gr.Textbox(label="Status", lines=1, placeholder="Waiting for input")
         with gr.Row():
-            run_button = gr.Button(
-                value="Run",
-            )
+            run_button = gr.Button(value="Run Train", variant="primary")
             cmd_button = gr.Button(value="Show Command")
             viser_button = gr.Button(value="Open Viser", link="http://localhost:7007/")
 
@@ -334,6 +352,7 @@ with gr.Blocks() as demo:
         with gr.Row():
             vis_button = gr.Button(
                 value="Run Viser",
+                variant="primary",
             )
             vis_cmd_button = gr.Button(value="Show Command")
             viser_button = gr.Button(value="Open Viser", link="http://localhost:7007/")
