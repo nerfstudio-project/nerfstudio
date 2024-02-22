@@ -258,11 +258,28 @@ with gr.Blocks() as demo:
         with gr.Row():
             max_num_iterations = gr.Slider(minimum=0, maximum=50000, step=100, label="Max Num Iterations", value=30000)
             steps_per_save = gr.Slider(minimum=0, maximum=10000, step=100, label="Steps Per Save", value=2000)
-        with gr.Row():
-            data_path = gr.Textbox(label="Data Path", lines=1, placeholder="Path to the data folder", scale=4)
-            browse_button = gr.Button(value="Browse", scale=1)
-            browse_button.click(browse, None, outputs=data_path)
-            gr.ClearButton(components=[data_path], scale=1)
+        if os.name == "nt":
+            with gr.Row():
+                data_path = gr.Textbox(label="Data Path", lines=1, placeholder="Path to the data folder", scale=4)
+                browse_button = gr.Button(value="Browse", scale=1)
+                browse_button.click(browse, None, outputs=data_path)
+                gr.ClearButton(components=[data_path], scale=1)
+
+        else:
+            with gr.Row():
+                data_path = gr.Textbox(label="Data Path", lines=1, placeholder="Path to the data folder", scale=5)
+                choose_button = gr.Button(value="Submit", scale=1)
+
+            def get_folder_path(x):
+                if len(x) > 0:
+                    x = x[0]
+                x = Path(x)
+                return str(x)
+
+            file_explorer = gr.FileExplorer(label="Browse", scale=1, root_dir="../", file_count="multiple", height=300)
+            choose_button.click(get_folder_path, inputs=file_explorer, outputs=data_path)
+
+        # file_explorer.change(fn=get_folder_path, inputs=file_explorer, outputs=data_path)
 
         with gr.Row():
             with gr.Column():
@@ -356,12 +373,21 @@ with gr.Blocks() as demo:
             )
             vis_cmd_button = gr.Button(value="Show Command")
             viser_button = gr.Button(value="Open Viser", link="http://localhost:7007/")
+        if os.name == "nt":
+            with gr.Row():
+                config_path = gr.Textbox(label="Config Path", lines=1, placeholder="Path to the config", scale=4)
+                cfg_browse_button = gr.Button(value="Browse", scale=1)
+                cfg_browse_button.click(browse_cfg, None, outputs=config_path)
+                gr.ClearButton(components=[data_path], scale=1)
+        else:
+            with gr.Row():
+                config_path = gr.Textbox(label="Config Path", lines=1, placeholder="Path to the config", scale=5)
+                cfg_choose_button = gr.Button(value="Submit", scale=1)
 
-        with gr.Row():
-            config_path = gr.Textbox(label="Config Path", lines=1, placeholder="Path to the config", scale=4)
-            cfg_browse_button = gr.Button(value="Browse", scale=1)
-            cfg_browse_button.click(browse_cfg, None, outputs=config_path)
-            gr.ClearButton(components=[data_path], scale=1)
+            cfg_file_explorer = gr.FileExplorer(
+                label="Browse", scale=1, root_dir="../", file_count="single", height=300, glob=".yml"
+            )
+            cfg_choose_button.click(lambda x: str(x), inputs=cfg_file_explorer, outputs=config_path)
 
         vis_button.click(
             run_vis,
