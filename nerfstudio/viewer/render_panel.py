@@ -21,7 +21,7 @@ import json
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Tuple
+from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import scipy
@@ -39,6 +39,8 @@ class Keyframe:
     wxyz: np.ndarray
     override_fov_enabled: bool
     override_fov_rad: float
+    override_time_enabled: bool
+    override_time_val: float
     aspect: float
     override_transition_enabled: bool
     override_transition_sec: Optional[float]
@@ -50,6 +52,8 @@ class Keyframe:
             camera.wxyz,
             override_fov_enabled=False,
             override_fov_rad=camera.fov,
+            override_time_enabled=False,
+            override_time_val=0.0,
             aspect=aspect,
             override_transition_enabled=False,
             override_transition_sec=None,
@@ -57,7 +61,9 @@ class Keyframe:
 
 
 class CameraPath:
-    def __init__(self, server: viser.ViserServer, duration_element: viser.GuiInputHandle[float]):
+    def __init__(
+        self, server: viser.ViserServer, duration_element: viser.GuiInputHandle[float], time_enabled: bool = False
+    ):
         self._server = server
         self._keyframes: Dict[int, Tuple[Keyframe, viser.CameraFrustumHandle]] = {}
         self._keyframe_counter: int = 0
@@ -76,6 +82,8 @@ class CameraPath:
         self.framerate: float = 30.0
         self.tension: float = 0.5  # Tension / alpha term.
         self.default_fov: float = 0.0
+        self.time_enabled = time_enabled
+        self.default_render_time: float = 0.0
         self.default_transition_sec: float = 0.0
         self.show_spline: bool = True
 
@@ -129,6 +137,30 @@ class CameraPath:
                     initial_value=keyframe.override_fov_rad * 180.0 / np.pi,
                     disabled=not keyframe.override_fov_enabled,
                 )
+                if self.time_enabled:
+                    override_time = server.add_gui_checkbox(
+                        "Override Time", initial_value=keyframe.override_time_enabled
+                    )
+                    override_time_val = server.add_gui_slider(
+                        "Override Time",
+                        0.0,
+                        1.0,
+                        step=0.01,
+                        initial_value=keyframe.override_time_val,
+                        disabled=not keyframe.override_time_enabled,
+                    )
+
+                    @override_time.on_update
+                    def _(_) -> None:
+                        keyframe.override_time_enabled = override_time.value
+                        override_time_val.disabled = not override_time.value
+                        self.add_camera(keyframe, keyframe_index)
+
+                    @override_time_val.on_update
+                    def _(_) -> None:
+                        keyframe.override_time_val = override_time_val.value
+                        self.add_camera(keyframe, keyframe_index)
+
                 delete_button = server.add_gui_button("Delete", color="red", icon=viser.Icon.TRASH)
                 go_to_button = server.add_gui_button("Go to")
                 close_button = server.add_gui_button("Close")
@@ -251,7 +283,9 @@ class CameraPath:
         # Clip to account for floating point error.
         return np.clip(interpolator(time), 0, spline_indices[-1])
 
-    def interpolate_pose_and_fov_rad(self, normalized_t: float) -> Optional[Tuple[tf.SE3, float]]:
+    def interpolate_pose_and_fov_rad(
+        self, normalized_t: float
+    ) -> Optional[Union[Tuple[tf.SE3, float], Tuple[tf.SE3, float, float]]]:
         if len(self._keyframes) < 2:
             return None
 
@@ -264,22 +298,43 @@ class CameraPath:
             endconditions="closed" if self.loop else "natural",
         )
 
+        self._time_spline = splines.KochanekBartels(
+            [
+                keyframe[0].override_time_val if keyframe[0].override_time_enabled else self.default_render_time
+                for keyframe in self._keyframes.values()
+            ],
+            tcb=(self.tension, 0.0, 0.0),
+            endconditions="closed" if self.loop else "natural",
+        )
+
         assert self._orientation_spline is not None
         assert self._position_spline is not None
         assert self._fov_spline is not None
+        if self.time_enabled:
+            assert self._time_spline is not None
         max_t = self.compute_duration()
         t = max_t * normalized_t
         spline_t = float(self.spline_t_from_t_sec(np.array(t)))
 
         quat = self._orientation_spline.evaluate(spline_t)
         assert isinstance(quat, splines.quaternion.UnitQuaternion)
-        return (
-            tf.SE3.from_rotation_and_translation(
-                tf.SO3(np.array([quat.scalar, *quat.vector])),
-                self._position_spline.evaluate(spline_t),
-            ),
-            float(self._fov_spline.evaluate(spline_t)),
-        )
+        if self.time_enabled:
+            return (
+                tf.SE3.from_rotation_and_translation(
+                    tf.SO3(np.array([quat.scalar, *quat.vector])),
+                    self._position_spline.evaluate(spline_t),
+                ),
+                float(self._fov_spline.evaluate(spline_t)),
+                float(self._time_spline.evaluate(spline_t)),
+            )
+        else:
+            return (
+                tf.SE3.from_rotation_and_translation(
+                    tf.SO3(np.array([quat.scalar, *quat.vector])),
+                    self._position_spline.evaluate(spline_t),
+                ),
+                float(self._fov_spline.evaluate(spline_t)),
+            )
 
     def update_spline(self) -> None:
         num_frames = int(self.compute_duration() * self.framerate)
@@ -456,6 +511,7 @@ class RenderTabState:
 
     preview_render: bool
     preview_fov: float
+    preview_time: float
     preview_aspect: float
     preview_camera_type: Literal["Perspective", "Fisheye", "Equirectangular"]
 
@@ -471,6 +527,7 @@ def populate_render_tab(
     render_tab_state = RenderTabState(
         preview_render=False,
         preview_fov=0.0,
+        preview_time=0.0,
         preview_aspect=1.0,
         preview_camera_type="Perspective",
     )
@@ -483,6 +540,21 @@ def populate_render_tab(
         step=0.01,
         hint="Field-of-view for rendering, which can also be overridden on a per-keyframe basis.",
     )
+
+    render_time = None
+    if control_panel is not None and control_panel._time_enabled:
+        render_time = server.add_gui_slider(
+            "Default Time",
+            initial_value=0.0,
+            min=0.0,
+            max=1.0,
+            step=0.01,
+            hint="Rendering time step, which can also be overridden on a per-keyframe basis.",
+        )
+
+        @render_time.on_update
+        def _(_) -> None:
+            camera_path.default_render_time = render_time.value
 
     @fov_degrees.on_update
     def _(_) -> None:
@@ -703,7 +775,7 @@ def populate_render_tab(
             preview_camera_handle.remove()
             preview_camera_handle = None
 
-    def compute_and_update_preview_camera_state() -> Optional[Tuple[tf.SE3, float]]:
+    def compute_and_update_preview_camera_state() -> Optional[Union[Tuple[tf.SE3, float], Tuple[tf.SE3, float, float]]]:
         """Update the render tab state with the current preview camera pose.
         Returns current camera pose + FOV if available."""
 
@@ -715,11 +787,20 @@ def populate_render_tab(
         if maybe_pose_and_fov_rad is None:
             remove_preview_camera()
             return
-        pose, fov_rad = maybe_pose_and_fov_rad
+        time = None
+        if len(maybe_pose_and_fov_rad) == 3:  # Time is enabled.
+            pose, fov_rad, time = maybe_pose_and_fov_rad
+            render_tab_state.preview_time = time
+        else:
+            pose, fov_rad = maybe_pose_and_fov_rad
         render_tab_state.preview_fov = fov_rad
         render_tab_state.preview_aspect = camera_path.get_aspect()
         render_tab_state.preview_camera_type = camera_type.value
-        return pose, fov_rad
+
+        if time is not None:
+            return pose, fov_rad, time
+        else:
+            return pose, fov_rad
 
     def add_preview_frame_slider() -> Optional[viser.GuiInputHandle[int]]:
         """Helper for creating the current frame # slider. This is removed and
@@ -745,7 +826,10 @@ def populate_render_tab(
             maybe_pose_and_fov_rad = compute_and_update_preview_camera_state()
             if maybe_pose_and_fov_rad is None:
                 return
-            pose, fov_rad = maybe_pose_and_fov_rad
+            if len(maybe_pose_and_fov_rad) == 3:  # Time is enabled.
+                pose, fov_rad, time = maybe_pose_and_fov_rad
+            else:
+                pose, fov_rad = maybe_pose_and_fov_rad
 
             preview_camera_handle = server.add_camera_frustum(
                 "/preview_camera",
@@ -776,7 +860,10 @@ def populate_render_tab(
         if maybe_pose_and_fov_rad is None:
             remove_preview_camera()
             return
-        pose, fov = maybe_pose_and_fov_rad
+        if len(maybe_pose_and_fov_rad) == 3:  # Time is enabled.
+            pose, fov, time = maybe_pose_and_fov_rad
+        else:
+            pose, fov = maybe_pose_and_fov_rad
         del fov
 
         # Hide all scene nodes when we're previewing the render.
@@ -902,8 +989,10 @@ def populate_render_tab(
                                 wxyz=pose.rotation().wxyz,
                                 # There are some floating point conversions between degrees and radians, so the fov and
                                 # default_Fov values will not be exactly matched.
-                                override_fov_enabled=abs(frame["fov"] - json_data.get("default_fov", 0.0)) < 1e-3,
+                                override_fov_enabled=abs(frame["fov"] - json_data.get("default_fov", 0.0)) > 1e-3,
                                 override_fov_rad=frame["fov"] / 180.0 * np.pi,
+                                override_time_enabled=frame.get("override_time_enabled", False),
+                                override_time_val=frame.get("render_time", None),
                                 aspect=frame["aspect"],
                                 override_transition_enabled=frame.get("override_transition_enabled", None),
                                 override_transition_sec=frame.get("override_transition_sec", None),
@@ -977,18 +1066,22 @@ def populate_render_tab(
                 tf.SO3(keyframe.wxyz) @ tf.SO3.from_x_radians(np.pi),
                 keyframe.position / VISER_NERFSTUDIO_SCALE_RATIO,
             )
-            keyframes.append(
-                {
-                    "matrix": pose.as_matrix().flatten().tolist(),
-                    "fov": np.rad2deg(keyframe.override_fov_rad)
-                    if keyframe.override_fov_enabled
-                    else fov_degrees.value,
-                    "aspect": keyframe.aspect,
-                    "override_transition_enabled": keyframe.override_transition_enabled,
-                    "override_transition_sec": keyframe.override_transition_sec,
-                }
-            )
+            keyframe_dict = {
+                "matrix": pose.as_matrix().flatten().tolist(),
+                "fov": np.rad2deg(keyframe.override_fov_rad) if keyframe.override_fov_enabled else fov_degrees.value,
+                "aspect": keyframe.aspect,
+                "override_transition_enabled": keyframe.override_transition_enabled,
+                "override_transition_sec": keyframe.override_transition_sec,
+            }
+            if render_time is not None:
+                keyframe_dict["render_time"] = (
+                    keyframe.override_time_val if keyframe.override_time_enabled else render_time.value
+                )
+                keyframe_dict["override_time_enabled"] = keyframe.override_time_enabled
+            keyframes.append(keyframe_dict)
         json_data["default_fov"] = fov_degrees.value
+        if render_time is not None:
+            json_data["default_time"] = render_time.value if render_time is not None else None
         json_data["default_transition_sec"] = transition_sec_number.value
         json_data["keyframes"] = keyframes
         json_data["camera_type"] = camera_type.value.lower()
@@ -1004,19 +1097,24 @@ def populate_render_tab(
             maybe_pose_and_fov = camera_path.interpolate_pose_and_fov_rad(i / num_frames)
             if maybe_pose_and_fov is None:
                 return
-            pose, fov = maybe_pose_and_fov
+            time = None
+            if len(maybe_pose_and_fov) == 3:  # Time is enabled.
+                pose, fov, time = maybe_pose_and_fov
+            else:
+                pose, fov = maybe_pose_and_fov
             # rotate the axis of the camera 180 about x axis
             pose = tf.SE3.from_rotation_and_translation(
                 pose.rotation() @ tf.SO3.from_x_radians(np.pi),
                 pose.translation() / VISER_NERFSTUDIO_SCALE_RATIO,
             )
-            camera_path_list.append(
-                {
-                    "camera_to_world": pose.as_matrix().flatten().tolist(),
-                    "fov": np.rad2deg(fov),
-                    "aspect": resolution.value[0] / resolution.value[1],
-                }
-            )
+            camera_path_list_dict = {
+                "camera_to_world": pose.as_matrix().flatten().tolist(),
+                "fov": np.rad2deg(fov),
+                "aspect": resolution.value[0] / resolution.value[1],
+            }
+            if time is not None:
+                camera_path_list_dict["render_time"] = time
+            camera_path_list.append(camera_path_list_dict)
         json_data["camera_path"] = camera_path_list
         # finally add crop data if crop is enabled
         if control_panel is not None:
@@ -1064,7 +1162,10 @@ def populate_render_tab(
             def _(_) -> None:
                 modal.close()
 
-    camera_path = CameraPath(server, duration_number)
+    if control_panel is not None:
+        camera_path = CameraPath(server, duration_number, control_panel._time_enabled)
+    else:
+        camera_path = CameraPath(server, duration_number)
     camera_path.default_fov = fov_degrees.value / 180.0 * np.pi
     camera_path.default_transition_sec = transition_sec_number.value
 
