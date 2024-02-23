@@ -548,7 +548,6 @@ class ExportGaussianSplat(Exporter):
             for i in range(3):
                 map_to_tensors[f"scale_{i}"] = scales[:, i, None]
 
-            # Invert and aapply the dataparser transform.
             def quaternion_multiply(wxyz0: np.ndarray, wxyz1: np.ndarray) -> np.ndarray:
                 assert wxyz0.shape[-1] == 4
                 assert wxyz1.shape[-1] == 4
