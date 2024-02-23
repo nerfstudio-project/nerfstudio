@@ -30,6 +30,8 @@ import numpy as np
 import open3d as o3d
 import torch
 import tyro
+from typing_extensions import Annotated, Literal
+
 from nerfstudio.cameras.camera_utils import quaternion_from_matrix
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
@@ -44,7 +46,6 @@ from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import CONSOLE
-from typing_extensions import Annotated, Literal
 
 
 @dataclass
