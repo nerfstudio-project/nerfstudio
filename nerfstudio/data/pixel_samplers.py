@@ -16,8 +16,8 @@
 Code for sampling pixels.
 """
 
-import random
 from collections import defaultdict
+import random
 import warnings
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Type, Union
