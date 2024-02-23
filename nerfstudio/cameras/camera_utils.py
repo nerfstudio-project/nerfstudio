@@ -311,8 +311,8 @@ def viewmatrix(lookat: torch.Tensor, up: torch.Tensor, pos: torch.Tensor) -> Flo
     """
     vec2 = normalize(lookat)
     vec1_avg = normalize(up)
-    vec0 = normalize(torch.cross(vec1_avg, vec2))
-    vec1 = normalize(torch.cross(vec2, vec0))
+    vec0 = normalize(torch.linalg.cross(vec1_avg, vec2))
+    vec1 = normalize(torch.linalg.cross(vec2, vec0))
     m = torch.stack([vec0, vec1, vec2, pos], 1)
     return m
 

@@ -30,10 +30,10 @@ import numpy as np
 import open3d as o3d
 import torch
 import tyro
-from typing_extensions import Annotated, Literal
-
+from nerfstudio.cameras.camera_utils import quaternion_from_matrix
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
+from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatamanager
 from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.exporter import texture_utils, tsdf_utils
@@ -44,6 +44,7 @@ from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import CONSOLE
+from typing_extensions import Annotated, Literal
 
 
 @dataclass
@@ -121,7 +122,7 @@ class ExportPointCloud(Exporter):
     """Number of rays to evaluate per batch. Decrease if you run out of memory."""
     std_ratio: float = 10.0
     """Threshold based on STD of the average distances across the point cloud to remove outliers."""
-    save_world_frame: bool = False
+    save_world_frame: bool = True
     """If set, saves the point cloud in the same frame as the original dataset. Otherwise, uses the
     scaled and reoriented coordinate space expected by the NeRF models."""
 
@@ -482,6 +483,11 @@ class ExportGaussianSplat(Exporter):
     Export 3D Gaussian Splatting model to a .ply
     """
 
+    save_world_frame: bool = True
+    """If set, saves the splat in the same frame as the original dataset.
+    Otherwise, uses the scaled and reoriented coordinate space produced
+    internally by Nerfstudio."""
+
     def main(self) -> None:
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
@@ -497,7 +503,26 @@ class ExportGaussianSplat(Exporter):
         map_to_tensors = {}
 
         with torch.no_grad():
-            positions = model.means.cpu().numpy()
+            if self.save_world_frame:
+                assert isinstance(pipeline.datamanager, FullImageDatamanager)
+                dataparser_outputs = pipeline.datamanager.train_dataparser_outputs
+                dataparser_scale = dataparser_outputs.dataparser_scale
+                dataparser_transform = dataparser_outputs.dataparser_transform.numpy(force=True)
+
+                output_scale = 1 / dataparser_scale
+                output_transform = np.zeros((3, 4))
+                output_transform[:3, :3] = dataparser_transform[:3, :3].T
+                output_transform[:3, 3] = -dataparser_transform[:3, :3].T @ dataparser_transform[:3, 3]
+            else:
+                output_scale = 1
+                output_transform = np.zeros((3, 4))
+                output_transform[:3, :3] = np.eye(3)
+            inv_dataparser_quat = quaternion_from_matrix(output_transform[:3, :3])
+
+            positions = (
+                np.einsum("ij,bj->bi", output_transform[:3, :3], model.means.cpu().numpy() * output_scale)
+                + output_transform[None, :3, 3]
+            )
             n = positions.shape[0]
             map_to_tensors["positions"] = positions
             map_to_tensors["normals"] = np.zeros_like(positions, dtype=np.float32)
@@ -518,11 +543,28 @@ class ExportGaussianSplat(Exporter):
 
             map_to_tensors["opacity"] = model.opacities.data.cpu().numpy()
 
-            scales = model.scales.data.cpu().numpy()
+            # Note that scales are in log space!
+            scales = model.scales.data.cpu().numpy() + np.log(output_scale)
             for i in range(3):
                 map_to_tensors[f"scale_{i}"] = scales[:, i, None]
 
-            quats = model.quats.data.cpu().numpy()
+            # Invert and aapply the dataparser transform.
+            def quaternion_multiply(wxyz0: np.ndarray, wxyz1: np.ndarray) -> np.ndarray:
+                assert wxyz0.shape[-1] == 4
+                assert wxyz1.shape[-1] == 4
+                w0, x0, y0, z0 = np.moveaxis(wxyz0, -1, 0)
+                w1, x1, y1, z1 = np.moveaxis(wxyz1, -1, 0)
+                return np.stack(
+                    [
+                        -x0 * x1 - y0 * y1 - z0 * z1 + w0 * w1,
+                        x0 * w1 + y0 * z1 - z0 * y1 + w0 * x1,
+                        -x0 * z1 + y0 * w1 + z0 * x1 + w0 * y1,
+                        x0 * y1 - y0 * x1 + z0 * w1 + w0 * z1,
+                    ],
+                    axis=-1,
+                )
+
+            quats = quaternion_multiply(inv_dataparser_quat, model.quats.data.cpu().numpy())
             for i in range(4):
                 map_to_tensors[f"rot_{i}"] = quats[:, i, None]
 
