@@ -190,8 +190,16 @@ class PixelSampler:
             # Multiply by the batch size and height/width to get pixel indices.
             indices = torch.floor(
                 torch.stack([rand_samples[:, 0], y, x], dim=1)
-                * torch.tensor([num_images, image_height // 2, image_width // 2], device=device)
                 + torch.tensor([0, image_height // 2, image_width // 2], device=device)
+            ).long()
+
+            # Clamp the values of indices tensor to be within image bounds.
+            indices = torch.clamp(
+                indices,
+                min=torch.zeros(3, device=device),
+                max=torch.tensor(
+                    [num_images, image_height - 1, image_width - 1], device=device
+                ),
             ).long()
 
         return indices
