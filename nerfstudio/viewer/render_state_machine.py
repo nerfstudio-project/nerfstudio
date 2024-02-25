@@ -306,7 +306,7 @@ class RenderStateMachine(threading.Thread):
             jpeg_quality=jpg_quality,
             depth=depth,
         )
-        res = f"{selected_output.shape[0]}x{selected_output.shape[1]}px"
+        res = f"{selected_output.shape[1]}x{selected_output.shape[0]}px"
         self.viewer.stats_markdown.content = self.viewer.make_stats_markdown(None, res)
 
     def _calculate_image_res(self, aspect_ratio: float) -> Tuple[int, int]:
