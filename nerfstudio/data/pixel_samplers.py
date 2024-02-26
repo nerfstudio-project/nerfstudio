@@ -174,26 +174,59 @@ class PixelSampler:
         image_width: int,
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
+        radius: float = 0.0,
     ) -> Int[Tensor, "batch_size 3"]:
         if isinstance(mask, torch.Tensor) and not self.config.ignore_mask:
             indices = self.sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)
         else:
-            rand_samples = torch.rand((batch_size, 3), device=device)
-            # convert random samples tto radius and theta
-            radii = self.config.fisheye_crop_radius * torch.sqrt(rand_samples[:, 1])
-            theta = 2.0 * torch.pi * rand_samples[:, 2]
+            # Rejection sampling.
+            valid: Optional[torch.Tensor] = None
+            indices = None
+            while True:
+                samples_needed = batch_size if valid is None else int(batch_size - torch.sum(valid).item())
 
-            # convert radius and theta to x and y between -radii and radii
-            x = radii * torch.cos(theta)
-            y = radii * torch.sin(theta)
+                # Check if done!
+                if samples_needed == 0:
+                    break
 
-            # Multiply by the batch size and height/width to get pixel indices.
-            indices = torch.floor(
-                torch.stack([rand_samples[:, 0], y, x], dim=1)
-                * torch.tensor([num_images, image_height // 2, image_width // 2], device=device)
-                + torch.tensor([0, image_height // 2, image_width // 2], device=device)
-            ).long()
+                rand_samples = torch.rand((samples_needed, 2), device=device)
+                # Convert random samples to radius and theta.
+                radii = self.config.fisheye_crop_radius * torch.sqrt(rand_samples[:, 0]) if float == 0.0 else radius * torch.sqrt(rand_samples[:, 0])
+                theta = 2.0 * torch.pi * rand_samples[:, 1]
 
+                # Convert radius and theta to x and y.
+                x = (radii * torch.cos(theta) + image_width // 2).long()
+                y = (radii * torch.sin(theta) + image_height // 2).long()
+                sampled_indices = torch.stack(
+                    [torch.randint(0, num_images, size=(samples_needed,), device=device), y, x], dim=-1
+                )
+
+                # Update indices.
+                if valid is None:
+                    indices = sampled_indices
+                    valid = (
+                        (sampled_indices[:, 1] >= 0)
+                        & (sampled_indices[:, 1] < image_height)
+                        & (sampled_indices[:, 2] >= 0)
+                        & (sampled_indices[:, 2] < image_width)
+                    )
+                else:
+                    assert indices is not None
+                    not_valid = ~valid
+                    indices[not_valid, :] = sampled_indices
+                    valid[not_valid] = (
+                        (sampled_indices[:, 1] >= 0)
+                        & (sampled_indices[:, 1] < image_height)
+                        & (sampled_indices[:, 2] >= 0)
+                        & (sampled_indices[:, 2] < image_width)
+                    )
+            assert indices is not None
+
+        assert indices.shape == (batch_size, 3)
+        indices = (
+            torch.rand((batch_size, 3), device=device)
+            * torch.tensor([num_images, image_height, image_width], device=device)
+        ).long()
         return indices
 
     def collate_image_dataset_batch(self, batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
@@ -298,6 +331,9 @@ class PixelSampler:
                     indices = self.sample_method_equirectangular(
                         num_rays_in_batch, 1, image_height, image_width, device=device
                     )
+                elif self.config.fisheye_crop_radius is not None: # we know the code is jumping into this code here:
+                    print("SKULL SKULL SKULL")
+                    indices = self.sample_method_fisheye(num_rays_in_batch, 1, image_height, image_width, device=device, radius=max(image_height, image_width)/2)
                 else:
                     indices = self.sample_method(num_rays_in_batch, 1, image_height, image_width, device=device)
                 indices[:, 0] = i

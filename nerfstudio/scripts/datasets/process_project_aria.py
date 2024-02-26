@@ -132,7 +132,12 @@ def to_aria_image_frame(
 
     # Get the image corresponding to this index
     image_data = provider.get_image_data_by_index(stream_id, index)
-    img = Image.fromarray(image_data[0].to_numpy_array())
+    temp = image_data[0].to_numpy_array()
+    if len(temp.shape) == 3:
+        img_np = np.mean(temp, axis=2).astype(np.uint8)
+        img = Image.fromarray(img_np)
+    else:
+        img = Image.fromarray(image_data[0].to_numpy_array())
     capture_time_ns = image_data[1].capture_timestamp_ns
 
     file_path = f"{output_dir}/{name}_{capture_time_ns}.jpg"
@@ -201,8 +206,7 @@ class ProcessProjectAria:
         t_world_devices = read_trajectory_csv_to_dict(str(trajectory_csv.absolute()))
 
         stream_ids = [provider.get_stream_id_from_label(name) for name in names] # prints [214-1, 1201-1, 1201-2], which is correct
-        #test_slam_img = provider.get_image_data_by_index(stream_ids[1], 1)
-        #print("HIHIII", test_slam_img.to_numpy_array().shape)
+
         # create an AriaImageFrame for each image in the VRS.
         print("Creating Aria frames...")
         # aria_frames = [
@@ -221,13 +225,13 @@ class ProcessProjectAria:
         print("Creating NerfStudio frames...")
         CANONICAL_RGB_VALID_RADIUS = 707.5
         CANONICAL_RGB_WIDTH = 1408
-        rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (aria_camera_frames[0][0].camera.width / CANONICAL_RGB_WIDTH)
+        rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (aria_camera_frames[0][0].camera.width / CANONICAL_RGB_WIDTH) 
         
         # found here https://github.com/facebookresearch/projectaria_tools/blob/4aee633cb667ab927825dc10477cad0df8393a34/core/calibration/loader/SensorCalibrationJson.cpp#L102C5-L104C18 and divided by 2
         CANONICAL_SLAM_VALID_RADIUS = 165
         CANONICAL_SLAM_WIDTH = 640
         # print(aria_camera_frames[1][0].camera.width) prints 640
-        slam_valid_radius = CANONICAL_SLAM_VALID_RADIUS * (aria_camera_frames[1][0].camera.width / CANONICAL_SLAM_WIDTH) # equal to 165.0 in the end
+        slam_valid_radius = 320.0 # CANONICAL_SLAM_VALID_RADIUS * (aria_camera_frames[1][0].camera.width / CANONICAL_SLAM_WIDTH) # equal to 165.0 in the end
         valid_radii = [rgb_valid_radius, slam_valid_radius, slam_valid_radius]
         nerfstudio_frames = [
             {
@@ -237,20 +241,32 @@ class ProcessProjectAria:
             }
             for i, valid_radius in enumerate(valid_radii)
         ]
-        # nerfstudio_frames = {
-        #     "camera_model": ARIA_CAMERA_MODEL,
-        #     "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[0]],
-        #     "fisheye_crop_radius": rgb_valid_radius,
-        # }
-        nerfstudio2_frames = {
+        all_aria_camera_frames = [to_nerfstudio_frame(frame) for camera_frames in aria_camera_frames for frame in camera_frames]
+        nerfstudio_frames = {
             "camera_model": ARIA_CAMERA_MODEL,
-            "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[1]],
+            "frames": all_aria_camera_frames,
             "fisheye_crop_radius": rgb_valid_radius,
         }
-        nerfstudio2_frames = {
+        # nerfstudio2_frames = {
+        #     "camera_model": ARIA_CAMERA_MODEL,
+        #     "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[1]],
+        #     "fisheye_crop_radius": rgb_valid_radius,
+        # }
+        left_camera_frames = {
+            "camera_model": ARIA_CAMERA_MODEL,
+            "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[1]],
+            "fisheye_crop_radius": slam_valid_radius,
+        }
+        right_camera_frames = {
             "camera_model": ARIA_CAMERA_MODEL,
             "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[2]],
-            "fisheye_crop_radius": rgb_valid_radius,
+            "fisheye_crop_radius": slam_valid_radius,
+        }
+
+        side_camera_frames = {
+            "camera_model": ARIA_CAMERA_MODEL,
+            "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[1]] + [to_nerfstudio_frame(frame) for frame in aria_camera_frames[2]],
+            "fisheye_crop_radius": slam_valid_radius,
         }
 
         # save global point cloud, which is useful for Gaussian Splatting.
@@ -264,16 +280,17 @@ class ProcessProjectAria:
             ply_file_path = self.output_dir / "global_points.ply"
             o3d.io.write_point_cloud(str(ply_file_path), pcd)
             for i, name in enumerate(names):
-                nerfstudio_frames[i]["ply_file_path"] = "global_points.ply"
+                side_camera_frames["ply_file_path"] = "global_points.ply"
         else:
             print("No global points found!")
 
         # write the json out to disk as transforms.json
         print("Writing transforms.json")
-        transform_files = [self.output_dir / f"{name}_transforms.json" for name in names]
-        for i, transform_file in enumerate(transform_files):
-            with open(transform_file, "w", encoding="UTF-8"):
-                transform_file.write_text(json.dumps(nerfstudio_frames[i]))
+        transform_file = self.output_dir / "transforms.json"
+        with open(transform_file, "w", encoding="UTF-8"):
+            #transform_file.write_text(json.dumps(side_camera_frames))
+            #transform_file.write_text(json.dumps(right_camera_frames))
+            transform_file.write_text(json.dumps(nerfstudio_frames))
 
 
 if __name__ == "__main__":
