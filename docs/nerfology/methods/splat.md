@@ -36,7 +36,7 @@ We provide a few additional variants:
 | Method           | Description                    | Memory | Speed   |
 | ---------------- | ------------------------------ | ------ | ------- |
 | `splatfacto`     | Default Model                  | ~6GB   | Fast    |
-| `splatfacto-big` | Larger higher quality          | ~12GB  | Slower  |
+| `splatfacto-big` | More Gaussians, Higher Quality | ~12GB  | Slower  |
 
 
 A full evalaution of Nerfstudio's implementation of Gaussian Splatting against the original Inria method can be found [here](https://docs.gsplat.studio/tests/eval.html).
