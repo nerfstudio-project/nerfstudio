@@ -223,6 +223,11 @@ class ProcessProjectAria:
 
         # save global point cloud, which is useful for Gaussian Splatting.
         points_path = self.mps_data_dir / "global_points.csv.gz"
+        if not points_path.exists():
+            # MPS point cloud output was renamed in Aria's December 4th, 2023 update.
+            # https://facebookresearch.github.io/projectaria_tools/docs/ARK/sw_release_notes#project-aria-updates-aria-mobile-app-v140-and-changes-to-mps
+            points_path = self.mps_data_dir / "semidense_points.csv.gz"
+
         if points_path.exists():
             print("Found global points, saving to PLY...")
             points_data = mps.read_global_point_cloud(str(points_path))  # type: ignore
