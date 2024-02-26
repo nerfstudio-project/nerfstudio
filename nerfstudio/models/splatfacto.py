@@ -298,6 +298,11 @@ class SplatfactoModel(Model):
         # resize the parameters to match the new number of points
         self.step = 30000
         newp = dict["gauss_params.means"].shape[0]
+        if "means" in dict:
+            # For backwards compatibility, we remap the names of parameters from
+            # means->gauss_params.means since old checkpoints have that format
+            for p in ["means", "scales", "quats", "features_dc", "features_rest", "opacities"]:
+                dict[f"gauss_params.{p}"] = dict[p]
         for name, param in self.gauss_params.items():
             old_shape = param.shape
             new_shape = (newp,) + old_shape[1:]
