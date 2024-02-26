@@ -13,9 +13,9 @@ from nerfstudio.configs import dataparser_configs as dc, method_configs as mc
 
 
 class WebUI:
-    def __init__(self, root_dir="./"):
-        self.root_dir = "./"
-        self.run_in_new_terminal = False  # if True, then run the command in a new terminal
+    def __init__(self, **kwargs):
+        self.root_dir = kwargs.get("root_dir", "./")  # root directory
+        self.run_in_new_terminal = kwargs.get("run_in_new_terminal", False)  # run in new terminal
 
         self.model_args_cmd = ""
         self.dataparser_args_cmd = ""
@@ -206,7 +206,7 @@ class WebUI:
 
     # from nerfstudio.scripts import train
 
-    def run_cmd(cmd):
+    def run_cmd(self, cmd):
         if os.name == "nt":  # Windows
             # For Windows, 'start' launches a new command prompt window
             # '/K' keeps the window open, and 'cmd.exe /c' ensures the command is executed
@@ -245,6 +245,7 @@ class WebUI:
 
     def run_train(self, data_path, method, max_num_iterations, steps_per_save, data_parser, visualizer):
         cmd = self.generate_cmd(data_path, method, max_num_iterations, steps_per_save, data_parser, visualizer)
+        print(cmd)
         # run the command
         if self.run_in_new_terminal:
             self.run_cmd(cmd)
@@ -443,5 +444,5 @@ class WebUI:
 
 
 if __name__ == "__main__":
-    app = WebUI(root_dir="./")
+    app = WebUI(root_dir="./", run_in_new_terminal=True)
     app.launch()
