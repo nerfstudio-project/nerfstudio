@@ -170,9 +170,7 @@ def nerfstudio_collate(batch: Any, extra_mappings: Union[Dict[type, Callable], N
             ), "All cameras must have the same metadata keys."
             metadata = {key: op([cam.metadata[key] for cam in batch], dim=0) for key in metadata_keys}
         else:
-            assert all(
-                (cam.metadata is None for cam in batch)
-            ), "All cameras must have the same metadata keys."
+            assert all((cam.metadata is None for cam in batch)), "All cameras must have the same metadata keys."
             metadata = None
 
         if batch[0].distortion_params is not None:
@@ -181,10 +179,7 @@ def nerfstudio_collate(batch: Any, extra_mappings: Union[Dict[type, Callable], N
             ), "All cameras must have distortion present or absent."
 
             distortion_params = op(
-                [
-                    cameras.distortion_params
-                    for cameras in batch
-                ],
+                [cameras.distortion_params for cameras in batch],
                 dim=0,
             )
         else:
@@ -194,15 +189,11 @@ def nerfstudio_collate(batch: Any, extra_mappings: Union[Dict[type, Callable], N
             distortion_params = None
 
         if batch[0].times is not None:
-            assert all(
-                (cam.times is not None for cam in batch)
-            ), "All cameras must have times present or absent."
+            assert all((cam.times is not None for cam in batch)), "All cameras must have times present or absent."
 
             times = torch.stack([cameras.times for cameras in batch], dim=0)
         else:
-            assert all(
-                (cam.times is None for cam in batch)
-            ), "All cameras must have times present or absent."
+            assert all((cam.times is None for cam in batch)), "All cameras must have times present or absent."
             times = None
 
         return Cameras(
