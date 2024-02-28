@@ -133,7 +133,8 @@ def to_aria_image_frame(
     # Get the image corresponding to this index
     image_data = provider.get_image_data_by_index(stream_id, index)
     temp = image_data[0].to_numpy_array()
-    if len(temp.shape) == 3:
+    ##HEHEHE
+    if len(temp.shape) == 13:
         img_np = np.mean(temp, axis=2).astype(np.uint8)
         img = Image.fromarray(img_np)
     else:
@@ -211,10 +212,10 @@ class ProcessProjectAria:
 
         # create an AriaImageFrame for each image in the VRS.
         print("Creating Aria frames...")
-        # aria_frames = [
-        #     to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir)
-        #     for index in range(0, provider.get_num_data(stream_id))
-        # ]
+        aria_frames = [
+            to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir)
+            for index in range(0, provider.get_num_data(provider.get_stream_id_from_label("camera-rgb")))
+        ]
         aria_camera_frames = [
             [
                 to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[i])
@@ -235,25 +236,21 @@ class ProcessProjectAria:
         # print(aria_camera_frames[1][0].camera.width) prints 640
         slam_valid_radius = 320.0 # CANONICAL_SLAM_VALID_RADIUS * (aria_camera_frames[1][0].camera.width / CANONICAL_SLAM_WIDTH) # equal to 165.0 in the end
         valid_radii = [rgb_valid_radius, slam_valid_radius, slam_valid_radius]
-        nerfstudio_frames = [
-            {
-                "camera_model": ARIA_CAMERA_MODEL,
-                "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[i]],
-                "fisheye_crop_radius": valid_radius,
-            }
-            for i, valid_radius in enumerate(valid_radii)
-        ]
+        # nerfstudio_frames = [
+        #     {
+        #         "camera_model": ARIA_CAMERA_MODEL,
+        #         "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[i]],
+        #         "fisheye_crop_radius": valid_radius,
+        #     }
+        #     for i, valid_radius in enumerate(valid_radii)
+        # ]
         all_aria_camera_frames = [to_nerfstudio_frame(frame) for camera_frames in aria_camera_frames for frame in camera_frames]
-        nerfstudio_frames = {
+        
+        nerfstudio_frames_og = {
             "camera_model": ARIA_CAMERA_MODEL,
-            "frames": all_aria_camera_frames,
+            "frames": [to_nerfstudio_frame(frame) for frame in aria_frames],
             "fisheye_crop_radius": rgb_valid_radius,
         }
-        # nerfstudio2_frames = {
-        #     "camera_model": ARIA_CAMERA_MODEL,
-        #     "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[1]],
-        #     "fisheye_crop_radius": rgb_valid_radius,
-        # }
         mainRGB_frames = {
             "camera_model": ARIA_CAMERA_MODEL,
             "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[0]],
@@ -275,7 +272,8 @@ class ProcessProjectAria:
             "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[1]] + [to_nerfstudio_frame(frame) for frame in aria_camera_frames[2]],
             "fisheye_crop_radius": slam_valid_radius,
         }
-
+        # currently testing these frames:
+        nerfstudio_frames = nerfstudio_frames_og
         # save global point cloud, which is useful for Gaussian Splatting.
         points_path = self.mps_data_dir / "global_points.csv.gz"
         if points_path.exists():
@@ -286,8 +284,7 @@ class ProcessProjectAria:
             pcd.points = o3d.utility.Vector3dVector(np.array([cast(Any, it).position_world for it in points_data]))
             ply_file_path = self.output_dir / "global_points.ply"
             o3d.io.write_point_cloud(str(ply_file_path), pcd)
-            for i, name in enumerate(names):
-                side_camera_frames["ply_file_path"] = "global_points.ply"
+            nerfstudio_frames["ply_file_path"] = "global_points.ply"
         else:
             print("No global points found!")
 
@@ -295,7 +292,7 @@ class ProcessProjectAria:
         print("Writing transforms.json")
         transform_file = self.output_dir / "transforms.json"
         with open(transform_file, "w", encoding="UTF-8"):
-            transform_file.write_text(json.dumps(left_camera_frames))
+            transform_file.write_text(json.dumps(mainRGB_frames))
             # transform_file.write_text(json.dumps(side_camera_frames))
             # transform_file.write_text(json.dumps(right_camera_frames))
             #transform_file.write_text(json.dumps(nerfstudio_frames))
