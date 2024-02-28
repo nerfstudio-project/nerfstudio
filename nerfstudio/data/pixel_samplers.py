@@ -191,7 +191,7 @@ class PixelSampler:
 
                 rand_samples = torch.rand((samples_needed, 2), device=device)
                 # Convert random samples to radius and theta.
-                radii = self.config.fisheye_crop_radius * torch.sqrt(rand_samples[:, 0]) if float == 0.0 else radius * torch.sqrt(rand_samples[:, 0])
+                radii = self.config.fisheye_crop_radius * torch.sqrt(rand_samples[:, 0])
                 theta = 2.0 * torch.pi * rand_samples[:, 1]
 
                 # Convert radius and theta to x and y.
@@ -223,10 +223,6 @@ class PixelSampler:
             assert indices is not None
 
         assert indices.shape == (batch_size, 3)
-        # indices = (
-        #     torch.rand((batch_size, 3), device=device)
-        #     * torch.tensor([num_images, image_height, image_width], device=device)
-        # ).long()
         return indices
 
     def collate_image_dataset_batch(self, batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
