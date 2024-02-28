@@ -202,7 +202,7 @@ class ProcessProjectAria:
         assert provider is not None, "Cannot open file"
         
         names = ["camera-rgb", "camera-slam-left", "camera-slam-right"]
-        name_to_camera = {name: get_camera_calibs(provider, name) for name in names} # name_to_camera is of type Dict[str, Dict[str, AriaCameraCalibration]]
+        name_to_camera = {name: get_camera_calibs(provider, name) for name in names} # name_to_camera is of type Dict[str, AriaCameraCalibration]
         
         print("Getting poses from closed loop trajectory CSV...")
         trajectory_csv = self.mps_data_dir / "closed_loop_trajectory.csv"
