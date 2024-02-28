@@ -51,6 +51,7 @@ from rich.progress import track
 from typing_extensions import Literal
 
 import nerfstudio.process_data.canonicalize_camera_poses as canonicalize_camera_poses
+import nerfstudio.process_data.colmap_database as colmap_database
 from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command
@@ -491,6 +492,109 @@ def get_vocab_tree() -> Path:
                     f.flush()
     return vocab_tree_filename
 
+def delete_false_matches_from_database(colmap_folder: Path):
+    """Uses a rough heuristic based on the elevation and azimuth to discard matches that seem implausible"""
+
+    def build_frame2elev_azim_map(colmap_folder: Path):
+        """Maps frame00000.jpg names to semantic names"""
+        import json
+        old2new_names = json.load(open(colmap_folder / '..' / 'old2new_names.json', 'r'))
+        frame2new_alt = json.load(open(colmap_folder / '..' / 'image_filename_map.json', 'r'))
+        new2old_names = {v: k for k, v in old2new_names.items()}
+
+        paths = list(old2new_names.keys())
+        old2elev = {path: int(path.split('/')[0]) for path in paths}
+        old2azim = {}
+        for elev in set(old2elev.values()):
+            olds = [k for k, v in old2elev.items() if v == elev]
+            olds.sort()
+            for i, a in enumerate(olds):
+                old2azim[a] = i
+        # for k, v in old2elev.items():
+        #     print(v, k)
+        # for k, v in old2azim.items():
+        #     print(v, k)
+
+        def new_alt2ea(new_alt):
+            new = Path(new_alt).stem
+            old = new2old_names[new]
+            return old2elev[old], old2azim[old]
+        frame2ea = {k: new_alt2ea(k) for k, v in frame2new_alt.items()}
+        # for k, v in frame2ea.items():
+        #     print(v, k)
+
+        return frame2ea
+
+    def build_id2name(colmap_folder: Path):
+        with colmap_database.COLMAPDatabase.connect(colmap_folder / 'database.db') as db:
+            names = {}
+            for image_id, name in db.execute('SELECT image_id, name FROM images'):
+                names[image_id] = name
+            return names
+
+    frame2ea = build_frame2elev_azim_map(colmap_folder)
+    id2name = build_id2name(colmap_folder)
+
+    # First count number of rows
+    with colmap_database.COLMAPDatabase.connect(colmap_folder / 'database.db') as db:
+        rows = db.execute("SELECT pair_id FROM two_view_geometries").fetchall()
+        number_of_rows = len(set(rows))
+        CONSOLE.log(f'\tThe COLMAP database has {number_of_rows} rows')
+
+    # Remove two-view-geometries with images too far away
+    def pair2ea(pair_id):
+        id1, id2 = colmap_database.pair_id_to_image_ids(pair_id)
+        name1, name2 = id2name[id1], id2name[id2]
+        e1, a1 = frame2ea[name1]
+        e2, a2 = frame2ea[name2]
+        return e1, a1, e2, a2
+    def condition(pair_id):
+        """Returns True if the pair seems reasonable"""
+        e1, a1, e2, a2 = pair2ea(pair_id)
+        a_diff_mod_72 = (abs(a1 - a2) + 36) % 72 - 36
+        # return abs(e1 - e2) < 45 and abs(a_diff_mod_72) < 90 / 5
+        az_ok = ((e1 > 50) and (e2 > 50)) or (abs(a_diff_mod_72) < 90 / 5)
+        return (abs(e1 - e2) < 45) and az_ok
+        # return abs(e1 - e2) < 45
+
+    # Now check if there's any pairs that violates the condition
+    with colmap_database.COLMAPDatabase.connect(colmap_folder / 'database.db') as db:
+        for pair_id, in db.execute("SELECT pair_id FROM two_view_geometries"):
+            if not condition(pair_id):
+                CONSOLE.log("\tFound a two-view-geometry pair that seems implausible.  Removing them!")
+                break
+        else:
+            CONSOLE.log("\tAll two-view-geometry pairs seem plausible.  Moving on.")
+            return
+
+    # Delete bad pairs
+    print_count = 0
+    with colmap_database.COLMAPDatabase.connect(colmap_folder / 'database.db') as db:
+        # Selecting all pair_ids from the table and checking the condition
+        for pair_id, in db.execute("SELECT pair_id FROM two_view_geometries"):
+            if not condition(pair_id):
+                e1, a1, e2, a2 = pair2ea(pair_id)
+                if print_count < 40:
+                    CONSOLE.log(f"\t\tDeleting pair: ({e1},{a1}), ({e2, a2})")
+                    print_count += 1
+                db.execute("DELETE FROM two_view_geometries WHERE pair_id = ?", (pair_id,))
+        db.commit()
+    
+    orig_num_rows = number_of_rows
+    with colmap_database.COLMAPDatabase.connect(colmap_folder / 'database.db') as db:
+        rows = db.execute("SELECT pair_id FROM two_view_geometries").fetchall()
+        number_of_rows = len(set(rows))
+        CONSOLE.log(f'\tThe COLMAP database now has {number_of_rows} rows.')
+        CONSOLE.log(f'\tDeleted {orig_num_rows - number_of_rows} rows.')
+
+    # Double check that all the bad pairs were removed
+    with colmap_database.COLMAPDatabase.connect(colmap_folder / 'database.db') as db:
+        for pair_id, in db.execute("SELECT pair_id FROM two_view_geometries"):
+            if not condition(pair_id):
+                raise RuntimeError("error! a pair still violates the condition!")
+
+    CONSOLE.log('\tDone removing bad two-view-geometry pairs!')
+
 
 def run_colmap(
     image_dir: Path,
@@ -576,6 +680,7 @@ def run_colmap(
         f"--TwoViewGeometry.min_inlier_ratio 0.5",
         f"--TwoViewGeometry.min_num_inliers 25",
         f"--TwoViewGeometry.max_error 2",
+        f"--TwoViewGeometry.compute_relative_pose 1",  # So we can filter bad matches easier
     ]
 
     #   colmap exhaustive_matcher \
@@ -592,6 +697,8 @@ def run_colmap(
     with status(msg="[bold yellow]Running COLMAP feature matcher...", spinner="runner", verbose=verbose):
         run_command(feature_matcher_cmd, verbose=verbose)
     CONSOLE.log("[bold green]:tada: Done matching COLMAP features.")
+
+    delete_false_matches_from_database(colmap_dir)
 
     # Bundle adjustment
     sparse_dir = colmap_dir / "sparse"
@@ -619,21 +726,27 @@ def run_colmap(
 
     mapper_cmd = " ".join(mapper_cmd)
 
-    with status(
-        msg="[bold yellow]Running COLMAP bundle adjustment... (This may take a while)",
-        spinner="circle",
-        verbose=verbose,
-    ):
-        run_command(mapper_cmd, verbose=verbose)
-    CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
-    with status(msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose):
-        bundle_adjuster_cmd = [
-            f"{colmap_cmd} bundle_adjuster",
-            f"--input_path {sparse_dir}/0",
-            f"--output_path {sparse_dir}/0",
-            # "--BundleAdjustment.refine_principal_point 1",
-        ]
-        run_command(" ".join(bundle_adjuster_cmd), verbose=verbose)
+    if True:
+        with status(
+            msg="[bold yellow]Running COLMAP bundle adjustment... (This may take a while)",
+            spinner="circle",
+            verbose=verbose,
+        ):
+            run_command(mapper_cmd, verbose=verbose)
+        CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
+    else:
+        CONSOLE.log("[bold yellow]Skipping COLMAP bundle adjustment...")
+
+    for map_f in sparse_dir.glob("[0-9]*"):
+        with status(msg=f"[bold yellow]Refine intrinsics for {map_f.as_posix()}...", spinner="dqpb", verbose=verbose):
+            bundle_adjuster_cmd = [
+                f"{colmap_cmd} bundle_adjuster",
+                f"--input_path {map_f}",
+                f"--output_path {map_f}",
+                # "--BundleAdjustment.refine_principal_point 1",
+            ]
+            run_command(" ".join(bundle_adjuster_cmd), verbose=verbose)
+        CONSOLE.log(f"[bold green]:tada: Done refining intrinsics for {map_f.as_posix()}.")
     CONSOLE.log("[bold green]:tada: Done refining intrinsics.")
 
 
