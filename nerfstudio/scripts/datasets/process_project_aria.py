@@ -150,8 +150,10 @@ def to_aria_image_frame(
     t_world_device = t_world_devices.t_world_devices[nearest_pose_idx]
 
     # Compute the world to camera transform.
-    t_world_camera = t_world_device @ camera_calibration.t_device_camera @ T_ARIA_NERFSTUDIO
-
+    t_world_camera = t_world_device @ camera_calibration.t_device_camera @ T_ARIA_NERFSTUDIO # this is of type SE3
+    #print("HI   ", type(t_world_camera))
+    # MY IMPLEMENTATION
+    #t_world_camera = provider.get_device_calibration().get_transform_device_sensor(name).to_matrix() @ T_ARIA_NERFSTUDIO
     return AriaImageFrame(
         camera=camera_calibration,
         file_path=file_path,
@@ -252,6 +254,11 @@ class ProcessProjectAria:
         #     "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[1]],
         #     "fisheye_crop_radius": rgb_valid_radius,
         # }
+        mainRGB_frames = {
+            "camera_model": ARIA_CAMERA_MODEL,
+            "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[0]],
+            "fisheye_crop_radius": rgb_valid_radius,
+        }
         left_camera_frames = {
             "camera_model": ARIA_CAMERA_MODEL,
             "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[1]],
@@ -288,9 +295,10 @@ class ProcessProjectAria:
         print("Writing transforms.json")
         transform_file = self.output_dir / "transforms.json"
         with open(transform_file, "w", encoding="UTF-8"):
-            #transform_file.write_text(json.dumps(side_camera_frames))
-            #transform_file.write_text(json.dumps(right_camera_frames))
-            transform_file.write_text(json.dumps(nerfstudio_frames))
+            transform_file.write_text(json.dumps(left_camera_frames))
+            # transform_file.write_text(json.dumps(side_camera_frames))
+            # transform_file.write_text(json.dumps(right_camera_frames))
+            #transform_file.write_text(json.dumps(nerfstudio_frames))
 
 
 if __name__ == "__main__":

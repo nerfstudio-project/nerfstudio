@@ -223,10 +223,10 @@ class PixelSampler:
             assert indices is not None
 
         assert indices.shape == (batch_size, 3)
-        indices = (
-            torch.rand((batch_size, 3), device=device)
-            * torch.tensor([num_images, image_height, image_width], device=device)
-        ).long()
+        # indices = (
+        #     torch.rand((batch_size, 3), device=device)
+        #     * torch.tensor([num_images, image_height, image_width], device=device)
+        # ).long()
         return indices
 
     def collate_image_dataset_batch(self, batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
@@ -332,7 +332,7 @@ class PixelSampler:
                         num_rays_in_batch, 1, image_height, image_width, device=device
                     )
                 elif self.config.fisheye_crop_radius is not None: # we know the code is jumping into this code here:
-                    print("SKULL SKULL SKULL")
+                    # print("SKULL SKULL SKULL")
                     indices = self.sample_method_fisheye(num_rays_in_batch, 1, image_height, image_width, device=device, radius=max(image_height, image_width)/2)
                 else:
                     indices = self.sample_method(num_rays_in_batch, 1, image_height, image_width, device=device)
