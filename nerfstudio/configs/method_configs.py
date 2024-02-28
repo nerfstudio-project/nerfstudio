@@ -122,17 +122,17 @@ method_configs["nerfacto-camera-pose-refinement"] = TrainerConfig(
     # steps_per_eval_all_images=1000,
     steps_per_save=2500,
     save_only_latest_checkpoint=False,
-    max_num_iterations=50001,
+    max_num_iterations=60001,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             dataparser=NerfstudioDataParserConfig(
                 train_split_percentage=1.0
             ),
-            train_num_rays_per_batch=4096,
+            train_num_rays_per_batch=1 << 14,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
+                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=1e-4, eps=1e-8, weight_decay=1e-2),
                 scheduler=SchedulerConfig(max_steps=50000)
             ),
         ),
@@ -140,12 +140,14 @@ method_configs["nerfacto-camera-pose-refinement"] = TrainerConfig(
     ),
     optimizers={
         "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-9),
-            "scheduler": None,
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-8),
+            # "scheduler": None,
+            "scheduler": SchedulerConfig(lr_final=1e-4, max_steps=4000),
         },
         "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-9),
-            "scheduler": None,
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-8),
+            # "scheduler": None,
+            "scheduler": SchedulerConfig(lr_final=1e-4, max_steps=2000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15, websocket_port=7008),
@@ -380,7 +382,7 @@ method_configs["camera_pose_refinement_2"] = TrainerConfig(  # Approach 2, for R
     # steps_per_eval_all_images=1000,
     steps_per_save=2500,
     save_only_latest_checkpoint=False,
-    max_num_iterations=50001,
+    max_num_iterations=75001,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -403,11 +405,13 @@ method_configs["camera_pose_refinement_2"] = TrainerConfig(  # Approach 2, for R
     optimizers={
         "proposal_networks": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-9),
-            "scheduler": None,
+            # "scheduler": None,
+            "scheduler": SchedulerConfig(lr_final=1e-4, max_steps=40000),
         },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-9),
-            "scheduler": None,
+            # "scheduler": None,
+            "scheduler": SchedulerConfig(lr_final=1e-4, max_steps=40000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15, websocket_port=7008),
@@ -423,7 +427,7 @@ method_configs["iccv-1"] = TrainerConfig(
     steps_per_eval_all_images=25000,
     steps_per_save=5000,
     save_only_latest_checkpoint=False,
-    max_num_iterations=25001,
+    max_num_iterations=25002,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=HyperspectralDataManagerConfig(
@@ -433,20 +437,26 @@ method_configs["iccv-1"] = TrainerConfig(
             camera_optimizer=CameraOptimizerConfig(mode="off",
                                                    optimizer=AdamOptimizerConfig(
                                                        lr=6e-4, eps=1e-8, weight_decay=1e-2)),
-            # train_num_images_to_sample_from=32,  # This might be needed to not run out of GPU memory
-            # train_num_times_to_repeat_images=250,
+            train_num_images_to_sample_from=16,  # This might be needed to not run out of GPU memory
+            train_num_times_to_repeat_images=250,
+            eval_num_images_to_sample_from=1,
+            # eval_num_times_to_repeat_images=-1
         ),
-        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15,
+        model=NerfactoModelConfig(eval_num_rays_per_chunk=2048,
+                                #   train_num_rays_per_chunk=2048,
+                                  train_num_rays_per_chunk=99999999,
                                   num_output_color_channels=128),
     ),
     optimizers={
         "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, amsgrad=True),
+            # "scheduler": None,
+            "scheduler": SchedulerConfig(lr_final=1e-4, max_steps=20000),
         },
         "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, amsgrad=True),
             "scheduler": None,
+            "scheduler": SchedulerConfig(lr_final=1e-4, max_steps=20000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),

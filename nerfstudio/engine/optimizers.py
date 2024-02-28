@@ -58,6 +58,7 @@ class AdamOptimizerConfig(OptimizerConfig):
 
     _target: Type = torch.optim.Adam
     weight_decay: float = 0
+    amsgrad: bool = False
     """The weight decay to use."""
 
 
