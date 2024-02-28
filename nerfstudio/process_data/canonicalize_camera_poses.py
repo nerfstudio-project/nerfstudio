@@ -9,6 +9,13 @@ def canonicalize_camera_poses(frames):
     # It uses ICP ("ground truth" is a circle equally spaced every 15 degrees)
     frames = sorted(frames, key=lambda frame: frame['file_path'])
 
+    # First check that the reconstruction is complete
+    names = [frame['file_path'] for frame in frames]
+    # missing = set(f'images/frame_{i:05d}.jpg' for i in range(1, 427)) - set(names)
+    # assert len(frames) == 426, f'Expected 426 frames, but got {len(frames)}.  Missing are: {missing}'
+    missing = set(f'images/frame_{i:05d}.jpg' for i in range(1, 357)) - set(names)
+    assert len(frames) == 356, f'Expected 356 frames, but got {len(frames)}.  Missing are: {missing}.  Probably an indication to edit ring_0'
+
     Ts = np.array([frame['transform_matrix'] for frame in frames])
     ts = Ts[:, :3, 3]
 
@@ -28,29 +35,37 @@ def canonicalize_camera_poses(frames):
         to_take.remove(dup)
 
     # The images come in 2 rings.  Find which is the bigger ring
-    for i in range(len(to_take) - 1):
-        print(dists[to_take[i], to_take[i + 1]])
-    ring_n20 = 0, 69
-    ring_0 = 70, 138
+    # for i in range(len(to_take) - 1):
+    #     print(dists[to_take[i], to_take[i + 1]])
+    # ring_n20 = 0, 69
+    # ring_0 = 70, 138
+    ring_0 = 0, 68
     a, b = ring_0
     big_circle = to_take[a:b + 1]
-    print(dists[a - 1, a], dists[a, a + 1], dists[b - 1, b], dists[b, b + 1])
+
+    print('dists is a square matrix with size:')
+    print(dists.shape)
+    print('Dists between -20, 0, and 20° circles are:')
+    print('\t-20°-0°     0° first-second      0° penultimate-last     0°-20°')
+    print('\t', dists[a - 1, a], dists[a, a + 1], dists[b - 1, b], dists[b, b + 1])
+    print('inter-frame dists for the 0-deg circle are:', end='\n\t')
     dx = []
     for i in range(a, b):
         print(f'{dists[i, i + 1]:.2f}', end=' ')
         dx.append(dists[i, i + 1])
     dx = np.array(dx)
     print()
-    print(dx.mean())
-    print(dx / dx.mean())
+    print('\tmean:', dx.mean())
+    print('\tdx / mean:', dx / dx.mean())
     positions = (dx / dx.mean()).round()
-    print(positions)
-    print(sum(positions))
+    print('\tEstimated chunks of 5deg per frame:', positions)
+    print('\tTotal Number of 5deg chunks (should be 72 to get 360°):', sum(positions))
     assert sum(positions) == 71, f'Expected 72 intervals in positions, but instead got {sum(positions) + 1}'
+    print("Correctly estimated 1 circle by 5-degree increments.")
 
     indices = np.concatenate(([0], np.cumsum(positions)))
-    print(indices)
-    print(len(indices), len(positions))
+    # print(indices)
+    assert len(indices) == len(positions) + 1, "something went wrong"
     theta = (indices / 72 * 2 * np.pi).reshape(-1, 1)
 
     # raise Exception()
@@ -66,6 +81,7 @@ def canonicalize_camera_poses(frames):
 
     # Now run ICP
     _, sR, t = ICP_transform_with_scale(ts[big_circle], expected)
+    print('Did ICP to transform the camera poses to the canonicalized circle / sphere')
 
     # Correct poses and export
     T = np.zeros((4, 4))

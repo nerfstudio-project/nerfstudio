@@ -236,7 +236,7 @@ class ProcessVideo:
         if mask_path is not None:
             summary_log.append(f"Saved mask to {mask_path}")
 
-        # # Downscale images
+        # Downscale images
         summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
 
         # Run Colmap
