@@ -807,7 +807,7 @@ class SplatfactoModel(Model):
                 conics,
                 num_tiles_hit,  # type: ignore
                 depths[:, None].repeat(1, 3),
-                torch.sigmoid(opacities_crop),
+                opacities,
                 H,
                 W,
                 BLOCK_WIDTH,
