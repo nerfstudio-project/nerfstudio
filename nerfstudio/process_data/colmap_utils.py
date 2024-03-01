@@ -450,6 +450,9 @@ def colmap_to_json(
             "transform_matrix": c2w.tolist(),
             "colmap_im_id": im_id,
         }
+        camera_params = parse_colmap_camera_params(cam_id_to_camera[im_data.camera_id])
+        frame.update(camera_params)
+
         if camera_mask_path is not None:
             frame["mask_path"] = camera_mask_path.relative_to(camera_mask_path.parent.parent).as_posix()
         if image_id_to_depth_path is not None:
@@ -457,9 +460,7 @@ def colmap_to_json(
             frame["depth_file_path"] = str(depth_path.relative_to(depth_path.parent.parent))
         frames.append(frame)
 
-    if set(cam_id_to_camera.keys()) != {1}:
-        raise RuntimeError("Only single camera shared for all images is supported.")
-    out = parse_colmap_camera_params(cam_id_to_camera[1])
+    out = {}
     out["frames"] = frames
 
     applied_transform = None
