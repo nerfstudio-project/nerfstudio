@@ -735,7 +735,7 @@ class SplatfactoModel(Model):
             quats_crop = self.quats
 
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
-        
+
         BLOCK_WIDTH = 16  # this controls the tile size of rasterization, 16 is a good default
         self.xys, self.depths, self.radii, self.conics, self.comp, self.num_tiles_hit, cov3d = project_gaussians(  # type: ignore
             means_crop,
@@ -776,13 +776,12 @@ class SplatfactoModel(Model):
         else:
             rgbs = torch.sigmoid(colors_crop[:, 0, :])
 
-
         assert (self.num_tiles_hit > 0).any()  # type: ignore
 
         # apply the compensation of screen space blurring to gaussians
         opacities = None
         if self.config.rasterize_mode == "antialiased":
-            opacities = torch.sigmoid(opacities_crop) * comp[:, None]
+            opacities = torch.sigmoid(opacities_crop) * self.comp[:, None]
         elif self.config.rasterize_mode == "classic":
             opacities = torch.sigmoid(opacities_crop)
         else:
