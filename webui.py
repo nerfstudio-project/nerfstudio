@@ -10,6 +10,7 @@ from typing import Literal
 import gradio as gr
 import numpy as np
 import tyro
+import yaml
 from torch import manual_seed
 
 from nerfstudio.configs import dataparser_configs as dc, method_configs as mc
@@ -247,7 +248,7 @@ class WebUI(WebUITrainer):
                 vis_cmd_button.click(self.generate_vis_cmd, inputs=[config_path], outputs=status)
 
     def update_status(self, data_path, method, data_parser, visualizer):
-        if self.trainer is not None:
+        if self.trainer is not None and self.trainer.step != 0:
             return "Step: " + str(self.trainer.step)
         else:
             check = self.check(data_path, method, data_parser, visualizer)
@@ -267,11 +268,14 @@ class WebUI(WebUITrainer):
             raise gr.Error("Please run the training first")
 
     def stop(self):
+        # stop the training
+        # FIXME: this will not release the resources
         if self.trainer is not None:
             config_path = self.config.get_base_dir() / "config.yml"
             ckpt_path = self.trainer.checkpoint_dir
             self.trainer.training_state = "stopped"
-            return "Stopped. Config and checkpoint saved at " + str(config_path) + " and " + str(ckpt_path)
+            print("Early Stopped. Config and checkpoint saved at " + str(config_path) + " and " + str(ckpt_path))
+            return "Early Stopped. Config and checkpoint saved at " + str(config_path) + " and " + str(ckpt_path)
         else:
             raise gr.Error("Please run the training first")
 
