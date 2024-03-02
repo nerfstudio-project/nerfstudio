@@ -45,6 +45,9 @@ class WebUITrainer:
             CONSOLE.log(f"Loading pre-set config from: {config.load_config}")
             config = yaml.load(config.load_config.read_text(), Loader=yaml.Loader)
 
+        # quit the viewer when training is done to avoid blocking
+        config.viewer.quit_on_train_completion = True
+
         config.set_timestamp()
 
         # print and save config
@@ -184,7 +187,7 @@ class WebUI(WebUITrainer):
                 ).then(
                     self.run_train,
                     inputs=[data_path, method, max_num_iterations, steps_per_save, dataparser, visualizer],
-                    outputs=None,
+                    outputs=status,
                 )
 
                 update_event = run_button.click(
@@ -195,6 +198,7 @@ class WebUI(WebUITrainer):
                 )
 
                 pause_button.click(self.pause, inputs=None, outputs=pause_button)
+
                 stop_button.click(self.stop, inputs=None, outputs=status, cancels=[update_event])
 
                 cmd_button.click(
@@ -273,7 +277,7 @@ class WebUI(WebUITrainer):
         if self.trainer is not None:
             config_path = self.config.get_base_dir() / "config.yml"
             ckpt_path = self.trainer.checkpoint_dir
-            self.trainer.training_state = "stopped"
+            self.trainer.early_stop = True
             print("Early Stopped. Config and checkpoint saved at " + str(config_path) + " and " + str(ckpt_path))
             return "Early Stopped. Config and checkpoint saved at " + str(config_path) + " and " + str(ckpt_path)
         else:
@@ -336,6 +340,9 @@ class WebUI(WebUITrainer):
             # from nerfstudio.scripts import train
             self.config = config
             self.train_loop(self.config)
+            config_path = self.config.get_base_dir() / "config.yml"
+            ckpt_path = self.trainer.checkpoint_dir
+            return "Training finished. Config and checkpoint saved at " + str(config_path) + " and " + str(ckpt_path)
 
     def run_vis(self, config_path):
         cmd = self.generate_vis_cmd(config_path)
