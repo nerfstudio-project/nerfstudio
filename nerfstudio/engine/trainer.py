@@ -119,7 +119,7 @@ class Trainer:
             self.device += f":{local_rank}"
         self.mixed_precision: bool = self.config.mixed_precision
         self.use_grad_scaler: bool = self.mixed_precision or self.config.use_grad_scaler
-        self.training_state: Literal["training", "paused", "completed"] = "training"
+        self.training_state: Literal["training", "paused", "completed", "stopped"] = "training"
         self.gradient_accumulation_steps: DefaultDict = defaultdict(lambda: 1)
         self.gradient_accumulation_steps.update(self.config.gradient_accumulation_steps)
 
@@ -136,6 +136,8 @@ class Trainer:
         CONSOLE.log(f"Saving checkpoints to: {self.checkpoint_dir}")
 
         self.viewer_state = None
+
+        self.step = 0
 
     def setup(self, test_mode: Literal["test", "val", "inference"] = "val") -> None:
         """Setup the Trainer by calling other setup functions.
@@ -234,6 +236,10 @@ class Trainer:
             num_iterations = self.config.max_num_iterations
             step = 0
             for step in range(self._start_step, self._start_step + num_iterations):
+                self.step = step
+                if self.training_state == "stopped":
+                    self.save_checkpoint(step)
+                    return
                 while self.training_state == "paused":
                     time.sleep(0.01)
                 with self.train_lock:

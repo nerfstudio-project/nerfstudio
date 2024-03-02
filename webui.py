@@ -1,4 +1,5 @@
 import os
+import random
 import subprocess
 import tkinter as tk
 from dataclasses import asdict
@@ -7,13 +8,56 @@ from tkinter import filedialog
 from typing import Literal
 
 import gradio as gr
+import numpy as np
 import tyro
+from torch import manual_seed
 
 from nerfstudio.configs import dataparser_configs as dc, method_configs as mc
+from nerfstudio.engine.trainer import TrainerConfig
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
-class WebUI:
+class WebUITrainer:
+    def __init__(self):
+        self.trainer = None
+        self.world_size = 1
+        self.local_rank = 0
+        self.global_rank = 0
+        self.config = None
+
+    def train_loop(self, config: TrainerConfig):
+        def _set_random_seed(seed) -> None:
+            """Set randomness seed in torch and numpy"""
+            random.seed(seed)
+            np.random.seed(seed)
+            manual_seed(seed)
+
+        if config.data:
+            CONSOLE.log("Using --data alias for --data.pipeline.datamanager.data")
+            config.pipeline.datamanager.data = config.data
+
+        if config.prompt:
+            CONSOLE.log("Using --prompt alias for --data.pipeline.model.prompt")
+            config.pipeline.model.prompt = config.prompt
+
+        if config.load_config:
+            CONSOLE.log(f"Loading pre-set config from: {config.load_config}")
+            config = yaml.load(config.load_config.read_text(), Loader=yaml.Loader)
+
+        config.set_timestamp()
+
+        # print and save config
+        config.print_to_terminal()
+        config.save_config()
+        _set_random_seed(config.machine.seed + self.global_rank)
+        self.trainer = config.setup(local_rank=self.local_rank, world_size=self.world_size)
+        self.trainer.setup()
+        self.trainer.train()
+
+
+class WebUI(WebUITrainer):
     def __init__(self, **kwargs):
+        super().__init__()
         self.root_dir = kwargs.get("root_dir", "./")  # root directory
         self.run_in_new_terminal = kwargs.get("run_in_new_terminal", False)  # run in new terminal
 
@@ -41,10 +85,11 @@ class WebUI:
     def setup_ui(self):
         with self.demo:
             with gr.Tab(label="Train"):
-                status = gr.Textbox(label="Status", lines=1, placeholder="Waiting for input")
+                status = gr.Textbox(label="Status", lines=1, placeholder="Waiting")
                 with gr.Row():
-                    run_button = gr.Button(value="Run Train", variant="primary")
+                    run_button = gr.Button(value="Train", variant="primary")
                     stop_button = gr.Button(value="Stop", variant="stop")
+                    pause_button = gr.Button(value="Pause", variant="secondary")
                     cmd_button = gr.Button(value="Show Command")
                     gr.Button(value="Open Viser", link="http://localhost:7007/")
 
@@ -127,30 +172,29 @@ class WebUI:
                             self.dataparser_group_idx[key] = len(self.dataparser_groups) - 1
                     dataparser.change(self.vis_data_parser_args, inputs=dataparser, outputs=self.dataparser_groups)
 
-                train_event = (
-                    run_button.click(
-                        self.get_model_args,
-                        inputs=[method] + self.model_arg_list,
-                        outputs=None,
-                    )
-                    .then(
-                        self.get_data_parser_args,
-                        inputs=[dataparser] + self.dataparser_arg_list,
-                        outputs=None,
-                    )
-                    .then(
-                        self.check,
-                        inputs=[data_path, method, dataparser, visualizer],
-                        outputs=status,
-                    )
-                    .then(
-                        self.run_train,
-                        inputs=[data_path, method, max_num_iterations, steps_per_save, dataparser, visualizer],
-                        outputs=None,
-                    )
+                run_button.click(
+                    self.get_model_args,
+                    inputs=[method] + self.model_arg_list,
+                    outputs=None,
+                ).then(
+                    self.get_data_parser_args,
+                    inputs=[dataparser] + self.dataparser_arg_list,
+                    outputs=None,
+                ).then(
+                    self.run_train,
+                    inputs=[data_path, method, max_num_iterations, steps_per_save, dataparser, visualizer],
+                    outputs=None,
                 )
 
-                stop_button.click(lambda: "Stopping...", inputs=None, outputs=status, cancels=[train_event])
+                update_event = run_button.click(
+                    self.update_status,
+                    inputs=[data_path, method, dataparser, visualizer],
+                    outputs=status,
+                    every=1,
+                )
+
+                pause_button.click(self.pause, inputs=None, outputs=pause_button)
+                stop_button.click(self.stop, inputs=None, outputs=status, cancels=[update_event])
 
                 cmd_button.click(
                     self.get_model_args,
@@ -170,7 +214,6 @@ class WebUI:
                 status = gr.Textbox(label="Status", lines=1, placeholder="Waiting for input")
                 with gr.Row():
                     vis_button = gr.Button(value="Run Viser", variant="primary")
-                    stop_vis_button = gr.Button(value="Stop", variant="stop")
                     vis_cmd_button = gr.Button(value="Show Command")
                     gr.Button(value="Open Viser", link="http://localhost:7007/")
 
@@ -200,11 +243,37 @@ class WebUI:
                         cfg_file_explorer.change(lambda x: str(x), inputs=cfg_file_explorer, outputs=config_path)
                         cfg_choose_button.click(lambda x: str(x), inputs=config_path, outputs=config_path)
 
-                vis_event = vis_button.click(self.run_vis, inputs=[config_path], outputs=status)
-                stop_vis_button.click(lambda: "Stopping...", inputs=None, outputs=status, cancels=[vis_event])
+                vis_button.click(self.run_vis, inputs=[config_path], outputs=status)
                 vis_cmd_button.click(self.generate_vis_cmd, inputs=[config_path], outputs=status)
 
-    # from nerfstudio.scripts import train
+    def update_status(self, data_path, method, data_parser, visualizer):
+        if self.trainer is not None:
+            return "Step: " + str(self.trainer.step)
+        else:
+            check = self.check(data_path, method, data_parser, visualizer)
+            if check is not None:
+                return check
+            return "Initializing..."
+
+    def pause(self):
+        if self.trainer is not None:
+            if self.trainer.training_state == "paused":
+                self.trainer.training_state = "training"
+                return "Pause"
+            else:
+                self.trainer.training_state = "paused"
+                return "Resume"
+        else:
+            raise gr.Error("Please run the training first")
+
+    def stop(self):
+        if self.trainer is not None:
+            config_path = self.config.get_base_dir() / "config.yml"
+            ckpt_path = self.trainer.checkpoint_dir
+            self.trainer.training_state = "stopped"
+            return "Stopped. Config and checkpoint saved at " + str(config_path) + " and " + str(ckpt_path)
+        else:
+            raise gr.Error("Please run the training first")
 
     def run_cmd(self, cmd):
         if os.name == "nt":  # Windows
@@ -260,11 +329,9 @@ class WebUI:
                 setattr(config.pipeline.datamanager.dataparser, key, value)
             for key, value in self.model_args.items():
                 setattr(config.pipeline.model, key, value)
-            from nerfstudio.scripts import train
-
-            tyro.extras.set_accent_color("bright_yellow")
-            tyro.cli(train.main(config))
-        return cmd
+            # from nerfstudio.scripts import train
+            self.config = config
+            self.train_loop(self.config)
 
     def run_vis(self, config_path):
         cmd = self.generate_vis_cmd(config_path)
@@ -291,12 +358,11 @@ class WebUI:
             raise gr.Error("Please select a data path")
         if visualizer == "":
             raise gr.Error("Please select a visualizer")
-        # this only works on windows
         cmd = f"ns-train {method} {self.model_args_cmd} --vis {visualizer} --max-num-iterations {max_num_iterations} \
         --steps-per-save {steps_per_save} --data {data_path} {data_parser} {self.dataparser_args_cmd}"
-        # run the command
-        # result = run_ns_train_realtime(cmd)
-        # print(cmd)
+        check = self.check(data_path, method, data_parser, visualizer)
+        if check is not None:
+            return check
         return cmd
 
     def generate_vis_cmd(self, config_path):
@@ -320,7 +386,7 @@ class WebUI:
         elif visualizer == "":
             return "Please select a visualizer"
         else:
-            return "Running..."
+            return None
 
     def get_model_args(self, method, *args):
         temp_args = {}
@@ -444,5 +510,5 @@ class WebUI:
 
 
 if __name__ == "__main__":
-    app = WebUI(root_dir="./", run_in_new_terminal=True)
+    app = WebUI(root_dir="./", run_in_new_terminal=False)
     app.launch()
