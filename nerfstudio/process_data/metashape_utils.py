@@ -55,12 +55,11 @@ def metashape_to_json(
     chunk = root[0]
     sensors = chunk.find("sensors")
 
-    # TODO Add support for per-frame intrinsics
     if sensors is None:
         raise ValueError("No sensors found")
 
     calibrated_sensors = [
-        sensor for sensor in sensors if sensor.get("type") == "spherical" or sensor.find("calibration")
+        sensor for sensor in sensors.iter("sensor") if sensor.get("type") == "spherical" or sensor.find("calibration")
     ]
     if not calibrated_sensors:
         raise ValueError("No calibrated sensor found in Metashape XML")
@@ -116,7 +115,7 @@ def metashape_to_json(
     components = chunk.find("components")
     component_dict = {}
     if components is not None:
-        for component in components:
+        for component in components.iter("component"):
             transform = component.find("transform")
             if transform is not None:
                 rotation = transform.find("rotation")
@@ -147,7 +146,7 @@ def metashape_to_json(
     cameras = chunk.find("cameras")
     assert cameras is not None, "Cameras not found in Metashape xml"
     num_skipped = 0
-    for camera in cameras:
+    for camera in cameras.iter("camera"):
         frame = {}
         camera_label = camera.get("label")
         assert isinstance(camera_label, str)
@@ -156,6 +155,8 @@ def metashape_to_json(
             # (maybe it's just a '.' in the image name)
             camera_label = camera_label.split(".")[0]  # type: ignore
             if camera_label not in image_filename_map:
+                if verbose:
+                    CONSOLE.print(f"Missing image for {camera.get('label')}, Skipping")
                 continue
         frame["file_path"] = image_filename_map[camera_label].as_posix()
 
