@@ -180,26 +180,30 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             return data
 
         CONSOLE.log("Caching / undistorting train images")
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_workers=2) as executor:
             cached_train = list(
-                executor.map(
-                    process_train_data,
-                    track(
+                track(
+                    executor.map(
+                        process_train_data,
                         range(len(self.train_dataset)),
-                        description="Caching / undistorting train images",
-                        transient=True,
                     ),
+                    description="Caching / undistorting train images",
+                    transient=True,
+                    total=len(self.train_dataset),
                 )
             )
 
         CONSOLE.log("Caching / undistorting eval images")
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_workers=2) as executor:
             cached_eval = list(
-                executor.map(
-                    process_eval_data,
-                    track(
-                        range(len(self.eval_dataset)), description="Caching / undistorting eval images", transient=True
+                track(
+                    executor.map(
+                        process_eval_data,
+                        range(len(self.eval_dataset)),
                     ),
+                    description="Caching / undistorting eval images",
+                    transient=True,
+                    total=len(self.eval_dataset),
                 )
             )
 
