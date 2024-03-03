@@ -302,10 +302,11 @@ class PixelSampler:
         all_images = []
         all_depth_images = []
 
+        num_rays_in_batch = num_rays_per_batch // num_images
+        if num_rays_in_batch % 2 != 0:
+            num_rays_in_batch += 1
+
         if "mask" in batch:
-            num_rays_in_batch = num_rays_per_batch // num_images
-            if num_rays_in_batch % 2 != 0:
-                num_rays_in_batch += 1
             for i in range(num_images):
                 image_height, image_width, _ = batch["image"][i].shape
 
@@ -322,9 +323,6 @@ class PixelSampler:
                     all_depth_images.append(batch["depth_image"][i][indices[:, 1], indices[:, 2]])
 
         else:
-            num_rays_in_batch = num_rays_per_batch // num_images
-            if num_rays_in_batch % 2 != 0:
-                num_rays_in_batch += 1
             for i in range(num_images):
                 image_height, image_width, _ = batch["image"][i].shape
                 if i == num_images - 1:
