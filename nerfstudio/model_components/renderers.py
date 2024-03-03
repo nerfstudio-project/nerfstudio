@@ -55,6 +55,24 @@ def background_color_override_context(mode: Float[Tensor, "3"]) -> Generator[Non
         BACKGROUND_COLOR_OVERRIDE = old_background_color
 
 
+def compute_median(quantity: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
+    """
+    Compute the median of a quantity along rays.
+
+    Args:
+        quantity: Quantity to compute median of.
+        weights: Weights along the rays
+    """
+
+    cumulative_weights = torch.cumsum(weights[..., 0], dim=-1)  # [..., num_samples]
+    split = torch.ones((*weights.shape[:-2], 1), device=weights.device) * 0.5  # [..., 1]
+    median_index = torch.searchsorted(cumulative_weights, split, side="left")  # [..., 1]
+    median_index = torch.clamp(median_index, 0, quantity.shape[-2] - 1)  # [..., 1]
+    median_quantity = torch.gather(quantity[..., 0], dim=-1, index=median_index)  # [..., 1]
+
+    return median_quantity
+
+
 class RGBRenderer(nn.Module):
     """Standard volumetric rendering.
 
@@ -336,7 +354,7 @@ class DepthRenderer(nn.Module):
         ray_samples: RaySamples,
         ray_indices: Optional[Int[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
-    ) -> Float[Tensor, "*batch 1"]:
+    ) -> Float[Tensor, "*bs 1"]:
         """Composite samples along ray and calculate depths.
 
         Args:
@@ -349,20 +367,15 @@ class DepthRenderer(nn.Module):
             Outputs of depth values.
         """
 
-        if self.method == "median":
-            steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
+        steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
 
+        if self.method == "median":
             if ray_indices is not None and num_rays is not None:
                 raise NotImplementedError("Median depth calculation is not implemented for packed samples.")
-            cumulative_weights = torch.cumsum(weights[..., 0], dim=-1)  # [..., num_samples]
-            split = torch.ones((*weights.shape[:-2], 1), device=weights.device) * 0.5  # [..., 1]
-            median_index = torch.searchsorted(cumulative_weights, split, side="left")  # [..., 1]
-            median_index = torch.clamp(median_index, 0, steps.shape[-2] - 1)  # [..., 1]
-            median_depth = torch.gather(steps[..., 0], dim=-1, index=median_index)  # [..., 1]
+            median_depth = compute_median(steps, weights)
             return median_depth
         if self.method == "expected":
             eps = 1e-10
-            steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
 
             if ray_indices is not None and num_rays is not None:
                 # Necessary for packed samples from volumetric ray sampler
@@ -381,6 +394,49 @@ class DepthRenderer(nn.Module):
             return depth
 
         raise NotImplementedError(f"Method {self.method} not implemented")
+
+
+class VisibilityRenderer(nn.Module):
+    """Calculate visibility along ray.
+
+    Visibity Method:
+        - median: Visibility is set to the visibility_samples where the accumulated weight reaches 0.5.
+
+    Args:
+        method: Visibility calculation method.
+    """
+
+    def __init__(self, method: Literal["median"] = "median") -> None:
+        super().__init__()
+        self.method = method
+
+    def forward(
+        self,
+        visibility_samples: Float[Tensor, "*batch num_samples 1"],
+        weights: Float[Tensor, "*batch num_samples 1"],
+        ray_indices: Optional[Int[Tensor, "num_samples"]] = None,
+        num_rays: Optional[int] = None,
+    ) -> Float[Tensor, "*bs 1"]:
+        """Composite samples along ray and calculate depths.
+
+        Args:
+            visibility_samples: Number of views each point is visible in.
+            weights: Weights for each sample.
+            ray_samples: Set of ray samples.
+            ray_indices: Ray index for each sample, used when samples are packed.
+            num_rays: Number of rays, used when samples are packed.
+
+        Returns:
+            Outputs of visibility values.
+        """
+
+        if self.method == "median":
+            if ray_indices is not None and num_rays is not None:
+                raise NotImplementedError("Median visibility calculation is not implemented for packed samples.")
+            median_visibility = compute_median(visibility_samples, weights)
+            return median_visibility
+        else:
+            raise NotImplementedError(f"Method {self.method} not implemented")
 
 
 class UncertaintyRenderer(nn.Module):
