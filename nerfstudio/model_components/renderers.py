@@ -92,7 +92,7 @@ class RGBRenderer(nn.Module):
         background_color: BackgroundColor = "random",
         ray_indices: Optional[Int[Tensor, "num_samples"]] = None,
         num_rays: Optional[int] = None,
-    ) -> Float[Tensor, "*bs 3"]:
+    ) -> Float[Tensor, "*batch 3"]:
         """Composite samples along ray and render color image.
         If background color is random, no BG color is added - as if the background was black!
 
