@@ -73,7 +73,7 @@ class NerfactoModelConfig(ModelConfig):
     """How far along the ray to start sampling."""
     far_plane: float = 1000.0
     """How far along the ray to stop sampling."""
-    background_color: Literal["random", "last_sample"] = "white"
+    background_color: Literal["random", "last_sample"] = "black"
     """Whether to randomize the background color."""
     num_levels: int = 16
     """Number of levels of the hashmap for the base mlp."""

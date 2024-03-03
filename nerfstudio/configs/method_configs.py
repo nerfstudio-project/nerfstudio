@@ -444,7 +444,7 @@ method_configs["iccv-1"] = TrainerConfig(
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=2048,
                                 #   train_num_rays_per_chunk=2048,
-                                  train_num_rays_per_chunk=99999999,
+                                  #train_num_rays_per_chunk=99999999, # <-- delete this
                                   num_output_color_channels=128),
     ),
     optimizers={
@@ -481,9 +481,9 @@ method_configs["iccv-2"] = TrainerConfig(
             camera_optimizer=CameraOptimizerConfig(mode="off",
                                                    optimizer=AdamOptimizerConfig(
                                                        lr=6e-4, eps=1e-8, weight_decay=1e-2)),
-            # train_num_images_to_sample_from=32,  # This might be needed to not run out of GPU memory
-            # train_num_times_to_repeat_images=250,
-            # eval_num_images_to_sample_from=1,
+            train_num_images_to_sample_from=16,  # This might be needed to not run out of GPU memory
+            train_num_times_to_repeat_images=250,
+            eval_num_images_to_sample_from=1,
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15,
                                   num_output_color_channels=128,
@@ -530,9 +530,9 @@ method_configs["iccv-3"] = TrainerConfig(
             camera_optimizer=CameraOptimizerConfig(mode="off",
                                                    optimizer=AdamOptimizerConfig(
                                                        lr=6e-4, eps=1e-8, weight_decay=1e-2)),
-            # train_num_images_to_sample_from=10,  # This might be needed to not run out of GPU memory
-            # train_num_times_to_repeat_images=250,
-            # eval_num_images_to_sample_from=1,
+            train_num_images_to_sample_from=16,  # This might be needed to not run out of GPU memory
+            train_num_times_to_repeat_images=250,
+            eval_num_images_to_sample_from=1,
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 9,
                                   num_output_color_channels=128,
@@ -545,11 +545,11 @@ method_configs["iccv-3"] = TrainerConfig(
     ),
     optimizers={
         "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
             "scheduler": None,
         },
         "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
             "scheduler": None,
         },
     },
@@ -585,9 +585,9 @@ method_configs["iccv-4"] = TrainerConfig(
             camera_optimizer=CameraOptimizerConfig(mode="SO3xR3",
                                                    optimizer=AdamOptimizerConfig(
                                                        lr=6e-4, eps=1e-8, weight_decay=1e-2)),
-            # train_num_images_to_sample_from=24,  # This might be needed to not run out of GPU memory
-            # train_num_times_to_repeat_images=250,
-            # eval_num_images_to_sample_from=1,
+            train_num_images_to_sample_from=10,  # This might be needed to not run out of GPU memory
+            train_num_times_to_repeat_images=250,
+            eval_num_images_to_sample_from=1,
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 8,
                                   num_output_color_channels=128,
@@ -602,11 +602,11 @@ method_configs["iccv-4"] = TrainerConfig(
     ),
     optimizers={
         "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-6),
+            "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15, weight_decay=1e-6),
             "scheduler": None,
         },
         "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-6),
+            "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15, weight_decay=1e-6),
             "scheduler": None,
         },
     },
