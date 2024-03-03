@@ -29,6 +29,7 @@ from nerfstudio.model_components import losses
 from nerfstudio.model_components.losses import DepthLossType, depth_loss, depth_ranking_loss
 from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig
 from nerfstudio.utils import colormaps
+from nerfstudio.model_components.scene_colliders import AABBBoxCollider
 
 
 @dataclass
@@ -69,6 +70,10 @@ class DepthNerfactoModel(NerfactoModel):
             self.depth_sigma = torch.tensor([self.config.starting_depth_sigma])
         else:
             self.depth_sigma = torch.tensor([self.config.depth_sigma])
+
+        # self.collider = NearFarCollider(near_plane=self.config.near_plane, far_plane=self.config.far_plane)
+        # import pdb; pdb.set_trace();
+        self.collider = AABBBoxCollider(scene_box=self.scene_box)
 
     def get_outputs(self, ray_bundle: RayBundle):
         outputs = super().get_outputs(ray_bundle)
