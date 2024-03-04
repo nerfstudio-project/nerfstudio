@@ -1,3 +1,4 @@
+import multiprocessing
 import os
 import random
 import subprocess
@@ -16,27 +17,16 @@ from torch import manual_seed
 from nerfstudio.configs import dataparser_configs as dc, method_configs as mc
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.scripts import train
-
-# from nerfstudio.scripts.process_data import (
-#     ImagesToNerfstudioDataset,
-#     ProcessMetashape,
-#     ProcessODM,
-#     ProcessPolycam,
-#     ProcessRealityCapture,
-#     ProcessRecord3D,
-#     VideoToNerfstudioDataset,
-# )
+from nerfstudio.scripts.process_data import (
+    ImagesToNerfstudioDataset,
+    ProcessMetashape,
+    ProcessODM,
+    ProcessPolycam,
+    ProcessRealityCapture,
+    ProcessRecord3D,
+    VideoToNerfstudioDataset,
+)
 from nerfstudio.utils.rich_utils import CONSOLE
-
-# dataprocessor_configs = {
-#     "ImagesToNerfstudioDataset": ImagesToNerfstudioDataset,
-#     "VideoToNerfstudioDataset": VideoToNerfstudioDataset,
-#     "ProcessPolycam": ProcessPolycam,
-#     "ProcessMetashape": ProcessMetashape,
-#     "ProcessRealityCapture": ProcessRealityCapture,
-#     "ProcessRecord3D": ProcessRecord3D,
-#     "ProcessODM": ProcessODM,
-# }
 
 
 def run_cmd(cmd):
@@ -112,7 +102,6 @@ def generate_args(config, visible=True):
 def get_folder_path(x):
     if len(x) > 0:
         x = x[0]
-    x = Path(x)
     return str(x)
 
 
@@ -289,7 +278,7 @@ class TrainTab(WebUITrainer):
                             ]
                             self.model_groups.append(group)
                             self.model_group_idx[key] = len(self.model_groups) - 1
-                method.change(self.vis_model_args, inputs=method, outputs=self.model_groups)
+                method.change(self.update_model_args_visibility, inputs=method, outputs=self.model_groups)
 
             with gr.Accordion("Data Parser Config", open=False):
                 for key, parser_config in dc.dataparsers.items():
@@ -303,7 +292,9 @@ class TrainTab(WebUITrainer):
                         ]
                         self.dataparser_groups.append(group)
                         self.dataparser_group_idx[key] = len(self.dataparser_groups) - 1
-                dataparser.change(self.vis_data_parser_args, inputs=dataparser, outputs=self.dataparser_groups)
+                dataparser.change(
+                    self.update_dataparser_args_visibility, inputs=dataparser, outputs=self.dataparser_groups
+                )
 
             run_button.click(
                 self.get_model_args,
@@ -463,7 +454,7 @@ class TrainTab(WebUITrainer):
     def get_model_description(self, method):
         return mc.descriptions[method]
 
-    def vis_data_parser_args(self, dataparser):
+    def update_dataparser_args_visibility(self, dataparser):
         # print(group_keys)
         # print(dataparser_args)
         idx = self.dataparser_group_idx[dataparser]
@@ -472,13 +463,139 @@ class TrainTab(WebUITrainer):
         update_info[idx] = gr.update(visible=True)
         return update_info
 
-    def vis_model_args(self, method):
+    def update_model_args_visibility(self, method):
         if method not in self.model_group_idx.keys():
             return [gr.update(visible=False)] * len(self.model_groups)
 
         idx = self.model_group_idx[method]
         # if the method is not the current one, then hide the model args
         update_info = [gr.update(visible=False)] * len(self.model_groups)
+        update_info[idx] = gr.update(visible=True)
+        return update_info
+
+
+dataprocessor_configs = {
+    "ImagesToNerfstudioDataset": ImagesToNerfstudioDataset,
+    "VideoToNerfstudioDataset": VideoToNerfstudioDataset,
+    "ProcessPolycam": ProcessPolycam,
+    "ProcessMetashape": ProcessMetashape,
+    "ProcessRealityCapture": ProcessRealityCapture,
+    "ProcessRecord3D": ProcessRecord3D,
+    "ProcessODM": ProcessODM,
+}
+
+
+class DataProcessorTab:
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.root_dir = kwargs.get("root_dir", "./")  # root directory
+        self.run_in_new_terminal = kwargs.get("run_in_new_terminal", False)  # run in new terminal
+
+        self.dataprocessor_args = {}
+
+        self.dataprocessor_groups = []  # keep track of the dataprocessor groups
+        self.dataprocessor_group_idx = {}  # keep track of the dataprocessor group index
+        self.dataprocessor_arg_list = []  # gr components for the dataprocessor args
+        self.dataprocessor_arg_names = []  # keep track of the dataprocessor args names
+        self.dataprocessor_arg_idx = {}  # record the start and end index of the dataprocessor args
+
+    def setup_ui(self):
+        with gr.Tab(label="Process Data "):
+            status = gr.Textbox(label="Status", lines=1, placeholder="Waiting")
+            with gr.Row():
+                dataprocessor = gr.Radio(choices=list(dataprocessor_configs.keys()), label="Method", scale=5)
+                run_button = gr.Button(value="Process", variant="primary", scale=1)
+
+            if os.name == "nt":
+                with gr.Row():
+                    data_path = gr.Textbox(label="Data Path", lines=1, placeholder="Path to the data folder", scale=4)
+                    browse_button = gr.Button(value="Browse Image", scale=1)
+                    browse_button.click(browse_folder, None, outputs=data_path)
+                    browse_video_button = gr.Button(value="Browse Video", scale=1)
+                    browse_video_button.click(browse_video, None, outputs=data_path)
+                    gr.ClearButton(components=[data_path], scale=1)
+            else:
+                with gr.Row():
+                    data_path = gr.Textbox(label="Data Path", lines=1, placeholder="Path to the data folder", scale=5)
+                    input_button = gr.Button(value="Submit", scale=1)
+                with gr.Row():
+                    file_explorer = gr.FileExplorer(
+                        label="Browse", scale=1, root_dir=self.root_dir, file_count="multiple", height=300
+                    )
+                    file_explorer.change(get_folder_path, inputs=file_explorer, outputs=data_path)
+                    input_button.click(lambda x: str(x), inputs=data_path, outputs=data_path)
+                with gr.Row():
+                    output_dir = gr.Textbox(
+                        label="Output Path", lines=1, placeholder="Path to the output folder", scale=5
+                    )
+                    out_button = gr.Button(value="Submit", scale=1)
+                with gr.Row():
+                    file_explorer = gr.FileExplorer(
+                        label="Browse", scale=1, root_dir=self.root_dir, file_count="multiple", height=300
+                    )
+                    file_explorer.change(get_folder_path, inputs=file_explorer, outputs=output_dir)
+                    out_button.click(lambda x: str(x), inputs=output_dir, outputs=output_dir)
+
+            # with gr.Accordion("Data Processor Config", open=False):
+            #     for key, config in dataprocessor_configs.items():
+            #         with gr.Group(visible=False) as group:
+            #             print(config)
+            #             generated_args, labels = generate_args(config, visible=True)
+            #             self.dataprocessor_arg_list += generated_args
+            #             self.dataprocessor_arg_names += labels
+            #             self.dataprocessor_arg_idx[key] = [
+            #                 len(self.dataprocessor_arg_list) - len(generated_args),
+            #                 len(self.dataprocessor_arg_list),
+            #             ]
+            #             self.dataprocessor_groups.append(group)
+            #             self.dataprocessor_group_idx[key] = len(self.dataprocessor_groups) - 1
+            #     dataprocessor.change(
+            #         self.update_dataprocessor_args_visibility, inputs=dataprocessor, outputs=self.dataprocessor_groups
+            #     )
+            run_button.click(
+                self.run_dataprocessor,
+                inputs=[dataprocessor, data_path, output_dir],
+                outputs=status,
+            )
+
+    def update_status(self, data_path, method, data_parser, visualizer):
+        if self.trainer is not None and self.trainer.step != 0:
+            return "Step: " + str(self.trainer.step)
+        else:
+            check = self.check(data_path, method, data_parser, visualizer)
+            if check is not None:
+                return check
+            return "Initializing..."
+
+    def run_dataprocessor(self, datapocessor, data_path, output_dir):
+        data_path = Path(data_path)
+        output_dir = Path(output_dir)
+        if datapocessor == "ImagesToNerfstudioDataset":
+            processor = ImagesToNerfstudioDataset(data_path, output_dir)
+        elif datapocessor == "VideoToNerfstudioDataset":
+            processor = VideoToNerfstudioDataset(data_path, output_dir)
+        elif datapocessor == "ProcessPolycam":
+            processor = ProcessPolycam(data_path, output_dir)
+        elif datapocessor == "ProcessMetashape":
+            processor = ProcessMetashape(data_path, output_dir)
+        elif datapocessor == "ProcessRealityCapture":
+            processor = ProcessRealityCapture(data_path, output_dir)
+        elif datapocessor == "ProcessRecord3D":
+            processor = ProcessRecord3D(data_path, output_dir)
+        elif datapocessor == "ProcessODM":
+            processor = ProcessODM(data_path, output_dir)
+        else:
+            raise gr.Error("Please select a data processor")
+
+        p = multiprocessing.Process(target=processor.main)
+        p.start()
+        p.join()
+
+        return "Processing finished"
+
+    def update_dataprocessor_args_visibility(self, dataprocessor):
+        idx = self.dataprocessor_group_idx[dataprocessor]
+        update_info = [gr.update(visible=False)] * len(self.dataprocessor_groups)
         update_info[idx] = gr.update(visible=True)
         return update_info
 
@@ -527,7 +644,7 @@ class VisualizerTab:
         if self.run_in_new_terminal:
             run_cmd(cmd)
         else:
-            from nerfstudio.scripts.viewer import RunViewer  # type: ignore
+            from nerfstudio.scripts.viewer.run_viewer import RunViewer
 
             viewer = RunViewer()
             viewer.load_config = Path(config_path)
@@ -567,6 +684,7 @@ class WebUI:
         self.demo = gr.Blocks()
         self.train_tab = TrainTab(**kwargs)
         self.visualizer_tab = VisualizerTab(**kwargs)
+        self.data_processor_tab = DataProcessorTab(**kwargs)
 
         self.setup_ui()
 
@@ -574,6 +692,7 @@ class WebUI:
         with self.demo:
             self.train_tab.setup_ui()
             self.visualizer_tab.setup_ui()
+            self.data_processor_tab.setup_ui()
 
     def launch(self, *args, **kwargs):
         self.demo.launch(*args, **kwargs)
