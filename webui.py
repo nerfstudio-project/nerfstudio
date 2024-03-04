@@ -165,6 +165,7 @@ class WebUITrainer:
         self.trainer.train()
 
     def main(self):
+        assert self.config is not None, "Config is not set"
         if self.config.data:
             CONSOLE.log("Using --data alias for --data.pipeline.datamanager.data")
             self.config.pipeline.datamanager.data = self.config.data
@@ -254,11 +255,11 @@ class TrainTab(WebUITrainer):
 
             with gr.Row():
                 with gr.Column():
-                    method = gr.Radio(choices=mc.descriptions.keys(), label="Method")
+                    method = gr.Radio(choices=list(mc.descriptions.keys()), label="Method")
                     description = gr.Textbox(label="Description", visible=True)
                     method.change(self.get_model_description, inputs=method, outputs=description)
                 with gr.Column():
-                    dataparser = gr.Radio(choices=dc.dataparsers.keys(), label="Data Parser")
+                    dataparser = gr.Radio(choices=list(dc.dataparsers.keys()), label="Data Parser")
                     visualizer = gr.Radio(
                         choices=[
                             "viewer",
@@ -278,7 +279,7 @@ class TrainTab(WebUITrainer):
                 for key, value in mc.descriptions.items():
                     with gr.Group(visible=False) as group:
                         if key in mc.method_configs:
-                            model_config = mc.method_configs[key].pipeline.model
+                            model_config = mc.method_configs[key].pipeline.model  # type: ignore
                             generated_args, labels = generate_args(model_config, visible=True)
                             self.model_arg_list += generated_args
                             self.model_arg_names += labels
@@ -310,7 +311,7 @@ class TrainTab(WebUITrainer):
                 outputs=None,
             ).then(
                 self.get_data_parser_args,
-                inputs=[dataparser] + self.dataparser_arg_list,
+                inputs=[dataparser] + self.dataparser_arg_list,  # type: ignore
                 outputs=None,
             ).then(
                 self.run_train,
@@ -335,7 +336,7 @@ class TrainTab(WebUITrainer):
                 outputs=None,
             ).then(
                 self.get_data_parser_args,
-                inputs=[dataparser] + self.dataparser_arg_list,
+                inputs=[dataparser] + self.dataparser_arg_list,  # type: ignore
                 outputs=None,
             ).then(
                 self.generate_cmd,
@@ -396,6 +397,7 @@ class TrainTab(WebUITrainer):
             self.config = config
             self.main()
             config_path = self.config.get_base_dir() / "config.yml"
+            assert self.trainer is not None
             ckpt_path = self.trainer.checkpoint_dir
 
             return "Training finished. Config and checkpoint saved at " + str(config_path) + " and " + str(ckpt_path)
@@ -525,7 +527,7 @@ class VisualizerTab:
         if self.run_in_new_terminal:
             run_cmd(cmd)
         else:
-            from nerfstudio.scripts.viewer import RunViewer
+            from nerfstudio.scripts.viewer import RunViewer  # type: ignore
 
             viewer = RunViewer()
             viewer.load_config = Path(config_path)
