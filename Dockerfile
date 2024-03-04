@@ -105,9 +105,16 @@ RUN git clone --branch 3.8 https://github.com/colmap/colmap.git --single-branch 
     cd ../.. && \
     rm -rf colmap
 
-# Create non root user add it to custom group and setup environment.
+# Create non root user, add it to custom group and setup environment.
 RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME -d /home/${USERNAME} --shell /usr/bin/bash
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME -d /home/${USERNAME} --shell /usr/bin/bash 
+# OPTIONAL
+# If sudo privilages are not required comment below line
+# Create simple password for user and add it to sudo group
+# Update group so that it is not required to type password for commands: apt update/upgrade/install/remove
+RUN echo "${USERNAME}:password" | chpasswd \
+    && usermod -aG sudo ${USERNAME} \
+    && echo "%sudo ALL=NOPASSWD:/usr/bin/apt-get update, /usr/bin/apt-get upgrade, /usr/bin/apt-get install, /usr/bin/apt-get remove" >> /etc/sudoers
 
 # Create workspace folder and change ownership to new user
 RUN mkdir /workspace && chown ${USER_UID}:${USER_GID} /workspace
@@ -129,7 +136,7 @@ RUN CUDA_VER=$(echo "${CUDA_VERSION}" | sed 's/.$//' | tr -d '.') && python3.10 
     torchvision==0.15.2+cu${CUDA_VER} \
         --extra-index-url https://download.pytorch.org/whl/cu${CUDA_VER}
 
-# Install tynyCUDANN (we need to set the target architectures as environment variable first).
+# Install tiny-cuda-nn (we need to set the target architectures as environment variable first).
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
 RUN python3.10 -m pip install --no-cache-dir git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch
 
@@ -174,3 +181,5 @@ RUN ns-install-cli --mode install
 
 # Bash as default entrypoint.
 CMD /bin/bash -l
+# Force changing password on first container run
+# Change line above: CMD /bin/bash -l -> CMD /bin/bash -l -c passwd && /usr/bin/bash -l
