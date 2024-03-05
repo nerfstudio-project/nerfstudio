@@ -109,11 +109,11 @@ class SplatfactoModelConfig(ModelConfig):
     """period of steps where refinement is turned off"""
     refine_every: int = 100
     """period of steps where gaussians are culled and densified"""
-    resolution_schedule: int = 250
+    resolution_schedule: int = 3000
     """training starts at 1/d resolution, every n steps this is doubled"""
     background_color: Literal["random", "black", "white"] = "random"
     """Whether to randomize the background color."""
-    num_downscales: int = 0
+    num_downscales: int = 2
     """at the beginning, resolution is 1/2^d, where d is this number"""
     cull_alpha_thresh: float = 0.1
     """threshold of opacity for culling gaussians. One can set it to a lower value (e.g. 0.005) for higher quality."""
