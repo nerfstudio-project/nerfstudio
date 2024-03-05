@@ -44,6 +44,7 @@ from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.fields.visibility_field import VisibilityField
 from nerfstudio.utils.misc import step_check
 from nerfstudio.data.datamanagers.random_cameras_datamanager import random_train_pose
+import math
 
 
 def module_wrapper(ddp_or_model: Union[DDP, Model]) -> Model:

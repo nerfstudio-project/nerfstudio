@@ -179,7 +179,7 @@ class NerfactoModel(Model):
             implementation=self.config.implementation,
         )
         self.camera_optimizer: CameraOptimizer = self.config.camera_optimizer.setup(
-            num_cameras=self.num_train_data, device="cpu"
+            num_cameras=self.num_train_data, device="cpu")
         # this can be set by the pipeline
         # if set, then we create a visibility outputs
         self.visibility_field: Optional[VisibilityField] = None
