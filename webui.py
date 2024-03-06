@@ -17,12 +17,20 @@ from torch import manual_seed
 from nerfstudio.configs import dataparser_configs as dc, method_configs as mc
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.scripts import train
+from nerfstudio.scripts.exporter import (
+    ExportCameraPoses,
+    ExportGaussianSplat,
+    ExportMarchingCubesMesh,
+    ExportPointCloud,
+    ExportPoissonMesh,
+    ExportTSDFMesh,
+)
 from nerfstudio.scripts.process_data import (
     ImagesToNerfstudioDataset,
-    ProcessMetashape,
+    # ProcessMetashape,
     ProcessODM,
     ProcessPolycam,
-    ProcessRealityCapture,
+    # ProcessRealityCapture,
     ProcessRecord3D,
     VideoToNerfstudioDataset,
 )
@@ -136,6 +144,14 @@ def browse_video():
     return path
 
 
+def submit(path):
+    # create the path if it does not exist
+    path = Path(path)
+    if not path.exists():
+        path.mkdir(parents=True, exist_ok=True)
+    return str(path)
+
+
 class WebUITrainer:
     def __init__(self):
         self.trainer = None
@@ -240,7 +256,7 @@ class TrainTab(WebUITrainer):
                         label="Browse", scale=1, root_dir=self.root_dir, file_count="multiple", height=300
                     )
                     file_explorer.change(get_folder_path, inputs=file_explorer, outputs=data_path)
-                    choose_button.click(lambda x: str(x), inputs=data_path, outputs=data_path)
+                    choose_button.click(submit, inputs=data_path, outputs=data_path)
 
             with gr.Row():
                 with gr.Column():
@@ -296,6 +312,12 @@ class TrainTab(WebUITrainer):
                     self.update_dataparser_args_visibility, inputs=dataparser, outputs=self.dataparser_groups
                 )
 
+            update_event = run_button.click(
+                self.update_status,
+                inputs=[data_path, method, dataparser, visualizer],
+                outputs=status,
+                every=1,
+            )
             run_button.click(
                 self.get_model_args,
                 inputs=[method] + self.model_arg_list,
@@ -307,15 +329,8 @@ class TrainTab(WebUITrainer):
             ).then(
                 self.run_train,
                 inputs=[data_path, method, max_num_iterations, steps_per_save, dataparser, visualizer],
-                outputs=status,
-            )
-
-            update_event = run_button.click(
-                self.update_status,
-                inputs=[data_path, method, dataparser, visualizer],
-                outputs=status,
-                every=1,
-            )
+                outputs=None,
+            ).then(lambda: "Training finished", outputs=status, cancels=[update_event])
 
             pause_button.click(self.pause, inputs=None, outputs=pause_button)
 
@@ -387,11 +402,6 @@ class TrainTab(WebUITrainer):
             # from nerfstudio.scripts import train
             self.config = config
             self.main()
-            config_path = self.config.get_base_dir() / "config.yml"
-            assert self.trainer is not None
-            ckpt_path = self.trainer.checkpoint_dir
-
-            return "Training finished. Config and checkpoint saved at " + str(config_path) + " and " + str(ckpt_path)
 
     def generate_cmd(self, data_path, method, max_num_iterations, steps_per_save, data_parser, visualizer):
         # generate the command
@@ -474,14 +484,15 @@ class TrainTab(WebUITrainer):
         return update_info
 
 
+current_path = Path(__file__).parent
 dataprocessor_configs = {
-    "ImagesToNerfstudioDataset": ImagesToNerfstudioDataset,
-    "VideoToNerfstudioDataset": VideoToNerfstudioDataset,
-    "ProcessPolycam": ProcessPolycam,
-    "ProcessMetashape": ProcessMetashape,
-    "ProcessRealityCapture": ProcessRealityCapture,
-    "ProcessRecord3D": ProcessRecord3D,
-    "ProcessODM": ProcessODM,
+    "ImagesToNerfstudioDataset": ImagesToNerfstudioDataset(current_path, current_path),
+    "VideoToNerfstudioDataset": VideoToNerfstudioDataset(current_path, current_path),
+    "ProcessPolycam": ProcessPolycam(current_path, current_path),
+    # "ProcessMetashape": ProcessMetashape(current_path, current_path, current_path),
+    # "ProcessRealityCapture": ProcessRealityCapture(current_path, current_path, current_path),
+    "ProcessRecord3D": ProcessRecord3D(current_path, current_path),
+    "ProcessODM": ProcessODM(current_path, current_path),
 }
 
 
@@ -498,6 +509,7 @@ class DataProcessorTab:
         self.dataprocessor_arg_list = []  # gr components for the dataprocessor args
         self.dataprocessor_arg_names = []  # keep track of the dataprocessor args names
         self.dataprocessor_arg_idx = {}  # record the start and end index of the dataprocessor args
+        self.p = None
 
     def setup_ui(self):
         with gr.Tab(label="Process Data "):
@@ -505,6 +517,7 @@ class DataProcessorTab:
             with gr.Row():
                 dataprocessor = gr.Radio(choices=list(dataprocessor_configs.keys()), label="Method", scale=5)
                 run_button = gr.Button(value="Process", variant="primary", scale=1)
+                stop_button = gr.Button(value="Stop", variant="stop", scale=1)
 
             if os.name == "nt":
                 with gr.Row():
@@ -514,6 +527,13 @@ class DataProcessorTab:
                     browse_video_button = gr.Button(value="Browse Video", scale=1)
                     browse_video_button.click(browse_video, None, outputs=data_path)
                     gr.ClearButton(components=[data_path], scale=1)
+                with gr.Row():
+                    output_dir = gr.Textbox(
+                        label="Output Path", lines=1, placeholder="Path to the output folder", scale=4
+                    )
+                    out_button = gr.Button(value="Browse", scale=1)
+                    out_button.click(browse_folder, None, outputs=output_dir)
+                    gr.ClearButton(components=[output_dir], scale=1)
             else:
                 with gr.Row():
                     data_path = gr.Textbox(label="Data Path", lines=1, placeholder="Path to the data folder", scale=5)
@@ -523,7 +543,7 @@ class DataProcessorTab:
                         label="Browse", scale=1, root_dir=self.root_dir, file_count="multiple", height=300
                     )
                     file_explorer.change(get_folder_path, inputs=file_explorer, outputs=data_path)
-                    input_button.click(lambda x: str(x), inputs=data_path, outputs=data_path)
+                    input_button.click(submit, inputs=data_path, outputs=data_path)
                 with gr.Row():
                     output_dir = gr.Textbox(
                         label="Output Path", lines=1, placeholder="Path to the output folder", scale=5
@@ -534,29 +554,33 @@ class DataProcessorTab:
                         label="Browse", scale=1, root_dir=self.root_dir, file_count="multiple", height=300
                     )
                     file_explorer.change(get_folder_path, inputs=file_explorer, outputs=output_dir)
-                    out_button.click(lambda x: str(x), inputs=output_dir, outputs=output_dir)
+                    out_button.click(submit, inputs=output_dir, outputs=output_dir)
 
-            # with gr.Accordion("Data Processor Config", open=False):
-            #     for key, config in dataprocessor_configs.items():
-            #         with gr.Group(visible=False) as group:
-            #             print(config)
-            #             generated_args, labels = generate_args(config, visible=True)
-            #             self.dataprocessor_arg_list += generated_args
-            #             self.dataprocessor_arg_names += labels
-            #             self.dataprocessor_arg_idx[key] = [
-            #                 len(self.dataprocessor_arg_list) - len(generated_args),
-            #                 len(self.dataprocessor_arg_list),
-            #             ]
-            #             self.dataprocessor_groups.append(group)
-            #             self.dataprocessor_group_idx[key] = len(self.dataprocessor_groups) - 1
-            #     dataprocessor.change(
-            #         self.update_dataprocessor_args_visibility, inputs=dataprocessor, outputs=self.dataprocessor_groups
-            #     )
+            with gr.Accordion("Data Processor Config", open=False):
+                for key, config in dataprocessor_configs.items():
+                    with gr.Group(visible=False) as group:
+                        generated_args, labels = generate_args(config, visible=True)
+                        self.dataprocessor_arg_list += generated_args
+                        self.dataprocessor_arg_names += labels
+                        self.dataprocessor_arg_idx[key] = [
+                            len(self.dataprocessor_arg_list) - len(generated_args),
+                            len(self.dataprocessor_arg_list),
+                        ]
+                        self.dataprocessor_groups.append(group)
+                        self.dataprocessor_group_idx[key] = len(self.dataprocessor_groups) - 1
+                dataprocessor.change(
+                    self.update_dataprocessor_args_visibility, inputs=dataprocessor, outputs=self.dataprocessor_groups
+                )
             run_button.click(
+                self.get_dataprocessor_args,
+                inputs=[dataprocessor] + self.dataprocessor_arg_list,
+                outputs=None,
+            ).then(
                 self.run_dataprocessor,
                 inputs=[dataprocessor, data_path, output_dir],
                 outputs=status,
             )
+            stop_button.click(self.stop, inputs=None, outputs=status)
 
     def update_status(self, data_path, method, data_parser, visualizer):
         if self.trainer is not None and self.trainer.step != 0:
@@ -568,30 +592,35 @@ class DataProcessorTab:
             return "Initializing..."
 
     def run_dataprocessor(self, datapocessor, data_path, output_dir):
+        if datapocessor == "":
+            return "Please select a data processor"
+        if data_path == "":
+            return "Please select a data path"
+        if output_dir == "":
+            return "Please select a output directory"
         data_path = Path(data_path)
         output_dir = Path(output_dir)
-        if datapocessor == "ImagesToNerfstudioDataset":
-            processor = ImagesToNerfstudioDataset(data_path, output_dir)
-        elif datapocessor == "VideoToNerfstudioDataset":
-            processor = VideoToNerfstudioDataset(data_path, output_dir)
-        elif datapocessor == "ProcessPolycam":
-            processor = ProcessPolycam(data_path, output_dir)
-        elif datapocessor == "ProcessMetashape":
-            processor = ProcessMetashape(data_path, output_dir)
-        elif datapocessor == "ProcessRealityCapture":
-            processor = ProcessRealityCapture(data_path, output_dir)
-        elif datapocessor == "ProcessRecord3D":
-            processor = ProcessRecord3D(data_path, output_dir)
-        elif datapocessor == "ProcessODM":
-            processor = ProcessODM(data_path, output_dir)
-        else:
-            raise gr.Error("Please select a data processor")
+        processor = dataprocessor_configs[datapocessor]
+        processor.data = data_path
+        processor.output_dir = output_dir
 
-        p = multiprocessing.Process(target=processor.main)
-        p.start()
-        p.join()
-
+        for key, value in self.dataprocessor_args.items():
+            setattr(processor, key, value)
+        self.p = multiprocessing.Process(target=processor.main)
+        self.p.start()
+        self.p.join()
         return "Processing finished"
+
+    def get_dataprocessor_args(self, dataprocessor, *args):
+        temp_args = {}
+        args = list(args)
+        names = self.dataprocessor_arg_names[
+            self.dataprocessor_arg_idx[dataprocessor][0] : self.dataprocessor_arg_idx[dataprocessor][1]
+        ]
+        values = args[self.dataprocessor_arg_idx[dataprocessor][0] : self.dataprocessor_arg_idx[dataprocessor][1]]
+        for key, value in zip(names, values):
+            temp_args[key] = value
+        self.dataprocessor_args = temp_args
 
     def update_dataprocessor_args_visibility(self, dataprocessor):
         idx = self.dataprocessor_group_idx[dataprocessor]
@@ -599,11 +628,155 @@ class DataProcessorTab:
         update_info[idx] = gr.update(visible=True)
         return update_info
 
+    def stop(self):
+        self.p.terminate()
+        return "Process stopped"
+
+
+exporter_configs = {
+    "ExportCameraPoses": ExportCameraPoses(current_path, current_path),
+    "ExportGaussianSplat": ExportGaussianSplat(current_path, current_path),
+    "ExportMarchingCubesMesh": ExportMarchingCubesMesh(current_path, current_path),
+    "ExportPointCloud": ExportPointCloud(current_path, current_path),
+    "ExportPoissonMesh": ExportPoissonMesh(current_path, current_path),
+    "ExportTSDFMesh": ExportTSDFMesh(current_path, current_path),
+}
+
+
+class ExporterTab:
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.root_dir = kwargs.get("root_dir", "./")  # root directory
+        self.run_in_new_terminal = kwargs.get("run_in_new_terminal", False)  # run in new terminal
+
+        self.exporter_args = {}
+
+        self.exporter_groups = []  # keep track of the exporter groups
+        self.exporter_group_idx = {}  # keep track of the exporter group index
+        self.exporter_arg_list = []  # gr components for the exporter args
+        self.exporter_arg_names = []  # keep track of the exporter args names
+        self.exporter_arg_idx = {}  # record the start and end index of the exporter args
+
+        self.p = None
+
+    def setup_ui(self):
+        with gr.Tab(label="Export"):
+            status = gr.Textbox(label="Status", lines=1, placeholder="Waiting")
+            with gr.Row():
+                exporter = gr.Radio(choices=list(exporter_configs.keys()), label="Method", scale=5)
+                run_button = gr.Button(value="Export", variant="primary", scale=1)
+                stop_button = gr.Button(value="Stop", variant="stop", scale=1)
+            if os.name == "nt":
+                with gr.Row():
+                    data_path = gr.Textbox(label="Data Path", lines=1, placeholder="Path to the data folder", scale=4)
+                    browse_button = gr.Button(value="Browse Image", scale=1)
+                    browse_button.click(browse_folder, None, outputs=data_path)
+                    browse_video_button = gr.Button(value="Browse Video", scale=1)
+                    browse_video_button.click(browse_video, None, outputs=data_path)
+                    gr.ClearButton(components=[data_path], scale=1)
+                with gr.Row():
+                    output_dir = gr.Textbox(
+                        label="Output Path", lines=1, placeholder="Path to the output folder", scale=4
+                    )
+                    out_button = gr.Button(value="Browse", scale=1)
+                    out_button.click(browse_folder, None, outputs=output_dir)
+                    gr.ClearButton(components=[output_dir], scale=1)
+            else:
+                with gr.Row():
+                    data_path = gr.Textbox(label="Data Path", lines=1, placeholder="Path to the data folder", scale=5)
+                    input_button = gr.Button(value="Submit", scale=1)
+                with gr.Row():
+                    file_explorer = gr.FileExplorer(
+                        label="Browse",
+                        scale=1,
+                        root_dir=self.root_dir,
+                        file_count="single",
+                        height=300,
+                        glob="*.yml",
+                    )
+                    file_explorer.change(lambda x: str(x), inputs=file_explorer, outputs=data_path)
+                    input_button.click(submit, inputs=data_path, outputs=data_path)
+                with gr.Row():
+                    output_dir = gr.Textbox(
+                        label="Output Path", lines=1, placeholder="Path to the output folder", scale=5
+                    )
+                    out_button = gr.Button(value="Submit", scale=1)
+                with gr.Row():
+                    file_explorer = gr.FileExplorer(
+                        label="Browse", scale=1, root_dir=self.root_dir, file_count="multiple", height=300
+                    )
+                    file_explorer.change(get_folder_path, inputs=file_explorer, outputs=output_dir)
+                    out_button.click(submit, inputs=output_dir, outputs=output_dir)
+            with gr.Accordion("Exporter Config", open=False):
+                for key, config in exporter_configs.items():
+                    with gr.Group(visible=False) as group:
+                        generated_args, labels = generate_args(config, visible=True)
+                        self.exporter_arg_list += generated_args
+                        self.exporter_arg_names += labels
+                        self.exporter_arg_idx[key] = [
+                            len(self.exporter_arg_list) - len(generated_args),
+                            len(self.exporter_arg_list),
+                        ]
+                        self.exporter_groups.append(group)
+                        self.exporter_group_idx[key] = len(self.exporter_groups) - 1
+                exporter.change(self.update_exporter_args_visibility, inputs=exporter, outputs=self.exporter_groups)
+            run_button.click(
+                self.get_exporter_args,
+                inputs=[exporter] + self.exporter_arg_list,
+                outputs=None,
+            ).then(
+                self.run_exporter,
+                inputs=[exporter, data_path, output_dir],
+                outputs=status,
+            )
+            stop_button.click(self.stop, inputs=None, outputs=status)
+
+    def update_exporter_args_visibility(self, exporter):
+        idx = self.exporter_group_idx[exporter]
+        update_info = [gr.update(visible=False)] * len(self.exporter_groups)
+        update_info[idx] = gr.update(visible=True)
+        return update_info
+
+    def run_exporter(self, exporter, data_path, output_dir):
+        if exporter == "":
+            return "Please select a exporter"
+        if data_path == "":
+            return "Please select a data path"
+        if output_dir == "":
+            return "Please select a output directory"
+        data_path = Path(data_path)
+        output_dir = Path(output_dir)
+        exporter = exporter_configs[exporter]
+        exporter.load_config = data_path
+        exporter.output_dir = output_dir
+
+        for key, value in self.exporter_args.items():
+            setattr(exporter, key, value)
+        self.p = multiprocessing.Process(target=exporter.main)
+        self.p.start()
+        self.p.join()
+        return "Exporting finished"
+
+    def get_exporter_args(self, exporter, *args):
+        temp_args = {}
+        args = list(args)
+        names = self.exporter_arg_names[self.exporter_arg_idx[exporter][0] : self.exporter_arg_idx[exporter][1]]
+        values = args[self.exporter_arg_idx[exporter][0] : self.exporter_arg_idx[exporter][1]]
+        for key, value in zip(names, values):
+            temp_args[key] = value
+        self.exporter_args = temp_args
+
+    def stop(self):
+        self.p.terminate()
+        return "Export stopped"
+
 
 class VisualizerTab:
     def __init__(self, **kwargs):
         self.root_dir = kwargs.get("root_dir", "./")  # root directory
         self.run_in_new_terminal = kwargs.get("run_in_new_terminal", False)  # run in new terminal
+
+        self.p = None
 
     def setup_ui(self):
         with gr.Tab(label="Visualize"):
@@ -611,6 +784,7 @@ class VisualizerTab:
             with gr.Row():
                 vis_button = gr.Button(value="Run Viser", variant="primary")
                 vis_cmd_button = gr.Button(value="Show Command")
+                stop_button = gr.Button(value="Stop", variant="stop")
                 gr.Button(value="Open Viser", link="http://localhost:7007/")
 
             if os.name == "nt":
@@ -637,6 +811,7 @@ class VisualizerTab:
 
             vis_button.click(self.run_vis, inputs=[config_path], outputs=status)
             vis_cmd_button.click(self.generate_vis_cmd, inputs=[config_path], outputs=status)
+            stop_button.click(self.stop, inputs=None, outputs=status)
 
     def run_vis(self, config_path):
         cmd = self.generate_vis_cmd(config_path)
@@ -646,11 +821,15 @@ class VisualizerTab:
         else:
             from nerfstudio.scripts.viewer.run_viewer import RunViewer
 
-            viewer = RunViewer()
-            viewer.load_config = Path(config_path)
-            tyro.extras.set_accent_color("bright_yellow")
-            tyro.cli(viewer).main()
-        return cmd
+            def run():
+                viewer = RunViewer()
+                viewer.load_config = Path(config_path)
+                tyro.extras.set_accent_color("bright_yellow")
+                tyro.cli(viewer).main()
+
+            self.p = multiprocessing.Process(target=run)
+            self.p.start()
+        return "Viewer is running"
 
     def generate_vis_cmd(self, config_path):
         # generate the command
@@ -675,6 +854,11 @@ class VisualizerTab:
         else:
             return None
 
+    def stop(self):
+        self.p.terminate()
+        self.p.join()
+        return "Viewer stopped"
+
 
 class WebUI:
     def __init__(self, **kwargs):
@@ -685,6 +869,7 @@ class WebUI:
         self.train_tab = TrainTab(**kwargs)
         self.visualizer_tab = VisualizerTab(**kwargs)
         self.data_processor_tab = DataProcessorTab(**kwargs)
+        self.exporter_tab = ExporterTab(**kwargs)
 
         self.setup_ui()
 
@@ -693,6 +878,7 @@ class WebUI:
             self.train_tab.setup_ui()
             self.visualizer_tab.setup_ui()
             self.data_processor_tab.setup_ui()
+            self.exporter_tab.setup_ui()
 
     def launch(self, *args, **kwargs):
         self.demo.launch(*args, **kwargs)
@@ -700,4 +886,4 @@ class WebUI:
 
 if __name__ == "__main__":
     app = WebUI(root_dir="./", run_in_new_terminal=False)
-    app.launch()
+    app.launch(inbrowser=True, share=False)
