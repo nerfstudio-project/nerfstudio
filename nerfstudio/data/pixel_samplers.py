@@ -300,9 +300,13 @@ class PixelSampler:
         # only sample within the mask, if the mask is in the batch
         all_indices = []
         all_images = []
+        all_depth_images = []
+
+        num_rays_in_batch = num_rays_per_batch // num_images
+        if num_rays_in_batch % 2 != 0:
+            num_rays_in_batch += 1
 
         if "mask" in batch:
-            num_rays_in_batch = num_rays_per_batch // num_images
             for i in range(num_images):
                 image_height, image_width, _ = batch["image"][i].shape
 
@@ -315,9 +319,10 @@ class PixelSampler:
                 indices[:, 0] = i
                 all_indices.append(indices)
                 all_images.append(batch["image"][i][indices[:, 1], indices[:, 2]])
+                if "depth_image" in batch:
+                    all_depth_images.append(batch["depth_image"][i][indices[:, 1], indices[:, 2]])
 
         else:
-            num_rays_in_batch = num_rays_per_batch // num_images
             for i in range(num_images):
                 image_height, image_width, _ = batch["image"][i].shape
                 if i == num_images - 1:
@@ -331,6 +336,8 @@ class PixelSampler:
                 indices[:, 0] = i
                 all_indices.append(indices)
                 all_images.append(batch["image"][i][indices[:, 1], indices[:, 2]])
+                if "depth_image" in batch:
+                    all_depth_images.append(batch["depth_image"][i][indices[:, 1], indices[:, 2]])
 
         indices = torch.cat(all_indices, dim=0)
 
@@ -338,10 +345,12 @@ class PixelSampler:
         collated_batch = {
             key: value[c, y, x]
             for key, value in batch.items()
-            if key != "image_idx" and key != "image" and key != "mask" and value is not None
+            if key != "image_idx" and key != "image" and key != "mask" and key != "depth_image" and value is not None
         }
 
         collated_batch["image"] = torch.cat(all_images, dim=0)
+        if "depth_image" in batch:
+            collated_batch["depth_image"] = torch.cat(all_depth_images, dim=0)
 
         assert collated_batch["image"].shape[0] == num_rays_per_batch
 

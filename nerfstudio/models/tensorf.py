@@ -308,7 +308,7 @@ class TensoRFModel(Model):
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
         # Scaling metrics by coefficients to create the losses.
         device = outputs["rgb"].device
-        image = batch["image"][..., :3].to(device)
+        image = batch["image"].to(device)
         pred_image, image = self.renderer_rgb.blend_background_for_loss_computation(
             pred_image=outputs["rgb"],
             pred_accumulation=outputs["accumulation"],
