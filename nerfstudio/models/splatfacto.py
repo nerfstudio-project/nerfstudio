@@ -250,6 +250,15 @@ class SplatfactoModel(Model):
             )  # This color is the same as the default background color in Viser. This would only affect the background color when rendering.
         else:
             self.background_color = get_color(self.config.background_color)
+        self.image_embeds = torch.nn.Embedding(self.num_train_data, 16)
+        self.appearance_nn = torch.nn.Sequential(
+            torch.nn.Linear(16, 32),
+            torch.nn.ReLU(),
+            torch.nn.Linear(32, 32),
+            torch.nn.ReLU(),
+            torch.nn.Linear(32, 6),
+            torch.nn.Sigmoid()
+        )
 
     @property
     def colors(self):
@@ -630,6 +639,7 @@ class SplatfactoModel(Model):
             Mapping of different parameter groups
         """
         gps = self.get_gaussian_param_groups()
+        gps['appearance_embed'] = list(self.appearance_nn.parameters())+list(self.image_embeds.parameters())
         return gps
 
     def _get_downscale_factor(self):
@@ -797,6 +807,10 @@ class SplatfactoModel(Model):
             return_alpha=True,
         )  # type: ignore
         alpha = alpha[..., None]
+        # if camera.metadata is not None and 'cam_idx' in camera.metadata:
+        #     cam_id = camera.metadata["cam_idx"]
+        #     affine_shift = self.appearance_nn(self.image_embeds(torch.tensor(cam_id,device=self.device)))
+        #     rgb = rgb*affine_shift[:3] + affine_shift[3:]
         rgb = torch.clamp(rgb, max=1.0)  # type: ignore
         depth_im = None
         if self.config.output_depth_during_training or not self.training:
