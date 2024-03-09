@@ -403,9 +403,11 @@ def export_textured_mesh(
     CONSOLE.print("Creating texture image by rendering with NeRF...")
     with torch.no_grad():
         outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+    # TODO: this can be done better by using the alpha channel
+    rgb = pipeline.model.get_rgba_image(outputs, "rgb")[..., :3]
 
     # save the texture image
-    texture_image = outputs["rgb"].cpu().numpy()
+    texture_image = rgb.cpu().numpy()
     media.write_image(str(output_dir / "material_0.png"), texture_image)
 
     CONSOLE.print("Writing relevant OBJ information to files...")
