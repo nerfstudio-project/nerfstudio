@@ -17,7 +17,7 @@ while getopts "m:v:s" opt; do
         m ) method_name="$OPTARG" ;;
         v ) vis="$OPTARG" ;;
         s ) single=true ;;
-        ? ) helpFunction ;; 
+        ? ) helpFunction ;;
     esac
 done
 
@@ -28,7 +28,7 @@ fi
 method_opts=()
 if [ "$method_name" = "nerfacto" ]; then
     # https://github.com/nerfstudio-project/nerfstudio/issues/806#issuecomment-1284327844
-    method_opts=(--pipeline.model.background-color white --pipeline.model.proposal-initial-sampler uniform --pipeline.model.near-plane 2. --pipeline.model.far-plane 6. --pipeline.datamanager.camera-optimizer.mode off --pipeline.model.use-average-appearance-embedding False --pipeline.model.distortion-loss-mult 0 --pipeline.model.disable-scene-contraction True)
+    method_opts=(--pipeline.model.background-color white --pipeline.model.proposal-initial-sampler uniform --pipeline.model.near-plane 2. --pipeline.model.far-plane 6. --pipeline.model.camera-optimizer.mode off --pipeline.model.use-average-appearance-embedding False --pipeline.model.distortion-loss-mult 0 --pipeline.model.disable-scene-contraction True)
 fi
 
 shift $((OPTIND-1))
@@ -83,12 +83,12 @@ for dataset in "${DATASETS[@]}"; do
              --steps-per-save=1000 \
              --max-num-iterations=16500 \
              --logging.local-writer.enable=False  \
-             --logging.enable-profiler=False \
+             --logging.profiler="none" \
              --vis "${vis}" \
              --timestamp "$timestamp" \
              ${dataparser} & GPU_PID[$idx]=$!
     echo "Launched ${method_name} ${dataset} on gpu ${GPU_IDX[$idx]}, ${tag}"
-    
+
     # update gpu
     ((idx=(idx+1)%len))
 done

@@ -25,7 +25,6 @@ from time import time
 from typing import Any, Dict, List, Optional, Union
 
 import torch
-import wandb
 from jaxtyping import Float
 from torch import Tensor
 from torch.utils.tensorboard import SummaryWriter
@@ -150,7 +149,7 @@ def put_time(name: str, duration: float, step: int, avg_over_steps: bool = True,
         put_scalar(name, duration, step)
 
     if update_eta:
-        ## NOTE: eta should be called with avg train iteration time
+        # NOTE: eta should be called with avg train iteration time
         remain_iter = GLOBAL_BUFFER["max_iter"] - step
         remain_time = remain_iter * GLOBAL_BUFFER["events"][name]["avg"]
         put_scalar(EventName.ETA, remain_time, step)
@@ -185,7 +184,7 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
     else:
         CONSOLE.log("disabled local writer")
 
-    ## configure all the global buffer basic information
+    # configure all the global buffer basic information
     GLOBAL_BUFFER["max_iter"] = max_iter
     GLOBAL_BUFFER["max_buffer_size"] = config.max_buffer_size
     GLOBAL_BUFFER["steps_per_log"] = config.steps_per_log
@@ -203,6 +202,7 @@ def is_initialized():
 def setup_event_writer(
     is_wandb_enabled: bool,
     is_tensorboard_enabled: bool,
+    is_comet_enabled: bool,
     log_dir: Path,
     experiment_name: str,
     project_name: str = "nerfstudio-project",
@@ -214,6 +214,11 @@ def setup_event_writer(
         banner_messages: list of messages to always display at bottom of screen
     """
     using_event_writer = False
+
+    if is_comet_enabled:
+        curr_writer = CometWriter(log_dir=log_dir, experiment_name=experiment_name, project_name=project_name)
+        EVENT_WRITERS.append(curr_writer)
+        using_event_writer = True
     if is_wandb_enabled:
         curr_writer = WandbWriter(log_dir=log_dir, experiment_name=experiment_name, project_name=project_name)
         EVENT_WRITERS.append(curr_writer)
@@ -225,7 +230,7 @@ def setup_event_writer(
     if using_event_writer:
         string = f"logging events to: {log_dir}"
     else:
-        string = "Disabled tensorboard/wandb event writers"
+        string = "Disabled comet/tensorboard/wandb event writers"
     CONSOLE.print(f"[bold yellow]{string}")
 
 
@@ -300,6 +305,8 @@ class WandbWriter(Writer):
     """WandDB Writer Class"""
 
     def __init__(self, log_dir: Path, experiment_name: str, project_name: str = "nerfstudio-project"):
+        import wandb  # wandb is slow to import, so we only import it if we need it.
+
         wandb.init(
             project=os.environ.get("WANDB_PROJECT", project_name),
             dir=os.environ.get("WANDB_DIR", str(log_dir)),
@@ -308,10 +315,14 @@ class WandbWriter(Writer):
         )
 
     def write_image(self, name: str, image: Float[Tensor, "H W C"], step: int) -> None:
+        import wandb  # wandb is slow to import, so we only import it if we need it.
+
         image = torch.permute(image, (2, 0, 1))
         wandb.log({name: wandb.Image(image)}, step=step)
 
     def write_scalar(self, name: str, scalar: Union[float, torch.Tensor], step: int) -> None:
+        import wandb  # wandb is slow to import, so we only import it if we need it.
+
         wandb.log({name: scalar}, step=step)
 
     def write_config(self, name: str, config_dict: Dict[str, Any], step: int):
@@ -320,6 +331,8 @@ class WandbWriter(Writer):
         Args:
             config: config dictionary to write out
         """
+        import wandb  # wandb is slow to import, so we only import it if we need it.
+
         wandb.config.update(config_dict, allow_val_change=True)
 
 
@@ -344,6 +357,33 @@ class TensorboardWriter(Writer):
             config: config dictionary to write out
         """
         self.tb_writer.add_text("config", str(config_dict))
+
+
+@decorate_all([check_main_thread])
+class CometWriter(Writer):
+    """Comet_ML Writer Class"""
+
+    def __init__(self, log_dir: Path, experiment_name: str, project_name: str = "nerfstudio-project"):
+        # comet_ml is slow to import, so we only do it if we need it.
+        import comet_ml
+
+        self.experiment = comet_ml.Experiment(project_name=project_name)
+        if experiment_name != "unnamed":
+            self.experiment.set_name(experiment_name)
+
+    def write_image(self, name: str, image: Float[Tensor, "H W C"], step: int) -> None:
+        self.experiment.log_image(image, name, step=step)
+
+    def write_scalar(self, name: str, scalar: Union[float, torch.Tensor], step: int) -> None:
+        self.experiment.log_metric(name, scalar, step)
+
+    def write_config(self, name: str, config_dict: Dict[str, Any], step: int):
+        """Function that writes out the config to Comet
+
+        Args:
+            config: config dictionary to write out
+        """
+        self.experiment.log_parameters(config_dict, step=step)
 
 
 def _cursorup(x: int):
@@ -488,7 +528,7 @@ class LocalWriter:
 
             for i, mssg in enumerate(self.past_mssgs):
                 pad_len = len(max(self.past_mssgs, key=len))
-                style = "\x1b[6;30;42m" if self.banner_len and i >= len(self.past_mssgs) - self.banner_len + 1 else ""
+                style = "\x1b[30;42m" if self.banner_len and i >= len(self.past_mssgs) - self.banner_len + 1 else ""
                 print(f"{style}{mssg:{padding}<{pad_len}} \x1b[0m")
         else:
             print(curr_mssg)

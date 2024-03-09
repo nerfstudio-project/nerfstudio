@@ -24,32 +24,17 @@ from typing import Dict, List, Literal, Tuple, Type, cast
 import numpy as np
 import torch
 from torch.nn import Parameter
-from torchmetrics.functional import structural_similarity_index_measure
-from torchmetrics.image import PeakSignalNoiseRatio
-from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
+from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.config_utils import to_immutable_dict
-from nerfstudio.engine.callbacks import (
-    TrainingCallback,
-    TrainingCallbackAttributes,
-    TrainingCallbackLocation,
-)
-from nerfstudio.field_components.encodings import (
-    NeRFEncoding,
-    TensorCPEncoding,
-    TensorVMEncoding,
-    TriplaneEncoding,
-)
+from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
+from nerfstudio.field_components.encodings import NeRFEncoding, TensorCPEncoding, TensorVMEncoding, TriplaneEncoding
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.tensorf_field import TensoRFField
-from nerfstudio.model_components.losses import MSELoss, tv_loss
+from nerfstudio.model_components.losses import MSELoss, scale_gradients_by_distance_squared, tv_loss
 from nerfstudio.model_components.ray_samplers import PDFSampler, UniformSampler
-from nerfstudio.model_components.renderers import (
-    AccumulationRenderer,
-    DepthRenderer,
-    RGBRenderer,
-)
+from nerfstudio.model_components.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
 from nerfstudio.model_components.scene_colliders import AABBBoxCollider
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps, colors, misc
@@ -89,6 +74,12 @@ class TensoRFModelConfig(ModelConfig):
     tensorf_encoding: Literal["triplane", "vm", "cp"] = "vm"
     regularization: Literal["none", "l1", "tv"] = "l1"
     """Regularization method used in tensorf paper"""
+    camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="SO3xR3"))
+    """Config of the camera optimizer to use"""
+    use_gradient_scaling: bool = False
+    """Use gradient scaler where the gradients are lower for points closer to the camera."""
+    background_color: Literal["random", "last_sample", "black", "white"] = "white"
+    """Whether to randomize the background color."""
 
 
 class TensoRFModel(Model):
@@ -234,7 +225,7 @@ class TensoRFModel(Model):
         self.sampler_pdf = PDFSampler(num_samples=self.config.num_samples, single_jitter=True, include_original=False)
 
         # renderers
-        self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
+        self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
 
@@ -242,6 +233,10 @@ class TensoRFModel(Model):
         self.rgb_loss = MSELoss()
 
         # metrics
+        from torchmetrics.functional import structural_similarity_index_measure
+        from torchmetrics.image import PeakSignalNoiseRatio
+        from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
@@ -254,6 +249,11 @@ class TensoRFModel(Model):
         if self.config.tensorf_encoding == "cp" and self.config.regularization == "tv":
             raise RuntimeError("TV reg not supported for CP decomposition")
 
+        # (optional) camera optimizer
+        self.camera_optimizer: CameraOptimizer = self.config.camera_optimizer.setup(
+            num_cameras=self.num_train_data, device="cpu"
+        )
+
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
 
@@ -265,11 +265,14 @@ class TensoRFModel(Model):
         param_groups["encodings"] = list(self.field.color_encoding.parameters()) + list(
             self.field.density_encoding.parameters()
         )
+        self.camera_optimizer.get_param_groups(param_groups=param_groups)
 
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
         # uniform sampling
+        if self.training:
+            self.camera_optimizer.apply_to_raybundle(ray_bundle)
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
         dens = self.field.get_density(ray_samples_uniform)
         weights = ray_samples_uniform.get_weights(dens)
@@ -283,6 +286,8 @@ class TensoRFModel(Model):
         field_outputs_fine = self.field.forward(
             ray_samples_pdf, mask=acc_mask, bg_color=colors.WHITE.to(weights.device)
         )
+        if self.config.use_gradient_scaling:
+            field_outputs_fine = scale_gradients_by_distance_squared(field_outputs_fine, ray_samples_pdf)
 
         weights_fine = ray_samples_pdf.get_weights(field_outputs_fine[FieldHeadNames.DENSITY])
 
@@ -303,7 +308,7 @@ class TensoRFModel(Model):
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
         # Scaling metrics by coefficients to create the losses.
         device = outputs["rgb"].device
-        image = batch["image"][..., :3].to(device)
+        image = batch["image"].to(device)
         pred_image, image = self.renderer_rgb.blend_background_for_loss_computation(
             pred_image=outputs["rgb"],
             pred_accumulation=outputs["accumulation"],
@@ -331,6 +336,8 @@ class TensoRFModel(Model):
             pass
         else:
             raise ValueError(f"Regularization {self.config.regularization} not supported")
+
+        self.camera_optimizer.get_loss_dict(loss_dict)
 
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         return loss_dict
@@ -365,5 +372,7 @@ class TensoRFModel(Model):
             "ssim": float(ssim.item()),
             "lpips": float(lpips.item()),
         }
+        self.camera_optimizer.get_metrics_dict(metrics_dict)
+
         images_dict = {"img": combined_rgb, "accumulation": acc, "depth": depth}
         return metrics_dict, images_dict

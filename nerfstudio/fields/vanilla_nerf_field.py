@@ -22,12 +22,7 @@ from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.field_components.encodings import Encoding, Identity
-from nerfstudio.field_components.field_heads import (
-    DensityFieldHead,
-    FieldHead,
-    FieldHeadNames,
-    RGBFieldHead,
-)
+from nerfstudio.field_components.field_heads import DensityFieldHead, FieldHead, FieldHeadNames, RGBFieldHead
 from nerfstudio.field_components.mlp import MLP
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.base_field import Field
@@ -74,15 +69,15 @@ class NeRFField(Field):
             skip_connections=skip_connections,
             out_activation=nn.ReLU(),
         )
-
-        self.mlp_head = MLP(
-            in_dim=self.mlp_base.get_out_dim() + self.direction_encoding.get_out_dim(),
-            num_layers=head_mlp_num_layers,
-            layer_width=head_mlp_layer_width,
-            out_activation=nn.ReLU(),
-        )
-
         self.field_output_density = DensityFieldHead(in_dim=self.mlp_base.get_out_dim())
+
+        if field_heads:
+            self.mlp_head = MLP(
+                in_dim=self.mlp_base.get_out_dim() + self.direction_encoding.get_out_dim(),
+                num_layers=head_mlp_num_layers,
+                layer_width=head_mlp_layer_width,
+                out_activation=nn.ReLU(),
+            )
         self.field_heads = nn.ModuleList([field_head() for field_head in field_heads] if field_heads else [])  # type: ignore
         for field_head in self.field_heads:
             field_head.set_in_dim(self.mlp_head.get_out_dim())  # type: ignore

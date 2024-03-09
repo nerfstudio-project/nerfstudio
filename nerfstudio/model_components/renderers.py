@@ -101,17 +101,17 @@ class RGBRenderer(nn.Module):
         else:
             comp_rgb = torch.sum(weights * rgb, dim=-2)
             accumulated_weight = torch.sum(weights, dim=-2)
-
+        if BACKGROUND_COLOR_OVERRIDE is not None:
+            background_color = BACKGROUND_COLOR_OVERRIDE
         if background_color == "random":
             # If background color is random, the predicted color is returned without blending,
             # as if the background color was black.
             return comp_rgb
-
         elif background_color == "last_sample":
             # Note, this is only supported for non-packed samples.
             background_color = rgb[..., -1, :]
-        else:
-            background_color = cls.get_background_color(background_color, shape=comp_rgb.shape, device=comp_rgb.device)
+        background_color = cls.get_background_color(background_color, shape=comp_rgb.shape, device=comp_rgb.device)
+
         assert isinstance(background_color, torch.Tensor)
         comp_rgb = comp_rgb + background_color * (1.0 - accumulated_weight)
         return comp_rgb
@@ -121,13 +121,13 @@ class RGBRenderer(nn.Module):
         cls, background_color: BackgroundColor, shape: Tuple[int, ...], device: torch.device
     ) -> Union[Float[Tensor, "3"], Float[Tensor, "*bs 3"]]:
         """Returns the RGB background color for a specified background color.
-
         Note:
             This function CANNOT be called for background_color being either "last_sample" or "random".
 
         Args:
-            rgb: RGB for each sample.
-            background_color: The background color specification.
+            background_color: The background color specification. If a string is provided, it must be a valid color name.
+            shape: Shape of the output tensor.
+            device: Device on which to create the tensor.
 
         Returns:
             Background color as RGB.
@@ -216,6 +216,7 @@ class RGBRenderer(nn.Module):
         Returns:
             Outputs of rgb values.
         """
+
         if background_color is None:
             background_color = self.background_color
 

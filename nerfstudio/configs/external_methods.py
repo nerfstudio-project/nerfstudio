@@ -14,14 +14,15 @@
 
 
 """This file contains the configuration for external methods which are not included in this repository."""
+import inspect
 import subprocess
 import sys
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, cast
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
 
+import tyro
 from rich.prompt import Confirm
 
-from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
@@ -45,7 +46,7 @@ external_methods = []
 external_methods.append(
     ExternalMethod(
         """[bold yellow]Instruct-NeRF2NeRF[/bold yellow]
-For more information visit: https://docs.nerf.studio/en/latest/nerfology/methods/in2n.html
+For more information visit: https://docs.nerf.studio/nerfology/methods/in2n.html
 
 To enable Instruct-NeRF2NeRF, you must install it first by running:
   [grey]pip install git+https://github.com/ayaanzhaque/instruct-nerf2nerf[/grey]""",
@@ -62,7 +63,7 @@ To enable Instruct-NeRF2NeRF, you must install it first by running:
 external_methods.append(
     ExternalMethod(
         """[bold yellow]K-Planes[/bold yellow]
-For more information visit https://docs.nerf.studio/en/latest/nerfology/methods/kplanes.html
+For more information visit https://docs.nerf.studio/nerfology/methods/kplanes.html
 
 To enable K-Planes, you must install it first by running:
   [grey]pip install kplanes-nerfstudio[/grey]""",
@@ -78,7 +79,7 @@ To enable K-Planes, you must install it first by running:
 external_methods.append(
     ExternalMethod(
         """[bold yellow]LERF[/bold yellow]
-For more information visit: https://docs.nerf.studio/en/latest/nerfology/methods/lerf.html
+For more information visit: https://docs.nerf.studio/nerfology/methods/lerf.html
 
 To enable LERF, you must install it first by running:
   [grey]pip install git+https://github.com/kerrj/lerf[/grey]""",
@@ -95,7 +96,7 @@ To enable LERF, you must install it first by running:
 external_methods.append(
     ExternalMethod(
         """[bold yellow]Tetra-NeRF[/bold yellow]
-For more information visit: https://docs.nerf.studio/en/latest/nerfology/methods/tetranerf.html
+For more information visit: https://docs.nerf.studio/nerfology/methods/tetranerf.html
 
 To enable Tetra-NeRF, you must install it first. Please follow the instructions here:
   https://github.com/jkulhanek/tetra-nerf/blob/master/README.md#installation""",
@@ -110,7 +111,7 @@ To enable Tetra-NeRF, you must install it first. Please follow the instructions 
 external_methods.append(
     ExternalMethod(
         """[bold yellow]NeRFPlayer[/bold yellow]
-For more information visit: https://docs.nerf.studio/en/latest/nerfology/methods/nerfplayer.html
+For more information visit: https://docs.nerf.studio/nerfology/methods/nerfplayer.html
 
 To enable NeRFPlayer, you must install it first by running:
   [grey]pip install git+https://github.com/lsongx/nerfplayer-nerfstudio[/grey]""",
@@ -121,23 +122,118 @@ To enable NeRFPlayer, you must install it first by running:
     )
 )
 
+# Volinga
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]Volinga[/bold yellow]
+For more information visit: https://docs.nerf.studio/extensions/unreal_engine.html
+
+To enable Volinga, you must install it first by running:
+  [grey]pip install git+https://github.com/Volinga/volinga-model[/grey]""",
+        configurations=[
+            (
+                "volinga",
+                "Real-time rendering model from Volinga. Directly exportable to NVOL format at https://volinga.ai/",
+            ),
+        ],
+        pip_package="git+https://github.com/Volinga/volinga-model",
+    )
+)
+
+# Instruct-GS2GS
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]Instruct-GS2GS[/bold yellow]
+For more information visit: https://docs.nerf.studio/nerfology/methods/igs2gs.html
+
+To enable Instruct-GS2GS, you must install it first by running:
+  [grey]pip install git+https://github.com/cvachha/instruct-gs2gs[/grey]""",
+        configurations=[("igs2gs", "Instruct-GS2GS. Full model, used in paper")],
+        pip_package="git+https://github.com/cvachha/instruct-gs2gs",
+    )
+)
+
+# PyNeRF
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]PyNeRF[/bold yellow]
+For more information visit https://docs.nerf.studio/nerfology/methods/pynerf.html
+
+To enable PyNeRF, you must install it first by running:
+  [grey]pip install git+https://github.com/hturki/pynerf[/grey]""",
+        configurations=[
+            ("pynerf", "PyNeRF with proposal network. The default parameters are suited for outdoor scenes."),
+            (
+                "pynerf-synthetic",
+                "PyNeRF with proposal network. The default parameters are suited for synthetic scenes.",
+            ),
+            (
+                "pynerf-occupancy-grid",
+                "PyNeRF with occupancy grid. The default parameters are suited for synthetic scenes.",
+            ),
+        ],
+        pip_package="git+https://github.com/hturki/pynerf",
+    )
+)
+
+# SeaThru-NeRF
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]Seathru-NeRF[/bold yellow]
+For more information visit https://docs.nerf.studio/nerfology/methods/seathru_nerf.html
+
+To enable Seathru-NeRF, you must install it first by running:
+  [grey]pip install git+https://github.com/AkerBP/seathru_nerf[/grey]""",
+        configurations=[
+            ("seathru-nerf", "SeaThru-NeRF for underwater scenes."),
+            ("seathru-nerf-lite", "SeaThru-NeRF for underwater scenes (smaller networks and batches)."),
+        ],
+        pip_package="git+https://github.com/AkerBP/seathru_nerf",
+    )
+)
+
+# Zip-NeRF
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]Zip-NeRF[/bold yellow]
+For more information visit https://docs.nerf.studio/nerfology/methods/zipnerf.html
+
+To enable Zip-NeRF, you must install it first by running:
+  [grey]pip install git+https://github.com/SuLvXiangXin/zipnerf-pytorch#subdirectory=extensions/cuda 
+  and pip install git+https://github.com/SuLvXiangXin/zipnerf-pytorch[/grey]""",
+        configurations=[
+            ("zipnerf", "A pytorch implementation of 'Zip-NeRF: Anti-Aliased Grid-Based Neural Radiance Fields'")
+        ],
+        pip_package="pip install git+https://github.com/SuLvXiangXin/zipnerf-pytorch",
+    )
+)
+
 
 @dataclass
-class ExternalMethodTrainerConfig(TrainerConfig):
-    """
-    Trainer config for external methods which does not have an implementation in this repository.
+class ExternalMethodDummyTrainerConfig:
+    """Dummy trainer config for external methods (a) which do not have an
+    implementation in this repository, and (b) are not yet installed. When this
+    config is instantiated, we give the user the option to install the method.
     """
 
-    _method: ExternalMethod = field(default=cast(ExternalMethod, None))
+    # tyro.conf.Suppress will prevent these fields from appearing as CLI arguments.
+    method_name: tyro.conf.Suppress[str]
+    method: tyro.conf.Suppress[ExternalMethod]
 
-    def handle_print_information(self, *_args, **_kwargs):
-        """Prints the method information and exits."""
-        CONSOLE.print(self._method.instructions)
-        if self._method.pip_package and Confirm.ask(
+    def __post_init__(self):
+        """Offer to install an external method."""
+
+        # Don't trigger install message from get_external_methods() below; only
+        # if this dummy object is instantiated from the CLI.
+        if inspect.stack()[2].function == "get_external_methods":
+            return
+
+        CONSOLE.print(self.method.instructions)
+        if self.method.pip_package and Confirm.ask(
             "\nWould you like to run the install it now?", default=False, console=CONSOLE
         ):
             # Install the method
-            install_command = f"{sys.executable} -m pip install {self._method.pip_package}"
+            install_command = f"{sys.executable} -m pip install {self.method.pip_package}"
             CONSOLE.print(f"Running: [cyan]{install_command}[/cyan]")
             result = subprocess.run(install_command, shell=True, check=False)
             if result.returncode != 0:
@@ -146,20 +242,15 @@ class ExternalMethodTrainerConfig(TrainerConfig):
 
         sys.exit(0)
 
-    def __getattribute__(self, __name: str) -> Any:
-        out = object.__getattribute__(self, __name)
-        if callable(out) and __name not in {"handle_print_information"} and not __name.startswith("__"):
-            # We exit early, displaying the message
-            return self.handle_print_information
-        return out
 
-
-def get_external_methods() -> Tuple[Dict[str, TrainerConfig], Dict[str, str]]:
+def get_external_methods() -> Tuple[Dict[str, ExternalMethodDummyTrainerConfig], Dict[str, str]]:
     """Returns the external methods trainer configs and the descriptions."""
-    method_configs = {}
-    descriptions = {}
+    method_configs: Dict[str, ExternalMethodDummyTrainerConfig] = {}
+    descriptions: Dict[str, str] = {}
     for external_method in external_methods:
         for config_slug, config_description in external_method.configurations:
-            method_configs[config_slug] = ExternalMethodTrainerConfig(method_name=config_slug, _method=external_method)
-            descriptions[config_slug] = f"""[External] {config_description}"""
+            method_configs[config_slug] = ExternalMethodDummyTrainerConfig(
+                method_name=config_slug, method=external_method
+            )
+            descriptions[config_slug] = f"""[External, run 'ns-train {config_slug}' to install] {config_description}"""
     return method_configs, descriptions

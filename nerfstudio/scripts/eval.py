@@ -45,7 +45,7 @@ class ComputePSNR:
         config, pipeline, checkpoint_path, _ = eval_setup(self.load_config)
         assert self.output_path.suffix == ".json"
         if self.render_output_path is not None:
-            self.render_output_path.mkdir(parents=True)
+            self.render_output_path.mkdir(parents=True, exist_ok=True)
         metrics_dict = pipeline.get_average_eval_image_metrics(output_path=self.render_output_path, get_std=True)
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
         # Get the output and define the names to save to
