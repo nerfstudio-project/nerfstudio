@@ -155,7 +155,7 @@ def to_aria_image_frame(
     
     rectified_img, intrinsic = undistort(provider, name, index)
     # rectified_img = image_data[0].to_numpy_array()
-    if len(rectified_img.shape) == 13: ##HEHEHE
+    if len(rectified_img.shape) == 3: ##HEHEHE
         rectified_img = np.mean(rectified_img, axis=2).astype(np.uint8)
     img = Image.fromarray(rectified_img)
     capture_time_ns = image_data[1].capture_timestamp_ns
@@ -233,8 +233,8 @@ def to_nerfstudio_frame(frame: AriaImageFrame, pinhole: bool=False) -> Dict:
             "fl_y": frame.pinhole_intrinsic[1],
             "cx": frame.pinhole_intrinsic[2],
             "cy": frame.pinhole_intrinsic[3],
-            "w": frame.pinhole_intrinsic[0] * 2,
-            "h": frame.pinhole_intrinsic[1] * 2,
+            "w": frame.pinhole_intrinsic[2] * 2,
+            "h": frame.pinhole_intrinsic[3] * 2,
             "file_path": frame.file_path,
             "transform_matrix": frame.t_world_camera.to_matrix().tolist(),
             "timestamp": frame.timestamp_ns,
@@ -350,11 +350,28 @@ class ProcessProjectAria:
             "frames": all_aria_camera_frames,
             # "fisheye_crop_radius": slam_valid_radius,
         }
+
+        # IT'S PINHOLE TIME
         mainRGB_pinhole_frames = {
             "camera_model": CAMERA_MODELS["perspective"].value,
             "frames": [to_nerfstudio_frame(frame, pinhole=True) for frame in aria_camera_frames[0]],
         }
-
+        left_pinhole_frames = {
+            "camera_model": CAMERA_MODELS["perspective"].value,
+            "frames": [to_nerfstudio_frame(frame, pinhole=True) for frame in aria_camera_frames[1]],
+        }
+        right_pinhole_frames = {
+            "camera_model": CAMERA_MODELS["perspective"].value,
+            "frames": [to_nerfstudio_frame(frame, pinhole=True) for frame in aria_camera_frames[2]],
+        }
+        side_camera_pinhole_frames = {
+            "camera_model": CAMERA_MODELS["perspective"].value,
+            "frames": left_pinhole_frames["frames"] + right_pinhole_frames["frames"],
+        }
+        all_cameras_grayscale_pinhole_frames = { # if you want to use this, make sure do turn on the HEHEHE change to ==3 instead of ==13
+            "camera_model": CAMERA_MODELS["perspective"].value,
+            "frames": mainRGB_pinhole_frames["frames"] + side_camera_pinhole_frames["frames"],
+        }
 
         # save global point cloud, which is useful for Gaussian Splatting.
         points_path = self.mps_data_dir / "global_points.csv.gz"
@@ -381,10 +398,10 @@ class ProcessProjectAria:
         with open(transform_file, "w", encoding="UTF-8"):
             # transform_file.write_text(json.dumps(mainRGB_frames))
             # transform_file.write_text(json.dumps(side_camera_frames))
-            transform_file.write_text(json.dumps(mainRGB_pinhole_frames))
+            # transform_file.write_text(json.dumps(left_pinhole_frames))
             # transform_file.write_text(json.dumps(right_camera_frames))
             # transform_file.write_text(json.dumps(side_camera_frames))
-            # transform_file.write_text(json.dumps(all_cameras_grayscale_frames)) # make sure to change HEHEHE 13
+            transform_file.write_text(json.dumps(all_cameras_grayscale_pinhole_frames)) # make sure to change HEHEHE 13
 
 
 if __name__ == "__main__":
