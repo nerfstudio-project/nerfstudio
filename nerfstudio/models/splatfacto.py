@@ -257,7 +257,7 @@ class SplatfactoModel(Model):
             torch.nn.Linear(32, 32),
             torch.nn.ReLU(),
             torch.nn.Linear(32, 6),
-            torch.nn.Sigmoid()
+            torch.nn.Sigmoid(),
         )
 
     @property
@@ -639,7 +639,7 @@ class SplatfactoModel(Model):
             Mapping of different parameter groups
         """
         gps = self.get_gaussian_param_groups()
-        gps['appearance_embed'] = list(self.appearance_nn.parameters())+list(self.image_embeds.parameters())
+        gps["appearance_embed"] = list(self.appearance_nn.parameters()) + list(self.image_embeds.parameters())
         return gps
 
     def _get_downscale_factor(self):
@@ -807,10 +807,10 @@ class SplatfactoModel(Model):
             return_alpha=True,
         )  # type: ignore
         alpha = alpha[..., None]
-        if camera.metadata is not None and 'cam_idx' in camera.metadata:
+        if camera.metadata is not None and "cam_idx" in camera.metadata:
             cam_id = camera.metadata["cam_idx"]
-            affine_shift = self.appearance_nn(self.image_embeds(torch.tensor(cam_id,device=self.device)))
-            rgb = rgb*affine_shift[:3] + affine_shift[3:]
+            affine_shift = self.appearance_nn(self.image_embeds(torch.tensor(cam_id, device=self.device)))
+            rgb = rgb * (1 + affine_shift[:3]) + affine_shift[3:]
         rgb = torch.clamp(rgb, max=1.0)  # type: ignore
         depth_im = None
         if self.config.output_depth_during_training or not self.training:
