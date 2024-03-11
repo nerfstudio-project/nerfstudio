@@ -125,6 +125,22 @@ class RaySamples(TensorDataclass):
     times: Optional[Float[Tensor, "*batch 1"]] = None
     """Times at which rays are sampled"""
 
+
+    def get_alphas(self, densities: Float[Tensor, "*batch num_samples 1"]) -> Float[Tensor, "*batch num_samples 1"]:
+        """Return weights based on predicted densities
+
+        Args:
+            densities: Predicted densities for samples along ray
+
+        Returns:
+            Weights for each sample
+        """
+
+        delta_density = self.deltas * densities
+        alphas = 1 - torch.exp(-delta_density)
+
+        return alphas
+
     def get_weights(self, densities: Float[Tensor, "*batch num_samples 1"]) -> Float[Tensor, "*batch num_samples 1"]:
         """Return weights based on predicted densities
 
@@ -186,6 +202,31 @@ class RaySamples(TensorDataclass):
         if weights_only:
             return weights
         return weights, transmittance
+    
+    def get_weights_and_transmittance(
+        self, densities: Float[Tensor, "*batch num_samples 1"]
+    ) -> Tuple[Float[Tensor, "*batch num_samples 1"], Float[Tensor, "*batch num_samples 1"]]:
+        """Return weights and transmittance based on predicted densities
+
+        Args:
+            densities: Predicted densities for samples along ray
+
+        Returns:
+            Weights and transmittance for each sample
+        """
+
+        delta_density = self.deltas * densities
+        alphas = 1 - torch.exp(-delta_density)
+
+        transmittance = torch.cumsum(delta_density[..., :-1, :], dim=-2)
+        transmittance = torch.cat(
+            [torch.zeros((*transmittance.shape[:1], 1, 1), device=densities.device), transmittance], dim=-2
+        )
+        transmittance = torch.exp(-transmittance)  # [..., "num_samples"]
+
+        weights = alphas * transmittance  # [..., "num_samples"]
+
+        return weights, transmittance
 
 
 @dataclass
@@ -209,6 +250,10 @@ class RayBundle(TensorDataclass):
     """Additional metadata or data needed for interpolation, will mimic shape of rays"""
     times: Optional[Float[Tensor, "*batch 1"]] = None
     """Times at which rays are sampled"""
+
+    # SDF stores it here so why not
+    directions_norm: Optional[Float[Tensor, "*batch 1"]] = None
+    """Norm of ray direction vector before normalization"""
 
     def set_camera_indices(self, camera_index: int) -> None:
         """Sets all the camera indices to a specific camera index.

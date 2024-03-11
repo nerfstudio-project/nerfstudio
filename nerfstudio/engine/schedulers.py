@@ -1,3 +1,4 @@
+
 # Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +18,7 @@
 
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Literal, Optional, Tuple, Type
+from typing import Any, Literal, Optional, Tuple, Type, List
 
 import numpy as np
 from torch.optim import Optimizer, lr_scheduler
@@ -172,3 +173,84 @@ class CosineDecayScheduler(Scheduler):
 
         scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=func)
         return scheduler
+
+
+@dataclass
+class MultiStepWarmupSchedulerConfig(SchedulerConfig):
+    """Basic scheduler config with self-defined exponential decay schedule"""
+
+    _target: Type = field(default_factory=lambda: MultiStepWarmupScheduler)
+    """target class to instantiate"""
+    warm_up_end: int = 5000
+    """Iteration number where warmp ends"""
+    milestones: List[int] = field(default_factory=lambda: [300000, 400000, 500000])
+    """The milestone steps at which to decay the learning rate."""
+    gamma: float = 0.33
+    """The learning rate decay factor."""
+
+
+class MultiStepWarmupScheduler(Scheduler):
+    """Starts with a flat lr schedule until it reaches N epochs then applies a given scheduler"""
+
+    config: MultiStepWarmupSchedulerConfig
+
+    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> LRScheduler:
+        def func(step):
+            if step < self.config.warm_up_end:
+                learning_factor = step / self.config.warm_up_end
+            else:
+                index = np.searchsorted(self.config.milestones, step, side="left")
+                learning_factor = self.config.gamma**index
+            return learning_factor
+
+        scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=func)
+        return scheduler
+
+@dataclass
+class ExponentialSchedulerConfig(InstantiateConfig):
+    """Basic scheduler config with self-defined exponential decay schedule"""
+
+    _target: Type = field(default_factory=lambda: lr_scheduler.ExponentialLR)
+    decay_rate: float = 0.1
+    max_steps: int = 1000000
+
+    def setup(self, optimizer=None, lr_init=None, **kwargs) -> Any:
+        """Returns the instantiated object using the config."""
+        return self._target(
+            optimizer,
+            self.decay_rate ** (1.0 / self.max_steps),
+        )
+
+
+@dataclass
+class NeuSSchedulerConfig(InstantiateConfig):
+    """Basic scheduler config with self-defined exponential decay schedule"""
+
+    _target: Type = field(default_factory=lambda: NeuSScheduler)
+    warm_up_end: int = 5000
+    learning_rate_alpha: float = 0.05
+    max_steps: int = 300000
+
+    def setup(self, optimizer=None, lr_init=None, **kwargs) -> Any:
+        """Returns the instantiated object using the config."""
+        return self._target(
+            optimizer,
+            self.warm_up_end,
+            self.learning_rate_alpha,
+            self.max_steps,
+        )
+
+class NeuSScheduler(lr_scheduler.LambdaLR):
+    """Starts with a flat lr schedule until it reaches N epochs then applies a given scheduler"""
+
+    def __init__(self, optimizer, warm_up_end, learning_rate_alpha, max_steps) -> None:
+        def func(step):
+            if step < warm_up_end:
+                learning_factor = step / warm_up_end
+            else:
+                alpha = learning_rate_alpha
+                progress = (step - warm_up_end) / (max_steps - warm_up_end)
+                learning_factor = (np.cos(np.pi * progress) + 1.0) * 0.5 * (1 - alpha) + alpha
+            return learning_factor
+
+        super().__init__(optimizer, lr_lambda=func)
