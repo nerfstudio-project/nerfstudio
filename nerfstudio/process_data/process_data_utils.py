@@ -58,7 +58,7 @@ CAMERA_MODELS = {
     "fisheye": CameraModel.OPENCV_FISHEYE,
     "equirectangular": CameraModel.EQUIRECTANGULAR,
     "pinhole": CameraModel.PINHOLE,
-    "simple_pinhole" : CameraModel.SIMPLE_PINHOLE,
+    "simple_pinhole": CameraModel.SIMPLE_PINHOLE,
 }
 
 
