@@ -807,10 +807,10 @@ class SplatfactoModel(Model):
             return_alpha=True,
         )  # type: ignore
         alpha = alpha[..., None]
-        # if camera.metadata is not None and 'cam_idx' in camera.metadata:
-        #     cam_id = camera.metadata["cam_idx"]
-        #     affine_shift = self.appearance_nn(self.image_embeds(torch.tensor(cam_id,device=self.device)))
-        #     rgb = rgb*affine_shift[:3] + affine_shift[3:]
+        if camera.metadata is not None and 'cam_idx' in camera.metadata:
+            cam_id = camera.metadata["cam_idx"]
+            affine_shift = self.appearance_nn(self.image_embeds(torch.tensor(cam_id,device=self.device)))
+            rgb = rgb*affine_shift[:3] + affine_shift[3:]
         rgb = torch.clamp(rgb, max=1.0)  # type: ignore
         depth_im = None
         if self.config.output_depth_during_training or not self.training:
