@@ -305,6 +305,7 @@ class Viewer:
                 fov=self.render_tab_state.preview_fov,
                 aspect=self.render_tab_state.preview_aspect,
                 c2w=c2w,
+                time=self.render_tab_state.preview_time,
                 camera_type=CameraType.PERSPECTIVE
                 if camera_type == "Perspective"
                 else CameraType.FISHEYE

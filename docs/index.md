@@ -156,6 +156,7 @@ This documentation is organized into 3 parts:
 - [Instruct-GS2GS](nerfology/methods/igs2gs.md): Editing 3DGS Scenes with Instructions
 - [PyNeRF](nerfology/methods/pynerf.md): Pyramidal Neural Radiance Fields
 - [SeaThru-NeRF](nerfology/methods/seathru_nerf.md): Neural Radiance Field for subsea scenes
+- [Zip-NeRF](nerfology/methods/zipnerf.md): Anti-Aliased Grid-Based Neural Radiance Fields
 
 **Eager to contribute a method?** We'd love to see you use nerfstudio in implementing new (or even existing) methods! Please view our {ref}`guide<own_method_docs>` for more details about how to add to this list!
 

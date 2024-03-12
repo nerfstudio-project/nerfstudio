@@ -29,7 +29,7 @@ from nerfstudio.utils.rich_utils import CONSOLE
 class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     """Base class to process images or video into a nerfstudio dataset using colmap"""
 
-    camera_type: Literal["perspective", "fisheye", "equirectangular"] = "perspective"
+    camera_type: Literal["perspective", "fisheye", "equirectangular", "pinhole", "simple_pinhole"] = "perspective"
     """Camera model to use."""
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed
