@@ -21,6 +21,8 @@ from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Generic, List, Optional, Tuple, Union
+from torch import Tensor
+from jaxtyping import Float
 
 import numpy as np
 import torch
@@ -60,6 +62,14 @@ class ViewerClick:
     The direction of the click if projected from the camera through the clicked pixel,
     in world coordinates
     """
+    screen_pos: Tuple[float, float]
+    """Click location, in NDC coordinates"""
+
+
+@dataclass
+class ViewerDragbox:
+    box_min: Tuple[float, float]
+    box_max: Tuple[float, float]
 
 
 class ViewerControl:
@@ -162,17 +172,36 @@ class ViewerControl:
                 return
             origin = scene_pointer_msg.ray_origin
             direction = scene_pointer_msg.ray_direction
+            screen_pos = scene_pointer_msg.screen_pos[0]
 
             origin = tuple([x / VISER_NERFSTUDIO_SCALE_RATIO for x in origin])
             assert len(origin) == 3
 
-            click = ViewerClick(origin, direction)
+            click = ViewerClick(origin, direction, screen_pos)
             cb(click)
 
         self._click_cbs[cb] = wrapped_cb
         self.viser_server.on_scene_click(wrapped_cb)
 
+    def register_dragbox_cb(self, cb: Callable):
+        @self.viser_server.on_scene_pointer(event_type="box")
+        def wrapped_cb(scene_pointer_msg: ScenePointerEvent):
+            # only call the callback if the event is a click
+            if scene_pointer_msg.event != "box":
+                return
+            box_min = scene_pointer_msg.screen_pos[0]
+            box_max = scene_pointer_msg.screen_pos[1]
+
+            dragbox = ViewerDragbox(box_min, box_max)
+            cb(dragbox)
+
+        self._click_cbs[cb] = wrapped_cb
+
     def unregister_click_cb(self, cb: Callable):
+        """Deprecated, use unregister_pointer_cb"""
+        ...
+
+    def unregister_pointer_cb(self, cb: Callable):
         """
         Remove a callback which will be called when a click is detected in the viewer.
 
@@ -181,7 +210,7 @@ class ViewerControl:
         """
         if cb not in self._click_cbs:
             raise ValueError(f"Callback {cb} not registered, cannot remove")
-        self.viser_server.remove_scene_click_callback(self._click_cbs[cb])
+        self.viser_server.remove_scene_pointer_callback(self._click_cbs[cb])
         self._click_cbs.pop(cb)
 
     @property

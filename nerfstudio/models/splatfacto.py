@@ -45,6 +45,11 @@ from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
+
+
+
+
+
 def random_quat_tensor(N):
     """
     Defines a random quaternion tensor of shape (N, 4)
@@ -155,6 +160,18 @@ class SplatfactoModelConfig(ModelConfig):
     """threshold of ratio of gaussian max to min scale before applying regularization
     loss from the PhysGaussian paper
     """
+    output_depth_during_training: bool = False
+    """If True, output depth during training. Otherwise, only output depth during evaluation."""
+    rasterize_mode: Literal["classic", "antialiased"] = "classic"
+    """
+    Classic mode of rendering will use the EWA volume splatting with a [0.3, 0.3] screen space blurring kernel. This
+    approach is however not suitable to render tiny gaussians at higher or lower resolution than the captured, which
+    results "aliasing-like" artifacts. The antialiased mode overcomes this limitation by calculating compensation factors
+    and apply them to the opacities of gaussians to preserve the total integrated density of splats.
+
+    However, PLY exported with antialiased rasterize mode is not compatible with classic mode. Thus many web viewers that
+    were implemented for classic mode can not render antialiased mode PLY properly without modifications.
+    """
 
 
 class SplatfactoModel(Model):
@@ -174,6 +191,41 @@ class SplatfactoModel(Model):
     ):
         self.seed_points = seed_points
         super().__init__(*args, **kwargs)
+        self.selected_gaussian_indices = []
+        self.original_colors = None
+
+    def update_colors(self):
+
+        if self.original_colors is None:
+            self.original_colors = self.features_dc.clone()
+        # Reset all Gaussians to their original color
+        with torch.no_grad():
+            self.features_dc[:] = self.original_colors[:]
+
+        # Proceed only if there are multiple dragboxes (more than one selection)
+        
+        with torch.no_grad():
+            # Initialize a full mask with True for the first selection
+            intersection_mask = torch.zeros(self.features_dc.shape[0], dtype=torch.bool, device=self.device)
+            first_selection = True
+
+            # Calculate the intersection of all selections
+            for indices in self.selected_gaussian_indices:
+                current_mask = torch.zeros_like(intersection_mask)
+                current_mask[list(indices)] = True
+                if first_selection:
+                    # For the first selection, initialize the intersection mask
+                    intersection_mask = current_mask
+                    first_selection = False
+                else:
+                    # Update the intersection mask
+                    intersection_mask &= current_mask
+
+            # Color only the Gaussians in the intersection red
+            intersection_indices = intersection_mask.nonzero(as_tuple=True)[0]
+            self.features_dc[intersection_indices] = RGB2SH(torch.tensor([1, 0, 0], device=self.device))
+
+
 
     def populate_modules(self):
         if self.seed_points is not None and not self.config.random_init:
@@ -203,8 +255,9 @@ class SplatfactoModel(Model):
             else:
                 CONSOLE.log("use color only optimization with sigmoid activation")
                 shs[:, 0, :3] = torch.logit(self.seed_points[1] / 255, eps=1e-10)
-            self.features_dc = torch.nn.Parameter(shs[:, 0, :])
-            self.features_rest = torch.nn.Parameter(shs[:, 1:, :])
+            self.features_dc = torch.nn.Parameter(shs[:, 0, :])#Nx1x3
+            #set to red
+            self.features_rest = torch.nn.Parameter(shs[:, 1:, :])#Nx27x3
         else:
             self.features_dc = torch.nn.Parameter(torch.rand(self.num_points, 3))
             self.features_rest = torch.nn.Parameter(torch.zeros((self.num_points, dim_sh - 1, 3)))
@@ -227,6 +280,103 @@ class SplatfactoModel(Model):
             )  # This color is the same as the default background color in Viser. This would only affect the background color when rendering.
         else:
             self.background_color = get_color(self.config.background_color)
+
+        from nerfstudio.viewer.viewer import Viewer
+
+        from nerfstudio.viewer.viewer_elements import ViewerControl, ViewerButton, ViewerClick, ViewerDragbox
+        self.viewer_control = ViewerControl()
+        # self.viewer = Viewer()
+
+        def delete_cropbox(button: ViewerButton):
+            def on_delete(click: ViewerClick):
+                print("deleting gaussianas")
+                if not self.selected_gaussian_indices:
+                    return
+                    
+
+                # Assuming self.xys is already updated with the latest projection of Gaussians
+                cumulative_mask = torch.ones(self.xys.shape[0], dtype=torch.bool, device=self.device)
+
+                # Compute a cumulative mask as the intersection of all selected dragbox indices
+                for indices in self.selected_gaussian_indices:
+                    dragbox_mask = torch.zeros(self.xys.shape[0], dtype=torch.bool, device=self.device)
+                    dragbox_mask[list(indices)] = True
+                    # Apply logical AND to accumulate only Gaussians present in all dragboxes
+                    cumulative_mask &= dragbox_mask
+
+                # Invert the cumulative_mask to keep Gaussians outside the intersection
+                keep_mask = ~cumulative_mask
+
+                # Update the Gaussian parameters to keep only the Gaussians outside the intersection
+                self.means = Parameter(self.means[keep_mask])
+                self.scales = Parameter(self.scales[keep_mask])
+                self.quats = Parameter(self.quats[keep_mask])
+                self.features_dc = Parameter(self.features_dc[keep_mask])
+                self.features_rest = Parameter(self.features_rest[keep_mask])
+                self.opacities = Parameter(self.opacities[keep_mask])
+                self.remove_from_all_optim(self.optimizers, ~keep_mask)
+                if self.max_2Dsize is not None:
+                    self.max_2Dsize = self.max_2Dsize[keep_mask]
+                    self.xys_grad_norm = self.xys_grad_norm[keep_mask]
+                    self.vis_counts = self.vis_counts[keep_mask]
+
+                # Clear the list of selected dragbox indices after deletion
+                self.selected_gaussian_indices.clear()
+                self.original_colors = None
+                
+                self.button2.set_disabled(False)
+                self.viewer_control.unregister_pointer_cb(on_delete)
+            # Disable the button and register the callback for dragbox events
+            self.button2.set_disabled(True)
+            self.viewer_control.register_dragbox_cb(on_delete)
+            
+        # Create the button with the modified callback
+        self.button2 = ViewerButton("Delete Gaussians", cb_hook=delete_cropbox) 
+                
+        def select_gaussians(button: ViewerButton):
+            def on_select(click: ViewerDragbox):
+                camera = self.viewer_control.get_camera(300, 400).to(self.device)
+                self.get_outputs_for_camera(camera)
+
+                # Convert dragbox coordinates from screen to model space
+                box_min = np.array(click.box_min)
+                box_max = np.array(click.box_max)
+
+                # Flip the y-axis coordinates due to screen space convention
+                box_min[1], box_max[1] = -box_max[1], -box_min[1]
+
+                # Adjust the coordinates to the model space
+                box_min[0] = 200 * box_min[0] + 200
+                box_max[0] = 200 * box_max[0] + 200
+                box_min[1] = 150 * box_min[1] + 150
+                box_max[1] = 150 * box_max[1] + 150
+
+                # Create a mask for the Gaussians inside the dragbox
+                mask = (
+                    (self.xys[:, 0] >= box_min[0]) &
+                    (self.xys[:, 0] <= box_max[0]) &
+                    (self.xys[:, 1] >= box_min[1]) &
+                    (self.xys[:, 1] <= box_max[1])
+                )
+
+                 # Track the indices of modified (selected) Gaussians
+                selected_indices = torch.where(mask)
+                self.selected_gaussian_indices.append(selected_indices)  # Add a new set to the list
+                print("before calling update_colors")
+                self.update_colors()
+
+                if self.training and self.xys.requires_grad:
+                    self.xys.retain_grad()
+
+                self.button.set_disabled(False)
+                self.viewer_control.unregister_pointer_cb(on_select)
+
+            # Disable the button and register the callback for dragbox events
+            self.button.set_disabled(True)
+            self.viewer_control.register_dragbox_cb(on_select)
+
+        # Create the button with the modified callback
+        self.button = ViewerButton("Select Gaussians", cb_hook=select_gaussians)
 
     @property
     def colors(self):
@@ -339,7 +489,10 @@ class SplatfactoModel(Model):
         with torch.no_grad():
             # keep track of a moving average of grad norms
             visible_mask = (self.radii > 0).flatten()
-            assert self.xys.grad is not None
+            try:
+                assert self.xys.grad is not None
+            except:
+                return
             grads = self.xys.grad.detach().norm(dim=-1)
             # print(f"grad norm min {grads.min().item()} max {grads.max().item()} mean {grads.mean().item()} size {grads.shape}")
             if self.xys_grad_norm is None:
@@ -600,6 +753,7 @@ class SplatfactoModel(Model):
                 args=[training_callback_attributes.optimizers],
             )
         )
+        self.optimizers = training_callback_attributes.optimizers
         return cbs
 
     def step_cb(self, step):
@@ -632,6 +786,17 @@ class SplatfactoModel(Model):
             )
         else:
             return 1
+
+    def _downscale_if_required(self, image):
+        d = self._get_downscale_factor()
+        if d > 1:
+            newsize = [image.shape[0] // d, image.shape[1] // d]
+
+            # torchvision can be slow to import, so we do it lazily.
+            import torchvision.transforms.functional as TF
+
+            return TF.resize(image.permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
+        return image
 
     def get_outputs(self, camera: Cameras) -> Dict[str, Union[torch.Tensor, List]]:
         """Takes in a Ray Bundle and returns a dictionary of outputs.
@@ -667,7 +832,10 @@ class SplatfactoModel(Model):
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
-                return {"rgb": background.repeat(int(camera.height.item()), int(camera.width.item()), 1)}
+                rgb = background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
+                depth = background.new_ones(*rgb.shape[:2], 1) * 10
+                accumulation = background.new_zeros(*rgb.shape[:2], 1)
+                return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
         else:
             crop_ids = None
         camera_downscale = self._get_downscale_factor()
@@ -692,12 +860,6 @@ class SplatfactoModel(Model):
         W, H = int(camera.width.item()), int(camera.height.item())
         self.last_size = (H, W)
         projmat = projection_matrix(0.001, 1000, fovx, fovy, device=self.device)
-        BLOCK_X, BLOCK_Y = 16, 16
-        tile_bounds = (
-            int((W + BLOCK_X - 1) // BLOCK_X),
-            int((H + BLOCK_Y - 1) // BLOCK_Y),
-            1,
-        )
 
         if crop_ids is not None:
             opacities_crop = self.opacities[crop_ids]
@@ -715,8 +877,8 @@ class SplatfactoModel(Model):
             quats_crop = self.quats
 
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
-
-        self.xys, depths, self.radii, conics, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
+        BLOCK_WIDTH = 16  # this controls the tile size of rasterization, 16 is a good default
+        self.xys, depths, self.radii, conics, comp, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
             means_crop,
             torch.exp(scales_crop),
             1,
@@ -729,13 +891,21 @@ class SplatfactoModel(Model):
             cy,
             H,
             W,
-            tile_bounds,
+            BLOCK_WIDTH,
         )  # type: ignore
+
+        # rescale the camera back to original dimensions before returning
+        camera.rescale_output_resolution(camera_downscale)
+
         if (self.radii).sum() == 0:
-            return {"rgb": background.repeat(int(camera.height.item()), int(camera.width.item()), 1)}
+            rgb = background.repeat(H, W, 1)
+            depth = background.new_ones(*rgb.shape[:2], 1) * 10
+            accumulation = background.new_zeros(*rgb.shape[:2], 1)
+
+            return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
 
         # Important to allow xys grads to populate properly
-        if self.training:
+        if self.training and self.xys.requires_grad:
             self.xys.retain_grad()
 
         if self.config.sh_degree > 0:
@@ -747,9 +917,17 @@ class SplatfactoModel(Model):
         else:
             rgbs = torch.sigmoid(colors_crop[:, 0, :])
 
-        # rescale the camera back to original dimensions
-        camera.rescale_output_resolution(camera_downscale)
         assert (num_tiles_hit > 0).any()  # type: ignore
+
+        # apply the compensation of screen space blurring to gaussians
+        opacities = None
+        if self.config.rasterize_mode == "antialiased":
+            opacities = torch.sigmoid(opacities_crop) * comp[:, None]
+        elif self.config.rasterize_mode == "classic":
+            opacities = torch.sigmoid(opacities_crop)
+        else:
+            raise ValueError("Unknown rasterize_mode: %s", self.config.rasterize_mode)
+
         rgb, alpha = rasterize_gaussians(  # type: ignore
             self.xys,
             depths,
@@ -757,16 +935,17 @@ class SplatfactoModel(Model):
             conics,
             num_tiles_hit,  # type: ignore
             rgbs,
-            torch.sigmoid(opacities_crop),
+            opacities,
             H,
             W,
+            BLOCK_WIDTH,
             background=background,
             return_alpha=True,
         )  # type: ignore
         alpha = alpha[..., None]
         rgb = torch.clamp(rgb, max=1.0)  # type: ignore
         depth_im = None
-        if not self.training:
+        if self.config.output_depth_during_training or not self.training:
             depth_im = rasterize_gaussians(  # type: ignore
                 self.xys,
                 depths,
@@ -777,11 +956,12 @@ class SplatfactoModel(Model):
                 torch.sigmoid(opacities_crop),
                 H,
                 W,
+                BLOCK_WIDTH,
                 background=torch.zeros(3, device=self.device),
             )[..., 0:1]  # type: ignore
             depth_im = torch.where(alpha > 0, depth_im / alpha, depth_im.detach().max())
 
-        return {"rgb": rgb, "depth": depth_im, "accumulation": alpha}  # type: ignore
+        return {"rgb": rgb, "depth": depth_im, "accumulation": alpha, "background": background}  # type: ignore
 
     def get_gt_img(self, image: torch.Tensor):
         """Compute groundtruth image with iteration dependent downscale factor for evaluation purpose
@@ -791,17 +971,21 @@ class SplatfactoModel(Model):
         """
         if image.dtype == torch.uint8:
             image = image.float() / 255.0
-        d = self._get_downscale_factor()
-        if d > 1:
-            newsize = [image.shape[0] // d, image.shape[1] // d]
-
-            # torchvision can be slow to import, so we do it lazily.
-            import torchvision.transforms.functional as TF
-
-            gt_img = TF.resize(image.permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
-        else:
-            gt_img = image
+        gt_img = self._downscale_if_required(image)
         return gt_img.to(self.device)
+
+    def composite_with_background(self, image, background) -> torch.Tensor:
+        """Composite the ground truth image with a background color when it has an alpha channel.
+
+        Args:
+            image: the image to composite
+            background: the background color
+        """
+        if image.shape[2] == 4:
+            alpha = image[..., -1].unsqueeze(-1).repeat((1, 1, 3))
+            return alpha * image[..., :3] + (1 - alpha) * background
+        else:
+            return image
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.
@@ -810,7 +994,7 @@ class SplatfactoModel(Model):
             outputs: the output to compute loss dict to
             batch: ground truth batch corresponding to outputs
         """
-        gt_rgb = self.get_gt_img(batch["image"])
+        gt_rgb = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         metrics_dict = {}
         predicted_rgb = outputs["rgb"]
         metrics_dict["psnr"] = self.psnr(predicted_rgb, gt_rgb)
@@ -826,15 +1010,16 @@ class SplatfactoModel(Model):
             batch: ground truth batch corresponding to outputs
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
-        gt_img = self.get_gt_img(batch["image"])
+        gt_img = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         pred_img = outputs["rgb"]
 
         # Set masked part of both ground-truth and rendered image to black.
         # This is a little bit sketchy for the SSIM loss.
         if "mask" in batch:
             # batch["mask"] : [H, W, 1]
-            assert batch["mask"].shape[:2] == gt_img.shape[:2] == pred_img.shape[:2]
-            mask = batch["mask"].to(self.device)
+            mask = self._downscale_if_required(batch["mask"])
+            mask = mask.to(self.device)
+            assert mask.shape[:2] == gt_img.shape[:2] == pred_img.shape[:2]
             gt_img = gt_img * mask
             pred_img = pred_img * mask
 
@@ -885,7 +1070,7 @@ class SplatfactoModel(Model):
         Returns:
             A dictionary of metrics.
         """
-        gt_rgb = self.get_gt_img(batch["image"])
+        gt_rgb = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         d = self._get_downscale_factor()
         if d > 1:
             # torchvision can be slow to import, so we do it lazily.
