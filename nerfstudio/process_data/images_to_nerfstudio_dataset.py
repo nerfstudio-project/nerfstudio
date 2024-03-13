@@ -15,6 +15,7 @@
 """Processes an image sequence to a nerfstudio compatible dataset."""
 
 from dataclasses import dataclass
+import os
 from typing import Optional
 
 from nerfstudio.process_data import equirect_utils, process_data_utils
@@ -87,7 +88,7 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                 )
                 image_rename_map_paths.update(eval_image_rename_map_paths)
 
-            image_rename_map = dict((a.name, b.name) for a, b in image_rename_map_paths.items())
+            image_rename_map = dict((os.path.join(os.path.basename(a.parent),a.name), b.name) for a, b in image_rename_map_paths.items())
             num_frames = len(image_rename_map)
             summary_log.append(f"Starting with {num_frames} images")
 

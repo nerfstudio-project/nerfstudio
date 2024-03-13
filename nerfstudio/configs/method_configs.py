@@ -68,6 +68,7 @@ from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
 from nerfstudio.models.splatfacto import SplatfactoModelConfig
 from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
+from nerfstudio.data.dataparsers.colmap_dataparser import ColmapDataParserConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 from nerfstudio.plugins.registry import discover_methods
@@ -721,8 +722,9 @@ method_configs["neuralangelo"] = TrainerConfig(
     mixed_precision=False,
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            _target=VanillaDataManager[SDFDataset],
-            dataparser=SDFStudioDataParserConfig(),
+            # _target=VanillaDataManager[SDFDataset],
+            # dataparser=SDFStudioDataParserConfig(),
+            dataparser=ColmapDataParserConfig(),
             train_num_rays_per_batch=512,
             eval_num_rays_per_batch=512,
         ),
