@@ -201,7 +201,7 @@ def populate_splat_tab(
             assert event.client is not None
             command = " ".join(
                 [
-                    "ns-export gaussian-splat",
+                    "ns-export splatfacto",
                     f"--load-config {config_path}",
                     f"--output-dir {output_directory.value}",
                 ]
