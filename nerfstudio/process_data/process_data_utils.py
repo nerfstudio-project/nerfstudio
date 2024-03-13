@@ -409,7 +409,7 @@ def copy_images(
         The mapping from the original filenames to the new ones.
     """
     with status(msg="[bold yellow]Copying images...", spinner="bouncingBall", verbose=verbose):
-        image_paths = list_images(data, recursive=True)
+        image_paths = list_images(data)
 
         if len(image_paths) == 0:
             CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
