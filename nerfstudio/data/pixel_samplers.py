@@ -303,15 +303,25 @@ class PixelSampler:
         all_depth_images = []
 
         num_rays_in_batch = num_rays_per_batch // num_images
+        change_num_rays_in_batch = num_images
         if num_rays_in_batch % 2 != 0:
+            if (num_rays_in_batch + 1) * (num_images - 1)  >= num_rays_per_batch:
+                change_num_rays_in_batch = num_images - (((num_rays_in_batch + 1) * num_images - num_rays_per_batch) // 2)
+                new_value = num_rays_in_batch - 1
             num_rays_in_batch += 1
 
+        total_number_of_rays_in_image = 0
         if "mask" in batch:
             for i in range(num_images):
                 image_height, image_width, _ = batch["image"][i].shape
 
+                if i >= change_num_rays_in_batch:
+                    num_rays_in_batch = new_value
+
                 if i == num_images - 1:
-                    num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
+                    num_rays_in_batch = num_rays_per_batch - total_number_of_rays_in_image
+
+                total_number_of_rays_in_image += num_rays_in_batch
 
                 indices = self.sample_method(
                     num_rays_in_batch, 1, image_height, image_width, mask=batch["mask"][i].unsqueeze(0), device=device
@@ -325,8 +335,15 @@ class PixelSampler:
         else:
             for i in range(num_images):
                 image_height, image_width, _ = batch["image"][i].shape
+
+                if i >= change_num_rays_in_batch:
+                    num_rays_in_batch = new_value
+
                 if i == num_images - 1:
-                    num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
+                    num_rays_in_batch = num_rays_per_batch - total_number_of_rays_in_image
+                    
+                total_number_of_rays_in_image += num_rays_in_batch
+
                 if self.config.is_equirectangular:
                     indices = self.sample_method_equirectangular(
                         num_rays_in_batch, 1, image_height, image_width, device=device
