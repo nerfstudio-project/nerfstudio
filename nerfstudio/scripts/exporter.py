@@ -22,10 +22,10 @@ from __future__ import annotations
 import json
 import os
 import sys
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple, Union, cast
-from collections import OrderedDict
 
 import numpy as np
 import open3d as o3d
@@ -45,6 +45,7 @@ from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import CONSOLE
+
 
 @dataclass
 class Exporter:
@@ -490,7 +491,7 @@ class ExportGaussianSplat(Exporter):
             
             ply_file.write(f'element vertex {count}\n'.encode())
             
-            # Add dynamic properties based on the presence of specific keys
+            # WRite properties, in order thanks to OrderedDict
             for key in map_to_tensors.keys():
                 ply_file.write(f'property float {key}\n'.encode())
             
