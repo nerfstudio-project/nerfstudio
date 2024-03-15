@@ -18,6 +18,7 @@ Code for camera paths.
 
 from typing import Any, Dict, Optional, Tuple
 
+import numpy as np
 import torch
 
 import nerfstudio.utils.poses as pose_utils
@@ -187,3 +188,72 @@ def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
         camera_type=camera_type,
         times=times,
     )
+
+
+# https://github.com/google-research/multinerf/blob/47fad9688748b3cc962990c19898aff78b45968e/internal/camera_utils.py#L230
+def generate_ellipse_path(
+    cameras: Cameras, n_frames: int = 120, const_speed: bool = True, z_variation: float = 0.0, z_phase: float = 0.0
+) -> np.ndarray:
+    """Generate an elliptical render path based on the given poses."""
+
+    poses = np.stack(cameras.camera_to_worlds.cpu().numpy())
+    # Calculate the focal point for the path (cameras point toward this).
+    center = focus_point_fn(poses)
+    # Path height sits at z=0 (in middle of zero-mean capture pattern).
+    offset = np.array([center[0], center[1], 0])
+
+    # Calculate scaling for ellipse axes based on input camera positions.
+    sc = np.percentile(np.abs(poses[:, :3, 3] - offset), 90, axis=0)
+    # Use ellipse that is symmetric about the focal point in xy.
+    low = -sc + offset
+    high = sc + offset
+    # Optional height variation need not be symmetric
+    z_low = np.percentile((poses[:, :3, 3]), 10, axis=0)
+    z_high = np.percentile((poses[:, :3, 3]), 90, axis=0)
+
+    def get_positions(theta):
+        # Interpolate between bounds with trig functions to get ellipse in x-y.
+        # Optionally also interpolate in z to change camera height along path.
+        return np.stack(
+            [
+                low[0] + (high - low)[0] * (np.cos(theta) * 0.5 + 0.5),
+                low[1] + (high - low)[1] * (np.sin(theta) * 0.5 + 0.5),
+                z_variation * (z_low[2] + (z_high - z_low)[2] * (np.cos(theta + 2 * np.pi * z_phase) * 0.5 + 0.5)),
+            ],
+            -1,
+        )
+
+    theta = np.linspace(0, 2.0 * np.pi, n_frames + 1, endpoint=True)
+    positions = get_positions(theta)
+
+    if const_speed:
+        # Resample theta angles so that the velocity is closer to constant.
+        # lengths = np.linalg.norm(positions[1:] - positions[:-1], axis=-1)
+        # theta = stepfun.sample(None, theta, np.log(lengths), n_frames + 1)
+        # positions = get_positions(theta)
+        raise NotImplementedError
+
+    # Throw away duplicated last position.
+    positions = positions[:-1]
+
+    # Set path's up vector to axis closest to average of input pose up vectors.
+    avg_up = poses[:, :3, 1].mean(0)
+    avg_up = avg_up / np.linalg.norm(avg_up)
+    ind_up = np.argmax(np.abs(avg_up))
+    up = np.eye(3)[ind_up] * np.sign(avg_up[ind_up])
+
+    render_c2ws = np.stack([viewmatrix(p - center, up, p) for p in positions])
+    render_c2ws = torch.from_numpy(render_c2ws)
+
+    # use intrinsic of first camera
+    camera_path = Cameras(
+        fx=cameras[0].fx,
+        fy=cameras[0].fy,
+        cx=cameras[0].cx,
+        cy=cameras[0].cy,
+        height=cameras[0].height,
+        width=cameras[0].width,
+        camera_to_worlds=render_c2ws[:, :3, :4],
+        camera_type=cameras[0].camera_type,
+    )
+    return camera_path
