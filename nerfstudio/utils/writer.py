@@ -56,6 +56,7 @@ class EventName(enum.Enum):
     TEST_RAYS_PER_SEC = "Test Rays / Sec"
     VIS_RAYS_PER_SEC = "Vis Rays / Sec"
     CURR_TEST_PSNR = "Test PSNR"
+    CURR_TRAIN_PSNR = "Train PSNR"
 
 
 class EventType(enum.Enum):

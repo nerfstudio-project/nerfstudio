@@ -87,6 +87,9 @@ class LocalWriterConfig(InstantiateConfig):
         writer.EventName.VIS_RAYS_PER_SEC,
         writer.EventName.TEST_RAYS_PER_SEC,
         writer.EventName.ETA,
+        writer.EventName.GPU_MEMORY_ALLOCATED_MB,
+        writer.EventName.GPU_MEMORY_RESERVED_MB,
+        writer.EventName.CURR_TRAIN_PSNR,
     )
     """specifies which stats will be logged/printed to terminal"""
     max_log_size: int = 10

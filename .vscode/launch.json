@@ -47,6 +47,70 @@
       "args": ["instant_ngp"]
     },
     {
+      "name": "Python: train nerfacto",
+      "type": "python",
+      "request": "launch",
+      "program": "nerfstudio/scripts/train.py",
+      "console": "integratedTerminal",
+      "args": [
+        "nerfacto",
+        // "--experiment_name=nerfstudio_experiment",
+        "--logging.local-writer.max-log-size=0",
+        "--data",
+        "data/nerfstudio/dozer"
+        // viewer
+        // "--viewer.enable",
+        // "--viewer.zmq-url=tcp://127.0.0.1:6001",
+        // "--viewer.websocket-port=8014",
+        // "--pipeline.model.randomize-background",
+        // "--pipeline.model.cone-angle=0.00390625",
+        // "nerfstudio-data"
+      ]
+    },
+    {
+      "name": "Python: train nerfacto colmap",
+      "type": "python",
+      "request": "launch",
+      "program": "nerfstudio/scripts/train.py",
+      "console": "integratedTerminal",
+      "args": [
+        "nerfacto",
+        // "--experiment_name=nerfstudio_experiment",
+        "--logging.local-writer.max-log-size=0",
+        "--data",
+        "/home/ozgun/research/data/12831741023324393102_2673_230_2693_230",
+        "colmap",
+        // viewer
+        // "--viewer.enable",
+        // "--viewer.zmq-url=tcp://127.0.0.1:6001",
+        // "--viewer.websocket-port=8014",
+        // "--pipeline.model.randomize-background",
+        // "--pipeline.model.cone-angle=0.00390625",
+        // "nerfstudio-data"
+      ]
+    },
+    {
+      "name": "Python: train neuralangelo",
+      "type": "python",
+      "request": "launch",
+      "program": "nerfstudio/scripts/train.py",
+      "console": "integratedTerminal",
+      "args": [
+        "neuralangelo",
+        // "--experiment_name=nerfstudio_experiment",
+        "--logging.local-writer.max-log-size=0",
+        "--data",
+        "data/sdfstudio/sdfstudio-demo-data/dtu-scan65",
+        // viewer
+        // "--viewer.enable",
+        // "--viewer.zmq-url=tcp://127.0.0.1:6001",
+        // "--viewer.websocket-port=8014",
+        // "--pipeline.model.randomize-background",
+        // "--pipeline.model.cone-angle=0.00390625",
+        // "nerfstudio-data"
+      ]
+    },
+    {
       "name": "Python: train ngp nerfstudio",
       "type": "python",
       "request": "launch",
