@@ -618,30 +618,6 @@ class ProposalNetworkSampler(Sampler):
         return ray_samples, weights_list, ray_samples_list
 
 
-def save_points(path_save, pts, colors=None, normals=None, BRG2RGB=False):
-    """save points to point cloud using open3d"""
-    assert len(pts) > 0
-    if colors is not None:
-        assert colors.shape[1] == 3
-    assert pts.shape[1] == 3
-    import numpy as np
-    import open3d as o3d
-
-    cloud = o3d.geometry.PointCloud()
-    cloud.points = o3d.utility.Vector3dVector(pts)
-    if colors is not None:
-        # Open3D assumes the color values are of float type and in range [0, 1]
-        if np.max(colors) > 1:
-            colors = colors / np.max(colors)
-        if BRG2RGB:
-            colors = np.stack([colors[:, 2], colors[:, 1], colors[:, 0]], axis=-1)
-        cloud.colors = o3d.utility.Vector3dVector(colors)
-    if normals is not None:
-        cloud.normals = o3d.utility.Vector3dVector(normals)
-
-    o3d.io.write_point_cloud(path_save, cloud)
-
-
 class NeuSSampler(Sampler):
     """NeuS sampler that uses a sdf network to generate samples with fixed variance value in each iterations."""
 
