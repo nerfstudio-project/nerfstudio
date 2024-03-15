@@ -45,11 +45,6 @@ from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
-
-
-
-
-
 def random_quat_tensor(N):
     """
     Defines a random quaternion tensor of shape (N, 4)
@@ -196,13 +191,13 @@ class SplatfactoModel(Model):
 
     def update_colors(self):
         """
-           Updates the colors of dragboxes so that it colors their intersecting gaussians red, and other gaussians 
-           their original colors
+        Updates the colors of dragboxes so that it colors their intersecting gaussians red, and other gaussians
+        their original colors
         """
         if self.original_colors is None:
             self.original_colors = self.features_dc.clone()
         with torch.no_grad():
-            self.gauss_params['features_dc'] = self.original_colors.clone()
+            self.gauss_params["features_dc"] = self.original_colors.clone()
 
         with torch.no_grad():
             intersection_mask = torch.ones(self.features_dc.shape[0], dtype=torch.bool, device=self.device)
@@ -213,9 +208,7 @@ class SplatfactoModel(Model):
                 intersection_mask &= current_mask
 
             intersection_indices = intersection_mask.nonzero(as_tuple=True)[0]
-            self.gauss_params['features_dc'][intersection_indices] = RGB2SH(torch.tensor([1, 0, 0], device=self.device))
-
-
+            self.gauss_params["features_dc"][intersection_indices] = RGB2SH(torch.tensor([1, 0, 0], device=self.device))
 
     def populate_modules(self):
         if self.seed_points is not None and not self.config.random_init:
@@ -281,9 +274,8 @@ class SplatfactoModel(Model):
         else:
             self.background_color = get_color(self.config.background_color)
 
-        from nerfstudio.viewer.viewer import Viewer
+        from nerfstudio.viewer.viewer_elements import ViewerButton, ViewerClick, ViewerControl, ViewerDragbox
 
-        from nerfstudio.viewer.viewer_elements import ViewerControl, ViewerButton, ViewerClick, ViewerDragbox
         self.viewer_control = ViewerControl()
 
         def delete_cropbox(button: ViewerButton):
@@ -315,25 +307,19 @@ class SplatfactoModel(Model):
                 # Clear the list of selected dragbox indices after deletion
                 self.selected_gaussian_indices.clear()
                 self.original_colors = None
-                
+
                 self.button2.set_disabled(False)
                 self.viewer_control.unregister_pointer_cb(on_delete)
+
             # Disable the button and register the callback for dragbox events
             self.button2.set_disabled(True)
             self.viewer_control.register_dragbox_cb(on_delete)
-            
+
         # Create the button with the modified callback
-        self.button2 = ViewerButton("Delete Gaussians", cb_hook=delete_cropbox) 
-                
+        self.button2 = ViewerButton("Delete Gaussians", cb_hook=delete_cropbox)
+
         def select_gaussians(button: ViewerButton):
             def on_select(click: ViewerDragbox):
-                
-                if self.training:
-                    print("Pause Training to Select Gaussians")
-                    self.button.set_disabled(False)
-                    self.viewer_control.unregister_pointer_cb(on_select)
-                    return
-                
                 camera = self.viewer_control.get_camera(300, 400).to(self.device)
                 self.eval()
                 self.get_outputs_for_camera(camera)
@@ -354,13 +340,13 @@ class SplatfactoModel(Model):
 
                 # Create a mask for the Gaussians inside the dragbox
                 mask = (
-                    (self.xys[:, 0] >= box_min[0]) &
-                    (self.xys[:, 0] <= box_max[0]) &
-                    (self.xys[:, 1] >= box_min[1]) &
-                    (self.xys[:, 1] <= box_max[1])
+                    (self.xys[:, 0] >= box_min[0])
+                    & (self.xys[:, 0] <= box_max[0])
+                    & (self.xys[:, 1] >= box_min[1])
+                    & (self.xys[:, 1] <= box_max[1])
                 )
 
-                 # Track the indices of modified (selected) Gaussians
+                # Track the indices of modified (selected) Gaussians
                 selected_indices = torch.where(mask)
                 self.selected_gaussian_indices.append(selected_indices)  # Add a new set to the list
                 self.update_colors()
