@@ -25,6 +25,7 @@ import trimesh
 from jaxtyping import Bool, Float
 from skimage import measure
 from torch import Tensor
+from nerfstudio.utils.rich_utils import CONSOLE
 
 avg_pool_3d = torch.nn.AvgPool3d(2, stride=2)
 upsample = torch.nn.Upsample(scale_factor=2, mode="nearest")
@@ -140,7 +141,7 @@ def generate_mesh_with_multires_marching_cubes(
     bounding_box_max: Tuple[float, float, float] = (1.0, 1.0, 1.0),
     isosurface_threshold: float = 0.0,
     coarse_mask: Union[None, Bool[Tensor, "height width depth"]] = None,
-) -> trimesh.Trimesh:
+) -> Optional[trimesh.Trimesh]:
     """
     Computes the isosurface of a signed distance function (SDF) defined by the
     callable `sdf` in a given bounding box with a specified resolution. The SDF
@@ -249,6 +250,7 @@ def generate_mesh_with_multires_marching_cubes(
 
                     meshcrop = trimesh.Trimesh(verts, faces, normals)  # type: ignore
                     meshes.append(meshcrop)
-
+                else:
+                    CONSOLE.print(f"Given isosurface threshold: {isosurface_threshold}, the calculated SDF has min {np.min(z)} and max {np.max(z)}")
     combined_mesh: trimesh.Trimesh = trimesh.util.concatenate(meshes)  # type: ignore
-    return combined_mesh
+    return combined_mesh if len(meshes) > 0 else None

@@ -432,20 +432,23 @@ class ExportMarchingCubesMesh(Exporter):
             isosurface_threshold=self.isosurface_threshold,
             coarse_mask=None,
         )
-        filename = self.output_dir / "sdf_marching_cubes_mesh.ply"
-        multi_res_mesh.export(filename)
 
-        # load the mesh from the marching cubes export
-        mesh = get_mesh_from_filename(str(filename), target_num_faces=self.target_num_faces)
-        CONSOLE.print("Texturing mesh with NeRF...")
-        texture_utils.export_textured_mesh(
-            mesh,
-            pipeline,
-            self.output_dir,
-            px_per_uv_triangle=self.px_per_uv_triangle if self.unwrap_method == "custom" else None,
-            unwrap_method=self.unwrap_method,
-            num_pixels_per_side=self.num_pixels_per_side,
-        )
+        # check whether any meshes  can be obtaiend
+        if multi_res_mesh is not None:
+            filename = self.output_dir / "sdf_marching_cubes_mesh.ply"
+            multi_res_mesh.export(filename)
+
+            # load the mesh from the marching cubes export
+            mesh = get_mesh_from_filename(str(filename), target_num_faces=self.target_num_faces)
+            CONSOLE.print("Texturing mesh with NeRF...")
+            texture_utils.export_textured_mesh(
+                mesh,
+                pipeline,
+                self.output_dir,
+                px_per_uv_triangle=self.px_per_uv_triangle if self.unwrap_method == "custom" else None,
+                unwrap_method=self.unwrap_method,
+                num_pixels_per_side=self.num_pixels_per_side,
+            )
 
 
 @dataclass

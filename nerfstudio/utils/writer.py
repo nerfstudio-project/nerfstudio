@@ -57,6 +57,8 @@ class EventName(enum.Enum):
     VIS_RAYS_PER_SEC = "Vis Rays / Sec"
     CURR_TEST_PSNR = "Test PSNR"
     CURR_TRAIN_PSNR = "Train PSNR"
+    GPU_MEMORY_ALLOCATED_MB = "GPU Memory Allocated (MB)"
+    GPU_MEMORY_RESERVED_MB = "GPU Memory Reserved (MB)"
 
 
 class EventType(enum.Enum):
