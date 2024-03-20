@@ -132,6 +132,7 @@ def undistort(provider: VrsDataProvider, sensor_name: str, index: int):# -> List
     
     rectified_image = calibration.distort_by_calibration(image_array, dst_calib, src_calib, InterpolationMethod.BILINEAR)
     """The linear camera model (a.k.a pinhole model) is parametrized by 4 coefficients : f_x, f_y, c_x, c_y."""
+    # return None, None # UNCOMMENTING THIS FIXES THE SEGFAULT
     intrinsic = [f_length, f_length, num_cols/2, num_rows/2]
 
     return rectified_image, intrinsic
@@ -152,10 +153,9 @@ def to_aria_image_frame(
     # Get the image corresponding to this index
     # ANTONIO NEW RECTIFYING BRANCH
     image_data = provider.get_image_data_by_index(stream_id, index)
-    
     rectified_img, intrinsic = undistort(provider, name, index)
-    # rectified_img = image_data[0].to_numpy_array()
-    if len(rectified_img.shape) == 3: ##HEHEHE
+    #rectified_img = image_data[0].to_numpy_array()
+    if len(rectified_img.shape) == 13: ##HEHEHE
         rectified_img = np.mean(rectified_img, axis=2).astype(np.uint8)
     img = Image.fromarray(rectified_img)
     capture_time_ns = image_data[1].capture_timestamp_ns
@@ -175,47 +175,26 @@ def to_aria_image_frame(
     
     file_path = f"{output_dir}/{name}_{capture_time_ns}.jpg"
     threading.Thread(target=lambda: img.save(file_path)).start()
-    print(f"{name}_{capture_time_ns}.jpg", img, name, index)
-    #img.save(file_path)
-    # MASTER BRANCH
-
-    # # Find the nearest neighbor pose with the closest timestamp to the capture time.
-    # nearest_pose_idx = np.searchsorted(t_world_devices.timestamps_ns, capture_time_ns)
-    # nearest_pose_idx = np.minimum(nearest_pose_idx, len(t_world_devices.timestamps_ns) - 1)
-    # assert nearest_pose_idx != -1, f"Could not find pose for {capture_time_ns}"
-    # t_world_device = t_world_devices.t_world_devices[nearest_pose_idx]
-
-    # # Compute the world to camera transform.
-    # t_world_camera = t_world_device @ camera_calibration.t_device_camera @ T_ARIA_NERFSTUDIO # this is of type SE3
+    # print(f"{name}_{capture_time_ns}.jpg", img, name, index)
     
     # ANTONIO CALIBRATION-FACTO
     time_start = int(t_world_devices.closed_loop_traj[0].tracking_timestamp.total_seconds() * 1e9)
     time_end = int(t_world_devices.closed_loop_traj[-1].tracking_timestamp.total_seconds() * 1e9)
-    time_length = time_end - time_start 
-    # print(time_length, provider.get_num_data(stream_id)) # prints 32296374000 333
 
-    # if index == 0:
-    #     print(f"HELLO HELLO TESTING TESTING 123 ON CAMERA {name}", )
-    #     print(time_start)
-    #     print(time_end)
-    #     print(t_world_devices.timestamps_ns[:5])
-    #     print(t_world_devices.timestamps_ns[-5:])
-    #     print()
-
-    #if True: #index == 0 or index >= 333:
-    #    print("00000", index, capture_time_ns)
     capture_time_ns = np.clip(capture_time_ns, time_start + 1, time_end - 1)
-    #print(type(capture_time_ns.item()))
     pose_info = get_nearest_pose(t_world_devices.closed_loop_traj, capture_time_ns)
     t_world_device = pose_info.transform_world_device
-
-    # camera_stream_label = provider.get_label_from_stream_id() # should be the same as 'name'
+    print("Image Capture Time: ", capture_time_ns)
+    print("Pose Capture Time: ", pose_info.tracking_timestamp.total_seconds() * 1e9)
+    print("Difference: ", (capture_time_ns - pose_info.tracking_timestamp.total_seconds() * 1e9) / 1e9)
+    print()
+    
+    # camera_stream_label = provider.get_label_from_stream_id() # should be the same as {name}
     device_calibration = provider.get_device_calibration()
     camera_calibration = device_calibration.get_camera_calib(name)
     
     T_device_camera = camera_calibration.get_transform_device_camera()
     t_world_camera = t_world_device @ T_device_camera @ T_ARIA_NERFSTUDIO # extrinsic matrix
-
 
     return AriaImageFrame(
         camera=ari_camera_calibration,
@@ -396,13 +375,15 @@ class ProcessProjectAria:
         print("Writing transforms.json")
         transform_file = self.output_dir / "transforms.json"
         with open(transform_file, "w", encoding="UTF-8"):
-            # transform_file.write_text(json.dumps(mainRGB_frames))
+            # transform_file.write_text(json.dumps(mainRGB_pinhole_frames))
             # transform_file.write_text(json.dumps(side_camera_frames))
             # transform_file.write_text(json.dumps(left_pinhole_frames))
-            # transform_file.write_text(json.dumps(right_camera_frames))
-            # transform_file.write_text(json.dumps(side_camera_frames))
+            # transform_file.write_text(json.dumps(right_pinhole_frames))
+            # transform_file.write_text(json.dumps(side_camera_pinhole_frames))
             transform_file.write_text(json.dumps(all_cameras_grayscale_pinhole_frames)) # make sure to change HEHEHE 13
-
+        del provider
+        import importlib.metadata
+        print(importlib.metadata.version("projectaria_tools"))
 
 if __name__ == "__main__":
     tyro.extras.set_accent_color("bright_yellow")
