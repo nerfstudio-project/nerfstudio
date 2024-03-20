@@ -457,12 +457,15 @@ def rotation_matrix(a: Float[Tensor, "3"], b: Float[Tensor, "3"]) -> Float[Tenso
     """
     a = a / torch.linalg.norm(a)
     b = b / torch.linalg.norm(b)
-    v = torch.cross(a, b)
+    v = torch.linalg.cross(a, b)
     c = torch.dot(a, b)
     # If vectors are exactly opposite, we add a little noise to one of them
-    if c < -1 + 1e-8:
-        eps = (torch.rand(3) - 0.5) * 0.01
-        return rotation_matrix(a + eps, b)
+    eps = 1e-6
+    if c < -1 + eps:
+        x = torch.tensor([1.0, 0, 0]) if abs(a[0]) < eps else torch.tensor([0, 1.0, 0])
+        v = torch.linalg.cross(a, x)
+        v = v / torch.linalg.norm(v)
+        return 2 * torch.outer(v, v) - torch.eye(3)
     s = torch.linalg.norm(v)
     skew_sym_mat = torch.Tensor(
         [
@@ -471,7 +474,7 @@ def rotation_matrix(a: Float[Tensor, "3"], b: Float[Tensor, "3"]) -> Float[Tenso
             [-v[1], v[0], 0],
         ]
     )
-    return torch.eye(3) + skew_sym_mat + skew_sym_mat @ skew_sym_mat * ((1 - c) / (s**2 + 1e-8))
+    return torch.eye(3) + skew_sym_mat + skew_sym_mat @ skew_sym_mat * ((1 - c) / (s**2 + eps))
 
 
 def focus_of_attention(poses: Float[Tensor, "*num_poses 4 4"], initial_focus: Float[Tensor, "3"]) -> Float[Tensor, "3"]:
