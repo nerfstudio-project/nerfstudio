@@ -113,7 +113,7 @@ docs = [
     "readthedocs-sphinx-search==0.1.2",
     "myst-nb==0.16.0",
     "nbconvert==7.2.5",
-    "nbformat==5.5.0",
+    "nbformat==5.9.2",
     "sphinx==5.2.1",
     "sphinxemoji==0.2.0",
     "sphinx-argparse==0.3.1",
