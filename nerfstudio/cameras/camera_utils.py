@@ -446,7 +446,7 @@ def radial_and_tangential_undistort(
     return torch.stack([x, y], dim=-1)
 
 
-def rotation_matrix(a: Float[Tensor, "3"], b: Float[Tensor, "3"]) -> Float[Tensor, "3 3"]:
+def rotation_matrix_between(a: Float[Tensor, "3"], b: Float[Tensor, "3"]) -> Float[Tensor, "3 3"]:
     """Compute the rotation matrix that rotates vector a to vector b.
 
     Args:
@@ -614,7 +614,7 @@ def auto_orient_and_center_poses(
                 # re-normalize
                 up = up / torch.linalg.norm(up)
 
-        rotation = rotation_matrix(up, torch.Tensor([0, 0, 1]))
+        rotation = rotation_matrix_between(up, torch.Tensor([0, 0, 1]))
         transform = torch.cat([rotation, rotation @ -translation[..., None]], dim=-1)
         oriented_poses = transform @ poses
     elif method == "none":
