@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple, Union, cast
@@ -482,6 +483,50 @@ class ExportGaussianSplat(Exporter):
     Export 3D Gaussian Splatting model to a .ply
     """
 
+    @staticmethod
+    def write_ply(filename: str, count: int, map_to_tensors: OrderedDict[str, np.ndarray]):
+        """
+        Writes a PLY file with given vertex properties and their float values in the order specified by the OrderedDict.
+        Note: All float values will be converted to float32 for writing.
+
+        Parameters:
+        filename (str): The name of the file to write.
+        count (int): The number of vertices to write.
+        map_to_tensors (OrderedDict[str, np.ndarray]): An ordered dictionary mapping property names to numpy arrays of float values.
+            Each array should be 1-dimensional and of equal length matching 'count'. Arrays should not be empty.
+        """
+
+        # Ensure count matches the length of all tensors
+        if not all(len(tensor) == count for tensor in map_to_tensors.values()):
+            raise ValueError("Count does not match the length of all tensors")
+
+        # Type check for numpy arrays of type float and non-empty
+        if not all(
+            isinstance(tensor, np.ndarray) and tensor.dtype.kind in ["f", "d"] and tensor.size > 0
+            for tensor in map_to_tensors.values()
+        ):
+            raise ValueError("All tensors must be numpy arrays of float type and not empty")
+
+        with open(filename, "wb") as ply_file:
+            # Write PLY header
+            ply_file.write(b"ply\n")
+            ply_file.write(b"format binary_little_endian 1.0\n")
+
+            ply_file.write(f"element vertex {count}\n".encode())
+
+            # Write properties, in order due to OrderedDict
+            for key in map_to_tensors.keys():
+                ply_file.write(f"property float {key}\n".encode())
+
+            ply_file.write(b"end_header\n")
+
+            # Write binary data
+            # Note: If this is a perfromance bottleneck consider using numpy.hstack for efficiency improvement
+            for i in range(count):
+                for tensor in map_to_tensors.values():
+                    value = tensor[i]
+                    ply_file.write(np.float32(value).tobytes())
+
     def main(self) -> None:
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
@@ -494,13 +539,19 @@ class ExportGaussianSplat(Exporter):
 
         filename = self.output_dir / "splat.ply"
 
-        map_to_tensors = {}
+        count = 0
+        map_to_tensors = OrderedDict()
 
         with torch.no_grad():
             positions = model.means.cpu().numpy()
-            n = positions.shape[0]
-            map_to_tensors["positions"] = positions
-            map_to_tensors["normals"] = np.zeros_like(positions, dtype=np.float32)
+            count = positions.shape[0]
+            n = count
+            map_to_tensors["x"] = positions[:, 0]
+            map_to_tensors["y"] = positions[:, 1]
+            map_to_tensors["z"] = positions[:, 2]
+            map_to_tensors["nx"] = np.zeros(n, dtype=np.float32)
+            map_to_tensors["ny"] = np.zeros(n, dtype=np.float32)
+            map_to_tensors["nz"] = np.zeros(n, dtype=np.float32)
 
             if model.config.sh_degree > 0:
                 shs_0 = model.shs_0.contiguous().cpu().numpy()
@@ -531,7 +582,7 @@ class ExportGaussianSplat(Exporter):
         select = np.ones(n, dtype=bool)
         for k, t in map_to_tensors.items():
             n_before = np.sum(select)
-            select = np.logical_and(select, np.isfinite(t).all(axis=1))
+            select = np.logical_and(select, np.isfinite(t).all())
             n_after = np.sum(select)
             if n_after < n_before:
                 CONSOLE.print(f"{n_before - n_after} NaN/Inf elements in {k}")
@@ -541,9 +592,7 @@ class ExportGaussianSplat(Exporter):
             for k, t in map_to_tensors.items():
                 map_to_tensors[k] = map_to_tensors[k][select, :]
 
-        pcd = o3d.t.geometry.PointCloud(map_to_tensors)
-
-        o3d.t.io.write_point_cloud(str(filename), pcd)
+        ExportGaussianSplat.write_ply(str(filename), count, map_to_tensors)
 
 
 Commands = tyro.conf.FlagConversionOff[
