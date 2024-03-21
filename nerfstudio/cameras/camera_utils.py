@@ -457,16 +457,15 @@ def rotation_matrix(a: Float[Tensor, "3"], b: Float[Tensor, "3"]) -> Float[Tenso
     """
     a = a / torch.linalg.norm(a)
     b = b / torch.linalg.norm(b)
-    v = torch.linalg.cross(a, b)
-    c = torch.dot(a, b)
-    # If vectors are exactly opposite, we add a little noise to one of them
+    v = torch.linalg.cross(a, b)  # Axis of rotation.
+
+    # Handle cases where `a` and `b` are parallel.
     eps = 1e-6
-    if c < -1 + eps:
+    if torch.sum(torch.abs(v)) < eps:
         x = torch.tensor([1.0, 0, 0]) if abs(a[0]) < eps else torch.tensor([0, 1.0, 0])
         v = torch.linalg.cross(a, x)
-        v = v / torch.linalg.norm(v)
-        return 2 * torch.outer(v, v) - torch.eye(3)
-    s = torch.linalg.norm(v)
+
+    v = v / torch.linalg.norm(v)
     skew_sym_mat = torch.Tensor(
         [
             [0, -v[2], v[1]],
@@ -474,7 +473,10 @@ def rotation_matrix(a: Float[Tensor, "3"], b: Float[Tensor, "3"]) -> Float[Tenso
             [-v[1], v[0], 0],
         ]
     )
-    return torch.eye(3) + skew_sym_mat + skew_sym_mat @ skew_sym_mat * ((1 - c) / (s**2 + eps))
+    theta = torch.acos(torch.clip(torch.dot(a, b), -1, 1))
+
+    # Rodrigues rotation formula. https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
+    return torch.eye(3) + torch.sin(theta) * skew_sym_mat + (1 - torch.cos(theta)) * (skew_sym_mat @ skew_sym_mat)
 
 
 def focus_of_attention(poses: Float[Tensor, "*num_poses 4 4"], initial_focus: Float[Tensor, "3"]) -> Float[Tensor, "3"]:
