@@ -62,7 +62,7 @@ class ViewerClick:
     in world coordinates
     """
     screen_pos: Tuple[float, float]
-    """The screen position of the click in screen coordinates."""
+    """The screen position of the click in OpenCV screen coordinates, normalized to [0, 1]"""
 
 
 @dataclass
