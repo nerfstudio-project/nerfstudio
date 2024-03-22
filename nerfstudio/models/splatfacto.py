@@ -43,6 +43,7 @@ from nerfstudio.model_components import renderers
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.rich_utils import CONSOLE
+from nerfstudio.viewer.viewer_elements import ViewerClick, ViewerDragbox
 
 
 def random_quat_tensor(N):
@@ -186,31 +187,106 @@ class SplatfactoModel(Model):
     ):
         self.seed_points = seed_points
         super().__init__(*args, **kwargs)
-        self.selected_gaussian_indices = []
         self.original_colors = None
 
-    def update_colors(self):
-        """
-        Updates the colors of dragboxes so that it colors their intersecting gaussians red, and other gaussians
-        their original colors
-        """
-        if self.original_colors is None:
-            self.original_colors = self.features_dc.clone()
-        with torch.no_grad():
-            self.gauss_params["features_dc"] = self.original_colors.clone()
+    def on_select(self, click: ViewerDragbox):
+        def update_colors():
+            """
+            Updates the colors of dragboxes so that it colors their intersecting gaussians red, and other gaussians
+            their original colors
+            """
+            if self.original_colors is None:
+                self.original_colors = self.features_dc.clone()
+            with torch.no_grad():
+                self.gauss_params["features_dc"] = self.original_colors.clone()
 
-        with torch.no_grad():
-            intersection_mask = torch.ones(self.features_dc.shape[0], dtype=torch.bool, device=self.device)
+            with torch.no_grad():
+                intersection_mask = torch.ones(self.features_dc.shape[0], dtype=torch.bool, device=self.device)
 
-            for indices in self.selected_gaussian_indices:
-                current_mask = torch.zeros_like(intersection_mask)
-                current_mask[list(indices)] = True
-                intersection_mask &= current_mask
+                for indices in self.selected_gaussian_indices:
+                    current_mask = torch.zeros_like(intersection_mask)
+                    current_mask[list(indices)] = True
+                    intersection_mask &= current_mask
 
-            intersection_indices = intersection_mask.nonzero(as_tuple=True)[0]
-            self.gauss_params["features_dc"][intersection_indices] = RGB2SH(torch.tensor([1, 0, 0], device=self.device))
+                intersection_indices = intersection_mask.nonzero(as_tuple=True)[0]
+                self.gauss_params["features_dc"][intersection_indices] = RGB2SH(
+                    torch.tensor([1, 0, 0], device=self.device)
+                )
+
+        camera = self.viewer_control.get_camera(300, 400)
+        assert camera is not None
+        camera = camera.to(self.device)
+
+        self.eval()
+        self.get_outputs_for_camera(camera)
+        self.train()
+
+        # Convert dragbox coordinates from screen to model space
+        box_min = np.array(click.box_min)
+        box_max = np.array(click.box_max)
+
+        # Flip the y-axis coordinates due to screen space convention
+        box_min[1], box_max[1] = -box_max[1], -box_min[1]
+
+        # Adjust the coordinates to the model space
+        box_min[0] = 200 * box_min[0] + 200
+        box_max[0] = 200 * box_max[0] + 200
+        box_min[1] = 150 * box_min[1] + 150
+        box_max[1] = 150 * box_max[1] + 150
+
+        # Create a mask for the Gaussians inside the dragbox
+        mask = (
+            (self.xys[:, 0] >= box_min[0])
+            & (self.xys[:, 0] <= box_max[0])
+            & (self.xys[:, 1] >= box_min[1])
+            & (self.xys[:, 1] <= box_max[1])
+        )
+
+        # Track the indices of modified (selected) Gaussians
+        selected_indices = torch.where(mask)
+        self.selected_gaussian_indices.append(selected_indices)  # Add a new set to the list
+        update_colors()
+
+        self.button.set_disabled(False)
+        self.viewer_control.unregister_pointer_cb(self.on_select)
+
+    def on_delete(self, click: ViewerClick):
+        if not self.selected_gaussian_indices:
+            return
+        # Assuming self.xys is already updated with the latest projection of Gaussians
+        cumulative_mask = torch.ones(self.xys.shape[0], dtype=torch.bool, device=self.device)
+
+        # Compute a cumulative mask as the intersection of all selected dragbox indices
+        for indices in self.selected_gaussian_indices:
+            dragbox_mask = torch.zeros(self.xys.shape[0], dtype=torch.bool, device=self.device)
+            dragbox_mask[list(indices)] = True
+            # Apply logical AND to accumulate only Gaussians present in all dragboxes
+            cumulative_mask &= dragbox_mask
+
+        # Invert the cumulative_mask to keep Gaussians outside the intersection
+        keep_mask = ~cumulative_mask
+
+        # Update the Gaussian parameters to keep only the Gaussians outside the intersection
+        for name, param in self.gauss_params.items():
+            self.gauss_params[name] = torch.nn.Parameter(param[keep_mask])
+        self.remove_from_all_optim(self.optimizers, ~keep_mask)
+        if self.max_2Dsize is not None:
+            self.max_2Dsize = self.max_2Dsize[keep_mask]
+            assert self.xys_grad_norm is not None
+            self.xys_grad_norm = self.xys_grad_norm[keep_mask]
+            assert self.vis_counts is not None
+            self.vis_counts = self.vis_counts[keep_mask]
+
+        # Clear the list of selected dragbox indices after deletion
+        self.selected_gaussian_indices.clear()
+        self.original_colors = None
+
+        self.button2.set_disabled(False)
+        self.viewer_control.unregister_pointer_cb(self.on_delete)
 
     def populate_modules(self):
+        self.selected_gaussian_indices = []
+
         if self.seed_points is not None and not self.config.random_init:
             means = torch.nn.Parameter(self.seed_points[0])  # (Location, Color)
         else:
@@ -259,11 +335,10 @@ class SplatfactoModel(Model):
 
         # metrics
         from torchmetrics.image import PeakSignalNoiseRatio
-        from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = SSIM(data_range=1.0, size_average=True, channel=3)
-        self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
+
         self.step = 0
 
         self.crop_box: Optional[OrientedBox] = None
@@ -274,89 +349,21 @@ class SplatfactoModel(Model):
         else:
             self.background_color = get_color(self.config.background_color)
 
-        from nerfstudio.viewer.viewer_elements import ViewerButton, ViewerClick, ViewerControl, ViewerDragbox
+        from nerfstudio.viewer.viewer_elements import ViewerButton, ViewerControl
 
         self.viewer_control = ViewerControl()
 
         def delete_cropbox(button: ViewerButton):
-            def on_delete(click: ViewerClick):
-                if not self.selected_gaussian_indices:
-                    return
-                # Assuming self.xys is already updated with the latest projection of Gaussians
-                cumulative_mask = torch.ones(self.xys.shape[0], dtype=torch.bool, device=self.device)
-
-                # Compute a cumulative mask as the intersection of all selected dragbox indices
-                for indices in self.selected_gaussian_indices:
-                    dragbox_mask = torch.zeros(self.xys.shape[0], dtype=torch.bool, device=self.device)
-                    dragbox_mask[list(indices)] = True
-                    # Apply logical AND to accumulate only Gaussians present in all dragboxes
-                    cumulative_mask &= dragbox_mask
-
-                # Invert the cumulative_mask to keep Gaussians outside the intersection
-                keep_mask = ~cumulative_mask
-
-                # Update the Gaussian parameters to keep only the Gaussians outside the intersection
-                for name, param in self.gauss_params.items():
-                    self.gauss_params[name] = torch.nn.Parameter(param[keep_mask])
-                self.remove_from_all_optim(self.optimizers, ~keep_mask)
-                if self.max_2Dsize is not None:
-                    self.max_2Dsize = self.max_2Dsize[keep_mask]
-                    self.xys_grad_norm = self.xys_grad_norm[keep_mask]
-                    self.vis_counts = self.vis_counts[keep_mask]
-
-                # Clear the list of selected dragbox indices after deletion
-                self.selected_gaussian_indices.clear()
-                self.original_colors = None
-
-                self.button2.set_disabled(False)
-                self.viewer_control.unregister_pointer_cb(on_delete)
-
             # Disable the button and register the callback for dragbox events
             self.button2.set_disabled(True)
-            self.viewer_control.register_dragbox_cb(on_delete)
+            self.viewer_control.register_dragbox_cb(self.on_delete)
 
         # Create the button with the modified callback
         self.button2 = ViewerButton("Delete Gaussians", cb_hook=delete_cropbox)
 
         def select_gaussians(button: ViewerButton):
-            def on_select(click: ViewerDragbox):
-                camera = self.viewer_control.get_camera(300, 400).to(self.device)
-                self.eval()
-                self.get_outputs_for_camera(camera)
-                self.train()
-
-                # Convert dragbox coordinates from screen to model space
-                box_min = np.array(click.box_min)
-                box_max = np.array(click.box_max)
-
-                # Flip the y-axis coordinates due to screen space convention
-                box_min[1], box_max[1] = -box_max[1], -box_min[1]
-
-                # Adjust the coordinates to the model space
-                box_min[0] = 200 * box_min[0] + 200
-                box_max[0] = 200 * box_max[0] + 200
-                box_min[1] = 150 * box_min[1] + 150
-                box_max[1] = 150 * box_max[1] + 150
-
-                # Create a mask for the Gaussians inside the dragbox
-                mask = (
-                    (self.xys[:, 0] >= box_min[0])
-                    & (self.xys[:, 0] <= box_max[0])
-                    & (self.xys[:, 1] >= box_min[1])
-                    & (self.xys[:, 1] <= box_max[1])
-                )
-
-                # Track the indices of modified (selected) Gaussians
-                selected_indices = torch.where(mask)
-                self.selected_gaussian_indices.append(selected_indices)  # Add a new set to the list
-                self.update_colors()
-
-                self.button.set_disabled(False)
-                self.viewer_control.unregister_pointer_cb(on_select)
-
-            # Disable the button and register the callback for dragbox events
             self.button.set_disabled(True)
-            self.viewer_control.register_dragbox_cb(on_select)
+            self.viewer_control.register_dragbox_cb(self.on_select)
 
         # Create the button with the modified callback
         self.button = ViewerButton("Select Gaussians", cb_hook=select_gaussians)
@@ -503,9 +510,7 @@ class SplatfactoModel(Model):
         with torch.no_grad():
             # keep track of a moving average of grad norms
             visible_mask = (self.radii > 0).flatten()
-            try:
-                assert self.xys.grad is not None
-            except:
+            if self.xys.grad is None:
                 return
             grads = self.xys.grad.detach().norm(dim=-1)
             # print(f"grad norm min {grads.min().item()} max {grads.max().item()} mean {grads.mean().item()} size {grads.shape}")

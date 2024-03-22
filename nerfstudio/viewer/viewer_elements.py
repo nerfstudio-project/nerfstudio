@@ -21,8 +21,6 @@ from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Generic, List, Optional, Tuple, Union
-from torch import Tensor
-from jaxtyping import Float
 
 import numpy as np
 import torch
@@ -173,10 +171,10 @@ class ViewerControl:
             origin = scene_pointer_msg.ray_origin
             direction = scene_pointer_msg.ray_direction
             screen_pos = scene_pointer_msg.screen_pos[0]
-
+            assert origin is not None
             origin = tuple([x / VISER_NERFSTUDIO_SCALE_RATIO for x in origin])
             assert len(origin) == 3
-
+            assert direction is not None
             click = ViewerClick(origin, direction, screen_pos)
             cb(click)
 
