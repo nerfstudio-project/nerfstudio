@@ -213,9 +213,10 @@ class SplatfactoModel(Model):
                     torch.tensor([1, 0, 0], device=self.device)
                 )
 
-        camera = self.viewer_control.get_camera(300, 400)
-        assert camera is not None
-        camera = camera.to(self.device)
+        with torch.no_grad():
+            camera = self.viewer_control.get_camera(300, 400)
+            assert camera is not None
+            camera = camera.to(self.device)
 
         self.eval()
         self.get_outputs_for_camera(camera)
