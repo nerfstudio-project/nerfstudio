@@ -24,11 +24,11 @@ from pathlib import Path
 from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
-from scipy import interpolate
 import splines
 import splines.quaternion
 import viser
 import viser.transforms as tf
+from scipy import interpolate
 
 from nerfstudio.viewer.control_panel import ControlPanel
 
