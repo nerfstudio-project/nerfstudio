@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import warnings
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Generic, List, Literal, Optional, Tuple, Union
@@ -203,8 +204,18 @@ class ViewerControl:
 
             cb(pointer_event)
 
-        # Register the callback with the viser server.
-        self.viser_server.on_scene_pointer(event_type=event_type)(wrapped_cb)
+        cb_overriden = False
+        with warnings.catch_warnings(record=True) as w:
+            # Register the callback with the viser server.
+            self.viser_server.on_scene_pointer(event_type=event_type)(wrapped_cb)
+            # If there exists a warning, it's because a callback was overriden.
+            cb_overriden = len(w) > 0
+
+        if cb_overriden:
+            warnings.warn(
+                "A ScenePointer callback has already been registered for this event type. "
+                "The new callback will override the existing one."
+            )
 
         # If there exists a cleanup callback after the pointer event is done, register it.
         if done_cb:
@@ -212,10 +223,10 @@ class ViewerControl:
 
     def unregister_click_cb(self, cb: Optional[Callable] = None):
         """Deprecated, use unregister_pointer_cb instead. `cb` is ignored."""
-        CONSOLE.log("`unregister_click_cb` is deprecated, use `unregister_pointer_cb` instead.")
+        warnings.warn("`unregister_click_cb` is deprecated, use `unregister_pointer_cb` instead.")
         if cb is not None:
             # raise warning
-            CONSOLE.log("cb argument is ignored in unregister_click_cb.")
+            warnings.warn("cb argument is ignored in unregister_click_cb.")
 
         self.unregister_pointer_cb()
 
