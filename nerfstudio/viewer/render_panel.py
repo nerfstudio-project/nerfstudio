@@ -24,11 +24,11 @@ from pathlib import Path
 from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
-import scipy
 import splines
 import splines.quaternion
 import viser
 import viser.transforms as tf
+from scipy import interpolate
 
 from nerfstudio.viewer.control_panel import ControlPanel
 
@@ -266,7 +266,7 @@ class CameraPath:
         if self.loop:
             # In the case of a loop, we pad the spline to match the start/end
             # slopes.
-            interpolator = scipy.interpolate.PchipInterpolator(
+            interpolator = interpolate.PchipInterpolator(
                 x=np.concatenate(
                     [
                         [-(transition_times_cumsum[-1] - transition_times_cumsum[-2])],
@@ -278,7 +278,7 @@ class CameraPath:
                 y=np.concatenate([[-1], spline_indices, [spline_indices[-1] + 1]], axis=0),
             )
         else:
-            interpolator = scipy.interpolate.PchipInterpolator(x=transition_times_cumsum, y=spline_indices)
+            interpolator = interpolate.PchipInterpolator(x=transition_times_cumsum, y=spline_indices)
 
         # Clip to account for floating point error.
         return np.clip(interpolator(time), 0, spline_indices[-1])
