@@ -18,10 +18,10 @@
 
 from __future__ import annotations
 
-import warnings
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Generic, List, Literal, Optional, Tuple, Union
+import warnings
 
 import numpy as np
 import torch
@@ -172,13 +172,14 @@ class ViewerControl:
         """
         Add a callback which will be called when a scene pointer event is detected in the viewer.
         Scene pointer events include:
-         - "click": A click event, which includes the origin and direction of the click
-         - "rect-select": A rectangle selection event, which includes the screen bounds of the box selection
+        - "click": A click event, which includes the origin and direction of the click
+        - "rect-select": A rectangle selection event, which includes the screen bounds of the box selection
+
+        The callback should take a ViewerClick object as an argument if the event type is "click",
+        and a ViewerRectSelect object as an argument if the event type is "rect-select".
 
         Args:
             cb: The callback to call when a click or a rect-select is detected.
-                The callback should take a ViewerClick object as an argument if the event type is "click",
-                and a ViewerRectSelect object as an argument if the event type is "rect-select".
         """
         from nerfstudio.viewer.viewer import VISER_NERFSTUDIO_SCALE_RATIO
 
@@ -209,7 +210,7 @@ class ViewerControl:
             # Register the callback with the viser server.
             self.viser_server.on_scene_pointer(event_type=event_type)(wrapped_cb)
             # If there exists a warning, it's because a callback was overriden.
-            cb_overriden = len(w) > 0
+            cb_overriden = (len(w) > 0)
 
         if cb_overriden:
             warnings.warn(
