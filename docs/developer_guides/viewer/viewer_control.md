@@ -62,8 +62,18 @@ class MyModel(nn.Module):  # Must inherit from nn.Module
         self.viewer_button = ViewerButton(name="Dummy Button",cb_hook=button_cb)
 ```
 
-## Scene Click Callbacks
-We forward *single* clicks inside the viewer to the ViewerControl object, which you can use to interact with the scene. To do this, register a callback using `register_click_cb()`. The click is defined to be a ray that starts at the camera origin and passes through the click point on the screen, in world coordinates. 
+## Scene Pointer Callbacks
+We forward user interactions with the viewer to the `ViewerControl` object, which you can use to interact with the scene. 
+
+We currently support:
+ - `ViewerClick`: *single* clicks inside the viewer. The click is defined to be a ray that starts at the camera origin and passes through the click point on the screen, in world coordinates. 
+ - `ViewerRectSelect`: drag to select a rectangle in the viewer screen. The rectangle is defined by two points (top-left and bottom-right corners) in normalized OpenCV screen coordinates.
+
+To do this, register a callback using `register_pointer_cb()`. 
+
+You can also use `unregister_pointer_cb()` to remove callbacks that are no longer needed. A good example is a "Click on Scene" button, that when pressed, would register a callback that would wait for the next click, and then unregister itself.
+
+Note that the viewer can only listen to *one* scene pointer callback at a time. If you register a new callback, the old one will be unregistered! Be warned that if the callback includes GUI state changes (e.g., re-enabling a disabled button), they may be lost. You can ensure that the GUI state is restored by providing a `done_cb` function that will be called after 1) the callback is run, or 2) the callback is unregistered w/o execution.
 
 ```python
 from nerfstudio.viewer.viewer_elements import ViewerControl,ViewerClick
@@ -72,19 +82,43 @@ class MyModel(nn.Module):  # must inherit from nn.Module
     def __init__(self):
         # Must be a class variable
         self.viewer_control = ViewerControl()  # no arguments
-        def click_cb(click: ViewerClick):
-            print(f"Click at {click.origin} in direction {click.direction}")
-        self.viewer_control.register_click_cb(click_cb)
-```
+        
+        # Listen to clicks in the viewer...
+        def pointer_click_cb(click: ViewerClick):
+            print(f"Click at {click.origin} in direction {click.direction}, screen position {click.screen_pos}.")
+        self.viewer_control.register_pointer_cb("click", pointer_click_cb)
 
-You can also use `unregister_click_cb()` to remove callbacks that are no longer needed. A good example is a "Click on Scene" button, that when pressed, would register a callback that would wait for the next click, and then unregister itself.
-```python
-    ...
-    def button_cb(button: ViewerButton):
-        def click_cb(click: ViewerClick):
-            print(f"Click at {click.origin} in direction {click.direction}")
-            self.viewer_control.unregister_click_cb(click_cb)
-        self.viewer_control.register_click_cb(click_cb)
+        # Listen to rectangle selections in the viewer...
+        def pointer_rect_cb(rect: ViewerRectSelect):
+            print(f"Rectangular selection from {rect.min_bounds} to {rect.max_bounds}.")
+        self.viewer_control.register_pointer_cb("click", pointer_rect_cb)
+
+        ... 
+        # Or make a button that, once pressed, listens to clicks in the viewer.
+        def button_cb(button: ViewerButton):
+            def pointer_click_cb(click: ViewerClick):
+                ...
+                self.viewer_control.unregister_pointer_cb()
+            self.viewer_control.register_pointer_cb("click", pointer_click_cb)
+        self.viewer_button = ViewerButton(name="Click on Scene", cb_hook=button_cb)
+
+        # Or make a button that, once pressed, listens to clicks in the viewer.
+        # Here, the button is disabled while it is listening to clicks.
+        def button_cb(button: ViewerButton):
+            def pointer_click_cb(click: ViewerClick):
+                ...
+
+            def pointer_click_cb_done():
+                self.viewer_button.set_disabled(False)
+                self.viewer_control.unregister_pointer_cb()
+
+            self.viewer_button.set_disabled(True)
+            self.viewer_control.register_pointer_cb(
+                "click",
+                cb=pointer_click_cb,
+                done_cb=pointer_click_cb_done
+            )
+        self.viewer_button = ViewerButton(name="Click on Scene", cb_hook=button_cb)
 ```
 
 ### Thread safety
