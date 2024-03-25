@@ -56,6 +56,8 @@ class ColmapDataParserConfig(DataParserConfig):
     """How much to scale the camera origins by."""
     downscale_factor: Optional[int] = None
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
+    downscale_rounding_mode: Literal["floor", "ceil"] = "floor"
+    """How to round downscale image height and Image width."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
     orientation_method: Literal["pca", "up", "vertical", "none"] = "up"
@@ -355,7 +357,9 @@ class ColmapDataParser(DataParser):
             camera_type=camera_type,
         )
 
-        cameras.rescale_output_resolution(scaling_factor=1.0 / downscale_factor)
+        cameras.rescale_output_resolution(
+            scaling_factor=1.0 / downscale_factor, scale_rounding_mode=self.config.downscale_rounding_mode
+        )
 
         if "applied_transform" in meta:
             applied_transform = torch.tensor(meta["applied_transform"], dtype=transform_matrix.dtype)
