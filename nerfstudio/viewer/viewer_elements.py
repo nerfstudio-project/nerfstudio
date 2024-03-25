@@ -18,10 +18,10 @@
 
 from __future__ import annotations
 
+import warnings
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Generic, List, Literal, Optional, Tuple, Union
-import warnings
 
 import numpy as np
 import torch
