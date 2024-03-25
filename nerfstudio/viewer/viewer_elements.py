@@ -210,7 +210,7 @@ class ViewerControl:
             # Register the callback with the viser server.
             self.viser_server.on_scene_pointer(event_type=event_type)(wrapped_cb)
             # If there exists a warning, it's because a callback was overriden.
-            cb_overriden = (len(w) > 0)
+            cb_overriden = len(w) > 0
 
         if cb_overriden:
             warnings.warn(
