@@ -15,12 +15,14 @@
 """Data parser for blender dataset"""
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Type
 
 import imageio
 import numpy as np
+import open3d as o3d
 import torch
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -42,6 +44,9 @@ class BlenderDataParserConfig(DataParserConfig):
     """How much to scale the camera origins by."""
     alpha_color: str = "white"
     """alpha color of background"""
+    ply_path: Path = Path("sparse_pc.ply")
+    """Plyfile path to load the 3D points. This is helpful for Gaussian splatting and
+    generally unused otherwise. If the file doesn't exist, the points are initialized randomly."""
 
 
 @dataclass
@@ -64,6 +69,7 @@ class Blender(DataParser):
 
     def _generate_dataparser_outputs(self, split="train"):
         meta = load_from_json(self.data / f"transforms_{split}.json")
+        ply_path = self.config.data / self.config.ply_path
         image_filenames = []
         poses = []
         for frame in meta["frames"]:
@@ -94,12 +100,30 @@ class Blender(DataParser):
             camera_type=CameraType.PERSPECTIVE,
         )
 
+        metadata = {}
+        if os.path.exists(ply_path):
+            metadata.update(self._load_3D_points(ply_path))
+
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
             alpha_color=self.alpha_color_tensor,
             scene_box=scene_box,
             dataparser_scale=self.scale_factor,
+            metadata=metadata,
         )
 
         return dataparser_outputs
+
+    def _load_3D_points(self, ply_file_path: Path):
+        pcd = o3d.io.read_point_cloud(str(ply_file_path))
+
+        points3D = torch.from_numpy(np.asarray(pcd.points, dtype=np.float32))
+        # TODO: Check if we need to use `transform_matrix` and `scaling_factor`
+        points3D_rgb = torch.from_numpy((np.asarray(pcd.colors) * 255).astype(np.uint8))
+
+        out = {
+            "points3D_xyz": points3D,
+            "points3D_rgb": points3D_rgb,
+        }
+        return out
