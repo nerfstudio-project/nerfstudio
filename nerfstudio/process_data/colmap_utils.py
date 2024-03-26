@@ -449,6 +449,7 @@ def colmap_to_json(
             "file_path": name.as_posix(),
             "transform_matrix": c2w.tolist(),
             "colmap_im_id": im_id,
+            "camera_id": im_data.camera_id,
         }
         if camera_mask_path is not None:
             frame["mask_path"] = camera_mask_path.relative_to(camera_mask_path.parent.parent).as_posix()
@@ -458,9 +459,17 @@ def colmap_to_json(
         frames.append(frame)
 
     if set(cam_id_to_camera.keys()) != {1}:
-        raise RuntimeError("Only single camera shared for all images is supported.")
-    out = parse_colmap_camera_params(cam_id_to_camera[1])
-    out["frames"] = frames
+        cameras = {k: parse_colmap_camera_params(v) for k, v in cam_id_to_camera.items()}
+        model = list(set(x["camera_model"] for x in cameras.values()))
+        assert len(model) == 1, "All the camera model should be same for now."
+        for i, frame in enumerate(frames):
+            frames[i] = {**frame, **cameras[frame["camera_id"]]}
+            frames[i].pop("camera_id")
+            frames[i].pop("camera_model")
+        out = {"camera_model": model[0], "frames": frames}
+    else:
+        out = parse_colmap_camera_params(cam_id_to_camera[1])
+        out["frames"] = frames
 
     applied_transform = None
     if not keep_original_world_coordinate:
