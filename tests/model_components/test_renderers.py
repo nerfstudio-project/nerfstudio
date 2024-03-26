@@ -31,7 +31,8 @@ def test_sh_renderer():
     levels = 4
     num_samples = 10
 
-    sh = torch.ones((3, num_samples, 3 * levels**2))
+    sh = torch.zeros((3, num_samples, 3 * levels**2))
+    sh[..., 0] = 3.6
     weights = torch.ones((3, num_samples, 1))
     weights /= torch.sum(weights, dim=-2, keepdim=True)
     directions = torch.zeros((3, num_samples, 3))
