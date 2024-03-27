@@ -458,9 +458,17 @@ def colmap_to_json(
         frames.append(frame)
 
     if set(cam_id_to_camera.keys()) != {1}:
-        raise RuntimeError("Only single camera shared for all images is supported.")
-    out = parse_colmap_camera_params(cam_id_to_camera[1])
-    out["frames"] = frames
+        cameras = {k: parse_colmap_camera_params(v) for k, v in cam_id_to_camera.items()}
+        camera_models = list(set(x["camera_model"] for x in cameras.values()))
+        assert len(camera_models) == 1, "All cameras should be of the same model"
+
+        for i, frame in enumerate(frames):
+            frames[i] = {**frame, **cameras[frame["colmap_im_id"]]}
+
+        out = {"camera_model": camera_models[0], "frames": frames}
+    else:
+        out = parse_colmap_camera_params(cam_id_to_camera[1])
+        out["frames"] = frames
 
     applied_transform = None
     if not keep_original_world_coordinate:
