@@ -62,7 +62,7 @@ CAMERA_MODELS = {
 }
 
 
-def list_images(data: Path, recursive: bool = False) -> List[Path]:
+def list_images(data: Path, recursive: bool = True) -> List[Path]:
     """Lists all supported images in a directory
 
     Args:
