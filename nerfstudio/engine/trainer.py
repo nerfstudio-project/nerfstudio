@@ -137,6 +137,9 @@ class Trainer:
 
         self.viewer_state = None
 
+        self.step = 0
+        self.early_stop = False
+
     def setup(self, test_mode: Literal["test", "val", "inference"] = "val") -> None:
         """Setup the Trainer by calling other setup functions.
 
@@ -234,7 +237,14 @@ class Trainer:
             num_iterations = self.config.max_num_iterations
             step = 0
             for step in range(self._start_step, self._start_step + num_iterations):
+                self.step = step
+                if self.early_stop:
+                    self.save_checkpoint(step)
+                    return
                 while self.training_state == "paused":
+                    if self.early_stop:
+                        self.save_checkpoint(step)
+                        return
                     time.sleep(0.01)
                 with self.train_lock:
                     with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
