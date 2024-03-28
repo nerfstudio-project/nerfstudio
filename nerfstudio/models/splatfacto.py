@@ -738,7 +738,6 @@ class SplatfactoModel(Model):
             1,
             quats_crop / quats_crop.norm(dim=-1, keepdim=True),
             viewmat.squeeze()[:3, :],
-            projmat.squeeze() @ viewmat.squeeze(),
             camera.fx.item(),
             camera.fy.item(),
             cx,
