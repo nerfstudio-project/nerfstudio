@@ -15,6 +15,7 @@
 """Processes an image sequence to a nerfstudio compatible dataset."""
 
 from dataclasses import dataclass
+import os
 from typing import Optional
 
 from nerfstudio.process_data import equirect_utils, process_data_utils

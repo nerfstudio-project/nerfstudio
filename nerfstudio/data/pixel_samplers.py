@@ -78,11 +78,43 @@ class PixelSampler:
         """
         self.num_rays_per_batch = num_rays_per_batch
 
+    @staticmethod
+    def calculate_number_rays_in_batch(
+        num_rays_per_batch: int, 
+        num_images: int,
+        shuffle_values: bool = False) -> list[int]:
+        # calculate the number of rays per batch  if both are divisible
+        num_rays_in_batch = num_rays_per_batch // num_images
+        
+        # check if it is an odd number
+        if num_rays_in_batch % 2 != 0:
+            # calculate the number of rays in batch based on it being an even number
+            change_num_rays_in_batch = num_images - (((num_rays_in_batch + 1) * num_images - num_rays_per_batch) // 2)
+            new_val = num_rays_in_batch - 1
+            num_rays_in_batch += 1
+        else:
+            # calculate how many different numbers we need
+            change_num_rays_in_batch = num_images - ((num_rays_per_batch - num_rays_in_batch * num_images) // 2)
+            new_val = num_rays_in_batch + 2
+        
+        # create the values
+        values = [num_rays_in_batch if i < change_num_rays_in_batch else new_val for i in range(num_images)]
+
+        # control if we reach the correct number of rays
+        assert sum(values) == num_rays_per_batch
+
+        # shuffle if set
+        if shuffle_values:
+            random.shuffle(values)
+
+        # return
+        return values
+    
     def sample_method(
         self,
         batch_size: int,
         num_images: int,
-        image_height: int,
+        image_height: int, 
         image_width: int,
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
@@ -302,16 +334,11 @@ class PixelSampler:
         all_images = []
         all_depth_images = []
 
-        num_rays_in_batch = num_rays_per_batch // num_images
-        if num_rays_in_batch % 2 != 0:
-            num_rays_in_batch += 1
+        num_rays_in_batch_l = self.calculate_number_rays_in_batch(num_rays_per_batch, num_images)
 
         if "mask" in batch:
-            for i in range(num_images):
+            for i, num_rays_in_batch  in enumerate(num_rays_in_batch_l):
                 image_height, image_width, _ = batch["image"][i].shape
-
-                if i == num_images - 1:
-                    num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
 
                 indices = self.sample_method(
                     num_rays_in_batch, 1, image_height, image_width, mask=batch["mask"][i].unsqueeze(0), device=device
@@ -323,10 +350,9 @@ class PixelSampler:
                     all_depth_images.append(batch["depth_image"][i][indices[:, 1], indices[:, 2]])
 
         else:
-            for i in range(num_images):
+            for i, num_rays_in_batch  in enumerate(num_rays_in_batch_l):
                 image_height, image_width, _ = batch["image"][i].shape
-                if i == num_images - 1:
-                    num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
+
                 if self.config.is_equirectangular:
                     indices = self.sample_method_equirectangular(
                         num_rays_in_batch, 1, image_height, image_width, device=device
