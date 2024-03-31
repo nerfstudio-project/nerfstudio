@@ -582,7 +582,7 @@ class ExportGaussianSplat(Exporter):
         select = np.ones(n, dtype=bool)
         for k, t in map_to_tensors.items():
             n_before = np.sum(select)
-            select = np.logical_and(select, np.isfinite(t).all())
+            select = np.logical_and(select, np.isfinite(t).all(axis=-1))
             n_after = np.sum(select)
             if n_after < n_before:
                 CONSOLE.print(f"{n_before - n_after} NaN/Inf elements in {k}")
@@ -590,7 +590,8 @@ class ExportGaussianSplat(Exporter):
         if np.sum(select) < n:
             CONSOLE.print(f"values have NaN/Inf in map_to_tensors, only export {np.sum(select)}/{n}")
             for k, t in map_to_tensors.items():
-                map_to_tensors[k] = map_to_tensors[k][select, :]
+                map_to_tensors[k] = map_to_tensors[k][select]
+            count = np.sum(select)
 
         ExportGaussianSplat.write_ply(str(filename), count, map_to_tensors)
 
