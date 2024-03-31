@@ -590,7 +590,7 @@ class ExportGaussianSplat(Exporter):
         if np.sum(select) < n:
             CONSOLE.print(f"values have NaN/Inf in map_to_tensors, only export {np.sum(select)}/{n}")
             for k, t in map_to_tensors.items():
-                map_to_tensors[k] = map_to_tensors[k][select, :]
+                map_to_tensors[k] = map_to_tensors[k][select]
 
         ExportGaussianSplat.write_ply(str(filename), count, map_to_tensors)
 
