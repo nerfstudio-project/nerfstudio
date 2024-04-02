@@ -112,14 +112,14 @@ class MyModel(nn.Module):  # must inherit from nn.Module
                 ...
                 self.viewer_control.unregister_pointer_cb()
 
-            def pointer_click_cb_done():
+            def pointer_click_removed_cb():
                 self.viewer_button.set_disabled(False)
 
             self.viewer_button.set_disabled(True)
             self.viewer_control.register_pointer_cb(
                 "click",
                 cb=pointer_click_cb,
-                on_remove_cb=pointer_click_cb_done
+                on_remove_cb=pointer_click_removed_cb
             )
         self.viewer_button = ViewerButton(name="Click on Scene", cb_hook=button_cb)
 ```
