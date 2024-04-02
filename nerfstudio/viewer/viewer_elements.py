@@ -167,7 +167,7 @@ class ViewerControl:
         self.register_pointer_cb("click", cb)
 
     def register_pointer_cb(
-        self, event_type: Literal["click", "rect-select"], cb: Callable, done_cb: Optional[Callable] = None
+        self, event_type: Literal["click", "rect-select"], cb: Callable, on_remove_cb: Optional[Callable] = None
     ):
         """
         Add a callback which will be called when a scene pointer event is detected in the viewer.
@@ -180,6 +180,7 @@ class ViewerControl:
 
         Args:
             cb: The callback to call when a click or a rect-select is detected.
+            on_remove_cb: The callback to run when the pointer event is removed.
         """
         from nerfstudio.viewer.viewer import VISER_NERFSTUDIO_SCALE_RATIO
 
@@ -219,8 +220,8 @@ class ViewerControl:
             )
 
         # If there exists a cleanup callback after the pointer event is done, register it.
-        if done_cb:
-            self.viser_server.on_scene_pointer_done(done_cb)
+        if on_remove_cb:
+            self.viser_server.on_scene_pointer_removed(on_remove_cb)
 
     def unregister_click_cb(self, cb: Optional[Callable] = None):
         """Deprecated, use unregister_pointer_cb instead. `cb` is ignored."""
