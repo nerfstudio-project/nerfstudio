@@ -167,7 +167,10 @@ class ViewerControl:
         self.register_pointer_cb("click", cb)
 
     def register_pointer_cb(
-        self, event_type: Literal["click", "rect-select"], cb: Callable[[ViewerClick], None], removed_cb: Optional[Callable[[], None] = None
+        self,
+        event_type: Literal["click", "rect-select"],
+        cb: Callable[[ViewerClick], None],
+        removed_cb: Optional[Callable[[], None]] = None,
     ):
         """
         Add a callback which will be called when a scene pointer event is detected in the viewer.
