@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import math
 import sys
 from dataclasses import dataclass, field
 from functools import partial
@@ -56,7 +57,7 @@ class ColmapDataParserConfig(DataParserConfig):
     """How much to scale the camera origins by."""
     downscale_factor: Optional[int] = None
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
-    downscale_rounding_mode: Literal["floor", "ceil"] = "floor"
+    downscale_rounding_mode: Literal["floor", "round", "ceil"] = "floor"
     """How to round downscale image height and Image width."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
@@ -456,10 +457,24 @@ class ColmapDataParser(DataParser):
             out["points3D_points2D_xy"] = torch.stack(points3D_image_xy, dim=0)
         return out
 
-    def _downscale_images(self, paths, get_fname, downscale_factor: int, nearest_neighbor: bool = False):
+    def _downscale_images(self, paths, get_fname, downscale_factor: int, downscale_rounding_mode: str = "floor",nearest_neighbor: bool = False):
+        def calculate_scaled_size(original_width, original_height, downscale_factor, mode='floor'):
+            if mode == 'floor':
+                return math.floor(original_width / downscale_factor), math.floor(original_height / downscale_factor)
+            elif mode == 'round':
+                return round(original_width / downscale_factor), round(original_height / downscale_factor)
+            elif mode == 'ceil':
+                return math.ceil(original_width / downscale_factor), math.ceil(original_height / downscale_factor)
+            else:
+                raise ValueError("Invalid mode. Choose from 'floor', 'round', or 'ceil'.")
+
         with status(msg="[bold yellow]Downscaling images...", spinner="growVertical"):
             assert downscale_factor > 1
             assert isinstance(downscale_factor, int)
+            filepath = next(iter(paths))
+            img = Image.open(filepath)
+            w,h = img.size
+            w_scaled, h_scaled = calculate_scaled_size(w, h, downscale_factor, downscale_rounding_mode)
             # Using %05d ffmpeg commands appears to be unreliable (skips images).
             for path in paths:
                 nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
@@ -467,7 +482,7 @@ class ColmapDataParser(DataParser):
                 path_out.parent.mkdir(parents=True, exist_ok=True)
                 ffmpeg_cmd = [
                     f'ffmpeg -y -noautorotate -i "{path}" ',
-                    f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor}{nn_flag} ",
+                    f"-q:v 2 -vf scale={w_scaled}:{h_scaled}{nn_flag} ",
                     f'"{path_out}"',
                 ]
                 ffmpeg_cmd = " ".join(ffmpeg_cmd)
@@ -512,12 +527,13 @@ class ColmapDataParser(DataParser):
                 CONSOLE.print(
                     f"[bold red]Downscaled images do not exist for factor of {self._downscale_factor}.[/bold red]"
                 )
-                if Confirm.ask("\nWould you like to downscale the images now?", default=False, console=CONSOLE):
+                if Confirm.ask(f"\nWould you like to downscale the images using '{self.config.downscale_rounding_mode}' rounding mode now?", default=False, console=CONSOLE):
                     # Install the method
                     self._downscale_images(
                         image_filenames,
                         partial(get_fname, self.config.data / self.config.images_path),
                         self._downscale_factor,
+                        self.config.downscale_rounding_mode,
                         nearest_neighbor=False,
                     )
                     if len(mask_filenames) > 0:
@@ -526,6 +542,7 @@ class ColmapDataParser(DataParser):
                             mask_filenames,
                             partial(get_fname, self.config.data / self.config.masks_path),
                             self._downscale_factor,
+                            self.config.downscale_rounding_mode,
                             nearest_neighbor=True,
                         )
                     if len(depth_filenames) > 0:
@@ -534,6 +551,7 @@ class ColmapDataParser(DataParser):
                             depth_filenames,
                             partial(get_fname, self.config.data / self.config.depths_path),
                             self._downscale_factor,
+                            self.config.downscale_rounding_mode,
                             nearest_neighbor=True,
                         )
                 else:

@@ -1012,8 +1012,11 @@ class Cameras(TensorDataclass):
         if scale_rounding_mode == "floor":
             self.height = (self.height * scaling_factor).to(torch.int64)
             self.width = (self.width * scaling_factor).to(torch.int64)
+        elif scale_rounding_mode == "round":
+            self.height = torch.floor(0.5 + (self.height * scaling_factor)).to(torch.int64)
+            self.width = torch.floor(0.5 + (self.width * scaling_factor)).to(torch.int64)
         elif scale_rounding_mode == "ceil":
             self.height = torch.ceil(self.height * scaling_factor).to(torch.int64)
             self.width = torch.ceil(self.width * scaling_factor).to(torch.int64)
         else:
-            raise ValueError("Scale rounding mode must be 'floor' or 'ceil'.")
+            raise ValueError("Scale rounding mode must be 'floor', 'round' or 'ceil'.")
