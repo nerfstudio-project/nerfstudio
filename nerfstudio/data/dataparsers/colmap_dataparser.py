@@ -507,7 +507,7 @@ class ColmapDataParser(DataParser):
         if self._downscale_factor is None:
             if self.config.downscale_factor is None:
                 test_img = Image.open(filepath)
-                h, w = test_img.size
+                w, h = test_img.size
                 max_res = max(h, w)
                 df = 0
                 while True:
