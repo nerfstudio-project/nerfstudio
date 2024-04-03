@@ -73,7 +73,7 @@ To do this, register a callback using `register_pointer_cb()`.
 
 You can also use `unregister_pointer_cb()` to remove callbacks that are no longer needed. A good example is a "Click on Scene" button, that when pressed, would register a callback that would wait for the next click, and then unregister itself.
 
-Note that the viewer can only listen to *one* scene pointer callback at a time. If you register a new callback, the old one will be unregistered! Be warned that if the callback includes GUI state changes (e.g., re-enabling a disabled button), they may be lost. You can ensure that the GUI state is restored by providing a `on_remove_cb` function that will be called after the callback is removed.
+Note that the viewer can only listen to *one* scene pointer callback at a time. If you register a new callback, the old one will be unregistered! Be warned that if the callback includes GUI state changes (e.g., re-enabling a disabled button), they may be lost. You can ensure that the GUI state is restored by providing a `removed_cb` function that will be called after the callback is removed.
 
 ```python
 from nerfstudio.viewer.viewer_elements import ViewerControl,ViewerClick
@@ -119,7 +119,7 @@ class MyModel(nn.Module):  # must inherit from nn.Module
             self.viewer_control.register_pointer_cb(
                 "click",
                 cb=pointer_click_cb,
-                on_remove_cb=pointer_click_removed_cb
+                removed_cb=pointer_click_removed_cb
             )
         self.viewer_button = ViewerButton(name="Click on Scene", cb_hook=button_cb)
 ```
