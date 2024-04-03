@@ -457,13 +457,20 @@ class ColmapDataParser(DataParser):
             out["points3D_points2D_xy"] = torch.stack(points3D_image_xy, dim=0)
         return out
 
-    def _downscale_images(self, paths, get_fname, downscale_factor: int, downscale_rounding_mode: str = "floor",nearest_neighbor: bool = False):
-        def calculate_scaled_size(original_width, original_height, downscale_factor, mode='floor'):
-            if mode == 'floor':
+    def _downscale_images(
+        self,
+        paths,
+        get_fname,
+        downscale_factor: int,
+        downscale_rounding_mode: str = "floor",
+        nearest_neighbor: bool = False,
+    ):
+        def calculate_scaled_size(original_width, original_height, downscale_factor, mode="floor"):
+            if mode == "floor":
                 return math.floor(original_width / downscale_factor), math.floor(original_height / downscale_factor)
-            elif mode == 'round':
+            elif mode == "round":
                 return round(original_width / downscale_factor), round(original_height / downscale_factor)
-            elif mode == 'ceil':
+            elif mode == "ceil":
                 return math.ceil(original_width / downscale_factor), math.ceil(original_height / downscale_factor)
             else:
                 raise ValueError("Invalid mode. Choose from 'floor', 'round', or 'ceil'.")
@@ -473,7 +480,7 @@ class ColmapDataParser(DataParser):
             assert isinstance(downscale_factor, int)
             filepath = next(iter(paths))
             img = Image.open(filepath)
-            w,h = img.size
+            w, h = img.size
             w_scaled, h_scaled = calculate_scaled_size(w, h, downscale_factor, downscale_rounding_mode)
             # Using %05d ffmpeg commands appears to be unreliable (skips images).
             for path in paths:
@@ -527,7 +534,11 @@ class ColmapDataParser(DataParser):
                 CONSOLE.print(
                     f"[bold red]Downscaled images do not exist for factor of {self._downscale_factor}.[/bold red]"
                 )
-                if Confirm.ask(f"\nWould you like to downscale the images using '{self.config.downscale_rounding_mode}' rounding mode now?", default=False, console=CONSOLE):
+                if Confirm.ask(
+                    f"\nWould you like to downscale the images using '{self.config.downscale_rounding_mode}' rounding mode now?",
+                    default=False,
+                    console=CONSOLE,
+                ):
                     # Install the method
                     self._downscale_images(
                         image_filenames,
