@@ -225,7 +225,7 @@ class ViewerControl:
             else:
                 raise ValueError(f"Unknown event type: {scene_pointer_msg.event_type}")
 
-            cb(pointer_event)
+            cb(pointer_event)  # type: ignore
 
         cb_overriden = False
         with warnings.catch_warnings(record=True) as w:
