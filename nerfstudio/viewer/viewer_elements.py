@@ -21,7 +21,7 @@ from __future__ import annotations
 import warnings
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Generic, List, Literal, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, List, Literal, Optional, Tuple, Union, overload
 
 import numpy as np
 import torch
@@ -166,10 +166,28 @@ class ViewerControl:
         CONSOLE.log("`register_click_cb` is deprecated, use `register_pointer_cb` instead.")
         self.register_pointer_cb("click", cb)
 
+    @overload
+    def register_pointer_cb(
+        self,
+        event_type: Literal["click"],
+        cb: Callable[[ViewerClick], None],
+        removed_cb: Optional[Callable[[], None]] = None,
+    ):
+        ...
+
+    @overload
+    def register_pointer_cb(
+        self,
+        event_type: Literal["rect-select"],
+        cb: Callable[[ViewerRectSelect], None],
+        removed_cb: Optional[Callable[[], None]] = None,
+    ):
+        ...
+
     def register_pointer_cb(
         self,
         event_type: Literal["click", "rect-select"],
-        cb: Callable[[ViewerClick], None],
+        cb: Callable[[ViewerClick], None] | Callable[[ViewerRectSelect], None],
         removed_cb: Optional[Callable[[], None]] = None,
     ):
         """
