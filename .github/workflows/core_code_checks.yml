@@ -27,7 +27,7 @@ jobs:
         run: |
           python -m venv /opt/venv && export PATH="/opt/venv/bin:$PATH"
           python -m pip install uv
-          python -m uv pip install --upgrade --upgrade-strategy eager -e .[dev]
+          python -m uv pip install --upgrade -e .[dev]
       - name: Run license checks
         run: |
           ./nerfstudio/scripts/licensing/license_headers.sh --check
