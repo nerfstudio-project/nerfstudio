@@ -73,7 +73,7 @@ To do this, register a callback using `register_pointer_cb()`.
 
 You can also use `unregister_pointer_cb()` to remove callbacks that are no longer needed. A good example is a "Click on Scene" button, that when pressed, would register a callback that would wait for the next click, and then unregister itself.
 
-Note that the viewer can only listen to *one* scene pointer callback at a time. If you register a new callback, the old one will be unregistered! Be warned that if the callback includes GUI state changes (e.g., re-enabling a disabled button), they may be lost. You can ensure that the GUI state is restored by providing a `done_cb` function that will be called after 1) the callback is run, or 2) the callback is unregistered w/o execution.
+Note that the viewer can only listen to *one* scene pointer callback at a time. If you register a new callback, the old one will be unregistered! Be warned that if the callback includes GUI state changes (e.g., re-enabling a disabled button), they may be lost. You can ensure that the GUI state is restored by providing a `removed_cb` function that will be called after the callback is removed.
 
 ```python
 from nerfstudio.viewer.viewer_elements import ViewerControl,ViewerClick
@@ -104,19 +104,22 @@ class MyModel(nn.Module):  # must inherit from nn.Module
 
         # Or make a button that, once pressed, listens to clicks in the viewer.
         # Here, the button is disabled while it is listening to clicks.
+        # The button will become enabled again if either:
+        # - the callback is removed in `pointer_click_cb`, with the `unregister...`, or
+        # - the callback is overridden by the viewer (to listen to another callback).
         def button_cb(button: ViewerButton):
             def pointer_click_cb(click: ViewerClick):
                 ...
-
-            def pointer_click_cb_done():
-                self.viewer_button.set_disabled(False)
                 self.viewer_control.unregister_pointer_cb()
+
+            def pointer_click_removed_cb():
+                self.viewer_button.set_disabled(False)
 
             self.viewer_button.set_disabled(True)
             self.viewer_control.register_pointer_cb(
                 "click",
                 cb=pointer_click_cb,
-                done_cb=pointer_click_cb_done
+                removed_cb=pointer_click_removed_cb
             )
         self.viewer_button = ViewerButton(name="Click on Scene", cb_hook=button_cb)
 ```
