@@ -139,7 +139,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
     def cached_eval(self) -> List[Dict[str, torch.Tensor]]:
         """Get the eval images. Will load and undistort the images the
         first time this (cached) property is accessed."""
-        return self._load_images("train", cache_images_device=self.config.cache_images)
+        return self._load_images("eval", cache_images_device=self.config.cache_images)
 
     def _load_images(
         self, split: Literal["train", "eval"], cache_images_device: Literal["cpu", "gpu"]
