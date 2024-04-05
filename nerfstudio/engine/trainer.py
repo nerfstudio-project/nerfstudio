@@ -303,7 +303,7 @@ class Trainer:
                     self.save_checkpoint(step)
 
                 writer.write_out_storage()
-                
+
         # save checkpoint at the end of training, and write out any remaining events
         self._after_train()
 
