@@ -127,6 +127,7 @@ def undistort(provider: VrsDataProvider, sensor_name: str, index: int):# -> List
     device_calib = provider.get_device_calibration()
     src_calib = device_calib.get_camera_calib(sensor_name)
     f_length = src_calib.get_focal_lengths()[0].item()
+    f_length = f_length + 50 if sensor_name == "camera-rgb" else f_length
     num_rows, num_cols = image_array.shape[0], image_array.shape[1]
     dst_calib = calibration.get_linear_camera_calibration(num_cols, num_rows, f_length, sensor_name)
     
@@ -160,19 +161,6 @@ def to_aria_image_frame(
     img = Image.fromarray(rectified_img)
     capture_time_ns = image_data[1].capture_timestamp_ns
     
-    
-    # ANTONIO OLD BRANCH
-    # image_data = provider.get_image_data_by_index(stream_id, index)
-    # temp = image_data[0].to_numpy_array()
-    # if len(temp.shape) == 3:
-    #     img_np = np.mean(temp, axis=2).astype(np.uint8)
-    #     img = Image.fromarray(img_np)
-    # else:
-    #     img = Image.fromarray(image_data[0].to_numpy_array())
-    # capture_time_ns = image_data[1].capture_timestamp_ns
-    
-
-    
     file_path = f"{output_dir}/{name}_{capture_time_ns}.jpg"
     threading.Thread(target=lambda: img.save(file_path)).start()
     # print(f"{name}_{capture_time_ns}.jpg", img, name, index)
@@ -184,6 +172,7 @@ def to_aria_image_frame(
     capture_time_ns = np.clip(capture_time_ns, time_start + 1, time_end - 1)
     pose_info = get_nearest_pose(t_world_devices.closed_loop_traj, capture_time_ns)
     t_world_device = pose_info.transform_world_device
+    print(name, index)
     print("Image Capture Time: ", capture_time_ns)
     print("Pose Capture Time: ", pose_info.tracking_timestamp.total_seconds() * 1e9)
     print("Difference: ", (capture_time_ns - pose_info.tracking_timestamp.total_seconds() * 1e9) / 1e9)
@@ -272,8 +261,8 @@ class ProcessProjectAria:
         aria_camera_frames = [
             [
                 to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[i])
-                for index in range(0, provider.get_num_data(stream_id)) # there are 333 images per camera
-                # for index in range(0, 1)
+                #for index in range(0, provider.get_num_data(stream_id)) # there are 333 images per camera
+                for index in range(0, 100)
             ] 
             for i, stream_id in enumerate(stream_ids)
         ] # aria_frames = aria_camera_frames[0]
@@ -351,6 +340,10 @@ class ProcessProjectAria:
             "camera_model": CAMERA_MODELS["perspective"].value,
             "frames": mainRGB_pinhole_frames["frames"] + side_camera_pinhole_frames["frames"],
         }
+        all_cameras_pinhole_frames = { # has color + grayscale images
+            "camera_model": CAMERA_MODELS["perspective"].value,
+            "frames": mainRGB_pinhole_frames["frames"] + side_camera_pinhole_frames["frames"],
+        }
 
         # save global point cloud, which is useful for Gaussian Splatting.
         points_path = self.mps_data_dir / "global_points.csv.gz"
@@ -381,7 +374,6 @@ class ProcessProjectAria:
             # transform_file.write_text(json.dumps(right_pinhole_frames))
             # transform_file.write_text(json.dumps(side_camera_pinhole_frames))
             transform_file.write_text(json.dumps(all_cameras_grayscale_pinhole_frames)) # make sure to change HEHEHE 13
-        del provider
         import importlib.metadata
         print(importlib.metadata.version("projectaria_tools"))
 
