@@ -137,7 +137,10 @@ class Trainer:
 
         self.viewer_state = None
 
+        # used to keep track of the current step in webui
         self.step = 0
+        # A flag to stop training early for gradio webui, added seperately to avoid
+        # interference with viewer
         self.early_stop = False
 
     def setup(self, test_mode: Literal["test", "val", "inference"] = "val") -> None:
@@ -239,11 +242,11 @@ class Trainer:
             for step in range(self._start_step, self._start_step + num_iterations):
                 self.step = step
                 if self.early_stop:
-                    self.save_checkpoint(step)
+                    self._after_train()
                     return
                 while self.training_state == "paused":
                     if self.early_stop:
-                        self.save_checkpoint(step)
+                        self._after_train()
                         return
                     time.sleep(0.01)
                 with self.train_lock:
@@ -300,13 +303,15 @@ class Trainer:
                     self.save_checkpoint(step)
 
                 writer.write_out_storage()
+        # save checkpoint at the end of training, and write out any remaining events
+        self._after_train()
 
+    def _after_train(self) -> None:
+        """Function to run after training is complete"""
         # save checkpoint at the end of training
-        self.save_checkpoint(step)
-
+        self.save_checkpoint(self.step)
         # write out any remaining events (e.g., total train time)
         writer.write_out_storage()
-
         table = Table(
             title=None,
             show_header=False,
@@ -319,10 +324,13 @@ class Trainer:
 
         # after train end callbacks
         for callback in self.callbacks:
-            callback.run_callback_at_location(step=step, location=TrainingCallbackLocation.AFTER_TRAIN)
+            callback.run_callback_at_location(step=self.step, location=TrainingCallbackLocation.AFTER_TRAIN)
 
         if not self.config.viewer.quit_on_train_completion:
             self._train_complete_viewer()
+        else:
+            # stop the viewer
+            self.viewer_state.viser_server.stop()
 
     @check_main_thread
     def _check_viewer_warnings(self) -> None:
