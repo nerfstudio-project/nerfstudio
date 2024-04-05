@@ -137,7 +137,7 @@ class Trainer:
 
         self.viewer_state = None
 
-        # used to keep track of the current step in webui
+        # used to keep track of the current step
         self.step = 0
         # A flag to stop training early for gradio webui, added seperately to avoid
         # interference with viewer
@@ -303,11 +303,13 @@ class Trainer:
                     self.save_checkpoint(step)
 
                 writer.write_out_storage()
+                
         # save checkpoint at the end of training, and write out any remaining events
         self._after_train()
 
     def _after_train(self) -> None:
         """Function to run after training is complete"""
+        self.training_state = "completed"  # use to update the webui state
         # save checkpoint at the end of training
         self.save_checkpoint(self.step)
         # write out any remaining events (e.g., total train time)
