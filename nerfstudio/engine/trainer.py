@@ -308,7 +308,9 @@ class Trainer:
         """Stop the trainer and stop all associated threads/processes (such as the viewer)."""
         self.stop_training = True  # tell the training loop to stop
         if self.viewer_state is not None:
-            self._stop_viewer_server()
+            # stop the viewer
+            assert self.viewer_state.viser_server is not None
+            self.viewer_state.viser_server.stop()
 
     def _after_train(self) -> None:
         """Function to run after training is complete"""
@@ -358,12 +360,6 @@ class Trainer:
             train_state="training",
             eval_dataset=self.pipeline.datamanager.eval_dataset,
         )
-
-    @check_viewer_enabled
-    def _stop_viewer_server(self) -> None:
-        """Stops the viewer"""
-        assert self.viewer_state is not None
-        self.viewer_state.viser_server.stop()
 
     @check_viewer_enabled
     def _update_viewer_state(self, step: int) -> None:
