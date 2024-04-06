@@ -242,7 +242,7 @@ class Trainer:
                 if self.stop_training:
                     break
                 while self.training_state == "paused":
-                    if self.early_stop:
+                    if self.stop_training:
                         self._after_train()
                         return
                     time.sleep(0.01)
