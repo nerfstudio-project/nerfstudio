@@ -182,10 +182,12 @@ class CameraOptimizer(nn.Module):
     def get_metrics_dict(self, metrics_dict: dict) -> None:
         """Get camera optimizer metrics"""
         if self.config.mode != "off":
-            metrics_dict["camera_opt_translation_max"] = self.pose_adjustment[:, :3].norm(dim=-1).max()
-            metrics_dict["camera_opt_translation_mean"] = self.pose_adjustment[:, :3].norm(dim=-1).mean()
-            metrics_dict["camera_opt_rotation_mean"] = numpy.rad2deg(self.pose_adjustment[:, 3:].norm(dim=-1).mean())
-            metrics_dict["camera_opt_rotation_max"] = numpy.rad2deg(self.pose_adjustment[:, 3:].norm(dim=-1).max())
+            trans = self.pose_adjustment[:, :3].detach().norm(dim=-1)
+            rot = self.pose_adjustment[:, 3:].detach().norm(dim=-1)
+            metrics_dict["camera_opt_translation_max"] = trans.max()
+            metrics_dict["camera_opt_translation_mean"] = trans.mean()
+            metrics_dict["camera_opt_rotation_mean"] = numpy.rad2deg(rot.mean().cpu())
+            metrics_dict["camera_opt_rotation_max"] = numpy.rad2deg(rot.max().cpu())
 
     def get_param_groups(self, param_groups: dict) -> None:
         """Get camera optimizer parameters"""
