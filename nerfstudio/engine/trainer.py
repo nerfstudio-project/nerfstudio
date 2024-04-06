@@ -139,9 +139,6 @@ class Trainer:
 
         # used to keep track of the current step
         self.step = 0
-        # A flag to stop training early for gradio webui, added seperately to avoid
-        # interference with viewer
-        self.early_stop = False
 
     def setup(self, test_mode: Literal["test", "val", "inference"] = "val") -> None:
         """Setup the Trainer by calling other setup functions.
@@ -239,11 +236,11 @@ class Trainer:
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.max_num_iterations
             step = 0
+            self.stop_training = False
             for step in range(self._start_step, self._start_step + num_iterations):
                 self.step = step
-                if self.early_stop:
-                    self._after_train()
-                    return
+                if self.stop_training:
+                    break
                 while self.training_state == "paused":
                     if self.early_stop:
                         self._after_train()
@@ -307,9 +304,15 @@ class Trainer:
         # save checkpoint at the end of training, and write out any remaining events
         self._after_train()
 
+    def shutdown(self) -> None:
+        """Stop the trainer and stop all associated threads/processes (such as the viewer)."""
+        self.stop_training = True  # tell the training loop to stop
+        if self.viewer_state is not None:
+            self._stop_viewer_server()
+
     def _after_train(self) -> None:
         """Function to run after training is complete"""
-        self.training_state = "completed"  # use to update the webui state
+        self.training_state = "completed"  # used to update the webui state
         # save checkpoint at the end of training
         self.save_checkpoint(self.step)
         # write out any remaining events (e.g., total train time)
@@ -330,9 +333,6 @@ class Trainer:
 
         if not self.config.viewer.quit_on_train_completion:
             self._train_complete_viewer()
-        else:
-            # stop the viewer
-            self._stop_viewer_server()
 
     @check_main_thread
     def _check_viewer_warnings(self) -> None:
