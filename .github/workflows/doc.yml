@@ -16,18 +16,13 @@ jobs:
       - uses: actions/setup-python@v3
         with:
           python-version: '3.9'
-      - name: Set up virtual environment
-        run: |
-          python -m venv /opt/venv
-          source /opt/venv/bin/activate
       - name: Install dependencies
         run: |
           pip install uv
-          uv pip install .[docs]
+          uv pip install --system .[docs]
       - name: Sphinx build
         # fail on warnings
-        run: |
-          sphinx-build docs _build -W --keep-going
+        run: sphinx-build docs _build -W --keep-going
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:

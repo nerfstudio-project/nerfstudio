@@ -23,14 +23,10 @@ jobs:
         with:
           path: ${{ env.pythonLocation }}
           key: ${{ env.pythonLocation }}-${{ hashFiles('pyproject.toml') }}
-      - name: Set up virtual environment
-        run: |
-          python -m venv /opt/venv
-          source /opt/venv/bin/activate
       - name: Install dependencies
         run: |
           pip install uv
-          uv pip install --upgrade -e .[dev]
+          uv pip install --system --upgrade -e .[dev]
       - name: Run license checks
         run: |
           ./nerfstudio/scripts/licensing/license_headers.sh --check
