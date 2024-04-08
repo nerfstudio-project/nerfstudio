@@ -24,6 +24,7 @@ jobs:
       - name: Sphinx build
         # fail on warnings
         run: |
+          python -m venv /opt/venv && export PATH="/opt/venv/bin:$PATH"
           python -m sphinx.cmd.build docs _build -W --keep-going
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
