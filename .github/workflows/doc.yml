@@ -24,7 +24,7 @@ jobs:
       - name: Sphinx build
         # fail on warnings
         run: |
-          python -m sphinx-build docs _build -W --keep-going
+          python -m sphinx.cmd.build docs _build -W --keep-going
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
