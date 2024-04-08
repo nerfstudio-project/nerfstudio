@@ -14,6 +14,7 @@
 
 
 """This file contains the configuration for external methods which are not included in this repository."""
+
 import inspect
 import subprocess
 import sys
@@ -223,6 +224,7 @@ To enable SIGNeRF, you must install it first by running:
         pip_package="git+https://github.com/cgtuebingen/SIGNeRF",
     )
 )
+
 
 @dataclass
 class ExternalMethodDummyTrainerConfig:
