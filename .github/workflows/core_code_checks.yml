@@ -23,31 +23,29 @@ jobs:
         with:
           path: ${{ env.pythonLocation }}
           key: ${{ env.pythonLocation }}-${{ hashFiles('pyproject.toml') }}
+      - name: Set up virtual environment
+        run: |
+          python -m venv /opt/venv
+          source /opt/venv/bin/activate
       - name: Install dependencies
         run: |
-          python -m venv /opt/venv && export PATH="/opt/venv/bin:$PATH"
-          python -m pip install uv
-          python -m uv pip install --upgrade -e .[dev]
+          pip install uv
+          uv pip install --upgrade -e .[dev]
       - name: Run license checks
         run: |
           ./nerfstudio/scripts/licensing/license_headers.sh --check
       - name: Check notebook cell metadata
         run: |
-          python -m venv /opt/venv && export PATH="/opt/venv/bin:$PATH"
           python ./nerfstudio/scripts/docs/add_nb_tags.py --check
       - name: Run Ruff Linter
         run: |
-          python -m venv /opt/venv && export PATH="/opt/venv/bin:$PATH"
-          python -m ruff check docs/ nerfstudio/ tests/ --output-format=github
+          ruff check docs/ nerfstudio/ tests/ --output-format=github
       - name: Run Ruff Formatter
         run: |
-          python -m venv /opt/venv && export PATH="/opt/venv/bin:$PATH"
-          python -m ruff format docs/ nerfstudio/ tests/ --diff
+          ruff format docs/ nerfstudio/ tests/ --diff
       - name: Run Pyright
         run: |
-          python -m venv /opt/venv && export PATH="/opt/venv/bin:$PATH"
-          python -m pyright
+          pyright
       - name: Test with pytest
         run: |
-          python -m venv /opt/venv && export PATH="/opt/venv/bin:$PATH"
-          python -m pytest
+          pytest
