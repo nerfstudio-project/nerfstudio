@@ -18,11 +18,13 @@ jobs:
           python-version: '3.9'
       - name: Install dependencies
         run: |
-          pip install .[docs]
+          python -m venv /opt/venv && export PATH="/opt/venv/bin:$PATH"
+          python -m pip install uv
+          python -m uv pip install .[docs]
       - name: Sphinx build
         # fail on warnings
         run: |
-          sphinx-build docs _build -W --keep-going
+          python -m sphinx-build docs _build -W --keep-going
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
