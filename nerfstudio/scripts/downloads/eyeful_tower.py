@@ -261,6 +261,7 @@ class EyefulTowerDownload(DatasetDownload):
         output["frames"] = frames
         output["train_filenames"] = split_filenames["train"]
         output["val_filenames"] = split_filenames["test"]
+        output["test_filenames"] = []
         return output
 
     @staticmethod
