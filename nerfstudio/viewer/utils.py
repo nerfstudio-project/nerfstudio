@@ -138,7 +138,7 @@ def parse_object(
         return []
     ret = []
     # get a list of the properties of the object, sorted by whether things are instances of type_check
-    obj_props = [(k, getattr(obj, k)) for k in dir(obj)]
+    obj_props = [(k, v) for k, v in vars(obj).items()]
     for k, v in obj_props:
         if k[0] == "_":
             continue
