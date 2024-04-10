@@ -24,15 +24,15 @@ import torch
 from PIL import Image
 
 from nerfstudio.cameras import camera_utils
-from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
-from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
+from nerfstudio.cameras.cameras import (CAMERA_MODEL_TO_TYPE, Cameras,
+                                        CameraType)
+from nerfstudio.data.dataparsers.base_dataparser import (DataParser,
+                                                         DataParserConfig,
+                                                         DataparserOutputs)
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.data.utils.dataparsers_utils import (
-    get_train_eval_split_all,
-    get_train_eval_split_filename,
-    get_train_eval_split_fraction,
-    get_train_eval_split_interval,
-)
+    get_train_eval_split_all, get_train_eval_split_filename,
+    get_train_eval_split_fraction, get_train_eval_split_interval)
 from nerfstudio.utils.io import load_from_json
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -365,7 +365,8 @@ class Nerfstudio(DataParser):
                 if self.create_pc:
                     import json
 
-                    from nerfstudio.process_data.colmap_utils import create_ply_from_colmap
+                    from nerfstudio.process_data.colmap_utils import \
+                        create_ply_from_colmap
 
                     with open(self.config.data / "transforms.json") as f:
                         transforms = json.load(f)

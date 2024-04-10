@@ -26,7 +26,8 @@ from PIL import Image
 
 try:
     from projectaria_tools.core import mps
-    from projectaria_tools.core.data_provider import VrsDataProvider, create_vrs_data_provider
+    from projectaria_tools.core.data_provider import (VrsDataProvider,
+                                                      create_vrs_data_provider)
     from projectaria_tools.core.mps.utils import filter_points_from_confidence
     from projectaria_tools.core.sophus import SE3
 except ImportError:
