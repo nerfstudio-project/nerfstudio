@@ -10,6 +10,7 @@ import pytest
 from PIL import Image
 from pytest import fixture
 
+Image.MAX_IMAGE_PIXELS = None
 
 @fixture
 def mocked_dataset(tmp_path: Path):

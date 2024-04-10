@@ -28,7 +28,7 @@ from torch.cuda.amp.grad_scaler import GradScaler
 from nerfstudio.utils.rich_utils import CONSOLE
 
 IMG_DIM = 64
-
+Image.MAX_IMAGE_PIXELS = None
 
 class DeepFloyd(nn.Module):
     """DeepFloyd diffusion model

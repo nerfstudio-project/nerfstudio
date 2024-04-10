@@ -33,6 +33,7 @@ from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.utils.data_utils import get_image_mask_tensor_from_path
 
+Image.MAX_IMAGE_PIXELS = None
 
 class InputDataset(Dataset):
     """Dataset that returns images.

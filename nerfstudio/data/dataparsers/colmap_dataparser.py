@@ -43,7 +43,7 @@ from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
 
 MAX_AUTO_RESOLUTION = 1600
-
+Image.MAX_IMAGE_PIXELS = None
 
 @dataclass
 class ColmapDataParserConfig(DataParserConfig):

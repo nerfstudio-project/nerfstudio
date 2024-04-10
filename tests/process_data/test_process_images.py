@@ -20,6 +20,7 @@ from nerfstudio.data.utils.colmap_parsing_utils import (
 )
 from nerfstudio.process_data.images_to_nerfstudio_dataset import ImagesToNerfstudioDataset
 
+Image.MAX_IMAGE_PIXELS = None
 
 def random_quaternion(num_poses: int):
     """

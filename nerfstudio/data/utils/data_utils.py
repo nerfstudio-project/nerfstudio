@@ -21,6 +21,7 @@ import numpy as np
 import torch
 from PIL import Image
 
+Image.MAX_IMAGE_PIXELS = None
 
 def get_image_mask_tensor_from_path(filepath: Path, scale_factor: float = 1.0) -> torch.Tensor:
     """

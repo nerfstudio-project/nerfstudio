@@ -32,6 +32,7 @@ from nerfstudio.model_components import losses
 from nerfstudio.utils.misc import torch_compile
 from nerfstudio.utils.rich_utils import CONSOLE
 
+Image.MAX_IMAGE_PIXELS = None
 
 class DepthDataset(InputDataset):
     """Dataset that returns images and depths. If no depths are found, then we generate them with Zoe Depth.

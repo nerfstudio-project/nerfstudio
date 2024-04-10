@@ -25,6 +25,7 @@ from PIL import Image
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils.rich_utils import CONSOLE
 
+Image.MAX_IMAGE_PIXELS = None
 
 def realitycapture_to_json(
     image_filename_map: Dict[str, Path],

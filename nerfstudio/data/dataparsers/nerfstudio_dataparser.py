@@ -37,7 +37,7 @@ from nerfstudio.utils.io import load_from_json
 from nerfstudio.utils.rich_utils import CONSOLE
 
 MAX_AUTO_RESOLUTION = 1600
-
+Image.MAX_IMAGE_PIXELS = None
 
 @dataclass
 class NerfstudioDataParserConfig(DataParserConfig):

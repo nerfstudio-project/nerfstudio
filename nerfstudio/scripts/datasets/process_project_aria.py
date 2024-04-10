@@ -34,6 +34,7 @@ except ImportError:
     sys.exit(1)
 
 ARIA_CAMERA_MODEL = "FISHEYE624"
+Image.MAX_IMAGE_PIXELS = None
 
 # The Aria coordinate system is different than the Blender/NerfStudio coordinate system.
 # Blender / Nerfstudio: +Z = back, +Y = up, +X = right
