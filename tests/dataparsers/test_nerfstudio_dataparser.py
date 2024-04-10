@@ -35,7 +35,10 @@ def test_nerfstudio_dataparser_no_filelist(mocked_dataset, orientation_method):
     """Tests basic load"""
     assert (mocked_dataset / "images_4").exists()
     from nerfstudio.data.dataparsers.nerfstudio_dataparser import (
-        DataparserOutputs, Nerfstudio, NerfstudioDataParserConfig)
+        DataparserOutputs,
+        Nerfstudio,
+        NerfstudioDataParserConfig,
+    )
 
     parser: Nerfstudio = NerfstudioDataParserConfig(
         data=mocked_dataset,
@@ -69,8 +72,7 @@ def test_nerfstudio_dataparser_split_filelist(mocked_dataset):
         f.truncate(0)
         json.dump(data, f)
 
-    from nerfstudio.data.dataparsers.nerfstudio_dataparser import (
-        Nerfstudio, NerfstudioDataParserConfig)
+    from nerfstudio.data.dataparsers.nerfstudio_dataparser import Nerfstudio, NerfstudioDataParserConfig
 
     parser: Nerfstudio = NerfstudioDataParserConfig(
         data=mocked_dataset,
