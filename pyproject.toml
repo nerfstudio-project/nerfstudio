@@ -164,7 +164,7 @@ pythonPlatform = "Linux"
 [tool.ruff]
 line-length = 120
 respect-gitignore = false
-select = [
+lint.select = [
     "E",  # pycodestyle errors.
     "F",  # Pyflakes rules.
     "I",  # isort formatting.
@@ -173,7 +173,7 @@ select = [
     "PLR",  # Pylint refactor recommendations.
     "PLW",  # Pylint warnings.
 ]
-ignore = [
+lint.ignore = [
     "E501",  # Line too long.
     "F722",  # Forward annotation false positive from jaxtyping. Should be caught by pyright.
     "F821",  # Forward annotation false positive from jaxtyping. Should be caught by pyright.
