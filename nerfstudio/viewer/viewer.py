@@ -214,6 +214,7 @@ class Viewer:
             def cb_lock(element):
                 with self.train_lock if self.train_lock is not None else contextlib.nullcontext():
                     prev_cb(element)
+                    
             return cb_lock
         
         def nested_folder_install(folder_labels: List[str], prev_labels: List[str], element: ViewerElement):
