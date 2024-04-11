@@ -213,7 +213,6 @@ class Viewer:
         def prev_cb_wrapper(prev_cb):
             def cb_lock(element):
                 with self.train_lock if self.train_lock is not None else contextlib.nullcontext():
-                    print(f"Running {element}", str(self.train_lock))
                     prev_cb(element)
             return cb_lock
         
