@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, List, Literal, Optional, Tuple, Union
+from typing import Any, List, Literal, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
@@ -110,7 +110,7 @@ def update_render_aabb(
 
 def parse_object(
     obj: Any,
-    type_check,
+    type_check: Type[Any],
     tree_stub: str,
 ) -> List[Tuple[str, Any]]:
     """
@@ -139,6 +139,7 @@ def parse_object(
         return []
     ret = []
     # get a list of the properties of the object, sorted by whether things are instances of type_check
+    # we skip cached properties, which can be expensive to call `getattr()` on!
     obj_props = [(k, getattr(obj, k)) for k in dir(obj) if not isinstance(getattr(type(obj), k, None), cached_property)]
     for k, v in obj_props:
         if k[0] == "_":
