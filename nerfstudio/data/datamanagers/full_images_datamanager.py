@@ -348,7 +348,13 @@ def _undistort_image(
             ]
         )
         if np.any(distortion_params):
+            # because OpenCV expects the pixel coord to be top-left, we need to shift the principal point by 0.5
+            # see https://github.com/nerfstudio-project/nerfstudio/issues/3048
+            K[0, 2] = K[0, 2] - 0.5
+            K[1, 2] = K[1, 2] - 0.5
             newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
+            newK[0, 2] = newK[0, 2] + 0.5
+            newK[1, 2] = newK[1, 2] + 0.5
             image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
         else:
             newK = K
