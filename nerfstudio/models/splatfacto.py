@@ -146,6 +146,8 @@ class SplatfactoModelConfig(ModelConfig):
     However, PLY exported with antialiased rasterize mode is not compatible with classic mode. Thus many web viewers that
     were implemented for classic mode can not render antialiased mode PLY properly without modifications.
     """
+    inference_near_plane: float = 0.0
+    """Ignore any gaussians at distances less than this near plane."""
 
 
 class SplatfactoModel(Model):
@@ -745,6 +747,16 @@ class SplatfactoModel(Model):
             rgbs = torch.clamp(rgbs + 0.5, min=0.0)  # type: ignore
         else:
             rgbs = torch.sigmoid(colors_crop[:, 0, :])
+
+        if not self.training and self.config.inference_near_plane != 0.0:
+            mask = depths > self.config.inference_near_plane
+            self.xys = self.xys[mask]
+            depths = depths[mask]
+            self.radii = self.radii[mask]
+            conics = conics[mask]
+            num_tiles_hit = num_tiles_hit[mask]
+            rgbs = rgbs[mask]
+            opacities_crop = opacities_crop[mask]
 
         assert (num_tiles_hit > 0).any()  # type: ignore
 
