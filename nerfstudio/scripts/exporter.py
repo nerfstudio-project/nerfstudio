@@ -139,7 +139,10 @@ class ExportPointCloud(Exporter):
         validate_pipeline(self.normal_method, self.normal_output_name, pipeline)
 
         # Increase the batchsize to speed up the evaluation.
-        assert isinstance(pipeline.datamanager, (VanillaDataManager, ParallelDataManager, FullImageDatamanager, RandomCamerasDataManager))
+        assert isinstance(
+            pipeline.datamanager,
+            (VanillaDataManager, ParallelDataManager, FullImageDatamanager, RandomCamerasDataManager),
+        )
         assert pipeline.datamanager.train_pixel_sampler is not None
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
@@ -320,7 +323,10 @@ class ExportPoissonMesh(Exporter):
         validate_pipeline(self.normal_method, self.normal_output_name, pipeline)
 
         # Increase the batchsize to speed up the evaluation.
-        assert isinstance(pipeline.datamanager, (VanillaDataManager, ParallelDataManager, FullImageDatamanager, RandomCamerasDataManager))
+        assert isinstance(
+            pipeline.datamanager,
+            (VanillaDataManager, ParallelDataManager, FullImageDatamanager, RandomCamerasDataManager),
+        )
         assert pipeline.datamanager.train_pixel_sampler is not None
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
