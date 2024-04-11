@@ -15,10 +15,9 @@
 """Data parser for blender dataset"""
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Type
+from typing import Optional, Type
 
 import imageio
 import numpy as np
@@ -44,9 +43,9 @@ class BlenderDataParserConfig(DataParserConfig):
     """How much to scale the camera origins by."""
     alpha_color: str = "white"
     """alpha color of background"""
-    ply_path: Path = Path("sparse_pc.ply")
-    """Plyfile path to load the 3D points. This is helpful for Gaussian splatting and
-    generally unused otherwise. If the file doesn't exist, the points are initialized randomly."""
+    ply_path: Optional[Path] = None
+    """Path to PLY file to load 3D points from, defined relative to the dataset directory. This is helpful for
+    Gaussian splatting and generally unused otherwise. If `None`, points are initialized randomly."""
 
 
 @dataclass
@@ -69,7 +68,6 @@ class Blender(DataParser):
 
     def _generate_dataparser_outputs(self, split="train"):
         meta = load_from_json(self.data / f"transforms_{split}.json")
-        ply_path = self.config.data / self.config.ply_path
         image_filenames = []
         poses = []
         for frame in meta["frames"]:
@@ -101,8 +99,8 @@ class Blender(DataParser):
         )
 
         metadata = {}
-        if os.path.exists(ply_path):
-            metadata.update(self._load_3D_points(ply_path))
+        if self.config.ply_path is not None:
+            metadata.update(self._load_3D_points(self.config.data / self.config.ply_path))
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
