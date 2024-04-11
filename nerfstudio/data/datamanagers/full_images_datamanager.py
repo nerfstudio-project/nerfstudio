@@ -353,9 +353,9 @@ def _undistort_image(
             K[0, 2] = K[0, 2] - 0.5
             K[1, 2] = K[1, 2] - 0.5
             newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
+            image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
             newK[0, 2] = newK[0, 2] + 0.5
             newK[1, 2] = newK[1, 2] + 0.5
-            image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
         else:
             newK = K
             roi = 0, 0, image.shape[1], image.shape[0]
