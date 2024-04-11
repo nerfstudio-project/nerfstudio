@@ -410,6 +410,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             self.exclude_batch_keys_from_device.remove("mask")
         if self.config.images_on_gpu is True and "image" in self.exclude_batch_keys_from_device:
             self.exclude_batch_keys_from_device.remove("image")
+            
         if self.train_dataparser_outputs is not None:
             cameras = self.train_dataparser_outputs.cameras
             if len(cameras) > 1:
