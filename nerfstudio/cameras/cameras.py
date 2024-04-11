@@ -90,6 +90,7 @@ class Cameras(TensorDataclass):
     """
 
     camera_to_worlds: Float[Tensor, "*num_cameras 3 4"]
+    world_to_cameras: Optional[Float[Tensor, "*num_cameras 3 4"]]
     fx: Float[Tensor, "*num_cameras 1"]
     fy: Float[Tensor, "*num_cameras 1"]
     cx: Float[Tensor, "*num_cameras 1"]
@@ -100,6 +101,9 @@ class Cameras(TensorDataclass):
     camera_type: Int[Tensor, "*num_cameras 1"]
     times: Optional[Float[Tensor, "num_cameras 1"]]
     metadata: Optional[Dict]
+    image_filenames: Optional[List]
+    Rs: Optional[Float[Tensor, "*num_cameras 3 3"]]
+    ts: Optional[Float[Tensor, "*num_cameras  1"]]
 
     def __init__(
         self,
@@ -119,6 +123,11 @@ class Cameras(TensorDataclass):
         ] = CameraType.PERSPECTIVE,
         times: Optional[Float[Tensor, "num_cameras"]] = None,
         metadata: Optional[Dict] = None,
+        image_filenames: Optional[List] = None,
+        world_to_cameras: Optional[Float[Tensor, "*num_cameras 3 4"]] = None,
+        Ks: Optional[Float[Tensor, "*num_cameras 8"]] = None,
+        Rs: Optional[Float[Tensor, "*num_cameras 3 3"]] = None,
+        ts: Optional[Float[Tensor, "*num_cameras  1"]] = None,
     ) -> None:
         """Initializes the Cameras object.
 
@@ -133,9 +142,13 @@ class Cameras(TensorDataclass):
         """
 
         # This will notify the tensordataclass that we have a field with more than 1 dimension
-        self._field_custom_dimensions = {"camera_to_worlds": 2}
+        self._field_custom_dimensions = {"camera_to_worlds": 2,
+                                         "world_to_cameras": 2,
+                                         "Rs": 2,
+                                         "ts": 2,}
 
         self.camera_to_worlds = camera_to_worlds
+        self.world_to_cameras = world_to_cameras
 
         # fx fy calculation
         self.fx = self._init_get_fc_xy(fx, "fx")  # @dataclass's post_init will take care of broadcasting
@@ -147,6 +160,8 @@ class Cameras(TensorDataclass):
 
         # Distortion Params Calculation:
         self.distortion_params = distortion_params  # @dataclass's post_init will take care of broadcasting
+        self.Rs = Rs
+        self.ts = ts
 
         # @dataclass's post_init will take care of broadcasting
         self.height = self._init_get_height_width(height, self.cy)
@@ -155,8 +170,16 @@ class Cameras(TensorDataclass):
         self.times = self._init_get_times(times)
 
         self.metadata = metadata
+        
+        # image filenames
+        self.image_filenames = image_filenames
 
         self.__post_init__()  # This will do the dataclass post_init and broadcast all the tensors
+
+
+    @property
+    def size(self):
+        return self.camera_to_worlds.shape[0]
 
     def _init_get_fc_xy(self, fc_xy: Union[float, torch.Tensor], name: str) -> torch.Tensor:
         """
@@ -953,6 +976,10 @@ class Cameras(TensorDataclass):
             "camera_to_world": self.camera_to_worlds[camera_idx].tolist(),
             "camera_index": camera_idx,
             "times": times,
+            "R": self.Rs[camera_idx].tolist(),
+            "T": self.ts[camera_idx].tolist(),
+            "world_to_camera": self.world_to_cameras[camera_idx].tolist(),
+            "K": self.get_intrinsics_matrices()[camera_idx].tolist()
         }
         if image is not None:
             image_uint8 = (image * 255).detach().type(torch.uint8)
@@ -1008,3 +1035,4 @@ class Cameras(TensorDataclass):
         self.cy = self.cy * scaling_factor
         self.height = (self.height * scaling_factor).to(torch.int64)
         self.width = (self.width * scaling_factor).to(torch.int64)
+        # self.Ks = self.Ks * scaling_factor

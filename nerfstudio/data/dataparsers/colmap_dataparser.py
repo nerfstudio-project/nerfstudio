@@ -43,6 +43,19 @@ from nerfstudio.utils.scripts import run_command
 
 MAX_AUTO_RESOLUTION = 1600
 
+def getWorld2View2(R, t, translate=np.array([.0, .0, .0]), scale=1.0):
+    Rt = np.zeros((4, 4))
+    Rt[:3, :3] = R
+    Rt[:3, 3] = t.squeeze()
+    Rt[3, 3] = 1.0
+
+    C2W = np.linalg.inv(Rt)
+    cam_center = C2W[:3, 3]
+    cam_center = (cam_center + translate) * scale
+    C2W[:3, 3] = cam_center
+    
+    Rt = np.linalg.inv(C2W)
+    return np.float32(Rt)
 
 @dataclass
 class ColmapDataParserConfig(DataParserConfig):
@@ -166,10 +179,15 @@ class ColmapDataParser(DataParser):
                 c2w = c2w[np.array([0, 2, 1, 3]), :]
                 c2w[2, :] *= -1
 
+            w2c = getWorld2View2(rotation, translation)
+
             frame = {
                 "file_path": (self.config.data / self.config.images_path / im_data.name).as_posix(),
                 "transform_matrix": c2w,
                 "colmap_im_id": im_id,
+                "world_to_camera": w2c,
+                "rotation": rotation,
+                "translation": translation,
             }
             frame.update(cameras[im_data.camera_id])
             if self.config.masks_path is not None:
@@ -186,6 +204,9 @@ class ColmapDataParser(DataParser):
             else:
                 camera_model = frame["camera_model"]
 
+        # sort images
+        frames = sorted(frames, key = lambda x : x["file_path"])
+        
         out = {}
         out["frames"] = frames
         if self.config.assume_colmap_world_coordinate_convention:
@@ -257,6 +278,7 @@ class ColmapDataParser(DataParser):
         mask_filenames = []
         depth_filenames = []
         poses = []
+        world_view_transforms = []
 
         fx = []
         fy = []
@@ -265,6 +287,9 @@ class ColmapDataParser(DataParser):
         height = []
         width = []
         distort = []
+        Ks = []
+        Rs = []
+        ts = []
 
         for frame in meta["frames"]:
             fx.append(float(frame["fl_x"]))
@@ -283,9 +308,16 @@ class ColmapDataParser(DataParser):
                     p2=float(frame["p2"]) if "p2" in frame else 0.0,
                 )
             )
+            
+            Ks.append(torch.tensor([[frame["params"][0], 0, frame["params"][2]],
+                                    [0, frame["params"][1], frame["params"][3]],
+                                    [0, 0, 1]]))
+            Rs.append(torch.from_numpy(frame["rotation"]))
+            ts.append(torch.from_numpy(frame["translation"]))
 
             image_filenames.append(Path(frame["file_path"]))
             poses.append(frame["transform_matrix"])
+            world_view_transforms.append(frame["world_to_camera"])
             if "mask_path" in frame:
                 mask_filenames.append(Path(frame["mask_path"]))
             if "depth_path" in frame:
@@ -342,6 +374,9 @@ class ColmapDataParser(DataParser):
         height = torch.tensor(height, dtype=torch.int32)[idx_tensor]
         width = torch.tensor(width, dtype=torch.int32)[idx_tensor]
         distortion_params = torch.stack(distort, dim=0)[idx_tensor]
+        Ks = torch.stack(Ks, dim=0)[idx_tensor]
+        Rs = torch.stack(Rs, dim=0)[idx_tensor]
+        ts = torch.stack(ts, dim=0)[idx_tensor]
 
         cameras = Cameras(
             fx=fx,
@@ -353,6 +388,11 @@ class ColmapDataParser(DataParser):
             width=width,
             camera_to_worlds=poses[:, :3, :4],
             camera_type=camera_type,
+            image_filenames=image_filenames,
+            world_to_cameras=torch.from_numpy(np.array(world_view_transforms).astype(np.float32))[idx_tensor],
+            Ks=Ks,
+            Rs=Rs,
+            ts=ts,
         )
 
         cameras.rescale_output_resolution(scaling_factor=1.0 / downscale_factor)

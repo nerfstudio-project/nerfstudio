@@ -197,6 +197,7 @@ def parse_colmap_camera_params(camera) -> Dict[str, Any]:
     out: Dict[str, Any] = {
         "w": camera.width,
         "h": camera.height,
+        "params": camera.params,
     }
 
     # Parameters match https://github.com/colmap/colmap/blob/dev/src/base/camera_models.h
@@ -384,6 +385,7 @@ def parse_colmap_camera_params(camera) -> Dict[str, Any]:
         raise NotImplementedError(f"{camera.model} camera model is not supported yet!")
 
     out["camera_model"] = camera_model.value
+    out["K"] = camera_params
     return out
 
 

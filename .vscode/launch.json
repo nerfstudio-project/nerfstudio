@@ -212,6 +212,58 @@
         "--include_mono_prior=False",
         "--auto-orient=True"
       ]
-    }
+    },
+    {
+      // Original nerfstudio command is as below:
+      // ns-train splatfacto --pipeline.model.cull_alpha_thresh=0.005 --pipeline.model.continue_cull_post_densification=False
+      // --pipeline.model.use-scale-regularization=True --data /home/ubuntu/data/gaussianpro_test colmap
+      "name": "Python: train splatfacto nerfstudio",
+      "type": "python",
+      "request": "launch",
+      "program": "nerfstudio/scripts/train.py",
+      "cwd": "/home/ubuntu/nerfstudio",
+      "python": "/home/ubuntu/miniconda3/envs/nerfstudio/bin/python",
+      "console": "integratedTerminal",
+      "args": [
+        "splatfacto",
+        "--logging.local-writer.max-log-size=0",
+        "--pipeline.model.cull_alpha_thresh=0.005",
+        "--pipeline.model.continue_cull_post_densification=False",
+        "--pipeline.model.use-scale-regularization=True",
+        "--data", "/home/ubuntu/data/gaussianpro_test", "colmap"
+      ]
+    },
+    {
+      // Original nerfstudio command is as below:
+      // ns-train splatfacto --pipeline.model.cull_alpha_thresh=0.005 --pipeline.model.continue_cull_post_densification=False
+      // --pipeline.model.use-scale-regularization=True --data /home/ubuntu/data/gaussianpro_test colmap
+      "name": "Python: train splatprofacto nerfstudio",
+      "type": "python",
+      "request": "launch",
+      "program": "nerfstudio/scripts/train.py",
+      "cwd": "/home/ubuntu/nerfstudio",
+      "python": "/home/ubuntu/miniconda3/envs/nerfstudio/bin/python",
+      "console": "integratedTerminal",
+      "args": [
+        "splatprofacto",
+        "--pipeline.model.cull_alpha_thresh=0.005",
+        "--pipeline.model.continue_cull_post_densification=False",
+        "--pipeline.model.use-scale-regularization=True",
+        "--pipeline.model.propagated_iteration_begin=1",
+        "--pipeline.model.propagated_iteration_after=1000",
+        "--pipeline.model.depth_loss=True",
+        "--pipeline.model.propagated_iteration_begin=10",
+        "--pipeline.model.propagated_iteration_after=12000",
+        "--pipeline.model.depth_error_min_threshold=0.8",
+        "--pipeline.model.depth_error_max_threshold=1.0",
+        "--pipeline.model.propagation_interval=30",
+        "--pipeline.model.patch_size=20",
+        "--pipeline.model.depth_max=80",
+        "--pipeline.model.return_normal=True",
+        "--data", "/home/ubuntu/data/gaussianpro_test", 
+        "colmap", 
+        "--auto-scale-poses", "False",
+      ]
+    },
   ]
 }

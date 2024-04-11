@@ -19,7 +19,7 @@ Code for sampling pixels.
 import random
 import warnings
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Type, Union
+from typing import Dict, List, Optional, Type, Union
 
 import torch
 from jaxtyping import Int
@@ -82,7 +82,7 @@ class PixelSampler:
     def calculate_number_rays_in_batch(
         num_rays_per_batch: int, 
         num_images: int,
-        shuffle_values: bool = False) -> list[int]:
+        shuffle_values: bool = False) -> List[int]:
         # calculate the number of rays per batch  if both are divisible
         num_rays_in_batch = num_rays_per_batch // num_images
         
