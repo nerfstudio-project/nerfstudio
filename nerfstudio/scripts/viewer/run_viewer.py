@@ -21,8 +21,8 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Literal
 from threading import Lock
+from typing import Literal
 
 import tyro
 

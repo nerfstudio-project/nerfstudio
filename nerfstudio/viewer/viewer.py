@@ -15,8 +15,8 @@
 """ Manage the state of the viewer """
 from __future__ import annotations
 
-import threading
 import contextlib
+import threading
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Literal, Optional
