@@ -22,6 +22,7 @@ import time
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Literal
+from threading import Lock
 
 import tyro
 
@@ -89,12 +90,14 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
     viewer_log_path = base_dir / config.viewer.relative_log_filename
     banner_messages = None
     viewer_state = None
+    viewer_callback_lock = Lock()
     if config.vis == "viewer_legacy":
         viewer_state = ViewerLegacyState(
             config.viewer,
             log_filename=viewer_log_path,
             datapath=pipeline.datamanager.get_datapath(),
             pipeline=pipeline,
+            train_lock=viewer_callback_lock,
         )
         banner_messages = [f"Legacy viewer at: {viewer_state.viewer_url}"]
     if config.vis == "viewer":
@@ -104,6 +107,7 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
             datapath=pipeline.datamanager.get_datapath(),
             pipeline=pipeline,
             share=config.viewer.make_share_url,
+            train_lock=viewer_callback_lock,
         )
         banner_messages = viewer_state.viewer_info
 

@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import threading
+import contextlib
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Literal, Optional
@@ -209,12 +210,19 @@ class Viewer:
         # Keep track of the pointers to generated GUI folders, because each generated folder holds a unique ID.
         viewer_gui_folders = dict()
 
+        def prev_cb_wrapper(prev_cb):
+            def cb_lock(element):
+                with self.train_lock if self.train_lock is not None else contextlib.nullcontext():
+                    print(f"Running {element}", str(self.train_lock))
+                    prev_cb(element)
+            return cb_lock
+        
         def nested_folder_install(folder_labels: List[str], prev_labels: List[str], element: ViewerElement):
             if len(folder_labels) == 0:
                 element.install(self.viser_server)
                 # also rewire the hook to rerender
                 prev_cb = element.cb_hook
-                element.cb_hook = lambda element: [prev_cb(element), self._trigger_rerender()]
+                element.cb_hook = lambda element: [prev_cb_wrapper(prev_cb)(element), self._trigger_rerender()]
             else:
                 # recursively create folders
                 # If the folder name is "Custom Elements/a/b", then:
