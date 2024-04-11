@@ -116,8 +116,7 @@ class Blender(DataParser):
     def _load_3D_points(self, ply_file_path: Path):
         pcd = o3d.io.read_point_cloud(str(ply_file_path))
 
-        points3D = torch.from_numpy(np.asarray(pcd.points, dtype=np.float32))
-        # TODO: Check if we need to use `transform_matrix` and `scaling_factor`
+        points3D = torch.from_numpy(np.asarray(pcd.points, dtype=np.float32) * self.config.scale_factor)
         points3D_rgb = torch.from_numpy((np.asarray(pcd.colors) * 255).astype(np.uint8))
 
         out = {
