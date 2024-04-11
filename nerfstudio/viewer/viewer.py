@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" Manage the state of the viewer """
+"""Manage the state of the viewer"""
+
 from __future__ import annotations
 
 import contextlib
@@ -214,9 +215,9 @@ class Viewer:
             def cb_lock(element):
                 with self.train_lock if self.train_lock is not None else contextlib.nullcontext():
                     prev_cb(element)
-                    
+
             return cb_lock
-        
+
         def nested_folder_install(folder_labels: List[str], prev_labels: List[str], element: ViewerElement):
             if len(folder_labels) == 0:
                 element.install(self.viser_server)

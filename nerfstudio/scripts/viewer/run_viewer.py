@@ -16,6 +16,7 @@
 """
 Starts viewer in eval mode.
 """
+
 from __future__ import annotations
 
 import time
