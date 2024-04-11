@@ -80,27 +80,6 @@ def SH2RGB(sh):
     return sh * C0 + 0.5
 
 
-def projection_matrix(znear, zfar, fovx, fovy, device: Union[str, torch.device] = "cpu"):
-    """
-    Constructs an OpenGL-style perspective projection matrix.
-    """
-    t = znear * math.tan(0.5 * fovy)
-    b = -t
-    r = znear * math.tan(0.5 * fovx)
-    l = -r
-    n = znear
-    f = zfar
-    return torch.tensor(
-        [
-            [2 * n / (r - l), 0.0, (r + l) / (r - l), 0.0],
-            [0.0, 2 * n / (t - b), (t + b) / (t - b), 0.0],
-            [0.0, 0.0, (f + n) / (f - n), -1.0 * f * n / (f - n)],
-            [0.0, 0.0, 1.0, 0.0],
-        ],
-        device=device,
-    )
-
-
 @dataclass
 class SplatfactoModelConfig(ModelConfig):
     """Splatfacto Model Config, nerfstudio's implementation of Gaussian Splatting"""
@@ -110,11 +89,11 @@ class SplatfactoModelConfig(ModelConfig):
     """period of steps where refinement is turned off"""
     refine_every: int = 100
     """period of steps where gaussians are culled and densified"""
-    resolution_schedule: int = 250
+    resolution_schedule: int = 3000
     """training starts at 1/d resolution, every n steps this is doubled"""
     background_color: Literal["random", "black", "white"] = "random"
     """Whether to randomize the background color."""
-    num_downscales: int = 0
+    num_downscales: int = 2
     """at the beginning, resolution is 1/2^d, where d is this number"""
     cull_alpha_thresh: float = 0.1
     """threshold of opacity for culling gaussians. One can set it to a lower value (e.g. 0.005) for higher quality."""
@@ -158,8 +137,18 @@ class SplatfactoModelConfig(ModelConfig):
     """
     output_depth_during_training: bool = False
     """If True, output depth during training. Otherwise, only output depth during evaluation."""
-    camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="SO3xR3"))
+    camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="off"))
     """Config of the camera optimizer to use"""
+    rasterize_mode: Literal["classic", "antialiased"] = "classic"
+    """
+    Classic mode of rendering will use the EWA volume splatting with a [0.3, 0.3] screen space blurring kernel. This
+    approach is however not suitable to render tiny gaussians at higher or lower resolution than the captured, which
+    results "aliasing-like" artifacts. The antialiased mode overcomes this limitation by calculating compensation factors
+    and apply them to the opacities of gaussians to preserve the total integrated density of splats.
+
+    However, PLY exported with antialiased rasterize mode is not compatible with classic mode. Thus many web viewers that
+    were implemented for classic mode can not render antialiased mode PLY properly without modifications.
+    """
 
 
 class SplatfactoModel(Model):
@@ -182,17 +171,18 @@ class SplatfactoModel(Model):
 
     def populate_modules(self):
         if self.seed_points is not None and not self.config.random_init:
-            self.means = torch.nn.Parameter(self.seed_points[0])  # (Location, Color)
+            means = torch.nn.Parameter(self.seed_points[0])  # (Location, Color)
         else:
-            self.means = torch.nn.Parameter((torch.rand((self.config.num_random, 3)) - 0.5) * self.config.random_scale)
+            means = torch.nn.Parameter((torch.rand((self.config.num_random, 3)) - 0.5) * self.config.random_scale)
         self.xys_grad_norm = None
         self.max_2Dsize = None
-        distances, _ = self.k_nearest_sklearn(self.means.data, 3)
+        distances, _ = self.k_nearest_sklearn(means.data, 3)
         distances = torch.from_numpy(distances)
         # find the average of the three nearest neighbors for each point and use that as the scale
         avg_dist = distances.mean(dim=-1, keepdim=True)
-        self.scales = torch.nn.Parameter(torch.log(avg_dist.repeat(1, 3)))
-        self.quats = torch.nn.Parameter(random_quat_tensor(self.num_points))
+        scales = torch.nn.Parameter(torch.log(avg_dist.repeat(1, 3)))
+        num_points = means.shape[0]
+        quats = torch.nn.Parameter(random_quat_tensor(num_points))
         dim_sh = num_sh_bases(self.config.sh_degree)
 
         if (
@@ -208,13 +198,23 @@ class SplatfactoModel(Model):
             else:
                 CONSOLE.log("use color only optimization with sigmoid activation")
                 shs[:, 0, :3] = torch.logit(self.seed_points[1] / 255, eps=1e-10)
-            self.features_dc = torch.nn.Parameter(shs[:, 0, :])
-            self.features_rest = torch.nn.Parameter(shs[:, 1:, :])
+            features_dc = torch.nn.Parameter(shs[:, 0, :])
+            features_rest = torch.nn.Parameter(shs[:, 1:, :])
         else:
-            self.features_dc = torch.nn.Parameter(torch.rand(self.num_points, 3))
-            self.features_rest = torch.nn.Parameter(torch.zeros((self.num_points, dim_sh - 1, 3)))
+            features_dc = torch.nn.Parameter(torch.rand(num_points, 3))
+            features_rest = torch.nn.Parameter(torch.zeros((num_points, dim_sh - 1, 3)))
 
-        self.opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(self.num_points, 1)))
+        opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(num_points, 1)))
+        self.gauss_params = torch.nn.ParameterDict(
+            {
+                "means": means,
+                "scales": scales,
+                "quats": quats,
+                "features_dc": features_dc,
+                "features_rest": features_rest,
+                "opacities": opacities,
+            }
+        )
 
         self.camera_optimizer: CameraOptimizer = self.config.camera_optimizer.setup(
             num_cameras=self.num_train_data, device="cpu"
@@ -252,18 +252,47 @@ class SplatfactoModel(Model):
     def shs_rest(self):
         return self.features_rest
 
+    @property
+    def num_points(self):
+        return self.means.shape[0]
+
+    @property
+    def means(self):
+        return self.gauss_params["means"]
+
+    @property
+    def scales(self):
+        return self.gauss_params["scales"]
+
+    @property
+    def quats(self):
+        return self.gauss_params["quats"]
+
+    @property
+    def features_dc(self):
+        return self.gauss_params["features_dc"]
+
+    @property
+    def features_rest(self):
+        return self.gauss_params["features_rest"]
+
+    @property
+    def opacities(self):
+        return self.gauss_params["opacities"]
+
     def load_state_dict(self, dict, **kwargs):  # type: ignore
         # resize the parameters to match the new number of points
         self.step = 30000
-        newp = dict["means"].shape[0]
-        self.means = torch.nn.Parameter(torch.zeros(newp, 3, device=self.device))
-        self.scales = torch.nn.Parameter(torch.zeros(newp, 3, device=self.device))
-        self.quats = torch.nn.Parameter(torch.zeros(newp, 4, device=self.device))
-        self.opacities = torch.nn.Parameter(torch.zeros(newp, 1, device=self.device))
-        self.features_dc = torch.nn.Parameter(torch.zeros(newp, 3, device=self.device))
-        self.features_rest = torch.nn.Parameter(
-            torch.zeros(newp, num_sh_bases(self.config.sh_degree) - 1, 3, device=self.device)
-        )
+        if "means" in dict:
+            # For backwards compatibility, we remap the names of parameters from
+            # means->gauss_params.means since old checkpoints have that format
+            for p in ["means", "scales", "quats", "features_dc", "features_rest", "opacities"]:
+                dict[f"gauss_params.{p}"] = dict[p]
+        newp = dict["gauss_params.means"].shape[0]
+        for name, param in self.gauss_params.items():
+            old_shape = param.shape
+            new_shape = (newp,) + old_shape[1:]
+            self.gauss_params[name] = torch.nn.Parameter(torch.zeros(new_shape, device=self.device))
         super().load_state_dict(dict, **kwargs)
 
     def k_nearest_sklearn(self, x: torch.Tensor, k: int):
@@ -296,8 +325,9 @@ class SplatfactoModel(Model):
         del optimizer.state[param]
 
         # Modify the state directly without deleting and reassigning.
-        param_state["exp_avg"] = param_state["exp_avg"][~deleted_mask]
-        param_state["exp_avg_sq"] = param_state["exp_avg_sq"][~deleted_mask]
+        if "exp_avg" in param_state:
+            param_state["exp_avg"] = param_state["exp_avg"][~deleted_mask]
+            param_state["exp_avg_sq"] = param_state["exp_avg_sq"][~deleted_mask]
 
         # Update the parameter in the optimizer's param group.
         del optimizer.param_groups[0]["params"][0]
@@ -315,21 +345,22 @@ class SplatfactoModel(Model):
         """adds the parameters to the optimizer"""
         param = optimizer.param_groups[0]["params"][0]
         param_state = optimizer.state[param]
-        repeat_dims = (n,) + tuple(1 for _ in range(param_state["exp_avg"].dim() - 1))
-        param_state["exp_avg"] = torch.cat(
-            [
-                param_state["exp_avg"],
-                torch.zeros_like(param_state["exp_avg"][dup_mask.squeeze()]).repeat(*repeat_dims),
-            ],
-            dim=0,
-        )
-        param_state["exp_avg_sq"] = torch.cat(
-            [
-                param_state["exp_avg_sq"],
-                torch.zeros_like(param_state["exp_avg_sq"][dup_mask.squeeze()]).repeat(*repeat_dims),
-            ],
-            dim=0,
-        )
+        if "exp_avg" in param_state:
+            repeat_dims = (n,) + tuple(1 for _ in range(param_state["exp_avg"].dim() - 1))
+            param_state["exp_avg"] = torch.cat(
+                [
+                    param_state["exp_avg"],
+                    torch.zeros_like(param_state["exp_avg"][dup_mask.squeeze()]).repeat(*repeat_dims),
+                ],
+                dim=0,
+            )
+            param_state["exp_avg_sq"] = torch.cat(
+                [
+                    param_state["exp_avg_sq"],
+                    torch.zeros_like(param_state["exp_avg_sq"][dup_mask.squeeze()]).repeat(*repeat_dims),
+                ],
+                dim=0,
+            )
         del optimizer.state[param]
         optimizer.state[new_params[0]] = param_state
         optimizer.param_groups[0]["params"] = new_params
@@ -399,51 +430,22 @@ class SplatfactoModel(Model):
                     splits |= (self.max_2Dsize > self.config.split_screen_size).squeeze()
                 splits &= high_grads
                 nsamps = self.config.n_split_samples
-                (
-                    split_means,
-                    split_features_dc,
-                    split_features_rest,
-                    split_opacities,
-                    split_scales,
-                    split_quats,
-                ) = self.split_gaussians(splits, nsamps)
+                split_params = self.split_gaussians(splits, nsamps)
 
                 dups = (self.scales.exp().max(dim=-1).values <= self.config.densify_size_thresh).squeeze()
                 dups &= high_grads
-                (
-                    dup_means,
-                    dup_features_dc,
-                    dup_features_rest,
-                    dup_opacities,
-                    dup_scales,
-                    dup_quats,
-                ) = self.dup_gaussians(dups)
-                self.means = Parameter(torch.cat([self.means.detach(), split_means, dup_means], dim=0))
-                self.features_dc = Parameter(
-                    torch.cat(
-                        [self.features_dc.detach(), split_features_dc, dup_features_dc],
-                        dim=0,
+                dup_params = self.dup_gaussians(dups)
+                for name, param in self.gauss_params.items():
+                    self.gauss_params[name] = torch.nn.Parameter(
+                        torch.cat([param.detach(), split_params[name], dup_params[name]], dim=0)
                     )
-                )
-                self.features_rest = Parameter(
-                    torch.cat(
-                        [
-                            self.features_rest.detach(),
-                            split_features_rest,
-                            dup_features_rest,
-                        ],
-                        dim=0,
-                    )
-                )
-                self.opacities = Parameter(torch.cat([self.opacities.detach(), split_opacities, dup_opacities], dim=0))
-                self.scales = Parameter(torch.cat([self.scales.detach(), split_scales, dup_scales], dim=0))
-                self.quats = Parameter(torch.cat([self.quats.detach(), split_quats, dup_quats], dim=0))
+
                 # append zeros to the max_2Dsize tensor
                 self.max_2Dsize = torch.cat(
                     [
                         self.max_2Dsize,
-                        torch.zeros_like(split_scales[:, 0]),
-                        torch.zeros_like(dup_scales[:, 0]),
+                        torch.zeros_like(split_params["scales"][:, 0]),
+                        torch.zeros_like(dup_params["scales"][:, 0]),
                     ],
                     dim=0,
                 )
@@ -484,7 +486,7 @@ class SplatfactoModel(Model):
                     max=torch.logit(torch.tensor(reset_value, device=self.device)).item(),
                 )
                 # reset the exp of optimizer
-                optim = optimizers.optimizers["opacity"]
+                optim = optimizers.optimizers["opacities"]
                 param = optim.param_groups[0]["params"][0]
                 param_state = optim.state[param]
                 param_state["exp_avg"] = torch.zeros_like(param_state["exp_avg"])
@@ -515,12 +517,8 @@ class SplatfactoModel(Model):
                 toobigs = toobigs | (self.max_2Dsize > self.config.cull_screen_size).squeeze()
             culls = culls | toobigs
             toobigs_count = torch.sum(toobigs).item()
-        self.means = Parameter(self.means[~culls].detach())
-        self.scales = Parameter(self.scales[~culls].detach())
-        self.quats = Parameter(self.quats[~culls].detach())
-        self.features_dc = Parameter(self.features_dc[~culls].detach())
-        self.features_rest = Parameter(self.features_rest[~culls].detach())
-        self.opacities = Parameter(self.opacities[~culls].detach())
+        for name, param in self.gauss_params.items():
+            self.gauss_params[name] = torch.nn.Parameter(param[~culls])
 
         CONSOLE.log(
             f"Culled {n_bef - self.num_points} gaussians "
@@ -533,7 +531,6 @@ class SplatfactoModel(Model):
         """
         This function splits gaussians that are too large
         """
-
         n_splits = split_mask.sum().item()
         CONSOLE.log(f"Splitting {split_mask.sum().item()/self.num_points} gaussians: {n_splits}/{self.num_points}")
         centered_samples = torch.randn((samps * n_splits, 3), device=self.device)  # Nx3 of axis-aligned scales
@@ -555,14 +552,18 @@ class SplatfactoModel(Model):
         self.scales[split_mask] = torch.log(torch.exp(self.scales[split_mask]) / size_fac)
         # step 5, sample new quats
         new_quats = self.quats[split_mask].repeat(samps, 1)
-        return (
-            new_means,
-            new_features_dc,
-            new_features_rest,
-            new_opacities,
-            new_scales,
-            new_quats,
-        )
+        out = {
+            "means": new_means,
+            "features_dc": new_features_dc,
+            "features_rest": new_features_rest,
+            "opacities": new_opacities,
+            "scales": new_scales,
+            "quats": new_quats,
+        }
+        for name, param in self.gauss_params.items():
+            if name not in out:
+                out[name] = param[split_mask].repeat(samps, 1)
+        return out
 
     def dup_gaussians(self, dup_mask):
         """
@@ -570,24 +571,10 @@ class SplatfactoModel(Model):
         """
         n_dups = dup_mask.sum().item()
         CONSOLE.log(f"Duplicating {dup_mask.sum().item()/self.num_points} gaussians: {n_dups}/{self.num_points}")
-        dup_means = self.means[dup_mask]
-        dup_features_dc = self.features_dc[dup_mask]
-        dup_features_rest = self.features_rest[dup_mask]
-        dup_opacities = self.opacities[dup_mask]
-        dup_scales = self.scales[dup_mask]
-        dup_quats = self.quats[dup_mask]
-        return (
-            dup_means,
-            dup_features_dc,
-            dup_features_rest,
-            dup_opacities,
-            dup_scales,
-            dup_quats,
-        )
-
-    @property
-    def num_points(self):
-        return self.means.shape[0]
+        new_dups = {}
+        for name, param in self.gauss_params.items():
+            new_dups[name] = param[dup_mask]
+        return new_dups
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
@@ -615,13 +602,11 @@ class SplatfactoModel(Model):
         self.step = step
 
     def get_gaussian_param_groups(self) -> Dict[str, List[Parameter]]:
+        # Here we explicitly use the means, scales as parameters so that the user can override this function and
+        # specify more if they want to add more optimizable params to gaussians.
         return {
-            "xyz": [self.means],
-            "features_dc": [self.features_dc],
-            "features_rest": [self.features_rest],
-            "opacity": [self.opacities],
-            "scaling": [self.scales],
-            "rotation": [self.quats],
+            name: [self.gauss_params[name]]
+            for name in ["means", "scales", "quats", "features_dc", "features_rest", "opacities"]
         }
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
@@ -642,6 +627,17 @@ class SplatfactoModel(Model):
             )
         else:
             return 1
+
+    def _downscale_if_required(self, image):
+        d = self._get_downscale_factor()
+        if d > 1:
+            newsize = [image.shape[0] // d, image.shape[1] // d]
+
+            # torchvision can be slow to import, so we do it lazily.
+            import torchvision.transforms.functional as TF
+
+            return TF.resize(image.permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
+        return image
 
     def get_outputs(self, camera: Cameras) -> Dict[str, Union[torch.Tensor, List]]:
         """Takes in a Ray Bundle and returns a dictionary of outputs.
@@ -681,7 +677,7 @@ class SplatfactoModel(Model):
                 rgb = background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
                 depth = background.new_ones(*rgb.shape[:2], 1) * 10
                 accumulation = background.new_zeros(*rgb.shape[:2], 1)
-                return {"rgb": rgb, "depth": depth, "accumulation": accumulation}
+                return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
         else:
             crop_ids = None
         camera_downscale = self._get_downscale_factor()
@@ -701,17 +697,8 @@ class SplatfactoModel(Model):
         # calculate the FOV of the camera given fx and fy, width and height
         cx = camera.cx.item()
         cy = camera.cy.item()
-        fovx = 2 * math.atan(camera.width / (2 * camera.fx))
-        fovy = 2 * math.atan(camera.height / (2 * camera.fy))
         W, H = int(camera.width.item()), int(camera.height.item())
         self.last_size = (H, W)
-        projmat = projection_matrix(0.001, 1000, fovx, fovy, device=self.device)
-        BLOCK_X, BLOCK_Y = 16, 16
-        tile_bounds = (
-            int((W + BLOCK_X - 1) // BLOCK_X),
-            int((H + BLOCK_Y - 1) // BLOCK_Y),
-            1,
-        )
 
         if crop_ids is not None:
             opacities_crop = self.opacities[crop_ids]
@@ -729,27 +716,31 @@ class SplatfactoModel(Model):
             quats_crop = self.quats
 
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
-
-        self.xys, depths, self.radii, conics, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
+        BLOCK_WIDTH = 16  # this controls the tile size of rasterization, 16 is a good default
+        self.xys, depths, self.radii, conics, comp, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
             means_crop,
             torch.exp(scales_crop),
             1,
             quats_crop / quats_crop.norm(dim=-1, keepdim=True),
             viewmat.squeeze()[:3, :],
-            projmat.squeeze() @ viewmat.squeeze(),
             camera.fx.item(),
             camera.fy.item(),
             cx,
             cy,
             H,
             W,
-            tile_bounds,
+            BLOCK_WIDTH,
         )  # type: ignore
+
+        # rescale the camera back to original dimensions before returning
+        camera.rescale_output_resolution(camera_downscale)
+
         if (self.radii).sum() == 0:
-            rgb = background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
+            rgb = background.repeat(H, W, 1)
             depth = background.new_ones(*rgb.shape[:2], 1) * 10
             accumulation = background.new_zeros(*rgb.shape[:2], 1)
-            return {"rgb": rgb, "depth": depth, "accumulation": accumulation}
+
+            return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
 
         # Important to allow xys grads to populate properly
         if self.training:
@@ -764,9 +755,17 @@ class SplatfactoModel(Model):
         else:
             rgbs = torch.sigmoid(colors_crop[:, 0, :])
 
-        # rescale the camera back to original dimensions
-        camera.rescale_output_resolution(camera_downscale)
         assert (num_tiles_hit > 0).any()  # type: ignore
+
+        # apply the compensation of screen space blurring to gaussians
+        opacities = None
+        if self.config.rasterize_mode == "antialiased":
+            opacities = torch.sigmoid(opacities_crop) * comp[:, None]
+        elif self.config.rasterize_mode == "classic":
+            opacities = torch.sigmoid(opacities_crop)
+        else:
+            raise ValueError("Unknown rasterize_mode: %s", self.config.rasterize_mode)
+
         rgb, alpha = rasterize_gaussians(  # type: ignore
             self.xys,
             depths,
@@ -774,9 +773,10 @@ class SplatfactoModel(Model):
             conics,
             num_tiles_hit,  # type: ignore
             rgbs,
-            torch.sigmoid(opacities_crop),
+            opacities,
             H,
             W,
+            BLOCK_WIDTH,
             background=background,
             return_alpha=True,
         )  # type: ignore
@@ -791,15 +791,16 @@ class SplatfactoModel(Model):
                 conics,
                 num_tiles_hit,  # type: ignore
                 depths[:, None].repeat(1, 3),
-                torch.sigmoid(opacities_crop),
+                opacities,
                 H,
                 W,
+                BLOCK_WIDTH,
                 background=torch.zeros(3, device=self.device),
             )[..., 0:1]  # type: ignore
             depth_im = torch.where(alpha > 0, depth_im / alpha, depth_im.detach().max())
             depth_im[alpha == 0] = 1000
 
-        return {"rgb": rgb, "depth": depth_im, "accumulation": alpha}  # type: ignore
+        return {"rgb": rgb, "depth": depth_im, "accumulation": alpha, "background": background}  # type: ignore
 
     def get_gt_img(self, image: torch.Tensor):
         """Compute groundtruth image with iteration dependent downscale factor for evaluation purpose
@@ -809,17 +810,21 @@ class SplatfactoModel(Model):
         """
         if image.dtype == torch.uint8:
             image = image.float() / 255.0
-        d = self._get_downscale_factor()
-        if d > 1:
-            newsize = [image.shape[0] // d, image.shape[1] // d]
-
-            # torchvision can be slow to import, so we do it lazily.
-            import torchvision.transforms.functional as TF
-
-            gt_img = TF.resize(image.permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
-        else:
-            gt_img = image
+        gt_img = self._downscale_if_required(image)
         return gt_img.to(self.device)
+
+    def composite_with_background(self, image, background) -> torch.Tensor:
+        """Composite the ground truth image with a background color when it has an alpha channel.
+
+        Args:
+            image: the image to composite
+            background: the background color
+        """
+        if image.shape[2] == 4:
+            alpha = image[..., -1].unsqueeze(-1).repeat((1, 1, 3))
+            return alpha * image[..., :3] + (1 - alpha) * background
+        else:
+            return image
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.
@@ -828,7 +833,7 @@ class SplatfactoModel(Model):
             outputs: the output to compute loss dict to
             batch: ground truth batch corresponding to outputs
         """
-        gt_rgb = self.get_gt_img(batch["image"])
+        gt_rgb = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         metrics_dict = {}
         predicted_rgb = outputs["rgb"]
         metrics_dict["psnr"] = self.psnr(predicted_rgb, gt_rgb)
@@ -846,15 +851,16 @@ class SplatfactoModel(Model):
             batch: ground truth batch corresponding to outputs
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
-        gt_img = self.get_gt_img(batch["image"])
+        gt_img = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         pred_img = outputs["rgb"]
 
         # Set masked part of both ground-truth and rendered image to black.
         # This is a little bit sketchy for the SSIM loss.
         if "mask" in batch:
             # batch["mask"] : [H, W, 1]
-            assert batch["mask"].shape[:2] == gt_img.shape[:2] == pred_img.shape[:2]
-            mask = batch["mask"].to(self.device)
+            mask = self._downscale_if_required(batch["mask"])
+            mask = mask.to(self.device)
+            assert mask.shape[:2] == gt_img.shape[:2] == pred_img.shape[:2]
             gt_img = gt_img * mask
             pred_img = pred_img * mask
 
@@ -911,7 +917,7 @@ class SplatfactoModel(Model):
         Returns:
             A dictionary of metrics.
         """
-        gt_rgb = self.get_gt_img(batch["image"])
+        gt_rgb = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         d = self._get_downscale_factor()
         if d > 1:
             # torchvision can be slow to import, so we do it lazily.

@@ -49,16 +49,20 @@ class CameraModel(Enum):
     OPENCV = "OPENCV"
     OPENCV_FISHEYE = "OPENCV_FISHEYE"
     EQUIRECTANGULAR = "EQUIRECTANGULAR"
+    PINHOLE = "PINHOLE"
+    SIMPLE_PINHOLE = "SIMPLE_PINHOLE"
 
 
 CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
     "equirectangular": CameraModel.EQUIRECTANGULAR,
+    "pinhole": CameraModel.PINHOLE,
+    "simple_pinhole": CameraModel.SIMPLE_PINHOLE,
 }
 
 
-def list_images(data: Path, recursive: bool = False) -> List[Path]:
+def list_images(data: Path, recursive: bool = True) -> List[Path]:
     """Lists all supported images in a directory
 
     Args:
