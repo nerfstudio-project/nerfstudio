@@ -32,6 +32,7 @@ from rich import box, style
 from rich.panel import Panel
 from rich.table import Table
 from torch.cuda.amp.grad_scaler import GradScaler
+import viser
 
 from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
@@ -309,8 +310,10 @@ class Trainer:
         self.stop_training = True  # tell the training loop to stop
         if self.viewer_state is not None:
             # stop the viewer
-            assert self.viewer_state.viser_server is not None
-            self.viewer_state.viser_server.stop()
+            # this condition excludes the case where `viser_server` is either `None` or an
+            # instance of `viewer_legacy`'s `ViserServer` instead of the upstream one.
+            if isinstance(self.viewer_state.viser_server, viser.ViserServer):
+                self.viewer_state.viser_server.stop()
 
     def _after_train(self) -> None:
         """Function to run after training is complete"""
