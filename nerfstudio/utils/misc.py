@@ -16,7 +16,6 @@
 Miscellaneous helper code.
 """
 
-
 import contextlib
 import platform
 import typing
@@ -221,6 +220,7 @@ def get_orig_class(obj, default=None):
             finally:
                 del frame
         return default
+
 
 @contextlib.contextmanager
 def set_pil_image_size_limit(max_pixels: Optional[int | None]):

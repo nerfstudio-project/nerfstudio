@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Data parser for nerfstudio datasets. """
+"""Data parser for nerfstudio datasets."""
 
 from __future__ import annotations
 
@@ -39,6 +39,7 @@ from nerfstudio.utils.rich_utils import CONSOLE
 
 MAX_AUTO_RESOLUTION = 1600
 set_pil_image_size_limit(None)
+
 
 @dataclass
 class NerfstudioDataParserConfig(DataParserConfig):

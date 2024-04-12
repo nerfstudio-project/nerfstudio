@@ -35,6 +35,7 @@ from nerfstudio.utils.rich_utils import CONSOLE
 
 set_pil_image_size_limit(None)
 
+
 class DepthDataset(InputDataset):
     """Dataset that returns images and depths. If no depths are found, then we generate them with Zoe Depth.
 

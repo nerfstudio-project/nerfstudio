@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Utility functions to allow easy re-use of common operations across dataloaders"""
+
 from pathlib import Path
 from typing import List, Tuple, Union
 
@@ -23,6 +24,7 @@ from PIL import Image
 from utils.misc import set_pil_image_size_limit
 
 set_pil_image_size_limit(None)
+
 
 def get_image_mask_tensor_from_path(filepath: Path, scale_factor: float = 1.0) -> torch.Tensor:
     """

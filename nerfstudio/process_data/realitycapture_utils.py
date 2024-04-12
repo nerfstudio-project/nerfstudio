@@ -28,6 +28,7 @@ from nerfstudio.utils.rich_utils import CONSOLE
 
 set_pil_image_size_limit(None)
 
+
 def realitycapture_to_json(
     image_filename_map: Dict[str, Path],
     csv_filename: Path,
