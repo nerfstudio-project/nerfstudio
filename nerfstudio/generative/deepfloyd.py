@@ -20,9 +20,6 @@ from typing import List, Optional, Union
 import torch
 import torch.nn.functional as F
 import tyro
-from diffusers import DiffusionPipeline
-from diffusers import IFPipeline as IFOrig
-from diffusers.pipelines.deepfloyd_if import IFPipelineOutput as IFOutputOrig
 from jaxtyping import Float
 from PIL import Image
 from torch import Generator, Tensor, nn
@@ -211,6 +208,9 @@ class DeepFloyd(nn.Module):
         Returns:
             The generated image.
         """
+        from diffusers import DiffusionPipeline
+        from diffusers import IFPipeline as IFOrig
+        from diffusers.pipelines.deepfloyd_if import IFPipelineOutput as IFOutputOrig
 
         prompts = [prompts] if isinstance(prompts, str) else prompts
         negative_prompts = [negative_prompts] if isinstance(negative_prompts, str) else negative_prompts
