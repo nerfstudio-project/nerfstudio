@@ -12,6 +12,10 @@ We use the OpenGL/Blender (and original NeRF) coordinate convention for cameras.
 
 Our world space is oriented such that the up vector is +Z. The XY plane is parallel to the ground plane. In the viewer, you'll notice that red, green, and blue vectors correspond to X, Y, and Z respectively.
 
+### Pixel coordinates
+
+We assume coordinates correspond to the centers of pixels (e.g. generating a ray for pixel (0,0) will shoot the ray through the center of that pixel). This aligns more with graphics conventions, and is distinct from OpenCV where the corners are aligned with the pixel coordinate.
+
 <hr>
 
 ## Dataset format

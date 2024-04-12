@@ -14,6 +14,7 @@
 
 
 """This file contains the configuration for external methods which are not included in this repository."""
+
 import inspect
 import subprocess
 import sys
@@ -205,6 +206,22 @@ To enable Zip-NeRF, you must install it first by running:
             ("zipnerf", "A pytorch implementation of 'Zip-NeRF: Anti-Aliased Grid-Based Neural Radiance Fields'")
         ],
         pip_package="pip install git+https://github.com/SuLvXiangXin/zipnerf-pytorch",
+    )
+)
+
+# SIGNeRF
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]SIGNeRF[/bold yellow]
+For more information visit: https://docs.nerf.studio/nerfology/methods/signerf.html
+
+To enable SIGNeRF, you must install it first by running:
+  [grey]pip install git+https://github.com/cgtuebingen/SIGNeRF[/grey] and install Stable Diffusion Web UI see [grey]https://github.com/cgtuebingen/SIGNeRF?tab=readme-ov-file#installation[/grey]""",
+        configurations=[
+            ("signerf", "SIGNeRF method (high quality) used in paper"),
+            ("signerf_nerfacto", "SIGNeRF method combined with Nerfacto (faster training less quality)"),
+        ],
+        pip_package="git+https://github.com/cgtuebingen/SIGNeRF",
     )
 )
 

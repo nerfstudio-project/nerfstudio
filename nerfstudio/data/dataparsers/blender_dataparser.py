@@ -17,10 +17,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Type
+from typing import Optional, Type
 
 import imageio
 import numpy as np
+import open3d as o3d
 import torch
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -42,6 +43,9 @@ class BlenderDataParserConfig(DataParserConfig):
     """How much to scale the camera origins by."""
     alpha_color: str = "white"
     """alpha color of background"""
+    ply_path: Optional[Path] = None
+    """Path to PLY file to load 3D points from, defined relative to the dataset directory. This is helpful for
+    Gaussian splatting and generally unused otherwise. If `None`, points are initialized randomly."""
 
 
 @dataclass
@@ -94,12 +98,29 @@ class Blender(DataParser):
             camera_type=CameraType.PERSPECTIVE,
         )
 
+        metadata = {}
+        if self.config.ply_path is not None:
+            metadata.update(self._load_3D_points(self.config.data / self.config.ply_path))
+
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
             alpha_color=self.alpha_color_tensor,
             scene_box=scene_box,
             dataparser_scale=self.scale_factor,
+            metadata=metadata,
         )
 
         return dataparser_outputs
+
+    def _load_3D_points(self, ply_file_path: Path):
+        pcd = o3d.io.read_point_cloud(str(ply_file_path))
+
+        points3D = torch.from_numpy(np.asarray(pcd.points, dtype=np.float32) * self.config.scale_factor)
+        points3D_rgb = torch.from_numpy((np.asarray(pcd.colors) * 255).astype(np.uint8))
+
+        out = {
+            "points3D_xyz": points3D,
+            "points3D_rgb": points3D_rgb,
+        }
+        return out

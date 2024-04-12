@@ -35,7 +35,9 @@ from typing_extensions import Annotated, Literal
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
+from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatamanager
 from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
+from nerfstudio.data.datamanagers.random_cameras_datamanager import RandomCamerasDataManager
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.exporter import texture_utils, tsdf_utils
 from nerfstudio.exporter.exporter_utils import collect_camera_poses, generate_point_cloud, get_mesh_from_filename
@@ -137,7 +139,10 @@ class ExportPointCloud(Exporter):
         validate_pipeline(self.normal_method, self.normal_output_name, pipeline)
 
         # Increase the batchsize to speed up the evaluation.
-        assert isinstance(pipeline.datamanager, (VanillaDataManager, ParallelDataManager))
+        assert isinstance(
+            pipeline.datamanager,
+            (VanillaDataManager, ParallelDataManager, FullImageDatamanager, RandomCamerasDataManager),
+        )
         assert pipeline.datamanager.train_pixel_sampler is not None
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
@@ -318,7 +323,10 @@ class ExportPoissonMesh(Exporter):
         validate_pipeline(self.normal_method, self.normal_output_name, pipeline)
 
         # Increase the batchsize to speed up the evaluation.
-        assert isinstance(pipeline.datamanager, (VanillaDataManager, ParallelDataManager))
+        assert isinstance(
+            pipeline.datamanager,
+            (VanillaDataManager, ParallelDataManager, FullImageDatamanager, RandomCamerasDataManager),
+        )
         assert pipeline.datamanager.train_pixel_sampler is not None
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
@@ -582,7 +590,7 @@ class ExportGaussianSplat(Exporter):
         select = np.ones(n, dtype=bool)
         for k, t in map_to_tensors.items():
             n_before = np.sum(select)
-            select = np.logical_and(select, np.isfinite(t).all())
+            select = np.logical_and(select, np.isfinite(t).all(axis=-1))
             n_after = np.sum(select)
             if n_after < n_before:
                 CONSOLE.print(f"{n_before - n_after} NaN/Inf elements in {k}")
@@ -590,7 +598,8 @@ class ExportGaussianSplat(Exporter):
         if np.sum(select) < n:
             CONSOLE.print(f"values have NaN/Inf in map_to_tensors, only export {np.sum(select)}/{n}")
             for k, t in map_to_tensors.items():
-                map_to_tensors[k] = map_to_tensors[k][select, :]
+                map_to_tensors[k] = map_to_tensors[k][select]
+            count = np.sum(select)
 
         ExportGaussianSplat.write_ply(str(filename), count, map_to_tensors)
 

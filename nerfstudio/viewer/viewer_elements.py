@@ -21,7 +21,7 @@ from __future__ import annotations
 import warnings
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Generic, List, Literal, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, List, Literal, Optional, Tuple, Union, overload
 
 import numpy as np
 import torch
@@ -166,8 +166,29 @@ class ViewerControl:
         CONSOLE.log("`register_click_cb` is deprecated, use `register_pointer_cb` instead.")
         self.register_pointer_cb("click", cb)
 
+    @overload
     def register_pointer_cb(
-        self, event_type: Literal["click", "rect-select"], cb: Callable, done_cb: Optional[Callable] = None
+        self,
+        event_type: Literal["click"],
+        cb: Callable[[ViewerClick], None],
+        removed_cb: Optional[Callable[[], None]] = None,
+    ):
+        ...
+
+    @overload
+    def register_pointer_cb(
+        self,
+        event_type: Literal["rect-select"],
+        cb: Callable[[ViewerRectSelect], None],
+        removed_cb: Optional[Callable[[], None]] = None,
+    ):
+        ...
+
+    def register_pointer_cb(
+        self,
+        event_type: Literal["click", "rect-select"],
+        cb: Callable[[ViewerClick], None] | Callable[[ViewerRectSelect], None],
+        removed_cb: Optional[Callable[[], None]] = None,
     ):
         """
         Add a callback which will be called when a scene pointer event is detected in the viewer.
@@ -180,6 +201,7 @@ class ViewerControl:
 
         Args:
             cb: The callback to call when a click or a rect-select is detected.
+            removed_cb: The callback to run when the pointer event is removed.
         """
         from nerfstudio.viewer.viewer import VISER_NERFSTUDIO_SCALE_RATIO
 
@@ -203,7 +225,7 @@ class ViewerControl:
             else:
                 raise ValueError(f"Unknown event type: {scene_pointer_msg.event_type}")
 
-            cb(pointer_event)
+            cb(pointer_event)  # type: ignore
 
         cb_overriden = False
         with warnings.catch_warnings(record=True) as w:
@@ -219,8 +241,8 @@ class ViewerControl:
             )
 
         # If there exists a cleanup callback after the pointer event is done, register it.
-        if done_cb:
-            self.viser_server.on_scene_pointer_done(done_cb)
+        if removed_cb is not None:
+            self.viser_server.on_scene_pointer_removed(removed_cb)
 
     def unregister_click_cb(self, cb: Optional[Callable] = None):
         """Deprecated, use unregister_pointer_cb instead. `cb` is ignored."""
