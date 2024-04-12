@@ -70,15 +70,17 @@ class SplatProfactoModelConfig(SplatfactoModelConfig):
     propagated_iteration_begin: int = 10
     propagated_iteration_after: int = 1000
     propagation_interval: int = 50
+    flatten_loss: bool = False
     sparse_loss: bool  = False
-    lambda_sparse: float = 0.1
     normal_loss: bool = False
     depth_loss: bool = False
     return_depth: bool = False
     return_normal: bool = False
     return_opacity: bool = False
-    lambda_l1_normal: float = 0.1
-    lambda_cos_normal: float = 0.1
+    lambda_l1_normal: float = 0.01
+    lambda_cos_normal: float = 0.01
+    lambda_sparse: float = 0.001
+    lambda_flatten: float = 100.0
     intervals: List[int] = field(default_factory=lambda: [-2, -1, 1, 2])
     depth_max: float = 20
     patch_size: int = 20
@@ -95,6 +97,7 @@ class SplatProfactoModel(SplatfactoModel):
 
     config: SplatProfactoModelConfig
     rescale_cameras: bool = True
+    normals: Dict[int, torch.tensor] = {}
     
     def propagate_gaussians(self, optimizers: Optimizers, pipeline: Pipeline, step: int):
         assert self.step == step, "Step shall be the same"
@@ -108,7 +111,7 @@ class SplatProfactoModel(SplatfactoModel):
 
             # Pick a random Camera
             assert len(cameras.shape) == 1, "Assumes single batch dimension"
-            randidx = 0 # randint(0, cameras.shape[0])
+            randidx = pipeline.datamanager.get_next_train_idx()
 
             # begin with empty list
             src_idxs = []
@@ -181,7 +184,8 @@ class SplatProfactoModel(SplatfactoModel):
             R_w2c = propagation_cameras[randidx].Rs.T.clone().detach().cuda().to(torch.float32).squeeze()
 
             # R_w2c[:, 1:] *= -1
-            normal = (R_w2c @ normal.view(-1, 3).permute(1, 0))             
+            normal = (R_w2c @ normal.view(-1, 3).permute(1, 0)).permute(1,0).view(propagation_cameras[randidx].height, 
+                                                                                  propagation_cameras[randidx].width, 3)             
             
             propagated_depth = torch.tensor(propagated_depth).to(projected_depth.device)
             valid_mask = propagated_depth != 300
@@ -238,7 +242,11 @@ class SplatProfactoModel(SplatfactoModel):
                     
             cost = geometric_counts.squeeze()
             cost_mask = cost >= 2
-            
+
+            #set -10 as nan              
+            normal[~(cost_mask.unsqueeze(2).repeat(1, 1, 3))] = -10
+            self.normals[randidx] = normal
+                
             propagated_mask = valid_mask & error_mask & cost_mask
 
             if propagated_mask.sum() > 100:
@@ -474,6 +482,15 @@ class SplatProfactoModel(SplatfactoModel):
             scale_reg = torch.tensor(0.0).to(self.device)
 
         loss = (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss
+
+        # flatten loss
+        if self.config.flatten_loss:
+            scales = self.scales
+            min_scale, _ = torch.min(scales, dim=1)
+            min_scale = torch.clamp(min_scale, 0, 30)
+            flatten_loss = torch.abs(min_scale).mean()
+            loss += self.config.lambda_flatten * flatten_loss
+
         # opacity loss
         if self.config.sparse_loss:
             opacity = self.opacities
@@ -486,8 +503,8 @@ class SplatProfactoModel(SplatfactoModel):
         # normal loss
         if self.config.normal_loss:
             rendered_normal = outputs['render_normal']
-            if outputs["normal"] is not None:
-                normal_gt = outputs["normal"].cuda()
+            if outputs['cam_idx'] in self.normals:
+                normal_gt = self.normals[outputs['cam_idx']].cuda()
                 filter_mask = (normal_gt != -10)[0, :, :].to(torch.bool)
                 l1_normal = torch.abs(rendered_normal - normal_gt).sum(dim=0)[filter_mask].mean()
                 cos_normal = (1. - torch.sum(rendered_normal * normal_gt, dim = 0))[filter_mask].mean()
@@ -692,10 +709,10 @@ class SplatProfactoModel(SplatfactoModel):
             normal = rotations_mat[indices, :, min_scales]
 
             # get the camera center
-            camera_center = camera.world_to_cameras.inverse()[0, 3, :3]
+            camera_center = camera.world_to_cameras.squeeze().T.inverse()[3, :3]
 
             # convert normal direction to the camera; calculate the normal in the camera coordinate
-            view_dir = self.means - camera_center
+            view_dir = means_crop - camera_center
             normal   = normal * ((((view_dir * normal).sum(dim=-1) < 0) * 1 - 0.5) * 2)[...,None]
 
             R_w2c = R.T.clone().detach().cuda().to(torch.float32)
@@ -715,8 +732,9 @@ class SplatProfactoModel(SplatfactoModel):
                 background=torch.zeros(3, device=self.device),
             )  # type: ignore
     
-            render_normal = torch.nn.functional.normalize(render_normal, dim = 0)                                                                                                                                                   
-            return_dict.update({'render_normal': render_normal})
+            render_normal = torch.nn.functional.normalize(render_normal, dim = 2)                                                                                                                                                   
+            return_dict.update({'render_normal': render_normal, 
+                                'cam_idx': camera.metadata["cam_idx"] if camera.metadata is not None else -1})
 
         if self.rescale_cameras:
             # rescale the camera back to original dimensions before returning

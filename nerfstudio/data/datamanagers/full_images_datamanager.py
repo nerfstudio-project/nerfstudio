@@ -126,6 +126,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.train_unseen_cameras = [i for i in range(len(self.train_dataset))]
         self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
         assert len(self.train_unseen_cameras) > 0, "No data found in dataset"
+        self.image_idx = -1
 
         super().__init__()
 
@@ -302,15 +303,19 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         # TODO: fix this to be the resolution of the last image rendered
         return 800 * 800
 
+    def get_next_train_idx(self) -> int:
+        self.image_idx = self.train_unseen_cameras.pop(random.randint(0, len(self.train_unseen_cameras) - 1))
+        # Make sure to re-populate the unseen cameras list if we have exhausted it
+        if len(self.train_unseen_cameras) == 0:
+            self.train_unseen_cameras = [i for i in range(len(self.train_dataset))]
+        
+        return self.image_idx
+
     def next_train(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next training batch
 
         Returns a Camera instead of raybundle"""
-        image_idx = self.train_unseen_cameras.pop(random.randint(0, len(self.train_unseen_cameras) - 1))
-        # Make sure to re-populate the unseen cameras list if we have exhausted it
-        if len(self.train_unseen_cameras) == 0:
-            self.train_unseen_cameras = [i for i in range(len(self.train_dataset))]
-
+        image_idx = self.image_idx if self.image_idx != -1 else self.get_next_train_idx()
         data = deepcopy(self.cached_train[image_idx])
         data["image"] = data["image"].to(self.device)
 
@@ -319,6 +324,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         if camera.metadata is None:
             camera.metadata = {}
         camera.metadata["cam_idx"] = image_idx
+        self.image_idx = -1
         return camera, data
 
     def next_eval(self, step: int) -> Tuple[Cameras, Dict]:

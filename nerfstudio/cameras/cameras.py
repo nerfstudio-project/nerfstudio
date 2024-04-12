@@ -125,7 +125,6 @@ class Cameras(TensorDataclass):
         metadata: Optional[Dict] = None,
         image_filenames: Optional[List] = None,
         world_to_cameras: Optional[Float[Tensor, "*num_cameras 3 4"]] = None,
-        Ks: Optional[Float[Tensor, "*num_cameras 8"]] = None,
         Rs: Optional[Float[Tensor, "*num_cameras 3 3"]] = None,
         ts: Optional[Float[Tensor, "*num_cameras  1"]] = None,
     ) -> None:
