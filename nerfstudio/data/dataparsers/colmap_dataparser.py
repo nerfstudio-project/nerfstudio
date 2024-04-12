@@ -26,7 +26,6 @@ import numpy as np
 import torch
 from PIL import Image
 from rich.prompt import Confirm
-from utils.misc import set_pil_image_size_limit
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras
@@ -40,6 +39,7 @@ from nerfstudio.data.utils.dataparsers_utils import (
     get_train_eval_split_interval,
 )
 from nerfstudio.process_data.colmap_utils import parse_colmap_camera_params
+from nerfstudio.utils.misc import set_pil_image_size_limit
 from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
 
