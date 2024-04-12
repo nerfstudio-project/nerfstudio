@@ -24,6 +24,7 @@ import numpy as np
 import torch
 from PIL import Image
 from rich.progress import track
+from utils.misc import set_pil_image_size_limit
 
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.datasets.base_dataset import InputDataset
@@ -32,7 +33,7 @@ from nerfstudio.model_components import losses
 from nerfstudio.utils.misc import torch_compile
 from nerfstudio.utils.rich_utils import CONSOLE
 
-Image.MAX_IMAGE_PIXELS = None
+set_pil_image_size_limit(None)
 
 class DepthDataset(InputDataset):
     """Dataset that returns images and depths. If no depths are found, then we generate them with Zoe Depth.

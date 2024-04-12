@@ -23,6 +23,7 @@ import numpy as np
 import open3d as o3d
 import tyro
 from PIL import Image
+from utils.misc import set_pil_image_size_limit
 
 try:
     from projectaria_tools.core import mps
@@ -34,7 +35,7 @@ except ImportError:
     sys.exit(1)
 
 ARIA_CAMERA_MODEL = "FISHEYE624"
-Image.MAX_IMAGE_PIXELS = None
+set_pil_image_size_limit(None)
 
 # The Aria coordinate system is different than the Blender/NerfStudio coordinate system.
 # Blender / Nerfstudio: +Z = back, +Y = up, +X = right

@@ -24,11 +24,12 @@ from jaxtyping import Float
 from PIL import Image
 from torch import Generator, Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
+from utils.misc import set_pil_image_size_limit
 
 from nerfstudio.utils.rich_utils import CONSOLE
 
 IMG_DIM = 64
-Image.MAX_IMAGE_PIXELS = None
+set_pil_image_size_limit(None)
 
 class DeepFloyd(nn.Module):
     """DeepFloyd diffusion model

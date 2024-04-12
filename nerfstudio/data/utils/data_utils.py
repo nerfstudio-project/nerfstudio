@@ -20,8 +20,9 @@ import cv2
 import numpy as np
 import torch
 from PIL import Image
+from utils.misc import set_pil_image_size_limit
 
-Image.MAX_IMAGE_PIXELS = None
+set_pil_image_size_limit(None)
 
 def get_image_mask_tensor_from_path(filepath: Path, scale_factor: float = 1.0) -> torch.Tensor:
     """

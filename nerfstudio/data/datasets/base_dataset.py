@@ -28,13 +28,13 @@ from jaxtyping import Float, UInt8
 from PIL import Image
 from torch import Tensor
 from torch.utils.data import Dataset
+from utils.misc import set_pil_image_size_limit
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.utils.data_utils import get_image_mask_tensor_from_path
 
-Image.MAX_IMAGE_PIXELS = None
-
+set_pil_image_size_limit(None)
 class InputDataset(Dataset):
     """Dataset that returns images.
 
