@@ -21,9 +21,9 @@ from typing import Dict, List
 
 import numpy as np
 from PIL import Image
-from utils.misc import set_pil_image_size_limit
 
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
+from nerfstudio.utils.misc import set_pil_image_size_limit
 from nerfstudio.utils.rich_utils import CONSOLE
 
 set_pil_image_size_limit(None)

@@ -21,7 +21,8 @@ import cv2
 import numpy as np
 import torch
 from PIL import Image
-from utils.misc import set_pil_image_size_limit
+
+from nerfstudio.utils.misc import set_pil_image_size_limit
 
 set_pil_image_size_limit(None)
 

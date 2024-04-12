@@ -24,13 +24,12 @@ import numpy as np
 import torch
 from PIL import Image
 from rich.progress import track
-from utils.misc import set_pil_image_size_limit
 
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.data_utils import get_depth_image_from_path
 from nerfstudio.model_components import losses
-from nerfstudio.utils.misc import torch_compile
+from nerfstudio.utils.misc import set_pil_image_size_limit, torch_compile
 from nerfstudio.utils.rich_utils import CONSOLE
 
 set_pil_image_size_limit(None)

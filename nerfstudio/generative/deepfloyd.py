@@ -24,8 +24,8 @@ from jaxtyping import Float
 from PIL import Image
 from torch import Generator, Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
-from utils.misc import set_pil_image_size_limit
 
+from nerfstudio.utils.misc import set_pil_image_size_limit
 from nerfstudio.utils.rich_utils import CONSOLE
 
 IMG_DIM = 64
@@ -209,7 +209,8 @@ class DeepFloyd(nn.Module):
             The generated image.
         """
 
-        from diffusers import DiffusionPipeline, IFPipeline as IFOrig
+        from diffusers import DiffusionPipeline
+        from diffusers import IFPipeline as IFOrig
         from diffusers.pipelines.deepfloyd_if import IFPipelineOutput as IFOutputOrig
 
         prompts = [prompts] if isinstance(prompts, str) else prompts

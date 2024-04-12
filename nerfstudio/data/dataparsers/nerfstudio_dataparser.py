@@ -22,7 +22,6 @@ from typing import Literal, Optional, Tuple, Type
 import numpy as np
 import torch
 from PIL import Image
-from utils.misc import set_pil_image_size_limit
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
@@ -35,6 +34,7 @@ from nerfstudio.data.utils.dataparsers_utils import (
     get_train_eval_split_interval,
 )
 from nerfstudio.utils.io import load_from_json
+from nerfstudio.utils.misc import set_pil_image_size_limit
 from nerfstudio.utils.rich_utils import CONSOLE
 
 MAX_AUTO_RESOLUTION = 1600
