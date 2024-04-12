@@ -347,6 +347,10 @@ def _undistort_image(
                 0,
             ]
         )
+        # because OpenCV expects the pixel coord to be top-left, we need to shift the principal point by 0.5
+        # see https://github.com/nerfstudio-project/nerfstudio/issues/3048
+        K[0, 2] = K[0, 2] - 0.5
+        K[1, 2] = K[1, 2] - 0.5
         if np.any(distortion_params):
             newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
             image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
@@ -367,9 +371,13 @@ def _undistort_image(
             mask = torch.from_numpy(mask).bool()
             if len(mask.shape) == 2:
                 mask = mask[:, :, None]
+        newK[0, 2] = newK[0, 2] + 0.5
+        newK[1, 2] = newK[1, 2] + 0.5
         K = newK
 
     elif camera.camera_type.item() == CameraType.FISHEYE.value:
+        K[0, 2] = K[0, 2] - 0.5
+        K[1, 2] = K[1, 2] - 0.5
         distortion_params = np.array(
             [distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]]
         )
@@ -388,6 +396,8 @@ def _undistort_image(
             mask = torch.from_numpy(mask).bool()
             if len(mask.shape) == 2:
                 mask = mask[:, :, None]
+        newK[0, 2] = newK[0, 2] + 0.5
+        newK[1, 2] = newK[1, 2] + 0.5
         K = newK
     elif camera.camera_type.item() == CameraType.FISHEYE624.value:
         fisheye624_params = torch.cat(
