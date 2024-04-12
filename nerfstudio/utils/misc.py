@@ -223,7 +223,7 @@ def get_orig_class(obj, default=None):
 
 
 @contextlib.contextmanager
-def set_pil_image_size_limit(max_pixels: Optional[int | None]):
+def set_pil_image_size_limit(max_pixels: Optional[Any]):
     """By default PIL limits the max image size preventing processing or training with high resolution images.
     Use this function to disable or set a custom image size limit.
 
