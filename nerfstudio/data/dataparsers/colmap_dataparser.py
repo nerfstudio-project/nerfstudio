@@ -30,21 +30,21 @@ from utils.misc import set_pil_image_size_limit
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras
-from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
+from nerfstudio.data.dataparsers.base_dataparser import (DataParser,
+                                                         DataParserConfig,
+                                                         DataparserOutputs)
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.data.utils import colmap_parsing_utils as colmap_utils
 from nerfstudio.data.utils.dataparsers_utils import (
-    get_train_eval_split_all,
-    get_train_eval_split_filename,
-    get_train_eval_split_fraction,
-    get_train_eval_split_interval,
-)
+    get_train_eval_split_all, get_train_eval_split_filename,
+    get_train_eval_split_fraction, get_train_eval_split_interval)
 from nerfstudio.process_data.colmap_utils import parse_colmap_camera_params
 from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
 
 MAX_AUTO_RESOLUTION = 1600
 set_pil_image_size_limit(None)
+
 @dataclass
 class ColmapDataParserConfig(DataParserConfig):
     """Nerfstudio dataset config"""

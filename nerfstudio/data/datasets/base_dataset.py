@@ -35,6 +35,7 @@ from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.utils.data_utils import get_image_mask_tensor_from_path
 
 set_pil_image_size_limit(None)
+
 class InputDataset(Dataset):
     """Dataset that returns images.
 
