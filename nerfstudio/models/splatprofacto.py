@@ -86,6 +86,7 @@ class SplatProfactoModelConfig(SplatfactoModelConfig):
     patch_size: int = 20
     depth_error_max_threshold: float = 1.0
     depth_error_min_threshold: float = 1.0
+    pair_path: str = ""
 
 
 class SplatProfactoModel(SplatfactoModel):
@@ -146,7 +147,12 @@ class SplatProfactoModel(SplatfactoModel):
 
             # get ground truth image
             gt_image = self.composite_with_background(self.get_gt_img(data["image"].to(self.device)), 
-                                                        render_pkg["background"])            
+                                                        render_pkg["background"]) 
+
+            sky_mask = None
+            # check if sky mask is provided
+            if "mask" in data:
+                sky_mask = self._downscale_if_required(data["mask"]).to(self.device)           
 
             projected_depths = []
             gt_images = []
@@ -248,6 +254,8 @@ class SplatProfactoModel(SplatfactoModel):
             self.normals[randidx] = normal
                 
             propagated_mask = valid_mask & error_mask & cost_mask
+            if sky_mask is not None:
+                propagated_mask = propagated_mask & sky_mask
 
             if propagated_mask.sum() > 100:
                 self._densify_from_depth_propagation(propagation_cameras[randidx],

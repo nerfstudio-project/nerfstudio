@@ -268,6 +268,7 @@
         "--data", "/home/ubuntu/data/gaussianpro_test", 
         "colmap", 
         "--auto-scale-poses", "False",
+        "--masks_path", "mask",
       ]
     },
   ]
