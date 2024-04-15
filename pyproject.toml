@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "1.0.2"
+version = "1.0.3"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -35,7 +35,7 @@ dependencies = [
     "nerfacc==0.5.2",
     "open3d>=0.16.0",
     "opencv-python==4.8.0.76",
-    "Pillow>=9.3.0",
+    "Pillow>=10.3.0",
     "plotly>=5.7.0",
     "protobuf<=3.20.3,!=3.20.0",
     # TODO(1480) enable when pycolmap windows wheels are available
@@ -57,13 +57,13 @@ dependencies = [
     "torchvision>=0.14.1",
     "torchmetrics[image]>=1.0.1",
     "typing_extensions>=4.4.0",
-    "viser==0.1.21",
+    "viser==0.1.27",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
     "xatlas",
     "trimesh>=3.20.2",
     "timm==0.6.7",
-    "gsplat>=0.1.6",
+    "gsplat>=0.1.9",
     "pytorch-msssim",
     "pathos",
     "packaging"
@@ -113,7 +113,7 @@ docs = [
     "readthedocs-sphinx-search==0.1.2",
     "myst-nb==0.16.0",
     "nbconvert==7.2.5",
-    "nbformat==5.5.0",
+    "nbformat==5.9.2",
     "sphinx==5.2.1",
     "sphinxemoji==0.2.0",
     "sphinx-argparse==0.3.1",
