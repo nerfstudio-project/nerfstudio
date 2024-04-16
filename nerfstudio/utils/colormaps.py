@@ -187,7 +187,6 @@ def apply_pca_colormap(
     """
     original_shape = image.shape
     image = image.view(-1, image.shape[-1])
-    #
     if ignore_zeros:
         valids = (image.abs().amax(dim=-1)) > 0
     else:
