@@ -134,7 +134,7 @@ def run_hloc(
             features,
             matches,
             image_list=references,
-            camera_mode=pycolmap.CameraMode.SINGLE,  # type: ignore
+            camera_mode=pycolmap.CameraMode.PER_IMAGE,  # type: ignore
             image_options=image_options,
             verbose=verbose,
         )
@@ -147,7 +147,8 @@ def run_hloc(
             sfm_pairs,
             features,
             matches,
-            camera_mode=pycolmap.CameraMode.SINGLE,  # type: ignore
+            image_list=references,
+            camera_mode=pycolmap.CameraMode.PER_IMAGE,  # type: ignore
             image_options=image_options,
             verbose=verbose,
         )
