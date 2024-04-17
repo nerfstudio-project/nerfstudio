@@ -156,7 +156,7 @@ def to_aria_image_frame(
     image_data = provider.get_image_data_by_index(stream_id, index)
     rectified_img, intrinsic = undistort(provider, name, index)
     #rectified_img = image_data[0].to_numpy_array()
-    if len(rectified_img.shape) == 13: ##HEHEHE
+    if len(rectified_img.shape) == 3: ##HEHEHE
         rectified_img = np.mean(rectified_img, axis=2).astype(np.uint8)
     img = Image.fromarray(rectified_img)
     capture_time_ns = image_data[1].capture_timestamp_ns
@@ -261,8 +261,8 @@ class ProcessProjectAria:
         aria_camera_frames = [
             [
                 to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[i])
-                #for index in range(0, provider.get_num_data(stream_id)) # there are 333 images per camera
-                for index in range(0, 100)
+                for index in range(0, provider.get_num_data(stream_id)) # there are 333 images per camera
+                # for index in range(0, 100)
             ] 
             for i, stream_id in enumerate(stream_ids)
         ] # aria_frames = aria_camera_frames[0]

@@ -747,7 +747,7 @@ class SplatfactoModel(Model):
             return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
 
         # Important to allow xys grads to populate properly
-        if self.training:
+        if self.training and self.xys.requires_grad:
             self.xys.retain_grad()
 
         if self.config.sh_degree > 0:
