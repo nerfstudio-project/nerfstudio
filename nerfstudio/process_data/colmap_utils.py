@@ -419,6 +419,15 @@ def colmap_to_json(
     cam_id_to_camera = read_cameras_binary(recon_dir / "cameras.bin")
     im_id_to_image = read_images_binary(recon_dir / "images.bin")
 
+    multifocal=False  # one camera for all frames (distort_fixed=True)
+    if set(cam_id_to_camera.keys()) != {1}:
+        print("Only single camera shared for all images is supported.")
+        print(cam_id_to_camera)
+        multifocal=True  # one camera per frame (distort_fixed=False)
+        out = {"camera_model":parse_colmap_camera_params(cam_id_to_camera[1])["camera_model"]}
+    else:
+        out = parse_colmap_camera_params(cam_id_to_camera[1])
+
     frames = []
     for im_id, im_data in im_id_to_image.items():
         # NB: COLMAP uses Eigen / scalar-first quaternions
@@ -455,10 +464,12 @@ def colmap_to_json(
         if image_id_to_depth_path is not None:
             depth_path = image_id_to_depth_path[im_id]
             frame["depth_file_path"] = str(depth_path.relative_to(depth_path.parent.parent))
+
+        if multifocal is True:  # add the camera for this frame
+            frame.update(parse_colmap_camera_params(cam_id_to_camera[im_id]))
+
         frames.append(frame)
 
-    if set(cam_id_to_camera.keys()) != {1}:
-        raise RuntimeError("Only single camera shared for all images is supported.")
     out = parse_colmap_camera_params(cam_id_to_camera[1])
     out["frames"] = frames
 

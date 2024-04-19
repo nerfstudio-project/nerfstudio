@@ -101,6 +101,8 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     """If --use-sfm-depth and this flag is True, also export debug images showing Sf overlaid upon input images."""
     same_dimensions: bool = True
     """Whether to assume all images are same dimensions and so to use fast downscaling with no autorotation."""
+    same_camera: bool = True
+    """Whether to assume all images taken with the same camera characteristics, set to False for multifocal case."""
 
     @staticmethod
     def default_colmap_path() -> Path:
@@ -194,6 +196,10 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         if self.refine_pixsfm:
             assert sfm_tool == "hloc", "refine_pixsfm only works with sfm_tool hloc"
 
+        # check that sfm_tool is hloc if using same_camera
+        if not self.same_camera:
+            assert sfm_tool == "hloc", "no_same_camera only works with sfm_tool hloc"
+
         # set the image_dir if didn't copy
         if self.skip_image_processing:
             image_dir = self.data
@@ -228,6 +234,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 feature_type=feature_type,
                 matcher_type=matcher_type,
                 refine_pixsfm=self.refine_pixsfm,
+                same_camera=self.same_camera,
             )
         else:
             raise RuntimeError("Invalid combination of sfm_tool, feature_type, and matcher_type, " "exiting")
