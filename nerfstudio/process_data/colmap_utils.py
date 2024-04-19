@@ -418,13 +418,12 @@ def colmap_to_json(
     # im_id_to_image = recon.images
     cam_id_to_camera = read_cameras_binary(recon_dir / "cameras.bin")
     im_id_to_image = read_images_binary(recon_dir / "images.bin")
-
-    multifocal=False  # one camera for all frames (distort_fixed=True)
+    multifocal = False  # one camera for all frames (distort_fixed=True)
     if set(cam_id_to_camera.keys()) != {1}:
         print("Only single camera shared for all images is supported.")
         print(cam_id_to_camera)
-        multifocal=True  # one camera per frame (distort_fixed=False)
-        out = {"camera_model":parse_colmap_camera_params(cam_id_to_camera[1])["camera_model"]}
+        multifocal = True  # one camera per frame (distort_fixed=False)
+        out = {"camera_model": parse_colmap_camera_params(cam_id_to_camera[1])["camera_model"]}
     else:
         out = parse_colmap_camera_params(cam_id_to_camera[1])
 
