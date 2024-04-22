@@ -854,6 +854,47 @@ class SplatfactoModel(Model):
             batch: ground truth batch corresponding to outputs
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
+        all_veggie_scales = torch.tensor(
+            [
+                [0.069154546, 0.06851113, 0.079154074],
+                [0.076087564, 0.07968304, 0.08357684],
+                [0.20282985, 0.20593849, 0.24052818],
+                [0.16882257, 0.17487179, 0.12207041],
+                [0.03003739, 0.17982405, 0.028945997],
+                [0.059356324, 0.057629615, 0.06284852],
+                [0.1031793, 0.10339059, 0.1351408],
+                [0.14946109, 0.11215246, 0.08810428],
+                [0.08001522, 0.08351508, 0.06340429],
+                [0.0695579, 0.06986587, 0.06974192],
+                [0.06918599, 0.050491326, 0.06444352],
+                [0.06730143, 0.06289782, 0.11990908],
+                [0.07957077, 0.090711966, 0.069334],
+                [0.21029748, 0.20809223, 0.24836816],
+                [0.06037101, 0.10691811, 0.047882475],
+                [0.033434182, 0.041474655, 0.092064254],
+            ],
+            device=self.device,
+            dtype=torch.float32,
+        )
+
+        veggie_scales_ratio = torch.zeros_like(all_veggie_scales)
+        veggie_scales_ratio[:, 0] = all_veggie_scales[:, 0] / all_veggie_scales[:, 1]
+        veggie_scales_ratio[:, 1] = all_veggie_scales[:, 1] / all_veggie_scales[:, 2]
+        veggie_scales_ratio[:, 2] = all_veggie_scales[:, 2] / all_veggie_scales[:, 0]
+
+        scale_exp = torch.exp(self.scales)
+        scales_ratio = torch.zeros_like(scale_exp)
+        scales_ratio[:, 0] = scale_exp[:, 0] / scale_exp[:, 1]
+        scales_ratio[:, 1] = scale_exp[:, 1] / scale_exp[:, 2]
+        scales_ratio[:, 2] = scale_exp[:, 2] / scale_exp[:, 0]
+
+        veggie_diffs = torch.zeros((scales_ratio.shape[0], veggie_scales_ratio.shape[0]))
+        for i in range(veggie_scales_ratio.shape[0]):
+            veggie_diffs[:, i] = torch.norm(scales_ratio - veggie_scales_ratio[i], dim=1)
+
+        min_diffs, _ = veggie_diffs.min(dim=1)
+        scale_diff_loss = torch.norm(min_diffs)
+
         gt_img = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         pred_img = outputs["rgb"]
 
@@ -885,6 +926,7 @@ class SplatfactoModel(Model):
         loss_dict = {
             "main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,
             "scale_reg": scale_reg,
+            "scale_diff_loss": scale_diff_loss * self.config.ssim_lambda,
         }
 
         if self.training:
