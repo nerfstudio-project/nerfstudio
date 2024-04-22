@@ -70,6 +70,7 @@ class AriaImageFrame:
     t_world_camera: SE3
     timestamp_ns: float
     pinhole_intrinsic: List[float]
+    fisheye_crop_radius: float
 
 
 @dataclass
@@ -112,7 +113,7 @@ def read_trajectory_csv_to_dict(file_iterable_csv: str) -> TimedPoses:
         *[(it.tracking_timestamp.total_seconds(), it.transform_world_device) for it in closed_loop_traj]
     )
     SEC_TO_NANOSEC = 1e9
-    # print(timestamps_secs[:10]) # prints (405.218581, 405.219225, 405.220223, 405.221243, 405.222218, 405.223262, 405.224214, 405.225212, 405.226213, 405.227208)
+    # print(timestamps_secs[:8]) # prints (405.218581, 405.219225, 405.220223, 405.221243, 405.222218, 405.223262, 405.224214, 405.225212)
     return TimedPoses(
         timestamps_ns=(np.array(timestamps_secs) * SEC_TO_NANOSEC).astype(int),
         t_world_devices=poses,
@@ -145,18 +146,20 @@ def to_aria_image_frame(
     t_world_devices: TimedPoses,
     output_dir: Path,
     name: str = "camera-rgb",
+    pinhole: bool = False,
+    fisheye_crop_radius: float = 512,
 
 ) -> AriaImageFrame:
-    ari_camera_calibration = name_to_camera[name]
+    aria_camera_calibration = name_to_camera[name]
     stream_id = provider.get_stream_id_from_label(name)
     assert stream_id is not None, f"Could not find stream {name}"
 
     # Get the image corresponding to this index
-    # ANTONIO NEW RECTIFYING BRANCH
     image_data = provider.get_image_data_by_index(stream_id, index)
-    rectified_img, intrinsic = undistort(provider, name, index)
-    #rectified_img = image_data[0].to_numpy_array()
-    if len(rectified_img.shape) == 3: ##HEHEHE
+    rectified_img, intrinsic = image_data[0].to_numpy_array(), (0, 0, 0, 0)
+    if pinhole == True:
+        rectified_img, intrinsic = undistort(provider, name, index)
+    if len(rectified_img.shape) == 3: ##HEHEHE 13 for RGB , 3 for grayscale
         rectified_img = np.mean(rectified_img, axis=2).astype(np.uint8)
     img = Image.fromarray(rectified_img)
     capture_time_ns = image_data[1].capture_timestamp_ns
@@ -172,11 +175,11 @@ def to_aria_image_frame(
     capture_time_ns = np.clip(capture_time_ns, time_start + 1, time_end - 1)
     pose_info = get_nearest_pose(t_world_devices.closed_loop_traj, capture_time_ns)
     t_world_device = pose_info.transform_world_device
-    print(name, index)
-    print("Image Capture Time: ", capture_time_ns)
-    print("Pose Capture Time: ", pose_info.tracking_timestamp.total_seconds() * 1e9)
-    print("Difference: ", (capture_time_ns - pose_info.tracking_timestamp.total_seconds() * 1e9) / 1e9)
-    print()
+    # print(name, index)
+    # print("Image Capture Time: ", capture_time_ns)
+    # print("Pose Capture Time: ", pose_info.tracking_timestamp.total_seconds() * 1e9)
+    # print("Difference (in seconds): ", (capture_time_ns - pose_info.tracking_timestamp.total_seconds() * 1e9) / 1e9)
+    # print()
     
     # camera_stream_label = provider.get_label_from_stream_id() # should be the same as {name}
     device_calibration = provider.get_device_calibration()
@@ -186,11 +189,12 @@ def to_aria_image_frame(
     t_world_camera = t_world_device @ T_device_camera @ T_ARIA_NERFSTUDIO # extrinsic matrix
 
     return AriaImageFrame(
-        camera=ari_camera_calibration,
+        camera=aria_camera_calibration,
         file_path=file_path,
         t_world_camera=t_world_camera,
         timestamp_ns=capture_time_ns.item(),
-        pinhole_intrinsic=intrinsic
+        pinhole_intrinsic=intrinsic,
+        fisheye_crop_radius=fisheye_crop_radius
     )
 
 
@@ -218,6 +222,7 @@ def to_nerfstudio_frame(frame: AriaImageFrame, pinhole: bool=False) -> Dict:
         "file_path": frame.file_path,
         "transform_matrix": frame.t_world_camera.to_matrix().tolist(),
         "timestamp": frame.timestamp_ns,
+        "fisheye_crop_radius": frame.fisheye_crop_radius
     }
 
 @dataclass
@@ -254,32 +259,30 @@ class ProcessProjectAria:
 
         # create an AriaImageFrame for each image in the VRS.
         print("Creating Aria frames...")
+        CANONICAL_RGB_VALID_RADIUS = 707.5 # radius of a circular mask that represents the valid area on the camera's sensor plane. Pixels out of this circular region are considered invalid
+        CANONICAL_RGB_WIDTH = 1408
+        rgb_valid_radius = 707.5 # CANONICAL_RGB_VALID_RADIUS * (aria_camera_frames[0][0].camera.width / CANONICAL_RGB_WIDTH) # 707.5
+        CANONICAL_SLAM_VALID_RADIUS = 330 # found here https://github.com/facebookresearch/projectaria_tools/blob/4aee633cb667ab927825dc10477cad0df8393a34/core/calibration/loader/SensorCalibrationJson.cpp#L102C5-L104C18 and divided by 2
+        CANONICAL_SLAM_WIDTH = 640
+        slam_valid_radius = 330.0 # CANONICAL_SLAM_VALID_RADIUS * (aria_camera_frames[1][0].camera.width / CANONICAL_SLAM_WIDTH) # equal to 330 in the end
+        valid_radii = [rgb_valid_radius, slam_valid_radius, slam_valid_radius]
+
+        aria_camera_frames = [
+            [
+                to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[i], pinhole=False, fisheye_crop_radius=valid_radii[i])
+                for index in range(0, provider.get_num_data(stream_id)) # there are 333 images per camera
+            ] 
+            for i, stream_id in enumerate(stream_ids)
+        ]
+        
         # aria_frames = [
         #     to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir)
         #     for index in range(0, provider.get_num_data(provider.get_stream_id_from_label("camera-rgb")))
         # ]
-        aria_camera_frames = [
-            [
-                to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[i])
-                for index in range(0, provider.get_num_data(stream_id)) # there are 333 images per camera
-                # for index in range(0, 100)
-            ] 
-            for i, stream_id in enumerate(stream_ids)
-        ] # aria_frames = aria_camera_frames[0]
-        all_aria_camera_frames = [to_nerfstudio_frame(frame) for camera_frames in aria_camera_frames for frame in camera_frames]
-
         
         # create the NerfStudio frames from the AriaImageFrames.
         print("Creating NerfStudio frames...")
-        CANONICAL_RGB_VALID_RADIUS = 707.5
-        CANONICAL_RGB_WIDTH = 1408
-        rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (aria_camera_frames[0][0].camera.width / CANONICAL_RGB_WIDTH) 
-        
-        # found here https://github.com/facebookresearch/projectaria_tools/blob/4aee633cb667ab927825dc10477cad0df8393a34/core/calibration/loader/SensorCalibrationJson.cpp#L102C5-L104C18 and divided by 2
-        CANONICAL_SLAM_VALID_RADIUS = 165
-        CANONICAL_SLAM_WIDTH = 640
-        slam_valid_radius = 320.0 # CANONICAL_SLAM_VALID_RADIUS * (aria_camera_frames[1][0].camera.width / CANONICAL_SLAM_WIDTH) # equal to 165.0 in the end
-        valid_radii = [rgb_valid_radius, slam_valid_radius, slam_valid_radius]
+
         
         # nerfstudio_frames = { # (this is the OG one from master/main branch)
         #     "camera_model": ARIA_CAMERA_MODEL,
@@ -289,7 +292,7 @@ class ProcessProjectAria:
         mainRGB_frames = { # same as OG nerfstudio_frames
             "camera_model": ARIA_CAMERA_MODEL,
             "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[0]],
-            "fisheye_crop_radius": rgb_valid_radius, # if you remove this, the black corners appear
+            "fisheye_crop_radius": True, # if you remove this, the black corners appear
         }
         left_camera_frames = {
             "camera_model": ARIA_CAMERA_MODEL,
@@ -306,44 +309,57 @@ class ProcessProjectAria:
             "frames": left_camera_frames["frames"] + right_camera_frames["frames"],
             "fisheye_crop_radius": slam_valid_radius,
         }
-        mainRGB_left_camera_frames = {
+        all_cameras_grayscale_frames = { # if you want to use this, make sure do turn on the HEHEHE change to ==3 instead of ==13
             "camera_model": ARIA_CAMERA_MODEL,
-            "frames": mainRGB_frames["frames"] + left_camera_frames["frames"],
+            "frames": mainRGB_frames["frames"] + side_camera_frames["frames"], 
+            "fisheye_crop_radius": True,
+        }
+        mini6_2each_cameras_grayscale_frames = { # if you want to use this, make sure do turn on the HEHEHE change to ==3 instead of ==13
+            "camera_model": ARIA_CAMERA_MODEL,
+            "frames": mainRGB_frames["frames"][:2] + left_camera_frames["frames"][:2] + right_camera_frames["frames"][:2], 
             "fisheye_crop_radius": slam_valid_radius,
         }
-        from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
-        # print("HELLO", CAMERA_MODELS["perspective"].value) # prints "OPENCV"
-        all_cameras_grayscale_frames = { # if you want to use this, make sure do turn on the HEHEHE change to ==3 instead of ==13
-            "camera_model": CAMERA_MODELS["perspective"].value,
-            "frames": all_aria_camera_frames,
-            # "fisheye_crop_radius": slam_valid_radius,
+        all_cameras_frames = {
+            "camera_model": ARIA_CAMERA_MODEL,
+            "frames": mainRGB_frames["frames"] + left_camera_frames["frames"] + right_camera_frames["frames"],
+            "fisheye_crop_radius": slam_valid_radius,
         }
+        
 
-        # IT'S PINHOLE TIME
-        mainRGB_pinhole_frames = {
-            "camera_model": CAMERA_MODELS["perspective"].value,
-            "frames": [to_nerfstudio_frame(frame, pinhole=True) for frame in aria_camera_frames[0]],
-        }
-        left_pinhole_frames = {
-            "camera_model": CAMERA_MODELS["perspective"].value,
-            "frames": [to_nerfstudio_frame(frame, pinhole=True) for frame in aria_camera_frames[1]],
-        }
-        right_pinhole_frames = {
-            "camera_model": CAMERA_MODELS["perspective"].value,
-            "frames": [to_nerfstudio_frame(frame, pinhole=True) for frame in aria_camera_frames[2]],
-        }
-        side_camera_pinhole_frames = {
-            "camera_model": CAMERA_MODELS["perspective"].value,
-            "frames": left_pinhole_frames["frames"] + right_pinhole_frames["frames"],
-        }
-        all_cameras_grayscale_pinhole_frames = { # if you want to use this, make sure do turn on the HEHEHE change to ==3 instead of ==13
-            "camera_model": CAMERA_MODELS["perspective"].value,
-            "frames": mainRGB_pinhole_frames["frames"] + side_camera_pinhole_frames["frames"],
-        }
-        all_cameras_pinhole_frames = { # has color + grayscale images
-            "camera_model": CAMERA_MODELS["perspective"].value,
-            "frames": mainRGB_pinhole_frames["frames"] + side_camera_pinhole_frames["frames"],
-        }
+        # # ITS PINHOLE TIME
+        # from nerfstudio.process_data.process_data_utils import CAMERA_MODELS # print("HELLO", CAMERA_MODELS["perspective"].value) # prints "OPENCV"
+        # aria_camera_pinhole_frames = [
+        #     [
+        #         to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[i], pinhole=True)
+        #         for index in range(0, provider.get_num_data(stream_id)) # there are 333 images per camera
+        #         # for index in range(0, 100)
+        #     ] 
+        #     for i, stream_id in enumerate(stream_ids)
+        # ]
+        # mainRGB_pinhole_frames = {
+        #     "camera_model": CAMERA_MODELS["perspective"].value,
+        #     "frames": [to_nerfstudio_frame(frame, pinhole=True) for frame in aria_camera_pinhole_frames[0]],
+        # }
+        # left_pinhole_frames = {
+        #     "camera_model": CAMERA_MODELS["perspective"].value,
+        #     "frames": [to_nerfstudio_frame(frame, pinhole=True) for frame in aria_camera_pinhole_frames[1]],
+        # }
+        # right_pinhole_frames = {
+        #     "camera_model": CAMERA_MODELS["perspective"].value,
+        #     "frames": [to_nerfstudio_frame(frame, pinhole=True) for frame in aria_camera_pinhole_frames[2]],
+        # }
+        # side_camera_pinhole_frames = {
+        #     "camera_model": CAMERA_MODELS["perspective"].value,
+        #     "frames": left_pinhole_frames["frames"] + right_pinhole_frames["frames"],
+        # }
+        # all_cameras_grayscale_pinhole_frames = { # if you want to use this, make sure do turn on the HEHEHE change to ==3 instead of ==13
+        #     "camera_model": CAMERA_MODELS["perspective"].value,
+        #     "frames": mainRGB_pinhole_frames["frames"] + side_camera_pinhole_frames["frames"],
+        # }
+        # all_cameras_pinhole_frames = { # has color + grayscale images
+        #     "camera_model": CAMERA_MODELS["perspective"].value,
+        #     "frames": mainRGB_pinhole_frames["frames"] + side_camera_pinhole_frames["frames"],
+        # }
 
         # save global point cloud, which is useful for Gaussian Splatting.
         points_path = self.mps_data_dir / "global_points.csv.gz"
@@ -373,7 +389,7 @@ class ProcessProjectAria:
             # transform_file.write_text(json.dumps(left_pinhole_frames))
             # transform_file.write_text(json.dumps(right_pinhole_frames))
             # transform_file.write_text(json.dumps(side_camera_pinhole_frames))
-            transform_file.write_text(json.dumps(all_cameras_grayscale_pinhole_frames)) # make sure to change HEHEHE 13
+            transform_file.write_text(json.dumps(mini6_2each_cameras_grayscale_frames)) # make sure to change HEHEHE 13
         import importlib.metadata
         print(importlib.metadata.version("projectaria_tools"))
 

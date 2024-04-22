@@ -776,8 +776,8 @@ class Cameras(TensorDataclass):
             c2w[..., :3, 3] = vr180_origins
 
             return vr180_origins, directions_stack
-
-        for cam in cam_types:
+        
+        for cam in cam_types: # cam_types = tensor([9]), so cam = 9
             if CameraType.PERSPECTIVE.value in cam_types:
                 mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
                 mask = torch.stack([mask, mask, mask], dim=0)
@@ -851,6 +851,9 @@ class Cameras(TensorDataclass):
                 c2w[..., :3, 3][mask] = grids
 
             elif CameraType.FISHEYE624.value in cam_types:
+                # print("HIHIHI")
+                # print(distortion_params[:5, :])
+                # print()
                 mask = (self.camera_type[true_indices] == CameraType.FISHEYE624.value).squeeze(-1)  # (num_rays)
                 coord_mask = torch.stack([mask, mask, mask], dim=0)
 
