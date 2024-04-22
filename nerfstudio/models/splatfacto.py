@@ -843,6 +843,26 @@ class SplatfactoModel(Model):
 
         metrics_dict["gaussian_count"] = self.num_points
 
+        if self.step > 100:
+            all_veggies = [
+                "apple",
+                "bell_pepper",
+                "broccoli",
+                "cabbage",
+                "carrot",
+                "garlic",
+                "gourd",
+                "mango",
+                "orange",
+                "pear",
+                "potato",
+                "pumpkin",
+                "russet_potato",
+                "sweet_pepper",
+            ]
+            for ind, veggie in enumerate(all_veggies):
+                metrics_dict[f"{veggie}_count"] = (self.min_inds == ind).sum()
+
         self.camera_optimizer.get_metrics_dict(metrics_dict)
         return metrics_dict
 
@@ -865,8 +885,6 @@ class SplatfactoModel(Model):
                 [0.1031793, 0.10339059, 0.1351408],
                 [0.14946109, 0.11215246, 0.08810428],
                 [0.08001522, 0.08351508, 0.06340429],
-                [0.0695579, 0.06986587, 0.06974192],
-                [0.06918599, 0.050491326, 0.06444352],
                 [0.06730143, 0.06289782, 0.11990908],
                 [0.07957077, 0.090711966, 0.069334],
                 [0.21029748, 0.20809223, 0.24836816],
@@ -883,17 +901,28 @@ class SplatfactoModel(Model):
         veggie_scales_ratio[:, 2] = all_veggie_scales[:, 2] / all_veggie_scales[:, 0]
 
         scale_exp = torch.exp(self.scales)
-        scales_ratio = torch.zeros_like(scale_exp)
+        scales_ratio = torch.zeros_like(scale_exp).to(self.device)
         scales_ratio[:, 0] = scale_exp[:, 0] / scale_exp[:, 1]
         scales_ratio[:, 1] = scale_exp[:, 1] / scale_exp[:, 2]
         scales_ratio[:, 2] = scale_exp[:, 2] / scale_exp[:, 0]
 
-        veggie_diffs = torch.zeros((scales_ratio.shape[0], veggie_scales_ratio.shape[0]))
+        veggie_diffs = torch.zeros((scales_ratio.shape[0], veggie_scales_ratio.shape[0]), device=self.device)
         for i in range(veggie_scales_ratio.shape[0]):
             veggie_diffs[:, i] = torch.norm(scales_ratio - veggie_scales_ratio[i], dim=1)
 
-        min_diffs, _ = veggie_diffs.min(dim=1)
+        min_diffs, min_inds = veggie_diffs.min(dim=1)
+        veggie_counts = torch.zeros(veggie_scales_ratio.shape[0], device=self.device)
+        for i in range(veggie_scales_ratio.shape[0]):
+            veggie_counts[i] = (min_inds == i).sum()
+
+        for i in range(veggie_scales_ratio.shape[0]):
+            if veggie_counts[i] > self.num_points / 5:
+                veggie_diffs[:, i] = torch.inf
+
+        min_diffs, min_inds = veggie_diffs.min(dim=1)
+
         scale_diff_loss = torch.norm(min_diffs)
+        self.min_inds = min_inds
 
         gt_img = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         pred_img = outputs["rgb"]
@@ -923,10 +952,15 @@ class SplatfactoModel(Model):
         else:
             scale_reg = torch.tensor(0.0).to(self.device)
 
+        # if number of iterations is less than 100, scale_diff_loss is not used
+        if self.step < 0:
+            scale_diff_loss = torch.tensor(0.0).to(self.device)
+
         loss_dict = {
             "main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,
             "scale_reg": scale_reg,
-            "scale_diff_loss": scale_diff_loss * self.config.ssim_lambda,
+            "scale_diff": scale_diff_loss * 0.1,
+            # "veggie_variance": veggie_variance_loss,
         }
 
         if self.training:

@@ -553,6 +553,7 @@ class ExportGaussianSplat(Exporter):
         with torch.no_grad():
             positions = model.means.cpu().numpy()
             count = positions.shape[0]
+            veggie_counts = model.veggie.cpu().numpy()
             n = count
             map_to_tensors["x"] = positions[:, 0]
             map_to_tensors["y"] = positions[:, 1]
@@ -560,6 +561,7 @@ class ExportGaussianSplat(Exporter):
             map_to_tensors["nx"] = np.zeros(n, dtype=np.float32)
             map_to_tensors["ny"] = np.zeros(n, dtype=np.float32)
             map_to_tensors["nz"] = np.zeros(n, dtype=np.float32)
+            map_to_tensors["v"] = veggie_counts
 
             if model.config.sh_degree > 0:
                 shs_0 = model.shs_0.contiguous().cpu().numpy()
