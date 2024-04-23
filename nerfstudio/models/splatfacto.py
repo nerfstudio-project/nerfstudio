@@ -900,26 +900,35 @@ class SplatfactoModel(Model):
         veggie_scales_ratio[:, 1] = all_veggie_scales[:, 1] / all_veggie_scales[:, 2]
         veggie_scales_ratio[:, 2] = all_veggie_scales[:, 2] / all_veggie_scales[:, 0]
 
+        # getting all permutaitons of this tensor for rotation invariance
+        def permute_rows(tensor):
+            perms = torch.tensor([[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]])
+            repeated_rows = tensor.unsqueeze(1)
+            result_tensor = repeated_rows[:, :, perms]
+            return result_tensor.view(-1, 3)
+
+        veggie_scales_ratio_all_perms = permute_rows(veggie_scales_ratio)
         scale_exp = torch.exp(self.scales)
         scales_ratio = torch.zeros_like(scale_exp).to(self.device)
         scales_ratio[:, 0] = scale_exp[:, 0] / scale_exp[:, 1]
         scales_ratio[:, 1] = scale_exp[:, 1] / scale_exp[:, 2]
         scales_ratio[:, 2] = scale_exp[:, 2] / scale_exp[:, 0]
 
-        veggie_diffs = torch.zeros((scales_ratio.shape[0], veggie_scales_ratio.shape[0]), device=self.device)
-        for i in range(veggie_scales_ratio.shape[0]):
-            veggie_diffs[:, i] = torch.norm(scales_ratio - veggie_scales_ratio[i], dim=1)
+        veggie_diffs = torch.zeros((scales_ratio.shape[0], veggie_scales_ratio_all_perms.shape[0]), device=self.device)
+        for i in range(veggie_scales_ratio_all_perms.shape[0]):
+            veggie_diffs[:, i] = torch.norm(scales_ratio - veggie_scales_ratio_all_perms[i], dim=1)
 
-        min_diffs, min_inds = veggie_diffs.min(dim=1)
+        min_diffs, min_inds_all_perms = veggie_diffs.min(dim=1)
+        min_inds = min_inds_all_perms // 6
         veggie_counts = torch.zeros(veggie_scales_ratio.shape[0], device=self.device)
         for i in range(veggie_scales_ratio.shape[0]):
             veggie_counts[i] = (min_inds == i).sum()
-
         for i in range(veggie_scales_ratio.shape[0]):
             if veggie_counts[i] > self.num_points / 6:
-                veggie_diffs[:, i] = torch.inf
+                veggie_diffs[:, i * 6 : (i + 1) * 6] = torch.inf
 
-        min_diffs, min_inds = veggie_diffs.min(dim=1)
+        min_diffs, min_inds_all_perms = veggie_diffs.min(dim=1)
+        min_inds = min_inds_all_perms // 6
 
         scale_diff_loss = torch.norm(min_diffs)
         self.min_inds = min_inds
@@ -953,7 +962,7 @@ class SplatfactoModel(Model):
             scale_reg = torch.tensor(0.0).to(self.device)
 
         # if number of iterations is less than 100, scale_diff_loss is not used
-        if self.step < 0:
+        if self.step < 100:
             scale_diff_loss = torch.tensor(0.0).to(self.device)
 
         loss_dict = {
