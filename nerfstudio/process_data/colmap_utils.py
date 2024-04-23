@@ -420,7 +420,7 @@ def colmap_to_json(
     cam_id_to_camera = read_cameras_binary(recon_dir / "cameras.bin")
     im_id_to_image = read_images_binary(recon_dir / "images.bin")
     if set(cam_id_to_camera.keys()) != {1}:
-        print(f"Warning: More than one camera is found in {recon_dir / "cameras.bin"}.")
+        CONSOLE.print(f"[bold yellow]Warning: More than one camera is found in {recon_dir+"/"+"cameras.bin"}")
         print(cam_id_to_camera)
         use_single_camera_mode = False  # update bool: one camera per frame
         out = {}  # out = {"camera_model": parse_colmap_camera_params(cam_id_to_camera[1])["camera_model"]}
