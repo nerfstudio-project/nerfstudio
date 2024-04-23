@@ -101,7 +101,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     """If --use-sfm-depth and this flag is True, also export debug images showing Sf overlaid upon input images."""
     same_dimensions: bool = True
     """Whether to assume all images are same dimensions and so to use fast downscaling with no autorotation."""
-    same_camera: bool = True
+    use_single_camera_mode: bool = True
     """Whether to assume all images taken with the same camera characteristics, set to False for multifocal case."""
 
     @staticmethod
@@ -138,6 +138,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                     image_id_to_depth_path=image_id_to_depth_path,
                     camera_mask_path=camera_mask_path,
                     image_rename_map=image_rename_map,
+                    use_single_camera_mode=self.use_single_camera_mode,
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
             summary_log.append(colmap_utils.get_matching_summary(num_frames, num_matched_frames))
@@ -196,9 +197,9 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         if self.refine_pixsfm:
             assert sfm_tool == "hloc", "refine_pixsfm only works with sfm_tool hloc"
 
-        # check that sfm_tool is hloc if using same_camera
-        if not self.same_camera:
-            assert sfm_tool == "hloc", "no_same_camera only works with sfm_tool hloc"
+        # check that sfm_tool is hloc if using use_single_camera_mode
+        if not self.use_single_camera_mode:
+            assert sfm_tool == "hloc", "use_single_camera_mode only works with sfm_tool hloc"
 
         # set the image_dir if didn't copy
         if self.skip_image_processing:
@@ -234,7 +235,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 feature_type=feature_type,
                 matcher_type=matcher_type,
                 refine_pixsfm=self.refine_pixsfm,
-                same_camera=self.same_camera,
+                use_single_camera_mode=self.use_single_camera_mode,
             )
         else:
             raise RuntimeError("Invalid combination of sfm_tool, feature_type, and matcher_type, " "exiting")
