@@ -464,8 +464,8 @@ def colmap_to_json(
             depth_path = image_id_to_depth_path[im_id]
             frame["depth_file_path"] = str(depth_path.relative_to(depth_path.parent.parent))
 
-        if use_single_camera_mode is False:  # add the camera for this frame
-            frame.update(parse_colmap_camera_params(cam_id_to_camera[im_id]))
+        if not use_single_camera_mode:  # add the camera parameters for this frame
+            frame.update(parse_colmap_camera_params(cam_id_to_camera[im_data.camera_id]))
 
         frames.append(frame)
 
