@@ -916,7 +916,7 @@ class SplatfactoModel(Model):
             veggie_counts[i] = (min_inds == i).sum()
 
         for i in range(veggie_scales_ratio.shape[0]):
-            if veggie_counts[i] > self.num_points / 5:
+            if veggie_counts[i] > self.num_points / 6:
                 veggie_diffs[:, i] = torch.inf
 
         min_diffs, min_inds = veggie_diffs.min(dim=1)

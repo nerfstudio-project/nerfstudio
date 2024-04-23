@@ -553,15 +553,51 @@ class ExportGaussianSplat(Exporter):
         with torch.no_grad():
             positions = model.means.cpu().numpy()
             count = positions.shape[0]
-            veggie_counts = model.veggie.cpu().numpy()
             n = count
+
+            all_veggie_scales = torch.tensor(
+                [
+                    [0.069154546, 0.06851113, 0.079154074],
+                    [0.076087564, 0.07968304, 0.08357684],
+                    [0.20282985, 0.20593849, 0.24052818],
+                    [0.16882257, 0.17487179, 0.12207041],
+                    [0.03003739, 0.17982405, 0.028945997],
+                    [0.059356324, 0.057629615, 0.06284852],
+                    [0.1031793, 0.10339059, 0.1351408],
+                    [0.14946109, 0.11215246, 0.08810428],
+                    [0.08001522, 0.08351508, 0.06340429],
+                    [0.06730143, 0.06289782, 0.11990908],
+                    [0.07957077, 0.090711966, 0.069334],
+                    [0.21029748, 0.20809223, 0.24836816],
+                    [0.06037101, 0.10691811, 0.047882475],
+                    [0.033434182, 0.041474655, 0.092064254],
+                ],
+                dtype=torch.float32,
+            )
+
+            veggie_scales_ratio = torch.zeros_like(all_veggie_scales)
+            veggie_scales_ratio[:, 0] = all_veggie_scales[:, 0] / all_veggie_scales[:, 1]
+            veggie_scales_ratio[:, 1] = all_veggie_scales[:, 1] / all_veggie_scales[:, 2]
+            veggie_scales_ratio[:, 2] = all_veggie_scales[:, 2] / all_veggie_scales[:, 0]
+
+            scale_exp = torch.exp(model.scales.data).cpu()
+            scales_ratio = torch.zeros_like(scale_exp)
+            scales_ratio[:, 0] = scale_exp[:, 0] / scale_exp[:, 1]
+            scales_ratio[:, 1] = scale_exp[:, 1] / scale_exp[:, 2]
+            scales_ratio[:, 2] = scale_exp[:, 2] / scale_exp[:, 0]
+
+            veggie_diffs = torch.zeros((scales_ratio.shape[0], veggie_scales_ratio.shape[0]))
+            for i in range(veggie_scales_ratio.shape[0]):
+                veggie_diffs[:, i] = torch.norm(scales_ratio - veggie_scales_ratio[i], dim=1)
+
+            _, min_inds = veggie_diffs.min(dim=1)
+
             map_to_tensors["x"] = positions[:, 0]
             map_to_tensors["y"] = positions[:, 1]
             map_to_tensors["z"] = positions[:, 2]
             map_to_tensors["nx"] = np.zeros(n, dtype=np.float32)
             map_to_tensors["ny"] = np.zeros(n, dtype=np.float32)
             map_to_tensors["nz"] = np.zeros(n, dtype=np.float32)
-            map_to_tensors["v"] = veggie_counts
 
             if model.config.sh_degree > 0:
                 shs_0 = model.shs_0.contiguous().cpu().numpy()
@@ -586,6 +622,8 @@ class ExportGaussianSplat(Exporter):
             quats = model.quats.data.cpu().numpy()
             for i in range(4):
                 map_to_tensors[f"rot_{i}"] = quats[:, i, None]
+
+            map_to_tensors["veggie"] = min_inds.float().cpu().numpy()
 
         # post optimization, it is possible have NaN/Inf values in some attributes
         # to ensure the exported ply file has finite values, we enforce finite filters.
