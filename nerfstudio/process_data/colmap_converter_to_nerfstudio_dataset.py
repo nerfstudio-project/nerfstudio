@@ -102,7 +102,8 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     same_dimensions: bool = True
     """Whether to assume all images are same dimensions and so to use fast downscaling with no autorotation."""
     use_single_camera_mode: bool = True
-    """Whether to assume all images taken with the same camera characteristics, set to False for multifocal case."""
+    """Whether to assume all images taken with the same camera characteristics, set to False for multiple cameras in colmap (only works with hloc sfm_tool).
+    """
 
     @staticmethod
     def default_colmap_path() -> Path:
@@ -199,7 +200,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
 
         # check that sfm_tool is hloc if using use_single_camera_mode
         if not self.use_single_camera_mode:
-            assert sfm_tool == "hloc", "use_single_camera_mode only works with sfm_tool hloc"
+            assert sfm_tool == "hloc", "not_use_single_camera_mode only works with sfm_tool hloc"
 
         # set the image_dir if didn't copy
         if self.skip_image_processing:
