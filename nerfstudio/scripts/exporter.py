@@ -57,6 +57,8 @@ class Exporter:
     """Path to the config YAML file."""
     output_dir: Path
     """Path to the output directory."""
+    bbox: Optional[Tuple] = None
+    """Bounding box for the scene in the form of ((x_min, x_max), (y_min, y_max), (z_min, z_max))."""
 
 
 def validate_pipeline(normal_method: str, normal_output_name: str, pipeline: Pipeline) -> None:
@@ -585,6 +587,17 @@ class ExportGaussianSplat(Exporter):
             for i in range(4):
                 map_to_tensors[f"rot_{i}"] = quats[:, i, None]
 
+            if self.bbox:
+                bbox = np.array(self.bbox, dtype=np.float32).reshape(3, 2)
+                x_mask = np.logical_and(positions[:, 0] >= bbox[0, 0], positions[:, 0] <= bbox[0, 1])
+                y_mask = np.logical_and(positions[:, 1] >= bbox[1, 0], positions[:, 1] <= bbox[1, 1])
+                z_mask = np.logical_and(positions[:, 2] >= bbox[2, 0], positions[:, 2] <= bbox[2, 1])
+                mask = np.logical_and(np.logical_and(x_mask, y_mask), z_mask)
+                for k, t in map_to_tensors.items():
+                    map_to_tensors[k] = map_to_tensors[k][mask]
+
+                n = map_to_tensors["x"].shape[0]
+                count = n
         # post optimization, it is possible have NaN/Inf values in some attributes
         # to ensure the exported ply file has finite values, we enforce finite filters.
         select = np.ones(n, dtype=bool)
