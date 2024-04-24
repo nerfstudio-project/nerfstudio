@@ -71,6 +71,7 @@ def run_hloc(
     ] = "superglue",
     num_matched: int = 50,
     refine_pixsfm: bool = False,
+    use_single_camera_mode: bool = True,
 ) -> None:
     """Runs hloc on the images.
 
@@ -85,6 +86,7 @@ def run_hloc(
         matcher_type: Type of feature matcher to use.
         num_matched: Number of image pairs for loc.
         refine_pixsfm: If True, refine the reconstruction using pixel-perfect-sfm.
+        use_single_camera_mode: If True, uses one camera for all frames. Otherwise uses one camera per frame.
     """
     if not _HAS_HLOC:
         CONSOLE.print(
@@ -119,6 +121,12 @@ def run_hloc(
     match_features.main(matcher_conf, sfm_pairs, features=features, matches=matches)  # type: ignore
 
     image_options = pycolmap.ImageReaderOptions(camera_model=camera_model.value)  # type: ignore
+
+    if use_single_camera_mode:  # one camera per all frames
+        camera_mode = pycolmap.CameraMode.SINGLE  # type: ignore
+    else:  # one camera per frame
+        camera_mode = pycolmap.CameraMode.PER_IMAGE  # type: ignore
+
     if refine_pixsfm:
         sfm = PixSfM(  # type: ignore
             conf={
@@ -134,7 +142,7 @@ def run_hloc(
             features,
             matches,
             image_list=references,
-            camera_mode=pycolmap.CameraMode.SINGLE,  # type: ignore
+            camera_mode=camera_mode,  # type: ignore
             image_options=image_options,
             verbose=verbose,
         )
@@ -147,7 +155,7 @@ def run_hloc(
             sfm_pairs,
             features,
             matches,
-            camera_mode=pycolmap.CameraMode.SINGLE,  # type: ignore
+            camera_mode=camera_mode,  # type: ignore
             image_options=image_options,
             verbose=verbose,
         )
