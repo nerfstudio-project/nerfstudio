@@ -620,7 +620,7 @@ class ExportGaussianSplat(Exporter):
                     map_to_tensors[f"f_rest_{i}"] = shs_rest[:, i, None]
             else:
                 colors = torch.clamp(model.colors.clone(), 0.0, 1.0).data.cpu().numpy()
-                map_to_tensors["colors"] = (colors * 255).astype(np.uint8)
+                map_to_tensors["colors"] = colors  # (colors * 255).astype(np.uint8)
 
             map_to_tensors["opacity"] = model.opacities.data.cpu().numpy()
 

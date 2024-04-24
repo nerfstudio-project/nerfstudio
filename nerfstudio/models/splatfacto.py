@@ -962,7 +962,7 @@ class SplatfactoModel(Model):
             scale_reg = torch.tensor(0.0).to(self.device)
 
         # if number of iterations is less than 100, scale_diff_loss is not used
-        if self.step < 100:
+        if self.step < 1000:
             scale_diff_loss = torch.tensor(0.0).to(self.device)
 
         loss_dict = {
