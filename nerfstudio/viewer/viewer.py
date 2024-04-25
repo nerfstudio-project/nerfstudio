@@ -212,6 +212,9 @@ class Viewer:
         viewer_gui_folders = dict()
 
         def prev_cb_wrapper(prev_cb):
+            # We wrap the callbacks in the train_lock so that the callbacks are thread-safe with the
+            # concurrently executing render thread. This may block rendering, however this can be necessary
+            # if the callback uses get_outputs internally.
             def cb_lock(element):
                 with self.train_lock if self.train_lock is not None else contextlib.nullcontext():
                     prev_cb(element)
