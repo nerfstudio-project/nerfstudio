@@ -491,6 +491,20 @@ class ExportGaussianSplat(Exporter):
     Export 3D Gaussian Splatting model to a .ply
     """
 
+    use_bounding_box: Optional[bool] = False
+    """Only query points within the bounding box"""
+    bounding_box_min: Optional[Tuple[float, float, float]] = (-1, -1, -1)
+    """Minimum of the bounding box, used if use_bounding_box is True."""
+    bounding_box_max: Optional[Tuple[float, float, float]] = (1, 1, 1)
+    """Maximum of the bounding box, used if use_bounding_box is True."""
+
+    obb_center: Optional[Tuple[float, float, float]] = None
+    """Center of the oriented bounding box."""
+    obb_rotation: Optional[Tuple[float, float, float]] = None
+    """Rotation of the oriented bounding box. Expressed as RPY Euler angles in radians"""
+    obb_scale: Optional[Tuple[float, float, float]] = None
+    """Scale of the oriented bounding box along each axis."""
+
     @staticmethod
     def write_ply(filename: str, count: int, map_to_tensors: OrderedDict[str, np.ndarray]):
         """
@@ -634,6 +648,37 @@ class ExportGaussianSplat(Exporter):
 
             map_to_tensors["veggie"] = min_inds.float().cpu().numpy()
 
+            if (
+                self.use_bounding_box
+                and self.obb_center is not None
+                and self.obb_rotation is not None
+                and self.obb_scale is not None
+            ):
+                crop_obb = OrientedBox.from_params(self.obb_center, self.obb_rotation, self.obb_scale)
+                assert crop_obb is not None
+                mask = crop_obb.within(torch.from_numpy(positions)).numpy()
+                for k, t in map_to_tensors.items():
+                    map_to_tensors[k] = map_to_tensors[k][mask]
+
+                n = map_to_tensors["x"].shape[0]
+                count = n
+            elif self.use_bounding_box:
+                assert self.bounding_box_min is not None and self.bounding_box_max is not None
+                x_mask = np.logical_and(
+                    positions[:, 0] >= self.bounding_box_min[0], positions[:, 0] <= self.bounding_box_max[0]
+                )
+                y_mask = np.logical_and(
+                    positions[:, 1] >= self.bounding_box_min[1], positions[:, 1] <= self.bounding_box_max[1]
+                )
+                z_mask = np.logical_and(
+                    positions[:, 2] >= self.bounding_box_min[2], positions[:, 2] <= self.bounding_box_max[2]
+                )
+                mask = np.logical_and(np.logical_and(x_mask, y_mask), z_mask)
+                for k, t in map_to_tensors.items():
+                    map_to_tensors[k] = map_to_tensors[k][mask]
+
+                n = map_to_tensors["x"].shape[0]
+                count = n
         # post optimization, it is possible have NaN/Inf values in some attributes
         # to ensure the exported ply file has finite values, we enforce finite filters.
         select = np.ones(n, dtype=bool)

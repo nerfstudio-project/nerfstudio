@@ -204,6 +204,8 @@ def populate_splat_tab(
                     "ns-export gaussian-splat",
                     f"--load-config {config_path}",
                     f"--output-dir {output_directory.value}",
+                    f"--use_bounding_box {control_panel.crop_viewport}",
+                    get_crop_string(control_panel.crop_obb),
                 ]
             )
             show_command_modal(event.client, "splat", command)
