@@ -337,9 +337,6 @@ class ExportPoissonMesh(Exporter):
             rgb_output_name=self.rgb_output_name,
             depth_output_name=self.depth_output_name,
             normal_output_name=self.normal_output_name if self.normal_method == "model_output" else None,
-            use_bounding_box=self.use_bounding_box,
-            bounding_box_min=self.bounding_box_min,
-            bounding_box_max=self.bounding_box_max,
             crop_obb=crop_obb,
             std_ratio=self.std_ratio,
         )
