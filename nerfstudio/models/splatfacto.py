@@ -149,6 +149,10 @@ class SplatfactoModelConfig(ModelConfig):
     """
     camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="off"))
     """Config of the camera optimizer to use"""
+    veggify_start_step: int = 1000
+    """Step when to start adding veggie regularizer to scales"""
+    max_prop_veggie: float = 1 / 6
+    """The maximum proportion of gaussians that can be regularized to a single veggie"""
 
 
 class SplatfactoModel(Model):
@@ -236,6 +240,59 @@ class SplatfactoModel(Model):
             )  # This color is the same as the default background color in Viser. This would only affect the background color when rendering.
         else:
             self.background_color = get_color(self.config.background_color)
+
+        # veggies
+        all_veggie_scales = torch.tensor(
+            [
+                [0.069154546, 0.06851113, 0.079154074],
+                [0.076087564, 0.07968304, 0.08357684],
+                [0.20282985, 0.20593849, 0.24052818],
+                [0.16882257, 0.17487179, 0.12207041],
+                [0.03003739, 0.17982405, 0.028945997],
+                [0.059356324, 0.057629615, 0.06284852],
+                [0.1031793, 0.10339059, 0.1351408],
+                [0.14946109, 0.11215246, 0.08810428],
+                [0.08001522, 0.08351508, 0.06340429],
+                [0.06730143, 0.06289782, 0.11990908],
+                [0.07957077, 0.090711966, 0.069334],
+                [0.21029748, 0.20809223, 0.24836816],
+                [0.06037101, 0.10691811, 0.047882475],
+                [0.033434182, 0.041474655, 0.092064254],
+            ],
+            dtype=torch.float32,
+        ).cuda()
+
+        self.veggie_names = [
+            "apple",
+            "bell_pepper",
+            "broccoli",
+            "cabbage",
+            "carrot",
+            "garlic",
+            "gourd",
+            "mango",
+            "orange",
+            "pear",
+            "potato",
+            "pumpkin",
+            "russet_potato",
+            "sweet_pepper",
+        ]
+        self.num_veggies = all_veggie_scales.shape[0]
+
+        veggie_scales_ratio = torch.zeros_like(all_veggie_scales)
+        veggie_scales_ratio[:, 0] = all_veggie_scales[:, 0] / all_veggie_scales[:, 1]
+        veggie_scales_ratio[:, 1] = all_veggie_scales[:, 1] / all_veggie_scales[:, 2]
+        veggie_scales_ratio[:, 2] = all_veggie_scales[:, 2] / all_veggie_scales[:, 0]
+
+        # getting all permutaitons of this tensor for rotation invariance
+        def permute_rows(tensor):
+            perms = torch.tensor([[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]])
+            repeated_rows = tensor.unsqueeze(1)
+            result_tensor = repeated_rows[:, :, perms]
+            return result_tensor.view(-1, 3)
+
+        self.veggie_scales_ratio_all_perms = permute_rows(veggie_scales_ratio).cuda()
 
     @property
     def colors(self):
@@ -748,7 +805,10 @@ class SplatfactoModel(Model):
 
         # Important to allow xys grads to populate properly
         if self.training:
-            self.xys.retain_grad()
+            try:
+                self.xys.retain_grad()
+            except Exception:
+                print("Failed to retain grad for xys")
 
         if self.config.sh_degree > 0:
             viewdirs = means_crop.detach() - optimized_camera_to_world.detach()[:3, 3]  # (N, 3)
@@ -843,24 +903,8 @@ class SplatfactoModel(Model):
 
         metrics_dict["gaussian_count"] = self.num_points
 
-        if self.step > 100:
-            all_veggies = [
-                "apple",
-                "bell_pepper",
-                "broccoli",
-                "cabbage",
-                "carrot",
-                "garlic",
-                "gourd",
-                "mango",
-                "orange",
-                "pear",
-                "potato",
-                "pumpkin",
-                "russet_potato",
-                "sweet_pepper",
-            ]
-            for ind, veggie in enumerate(all_veggies):
+        if self.step > self.config.veggify_start_step:
+            for ind, veggie in enumerate(self.veggie_names):
                 metrics_dict[f"{veggie}_count"] = (self.min_inds == ind).sum()
 
         self.camera_optimizer.get_metrics_dict(metrics_dict)
@@ -874,57 +918,26 @@ class SplatfactoModel(Model):
             batch: ground truth batch corresponding to outputs
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
-        all_veggie_scales = torch.tensor(
-            [
-                [0.069154546, 0.06851113, 0.079154074],
-                [0.076087564, 0.07968304, 0.08357684],
-                [0.20282985, 0.20593849, 0.24052818],
-                [0.16882257, 0.17487179, 0.12207041],
-                [0.03003739, 0.17982405, 0.028945997],
-                [0.059356324, 0.057629615, 0.06284852],
-                [0.1031793, 0.10339059, 0.1351408],
-                [0.14946109, 0.11215246, 0.08810428],
-                [0.08001522, 0.08351508, 0.06340429],
-                [0.06730143, 0.06289782, 0.11990908],
-                [0.07957077, 0.090711966, 0.069334],
-                [0.21029748, 0.20809223, 0.24836816],
-                [0.06037101, 0.10691811, 0.047882475],
-                [0.033434182, 0.041474655, 0.092064254],
-            ],
-            device=self.device,
-            dtype=torch.float32,
-        )
 
-        veggie_scales_ratio = torch.zeros_like(all_veggie_scales)
-        veggie_scales_ratio[:, 0] = all_veggie_scales[:, 0] / all_veggie_scales[:, 1]
-        veggie_scales_ratio[:, 1] = all_veggie_scales[:, 1] / all_veggie_scales[:, 2]
-        veggie_scales_ratio[:, 2] = all_veggie_scales[:, 2] / all_veggie_scales[:, 0]
-
-        # getting all permutaitons of this tensor for rotation invariance
-        def permute_rows(tensor):
-            perms = torch.tensor([[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]])
-            repeated_rows = tensor.unsqueeze(1)
-            result_tensor = repeated_rows[:, :, perms]
-            return result_tensor.view(-1, 3)
-
-        veggie_scales_ratio_all_perms = permute_rows(veggie_scales_ratio)
         scale_exp = torch.exp(self.scales)
         scales_ratio = torch.zeros_like(scale_exp).to(self.device)
         scales_ratio[:, 0] = scale_exp[:, 0] / scale_exp[:, 1]
         scales_ratio[:, 1] = scale_exp[:, 1] / scale_exp[:, 2]
         scales_ratio[:, 2] = scale_exp[:, 2] / scale_exp[:, 0]
 
-        veggie_diffs = torch.zeros((scales_ratio.shape[0], veggie_scales_ratio_all_perms.shape[0]), device=self.device)
-        for i in range(veggie_scales_ratio_all_perms.shape[0]):
-            veggie_diffs[:, i] = torch.norm(scales_ratio - veggie_scales_ratio_all_perms[i], dim=1)
+        veggie_diffs = torch.zeros(
+            (scales_ratio.shape[0], self.veggie_scales_ratio_all_perms.shape[0]), device=self.device
+        )
+        for i in range(self.veggie_scales_ratio_all_perms.shape[0]):
+            veggie_diffs[:, i] = torch.norm(scales_ratio - self.veggie_scales_ratio_all_perms[i], dim=1)
 
         min_diffs, min_inds_all_perms = veggie_diffs.min(dim=1)
         min_inds = min_inds_all_perms // 6
-        veggie_counts = torch.zeros(veggie_scales_ratio.shape[0], device=self.device)
-        for i in range(veggie_scales_ratio.shape[0]):
+        veggie_counts = torch.zeros(self.num_veggies, device=self.device)
+        for i in range(self.num_veggies):
             veggie_counts[i] = (min_inds == i).sum()
-        for i in range(veggie_scales_ratio.shape[0]):
-            if veggie_counts[i] > self.num_points / 6:
+        for i in range(self.num_veggies):
+            if veggie_counts[i] > self.num_points * self.config.max_prop_veggie:
                 veggie_diffs[:, i * 6 : (i + 1) * 6] = torch.inf
 
         min_diffs, min_inds_all_perms = veggie_diffs.min(dim=1)
@@ -961,15 +974,14 @@ class SplatfactoModel(Model):
         else:
             scale_reg = torch.tensor(0.0).to(self.device)
 
-        # if number of iterations is less than 100, scale_diff_loss is not used
-        if self.step < 1000:
+        # if number of iterations is less than veggify start step, scale_diff_loss is not used
+        if self.step < self.config.veggify_start_step:
             scale_diff_loss = torch.tensor(0.0).to(self.device)
 
         loss_dict = {
             "main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,
             "scale_reg": scale_reg,
             "scale_diff": scale_diff_loss * 0.1,
-            # "veggie_variance": veggie_variance_loss,
         }
 
         if self.training:
