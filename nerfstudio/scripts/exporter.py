@@ -505,7 +505,9 @@ class ExportGaussianSplat(Exporter):
 
         # Type check for numpy arrays of type float or uint8 and non-empty
         if not all(
-            isinstance(tensor, np.ndarray) and (tensor.dtype.kind == "f" or tensor.dtype == np.uint8) and tensor.size > 0
+            isinstance(tensor, np.ndarray)
+            and (tensor.dtype.kind == "f" or tensor.dtype == np.uint8)
+            and tensor.size > 0
             for tensor in map_to_tensors.values()
         ):
             raise ValueError("All tensors must be numpy arrays of float or uint8 type and not empty")
