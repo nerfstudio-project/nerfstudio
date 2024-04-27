@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import typing
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -490,7 +491,7 @@ class ExportGaussianSplat(Exporter):
     def write_ply(
         filename: str,
         count: int,
-        map_to_tensors: OrderedDict[str, np.ndarray],
+        map_to_tensors: typing.OrderedDict[str, np.ndarray],
     ):
         """
         Writes a PLY file with given vertex properties and a tensor of float or uint8 values in the order specified by the OrderedDict.
