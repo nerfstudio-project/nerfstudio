@@ -487,7 +487,13 @@ class ExportGaussianSplat(Exporter):
     """Scale of the oriented bounding box along each axis."""
 
     @staticmethod
-    def write_ply(filename: str, count: int, map_to_tensors: OrderedDict[str, np.ndarray[np.float64 | np.float32 | np.uint8, np.dtype[np.float64 | np.float32 | np.uint8]]]):        
+    def write_ply(
+        filename: str,
+        count: int,
+        map_to_tensors: OrderedDict[
+            str, np.ndarray[np.float64 | np.float32 | np.uint8, np.dtype[np.float64 | np.float32 | np.uint8]]
+        ],
+    ):
         """
         Writes a PLY file with given vertex properties and a tensor of float or uint8 values in the order specified by the OrderedDict.
         Note: All float values will be converted to float32 for writing.

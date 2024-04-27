@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pathlib import Path
-import numpy as np
-import pytest
 from collections import OrderedDict
+from pathlib import Path
+
+import numpy as np
 import open3d as o3d
+import pytest
 
 from nerfstudio.scripts.exporter import ExportGaussianSplat
 
