@@ -490,9 +490,7 @@ class ExportGaussianSplat(Exporter):
     def write_ply(
         filename: str,
         count: int,
-        map_to_tensors: OrderedDict[
-            str, np.ndarray[np.float64 | np.float32 | np.uint8, np.dtype[np.float64 | np.float32 | np.uint8]]
-        ],
+        map_to_tensors: OrderedDict[str, np.ndarray],
     ):
         """
         Writes a PLY file with given vertex properties and a tensor of float or uint8 values in the order specified by the OrderedDict.
