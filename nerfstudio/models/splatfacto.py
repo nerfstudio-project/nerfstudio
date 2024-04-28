@@ -758,9 +758,8 @@ class SplatfactoModel(Model):
 
         if self.config.sh_degree > 0:
             viewdirs = means_crop.detach() - optimized_camera_to_world.detach()[:3, 3]  # (N, 3)
-            viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
             n = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
-            rgbs = spherical_harmonics(n, viewdirs, colors_crop)
+            rgbs = spherical_harmonics(n, viewdirs, colors_crop)  # input unnormalized viewdirs
             rgbs = torch.clamp(rgbs + 0.5, min=0.0)  # type: ignore
         else:
             rgbs = torch.sigmoid(colors_crop[:, 0, :])
@@ -768,7 +767,6 @@ class SplatfactoModel(Model):
         assert (num_tiles_hit > 0).any()  # type: ignore
 
         # apply the compensation of screen space blurring to gaussians
-        opacities = None
         if self.config.rasterize_mode == "antialiased":
             opacities = torch.sigmoid(opacities_crop) * comp[:, None]
         elif self.config.rasterize_mode == "classic":
