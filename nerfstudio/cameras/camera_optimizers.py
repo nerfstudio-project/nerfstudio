@@ -157,14 +157,13 @@ class CameraOptimizer(nn.Module):
         if self.config.mode == "off":
             return camera.camera_to_worlds
 
-        assert camera.metadata is not None, "Must provide id of camera in its metadata"
-        if "cam_idx" not in camera.metadata:
-            # Evalutaion cams?
+        if camera.metadata is None or "cam_idx" not in camera.metadata:
+            # Viser cameras
             return camera.camera_to_worlds
 
         camera_idx = camera.metadata["cam_idx"]
         adj = self(torch.tensor([camera_idx], dtype=torch.long, device=camera.device))  # type: ignore
-        adj = torch.cat([adj, torch.Tensor([0, 0, 0, 1])[None, None].to(adj)], dim=1)
+        adj = torch.cat([adj, torch.Tensor([0, 0, 0, 1])[None, None].to(adj)], dim=1).to(camera.camera_to_worlds.device)
         return torch.bmm(camera.camera_to_worlds, adj)
 
     def get_loss_dict(self, loss_dict: dict) -> None:
