@@ -377,7 +377,6 @@ class Cameras(TensorDataclass):
             Rays for the given camera indices and coords.
         """
         # Check the argument types to make sure they're valid and all shaped correctly
-        # print(self.camera_to_worlds.shape) # always prints torch.Size([27, 3, 4])!!!
         assert isinstance(camera_indices, (torch.Tensor, int)), "camera_indices must be a tensor or int"
         assert coords is None or isinstance(coords, torch.Tensor), "coords must be a tensor or None"
         assert camera_opt_to_camera is None or isinstance(camera_opt_to_camera, torch.Tensor)
@@ -777,9 +776,8 @@ class Cameras(TensorDataclass):
             c2w[..., :3, 3] = vr180_origins
 
             return vr180_origins, directions_stack
-        # print("camera_indices.shape", camera_indices.shape) # prints torch.Size([4096, 1])
-        # print("camera_indices_testing", torch.sum(camera_indices.squeeze()).item(), 4096 * camera_indices[0].item()) # these are not equal, again weird because the image_batch has only 1 image
-        for cam in cam_types: # cam_types = tensor([9]), so cam = 9
+
+        for cam in cam_types:
             if CameraType.PERSPECTIVE.value in cam_types:
                 mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
                 mask = torch.stack([mask, mask, mask], dim=0)
@@ -853,12 +851,6 @@ class Cameras(TensorDataclass):
                 c2w[..., :3, 3][mask] = grids
 
             elif CameraType.FISHEYE624.value in cam_types:
-                # print("BUG BUG BUG", distortion_params.shape) # This prints torch.Size([4096, 12]), let's see if they are all unique!
-                # print("HELLLO HEHE", distortion_params[:12])
-                # sum_distortion = torch.sum(distortion_params, dim=0)
-                # test_distortion = distortion_params[0] * 4096
-                # print(sum(sum_distortion - test_distortion)) prints tensor(-433.4256), which means not all distortion params are unique, some are differing (from diff cameras)
-                # that doesn't make sense, because they should all be the same as we are using variable_res_collate
                 mask = (self.camera_type[true_indices] == CameraType.FISHEYE624.value).squeeze(-1)  # (num_rays)
                 coord_mask = torch.stack([mask, mask, mask], dim=0)
 
@@ -874,7 +866,6 @@ class Cameras(TensorDataclass):
                 masked_coords = pcoord_stack[coord_mask, :]
                 # The fisheye unprojection does not rely on planar/pinhole unprojection, thus the method needs
                 # to access the focal length and principle points directly.
-                # print("hi antonio", distortion_params.shape) prints 
                 camera_params = torch.cat(
                     [
                         fx[mask].unsqueeze(1),

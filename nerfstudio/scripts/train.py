@@ -243,7 +243,7 @@ def main(config: TrainerConfig) -> None:
     # print and save config
     config.print_to_terminal()
     config.save_config()
-    # breakpoint()
+
     launch(
         main_func=train_loop,
         num_devices_per_machine=config.machine.num_devices,

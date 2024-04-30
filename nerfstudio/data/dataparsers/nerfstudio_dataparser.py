@@ -88,21 +88,20 @@ class Nerfstudio(DataParser):
 
     def _generate_dataparser_outputs(self, split="train"):
         assert self.config.data.exists(), f"Data directory {self.config.data} does not exist."
-        # print(self.config.data) # prints "closed_loop"
+
         if self.config.data.suffix == ".json":
             meta = load_from_json(self.config.data)
             data_dir = self.config.data.parent
         else:
             meta = load_from_json(self.config.data / "transforms.json")
             data_dir = self.config.data
-        # print("HIHIHI", meta) # prints the transforms.json file!
+
         image_filenames = []
         mask_filenames = []
         depth_filenames = []
         poses = []
 
         fx_fixed = "fl_x" in meta
-        # print("HIHIHI", fx_fixed) prints False
         fy_fixed = "fl_y" in meta
         cx_fixed = "cx" in meta
         cy_fixed = "cy" in meta
@@ -113,12 +112,7 @@ class Nerfstudio(DataParser):
             if distort_key in meta:
                 distort_fixed = True
                 break
-        fisheye_crop_radius_meta = meta.get("fisheye_crop_radius", None) # This is now a boolean value
-        fisheye_crop_radius_fixed = fisheye_crop_radius_meta != True
-        if type(fisheye_crop_radius_meta) == float:
-            fisheye_crop_radius = fisheye_crop_radius_meta
-        elif fisheye_crop_radius_meta == True:
-            fisheye_crop_radius = []
+        fisheye_crop_radius = meta.get("fisheye_crop_radius", None)
         fx = []
         fy = []
         cx = []
@@ -158,8 +152,8 @@ class Nerfstudio(DataParser):
             if not width_fixed:
                 assert "w" in frame, "width not specified in frame"
                 width.append(int(frame["w"]))
-            if not distort_fixed: # distort_fixed is False, so this runs and creates the variable 'distort'
-                distort.append( # distort contains our distortion parameters, it should be len 6 list each with 12 tensors, which it is!
+            if not distort_fixed:
+                distort.append(
                     torch.tensor(frame["distortion_params"], dtype=torch.float32)
                     if "distortion_params" in frame
                     else camera_utils.get_distortion_params(
@@ -171,9 +165,7 @@ class Nerfstudio(DataParser):
                         p2=float(frame["p2"]) if "p2" in frame else 0.0,
                     )
                 )
-            if not fisheye_crop_radius_fixed: # if the fisheye_crop_radius is different for every image, we need
-                fisheye_crop_radius.append(float(frame["fisheye_crop_radius"]))
-            
+
             image_filenames.append(fname)
             poses.append(np.array(frame["transform_matrix"]))
             if "mask_path" in frame:
@@ -198,6 +190,7 @@ class Nerfstudio(DataParser):
         Different number of image and depth filenames.
         You should check that depth_file_path is specified for every frame (or zero frames) in transforms.json.
         """
+
         has_split_files_spec = any(f"{split}_filenames" in meta for split in ("train", "val", "test"))
         if f"{split}_filenames" in meta:
             # Validate split first
@@ -259,7 +252,7 @@ class Nerfstudio(DataParser):
         image_filenames = [image_filenames[i] for i in indices]
         mask_filenames = [mask_filenames[i] for i in indices] if len(mask_filenames) > 0 else []
         depth_filenames = [depth_filenames[i] for i in indices] if len(depth_filenames) > 0 else []
-        # print("indices", split, indices) prints "indices val []" twice, train is done properly
+
         idx_tensor = torch.tensor(indices, dtype=torch.long)
         poses = poses[idx_tensor]
 
@@ -278,7 +271,6 @@ class Nerfstudio(DataParser):
             camera_type = CameraType.PERSPECTIVE
 
         fx = float(meta["fl_x"]) if fx_fixed else torch.tensor(fx, dtype=torch.float32)[idx_tensor]
-        # print("HIHIHII", fx.shape) # prints torch.Size([900])
         fy = float(meta["fl_y"]) if fy_fixed else torch.tensor(fy, dtype=torch.float32)[idx_tensor]
         cx = float(meta["cx"]) if cx_fixed else torch.tensor(cx, dtype=torch.float32)[idx_tensor]
         cy = float(meta["cy"]) if cy_fixed else torch.tensor(cy, dtype=torch.float32)[idx_tensor]
@@ -298,13 +290,14 @@ class Nerfstudio(DataParser):
                 )
             )
         else:
-            distortion_params = torch.stack(distort, dim=0)[idx_tensor]  
-        # print("YOOOO", split, distortion_params.shape) # this 'distortion_params' has shape torch.size([27, 12]) if 30 images for train, then shape torch.size([3, 12]) for val
+            distortion_params = torch.stack(distort, dim=0)[idx_tensor]
+
         # Only add fisheye crop radius parameter if the images are actually fisheye, to allow the same config to be used
         # for both fisheye and non-fisheye datasets.
         metadata = {}
         if (camera_type in [CameraType.FISHEYE, CameraType.FISHEYE624]) and (fisheye_crop_radius is not None):
             metadata["fisheye_crop_radius"] = fisheye_crop_radius
+
         cameras = Cameras(
             fx=fx,
             fy=fy,
