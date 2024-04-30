@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import typing
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -107,12 +108,6 @@ class ExportPointCloud(Exporter):
     """Name of the depth output."""
     rgb_output_name: str = "rgb"
     """Name of the RGB output."""
-    use_bounding_box: bool = True
-    """Only query points within the bounding box"""
-    bounding_box_min: Optional[Tuple[float, float, float]] = (-1, -1, -1)
-    """Minimum of the bounding box, used if use_bounding_box is True."""
-    bounding_box_max: Optional[Tuple[float, float, float]] = (1, 1, 1)
-    """Maximum of the bounding box, used if use_bounding_box is True."""
 
     obb_center: Optional[Tuple[float, float, float]] = None
     """Center of the oriented bounding box."""
@@ -160,9 +155,6 @@ class ExportPointCloud(Exporter):
             rgb_output_name=self.rgb_output_name,
             depth_output_name=self.depth_output_name,
             normal_output_name=self.normal_output_name if self.normal_method == "model_output" else None,
-            use_bounding_box=self.use_bounding_box,
-            bounding_box_min=self.bounding_box_min,
-            bounding_box_max=self.bounding_box_max,
             crop_obb=crop_obb,
             std_ratio=self.std_ratio,
         )
@@ -346,9 +338,6 @@ class ExportPoissonMesh(Exporter):
             rgb_output_name=self.rgb_output_name,
             depth_output_name=self.depth_output_name,
             normal_output_name=self.normal_output_name if self.normal_method == "model_output" else None,
-            use_bounding_box=self.use_bounding_box,
-            bounding_box_min=self.bounding_box_min,
-            bounding_box_max=self.bounding_box_max,
             crop_obb=crop_obb,
             std_ratio=self.std_ratio,
         )
@@ -491,16 +480,27 @@ class ExportGaussianSplat(Exporter):
     Export 3D Gaussian Splatting model to a .ply
     """
 
+    obb_center: Optional[Tuple[float, float, float]] = None
+    """Center of the oriented bounding box."""
+    obb_rotation: Optional[Tuple[float, float, float]] = None
+    """Rotation of the oriented bounding box. Expressed as RPY Euler angles in radians"""
+    obb_scale: Optional[Tuple[float, float, float]] = None
+    """Scale of the oriented bounding box along each axis."""
+
     @staticmethod
-    def write_ply(filename: str, count: int, map_to_tensors: OrderedDict[str, np.ndarray]):
+    def write_ply(
+        filename: str,
+        count: int,
+        map_to_tensors: typing.OrderedDict[str, np.ndarray],
+    ):
         """
-        Writes a PLY file with given vertex properties and their float values in the order specified by the OrderedDict.
+        Writes a PLY file with given vertex properties and a tensor of float or uint8 values in the order specified by the OrderedDict.
         Note: All float values will be converted to float32 for writing.
 
         Parameters:
         filename (str): The name of the file to write.
         count (int): The number of vertices to write.
-        map_to_tensors (OrderedDict[str, np.ndarray]): An ordered dictionary mapping property names to numpy arrays of float values.
+        map_to_tensors (OrderedDict[str, np.ndarray]): An ordered dictionary mapping property names to numpy arrays of float or uint8 values.
             Each array should be 1-dimensional and of equal length matching 'count'. Arrays should not be empty.
         """
 
@@ -508,12 +508,14 @@ class ExportGaussianSplat(Exporter):
         if not all(len(tensor) == count for tensor in map_to_tensors.values()):
             raise ValueError("Count does not match the length of all tensors")
 
-        # Type check for numpy arrays of type float and non-empty
+        # Type check for numpy arrays of type float or uint8 and non-empty
         if not all(
-            isinstance(tensor, np.ndarray) and tensor.dtype.kind in ["f", "d"] and tensor.size > 0
+            isinstance(tensor, np.ndarray)
+            and (tensor.dtype.kind == "f" or tensor.dtype == np.uint8)
+            and tensor.size > 0
             for tensor in map_to_tensors.values()
         ):
-            raise ValueError("All tensors must be numpy arrays of float type and not empty")
+            raise ValueError("All tensors must be numpy arrays of float or uint8 type and not empty")
 
         with open(filename, "wb") as ply_file:
             # Write PLY header
@@ -523,17 +525,21 @@ class ExportGaussianSplat(Exporter):
             ply_file.write(f"element vertex {count}\n".encode())
 
             # Write properties, in order due to OrderedDict
-            for key in map_to_tensors.keys():
-                ply_file.write(f"property float {key}\n".encode())
+            for key, tensor in map_to_tensors.items():
+                data_type = "float" if tensor.dtype.kind == "f" else "uchar"
+                ply_file.write(f"property {data_type} {key}\n".encode())
 
             ply_file.write(b"end_header\n")
 
             # Write binary data
-            # Note: If this is a perfromance bottleneck consider using numpy.hstack for efficiency improvement
+            # Note: If this is a performance bottleneck consider using numpy.hstack for efficiency improvement
             for i in range(count):
                 for tensor in map_to_tensors.values():
                     value = tensor[i]
-                    ply_file.write(np.float32(value).tobytes())
+                    if tensor.dtype.kind == "f":
+                        ply_file.write(np.float32(value).tobytes())
+                    elif tensor.dtype == np.uint8:
+                        ply_file.write(value.tobytes())
 
     def main(self) -> None:
         if not self.output_dir.exists():
@@ -584,6 +590,16 @@ class ExportGaussianSplat(Exporter):
             quats = model.quats.data.cpu().numpy()
             for i in range(4):
                 map_to_tensors[f"rot_{i}"] = quats[:, i, None]
+
+            if self.obb_center is not None and self.obb_rotation is not None and self.obb_scale is not None:
+                crop_obb = OrientedBox.from_params(self.obb_center, self.obb_rotation, self.obb_scale)
+                assert crop_obb is not None
+                mask = crop_obb.within(torch.from_numpy(positions)).numpy()
+                for k, t in map_to_tensors.items():
+                    map_to_tensors[k] = map_to_tensors[k][mask]
+
+                n = map_to_tensors["x"].shape[0]
+                count = n
 
         # post optimization, it is possible have NaN/Inf values in some attributes
         # to ensure the exported ply file has finite values, we enforce finite filters.
