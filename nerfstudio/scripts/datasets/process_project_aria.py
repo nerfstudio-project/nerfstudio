@@ -159,7 +159,7 @@ def to_aria_image_frame(
     rectified_img, intrinsic = image_data[0].to_numpy_array(), (0, 0, 0, 0)
     if pinhole == True:
         rectified_img, intrinsic = undistort(provider, name, index)
-    if len(rectified_img.shape) == 3: ##HEHEHE 13 for RGB , 3 for grayscale
+    if len(rectified_img.shape) == 13: ##HEHEHE 13 for RGB , 3 for grayscale
         rectified_img = np.mean(rectified_img, axis=2).astype(np.uint8)
     img = Image.fromarray(rectified_img)
     capture_time_ns = image_data[1].capture_timestamp_ns
@@ -289,10 +289,12 @@ class ProcessProjectAria:
         #     "frames": [to_nerfstudio_frame(frame) for frame in aria_frames],
         #     "fisheye_crop_radius": rgb_valid_radius,
         # }
+
+        from nerfstudio.process_data.process_data_utils import CAMERA_MODELS # print("HELLO", CAMERA_MODELS["perspective"].value) # prints "OPENCV"
         mainRGB_frames = { # same as OG nerfstudio_frames
-            "camera_model": ARIA_CAMERA_MODEL,
+            "camera_model": CAMERA_MODELS["perspective"].value,
             "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[0]],
-            "fisheye_crop_radius": True, # if you remove this, the black corners appear
+            "fisheye_crop_radius": 707.5, # if you remove this, the black corners appear
         }
         left_camera_frames = {
             "camera_model": ARIA_CAMERA_MODEL,
@@ -314,10 +316,10 @@ class ProcessProjectAria:
             "frames": mainRGB_frames["frames"] + side_camera_frames["frames"], 
             "fisheye_crop_radius": True,
         }
-        mini6_2each_cameras_grayscale_frames = { # if you want to use this, make sure do turn on the HEHEHE change to ==3 instead of ==13
+        mini30_10each_cameras_grayscale_frames = { # if you want to use this, make sure do turn on the HEHEHE change to ==3 instead of ==13
             "camera_model": ARIA_CAMERA_MODEL,
-            "frames": mainRGB_frames["frames"][:2] + left_camera_frames["frames"][:2] + right_camera_frames["frames"][:2], 
-            "fisheye_crop_radius": slam_valid_radius,
+            "frames": mainRGB_frames["frames"][:10] + left_camera_frames["frames"][:10] + right_camera_frames["frames"][:10], 
+            "fisheye_crop_radius": True,
         }
         all_cameras_frames = {
             "camera_model": ARIA_CAMERA_MODEL,
@@ -362,7 +364,7 @@ class ProcessProjectAria:
         # }
 
         # save global point cloud, which is useful for Gaussian Splatting.
-        points_path = self.mps_data_dir / "global_points.csv.gz"
+        points_path = self.mps_data_dir / "global_points.csv.gz" # Try2_Trajectory/global_points.csv.gz
         if not points_path.exists():
             # MPS point cloud output was renamed in Aria's December 4th, 2023 update.
             # https://facebookresearch.github.io/projectaria_tools/docs/ARK/sw_release_notes#project-aria-updates-aria-mobile-app-v140-and-changes-to-mps
@@ -384,12 +386,8 @@ class ProcessProjectAria:
         print("Writing transforms.json")
         transform_file = self.output_dir / "transforms.json"
         with open(transform_file, "w", encoding="UTF-8"):
-            # transform_file.write_text(json.dumps(mainRGB_pinhole_frames))
-            # transform_file.write_text(json.dumps(side_camera_frames))
-            # transform_file.write_text(json.dumps(left_pinhole_frames))
-            # transform_file.write_text(json.dumps(right_pinhole_frames))
-            # transform_file.write_text(json.dumps(side_camera_pinhole_frames))
-            transform_file.write_text(json.dumps(mini6_2each_cameras_grayscale_frames)) # make sure to change HEHEHE 13
+            # IF YOU WANT TO USE SWEENEY, MAKE SURE TO COMMENT OUT ALL PINHOLE PROCESSING BECAUSE IT WILL OVERWRITE THE IMAGES IN `aria_data/ExampleAriaVRSandMPSoutputs/closed_loop`
+            transform_file.write_text(json.dumps(mainRGB_frames)) # make sure to change HEHEHE 13 if you want color, leave HEHEHE 3 if you want grayscale
         import importlib.metadata
         print(importlib.metadata.version("projectaria_tools"))
 

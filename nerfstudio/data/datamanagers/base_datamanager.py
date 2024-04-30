@@ -531,6 +531,8 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
         image_batch = next(self.iter_train_image_dataloader)
+        print("YYYYYY type(image_batch)", type(image_batch))
+        print("YYYYYY len(image_batch)", len(image_batch))
         assert self.train_pixel_sampler is not None
         assert isinstance(image_batch, dict)
         batch = self.train_pixel_sampler.sample(image_batch)

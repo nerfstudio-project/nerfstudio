@@ -106,9 +106,9 @@ class NerfactoModelConfig(ModelConfig):
     """Predicted normal loss multiplier."""
     use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""
-    use_appearance_embedding: bool = True
+    use_appearance_embedding: bool = False # usually is True, set False to test splatting of left camera
     """Whether to use an appearance embedding."""
-    use_average_appearance_embedding: bool = True
+    use_average_appearance_embedding: bool = False # same here
     """Whether to use average appearance embedding or zeros for inference."""
     proposal_weights_anneal_slope: float = 10.0
     """Slope of the annealing function for the proposal weights."""
@@ -124,7 +124,7 @@ class NerfactoModelConfig(ModelConfig):
     """Use gradient scaler where the gradients are lower for points closer to the camera."""
     implementation: Literal["tcnn", "torch"] = "tcnn"
     """Which implementation to use for the model."""
-    appearance_embed_dim: int = 32
+    appearance_embed_dim: int = 0 #super no
     """Dimension of the appearance embedding."""
     average_init_density: float = 1.0
     """Average initial density output from MLP. """

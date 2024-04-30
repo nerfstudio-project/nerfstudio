@@ -114,6 +114,7 @@ class Nerfstudio(DataParser):
                 distort_fixed = True
                 break
         fisheye_crop_radius_meta = meta.get("fisheye_crop_radius", None) # This is now a boolean value
+        fisheye_crop_radius_fixed = fisheye_crop_radius_meta != True
         if type(fisheye_crop_radius_meta) == float:
             fisheye_crop_radius = fisheye_crop_radius_meta
         elif fisheye_crop_radius_meta == True:
@@ -170,6 +171,9 @@ class Nerfstudio(DataParser):
                         p2=float(frame["p2"]) if "p2" in frame else 0.0,
                     )
                 )
+            if not fisheye_crop_radius_fixed: # if the fisheye_crop_radius is different for every image, we need
+                fisheye_crop_radius.append(float(frame["fisheye_crop_radius"]))
+            
             image_filenames.append(fname)
             poses.append(np.array(frame["transform_matrix"]))
             if "mask_path" in frame:
@@ -255,7 +259,7 @@ class Nerfstudio(DataParser):
         image_filenames = [image_filenames[i] for i in indices]
         mask_filenames = [mask_filenames[i] for i in indices] if len(mask_filenames) > 0 else []
         depth_filenames = [depth_filenames[i] for i in indices] if len(depth_filenames) > 0 else []
-
+        # print("indices", split, indices) prints "indices val []" twice, train is done properly
         idx_tensor = torch.tensor(indices, dtype=torch.long)
         poses = poses[idx_tensor]
 
@@ -295,13 +299,12 @@ class Nerfstudio(DataParser):
             )
         else:
             distortion_params = torch.stack(distort, dim=0)[idx_tensor]  
-        print("YOOOO", distortion_params) # this 'distortion_params' has shape torch.size([0, 12]) has the correct size at first, then
+        # print("YOOOO", split, distortion_params.shape) # this 'distortion_params' has shape torch.size([27, 12]) if 30 images for train, then shape torch.size([3, 12]) for val
         # Only add fisheye crop radius parameter if the images are actually fisheye, to allow the same config to be used
         # for both fisheye and non-fisheye datasets.
         metadata = {}
         if (camera_type in [CameraType.FISHEYE, CameraType.FISHEYE624]) and (fisheye_crop_radius is not None):
             metadata["fisheye_crop_radius"] = fisheye_crop_radius
-
         cameras = Cameras(
             fx=fx,
             fy=fy,

@@ -158,6 +158,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             data = dataset.get_data(idx, image_type=self.config.cache_images_type)
             camera = dataset.cameras[idx].reshape(())
             K = camera.get_intrinsics_matrices().numpy()
+            return data
             if camera.distortion_params is None:
                 return data
             distortion_params = camera.distortion_params.numpy()
@@ -376,7 +377,6 @@ def _undistort_image(
         K = newK
 
     elif camera.camera_type.item() == CameraType.FISHEYE.value:
-        # print(camera.metadata)
         K[0, 2] = K[0, 2] - 0.5
         K[1, 2] = K[1, 2] - 0.5
         distortion_params = np.array(
@@ -405,7 +405,6 @@ def _undistort_image(
             [camera.fx, camera.fy, camera.cx, camera.cy, torch.from_numpy(distortion_params)], dim=0
         )
         assert fisheye624_params.shape == (16,)
-        print(camera.metadata)
         assert (
             "mask" not in data
             and camera.metadata is not None
