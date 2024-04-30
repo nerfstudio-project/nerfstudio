@@ -17,18 +17,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Type
+from typing import Optional, Type
 
 import imageio
 import numpy as np
+import open3d as o3d
 import torch
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
-from nerfstudio.data.dataparsers.base_dataparser import (
-    DataParser,
-    DataParserConfig,
-    DataparserOutputs,
-)
+from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.io import load_from_json
@@ -44,8 +41,12 @@ class BlenderDataParserConfig(DataParserConfig):
     """Directory specifying location of data."""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
-    alpha_color: str = "white"
-    """alpha color of background"""
+    alpha_color: Optional[str] = "white"
+    """alpha color of background, when set to None, InputDataset that consumes DataparserOutputs will not attempt 
+    to blend with alpha_colors using image's alpha channel data. Thus rgba image will be directly used in training. """
+    ply_path: Optional[Path] = None
+    """Path to PLY file to load 3D points from, defined relative to the dataset directory. This is helpful for
+    Gaussian splatting and generally unused otherwise. If `None`, points are initialized randomly."""
 
 
 @dataclass
@@ -61,13 +62,12 @@ class Blender(DataParser):
         self.data: Path = config.data
         self.scale_factor: float = config.scale_factor
         self.alpha_color = config.alpha_color
+        if self.alpha_color is not None:
+            self.alpha_color_tensor = get_color(self.alpha_color)
+        else:
+            self.alpha_color_tensor = None
 
     def _generate_dataparser_outputs(self, split="train"):
-        if self.alpha_color is not None:
-            alpha_color_tensor = get_color(self.alpha_color)
-        else:
-            alpha_color_tensor = None
-
         meta = load_from_json(self.data / f"transforms_{split}.json")
         image_filenames = []
         poses = []
@@ -99,12 +99,29 @@ class Blender(DataParser):
             camera_type=CameraType.PERSPECTIVE,
         )
 
+        metadata = {}
+        if self.config.ply_path is not None:
+            metadata.update(self._load_3D_points(self.config.data / self.config.ply_path))
+
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
-            alpha_color=alpha_color_tensor,
+            alpha_color=self.alpha_color_tensor,
             scene_box=scene_box,
             dataparser_scale=self.scale_factor,
+            metadata=metadata,
         )
 
         return dataparser_outputs
+
+    def _load_3D_points(self, ply_file_path: Path):
+        pcd = o3d.io.read_point_cloud(str(ply_file_path))
+
+        points3D = torch.from_numpy(np.asarray(pcd.points, dtype=np.float32) * self.config.scale_factor)
+        points3D_rgb = torch.from_numpy((np.asarray(pcd.colors) * 255).astype(np.uint8))
+
+        out = {
+            "points3D_xyz": points3D,
+            "points3D_rgb": points3D_rgb,
+        }
+        return out

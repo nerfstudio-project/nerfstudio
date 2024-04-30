@@ -82,6 +82,7 @@ We hope nerfstudio enables you to build faster 🔨 learn together 📚 and cont
 
 quickstart/installation
 quickstart/first_nerf
+quickstart/existing_dataset
 quickstart/custom_dataset
 quickstart/viewer_quickstart
 quickstart/export_geometry
@@ -135,35 +136,41 @@ This documentation is organized into 3 parts:
 
 ### Included Methods
 
-- [**Nerfacto**](nerfology/methods/nerfacto.md): Recommended method, integrates mutiple methods into one.
+- [**Nerfacto**](nerfology/methods/nerfacto.md): Recommended method, integrates multiple methods into one.
 - [Instant-NGP](nerfology/methods/instant_ngp.md): Instant Neural Graphics Primitives with a Multiresolution Hash Encoding
 - [NeRF](nerfology/methods/nerf.md): OG Neural Radiance Fields
 - [Mip-NeRF](nerfology/methods/mipnerf.md): A Multiscale Representation for Anti-Aliasing Neural Radiance Fields
 - [TensoRF](nerfology/methods/tensorf.md): Tensorial Radiance Fields
+- [Splatfacto](nerfology/methods/splat.md): Nerfstudio's Gaussian Splatting implementation
 
 (third_party_methods)=
 
 ### Third-party Methods
 
 - [Instruct-NeRF2NeRF](nerfology/methods/in2n.md): Editing 3D Scenes with Instructions
+- [Instruct-GS2GS](nerfology/methods/igs2gs.md): Editing 3DGS Scenes with Instructions
+- [SIGNeRF](nerfology/methods/signerf.md): Controlled Generative Editing of NeRF Scenes
 - [K-Planes](nerfology/methods/kplanes.md): Unified 3D and 4D Radiance Fields
 - [LERF](nerfology/methods/lerf.md): Language Embedded Radiance Fields
 - [Nerfbusters](nerfology/methods/nerfbusters.md): Removing Ghostly Artifacts from Casually Captured NeRFs
 - [NeRFPlayer](nerfology/methods/nerfplayer.md): 4D Radiance Fields by Streaming Feature Channels
 - [Tetra-NeRF](nerfology/methods/tetranerf.md): Representing Neural Radiance Fields Using Tetrahedra
+- [PyNeRF](nerfology/methods/pynerf.md): Pyramidal Neural Radiance Fields
+- [SeaThru-NeRF](nerfology/methods/seathru_nerf.md): Neural Radiance Field for subsea scenes
+- [Zip-NeRF](nerfology/methods/zipnerf.md): Anti-Aliased Grid-Based Neural Radiance Fields
 
 **Eager to contribute a method?** We'd love to see you use nerfstudio in implementing new (or even existing) methods! Please view our {ref}`guide<own_method_docs>` for more details about how to add to this list!
 
 ## Quicklinks
 
-|                                                            |                        |
-| ---------------------------------------------------------- | ---------------------- |
-| [Github](https://github.com/nerfstudio-project/nerfstudio) | Official Github Repo   |
-| [Discord](https://discord.gg/RyVk6w5WWP)                   | Join Discord Community |
-| [Viewer](https://viewer.nerf.studio/)                      | Web-based Nerf Viewer  |
+|                                                            |                             |
+| ---------------------------------------------------------- | --------------------------- |
+| [Github](https://github.com/nerfstudio-project/nerfstudio) | Official Github Repo        |
+| [Discord](https://discord.gg/RyVk6w5WWP)                   | Join Discord Community      |
 | [Feedback Form](https://forms.gle/sqN5phJN7LfQVwnP9)       | Provide Nerfstudio Feedback |
 
 ## Sponsors
+
 Sponsors of this work includes [Luma AI](https://lumalabs.ai/) and the [BAIR commons](https://bcommons.berkeley.edu/home).
 
 |          |          |
