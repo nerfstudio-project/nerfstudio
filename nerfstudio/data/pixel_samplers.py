@@ -16,7 +16,6 @@
 Code for sampling pixels.
 """
 
-import math
 import random
 import warnings
 from dataclasses import dataclass, field
@@ -27,7 +26,7 @@ from jaxtyping import Int
 from torch import Tensor
 
 from nerfstudio.configs.base_config import InstantiateConfig
-from nerfstudio.data.utils.pixel_sampling_utils import erode_mask
+from nerfstudio.data.utils.pixel_sampling_utils import divide_rays_per_image, erode_mask
 
 
 @dataclass
@@ -303,15 +302,8 @@ class PixelSampler:
         all_images = []
         all_depth_images = []
 
-        # find the optimal number of rays per image such that it is divisible by 2 and sums to the total number of rays
-        num_rays_per_image = num_rays_per_batch / num_images
-        residual = num_rays_per_image % 2
-        num_rays_per_image_under = int(num_rays_per_image - residual)
-        num_rays_per_image_over = int(num_rays_per_image_under + 2)
-        num_images_under = math.ceil(num_images * (1 - residual / 2))
-        num_images_over = num_images - num_images_under
-        num_rays_per_image = num_images_under * [num_rays_per_image_under] + num_images_over * [num_rays_per_image_over]
-        num_rays_per_image[-1] += num_rays_per_batch - sum(num_rays_per_image)
+        assert num_rays_per_batch % 2 == 0, "num_rays_per_batch must be divisible by 2"
+        num_rays_per_image = divide_rays_per_image(num_rays_per_batch, num_images)
 
         if "mask" in batch:
             for i, num_rays in enumerate(num_rays_per_image):
@@ -330,9 +322,7 @@ class PixelSampler:
             for i, num_rays in enumerate(num_rays_per_image):
                 image_height, image_width, _ = batch["image"][i].shape
                 if self.config.is_equirectangular:
-                    indices = self.sample_method_equirectangular(
-                        num_rays, 1, image_height, image_width, device=device
-                    )
+                    indices = self.sample_method_equirectangular(num_rays, 1, image_height, image_width, device=device)
                 else:
                     indices = self.sample_method(num_rays, 1, image_height, image_width, device=device)
                 indices[:, 0] = i
