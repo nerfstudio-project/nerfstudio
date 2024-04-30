@@ -3,6 +3,6 @@
 Viewer
 ============
 
-.. automodule:: nerfstudio.viewer.server.viewer_elements
+.. automodule:: nerfstudio.viewer.viewer_elements
    :members:
    :show-inheritance:

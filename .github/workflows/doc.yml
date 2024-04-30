@@ -18,7 +18,8 @@ jobs:
           python-version: '3.9'
       - name: Install dependencies
         run: |
-          pip install .[docs]
+          pip install uv
+          uv pip install --system .[docs]
       - name: Sphinx build
         # fail on warnings
         run: |

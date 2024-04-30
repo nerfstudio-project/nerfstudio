@@ -56,12 +56,14 @@ class HashMLPDensityField(Field):
         base_res: int = 16,
         log2_hashmap_size: int = 18,
         features_per_level: int = 2,
+        average_init_density: float = 1.0,
         implementation: Literal["tcnn", "torch"] = "tcnn",
     ) -> None:
         super().__init__()
         self.register_buffer("aabb", aabb)
         self.spatial_distortion = spatial_distortion
         self.use_linear = use_linear
+        self.average_init_density = average_init_density
 
         self.register_buffer("max_res", torch.tensor(max_res))
         self.register_buffer("num_levels", torch.tensor(num_levels))
@@ -111,7 +113,7 @@ class HashMLPDensityField(Field):
         # Rectifying the density with an exponential is much more stable than a ReLU or
         # softplus, because it enables high post-activation (float32) density outputs
         # from smaller internal (float16) parameters.
-        density = trunc_exp(density_before_activation)
+        density = self.average_init_density * trunc_exp(density_before_activation)
         density = density * selector[..., None]
         return density, None
 

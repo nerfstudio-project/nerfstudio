@@ -25,11 +25,7 @@ import numpy as np
 import torch
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
-from nerfstudio.data.dataparsers.base_dataparser import (
-    DataParser,
-    DataParserConfig,
-    DataparserOutputs,
-)
+from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.io import load_from_json
@@ -173,7 +169,10 @@ def _rescale_depth(depth_raw: np.ndarray, cam: Dict) -> np.ndarray:
     viewdirs /= np.linalg.norm(viewdirs, axis=-1, keepdims=True)
     viewdirs = viewdirs.reshape((*batch_shape, 3))
     cosa = viewdirs @ (cam["camera_to_worlds"][:, 2])
-    depth = depth_raw / cosa[..., None]
+    if depth_raw.ndim == cosa.ndim:
+        depth = depth_raw[..., None] / cosa[..., None]
+    else:
+        depth = depth_raw / cosa[..., None]
     return depth
 
 
@@ -322,7 +321,7 @@ class Dycheck(DataParser):
             for frame in frame_names:
                 cv2.imwrite(
                     str(self.data / f"rgb/{d}x/{frame}.png"),
-                    cv2.resize(cv2.imread(str(self.data / f"rgb/1x/{frame}.png")), (h, w)),
+                    cv2.resize(cv2.imread(str(self.data / f"rgb/1x/{frame}.png")), (w, h)),
                 )
             CONSOLE.print("finished")
 

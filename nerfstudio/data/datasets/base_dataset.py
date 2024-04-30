@@ -19,12 +19,12 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Literal
 
 import numpy as np
 import numpy.typing as npt
 import torch
-from jaxtyping import Float
+from jaxtyping import Float, UInt8
 from PIL import Image
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -53,6 +53,7 @@ class InputDataset(Dataset):
         self.metadata = deepcopy(dataparser_outputs.metadata)
         self.cameras = deepcopy(dataparser_outputs.cameras)
         self.cameras.rescale_output_resolution(scaling_factor=scale_factor)
+        self.mask_color = dataparser_outputs.metadata.get("mask_color", None)
 
     def __len__(self):
         return len(self._dataparser_outputs.image_filenames)
@@ -68,7 +69,7 @@ class InputDataset(Dataset):
         if self.scale_factor != 1.0:
             width, height = pil_image.size
             newsize = (int(width * self.scale_factor), int(height * self.scale_factor))
-            pil_image = pil_image.resize(newsize, resample=Image.BILINEAR)
+            pil_image = pil_image.resize(newsize, resample=Image.Resampling.BILINEAR)
         image = np.array(pil_image, dtype="uint8")  # shape is (h, w) or (h, w, 3 or 4)
         if len(image.shape) == 2:
             image = image[:, :, None].repeat(3, axis=2)
@@ -77,24 +78,51 @@ class InputDataset(Dataset):
         assert image.shape[2] in [3, 4], f"Image shape of {image.shape} is in correct."
         return image
 
-    def get_image(self, image_idx: int) -> Float[Tensor, "image_height image_width num_channels"]:
-        """Returns a 3 channel image.
+    def get_image_float32(self, image_idx: int) -> Float[Tensor, "image_height image_width num_channels"]:
+        """Returns a 3 channel image in float32 torch.Tensor.
 
         Args:
             image_idx: The image index in the dataset.
         """
         image = torch.from_numpy(self.get_numpy_image(image_idx).astype("float32") / 255.0)
         if self._dataparser_outputs.alpha_color is not None and image.shape[-1] == 4:
+            assert (self._dataparser_outputs.alpha_color >= 0).all() and (
+                self._dataparser_outputs.alpha_color <= 1
+            ).all(), "alpha color given is out of range between [0, 1]."
             image = image[:, :, :3] * image[:, :, -1:] + self._dataparser_outputs.alpha_color * (1.0 - image[:, :, -1:])
         return image
 
-    def get_data(self, image_idx: int) -> Dict:
-        """Returns the ImageDataset data as a dictionary.
+    def get_image_uint8(self, image_idx: int) -> UInt8[Tensor, "image_height image_width num_channels"]:
+        """Returns a 3 channel image in uint8 torch.Tensor.
 
         Args:
             image_idx: The image index in the dataset.
         """
-        image = self.get_image(image_idx)
+        image = torch.from_numpy(self.get_numpy_image(image_idx))
+        if self._dataparser_outputs.alpha_color is not None and image.shape[-1] == 4:
+            assert (self._dataparser_outputs.alpha_color >= 0).all() and (
+                self._dataparser_outputs.alpha_color <= 1
+            ).all(), "alpha color given is out of range between [0, 1]."
+            image = image[:, :, :3] * (image[:, :, -1:] / 255.0) + 255.0 * self._dataparser_outputs.alpha_color * (
+                1.0 - image[:, :, -1:] / 255.0
+            )
+            image = torch.clamp(image, min=0, max=255).to(torch.uint8)
+        return image
+
+    def get_data(self, image_idx: int, image_type: Literal["uint8", "float32"] = "float32") -> Dict:
+        """Returns the ImageDataset data as a dictionary.
+
+        Args:
+            image_idx: The image index in the dataset.
+            image_type: the type of images returned
+        """
+        if image_type == "float32":
+            image = self.get_image_float32(image_idx)
+        elif image_type == "uint8":
+            image = self.get_image_uint8(image_idx)
+        else:
+            raise NotImplementedError(f"image_type (={image_type}) getter was not implemented, use uint8 or float32")
+
         data = {"image_idx": image_idx, "image": image}
         if self._dataparser_outputs.mask_filenames is not None:
             mask_filepath = self._dataparser_outputs.mask_filenames[image_idx]
@@ -102,6 +130,10 @@ class InputDataset(Dataset):
             assert (
                 data["mask"].shape[:2] == data["image"].shape[:2]
             ), f"Mask and image have different shapes. Got {data['mask'].shape[:2]} and {data['image'].shape[:2]}"
+        if self.mask_color:
+            data["image"] = torch.where(
+                data["mask"] == 1.0, data["image"], torch.ones_like(data["image"]) * torch.tensor(self.mask_color)
+            )
         metadata = self.get_metadata(data)
         data.update(metadata)
         return data

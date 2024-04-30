@@ -42,12 +42,12 @@ pip uninstall torch torchvision functorch tinycudann
 ```
 
 ::::{tab-set}
-:::{tab-item} Torch 2.0.1 with CUDA 11.8
+:::{tab-item} Torch 2.1.2 with CUDA 11.8 (recommended)
 
-Install PyTorch 2.0.1 with CUDA 11.8:
+Install PyTorch 2.1.2 with CUDA 11.8:
 
 ```bash
-pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
+pip install torch==2.1.2+cu118 torchvision==0.16.2+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
 ```
 
 To build the necessary CUDA extensions, `cuda-toolkit` is also required. We

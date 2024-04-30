@@ -17,11 +17,11 @@ Miscellaneous helper code.
 """
 
 
-from inspect import currentframe
-import typing
 import platform
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+import typing
 import warnings
+from inspect import currentframe
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 import torch
 

@@ -17,10 +17,10 @@ Dataset input structures.
 """
 
 from dataclasses import dataclass
-from typing import Union, Tuple
-import viser.transforms as vtf
+from typing import Tuple, Union
 
 import torch
+import viser.transforms as vtf
 from jaxtyping import Float
 from torch import Tensor
 
@@ -33,6 +33,10 @@ class SceneBox:
     """aabb: axis-aligned bounding box.
     aabb[0] is the minimum (x,y,z) point.
     aabb[1] is the maximum (x,y,z) point."""
+
+    def within(self, pts: Float[Tensor, "n 3"]):
+        """Returns a boolean mask indicating whether each point is within the box."""
+        return torch.all(pts > self.aabb[0], dim=-1) & torch.all(pts < self.aabb[1], dim=-1)
 
     def get_diagonal_length(self):
         """Returns the longest diagonal length."""
