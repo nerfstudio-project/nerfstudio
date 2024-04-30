@@ -658,6 +658,7 @@ method_configs["splatfacto-big"] = TrainerConfig(
         model=SplatfactoModelConfig(
             cull_alpha_thresh=0.005,
             continue_cull_post_densification=False,
+            densify_grad_thresh=0.0006,
         ),
     ),
     optimizers={

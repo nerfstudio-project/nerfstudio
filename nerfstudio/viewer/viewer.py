@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" Manage the state of the viewer """
+"""Manage the state of the viewer"""
+
 from __future__ import annotations
 
+import contextlib
 import threading
 import time
 from pathlib import Path
@@ -209,12 +211,22 @@ class Viewer:
         # Keep track of the pointers to generated GUI folders, because each generated folder holds a unique ID.
         viewer_gui_folders = dict()
 
+        def prev_cb_wrapper(prev_cb):
+            # We wrap the callbacks in the train_lock so that the callbacks are thread-safe with the
+            # concurrently executing render thread. This may block rendering, however this can be necessary
+            # if the callback uses get_outputs internally.
+            def cb_lock(element):
+                with self.train_lock if self.train_lock is not None else contextlib.nullcontext():
+                    prev_cb(element)
+
+            return cb_lock
+
         def nested_folder_install(folder_labels: List[str], prev_labels: List[str], element: ViewerElement):
             if len(folder_labels) == 0:
                 element.install(self.viser_server)
                 # also rewire the hook to rerender
                 prev_cb = element.cb_hook
-                element.cb_hook = lambda element: [prev_cb(element), self._trigger_rerender()]
+                element.cb_hook = lambda element: [prev_cb_wrapper(prev_cb)(element), self._trigger_rerender()]
             else:
                 # recursively create folders
                 # If the folder name is "Custom Elements/a/b", then:
