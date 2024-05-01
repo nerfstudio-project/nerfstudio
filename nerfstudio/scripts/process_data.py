@@ -15,7 +15,6 @@
 #!/usr/bin/env python
 """Processes a video or image sequence to a nerfstudio compatible dataset."""
 
-
 import sys
 import zipfile
 from dataclasses import dataclass
@@ -221,7 +220,7 @@ class _NoDefaultProcessMetashape:
 
     xml: Path
     """Path to the Metashape xml file."""
-    
+
     ply: Path
     """Path to the Metashape point export ply file."""
 
@@ -258,7 +257,7 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
             raise ValueError(f"XML file {self.xml} doesn't exist")
         if self.eval_data is not None:
             raise ValueError("Cannot use eval_data since cameras were already aligned with Metashape.")
-        
+
         if isinstance(self.ply, Path):
             if self.ply.suffix != ".ply":
                 raise ValueError(f"PLY file {self.ply} must have a .ply extension")
@@ -492,8 +491,7 @@ class ProcessODM(BaseConverterToNerfstudioDataset):
 
 @dataclass
 class NotInstalled:
-    def main(self) -> None:
-        ...
+    def main(self) -> None: ...
 
 
 Commands = Union[
