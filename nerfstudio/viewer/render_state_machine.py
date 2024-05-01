@@ -179,7 +179,9 @@ class RenderStateMachine(threading.Thread):
 
                     desired_depth_pixels = {"low_move": 128, "low_static": 128, "high": 512}[self.state] ** 2
                     current_depth_pixels = outputs["depth"].shape[0] * outputs["depth"].shape[1]
-                    scale = min(desired_depth_pixels / current_depth_pixels, 1.0)
+
+                    # from the panel of ns-viewer, it is possible for user to enter zero resolution
+                    scale = min(desired_depth_pixels / max(1, current_depth_pixels), 1.0)
 
                     outputs["gl_z_buf_depth"] = F.interpolate(
                         outputs["depth"].squeeze(dim=-1)[None, None, ...],
