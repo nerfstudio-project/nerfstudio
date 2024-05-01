@@ -200,6 +200,7 @@ def metashape_to_json(
     summary = []
 
     if ply_filename is not None:
+        assert ply_filename.exists()
         pc = o3d.io.read_point_cloud(str(ply_filename))
         points3D = np.asarray(pc.points)
         points3D = np.einsum("ij,bj->bi", applied_transform[:3, :3], points3D) + applied_transform[:3, 3]

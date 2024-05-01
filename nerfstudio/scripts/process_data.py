@@ -253,7 +253,7 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
 
         if self.xml.suffix != ".xml":
             raise ValueError(f"XML file {self.xml} must have a .xml extension")
-        if not self.xml.exists:
+        if not self.xml.exists():
             raise ValueError(f"XML file {self.xml} doesn't exist")
         if self.eval_data is not None:
             raise ValueError("Cannot use eval_data since cameras were already aligned with Metashape.")
@@ -261,7 +261,7 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
         if self.ply is not None:
             if self.ply.suffix != ".ply":
                 raise ValueError(f"PLY file {self.ply} must have a .ply extension")
-            if not self.ply.exists:
+            if not self.ply.exists():
                 raise ValueError(f"PLY file {self.ply} doesn't exist")
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
