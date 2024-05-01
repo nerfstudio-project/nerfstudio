@@ -37,7 +37,7 @@ def metashape_to_json(
     image_filename_map: Dict[str, Path],
     xml_filename: Path,
     output_dir: Path,
-    ply_filename: Path = None, # type: ignore
+    ply_filename: Path = None,  # type: ignore
     verbose: bool = False,
 ) -> List[str]:
     """Convert Metashape data into a nerfstudio dataset.
@@ -190,7 +190,7 @@ def metashape_to_json(
         frames.append(frame)
 
     data["frames"] = frames
-    
+
     summary = []
 
     if isinstance(ply_filename, Path):
