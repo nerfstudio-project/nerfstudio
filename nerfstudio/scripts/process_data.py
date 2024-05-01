@@ -221,6 +221,9 @@ class _NoDefaultProcessMetashape:
 
     xml: Path
     """Path to the Metashape xml file."""
+    
+    ply: Path
+    """Path to the Metashape point export ply file."""
 
 
 @dataclass
@@ -229,6 +232,9 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
 
     This script assumes that cameras have been aligned using Metashape. After alignment, it is necessary to export the
     camera poses as a `.xml` file. This option can be found under `File > Export > Export Cameras`.
+
+    Additionally, the points can be exported as pointcloud under `File > Export > Export Point Cloud`. Make sure to
+    export the data in non-binary format and exclude the normals.
 
     This script does the following:
 
@@ -252,6 +258,12 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
             raise ValueError(f"XML file {self.xml} doesn't exist")
         if self.eval_data is not None:
             raise ValueError("Cannot use eval_data since cameras were already aligned with Metashape.")
+        
+        if isinstance(self.ply, Path):
+            if self.ply.suffix != ".ply":
+                raise ValueError(f"PLY file {self.ply} must have a .ply extension")
+            if not self.ply.exists:
+                raise ValueError(f"PLY file {self.ply} doesn't exist")
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
@@ -291,6 +303,7 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
                 image_filename_map=image_filename_map,
                 xml_filename=self.xml,
                 output_dir=self.output_dir,
+                ply_filename=self.ply,
                 verbose=self.verbose,
             )
         )

@@ -16,6 +16,8 @@
 
 import json
 import xml.etree.ElementTree as ET
+import open3d as o3d
+import numpy as np
 from pathlib import Path
 from typing import Dict, List
 
@@ -36,6 +38,7 @@ def metashape_to_json(
     image_filename_map: Dict[str, Path],
     xml_filename: Path,
     output_dir: Path,
+    ply_filename: Path = None, # type: ignore
     verbose: bool = False,
 ) -> List[str]:
     """Convert Metashape data into a nerfstudio dataset.
@@ -44,6 +47,7 @@ def metashape_to_json(
         image_filename_map: Mapping of original image filenames to their saved locations.
         xml_filename: Path to the metashape cameras xml file.
         output_dir: Path to the output directory.
+        ply_filename: Path to the exported ply file.
         verbose: Whether to print verbose output.
 
     Returns:
@@ -187,11 +191,22 @@ def metashape_to_json(
         frames.append(frame)
 
     data["frames"] = frames
+    
+    summary = []
+
+    if isinstance(ply_filename, Path):
+        initialPoints = o3d.io.read_point_cloud(str(ply_filename))
+        R1 = initialPoints.get_rotation_matrix_from_xyz((-np.pi / -2, 0, 0))
+        initialPoints.rotate(R1, center=(0, 0, 0))
+        R2 = initialPoints.get_rotation_matrix_from_xyz((0, 0, np.pi / 2))
+        initialPoints.rotate(R2, center=(0, 0, 0))
+        o3d.io.write_point_cloud(str(output_dir / "sparse_pc.ply"), initialPoints)
+        data["ply_file_path"] = "sparse_pc.ply"
+        summary.append(f"Imported {ply_filename} as starting points")
 
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
 
-    summary = []
     if num_skipped == 1:
         summary.append(f"{num_skipped} image skipped because it was missing its camera pose.")
     if num_skipped > 1:
