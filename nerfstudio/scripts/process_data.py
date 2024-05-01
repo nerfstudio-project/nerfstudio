@@ -19,7 +19,7 @@ import sys
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
 
 import numpy as np
 import tyro
@@ -221,9 +221,6 @@ class _NoDefaultProcessMetashape:
     xml: Path
     """Path to the Metashape xml file."""
 
-    ply: Path
-    """Path to the Metashape point export ply file."""
-
 
 @dataclass
 class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetashape):
@@ -240,6 +237,9 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
     1. Scales images to a specified size.
     2. Converts Metashape poses into the nerfstudio format.
     """
+
+    ply: Optional[Path] = None
+    """Path to the Metashape point export ply file."""
 
     num_downscales: int = 3
     """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
@@ -258,7 +258,7 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
         if self.eval_data is not None:
             raise ValueError("Cannot use eval_data since cameras were already aligned with Metashape.")
 
-        if isinstance(self.ply, Path):
+        if self.ply is not None:
             if self.ply.suffix != ".ply":
                 raise ValueError(f"PLY file {self.ply} must have a .ply extension")
             if not self.ply.exists:

@@ -17,7 +17,7 @@
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 import open3d as o3d
@@ -37,7 +37,7 @@ def metashape_to_json(
     image_filename_map: Dict[str, Path],
     xml_filename: Path,
     output_dir: Path,
-    ply_filename: Path = None,  # type: ignore
+    ply_filename: Optional[Path] = None,  # type: ignore
     verbose: bool = False,
 ) -> List[str]:
     """Convert Metashape data into a nerfstudio dataset.
@@ -184,22 +184,27 @@ def metashape_to_json(
         if component_id in component_dict:
             transform = component_dict[component_id] @ transform
 
+        # Metashape camera is looking towards -Z, +X is to the right and +Y is to the top/up of the first cam
+        # Rotate the scene according to nerfstudio convention
         transform = transform[[2, 0, 1, 3], :]
+        # Convert from Metashape's camera coordinate system (OpenCV) to ours (OpenGL)
         transform[:, 1:3] *= -1
         frame["transform_matrix"] = transform.tolist()
         frames.append(frame)
 
     data["frames"] = frames
+    applied_transform = np.eye(4)[:3, :]
+    applied_transform = applied_transform[np.array([2, 0, 1]), :]
+    data["applied_transform"] = applied_transform.tolist()
 
     summary = []
 
-    if isinstance(ply_filename, Path):
-        initialPoints = o3d.io.read_point_cloud(str(ply_filename))
-        R1 = initialPoints.get_rotation_matrix_from_xyz((-np.pi / -2, 0, 0))
-        initialPoints.rotate(R1, center=(0, 0, 0))
-        R2 = initialPoints.get_rotation_matrix_from_xyz((0, 0, np.pi / 2))
-        initialPoints.rotate(R2, center=(0, 0, 0))
-        o3d.io.write_point_cloud(str(output_dir / "sparse_pc.ply"), initialPoints)
+    if ply_filename is not None:
+        pc = o3d.io.read_point_cloud(str(ply_filename))
+        points3D = np.asarray(pc.points)
+        points3D = np.einsum("ij,bj->bi", applied_transform[:3, :3], points3D) + applied_transform[:3, 3]
+        pc.points = o3d.utility.Vector3dVector(points3D)
+        o3d.io.write_point_cloud(str(output_dir / "sparse_pc.ply"), pc)
         data["ply_file_path"] = "sparse_pc.ply"
         summary.append(f"Imported {ply_filename} as starting points")
 
