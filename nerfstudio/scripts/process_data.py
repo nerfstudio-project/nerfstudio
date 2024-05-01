@@ -491,7 +491,7 @@ class ProcessODM(BaseConverterToNerfstudioDataset):
 
 @dataclass
 class NotInstalled:
-    def main(self) -> None: 
+    def main(self) -> None:
         ...
 
 
