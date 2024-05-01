@@ -347,7 +347,7 @@ class ProcessRealityCapture(BaseConverterToNerfstudioDataset, _NoDefaultProcessR
 
         if self.csv.suffix != ".csv":
             raise ValueError(f"CSV file {self.csv} must have a .csv extension")
-        if not self.csv.exists:
+        if not self.csv.exists():
             raise ValueError(f"CSV file {self.csv} doesn't exist")
         if self.eval_data is not None:
             raise ValueError("Cannot use eval_data since cameras were already aligned with RealityCapture.")
@@ -425,12 +425,12 @@ class ProcessODM(BaseConverterToNerfstudioDataset):
         shots_file = self.data / "odm_report" / "shots.geojson"
         reconstruction_file = self.data / "opensfm" / "reconstruction.json"
 
-        if not shots_file.exists:
+        if not shots_file.exists():
             raise ValueError(f"shots file {shots_file} doesn't exist")
-        if not shots_file.exists:
+        if not shots_file.exists():
             raise ValueError(f"cameras file {cameras_file} doesn't exist")
 
-        if not orig_images_dir.exists:
+        if not orig_images_dir.exists():
             raise ValueError(f"Images dir {orig_images_dir} doesn't exist")
 
         if self.eval_data is not None:
