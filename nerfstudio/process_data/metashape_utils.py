@@ -16,12 +16,11 @@
 
 import json
 import xml.etree.ElementTree as ET
-import open3d as o3d
-import numpy as np
 from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
+import open3d as o3d
 
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils.rich_utils import CONSOLE
