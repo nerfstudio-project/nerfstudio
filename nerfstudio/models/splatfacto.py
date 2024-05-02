@@ -650,7 +650,7 @@ class SplatfactoModel(Model):
         return image
 
     @staticmethod
-    def get_empty_outputs(width: int, height: int, background: torch.Tensor):
+    def get_empty_outputs(width: int, height: int, background: torch.Tensor) -> Dict[str, Union[torch.Tensor, List]]:
         rgb = background.repeat(height, width, 1)
         depth = background.new_ones(*rgb.shape[:2], 1) * 10
         accumulation = background.new_zeros(*rgb.shape[:2], 1)
