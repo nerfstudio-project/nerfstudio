@@ -534,7 +534,7 @@ def entrypoint():
     tyro.extras.set_accent_color("bright_yellow")
     try:
         tyro.cli(Commands).main()
-    except RuntimeError as e:
+    except (RuntimeError, ValueError) as e:
         CONSOLE.log("[bold red]" + e.args[0])
 
 
