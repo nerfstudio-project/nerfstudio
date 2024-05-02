@@ -650,8 +650,8 @@ class SplatfactoModel(Model):
         return image
 
     @staticmethod
-    def get_empty_outputs(camera, background):
-        rgb = background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
+    def get_empty_outputs(width: int, height: int, background: torch.Tensor) -> Dict[str, Union[torch.Tensor, List]]:
+        rgb = background.repeat(height, width, 1)
         depth = background.new_ones(*rgb.shape[:2], 1) * 10
         accumulation = background.new_zeros(*rgb.shape[:2], 1)
         return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
@@ -694,7 +694,7 @@ class SplatfactoModel(Model):
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
-                return self.get_empty_outputs(camera, background)
+                return self.get_empty_outputs(int(camera.width.item()), int(camera.height.item()), background)
         else:
             crop_ids = None
         camera_downscale = self._get_downscale_factor()
@@ -754,7 +754,7 @@ class SplatfactoModel(Model):
         camera.rescale_output_resolution(camera_downscale)
 
         if (self.radii).sum() == 0:
-            return self.get_empty_outputs(camera, background)
+            return self.get_empty_outputs(W, H, background)
 
         if self.config.sh_degree > 0:
             viewdirs = means_crop.detach() - optimized_camera_to_world.detach()[:3, 3]  # (N, 3)
