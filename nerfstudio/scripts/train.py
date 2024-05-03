@@ -95,6 +95,7 @@ def train_loop(local_rank: int, world_size: int, config: TrainerConfig, global_r
         config: config file specifying training regimen
     """
     _set_random_seed(config.machine.seed + global_rank)
+    torch.cuda.set_device(local_rank)
     trainer = config.setup(local_rank=local_rank, world_size=world_size)
     trainer.setup()
     trainer.train()
