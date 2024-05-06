@@ -88,7 +88,7 @@ def polycam_to_json(
         import open3d as o3d
 
         mesh = o3d.io.read_triangle_mesh(str(glb_filename), enable_post_processing=True)
-        textures = np.asarray(mesh.textures)[0]  # 2D images of color
+        textures = np.asarray(mesh.textures[0])  # 2D images of color
         vert_points = np.asarray(mesh.vertices)  # 3D positions of verts
         tri_ids = np.asarray(mesh.triangles)  # indices of the vertices
         points = vert_points[tri_ids.flatten()]  # get the 3D positions of the vertices
@@ -105,7 +105,7 @@ def polycam_to_json(
         pointcloud = pointcloud.transform(np.linalg.inv(transform))
         # shift the axes coordinates to match the nerfstudio ones (same as the cameras' coord system)
         pointcloud.points = o3d.utility.Vector3dVector(np.array(pointcloud.points)[:, [2, 0, 1]])
-        o3d.io.write_point_cloud(str(glb_filename.parent.parent / "point_cloud.ply"), pointcloud)
+        o3d.io.write_point_cloud(str(output_dir / "point_cloud.ply"), pointcloud)
         data["ply_file_path"] = "point_cloud.ply"
 
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
