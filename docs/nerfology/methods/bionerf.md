@@ -8,7 +8,7 @@
 Paper Website
 ```
 
-```{button-link} https://github.com/Leandropassosjr/BioNeRF
+```{button-link} https://github.com/Leandropassosjr/ns_bionerf
 :color: primary
 :outline:
 Code
@@ -49,10 +49,10 @@ The first step consists of feeding two neural models simultaneously, namely $M_{
 This step performs a series of operations, called \emph{filters}, that work on the embeddings coming from the previous step. There are four filters this step derives: density, color, memory, and modulation.
 
 ### Memory Updating
-Updating the memory requires the implementation of a mechanism capable of obliterating trivial information, which is performed using the memory filter (Step 3.1 in Figure~\ref{f.bionerf}). Fist, one needs to compute a signal modulation $\bm{\mu}$, for further introducing new experiences in the memory $\bm{\Psi}$ through the modulating variable $\bm{\mu}$ using a $\textit{tanh}$ function (Step 3.2 in the figure.
+Updating the memory requires the implementation of a mechanism capable of obliterating trivial information, which is performed using the memory filter (Step 3.1 in Figure~\ref{f.bionerf}). Fist, one needs to compute a signal modulation **$\mu$**, for further introducing new experiences in the memory **$\Psi$** through the modulating variable **$\mu$** using a $\textit{tanh}$ function (Step 3.2 in the figure).
 
 ### Contextual Inference
-This step is responsible for adding contextual information to BioNeRF. Two new embeddings are generate, i.e., $\bm{h}^{\prime}_\Delta$ and $\bm{h}^{\prime}_c$ based on density and color filters, respectively (Step 4 in the figure), which further feed two neural models, i.e., $M^{\prime}_\Delta$ and $M^{\prime}$. Subsequently, $M^{\prime}_\Delta$ outputs the volume density, while color information is predicted by $M^{\prime}_c$, further used to compute the final predicted pixel information and the loss function.
+This step is responsible for adding contextual information to BioNeRF. Two new embeddings are generate, i.e., **${h}^{\prime}_\Delta$** and **${h}^{\prime}_c$** based on density and color filters, respectively (Step 4 in the figure), which further feed two neural models, i.e., $M^\prime_\Delta$ and $M^{\prime}$. Subsequently, $M^{\prime}_\Delta$ outputs the volume density, while color information is predicted by $M^{\prime}_c$, further used to compute the final predicted pixel information and the loss function.
 
 ## Results
 
