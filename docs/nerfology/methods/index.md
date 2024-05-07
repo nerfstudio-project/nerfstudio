@@ -44,6 +44,7 @@ The following methods are supported in nerfstudio:
     PyNeRF<pynerf.md>
     SeaThru-NeRF<seathru_nerf.md>
     Zip-NeRF<zipnerf.md>
+    BioNeRF<bionerf.md>
 ```
 
 (own_method_docs)=
