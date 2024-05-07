@@ -16,9 +16,9 @@ clone-hloc = {cmd="ls Hierarchical-Localization || git clone --recursive https:/
 hloc-install = {cmd="python -m pip install -e .", cwd = "third_party/Hierarchical-Localization" , depends_on=["clone-hloc"], outputs=["third_party/Hierarchical-Localization/hloc.egg-info/PKG-INFO"]}
 post-install = {cmd="pwd", depends_on=["hloc-install", "tcnn-install"]}
 
-download-sample-data = {cmd="ls data/nerfstudio/dozer || ns-download-data nerfstudio --capture-name dozer"}
-train-example-splat = "pwd"
-train-example-nerf = "pwd"
+download-dozer-data = {cmd="ls data/nerfstudio/dozer || ns-download-data nerfstudio --capture-name dozer"}
+train-example-splat = {cmd="ns-train splatfacto --data data/nerfstudio/dozer/", depends_on=["download-dozer-data"]}
+train-example-nerf = {cmd="ns-train nerfacto --data data/nerfstudio/dozer/", depends_on=["download-dozer-data"]}
 
 
 [dependencies]
