@@ -8,20 +8,24 @@
 Paper Website
 ```
 
+```{button-link} https://github.com/Leandropassosjr/BioNeRF
+:color: primary
+:outline:
+Official Code
+```
+
 ```{button-link} https://github.com/Leandropassosjr/ns_bionerf
 :color: primary
 :outline:
-Code
+Nerfstudio add-on code
 ```
-
-
-![](https://github.com/Leandropassosjr/BioNeRF/blob/dev/images/gifs.gif)
+![examples](https://leandropassosjr.github.io/BioNeRF/assets/gifs.gif)<br>
 
 **Biologically Plausible Neural Radiance Fields**
 
 ## Installation
 
-Install nerfstudio dependencies. 
+Install nerfstudio dependencies.
 
 ## Running BioNeRF
 
@@ -35,10 +39,11 @@ ns-train bionerf --help
 
 ### Overview
 
-[BioNeRF](https://arxiv.org/pdf/2402.07310.pdf) (Biologically Plausible Neural Radiance Fields) extends [NeRF](http://www.matthewtancik.com/nerf) by implementing a cognitive-inspired mechanism that fuses inputs from multiple sources into a memory-like structure, thus improving the storing capacity and extracting more intrinsic and correlated information. BioNeRF also mimics a behavior observed in pyramidal cells concerning contextual information, in which the memory is provided as the context and combined with the inputs of two subsequent blocks of dense layers, one responsible for producing the volumetric densities and the other the colors used to render the novel view. 
+[BioNeRF](https://arxiv.org/pdf/2402.07310.pdf) (Biologically Plausible Neural Radiance Fields) extends [NeRF](http://www.matthewtancik.com/nerf) by implementing a cognitive-inspired mechanism that fuses inputs from multiple sources into a memory-like structure, thus improving the storing capacity and extracting more intrinsic and correlated information. BioNeRF also mimics a behavior observed in pyramidal cells concerning contextual information, in which the memory is provided as the context and combined with the inputs of two subsequent blocks of dense layers, one responsible for producing the volumetric densities and the other the colors used to render the novel view.
 
 ## Pipeline
-<img src='https://github.com/Leandropassosjr/BioNeRF/blob/dev/images/BioNeRF.png'/>
+
+![pipeline](https://leandropassosjr.github.io/BioNeRF/assets/BioNeRF.png)<br>
 
 Here is an overview pipeline for BioNeRF, we will walk through each component in this guide.
 
