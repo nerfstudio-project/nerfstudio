@@ -336,6 +336,9 @@ class ProcessRealityCapture(BaseConverterToNerfstudioDataset, _NoDefaultProcessR
     2. Converts RealityCapture poses into the nerfstudio format.
     """
 
+    ply: Optional[Path] = None
+    """Path to the RealityCapture exported ply file"""
+
     num_downscales: int = 3
     """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
         will downscale the images by 2x, 4x, and 8x."""
@@ -352,6 +355,12 @@ class ProcessRealityCapture(BaseConverterToNerfstudioDataset, _NoDefaultProcessR
             raise ValueError(f"CSV file {self.csv} doesn't exist")
         if self.eval_data is not None:
             raise ValueError("Cannot use eval_data since cameras were already aligned with RealityCapture.")
+
+        if self.ply is not None:
+            if self.ply.suffix != ".ply":
+                raise ValueError(f"PLY file {self.ply} must have a .ply extension")
+            if not self.ply.exists():
+                raise ValueError(f"PLY file {self.ply} doesn't exist")
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
@@ -390,7 +399,9 @@ class ProcessRealityCapture(BaseConverterToNerfstudioDataset, _NoDefaultProcessR
             realitycapture_utils.realitycapture_to_json(
                 image_filename_map=image_filename_map,
                 csv_filename=self.csv,
+                ply_filename=self.ply,
                 output_dir=self.output_dir,
+                verbose=self.verbose,
             )
         )
 
