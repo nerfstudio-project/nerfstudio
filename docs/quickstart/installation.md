@@ -122,6 +122,35 @@ pip install -e .[dev]
 pip install -e .[docs]
 ```
 
+## Using Pixi
+[Pixi](https://pixi.sh/latest/) is a fast software package manager built on top of the existing conda ecosystem. Spins up development environments quickly on Windows, macOS and Linux. (Currently only linux is supported for nerfstudio)
+
+### Prerequisites
+Make sure to have pixi installed, detailed instructions [here](https://pixi.sh/latest/)
+
+TLDR for linux:
+
+```bash
+curl -fsSL https://pixi.sh/install.sh | bash
+```
+
+### Install Pixi Environmnent 
+After Pixi is installed, you can run
+```bash
+pixi run post-install
+pixi shell
+```
+This will install all enviroment dependancies including colmap, tinycudann and hloc, and the active the conda environment
+
+you could also run
+
+```bash
+pixi run post-install
+pixi run train-example-nerf
+```
+
+to download an example dataset and run nerfacto straight away
+
 ## Use docker image
 
 Instead of installing and compiling prerequisites, setting up the environment and installing dependencies, a ready to use docker image is provided.
