@@ -200,6 +200,7 @@ class ProcessPolycam(BaseConverterToNerfstudioDataset):
             polycam_utils.polycam_to_json(
                 image_filenames=polycam_image_filenames,
                 depth_filenames=polycam_depth_filenames,
+                glb_filename=self.data / "raw.glb" if (self.data / "raw.glb").exists() else None,
                 cameras_dir=polycam_cameras_dir,
                 output_dir=self.output_dir,
                 min_blur_score=self.min_blur_score,
