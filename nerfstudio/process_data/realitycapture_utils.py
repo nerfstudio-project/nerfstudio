@@ -78,11 +78,11 @@ def realitycapture_to_json(
         frame["file_path"] = image_filename_map[basename].as_posix()
         # reality capture uses the 35mm equivalent focal length
         # See https://en.wikipedia.org/wiki/35_mm_equivalent_focal_length
-        v = max(width, height) / 36.0
-        frame["fl_x"] = float(cameras["f"][i]) * v
-        frame["fl_y"] = float(cameras["f"][i]) * v
-        frame["cx"] = float(cameras["px"][i]) * v + width / 2.0
-        frame["cy"] = float(cameras["py"][i]) * v + height / 2.0
+        scale = max(width, height)
+        frame["fl_x"] = float(cameras["f"][i]) * scale / 36.0
+        frame["fl_y"] = float(cameras["f"][i]) * scale / 36.0
+        frame["cx"] = float(cameras["px"][i]) * scale + width / 2.0
+        frame["cy"] = float(cameras["py"][i]) * scale + height / 2.0
         frame["k1"] = float(cameras["k1"][i])
         frame["k2"] = float(cameras["k2"][i])
         frame["k3"] = float(cameras["k3"][i])
