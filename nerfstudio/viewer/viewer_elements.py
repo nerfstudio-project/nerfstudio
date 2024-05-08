@@ -32,6 +32,7 @@ from viser import (
     GuiButtonHandle,
     GuiDropdownHandle,
     GuiInputHandle,
+    GuiPlotlyHandle,
     ScenePointerEvent,
     ViserServer,
 )
@@ -42,6 +43,8 @@ from nerfstudio.viewer.utils import CameraState, get_camera
 
 if TYPE_CHECKING:
     from nerfstudio.viewer.viewer import Viewer
+
+import plotly.graph_objects as go
 
 TValue = TypeVar("TValue")
 TString = TypeVar("TString", default=str, bound=str)
@@ -284,7 +287,9 @@ class ViewerElement(Generic[TValue]):
         cb_hook: Callable = lambda element: None,
     ) -> None:
         self.name = name
-        self.gui_handle: Optional[Union[GuiInputHandle[TValue], GuiButtonHandle, GuiButtonGroupHandle]] = None
+        self.gui_handle: Optional[
+            Union[GuiInputHandle[TValue], GuiButtonHandle, GuiButtonGroupHandle, GuiPlotlyHandle]
+        ] = None
         self.disabled = disabled
         self.visible = visible
         self.cb_hook = cb_hook
@@ -710,3 +715,96 @@ class ViewerVec3(ViewerParameter[Tuple[float, float, float]]):
         self.gui_handle = viser_server.add_gui_vector3(
             self.name, self.default_value, step=self.step, disabled=self.disabled, visible=self.visible, hint=self.hint
         )
+
+
+class ViewerPlot(ViewerElement[go.Figure]):
+    """Base class for viewer figures, using plotly backend.
+    Includes misc wrapper methods for setting plotly figure properties.
+    """
+    gui_handle: GuiPlotlyHandle
+
+    _figure: go.Figure
+    """Figure to be displayed. Do not access this directly, exists only for initial statekeeping."""
+    _aspect: float
+    """Aspect ratio of the plot (h/w). Default is 1.0."""
+
+    def __init__(
+        self,
+        figure: Optional[go.Figure] = None,
+        aspect: float = 1.0,
+        visible: bool = True,
+    ):
+        """
+        Args:
+        - figure: The plotly figure to display -- if None, an empty figure is created.
+        - aspect: Aspect ratio of the plot (h/w). Default is 1.0.
+        - visible: If the plot is visible.
+        """
+        self._figure = go.Figure() if figure is None else figure
+        self._aspect = aspect
+        super().__init__(name="", visible=visible)  # plots have no name.
+
+    def _create_gui_handle(self, viser_server: ViserServer) -> None:
+        self.gui_handle = viser_server.add_gui_plotly(
+            figure=self._figure, visible=self.visible, aspect=self._aspect
+        )
+
+    def install(self, viser_server: ViserServer) -> None:
+        self._create_gui_handle(viser_server)
+        assert self.gui_handle is not None
+
+    @property
+    def figure(self):
+        assert self.gui_handle is not None
+        return self.gui_handle.figure
+
+    @figure.setter
+    def figure(self, figure: go.Figure):
+        assert self.gui_handle is not None
+        self._figure = figure
+        self.gui_handle.figure = figure
+
+    @property
+    def aspect(self):
+        return self._aspect
+
+    @aspect.setter
+    def aspect(self, aspect: float):
+        self._aspect = aspect
+        if self.gui_handle is not None:
+            self.gui_handle.aspect = aspect
+
+    @staticmethod
+    def set_margin(figure: go.Figure, margin: int = 0) -> None:
+        """Wrapper for setting the margin of a plotly figure."""
+        # Set margins.
+        figure.update_layout(
+            margin=dict(l=margin, r=margin, t=margin, b=margin),
+        )
+
+        # Set automargin for title, so that title doesn't get cut off.
+        if margin == 0 and getattr(figure.layout, "title", None) is not None:
+            figure.layout.title.automargin = True  # type: ignore
+
+    @staticmethod
+    def set_dark(figure: go.Figure, dark: bool) -> None:
+        """Wrapper for setting the dark mode of a plotly figure."""
+        if dark:
+            figure.update_layout(template="plotly_dark")
+        else:
+            figure.update_layout(template="plotly")
+
+    @staticmethod
+    def plot_line(x: np.ndarray, y: np.ndarray, name: str = "", color: str = "blue") -> go.Scatter:
+        """Wrapper for plotting a line in a plotly figure."""
+        return go.Scatter(x=x, y=y, mode="lines", name=name, line=dict(color=color))
+
+    @staticmethod
+    def plot_scatter(x: np.ndarray, y: np.ndarray, name: str = "", color: str = "blue") -> go.Scatter:
+        """Wrapper for plotting a scatter in a plotly figure."""
+        return go.Scatter(x=x, y=y, mode="markers", name=name, marker=dict(color=color))
+
+    @staticmethod
+    def plot_image(image: np.ndarray, name: str = "") -> go.Image:
+        """Wrapper for plotting an image in a plotly figure."""
+        return go.Image(z=image, name=name)
