@@ -721,6 +721,7 @@ class ViewerPlot(ViewerElement[go.Figure]):
     """Base class for viewer figures, using plotly backend.
     Includes misc wrapper methods for setting plotly figure properties.
     """
+
     gui_handle: GuiPlotlyHandle
 
     _figure: go.Figure
@@ -754,9 +755,7 @@ class ViewerPlot(ViewerElement[go.Figure]):
         super().__init__(name="", visible=visible)  # plots have no name.
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        self.gui_handle = viser_server.add_gui_plotly(
-            figure=self._figure, visible=self.visible, aspect=self._aspect
-        )
+        self.gui_handle = viser_server.add_gui_plotly(figure=self._figure, visible=self.visible, aspect=self._aspect)
 
     def install(self, viser_server: ViserServer) -> None:
         self._create_gui_handle(viser_server)
@@ -819,7 +818,6 @@ class ViewerPlot(ViewerElement[go.Figure]):
         if self.gui_handle is not None:
             self.gui_handle.aspect = self._aspect
             self.gui_handle.figure = self._figure
-
 
     @staticmethod
     def plot_line(x: np.ndarray, y: np.ndarray, name: str = "", color: str = "blue") -> go.Scatter:
