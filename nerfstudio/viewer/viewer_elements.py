@@ -727,11 +727,17 @@ class ViewerPlot(ViewerElement[go.Figure]):
     """Figure to be displayed. Do not access this directly, exists only for initial statekeeping."""
     _aspect: float
     """Aspect ratio of the plot (h/w). Default is 1.0."""
+    _dark_mode: bool
+    """If the plot is in dark mode (i.e., `plotly_dark` template). Default is True. Uses `plotly` template for light mode."""
+    _margin: int
+    """Margin of the plot. Default is 0."""
 
     def __init__(
         self,
         figure: Optional[go.Figure] = None,
         aspect: float = 1.0,
+        margin: int = 0,
+        dark_mode: bool = True,
         visible: bool = True,
     ):
         """
@@ -739,9 +745,12 @@ class ViewerPlot(ViewerElement[go.Figure]):
         - figure: The plotly figure to display -- if None, an empty figure is created.
         - aspect: Aspect ratio of the plot (h/w). Default is 1.0.
         - visible: If the plot is visible.
+        - margin: Margin of the plot. Default is 0.
         """
         self._figure = go.Figure() if figure is None else figure
         self._aspect = aspect
+        self._margin = margin
+        self._dark_mode = dark_mode
         super().__init__(name="", visible=visible)  # plots have no name.
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
@@ -762,7 +771,7 @@ class ViewerPlot(ViewerElement[go.Figure]):
     def figure(self, figure: go.Figure):
         assert self.gui_handle is not None
         self._figure = figure
-        self.gui_handle.figure = figure
+        self._update_plot()
 
     @property
     def aspect(self):
@@ -771,28 +780,46 @@ class ViewerPlot(ViewerElement[go.Figure]):
     @aspect.setter
     def aspect(self, aspect: float):
         self._aspect = aspect
-        if self.gui_handle is not None:
-            self.gui_handle.aspect = aspect
+        self._update_plot()
 
-    @staticmethod
-    def set_margin(figure: go.Figure, margin: int = 0) -> None:
-        """Wrapper for setting the margin of a plotly figure."""
-        # Set margins.
-        figure.update_layout(
-            margin=dict(l=margin, r=margin, t=margin, b=margin),
+    @property
+    def dark(self):
+        return self._dark_mode
+
+    @dark.setter
+    def dark(self, dark_mode: bool):
+        self._dark_mode = dark_mode
+        self._update_plot()
+
+    @property
+    def margin(self):
+        return self._margin
+
+    @margin.setter
+    def margin(self, margin: int):
+        self._margin = margin
+        self._update_plot()
+
+    def _update_plot(self) -> None:
+        """Refresh the plot with:
+        - the current figure
+        - aspect ratio
+        - dark mode
+        """
+        template = "plotly_dark" if self._dark_mode else "plotly"
+        self._figure.update_layout(template=template)
+
+        # Set margins. Also, set automargin for title, so that title doesn't get cut off.
+        self._figure.update_layout(
+            margin=dict(l=self._margin, r=self._margin, t=self._margin, b=self._margin),
         )
+        if self._margin == 0 and getattr(self._figure.layout, "title", None) is not None:
+            self._figure.layout.title.automargin = True  # type: ignore
 
-        # Set automargin for title, so that title doesn't get cut off.
-        if margin == 0 and getattr(figure.layout, "title", None) is not None:
-            figure.layout.title.automargin = True  # type: ignore
+        if self.gui_handle is not None:
+            self.gui_handle.aspect = self._aspect
+            self.gui_handle.figure = self._figure
 
-    @staticmethod
-    def set_dark(figure: go.Figure, dark: bool) -> None:
-        """Wrapper for setting the dark mode of a plotly figure."""
-        if dark:
-            figure.update_layout(template="plotly_dark")
-        else:
-            figure.update_layout(template="plotly")
 
     @staticmethod
     def plot_line(x: np.ndarray, y: np.ndarray, name: str = "", color: str = "blue") -> go.Scatter:
