@@ -16,8 +16,9 @@
 
 import csv
 import json
+import shutil
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 from PIL import Image
@@ -29,10 +30,12 @@ from nerfstudio.utils.rich_utils import CONSOLE
 def realitycapture_to_json(
     image_filename_map: Dict[str, Path],
     csv_filename: Path,
+    ply_filename: Optional[Path],
     output_dir: Path,
     verbose: bool = False,
 ) -> List[str]:
     """Convert RealityCapture data into a nerfstudio dataset.
+    See https://dev.epicgames.com/community/learning/knowledge-base/vzwB/capturing-reality-realitycapture-xmp-camera-math
 
     Args:
         image_filenames: List of paths to the original images.
@@ -73,18 +76,19 @@ def realitycapture_to_json(
         frame["h"] = int(height)
         frame["w"] = int(width)
         frame["file_path"] = image_filename_map[basename].as_posix()
-        frame["fl_x"] = float(cameras["f"][i]) * max(width, height) / 36
-        frame["fl_y"] = float(cameras["f"][i]) * max(width, height) / 36
-        # TODO: Unclear how to get the principal point from RealityCapture, here a guess...
-        frame["cx"] = float(cameras["px"][i]) / 36.0 + width / 2.0
-        frame["cy"] = float(cameras["py"][i]) / 36.0 + height / 2.0
-        # TODO: Not sure if RealityCapture uses this distortion model
-        frame["k1"] = cameras["k1"][i]
-        frame["k2"] = cameras["k2"][i]
-        frame["k3"] = cameras["k3"][i]
-        frame["k4"] = cameras["k4"][i]
-        frame["p1"] = cameras["t1"][i]
-        frame["p2"] = cameras["t2"][i]
+        # reality capture uses the 35mm equivalent focal length
+        # See https://en.wikipedia.org/wiki/35_mm_equivalent_focal_length
+        scale = max(width, height)
+        frame["fl_x"] = float(cameras["f"][i]) * scale / 36.0
+        frame["fl_y"] = float(cameras["f"][i]) * scale / 36.0
+        frame["cx"] = float(cameras["px"][i]) * scale + width / 2.0
+        frame["cy"] = float(cameras["py"][i]) * scale + height / 2.0
+        frame["k1"] = float(cameras["k1"][i])
+        frame["k2"] = float(cameras["k2"][i])
+        frame["k3"] = float(cameras["k3"][i])
+        frame["k4"] = float(cameras["k4"][i])
+        frame["p1"] = float(cameras["t1"][i])
+        frame["p2"] = float(cameras["t2"][i])
 
         # Transform matrix to nerfstudio format. Please refer to the documentation for coordinate system conventions.
         rot = _get_rotation_matrix(-float(cameras["heading"][i]), float(cameras["pitch"][i]), float(cameras["roll"][i]))
@@ -96,6 +100,10 @@ def realitycapture_to_json(
         frame["transform_matrix"] = transform.tolist()
         frames.append(frame)
     data["frames"] = frames
+
+    if ply_filename is not None:
+        shutil.copy(ply_filename, output_dir / "sparse_pc.ply")
+        data["ply_file_path"] = "sparse_pc.ply"
 
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
