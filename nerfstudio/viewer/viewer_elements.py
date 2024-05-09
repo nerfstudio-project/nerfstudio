@@ -44,6 +44,8 @@ from nerfstudio.viewer.utils import CameraState, get_camera
 if TYPE_CHECKING:
     from nerfstudio.viewer.viewer import Viewer
 
+import plotly
+import plotly.basedatatypes
 import plotly.graph_objects as go
 
 TValue = TypeVar("TValue")
@@ -767,7 +769,9 @@ class ViewerPlot(ViewerElement[go.Figure]):
         return self.gui_handle.figure
 
     @figure.setter
-    def figure(self, figure: go.Figure):
+    def figure(self, figure: Union[go.Figure, plotly.basedatatypes.BaseTraceType]):
+        if isinstance(figure, plotly.basedatatypes.BaseTraceType):
+            figure = go.Figure(data=[figure])
         assert self.gui_handle is not None
         self._figure = figure
         self._update_plot()
@@ -812,7 +816,7 @@ class ViewerPlot(ViewerElement[go.Figure]):
         self._figure.update_layout(
             margin=dict(l=self._margin, r=self._margin, t=self._margin, b=self._margin),
         )
-        if self._margin == 0 and getattr(self._figure.layout, "title", None) is not None:
+        if self._margin == 0 and self._figure.layout.title.text is not None:  # type: ignore
             self._figure.layout.title.automargin = True  # type: ignore
 
         if self.gui_handle is not None:
@@ -831,5 +835,9 @@ class ViewerPlot(ViewerElement[go.Figure]):
 
     @staticmethod
     def plot_image(image: np.ndarray, name: str = "") -> go.Image:
-        """Wrapper for plotting an image in a plotly figure."""
+        """Wrapper for plotting an image in a plotly figure.
+        `plotly.graph_object.Image` expects [0...255], so images [0...1] is automatically scaled here.
+        """
+        if image.dtype != np.uint8:
+            image = (image * 255).astype(np.uint8)
         return go.Image(z=image, name=name)
