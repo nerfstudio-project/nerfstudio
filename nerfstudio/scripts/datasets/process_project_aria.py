@@ -128,6 +128,10 @@ def undistort(provider: VrsDataProvider, sensor_name: str, index: int):# -> List
     device_calib = provider.get_device_calibration()
     src_calib = device_calib.get_camera_calib(sensor_name)
     f_length = src_calib.get_focal_lengths()[0].item()
+    # if sensor_name == "camera-rgb":
+    #     f_length = 500
+    # else:
+    #     f_length = 165
     f_length = f_length + 50 if sensor_name == "camera-rgb" else f_length
     num_rows, num_cols = image_array.shape[0], image_array.shape[1]
     dst_calib = calibration.get_linear_camera_calibration(num_cols, num_rows, f_length, sensor_name)
@@ -138,6 +142,16 @@ def undistort(provider: VrsDataProvider, sensor_name: str, index: int):# -> List
     intrinsic = [f_length, f_length, num_cols/2, num_rows/2]
 
     return rectified_image, intrinsic
+
+def generate_circular_mask(numRows: int, numCols: int, radius: float):
+    rows, cols = np.ogrid[:numRows, :numCols]
+    # Calculate the center coordinates
+    center_row, center_col = numRows // 2, numCols // 2
+    # Calculate the distance of each pixel from the center
+    distance_from_center = np.sqrt((rows - center_row)**2 + (cols - center_col)**2)
+    mask = np.zeros((numRows, numCols), dtype=np.uint8)
+    mask[distance_from_center <= radius] = 1
+    return mask
 
 def to_aria_image_frame(
     provider: VrsDataProvider,
@@ -292,9 +306,9 @@ class ProcessProjectAria:
 
         from nerfstudio.process_data.process_data_utils import CAMERA_MODELS # print("HELLO", CAMERA_MODELS["perspective"].value) # prints "OPENCV"
         mainRGB_frames = { # same as OG nerfstudio_frames
-            "camera_model": CAMERA_MODELS["perspective"].value,
+            "camera_model": ARIA_CAMERA_MODEL,
             "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[0]],
-            "fisheye_crop_radius": 707.5, # if you remove this, the black corners appear
+            "fisheye_crop_radius": rgb_valid_radius, # if you remove this, the black corners appear
         }
         left_camera_frames = {
             "camera_model": ARIA_CAMERA_MODEL,
@@ -378,7 +392,7 @@ class ProcessProjectAria:
             pcd.points = o3d.utility.Vector3dVector(np.array([cast(Any, it).position_world for it in points_data]))
             ply_file_path = self.output_dir / "global_points.ply"
             o3d.io.write_point_cloud(str(ply_file_path), pcd)
-            mainRGB_frames["ply_file_path"] = "global_points.ply"
+            all_cameras_frames["ply_file_path"] = "global_points.ply"
         else:
             print("No global points found!")
 
@@ -387,7 +401,7 @@ class ProcessProjectAria:
         transform_file = self.output_dir / "transforms.json"
         with open(transform_file, "w", encoding="UTF-8"):
             # IF YOU WANT TO USE SWEENEY, MAKE SURE TO COMMENT OUT ALL PINHOLE PROCESSING BECAUSE IT WILL OVERWRITE THE IMAGES IN `aria_data/ExampleAriaVRSandMPSoutputs/closed_loop`
-            transform_file.write_text(json.dumps(mainRGB_frames)) # make sure to change HEHEHE 13 if you want color, leave HEHEHE 3 if you want grayscale
+            transform_file.write_text(json.dumps(all_cameras_frames)) # make sure to change HEHEHE 13 if you want color, leave HEHEHE 3 if you want grayscale
         import importlib.metadata
         print(importlib.metadata.version("projectaria_tools"))
 

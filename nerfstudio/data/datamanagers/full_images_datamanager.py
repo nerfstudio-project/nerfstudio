@@ -158,8 +158,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             data = dataset.get_data(idx, image_type=self.config.cache_images_type)
             camera = dataset.cameras[idx].reshape(())
             K = camera.get_intrinsics_matrices().numpy()
-            return data
-            if camera.distortion_params is None:
+            if camera.distortion_params is None or torch.sum(camera.distortion_params) == 0:
                 return data
             distortion_params = camera.distortion_params.numpy()
             image = data["image"].numpy()
