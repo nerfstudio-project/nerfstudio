@@ -157,9 +157,13 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         def undistort_idx(idx: int) -> Dict[str, torch.Tensor]:
             data = dataset.get_data(idx, image_type=self.config.cache_images_type)
             camera = dataset.cameras[idx].reshape(())
-            K = camera.get_intrinsics_matrices().numpy()
+            assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
+                f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
+                f'does not match the camera parameters ({camera.width.item(), camera.height.item()})'
+            )
             if camera.distortion_params is None:
                 return data
+            K = camera.get_intrinsics_matrices().numpy()
             distortion_params = camera.distortion_params.numpy()
             image = data["image"].numpy()
 
@@ -335,6 +339,10 @@ def _undistort_image(
 ) -> Tuple[np.ndarray, np.ndarray, Optional[torch.Tensor]]:
     mask = None
     if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
+        assert distortion_params[3] == 0, (
+            "We doesn't support the 4th Brown parameter for image undistortion, "
+            "Only k1, k2, k3, p1, p2 can be non-zero."
+        )
         distortion_params = np.array(
             [
                 distortion_params[0],

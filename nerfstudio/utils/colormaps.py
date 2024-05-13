@@ -134,8 +134,8 @@ def apply_depth_colormap(
         Colored depth image with colors in [0, 1]
     """
 
-    near_plane = near_plane or float(torch.min(depth))
-    far_plane = far_plane or float(torch.max(depth))
+    near_plane = near_plane if near_plane is not None else float(torch.min(depth))
+    far_plane = far_plane if far_plane is not None else float(torch.max(depth))
 
     depth = (depth - near_plane) / (far_plane - near_plane + 1e-10)
     depth = torch.clip(depth, 0, 1)
