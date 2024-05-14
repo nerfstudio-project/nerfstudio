@@ -26,7 +26,7 @@ from jaxtyping import Int
 from torch import Tensor
 
 from nerfstudio.configs.base_config import InstantiateConfig
-from nerfstudio.data.utils.pixel_sampling_utils import erode_mask
+from nerfstudio.data.utils.pixel_sampling_utils import divide_rays_per_image, erode_mask
 
 
 @dataclass
@@ -302,19 +302,15 @@ class PixelSampler:
         all_images = []
         all_depth_images = []
 
-        num_rays_in_batch = num_rays_per_batch // num_images
-        if num_rays_in_batch % 2 != 0:
-            num_rays_in_batch += 1
+        assert num_rays_per_batch % 2 == 0, "num_rays_per_batch must be divisible by 2"
+        num_rays_per_image = divide_rays_per_image(num_rays_per_batch, num_images)
 
         if "mask" in batch:
-            for i in range(num_images):
+            for i, num_rays in enumerate(num_rays_per_image):
                 image_height, image_width, _ = batch["image"][i].shape
 
-                if i == num_images - 1:
-                    num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
-
                 indices = self.sample_method(
-                    num_rays_in_batch, 1, image_height, image_width, mask=batch["mask"][i].unsqueeze(0), device=device
+                    num_rays, 1, image_height, image_width, mask=batch["mask"][i].unsqueeze(0), device=device
                 )
                 indices[:, 0] = i
                 all_indices.append(indices)
@@ -323,16 +319,12 @@ class PixelSampler:
                     all_depth_images.append(batch["depth_image"][i][indices[:, 1], indices[:, 2]])
 
         else:
-            for i in range(num_images):
+            for i, num_rays in enumerate(num_rays_per_image):
                 image_height, image_width, _ = batch["image"][i].shape
-                if i == num_images - 1:
-                    num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
                 if self.config.is_equirectangular:
-                    indices = self.sample_method_equirectangular(
-                        num_rays_in_batch, 1, image_height, image_width, device=device
-                    )
+                    indices = self.sample_method_equirectangular(num_rays, 1, image_height, image_width, device=device)
                 else:
-                    indices = self.sample_method(num_rays_in_batch, 1, image_height, image_width, device=device)
+                    indices = self.sample_method(num_rays, 1, image_height, image_width, device=device)
                 indices[:, 0] = i
                 all_indices.append(indices)
                 all_images.append(batch["image"][i][indices[:, 1], indices[:, 2]])
@@ -403,6 +395,10 @@ class PatchPixelSampler(PixelSampler):
     """
 
     config: PatchPixelSamplerConfig
+
+    def __init__(self, config: PatchPixelSamplerConfig, **kwargs) -> None:
+        super().__init__(config, **kwargs)
+        self.config.patch_size = self.kwargs.get("patch_size", self.config.patch_size)
 
     def set_num_rays_per_batch(self, num_rays_per_batch: int):
         """Set the number of rays to sample per batch. Overridden to deal with patch-based sampling.

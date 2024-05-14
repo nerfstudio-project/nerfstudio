@@ -141,6 +141,19 @@ To enable Volinga, you must install it first by running:
     )
 )
 
+# BioNeRF
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]BioNeRF[/bold yellow]
+For more information visit: https://docs.nerf.studio/nerfology/methods/bionerf.html
+
+To enable BioNeRF, you must install it first by running:
+  [grey]pip install git+https://github.com/Leandropassosjr/ns_bionerf[/grey]""",
+        configurations=[("BioNeRF", "BioNeRF. Nerfstudio implementation")],
+        pip_package="git+https://github.com/Leandropassosjr/ns_bionerf",
+    )
+)
+
 # Instruct-GS2GS
 external_methods.append(
     ExternalMethod(
