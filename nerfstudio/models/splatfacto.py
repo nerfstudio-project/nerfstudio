@@ -26,9 +26,11 @@ from typing import Dict, List, Optional, Tuple, Type, Union
 import numpy as np
 import torch
 from gsplat._torch_impl import quat_to_rotmat
-from gsplat.project_gaussians import project_gaussians
-from gsplat.rasterize import rasterize_gaussians
-from gsplat.sh import num_sh_bases, spherical_harmonics
+try:
+    from gsplat.rendering_v2 import rasterization
+except ImportError:
+    print("install via: pip install git+https://github.com/nerfstudio-project/gsplat.git@v1.0")
+from gsplat.sh import num_sh_bases
 from pytorch_msssim import SSIM
 from torch.nn import Parameter
 from typing_extensions import Literal
@@ -69,7 +71,7 @@ def RGB2SH(rgb):
     Converts from RGB values [0,1] to the 0th spherical harmonic coefficient
     """
     C0 = 0.28209479177387814
-    return (rgb - 0.5) / C0
+    return rgb / C0
 
 
 def SH2RGB(sh):
@@ -77,7 +79,7 @@ def SH2RGB(sh):
     Converts from the 0th spherical harmonic coefficient to RGB values [0,1]
     """
     C0 = 0.28209479177387814
-    return sh * C0 + 0.5
+    return sh * C0
 
 
 def resize_image(image: torch.Tensor, d: int):
@@ -118,7 +120,7 @@ class SplatfactoModelConfig(ModelConfig):
     """If True, continue to cull gaussians post refinement"""
     reset_alpha_every: int = 30
     """Every this many refinement steps, reset the alpha"""
-    densify_grad_thresh: float = 0.0008
+    densify_grad_thresh: float = 0.0002
     """threshold of positional gradient norm for densifying gaussians"""
     densify_size_thresh: float = 0.01
     """below this size, gaussians are *duplicated*, otherwise split"""
@@ -394,8 +396,9 @@ class SplatfactoModel(Model):
         with torch.no_grad():
             # keep track of a moving average of grad norms
             visible_mask = (self.radii > 0).flatten()
-            assert self.xys.absgrad is not None  # type: ignore
-            grads = self.xys.absgrad.detach().norm(dim=-1)  # type: ignore
+            # TODO: absgrad
+            assert self.xys.grad is not None  # type: ignore
+            grads = self.xys.grad[0].detach().norm(dim=-1)  # type: ignore
             # print(f"grad norm min {grads.min().item()} max {grads.max().item()} mean {grads.mean().item()} size {grads.shape}")
             if self.xys_grad_norm is None:
                 self.xys_grad_norm = grads
@@ -735,77 +738,61 @@ class SplatfactoModel(Model):
 
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
         BLOCK_WIDTH = 16  # this controls the tile size of rasterization, 16 is a good default
-        self.xys, depths, self.radii, conics, comp, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
-            means_crop,
-            torch.exp(scales_crop),
-            1,
-            quats_crop / quats_crop.norm(dim=-1, keepdim=True),
-            viewmat.squeeze()[:3, :],
-            camera.fx.item(),
-            camera.fy.item(),
-            cx,
-            cy,
-            H,
-            W,
-            BLOCK_WIDTH,
-        )  # type: ignore
-
-        # rescale the camera back to original dimensions before returning
-        camera.rescale_output_resolution(camera_downscale)
-
-        if (self.radii).sum() == 0:
-            return self.get_empty_outputs(W, H, background)
-
-        if self.config.sh_degree > 0:
-            viewdirs = means_crop.detach() - optimized_camera_to_world.detach()[:3, 3]  # (N, 3)
-            n = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
-            rgbs = spherical_harmonics(n, viewdirs, colors_crop)  # input unnormalized viewdirs
-            rgbs = torch.clamp(rgbs + 0.5, min=0.0)  # type: ignore
-        else:
-            rgbs = torch.sigmoid(colors_crop[:, 0, :])
-
-        assert (num_tiles_hit > 0).any()  # type: ignore
-
+        K = torch.tensor([[camera.fx.item(), 0, cx], [0, camera.fy.item(), cy], [0, 0, 1]], device=self.device)
+        
         # apply the compensation of screen space blurring to gaussians
         if self.config.rasterize_mode == "antialiased":
-            opacities = torch.sigmoid(opacities_crop) * comp[:, None]
+            assert NotImplementedError("Antialiased mode is not implemented yet")
+            # opacities = torch.sigmoid(opacities_crop) * comp[:, None]
         elif self.config.rasterize_mode == "classic":
             opacities = torch.sigmoid(opacities_crop)
         else:
             raise ValueError("Unknown rasterize_mode: %s", self.config.rasterize_mode)
 
-        rgb, alpha = rasterize_gaussians(  # type: ignore
-            self.xys,
-            depths,
-            self.radii,
-            conics,
-            num_tiles_hit,  # type: ignore
-            rgbs,
-            opacities,
-            H,
-            W,
-            BLOCK_WIDTH,
-            background=background,
-            return_alpha=True,
-        )  # type: ignore
-        alpha = alpha[..., None]
-        rgb = torch.clamp(rgb, max=1.0)  # type: ignore
-        depth_im = None
         if self.config.output_depth_during_training or not self.training:
-            depth_im = rasterize_gaussians(  # type: ignore
-                self.xys,
-                depths,
-                self.radii,
-                conics,
-                num_tiles_hit,  # type: ignore
-                depths[:, None].repeat(1, 3),
-                opacities,
-                H,
-                W,
-                BLOCK_WIDTH,
-                background=torch.zeros(3, device=self.device),
-            )[..., 0:1]  # type: ignore
-            depth_im = torch.where(alpha > 0, depth_im / alpha, depth_im.detach().max())
+            render_mode = "RGB+D"
+        else:
+            render_mode = "RGB"
+
+        if self.config.sh_degree > 0:
+            sh_degree_to_use = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
+        else:
+            sh_degree_to_use = None
+
+        render, alpha, info = rasterization(
+            means=means_crop,
+            quats=quats_crop / quats_crop.norm(dim=-1, keepdim=True),
+            scales=torch.exp(scales_crop),
+            opacities=opacities.squeeze(-1),
+            colors=colors_crop,
+            viewmats=viewmat[None, :, :],  # [1, 4, 4]
+            Ks=K[None],  # [1, 3, 3]
+            width=W,
+            height=H,
+            tile_size=BLOCK_WIDTH,
+            packed=False,
+            near_plane=0.01,
+            far_plane=1e10,
+            render_mode=render_mode,
+            sh_degree=sh_degree_to_use,
+            sparse_grad=False,
+        )
+        if self.training:
+            info["means2d"].retain_grad()
+        self.xys = info["means2d"] # [1, N, 2]
+        self.radii = info["radii"][0] # [N]
+            
+        alpha = alpha[0, ...]
+        rgb = render[0, ..., :3] + (1 - alpha) * background
+        rgb = torch.clamp(rgb, 0.0, 1.0)
+        if render_mode == "RGB+D":
+            depth_im = render[0, ..., 3:4]
+            depth_im = torch.where(alpha > 0, depth_im, depth_im.detach().max())
+        else:
+            depth_im = None
+
+        # rescale the camera back to original dimensions before returning
+        camera.rescale_output_resolution(camera_downscale)
 
         return {"rgb": rgb, "depth": depth_im, "accumulation": alpha, "background": background}  # type: ignore
 
