@@ -776,6 +776,7 @@ class SplatfactoModel(Model):
             render_mode=render_mode,
             sh_degree=sh_degree_to_use,
             sparse_grad=False,
+            radius_clip=0 if self.training else 3, # faster visualization
         )
         if self.training:
             info["means2d"].retain_grad()
