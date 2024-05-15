@@ -22,6 +22,7 @@ paradigm
 from __future__ import annotations
 
 import random
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import cached_property
@@ -31,8 +32,9 @@ from typing import Dict, ForwardRef, Generic, List, Literal, Optional, Tuple, Ty
 import cv2
 import numpy as np
 import torch
+from rich.progress import track
 from torch.nn import Parameter
-from tqdm import tqdm
+from typing_extensions import assert_never
 
 from nerfstudio.cameras.camera_utils import fisheye624_project, fisheye624_unproject_helper
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -64,6 +66,8 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     """Whether to cache images in memory. If "cpu", caches on cpu. If "gpu", caches on device."""
     cache_images_type: Literal["uint8", "float32"] = "float32"
     """The image type returned from manager, caching images in uint8 saves memory"""
+    max_thread_workers: Optional[int] = None
+    """The maximum number of threads to use for caching images. If None, uses all available threads."""
 
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
@@ -112,7 +116,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 style="bold yellow",
             )
             self.config.cache_images = "cpu"
-        self.cached_train, self.cached_eval = self.cache_images(self.config.cache_images)
         self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
         if self.config.masks_on_gpu is True:
             self.exclude_batch_keys_from_device.remove("mask")
@@ -126,81 +129,86 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
         super().__init__()
 
-    def cache_images(self, cache_images_option):
-        cached_train = []
-        cached_eval = []
-        CONSOLE.log("Caching / undistorting train images")
-        for i in tqdm(range(len(self.train_dataset)), leave=False):
-            # cv2.undistort the images / cameras
-            data = self.train_dataset.get_data(i, image_type=self.config.cache_images_type)
-            camera = self.train_dataset.cameras[i].reshape(())
-            K = camera.get_intrinsics_matrices().numpy()
-            if camera.distortion_params is None:
-                cached_train.append(data)
-                continue
-            distortion_params = camera.distortion_params.numpy()
-            image = data["image"].numpy()
+    @cached_property
+    def cached_train(self) -> List[Dict[str, torch.Tensor]]:
+        """Get the training images. Will load and undistort the images the
+        first time this (cached) property is accessed."""
+        return self._load_images("train", cache_images_device=self.config.cache_images)
 
-            K, image, mask = _undistort_image(camera, distortion_params, data, image, K)
-            data["image"] = torch.from_numpy(image)
-            if mask is not None:
-                data["mask"] = mask
+    @cached_property
+    def cached_eval(self) -> List[Dict[str, torch.Tensor]]:
+        """Get the eval images. Will load and undistort the images the
+        first time this (cached) property is accessed."""
+        return self._load_images("eval", cache_images_device=self.config.cache_images)
 
-            cached_train.append(data)
+    def _load_images(
+        self, split: Literal["train", "eval"], cache_images_device: Literal["cpu", "gpu"]
+    ) -> List[Dict[str, torch.Tensor]]:
+        undistorted_images: List[Dict[str, torch.Tensor]] = []
 
-            self.train_dataset.cameras.fx[i] = float(K[0, 0])
-            self.train_dataset.cameras.fy[i] = float(K[1, 1])
-            self.train_dataset.cameras.cx[i] = float(K[0, 2])
-            self.train_dataset.cameras.cy[i] = float(K[1, 2])
-            self.train_dataset.cameras.width[i] = image.shape[1]
-            self.train_dataset.cameras.height[i] = image.shape[0]
-
-        CONSOLE.log("Caching / undistorting eval images")
-        for i in tqdm(range(len(self.eval_dataset)), leave=False):
-            # cv2.undistort the images / cameras
-            data = self.eval_dataset.get_data(i, image_type=self.config.cache_images_type)
-            camera = self.eval_dataset.cameras[i].reshape(())
-            K = camera.get_intrinsics_matrices().numpy()
-            if camera.distortion_params is None:
-                cached_eval.append(data)
-                continue
-            distortion_params = camera.distortion_params.numpy()
-            image = data["image"].numpy()
-
-            K, image, mask = _undistort_image(camera, distortion_params, data, image, K)
-            data["image"] = torch.from_numpy(image)
-            if mask is not None:
-                data["mask"] = mask
-
-            cached_eval.append(data)
-
-            self.eval_dataset.cameras.fx[i] = float(K[0, 0])
-            self.eval_dataset.cameras.fy[i] = float(K[1, 1])
-            self.eval_dataset.cameras.cx[i] = float(K[0, 2])
-            self.eval_dataset.cameras.cy[i] = float(K[1, 2])
-            self.eval_dataset.cameras.width[i] = image.shape[1]
-            self.eval_dataset.cameras.height[i] = image.shape[0]
-
-        if cache_images_option == "gpu":
-            for cache in cached_train:
-                cache["image"] = cache["image"].to(self.device)
-                if "mask" in cache:
-                    cache["mask"] = cache["mask"].to(self.device)
-            for cache in cached_eval:
-                cache["image"] = cache["image"].to(self.device)
-                if "mask" in cache:
-                    cache["mask"] = cache["mask"].to(self.device)
+        # Which dataset?
+        if split == "train":
+            dataset = self.train_dataset
+        elif split == "eval":
+            dataset = self.eval_dataset
         else:
-            for cache in cached_train:
-                cache["image"] = cache["image"].pin_memory()
-                if "mask" in cache:
-                    cache["mask"] = cache["mask"].pin_memory()
-            for cache in cached_eval:
-                cache["image"] = cache["image"].pin_memory()
-                if "mask" in cache:
-                    cache["mask"] = cache["mask"].pin_memory()
+            assert_never(split)
 
-        return cached_train, cached_eval
+        def undistort_idx(idx: int) -> Dict[str, torch.Tensor]:
+            data = dataset.get_data(idx, image_type=self.config.cache_images_type)
+            camera = dataset.cameras[idx].reshape(())
+            assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
+                f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
+                f'does not match the camera parameters ({camera.width.item(), camera.height.item()})'
+            )
+            if camera.distortion_params is None:
+                return data
+            K = camera.get_intrinsics_matrices().numpy()
+            distortion_params = camera.distortion_params.numpy()
+            image = data["image"].numpy()
+
+            K, image, mask = _undistort_image(camera, distortion_params, data, image, K)
+            data["image"] = torch.from_numpy(image)
+            if mask is not None:
+                data["mask"] = mask
+
+            dataset.cameras.fx[idx] = float(K[0, 0])
+            dataset.cameras.fy[idx] = float(K[1, 1])
+            dataset.cameras.cx[idx] = float(K[0, 2])
+            dataset.cameras.cy[idx] = float(K[1, 2])
+            dataset.cameras.width[idx] = image.shape[1]
+            dataset.cameras.height[idx] = image.shape[0]
+            return data
+
+        CONSOLE.log(f"Caching / undistorting {split} images")
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            undistorted_images = list(
+                track(
+                    executor.map(
+                        undistort_idx,
+                        range(len(dataset)),
+                    ),
+                    description=f"Caching / undistorting {split} images",
+                    transient=True,
+                    total=len(dataset),
+                )
+            )
+
+        # Move to device.
+        if cache_images_device == "gpu":
+            for cache in undistorted_images:
+                cache["image"] = cache["image"].to(self.device)
+                if "mask" in cache:
+                    cache["mask"] = cache["mask"].to(self.device)
+        elif cache_images_device == "cpu":
+            for cache in undistorted_images:
+                cache["image"] = cache["image"].pin_memory()
+                if "mask" in cache:
+                    cache["mask"] = cache["mask"].pin_memory()
+        else:
+            assert_never(cache_images_device)
+
+        return undistorted_images
 
     def create_train_dataset(self) -> TDataset:
         """Sets up the data loaders for training"""
@@ -331,6 +339,10 @@ def _undistort_image(
 ) -> Tuple[np.ndarray, np.ndarray, Optional[torch.Tensor]]:
     mask = None
     if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
+        assert distortion_params[3] == 0, (
+            "We doesn't support the 4th Brown parameter for image undistortion, "
+            "Only k1, k2, k3, p1, p2 can be non-zero."
+        )
         distortion_params = np.array(
             [
                 distortion_params[0],
@@ -343,6 +355,10 @@ def _undistort_image(
                 0,
             ]
         )
+        # because OpenCV expects the pixel coord to be top-left, we need to shift the principal point by 0.5
+        # see https://github.com/nerfstudio-project/nerfstudio/issues/3048
+        K[0, 2] = K[0, 2] - 0.5
+        K[1, 2] = K[1, 2] - 0.5
         if np.any(distortion_params):
             newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
             image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
@@ -361,9 +377,15 @@ def _undistort_image(
                 mask = cv2.undistort(mask, K, distortion_params, None, newK)  # type: ignore
             mask = mask[y : y + h, x : x + w]
             mask = torch.from_numpy(mask).bool()
+            if len(mask.shape) == 2:
+                mask = mask[:, :, None]
+        newK[0, 2] = newK[0, 2] + 0.5
+        newK[1, 2] = newK[1, 2] + 0.5
         K = newK
 
     elif camera.camera_type.item() == CameraType.FISHEYE.value:
+        K[0, 2] = K[0, 2] - 0.5
+        K[1, 2] = K[1, 2] - 0.5
         distortion_params = np.array(
             [distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]]
         )
@@ -380,6 +402,10 @@ def _undistort_image(
             mask = mask.astype(np.uint8) * 255
             mask = cv2.fisheye.undistortImage(mask, K, distortion_params, None, newK)
             mask = torch.from_numpy(mask).bool()
+            if len(mask.shape) == 2:
+                mask = mask[:, :, None]
+        newK[0, 2] = newK[0, 2] + 0.5
+        newK[1, 2] = newK[1, 2] + 0.5
         K = newK
     elif camera.camera_type.item() == CameraType.FISHEYE624.value:
         fisheye624_params = torch.cat(
@@ -472,6 +498,8 @@ def _undistort_image(
             )
             / 255.0
         ).bool()[..., None]
+        if len(mask.shape) == 2:
+            mask = mask[:, :, None]
         assert mask.shape == (undist_h, undist_w, 1)
         K = undist_K.numpy()
     else:

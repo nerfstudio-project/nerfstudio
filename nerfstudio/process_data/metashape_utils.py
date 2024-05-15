@@ -17,9 +17,10 @@
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
+import open3d as o3d
 
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -36,6 +37,7 @@ def metashape_to_json(
     image_filename_map: Dict[str, Path],
     xml_filename: Path,
     output_dir: Path,
+    ply_filename: Optional[Path] = None,  # type: ignore
     verbose: bool = False,
 ) -> List[str]:
     """Convert Metashape data into a nerfstudio dataset.
@@ -44,6 +46,7 @@ def metashape_to_json(
         image_filename_map: Mapping of original image filenames to their saved locations.
         xml_filename: Path to the metashape cameras xml file.
         output_dir: Path to the output directory.
+        ply_filename: Path to the exported ply file.
         verbose: Whether to print verbose output.
 
     Returns:
@@ -55,12 +58,11 @@ def metashape_to_json(
     chunk = root[0]
     sensors = chunk.find("sensors")
 
-    # TODO Add support for per-frame intrinsics
     if sensors is None:
         raise ValueError("No sensors found")
 
     calibrated_sensors = [
-        sensor for sensor in sensors if sensor.get("type") == "spherical" or sensor.find("calibration")
+        sensor for sensor in sensors.iter("sensor") if sensor.get("type") == "spherical" or sensor.find("calibration")
     ]
     if not calibrated_sensors:
         raise ValueError("No calibrated sensor found in Metashape XML")
@@ -116,7 +118,7 @@ def metashape_to_json(
     components = chunk.find("components")
     component_dict = {}
     if components is not None:
-        for component in components:
+        for component in components.iter("component"):
             transform = component.find("transform")
             if transform is not None:
                 rotation = transform.find("rotation")
@@ -147,7 +149,7 @@ def metashape_to_json(
     cameras = chunk.find("cameras")
     assert cameras is not None, "Cameras not found in Metashape xml"
     num_skipped = 0
-    for camera in cameras:
+    for camera in cameras.iter("camera"):
         frame = {}
         camera_label = camera.get("label")
         assert isinstance(camera_label, str)
@@ -156,6 +158,8 @@ def metashape_to_json(
             # (maybe it's just a '.' in the image name)
             camera_label = camera_label.split(".")[0]  # type: ignore
             if camera_label not in image_filename_map:
+                if verbose:
+                    CONSOLE.print(f"Missing image for {camera.get('label')}, Skipping")
                 continue
         frame["file_path"] = image_filename_map[camera_label].as_posix()
 
@@ -180,17 +184,34 @@ def metashape_to_json(
         if component_id in component_dict:
             transform = component_dict[component_id] @ transform
 
+        # Metashape camera is looking towards -Z, +X is to the right and +Y is to the top/up of the first cam
+        # Rotate the scene according to nerfstudio convention
         transform = transform[[2, 0, 1, 3], :]
+        # Convert from Metashape's camera coordinate system (OpenCV) to ours (OpenGL)
         transform[:, 1:3] *= -1
         frame["transform_matrix"] = transform.tolist()
         frames.append(frame)
 
     data["frames"] = frames
+    applied_transform = np.eye(4)[:3, :]
+    applied_transform = applied_transform[np.array([2, 0, 1]), :]
+    data["applied_transform"] = applied_transform.tolist()
+
+    summary = []
+
+    if ply_filename is not None:
+        assert ply_filename.exists()
+        pc = o3d.io.read_point_cloud(str(ply_filename))
+        points3D = np.asarray(pc.points)
+        points3D = np.einsum("ij,bj->bi", applied_transform[:3, :3], points3D) + applied_transform[:3, 3]
+        pc.points = o3d.utility.Vector3dVector(points3D)
+        o3d.io.write_point_cloud(str(output_dir / "sparse_pc.ply"), pc)
+        data["ply_file_path"] = "sparse_pc.ply"
+        summary.append(f"Imported {ply_filename} as starting points")
 
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
 
-    summary = []
     if num_skipped == 1:
         summary.append(f"{num_skipped} image skipped because it was missing its camera pose.")
     if num_skipped > 1:

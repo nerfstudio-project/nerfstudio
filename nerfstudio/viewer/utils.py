@@ -15,7 +15,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, List, Literal, Optional, Tuple, Union
+from functools import cached_property
+from typing import Any, List, Literal, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
@@ -39,6 +40,8 @@ class CameraState:
     """The camera matrix."""
     camera_type: Literal[CameraType.PERSPECTIVE, CameraType.EQUIRECTANGULAR, CameraType.FISHEYE]
     """Type of camera to render."""
+    time: float = 0.0
+    """The rendering time of the camera state."""
 
 
 def get_camera(
@@ -74,7 +77,7 @@ def get_camera(
         cy=pp_h,
         camera_type=camera_state.camera_type,
         camera_to_worlds=camera_state.c2w.to(torch.float32)[None, ...],
-        times=torch.tensor([0.0], dtype=torch.float32),
+        times=torch.tensor([camera_state.time], dtype=torch.float32),
     )
     return camera
 
@@ -107,7 +110,7 @@ def update_render_aabb(
 
 def parse_object(
     obj: Any,
-    type_check,
+    type_check: Type[Any],
     tree_stub: str,
 ) -> List[Tuple[str, Any]]:
     """
@@ -136,7 +139,8 @@ def parse_object(
         return []
     ret = []
     # get a list of the properties of the object, sorted by whether things are instances of type_check
-    obj_props = [(k, getattr(obj, k)) for k in dir(obj)]
+    # we skip cached properties, which can be expensive to call `getattr()` on!
+    obj_props = [(k, getattr(obj, k)) for k in dir(obj) if not isinstance(getattr(type(obj), k, None), cached_property)]
     for k, v in obj_props:
         if k[0] == "_":
             continue

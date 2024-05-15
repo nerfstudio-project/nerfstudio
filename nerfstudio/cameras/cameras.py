@@ -170,7 +170,7 @@ class Cameras(TensorDataclass):
             name: The name of the variable. Used for error messages
         """
         if isinstance(fc_xy, float):
-            fc_xy = torch.Tensor([fc_xy], device=self.device)
+            fc_xy = torch.tensor([fc_xy], device=self.device)
         elif isinstance(fc_xy, torch.Tensor):
             if fc_xy.ndim == 0 or fc_xy.shape[-1] != 1:
                 fc_xy = fc_xy.unsqueeze(-1)
@@ -984,12 +984,15 @@ class Cameras(TensorDataclass):
         return K
 
     def rescale_output_resolution(
-        self, scaling_factor: Union[Shaped[Tensor, "*num_cameras"], Shaped[Tensor, "*num_cameras 1"], float, int]
+        self,
+        scaling_factor: Union[Shaped[Tensor, "*num_cameras"], Shaped[Tensor, "*num_cameras 1"], float, int],
+        scale_rounding_mode: str = "floor",
     ) -> None:
         """Rescale the output resolution of the cameras.
 
         Args:
             scaling_factor: Scaling factor to apply to the output resolution.
+            scale_rounding_mode: round down or round up when calculating the scaled image height and width
         """
         if isinstance(scaling_factor, (float, int)):
             scaling_factor = torch.tensor([scaling_factor]).to(self.device).broadcast_to((self.cx.shape))
@@ -1006,5 +1009,14 @@ class Cameras(TensorDataclass):
         self.fy = self.fy * scaling_factor
         self.cx = self.cx * scaling_factor
         self.cy = self.cy * scaling_factor
-        self.height = (self.height * scaling_factor).to(torch.int64)
-        self.width = (self.width * scaling_factor).to(torch.int64)
+        if scale_rounding_mode == "floor":
+            self.height = (self.height * scaling_factor).to(torch.int64)
+            self.width = (self.width * scaling_factor).to(torch.int64)
+        elif scale_rounding_mode == "round":
+            self.height = torch.floor(0.5 + (self.height * scaling_factor)).to(torch.int64)
+            self.width = torch.floor(0.5 + (self.width * scaling_factor)).to(torch.int64)
+        elif scale_rounding_mode == "ceil":
+            self.height = torch.ceil(self.height * scaling_factor).to(torch.int64)
+            self.width = torch.ceil(self.width * scaling_factor).to(torch.int64)
+        else:
+            raise ValueError("Scale rounding mode must be 'floor', 'round' or 'ceil'.")
