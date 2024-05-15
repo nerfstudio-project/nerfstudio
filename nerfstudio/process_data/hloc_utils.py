@@ -26,13 +26,6 @@ from typing import Literal
 from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils.rich_utils import CONSOLE
 
-try:
-    from pixsfm.refine_hloc import PixSfM  # type: ignore
-except ImportError:
-    _HAS_PIXSFM = False
-else:
-    _HAS_PIXSFM = True
-
 
 def run_hloc(
     image_dir: Path,
@@ -85,6 +78,13 @@ def run_hloc(
         )
     except ImportError:
         _HAS_HLOC = False
+
+    try:
+        from pixsfm.refine_hloc import PixSfM  # type: ignore
+    except ImportError:
+        _HAS_PIXSFM = False
+    else:
+        _HAS_PIXSFM = True
 
     if not _HAS_HLOC:
         CONSOLE.print(
