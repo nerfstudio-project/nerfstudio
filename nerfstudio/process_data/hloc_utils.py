@@ -26,21 +26,24 @@ from typing import Literal
 from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils.rich_utils import CONSOLE
 
-try:
-    # TODO(1480) un-hide pycolmap import
-    import pycolmap
-    from hloc import (  # type: ignore
-        extract_features,
-        match_features,
-        pairs_from_exhaustive,
-        pairs_from_retrieval,
-        reconstruction,
-    )
-except ImportError:
+if sys.platform == "win32":
     _HAS_HLOC = False
-
 else:
-    _HAS_HLOC = True
+    try:
+        # TODO(1480) un-hide pycolmap import
+        import pycolmap
+        from hloc import (  # type: ignore
+            extract_features,
+            match_features,
+            pairs_from_exhaustive,
+            pairs_from_retrieval,
+            reconstruction,
+        )
+    except ImportError:
+        _HAS_HLOC = False
+
+    else:
+        _HAS_HLOC = True
 
 try:
     from pixsfm.refine_hloc import PixSfM  # type: ignore
