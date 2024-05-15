@@ -78,6 +78,8 @@ def run_hloc(
         )
     except ImportError:
         _HAS_HLOC = False
+    else:
+        _HAS_HLOC = True
 
     try:
         from pixsfm.refine_hloc import PixSfM  # type: ignore
