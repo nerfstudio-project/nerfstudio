@@ -8,7 +8,8 @@ from nerfstudio.fields.base_field import Field, get_normalized_directions
 
 
 class BG_Field(Field):
-    def __init__(self, appearance_embedding_dim=None, implementation="torch"):
+    def __init__(self, appearance_embedding_dim: int, implementation="torch"):
+        super().__init__()
         self.direction_encoding = SHEncoding(
             levels=4,
             implementation=implementation,
