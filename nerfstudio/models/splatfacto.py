@@ -120,7 +120,7 @@ class SplatfactoModelConfig(ModelConfig):
     """If True, continue to cull gaussians post refinement"""
     reset_alpha_every: int = 30
     """Every this many refinement steps, reset the alpha"""
-    densify_grad_thresh: float = 0.0002
+    densify_grad_thresh: float = 0.0008
     """threshold of positional gradient norm for densifying gaussians"""
     densify_size_thresh: float = 0.01
     """below this size, gaussians are *duplicated*, otherwise split"""
@@ -396,9 +396,8 @@ class SplatfactoModel(Model):
         with torch.no_grad():
             # keep track of a moving average of grad norms
             visible_mask = (self.radii > 0).flatten()
-            # TODO: absgrad
-            assert self.xys.grad is not None  # type: ignore
-            grads = self.xys.grad[0].detach().norm(dim=-1)  # type: ignore
+            assert self.xys.absgrad is not None  # type: ignore
+            grads = self.xys.absgrad[0].detach().norm(dim=-1)  # type: ignore
             # print(f"grad norm min {grads.min().item()} max {grads.max().item()} mean {grads.mean().item()} size {grads.shape}")
             if self.xys_grad_norm is None:
                 self.xys_grad_norm = grads
@@ -776,9 +775,10 @@ class SplatfactoModel(Model):
             render_mode=render_mode,
             sh_degree=sh_degree_to_use,
             sparse_grad=False,
+            compute_means2d_absgrad=True,
             radius_clip=0 if self.training else 3, # faster visualization
         )
-        if self.training:
+        if self.training and info["means2d"].requires_grad:
             info["means2d"].retain_grad()
         self.xys = info["means2d"] # [1, N, 2]
         self.radii = info["radii"][0] # [N]
