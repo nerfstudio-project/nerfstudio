@@ -38,6 +38,7 @@ from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
+from nerfstudio.fields.background_field import BG_Field
 
 # need following import for background color override
 from nerfstudio.model_components import renderers
@@ -165,6 +166,11 @@ class SplatfactoModelConfig(ModelConfig):
     camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="off"))
     """Config of the camera optimizer to use"""
 
+    enable_bg_model: bool = False
+    implementation: Literal["tcnn", "torch"] = "tcnn"
+    appearance_embed_dim: int = 0
+    enable_alpha_loss: bool = True
+
 
 class SplatfactoModel(Model):
     """Nerfstudio's implementation of Gaussian Splatting
@@ -251,6 +257,19 @@ class SplatfactoModel(Model):
             )  # This color is the same as the default background color in Viser. This would only affect the background color when rendering.
         else:
             self.background_color = get_color(self.config.background_color)
+
+        if self.config.appearance_embed_dim > 0:
+            self.appearance_embeds = torch.nn.Embedding(self.num_train_data, self.config.appearance_embed_dim)
+        else:
+            self.appearance_embeds = None
+
+        if self.config.enable_bg_model:
+            self.bg_model = BG_Field(
+                appearance_embedding_dim=self.config.appearance_embed_dim,
+                implementation=self.config.implementation,
+            )
+        else:
+            self.bg_model = None
 
     @property
     def colors(self):
@@ -632,6 +651,10 @@ class SplatfactoModel(Model):
         """
         gps = self.get_gaussian_param_groups()
         self.camera_optimizer.get_param_groups(param_groups=gps)
+        if self.config.enable_bg_model:
+            gps["field_background"] = list(self.bg_model.parameters())
+        if self.config.appearance_embed_dim > 0:
+            gps["appearance_embed"] = list(self.appearance_embeds.parameters())
         return gps
 
     def _get_downscale_factor(self):
@@ -670,6 +693,15 @@ class SplatfactoModel(Model):
             print("Called get_outputs with not a camera")
             return {}
         assert camera.shape[0] == 1, "Only one camera at a time"
+        # get the appearance embedding
+        if self.appearance_embeds is not None:
+            if camera.metadata is not None and "cam_idx" in camera.metadata:
+                cam_idx = camera.metadata["cam_idx"]
+                appearance_embed = self.appearance_embeds(torch.tensor(cam_idx, device=self.device))
+            else:
+                appearance_embed = self.appearance_embeds(torch.tensor(0, device=self.device))
+        else:
+            appearance_embed = None
 
         # get the background color
         if self.training:
@@ -751,10 +783,15 @@ class SplatfactoModel(Model):
         )  # type: ignore
 
         # rescale the camera back to original dimensions before returning
-        camera.rescale_output_resolution(camera_downscale)
 
         if (self.radii).sum() == 0:
-            return self.get_empty_outputs(W, H, background)
+            out = self.get_empty_outputs(W, H, background)
+            if self.bg_model is not None:
+                ray_bundle = camera.generate_rays(camera_indices=0, keep_shape=False)
+                background = self.bg_model(ray_bundle, appearance_embed).float().view(H, W, 3)
+                out["rgb"] = background
+                out["background"] = background
+            return out
 
         if self.config.sh_degree > 0:
             viewdirs = means_crop.detach() - optimized_camera_to_world.detach()[:3, 3]  # (N, 3)
@@ -773,23 +810,50 @@ class SplatfactoModel(Model):
             opacities = torch.sigmoid(opacities_crop)
         else:
             raise ValueError("Unknown rasterize_mode: %s", self.config.rasterize_mode)
-
-        rgb, alpha = rasterize_gaussians(  # type: ignore
-            self.xys,
-            depths,
-            self.radii,
-            conics,
-            num_tiles_hit,  # type: ignore
-            rgbs,
-            opacities,
-            H,
-            W,
-            BLOCK_WIDTH,
-            background=background,
-            return_alpha=True,
-        )  # type: ignore
-        alpha = alpha[..., None]
+        if self.bg_model is None:
+            rgb, alpha = rasterize_gaussians(  # type: ignore
+                self.xys,
+                depths,
+                self.radii,
+                conics,
+                num_tiles_hit,  # type: ignore
+                rgbs,
+                opacities,
+                H,
+                W,
+                BLOCK_WIDTH,
+                background=background,
+                return_alpha=True,
+            )  # type: ignore
+            alpha = alpha[..., None]
+        else:
+            rgb, alpha = rasterize_gaussians(  # type: ignore
+                self.xys,
+                depths,
+                self.radii,
+                conics,
+                num_tiles_hit,  # type: ignore
+                rgbs,
+                opacities,
+                H,
+                W,
+                BLOCK_WIDTH,
+                background=torch.zeros(3, device=self.device),
+                return_alpha=True,
+            )
+            ray_bundle = camera.generate_rays(camera_indices=0, keep_shape=False)
+            # only predict background where alpha < 0.98
+            mask = (alpha < 0.98).view(-1)
+            ray_bundle = ray_bundle[mask]
+            if mask.sum() > 0:
+                background = torch.zeros(H * W, 3, device=self.device)
+                background[mask] = self.bg_mode(ray_bundle, appearance_embed).float()
+                background = background.view(H, W, 3)
+            else:
+                background = torch.zeros(H * W, 3, device=self.device)
+            rgb = rgb + (1 - alpha) * background
         rgb = torch.clamp(rgb, max=1.0)  # type: ignore
+        camera.rescale_output_resolution(camera_downscale)
         depth_im = None
         if self.config.output_depth_during_training or not self.training:
             depth_im = rasterize_gaussians(  # type: ignore
@@ -807,6 +871,8 @@ class SplatfactoModel(Model):
             )[..., 0:1]  # type: ignore
             depth_im = torch.where(alpha > 0, depth_im / alpha, depth_im.detach().max())
 
+        if background.shape[0] == 3:
+            background = background.expand(H, W, 3)
         return {"rgb": rgb, "depth": depth_im, "accumulation": alpha, "background": background}  # type: ignore
 
     def get_gt_img(self, image: torch.Tensor):
@@ -886,9 +952,33 @@ class SplatfactoModel(Model):
         else:
             scale_reg = torch.tensor(0.0).to(self.device)
 
+        if self.config.enable_alpha_loss:
+            alpha_loss = torch.tensor(0.0).to(self.device)
+            background = outputs["background"]
+            alpha = outputs["accumulation"]
+            # for those pixel are well represented by bg and has low alpha, we encourage the gaussian to be transparent
+            bg_mask = torch.abs(gt_img - background).mean(dim=-1, keepdim=True) < 0.003
+            # use a box filter to avoid penalty high frequency parts
+            f = 3
+            window = (torch.ones((f, f)).view(1, 1, f, f) / (f * f)).cuda()
+            bg_mask = (
+                torch.nn.functional.conv2d(
+                    bg_mask.float().unsqueeze(0).permute(0, 3, 1, 2), window, stride=1, padding="same"
+                )
+                .permute(0, 2, 3, 1)
+                .squeeze(0)
+            )
+            alpha_mask = bg_mask > 0.6
+            # prevent NaN
+            if alpha_mask.sum() != 0:
+                alpha_loss = alpha[alpha_mask].mean() * 0.1
+        else:
+            alpha_loss = torch.tensor(0.0).to(self.device)
+
         loss_dict = {
             "main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,
             "scale_reg": scale_reg,
+            "alpha_loss": alpha_loss,
         }
 
         if self.training:

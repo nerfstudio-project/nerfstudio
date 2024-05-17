@@ -81,6 +81,7 @@ descriptions = {
     "neus": "Implementation of NeuS. (slow)",
     "neus-facto": "Implementation of NeuS-Facto. (slow)",
     "splatfacto": "Gaussian Splatting model",
+    "splatfacto-big": "Gaussian Splatting model with more gaussians. (slow)",
 }
 
 method_configs["nerfacto"] = TrainerConfig(
@@ -636,6 +637,14 @@ method_configs["splatfacto"] = TrainerConfig(
             "scheduler": ExponentialDecaySchedulerConfig(
                 lr_final=5e-7, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
             ),
+        },
+        "field_background": {
+            "optimizer": AdamOptimizerConfig(lr=4e-3, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-4, max_steps=30000),
+        },
+        "appearance_embed": {
+            "optimizer": AdamOptimizerConfig(lr=0.02, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=3e-4, max_steps=10000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
