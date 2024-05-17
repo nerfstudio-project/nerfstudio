@@ -788,7 +788,7 @@ class SplatfactoModel(Model):
             out = self.get_empty_outputs(W, H, background)
             if self.bg_model is not None:
                 ray_bundle = camera.generate_rays(camera_indices=0, keep_shape=False)
-                background = self.bg_model(ray_bundle, appearance_embed).float().view(H, W, 3)
+                background = self.bg_model.get_background_rgb(ray_bundle, appearance_embed).float().view(H, W, 3)
                 out["rgb"] = background
                 out["background"] = background
             return out
@@ -847,7 +847,7 @@ class SplatfactoModel(Model):
             ray_bundle = ray_bundle[mask]
             if mask.sum() > 0:
                 background = torch.zeros(H * W, 3, device=self.device)
-                background[mask] = self.bg_mode(ray_bundle, appearance_embed).float()
+                background[mask] = self.bg_model.get_background_rgb(ray_bundle, appearance_embed).float()
                 background = background.view(H, W, 3)
             else:
                 background = torch.zeros(H * W, 3, device=self.device)
