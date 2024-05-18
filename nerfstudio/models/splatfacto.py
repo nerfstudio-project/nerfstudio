@@ -172,7 +172,7 @@ class SplatfactoModelConfig(ModelConfig):
     appearance_embed_dim: int = 0
     """Dimension of the appearance embedding, if 0, no appearance embedding is used"""
     enable_alpha_loss: bool = False
-    """Whether to enable the alpha loss for punishing gaussians from occupying background space, this also works with pure color background (i.e. white for overexposured images)"""
+    """Whether to enable the alpha loss for punishing gaussians from occupying background space, this also works with pure color background (i.e. white for overexposed skys)"""
 
 
 class SplatfactoModel(Model):
