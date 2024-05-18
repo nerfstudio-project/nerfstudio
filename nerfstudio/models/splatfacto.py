@@ -679,6 +679,18 @@ class SplatfactoModel(Model):
         accumulation = background.new_zeros(*rgb.shape[:2], 1)
         return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
 
+    def get_background_color(self):
+        if not self.config.enable_bg_model:
+            if self.config.background_color == "random":
+                background = torch.rand(3, device=self.device)
+            elif self.config.background_color == "white":
+                background = torch.ones(3, device=self.device)
+            elif self.config.background_color == "black":
+                background = torch.zeros(3, device=self.device)
+        else:
+            background = torch.zeros(3, device=self.device)
+        return background
+
     def get_outputs(self, camera: Cameras) -> Dict[str, Union[torch.Tensor, List]]:
         """Takes in a Ray Bundle and returns a dictionary of outputs.
 
@@ -706,22 +718,13 @@ class SplatfactoModel(Model):
         # get the background color
         if self.training:
             optimized_camera_to_world = self.camera_optimizer.apply_to_camera(camera)[0, ...]
-
-            if self.config.background_color == "random":
-                background = torch.rand(3, device=self.device)
-            elif self.config.background_color == "white":
-                background = torch.ones(3, device=self.device)
-            elif self.config.background_color == "black":
-                background = torch.zeros(3, device=self.device)
-            else:
-                background = self.background_color.to(self.device)
+            background = self.get_background_color()
         else:
             optimized_camera_to_world = camera.camera_to_worlds[0, ...]
-
-            if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
+            if renderers.BACKGROUND_COLOR_OVERRIDE is not None and self.background_color == "random":
                 background = renderers.BACKGROUND_COLOR_OVERRIDE.to(self.device)
             else:
-                background = self.background_color.to(self.device)
+                background = self.get_background_color()
 
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
@@ -810,48 +813,40 @@ class SplatfactoModel(Model):
             opacities = torch.sigmoid(opacities_crop)
         else:
             raise ValueError("Unknown rasterize_mode: %s", self.config.rasterize_mode)
-        if self.bg_model is None:
-            rgb, alpha = rasterize_gaussians(  # type: ignore
-                self.xys,
-                depths,
-                self.radii,
-                conics,
-                num_tiles_hit,  # type: ignore
-                rgbs,
-                opacities,
-                H,
-                W,
-                BLOCK_WIDTH,
-                background=background,
-                return_alpha=True,
-            )  # type: ignore
-            alpha = alpha[..., None]
-        else:
-            rgb, alpha = rasterize_gaussians(  # type: ignore
-                self.xys,
-                depths,
-                self.radii,
-                conics,
-                num_tiles_hit,  # type: ignore
-                rgbs,
-                opacities,
-                H,
-                W,
-                BLOCK_WIDTH,
-                background=torch.zeros(3, device=self.device),
-                return_alpha=True,
-            )
-            ray_bundle = camera.generate_rays(camera_indices=0, keep_shape=False)
-            # only predict background where alpha < 0.98
-            mask = (alpha < 0.98).view(-1)
-            ray_bundle = ray_bundle[mask]
-            if mask.sum() > 0:
+
+        rgb, alpha = rasterize_gaussians(  # type: ignore
+            self.xys,
+            depths,
+            self.radii,
+            conics,
+            num_tiles_hit,  # type: ignore
+            rgbs,
+            opacities,
+            H,
+            W,
+            BLOCK_WIDTH,
+            background=background,
+            return_alpha=True,
+        )  # type: ignore
+        alpha = alpha[..., None]
+
+        if self.config.enable_bg_model:
+            # the following code uses the background model to predict the background color
+            # only predict background where alpha < 0.99 for faster inference
+            mask = (alpha < 0.99).view(H, W)
+            coords_y, coords_x = torch.nonzero(mask, as_tuple=True)
+            coords = torch.stack([coords_y, coords_x], dim=-1).float()
+            if coords.shape[0] > 0:
+                ray_bundle = camera.generate_rays(camera_indices=0, keep_shape=False, coords=coords)
+                # Background processing
                 background = torch.zeros(H * W, 3, device=self.device)
-                background[mask] = self.bg_model.get_background_rgb(ray_bundle, appearance_embed).float()
+                flat_mask = mask.view(-1)
+                background[flat_mask] = self.bg_model.get_background_rgb(
+                    ray_bundle, appearance_embed.repeat(ray_bundle.shape[0], 1)
+                ).float()
                 background = background.view(H, W, 3)
-            else:
-                background = torch.zeros(H * W, 3, device=self.device)
-            rgb = rgb + (1 - alpha) * background
+                rgb = rgb + (1 - alpha) * background
+
         rgb = torch.clamp(rgb, max=1.0)  # type: ignore
         camera.rescale_output_resolution(camera_downscale)
         depth_im = None
