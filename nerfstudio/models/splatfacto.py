@@ -165,11 +165,14 @@ class SplatfactoModelConfig(ModelConfig):
     """
     camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="off"))
     """Config of the camera optimizer to use"""
-
     enable_bg_model: bool = False
+    """Whether to enable the 2d background model"""
     implementation: Literal["tcnn", "torch"] = "tcnn"
+    """Implementation of the background model"""
     appearance_embed_dim: int = 0
-    enable_alpha_loss: bool = True
+    """Dimension of the appearance embedding, if 0, no appearance embedding is used"""
+    enable_alpha_loss: bool = False
+    """Whether to enable the alpha loss for punishing gaussians from occupying background space, this also works with pure color background (i.e. white for overexposured images)"""
 
 
 class SplatfactoModel(Model):
