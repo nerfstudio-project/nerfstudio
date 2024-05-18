@@ -59,6 +59,7 @@ from nerfstudio.models.neus import NeuSModelConfig
 from nerfstudio.models.neus_facto import NeuSFactoModelConfig
 from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
 from nerfstudio.models.splatfacto import SplatfactoModelConfig
+from nerfstudio.models.splatfactow import SplatfactoWModelConfig
 from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
@@ -700,6 +701,65 @@ method_configs["splatfacto-big"] = TrainerConfig(
             "scheduler": ExponentialDecaySchedulerConfig(
                 lr_final=5e-7, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
             ),
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    vis="viewer",
+)
+method_configs["splatfactow"] = TrainerConfig(
+    method_name="splatfactow",
+    steps_per_eval_image=1000000,
+    steps_per_eval_batch=0,
+    steps_per_save=2000,
+    steps_per_eval_all_images=1000000,
+    max_num_iterations=65000,
+    mixed_precision=False,
+    pipeline=VanillaPipelineConfig(
+        datamanager=FullImageDatamanagerConfig(
+            dataparser=PhototourismDataParserConfig(),
+            cache_images_type="uint8",
+        ),
+        model=SplatfactoWModelConfig(),
+    ),
+    optimizers={
+        "means": {
+            "optimizer": AdamOptimizerConfig(lr=1.6e-4, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                lr_final=1.6e-6,
+                max_steps=30000,
+            ),
+        },
+        "appearance_features": {
+            "optimizer": AdamOptimizerConfig(lr=0.02, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                lr_final=1e-3,
+                max_steps=40000,
+            ),
+        },
+        "opacities": {
+            "optimizer": AdamOptimizerConfig(lr=0.05, eps=1e-15),
+            "scheduler": None,
+        },
+        "scales": {
+            "optimizer": AdamOptimizerConfig(lr=0.005, eps=1e-15),
+            "scheduler": None,
+        },
+        "quats": {"optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15), "scheduler": None},
+        "camera_opt": {
+            "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=5e-5, max_steps=30000),
+        },
+        "field_background": {
+            "optimizer": AdamOptimizerConfig(lr=4e-3, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-4, max_steps=30000),
+        },
+        "color_nn": {
+            "optimizer": AdamOptimizerConfig(lr=2e-3, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-4, max_steps=30000),
+        },
+        "appearance_embed": {
+            "optimizer": AdamOptimizerConfig(lr=0.02, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=3e-4, max_steps=40000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
