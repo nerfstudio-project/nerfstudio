@@ -723,9 +723,9 @@ method_configs["splatfactow"] = TrainerConfig(
     ),
     optimizers={
         "means": {
-            "optimizer": AdamOptimizerConfig(lr=1.6e-4, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1.6e-5, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
-                lr_final=1.6e-6,
+                lr_final=1.6e-7,
                 max_steps=30000,
             ),
         },
@@ -737,7 +737,7 @@ method_configs["splatfactow"] = TrainerConfig(
             ),
         },
         "opacities": {
-            "optimizer": AdamOptimizerConfig(lr=0.05, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=0.03, eps=1e-15),
             "scheduler": None,
         },
         "scales": {
@@ -750,10 +750,10 @@ method_configs["splatfactow"] = TrainerConfig(
             "scheduler": ExponentialDecaySchedulerConfig(lr_final=5e-5, max_steps=30000),
         },
         "field_background": {
-            "optimizer": AdamOptimizerConfig(lr=4e-3, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=2e-3, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-4, max_steps=30000),
         },
-        "color_nn": {
+        "appearance_model": {
             "optimizer": AdamOptimizerConfig(lr=2e-3, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-4, max_steps=30000),
         },

@@ -25,20 +25,20 @@ from typing import Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
-from gsplat._torch_impl import quat_to_rotmat
-from gsplat.project_gaussians import project_gaussians
-from gsplat.rasterize import rasterize_gaussians
-from gsplat.sh import num_sh_bases, spherical_harmonics
 from pytorch_msssim import SSIM
 from torch.nn import Parameter
 from typing_extensions import Literal
 
+from gsplat._torch_impl import quat_to_rotmat
+from gsplat.project_gaussians import project_gaussians
+from gsplat.rasterize import rasterize_gaussians
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.fields.background_field import BG_Field
+from nerfstudio.fields.splatfactow_field import SplatfactoWField
 
 # need following import for background color override
 from nerfstudio.model_components import renderers
@@ -117,7 +117,7 @@ class SplatfactoWModelConfig(ModelConfig):
     """threshold of scale for culling huge gaussians"""
     continue_cull_post_densification: bool = True
     """If True, continue to cull gaussians post refinement"""
-    reset_alpha_every: int = 20
+    reset_alpha_every: int = 25
     """Every this many refinement steps, reset the alpha"""
     densify_grad_thresh: float = 0.0008
     """threshold of positional gradient norm for densifying gaussians"""
@@ -149,7 +149,7 @@ class SplatfactoWModelConfig(ModelConfig):
     """
     output_depth_during_training: bool = False
     """If True, output depth during training. Otherwise, only output depth during evaluation."""
-    rasterize_mode: Literal["classic", "antialiased"] = "classic"
+    rasterize_mode: Literal["classic", "antialiased"] = "antialiased"
     """
     Classic mode of rendering will use the EWA volume splatting with a [0.3, 0.3] screen space blurring kernel. This
     approach is however not suitable to render tiny gaussians at higher or lower resolution than the captured, which
@@ -161,17 +161,17 @@ class SplatfactoWModelConfig(ModelConfig):
     """
     camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="off"))
     """Config of the camera optimizer to use"""
-    enable_bg_model: bool = False
+    enable_bg_model: bool = True
     """Whether to enable the 2d background model"""
     implementation: Literal["tcnn", "torch"] = "tcnn"
     """Implementation of the background model"""
-    appearance_embed_dim: int = 0
+    appearance_embed_dim: int = 48
     """Dimension of the appearance embedding, if 0, no appearance embedding is used"""
-    enable_alpha_loss: bool = False
+    enable_alpha_loss: bool = True
     """Whether to enable the alpha loss for punishing gaussians from occupying background space, this also works with pure color background (i.e. white for overexposed skys)"""
-    gs_appearance_feature_dim: int = 72
+    appearance_features_dim: int = 72
     """Dimension of the appearance feature"""
-    enable_robust_mask: bool = False
+    enable_robust_mask: bool = True
     """Whether to enable robust mask for calculating the loss"""
     robust_mask_percentage: tuple = (0.05, 0.4)
     """The percentage of the entire image to mask out for robust loss calculation"""
@@ -216,7 +216,7 @@ class SplatfactoWModel(Model):
         num_points = means.shape[0]
         quats = torch.nn.Parameter(random_quat_tensor(num_points))
         appearance_features = torch.nn.Parameter(
-            torch.zeros((num_points, self.config.gs_appearance_feature_dim, 1)).float().cuda()
+            torch.zeros((num_points, self.config.appearance_features_dim)).float().cuda()
         )
 
         opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(num_points, 1)))
@@ -267,26 +267,26 @@ class SplatfactoWModel(Model):
         else:
             self.bg_model = None
 
-        self.color_nn = ColorNN_s(
-            self.config.appearance_embed_dim,
-            self.config.gs_appearance_feature_dim,
-            self.config.implementation,
+        self.color_nn = SplatfactoWField(
+            appearance_embed_dim=self.config.appearance_embed_dim,
+            appearance_features_dim=self.config.appearance_features_dim,
+            implementation=self.config.implementation,
         )
 
     # @property
     # def colors(self):
     #     if self.config.sh_degree > 0:
-    #         return SH2RGB(self.apprance_features)
+    #         return SH2RGB(self.appearance_features)
     #     else:
-    #         return torch.sigmoid(self.apprance_features)
+    #         return torch.sigmoid(self.appearance_features)
 
     # @property
     # def shs_0(self):
-    #     return self.apprance_features
+    #     return self.appearance_features
 
-    @property
-    def shs_rest(self):
-        return self.features_rest
+    # @property
+    # def shs_rest(self):
+    #     return self.features_rest
 
     @property
     def num_points(self):
@@ -305,12 +305,12 @@ class SplatfactoWModel(Model):
         return self.gauss_params["quats"]
 
     @property
-    def apprance_features(self):
-        return self.gauss_params["apprance_features"]
+    def appearance_features(self):
+        return self.gauss_params["appearance_features"]
 
-    @property
-    def features_rest(self):
-        return self.gauss_params["features_rest"]
+    # @property
+    # def features_rest(self):
+    #     return self.gauss_params["features_rest"]
 
     @property
     def opacities(self):
@@ -322,7 +322,7 @@ class SplatfactoWModel(Model):
         if "means" in dict:
             # For backwards compatibility, we remap the names of parameters from
             # means->gauss_params.means since old checkpoints have that format
-            for p in ["means", "scales", "quats", "apprance_features", "features_rest", "opacities"]:
+            for p in ["means", "scales", "quats", "appearance_features", "opacities"]:
                 dict[f"gauss_params.{p}"] = dict[p]
         newp = dict["gauss_params.means"].shape[0]
         for name, param in self.gauss_params.items():
@@ -639,8 +639,7 @@ class SplatfactoWModel(Model):
         # Here we explicitly use the means, scales as parameters so that the user can override this function and
         # specify more if they want to add more optimizable params to gaussians.
         return {
-            name: [self.gauss_params[name]]
-            for name in ["means", "scales", "quats", "apprance_features", "features_rest", "opacities"]
+            name: [self.gauss_params[name]] for name in ["means", "scales", "quats", "appearance_features", "opacities"]
         }
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
@@ -654,7 +653,7 @@ class SplatfactoWModel(Model):
         if self.config.enable_bg_model:
             gps["field_background"] = list(self.bg_model.parameters())
         gps["appearance_embed"] = list(self.appearance_embeds.parameters())
-        gps["color_nn"] = list(self.color_nn.parameters())
+        gps["appearance_model"] = list(self.color_nn.parameters())
         return gps
 
     def _get_downscale_factor(self):
@@ -756,13 +755,13 @@ class SplatfactoWModel(Model):
         if crop_ids is not None:
             opacities_crop = self.opacities[crop_ids]
             means_crop = self.means[crop_ids]
-            apprance_features_crop = self.apprance_features[crop_ids]
+            appearance_features_crop = self.appearance_features[crop_ids]
             scales_crop = self.scales[crop_ids]
             quats_crop = self.quats[crop_ids]
         else:
             opacities_crop = self.opacities
             means_crop = self.means
-            apprance_features_crop = self.apprance_features
+            appearance_features_crop = self.appearance_features
             scales_crop = self.scales
             quats_crop = self.quats
         BLOCK_WIDTH = 16  # this controls the tile size of rasterization, 16 is a good default
@@ -791,11 +790,11 @@ class SplatfactoWModel(Model):
                 out["rgb"] = background
                 out["background"] = background
             return out
+
         rgbs = self.color_nn(
-            appearance_embed.repeat(apprance_features_crop.shape[0], 1),
-            apprance_features_crop,
-        )
-        rgbs = rgbs.float()
+            appearance_embed.repeat(appearance_features_crop.shape[0], 1),
+            appearance_features_crop,
+        ).float()
 
         assert (num_tiles_hit > 0).any()  # type: ignore
 
@@ -925,7 +924,15 @@ class SplatfactoWModel(Model):
             gt_img = gt_img * mask
             pred_img = pred_img * mask
 
-        Ll1 = torch.abs(gt_img - pred_img).mean()
+        Ll1_img = torch.abs(gt_img - pred_img)
+        if self.step >= self.config.start_robust_mask_at and self.config.enable_robust_mask:
+            robust_mask = self.robust_mask(Ll1_img)
+            gt_img = gt_img * mask
+            pred_img = pred_img * mask
+            Ll1 = (Ll1_img * robust_mask).mean()
+        else:
+            Ll1 = Ll1_img.mean()
+
         simloss = 1 - self.ssim(gt_img.permute(2, 0, 1)[None, ...], pred_img.permute(2, 0, 1)[None, ...])
         if self.config.use_scale_regularization and self.step % 10 == 0:
             scale_exp = torch.exp(self.scales)
@@ -1022,3 +1029,101 @@ class SplatfactoWModel(Model):
         images_dict = {"img": combined_rgb}
 
         return metrics_dict, images_dict
+
+    @torch.no_grad()
+    def robust_mask(self, errors: torch.Tensor):
+        """Computes RobustNeRF mask.
+
+        Args:
+            errors: f32[h,w,c]. Per-subpixel errors.
+            inlier_threshold: f32[]. Upper bound on per-pixel loss to use to determine
+                if a pixel is an inlier or not.
+            config: Config object.
+
+        Returns:
+            mask: f32[h,w,1].
+        """
+        epsilon = 1e-3
+        # never mask the upper of the image
+        errors[: int(errors.shape[0] * self.config.never_mask_upper), :, :] = 0.0
+        Ll2 = errors.mean()
+        # update max and min of Ll2
+        if Ll2 > self.max_loss or self.step % self.config.robust_mask_reset_interval == 0:
+            self.max_loss = Ll2
+        if Ll2 < self.min_loss:
+            self.min_loss = Ll2
+
+        mask_range_min, mask_range_max = self.config.robust_mask_percentage
+        mask_percentage = (Ll2 - self.min_loss) / ((self.max_loss - self.min_loss) + 1e-6) * (
+            mask_range_max - mask_range_min
+        ) + mask_range_min
+
+        errors = errors.view(1, errors.shape[0], errors.shape[1], errors.shape[2])
+        error_per_pixel = torch.mean(errors, dim=-1, keepdim=True)
+        inlier_threshold = torch.quantile(error_per_pixel, 1 - mask_percentage)
+        mask = torch.ones_like(error_per_pixel)
+        # 1.0 for inlier pixels.
+        is_inlier_loss = (error_per_pixel <= inlier_threshold).float()
+        # stats["is_inlier_loss"] = torch.mean(is_inlier_loss)
+
+        # Apply 5x5 box filter.
+        f = 5
+        window = (torch.ones((f, f)).view(1, 1, f, f) / (f * f)).cuda()
+        has_inlier_neighbors = torch.nn.functional.conv2d(
+            is_inlier_loss.permute(0, 3, 1, 2), window, stride=1, padding="same"
+        )
+        has_inlier_neighbors = has_inlier_neighbors.permute(0, 2, 3, 1)  # [n,h,w,1]
+
+        # Binarize after smoothing.
+        has_inlier_neighbors = (has_inlier_neighbors > 0.4).float()
+
+        # A pixel is an inlier if it is an inlier according to any of the above
+        # criteria.
+        mask = (has_inlier_neighbors + is_inlier_loss > epsilon).float().view(errors.shape[1], errors.shape[2], 1)
+
+        del errors
+        del has_inlier_neighbors
+        del is_inlier_loss
+        del error_per_pixel
+        return mask
+
+    @torch.no_grad()
+    def render_equirect(self, W, appearance_embed=None):
+        H = W // 2
+        # For equirect, fx = fy = height = width/2
+        fx, fy = torch.tensor(H), torch.tensor(H)
+        cx, cy = torch.tensor(W / 2), torch.tensor(H / 2)
+        # R = torch.eye(3, device=self.device)
+        from nerfstudio.cameras.cameras import CameraType
+
+        # flip the z and y axes to align with gsplat conventions
+        # R = torch.diag(torch.tensor([1, -1, -1], device=self.device, dtype=R.dtype))
+        # combine R into c2w
+        # c2w = torch.eye(4, device=self.device)
+        # c2w[:3, :3] = R
+        c2w = torch.tensor([[1, 0, 0, 0], [0, 0, -1, 0], [0, 1, 0, 0], [0, 0, 0, 1]], device=self.device)
+        c2w = c2w[None, :3, :]
+        camera = Cameras(fx=fx, fy=fy, cx=cx, cy=cy, camera_to_worlds=c2w, camera_type=CameraType.EQUIRECTANGULAR).to(
+            self.device
+        )
+        ray_bundle = camera.generate_rays(0, keep_shape=False, disable_distortion=True)
+        assert self.bg_model is not None
+        background = self.bg_model(ray_bundle, appearance_embed).float().clamp(0, 1).reshape(H, W, 3)
+        print("background shape: ", background.shape)
+        print("background: ", background)
+        # exit()
+        self.save_image(background, "output_images/equirect_bg.jpg")
+        return background
+
+    def save_image(self, img, path):
+        import os
+
+        import PIL
+
+        img = img.detach().cpu().numpy()
+        img = (img * 255).astype(np.uint8)
+        img = PIL.Image.fromarray(img)
+        # create output_images folder if it doesn't exist
+        if not os.path.exists(path=os.path.dirname(path)):
+            os.makedirs(os.path.dirname(path))
+        img.save(path)
