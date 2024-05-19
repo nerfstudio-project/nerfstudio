@@ -825,7 +825,11 @@ class SplatfactoWModel(Model):
         if self.config.enable_bg_model:
             # the following code uses the background model to predict the background color
             # only predict background where alpha < 0.99 for faster inference
-            mask = (alpha < 0.99).view(H, W)
+            if self.step < 6000:
+                thres = 1
+            else:
+                thres = 0.99
+            mask = (alpha < thres).view(H, W)
             coords_y, coords_x = torch.nonzero(mask, as_tuple=True)
             coords = torch.stack([coords_y, coords_x], dim=-1).float()
             if coords.shape[0] > 0:
@@ -927,8 +931,8 @@ class SplatfactoWModel(Model):
         Ll1_img = torch.abs(gt_img - pred_img)
         if self.step >= self.config.start_robust_mask_at and self.config.enable_robust_mask:
             robust_mask = self.robust_mask(Ll1_img)
-            gt_img = gt_img * mask
-            pred_img = pred_img * mask
+            gt_img = gt_img * robust_mask
+            pred_img = pred_img * robust_mask
             Ll1 = (Ll1_img * robust_mask).mean()
         else:
             Ll1 = Ll1_img.mean()
