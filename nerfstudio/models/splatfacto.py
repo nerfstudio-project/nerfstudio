@@ -25,13 +25,13 @@ from typing import Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
-from gsplat._torch_impl import quat_to_rotmat
+from gsplat.cuda_legacy._torch_impl import quat_to_rotmat
 
 try:
-    from gsplat.rendering_v2 import rasterization
+    from gsplat.rendering import rasterization
 except ImportError:
     print("install via: pip install git+https://github.com/nerfstudio-project/gsplat.git@v1.0")
-from gsplat.sh import num_sh_bases
+from gsplat.cuda_legacy._wrapper import num_sh_bases
 from pytorch_msssim import SSIM
 from torch.nn import Parameter
 from typing_extensions import Literal
