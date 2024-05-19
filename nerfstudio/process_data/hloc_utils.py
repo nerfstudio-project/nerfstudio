@@ -26,29 +26,6 @@ from typing import Literal
 from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils.rich_utils import CONSOLE
 
-try:
-    # TODO(1480) un-hide pycolmap import
-    import pycolmap
-    from hloc import (  # type: ignore
-        extract_features,
-        match_features,
-        pairs_from_exhaustive,
-        pairs_from_retrieval,
-        reconstruction,
-    )
-except ImportError:
-    _HAS_HLOC = False
-
-else:
-    _HAS_HLOC = True
-
-try:
-    from pixsfm.refine_hloc import PixSfM  # type: ignore
-except ImportError:
-    _HAS_PIXSFM = False
-else:
-    _HAS_PIXSFM = True
-
 
 def run_hloc(
     image_dir: Path,
@@ -88,6 +65,29 @@ def run_hloc(
         refine_pixsfm: If True, refine the reconstruction using pixel-perfect-sfm.
         use_single_camera_mode: If True, uses one camera for all frames. Otherwise uses one camera per frame.
     """
+
+    try:
+        # TODO(1480) un-hide pycolmap import
+        import pycolmap
+        from hloc import (  # type: ignore
+            extract_features,
+            match_features,
+            pairs_from_exhaustive,
+            pairs_from_retrieval,
+            reconstruction,
+        )
+    except ImportError:
+        _HAS_HLOC = False
+    else:
+        _HAS_HLOC = True
+
+    try:
+        from pixsfm.refine_hloc import PixSfM  # type: ignore
+    except ImportError:
+        _HAS_PIXSFM = False
+    else:
+        _HAS_PIXSFM = True
+
     if not _HAS_HLOC:
         CONSOLE.print(
             f"[bold red]Error: To use this set of parameters ({feature_type}/{matcher_type}/hloc), "
