@@ -830,7 +830,7 @@ class SplatfactoWModel(Model):
             if self.step < 6000:
                 thres = 1
             else:
-                thres = 0.99
+                thres = 0.98
             mask = (alpha < thres).view(H, W)
             coords_y, coords_x = torch.nonzero(mask, as_tuple=True)
             coords = torch.stack([coords_y, coords_x], dim=-1).float()
