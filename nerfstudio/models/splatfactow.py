@@ -129,7 +129,7 @@ class SplatfactoWModelConfig(ModelConfig):
     """if a gaussian is more than this percent of screen space, cull it"""
     split_screen_size: float = 0.05
     """if a gaussian is more than this percent of screen space, split it"""
-    stop_screen_size_at: int = 4000
+    stop_screen_size_at: int = 15000
     """stop culling/splitting at this step WRT screen size of gaussians"""
     random_init: bool = False
     """whether to initialize the positions uniformly randomly (not SFM points)"""
@@ -825,6 +825,8 @@ class SplatfactoWModel(Model):
         if self.config.enable_bg_model:
             # the following code uses the background model to predict the background color
             # only predict background where alpha < 0.99 for faster inference
+
+            # allows the model the cleam up the background for the first 6000 steps
             if self.step < 6000:
                 thres = 1
             else:
