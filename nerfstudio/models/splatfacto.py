@@ -719,12 +719,7 @@ class SplatfactoModel(Model):
         )
 
         # apply the compensation of screen space blurring to gaussians
-        if self.config.rasterize_mode == "antialiased":
-            assert NotImplementedError("Antialiased mode is not implemented yet")
-            # opacities = torch.sigmoid(opacities_crop) * comp[:, None]
-        elif self.config.rasterize_mode == "classic":
-            opacities = torch.sigmoid(opacities_crop)
-        else:
+        if self.config.rasterize_mode not in ["antialiased", "classic"]:
             raise ValueError("Unknown rasterize_mode: %s", self.config.rasterize_mode)
 
         if self.config.output_depth_during_training or not self.training:
@@ -755,6 +750,7 @@ class SplatfactoModel(Model):
             sh_degree=sh_degree_to_use,
             sparse_grad=False,
             compute_means2d_absgrad=True,
+            rasterize_mode=self.config.rasterize_mode,
             radius_clip=0 if self.training else 3,  # faster visualization
         )
         if self.training and info["means2d"].requires_grad:
