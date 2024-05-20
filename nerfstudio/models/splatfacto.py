@@ -736,7 +736,7 @@ class SplatfactoModel(Model):
             means=means_crop,
             quats=quats_crop / quats_crop.norm(dim=-1, keepdim=True),
             scales=torch.exp(scales_crop),
-            opacities=opacities.squeeze(-1),
+            opacities=torch.sigmoid(opacities_crop).squeeze(-1),
             colors=colors_crop,
             viewmats=viewmat[None, :, :],  # [1, 4, 4]
             Ks=K[None],  # [1, 3, 3]
