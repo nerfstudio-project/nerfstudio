@@ -190,7 +190,7 @@ class SplatfactoWModel(Model):
         config: Splatfacto configuration to instantiate model
     """
 
-    config: SplatfactoModelConfig
+    config: SplatfactoWModelConfig
 
     def __init__(
         self,
