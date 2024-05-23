@@ -91,6 +91,7 @@ def resize_image(image: torch.Tensor, d: int):
     """
     import torch.nn.functional as tf
 
+    image = image.to(torch.float32)
     weight = (1.0 / (d * d)) * torch.ones((1, 1, d, d), dtype=torch.float32, device=image.device)
     return tf.conv2d(image.permute(2, 0, 1)[:, None, ...], weight, stride=d).squeeze(1).permute(1, 2, 0)
 

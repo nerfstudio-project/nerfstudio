@@ -161,7 +161,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
                 f'does not match the camera parameters ({camera.width.item(), camera.height.item()})'
             )
-            if camera.distortion_params is None:
+            if camera.distortion_params is None or torch.all(camera.distortion_params == 0):
                 return data
             K = camera.get_intrinsics_matrices().numpy()
             distortion_params = camera.distortion_params.numpy()
