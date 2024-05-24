@@ -174,7 +174,6 @@ class PixelSampler:
         image_width: int,
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
-        radius: float = 0.0,
     ) -> Int[Tensor, "batch_size 3"]:
         if isinstance(mask, torch.Tensor) and not self.config.ignore_mask:
             indices = self.sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)
@@ -309,7 +308,7 @@ class PixelSampler:
         if "mask" in batch:
             for i, num_rays in enumerate(num_rays_per_image):
                 image_height, image_width, _ = batch["image"][i].shape
-
+                
                 indices = self.sample_method(
                     num_rays, 1, image_height, image_width, mask=batch["mask"][i].unsqueeze(0), device=device
                 )
@@ -326,9 +325,8 @@ class PixelSampler:
                     indices = self.sample_method_equirectangular(
                         num_rays, 1, image_height, image_width, device=device
                     )
-                elif self.config.fisheye_crop_radius is not None: # we know the code is jumping into this code here:
-                    # print("SKULL SKULL SKULL")
-                    indices = self.sample_method_fisheye(num_rays, 1, image_height, image_width, device=device, radius=max(image_height, image_width)/2)
+                elif self.config.fisheye_crop_radius is not None:
+                    indices = self.sample_method_fisheye(num_rays, 1, image_height, image_width, device=device)
                 else:
                     indices = self.sample_method(num_rays, 1, image_height, image_width, device=device)
                 indices[:, 0] = i

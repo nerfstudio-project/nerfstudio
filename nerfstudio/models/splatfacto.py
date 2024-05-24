@@ -167,8 +167,8 @@ class SplatfactoModelConfig(ModelConfig):
     """Config of the camera optimizer to use"""
     enbale_appearance_embedding: bool = True
     """If True, use appearance embedding for the model"""
-    appearance_embedding_dim: int = 32
-    """Dimension of the appearance embedding for ecah image"""
+    appearance_embedding_dim: int = 8
+    """Dimension of the appearance embedding for each image"""
     color_feature_dim: int = 64
     """Dimension of the color feature for each gaussian"""
     image_embed_idx: int = 0
