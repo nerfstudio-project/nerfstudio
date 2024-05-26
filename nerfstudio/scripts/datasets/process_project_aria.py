@@ -17,7 +17,7 @@ import sys
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, cast
+from typing import Any, Dict, List, cast, Optional
 
 import numpy as np
 import open3d as o3d
@@ -147,9 +147,10 @@ def generate_circular_mask(numRows: int, numCols: int, radius: float):
     Generates a mask where a circle in the center of the image with input radius is white (sampled from).
     Everything outside the circle is black (masked out)
     """
-    rows, cols = np.ogrid[:numRows, :numCols]
     # Calculate the center coordinates
+    rows, cols = np.ogrid[:numRows, :numCols]
     center_row, center_col = numRows // 2, numCols // 2
+
     # Calculate the distance of each pixel from the center
     distance_from_center = np.sqrt((rows - center_row)**2 + (cols - center_col)**2)
     mask = np.zeros((numRows, numCols), dtype=np.uint8)
@@ -179,22 +180,22 @@ def to_aria_image_frame(
     img = Image.fromarray(rectified_img)
     capture_time_ns = image_data[1].capture_timestamp_ns
     
+    # save the image
     file_path = f"{output_dir}/{name}_{capture_time_ns}.jpg"
     threading.Thread(target=lambda: img.save(file_path)).start()
     
+    # find the world_to_device transformation
     time_start = int(t_world_devices.closed_loop_traj[0].tracking_timestamp.total_seconds() * 1e9)
     time_end = int(t_world_devices.closed_loop_traj[-1].tracking_timestamp.total_seconds() * 1e9)
-
     capture_time_ns = np.clip(capture_time_ns, time_start + 1, time_end - 1)
     pose_info = get_nearest_pose(t_world_devices.closed_loop_traj, capture_time_ns)
     t_world_device = pose_info.transform_world_device
     
-    # camera_stream_label = provider.get_label_from_stream_id() # should be the same as {name}
+    # calculate the extrinsic matrix
     device_calibration = provider.get_device_calibration()
     camera_calibration = device_calibration.get_camera_calib(name)
-    
     T_device_camera = camera_calibration.get_transform_device_camera()
-    t_world_camera = t_world_device @ T_device_camera @ T_ARIA_NERFSTUDIO # extrinsic matrix
+    t_world_camera = t_world_device @ T_device_camera @ T_ARIA_NERFSTUDIO
 
     return AriaImageFrame(
         camera=aria_camera_calibration,
@@ -230,7 +231,6 @@ def to_nerfstudio_frame(frame: AriaImageFrame, pinhole: bool=False, mask_path: s
         "file_path": frame.file_path,
         "transform_matrix": frame.t_world_camera.to_matrix().tolist(),
         "timestamp": frame.timestamp_ns,
-        "fisheye_crop_radius": frame.fisheye_crop_radius
     }
 
 @dataclass
@@ -246,17 +246,17 @@ class ProcessProjectAria:
     """Path to Project Aria Machine Perception Services (MPS) attachments."""
     output_dir: Path
     """Path to the output directory."""
-    points_file: Path = None
+    points_file: Optional[Path] = None
     """Path to the point cloud file (usually called semidense_points.csv.gz) if not in the mps_data_dir"""
     include_side_cameras: bool = False
     """If True, include and process the images captured by the grayscale side cameras. If False, only uses the main RGB camera's data."""
     two_users: bool = False
     """If True, processes data from multiple users."""
-    vrs_file2: Path = None
+    vrs_file2: Optional[Path] = None
     """Path to the second VRS file if two_users is True"""
-    mps_data_dir2: Path = None
+    mps_data_dir2: Optional[Path] = None
     """Path to the second MPS attachments if two_users is True"""
-    points_file2: Path = None
+    points_file2: Optional[Path] = None
     """Path to the second point cloud file"""
 
     def main(self) -> None:
@@ -265,96 +265,99 @@ class ProcessProjectAria:
         self.output_dir = self.output_dir.absolute()
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        provider = create_vrs_data_provider(str(self.vrs_file.absolute()))
-        assert provider is not None, "Cannot open file"
+        vrs_mps_points_triplets = [(self.vrs_file, self.mps_data_dir, self.points_file)]
+        if self.vrs_file2 and self.mps_data_dir2:
+            vrs_mps_points_triplets.append((self.vrs_file2, self.mps_data_dir2, self.points_file2))
         
-        names = ["camera-rgb", "camera-slam-left", "camera-slam-right"]
-        name_to_camera = {name: get_camera_calibs(provider, name) for name in names} # name_to_camera is of type Dict[str, AriaCameraCalibration]
-        
-        print("Getting poses from closed loop trajectory CSV...")
-        trajectory_csv = self.mps_data_dir / "closed_loop_trajectory.csv"
-        t_world_devices = read_trajectory_csv_to_dict(str(trajectory_csv.absolute()))
-
-        stream_ids = [provider.get_stream_id_from_label(name) for name in names] # prints [214-1, 1201-1, 1201-2], which is correct
-
-        # create an AriaImageFrame for each image in the VRS.
-        print("Creating Aria frames...")
-        CANONICAL_RGB_VALID_RADIUS = 707.5 # radius of a circular mask that represents the valid area on the camera's sensor plane. Pixels out of this circular region are considered invalid
-        CANONICAL_RGB_WIDTH = 1408
-        rgb_valid_radius = 707.5 # CANONICAL_RGB_VALID_RADIUS * (aria_camera_frames[0][0].camera.width / CANONICAL_RGB_WIDTH) # 707.5
-        CANONICAL_SLAM_VALID_RADIUS = 330 # found here https://github.com/facebookresearch/projectaria_tools/blob/4aee633cb667ab927825dc10477cad0df8393a34/core/calibration/loader/SensorCalibrationJson.cpp#L102C5-L104C18 and divided by 2
-        CANONICAL_SLAM_WIDTH = 640
-        slam_valid_radius = 330.0 # CANONICAL_SLAM_VALID_RADIUS * (aria_camera_frames[1][0].camera.width / CANONICAL_SLAM_WIDTH) # equal to 330 in the end
-        valid_radii = [rgb_valid_radius, slam_valid_radius, slam_valid_radius]
-
-        aria_camera_frames = [
-            [
-                to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[i], pinhole=False, fisheye_crop_radius=valid_radii[i])
-                for index in range(0, provider.get_num_data(stream_id)) # there are 333 images per camera
-            ] 
-            for i, stream_id in enumerate(stream_ids)
-        ]
-        
-        # create the NerfStudio frames from the AriaImageFrames.
-        print("Creating NerfStudio frames...")
-
-        from nerfstudio.process_data.process_data_utils import CAMERA_MODELS # print("HELLO", CAMERA_MODELS["perspective"].value) # prints "OPENCV"
-        nerfstudio_frames = { # these are frames from camera-rgb
-            "camera_model": ARIA_CAMERA_MODEL,
-            "frames": [to_nerfstudio_frame(frame) for frame in aria_camera_frames[0]][::7],
-            "fisheye_crop_radius": rgb_valid_radius,
-        }
-        print(len(nerfstudio_frames["frames"]))
-        
-        # ITS PINHOLE TIME 
+        from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
         if self.include_side_cameras:
-            from nerfstudio.process_data.process_data_utils import CAMERA_MODELS # print("HELLO", CAMERA_MODELS["perspective"].value) # prints "OPENCV"
-            aria_camera_pinhole_frames = [
-                [
-                    to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[i], pinhole=True)
-                    for index in range(0, provider.get_num_data(stream_id))
-                ] 
-                for i, stream_id in enumerate(stream_ids)
-            ]
-            # let's create our masks:
-            rgb_mask_nparray, slam_mask_nparray = generate_circular_mask(1408, 1408, 707.5), generate_circular_mask(480, 640, 330)
-            rgb_mask_filepath, slam_mask_filepath = f"{self.output_dir}/rgb_mask.jpg", f"{self.output_dir}/slam_mask.jpg"
-            Image.fromarray(rgb_mask_nparray).save(rgb_mask_filepath)
-            Image.fromarray(slam_mask_nparray).save(slam_mask_filepath)
-        
-            mainRGB_pinhole_frames = {
+            nerfstudio_frames = {
                 "camera_model": CAMERA_MODELS["perspective"].value,
-                "frames": [to_nerfstudio_frame(frame, pinhole=True, mask_path=rgb_mask_filepath) for frame in aria_camera_pinhole_frames[0]],
+                "frames" : []
             }
-            left_pinhole_frames = {
-                "camera_model": CAMERA_MODELS["perspective"].value,
-                "frames": [to_nerfstudio_frame(frame, pinhole=True, mask_path=slam_mask_filepath) for frame in aria_camera_pinhole_frames[1]],
-            }
-            right_pinhole_frames = {
-                "camera_model": CAMERA_MODELS["perspective"].value,
-                "frames": [to_nerfstudio_frame(frame, pinhole=True, mask_path=slam_mask_filepath) for frame in aria_camera_pinhole_frames[2]],
-            }
-            nerfstudio_frames = { # has color + grayscale images
-                "camera_model": CAMERA_MODELS["perspective"].value,
-                "frames": mainRGB_pinhole_frames["frames"] + left_pinhole_frames["frames"] + right_pinhole_frames["frames"],
-            }
-
-        # save global point cloud, which is useful for Gaussian Splatting.
-        if self.points_file:
-            points_path = self.points_file
         else:
-            points_path = self.mps_data_dir / "global_points.csv.gz" # Try2_Trajectory/global_points.csv.gz
-            if not points_path.exists():
-                # MPS point cloud output was renamed in Aria's December 4th, 2023 update.
-                # https://facebookresearch.github.io/projectaria_tools/docs/ARK/sw_release_notes#project-aria-updates-aria-mobile-app-v140-and-changes-to-mps
-                points_path = self.mps_data_dir / "semidense_points.csv.gz"
+            nerfstudio_frames = {
+                "camera_model": ARIA_CAMERA_MODEL,
+                "frames" : [],
+                "fisheye_crop_radius": 707.5
+            }
+        points = []
+        
+        for rec_i, (vrs_file, mps_data_dir, points_file) in enumerate(vrs_mps_points_triplets):
+            provider = create_vrs_data_provider(str(vrs_file.absolute()))
+            assert provider is not None, "Cannot open file"
+        
+            names = ["camera-rgb", "camera-slam-left", "camera-slam-right"]
+            name_to_camera = {name: get_camera_calibs(provider, name) for name in names} # name_to_camera is of type Dict[str, AriaCameraCalibration]
+        
+            print(f"Getting poses from recording {rec_i + 1}'s closed loop trajectory CSV...")
+            trajectory_csv = mps_data_dir / "closed_loop_trajectory.csv"
+            t_world_devices = read_trajectory_csv_to_dict(str(trajectory_csv.absolute()))
 
-        if points_path.exists():
-            print("Found global points, saving to PLY...")
-            points_data = mps.read_global_point_cloud(str(points_path))  # type: ignore
-            points_data = filter_points_from_confidence(points_data)
+            stream_ids = [provider.get_stream_id_from_label(name) for name in names] # prints [214-1, 1201-1, 1201-2], which is correct
+
+            # create an AriaImageFrame for each image in the VRS.
+            print(f"Creating Aria frames for recording {rec_i + 1}...")
+            CANONICAL_RGB_VALID_RADIUS = 707.5 # radius of a circular mask that represents the valid area on the camera's sensor plane. Pixels out of this circular region are considered invalid
+            CANONICAL_RGB_WIDTH = 1408
+            rgb_valid_radius = 707.5 # CANONICAL_RGB_VALID_RADIUS * (aria_camera_frames[0][0].camera.width / CANONICAL_RGB_WIDTH) # 707.5
+            CANONICAL_SLAM_VALID_RADIUS = 330 # found here https://github.com/facebookresearch/projectaria_tools/blob/4aee633cb667ab927825dc10477cad0df8393a34/core/calibration/loader/SensorCalibrationJson.cpp#L102C5-L104C18
+            CANONICAL_SLAM_WIDTH = 640
+            slam_valid_radius = 330.0 # CANONICAL_SLAM_VALID_RADIUS * (aria_camera_frames[1][0].camera.width / CANONICAL_SLAM_WIDTH) # equal to 330 in the end
+            valid_radii = [rgb_valid_radius, slam_valid_radius, slam_valid_radius]
+            
+            if not self.include_side_cameras:
+                aria_camera_frames = [
+                    [
+                        to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[i], pinhole=False, fisheye_crop_radius=valid_radii[i])
+                        for index in range(0, provider.get_num_data(stream_id), 7) # TODO: get rid of 7 in PR
+                    ] 
+                    for i, stream_id in enumerate(stream_ids)
+                ]
+                print(f"Creating NerfStudio frames for recording {rec_i + 1}...")
+                from nerfstudio.process_data.process_data_utils import CAMERA_MODELS # print("HELLO", CAMERA_MODELS["perspective"].value) # prints "OPENCV"
+                nerfstudio_frames["frames"] += [to_nerfstudio_frame(frame) for frame in aria_camera_frames[0]]
+            else:
+                aria_camera_pinhole_frames = [
+                    [
+                        to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[i], pinhole=True)
+                        for index in range(0, provider.get_num_data(stream_id), 7)
+                    ] 
+                    for i, stream_id in enumerate(stream_ids)
+                ]
+                rgb_mask_nparray, slam_mask_nparray = generate_circular_mask(1408, 1408, 707.5), generate_circular_mask(480, 640, 330)
+                rgb_mask_filepath, slam_mask_filepath = f"{self.output_dir}/rgb_mask.jpg", f"{self.output_dir}/slam_mask.jpg"
+                Image.fromarray(rgb_mask_nparray).save(rgb_mask_filepath)
+                Image.fromarray(slam_mask_nparray).save(slam_mask_filepath)
+                
+                print(f"Creating NerfStudio frames for recording {rec_i + 1}...")
+                mask_filepaths = [rgb_mask_filepath, slam_mask_filepath, slam_mask_filepath]
+                pinhole_frames = [
+                    to_nerfstudio_frame(frame, pinhole=True, mask_path=mask_filepath) 
+                        for i, mask_filepath in enumerate(mask_filepaths) 
+                        for frame in aria_camera_pinhole_frames[i]
+                    ]
+                nerfstudio_frames["frames"] += pinhole_frames
+            
+            if points_file:
+                points_path = points_file
+            else:
+                points_path = mps_data_dir / "global_points.csv.gz"
+                if not points_path.exists():
+                    # MPS point cloud output was renamed in Aria's December 4th, 2023 update.
+                    # https://facebookresearch.github.io/projectaria_tools/docs/ARK/sw_release_notes#project-aria-updates-aria-mobile-app-v140-and-changes-to-mps
+                    points_path = mps_data_dir / "semidense_points.csv.gz"
+
+            if points_path.exists():
+                print(f"Found global points for recording {rec_i+1}")
+                points_data = mps.read_global_point_cloud(str(points_path))  # type: ignore
+                points_data = filter_points_from_confidence(points_data)
+                points += [cast(Any, it).position_world for it in points_data]
+        
+        if len(points):
+            print("Saving found points to PLY...")
             pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(np.array([cast(Any, it).position_world for it in points_data]))
+            pcd.points = o3d.utility.Vector3dVector(np.array(points))
             ply_file_path = self.output_dir / "global_points.ply"
             o3d.io.write_point_cloud(str(ply_file_path), pcd)
             nerfstudio_frames["ply_file_path"] = "global_points.ply"
