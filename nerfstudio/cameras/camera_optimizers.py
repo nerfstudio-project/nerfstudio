@@ -162,9 +162,19 @@ class CameraOptimizer(nn.Module):
             return camera.camera_to_worlds
 
         camera_idx = camera.metadata["cam_idx"]
-        adj = self(torch.tensor([camera_idx], dtype=torch.long, device=camera.device))  # type: ignore
-        adj = torch.cat([adj, torch.Tensor([0, 0, 0, 1])[None, None].to(adj)], dim=1).to(camera.camera_to_worlds.device)
-        return torch.bmm(camera.camera_to_worlds, adj)
+        adj = self(torch.tensor([camera_idx], dtype=torch.long)).to(camera.device)  # type: ignore
+
+        return torch.cat(
+            [
+                # Apply rotation to directions in world coordinates, without touching the origin.
+                # Equivalent to: directions -> correction[:3,:3] @ directions
+                torch.bmm(adj[..., :3, :3], camera.camera_to_worlds[..., :3, :3]),
+                # Apply translation in world coordinate, independently of rotation.
+                # Equivalent to: origins -> origins + correction[:3,3]
+                camera.camera_to_worlds[..., :3, 3:] + adj[..., :3, 3:],
+            ],
+            dim=-1,
+        )
 
     def get_loss_dict(self, loss_dict: dict) -> None:
         """Add regularization"""

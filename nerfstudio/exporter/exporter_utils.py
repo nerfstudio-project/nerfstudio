@@ -343,10 +343,8 @@ def collect_camera_poses(pipeline: VanillaPipeline) -> Tuple[List[Dict[str, Any]
     eval_dataset = pipeline.datamanager.eval_dataset
     assert isinstance(eval_dataset, InputDataset)
 
-    from nerfstudio.models.splatfacto import SplatfactoModel
-
     camera_optimizer = None
-    if isinstance(pipeline.model, SplatfactoModel):
+    if hasattr(pipeline.model, "camera_optimizer"):
         camera_optimizer = pipeline.model.camera_optimizer
 
     train_frames = collect_camera_poses_for_dataset(train_dataset, camera_optimizer)
