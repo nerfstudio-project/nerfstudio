@@ -322,11 +322,7 @@ class PixelSampler:
             for i, num_rays in enumerate(num_rays_per_image):
                 image_height, image_width, _ = batch["image"][i].shape
                 if self.config.is_equirectangular:
-                    indices = self.sample_method_equirectangular(
-                        num_rays, 1, image_height, image_width, device=device
-                    )
-                elif self.config.fisheye_crop_radius is not None:
-                    indices = self.sample_method_fisheye(num_rays, 1, image_height, image_width, device=device)
+                    indices = self.sample_method_equirectangular(num_rays, 1, image_height, image_width, device=device)
                 else:
                     indices = self.sample_method(num_rays, 1, image_height, image_width, device=device)
                 indices[:, 0] = i

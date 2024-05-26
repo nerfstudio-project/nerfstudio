@@ -247,12 +247,10 @@ class NerfactoField(Field):
             if self.training:
                 embedded_appearance = self.embedding_appearance(camera_indices)
             else:
-                # torch.save(self.embedding_appearance.embedding.weight, 'appearence_embeddings.pt') # adding in this line means i can't see anything - viewer turns black
-                # color = self.num_images / 3
-                if self.use_average_appearance_embedding: # this is evaluating to true
+                if self.use_average_appearance_embedding:
                     embedded_appearance = torch.ones(
                         (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
-                    ) * self.embedding_appearance.embedding.weight[:90, :].mean(dim=0)
+                    ) * self.embedding_appearance.mean(dim=0)
                 else:
                     embedded_appearance = torch.zeros(
                         (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
