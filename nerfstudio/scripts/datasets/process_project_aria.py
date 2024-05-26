@@ -373,3 +373,4 @@ class ProcessProjectAria:
 if __name__ == "__main__":
     tyro.extras.set_accent_color("bright_yellow")
     tyro.cli(ProcessProjectAria).main()
+    

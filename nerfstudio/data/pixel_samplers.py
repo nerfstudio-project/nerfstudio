@@ -308,7 +308,7 @@ class PixelSampler:
         if "mask" in batch:
             for i, num_rays in enumerate(num_rays_per_image):
                 image_height, image_width, _ = batch["image"][i].shape
-                
+
                 indices = self.sample_method(
                     num_rays, 1, image_height, image_width, mask=batch["mask"][i].unsqueeze(0), device=device
                 )

@@ -106,7 +106,7 @@ class NerfactoModelConfig(ModelConfig):
     """Predicted normal loss multiplier."""
     use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""
-    use_appearance_embedding: bool = False # was True
+    use_appearance_embedding: bool = True
     """Whether to use an appearance embedding."""
     use_average_appearance_embedding: bool = True
     """Whether to use average appearance embedding or zeros for inference."""
