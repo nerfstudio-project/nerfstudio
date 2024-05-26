@@ -157,9 +157,13 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         def undistort_idx(idx: int) -> Dict[str, torch.Tensor]:
             data = dataset.get_data(idx, image_type=self.config.cache_images_type)
             camera = dataset.cameras[idx].reshape(())
-            K = camera.get_intrinsics_matrices().numpy()
+            assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
+                f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
+                f'does not match the camera parameters ({camera.width.item(), camera.height.item()})'
+            )
             if camera.distortion_params is None or torch.all(camera.distortion_params == 0):
                 return data
+            K = camera.get_intrinsics_matrices().numpy()
             distortion_params = camera.distortion_params.numpy()
             image = data["image"].numpy()
 
@@ -303,15 +307,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         """Returns the next evaluation batch
 
         Returns a Camera instead of raybundle"""
-        image_idx = self.eval_unseen_cameras.pop(random.randint(0, len(self.eval_unseen_cameras) - 1))
-        # Make sure to re-populate the unseen cameras list if we have exhausted it
-        if len(self.eval_unseen_cameras) == 0:
-            self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
-        data = deepcopy(self.cached_eval[image_idx])
-        data["image"] = data["image"].to(self.device)
-        assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
-        camera = self.eval_dataset.cameras[image_idx : image_idx + 1].to(self.device)
-        return camera, data
+        return self.next_eval_image(step=step)
 
     def next_eval_image(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next evaluation batch
@@ -335,6 +331,10 @@ def _undistort_image(
 ) -> Tuple[np.ndarray, np.ndarray, Optional[torch.Tensor]]:
     mask = None
     if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
+        assert distortion_params[3] == 0, (
+            "We doesn't support the 4th Brown parameter for image undistortion, "
+            "Only k1, k2, k3, p1, p2 can be non-zero."
+        )
         distortion_params = np.array(
             [
                 distortion_params[0],

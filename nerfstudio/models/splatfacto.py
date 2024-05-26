@@ -91,6 +91,7 @@ def resize_image(image: torch.Tensor, d: int):
     """
     import torch.nn.functional as tf
 
+    image = image.to(torch.float32)
     weight = (1.0 / (d * d)) * torch.ones((1, 1, d, d), dtype=torch.float32, device=image.device)
     return tf.conv2d(image.permute(2, 0, 1)[:, None, ...], weight, stride=d).squeeze(1).permute(1, 2, 0)
 
@@ -649,6 +650,13 @@ class SplatfactoModel(Model):
             return resize_image(image, d)
         return image
 
+    @staticmethod
+    def get_empty_outputs(width: int, height: int, background: torch.Tensor) -> Dict[str, Union[torch.Tensor, List]]:
+        rgb = background.repeat(height, width, 1)
+        depth = background.new_ones(*rgb.shape[:2], 1) * 10
+        accumulation = background.new_zeros(*rgb.shape[:2], 1)
+        return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
+
     def get_outputs(self, camera: Cameras) -> Dict[str, Union[torch.Tensor, List]]:
         """Takes in a Ray Bundle and returns a dictionary of outputs.
 
@@ -687,10 +695,7 @@ class SplatfactoModel(Model):
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
-                rgb = background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
-                depth = background.new_ones(*rgb.shape[:2], 1) * 10
-                accumulation = background.new_zeros(*rgb.shape[:2], 1)
-                return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
+                return self.get_empty_outputs(int(camera.width.item()), int(camera.height.item()), background)
         else:
             crop_ids = None
         camera_downscale = self._get_downscale_factor()
@@ -750,11 +755,7 @@ class SplatfactoModel(Model):
         camera.rescale_output_resolution(camera_downscale)
 
         if (self.radii).sum() == 0:
-            rgb = background.repeat(H, W, 1)
-            depth = background.new_ones(*rgb.shape[:2], 1) * 10
-            accumulation = background.new_zeros(*rgb.shape[:2], 1)
-
-            return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
+            return self.get_empty_outputs(W, H, background)
 
         if self.config.sh_degree > 0:
             viewdirs = means_crop.detach() - optimized_camera_to_world.detach()[:3, 3]  # (N, 3)
@@ -925,11 +926,7 @@ class SplatfactoModel(Model):
             A dictionary of metrics.
         """
         gt_rgb = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
-        d = self._get_downscale_factor()
-        if d > 1:
-            predicted_rgb = resize_image(outputs["rgb"], d)
-        else:
-            predicted_rgb = outputs["rgb"]
+        predicted_rgb = outputs["rgb"]
 
         combined_rgb = torch.cat([gt_rgb, predicted_rgb], dim=1)
 
