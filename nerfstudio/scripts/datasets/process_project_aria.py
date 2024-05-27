@@ -18,7 +18,7 @@ import threading
 from dataclasses import dataclass
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from pathlib import Path
-from typing import Any, Dict, List, cast, Optional
+from typing import Any, cast, Dict, List, Optional
 
 import numpy as np
 import open3d as o3d
@@ -26,7 +26,7 @@ import tyro
 from PIL import Image
 
 try:
-    from projectaria_tools.core import mps, calibration
+    from projectaria_tools.core import calibration, mps 
     from projectaria_tools.core.image import InterpolationMethod
     from projectaria_tools.core.data_provider import VrsDataProvider, create_vrs_data_provider
     from projectaria_tools.core.mps.utils import filter_points_from_confidence
