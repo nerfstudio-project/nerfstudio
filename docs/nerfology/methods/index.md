@@ -46,6 +46,7 @@ The following methods are supported in nerfstudio:
     Zip-NeRF<zipnerf.md>
     BioNeRF<bionerf.md>
     NeRFtoGSandBack<nerf2gs2nerf.md>
+    OpenNeRF<opennerf.md>
 ```
 
 (own_method_docs)=
