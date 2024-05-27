@@ -98,7 +98,7 @@ def resize_image(image: torch.Tensor, d: int):
     return tf.conv2d(image.permute(2, 0, 1)[:, None, ...], weight, stride=d).squeeze(1).permute(1, 2, 0)
 
 
-@torch.compile(dynamic=False)
+@torch.compile()
 def get_viewmat(optimized_camera_to_world):
     """
     function that converts c2w to gsplat world2camera matrix, using compile for some speed
@@ -171,7 +171,7 @@ class SplatfactoModelConfig(ModelConfig):
     """threshold of ratio of gaussian max to min scale before applying regularization
     loss from the PhysGaussian paper
     """
-    output_depth_during_training: bool = False
+    output_depth_during_training: bool = True
     """If True, output depth during training. Otherwise, only output depth during evaluation."""
     rasterize_mode: Literal["classic", "antialiased"] = "classic"
     """
@@ -723,7 +723,7 @@ class SplatfactoModel(Model):
             raise ValueError("Unknown rasterize_mode: %s", self.config.rasterize_mode)
 
         if self.config.output_depth_during_training or not self.training:
-            render_mode = "RGB+D"
+            render_mode = "RGB+ED"
         else:
             render_mode = "RGB"
 
@@ -761,7 +761,7 @@ class SplatfactoModel(Model):
         alpha = alpha[0, ...]
         rgb = render[0, ..., :3] + (1 - alpha) * background
         rgb = torch.clamp(rgb, 0.0, 1.0)
-        if render_mode == "RGB+D":
+        if render_mode == "RGB+ED":
             depth_im = render[0, ..., 3:4]
             depth_im = torch.where(alpha > 0, depth_im, depth_im.detach().max())
         else:
@@ -845,10 +845,16 @@ class SplatfactoModel(Model):
             scale_reg = 0.1 * scale_reg.mean()
         else:
             scale_reg = torch.tensor(0.0).to(self.device)
-
+        if 'depth_image' in batch:
+            gt_depth = self.get_gt_img(batch['depth_image'])
+            ignores = gt_depth == 0
+            depth_loss = (gt_depth - outputs['depth'])[~ignores].abs().mean()
+        else:
+            depth_loss = torch.tensor(0.0).to(self.device)
         loss_dict = {
             "main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,
             "scale_reg": scale_reg,
+            'depth_loss':depth_loss
         }
 
         if self.training:

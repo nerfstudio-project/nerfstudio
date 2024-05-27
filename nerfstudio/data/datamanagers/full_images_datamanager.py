@@ -200,14 +200,16 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 cache["image"] = cache["image"].to(self.device)
                 if "mask" in cache:
                     cache["mask"] = cache["mask"].to(self.device)
-                if "depth" in cache:
-                    cache["depth"] = cache["depth"].to(self.device)
+                if "depth_image" in cache:
+                    cache["depth_image"] = cache["depth_image"].to(self.device)
                 self.train_cameras = self.train_dataset.cameras.to(self.device)
         elif cache_images_device == "cpu":
             for cache in undistorted_images:
                 cache["image"] = cache["image"].pin_memory()
                 if "mask" in cache:
                     cache["mask"] = cache["mask"].pin_memory()
+                if "depth_image" in cache:
+                    cache["depth_image"] = cache["depth_image"].to(self.device)
                 self.train_cameras = self.train_dataset.cameras
         else:
             assert_never(cache_images_device)
