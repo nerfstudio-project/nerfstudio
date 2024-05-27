@@ -16,6 +16,7 @@ import json
 import sys
 import threading
 from dataclasses import dataclass
+from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from pathlib import Path
 from typing import Any, Dict, List, cast, Optional
 
@@ -28,7 +29,7 @@ try:
     from projectaria_tools.core import mps, calibration
     from projectaria_tools.core.image import InterpolationMethod
     from projectaria_tools.core.data_provider import VrsDataProvider, create_vrs_data_provider
-    from projectaria_tools.core.mps.utils import filter_points_from_confidence, get_nearest_pose
+    from projectaria_tools.core.mps.utils import filter_points_from_confidence
     from projectaria_tools.core.sophus import SE3
 except ImportError:
     print("projectaria_tools import failed, please install with pip3 install projectaria-tools'[all]'")
@@ -70,14 +71,12 @@ class AriaImageFrame:
     t_world_camera: SE3
     timestamp_ns: float
     pinhole_intrinsic: List[float]
-    fisheye_crop_radius: float
 
 
 @dataclass
 class TimedPoses:
     timestamps_ns: np.ndarray
     t_world_devices: List[SE3]
-    closed_loop_traj: List # It's a list of ClosedLoopTrajectoryPose objects, which is a C++ struct
 
 
 def get_camera_calibs(provider: VrsDataProvider, name="camera-rgb") -> AriaCameraCalibration:
@@ -108,16 +107,14 @@ def get_camera_calibs(provider: VrsDataProvider, name="camera-rgb") -> AriaCamer
 
 
 def read_trajectory_csv_to_dict(file_iterable_csv: str) -> TimedPoses:
-    closed_loop_traj = mps.read_closed_loop_trajectory(file_iterable_csv)  # has length 32689, so does timestamps_secs and poses.
+    closed_loop_traj = mps.read_closed_loop_trajectory(file_iterable_csv)
     timestamps_secs, poses = zip(
         *[(it.tracking_timestamp.total_seconds(), it.transform_world_device) for it in closed_loop_traj]
     )
     SEC_TO_NANOSEC = 1e9
-    # print(timestamps_secs[:8]) # prints (405.218581, 405.219225, 405.220223, 405.221243, 405.222218, 405.223262, 405.224214, 405.225212)
     return TimedPoses(
         timestamps_ns=(np.array(timestamps_secs) * SEC_TO_NANOSEC).astype(int),
         t_world_devices=poses,
-        closed_loop_traj=closed_loop_traj,
     )
 
 def undistort_fisheye624(provider: VrsDataProvider, sensor_name: str, index: int):# -> List[np.ndarray, tuple]:
@@ -165,7 +162,6 @@ def to_aria_image_frame(
     output_dir: Path,
     name: str = "camera-rgb",
     pinhole: bool = False,
-    fisheye_crop_radius: float = 512,
 
 ) -> AriaImageFrame:
     aria_camera_calibration = name_to_camera[name]
@@ -175,7 +171,7 @@ def to_aria_image_frame(
     # Get the image corresponding to this index
     image_data = provider.get_image_data_by_index(stream_id, index)
     rectified_img, intrinsic = image_data[0].to_numpy_array(), (0, 0, 0, 0)
-    if pinhole == True:
+    if pinhole:
         rectified_img, intrinsic = undistort_fisheye624(provider, name, index)
     img = Image.fromarray(rectified_img)
     capture_time_ns = image_data[1].capture_timestamp_ns
@@ -184,26 +180,21 @@ def to_aria_image_frame(
     file_path = f"{output_dir}/{name}_{capture_time_ns}.jpg"
     threading.Thread(target=lambda: img.save(file_path)).start()
     
-    # find the world_to_device transformation
-    time_start = int(t_world_devices.closed_loop_traj[0].tracking_timestamp.total_seconds() * 1e9)
-    time_end = int(t_world_devices.closed_loop_traj[-1].tracking_timestamp.total_seconds() * 1e9)
-    capture_time_ns = np.clip(capture_time_ns, time_start + 1, time_end - 1)
-    pose_info = get_nearest_pose(t_world_devices.closed_loop_traj, capture_time_ns)
-    t_world_device = pose_info.transform_world_device
-    
-    # calculate the extrinsic matrix
-    device_calibration = provider.get_device_calibration()
-    camera_calibration = device_calibration.get_camera_calib(name)
-    T_device_camera = camera_calibration.get_transform_device_camera()
-    t_world_camera = t_world_device @ T_device_camera @ T_ARIA_NERFSTUDIO
+    # Find the nearest neighbor pose with the closest timestamp to the capture time.
+    nearest_pose_idx = np.searchsorted(t_world_devices.timestamps_ns, capture_time_ns)
+    nearest_pose_idx = np.minimum(nearest_pose_idx, len(t_world_devices.timestamps_ns) - 1)
+    assert nearest_pose_idx != -1, f"Could not find pose for {capture_time_ns}"
+    t_world_device = t_world_devices.t_world_devices[nearest_pose_idx]
+
+    # Compute the world to camera transform.
+    t_world_camera = t_world_device @ aria_camera_calibration.t_device_camera @ T_ARIA_NERFSTUDIO
 
     return AriaImageFrame(
         camera=aria_camera_calibration,
         file_path=file_path,
         t_world_camera=t_world_camera,
-        timestamp_ns=capture_time_ns.item(),
+        timestamp_ns=capture_time_ns,
         pinhole_intrinsic=intrinsic,
-        fisheye_crop_radius=fisheye_crop_radius
     )
 
 def to_nerfstudio_frame(frame: AriaImageFrame, pinhole: bool=False, mask_path: str=None) -> Dict:
@@ -269,18 +260,10 @@ class ProcessProjectAria:
         if self.vrs_file2 and self.mps_data_dir2:
             vrs_mps_points_triplets.append((self.vrs_file2, self.mps_data_dir2, self.points_file2))
         
-        from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
-        if self.include_side_cameras:
-            nerfstudio_frames = {
-                "camera_model": CAMERA_MODELS["perspective"].value,
-                "frames" : []
-            }
-        else:
-            nerfstudio_frames = {
-                "camera_model": ARIA_CAMERA_MODEL,
-                "frames" : [],
-                "fisheye_crop_radius": 707.5
-            }
+        nerfstudio_frames = {
+            "camera_model": CAMERA_MODELS["perspective"].value if self.include_side_cameras else ARIA_CAMERA_MODEL,
+            "frames": [],
+        }
         points = []
         
         for rec_i, (vrs_file, mps_data_dir, points_file) in enumerate(vrs_mps_points_triplets):
@@ -300,32 +283,28 @@ class ProcessProjectAria:
             print(f"Creating Aria frames for recording {rec_i + 1}...")
             CANONICAL_RGB_VALID_RADIUS = 707.5 # radius of a circular mask that represents the valid area on the camera's sensor plane. Pixels out of this circular region are considered invalid
             CANONICAL_RGB_WIDTH = 1408
-            rgb_valid_radius = 707.5 # CANONICAL_RGB_VALID_RADIUS * (aria_camera_frames[0][0].camera.width / CANONICAL_RGB_WIDTH) # 707.5
-            CANONICAL_SLAM_VALID_RADIUS = 330 # found here https://github.com/facebookresearch/projectaria_tools/blob/4aee633cb667ab927825dc10477cad0df8393a34/core/calibration/loader/SensorCalibrationJson.cpp#L102C5-L104C18
-            CANONICAL_SLAM_WIDTH = 640
-            slam_valid_radius = 330.0 # CANONICAL_SLAM_VALID_RADIUS * (aria_camera_frames[1][0].camera.width / CANONICAL_SLAM_WIDTH) # equal to 330 in the end
-            valid_radii = [rgb_valid_radius, slam_valid_radius, slam_valid_radius]
-            
             if not self.include_side_cameras:
-                aria_camera_frames = [
+                aria_rgb_frames = [
+                    to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[0])
+                    for index in range(0, provider.get_num_data(stream_ids[0]), 7) # TODO: get rid of 7 in PR
+                ]
+                print(f"Creating NerfStudio frames for recording {rec_i + 1}...")
+                nerfstudio_frames["frames"] += [to_nerfstudio_frame(frame) for frame in aria_rgb_frames[0]]
+                rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (aria_rgb_frames[0].camera.width / CANONICAL_RGB_WIDTH) # in case the user gives us 2880
+                nerfstudio_frames["fisheye_crop_radius"] = rgb_valid_radius
+            else:
+                aria_all3cameras_pinhole_frames = [
                     [
-                        to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[i], pinhole=False, fisheye_crop_radius=valid_radii[i])
+                        to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[i], pinhole=True)
                         for index in range(0, provider.get_num_data(stream_id), 7) # TODO: get rid of 7 in PR
                     ] 
                     for i, stream_id in enumerate(stream_ids)
                 ]
-                print(f"Creating NerfStudio frames for recording {rec_i + 1}...")
-                from nerfstudio.process_data.process_data_utils import CAMERA_MODELS # print("HELLO", CAMERA_MODELS["perspective"].value) # prints "OPENCV"
-                nerfstudio_frames["frames"] += [to_nerfstudio_frame(frame) for frame in aria_camera_frames[0]]
-            else:
-                aria_camera_pinhole_frames = [
-                    [
-                        to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[i], pinhole=True)
-                        for index in range(0, provider.get_num_data(stream_id), 7)
-                    ] 
-                    for i, stream_id in enumerate(stream_ids)
-                ]
-                rgb_mask_nparray, slam_mask_nparray = generate_circular_mask(1408, 1408, 707.5), generate_circular_mask(480, 640, 330)
+                # generate masks for undistorted images
+                rgb_width = aria_all3cameras_pinhole_frames[0][0].camera.width
+                rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (rgb_width / CANONICAL_RGB_WIDTH)
+                slam_valid_radius = 330.0 # found here: https://github.com/facebookresearch/projectaria_tools/blob/4aee633cb667ab927825dc10477cad0df8393a34/core/calibration/loader/SensorCalibrationJson.cpp#L102C5-L104C18
+                rgb_mask_nparray, slam_mask_nparray = generate_circular_mask(rgb_width, rgb_width, rgb_valid_radius), generate_circular_mask(480, 640, slam_valid_radius)
                 rgb_mask_filepath, slam_mask_filepath = f"{self.output_dir}/rgb_mask.jpg", f"{self.output_dir}/slam_mask.jpg"
                 Image.fromarray(rgb_mask_nparray).save(rgb_mask_filepath)
                 Image.fromarray(slam_mask_nparray).save(slam_mask_filepath)
@@ -335,7 +314,7 @@ class ProcessProjectAria:
                 pinhole_frames = [
                     to_nerfstudio_frame(frame, pinhole=True, mask_path=mask_filepath) 
                         for i, mask_filepath in enumerate(mask_filepaths) 
-                        for frame in aria_camera_pinhole_frames[i]
+                        for frame in aria_all3cameras_pinhole_frames[i]
                     ]
                 nerfstudio_frames["frames"] += pinhole_frames
             
@@ -350,11 +329,11 @@ class ProcessProjectAria:
 
             if points_path.exists():
                 print(f"Found global points for recording {rec_i+1}")
-                points_data = mps.read_global_point_cloud(str(points_path))  # type: ignore
+                points_data = mps.read_global_point_cloud(str(points_path)) # type: ignore
                 points_data = filter_points_from_confidence(points_data)
                 points += [cast(Any, it).position_world for it in points_data]
         
-        if len(points):
+        if points:
             print("Saving found points to PLY...")
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(np.array(points))
