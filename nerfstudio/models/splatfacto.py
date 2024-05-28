@@ -661,11 +661,11 @@ class SplatfactoModel(Model):
         if not isinstance(camera, Cameras):
             print("Called get_outputs with not a camera")
             return {}
-        assert camera.shape[0] == 1, "Only one camera at a time"
 
         # get the background color
         if self.training:
-            optimized_camera_to_world = self.camera_optimizer.apply_to_camera(camera)[0, ...]
+            assert camera.shape[0] == 1, "Only one camera at a time"
+            optimized_camera_to_world = self.camera_optimizer.apply_to_camera(camera)
 
             if self.config.background_color == "random":
                 background = torch.rand(3, device=self.device)
@@ -676,7 +676,7 @@ class SplatfactoModel(Model):
             else:
                 background = self.background_color.to(self.device)
         else:
-            optimized_camera_to_world = camera.camera_to_worlds[0, ...]
+            optimized_camera_to_world = camera.camera_to_worlds
 
             if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
                 background = renderers.BACKGROUND_COLOR_OVERRIDE.to(self.device)
@@ -691,9 +691,7 @@ class SplatfactoModel(Model):
             crop_ids = None
         camera_scale_fac = 1.0 / self._get_downscale_factor()
         viewmat = get_viewmat(optimized_camera_to_world)
-        cx = camera.cx.item() * camera_scale_fac
-        cy = camera.cy.item() * camera_scale_fac
-        W, H = int(camera.width.item() * camera_scale_fac), int(camera.height.item() * camera_scale_fac)
+        W, H = int(camera.width[0] * camera_scale_fac), int(camera.height[0] * camera_scale_fac)
         self.last_size = (H, W)
 
         if crop_ids is not None:
@@ -713,17 +711,14 @@ class SplatfactoModel(Model):
 
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
         BLOCK_WIDTH = 16  # this controls the tile size of rasterization, 16 is a good default
-        K = torch.tensor(
-            [[camera.fx.item() * camera_scale_fac, 0, cx], [0, camera.fy.item() * camera_scale_fac, cy], [0, 0, 1]],
-            device=self.device,
-        )
-
+        K = camera.get_intrinsics_matrices().cuda()
+        K[:,:2,:] *= camera_scale_fac
         # apply the compensation of screen space blurring to gaussians
         if self.config.rasterize_mode not in ["antialiased", "classic"]:
             raise ValueError("Unknown rasterize_mode: %s", self.config.rasterize_mode)
 
         if self.config.output_depth_during_training or not self.training:
-            render_mode = "RGB+D"
+            render_mode = "RGB+ED"
         else:
             render_mode = "RGB"
 
@@ -738,8 +733,8 @@ class SplatfactoModel(Model):
             scales=torch.exp(scales_crop),
             opacities=torch.sigmoid(opacities_crop).squeeze(-1),
             colors=colors_crop,
-            viewmats=viewmat[None, :, :],  # [1, 4, 4]
-            Ks=K[None],  # [1, 3, 3]
+            viewmats=viewmat,  # [1, 4, 4]
+            Ks=K,  # [1, 3, 3]
             width=W,
             height=H,
             tile_size=BLOCK_WIDTH,
@@ -758,16 +753,15 @@ class SplatfactoModel(Model):
         self.xys = info["means2d"]  # [1, N, 2]
         self.radii = info["radii"][0]  # [N]
 
-        alpha = alpha[0, ...]
-        rgb = render[0, ..., :3] + (1 - alpha) * background
+        alpha = alpha[:, ...]
+        rgb = render[:, ..., :3] + (1 - alpha) * background
         rgb = torch.clamp(rgb, 0.0, 1.0)
-        if render_mode == "RGB+D":
-            depth_im = render[0, ..., 3:4]
+        if render_mode == "RGB+ED":
+            depth_im = render[:, ..., 3:4]
             depth_im = torch.where(alpha > 0, depth_im, depth_im.detach().max())
         else:
             depth_im = None
-
-        return {"rgb": rgb, "depth": depth_im, "accumulation": alpha, "background": background}  # type: ignore
+        return {"rgb": rgb.squeeze(0), "depth": depth_im.squeeze(0), "accumulation": alpha.squeeze(0), "background": background}  # type: ignore
 
     def get_gt_img(self, image: torch.Tensor):
         """Compute groundtruth image with iteration dependent downscale factor for evaluation purpose
