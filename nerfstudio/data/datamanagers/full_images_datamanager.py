@@ -161,7 +161,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
                 f'does not match the camera parameters ({camera.width.item(), camera.height.item()})'
             )
-            if camera.distortion_params is None:
+            if camera.distortion_params is None or torch.all(camera.distortion_params == 0):
                 return data
             K = camera.get_intrinsics_matrices().numpy()
             distortion_params = camera.distortion_params.numpy()
@@ -307,15 +307,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         """Returns the next evaluation batch
 
         Returns a Camera instead of raybundle"""
-        image_idx = self.eval_unseen_cameras.pop(random.randint(0, len(self.eval_unseen_cameras) - 1))
-        # Make sure to re-populate the unseen cameras list if we have exhausted it
-        if len(self.eval_unseen_cameras) == 0:
-            self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
-        data = deepcopy(self.cached_eval[image_idx])
-        data["image"] = data["image"].to(self.device)
-        assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
-        camera = self.eval_dataset.cameras[image_idx : image_idx + 1].to(self.device)
-        return camera, data
+        return self.next_eval_image(step=step)
 
     def next_eval_image(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next evaluation batch
