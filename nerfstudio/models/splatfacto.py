@@ -757,10 +757,10 @@ class SplatfactoModel(Model):
         rgb = torch.clamp(rgb, 0.0, 1.0)
         if render_mode == "RGB+ED":
             depth_im = render[:, ..., 3:4]
-            depth_im = torch.where(alpha > 0, depth_im, depth_im.detach().max())
+            depth_im = torch.where(alpha > 0, depth_im, depth_im.detach().max()).squeeze(0)
         else:
             depth_im = None
-        return {"rgb": rgb.squeeze(0), "depth": depth_im.squeeze(0), "accumulation": alpha.squeeze(0), "background": background}  # type: ignore
+        return {"rgb": rgb.squeeze(0), "depth": depth_im, "accumulation": alpha.squeeze(0), "background": background}  # type: ignore
 
     def get_gt_img(self, image: torch.Tensor):
         """Compute groundtruth image with iteration dependent downscale factor for evaluation purpose
