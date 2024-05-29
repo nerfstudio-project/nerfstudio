@@ -206,7 +206,7 @@ def to_aria_image_frame(
     )
 
 
-def to_nerfstudio_frame(frame: AriaImageFrame, mask_path: str, pinhole: bool = False) -> Dict:
+def to_nerfstudio_frame(frame: AriaImageFrame, pinhole: bool = False, mask_path: str = None) -> Dict:
     if pinhole:
         return {
             "fl_x": frame.pinhole_intrinsic[0],
@@ -289,7 +289,7 @@ class ProcessProjectAria:
 
             stream_ids = [
                 provider.get_stream_id_from_label(name) for name in names
-            ]  # prints [214-1, 1201-1, 1201-2], which is correct
+            ]
 
             # create an AriaImageFrame for each image in the VRS.
             print(f"Creating Aria frames for recording {rec_i + 1}...")
@@ -306,7 +306,7 @@ class ProcessProjectAria:
                 nerfstudio_frames["frames"] += [to_nerfstudio_frame(frame) for frame in aria_rgb_frames]
                 rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (
                     aria_rgb_frames[0].camera.width / CANONICAL_RGB_WIDTH
-                )  # in case the user gives us 2880
+                )  # to handle both high-res 2880 x 2880 aria captures 
                 nerfstudio_frames["fisheye_crop_radius"] = rgb_valid_radius
             else:
                 aria_all3cameras_pinhole_frames = [
