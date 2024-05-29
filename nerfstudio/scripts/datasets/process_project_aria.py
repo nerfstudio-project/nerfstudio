@@ -124,21 +124,25 @@ def undistort_fisheye624(provider: VrsDataProvider, sensor_name: str, index: int
     Given a VrsDataProvider, and a name of a fisheye624 camera, and index of image in the capture
     Returns a nparray representing the image and intrinsic
     """
+    # Retrieve the image at specified index
     sensor_stream_id = provider.get_stream_id_from_label(sensor_name)
     assert sensor_stream_id is not None, f"Could not find stream {sensor_name}"
     image_data = provider.get_image_data_by_index(sensor_stream_id, index)
     image_array = image_data[0].to_numpy_array().astype(np.uint64)
 
+    # Retrieve the current camera calibration
     device_calib = provider.get_device_calibration()
     assert device_calib is not None, "Could not find device calibration"
     src_calib = device_calib.get_camera_calib(sensor_name)
     assert isinstance(src_calib, calibration.CameraCalibration), "src_calib is not of type CameraCalibration"
 
+    # Construct the final camera calibration
     f_length = 500 if sensor_name == "camera-rgb" else 170
     num_rows, num_cols = image_array.shape[0], image_array.shape[1]
     dst_calib = calibration.get_linear_camera_calibration(num_cols, num_rows, f_length, sensor_name)
     assert isinstance(dst_calib, calibration.CameraCalibration), "dst_calib is not of type CameraCalibration"
 
+    # Undistort the fisheye624 image into a pinhole image
     rectified_image = calibration.distort_by_calibration(
         image_array, dst_calib, src_calib, InterpolationMethod.BILINEAR
     )
@@ -287,9 +291,7 @@ class ProcessProjectAria:
             trajectory_csv = mps_data_dir / "closed_loop_trajectory.csv"
             t_world_devices = read_trajectory_csv_to_dict(str(trajectory_csv.absolute()))
 
-            stream_ids = [
-                provider.get_stream_id_from_label(name) for name in names
-            ]
+            stream_ids = [provider.get_stream_id_from_label(name) for name in names]
 
             # create an AriaImageFrame for each image in the VRS.
             print(f"Creating Aria frames for recording {rec_i + 1}...")
@@ -306,7 +308,7 @@ class ProcessProjectAria:
                 nerfstudio_frames["frames"] += [to_nerfstudio_frame(frame) for frame in aria_rgb_frames]
                 rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (
                     aria_rgb_frames[0].camera.width / CANONICAL_RGB_WIDTH
-                )  # to handle both high-res 2880 x 2880 aria captures 
+                )  # to handle both high-res 2880 x 2880 aria captures
                 nerfstudio_frames["fisheye_crop_radius"] = rgb_valid_radius
             else:
                 aria_all3cameras_pinhole_frames = [
