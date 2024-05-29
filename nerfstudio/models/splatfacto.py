@@ -72,7 +72,7 @@ def RGB2SH(rgb):
     Converts from RGB values [0,1] to the 0th spherical harmonic coefficient
     """
     C0 = 0.28209479177387814
-    return rgb / C0
+    return (rgb - 0.5) / C0
 
 
 def SH2RGB(sh):
@@ -80,7 +80,7 @@ def SH2RGB(sh):
     Converts from the 0th spherical harmonic coefficient to RGB values [0,1]
     """
     C0 = 0.28209479177387814
-    return sh * C0
+    return sh * C0 + 0.5
 
 
 def resize_image(image: torch.Tensor, d: int):
