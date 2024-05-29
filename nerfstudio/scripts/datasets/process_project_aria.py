@@ -16,9 +16,8 @@ import json
 import sys
 import threading
 from dataclasses import dataclass
-from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from pathlib import Path
-from typing import Any, cast, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import numpy as np
 import open3d as o3d
@@ -27,8 +26,8 @@ from PIL import Image
 
 try:
     from projectaria_tools.core import calibration, mps 
+    from projectaria_tools.core.data_provider import create_vrs_data_provider, VrsDataProvider
     from projectaria_tools.core.image import InterpolationMethod
-    from projectaria_tools.core.data_provider import VrsDataProvider, create_vrs_data_provider
     from projectaria_tools.core.mps.utils import filter_points_from_confidence
     from projectaria_tools.core.sophus import SE3
 except ImportError:
@@ -107,10 +106,12 @@ def get_camera_calibs(provider: VrsDataProvider, name="camera-rgb") -> AriaCamer
 
 
 def read_trajectory_csv_to_dict(file_iterable_csv: str) -> TimedPoses:
-    closed_loop_traj = mps.read_closed_loop_trajectory(file_iterable_csv)
+    closed_loop_traj = mps.read_closed_loop_trajectory(file_iterable_csv) # type: ignore
+    
     timestamps_secs, poses = zip(
         *[(it.tracking_timestamp.total_seconds(), it.transform_world_device) for it in closed_loop_traj]
     )
+
     SEC_TO_NANOSEC = 1e9
     return TimedPoses(
         timestamps_ns=(np.array(timestamps_secs) * SEC_TO_NANOSEC).astype(int),
@@ -135,7 +136,6 @@ def undistort_fisheye624(provider: VrsDataProvider, sensor_name: str, index: int
     
     rectified_image = calibration.distort_by_calibration(image_array, dst_calib, src_calib, InterpolationMethod.BILINEAR)
     """The linear camera model (a.k.a pinhole model) is parametrized by 4 coefficients : f_x, f_y, c_x, c_y."""
-    # return None, None # UNCOMMENTING THIS FIXES THE SEGFAULT
     intrinsic = [f_length, f_length, num_cols//2, num_rows//2]
     return rectified_image, intrinsic
 
@@ -179,7 +179,7 @@ def to_aria_image_frame(
     # save the image
     file_path = f"{output_dir}/{name}_{capture_time_ns}.jpg"
     threading.Thread(target=lambda: img.save(file_path)).start()
-    
+
     # Find the nearest neighbor pose with the closest timestamp to the capture time.
     nearest_pose_idx = np.searchsorted(t_world_devices.timestamps_ns, capture_time_ns)
     nearest_pose_idx = np.minimum(nearest_pose_idx, len(t_world_devices.timestamps_ns) - 1)
@@ -241,14 +241,12 @@ class ProcessProjectAria:
     """Path to the point cloud file (usually called semidense_points.csv.gz) if not in the mps_data_dir"""
     include_side_cameras: bool = False
     """If True, include and process the images captured by the grayscale side cameras. If False, only uses the main RGB camera's data."""
-    two_users: bool = False
-    """If True, processes data from multiple users."""
     vrs_file2: Optional[Path] = None
-    """Path to the second VRS file if two_users is True"""
+    """Path to the second VRS file if provided"""
     mps_data_dir2: Optional[Path] = None
-    """Path to the second MPS attachments if two_users is True"""
+    """Path to the second MPS attachments if provided"""
     points_file2: Optional[Path] = None
-    """Path to the second point cloud file"""
+    """Path to the second point cloud file if provided"""
 
     def main(self) -> None:
         """Generate a nerfstudio dataset from ProjectAria data (VRS) and MPS attachments."""
@@ -261,7 +259,7 @@ class ProcessProjectAria:
             vrs_mps_points_triplets.append((self.vrs_file2, self.mps_data_dir2, self.points_file2))
         
         nerfstudio_frames = {
-            "camera_model": CAMERA_MODELS["perspective"].value if self.include_side_cameras else ARIA_CAMERA_MODEL,
+            "camera_model": "OPENCV" if self.include_side_cameras else ARIA_CAMERA_MODEL,
             "frames": [],
         }
         points = []
@@ -286,7 +284,7 @@ class ProcessProjectAria:
             if not self.include_side_cameras:
                 aria_rgb_frames = [
                     to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[0])
-                    for index in range(0, provider.get_num_data(stream_ids[0]), 7) # TODO: get rid of 7 in PR
+                    for index in range(0, provider.get_num_data(stream_ids[0]), 5) # TODO: remove 5 in PR
                 ]
                 print(f"Creating NerfStudio frames for recording {rec_i + 1}...")
                 nerfstudio_frames["frames"] += [to_nerfstudio_frame(frame) for frame in aria_rgb_frames[0]]
@@ -296,7 +294,7 @@ class ProcessProjectAria:
                 aria_all3cameras_pinhole_frames = [
                     [
                         to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[i], pinhole=True)
-                        for index in range(0, provider.get_num_data(stream_id), 7) # TODO: get rid of 7 in PR
+                        for index in range(0, provider.get_num_data(stream_id), 5) # TODO: remove 5 in PR
                     ] 
                     for i, stream_id in enumerate(stream_ids)
                 ]
