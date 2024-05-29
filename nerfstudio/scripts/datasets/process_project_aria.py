@@ -69,7 +69,7 @@ class AriaImageFrame:
     file_path: str
     t_world_camera: SE3
     timestamp_ns: float
-    pinhole_intrinsic: List[float]
+    pinhole_intrinsic: List[int]
 
 
 @dataclass
@@ -125,15 +125,19 @@ def undistort_fisheye624(provider: VrsDataProvider, sensor_name: str, index: int
     Returns a nparray representing the image and intrinsic
     """
     sensor_stream_id = provider.get_stream_id_from_label(sensor_name)
+    assert sensor_stream_id is not None, f"Could not find stream {sensor_name}"
     image_data = provider.get_image_data_by_index(sensor_stream_id, index)
-    image_array = image_data[0].to_numpy_array()
+    image_array = image_data[0].to_numpy_array().astype(np.uint64)
 
     device_calib = provider.get_device_calibration()
+    assert device_calib is not None, "Could not find device calibration"
     src_calib = device_calib.get_camera_calib(sensor_name)
+    assert isinstance(src_calib, calibration.CameraCalibration), "src_calib is not of type CameraCalibration"
 
     f_length = 500 if sensor_name == "camera-rgb" else 170
     num_rows, num_cols = image_array.shape[0], image_array.shape[1]
     dst_calib = calibration.get_linear_camera_calibration(num_cols, num_rows, f_length, sensor_name)
+    assert isinstance(dst_calib, calibration.CameraCalibration), "dst_calib is not of type CameraCalibration"
 
     rectified_image = calibration.distort_by_calibration(
         image_array, dst_calib, src_calib, InterpolationMethod.BILINEAR
@@ -174,7 +178,7 @@ def to_aria_image_frame(
 
     # Get the image corresponding to this index
     image_data = provider.get_image_data_by_index(stream_id, index)
-    rectified_img, intrinsic = image_data[0].to_numpy_array(), (0, 0, 0, 0)
+    rectified_img, intrinsic = image_data[0].to_numpy_array(), [0, 0, 0, 0]
     if pinhole:
         rectified_img, intrinsic = undistort_fisheye624(provider, name, index)
     img = Image.fromarray(rectified_img)
@@ -202,7 +206,7 @@ def to_aria_image_frame(
     )
 
 
-def to_nerfstudio_frame(frame: AriaImageFrame, pinhole: bool = False, mask_path: str = None) -> Dict:
+def to_nerfstudio_frame(frame: AriaImageFrame, mask_path: str, pinhole: bool=False) -> Dict:
     if pinhole:
         return {
             "fl_x": frame.pinhole_intrinsic[0],
@@ -296,10 +300,10 @@ class ProcessProjectAria:
                     to_aria_image_frame(
                         provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[0]
                     )
-                    for index in range(0, provider.get_num_data(stream_ids[0]), 5)  # TODO: remove 5 in PR
+                    for index in range(0, provider.get_num_data(stream_ids[0]))
                 ]
                 print(f"Creating NerfStudio frames for recording {rec_i + 1}...")
-                nerfstudio_frames["frames"] += [to_nerfstudio_frame(frame) for frame in aria_rgb_frames[0]]
+                nerfstudio_frames["frames"] += [to_nerfstudio_frame(frame) for frame in aria_rgb_frames]
                 rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (
                     aria_rgb_frames[0].camera.width / CANONICAL_RGB_WIDTH
                 )  # in case the user gives us 2880
@@ -316,7 +320,7 @@ class ProcessProjectAria:
                             name=names[i],
                             pinhole=True,
                         )
-                        for index in range(0, provider.get_num_data(stream_id), 5)  # TODO: remove 5 in PR
+                        for index in range(0, provider.get_num_data(stream_id))
                     ]
                     for i, stream_id in enumerate(stream_ids)
                 ]
