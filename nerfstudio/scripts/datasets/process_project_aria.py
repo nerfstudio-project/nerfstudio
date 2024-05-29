@@ -106,8 +106,8 @@ def get_camera_calibs(provider: VrsDataProvider, name="camera-rgb") -> AriaCamer
 
 
 def read_trajectory_csv_to_dict(file_iterable_csv: str) -> TimedPoses:
-    closed_loop_traj = mps.read_closed_loop_trajectory(file_iterable_csv) # type: ignore
-    
+    closed_loop_traj = mps.read_closed_loop_trajectory(file_iterable_csv)  # type: ignore
+
     timestamps_secs, poses = zip(
         *[(it.tracking_timestamp.total_seconds(), it.transform_world_device) for it in closed_loop_traj]
     )
@@ -118,10 +118,11 @@ def read_trajectory_csv_to_dict(file_iterable_csv: str) -> TimedPoses:
         t_world_devices=poses,
     )
 
-def undistort_fisheye624(provider: VrsDataProvider, sensor_name: str, index: int):# -> List[np.ndarray, tuple]:
+
+def undistort_fisheye624(provider: VrsDataProvider, sensor_name: str, index: int):  # -> List[np.ndarray, tuple]:
     """
     Given a VrsDataProvider, and a name of a fisheye624 camera, and index of image in the capture
-    Returns a nparray representing the image and intrinsic 
+    Returns a nparray representing the image and intrinsic
     """
     sensor_stream_id = provider.get_stream_id_from_label(sensor_name)
     image_data = provider.get_image_data_by_index(sensor_stream_id, index)
@@ -129,15 +130,18 @@ def undistort_fisheye624(provider: VrsDataProvider, sensor_name: str, index: int
 
     device_calib = provider.get_device_calibration()
     src_calib = device_calib.get_camera_calib(sensor_name)
-    
+
     f_length = 500 if sensor_name == "camera-rgb" else 170
     num_rows, num_cols = image_array.shape[0], image_array.shape[1]
     dst_calib = calibration.get_linear_camera_calibration(num_cols, num_rows, f_length, sensor_name)
-    
-    rectified_image = calibration.distort_by_calibration(image_array, dst_calib, src_calib, InterpolationMethod.BILINEAR)
+
+    rectified_image = calibration.distort_by_calibration(
+        image_array, dst_calib, src_calib, InterpolationMethod.BILINEAR
+    )
     """The linear camera model (a.k.a pinhole model) is parametrized by 4 coefficients : f_x, f_y, c_x, c_y."""
-    intrinsic = [f_length, f_length, num_cols//2, num_rows//2]
+    intrinsic = [f_length, f_length, num_cols // 2, num_rows // 2]
     return rectified_image, intrinsic
+
 
 def generate_circular_mask(numRows: int, numCols: int, radius: float):
     """
@@ -149,10 +153,11 @@ def generate_circular_mask(numRows: int, numCols: int, radius: float):
     center_row, center_col = numRows // 2, numCols // 2
 
     # Calculate the distance of each pixel from the center
-    distance_from_center = np.sqrt((rows - center_row)**2 + (cols - center_col)**2)
+    distance_from_center = np.sqrt((rows - center_row) ** 2 + (cols - center_col) ** 2)
     mask = np.zeros((numRows, numCols), dtype=np.uint8)
     mask[distance_from_center <= radius] = 1
     return mask
+
 
 def to_aria_image_frame(
     provider: VrsDataProvider,
@@ -162,7 +167,6 @@ def to_aria_image_frame(
     output_dir: Path,
     name: str = "camera-rgb",
     pinhole: bool = False,
-
 ) -> AriaImageFrame:
     aria_camera_calibration = name_to_camera[name]
     stream_id = provider.get_stream_id_from_label(name)
@@ -175,7 +179,7 @@ def to_aria_image_frame(
         rectified_img, intrinsic = undistort_fisheye624(provider, name, index)
     img = Image.fromarray(rectified_img)
     capture_time_ns = image_data[1].capture_timestamp_ns
-    
+
     # save the image
     file_path = f"{output_dir}/{name}_{capture_time_ns}.jpg"
     threading.Thread(target=lambda: img.save(file_path)).start()
@@ -197,7 +201,8 @@ def to_aria_image_frame(
         pinhole_intrinsic=intrinsic,
     )
 
-def to_nerfstudio_frame(frame: AriaImageFrame, pinhole: bool=False, mask_path: str=None) -> Dict:
+
+def to_nerfstudio_frame(frame: AriaImageFrame, pinhole: bool = False, mask_path: str = None) -> Dict:
     if pinhole:
         return {
             "fl_x": frame.pinhole_intrinsic[0],
@@ -209,7 +214,7 @@ def to_nerfstudio_frame(frame: AriaImageFrame, pinhole: bool=False, mask_path: s
             "file_path": frame.file_path,
             "transform_matrix": frame.t_world_camera.to_matrix().tolist(),
             "timestamp": frame.timestamp_ns,
-            "mask_path": mask_path
+            "mask_path": mask_path,
         }
     return {
         "fl_x": frame.camera.fx,
@@ -223,6 +228,7 @@ def to_nerfstudio_frame(frame: AriaImageFrame, pinhole: bool=False, mask_path: s
         "transform_matrix": frame.t_world_camera.to_matrix().tolist(),
         "timestamp": frame.timestamp_ns,
     }
+
 
 @dataclass
 class ProcessProjectAria:
@@ -257,65 +263,87 @@ class ProcessProjectAria:
         vrs_mps_points_triplets = [(self.vrs_file, self.mps_data_dir, self.points_file)]
         if self.vrs_file2 and self.mps_data_dir2:
             vrs_mps_points_triplets.append((self.vrs_file2, self.mps_data_dir2, self.points_file2))
-        
+
         nerfstudio_frames = {
             "camera_model": "OPENCV" if self.include_side_cameras else ARIA_CAMERA_MODEL,
             "frames": [],
         }
         points = []
-        
+
         for rec_i, (vrs_file, mps_data_dir, points_file) in enumerate(vrs_mps_points_triplets):
             provider = create_vrs_data_provider(str(vrs_file.absolute()))
             assert provider is not None, "Cannot open file"
-        
+
             names = ["camera-rgb", "camera-slam-left", "camera-slam-right"]
-            name_to_camera = {name: get_camera_calibs(provider, name) for name in names} # name_to_camera is of type Dict[str, AriaCameraCalibration]
-        
+            name_to_camera = {
+                name: get_camera_calibs(provider, name) for name in names
+            }  # name_to_camera is of type Dict[str, AriaCameraCalibration]
+
             print(f"Getting poses from recording {rec_i + 1}'s closed loop trajectory CSV...")
             trajectory_csv = mps_data_dir / "closed_loop_trajectory.csv"
             t_world_devices = read_trajectory_csv_to_dict(str(trajectory_csv.absolute()))
 
-            stream_ids = [provider.get_stream_id_from_label(name) for name in names] # prints [214-1, 1201-1, 1201-2], which is correct
+            stream_ids = [
+                provider.get_stream_id_from_label(name) for name in names
+            ]  # prints [214-1, 1201-1, 1201-2], which is correct
 
             # create an AriaImageFrame for each image in the VRS.
             print(f"Creating Aria frames for recording {rec_i + 1}...")
-            CANONICAL_RGB_VALID_RADIUS = 707.5 # radius of a circular mask that represents the valid area on the camera's sensor plane. Pixels out of this circular region are considered invalid
+            CANONICAL_RGB_VALID_RADIUS = 707.5  # radius of a circular mask that represents the valid area on the camera's sensor plane. Pixels out of this circular region are considered invalid
             CANONICAL_RGB_WIDTH = 1408
             if not self.include_side_cameras:
                 aria_rgb_frames = [
-                    to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[0])
-                    for index in range(0, provider.get_num_data(stream_ids[0]), 5) # TODO: remove 5 in PR
+                    to_aria_image_frame(
+                        provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[0]
+                    )
+                    for index in range(0, provider.get_num_data(stream_ids[0]), 5)  # TODO: remove 5 in PR
                 ]
                 print(f"Creating NerfStudio frames for recording {rec_i + 1}...")
                 nerfstudio_frames["frames"] += [to_nerfstudio_frame(frame) for frame in aria_rgb_frames[0]]
-                rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (aria_rgb_frames[0].camera.width / CANONICAL_RGB_WIDTH) # in case the user gives us 2880
+                rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (
+                    aria_rgb_frames[0].camera.width / CANONICAL_RGB_WIDTH
+                )  # in case the user gives us 2880
                 nerfstudio_frames["fisheye_crop_radius"] = rgb_valid_radius
             else:
                 aria_all3cameras_pinhole_frames = [
                     [
-                        to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[i], pinhole=True)
-                        for index in range(0, provider.get_num_data(stream_id), 5) # TODO: remove 5 in PR
-                    ] 
+                        to_aria_image_frame(
+                            provider,
+                            index,
+                            name_to_camera,
+                            t_world_devices,
+                            self.output_dir,
+                            name=names[i],
+                            pinhole=True,
+                        )
+                        for index in range(0, provider.get_num_data(stream_id), 5)  # TODO: remove 5 in PR
+                    ]
                     for i, stream_id in enumerate(stream_ids)
                 ]
                 # generate masks for undistorted images
                 rgb_width = aria_all3cameras_pinhole_frames[0][0].camera.width
                 rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (rgb_width / CANONICAL_RGB_WIDTH)
-                slam_valid_radius = 330.0 # found here: https://github.com/facebookresearch/projectaria_tools/blob/4aee633cb667ab927825dc10477cad0df8393a34/core/calibration/loader/SensorCalibrationJson.cpp#L102C5-L104C18
-                rgb_mask_nparray, slam_mask_nparray = generate_circular_mask(rgb_width, rgb_width, rgb_valid_radius), generate_circular_mask(480, 640, slam_valid_radius)
-                rgb_mask_filepath, slam_mask_filepath = f"{self.output_dir}/rgb_mask.jpg", f"{self.output_dir}/slam_mask.jpg"
+                slam_valid_radius = 330.0  # found here: https://github.com/facebookresearch/projectaria_tools/blob/4aee633cb667ab927825dc10477cad0df8393a34/core/calibration/loader/SensorCalibrationJson.cpp#L102C5-L104C18
+                rgb_mask_nparray, slam_mask_nparray = (
+                    generate_circular_mask(rgb_width, rgb_width, rgb_valid_radius),
+                    generate_circular_mask(480, 640, slam_valid_radius),
+                )
+                rgb_mask_filepath, slam_mask_filepath = (
+                    f"{self.output_dir}/rgb_mask.jpg",
+                    f"{self.output_dir}/slam_mask.jpg",
+                )
                 Image.fromarray(rgb_mask_nparray).save(rgb_mask_filepath)
                 Image.fromarray(slam_mask_nparray).save(slam_mask_filepath)
-                
+
                 print(f"Creating NerfStudio frames for recording {rec_i + 1}...")
                 mask_filepaths = [rgb_mask_filepath, slam_mask_filepath, slam_mask_filepath]
                 pinhole_frames = [
-                    to_nerfstudio_frame(frame, pinhole=True, mask_path=mask_filepath) 
-                        for i, mask_filepath in enumerate(mask_filepaths) 
-                        for frame in aria_all3cameras_pinhole_frames[i]
-                    ]
+                    to_nerfstudio_frame(frame, pinhole=True, mask_path=mask_filepath)
+                    for i, mask_filepath in enumerate(mask_filepaths)
+                    for frame in aria_all3cameras_pinhole_frames[i]
+                ]
                 nerfstudio_frames["frames"] += pinhole_frames
-            
+
             if points_file:
                 points_path = points_file
             else:
@@ -327,10 +355,10 @@ class ProcessProjectAria:
 
             if points_path.exists():
                 print(f"Found global points for recording {rec_i+1}")
-                points_data = mps.read_global_point_cloud(str(points_path)) # type: ignore
+                points_data = mps.read_global_point_cloud(str(points_path))  # type: ignore
                 points_data = filter_points_from_confidence(points_data)
                 points += [cast(Any, it).position_world for it in points_data]
-        
+
         if points:
             print("Saving found points to PLY...")
             pcd = o3d.geometry.PointCloud()
@@ -347,7 +375,7 @@ class ProcessProjectAria:
         with open(transform_file, "w", encoding="UTF-8"):
             transform_file.write_text(json.dumps(nerfstudio_frames))
 
+
 if __name__ == "__main__":
     tyro.extras.set_accent_color("bright_yellow")
     tyro.cli(ProcessProjectAria).main()
-    
