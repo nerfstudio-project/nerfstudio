@@ -672,10 +672,10 @@ class SplatfactoModel(Model):
             return {}
         assert camera.shape[0] == 1, "Only one camera at a time"
 
+        optimized_camera_to_world = self.camera_optimizer.apply_to_camera(camera)[0, ...]
+
         # get the background color
         if self.training:
-            optimized_camera_to_world = self.camera_optimizer.apply_to_camera(camera)[0, ...]
-
             if self.config.background_color == "random":
                 background = torch.rand(3, device=self.device)
             elif self.config.background_color == "white":
@@ -685,8 +685,6 @@ class SplatfactoModel(Model):
             else:
                 background = self.background_color.to(self.device)
         else:
-            optimized_camera_to_world = camera.camera_to_worlds[0, ...]
-
             if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
                 background = renderers.BACKGROUND_COLOR_OVERRIDE.to(self.device)
             else:
