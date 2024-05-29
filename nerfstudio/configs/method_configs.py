@@ -605,13 +605,15 @@ method_configs["splatfacto"] = TrainerConfig(
             dataparser=NerfstudioDataParserConfig(load_3D_points=True,depth_unit_scale_factor=1.0),
             cache_images_type="uint8",
         ),
-        model=SplatfactoModelConfig(),
+        model=SplatfactoModelConfig(
+            camera_optimizer=CameraOptimizerConfig(mode="SO3xR3"),
+        ),
     ),
     optimizers={
         "means": {
-            "optimizer": AdamOptimizerConfig(lr=1.6e-4, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-5, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
-                lr_final=1.6e-6,
+                lr_final=1.6e-7,
                 max_steps=30000,
             ),
         },
@@ -629,13 +631,16 @@ method_configs["splatfacto"] = TrainerConfig(
         },
         "scales": {
             "optimizer": AdamOptimizerConfig(lr=0.005, eps=1e-15),
-            "scheduler": None,
+            "scheduler": ExponentialDecaySchedulerConfig(
+                lr_final=0.003,
+                max_steps=30000,
+            ),
         },
         "quats": {"optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15), "scheduler": None},
         "camera_opt": {
-            "optimizer": AdamOptimizerConfig(lr=1e-4, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=5e-5, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
-                lr_final=5e-7, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
+                lr_final=5e-7, max_steps=30000, warmup_steps=3000, lr_pre_warmup=0
             ),
         },
     },

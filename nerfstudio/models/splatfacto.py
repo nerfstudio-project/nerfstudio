@@ -98,23 +98,21 @@ def resize_image(image: torch.Tensor, d: int):
     return tf.conv2d(image.permute(2, 0, 1)[:, None, ...], weight, stride=d).squeeze(1).permute(1, 2, 0)
 
 
-@torch.compile()
 def get_viewmat(optimized_camera_to_world):
     """
     function that converts c2w to gsplat world2camera matrix, using compile for some speed
     """
-    # shift the camera to center of scene looking at center
-    R = optimized_camera_to_world[:3, :3]  # 3 x 3
-    T = optimized_camera_to_world[:3, 3:4]  # 3 x 1
-
+    R = optimized_camera_to_world[:,:3, :3]  # 3 x 3
+    T = optimized_camera_to_world[:,:3, 3:4]  # 3 x 1
     # flip the z and y axes to align with gsplat conventions
-    R = R * torch.tensor([[1, -1, -1]], device=R.device, dtype=R.dtype)
+    R = R * torch.tensor([[[1, -1, -1]]], device=R.device, dtype=R.dtype)
     # analytic matrix inverse to get world2camera matrix
-    R_inv = R.T
-    T_inv = -R_inv @ T
-    viewmat = torch.eye(4, device=R.device, dtype=R.dtype)
-    viewmat[:3, :3] = R_inv
-    viewmat[:3, 3:4] = T_inv
+    R_inv = R.transpose(1,2)
+    T_inv = -torch.bmm(R_inv, T)
+    viewmat = torch.zeros(R.shape[0],4, 4, device=R.device, dtype=R.dtype)
+    viewmat[:,3,3] = 1.0#homogenous
+    viewmat[:,:3, :3] = R_inv
+    viewmat[:,:3, 3:4] = T_inv
     return viewmat
 
 
@@ -141,13 +139,13 @@ class SplatfactoModelConfig(ModelConfig):
     """If True, continue to cull gaussians post refinement"""
     reset_alpha_every: int = 30
     """Every this many refinement steps, reset the alpha"""
-    densify_grad_thresh: float = 0.0008
+    densify_grad_thresh: float = 0.0003
     """threshold of positional gradient norm for densifying gaussians"""
-    densify_size_thresh: float = 0.01
+    densify_size_thresh: float = 0.002
     """below this size, gaussians are *duplicated*, otherwise split"""
     n_split_samples: int = 2
     """number of samples to split gaussians into"""
-    sh_degree_interval: int = 1000
+    sh_degree_interval: int = 3000
     """every n intervals turn on another sh degree"""
     split_screen_size: float = 0.05
     """if a gaussian is more than this percent of screen space, split it"""
@@ -161,7 +159,7 @@ class SplatfactoModelConfig(ModelConfig):
     "Size of the cube to initialize random gaussians within"
     ssim_lambda: float = 0.2
     """weight of ssim loss"""
-    stop_split_at: int = 15000
+    stop_split_at: int = 25000
     """stop splitting at this step"""
     sh_degree: int = 3
     """maximum degree of spherical harmonics to use"""
@@ -661,11 +659,11 @@ class SplatfactoModel(Model):
         if not isinstance(camera, Cameras):
             print("Called get_outputs with not a camera")
             return {}
-        assert camera.shape[0] == 1, "Only one camera at a time"
 
         # get the background color
         if self.training:
-            optimized_camera_to_world = self.camera_optimizer.apply_to_camera(camera)[0, ...]
+            assert camera.shape[0] == 1, "Only one camera at a time"
+            optimized_camera_to_world = self.camera_optimizer.apply_to_camera(camera)
 
             if self.config.background_color == "random":
                 background = torch.rand(3, device=self.device)
@@ -676,7 +674,7 @@ class SplatfactoModel(Model):
             else:
                 background = self.background_color.to(self.device)
         else:
-            optimized_camera_to_world = camera.camera_to_worlds[0, ...]
+            optimized_camera_to_world = camera.camera_to_worlds
 
             if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
                 background = renderers.BACKGROUND_COLOR_OVERRIDE.to(self.device)
@@ -691,9 +689,7 @@ class SplatfactoModel(Model):
             crop_ids = None
         camera_scale_fac = 1.0 / self._get_downscale_factor()
         viewmat = get_viewmat(optimized_camera_to_world)
-        cx = camera.cx.item() * camera_scale_fac
-        cy = camera.cy.item() * camera_scale_fac
-        W, H = int(camera.width.item() * camera_scale_fac), int(camera.height.item() * camera_scale_fac)
+        W, H = int(camera.width[0] * camera_scale_fac), int(camera.height[0] * camera_scale_fac)
         self.last_size = (H, W)
 
         if crop_ids is not None:
@@ -713,11 +709,8 @@ class SplatfactoModel(Model):
 
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
         BLOCK_WIDTH = 16  # this controls the tile size of rasterization, 16 is a good default
-        K = torch.tensor(
-            [[camera.fx.item() * camera_scale_fac, 0, cx], [0, camera.fy.item() * camera_scale_fac, cy], [0, 0, 1]],
-            device=self.device,
-        )
-
+        K = camera.get_intrinsics_matrices().cuda()
+        K[:,:2,:] *= camera_scale_fac
         # apply the compensation of screen space blurring to gaussians
         if self.config.rasterize_mode not in ["antialiased", "classic"]:
             raise ValueError("Unknown rasterize_mode: %s", self.config.rasterize_mode)
@@ -738,8 +731,8 @@ class SplatfactoModel(Model):
             scales=torch.exp(scales_crop),
             opacities=torch.sigmoid(opacities_crop).squeeze(-1),
             colors=colors_crop,
-            viewmats=viewmat[None, :, :],  # [1, 4, 4]
-            Ks=K[None],  # [1, 3, 3]
+            viewmats=viewmat,  # [1, 4, 4]
+            Ks=K,  # [1, 3, 3]
             width=W,
             height=H,
             tile_size=BLOCK_WIDTH,
@@ -758,16 +751,15 @@ class SplatfactoModel(Model):
         self.xys = info["means2d"]  # [1, N, 2]
         self.radii = info["radii"][0]  # [N]
 
-        alpha = alpha[0, ...]
-        rgb = render[0, ..., :3] + (1 - alpha) * background
+        alpha = alpha[:, ...]
+        rgb = render[:, ..., :3] + (1 - alpha) * background
         rgb = torch.clamp(rgb, 0.0, 1.0)
         if render_mode == "RGB+ED":
-            depth_im = render[0, ..., 3:4]
+            depth_im = render[:, ..., 3:4]
             depth_im = torch.where(alpha > 0, depth_im, depth_im.detach().max())
         else:
             depth_im = None
-
-        return {"rgb": rgb, "depth": depth_im, "accumulation": alpha, "background": background}  # type: ignore
+        return {"rgb": rgb.squeeze(0), "depth": depth_im.squeeze(0), "accumulation": alpha.squeeze(0), "background": background}  # type: ignore
 
     def get_gt_img(self, image: torch.Tensor):
         """Compute groundtruth image with iteration dependent downscale factor for evaluation purpose
@@ -825,8 +817,10 @@ class SplatfactoModel(Model):
         # This is a little bit sketchy for the SSIM loss.
         if "mask" in batch:
             # batch["mask"] : [H, W, 1]
-            mask = self._downscale_if_required(batch["mask"])
+            #convert to float32
+            mask = self._downscale_if_required(batch["mask"].float())
             mask = mask.to(self.device)
+            mask[mask<1]=0.0
             assert mask.shape[:2] == gt_img.shape[:2] == pred_img.shape[:2]
             gt_img = gt_img * mask
             pred_img = pred_img * mask
@@ -847,7 +841,9 @@ class SplatfactoModel(Model):
             scale_reg = torch.tensor(0.0).to(self.device)
         if 'depth_image' in batch:
             gt_depth = self.get_gt_img(batch['depth_image'])
-            ignores = gt_depth == 0
+            ignores = gt_depth <= .001
+            # if "mask" in batch:
+            #     ignores = ignores | (mask == 0)
             depth_loss = (gt_depth - outputs['depth'])[~ignores].abs().mean()
         else:
             depth_loss = torch.tensor(0.0).to(self.device)
