@@ -210,7 +210,7 @@ def to_aria_image_frame(
     )
 
 
-def to_nerfstudio_frame(frame: AriaImageFrame, pinhole: bool = False, mask_path: str = None) -> Dict:
+def to_nerfstudio_frame(frame: AriaImageFrame, pinhole: bool = False, mask_path: str = "") -> Dict:
     if pinhole:
         return {
             "fl_x": frame.pinhole_intrinsic[0],
