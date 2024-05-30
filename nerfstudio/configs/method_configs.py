@@ -611,9 +611,9 @@ method_configs["splatfacto"] = TrainerConfig(
     ),
     optimizers={
         "means": {
-            "optimizer": AdamOptimizerConfig(lr=1e-5, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=5e-5, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
-                lr_final=1.6e-7,
+                lr_final=1e-6,
                 max_steps=30000,
             ),
         },

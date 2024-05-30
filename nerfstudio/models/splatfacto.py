@@ -139,7 +139,7 @@ class SplatfactoModelConfig(ModelConfig):
     """If True, continue to cull gaussians post refinement"""
     reset_alpha_every: int = 30
     """Every this many refinement steps, reset the alpha"""
-    densify_grad_thresh: float = 0.0004
+    densify_grad_thresh: float = 0.0006
     """threshold of positional gradient norm for densifying gaussians"""
     densify_size_thresh: float = 0.001
     """below this size, gaussians are *duplicated*, otherwise split"""
@@ -171,7 +171,7 @@ class SplatfactoModelConfig(ModelConfig):
     """
     output_depth_during_training: bool = True
     """If True, output depth during training. Otherwise, only output depth during evaluation."""
-    rasterize_mode: Literal["classic", "antialiased"] = "classic"
+    rasterize_mode: Literal["classic", "antialiased"] = "antialiased"
     """
     Classic mode of rendering will use the EWA volume splatting with a [0.3, 0.3] screen space blurring kernel. This
     approach is however not suitable to render tiny gaussians at higher or lower resolution than the captured, which
@@ -744,7 +744,7 @@ class SplatfactoModel(Model):
             sparse_grad=False,
             compute_means2d_absgrad=True,
             rasterize_mode=self.config.rasterize_mode,
-            radius_clip=0 if self.training else 3,  # faster visualization
+            radius_clip=0 if self.training else 1,  # faster visualization
         )
         if self.training and info["means2d"].requires_grad:
             info["means2d"].retain_grad()
