@@ -43,6 +43,7 @@ class DepthLossType(Enum):
     DS_NERF = 1
     URF = 2
     SPARSENERF_RANKING = 3
+    MSE = 4
 
 
 FORCE_PSEUDODEPTH_LOSS = False
@@ -220,6 +221,24 @@ def pred_normal_loss(
     """Loss between normals calculated from density and normals from prediction network."""
     return (weights[..., 0] * (1.0 - torch.sum(normals * pred_normals, dim=-1))).sum(dim=-1)
 
+def mse_depth_loss(
+    termination_depth: Float[Tensor, "*batch 1"],
+    predicted_depth: Float[Tensor, "*batch 1"],
+)-> Float[Tensor, "*batch 1"]:
+    """MSE depth loss. 
+
+    Args:
+        termination_depth: Ground truth depth of rays.
+        predicted_depth: Predicted depths.
+    Returns:
+        Depth loss scalar.
+    """
+    depth_mask = termination_depth > 0
+
+    expected_depth_loss = (termination_depth - predicted_depth) ** 2
+
+    expected_depth_loss = expected_depth_loss * depth_mask
+    return torch.mean(expected_depth_loss)
 
 def ds_nerf_depth_loss(
     weights: Float[Tensor, "*batch num_samples 1"],
@@ -317,6 +336,9 @@ def depth_loss(
     if depth_loss_type == DepthLossType.DS_NERF:
         lengths = ray_samples.frustums.ends - ray_samples.frustums.starts
         return ds_nerf_depth_loss(weights, termination_depth, steps, lengths, sigma)
+    
+    if depth_loss_type == DepthLossType.MSE:
+        return mse_depth_loss(termination_depth, predicted_depth) 
 
     if depth_loss_type == DepthLossType.URF:
         return urban_radiance_field_depth_loss(weights, termination_depth, predicted_depth, steps, sigma)
