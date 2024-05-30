@@ -129,7 +129,7 @@ class SplatfactoModelConfig(ModelConfig):
     """training starts at 1/d resolution, every n steps this is doubled"""
     background_color: Literal["random", "black", "white"] = "random"
     """Whether to randomize the background color."""
-    num_downscales: int = 2
+    num_downscales: int = 1
     """at the beginning, resolution is 1/2^d, where d is this number"""
     cull_alpha_thresh: float = 0.1
     """threshold of opacity for culling gaussians. One can set it to a lower value (e.g. 0.005) for higher quality."""
@@ -139,9 +139,9 @@ class SplatfactoModelConfig(ModelConfig):
     """If True, continue to cull gaussians post refinement"""
     reset_alpha_every: int = 30
     """Every this many refinement steps, reset the alpha"""
-    densify_grad_thresh: float = 0.0003
+    densify_grad_thresh: float = 0.0004
     """threshold of positional gradient norm for densifying gaussians"""
-    densify_size_thresh: float = 0.002
+    densify_size_thresh: float = 0.001
     """below this size, gaussians are *duplicated*, otherwise split"""
     n_split_samples: int = 2
     """number of samples to split gaussians into"""
@@ -163,7 +163,7 @@ class SplatfactoModelConfig(ModelConfig):
     """stop splitting at this step"""
     sh_degree: int = 3
     """maximum degree of spherical harmonics to use"""
-    use_scale_regularization: bool = False
+    use_scale_regularization: bool = True
     """If enabled, a scale regularization introduced in PhysGauss (https://xpandora.github.io/PhysGaussian/) is used for reducing huge spikey gaussians."""
     max_gauss_ratio: float = 10.0
     """threshold of ratio of gaussian max to min scale before applying regularization
@@ -836,7 +836,7 @@ class SplatfactoModel(Model):
                 )
                 - self.config.max_gauss_ratio
             )
-            scale_reg = 0.1 * scale_reg.mean()
+            scale_reg = 0.01 * scale_reg.sum()
         else:
             scale_reg = torch.tensor(0.0).to(self.device)
         if 'depth_image' in batch:
