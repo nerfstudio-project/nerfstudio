@@ -145,7 +145,7 @@ class SplatfactoModelConfig(ModelConfig):
     """below this size, gaussians are *duplicated*, otherwise split"""
     n_split_samples: int = 2
     """number of samples to split gaussians into"""
-    sh_degree_interval: int = 3000
+    sh_degree_interval: int = 2000
     """every n intervals turn on another sh degree"""
     split_screen_size: float = 0.05
     """if a gaussian is more than this percent of screen space, split it"""
@@ -820,7 +820,7 @@ class SplatfactoModel(Model):
             #convert to float32
             mask = self._downscale_if_required(batch["mask"].float())
             mask = mask.to(self.device)
-            mask[mask<1]=0.0
+            mask[mask<1] = 0.0
             assert mask.shape[:2] == gt_img.shape[:2] == pred_img.shape[:2]
             gt_img = gt_img * mask
             pred_img = pred_img * mask
@@ -842,8 +842,8 @@ class SplatfactoModel(Model):
         if 'depth_image' in batch:
             gt_depth = self.get_gt_img(batch['depth_image'])
             ignores = gt_depth <= .001
-            # if "mask" in batch:
-            #     ignores = ignores | (mask == 0)
+            if "mask" in batch:
+                ignores = ignores | (mask == 0)
             depth_loss = (gt_depth - outputs['depth'])[~ignores].abs().mean()
         else:
             depth_loss = torch.tensor(0.0).to(self.device)

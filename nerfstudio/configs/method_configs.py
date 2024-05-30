@@ -602,7 +602,7 @@ method_configs["splatfacto"] = TrainerConfig(
     pipeline=VanillaPipelineConfig(
         datamanager=FullImageDatamanagerConfig(
             _target=FullImageDatamanager[DepthDataset],
-            dataparser=NerfstudioDataParserConfig(load_3D_points=True,depth_unit_scale_factor=1.0),
+            dataparser=NerfstudioDataParserConfig(load_3D_points=True,depth_unit_scale_factor=1.0,train_split_fraction=.5),
             cache_images_type="uint8",
         ),
         model=SplatfactoModelConfig(
@@ -630,14 +630,14 @@ method_configs["splatfacto"] = TrainerConfig(
             "scheduler": None,
         },
         "scales": {
-            "optimizer": AdamOptimizerConfig(lr=0.005, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=0.003, eps=1e-15),
             "scheduler": None,
         },
         "quats": {"optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15), "scheduler": None},
         "camera_opt": {
-            "optimizer": AdamOptimizerConfig(lr=2e-5, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-5, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
-                lr_final=5e-7, max_steps=30000, warmup_steps=3000, lr_pre_warmup=0
+                lr_final=5e-7, max_steps=30000, warmup_steps=6000, lr_pre_warmup=0
             ),
         },
     },
