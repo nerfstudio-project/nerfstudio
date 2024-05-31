@@ -14,10 +14,9 @@
 # limitations under the License.
 
 """
-NeRF implementation that combines many recent advancements.
+Gaussian Splatting Model in the Wild implementation in nerfstudio.
+https://kevinxu02.github.io/gsw.github.io/
 """
-
-from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
@@ -25,13 +24,13 @@ from typing import Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
+from gsplat._torch_impl import quat_to_rotmat
+from gsplat.project_gaussians import project_gaussians
+from gsplat.rasterize import rasterize_gaussians
 from pytorch_msssim import SSIM
 from torch.nn import Parameter
 from typing_extensions import Literal
 
-from gsplat._torch_impl import quat_to_rotmat
-from gsplat.project_gaussians import project_gaussians
-from gsplat.rasterize import rasterize_gaussians
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.scene_box import OrientedBox

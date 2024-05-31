@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-NeRF implementation that combines many recent advancements.
+Gaussian Splatting implementation that combines many recent advancements.
 """
 
 from __future__ import annotations
