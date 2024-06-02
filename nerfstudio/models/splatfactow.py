@@ -823,9 +823,9 @@ class SplatfactoWModel(Model):
 
         if self.config.enable_bg_model:
             # the following code uses the background model to predict the background color
-            # only predict background where alpha < 0.99 for faster inference
+            # only predict background where alpha < thres for faster inference
 
-            # allows the model the cleam up the background for the first 6000 steps
+            # allows the model the clean up the background for the first 6000 steps
             if self.step < 6000:
                 thres = 1
             else:
@@ -1051,15 +1051,15 @@ class SplatfactoWModel(Model):
         epsilon = 1e-3
         # never mask the upper of the image
         errors[: int(errors.shape[0] * self.config.never_mask_upper), :, :] = 0.0
-        Ll2 = errors.mean()
-        # update max and min of Ll2
-        if Ll2 > self.max_loss or self.step % self.config.robust_mask_reset_interval == 0:
-            self.max_loss = Ll2
-        if Ll2 < self.min_loss:
-            self.min_loss = Ll2
+        Ll1 = errors.mean()
+        # update max and min of Loss
+        if Ll1 > self.max_loss or self.step % self.config.robust_mask_reset_interval == 0:
+            self.max_loss = Ll1
+        if Ll1 < self.min_loss:
+            self.min_loss = Ll1
 
         mask_range_min, mask_range_max = self.config.robust_mask_percentage
-        mask_percentage = (Ll2 - self.min_loss) / ((self.max_loss - self.min_loss) + 1e-6) * (
+        mask_percentage = (Ll1 - self.min_loss) / ((self.max_loss - self.min_loss) + 1e-6) * (
             mask_range_max - mask_range_min
         ) + mask_range_min
 
