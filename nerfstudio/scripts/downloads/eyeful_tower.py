@@ -42,7 +42,7 @@ eyefultower_downloads = [
     "table",
     "workshop",
     "raf_emptyroom",
-    "raf_furinshedroom",
+    "raf_furnishedroom",
 ]
 
 # Crop radii empirically chosen to try to avoid hitting the rig base or go out of bounds
