@@ -194,6 +194,7 @@ def populate_splat_tab(
         server.add_gui_markdown("<small>Generate ply export of Gaussian Splat</small>")
 
         output_directory = server.add_gui_text("Output Directory", initial_value="exports/splat/")
+        # TODO: change to export directly
         generate_command = server.add_gui_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @generate_command.on_click
