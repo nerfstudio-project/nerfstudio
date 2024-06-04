@@ -29,7 +29,7 @@ dependencies = [
     "jaxtyping>=0.2.15",
     "jupyterlab>=3.3.4",
     "matplotlib>=3.6.0",
-    "mediapy>=1.1.0",
+    "mediapy>=1.1.0,!=1.2.1",  # 1.2.1 is broken for Python 3.8: https://github.com/nerfstudio-project/nerfstudio/issues/3189
     "msgpack>=1.0.4",
     "msgpack_numpy>=0.4.8",
     "nerfacc==0.5.2",
