@@ -1144,7 +1144,7 @@ def populate_render_tab(
         with open(json_outfile.absolute(), "w") as outfile:
             json.dump(json_data, outfile)
         # now show the command
-        with event.client.add_gui_modal("Render Command") as modal:
+        with event.client.add_gui_modal("Render") as modal:
             dataname = datapath.name
             command = " ".join(
                 [
