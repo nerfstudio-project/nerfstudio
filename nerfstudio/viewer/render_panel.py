@@ -31,6 +31,7 @@ import viser.transforms as tf
 from scipy import interpolate
 
 from nerfstudio.viewer.control_panel import ControlPanel
+from nerfstudio.utils.scripts import run_command
 
 
 @dataclasses.dataclass
@@ -1019,12 +1020,20 @@ def populate_render_tab(
         initial_value=now.strftime("%Y-%m-%d-%H-%M-%S"),
         hint="Name of the render",
     )
+
     render_button = server.add_gui_button(
-        "Generate Command",
+        "Render",
         color="green",
         icon=viser.Icon.FILE_EXPORT,
-        hint="Generate the ns-render command for rendering the camera path.",
+        hint="Render the camera path and save video as mp4 file.",
     )
+
+    # generate_render_button = server.add_gui_button(
+    #     "Generate Command",
+    #     color="green",
+    #     icon=viser.Icon.FILE_EXPORT,
+    #     hint="Generate the ns-render command for rendering the camera path.",
+    # )
 
     reset_up_button = server.add_gui_button(
         "Reset Up Direction",
@@ -1148,14 +1157,15 @@ def populate_render_tab(
             event.client.add_gui_markdown(
                 "\n".join(
                     [
-                        "To render the trajectory, run the following from the command line:",
+                        "Rendering trajectory and saving file as",
                         "",
                         "```",
-                        command,
+                        f"renders/{dataname}/{render_name_text.value}.mp4",
                         "```",
                     ]
                 )
             )
+            run_command(command, verbose=False)
             close_button = event.client.add_gui_button("Close")
 
             @close_button.on_click
