@@ -72,12 +72,13 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     train_cameras_sampling_strategy: Literal["random", "fps"] = "random"
     """Specifies which sampling strategy is used to generate train cameras, 'random' means sampling 
     uniformly random without replacement, 'fps' means farthest point sampling which is helpful to reduce the artifacts 
-    due to oversampling subsets of cameras that are very closer to each other."""
+    due to oversampling subsets of cameras that are very close to each other."""
     train_cameras_sampling_seed: int = 42
     """Random seed for sampling train cameras. Fixing seed may help reduce variance of trained models across 
     different runs."""
     fps_reset_every: int = 100
-    """The number of iterations before one resets fps sampler repeatly"""
+    """The number of iterations before one resets fps sampler repeatly, which is essentially drawing fps_reset_every
+    samples from the pool of all training cameras without replacement before a new round of sampling starts."""
 
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
@@ -162,6 +163,10 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             )
             n = self.config.fps_reset_every
             if num_train_cameras < n:
+                CONSOLE.log(
+                    f"num_train_cameras={num_train_cameras} is smaller than fps_reset_ever={n}, the behavior of "
+                    "camera sampler will be very similar to sampling random without replacement (default setting)."
+                )
                 n = num_train_cameras
             kdline_fps_samples_idx = fpsample.bucket_fps_kdline_sampling(data, n, h=3)
 
