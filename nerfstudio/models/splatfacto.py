@@ -836,8 +836,12 @@ class SplatfactoModel(Model):
 
         if self.config.enable_bg_model:
             # the following code uses the background model to predict the background color
-            # only predict background where alpha < 0.99 for faster inference
-            mask = (alpha < 0.99).view(H, W)
+            # only predict background where alpha < 0.98 for faster inference
+            # use first num_downscales*resolution_schedule steps to clean up the background in the beginning
+            if self.step < self.config.num_downscales * self.config.resolution_schedule and self.training:
+                mask = torch.ones(H, W, device=self.device, dtype=torch.bool)
+            else:
+                mask = (alpha < 0.98).view(H, W)
             coords_y, coords_x = torch.nonzero(mask, as_tuple=True)
             coords = torch.stack([coords_y, coords_x], dim=-1).float()
             if coords.shape[0] > 0:
@@ -845,9 +849,7 @@ class SplatfactoModel(Model):
                 # Background processing
                 background = torch.zeros(H * W, 3, device=self.device)
                 flat_mask = mask.view(-1)
-                background[flat_mask] = self.bg_model.get_background_rgb(
-                    ray_bundle, appearance_embed.repeat(ray_bundle.shape[0], 1)
-                ).float()
+                background[flat_mask] = self.bg_model.get_background_rgb(ray_bundle, appearance_embed).float()
                 background = background.view(H, W, 3)
                 rgb = rgb + (1 - alpha) * background
 

@@ -838,9 +838,7 @@ class SplatfactoWModel(Model):
                 # Background processing
                 background = torch.zeros(H * W, 3, device=self.device)
                 flat_mask = mask.view(-1)
-                background[flat_mask] = self.bg_model.get_background_rgb(
-                    ray_bundle, appearance_embed.repeat(ray_bundle.shape[0], 1)
-                ).float()
+                background[flat_mask] = self.bg_model.get_background_rgb(ray_bundle, appearance_embed).float()
                 background = background.view(H, W, 3)
                 rgb = rgb + (1 - alpha) * background
 

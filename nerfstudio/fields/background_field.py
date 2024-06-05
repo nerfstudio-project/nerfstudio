@@ -30,7 +30,7 @@ class BG_Field(Field):
         directions = get_normalized_directions(ray_bundle.directions)
         directions_flat = self.direction_encoding(directions.view(-1, 3))
         if appearance_embedding is not None:
-            x = torch.cat([directions_flat, appearance_embedding], dim=-1)
+            x = torch.cat([directions_flat, appearance_embedding.repeat(directions_flat.shape[0], 1)], dim=-1)
         else:
             x = directions_flat
 
