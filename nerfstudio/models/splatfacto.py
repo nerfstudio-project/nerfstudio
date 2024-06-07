@@ -733,8 +733,9 @@ class SplatfactoModel(Model):
             quats_crop = self.quats
 
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
+
         BLOCK_WIDTH = 16  # this controls the tile size of rasterization, 16 is a good default
-        self.xys, depths, self.radii, conics, comp, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
+        self.xys, self.depths, self.radii, self.conics, self.comp, self.num_tiles_hit, cov3d = project_gaussians(  # type: ignore
             means_crop,
             torch.exp(scales_crop),
             1,
@@ -763,11 +764,11 @@ class SplatfactoModel(Model):
         else:
             rgbs = torch.sigmoid(colors_crop[:, 0, :])
 
-        assert (num_tiles_hit > 0).any()  # type: ignore
+        assert (self.num_tiles_hit > 0).any()  # type: ignore
 
         # apply the compensation of screen space blurring to gaussians
         if self.config.rasterize_mode == "antialiased":
-            opacities = torch.sigmoid(opacities_crop) * comp[:, None]
+            opacities = torch.sigmoid(opacities_crop) * self.comp[:, None]
         elif self.config.rasterize_mode == "classic":
             opacities = torch.sigmoid(opacities_crop)
         else:
@@ -775,10 +776,10 @@ class SplatfactoModel(Model):
 
         rgb, alpha = rasterize_gaussians(  # type: ignore
             self.xys,
-            depths,
+            self.depths,
             self.radii,
-            conics,
-            num_tiles_hit,  # type: ignore
+            self.conics,
+            self.num_tiles_hit,  # type: ignore
             rgbs,
             opacities,
             H,
@@ -793,11 +794,11 @@ class SplatfactoModel(Model):
         if self.config.output_depth_during_training or not self.training:
             depth_im = rasterize_gaussians(  # type: ignore
                 self.xys,
-                depths,
+                self.depths,
                 self.radii,
-                conics,
-                num_tiles_hit,  # type: ignore
-                depths[:, None].repeat(1, 3),
+                self.conics,
+                self.num_tiles_hit,  # type: ignore
+                self.depths[:, None].repeat(1, 3),
                 opacities,
                 H,
                 W,
