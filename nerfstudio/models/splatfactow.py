@@ -118,7 +118,7 @@ class SplatfactoWModelConfig(ModelConfig):
     """If True, continue to cull gaussians post refinement"""
     reset_alpha_every: int = 25
     """Every this many refinement steps, reset the alpha"""
-    densify_grad_thresh: float = 0.0008
+    densify_grad_thresh: float = 0.0006
     """threshold of positional gradient norm for densifying gaussians"""
     densify_size_thresh: float = 0.01
     """below this size, gaussians are *duplicated*, otherwise split"""
