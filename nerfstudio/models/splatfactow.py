@@ -128,7 +128,7 @@ class SplatfactoWModelConfig(ModelConfig):
     """if a gaussian is more than this percent of screen space, cull it"""
     split_screen_size: float = 0.05
     """if a gaussian is more than this percent of screen space, split it"""
-    stop_screen_size_at: int = 20000
+    stop_screen_size_at: int = 25000
     """stop culling/splitting at this step WRT screen size of gaussians"""
     random_init: bool = False
     """whether to initialize the positions uniformly randomly (not SFM points)"""
@@ -138,7 +138,7 @@ class SplatfactoWModelConfig(ModelConfig):
     "Size of the cube to initialize random gaussians within"
     ssim_lambda: float = 0.2
     """weight of ssim loss"""
-    stop_split_at: int = 20000
+    stop_split_at: int = 25000
     """stop splitting at this step"""
     use_scale_regularization: bool = False
     """If enabled, a scale regularization introduced in PhysGauss (https://xpandora.github.io/PhysGaussian/) is used for reducing huge spikey gaussians."""
@@ -174,7 +174,7 @@ class SplatfactoWModelConfig(ModelConfig):
     """Whether to enable robust mask for calculating the loss"""
     robust_mask_percentage: tuple = (0.0, 0.35)
     """The percentage of the entire image to mask out for robust loss calculation"""
-    robust_mask_reset_interval: int = 8000
+    robust_mask_reset_interval: int = 6000
     """The interval to reset the mask"""
     never_mask_upper: float = 0.4
     """Whether to mask out the upper part of the image, which is usually the sky"""
