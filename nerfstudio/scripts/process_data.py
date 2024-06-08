@@ -152,6 +152,9 @@ class ProcessPolycam(BaseConverterToNerfstudioDataset):
                 zip_ref.extractall(self.output_dir)
                 extracted_folder = zip_ref.namelist()[0].split("/")[0]
             self.data = self.output_dir / extracted_folder
+            if not (self.data / "keyframes").exists():
+                # new versions of polycam data have a different structure, strip the last dir off
+                self.data = self.output_dir
 
         if (self.data / "keyframes" / "corrected_images").exists() and not self.use_uncorrected_images:
             polycam_image_dir = self.data / "keyframes" / "corrected_images"

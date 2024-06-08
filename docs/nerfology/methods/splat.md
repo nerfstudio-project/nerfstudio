@@ -39,7 +39,7 @@ We provide a few additional variants:
 | `splatfacto-big` | More Gaussians, Higher Quality | ~12GB  | Slower  |
 
 
-A full evalaution of Nerfstudio's implementation of Gaussian Splatting against the original Inria method can be found [here](https://docs.gsplat.studio/tests/eval.html).
+A full evalaution of Nerfstudio's implementation of Gaussian Splatting against the original Inria method can be found [here](https://docs.gsplat.studio/main/tests/eval.html).
 
 #### Quality and Regularization
 The default settings provided maintain a balance between speed, quality, and splat file size, but if you care more about quality than training speed or size, you can decrease the alpha cull threshold 
