@@ -743,7 +743,7 @@ class SplatfactoModel(Model):
             render_mode=render_mode,
             sh_degree=sh_degree_to_use,
             sparse_grad=False,
-            compute_means2d_absgrad=True,
+            absgrad=True,
             rasterize_mode=self.config.rasterize_mode,
             radius_clip=0 if self.training else 3,  # faster visualization
         )
