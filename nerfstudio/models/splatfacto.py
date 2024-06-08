@@ -94,6 +94,7 @@ def resize_image(image: torch.Tensor, d: int):
     """
     import torch.nn.functional as tf
 
+    image = image.to(torch.float32)
     weight = (1.0 / (d * d)) * torch.ones((1, 1, d, d), dtype=torch.float32, device=image.device)
     return tf.conv2d(image.permute(2, 0, 1)[:, None, ...], weight, stride=d).squeeze(1).permute(1, 2, 0)
 
@@ -660,6 +661,8 @@ class SplatfactoModel(Model):
         if not isinstance(camera, Cameras):
             print("Called get_outputs with not a camera")
             return {}
+
+        optimized_camera_to_world = self.camera_optimizer.apply_to_camera(camera)[0, ...]
 
         # get the background color
         if self.training:

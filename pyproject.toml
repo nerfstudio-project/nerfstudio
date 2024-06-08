@@ -66,7 +66,8 @@ dependencies = [
     "gsplat==1.0.0",
     "pytorch-msssim",
     "pathos",
-    "packaging"
+    "packaging",
+    "fpsample"
 ]
 
 [project.urls]
