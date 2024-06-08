@@ -144,7 +144,7 @@ def undistort_fisheye624(provider: VrsDataProvider, sensor_name: str, index: int
 
     # Undistort the fisheye624 image into a pinhole image
     rectified_image = calibration.distort_by_calibration(
-        image_array, dst_calib, src_calib, InterpolationMethod.BILINEAR
+        image_array.astype(np.uint8), dst_calib, src_calib, InterpolationMethod.BILINEAR
     )
     """The linear camera model (a.k.a pinhole model) is parametrized by 4 coefficients : f_x, f_y, c_x, c_y."""
     intrinsic = [f_length, f_length, num_cols // 2, num_rows // 2]
@@ -179,7 +179,6 @@ def to_aria_image_frame(
     aria_camera_calibration = name_to_camera[name]
     stream_id = provider.get_stream_id_from_label(name)
     assert stream_id is not None, f"Could not find stream {name}"
-
     # Get the image corresponding to this index
     image_data = provider.get_image_data_by_index(stream_id, index)
     rectified_img, intrinsic = image_data[0].to_numpy_array(), [0, 0, 0, 0]
@@ -302,7 +301,7 @@ class ProcessProjectAria:
                     to_aria_image_frame(
                         provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[0]
                     )
-                    for index in range(0, provider.get_num_data(stream_ids[0]))
+                    for index in range(0, provider.get_num_data(stream_ids[0]), 5)
                 ]
                 print(f"Creating NerfStudio frames for recording {rec_i + 1}...")
                 nerfstudio_frames["frames"] += [to_nerfstudio_frame(frame) for frame in aria_rgb_frames]
@@ -322,7 +321,7 @@ class ProcessProjectAria:
                             name=names[i],
                             pinhole=True,
                         )
-                        for index in range(0, provider.get_num_data(stream_id))
+                        for index in range(0, provider.get_num_data(stream_id), 5)
                     ]
                     for i, stream_id in enumerate(stream_ids)
                 ]
@@ -380,7 +379,6 @@ class ProcessProjectAria:
         transform_file = self.output_dir / "transforms.json"
         with open(transform_file, "w", encoding="UTF-8"):
             transform_file.write_text(json.dumps(nerfstudio_frames))
-
 
 if __name__ == "__main__":
     tyro.extras.set_accent_color("bright_yellow")
