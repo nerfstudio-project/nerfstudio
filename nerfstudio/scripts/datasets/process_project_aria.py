@@ -119,37 +119,50 @@ def read_trajectory_csv_to_dict(file_iterable_csv: str) -> TimedPoses:
     )
 
 
-def undistort_fisheye624(provider: VrsDataProvider, sensor_name: str, index: int):  # -> List[np.ndarray, tuple]:
+def undistort_image_and_calibration(
+    input_image: np.ndarray,
+    input_calib: calibration.CameraCalibration,
+    output_focal_length: int,
+) -> [np.ndarray, calibration.CameraCalibration]:
     """
-    Given a VrsDataProvider, and a name of a fisheye624 camera, and index of image in the capture
-    Returns a nparray representing the image and intrinsic
+    Return the undistorted image and the updated camera calibration.
     """
-    # Retrieve the image at specified index
-    sensor_stream_id = provider.get_stream_id_from_label(sensor_name)
-    assert sensor_stream_id is not None, f"Could not find stream {sensor_name}"
-    image_data = provider.get_image_data_by_index(sensor_stream_id, index)
-    image_array = image_data[0].to_numpy_array().astype(np.uint64)
+    input_calib_width = input_calib.get_image_size()[0]
+    input_calib_height = input_calib.get_image_size()[1]
+    if (
+        input_image.shape[1] != input_calib_width
+        or input_image.shape[0] != input_calib_height
+    ):
+        raise ValueError(
+            f"Input image shape {input_image.shape} does not match calibration {input_calib.get_image_size()}"
+        )
 
-    # Retrieve the current camera calibration
-    device_calib = provider.get_device_calibration()
-    assert device_calib is not None, "Could not find device calibration"
-    src_calib = device_calib.get_camera_calib(sensor_name)
-    assert isinstance(src_calib, calibration.CameraCalibration), "src_calib is not of type CameraCalibration"
-
-    # Construct the final camera calibration
-    f_length = 500 if sensor_name == "camera-rgb" else 170
-    num_rows, num_cols = image_array.shape[0], image_array.shape[1]
-    dst_calib = calibration.get_linear_camera_calibration(num_cols, num_rows, f_length, sensor_name)
-    assert isinstance(dst_calib, calibration.CameraCalibration), "dst_calib is not of type CameraCalibration"
-
-    # Undistort the fisheye624 image into a pinhole image
-    rectified_image = calibration.distort_by_calibration(
-        image_array.astype(np.uint8), dst_calib, src_calib, InterpolationMethod.BILINEAR
+    # Undistort the image
+    pinhole_calib = calibration.get_linear_camera_calibration(
+        int(input_calib_width),
+        int(input_calib_height),
+        output_focal_length,
+        "pinhole",
+        input_calib.get_transform_device_camera(),
     )
-    """The linear camera model (a.k.a pinhole model) is parametrized by 4 coefficients : f_x, f_y, c_x, c_y."""
-    intrinsic = [f_length, f_length, num_cols // 2, num_rows // 2]
-    return rectified_image, intrinsic
+    output_image = calibration.distort_by_calibration(
+        input_image, pinhole_calib, input_calib, InterpolationMethod.BILINEAR
+    )
 
+    return output_image, pinhole_calib
+
+def rotate_upright_image_and_calibration(
+    input_image: np.ndarray,
+    input_calib: calibration.CameraCalibration,
+) -> [np.ndarray, calibration.CameraCalibration]:
+    """
+    Return the rotated upright image and update both intrinsics and extrinsics of the camera calibration
+    NOTE: This function only supports pinhole and fisheye624 camera model.
+    """
+    output_image = np.rot90(input_image, k=3)
+    updated_calib = calibration.rotate_camera_calib_cw90deg(input_calib)
+
+    return output_image, updated_calib
 
 def generate_circular_mask(numRows: int, numCols: int, radius: float):
     """
@@ -173,22 +186,36 @@ def to_aria_image_frame(
     name_to_camera: Dict[str, AriaCameraCalibration],
     t_world_devices: TimedPoses,
     output_dir: Path,
-    name: str = "camera-rgb",
+    camera_name: str = "camera-rgb",
     pinhole: bool = False,
 ) -> AriaImageFrame:
-    aria_camera_calibration = name_to_camera[name]
-    stream_id = provider.get_stream_id_from_label(name)
-    assert stream_id is not None, f"Could not find stream {name}"
-    # Get the image corresponding to this index
-    image_data = provider.get_image_data_by_index(stream_id, index)
-    rectified_img, intrinsic = image_data[0].to_numpy_array(), [0, 0, 0, 0]
-    if pinhole:
-        rectified_img, intrinsic = undistort_fisheye624(provider, name, index)
-    img = Image.fromarray(rectified_img)
-    capture_time_ns = image_data[1].capture_timestamp_ns
+    aria_cam_calib = name_to_camera[camera_name]
+    stream_id = provider.get_stream_id_from_label(camera_name)
+    assert stream_id is not None, f"Could not find stream {camera_name}"
 
-    # save the image
-    file_path = f"{output_dir}/{name}_{capture_time_ns}.jpg"
+    # Retrieve the current camera calibration
+    device_calib = provider.get_device_calibration()
+    assert device_calib is not None, "Could not find device calibration"
+    src_calib = device_calib.get_camera_calib(camera_name)
+    assert isinstance(src_calib, calibration.CameraCalibration), "src_calib is not of type CameraCalibration"
+    
+    # Get the image corresponding to this index and undistort it
+    image_data = provider.get_image_data_by_index(stream_id, index)
+    image_array, intrinsic = image_data[0].to_numpy_array().astype(np.uint8), [0, 0, 0, 0]
+    if pinhole:
+        f_length = 500 if camera_name == "camera-rgb" else 170
+        image_array, src_calib = undistort_image_and_calibration(image_array, src_calib, f_length)
+        intrinsic = [f_length, f_length, image_array.shape[1] // 2, image_array.shape[0] // 2]
+
+    # Rotate the image right side up
+    breakpoint()
+    image_array, src_calib = rotate_upright_image_and_calibration(image_array, src_calib)
+    img = Image.fromarray(image_array)
+    capture_time_ns = image_data[1].capture_timestamp_ns
+    intrinsic[2], intrinsic[3] = intrinsic[3], intrinsic[2]
+
+    # Save the image 
+    file_path = f"{output_dir}/{camera_name}_{capture_time_ns}.jpg"
     threading.Thread(target=lambda: img.save(file_path)).start()
 
     # Find the nearest neighbor pose with the closest timestamp to the capture time.
@@ -198,10 +225,25 @@ def to_aria_image_frame(
     t_world_device = t_world_devices.t_world_devices[nearest_pose_idx]
 
     # Compute the world to camera transform.
-    t_world_camera = t_world_device @ aria_camera_calibration.t_device_camera @ T_ARIA_NERFSTUDIO
+    t_world_camera = t_world_device @ src_calib.get_transform_device_camera() @ T_ARIA_NERFSTUDIO
+
+    # Define new AriaCameraCalibration
+    width = src_calib.get_image_size()[0].item()
+    height = src_calib.get_image_size()[1].item()
+    intrinsics = src_calib.projection_params()
+    aria_cam_calib = AriaCameraCalibration(
+        fx=intrinsics[0],
+        fy=intrinsics[0],
+        cx=intrinsics[1],
+        cy=intrinsics[2],
+        distortion_params=intrinsics[3:15],
+        width=width,
+        height=height,
+        t_device_camera=src_calib.get_transform_device_camera(),
+    )
 
     return AriaImageFrame(
-        camera=aria_camera_calibration,
+        camera=aria_cam_calib,
         file_path=file_path,
         t_world_camera=t_world_camera,
         timestamp_ns=capture_time_ns,
@@ -299,9 +341,9 @@ class ProcessProjectAria:
             if not self.include_side_cameras:
                 aria_rgb_frames = [
                     to_aria_image_frame(
-                        provider, index, name_to_camera, t_world_devices, self.output_dir, name=names[0]
+                        provider, index, name_to_camera, t_world_devices, self.output_dir, camera_name=names[0]
                     )
-                    for index in range(0, provider.get_num_data(stream_ids[0]), 5)
+                    for index in range(0, provider.get_num_data(stream_ids[0]))
                 ]
                 print(f"Creating NerfStudio frames for recording {rec_i + 1}...")
                 nerfstudio_frames["frames"] += [to_nerfstudio_frame(frame) for frame in aria_rgb_frames]
@@ -318,10 +360,10 @@ class ProcessProjectAria:
                             name_to_camera,
                             t_world_devices,
                             self.output_dir,
-                            name=names[i],
+                            camera_name=names[i],
                             pinhole=True,
                         )
-                        for index in range(0, provider.get_num_data(stream_id), 5)
+                        for index in range(0, provider.get_num_data(stream_id))
                     ]
                     for i, stream_id in enumerate(stream_ids)
                 ]
@@ -331,7 +373,7 @@ class ProcessProjectAria:
                 slam_valid_radius = 330.0  # found here: https://github.com/facebookresearch/projectaria_tools/blob/4aee633cb667ab927825dc10477cad0df8393a34/core/calibration/loader/SensorCalibrationJson.cpp#L102C5-L104C18
                 rgb_mask_nparray, slam_mask_nparray = (
                     generate_circular_mask(rgb_width, rgb_width, rgb_valid_radius),
-                    generate_circular_mask(480, 640, slam_valid_radius),
+                    generate_circular_mask(640, 480, slam_valid_radius),
                 )
                 rgb_mask_filepath, slam_mask_filepath = (
                     f"{self.output_dir}/rgb_mask.jpg",
@@ -379,6 +421,7 @@ class ProcessProjectAria:
         transform_file = self.output_dir / "transforms.json"
         with open(transform_file, "w", encoding="UTF-8"):
             transform_file.write_text(json.dumps(nerfstudio_frames))
+
 
 if __name__ == "__main__":
     tyro.extras.set_accent_color("bright_yellow")
