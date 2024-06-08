@@ -63,7 +63,7 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     new images. If -1, never pick new images."""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """Specifies the image indices to use during eval; if None, uses all."""
-    cache_images: Literal["cpu", "gpu"] = "cpu"
+    cache_images: Literal["cpu", "gpu"] = "gpu"
     """Whether to cache images in memory. If "cpu", caches on cpu. If "gpu", caches on device."""
     cache_images_type: Literal["uint8", "float32"] = "float32"
     """The image type returned from manager, caching images in uint8 saves memory"""
@@ -247,11 +247,15 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 cache["image"] = cache["image"].to(self.device)
                 if "mask" in cache:
                     cache["mask"] = cache["mask"].to(self.device)
+                if "depth" in cache:
+                    cache["depth"] = cache["depth"].to(self.device)
+                self.train_cameras = self.train_dataset.cameras.to(self.device)
         elif cache_images_device == "cpu":
             for cache in undistorted_images:
                 cache["image"] = cache["image"].pin_memory()
                 if "mask" in cache:
                     cache["mask"] = cache["mask"].pin_memory()
+                self.train_cameras = self.train_dataset.cameras
         else:
             assert_never(cache_images_device)
 
@@ -340,11 +344,11 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         if len(self.train_unseen_cameras) == 0:
             self.train_unseen_cameras = self.sample_train_cameras()
 
-        data = deepcopy(self.cached_train[image_idx])
+        data = self.cached_train[image_idx]
         data["image"] = data["image"].to(self.device)
 
-        assert len(self.train_dataset.cameras.shape) == 1, "Assumes single batch dimension"
-        camera = self.train_dataset.cameras[image_idx : image_idx + 1].to(self.device)
+        assert len(self.train_cameras.shape) == 1, "Assumes single batch dimension"
+        camera = self.train_cameras[image_idx : image_idx + 1].to(self.device)
         if camera.metadata is None:
             camera.metadata = {}
         camera.metadata["cam_idx"] = image_idx
