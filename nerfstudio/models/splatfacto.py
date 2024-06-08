@@ -171,7 +171,7 @@ class SplatfactoModelConfig(ModelConfig):
     implementation: Literal["tcnn", "torch"] = "tcnn"
     """Implementation of the background model"""
     appearance_embed_dim: int = 0
-    """Dimension of the appearance embedding, if 0, no appearance embedding is used"""
+    """Dimension of the appearance embedding for background model, if 0, no appearance embedding is used"""
     enable_alpha_loss: bool = False
     """Whether to enable the alpha loss for punishing gaussians from occupying background space, this also works with pure color background (i.e. white for overexposed skys)"""
 

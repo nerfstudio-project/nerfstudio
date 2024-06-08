@@ -116,7 +116,7 @@ class SplatfactoWModelConfig(ModelConfig):
     """threshold of scale for culling huge gaussians"""
     continue_cull_post_densification: bool = True
     """If True, continue to cull gaussians post refinement"""
-    reset_alpha_every: int = 25
+    reset_alpha_every: int = 20
     """Every this many refinement steps, reset the alpha"""
     densify_grad_thresh: float = 0.0006
     """threshold of positional gradient norm for densifying gaussians"""
@@ -128,7 +128,7 @@ class SplatfactoWModelConfig(ModelConfig):
     """if a gaussian is more than this percent of screen space, cull it"""
     split_screen_size: float = 0.05
     """if a gaussian is more than this percent of screen space, split it"""
-    stop_screen_size_at: int = 25000
+    stop_screen_size_at: int = 20000
     """stop culling/splitting at this step WRT screen size of gaussians"""
     random_init: bool = False
     """whether to initialize the positions uniformly randomly (not SFM points)"""
@@ -138,7 +138,7 @@ class SplatfactoWModelConfig(ModelConfig):
     "Size of the cube to initialize random gaussians within"
     ssim_lambda: float = 0.2
     """weight of ssim loss"""
-    stop_split_at: int = 25000
+    stop_split_at: int = 20000
     """stop splitting at this step"""
     use_scale_regularization: bool = False
     """If enabled, a scale regularization introduced in PhysGauss (https://xpandora.github.io/PhysGaussian/) is used for reducing huge spikey gaussians."""
