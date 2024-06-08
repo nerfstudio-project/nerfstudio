@@ -748,7 +748,8 @@ class SplatfactoModel(Model):
             sparse_grad=False,
             absgrad=True,
             rasterize_mode=self.config.rasterize_mode,
-            radius_clip=0 if self.training else 3,  # faster visualization
+            # set some threshold to disregrad small gaussians for faster rendering.
+            # radius_clip=3.0,
         )
         if self.training and info["means2d"].requires_grad:
             info["means2d"].retain_grad()
