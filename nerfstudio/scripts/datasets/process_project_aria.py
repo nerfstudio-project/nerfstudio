@@ -79,7 +79,7 @@ class TimedPoses:
 
 
 def get_camera_calibs(
-    provider: VrsDataProvider, name: Literal["camera-rgb", "camera-slam-left", "camera-slam-right"] = "camera-rgb"
+    provider: VrsDataProvider, name: Literal["camera-rgb", "camera-slam-left", "camera-slam-right"]
 ) -> AriaCameraCalibration:
     """Retrieve the per-camera factory calibration from within the VRS."""
 
