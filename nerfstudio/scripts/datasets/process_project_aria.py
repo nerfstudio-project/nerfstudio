@@ -86,6 +86,7 @@ def get_camera_calibs(
     factory_calib = {}
     device_calib = provider.get_device_calibration()
     assert device_calib is not None, "Could not find device calibration"
+    assert name in ["camera-rgb", "camera-slam-left", "camera-slam-right"], f"{name} is not a valid camera sensor"
     sensor_calib = device_calib.get_camera_calib(name)
     assert sensor_calib is not None, f"Could not find sensor calibration for {name}"
 
