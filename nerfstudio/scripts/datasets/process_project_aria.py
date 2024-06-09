@@ -17,7 +17,7 @@ import sys
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, Literal, Optional, Tuple, cast
 
 import numpy as np
 import open3d as o3d
@@ -69,7 +69,7 @@ class AriaImageFrame:
     file_path: str
     t_world_camera: SE3
     timestamp_ns: float
-    pinhole_intrinsic: List[int]
+    pinhole_intrinsic: Tuple[float, float, float, float]
 
 
 @dataclass
@@ -78,7 +78,9 @@ class TimedPoses:
     t_world_devices: List[SE3]
 
 
-def get_camera_calibs(provider: VrsDataProvider, name="camera-rgb") -> AriaCameraCalibration:
+def get_camera_calibs(
+    provider: VrsDataProvider, name: Literal["camera-rgb", "camera-slam-left", "camera-slam-right"] = "camera-rgb"
+) -> AriaCameraCalibration:
     """Retrieve the per-camera factory calibration from within the VRS."""
 
     factory_calib = {}
@@ -123,16 +125,13 @@ def undistort_image_and_calibration(
     input_image: np.ndarray,
     input_calib: calibration.CameraCalibration,
     output_focal_length: int,
-) -> [np.ndarray, calibration.CameraCalibration]:
+) -> Tuple[np.ndarray, calibration.CameraCalibration]:
     """
     Return the undistorted image and the updated camera calibration.
     """
     input_calib_width = input_calib.get_image_size()[0]
     input_calib_height = input_calib.get_image_size()[1]
-    if (
-        input_image.shape[1] != input_calib_width
-        or input_image.shape[0] != input_calib_height
-    ):
+    if input_image.shape[1] != input_calib_width or input_image.shape[0] != input_calib_height:
         raise ValueError(
             f"Input image shape {input_image.shape} does not match calibration {input_calib.get_image_size()}"
         )
@@ -151,10 +150,11 @@ def undistort_image_and_calibration(
 
     return output_image, pinhole_calib
 
+
 def rotate_upright_image_and_calibration(
     input_image: np.ndarray,
     input_calib: calibration.CameraCalibration,
-) -> [np.ndarray, calibration.CameraCalibration]:
+) -> Tuple[np.ndarray, calibration.CameraCalibration]:
     """
     Return the rotated upright image and update both intrinsics and extrinsics of the camera calibration
     NOTE: This function only supports pinhole and fisheye624 camera model.
@@ -164,7 +164,8 @@ def rotate_upright_image_and_calibration(
 
     return output_image, updated_calib
 
-def generate_circular_mask(numRows: int, numCols: int, radius: float):
+
+def generate_circular_mask(numRows: int, numCols: int, radius: float) -> np.ndarray:
     """
     Generates a mask where a circle in the center of the image with input radius is white (sampled from).
     Everything outside the circle is black (masked out)
@@ -198,23 +199,22 @@ def to_aria_image_frame(
     assert device_calib is not None, "Could not find device calibration"
     src_calib = device_calib.get_camera_calib(camera_name)
     assert isinstance(src_calib, calibration.CameraCalibration), "src_calib is not of type CameraCalibration"
-    
+
     # Get the image corresponding to this index and undistort it
     image_data = provider.get_image_data_by_index(stream_id, index)
-    image_array, intrinsic = image_data[0].to_numpy_array().astype(np.uint8), [0, 0, 0, 0]
+    image_array, intrinsic = image_data[0].to_numpy_array().astype(np.uint8), (0, 0, 0, 0)
     if pinhole:
         f_length = 500 if camera_name == "camera-rgb" else 170
         image_array, src_calib = undistort_image_and_calibration(image_array, src_calib, f_length)
-        intrinsic = [f_length, f_length, image_array.shape[1] // 2, image_array.shape[0] // 2]
+        intrinsic = (f_length, f_length, image_array.shape[1] // 2, image_array.shape[0] // 2)
 
     # Rotate the image right side up
-    breakpoint()
     image_array, src_calib = rotate_upright_image_and_calibration(image_array, src_calib)
     img = Image.fromarray(image_array)
     capture_time_ns = image_data[1].capture_timestamp_ns
-    intrinsic[2], intrinsic[3] = intrinsic[3], intrinsic[2]
+    intrinsic = (intrinsic[0], intrinsic[1], intrinsic[3], intrinsic[2])
 
-    # Save the image 
+    # Save the image
     file_path = f"{output_dir}/{camera_name}_{capture_time_ns}.jpg"
     threading.Thread(target=lambda: img.save(file_path)).start()
 
@@ -227,7 +227,7 @@ def to_aria_image_frame(
     # Compute the world to camera transform.
     t_world_camera = t_world_device @ src_calib.get_transform_device_camera() @ T_ARIA_NERFSTUDIO
 
-    # Define new AriaCameraCalibration
+    # Define new AriaCameraCalibration since we rotated the image
     width = src_calib.get_image_size()[0].item()
     height = src_calib.get_image_size()[1].item()
     intrinsics = src_calib.projection_params()
@@ -286,39 +286,36 @@ class ProcessProjectAria:
       https://facebookresearch.github.io/projectaria_tools/docs/ARK/mps.
     """
 
-    vrs_file: Path
-    """Path to the VRS file."""
-    mps_data_dir: Path
+    vrs_file: Tuple[Path, ...]
+    """Path to the VRS file(s)."""
+    mps_data_dir: Tuple[Path, ...]
     """Path to Project Aria Machine Perception Services (MPS) attachments."""
     output_dir: Path
     """Path to the output directory."""
-    points_file: Optional[Path] = None
+    points_file: Optional[Tuple[Path, ...]] = ()
     """Path to the point cloud file (usually called semidense_points.csv.gz) if not in the mps_data_dir"""
     include_side_cameras: bool = False
     """If True, include and process the images captured by the grayscale side cameras. If False, only uses the main RGB camera's data."""
-    vrs_file2: Optional[Path] = None
-    """Path to the second VRS file if provided"""
-    mps_data_dir2: Optional[Path] = None
-    """Path to the second MPS attachments if provided"""
-    points_file2: Optional[Path] = None
-    """Path to the second point cloud file if provided"""
 
     def main(self) -> None:
         """Generate a nerfstudio dataset from ProjectAria data (VRS) and MPS attachments."""
-        # Create output directory if it doesn't exist.
+        # Create output directory if it doesn't exist
         self.output_dir = self.output_dir.absolute()
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        vrs_mps_points_triplets = [(self.vrs_file, self.mps_data_dir, self.points_file)]
-        if self.vrs_file2 and self.mps_data_dir2:
-            vrs_mps_points_triplets.append((self.vrs_file2, self.mps_data_dir2, self.points_file2))
-
+        # Create list of tuples containing files from each wearer and output variables
+        assert len(self.vrs_file) == len(
+            self.mps_data_dir
+        ), "Please provide an Aria MPS attachment for each corresponding VRS file."
+        points_file_padded = tuple([None for _ in range(len(self.vrs_file))])
+        vrs_mps_points_triplets = list(zip(self.vrs_file, self.mps_data_dir, points_file_padded))
         nerfstudio_frames = {
             "camera_model": "OPENCV" if self.include_side_cameras else ARIA_CAMERA_MODEL,
             "frames": [],
         }
         points = []
 
+        # Process the aria data of each user one by one
         for rec_i, (vrs_file, mps_data_dir, points_file) in enumerate(vrs_mps_points_triplets):
             provider = create_vrs_data_provider(str(vrs_file.absolute()))
             assert provider is not None, "Cannot open file"
@@ -334,7 +331,7 @@ class ProcessProjectAria:
 
             stream_ids = [provider.get_stream_id_from_label(name) for name in names]
 
-            # create an AriaImageFrame for each image in the VRS.
+            # Create an AriaImageFrame for each image in the VRS
             print(f"Creating Aria frames for recording {rec_i + 1}...")
             CANONICAL_RGB_VALID_RADIUS = 707.5  # radius of a circular mask that represents the valid area on the camera's sensor plane. Pixels out of this circular region are considered invalid
             CANONICAL_RGB_WIDTH = 1408
@@ -367,7 +364,7 @@ class ProcessProjectAria:
                     ]
                     for i, stream_id in enumerate(stream_ids)
                 ]
-                # generate masks for undistorted images
+                # Generate masks for undistorted images
                 rgb_width = aria_all3cameras_pinhole_frames[0][0].camera.width
                 rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (rgb_width / CANONICAL_RGB_WIDTH)
                 slam_valid_radius = 330.0  # found here: https://github.com/facebookresearch/projectaria_tools/blob/4aee633cb667ab927825dc10477cad0df8393a34/core/calibration/loader/SensorCalibrationJson.cpp#L102C5-L104C18
@@ -416,7 +413,7 @@ class ProcessProjectAria:
         else:
             print("No global points found!")
 
-        # write the json out to disk as transforms.json
+        # Write the json out to disk as transforms.json
         print("Writing transforms.json")
         transform_file = self.output_dir / "transforms.json"
         with open(transform_file, "w", encoding="UTF-8"):
