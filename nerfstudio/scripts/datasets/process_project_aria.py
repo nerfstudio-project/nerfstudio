@@ -79,14 +79,13 @@ class TimedPoses:
 
 
 def get_camera_calibs(
-    provider: VrsDataProvider, name: Literal["camera-rgb", "camera-slam-left", "camera-slam-right"]
+    provider: VrsDataProvider, name: Literal["camera-rgb", "camera-slam-left", "camera-slam-right"] = "camera-rgb"
 ) -> AriaCameraCalibration:
     """Retrieve the per-camera factory calibration from within the VRS."""
-
+    assert name in ["camera-rgb", "camera-slam-left", "camera-slam-right"], f"{name} is not a valid camera sensor"
     factory_calib = {}
     device_calib = provider.get_device_calibration()
     assert device_calib is not None, "Could not find device calibration"
-    assert name in ["camera-rgb", "camera-slam-left", "camera-slam-right"], f"{name} is not a valid camera sensor"
     sensor_calib = device_calib.get_camera_calib(name)
     assert sensor_calib is not None, f"Could not find sensor calibration for {name}"
 
@@ -323,7 +322,8 @@ class ProcessProjectAria:
 
             names = ["camera-rgb", "camera-slam-left", "camera-slam-right"]
             name_to_camera = {
-                name: get_camera_calibs(provider, name) for name in names
+                name: get_camera_calibs(provider, name) # type: ignore
+                for name in names  
             }  # name_to_camera is of type Dict[str, AriaCameraCalibration]
 
             print(f"Getting poses from recording {rec_i + 1}'s closed loop trajectory CSV...")
