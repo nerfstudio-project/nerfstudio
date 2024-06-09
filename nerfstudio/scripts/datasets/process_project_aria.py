@@ -322,8 +322,8 @@ class ProcessProjectAria:
 
             names = ["camera-rgb", "camera-slam-left", "camera-slam-right"]
             name_to_camera = {
-                name: get_camera_calibs(provider, name) # type: ignore
-                for name in names  
+                name: get_camera_calibs(provider, name)  # type: ignore
+                for name in names
             }  # name_to_camera is of type Dict[str, AriaCameraCalibration]
 
             print(f"Getting poses from recording {rec_i + 1}'s closed loop trajectory CSV...")
