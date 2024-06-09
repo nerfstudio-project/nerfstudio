@@ -308,7 +308,7 @@ class ProcessProjectAria:
         assert len(self.vrs_file) == len(
             self.mps_data_dir
         ), "Please provide an Aria MPS attachment for each corresponding VRS file."
-        vrs_mps_points_triplets = list(zip_longest(self.vrs_file, self.mps_data_dir, self.points_file)) # type: ignore
+        vrs_mps_points_triplets = list(zip_longest(self.vrs_file, self.mps_data_dir, self.points_file))  # type: ignore
         nerfstudio_frames = {
             "camera_model": "OPENCV" if self.include_side_cameras else ARIA_CAMERA_MODEL,
             "frames": [],
