@@ -16,6 +16,7 @@ import json
 import sys
 import threading
 from dataclasses import dataclass
+from itertools import zip_longest
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple, cast
 
@@ -307,8 +308,7 @@ class ProcessProjectAria:
         assert len(self.vrs_file) == len(
             self.mps_data_dir
         ), "Please provide an Aria MPS attachment for each corresponding VRS file."
-        points_file_padded = tuple([None for _ in range(len(self.vrs_file))])
-        vrs_mps_points_triplets = list(zip(self.vrs_file, self.mps_data_dir, points_file_padded))
+        vrs_mps_points_triplets = list(zip_longest(self.vrs_file, self.mps_data_dir, self.points_file)) # type: ignore
         nerfstudio_frames = {
             "camera_model": "OPENCV" if self.include_side_cameras else ARIA_CAMERA_MODEL,
             "frames": [],
