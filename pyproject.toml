@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "1.1.0"
+version = "1.1.2"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -63,10 +63,11 @@ dependencies = [
     "xatlas",
     "trimesh>=3.20.2",
     "timm==0.6.7",
-    "gsplat>=0.1.11",
+    "gsplat==1.0.0",
     "pytorch-msssim",
     "pathos",
-    "packaging"
+    "packaging",
+    "fpsample"
 ]
 
 [project.urls]

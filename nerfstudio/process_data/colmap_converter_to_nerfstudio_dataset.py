@@ -246,7 +246,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     def __post_init__(self) -> None:
         super().__post_init__()
         install_checks.check_ffmpeg_installed()
-        install_checks.check_colmap_installed()
+        install_checks.check_colmap_installed(self.colmap_cmd)
 
         if self.crop_bottom < 0.0 or self.crop_bottom > 1:
             raise RuntimeError("crop_bottom must be set between 0 and 1.")

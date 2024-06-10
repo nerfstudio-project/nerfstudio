@@ -369,7 +369,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/fd/5b/8f0c4a5bb9fd491c277c21eff7ccae71b47d43c4446c9d0c6cff2fe8c2c4/gitdb-4.0.11-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e9/bd/cc3a402a6439c15c3d4294333e13042b915bbeab54edc457c723931fed3f/GitPython-3.1.43-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/47/82/5f51b0ac0e670aa6551f351c6c8a479149a36c413dd76db4b98d26dddbea/grpcio-1.63.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/b4/b2/0c3fe3a11a2e8cdf9216ba92e97172d08f769082181f6f10807517db9295/gsplat-0.1.11-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/53/71/d9bf12b11f608f0ad078fa962a9ab61a2cf28fa9739293a1e842656bc419/gsplat-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/95/04/ff642e65ad6b90db43e668d70ffb6736436c7ce41fcc549f4e9472234127/h11-0.14.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/94/00/94bf8573e7487b7c37f2b613fc381880d48ec2311f2e859b8a5817deb4df/h5py-3.11.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/78/d4/e5d7e4f2174f8a4d63c8897d79eb8fe2503f7ecc03282fee1fa2719c2704/httpcore-1.0.5-py3-none-any.whl
@@ -2710,9 +2710,9 @@ packages:
   requires_python: '>=3.8'
 - kind: pypi
   name: gsplat
-  version: 0.1.11
-  url: https://files.pythonhosted.org/packages/b4/b2/0c3fe3a11a2e8cdf9216ba92e97172d08f769082181f6f10807517db9295/gsplat-0.1.11-py3-none-any.whl
-  sha256: 2d47c5d4c245b46d85b7eeae8ca4a96df3f1e2354d8daf254871516cb251b75c
+  version: 1.0.0
+  url: https://files.pythonhosted.org/packages/53/71/d9bf12b11f608f0ad078fa962a9ab61a2cf28fa9739293a1e842656bc419/gsplat-1.0.0-py3-none-any.whl
+  sha256: a21eead19150e80a0531dd24e5d717c67892cb381657c8411ec8b318b293a032
   requires_dist:
   - jaxtyping
   - rich >=12
@@ -6085,7 +6085,7 @@ packages:
   - xatlas
   - trimesh >=3.20.2
   - timm ==0.6.7
-  - gsplat >=0.1.11
+  - gsplat ==1.0.0
   - pytorch-msssim
   - pathos
   - packaging
