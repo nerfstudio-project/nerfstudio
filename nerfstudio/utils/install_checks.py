@@ -15,6 +15,7 @@
 """Helpers for checking if programs are installed"""
 
 import shutil
+import subprocess
 import sys
 
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -29,10 +30,10 @@ def check_ffmpeg_installed():
         sys.exit(1)
 
 
-def check_colmap_installed():
+def check_colmap_installed(colmap_cmd: str):
     """Checks if colmap is installed."""
-    colmap_path = shutil.which("colmap")
-    if colmap_path is None:
+    out = subprocess.run(f"{colmap_cmd} -h", capture_output=True, shell=True, check=False)
+    if out.returncode != 0:
         CONSOLE.print("[bold red]Could not find COLMAP. Please install COLMAP.")
         print("See https://colmap.github.io/install.html for installation instructions.")
         sys.exit(1)
