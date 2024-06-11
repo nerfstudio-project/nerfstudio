@@ -184,7 +184,8 @@ class SplatfactoModelConfig(ModelConfig):
     """
     camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="off"))
     """Config of the camera optimizer to use"""
-   
+
+
 class SplatfactoModel(Model):
     """Nerfstudio's implementation of Gaussian Splatting
 
@@ -739,6 +740,8 @@ class SplatfactoModel(Model):
         K = camera.get_intrinsics_matrices().cuda()
         W, H = int(camera.width.item()), int(camera.height.item())
         self.last_size = (H, W)
+        camera.rescale_output_resolution(camera_scale_fac)  # type: ignore
+
         # apply the compensation of screen space blurring to gaussians
         if self.config.rasterize_mode not in ["antialiased", "classic"]:
             raise ValueError("Unknown rasterize_mode: %s", self.config.rasterize_mode)
@@ -785,8 +788,6 @@ class SplatfactoModel(Model):
         background = self._get_background_color()
         rgb = render[:, ..., :3] + (1 - alpha) * background
         rgb = torch.clamp(rgb, 0.0, 1.0)
-
-        camera.rescale_output_resolution(camera_scale_fac)  # type: ignore
 
         if render_mode == "RGB+ED":
             depth_im = render[:, ..., 3:4]
