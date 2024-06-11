@@ -16,10 +16,11 @@ from typing import Literal
 import torch
 from torch import Tensor, nn
 
-from nerfstudio.cameras.rays import RayBundle
+# from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.field_components import MLP
-from nerfstudio.field_components.encodings import SHEncoding
-from nerfstudio.fields.base_field import Field, get_normalized_directions
+
+# from nerfstudio.field_components.encodings import SHEncoding
+from nerfstudio.fields.base_field import Field
 
 
 class SplatfactoWField(Field):
