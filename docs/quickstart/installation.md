@@ -78,23 +78,23 @@ conda install -c "nvidia/label/cuda-11.7.1" cuda-toolkit
 :::
 ::::
 
+### Installing tinycudann/gsplat
+
 ::::::{tab-set}
 :::::{tab-item} Linux
 
-### tiny-cuda-nn
-
 After pytorch and ninja, install the torch bindings for tiny-cuda-nn:
 @@ -84,6 +85,46 @@ After pytorch and ninja, install the torch bindings for tiny-cuda-nn:
+```bash
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
 :::::
 :::::{tab-item} Windows
 
-### Installing tinycudann/gsplat
-
 Activate your Visual C++ environment:
 Navigate to the directory where `vcvars64.bat` is located. This path might vary depending on your installation. A common path is:
+
 ```
 C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build
 ```
