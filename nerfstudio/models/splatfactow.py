@@ -741,7 +741,9 @@ class SplatfactoWModel(Model):
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
-                return self.get_empty_outputs(int(camera.width.item()), int(camera.height.item()), background)
+                return self.get_empty_outputs(
+                    int(camera.width.item()), int(camera.height.item()), self.background_color
+                )
         else:
             crop_ids = None
         camera_scale_fac = self._get_downscale_factor()
@@ -844,10 +846,10 @@ class SplatfactoWModel(Model):
             background = background.expand(H, W, 3)
 
         return {
-            "rgb": rgb.squeeze(0),
-            "depth": depth_im,
-            "accumulation": alpha.squeeze(0),
-            "background": background.squeeze(0),
+            "rgb": rgb.squeeze(0),  # type: ignore
+            "depth": depth_im,  # type: ignore
+            "accumulation": alpha.squeeze(0),  # type: ignore
+            "background": background.squeeze(0),  # type: ignore
         }  # type: ignore
 
     def get_gt_img(self, image: torch.Tensor):
