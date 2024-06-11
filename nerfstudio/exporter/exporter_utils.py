@@ -30,6 +30,7 @@ from jaxtyping import Float
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeRemainingColumn
 from torch import Tensor
 
+from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datasets.base_dataset import InputDataset
@@ -283,11 +284,14 @@ def render_trajectory(
     return images, depths
 
 
-def collect_camera_poses_for_dataset(dataset: Optional[InputDataset]) -> List[Dict[str, Any]]:
+def collect_camera_poses_for_dataset(
+    dataset: Optional[InputDataset], camera_optimizer: Optional[CameraOptimizer] = None
+) -> List[Dict[str, Any]]:
     """Collects rescaled, translated and optimised camera poses for a dataset.
 
     Args:
         dataset: Dataset to collect camera poses for.
+        camera_optimizer: Camera optimizer that has been used for adjusting the poses
 
     Returns:
         List of dicts containing camera poses.
@@ -304,7 +308,15 @@ def collect_camera_poses_for_dataset(dataset: Optional[InputDataset]) -> List[Di
     # new cameras are in cameras, whereas image paths are stored in a private member of the dataset
     for idx in range(len(cameras)):
         image_filename = image_filenames[idx]
-        transform = cameras.camera_to_worlds[idx].tolist()
+        if camera_optimizer is None:
+            transform = cameras.camera_to_worlds[idx].tolist()
+        else:
+            # print('exporting optimized camera pose for camera %d' % idx)
+            camera = cameras[idx : idx + 1]
+            assert camera.metadata is not None
+            camera.metadata["cam_idx"] = idx
+            transform = camera_optimizer.apply_to_camera(camera).tolist()[0]
+
         frames.append(
             {
                 "file_path": str(image_filename),
@@ -331,7 +343,12 @@ def collect_camera_poses(pipeline: VanillaPipeline) -> Tuple[List[Dict[str, Any]
     eval_dataset = pipeline.datamanager.eval_dataset
     assert isinstance(eval_dataset, InputDataset)
 
-    train_frames = collect_camera_poses_for_dataset(train_dataset)
+    camera_optimizer = None
+    if hasattr(pipeline.model, "camera_optimizer"):
+        camera_optimizer = pipeline.model.camera_optimizer
+
+    train_frames = collect_camera_poses_for_dataset(train_dataset, camera_optimizer)
+    # Note: returning original poses, even if --eval-mode=all
     eval_frames = collect_camera_poses_for_dataset(eval_dataset)
 
     return train_frames, eval_frames
