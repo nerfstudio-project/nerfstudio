@@ -274,10 +274,8 @@ class SplatfactoWModel(Model):
         else:
             self.background_color = get_color(self.config.background_color)
 
-        if self.config.appearance_embed_dim > 0:
-            self.appearance_embeds = torch.nn.Embedding(self.num_train_data, self.config.appearance_embed_dim)
-        else:
-            self.appearance_embeds = None
+        assert self.config.appearance_embed_dim > 0
+        self.appearance_embeds = torch.nn.Embedding(self.num_train_data, self.config.appearance_embed_dim)
 
         if self.config.enable_bg_model:
             self.bg_model = BG_Field(
@@ -667,7 +665,10 @@ class SplatfactoWModel(Model):
         gps = self.get_gaussian_param_groups()
         self.camera_optimizer.get_param_groups(param_groups=gps)
         if self.config.enable_bg_model:
+            assert self.bg_model is not None
             gps["field_background"] = list(self.bg_model.parameters())
+        assert self.color_nn is not None
+        assert self.appearance_embeds is not None
         gps["appearance_embed"] = list(self.appearance_embeds.parameters())
         gps["appearance_model"] = list(self.color_nn.parameters())
         return gps
@@ -721,15 +722,13 @@ class SplatfactoWModel(Model):
         if not isinstance(camera, Cameras):
             print("Called get_outputs with not a camera")
             return {}
+
         # get the appearance embedding
-        if self.appearance_embeds is not None:
-            if camera.metadata is not None and "cam_idx" in camera.metadata:
-                cam_idx = camera.metadata["cam_idx"]
-                appearance_embed = self.appearance_embeds(torch.tensor(cam_idx, device=self.device))
-            else:
-                appearance_embed = self.appearance_embeds(torch.tensor(0, device=self.device))
+        if camera.metadata is not None and "cam_idx" in camera.metadata:
+            cam_idx = camera.metadata["cam_idx"]
+            appearance_embed = self.appearance_embeds(torch.tensor(cam_idx, device=self.device))
         else:
-            appearance_embed = None
+            appearance_embed = self.appearance_embeds(torch.tensor(0, device=self.device))
 
         optimized_camera_to_world = self.camera_optimizer.apply_to_camera(camera)[0, ...]
 
@@ -823,6 +822,7 @@ class SplatfactoWModel(Model):
                 # Background processing
                 background = torch.zeros(H * W, 3, device=self.device)
                 flat_mask = mask.view(-1)
+                assert self.bg_model is not None
                 background[flat_mask] = self.bg_model.get_background_rgb(ray_bundle, appearance_embed).float()
                 background = background.view(1, H, W, 3)
                 rgb = render[:, ..., :3] + (1 - alpha) * background
@@ -832,7 +832,7 @@ class SplatfactoWModel(Model):
             rgb = render[:, ..., :3] + (1 - alpha) * background
 
         rgb = torch.clamp(rgb, 0.0, 1.0)
-
+        camera.rescale_output_resolution(camera_scale_fac)  # type: ignore
         # depth image
         if render_mode == "RGB+ED":
             depth_im = render[:, ..., 3:4]
@@ -843,7 +843,6 @@ class SplatfactoWModel(Model):
         if background.shape[0] == 3:
             background = background.expand(H, W, 3)
 
-        camera.rescale_output_resolution(camera_scale_fac)
         return {
             "rgb": rgb.squeeze(0),
             "depth": depth_im,
@@ -1104,15 +1103,15 @@ class SplatfactoWModel(Model):
         self.save_image(background, "output_images/equirect_bg.jpg")
         return background
 
-    def save_image(self, img, path):
-        import os
+    # def save_image(self, img, path):
+    #     import os
 
-        import PIL
+    #     import PIL
 
-        img = img.detach().cpu().numpy()
-        img = (img * 255).astype(np.uint8)
-        img = PIL.Image.fromarray(img)
-        # create output_images folder if it doesn't exist
-        if not os.path.exists(path=os.path.dirname(path)):
-            os.makedirs(os.path.dirname(path))
-        img.save(path)
+    #     img = img.detach().cpu().numpy()
+    #     img = (img * 255).astype(np.uint8)
+    #     img = PIL.Image.fromarray(img)
+    #     # create output_images folder if it doesn't exist
+    #     if not os.path.exists(path=os.path.dirname(path)):
+    #         os.makedirs(os.path.dirname(path))
+    #     img.save(path)

@@ -671,8 +671,10 @@ class SplatfactoModel(Model):
         gps = self.get_gaussian_param_groups()
         self.camera_optimizer.get_param_groups(param_groups=gps)
         if self.config.enable_bg_model:
+            assert self.bg_model is not None
             gps["field_background"] = list(self.bg_model.parameters())
         if self.config.appearance_embed_dim > 0:
+            assert self.appearance_embeds is not None
             gps["appearance_embed"] = list(self.appearance_embeds.parameters())
         return gps
 
@@ -742,16 +744,13 @@ class SplatfactoModel(Model):
         else:
             optimized_camera_to_world = camera.camera_to_worlds
 
-        camera_scale_fac = self._get_downscale_factor()
-        camera.rescale_output_resolution(1 / camera_scale_fac)
-        viewmat = get_viewmat(optimized_camera_to_world)
-        W, H = int(camera.width.item()), int(camera.height.item())
-        self.last_size = (H, W)
-
+        # cropping
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
-                return self.get_empty_outputs(int(camera.width.item()), int(camera.height.item()), background)
+                return self.get_empty_outputs(
+                    int(camera.width.item()), int(camera.height.item()), self.background_color
+                )
         else:
             crop_ids = None
 
@@ -771,8 +770,14 @@ class SplatfactoModel(Model):
             quats_crop = self.quats
 
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
+
         BLOCK_WIDTH = 16  # this controls the tile size of rasterization, 16 is a good default
+        camera_scale_fac = self._get_downscale_factor()
+        camera.rescale_output_resolution(1 / camera_scale_fac)
+        viewmat = get_viewmat(optimized_camera_to_world)
         K = camera.get_intrinsics_matrices().cuda()
+        W, H = int(camera.width.item()), int(camera.height.item())
+        self.last_size = (H, W)
         # apply the compensation of screen space blurring to gaussians
         if self.config.rasterize_mode not in ["antialiased", "classic"]:
             raise ValueError("Unknown rasterize_mode: %s", self.config.rasterize_mode)
@@ -832,6 +837,7 @@ class SplatfactoModel(Model):
                 # Background processing
                 background = torch.zeros(H * W, 3, device=self.device)
                 flat_mask = mask.view(-1)
+                assert self.bg_model is not None
                 background[flat_mask] = self.bg_model.get_background_rgb(ray_bundle, appearance_embed).float()
                 background = background.view(1, H, W, 3)
                 rgb = render[:, ..., :3] + (1 - alpha) * background
@@ -841,6 +847,8 @@ class SplatfactoModel(Model):
             rgb = render[:, ..., :3] + (1 - alpha) * background
 
         rgb = torch.clamp(rgb, 0.0, 1.0)
+        camera.rescale_output_resolution(camera_scale_fac)  # type: ignore
+
         if render_mode == "RGB+ED":
             depth_im = render[:, ..., 3:4]
             depth_im = torch.where(alpha > 0, depth_im, depth_im.detach().max()).squeeze(0)
@@ -850,7 +858,6 @@ class SplatfactoModel(Model):
         if background.shape[0] == 3:
             background = background.expand(H, W, 3)
 
-        camera.rescale_output_resolution(camera_scale_fac)
         return {
             "rgb": rgb.squeeze(0),
             "depth": depth_im,

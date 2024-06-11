@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from typing import Literal
+
 import torch
 from torch import Tensor, nn
 
@@ -21,7 +23,7 @@ from nerfstudio.fields.base_field import Field, get_normalized_directions
 
 
 class BG_Field(Field):
-    def __init__(self, appearance_embedding_dim: int, implementation="torch"):
+    def __init__(self, appearance_embedding_dim: int, implementation: Literal["tcnn", "torch"] = "torch"):
         super().__init__()
         self.direction_encoding = SHEncoding(
             levels=4,

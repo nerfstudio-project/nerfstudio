@@ -81,6 +81,7 @@ class Phototourism(DataParser):
     def __init__(self, config: PhototourismDataParserConfig):
         super().__init__(config=config)
         self.data: Path = config.data
+        self._downscale_factor = None
 
     def _generate_dataparser_outputs(self, split="train"):
         image_filenames = []
