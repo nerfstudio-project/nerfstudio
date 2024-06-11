@@ -529,6 +529,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
+        breakpoint()
         self.train_count += 1
         image_batch = next(self.iter_train_image_dataloader)
         assert self.train_pixel_sampler is not None
