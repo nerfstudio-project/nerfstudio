@@ -795,7 +795,7 @@ class SplatfactoModel(Model):
         else:
             depth_im = None
 
-        if background.shape[0] == 3:
+        if background.shape[0] == 3 and not self.training:
             background = background.expand(H, W, 3)
 
         return {
