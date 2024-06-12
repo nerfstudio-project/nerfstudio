@@ -18,7 +18,7 @@ import threading
 from dataclasses import dataclass
 from itertools import zip_longest
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple, cast
+from typing import Any, Dict, List, Literal, Tuple, cast
 
 import numpy as np
 import open3d as o3d
@@ -228,7 +228,7 @@ def to_aria_image_frame(
     # Compute the world to camera transform.
     t_world_camera = t_world_device @ src_calib.get_transform_device_camera() @ T_ARIA_NERFSTUDIO
 
-    # Define new AriaCameraCalibration since we rotated the image
+    # Define new AriaCameraCalibration since we rotated the image to be upright
     width = src_calib.get_image_size()[0].item()
     height = src_calib.get_image_size()[1].item()
     intrinsics = src_calib.projection_params()
@@ -293,10 +293,13 @@ class ProcessProjectAria:
     """Path to Project Aria Machine Perception Services (MPS) attachments."""
     output_dir: Path
     """Path to the output directory."""
-    points_file: Optional[Tuple[Path, ...]] = ()
+    points_file: Tuple[Path, ...] = ()
     """Path to the point cloud file (usually called semidense_points.csv.gz) if not in the mps_data_dir"""
     include_side_cameras: bool = False
     """If True, include and process the images captured by the grayscale side cameras. If False, only uses the main RGB camera's data."""
+    max_dataset_size: int = 600
+    """Max number of images to train on. If the dataset has more, images will be sampled approximately evenly. If -1,
+    use all images."""
 
     def main(self) -> None:
         """Generate a nerfstudio dataset from ProjectAria data (VRS) and MPS attachments."""
@@ -337,11 +340,13 @@ class ProcessProjectAria:
             CANONICAL_RGB_VALID_RADIUS = 707.5  # radius of a circular mask that represents the valid area on the camera's sensor plane. Pixels out of this circular region are considered invalid
             CANONICAL_RGB_WIDTH = 1408
             if not self.include_side_cameras:
+                total_num_images = provider.get_num_data(stream_ids[0])
+                spacing = max(1, total_num_images * len(vrs_mps_points_triplets) // self.max_dataset_size)
                 aria_rgb_frames = [
                     to_aria_image_frame(
                         provider, index, name_to_camera, t_world_devices, self.output_dir, camera_name=names[0]
                     )
-                    for index in range(0, provider.get_num_data(stream_ids[0]))
+                    for index in range(0, provider.get_num_data(stream_ids[0]), spacing)
                 ]
                 print(f"Creating NerfStudio frames for recording {rec_i + 1}...")
                 nerfstudio_frames["frames"] += [to_nerfstudio_frame(frame) for frame in aria_rgb_frames]
@@ -350,6 +355,8 @@ class ProcessProjectAria:
                 )  # to handle both high-res 2880 x 2880 aria captures
                 nerfstudio_frames["fisheye_crop_radius"] = rgb_valid_radius
             else:
+                total_num_images = sum([provider.get_num_data(stream_id) for stream_id in stream_ids])
+                spacing = max(1, total_num_images * len(vrs_mps_points_triplets) // self.max_dataset_size)
                 aria_all3cameras_pinhole_frames = [
                     [
                         to_aria_image_frame(
@@ -361,7 +368,7 @@ class ProcessProjectAria:
                             camera_name=names[i],
                             pinhole=True,
                         )
-                        for index in range(0, provider.get_num_data(stream_id))
+                        for index in range(0, provider.get_num_data(stream_id), spacing)
                     ]
                     for i, stream_id in enumerate(stream_ids)
                 ]
@@ -389,7 +396,7 @@ class ProcessProjectAria:
                 ]
                 nerfstudio_frames["frames"] += pinhole_frames
 
-            if points_file:
+            if points_file is not None:
                 points_path = points_file
             else:
                 points_path = mps_data_dir / "global_points.csv.gz"
@@ -404,8 +411,9 @@ class ProcessProjectAria:
                 points_data = filter_points_from_confidence(points_data)
                 points += [cast(Any, it).position_world for it in points_data]
 
-        if points:
+        if len(points) > 0:
             print("Saving found points to PLY...")
+            print("Total number of points found:", len(points))
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(np.array(points))
             ply_file_path = self.output_dir / "global_points.ply"
