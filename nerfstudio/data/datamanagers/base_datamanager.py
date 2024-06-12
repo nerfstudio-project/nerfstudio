@@ -484,19 +484,68 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         """Sets up the data loaders for training"""
         assert self.train_dataset is not None
         CONSOLE.print("Setting up training dataset...")
-        self.train_image_dataloader = CacheDataloader(
-            self.train_dataset,
-            num_images_to_sample_from=self.config.train_num_images_to_sample_from,
-            num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
-            device=self.device,
-            num_workers=self.world_size * 4,
-            pin_memory=True,
-            collate_fn=self.config.collate_fn,
-            exclude_batch_keys_from_device=self.exclude_batch_keys_from_device,
-        )
-        self.iter_train_image_dataloader = iter(self.train_image_dataloader)
-        self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
-        self.train_ray_generator = RayGenerator(self.train_dataset.cameras.to(self.device))
+        # self.train_image_dataloader = CacheDataloader(
+        #     self.train_dataset,
+        #     num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+        #     num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
+        #     device=self.device,
+        #     num_workers=self.world_size * 4,
+        #     pin_memory=True,
+        #     collate_fn=self.config.collate_fn,
+        #     exclude_batch_keys_from_device=self.exclude_batch_keys_from_device,
+        # )
+        # self.iter_train_image_dataloader = iter(self.train_image_dataloader)
+        # self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
+        # self.train_ray_generator = RayGenerator(self.train_dataset.cameras.to(self.device))
+
+        if self.config.use_ray_train_dataloader:
+            self.raybatch_stream = RayBatchStream(
+                self.train_dataset,
+                self.config,
+                # self.train_pixel_sampler,
+                # self.train_ray_generator,
+                num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+                num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
+                device=self.device,
+                num_workers=self.world_size * 4,
+                pin_memory=True,
+                # device=self.device,
+            )        
+            self.ray_dataloader = torch.utils.data.DataLoader(
+                self.raybatch_stream,
+                batch_size=1,
+                num_workers=self.config.dataloader_num_workers,
+                prefetch_factor=self.config.dataloader_prefetch_size,
+                shuffle=False,
+                pin_memory=False,
+                # Our dataset does batching / collation
+                collate_fn=lambda x: x,
+                # pin_memory_device=self.device
+            )
+            self.iter_train_image_dataloader = None
+            self.iter_train_raybundles = iter(self.ray_dataloader)
+        else:
+            self.iter_train_raybundles = None
+            self.train_image_dataloader = CacheDataloader(
+                self.train_dataset,
+                num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+                num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
+                device=self.device,
+                num_workers=
+                self.world_size * 4
+                    if self.config.dataloader_num_workers == -1
+                    else self.config.dataloader_num_workers,
+                prefetch_factor=
+                2
+                    if self.config.dataloader_prefetch_size == -1
+                    else self.config.dataloader_prefetch_size,
+                pin_memory=True,
+                collate_fn=self.config.collate_fn,
+                exclude_batch_keys_from_device=self.exclude_batch_keys_from_device,
+            )
+            self.iter_train_image_dataloader = iter(self.train_image_dataloader)
+            self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
+            self.train_ray_generator = RayGenerator(self.train_dataset.cameras.to(self.device))
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
@@ -531,12 +580,19 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         """Returns the next batch of data from the train dataloader."""
         breakpoint()
         self.train_count += 1
-        image_batch = next(self.iter_train_image_dataloader)
-        assert self.train_pixel_sampler is not None
-        assert isinstance(image_batch, dict)
-        batch = self.train_pixel_sampler.sample(image_batch)
-        ray_indices = batch["indices"]
-        ray_bundle = self.train_ray_generator(ray_indices)
+        if self.config.use_ray_train_dataloader:
+            ret = next(self.iter_train_raybundles)
+            assert len(ret) == 1, f"batch size should be one {len(ret)}"
+            ray_bundle, batch = ret[0]
+            # ray_bundle = RayBundle.from_dict(ray_bundle_dict)
+            ray_bundle = ray_bundle.to(self.device)
+        else:
+            image_batch = next(self.iter_train_image_dataloader)
+            assert self.train_pixel_sampler is not None
+            assert isinstance(image_batch, dict)
+            batch = self.train_pixel_sampler.sample(image_batch)
+            ray_indices = batch["indices"]
+            ray_bundle = self.train_ray_generator(ray_indices)
         return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
