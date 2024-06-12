@@ -22,7 +22,7 @@ from nerfstudio.field_components.encodings import SHEncoding
 from nerfstudio.fields.base_field import Field, get_normalized_directions
 
 
-class BG_Field(Field):
+class BGField(Field):
     def __init__(self, appearance_embedding_dim: int, implementation: Literal["tcnn", "torch"] = "torch"):
         super().__init__()
         self.direction_encoding = SHEncoding(

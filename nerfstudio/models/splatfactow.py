@@ -39,7 +39,7 @@ from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
-from nerfstudio.fields.background_field import BG_Field
+from nerfstudio.fields.background_field import BGField
 from nerfstudio.fields.splatfactow_field import SplatfactoWField
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils.colors import get_color
@@ -278,7 +278,7 @@ class SplatfactoWModel(Model):
         self.appearance_embeds = torch.nn.Embedding(self.num_train_data, self.config.appearance_embed_dim)
 
         if self.config.enable_bg_model:
-            self.bg_model = BG_Field(
+            self.bg_model = BGField(
                 appearance_embedding_dim=self.config.appearance_embed_dim,
                 implementation=self.config.implementation,
             )
