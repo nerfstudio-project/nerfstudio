@@ -56,7 +56,7 @@ from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
-from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
+from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader, RayBatchStream
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
@@ -335,6 +335,9 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
+    dataloader_prefetch_size : int = 2
+    dataloader_num_workers : int = 16
+    use_ray_train_dataloader: bool = True
 
     # tyro.conf.Suppress prevents us from creating CLI arguments for this field.
     camera_optimizer: tyro.conf.Suppress[Optional[CameraOptimizerConfig]] = field(default=None)
@@ -499,17 +502,19 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         # self.train_ray_generator = RayGenerator(self.train_dataset.cameras.to(self.device))
 
         if self.config.use_ray_train_dataloader:
+            import torch.multiprocessing as mp
+            mp.set_start_method('spawn')
             self.raybatch_stream = RayBatchStream(
-                self.train_dataset,
-                self.config,
+                input_dataset=self.train_dataset,
+                #self.config,
                 # self.train_pixel_sampler,
                 # self.train_ray_generator,
                 num_images_to_sample_from=self.config.train_num_images_to_sample_from,
-                num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
+                # num_times_to_repeat_images=self.config.train_num_times_to_repeat_images, # no work
                 device=self.device,
-                num_workers=self.world_size * 4,
-                pin_memory=True,
-                # device=self.device,
+                collate_fn=self.config.collate_fn,
+                # num_workers=self.world_size * 4,# this is part of torch.utils.data.DataLoader
+                # pin_memory=True, # this is part of torch.utils.data.DataLoader
             )        
             self.ray_dataloader = torch.utils.data.DataLoader(
                 self.raybatch_stream,
@@ -578,7 +583,6 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
-        breakpoint()
         self.train_count += 1
         if self.config.use_ray_train_dataloader:
             ret = next(self.iter_train_raybundles)

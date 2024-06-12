@@ -31,7 +31,6 @@ from torch.utils.data.dataloader import DataLoader
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.datamanagers.base_datamanager import DataManagerConfig
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import get_dict_to_torch
@@ -152,7 +151,6 @@ class RayBatchStream(torch.utils.data.IterableDataset):
     def __init__(
             self,
             input_dataset: Dataset,
-            datamanager_config : DataManagerConfig,
             num_images_to_sample_from: int = -1,
             device: Union[torch.device, str] = "cpu",
             collate_fn: Callable[[Any], Any] = nerfstudio_collate,
@@ -177,7 +175,6 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         self.num_image_load_threads = num_image_load_threads #kwargs.get("num_workers", 4) # nb only 4 in defaults
         self.exclude_batch_keys_from_device = exclude_batch_keys_from_device
 
-        self.datamanager_config = datamanager_config
         self.pixel_sampler = None
         self.ray_generator = None
         self._cached_collated_batch = None
@@ -216,28 +213,28 @@ class RayBatchStream(torch.utils.data.IterableDataset):
                 batch_list.append(res.result())
         return batch_list
     
-    def _get_pixel_sampler(self, dataset: 'TDataset', num_rays_per_batch: int) -> PixelSampler:
-        """copy-pasta from VanillaDataManager."""
-        from nerfstudio.cameras.cameras import Cameras, CameraType
-        from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
+    # def _get_pixel_sampler(self, dataset: 'TDataset', num_rays_per_batch: int) -> PixelSampler:
+    #     """copy-pasta from VanillaDataManager."""
+    #     from nerfstudio.cameras.cameras import Cameras, CameraType
+    #     from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
 
-        if self.datamanager_config.patch_size > 1 and type(self.datamanager_config.pixel_sampler) is PixelSamplerConfig:
-            return PatchPixelSamplerConfig().setup(
-                patch_size=self.datamanager_config.patch_size, num_rays_per_batch=num_rays_per_batch
-            )
-        is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
-        if is_equirectangular.any():
-            CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
+    #     if self.datamanager_config.patch_size > 1 and type(self.datamanager_config.pixel_sampler) is PixelSamplerConfig:
+    #         return PatchPixelSamplerConfig().setup(
+    #             patch_size=self.datamanager_config.patch_size, num_rays_per_batch=num_rays_per_batch
+    #         )
+    #     is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
+    #     if is_equirectangular.any():
+    #         CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
 
-        fisheye_crop_radius = None
-        if dataset.cameras.metadata is not None:
-            fisheye_crop_radius = dataset.cameras.metadata.get("fisheye_crop_radius")
+    #     fisheye_crop_radius = None
+    #     if dataset.cameras.metadata is not None:
+    #         fisheye_crop_radius = dataset.cameras.metadata.get("fisheye_crop_radius")
 
-        return self.datamanager_config.pixel_sampler.setup(
-            is_equirectangular=is_equirectangular,
-            num_rays_per_batch=num_rays_per_batch,
-            fisheye_crop_radius=fisheye_crop_radius,
-        )
+    #     return self.datamanager_config.pixel_sampler.setup(
+    #         is_equirectangular=is_equirectangular,
+    #         num_rays_per_batch=num_rays_per_batch,
+    #         fisheye_crop_radius=fisheye_crop_radius,
+    #     )
     
     def _get_collated_batch(self, indices=None):
         """Returns a collated batch."""
