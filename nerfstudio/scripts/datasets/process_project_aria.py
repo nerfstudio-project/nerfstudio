@@ -339,9 +339,9 @@ class ProcessProjectAria:
             print(f"Creating Aria frames for recording {rec_i + 1}...")
             CANONICAL_RGB_VALID_RADIUS = 707.5  # radius of a circular mask that represents the valid area on the camera's sensor plane. Pixels out of this circular region are considered invalid
             CANONICAL_RGB_WIDTH = 1408
+            total_num_images = provider.get_num_data(stream_ids[0]) if not self.include_side_cameras else sum([provider.get_num_data(stream_id) for stream_id in stream_ids])
+            spacing = max(1, total_num_images * len(vrs_mps_points_triplets) // self.max_dataset_size) if self.max_dataset_size != -1 else 1
             if not self.include_side_cameras:
-                total_num_images = provider.get_num_data(stream_ids[0])
-                spacing = max(1, total_num_images * len(vrs_mps_points_triplets) // self.max_dataset_size)
                 aria_rgb_frames = [
                     to_aria_image_frame(
                         provider, index, name_to_camera, t_world_devices, self.output_dir, camera_name=names[0]
@@ -355,8 +355,6 @@ class ProcessProjectAria:
                 )  # to handle both high-res 2880 x 2880 aria captures
                 nerfstudio_frames["fisheye_crop_radius"] = rgb_valid_radius
             else:
-                total_num_images = sum([provider.get_num_data(stream_id) for stream_id in stream_ids])
-                spacing = max(1, total_num_images * len(vrs_mps_points_triplets) // self.max_dataset_size)
                 aria_all3cameras_pinhole_frames = [
                     [
                         to_aria_image_frame(
