@@ -59,6 +59,7 @@ class PhototourismDataParserConfig(DataParserConfig):
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
     colmap_path: Path = Path("dense/sparse")
+    """The relative path to the colmap reconstruction."""
     load_3D_points: bool = True
     """Whether to load the 3D points from the colmap reconstruction. This is helpful for Gaussian splatting and
     generally unused otherwise, but it's typically harmless so we default to True."""
