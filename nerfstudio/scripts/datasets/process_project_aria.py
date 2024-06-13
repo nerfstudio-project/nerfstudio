@@ -346,7 +346,11 @@ class ProcessProjectAria:
             if self.max_dataset_size == -1:
                 num_images_to_sample_per_camera = total_num_images_per_camera
             else:
-                num_images_to_sample_per_camera = self.max_dataset_size // (len(vrs_mps_points_triplets) * 3) if self.include_side_cameras else self.max_dataset_size // len(vrs_mps_points_triplets) 
+                num_images_to_sample_per_camera = (
+                    self.max_dataset_size // (len(vrs_mps_points_triplets) * 3)
+                    if self.include_side_cameras
+                    else self.max_dataset_size // len(vrs_mps_points_triplets)
+                )
             sampling_indicies = random.sample(range(total_num_images_per_camera), num_images_to_sample_per_camera)
             if not self.include_side_cameras:
                 aria_rgb_frames = [
