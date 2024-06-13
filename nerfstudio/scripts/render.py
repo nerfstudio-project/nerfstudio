@@ -439,6 +439,8 @@ class RenderCameraPath(BaseRender):
     """Filename of the camera path to render."""
     output_format: Literal["images", "video"] = "video"
     """How to save output data."""
+    complete: bool = True
+    """Whether rendering is complete"""
 
     def main(self) -> None:
         """Main function."""
@@ -575,7 +577,7 @@ class RenderCameraPath(BaseRender):
                 if str(left_eye_path.parent)[-5:] == "_temp":
                     shutil.rmtree(left_eye_path.parent, ignore_errors=True)
                 CONSOLE.print("[bold green]Final VR180 Render Complete")
-
+        self.complete = True
 
 @dataclass
 class RenderInterpolated(BaseRender):

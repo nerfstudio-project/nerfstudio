@@ -1050,8 +1050,17 @@ def populate_render_tab(
     @render_button.on_click
     def _(event: viser.GuiEvent) -> None:
         assert event.client is not None
+        render_path = f"""renders/{datapath.name}/{render_name_text.value}.mp4"""
+        server.add_notification(
+            title="Rendering trajectory",
+            body="Saving rendered video as " + render_path,
+            withCloseButton=True,
+            loading=True,
+            autoClose=False,
+        )
         num_frames = int(framerate_number.value * duration_number.value)
         json_data = {}
+
         # json data has the properties:
         # keyframes: list of keyframes with
         #     matrix : flattened 4x4 matrix
@@ -1070,7 +1079,7 @@ def populate_render_tab(
         # aspect: float
         # first populate the keyframes:
         keyframes = []
-        for keyframe, dummy in camera_path._keyframes.values():
+        for keyframe, _ in camera_path._keyframes.values():
             pose = tf.SE3.from_rotation_and_translation(
                 tf.SO3(keyframe.wxyz) @ tf.SO3.from_x_radians(np.pi),
                 keyframe.position / VISER_NERFSTUDIO_SCALE_RATIO,
@@ -1143,34 +1152,24 @@ def populate_render_tab(
         json_outfile.parent.mkdir(parents=True, exist_ok=True)
         with open(json_outfile.absolute(), "w") as outfile:
             json.dump(json_data, outfile)
-        # now show the command
-        with event.client.add_gui_modal("Render") as modal:
-            dataname = datapath.name
-            command = " ".join(
-                [
-                    "ns-render camera-path",
-                    f"--load-config {config_path}",
-                    f"--camera-path-filename {json_outfile.absolute()}",
-                    f"--output-path renders/{dataname}/{render_name_text.value}.mp4",
-                ]
-            )
-            event.client.add_gui_markdown(
-                "\n".join(
-                    [
-                        "Rendering trajectory and saving file as",
-                        "",
-                        "```",
-                        f"renders/{dataname}/{render_name_text.value}.mp4",
-                        "```",
-                    ]
-                )
-            )
-            run_command(command, verbose=False)
-            close_button = event.client.add_gui_button("Close")
 
-            @close_button.on_click
-            def _(_) -> None:
-                modal.close()
+        # rendering
+        from nerfstudio.scripts.render import RenderCameraPath
+        render = RenderCameraPath(
+                    load_config=config_path,
+                    camera_path_filename=json_outfile.absolute(),
+                    output_path=Path(render_path)
+                )
+        render.main()
+        
+        if render.complete:
+            server.add_notification(
+                    title="Render complete!",
+                    body="Video saved as " + render_path,
+                    withCloseButton=True,
+                    loading=False,
+                    autoClose=5000,
+            )
 
     if control_panel is not None:
         camera_path = CameraPath(server, duration_number, control_panel._time_enabled)
