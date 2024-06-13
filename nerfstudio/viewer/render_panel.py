@@ -1123,13 +1123,14 @@ def populate_render_tab(
     def _(event: viser.GuiEvent) -> None:
         assert event.client is not None
         render_path = f"""renders/{datapath.name}/{render_name_text.value}.mp4"""
-        server.add_notification(
-            title="Rendering trajectory",
-            body="Saving rendered video as " + render_path,
-            withCloseButton=True,
-            loading=True,
-            autoClose=False,
-        )
+        notif = server.add_notification(
+                    title="Rendering trajectory",
+                    body="Saving rendered video as " + render_path,
+                    withCloseButton=True,
+                    loading=True,
+                    autoClose=False,
+                )
+        notif.show()
         num_frames = int(framerate_number.value * duration_number.value)
         json_data = {}
 
@@ -1245,13 +1246,14 @@ def populate_render_tab(
 
         if render.complete:
             server.clear_notification()
-            server.add_notification(
-                title="Render complete!",
-                body="Video saved as " + render_path,
-                withCloseButton=True,
-                loading=False,
-                autoClose=5000,
-            )
+            notif = server.add_notification(
+                        title="Render complete!",
+                        body="Video saved as " + render_path,
+                        withCloseButton=True,
+                        loading=False,
+                        autoClose=5000,
+                    )
+            notif.show()
 
     if control_panel is not None:
         camera_path = CameraPath(server, duration_number, control_panel._time_enabled)

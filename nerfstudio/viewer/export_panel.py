@@ -129,13 +129,14 @@ def populate_point_cloud_tab(
         @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
             assert event.client is not None
-            server.add_notification(
-                title="Exporting point cloud",
-                body="File will be saved under " + str(output_dir.value),
-                withCloseButton=True,
-                loading=True,
-                autoClose=False,
-            )
+            notif = server.add_notification(
+                        title="Exporting point cloud",
+                        body="File will be saved under " + str(output_dir.value),
+                        withCloseButton=True,
+                        loading=True,
+                        autoClose=False,
+                    )
+            notif.show()
 
             from nerfstudio.scripts.exporter import ExportPointCloud
 
@@ -157,13 +158,14 @@ def populate_point_cloud_tab(
 
             if export.complete:
                 server.clear_notification()
-                server.add_notification(
-                    title="Export complete!",
-                    body="File saved under " + str(output_dir.value),
-                    withCloseButton=True,
-                    loading=False,
-                    autoClose=5000,
-                )
+                notif = server.add_notification(
+                            title="Export complete!",
+                            body="File saved under " + str(output_dir.value),
+                            withCloseButton=True,
+                            loading=False,
+                            autoClose=5000,
+                        )
+                notif.show()
 
     else:
         server.add_gui_markdown(
@@ -205,13 +207,14 @@ def populate_mesh_tab(
         @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
             assert event.client is not None
-            server.add_notification(
-                title="Exporting poisson mesh",
-                body="File will be saved under " + str(output_dir.value),
-                withCloseButton=True,
-                loading=True,
-                autoClose=False,
-            )
+            notif = server.add_notification(
+                        title="Exporting poisson mesh",
+                        body="File will be saved under " + str(output_dir.value),
+                        withCloseButton=True,
+                        loading=True,
+                        autoClose=False,
+                    )
+            notif.show()
 
             from nerfstudio.scripts.exporter import ExportPoissonMesh
 
@@ -234,13 +237,14 @@ def populate_mesh_tab(
 
             if export.complete:
                 server.clear_notification()
-                server.add_notification(
-                    title="Export complete!",
-                    body="File saved under " + str(output_dir.value),
-                    withCloseButton=True,
-                    loading=False,
-                    autoClose=5000,
-                )
+                notif = server.add_notification(
+                            title="Export complete!",
+                            body="File saved under " + str(output_dir.value),
+                            withCloseButton=True,
+                            loading=False,
+                            autoClose=5000,
+                        )
+                notif.show()
 
     else:
         server.add_gui_markdown(
@@ -266,13 +270,14 @@ def populate_splat_tab(
         @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
             assert event.client is not None
-            server.add_notification(
-                title="Exporting gaussian splat",
-                body="File will be saved under " + str(output_dir.value),
-                withCloseButton=True,
-                loading=True,
-                autoClose=False,
-            )
+            notif = server.add_notification(
+                        title="Exporting gaussian splat",
+                        body="File will be saved under " + str(output_dir.value),
+                        withCloseButton=True,
+                        loading=True,
+                        autoClose=False,
+                    )
+            notif.show()
 
             from nerfstudio.scripts.exporter import ExportGaussianSplat
 
@@ -290,13 +295,14 @@ def populate_splat_tab(
 
             if export.complete:
                 server.clear_notification()
-                server.add_notification(
-                    title="Export complete!",
-                    body="File saved under " + str(output_dir.value),
-                    withCloseButton=True,
-                    loading=False,
-                    autoClose=5000,
-                )
+                notif = server.add_notification(
+                            title="Export complete!",
+                            body="File saved under " + str(output_dir.value),
+                            withCloseButton=True,
+                            loading=False,
+                            autoClose=5000,
+                        )
+                notif.show()
 
     else:
         server.add_gui_markdown(
