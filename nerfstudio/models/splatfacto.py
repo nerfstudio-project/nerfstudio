@@ -677,7 +677,7 @@ class SplatfactoModel(Model):
             if self.training:
                 background = torch.rand(3, device=self.device)
             else:
-                background = self.background_color
+                background = self.background_color.to(self.device)
         elif self.config.background_color == "white":
             background = torch.ones(3, device=self.device)
         elif self.config.background_color == "black":
@@ -786,6 +786,8 @@ class SplatfactoModel(Model):
         alpha = alpha[:, ...]
 
         background = self._get_background_color()
+
+        assert alpha.device == background.device
         rgb = render[:, ..., :3] + (1 - alpha) * background
         rgb = torch.clamp(rgb, 0.0, 1.0)
 
