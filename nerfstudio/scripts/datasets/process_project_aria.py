@@ -343,7 +343,10 @@ class ProcessProjectAria:
             CANONICAL_RGB_VALID_RADIUS = 707.5  # radius of a circular mask that represents the valid area on the camera's sensor plane. Pixels out of this circular region are considered invalid
             CANONICAL_RGB_WIDTH = 1408
             total_num_images_per_camera = provider.get_num_data(stream_ids[0])
-            num_images_to_sample_per_camera = self.max_dataset_size // (len(vrs_mps_points_triplets) * 3) if self.include_side_cameras else  self.max_dataset_size // len(vrs_mps_points_triplets) 
+            if self.max_dataset_size == -1:
+                num_images_to_sample_per_camera = total_num_images_per_camera
+            else:
+                num_images_to_sample_per_camera = self.max_dataset_size // (len(vrs_mps_points_triplets) * 3) if self.include_side_cameras else self.max_dataset_size // len(vrs_mps_points_triplets) 
             sampling_indicies = random.sample(range(total_num_images_per_camera), num_images_to_sample_per_camera)
             if not self.include_side_cameras:
                 aria_rgb_frames = [
