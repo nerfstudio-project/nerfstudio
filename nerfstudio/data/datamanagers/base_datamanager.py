@@ -313,7 +313,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """Specifies the dataparser used to unpack the data."""
     train_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per training iteration."""
-    train_num_images_to_sample_from: int = -1
+    train_num_images_to_sample_from: int = -1 # was -1
     """Number of images to sample during training iteration."""
     train_num_times_to_repeat_images: int = -1
     """When not training on all images, number of iterations before picking new
@@ -339,7 +339,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """The limit number of batches a worker will start loading once an iterator is created. 
     Each next() call on the iterator has the CPU prepare more batches up to this 
     limit while the GPU is performing forward and backward passes on the model."""
-    dataloader_num_workers : int = 2
+    dataloader_num_workers : int = 8
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes undistortion, pixel sampling, ray generation, collating, etc."""
     use_ray_train_dataloader: bool = True
@@ -365,6 +365,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
 
 import multiprocessing
+import math
 from torch.utils.data import Dataset
 from typing import Sized
 import random
@@ -380,7 +381,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             collate_fn: Callable[[Any], Any] = nerfstudio_collate,
             exclude_batch_keys_from_device: Optional[List[str]] = None,
             num_image_load_threads : int = 2,
-            cache_all_n_shard_per_worker : bool = True,
+            cache_all_n_shard_per_worker : bool = True, # When False, always getting Killed/bugs for some reason
     ):
         if exclude_batch_keys_from_device is None:
             exclude_batch_keys_from_device = ["image"]
@@ -476,11 +477,6 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         # print(type(batch_list[0])) # prints <class 'dict'>
         # print(self.collate_fn) # prints nerfstudio_collate
         collated_batch = self.collate_fn(batch_list)
-        # collated_batch is a dictionary with dict_keys(['image_idx', 'image'])
-        # collated_batch['image_idx'] is tensor with shape torch.Size([per_worker])
-        # collated_batch['image'] is tensor with shape torch.Size([per_worker, height, width, 3])
-        #print(collated_batch['image_idx'].shape)
-        #print(collated_batch['image'].shape)
         collated_batch = get_dict_to_torch(
             collated_batch, device=self.device, exclude=self.exclude_batch_keys_from_device
         )
@@ -488,18 +484,16 @@ class RayBatchStream(torch.utils.data.IterableDataset):
 
     def __iter__(self):
         # Set up stuff now that we're in the worker process
+        this_indices = list(range(len(self.input_dataset))) 
+        worker_info = torch.utils.data.get_worker_info()
         if self.cache_all_n_shard_per_worker:
-            this_indices = list(range(len(self.input_dataset))) 
             # this_indices has len 300, at first it is the whole training dataset, but it gets partitioned into equal chunks
-            worker_info = torch.utils.data.get_worker_info()
             if worker_info is None:
                 print('TODO log. only single worker not sharding!')
                 worker_id = -1
             else:
-                # Here, we are in the worker process now
                 # assign this worker a deterministic uniformly sampled slice
                 # of the dataset
-                import math
                 per_worker = int(math.ceil(len(this_indices) / float(worker_info.num_workers)))
                 r = random.Random(1337)
                 r.shuffle(this_indices)
@@ -524,7 +518,13 @@ class RayBatchStream(torch.utils.data.IterableDataset):
 
         while True:
             if self._cached_collated_batch is None:
-                collated_batch = self._get_collated_batch()
+                per_worker = int(math.ceil(len(this_indices) / float(worker_info.num_workers)))
+                r = random.Random(1337)
+                r.shuffle(this_indices)
+                worker_id = worker_info.id
+                slice_start = worker_id * per_worker
+                this_indices = this_indices[slice_start:slice_start+per_worker]
+                collated_batch = self._get_collated_batch(this_indices)
             else:
                 collated_batch = self._cached_collated_batch
             batch = self.pixel_sampler.sample(collated_batch)

@@ -47,6 +47,14 @@ from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
+class ImageBatchStream(torch.utils.data.IterableDataset):
+    def __init__(
+            self,
+
+    ):
+        return
+    
+    # def 
 
 @dataclass
 class FullImageDatamanagerConfig(DataManagerConfig):
