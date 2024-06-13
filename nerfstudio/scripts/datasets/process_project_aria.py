@@ -415,6 +415,7 @@ class ProcessProjectAria:
             print("No global points found!")
 
         # Write the json out to disk as transforms.json
+        print(len(nerfstudio_frames['frames']))
         print("Writing transforms.json")
         transform_file = self.output_dir / "transforms.json"
         with open(transform_file, "w", encoding="UTF-8"):

@@ -339,7 +339,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """The limit number of batches a worker will start loading once an iterator is created. 
     Each next() call on the iterator has the CPU prepare more batches up to this 
     limit while the GPU is performing forward and backward passes on the model."""
-    dataloader_num_workers : int = 16
+    dataloader_num_workers : int = 2
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes undistortion, pixel sampling, ray generation, collating, etc."""
     use_ray_train_dataloader: bool = True
@@ -400,8 +400,9 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         self.pixel_sampler = None
         self.ray_generator = None
         self._cached_collated_batch = None
-        """"""
+        """_cached_collated_batch contains a collated batch of images that's ready for pixel sampling. I"""
         self.cache_all_n_shard_per_worker = cache_all_n_shard_per_worker
+        """If True, _cached_collated_batch is populated with a subset of the dataset assigned to each worker during the iteration process."""
     
     def _get_pixel_sampler(self, dataset: 'TDataset', num_rays_per_batch: int) -> PixelSampler:
         """copy-pasta from VanillaDataManager."""
@@ -427,7 +428,10 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         )
     
     def _get_batch_list(self, indices=None):
-        """Returns a list of batches from the dataset attribute."""
+        """Returns a list representing a single batch from the dataset attribute. 
+        Each item of the list is a dictionary with dict_keys(['image_idx', 'image']) representing 1 image.
+        This function is used to sample and load images from disk/RAM and is only called in _get_collated_batch
+        The length of the list is equal to the (# of training images) / (num_workers)"""
 
         assert isinstance(self.input_dataset, Sized)
         if indices is None:
@@ -461,28 +465,38 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         return batch_list
     
     def _get_collated_batch(self, indices=None):
-        """Returns a collated batch."""
+        """Takes the output of _get_batch_list and collates them with nerfstudio_collate()
+        Note: dict is an instance of collections.abc.Mapping
+        
+        The resulting output is collated_batch: a dictionary with dict_keys(['image_idx', 'image'])
+        collated_batch['image_idx'] is tensor with shape torch.Size([per_worker])
+        collated_batch['image'] is tensor with shape torch.Size([per_worker, height, width, 3]) 
+        """
         batch_list = self._get_batch_list(indices=indices)
-        # print('running collate_fn', self.collate_fn)
+        # print(type(batch_list[0])) # prints <class 'dict'>
+        # print(self.collate_fn) # prints nerfstudio_collate
         collated_batch = self.collate_fn(batch_list)
-        # print('done collate_fn')
-        # assert False, (self.exclude_batch_keys_from_device, collated_batch)
+        # collated_batch is a dictionary with dict_keys(['image_idx', 'image'])
+        # collated_batch['image_idx'] is tensor with shape torch.Size([per_worker])
+        # collated_batch['image'] is tensor with shape torch.Size([per_worker, height, width, 3])
+        #print(collated_batch['image_idx'].shape)
+        #print(collated_batch['image'].shape)
         collated_batch = get_dict_to_torch(
             collated_batch, device=self.device, exclude=self.exclude_batch_keys_from_device
         )
-        # print('done get_dict_to_torch')
-        # print('_get_collated_batch')
         return collated_batch
 
     def __iter__(self):
         # Set up stuff now that we're in the worker process
         if self.cache_all_n_shard_per_worker:
-            this_indices = list(range(len(self.input_dataset)))
+            this_indices = list(range(len(self.input_dataset))) 
+            # this_indices has len 300, at first it is the whole training dataset, but it gets partitioned into equal chunks
             worker_info = torch.utils.data.get_worker_info()
             if worker_info is None:
                 print('TODO log. only single worker not sharding!')
                 worker_id = -1
             else:
+                # Here, we are in the worker process now
                 # assign this worker a deterministic uniformly sampled slice
                 # of the dataset
                 import math
@@ -491,7 +505,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
                 r.shuffle(this_indices)
                 worker_id = worker_info.id
                 slice_start = worker_id * per_worker
-                this_indices = this_indices[slice_start:slice_start+per_worker]
+                this_indices = this_indices[slice_start:slice_start+per_worker] 
                 print(f'Worker ID {worker_id} working on {len(this_indices)} indices')
             
             import time
@@ -501,21 +515,18 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             print(f"Worker ID {worker_id} cached collated batch in {time.time()-start} sec ...")
 
         if self.pixel_sampler is None:
-          self.pixel_sampler = self._get_pixel_sampler(
-            self.input_dataset,
-            self.datamanager_config.train_num_rays_per_batch)
+            self.pixel_sampler = self._get_pixel_sampler(
+                self.input_dataset,
+                self.datamanager_config.train_num_rays_per_batch
+                )
         if self.ray_generator is None:
-          self.ray_generator = RayGenerator(self.input_dataset.cameras)#.to(self.device))
+            self.ray_generator = RayGenerator(self.input_dataset.cameras)#.to(self.device))
 
-        # if self._cached_collated_batch is None:
-        #   self._cached_collated_batch = self._get_collated_batch()
-        # print('did _cached_collated_batch')
         while True:
             if self._cached_collated_batch is None:
                 collated_batch = self._get_collated_batch()
             else:
                 collated_batch = self._cached_collated_batch
-            # batch = self.pixel_sampler.sample(self._cached_collated_batch)
             batch = self.pixel_sampler.sample(collated_batch)
             ray_indices = batch["indices"]
             ray_bundle = self.ray_generator(ray_indices)

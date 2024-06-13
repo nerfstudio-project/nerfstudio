@@ -79,7 +79,7 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     fps_reset_every: int = 100
     """The number of iterations before one resets fps sampler repeatly, which is essentially drawing fps_reset_every
     samples from the pool of all training cameras without replacement before a new round of sampling starts."""
-
+    
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
     """
