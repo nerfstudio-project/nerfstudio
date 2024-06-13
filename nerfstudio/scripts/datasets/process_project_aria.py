@@ -13,12 +13,13 @@
 # limitations under the License.
 
 import json
+import random
 import sys
 import threading
 from dataclasses import dataclass
 from itertools import zip_longest
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple, cast
+from typing import Any, Dict, List, Literal, Tuple, cast
 
 import numpy as np
 import open3d as o3d
@@ -228,7 +229,7 @@ def to_aria_image_frame(
     # Compute the world to camera transform.
     t_world_camera = t_world_device @ src_calib.get_transform_device_camera() @ T_ARIA_NERFSTUDIO
 
-    # Define new AriaCameraCalibration since we rotated the image
+    # Define new AriaCameraCalibration since we rotated the image to be upright
     width = src_calib.get_image_size()[0].item()
     height = src_calib.get_image_size()[1].item()
     intrinsics = src_calib.projection_params()
@@ -293,10 +294,14 @@ class ProcessProjectAria:
     """Path to Project Aria Machine Perception Services (MPS) attachments."""
     output_dir: Path
     """Path to the output directory."""
-    points_file: Optional[Tuple[Path, ...]] = ()
+    points_file: Tuple[Path, ...] = ()
     """Path to the point cloud file (usually called semidense_points.csv.gz) if not in the mps_data_dir"""
     include_side_cameras: bool = False
-    """If True, include and process the images captured by the grayscale side cameras. If False, only uses the main RGB camera's data."""
+    """If True, include and process the images captured by the grayscale side cameras. 
+    If False, only uses the main RGB camera's data."""
+    max_dataset_size: int = 600
+    """Max number of images to train on. If the provided vrs_file has more images than max_dataset_size, 
+    images will be sampled approximately evenly. If max_dataset_size=-1, use all images available."""
 
     def main(self) -> None:
         """Generate a nerfstudio dataset from ProjectAria data (VRS) and MPS attachments."""
@@ -308,7 +313,8 @@ class ProcessProjectAria:
         assert len(self.vrs_file) == len(
             self.mps_data_dir
         ), "Please provide an Aria MPS attachment for each corresponding VRS file."
-        vrs_mps_points_triplets = list(zip_longest(self.vrs_file, self.mps_data_dir, self.points_file)) # type: ignore
+        vrs_mps_points_triplets = list(zip_longest(self.vrs_file, self.mps_data_dir, self.points_file))  # type: ignore
+        num_recordings = len(vrs_mps_points_triplets)
         nerfstudio_frames = {
             "camera_model": "OPENCV" if self.include_side_cameras else ARIA_CAMERA_MODEL,
             "frames": [],
@@ -336,12 +342,22 @@ class ProcessProjectAria:
             print(f"Creating Aria frames for recording {rec_i + 1}...")
             CANONICAL_RGB_VALID_RADIUS = 707.5  # radius of a circular mask that represents the valid area on the camera's sensor plane. Pixels out of this circular region are considered invalid
             CANONICAL_RGB_WIDTH = 1408
+            total_num_images_per_camera = provider.get_num_data(stream_ids[0])
+            if self.max_dataset_size == -1:
+                num_images_to_sample_per_camera = total_num_images_per_camera
+            else:
+                num_images_to_sample_per_camera = (
+                    self.max_dataset_size // (len(vrs_mps_points_triplets) * 3)
+                    if self.include_side_cameras
+                    else self.max_dataset_size // len(vrs_mps_points_triplets)
+                )
+            sampling_indicies = random.sample(range(total_num_images_per_camera), num_images_to_sample_per_camera)
             if not self.include_side_cameras:
                 aria_rgb_frames = [
                     to_aria_image_frame(
                         provider, index, name_to_camera, t_world_devices, self.output_dir, camera_name=names[0]
                     )
-                    for index in range(0, provider.get_num_data(stream_ids[0]))
+                    for index in sampling_indicies
                 ]
                 print(f"Creating NerfStudio frames for recording {rec_i + 1}...")
                 nerfstudio_frames["frames"] += [to_nerfstudio_frame(frame) for frame in aria_rgb_frames]
@@ -361,7 +377,7 @@ class ProcessProjectAria:
                             camera_name=names[i],
                             pinhole=True,
                         )
-                        for index in range(0, provider.get_num_data(stream_id))
+                        for index in sampling_indicies
                     ]
                     for i, stream_id in enumerate(stream_ids)
                 ]
@@ -389,7 +405,7 @@ class ProcessProjectAria:
                 ]
                 nerfstudio_frames["frames"] += pinhole_frames
 
-            if points_file:
+            if points_file is not None:
                 points_path = points_file
             else:
                 points_path = mps_data_dir / "global_points.csv.gz"
@@ -403,9 +419,10 @@ class ProcessProjectAria:
                 points_data = mps.read_global_point_cloud(str(points_path))  # type: ignore
                 points_data = filter_points_from_confidence(points_data)
                 points += [cast(Any, it).position_world for it in points_data]
-
-        if points:
+        print(len(nerfstudio_frames['frames']))
+        if len(points) > 0:
             print("Saving found points to PLY...")
+            print(f"Total number of points found: {len(points)} in {num_recordings} recording(s) provided")
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(np.array(points))
             ply_file_path = self.output_dir / "global_points.ply"
@@ -415,7 +432,6 @@ class ProcessProjectAria:
             print("No global points found!")
 
         # Write the json out to disk as transforms.json
-        print(len(nerfstudio_frames['frames']))
         print("Writing transforms.json")
         transform_file = self.output_dir / "transforms.json"
         with open(transform_file, "w", encoding="UTF-8"):
