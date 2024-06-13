@@ -387,8 +387,6 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         self.input_dataset = input_dataset
         assert isinstance(self.input_dataset, Sized)
 
-
-        # self.num_times_to_repeat_images = num_times_to_repeat_images
         # self.cache_all_images = (num_images_to_sample_from == -1) or (num_images_to_sample_from >= len(self.dataset))
         # self.num_images_to_sample_from = len(self.dataset) if self.cache_all_images else num_images_to_sample_from
         self.num_images_to_sample_from = num_images_to_sample_from
@@ -405,13 +403,35 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         """"""
         self.cache_all_n_shard_per_worker = cache_all_n_shard_per_worker
     
+    def _get_pixel_sampler(self, dataset: 'TDataset', num_rays_per_batch: int) -> PixelSampler:
+        """copy-pasta from VanillaDataManager."""
+        from nerfstudio.cameras.cameras import Cameras, CameraType
+        from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
+
+        if self.datamanager_config.patch_size > 1 and type(self.datamanager_config.pixel_sampler) is PixelSamplerConfig:
+            return PatchPixelSamplerConfig().setup(
+                patch_size=self.datamanager_config.patch_size, num_rays_per_batch=num_rays_per_batch
+            )
+        is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
+        if is_equirectangular.any():
+            CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
+
+        fisheye_crop_radius = None
+        if dataset.cameras.metadata is not None:
+            fisheye_crop_radius = dataset.cameras.metadata.get("fisheye_crop_radius")
+
+        return self.datamanager_config.pixel_sampler.setup(
+            is_equirectangular=is_equirectangular,
+            num_rays_per_batch=num_rays_per_batch,
+            fisheye_crop_radius=fisheye_crop_radius,
+        )
+    
     def _get_batch_list(self, indices=None):
         """Returns a list of batches from the dataset attribute."""
 
         assert isinstance(self.input_dataset, Sized)
         if indices is None:
             indices = random.sample(range(len(self.input_dataset)), k=self.num_images_to_sample_from)
-        # indices = range(len(self.input_dataset))
         batch_list = []
         results = []
 
@@ -438,31 +458,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
                 results = tqdm(results)
             for res in results:
                 batch_list.append(res.result())
-                print(batch_list)
         return batch_list
-    
-    def _get_pixel_sampler(self, dataset: 'TDataset', num_rays_per_batch: int) -> PixelSampler:
-        """copy-pasta from VanillaDataManager."""
-        from nerfstudio.cameras.cameras import Cameras, CameraType
-        from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
-
-        if self.datamanager_config.patch_size > 1 and type(self.datamanager_config.pixel_sampler) is PixelSamplerConfig:
-            return PatchPixelSamplerConfig().setup(
-                patch_size=self.datamanager_config.patch_size, num_rays_per_batch=num_rays_per_batch
-            )
-        is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
-        if is_equirectangular.any():
-            CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
-
-        fisheye_crop_radius = None
-        if dataset.cameras.metadata is not None:
-            fisheye_crop_radius = dataset.cameras.metadata.get("fisheye_crop_radius")
-
-        return self.datamanager_config.pixel_sampler.setup(
-            is_equirectangular=is_equirectangular,
-            num_rays_per_batch=num_rays_per_batch,
-            fisheye_crop_radius=fisheye_crop_radius,
-        )
     
     def _get_collated_batch(self, indices=None):
         """Returns a collated batch."""
