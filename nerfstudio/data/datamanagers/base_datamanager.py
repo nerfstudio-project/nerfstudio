@@ -336,8 +336,14 @@ class VanillaDataManagerConfig(DataManagerConfig):
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
     dataloader_prefetch_size : int = 2
+    """The limit number of batches a worker will start loading once an iterator is created. 
+    Each next() call on the iterator has the CPU prepare more batches up to this 
+    limit while the GPU is performing forward and backward passes on the model."""
     dataloader_num_workers : int = 16
+    """The number of workers performing the dataloading from either disk/RAM, which 
+    includes undistortion, pixel sampling, ray generation, collating, etc."""
     use_ray_train_dataloader: bool = True
+    """Allows parallelization of the dataloading process with multiple workers."""
 
     # tyro.conf.Suppress prevents us from creating CLI arguments for this field.
     camera_optimizer: tyro.conf.Suppress[Optional[CameraOptimizerConfig]] = field(default=None)
@@ -381,7 +387,6 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         self.input_dataset = input_dataset
         assert isinstance(self.input_dataset, Sized)
 
-        # super().__init__(dataset=dataset, **kwargs)  # This will set self.dataset
 
         # self.num_times_to_repeat_images = num_times_to_repeat_images
         # self.cache_all_images = (num_images_to_sample_from == -1) or (num_images_to_sample_from >= len(self.dataset))
@@ -397,6 +402,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         self.pixel_sampler = None
         self.ray_generator = None
         self._cached_collated_batch = None
+        """"""
         self.cache_all_n_shard_per_worker = cache_all_n_shard_per_worker
     
     def _get_batch_list(self, indices=None):
@@ -418,7 +424,8 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         num_threads = max(num_threads, 1)
         # print('num_threads', num_threads)
 
-        # NB: this is I/O heavy, hence multi-threaded inside the worker
+        # NB: this is I/O heavy because we are going to disk and reading an image filename
+        # hence multi-threaded inside the worker
         from tqdm.auto import tqdm
         with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
             for idx in indices:
@@ -430,8 +437,8 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             if self.cache_all_n_shard_per_worker:
                 results = tqdm(results)
             for res in results:
-                breakpoint()
                 batch_list.append(res.result())
+                print(batch_list)
         return batch_list
     
     def _get_pixel_sampler(self, dataset: 'TDataset', num_rays_per_batch: int) -> PixelSampler:
@@ -650,19 +657,6 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         """Sets up the data loaders for training"""
         assert self.train_dataset is not None
         CONSOLE.print("Setting up training dataset...")
-        # self.train_image_dataloader = CacheDataloader(
-        #     self.train_dataset,
-        #     num_images_to_sample_from=self.config.train_num_images_to_sample_from,
-        #     num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
-        #     device=self.device,
-        #     num_workers=self.world_size * 4,
-        #     pin_memory=True,
-        #     collate_fn=self.config.collate_fn,
-        #     exclude_batch_keys_from_device=self.exclude_batch_keys_from_device,
-        # )
-        # self.iter_train_image_dataloader = iter(self.train_image_dataloader)
-        # self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
-        # self.train_ray_generator = RayGenerator(self.train_dataset.cameras.to(self.device))
 
         if self.config.use_ray_train_dataloader:
             import torch.multiprocessing as mp
