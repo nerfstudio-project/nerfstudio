@@ -37,17 +37,35 @@ import viser.transforms as tf
 from jaxtyping import Float
 from rich import box, style
 from rich.panel import Panel
-from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn
+from rich.progress import (
+    BarColumn,
+    Progress,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 from rich.table import Table
 from torch import Tensor
 from typing_extensions import Annotated
 
-from nerfstudio.cameras.camera_paths import get_interpolated_camera_path, get_path_from_json, get_spiral_path
+from nerfstudio.cameras.camera_paths import (
+    get_interpolated_camera_path,
+    get_path_from_json,
+    get_spiral_path,
+)
 from nerfstudio.cameras.cameras import Cameras, CameraType, RayBundle
-from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager, VanillaDataManagerConfig
-from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatamanagerConfig
+from nerfstudio.data.datamanagers.base_datamanager import (
+    VanillaDataManager,
+    VanillaDataManagerConfig,
+)
+from nerfstudio.data.datamanagers.full_images_datamanager import (
+    FullImageDatamanagerConfig,
+)
 from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
-from nerfstudio.data.datamanagers.random_cameras_datamanager import RandomCamerasDataManager
+from nerfstudio.data.datamanagers.random_cameras_datamanager import (
+    RandomCamerasDataManager,
+)
 from nerfstudio.data.datasets.base_dataset import Dataset
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.data.utils.dataloaders import FixedIndicesEvalDataloader
@@ -148,14 +166,19 @@ def _render_trajectory_video(
                     assert train_dataset is not None
                     assert train_cameras is not None
                     cam_pos = cameras[camera_idx].camera_to_worlds[:, 3].cpu()
-                    cam_quat = tf.SO3.from_matrix(cameras[camera_idx].camera_to_worlds[:3, :3].numpy(force=True)).wxyz
+                    cam_quat = tf.SO3.from_matrix(
+                        cameras[camera_idx].camera_to_worlds[:3, :3].numpy(force=True)
+                    ).wxyz
 
                     for i in range(len(train_cameras)):
                         train_cam_pos = train_cameras[i].camera_to_worlds[:, 3].cpu()
                         # Make sure the line of sight from rendered cam to training cam is not blocked by any object
                         bundle = RayBundle(
                             origins=cam_pos.view(1, 3),
-                            directions=((cam_pos - train_cam_pos) / (cam_pos - train_cam_pos).norm()).view(1, 3),
+                            directions=(
+                                (cam_pos - train_cam_pos)
+                                / (cam_pos - train_cam_pos).norm()
+                            ).view(1, 3),
                             pixel_area=torch.tensor(1).view(1, 1),
                             nears=torch.tensor(0.05).view(1, 1),
                             fars=torch.tensor(100).view(1, 1),
@@ -164,7 +187,9 @@ def _render_trajectory_video(
                         ).to(pipeline.device)
                         outputs = pipeline.model.get_outputs(bundle)
 
-                        q = tf.SO3.from_matrix(train_cameras[i].camera_to_worlds[:3, :3].numpy(force=True)).wxyz
+                        q = tf.SO3.from_matrix(
+                            train_cameras[i].camera_to_worlds[:3, :3].numpy(force=True)
+                        ).wxyz
                         # calculate distance between two quaternions
                         rot_dist = 1 - np.dot(q, cam_quat) ** 2
                         pos_dist = torch.norm(train_cam_pos - cam_pos)
@@ -174,7 +199,10 @@ def _render_trajectory_video(
                             true_max_dist = dist
                             true_max_idx = i
 
-                        if outputs["depth"][0] < torch.norm(cam_pos - train_cam_pos).item():
+                        if (
+                            outputs["depth"][0]
+                            < torch.norm(cam_pos - train_cam_pos).item()
+                        ):
                             continue
 
                         if check_occlusions and (max_dist == -1 or dist < max_dist):
@@ -201,9 +229,13 @@ def _render_trajectory_video(
                 for rendered_output_name in rendered_output_names:
                     if rendered_output_name not in outputs:
                         CONSOLE.rule("Error", style="red")
-                        CONSOLE.print(f"Could not find {rendered_output_name} in the model outputs", justify="center")
                         CONSOLE.print(
-                            f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center"
+                            f"Could not find {rendered_output_name} in the model outputs",
+                            justify="center",
+                        )
+                        CONSOLE.print(
+                            f"Please set --rendered_output_name to one of: {outputs.keys()}",
+                            justify="center",
                         )
                         sys.exit(1)
                     output_image = outputs[rendered_output_name]
@@ -255,10 +287,17 @@ def _render_trajectory_video(
                 render_image = np.concatenate(render_image, axis=1)
                 if output_format == "images":
                     if image_format == "png":
-                        media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image, fmt="png")
+                        media.write_image(
+                            output_image_dir / f"{camera_idx:05d}.png",
+                            render_image,
+                            fmt="png",
+                        )
                     if image_format == "jpeg":
                         media.write_image(
-                            output_image_dir / f"{camera_idx:05d}.jpg", render_image, fmt="jpeg", quality=jpeg_quality
+                            output_image_dir / f"{camera_idx:05d}.jpg",
+                            render_image,
+                            fmt="jpeg",
+                            quality=jpeg_quality,
                         )
                 if output_format == "video":
                     if writer is None:
@@ -286,7 +325,13 @@ def _render_trajectory_video(
         table.add_row("Video", str(output_filename))
     else:
         table.add_row("Images", str(output_image_dir))
-    CONSOLE.print(Panel(table, title="[bold][green]:tada: Render Complete :tada:[/bold]", expand=False))
+    CONSOLE.print(
+        Panel(
+            table,
+            title="[bold][green]:tada: Render Complete :tada:[/bold]",
+            expand=False,
+        )
+    )
 
 
 def insert_spherical_metadata_into_file(
@@ -365,7 +410,11 @@ class CropData:
 
     background_color: Float[Tensor, "3"] = torch.Tensor([0.0, 0.0, 0.0])
     """background color"""
-    obb: OrientedBox = field(default_factory=lambda: OrientedBox(R=torch.eye(3), T=torch.zeros(3), S=torch.ones(3) * 2))
+    obb: OrientedBox = field(
+        default_factory=lambda: OrientedBox(
+            R=torch.eye(3), T=torch.zeros(3), S=torch.ones(3) * 2
+        )
+    )
     """Oriented box representing the crop region"""
 
     # properties for backwards-compatibility interface
@@ -391,12 +440,18 @@ def get_crop_from_json(camera_json: Dict[str, Any]) -> Optional[CropData]:
     bg_color = camera_json["crop"]["crop_bg_color"]
     center = camera_json["crop"]["crop_center"]
     scale = camera_json["crop"]["crop_scale"]
-    rot = (0.0, 0.0, 0.0) if "crop_rot" not in camera_json["crop"] else tuple(camera_json["crop"]["crop_rot"])
+    rot = (
+        (0.0, 0.0, 0.0)
+        if "crop_rot" not in camera_json["crop"]
+        else tuple(camera_json["crop"]["crop_rot"])
+    )
     assert len(center) == 3
     assert len(scale) == 3
     assert len(rot) == 3
     return CropData(
-        background_color=torch.Tensor([bg_color["r"] / 255.0, bg_color["g"] / 255.0, bg_color["b"] / 255.0]),
+        background_color=torch.Tensor(
+            [bg_color["r"] / 255.0, bg_color["g"] / 255.0, bg_color["b"] / 255.0]
+        ),
         obb=OrientedBox.from_params(center, rot, scale),
     )
 
@@ -463,7 +518,9 @@ class RenderCameraPath(BaseRender):
             or camera_path.camera_type[0] == CameraType.VR180_L.value
         ):
             # temp folder for writing left and right view renders
-            temp_folder_path = self.output_path.parent / (self.output_path.stem + "_temp")
+            temp_folder_path = self.output_path.parent / (
+                self.output_path.stem + "_temp"
+            )
 
             Path(temp_folder_path).mkdir(parents=True, exist_ok=True)
             left_eye_path = temp_folder_path / "render_left.mp4"
@@ -471,7 +528,9 @@ class RenderCameraPath(BaseRender):
             self.output_path = left_eye_path
 
             if camera_path.camera_type[0] == CameraType.OMNIDIRECTIONALSTEREO_L.value:
-                CONSOLE.print("[bold green]:goggles: Omni-directional Stereo VR :goggles:")
+                CONSOLE.print(
+                    "[bold green]:goggles: Omni-directional Stereo VR :goggles:"
+                )
             else:
                 CONSOLE.print("[bold green]:goggles: VR180 :goggles:")
 
@@ -578,6 +637,7 @@ class RenderCameraPath(BaseRender):
                     shutil.rmtree(left_eye_path.parent, ignore_errors=True)
                 CONSOLE.print("[bold green]Final VR180 Render Complete")
         self.complete = True
+
 
 @dataclass
 class RenderInterpolated(BaseRender):
@@ -721,7 +781,10 @@ class DatasetRender(BaseRender):
 
         def update_config(config: TrainerConfig) -> TrainerConfig:
             data_manager_config = config.pipeline.datamanager
-            assert isinstance(data_manager_config, (VanillaDataManagerConfig, FullImageDatamanagerConfig))
+            assert isinstance(
+                data_manager_config,
+                (VanillaDataManagerConfig, FullImageDatamanagerConfig),
+            )
             data_manager_config.eval_num_images_to_sample_from = -1
             data_manager_config.eval_num_times_to_repeat_images = -1
             if isinstance(data_manager_config, VanillaDataManagerConfig):
@@ -731,7 +794,11 @@ class DatasetRender(BaseRender):
                 data_manager_config.data = self.data
             if self.downscale_factor is not None:
                 assert hasattr(data_manager_config.dataparser, "downscale_factor")
-                setattr(data_manager_config.dataparser, "downscale_factor", self.downscale_factor)
+                setattr(
+                    data_manager_config.dataparser,
+                    "downscale_factor",
+                    self.downscale_factor,
+                )
             return config
 
         config, pipeline, _, _ = eval_setup(
@@ -741,25 +808,39 @@ class DatasetRender(BaseRender):
             update_config_callback=update_config,
         )
         data_manager_config = config.pipeline.datamanager
-        assert isinstance(data_manager_config, (VanillaDataManagerConfig, FullImageDatamanagerConfig))
+        assert isinstance(
+            data_manager_config, (VanillaDataManagerConfig, FullImageDatamanagerConfig)
+        )
 
         for split in self.split.split("+"):
             datamanager: VanillaDataManager
             dataset: Dataset
             if split == "train":
-                with _disable_datamanager_setup(data_manager_config._target):  # pylint: disable=protected-access
-                    datamanager = data_manager_config.setup(test_mode="test", device=pipeline.device)
+                with _disable_datamanager_setup(
+                    data_manager_config._target
+                ):  # pylint: disable=protected-access
+                    datamanager = data_manager_config.setup(
+                        test_mode="test", device=pipeline.device
+                    )
 
                 dataset = datamanager.train_dataset
-                dataparser_outputs = getattr(dataset, "_dataparser_outputs", datamanager.train_dataparser_outputs)
+                dataparser_outputs = getattr(
+                    dataset, "_dataparser_outputs", datamanager.train_dataparser_outputs
+                )
             else:
-                with _disable_datamanager_setup(data_manager_config._target):  # pylint: disable=protected-access
-                    datamanager = data_manager_config.setup(test_mode=split, device=pipeline.device)
+                with _disable_datamanager_setup(
+                    data_manager_config._target
+                ):  # pylint: disable=protected-access
+                    datamanager = data_manager_config.setup(
+                        test_mode=split, device=pipeline.device
+                    )
 
                 dataset = datamanager.eval_dataset
                 dataparser_outputs = getattr(dataset, "_dataparser_outputs", None)
                 if dataparser_outputs is None:
-                    dataparser_outputs = datamanager.dataparser.get_dataparser_outputs(split=datamanager.test_split)
+                    dataparser_outputs = datamanager.dataparser.get_dataparser_outputs(
+                        split=datamanager.test_split
+                    )
             dataloader = FixedIndicesEvalDataloader(
                 input_dataset=dataset,
                 device=datamanager.device,
@@ -777,7 +858,9 @@ class DatasetRender(BaseRender):
                 TimeRemainingColumn(elapsed_when_finished=False, compact=False),
                 TimeElapsedColumn(),
             ) as progress:
-                for camera_idx, (camera, batch) in enumerate(progress.track(dataloader, total=len(dataset))):
+                for camera_idx, (camera, batch) in enumerate(
+                    progress.track(dataloader, total=len(dataset))
+                ):
                     with torch.no_grad():
                         outputs = pipeline.model.get_outputs_for_camera(camera)
 
@@ -796,10 +879,12 @@ class DatasetRender(BaseRender):
                         if rendered_output_name not in all_outputs:
                             CONSOLE.rule("Error", style="red")
                             CONSOLE.print(
-                                f"Could not find {rendered_output_name} in the model outputs", justify="center"
+                                f"Could not find {rendered_output_name} in the model outputs",
+                                justify="center",
                             )
                             CONSOLE.print(
-                                f"Please set --rendered-output-name to one of: {all_outputs}", justify="center"
+                                f"Please set --rendered-output-name to one of: {all_outputs}",
+                                justify="center",
                             )
                             sys.exit(1)
 
@@ -808,9 +893,13 @@ class DatasetRender(BaseRender):
                         image_name = f"{camera_idx:05d}"
 
                         # Try to get the original filename
-                        image_name = dataparser_outputs.image_filenames[camera_idx].relative_to(images_root)
+                        image_name = dataparser_outputs.image_filenames[
+                            camera_idx
+                        ].relative_to(images_root)
 
-                        output_path = self.output_path / split / rendered_output_name / image_name
+                        output_path = (
+                            self.output_path / split / rendered_output_name / image_name
+                        )
                         output_path.parent.mkdir(exist_ok=True, parents=True)
 
                         output_name = rendered_output_name
@@ -824,7 +913,9 @@ class DatasetRender(BaseRender):
                                 output_image = outputs[output_name]
                                 if is_depth:
                                     # Divide by the dataparser scale factor
-                                    output_image.div_(dataparser_outputs.dataparser_scale)
+                                    output_image.div_(
+                                        dataparser_outputs.dataparser_scale
+                                    )
                         else:
                             if output_name.startswith("gt-"):
                                 output_name = output_name[3:]
@@ -860,16 +951,25 @@ class DatasetRender(BaseRender):
 
                         # Save to file
                         if is_raw:
-                            with gzip.open(output_path.with_suffix(".npy.gz"), "wb") as f:
+                            with gzip.open(
+                                output_path.with_suffix(".npy.gz"), "wb"
+                            ) as f:
                                 np.save(f, output_image)
                         elif self.image_format == "png":
-                            media.write_image(output_path.with_suffix(".png"), output_image, fmt="png")
+                            media.write_image(
+                                output_path.with_suffix(".png"), output_image, fmt="png"
+                            )
                         elif self.image_format == "jpeg":
                             media.write_image(
-                                output_path.with_suffix(".jpg"), output_image, fmt="jpeg", quality=self.jpeg_quality
+                                output_path.with_suffix(".jpg"),
+                                output_image,
+                                fmt="jpeg",
+                                quality=self.jpeg_quality,
                             )
                         else:
-                            raise ValueError(f"Unknown image format {self.image_format}")
+                            raise ValueError(
+                                f"Unknown image format {self.image_format}"
+                            )
 
         table = Table(
             title=None,
@@ -879,7 +979,13 @@ class DatasetRender(BaseRender):
         )
         for split in self.split.split("+"):
             table.add_row(f"Outputs {split}", str(self.output_path / split))
-        CONSOLE.print(Panel(table, title="[bold][green]:tada: Render on split {} Complete :tada:[/bold]", expand=False))
+        CONSOLE.print(
+            Panel(
+                table,
+                title="[bold][green]:tada: Render on split {} Complete :tada:[/bold]",
+                expand=False,
+            )
+        )
 
 
 Commands = tyro.conf.FlagConversionOff[

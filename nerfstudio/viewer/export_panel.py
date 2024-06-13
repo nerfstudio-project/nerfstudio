@@ -48,7 +48,11 @@ def populate_export_tab(
         populate_mesh_tab(server, control_panel, config_path, viewing_gsplat)
 
 
-def show_command_modal(client: viser.ClientHandle, what: Literal["mesh", "point cloud", "splat"], command: str) -> None:
+def show_command_modal(
+    client: viser.ClientHandle,
+    what: Literal["mesh", "point cloud", "splat"],
+    command: str,
+) -> None:
     """Show a modal to each currently connected client.
 
     In the future, we should only show the modal to the client that pushes the
@@ -73,7 +77,7 @@ def show_command_modal(client: viser.ClientHandle, what: Literal["mesh", "point 
             modal.close()
 
 
-def get_crop_string(obb: OrientedBox, crop_viewport: bool):
+def get_crop_string(obb: OrientedBox, crop_viewport: bool) -> List[str]:
     """Takes in an oriented bounding box and returns a string of the form "--obb_{center,rotation,scale}
     and each arg formatted with spaces around it
     """
@@ -85,7 +89,7 @@ def get_crop_string(obb: OrientedBox, crop_viewport: bool):
     rpystring = " ".join([f"{x:.10f}" for x in rpy])
     posstring = " ".join([f"{x:.10f}" for x in pos])
     scalestring = " ".join([f"{x:.10f}" for x in scale])
-    return f"--obb_center {posstring} --obb_rotation {rpystring} --obb_scale {scalestring}"
+    return [posstring, rpystring, scalestring]
 
 
 def populate_point_cloud_tab(
@@ -95,8 +99,12 @@ def populate_point_cloud_tab(
     viewing_gsplat: bool,
 ) -> None:
     if not viewing_gsplat:
-        server.add_gui_markdown("<small>Render depth, project to an oriented point cloud, and filter</small> ")
-        num_points = server.add_gui_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
+        server.add_gui_markdown(
+            "<small>Render depth, project to an oriented point cloud, and filter</small> "
+        )
+        num_points = server.add_gui_number(
+            "# Points", initial_value=1_000_000, min=1, max=None, step=1
+        )
         world_frame = server.add_gui_checkbox(
             "Save in world frame",
             False,
@@ -113,28 +121,54 @@ def populate_point_cloud_tab(
             initial_value="open3d",
             hint="Normal map source.",
         )
-        output_dir = server.add_gui_text("Output Directory", initial_value="exports/pcd/")
-        generate_command = server.add_gui_button("Generate Command", icon=viser.Icon.TERMINAL_2)
+        output_dir = server.add_gui_text(
+            "Output Directory", initial_value="exports/pcd/"
+        )
+        export_button = server.add_gui_button("Export", icon=viser.Icon.TERMINAL_2)
 
-        @generate_command.on_click
+        @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
             assert event.client is not None
-            command = " ".join(
-                [
-                    "ns-export pointcloud",
-                    f"--load-config {config_path}",
-                    f"--output-dir {output_dir.value}",
-                    f"--num-points {num_points.value}",
-                    f"--remove-outliers {remove_outliers.value}",
-                    f"--normal-method {normals.value}",
-                    f"--save-world-frame {world_frame.value}",
-                    get_crop_string(control_panel.crop_obb, control_panel.crop_viewport),
-                ]
+            server.add_notification(
+                title="Exporting point cloud",
+                body="File will be saved under " + str(output_dir.value),
+                withCloseButton=True,
+                loading=True,
+                autoClose=False,
             )
-            show_command_modal(event.client, "point cloud", command)
+
+            from nerfstudio.scripts.exporter import ExportPointCloud
+
+            posstring, rpystring, scalestring = get_crop_string(
+                control_panel.crop_obb, control_panel.crop_viewport
+            )
+            export = ExportPointCloud(
+                load_config=config_path,
+                output_dir=output_dir.value,
+                num_points=num_points.value,
+                remove_outliers=remove_outliers.value,
+                normal_method=normals.value,
+                save_world_frame=world_frame.value,
+                obb_center=posstring,
+                obb_rotation=rpystring,
+                obb_scale=scalestring,
+            )
+            export.main()
+
+            if export.complete:
+                server.clear_notification()
+                server.add_notification(
+                    title="Export complete!",
+                    body="File saved under " + str(output_dir.value),
+                    withCloseButton=True,
+                    loading=False,
+                    autoClose=5000,
+                )
 
     else:
-        server.add_gui_markdown("<small>Point cloud export is not currently supported with Gaussian Splatting</small>")
+        server.add_gui_markdown(
+            "<small>Point cloud export is not currently supported with Gaussian Splatting</small>"
+        )
 
 
 def populate_mesh_tab(
@@ -155,33 +189,63 @@ def populate_mesh_tab(
             hint="Source for normal maps.",
         )
         num_faces = server.add_gui_number("# Faces", initial_value=50_000, min=1)
-        texture_resolution = server.add_gui_number("Texture Resolution", min=8, initial_value=2048)
-        output_directory = server.add_gui_text("Output Directory", initial_value="exports/mesh/")
-        num_points = server.add_gui_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
+        texture_resolution = server.add_gui_number(
+            "Texture Resolution", min=8, initial_value=2048
+        )
+        output_dir = server.add_gui_text(
+            "Output Directory", initial_value="exports/mesh/"
+        )
+        num_points = server.add_gui_number(
+            "# Points", initial_value=1_000_000, min=1, max=None, step=1
+        )
         remove_outliers = server.add_gui_checkbox("Remove outliers", True)
 
-        generate_command = server.add_gui_button("Generate Command", icon=viser.Icon.TERMINAL_2)
+        export_button = server.add_gui_button("Export", icon=viser.Icon.TERMINAL_2)
 
-        @generate_command.on_click
+        @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
             assert event.client is not None
-            command = " ".join(
-                [
-                    "ns-export poisson",
-                    f"--load-config {config_path}",
-                    f"--output-dir {output_directory.value}",
-                    f"--target-num-faces {num_faces.value}",
-                    f"--num-pixels-per-side {texture_resolution.value}",
-                    f"--num-points {num_points.value}",
-                    f"--remove-outliers {remove_outliers.value}",
-                    f"--normal-method {normals.value}",
-                    get_crop_string(control_panel.crop_obb, control_panel.crop_viewport),
-                ]
+            server.add_notification(
+                title="Exporting poisson mesh",
+                body="File will be saved under " + str(output_dir.value),
+                withCloseButton=True,
+                loading=True,
+                autoClose=False,
             )
-            show_command_modal(event.client, "mesh", command)
+
+            from nerfstudio.scripts.exporter import ExportPoissonMesh
+
+            posstring, rpystring, scalestring = get_crop_string(
+                control_panel.crop_obb, control_panel.crop_viewport
+            )
+            export = ExportPoissonMesh(
+                load_config=config_path,
+                output_dir=output_dir.value,
+                target_num_faces=num_faces.value,
+                num_pixels_per_side=texture_resolution.value,
+                num_points=num_points.value,
+                remove_outliers=remove_outliers.value,
+                normal_method=normals.value,
+                obb_center=posstring,
+                obb_rotation=rpystring,
+                obb_scale=scalestring,
+            )
+            export.main()
+
+            if export.complete:
+                server.clear_notification()
+                server.add_notification(
+                    title="Export complete!",
+                    body="File saved under " + str(output_dir.value),
+                    withCloseButton=True,
+                    loading=False,
+                    autoClose=5000,
+                )
 
     else:
-        server.add_gui_markdown("<small>Mesh export is not currently supported with Gaussian Splatting</small>")
+        server.add_gui_markdown(
+            "<small>Mesh export is not currently supported with Gaussian Splatting</small>"
+        )
 
 
 def populate_splat_tab(
@@ -191,24 +255,50 @@ def populate_splat_tab(
     viewing_gsplat: bool,
 ) -> None:
     if viewing_gsplat:
-        server.add_gui_markdown("<small>Generate ply export of Gaussian Splat</small>")
+        server.add_gui_markdown("<small>Export ply of Gaussian Splat</small>")
 
-        output_directory = server.add_gui_text("Output Directory", initial_value="exports/splat/")
-        # TODO: change to export directly
-        generate_command = server.add_gui_button("Generate Command", icon=viser.Icon.TERMINAL_2)
+        output_dir = server.add_gui_text(
+            "Output Directory", initial_value="exports/splat/"
+        )
 
-        @generate_command.on_click
+        export_button = server.add_gui_button("Export", icon=viser.Icon.TERMINAL_2)
+
+        @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
             assert event.client is not None
-            command = " ".join(
-                [
-                    "ns-export gaussian-splat",
-                    f"--load-config {config_path}",
-                    f"--output-dir {output_directory.value}",
-                    get_crop_string(control_panel.crop_obb, control_panel.crop_viewport),
-                ]
+            server.add_notification(
+                title="Exporting gaussian splat",
+                body="File will be saved under " + str(output_dir.value),
+                withCloseButton=True,
+                loading=True,
+                autoClose=False,
             )
-            show_command_modal(event.client, "splat", command)
+
+            from nerfstudio.scripts.exporter import ExportGaussianSplat
+
+            posstring, rpystring, scalestring = get_crop_string(
+                control_panel.crop_obb, control_panel.crop_viewport
+            )
+            export = ExportGaussianSplat(
+                load_config=config_path,
+                output_dir=output_dir.value,
+                obb_center=posstring,
+                obb_rotation=rpystring,
+                obb_scale=scalestring,
+            )
+            export.main()
+
+            if export.complete:
+                server.clear_notification()
+                server.add_notification(
+                    title="Export complete!",
+                    body="File saved under " + str(output_dir.value),
+                    withCloseButton=True,
+                    loading=False,
+                    autoClose=5000,
+                )
 
     else:
-        server.add_gui_markdown("<small>Splat export is only supported with Gaussian Splatting methods</small>")
+        server.add_gui_markdown(
+            "<small>Splat export is only supported with Gaussian Splatting methods</small>"
+        )
