@@ -14,14 +14,14 @@
 # limitations under the License.
 
 """
-NeRF implementation that combines many recent advancements.
+Gaussian Splatting implementation that combines many recent advancements.
 """
 
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Literal, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
@@ -34,16 +34,12 @@ except ImportError:
 from gsplat.cuda_legacy._wrapper import num_sh_bases
 from pytorch_msssim import SSIM
 from torch.nn import Parameter
-from typing_extensions import Literal
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
-
-# need following import for background color override
-from nerfstudio.model_components import renderers
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.misc import torch_compile
@@ -150,6 +146,8 @@ class SplatfactoModelConfig(ModelConfig):
     """number of samples to split gaussians into"""
     sh_degree_interval: int = 1000
     """every n intervals turn on another sh degree"""
+    cull_screen_size: float = 0.15
+    """if a gaussian is more than this percent of screen space, cull it"""
     split_screen_size: float = 0.05
     """if a gaussian is more than this percent of screen space, split it"""
     stop_screen_size_at: int = 4000
@@ -212,6 +210,7 @@ class SplatfactoModel(Model):
         else:
             means = torch.nn.Parameter((torch.rand((self.config.num_random, 3)) - 0.5) * self.config.random_scale)
         self.xys_grad_norm = None
+        self.max_2Dsize = None
         distances, _ = self.k_nearest_sklearn(means.data, 3)
         distances = torch.from_numpy(distances)
         # find the average of the three nearest neighbors for each point and use that as the scale
@@ -423,6 +422,14 @@ class SplatfactoModel(Model):
             assert self.vis_counts is not None
             self.vis_counts[visible_mask] += 1
             self.xys_grad_norm[visible_mask] += grads
+            # update the max screen size, as a ratio of number of pixels
+            if self.max_2Dsize is None:
+                self.max_2Dsize = torch.zeros_like(self.radii, dtype=torch.float32)
+            newradii = self.radii.detach()[visible_mask]
+            self.max_2Dsize[visible_mask] = torch.maximum(
+                self.max_2Dsize[visible_mask],
+                newradii / float(max(self.last_size[0], self.last_size[1])),
+            )
 
     def set_crop(self, crop_box: Optional[OrientedBox]):
         self.crop_box = crop_box
@@ -447,10 +454,12 @@ class SplatfactoModel(Model):
             )
             if do_densification:
                 # then we densify
-                assert self.xys_grad_norm is not None and self.vis_counts is not None
+                assert self.xys_grad_norm is not None and self.vis_counts is not None and self.max_2Dsize is not None
                 avg_grad_norm = (self.xys_grad_norm / self.vis_counts) * 0.5 * max(self.last_size[0], self.last_size[1])
                 high_grads = (avg_grad_norm > self.config.densify_grad_thresh).squeeze()
                 splits = (self.scales.exp().max(dim=-1).values > self.config.densify_size_thresh).squeeze()
+                if self.step < self.config.stop_screen_size_at:
+                    splits |= (self.max_2Dsize > self.config.split_screen_size).squeeze()
                 splits &= high_grads
                 nsamps = self.config.n_split_samples
                 split_params = self.split_gaussians(splits, nsamps)
@@ -462,6 +471,15 @@ class SplatfactoModel(Model):
                     self.gauss_params[name] = torch.nn.Parameter(
                         torch.cat([param.detach(), split_params[name], dup_params[name]], dim=0)
                     )
+                # append zeros to the max_2Dsize tensor
+                self.max_2Dsize = torch.cat(
+                    [
+                        self.max_2Dsize,
+                        torch.zeros_like(split_params["scales"][:, 0]),
+                        torch.zeros_like(dup_params["scales"][:, 0]),
+                    ],
+                    dim=0,
+                )
 
                 split_idcs = torch.where(splits)[0]
                 self.dup_in_all_optim(optimizers, split_idcs, nsamps)
@@ -507,6 +525,7 @@ class SplatfactoModel(Model):
 
             self.xys_grad_norm = None
             self.vis_counts = None
+            self.max_2Dsize = None
 
     def cull_gaussians(self, extra_cull_mask: Optional[torch.Tensor] = None):
         """
@@ -523,6 +542,10 @@ class SplatfactoModel(Model):
         if self.step > self.config.refine_every * self.config.reset_alpha_every:
             # cull huge ones
             toobigs = (torch.exp(self.scales).max(dim=-1).values > self.config.cull_scale_thresh).squeeze()
+            if self.step < self.config.stop_screen_size_at:
+                # cull big screen space
+                if self.max_2Dsize is not None:
+                    toobigs = toobigs | (self.max_2Dsize > self.config.cull_screen_size).squeeze()
             culls = culls | toobigs
             toobigs_count = torch.sum(toobigs).item()
         for name, param in self.gauss_params.items():
@@ -649,6 +672,20 @@ class SplatfactoModel(Model):
         accumulation = background.new_zeros(*rgb.shape[:2], 1)
         return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
 
+    def _get_background_color(self):
+        if self.config.background_color == "random":
+            if self.training:
+                background = torch.rand(3, device=self.device)
+            else:
+                background = self.background_color.to(self.device)
+        elif self.config.background_color == "white":
+            background = torch.ones(3, device=self.device)
+        elif self.config.background_color == "black":
+            background = torch.zeros(3, device=self.device)
+        else:
+            raise ValueError(f"Unknown background color {self.config.background_color}")
+        return background
+
     def get_outputs(self, camera: Cameras) -> Dict[str, Union[torch.Tensor, List]]:
         """Takes in a Ray Bundle and returns a dictionary of outputs.
 
@@ -663,39 +700,21 @@ class SplatfactoModel(Model):
             print("Called get_outputs with not a camera")
             return {}
 
-        optimized_camera_to_world = self.camera_optimizer.apply_to_camera(camera)[0, ...]
-
-        # get the background color
         if self.training:
             assert camera.shape[0] == 1, "Only one camera at a time"
             optimized_camera_to_world = self.camera_optimizer.apply_to_camera(camera)
-
-            if self.config.background_color == "random":
-                background = torch.rand(3, device=self.device)
-            elif self.config.background_color == "white":
-                background = torch.ones(3, device=self.device)
-            elif self.config.background_color == "black":
-                background = torch.zeros(3, device=self.device)
-            else:
-                background = self.background_color.to(self.device)
         else:
             optimized_camera_to_world = camera.camera_to_worlds
 
-            if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
-                background = renderers.BACKGROUND_COLOR_OVERRIDE.to(self.device)
-            else:
-                background = self.background_color.to(self.device)
-
+        # cropping
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
-                return self.get_empty_outputs(int(camera.width.item()), int(camera.height.item()), background)
+                return self.get_empty_outputs(
+                    int(camera.width.item()), int(camera.height.item()), self.background_color
+                )
         else:
             crop_ids = None
-        camera_scale_fac = 1.0 / self._get_downscale_factor()
-        viewmat = get_viewmat(optimized_camera_to_world)
-        W, H = int(camera.width[0] * camera_scale_fac), int(camera.height[0] * camera_scale_fac)
-        self.last_size = (H, W)
 
         if crop_ids is not None:
             opacities_crop = self.opacities[crop_ids]
@@ -713,9 +732,16 @@ class SplatfactoModel(Model):
             quats_crop = self.quats
 
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
+
         BLOCK_WIDTH = 16  # this controls the tile size of rasterization, 16 is a good default
+        camera_scale_fac = self._get_downscale_factor()
+        camera.rescale_output_resolution(1 / camera_scale_fac)
+        viewmat = get_viewmat(optimized_camera_to_world)
         K = camera.get_intrinsics_matrices().cuda()
-        K[:, :2, :] *= camera_scale_fac
+        W, H = int(camera.width.item()), int(camera.height.item())
+        self.last_size = (H, W)
+        camera.rescale_output_resolution(camera_scale_fac)  # type: ignore
+
         # apply the compensation of screen space blurring to gaussians
         if self.config.rasterize_mode not in ["antialiased", "classic"]:
             raise ValueError("Unknown rasterize_mode: %s", self.config.rasterize_mode)
@@ -728,6 +754,7 @@ class SplatfactoModel(Model):
         if self.config.sh_degree > 0:
             sh_degree_to_use = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
         else:
+            colors_crop = torch.sigmoid(colors_crop)
             sh_degree_to_use = None
 
         render, alpha, info = rasterization(
@@ -756,16 +783,27 @@ class SplatfactoModel(Model):
             info["means2d"].retain_grad()
         self.xys = info["means2d"]  # [1, N, 2]
         self.radii = info["radii"][0]  # [N]
-
         alpha = alpha[:, ...]
+
+        background = self._get_background_color()
         rgb = render[:, ..., :3] + (1 - alpha) * background
         rgb = torch.clamp(rgb, 0.0, 1.0)
+
         if render_mode == "RGB+ED":
             depth_im = render[:, ..., 3:4]
             depth_im = torch.where(alpha > 0, depth_im, depth_im.detach().max()).squeeze(0)
         else:
             depth_im = None
-        return {"rgb": rgb.squeeze(0), "depth": depth_im, "accumulation": alpha.squeeze(0), "background": background}  # type: ignore
+
+        if background.shape[0] == 3 and not self.training:
+            background = background.expand(H, W, 3)
+
+        return {
+            "rgb": rgb.squeeze(0),  # type: ignore
+            "depth": depth_im,  # type: ignore
+            "accumulation": alpha.squeeze(0),  # type: ignore
+            "background": background,  # type: ignore
+        }  # type: ignore
 
     def get_gt_img(self, image: torch.Tensor):
         """Compute groundtruth image with iteration dependent downscale factor for evaluation purpose
