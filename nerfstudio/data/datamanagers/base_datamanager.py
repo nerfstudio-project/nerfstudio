@@ -313,7 +313,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """Specifies the dataparser used to unpack the data."""
     train_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per training iteration."""
-    train_num_images_to_sample_from: int = -1 # was -1
+    train_num_images_to_sample_from: int = -1
     """Number of images to sample during training iteration."""
     train_num_times_to_repeat_images: int = -1
     """When not training on all images, number of iterations before picking new
@@ -335,7 +335,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
-    dataloader_prefetch_size : int = 2
+    dataloader_prefetch_size : int = 8
     """The limit number of batches a worker will start loading once an iterator is created. 
     Each next() call on the iterator has the CPU prepare more batches up to this 
     limit while the GPU is performing forward and backward passes on the model."""
@@ -376,12 +376,13 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             self,
             input_dataset: Dataset,
             datamanager_config : DataManagerConfig = None,
-            num_images_to_sample_from: int = -1,
+            num_images_to_sample_from: int = -1, # passed in from VanillaDataManager
             device: Union[torch.device, str] = "cpu",
             collate_fn: Callable[[Any], Any] = nerfstudio_collate,
             exclude_batch_keys_from_device: Optional[List[str]] = None,
-            num_image_load_threads : int = 2,
-            cache_all_n_shard_per_worker : bool = True, # When False, always getting Killed/bugs for some reason
+            num_image_load_threads : int = 4,
+            cache_all_n_shard_per_worker : bool = True, # When False, always getting Killed/bugs for some reason... why?
+            # when cache_all_n_shard_per_worker True, getting killed because caching everything is not good
     ):
         if exclude_batch_keys_from_device is None:
             exclude_batch_keys_from_device = ["image"]
@@ -401,7 +402,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         self.pixel_sampler = None
         self.ray_generator = None
         self._cached_collated_batch = None
-        """_cached_collated_batch contains a collated batch of images that's ready for pixel sampling. I"""
+        """_cached_collated_batch contains a collated batch of images for a specific worker that's ready for pixel sampling."""
         self.cache_all_n_shard_per_worker = cache_all_n_shard_per_worker
         """If True, _cached_collated_batch is populated with a subset of the dataset assigned to each worker during the iteration process."""
     
@@ -473,7 +474,9 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         collated_batch['image_idx'] is tensor with shape torch.Size([per_worker])
         collated_batch['image'] is tensor with shape torch.Size([per_worker, height, width, 3]) 
         """
-        batch_list = self._get_batch_list(indices=indices)
+        batch_list=self._get_batch_list(indices=indices)
+        # if len(batch_list) == 0:
+        #     print(indices)
         # print(type(batch_list[0])) # prints <class 'dict'>
         # print(self.collate_fn) # prints nerfstudio_collate
         collated_batch = self.collate_fn(batch_list)
@@ -483,29 +486,29 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         return collated_batch
 
     def __iter__(self):
+        """Defines the iterator for the dataset."""
         # Set up stuff now that we're in the worker process
-        this_indices = list(range(len(self.input_dataset))) 
+        dataset_indices = list(range(len(self.input_dataset))) # this_indices has len 300, at first it is the whole training dataset, but it gets partitioned into equal chunks
         worker_info = torch.utils.data.get_worker_info()
-        if self.cache_all_n_shard_per_worker:
-            # this_indices has len 300, at first it is the whole training dataset, but it gets partitioned into equal chunks
+        if self.cache_all_n_shard_per_worker: # if we want every worker to cache their partition
             if worker_info is None:
                 print('TODO log. only single worker not sharding!')
                 worker_id = -1
             else:
                 # assign this worker a deterministic uniformly sampled slice
                 # of the dataset
-                per_worker = int(math.ceil(len(this_indices) / float(worker_info.num_workers)))
+                per_worker = int(math.ceil(len(dataset_indices) / float(worker_info.num_workers)))
                 r = random.Random(1337)
-                r.shuffle(this_indices)
+                r.shuffle(dataset_indices)
                 worker_id = worker_info.id
                 slice_start = worker_id * per_worker
-                this_indices = this_indices[slice_start:slice_start+per_worker] 
-                print(f'Worker ID {worker_id} working on {len(this_indices)} indices')
+                worker_indices = dataset_indices[slice_start:slice_start+per_worker] 
+                print(f'Worker ID {worker_id} working on {len(worker_indices)} indices')
             
             import time
             start = time.time()
             print(f"Worker ID {worker_id} caching collated batch ...")
-            self._cached_collated_batch = self._get_collated_batch(indices=this_indices)
+            self._cached_collated_batch = self._get_collated_batch(indices=worker_indices)
             print(f"Worker ID {worker_id} cached collated batch in {time.time()-start} sec ...")
 
         if self.pixel_sampler is None:
@@ -515,18 +518,23 @@ class RayBatchStream(torch.utils.data.IterableDataset):
                 )
         if self.ray_generator is None:
             self.ray_generator = RayGenerator(self.input_dataset.cameras)#.to(self.device))
-
-        while True:
-            if self._cached_collated_batch is None:
-                per_worker = int(math.ceil(len(this_indices) / float(worker_info.num_workers)))
-                r = random.Random(1337)
-                r.shuffle(this_indices)
-                worker_id = worker_info.id
-                slice_start = worker_id * per_worker
-                this_indices = this_indices[slice_start:slice_start+per_worker]
-                collated_batch = self._get_collated_batch(this_indices)
+        
+        # if cache_all_n_shard_per_worker=True, every worker should have a _cached_collated_batch when the iterator was created (above lines)
+        # falling into this if statement means the worker's cached_collated_batch was evicted or cache_all_n_shard_per_worker=False
+        if self._cached_collated_batch is None: 
+            if worker_info is None:
+                per_worker = len(dataset_indices)
             else:
-                collated_batch = self._cached_collated_batch
+                per_worker = int(math.ceil(len(dataset_indices) / float(worker_info.num_workers)))
+            r = random.Random(1337)
+            r.shuffle(dataset_indices)
+            worker_id = 0 if worker_info is None else worker_info.id
+            slice_start = worker_id * per_worker
+            worker_indices = dataset_indices[slice_start:slice_start+per_worker] # the indices of the datapoints in the dataset this worker will load
+            collated_batch = self._get_collated_batch(worker_indices)
+        else:
+            collated_batch = self._cached_collated_batch
+        while True:
             batch = self.pixel_sampler.sample(collated_batch)
             ray_indices = batch["indices"]
             ray_bundle = self.ray_generator(ray_indices)
@@ -700,12 +708,10 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
                 num_images_to_sample_from=self.config.train_num_images_to_sample_from,
                 num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
                 device=self.device,
-                num_workers=
-                self.world_size * 4
+                num_workers=self.world_size * 4
                     if self.config.dataloader_num_workers == -1
                     else self.config.dataloader_num_workers,
-                prefetch_factor=
-                2
+                prefetch_factor=2
                     if self.config.dataloader_prefetch_size == -1
                     else self.config.dataloader_prefetch_size,
                 pin_memory=True,
