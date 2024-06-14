@@ -18,7 +18,7 @@ from pathlib import Path
 
 import viser
 import viser.transforms as vtf
-from typing_extensions import Literal
+from typing_extensions import Literal, List
 
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.models.base_model import Model
@@ -138,14 +138,18 @@ def populate_point_cloud_tab(
                     )
             notif.show()
 
-            from nerfstudio.scripts.exporter import ExportPointCloud
+            if control_panel.crop_obb is not None and control_panel.crop_viewport:
+                posstring, rpystring, scalestring = get_crop_string(
+                    control_panel.crop_obb, control_panel.crop_viewport
+                )
+            else: 
+                posstring = rpystring = scalestring = None
 
-            posstring, rpystring, scalestring = get_crop_string(
-                control_panel.crop_obb, control_panel.crop_viewport
-            )
+            from nerfstudio.scripts.exporter import ExportPointCloud
+            
             export = ExportPointCloud(
                 load_config=config_path,
-                output_dir=output_dir.value,
+                output_dir=Path(output_dir.value),
                 num_points=num_points.value,
                 remove_outliers=remove_outliers.value,
                 normal_method=normals.value,
@@ -216,14 +220,18 @@ def populate_mesh_tab(
                     )
             notif.show()
 
-            from nerfstudio.scripts.exporter import ExportPoissonMesh
+            if control_panel.crop_obb is not None and control_panel.crop_viewport:
+                posstring, rpystring, scalestring = get_crop_string(
+                    control_panel.crop_obb, control_panel.crop_viewport
+                )
+            else: 
+                posstring = rpystring = scalestring = None
 
-            posstring, rpystring, scalestring = get_crop_string(
-                control_panel.crop_obb, control_panel.crop_viewport
-            )
+            from nerfstudio.scripts.exporter import ExportPoissonMesh
+                
             export = ExportPoissonMesh(
                 load_config=config_path,
-                output_dir=output_dir.value,
+                output_dir=Path(output_dir.value),
                 target_num_faces=num_faces.value,
                 num_pixels_per_side=texture_resolution.value,
                 num_points=num_points.value,
@@ -279,14 +287,18 @@ def populate_splat_tab(
                     )
             notif.show()
 
+            if control_panel.crop_obb is not None and control_panel.crop_viewport:
+                posstring, rpystring, scalestring = get_crop_string(
+                    control_panel.crop_obb, control_panel.crop_viewport
+                )
+            else: 
+                posstring = rpystring = scalestring = None
+
             from nerfstudio.scripts.exporter import ExportGaussianSplat
 
-            posstring, rpystring, scalestring = get_crop_string(
-                control_panel.crop_obb, control_panel.crop_viewport
-            )
             export = ExportGaussianSplat(
                 load_config=config_path,
-                output_dir=output_dir.value,
+                output_dir=Path(output_dir.value),
                 obb_center=posstring,
                 obb_rotation=rpystring,
                 obb_scale=scalestring,
