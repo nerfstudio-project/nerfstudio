@@ -13,12 +13,13 @@
 # limitations under the License.
 
 """Phototourism dataset parser. Datasets and documentation here: http://phototour.cs.washington.edu/datasets/"""
+
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Type
+from typing import Literal, Optional, Type
 
 import numpy as np
 import torch
@@ -27,6 +28,7 @@ from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
 from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.data.utils import colmap_parsing_utils as colmap_utils
 
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
 # import pycolmap
@@ -56,6 +58,17 @@ class PhototourismDataParserConfig(DataParserConfig):
     """The method to use to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
+    colmap_path: Path = Path("dense/sparse")
+    """The relative path to the colmap reconstruction."""
+    load_3D_points: bool = True
+    """Whether to load the 3D points from the colmap reconstruction. This is helpful for Gaussian Splatting and
+    generally unused otherwise, but it's typically harmless so we default to True."""
+    depth_unit_scale_factor: float = 1e-3
+    """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
+    downscale_factor: Optional[int] = None
+    """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
+    max_2D_matches_per_3D_point: int = 0
+    """Maximum number of 2D matches per 3D point. If set to -1, all 2D matches are loaded. If set to 0, no 2D matches are loaded."""
 
 
 @dataclass
@@ -69,11 +82,12 @@ class Phototourism(DataParser):
     def __init__(self, config: PhototourismDataParserConfig):
         super().__init__(config=config)
         self.data: Path = config.data
+        self._downscale_factor = None
 
     def _generate_dataparser_outputs(self, split="train"):
         image_filenames = []
         poses = []
-
+        colmap_path = self.data / self.config.colmap_path
         with CONSOLE.status(f"[bold green]Reading phototourism images and poses for {split} split...") as _:
             # TODO(1480) use pycolmap
             # recon = pycolmap.Reconstruction(self.data / "dense" / "sparse")
@@ -167,7 +181,9 @@ class Phototourism(DataParser):
 
         cameras = cameras[indices]
         image_filenames = [image_filenames[i] for i in indices]
-
+        metadata = {}
+        if self.config.load_3D_points:
+            metadata.update(self._load_3D_points(colmap_path, transform_matrix, scale_factor))
         assert len(cameras) == len(image_filenames)
 
         dataparser_outputs = DataparserOutputs(
@@ -176,6 +192,74 @@ class Phototourism(DataParser):
             scene_box=scene_box,
             dataparser_scale=scale_factor,
             dataparser_transform=transform_matrix,
+            metadata=metadata,
         )
 
         return dataparser_outputs
+
+    # code below are from nerfstudio/nerfstudio/data/dataparsers/colmap_dataparser.py
+    def _load_3D_points(self, colmap_path: Path, transform_matrix: torch.Tensor, scale_factor: float):
+        if (colmap_path / "points3D.bin").exists():
+            colmap_points = colmap_utils.read_points3D_binary(colmap_path / "points3D.bin")
+        elif (colmap_path / "points3D.txt").exists():
+            colmap_points = colmap_utils.read_points3D_text(colmap_path / "points3D.txt")
+        else:
+            raise ValueError(f"Could not find points3D.txt or points3D.bin in {colmap_path}")
+        points3D = torch.from_numpy(np.array([p.xyz for p in colmap_points.values()], dtype=np.float32))
+        points3D = (
+            torch.cat(
+                (
+                    points3D,
+                    torch.ones_like(points3D[..., :1]),
+                ),
+                -1,
+            )
+            @ transform_matrix.T
+        )
+        points3D *= scale_factor
+
+        # Load point colours
+        points3D_rgb = torch.from_numpy(np.array([p.rgb for p in colmap_points.values()], dtype=np.uint8))
+        points3D_num_points = torch.tensor([len(p.image_ids) for p in colmap_points.values()], dtype=torch.int64)
+        out = {
+            "points3D_xyz": points3D,
+            "points3D_rgb": points3D_rgb,
+            "points3D_error": torch.from_numpy(np.array([p.error for p in colmap_points.values()], dtype=np.float32)),
+            "points3D_num_points2D": points3D_num_points,
+        }
+        if self.config.max_2D_matches_per_3D_point != 0:
+            if (colmap_path / "images.txt").exists():
+                im_id_to_image = colmap_utils.read_images_text(colmap_path / "images.txt")
+            elif (colmap_path / "images.bin").exists():
+                im_id_to_image = colmap_utils.read_images_binary(colmap_path / "images.bin")
+            else:
+                raise ValueError(f"Could not find images.txt or images.bin in {colmap_path}")
+            downscale_factor = self._downscale_factor
+            max_num_points = int(torch.max(points3D_num_points).item())
+            if self.config.max_2D_matches_per_3D_point > 0:
+                max_num_points = min(max_num_points, self.config.max_2D_matches_per_3D_point)
+            points3D_image_ids = []
+            points3D_image_xy = []
+            for p in colmap_points.values():
+                nids = np.array(p.image_ids, dtype=np.int64)
+                nxy_ids = np.array(p.point2D_idxs, dtype=np.int32)
+                if self.config.max_2D_matches_per_3D_point != -1:
+                    # Randomly sample 2D matches
+                    idxs = np.argsort(p.error)[: self.config.max_2D_matches_per_3D_point]
+                    nids = nids[idxs]
+                    nxy_ids = nxy_ids[idxs]
+                nxy = [im_id_to_image[im_id].xys[pt_idx] for im_id, pt_idx in zip(nids, nxy_ids)]
+                nxy = torch.from_numpy(np.stack(nxy).astype(np.float32))
+                nids = torch.from_numpy(nids)
+                assert len(nids.shape) == 1
+                assert len(nxy.shape) == 2
+                points3D_image_ids.append(
+                    torch.cat((nids, torch.full((max_num_points - len(nids),), -1, dtype=torch.int64)))
+                )
+                points3D_image_xy.append(
+                    torch.cat((nxy, torch.full((max_num_points - len(nxy), nxy.shape[-1]), 0, dtype=torch.float32)))
+                    / downscale_factor
+                )
+            out["points3D_image_ids"] = torch.stack(points3D_image_ids, dim=0)
+            out["points3D_points2D_xy"] = torch.stack(points3D_image_xy, dim=0)
+        return out
