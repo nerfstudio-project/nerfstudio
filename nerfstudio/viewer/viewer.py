@@ -106,6 +106,8 @@ class Viewer:
         self.train_btn_state: Literal["training", "paused", "completed"] = "training"
         self._prev_train_state: Literal["training", "paused", "completed"] = "training"
         self.last_move_time = 0
+        # track the camera index that last being clicked
+        self.current_camera_idx = 0
 
         self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
         # Set the name of the URL either to the share link if available, or the localhost
@@ -325,6 +327,7 @@ class Viewer:
                 else CameraType.EQUIRECTANGULAR
                 if camera_type == "Equirectangular"
                 else assert_never(camera_type),
+                idx=self.current_camera_idx,
             )
         else:
             camera_state = CameraState(
@@ -332,6 +335,7 @@ class Viewer:
                 aspect=client.camera.aspect,
                 c2w=c2w,
                 camera_type=CameraType.PERSPECTIVE,
+                idx=self.current_camera_idx,
             )
         return camera_state
 
@@ -462,11 +466,16 @@ class Viewer:
                 position=c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO,
             )
 
-            @camera_handle.on_click
-            def _(event: viser.SceneNodePointerEvent[viser.CameraFrustumHandle]) -> None:
-                with event.client.atomic():
-                    event.client.camera.position = event.target.position
-                    event.client.camera.wxyz = event.target.wxyz
+            def create_on_click_callback(capture_idx):
+                def on_click_callback(event: viser.SceneNodePointerEvent[viser.CameraFrustumHandle]) -> None:
+                    with event.client.atomic():
+                        event.client.camera.position = event.target.position
+                        event.client.camera.wxyz = event.target.wxyz
+                        self.current_camera_idx = capture_idx
+
+                return on_click_callback
+
+            camera_handle.on_click(create_on_click_callback(idx))
 
             self.camera_handles[idx] = camera_handle
             self.original_c2w[idx] = c2w
