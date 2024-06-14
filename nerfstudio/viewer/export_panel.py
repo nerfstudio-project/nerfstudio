@@ -91,6 +91,30 @@ def get_crop_string(obb: OrientedBox, crop_viewport: bool) -> List[str]:
     scalestring = " ".join([f"{x:.10f}" for x in scale])
     return [posstring, rpystring, scalestring]
 
+def show_notification(
+        export_complete: bool, 
+        server: viser.ViserServer,
+        output_dir: str) -> None:
+    if export_complete:
+        server.clear_notification()
+        notif = server.add_notification(
+                    title="Export complete!",
+                    body="File saved under " + output_dir,
+                    withCloseButton=True,
+                    loading=False,
+                    autoClose=5000,
+                )
+        notif.show()
+    else: 
+        server.clear_notification()
+        notif = server.add_notification(
+                    title="Export error!",
+                    body="Please try again after a checkpoint is saved.",
+                    withCloseButton=True,
+                    loading=False,
+                    autoClose=5000,
+                )
+
 
 def populate_point_cloud_tab(
     server: viser.ViserServer,
@@ -160,16 +184,9 @@ def populate_point_cloud_tab(
             )
             export.main()
 
-            if export.complete:
-                server.clear_notification()
-                notif = server.add_notification(
-                            title="Export complete!",
-                            body="File saved under " + str(output_dir.value),
-                            withCloseButton=True,
-                            loading=False,
-                            autoClose=5000,
-                        )
-                notif.show()
+            show_notification(export_complete=export.complete,
+                              server=server,
+                              output_dir=str(output_dir.value))
 
     else:
         server.add_gui_markdown(
@@ -243,16 +260,9 @@ def populate_mesh_tab(
             )
             export.main()
 
-            if export.complete:
-                server.clear_notification()
-                notif = server.add_notification(
-                            title="Export complete!",
-                            body="File saved under " + str(output_dir.value),
-                            withCloseButton=True,
-                            loading=False,
-                            autoClose=5000,
-                        )
-                notif.show()
+            show_notification(export_complete=export.complete,
+                              server=server,
+                              output_dir=str(output_dir.value))
 
     else:
         server.add_gui_markdown(
@@ -305,16 +315,9 @@ def populate_splat_tab(
             )
             export.main()
 
-            if export.complete:
-                server.clear_notification()
-                notif = server.add_notification(
-                            title="Export complete!",
-                            body="File saved under " + str(output_dir.value),
-                            withCloseButton=True,
-                            loading=False,
-                            autoClose=5000,
-                        )
-                notif.show()
+            show_notification(export_complete=export.complete,
+                              server=server,
+                              output_dir=str(output_dir.value))
 
     else:
         server.add_gui_markdown(
