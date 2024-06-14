@@ -109,7 +109,7 @@ def show_notification(
         server.clear_notification()
         notif = server.add_notification(
                     title="Export error!",
-                    body="Please try again after a checkpoint is saved.",
+                    body="Please try again after a checkpoint is saved after 2000 steps.",
                     withCloseButton=True,
                     loading=False,
                     autoClose=5000,
