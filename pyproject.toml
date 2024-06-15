@@ -185,7 +185,7 @@ ignore = [
     "PLC1901",  # Use falsey strings.
     "PLR5501",  # Use `elif` instead of `else if`.
     "PLR0911",  # Too many return statements.
-    "PLR0912",  # Too many branches.add_gui_markdown
+    "PLR0912",  # Too many branches
     "PLW0603",  # Globa statement updates are discouraged.
     "PLW2901",  # For loop variable overwritten.
 ]
