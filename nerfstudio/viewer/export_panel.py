@@ -40,41 +40,13 @@ def populate_export_tab(
         def _(_) -> None:
             control_panel.crop_viewport = crop_output.value
 
+    server.add_gui_markdown("<small>Export available after a checkpoint is saved (default minimum 2000 steps)</small>")
     with server.add_gui_folder("Splat"):
         populate_splat_tab(server, control_panel, config_path, viewing_gsplat)
     with server.add_gui_folder("Point Cloud"):
         populate_point_cloud_tab(server, control_panel, config_path, viewing_gsplat)
     with server.add_gui_folder("Mesh"):
         populate_mesh_tab(server, control_panel, config_path, viewing_gsplat)
-
-
-def show_command_modal(
-    client: viser.ClientHandle,
-    what: Literal["mesh", "point cloud", "splat"],
-    command: str,
-) -> None:
-    """Show a modal to each currently connected client.
-
-    In the future, we should only show the modal to the client that pushes the
-    generation button.
-    """
-    with client.add_gui_modal(what.title() + " Export") as modal:
-        client.add_gui_markdown(
-            "\n".join(
-                [
-                    f"To export a {what}, run the following from the command line:",
-                    "",
-                    "```",
-                    command,
-                    "```",
-                ]
-            )
-        )
-        close_button = client.add_gui_button("Close")
-
-        @close_button.on_click
-        def _(_) -> None:
-            modal.close()
 
 
 def get_crop_string(obb: OrientedBox, crop_viewport: bool) -> List[str]:
@@ -91,6 +63,7 @@ def get_crop_string(obb: OrientedBox, crop_viewport: bool) -> List[str]:
     scalestring = " ".join([f"{x:.10f}" for x in scale])
     return [posstring, rpystring, scalestring]
 
+
 def show_notification(
         export_complete: bool, 
         server: viser.ViserServer,
@@ -105,15 +78,6 @@ def show_notification(
                     autoClose=5000,
                 )
         notif.show()
-    else: 
-        server.clear_notification()
-        notif = server.add_notification(
-                    title="Export error!",
-                    body="Please try again after a checkpoint is saved after 2000 steps.",
-                    withCloseButton=True,
-                    loading=False,
-                    autoClose=5000,
-                )
 
 
 def populate_point_cloud_tab(
