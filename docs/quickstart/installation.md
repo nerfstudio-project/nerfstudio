@@ -78,13 +78,12 @@ conda install -c "nvidia/label/cuda-11.7.1" cuda-toolkit
 :::
 ::::
 
-### Installing tinycudann/gsplat
+### Install tiny-cuda-nn/gsplat
 
 ::::::{tab-set}
 :::::{tab-item} Linux
 
 After pytorch and ninja, install the torch bindings for tiny-cuda-nn:
-@@ -84,6 +85,46 @@ After pytorch and ninja, install the torch bindings for tiny-cuda-nn:
 ```bash
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
