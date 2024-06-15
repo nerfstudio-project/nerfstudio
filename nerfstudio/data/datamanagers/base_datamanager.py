@@ -343,7 +343,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """The limit number of batches a worker will start loading once an iterator is created. 
     Each next() call on the iterator has the CPU prepare more batches up to this 
     limit while the GPU is performing forward and backward passes on the model."""
-    dataloader_num_workers: int = 8
+    dataloader_num_workers: int = 1
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes undistortion, pixel sampling, ray generation, collating, etc."""
     use_ray_train_dataloader: bool = True
@@ -516,17 +516,20 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         loop_iterations = 32
         num_rays_per_loop = self.datamanager_config.train_num_rays_per_batch // loop_iterations # default train_num_rays_per_batch is 4096
         worker_pixel_sampler = self._get_pixel_sampler(self.input_dataset, num_rays_per_loop)
+        if self.ray_generator is None:
+            self.ray_generator = RayGenerator(self.input_dataset.cameras)#.to(self.device))
         while True:
             ray_bundle_list = []  # list of RayBundle objects
             batch_list = []  # list of pytorch tensors with shape torch.Size([, 3])
             for _ in range(loop_iterations):
-                image_indices = r.shuffle(worker_indices)[:self.datamanager_config.train_num_images_to_sample_from]  # obtain num_images_per_loop
+                r.shuffle(worker_indices)
+                image_indices = worker_indices[:self.num_images_to_sample_from] # get a total of 'num_images_to_sample_from' image indices 
                 collated_batch = self._get_collated_batch(image_indices)
                 batch = worker_pixel_sampler.sample(collated_batch) # the pixel_sampler will sample num_rays_per_batch pixels.
                 ray_indices = batch["indices"]
                 ray_bundle = self.ray_generator(ray_indices)
                 ray_bundle_list.append(ray_bundle)
-                batch_list.append(ray_bundle)
+                batch_list.append(batch)
             
             combined_metadata = {}
             concatenated_ray_bundle = RayBundle(
@@ -739,7 +742,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
                 datamanager_config=self.config,
                 # self.train_pixel_sampler,
                 # self.train_ray_generator,
-                num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+                num_images_to_sample_from=100,#self.config.train_num_images_to_sample_from,
                 # num_times_to_repeat_images=self.config.train_num_times_to_repeat_images, # no work
                 device=self.device,
                 collate_fn=self.config.collate_fn,
