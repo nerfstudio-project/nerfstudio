@@ -57,7 +57,7 @@ dependencies = [
     "torchvision>=0.14.1",
     "torchmetrics[image]>=1.0.1",
     "typing_extensions>=4.4.0",
-    "viser==0.1.27",
+    "viser==0.2.1",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
     "xatlas",
@@ -185,7 +185,7 @@ ignore = [
     "PLC1901",  # Use falsey strings.
     "PLR5501",  # Use `elif` instead of `else if`.
     "PLR0911",  # Too many return statements.
-    "PLR0912",  # Too many branches.
+    "PLR0912",  # Too many branches.add_gui_markdown
     "PLW0603",  # Globa statement updates are discouraged.
     "PLW2901",  # For loop variable overwritten.
 ]

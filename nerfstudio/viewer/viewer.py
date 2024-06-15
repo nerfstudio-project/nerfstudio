@@ -162,32 +162,32 @@ class Viewer:
         self.viser_server.on_client_connect(self.handle_new_client)
 
         # Populate the header, which includes the pause button, train cam button, and stats
-        self.pause_train = self.viser_server.add_gui_button(
+        self.pause_train = self.viser_server.gui.add_button(
             label="Pause Training", disabled=False, icon=viser.Icon.PLAYER_PAUSE_FILLED
         )
         self.pause_train.on_click(lambda _: self.toggle_pause_button())
         self.pause_train.on_click(lambda han: self._toggle_training_state(han))
-        self.resume_train = self.viser_server.add_gui_button(
+        self.resume_train = self.viser_server.gui.add_button(
             label="Resume Training", disabled=False, icon=viser.Icon.PLAYER_PLAY_FILLED
         )
         self.resume_train.on_click(lambda _: self.toggle_pause_button())
         self.resume_train.on_click(lambda han: self._toggle_training_state(han))
         self.resume_train.visible = False
         # Add buttons to toggle training image visibility
-        self.hide_images = self.viser_server.add_gui_button(
+        self.hide_images = self.viser_server.gui.add_button(
             label="Hide Train Cams", disabled=False, icon=viser.Icon.EYE_OFF, color=None
         )
         self.hide_images.on_click(lambda _: self.set_camera_visibility(False))
         self.hide_images.on_click(lambda _: self.toggle_cameravis_button())
-        self.show_images = self.viser_server.add_gui_button(
+        self.show_images = self.viser_server.gui.add_button(
             label="Show Train Cams", disabled=False, icon=viser.Icon.EYE, color=None
         )
         self.show_images.on_click(lambda _: self.set_camera_visibility(True))
         self.show_images.on_click(lambda _: self.toggle_cameravis_button())
         self.show_images.visible = False
         mkdown = self.make_stats_markdown(0, "0x0px")
-        self.stats_markdown = self.viser_server.add_gui_markdown(mkdown)
-        tabs = self.viser_server.add_gui_tab_group()
+        self.stats_markdown = self.viser_server.gui.add_markdown(mkdown)
+        tabs = self.viser_server.gui.add_tab_group()
         control_tab = tabs.add_tab("Control", viser.Icon.SETTINGS)
         with control_tab:
             self.control_panel = ControlPanel(
@@ -242,7 +242,7 @@ class Viewer:
                 # Otherwise, use the existing folder as context manager.
                 folder_path = "/".join(prev_labels + [folder_labels[0]])
                 if folder_path not in viewer_gui_folders:
-                    viewer_gui_folders[folder_path] = self.viser_server.add_gui_folder(folder_labels[0])
+                    viewer_gui_folders[folder_path] = self.viser_server.gui.add_folder(folder_labels[0])
                 with viewer_gui_folders[folder_path]:
                     nested_folder_install(folder_labels[1:], prev_labels + [folder_labels[0]], element)
 
@@ -272,7 +272,7 @@ class Viewer:
         # Diagnostics for Gaussian Splatting: where the points are at the start of training.
         # This is hidden by default, it can be shown from the Viser UI's scene tree table.
         if isinstance(pipeline.model, SplatfactoModel):
-            self.viser_server.add_point_cloud(
+            self.viser_server.scene.add_point_cloud(
                 "/gaussian_splatting_initial_points",
                 points=pipeline.model.means.numpy(force=True) * VISER_NERFSTUDIO_SCALE_RATIO,
                 colors=(255, 0, 0),
@@ -452,7 +452,7 @@ class Viewer:
             c2w = camera.camera_to_worlds.cpu().numpy()
             R = vtf.SO3.from_matrix(c2w[:3, :3])
             R = R @ vtf.SO3.from_x_radians(np.pi)
-            camera_handle = self.viser_server.add_camera_frustum(
+            camera_handle = self.viser_server.scene.add_camera_frustum(
                 name=f"/cameras/camera_{idx:05d}",
                 fov=float(2 * np.arctan(camera.cx / camera.fx[0])),
                 scale=self.config.camera_frustum_scale,

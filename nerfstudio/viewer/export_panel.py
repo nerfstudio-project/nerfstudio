@@ -34,17 +34,17 @@ def populate_export_tab(
 ) -> None:
     viewing_gsplat = isinstance(viewer_model, SplatfactoModel)
     if not viewing_gsplat:
-        crop_output = server.add_gui_checkbox("Use Crop", False)
+        crop_output = server.gui.add_checkbox("Use Crop", False)
 
         @crop_output.on_update
         def _(_) -> None:
             control_panel.crop_viewport = crop_output.value
 
-    with server.add_gui_folder("Splat"):
+    with server.gui.add_folder("Splat"):
         populate_splat_tab(server, control_panel, config_path, viewing_gsplat)
-    with server.add_gui_folder("Point Cloud"):
+    with server.gui.add_folder("Point Cloud"):
         populate_point_cloud_tab(server, control_panel, config_path, viewing_gsplat)
-    with server.add_gui_folder("Mesh"):
+    with server.gui.add_folder("Mesh"):
         populate_mesh_tab(server, control_panel, config_path, viewing_gsplat)
 
 
@@ -95,9 +95,9 @@ def populate_point_cloud_tab(
     viewing_gsplat: bool,
 ) -> None:
     if not viewing_gsplat:
-        server.add_gui_markdown("<small>Render depth, project to an oriented point cloud, and filter</small> ")
-        num_points = server.add_gui_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
-        world_frame = server.add_gui_checkbox(
+        server.gui.add_markdown("<small>Render depth, project to an oriented point cloud, and filter</small> ")
+        num_points = server.gui.add_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
+        world_frame = server.gui.add_checkbox(
             "Save in world frame",
             False,
             hint=(
@@ -105,16 +105,16 @@ def populate_point_cloud_tab(
                 "scaled and reoriented coordinate space expected by the NeRF models."
             ),
         )
-        remove_outliers = server.add_gui_checkbox("Remove outliers", True)
-        normals = server.add_gui_dropdown(
+        remove_outliers = server.gui.add_checkbox("Remove outliers", True)
+        normals = server.gui.add_dropdown(
             "Normals",
             # TODO: options here could depend on what's available to the model.
             ("open3d", "model_output"),
             initial_value="open3d",
             hint="Normal map source.",
         )
-        output_dir = server.add_gui_text("Output Directory", initial_value="exports/pcd/")
-        generate_command = server.add_gui_button("Generate Command", icon=viser.Icon.TERMINAL_2)
+        output_dir = server.gui.add_text("Output Directory", initial_value="exports/pcd/")
+        generate_command = server.gui.add_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @generate_command.on_click
         def _(event: viser.GuiEvent) -> None:
@@ -134,7 +134,7 @@ def populate_point_cloud_tab(
             show_command_modal(event.client, "point cloud", command)
 
     else:
-        server.add_gui_markdown("<small>Point cloud export is not currently supported with Gaussian Splatting</small>")
+        server.gui.add_markdown("<small>Point cloud export is not currently supported with Gaussian Splatting</small>")
 
 
 def populate_mesh_tab(
@@ -144,23 +144,23 @@ def populate_mesh_tab(
     viewing_gsplat: bool,
 ) -> None:
     if not viewing_gsplat:
-        server.add_gui_markdown(
+        server.gui.add_markdown(
             "<small>Render depth, project to an oriented point cloud, and run Poisson surface reconstruction</small>"
         )
 
-        normals = server.add_gui_dropdown(
+        normals = server.gui.add_dropdown(
             "Normals",
             ("open3d", "model_output"),
             initial_value="open3d",
             hint="Source for normal maps.",
         )
-        num_faces = server.add_gui_number("# Faces", initial_value=50_000, min=1)
-        texture_resolution = server.add_gui_number("Texture Resolution", min=8, initial_value=2048)
-        output_directory = server.add_gui_text("Output Directory", initial_value="exports/mesh/")
-        num_points = server.add_gui_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
-        remove_outliers = server.add_gui_checkbox("Remove outliers", True)
+        num_faces = server.gui.add_number("# Faces", initial_value=50_000, min=1)
+        texture_resolution = server.gui.add_number("Texture Resolution", min=8, initial_value=2048)
+        output_directory = server.gui.add_text("Output Directory", initial_value="exports/mesh/")
+        num_points = server.gui.add_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
+        remove_outliers = server.gui.add_checkbox("Remove outliers", True)
 
-        generate_command = server.add_gui_button("Generate Command", icon=viser.Icon.TERMINAL_2)
+        generate_command = server.gui.add_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @generate_command.on_click
         def _(event: viser.GuiEvent) -> None:
@@ -181,7 +181,7 @@ def populate_mesh_tab(
             show_command_modal(event.client, "mesh", command)
 
     else:
-        server.add_gui_markdown("<small>Mesh export is not currently supported with Gaussian Splatting</small>")
+        server.gui.add_markdown("<small>Mesh export is not currently supported with Gaussian Splatting</small>")
 
 
 def populate_splat_tab(
@@ -191,10 +191,10 @@ def populate_splat_tab(
     viewing_gsplat: bool,
 ) -> None:
     if viewing_gsplat:
-        server.add_gui_markdown("<small>Generate ply export of Gaussian Splat</small>")
+        server.gui.add_markdown("<small>Generate ply export of Gaussian Splat</small>")
 
-        output_directory = server.add_gui_text("Output Directory", initial_value="exports/splat/")
-        generate_command = server.add_gui_button("Generate Command", icon=viser.Icon.TERMINAL_2)
+        output_directory = server.gui.add_text("Output Directory", initial_value="exports/splat/")
+        generate_command = server.gui.add_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @generate_command.on_click
         def _(event: viser.GuiEvent) -> None:
@@ -210,4 +210,4 @@ def populate_splat_tab(
             show_command_modal(event.client, "splat", command)
 
     else:
-        server.add_gui_markdown("<small>Splat export is only supported with Gaussian Splatting methods</small>")
+        server.gui.add_markdown("<small>Splat export is only supported with Gaussian Splatting methods</small>")
