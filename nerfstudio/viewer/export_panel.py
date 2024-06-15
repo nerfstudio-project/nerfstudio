@@ -54,8 +54,8 @@ def show_command_modal(client: viser.ClientHandle, what: Literal["mesh", "point 
     In the future, we should only show the modal to the client that pushes the
     generation button.
     """
-    with client.add_gui_modal(what.title() + " Export") as modal:
-        client.add_gui_markdown(
+    with client.gui.add_modal(what.title() + " Export") as modal:
+        client.gui.add_markdown(
             "\n".join(
                 [
                     f"To export a {what}, run the following from the command line:",
@@ -66,7 +66,7 @@ def show_command_modal(client: viser.ClientHandle, what: Literal["mesh", "point 
                 ]
             )
         )
-        close_button = client.add_gui_button("Close")
+        close_button = client.gui.add_button("Close")
 
         @close_button.on_click
         def _(_) -> None:

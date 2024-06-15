@@ -150,7 +150,7 @@ class Viewer:
             href="https://docs.nerf.studio/",
         )
         titlebar_theme = viser.theme.TitlebarConfig(buttons=buttons, image=image)
-        self.viser_server.configure_theme(
+        self.viser_server.gui.configure_theme(
             titlebar_content=titlebar_theme,
             control_layout="collapsible",
             dark_mode=True,

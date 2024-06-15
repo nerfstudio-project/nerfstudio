@@ -179,10 +179,10 @@ class CameraPath:
             @delete_button.on_click
             def _(event: viser.GuiEvent) -> None:
                 assert event.client is not None
-                with event.client.add_gui_modal("Confirm") as modal:
-                    event.client.add_gui_markdown("Delete keyframe?")
-                    confirm_button = event.client.add_gui_button("Yes", color="red", icon=viser.Icon.TRASH)
-                    exit_button = event.client.add_gui_button("Cancel")
+                with event.client.gui.add_modal("Confirm") as modal:
+                    event.client.gui.add_markdown("Delete keyframe?")
+                    confirm_button = event.client.gui.add_button("Yes", color="red", icon=viser.Icon.TRASH)
+                    exit_button = event.client.gui.add_button("Cancel")
 
                     @confirm_button.on_click
                     def _(_) -> None:
@@ -619,10 +619,10 @@ def populate_render_tab(
     def _(event: viser.GuiEvent) -> None:
         assert event.client_id is not None
         client = server.get_clients()[event.client_id]
-        with client.atomic(), client.add_gui_modal("Confirm") as modal:
-            client.add_gui_markdown("Clear all keyframes?")
-            confirm_button = client.add_gui_button("Yes", color="red", icon=viser.Icon.TRASH)
-            exit_button = client.add_gui_button("Cancel")
+        with client.atomic(), client.gui.add_modal("Confirm") as modal:
+            client.gui.add_markdown("Clear all keyframes?")
+            confirm_button = client.gui.add_button("Yes", color="red", icon=viser.Icon.TRASH)
+            exit_button = client.gui.add_button("Cancel")
 
             @confirm_button.on_click
             def _(_) -> None:
@@ -954,17 +954,17 @@ def populate_render_tab(
         preexisting_camera_paths = list(camera_path_dir.glob("*.json"))
         preexisting_camera_filenames = [p.name for p in preexisting_camera_paths]
 
-        with event.client.add_gui_modal("Load Path") as modal:
+        with event.client.gui.add_modal("Load Path") as modal:
             if len(preexisting_camera_filenames) == 0:
-                event.client.add_gui_markdown("No existing paths found")
+                event.client.gui.add_markdown("No existing paths found")
             else:
-                event.client.add_gui_markdown("Select existing camera path:")
-                camera_path_dropdown = event.client.add_gui_dropdown(
+                event.client.gui.add_markdown("Select existing camera path:")
+                camera_path_dropdown = event.client.gui.add_dropdown(
                     label="Camera Path",
                     options=[str(p) for p in preexisting_camera_filenames],
                     initial_value=str(preexisting_camera_filenames[0]),
                 )
-                load_button = event.client.add_gui_button("Load")
+                load_button = event.client.gui.add_button("Load")
 
                 @load_button.on_click
                 def _(_) -> None:
@@ -1006,7 +1006,7 @@ def populate_render_tab(
                     camera_path.update_spline()
                     modal.close()
 
-            cancel_button = event.client.add_gui_button("Cancel")
+            cancel_button = event.client.gui.add_button("Cancel")
 
             @cancel_button.on_click
             def _(_) -> None:
@@ -1135,7 +1135,7 @@ def populate_render_tab(
         with open(json_outfile.absolute(), "w") as outfile:
             json.dump(json_data, outfile)
         # now show the command
-        with event.client.add_gui_modal("Render Command") as modal:
+        with event.client.gui.add_modal("Render Command") as modal:
             dataname = datapath.name
             command = " ".join(
                 [
@@ -1145,7 +1145,7 @@ def populate_render_tab(
                     f"--output-path renders/{dataname}/{render_name_text.value}.mp4",
                 ]
             )
-            event.client.add_gui_markdown(
+            event.client.gui.add_markdown(
                 "\n".join(
                     [
                         "To render the trajectory, run the following from the command line:",
@@ -1156,7 +1156,7 @@ def populate_render_tab(
                     ]
                 )
             )
-            close_button = event.client.add_gui_button("Close")
+            close_button = event.client.gui.add_button("Close")
 
             @close_button.on_click
             def _(_) -> None:
