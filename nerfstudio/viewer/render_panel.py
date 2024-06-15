@@ -697,7 +697,7 @@ def populate_render_tab(
         # Show move handles.
         assert event.client is not None
         for keyframe_index, keyframe in camera_path._keyframes.items():
-            controls = event.client.add_transform_controls(
+            controls = event.client.scene.add_transform_controls(
                 f"/keyframe_move/{keyframe_index}",
                 scale=0.4,
                 wxyz=keyframe[0].wxyz,

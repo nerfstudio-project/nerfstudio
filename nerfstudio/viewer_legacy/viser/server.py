@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Callable, Type
 
-import viser.infra
+from viser import ViserServer
 from typing_extensions import override
 
 from .message_api import MessageApi
@@ -44,7 +44,7 @@ class ViserServer(MessageApi):
     ):
         super().__init__()
 
-        self._ws_server = viser.infra.Server(host, port, http_server_root=None, verbose=False)
+        self._ws_server = ViserServer(host, port, http_server_root=None, verbose=False)
         self._ws_server.register_handler(GuiUpdateMessage, self._handle_gui_updates)
         self._ws_server.start()
 
