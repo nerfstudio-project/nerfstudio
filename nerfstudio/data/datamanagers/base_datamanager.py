@@ -56,7 +56,11 @@ from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
-from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader#, RayBatchStream
+from nerfstudio.data.utils.dataloaders import (  # , RayBatchStream
+    CacheDataloader,
+    FixedIndicesEvalDataloader,
+    RandIndicesEvalDataloader,
+)
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
@@ -335,11 +339,11 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
-    dataloader_prefetch_size : int = 8
+    dataloader_prefetch_size: int = 8
     """The limit number of batches a worker will start loading once an iterator is created. 
     Each next() call on the iterator has the CPU prepare more batches up to this 
     limit while the GPU is performing forward and backward passes on the model."""
-    dataloader_num_workers : int = 8
+    dataloader_num_workers: int = 8
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes undistortion, pixel sampling, ray generation, collating, etc."""
     use_ray_train_dataloader: bool = True
@@ -364,25 +368,29 @@ class VanillaDataManagerConfig(DataManagerConfig):
 
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
 
-import multiprocessing
-import math
-from torch.utils.data import Dataset
-from typing import Sized
-import random
 import concurrent.futures
+import math
+import multiprocessing
+import random
+from typing import Sized
+
+from torch.utils.data import Dataset
+
 from nerfstudio.utils.misc import get_dict_to_torch
+
+
 class RayBatchStream(torch.utils.data.IterableDataset):
     def __init__(
-            self,
-            input_dataset: Dataset,
-            datamanager_config : DataManagerConfig = None,
-            num_images_to_sample_from: int = -1, # passed in from VanillaDataManager
-            device: Union[torch.device, str] = "cpu",
-            collate_fn: Callable[[Any], Any] = nerfstudio_collate,
-            exclude_batch_keys_from_device: Optional[List[str]] = None,
-            num_image_load_threads : int = 4,
-            cache_all_n_shard_per_worker : bool = True, # When False, always getting Killed/bugs for some reason... why?
-            # when cache_all_n_shard_per_worker True, getting killed because caching everything is not good
+        self,
+        input_dataset: Dataset,
+        datamanager_config: DataManagerConfig,
+        num_images_to_sample_from: int = -1,  # passed in from VanillaDataManager
+        device: Union[torch.device, str] = "cpu",
+        collate_fn: Callable[[Any], Any] = nerfstudio_collate,
+        exclude_batch_keys_from_device: Optional[List[str]] = None,
+        num_image_load_threads: int = 4,
+        cache_all_n_shard_per_worker: bool = True,  # When False, always getting Killed/bugs for some reason... why?
+        # when cache_all_n_shard_per_worker True, getting killed because caching everything is not good
     ):
         if exclude_batch_keys_from_device is None:
             exclude_batch_keys_from_device = ["image"]
@@ -395,21 +403,21 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         self.device = device
         self.collate_fn = collate_fn
         # self.num_workers = kwargs.get("num_workers", 32) # nb only 4 in defaults
-        self.num_image_load_threads = num_image_load_threads #kwargs.get("num_workers", 4) # nb only 4 in defaults
+        self.num_image_load_threads = num_image_load_threads  # kwargs.get("num_workers", 4) # nb only 4 in defaults
         self.exclude_batch_keys_from_device = exclude_batch_keys_from_device
 
         self.datamanager_config = datamanager_config
-        self.pixel_sampler = None
-        self.ray_generator = None
+        self.pixel_sampler: PixelSampler = None
+        self.ray_generator: RayGenerator = None
         self._cached_collated_batch = None
         """_cached_collated_batch contains a collated batch of images for a specific worker that's ready for pixel sampling."""
         self.cache_all_n_shard_per_worker = cache_all_n_shard_per_worker
         """If True, _cached_collated_batch is populated with a subset of the dataset assigned to each worker during the iteration process."""
-    
-    def _get_pixel_sampler(self, dataset: 'TDataset', num_rays_per_batch: int) -> PixelSampler:
+
+    def _get_pixel_sampler(self, dataset: "TDataset", num_rays_per_batch: int) -> PixelSampler:
         """copy-pasta from VanillaDataManager."""
-        from nerfstudio.cameras.cameras import Cameras, CameraType
-        from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
+        from nerfstudio.cameras.cameras import CameraType
+        from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSamplerConfig
 
         if self.datamanager_config.patch_size > 1 and type(self.datamanager_config.pixel_sampler) is PixelSamplerConfig:
             return PatchPixelSamplerConfig().setup(
@@ -428,22 +436,25 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             num_rays_per_batch=num_rays_per_batch,
             fisheye_crop_radius=fisheye_crop_radius,
         )
-    
+
     def _get_batch_list(self, indices=None):
-        """Returns a list representing a single batch from the dataset attribute. 
+        """Returns a list representing a single batch from the dataset attribute.
         Each item of the list is a dictionary with dict_keys(['image_idx', 'image']) representing 1 image.
         This function is used to sample and load images from disk/RAM and is only called in _get_collated_batch
         The length of the list is equal to the (# of training images) / (num_workers)"""
 
         assert isinstance(self.input_dataset, Sized)
         if indices is None:
+            # Note: self.num_images_to_sample_from is usually -1, but _get_batch_list is usually called with indices != None.
+            # _get_batch_list is used by _get_collated_batch, whose indices = some partition of the dataset
             indices = random.sample(range(len(self.input_dataset)), k=self.num_images_to_sample_from)
         batch_list = []
         results = []
 
         # num_threads = int(self.num_ds_load_threads) * 4
         num_threads = (
-            int(self.num_image_load_threads) if not self.cache_all_n_shard_per_worker
+            int(self.num_image_load_threads)
+            if not self.cache_all_n_shard_per_worker
             else 4 * int(self.num_image_load_threads)
         )
         num_threads = min(num_threads, multiprocessing.cpu_count() - 1)
@@ -453,6 +464,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         # NB: this is I/O heavy because we are going to disk and reading an image filename
         # hence multi-threaded inside the worker
         from tqdm.auto import tqdm
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
             for idx in indices:
                 res = executor.submit(self.input_dataset.__getitem__, idx)
@@ -465,16 +477,16 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             for res in results:
                 batch_list.append(res.result())
         return batch_list
-    
+
     def _get_collated_batch(self, indices=None):
         """Takes the output of _get_batch_list and collates them with nerfstudio_collate()
         Note: dict is an instance of collections.abc.Mapping
-        
+
         The resulting output is collated_batch: a dictionary with dict_keys(['image_idx', 'image'])
         collated_batch['image_idx'] is tensor with shape torch.Size([per_worker])
-        collated_batch['image'] is tensor with shape torch.Size([per_worker, height, width, 3]) 
+        collated_batch['image'] is tensor with shape torch.Size([per_worker, height, width, 3])
         """
-        batch_list=self._get_batch_list(indices=indices)
+        batch_list = self._get_batch_list(indices=indices)
         # if len(batch_list) == 0:
         #     print(indices)
         # print(type(batch_list[0])) # prints <class 'dict'>
@@ -486,59 +498,104 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         return collated_batch
 
     def __iter__(self):
-        """Defines the iterator for the dataset."""
-        # Set up stuff now that we're in the worker process
-        dataset_indices = list(range(len(self.input_dataset))) # this_indices has len 300, at first it is the whole training dataset, but it gets partitioned into equal chunks
+        """This implementation has every worker cache the indices of the images they will use to generate rays."""
+        dataset_indices = list(
+            range(len(self.input_dataset))
+        )  # this_indices has length = numTrainingImages, at first it is the whole training dataset, but it gets partitioned into equal chunks
         worker_info = torch.utils.data.get_worker_info()
-        if self.cache_all_n_shard_per_worker: # if we want every worker to cache their partition
-            if worker_info is None:
-                print('TODO log. only single worker not sharding!')
-                worker_id = -1
-            else:
-                # assign this worker a deterministic uniformly sampled slice
-                # of the dataset
-                per_worker = int(math.ceil(len(dataset_indices) / float(worker_info.num_workers)))
-                r = random.Random(1337)
-                r.shuffle(dataset_indices)
-                worker_id = worker_info.id
-                slice_start = worker_id * per_worker
-                worker_indices = dataset_indices[slice_start:slice_start+per_worker] 
-                print(f'Worker ID {worker_id} working on {len(worker_indices)} indices')
-            
-            import time
-            start = time.time()
-            print(f"Worker ID {worker_id} caching collated batch ...")
-            self._cached_collated_batch = self._get_collated_batch(indices=worker_indices)
-            print(f"Worker ID {worker_id} cached collated batch in {time.time()-start} sec ...")
-
-        if self.pixel_sampler is None:
-            self.pixel_sampler = self._get_pixel_sampler(
-                self.input_dataset,
-                self.datamanager_config.train_num_rays_per_batch
-                )
-        if self.ray_generator is None:
-            self.ray_generator = RayGenerator(self.input_dataset.cameras)#.to(self.device))
-        
-        # if cache_all_n_shard_per_worker=True, every worker should have a _cached_collated_batch when the iterator was created (above lines)
-        # falling into this if statement means the worker's cached_collated_batch was evicted or cache_all_n_shard_per_worker=False
-        if self._cached_collated_batch is None: 
-            if worker_info is None:
-                per_worker = len(dataset_indices)
-            else:
-                per_worker = int(math.ceil(len(dataset_indices) / float(worker_info.num_workers)))
-            r = random.Random(1337)
-            r.shuffle(dataset_indices)
-            worker_id = 0 if worker_info is None else worker_info.id
-            slice_start = worker_id * per_worker
-            worker_indices = dataset_indices[slice_start:slice_start+per_worker] # the indices of the datapoints in the dataset this worker will load
-            collated_batch = self._get_collated_batch(worker_indices)
-        else:
-            collated_batch = self._cached_collated_batch
+        if worker_info is not None:  # if we have multiple processes
+            per_worker = int(math.ceil(len(dataset_indices) / float(worker_info.num_workers)))
+            slice_start = worker_info.id * per_worker
+        else:  # we only have a single process
+            per_worker = len(self.input_dataset)
+            slice_start = 0
+        worker_indices = dataset_indices[
+            slice_start : slice_start + per_worker
+        ]  # the indices of the datapoints in the dataset this worker will load
+        r = random.Random(3301)
+        loop_iterations = 32
+        num_rays_per_loop = self.datamanager_config.train_num_rays_per_batch // loop_iterations # default train_num_rays_per_batch is 4096
+        worker_pixel_sampler = self._get_pixel_sampler(self.input_dataset, num_rays_per_loop)
         while True:
-            batch = self.pixel_sampler.sample(collated_batch)
-            ray_indices = batch["indices"]
-            ray_bundle = self.ray_generator(ray_indices)
-            yield ray_bundle, batch
+            ray_bundle_list = []  # list of RayBundle objects
+            batch_list = []  # list of pytorch tensors with shape torch.Size([, 3])
+            for _ in range(loop_iterations):
+                image_indices = r.shuffle(worker_indices)[:self.datamanager_config.train_num_images_to_sample_from]  # obtain num_images_per_loop
+                collated_batch = self._get_collated_batch(image_indices)
+                batch = worker_pixel_sampler.sample(collated_batch) # the pixel_sampler will sample num_rays_per_batch pixels.
+                ray_indices = batch["indices"]
+                ray_bundle = self.ray_generator(ray_indices)
+                ray_bundle_list.append(ray_bundle)
+                batch_list.append(ray_bundle)
+            
+            combined_metadata = {}
+            concatenated_ray_bundle = RayBundle(
+                origins=torch.cat([ray_bundle_i.origins for ray_bundle_i in ray_bundle_list], dim=0),
+                directions=torch.cat([ray_bundle_i.directions for ray_bundle_i in ray_bundle_list], dim=0),
+                pixel_area=torch.cat([ray_bundle_i.pixel_area for ray_bundle_i in ray_bundle_list], dim=0),
+                camera_indices=torch.cat([ray_bundle_i.camera_indices for ray_bundle_i in ray_bundle_list], dim=0),
+                metadata=combined_metadata,
+            )
+            concatenated_batch = {
+                "image" : torch.cat([batch_i["image"] for batch_i in batch_list], dim=0),
+                "indices": torch.cat([batch_i["indices"] for batch_i in batch_list], dim=0),
+            }
+            yield concatenated_ray_bundle, concatenated_batch
+
+    # def __iter__(self):
+    #     """Defines the iterator for the dataset."""
+    #     # Set up stuff now that we're in the worker process
+    #     dataset_indices = list(range(len(self.input_dataset))) # this_indices has length = numTrainingImages, at first it is the whole training dataset, but it gets partitioned into equal chunks
+    #     worker_info = torch.utils.data.get_worker_info()
+    #     if self.cache_all_n_shard_per_worker: # if we want every worker to cache their partition
+    #         if worker_info is None:
+    #             print('TODO log. only single worker not sharding!')
+    #             worker_id = -1
+    #         else:
+    #             # assign this worker a deterministic uniformly sampled slice
+    #             # of the dataset
+    #             per_worker = int(math.ceil(len(dataset_indices) / float(worker_info.num_workers)))
+    #             r = random.Random(1337)
+    #             r.shuffle(dataset_indices)
+    #             worker_id = worker_info.id
+    #             slice_start = worker_id * per_worker
+    #             worker_indices = dataset_indices[slice_start:slice_start+per_worker]
+    #             print(f'Worker ID {worker_id} working on {len(worker_indices)} indices')
+
+    #         import time
+    #         start = time.time()
+    #         print(f"Worker ID {worker_id} caching collated batch ...")
+    #         self._cached_collated_batch = self._get_collated_batch(indices=worker_indices)
+    #         print(f"Worker ID {worker_id} cached collated batch in {time.time()-start} sec ...")
+
+    #     if self.pixel_sampler is None:
+    #         self.pixel_sampler = self._get_pixel_sampler(
+    #             self.input_dataset,
+    #             self.datamanager_config.train_num_rays_per_batch
+    #             )
+    #     if self.ray_generator is None:
+    #         self.ray_generator = RayGenerator(self.input_dataset.cameras)#.to(self.device))
+
+    #     # if cache_all_n_shard_per_worker=True, every worker should have a _cached_collated_batch when the iterator was created (above lines)
+    #     # falling into this if statement means the worker's cached_collated_batch was evicted or cache_all_n_shard_per_worker=False
+    #     if self._cached_collated_batch is None:
+    #         if worker_info is None:
+    #             per_worker = len(dataset_indices)
+    #         else:
+    #             per_worker = int(math.ceil(len(dataset_indices) / float(worker_info.num_workers)))
+    #         r = random.Random(1337)
+    #         r.shuffle(dataset_indices)
+    #         worker_id = 0 if worker_info is None else worker_info.id
+    #         slice_start = worker_id * per_worker
+    #         worker_indices = dataset_indices[slice_start:slice_start+per_worker] # the indices of the datapoints in the dataset this worker will load
+    #         collated_batch = self._get_collated_batch(worker_indices)
+    #     else:
+    #         collated_batch = self._cached_collated_batch
+    #     while True:
+    #         batch = self.pixel_sampler.sample(collated_batch)
+    #         ray_indices = batch["indices"]
+    #         ray_bundle = self.ray_generator(ray_indices)
+    #         yield ray_bundle, batch
 
 
 def identity(x):
@@ -675,7 +732,8 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
 
         if self.config.use_ray_train_dataloader:
             import torch.multiprocessing as mp
-            mp.set_start_method('spawn')
+
+            mp.set_start_method("spawn")
             self.raybatch_stream = RayBatchStream(
                 input_dataset=self.train_dataset,
                 datamanager_config=self.config,
@@ -687,7 +745,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
                 collate_fn=self.config.collate_fn,
                 # num_workers=self.world_size * 4,# this is part of torch.utils.data.DataLoader
                 # pin_memory=True, # this is part of torch.utils.data.DataLoader
-            )        
+            )
             self.ray_dataloader = torch.utils.data.DataLoader(
                 self.raybatch_stream,
                 batch_size=1,
@@ -709,11 +767,11 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
                 num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
                 device=self.device,
                 num_workers=self.world_size * 4
-                    if self.config.dataloader_num_workers == -1
-                    else self.config.dataloader_num_workers,
+                if self.config.dataloader_num_workers == -1
+                else self.config.dataloader_num_workers,
                 prefetch_factor=2
-                    if self.config.dataloader_prefetch_size == -1
-                    else self.config.dataloader_prefetch_size,
+                if self.config.dataloader_prefetch_size == -1
+                else self.config.dataloader_prefetch_size,
                 pin_memory=True,
                 collate_fn=self.config.collate_fn,
                 exclude_batch_keys_from_device=self.exclude_batch_keys_from_device,

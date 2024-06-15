@@ -299,7 +299,7 @@ class ProcessProjectAria:
     include_side_cameras: bool = False
     """If True, include and process the images captured by the grayscale side cameras. 
     If False, only uses the main RGB camera's data."""
-    max_dataset_size: int = 600
+    max_dataset_size: int = -1
     """Max number of images to train on. If the provided vrs_file has more images than max_dataset_size, 
     images will be sampled approximately evenly. If max_dataset_size=-1, use all images available."""
 
