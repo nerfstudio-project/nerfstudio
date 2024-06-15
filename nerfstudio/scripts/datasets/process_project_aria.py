@@ -377,7 +377,7 @@ class ProcessProjectAria:
                             camera_name=names[i],
                             pinhole=True,
                         )
-                        for index in sampling_indicies
+                        for index in range(provider.get_num_data(stream_id))
                     ]
                     for i, stream_id in enumerate(stream_ids)
                 ]
