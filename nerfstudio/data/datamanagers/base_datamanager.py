@@ -339,7 +339,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
-    dataloader_prefetch_size: int = 1
+    dataloader_prefetch_size: int = 2
     """The limit number of batches a worker will start loading once an iterator is created. 
     Each next() call on the iterator has the CPU prepare more batches up to this 
     limit while the GPU is performing forward and backward passes on the model."""
@@ -513,110 +513,28 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             slice_start : slice_start + per_worker
         ]  # the indices of the datapoints in the dataset this worker will load
         r = random.Random(3301)
-        loop_iterations = 1
-        num_rays_per_loop = self.datamanager_config.train_num_rays_per_batch // loop_iterations # default train_num_rays_per_batch is 4096
+        num_rays_per_loop = self.datamanager_config.train_num_rays_per_batch # default train_num_rays_per_batch is 4096
         worker_pixel_sampler = self._get_pixel_sampler(self.input_dataset, num_rays_per_loop)
         if self.ray_generator is None:
             self.ray_generator = RayGenerator(self.input_dataset.cameras)#.to(self.device))
         while True:
-            ray_bundle_list = []  # list of RayBundle objects
-            batch_list = []  # list of pytorch tensors with shape torch.Size([, 3])
-            for _ in range(loop_iterations):
-                r.shuffle(worker_indices)
-                image_indices = worker_indices[:self.num_images_to_sample_from] # get a total of 'num_images_to_sample_from' image indices 
-                
-                # self._get_collated_batch is slow because it is going to disk to retreive an image many times to create a batch of images.
-                collated_batch = self._get_collated_batch(image_indices)
-                
-                """
-                Here, the variable 'batch' refers to the output of our pixel sampler. In particular
-                    - batch is a dict_keys(['image', 'indices']) - output of pixel_sampler
-                        - batch['image'] returns a pytorch tensor with shape `torch.Size([4096, 3])` , where 4096 = num_rays_per_batch. Note: each row in this tensor represents the RGB values as floats in [0, 1] of the pixel the ray goes through. The info of what specific image index that pixel belongs to is stored within batch[’indices’]
-                        - batch['indices'] returns a pytorch tensor `torch.Size([4096, 3])` tensor where each row represents (image_index=camera_index, pixelRow, pixelCol)
-                
-                What the pixel_sampler does (for variable_res_collate) is that it loops though each image, samples pixel within the mask, 
-                and returns them as the variable `indices` which has shape `torch.Size([4096, 3])` , where each row represents a pixel (image_idx, y_pos, x_pos)
-                """
-                batch = worker_pixel_sampler.sample(collated_batch) # the pixel_sampler will sample num_rays_per_batch pixels.
-                
-                ray_indices = batch["indices"]
-                ray_bundle = self.ray_generator(ray_indices)
-                ray_bundle_list.append(ray_bundle)
-                batch_list.append(batch)
+            r.shuffle(worker_indices)
+            image_indices = worker_indices[:self.num_images_to_sample_from] # get a total of 'num_images_to_sample_from' image indices 
             
-            combined_metadata = {}
-            if "fisheye_crop_radius" in ray_bundle_list[0].metadata:
-                combined_metadata["fisheye_crop_radius"] = ray_bundle_list[0].metadata["fisheye_crop_radius"]
-            if "directions_norm" in ray_bundle_list[0].metadata:
-                combined_metadata["directions_norm"] = torch.cat([ray_bundle_i.metadata["directions_norm"] for ray_bundle_i in ray_bundle_list], dim=0)
-
-            concatenated_ray_bundle = RayBundle(
-                origins=torch.cat([ray_bundle_i.origins for ray_bundle_i in ray_bundle_list], dim=0),
-                directions=torch.cat([ray_bundle_i.directions for ray_bundle_i in ray_bundle_list], dim=0),
-                pixel_area=torch.cat([ray_bundle_i.pixel_area for ray_bundle_i in ray_bundle_list], dim=0),
-                camera_indices=torch.cat([ray_bundle_i.camera_indices for ray_bundle_i in ray_bundle_list], dim=0),
-                metadata=combined_metadata,
-            )
-            concatenated_batch = {
-                "image" : torch.cat([batch_i["image"] for batch_i in batch_list], dim=0),
-                "indices": torch.cat([batch_i["indices"] for batch_i in batch_list], dim=0),
-            }
-            yield concatenated_ray_bundle, concatenated_batch
-
-    # def __iter__(self):
-    #     """Defines the iterator for the dataset."""
-    #     # Set up stuff now that we're in the worker process
-    #     dataset_indices = list(range(len(self.input_dataset))) # this_indices has length = numTrainingImages, at first it is the whole training dataset, but it gets partitioned into equal chunks
-    #     worker_info = torch.utils.data.get_worker_info()
-    #     if self.cache_all_n_shard_per_worker: # if we want every worker to cache their partition
-    #         if worker_info is None:
-    #             print('TODO log. only single worker not sharding!')
-    #             worker_id = -1
-    #         else:
-    #             # assign this worker a deterministic uniformly sampled slice
-    #             # of the dataset
-    #             per_worker = int(math.ceil(len(dataset_indices) / float(worker_info.num_workers)))
-    #             r = random.Random(1337)
-    #             r.shuffle(dataset_indices)
-    #             worker_id = worker_info.id
-    #             slice_start = worker_id * per_worker
-    #             worker_indices = dataset_indices[slice_start:slice_start+per_worker]
-    #             print(f'Worker ID {worker_id} working on {len(worker_indices)} indices')
-
-    #         import time
-    #         start = time.time()
-    #         print(f"Worker ID {worker_id} caching collated batch ...")
-    #         self._cached_collated_batch = self._get_collated_batch(indices=worker_indices)
-    #         print(f"Worker ID {worker_id} cached collated batch in {time.time()-start} sec ...")
-
-    #     if self.pixel_sampler is None:
-    #         self.pixel_sampler = self._get_pixel_sampler(
-    #             self.input_dataset,
-    #             self.datamanager_config.train_num_rays_per_batch
-    #             )
-    #     if self.ray_generator is None:
-    #         self.ray_generator = RayGenerator(self.input_dataset.cameras)#.to(self.device))
-
-    #     # if cache_all_n_shard_per_worker=True, every worker should have a _cached_collated_batch when the iterator was created (above lines)
-    #     # falling into this if statement means the worker's cached_collated_batch was evicted or cache_all_n_shard_per_worker=False
-    #     if self._cached_collated_batch is None:
-    #         if worker_info is None:
-    #             per_worker = len(dataset_indices)
-    #         else:
-    #             per_worker = int(math.ceil(len(dataset_indices) / float(worker_info.num_workers)))
-    #         r = random.Random(1337)
-    #         r.shuffle(dataset_indices)
-    #         worker_id = 0 if worker_info is None else worker_info.id
-    #         slice_start = worker_id * per_worker
-    #         worker_indices = dataset_indices[slice_start:slice_start+per_worker] # the indices of the datapoints in the dataset this worker will load
-    #         collated_batch = self._get_collated_batch(worker_indices)
-    #     else:
-    #         collated_batch = self._cached_collated_batch
-    #     while True:
-    #         batch = self.pixel_sampler.sample(collated_batch)
-    #         ray_indices = batch["indices"]
-    #         ray_bundle = self.ray_generator(ray_indices)
-    #         yield ray_bundle, batch
+            # self._get_collated_batch is slow because it is going to disk to retreive an image many times to create a batch of images.
+            collated_batch = self._get_collated_batch(image_indices)
+            """
+            Here, the variable 'batch' refers to the output of our pixel sampler.
+                - batch is a dict_keys(['image', 'indices'])
+                - batch['image'] returns a pytorch tensor with shape `torch.Size([4096, 3])` , where 4096 = num_rays_per_batch. Note: each row in this tensor represents the RGB values as floats in [0, 1] of the pixel the ray goes through. The info of what specific image index that pixel belongs to is stored within batch[’indices’]
+                - batch['indices'] returns a pytorch tensor `torch.Size([4096, 3])` tensor where each row represents (image_index=camera_index, pixelRow, pixelCol)
+            What the pixel_sampler does (for variable_res_collate) is that it loops though each image, samples pixel within the mask, 
+            and returns them as the variable `indices` which has shape torch.Size([4096, 3]), where each row represents a pixel (image_idx, pixelRow, pixelCol)
+            """
+            batch = worker_pixel_sampler.sample(collated_batch) # the pixel_sampler will sample num_rays_per_batch pixels.
+            ray_indices = batch["indices"]
+            ray_bundle = self.ray_generator(ray_indices)
+            yield ray_bundle, batch
 
 
 def identity(x):
@@ -765,7 +683,6 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
                 device=self.device,
                 collate_fn=self.config.collate_fn,
                 # num_workers=self.world_size * 4,# this is part of torch.utils.data.DataLoader
-                # pin_memory=True, # this is part of torch.utils.data.DataLoader
             )
             self.ray_dataloader = torch.utils.data.DataLoader(
                 self.raybatch_stream,
@@ -776,7 +693,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
                 pin_memory=False,
                 # Our dataset does batching / collation
                 collate_fn=identity,
-                # pin_memory_device=self.device
+                # pin_memory_device=self.device,
             )
             self.iter_train_image_dataloader = None
             self.iter_train_raybundles = iter(self.ray_dataloader)
