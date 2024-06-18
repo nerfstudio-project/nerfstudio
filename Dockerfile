@@ -127,7 +127,7 @@ WORKDIR /home/${USERNAME}
 ENV PATH="${PATH}:/home/${USERNAME}/.local/bin"
 
 # Upgrade pip and install packages.
-RUN python3.10 -m pip install --no-cache-dir --upgrade pip setuptools pathtools promise pybind11 omegaconf
+RUN python3.10 -m pip install --no-cache-dir --upgrade pip "setuptools<70" pathtools promise pybind11 omegaconf
 
 # Install pytorch and submodules
 # echo "${CUDA_VERSION}" | sed 's/.$//' | tr -d '.' -- CUDA_VERSION -> delete last digit -> delete all '.'
