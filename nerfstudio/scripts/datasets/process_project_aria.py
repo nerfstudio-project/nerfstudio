@@ -342,16 +342,11 @@ class ProcessProjectAria:
             print(f"Creating Aria frames for recording {rec_i + 1}...")
             CANONICAL_RGB_VALID_RADIUS = 707.5  # radius of a circular mask that represents the valid area on the camera's sensor plane. Pixels out of this circular region are considered invalid
             CANONICAL_RGB_WIDTH = 1408
-            total_num_images_per_camera = provider.get_num_data(stream_ids[0])
             if self.max_dataset_size == -1:
-                num_images_to_sample_per_camera = total_num_images_per_camera
-            else:
-                num_images_to_sample_per_camera = (
-                    self.max_dataset_size // (len(vrs_mps_points_triplets) * 3)
-                    if self.include_side_cameras
-                    else self.max_dataset_size // len(vrs_mps_points_triplets)
-                )
-            sampling_indicies = random.sample(range(total_num_images_per_camera), num_images_to_sample_per_camera)
+                sampling_indices = range(provider.get_num_data(stream_ids[0]))
+            else:    
+                num_images_to_sample = self.max_dataset_size // num_recordings
+                sampling_indicies = random.sample(sampling_indices, num_images_to_sample)
             if not self.include_side_cameras:
                 aria_rgb_frames = [
                     to_aria_image_frame(
@@ -366,6 +361,14 @@ class ProcessProjectAria:
                 )  # to handle both high-res 2880 x 2880 aria captures
                 nerfstudio_frames["fisheye_crop_radius"] = rgb_valid_radius
             else:
+                total_num_images_per_camera_list = [provider.get_num_data(stream_id) for stream_id in stream_ids]
+                if self.max_dataset_size == -1:
+                    sampling_indices_list = [range(num_images) for num_images in total_num_images_per_camera_list]
+                else:
+                    total_num_images = sum(total_num_images_per_camera_list)
+                    num_images_to_sample = self.max_dataset_size // num_recordings
+                    num_images_to_sample_per_camera_list = [num_images_to_sample * num // total_num_images for num in total_num_images_per_camera_list]
+                    sampling_indices_list = [random.sample(range(total_num_images_per_camera_list[i]), num_images_to_sample_per_camera_list[i]) for i in range(stream_ids)]    
                 aria_all3cameras_pinhole_frames = [
                     [
                         to_aria_image_frame(
@@ -377,7 +380,7 @@ class ProcessProjectAria:
                             camera_name=names[i],
                             pinhole=True,
                         )
-                        for index in sampling_indicies
+                        for index in sampling_indices_list[i]
                     ]
                     for i, stream_id in enumerate(stream_ids)
                 ]
