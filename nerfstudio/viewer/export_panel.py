@@ -63,23 +63,6 @@ def get_crop_string(obb: OrientedBox, crop_viewport: bool) -> List[str]:
     scalestring = " ".join([f"{x:.10f}" for x in scale])
     return [posstring, rpystring, scalestring]
 
-
-def show_notification(
-        export_complete: bool, 
-        server: viser.ViserServer,
-        output_dir: str) -> None:
-    if export_complete:
-        server.clear_notification()
-        notif = server.add_notification(
-                    title="Export complete!",
-                    body="File saved under " + output_dir,
-                    withCloseButton=True,
-                    loading=False,
-                    autoClose=5000,
-                )
-        notif.show()
-
-
 def populate_point_cloud_tab(
     server: viser.ViserServer,
     control_panel: ControlPanel,
@@ -117,14 +100,11 @@ def populate_point_cloud_tab(
         @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
             assert event.client is not None
-            notif = server.add_notification(
+            notif = server.gui.add_notification(
                         title="Exporting point cloud",
                         body="File will be saved under " + str(output_dir.value),
-                        withCloseButton=True,
                         loading=True,
-                        autoClose=False,
                     )
-            notif.show()
 
             if control_panel.crop_obb is not None and control_panel.crop_viewport:
                 posstring, rpystring, scalestring = get_crop_string(
@@ -147,10 +127,12 @@ def populate_point_cloud_tab(
                 obb_scale=scalestring,
             )
             export.main()
-
-            show_notification(export_complete=export.complete,
-                              server=server,
-                              output_dir=str(output_dir.value))
+            
+            if export.complete:
+                notif.update(
+                    title="Export complete!",
+                    body="File saved under " + str(output_dir.value),
+                )
 
     else:
         server.add_gui_markdown(
@@ -195,11 +177,8 @@ def populate_mesh_tab(
             notif = server.add_notification(
                         title="Exporting poisson mesh",
                         body="File will be saved under " + str(output_dir.value),
-                        withCloseButton=True,
                         loading=True,
-                        autoClose=False,
                     )
-            notif.show()
 
             if control_panel.crop_obb is not None and control_panel.crop_viewport:
                 posstring, rpystring, scalestring = get_crop_string(
@@ -224,9 +203,11 @@ def populate_mesh_tab(
             )
             export.main()
 
-            show_notification(export_complete=export.complete,
-                              server=server,
-                              output_dir=str(output_dir.value))
+            if export.complete:
+                notif.update(
+                    title="Export complete!",
+                    body="File saved under " + str(output_dir.value),
+                )
 
     else:
         server.add_gui_markdown(
@@ -255,9 +236,7 @@ def populate_splat_tab(
             notif = server.add_notification(
                         title="Exporting gaussian splat",
                         body="File will be saved under " + str(output_dir.value),
-                        withCloseButton=True,
                         loading=True,
-                        autoClose=False,
                     )
             notif.show()
 
@@ -279,9 +258,11 @@ def populate_splat_tab(
             )
             export.main()
 
-            show_notification(export_complete=export.complete,
-                              server=server,
-                              output_dir=str(output_dir.value))
+            if export.complete:
+                notif.update(
+                    title="Export complete!",
+                    body="File saved under " + str(output_dir.value),
+                )
 
     else:
         server.add_gui_markdown(

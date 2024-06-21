@@ -1123,14 +1123,11 @@ def populate_render_tab(
     def _(event: viser.GuiEvent) -> None:
         assert event.client is not None
         render_path = f"renders/{datapath.name}/{render_name_text.value}.mp4"
-        notif = server.add_notification(
+        notif = server.gui.add_notification(
                     title="Rendering trajectory",
                     body="Saving rendered video as " + render_path,
-                    withCloseButton=True,
                     loading=True,
-                    autoClose=False,
                 )
-        notif.show()
         num_frames = int(framerate_number.value * duration_number.value)
         json_data = {}
 
@@ -1245,34 +1242,10 @@ def populate_render_tab(
         render.main()
 
         if render.complete:
-            server.clear_notification()
-            notif = server.add_notification(
-                        title="Render complete!",
-                        body="Video saved as " + render_path,
-                        withCloseButton=True,
-                        loading=False,
-                        autoClose=5000,
-                    )
-            notif.show()
-
-            with server.gui.add_modal("Render download") as modal:
-                server.gui.add_markdown("Download the rendered video to your local machine:")
-
-                download_button = server.gui.add_button("Download")
-
-                @downlaod_button.on_click
-                def _(_) -> None:
-                    import imageio.v3 as iio
-
-                    server.send_file_download(
-                        f"{render_name_text.value}.mp4", iio.imwrite("<bytes>", images, extension=".gif")
-                    )
-
-                close_button = server.gui.add_button("Close")
-
-                @close_button.on_click
-                def _(_) -> None:
-                    modal.close()
+            notif.update(
+                title="Render complete!",
+                body="Video saved as " + render_path,
+            )
 
     if control_panel is not None:
         camera_path = CameraPath(server, duration_number, control_panel._time_enabled)
