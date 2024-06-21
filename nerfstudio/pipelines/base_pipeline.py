@@ -312,7 +312,7 @@ class VanillaPipeline(Pipeline):
         raise NotImplementedError
 
     @profiler.time_function
-    def get_eval_loss_dict(self, step: int) -> Tuple[Any, Dict[str, Any], Dict[str, Any]]:
+    def get_eval_loss_dict(self, step: int) -> Tuple[Any, Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
         """This function gets your evaluation loss dict. It needs to get the data
         from the DataManager and feed it to the model's forward function
 
@@ -324,8 +324,9 @@ class VanillaPipeline(Pipeline):
         model_outputs = self.model(ray_bundle)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
+        histogram_dict = self.model.get_histogram_dict(model_outputs, batch)
         self.train()
-        return model_outputs, loss_dict, metrics_dict
+        return model_outputs, loss_dict, metrics_dict, histogram_dict
 
     @profiler.time_function
     def get_eval_image_metrics_and_images(self, step: int):

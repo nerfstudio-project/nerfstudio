@@ -65,6 +65,7 @@ class EventType(enum.Enum):
     SCALAR = "write_scalar"
     DICT = "write_scalar_dict"
     CONFIG = "write_config"
+    HISTOGRAM = "write_histogram"
 
 
 @check_main_thread
@@ -94,6 +95,20 @@ def put_scalar(name: str, scalar: Any, step: int):
         name = name.value
 
     EVENT_STORAGE.append({"name": name, "write_type": EventType.SCALAR, "event": scalar, "step": step})
+
+@check_main_thread
+def put_histogram_dict(name: str, histogram_dict: Dict[Tensor], step: int):
+    """Setter function to place histograms into the queue to be written out
+
+    Args:
+        name: name of histogram
+        tensor: tensor to write out
+        step: step associated with tensor
+    """
+    if isinstance(name, EventName):
+        name = name.value
+    for key, hist in histogram_dict.items():
+        EVENT_STORAGE.append({"name": f"{name}/{key}", "write_type": EventType.HISTOGRAM, "event": hist, "step": step})
 
 
 @check_main_thread
@@ -169,6 +184,7 @@ def write_out_storage():
 
     EVENT_STORAGE.clear()
 
+    
 
 def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages: Optional[List[str]] = None) -> None:
     """Initialization of all event writers specified in config
@@ -269,6 +285,17 @@ class Writer:
         """
         for key, scalar in scalar_dict.items():
             self.write_scalar(name + "/" + key, float(scalar), step)
+    
+    @check_main_thread
+    def write_histogram(self, name: str, tensor: Tensor, step: int) -> None:
+        """Function that writes out histograms to the logger
+
+        Args:
+            name: name of histogram
+            tensor: tensor to write out
+            step: step associated with tensor
+        """
+        raise NotImplementedError
 
 
 class TimeWriter:
@@ -334,6 +361,11 @@ class WandbWriter(Writer):
         import wandb  # wandb is slow to import, so we only import it if we need it.
 
         wandb.config.update(config_dict, allow_val_change=True)
+    
+    def write_histogram(self, name: str, tensor: torch.Tensor, step: int) -> None:
+        import wandb
+        
+        wandb.log({name: wandb.Histogram(tensor.cpu().detach().numpy().reshape(-1))}, step=step)
 
 
 @decorate_all([check_main_thread])

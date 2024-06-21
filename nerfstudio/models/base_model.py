@@ -161,6 +161,15 @@ class Model(nn.Module):
             batch: ground truth batch corresponding to outputs
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
+    
+    def get_histogram_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
+        """Computes and returns the histogram dict.
+
+        Args:
+            outputs: the output to compute histogram dict to
+            batch: ground truth batch corresponding to outputs
+        """
+        return {}
 
     @torch.no_grad()
     def get_outputs_for_camera(self, camera: Cameras, obb_box: Optional[OrientedBox] = None) -> Dict[str, torch.Tensor]:
