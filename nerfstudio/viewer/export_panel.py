@@ -96,6 +96,7 @@ def populate_point_cloud_tab(
             "Output Directory", initial_value="exports/pcd/"
         )
         export_button = server.add_gui_button("Export", icon=viser.Icon.TERMINAL_2)
+        download_button = server.gui.add_button("Download Point Cloud", icon=viser.Icon.DOWNLOAD)
 
         @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
@@ -134,6 +135,18 @@ def populate_point_cloud_tab(
                     body="File saved under " + str(output_dir.value),
                 )
 
+        @download_button.on_click
+        def _(event: viser.GuiEvent) -> None:
+            client = event.client
+            assert client is not None
+
+            with open(str(output_dir.value) + "point_cloud.ply", 'rb') as ply_file:
+                ply_bytes = ply_file.read()
+
+            client.send_file_download(
+                "point_cloud.ply", ply_bytes
+            )
+
     else:
         server.add_gui_markdown(
             "<small>Point cloud export is not currently supported with Gaussian Splatting</small>"
@@ -170,6 +183,7 @@ def populate_mesh_tab(
         remove_outliers = server.add_gui_checkbox("Remove outliers", True)
 
         export_button = server.add_gui_button("Export", icon=viser.Icon.TERMINAL_2)
+        download_button = server.gui.add_button("Download Mesh", icon=viser.Icon.DOWNLOAD)
 
         @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
@@ -208,6 +222,19 @@ def populate_mesh_tab(
                     title="Export complete!",
                     body="File saved under " + str(output_dir.value),
                 )
+        
+        @download_button.on_click
+        def _(event: viser.GuiEvent) -> None:
+            client = event.client
+            assert client is not None
+
+            with open(str(output_dir.value) + "poisson_mesh.ply", 'rb') as ply_file:
+                ply_bytes = ply_file.read()
+
+            client.send_file_download(
+                "poisson_mesh.ply", ply_bytes
+            )
+                
 
     else:
         server.add_gui_markdown(
@@ -229,6 +256,7 @@ def populate_splat_tab(
         )
 
         export_button = server.add_gui_button("Export", icon=viser.Icon.TERMINAL_2)
+        download_button = server.gui.add_button("Download Splat", icon=viser.Icon.DOWNLOAD)
 
         @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
@@ -263,6 +291,18 @@ def populate_splat_tab(
                     title="Export complete!",
                     body="File saved under " + str(output_dir.value),
                 )
+        
+        @download_button.on_click
+        def _(event: viser.GuiEvent) -> None:
+            client = event.client
+            assert client is not None
+
+            with open(str(output_dir.value) + "splat.ply", 'rb') as ply_file:
+                ply_bytes = ply_file.read()
+
+            client.send_file_download(
+                "splat.ply", ply_bytes
+            )
 
     else:
         server.add_gui_markdown(
