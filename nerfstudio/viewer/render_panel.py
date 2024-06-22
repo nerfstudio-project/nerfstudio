@@ -1091,6 +1091,8 @@ def populate_render_tab(
         hint="Name of the render",
     )
 
+    server.add_gui_markdown("<small>Render available after a checkpoint is saved (default minimum 2000 steps)</small>")
+
     render_button = server.add_gui_button(
         "Render",
         color="green",
@@ -1098,12 +1100,12 @@ def populate_render_tab(
         hint="Render the camera path and save video as mp4 file.",
     )
 
-    # generate_render_button = server.add_gui_button(
-    #     "Generate Command",
-    #     color="green",
-    #     icon=viser.Icon.FILE_EXPORT,
-    #     hint="Generate the ns-render command for rendering the camera path.",
-    # )
+    download_render_button = server.gui.add_button(
+        "Download Render",
+        color="green",
+        icon=viser.Icon.DOWNLOAD,
+        hint="Download the latest render locally as mp4 file."
+    )
 
     reset_up_button = server.add_gui_button(
         "Reset Up Direction",
@@ -1246,6 +1248,20 @@ def populate_render_tab(
                 title="Render complete!",
                 body="Video saved as " + render_path,
             )
+
+    @download_render_button.on_click
+    def _(event: viser.GuiEvent) -> None:
+        render_path = f"renders/{datapath.name}/{render_name_text.value}.mp4"
+
+        client = event.client
+        assert client is not None
+
+        with open(render_path, 'rb') as file:
+            video_bytes = file.read()
+
+        client.send_file_download(
+            "render.mp4", video_bytes
+        )
 
     if control_panel is not None:
         camera_path = CameraPath(server, duration_number, control_panel._time_enabled)
