@@ -345,12 +345,19 @@ class VanillaPipeline(Pipeline):
         return metrics_dict, images_dict
 
     @profiler.time_function
-    def get_average_eval_image_metrics(
-        self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: bool = False
+    def get_average_image_metrics(
+        self,
+        data_loader,
+        image_prefix: str,
+        step: Optional[int] = None,
+        output_path: Optional[Path] = None,
+        get_std: bool = False,
     ):
-        """Iterate over all the images in the eval dataset and get the average.
+        """Iterate over all the images in the dataset and get the average.
 
         Args:
+            data_loader: the data loader to iterate over
+            image_prefix: prefix to use for the saved image filenames
             step: current training step
             output_path: optional path to save rendered images to
             get_std: Set True if you want to return std with the mean metric.
@@ -360,8 +367,7 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         metrics_dict_list = []
-        assert isinstance(self.datamanager, (VanillaDataManager, ParallelDataManager, FullImageDatamanager))
-        num_images = len(self.datamanager.fixed_indices_eval_dataloader)
+        num_images = len(data_loader)
         if output_path is not None:
             output_path.mkdir(exist_ok=True, parents=True)
         with Progress(
@@ -371,9 +377,9 @@ class VanillaPipeline(Pipeline):
             MofNCompleteColumn(),
             transient=True,
         ) as progress:
-            task = progress.add_task("[green]Evaluating all eval images...", total=num_images)
+            task = progress.add_task("[green]Evaluating all images...", total=num_images)
             idx = 0
-            for camera, batch in self.datamanager.fixed_indices_eval_dataloader:
+            for camera, batch in data_loader:
                 # time this the following line
                 inner_start = time()
                 outputs = self.model.get_outputs_for_camera(camera=camera)
@@ -383,7 +389,9 @@ class VanillaPipeline(Pipeline):
                 if output_path is not None:
                     for key in image_dict.keys():
                         image = image_dict[key]  # [H, W, C] order
-                        vutils.save_image(image.permute(2, 0, 1).cpu(), output_path / f"eval_{key}_{idx:04d}.png")
+                        vutils.save_image(
+                            image.permute(2, 0, 1).cpu(), output_path / f"{image_prefix}_{key}_{idx:04d}.png"
+                        )
 
                 assert "num_rays_per_sec" not in metrics_dict
                 metrics_dict["num_rays_per_sec"] = (num_rays / (time() - inner_start)).item()
@@ -393,7 +401,7 @@ class VanillaPipeline(Pipeline):
                 metrics_dict_list.append(metrics_dict)
                 progress.advance(task)
                 idx = idx + 1
-        # average the metrics list
+
         metrics_dict = {}
         for key in metrics_dict_list[0].keys():
             if get_std:
@@ -406,8 +414,22 @@ class VanillaPipeline(Pipeline):
                 metrics_dict[key] = float(
                     torch.mean(torch.tensor([metrics_dict[key] for metrics_dict in metrics_dict_list]))
                 )
+
         self.train()
         return metrics_dict
+
+    @profiler.time_function
+    def get_average_eval_image_metrics(
+        self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: bool = False
+    ):
+        """Get the average metrics for evaluation images."""
+
+        """Get the average metrics for evaluation images."""
+        assert isinstance(self.datamanager, (VanillaDataManager, ParallelDataManager, FullImageDatamanager))
+        image_prefix = "eval"
+        return self.get_average_image_metrics(
+            self.datamanager.fixed_indices_eval_dataloader, image_prefix, step, output_path, get_std
+        )
 
     def load_pipeline(self, loaded_state: Dict[str, Any], step: int) -> None:
         """Load the checkpoint from the given path
