@@ -16,6 +16,7 @@
 """
 render.py
 """
+
 from __future__ import annotations
 
 import gzip
@@ -575,6 +576,253 @@ class RenderCameraPath(BaseRender):
                 if str(left_eye_path.parent)[-5:] == "_temp":
                     shutil.rmtree(left_eye_path.parent, ignore_errors=True)
                 CONSOLE.print("[bold green]Final VR180 Render Complete")
+
+
+def calculate_camera_to_world_matrix(eye: torch.Tensor, target: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
+    forward = (eye - target) / torch.norm(target - eye)
+    right = torch.cross((up - eye), forward)
+    right /= torch.norm(right)
+    up = torch.cross(forward, right)
+    # Create rotation matrices
+    rotation_matrices = torch.stack([right, up, forward], dim=-1)
+
+    # Combine rotation and translation matrices
+    camera_to_world_matrices = torch.eye(4)  # Initialize with identity matrices
+    camera_to_world_matrices[:3, :3] = rotation_matrices
+    camera_to_world_matrices[:3, 3] = eye
+    return camera_to_world_matrices[:3, :].unsqueeze(0)
+
+
+# Function to create a rotation matrix around the y-axis
+def rotation_matrix_y(angles: torch.Tensor) -> torch.Tensor:
+    cos_angles = torch.cos(angles)
+    sin_angles = torch.sin(angles)
+    rotation_matrices = torch.zeros((angles.shape[0], 3, 3), device=angles.device)
+    rotation_matrices[:, 0, 0] = cos_angles
+    rotation_matrices[:, 0, 2] = sin_angles
+    rotation_matrices[:, 1, 1] = 1
+    rotation_matrices[:, 2, 0] = -sin_angles
+    rotation_matrices[:, 2, 2] = cos_angles
+    return rotation_matrices
+
+
+def rotate_camera_to_world_matrices(
+    camera_to_worlds: torch.Tensor, start_angle: float, end_angle: float, intermediate_steps: int, camera: Cameras
+) -> Cameras:
+    device = camera.device
+    # Generate views by rotating around the y-axis in the world coordinate system and transform these rotated targets into the NeRF coordinate system afterwards
+    start_angle = np.deg2rad(start_angle)
+    end_angle = np.deg2rad(end_angle)
+    angles = torch.linspace(start_angle, end_angle, intermediate_steps, device=device)
+    # Create rotation matrices for all angles in parallel
+    rotation_matrices = rotation_matrix_y(angles)
+    # Transpose the rotation matrices to get the clockwise rotation
+    rotation_matrices = rotation_matrices.transpose(1, 2)
+    # Number of cameras and rotations
+    num_cameras = camera_to_worlds.shape[0]
+    num_rotations = rotation_matrices.shape[0]
+
+    # Repeat the camera-to-world matrices for each rotation
+    # Shape: (num_cameras, num_rotations, 3, 4)
+    expanded_camera_matrices = camera_to_worlds.unsqueeze(1).repeat(1, num_rotations, 1, 1)
+    # Repeat the rotation matrices for each camera
+    # Shape: (num_cameras, num_rotations, 3, 3)
+    expanded_rotation_matrices = rotation_matrices.unsqueeze(0).repeat(num_cameras, 1, 1, 1)
+
+    # Apply the rotation matrices to the rotation part of the camera-to-world matrices
+    # Shape: (num_cameras, num_rotations, 3, 3)
+    rotated_matrices = torch.matmul(expanded_camera_matrices[..., :3], expanded_rotation_matrices)
+    # Combine the rotated parts with the original translation parts
+    # Shape: (num_cameras, num_rotations, 3, 4)
+    result_matrices = torch.cat((rotated_matrices, expanded_camera_matrices[..., 3:]), dim=-1)
+
+    # Reshape to the desired shape (num_cameras*num_rotations, 3, 4)
+    result_matrices = result_matrices.view(-1, 3, 4)
+    cameras = Cameras(
+        camera_to_worlds=result_matrices,
+        fx=camera.fx,
+        fy=camera.fy,
+        cx=camera.cx,
+        cy=camera.cy,
+        width=camera.width,
+        height=camera.height,
+        distortion_params=camera.distortion_params,
+        camera_type=camera.camera_type,
+        times=camera.times,
+        metadata=camera.metadata,
+    )
+    return cameras
+
+
+def get_pose_view_camera_matrix(
+    transformation_matrix: list, scale_factor: float, eye: list, target: list, device: torch.device
+) -> torch.Tensor:
+    transformation_matrix = torch.tensor(transformation_matrix, device=device)
+    transformation_matrix = torch.cat(
+        (transformation_matrix, torch.tensor([[0, 0, 0, 1]], device=device)), dim=0
+    )  # Homogeneous coordinate
+    # Apply scale to transformation matrix
+    scaled_transformation_matrix = transformation_matrix * scale_factor
+
+    eye = torch.tensor(eye, device=device)
+    target = torch.tensor(target, device=device)
+
+    # Transform the eye into NeRF coordinate system
+    eye_nerf = torch.cat((eye, torch.tensor([1.0], device=device)))  # Homogeneous coordinate
+    eye_nerf = scaled_transformation_matrix @ eye_nerf
+    eye_nerf = eye_nerf[:-1]  # Remove homogeneous component
+
+    target_nerf = torch.cat((target, torch.tensor([1.0], device=device)))  # Homogeneous coordinate
+    target_nerf = scaled_transformation_matrix @ target_nerf
+    target_nerf = target_nerf[:-1]  # Remove homogeneous component
+
+    up = torch.tensor(
+        [eye[0], -1, eye[2]], device=device
+    )  # [0, -1, 0] in world coordinate system becomes the view towards the ceiling in the camera coordinate system
+    up = torch.cat((up, torch.tensor([1.0], device=device)))
+    up_nerf = scaled_transformation_matrix @ up
+    up_nerf = up_nerf[:-1]  # Remove homogeneous component
+    camera_to_world_matrix = calculate_camera_to_world_matrix(eye_nerf, target_nerf, up_nerf)
+    return camera_to_world_matrix
+
+
+@dataclass
+class RenderPoseView(BaseRender):
+    """Rotate around a pose and render the corresponding views."""
+
+    pose_source: Literal["eval", "train"] = "eval"
+    """Pose source to render."""
+    interpolation_steps: int = 10
+    """Number of interpolation steps between eval dataset cameras."""
+    order_poses: bool = False
+    """Whether to order camera poses by proximity."""
+    frame_rate: int = 24
+    """Frame rate of the output video."""
+    output_format: Literal["images", "video"] = "video"
+    """How to save output data."""
+
+    viewpoints: Optional[int] = None
+    """Number of viewpoints to sample from the camera path"""
+    eye: Optional[str] = None
+    """Eye of the pose to render of shape "x y z" in the original data coordinate system."""
+    target: Optional[str] = None
+    """Target of the pose to render of shape "x y z" in the original data coordinate system. If None, they eye targets the origin in parallel to the floor."""
+    start_angle: float = 0.0
+    """Start angle of the perspective relative to the origin."""
+    end_angle: float = 345.0
+    """End angle of the perspective relative to the origin."""
+    intermediate_steps: int = 20
+    """Number of intermediate steps of the arc that will be rendered."""
+    load_dataparser_transforms: Optional[Path] = None
+    """Path to dataparser_transforms JSON file."""
+
+    def main(self) -> None:
+        """Main function."""
+        self._setup_pipeline()
+
+        if self.eye:
+            assert (
+                self.viewpoints is None
+            ), "Either use eye and target point or viewpoints sampled uniformly from the camera path to render views."
+            pose_view_cameras = self._render_eye_view()
+        elif self.viewpoints:
+            assert (
+                self.eye is None
+            ), "Either use eye and target point or viewpoints sampled uniformly from the camera path to render views."
+            assert (
+                self.target is None
+            ), "Either use eye and target point or viewpoints sampled uniformly from the camera path to render views."
+            assert (
+                self.load_dataparser_transforms is None
+            ), "Either use eye and target point or viewpoints sampled uniformly from the camera path to render views."
+            pose_view_cameras = self._render_viewpoints()
+        else:
+            raise ValueError("Either eye and target or viewpoints must be specified.")
+        assert self.start_angle <= self.end_angle, "The start angle must be less than or equal to the end angle."
+        assert self.start_angle > -360, "The start angle must not exceed -360 degrees."
+        assert self.end_angle < 360, "The end angle must not exceed 360 degrees."
+        self._render_trajectory(pose_view_cameras)
+
+    def _setup_pipeline(self) -> None:
+        """Sets up the pipeline and necessary components."""
+        _, self.pipeline, _, _ = eval_setup(
+            self.load_config,
+            eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
+            test_mode="test",
+        )
+
+        if self.pose_source == "eval":
+            assert self.pipeline.datamanager.eval_dataset is not None
+            self.cameras = self.pipeline.datamanager.eval_dataset.cameras
+        else:
+            assert self.pipeline.datamanager.train_dataset is not None
+            self.cameras = self.pipeline.datamanager.train_dataset.cameras
+
+        self.camera = self.cameras[0]  # Use first camera object to get intrinsics and distortion params
+
+    def _render_eye_view(self) -> None:
+        """Renders views by rotating around a specified eye and target point."""
+        assert self.load_dataparser_transforms, "dataparser_transforms.json path must be provided."
+        assert (
+            self.load_dataparser_transforms.is_file()
+        ), f"dataparser_transforms.json could not be found in {self.load_dataparser_transforms}."
+
+        with open(self.load_dataparser_transforms) as f:
+            transforms = json.load(f)
+            assert (
+                "transform" in transforms
+            ), f"Transformation matrix could not be found in {self.load_dataparser_transforms}."
+            assert "scale" in transforms, f"Scale factor could not be found in {self.load_dataparser_transforms}."
+            transform = transforms["transform"]
+            scale = transforms["scale"]
+            assert len(transform) == 3 and len(transform[0]) == 4, "Transformation matrix must be of shape [3, 4]."
+            assert isinstance(scale, float), "Scale factor must be a scalar."
+
+        eye = [float(x) for x in self.eye.split()]
+        target = [float(x) for x in self.target.split()] if self.target else [0, eye[1], 0]
+        self._validate_eye_target(eye, target)
+        pose_view_camera_matrix = get_pose_view_camera_matrix(transform, scale, eye, target, self.camera.device)
+        pose_view_cameras = rotate_camera_to_world_matrices(
+            pose_view_camera_matrix, self.start_angle, self.end_angle, self.intermediate_steps, self.camera
+        )
+        return pose_view_cameras
+
+    def _render_viewpoints(self) -> None:
+        """Renders views by rotating around sampled viewpoints."""
+        step_size = int(np.ceil(len(self.cameras) / self.viewpoints))
+        camera_indices = torch.arange(0, len(self.cameras), step_size, device=self.cameras.device)
+        pose_view_cameras = self.cameras[camera_indices]
+        pose_view_cameras = rotate_camera_to_world_matrices(
+            pose_view_cameras.camera_to_worlds, self.start_angle, self.end_angle, self.intermediate_steps, self.camera
+        )
+        return pose_view_cameras
+
+    def _validate_eye_target(self, eye, target) -> None:
+        """Validates the eye and target points."""
+        assert len(eye) == 3, "Eye must be of shape 'x y z' in the original data coordinate system."
+        assert len(target) == 3, "Target must be of shape 'x y z' in the original data coordinate system."
+
+    def _render_trajectory(self, cameras: Cameras) -> None:
+        """Renders the trajectory using the specified cameras."""
+        install_checks.check_ffmpeg_installed()
+
+        seconds = self.intermediate_steps * len(cameras) / self.frame_rate
+
+        _render_trajectory_video(
+            self.pipeline,
+            cameras,
+            output_filename=self.output_path,
+            rendered_output_names=self.rendered_output_names,
+            rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
+            seconds=seconds,
+            output_format=self.output_format,
+            image_format=self.image_format,
+            depth_near_plane=self.depth_near_plane,
+            depth_far_plane=self.depth_far_plane,
+            colormap_options=self.colormap_options,
+            render_nearest_camera=self.render_nearest_camera,
+            check_occlusions=self.check_occlusions,
+        )
 
 
 @dataclass
