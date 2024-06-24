@@ -27,6 +27,7 @@ import torch
 import viser
 import viser.theme
 import viser.transforms as vtf
+from pnr.pnr_model import PNRModel
 from typing_extensions import assert_never
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer
@@ -280,6 +281,73 @@ class Viewer:
                 point_shape="circle",
                 visible=False,  # Hidden by default.
             )
+
+        # Visualize the scene box
+        if isinstance(pipeline.model, PNRModel):
+            self.viser_server.add_point_cloud(
+                "/seed_points",
+                points=pipeline.model.seed_points[0].numpy(force=True) * VISER_NERFSTUDIO_SCALE_RATIO,
+                colors=pipeline.model.seed_points[1].numpy(force=True),
+                point_size=0.1,
+                point_shape="circle",
+                visible=False,  # Hidden by default.
+            )
+
+            scene_box = pipeline.model.scene_box
+            aabb = scene_box.aabb.cpu().numpy() * VISER_NERFSTUDIO_SCALE_RATIO
+
+            def convert_aabb_to_bounding_box(min_coords, max_coords):
+                """Convert a SceneBox AABB to vertices and triangular faces for a bounding box."""
+                min_corner = min_coords
+                max_corner = max_coords
+
+                vertices = np.array(
+                    [
+                        [min_corner[0], min_corner[1], min_corner[2]],  # Vertex 0
+                        [max_corner[0], min_corner[1], min_corner[2]],  # Vertex 1
+                        [max_corner[0], max_corner[1], min_corner[2]],  # Vertex 2
+                        [min_corner[0], max_corner[1], min_corner[2]],  # Vertex 3
+                        [min_corner[0], min_corner[1], max_corner[2]],  # Vertex 4
+                        [max_corner[0], min_corner[1], max_corner[2]],  # Vertex 5
+                        [max_corner[0], max_corner[1], max_corner[2]],  # Vertex 6
+                        [min_corner[0], max_corner[1], max_corner[2]],  # Vertex 7
+                    ]
+                )
+
+                faces = np.array(
+                    [
+                        [0, 1, 2],
+                        [0, 2, 3],  # Bottom face
+                        [4, 5, 6],
+                        [4, 6, 7],  # Top face
+                        [0, 1, 5],
+                        [0, 5, 4],  # Side face
+                        [1, 2, 6],
+                        [1, 6, 5],  # Side face
+                        [2, 3, 7],
+                        [2, 7, 6],  # Side face
+                        [3, 0, 4],
+                        [3, 4, 7],  # Side face
+                    ]
+                )
+
+                return vertices, faces
+
+            vertices, faces = convert_aabb_to_bounding_box(aabb[0], aabb[1])
+
+            self.viser_server.add_mesh_simple(
+                name="/scene_box",
+                vertices=vertices,
+                faces=faces,
+                color=(255, 255, 255),
+                wireframe=True,
+                opacity=1.0,
+                material="standard",
+                flat_shading=False,
+                side="double",
+                wxyz=(1.0, 0.0, 0.0, 0.0),
+            )
+
         self.ready = True
 
     def toggle_pause_button(self) -> None:
