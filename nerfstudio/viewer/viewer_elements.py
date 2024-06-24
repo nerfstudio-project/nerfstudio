@@ -745,10 +745,10 @@ class ViewerPlot(ViewerElement[go.Figure]):
     ):
         """
         Args:
-        - figure: The plotly figure to display -- if None, an empty figure is created.
-        - aspect: Aspect ratio of the plot (h/w). Default is 1.0.
-        - visible: If the plot is visible.
-        - margin: Margin of the plot. Default is 0.
+            figure: The plotly figure to display -- if None, an empty figure is created.
+            aspect: Aspect ratio of the plot (h/w). Default is 1.0.
+            visible: If the plot is visible.
+            margin: Margin of the plot. Default is 0.
         """
         self._figure = go.Figure() if figure is None else figure
         self._aspect = aspect
