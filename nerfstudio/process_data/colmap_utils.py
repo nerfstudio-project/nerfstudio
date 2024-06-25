@@ -94,6 +94,7 @@ def run_colmap(
     colmap_dir: Path,
     camera_model: CameraModel,
     camera_mask_path: Optional[Path] = None,
+    mask_path: Optional[Path] = None,
     gpu: bool = True,
     verbose: bool = False,
     matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
@@ -107,6 +108,7 @@ def run_colmap(
         colmap_dir: Path to the output directory.
         camera_model: Camera model to use.
         camera_mask_path: Path to the camera mask.
+        mask_path: Path to a folder with image masks.
         gpu: If True, use GPU.
         verbose: If True, logs the output of the command.
         matching_method: Matching method to use.
@@ -128,7 +130,11 @@ def run_colmap(
         f"--ImageReader.camera_model {camera_model.value}",
         f"--SiftExtraction.use_gpu {int(gpu)}",
     ]
-    if camera_mask_path is not None:
+
+    # Read more about the mask options here: https://colmap.github.io/faq.html#mask-image-regions
+    if mask_path is not None:
+        feature_extractor_cmd.append(f"--ImageReader.mask_path {mask_path}")
+    elif camera_mask_path is not None:
         feature_extractor_cmd.append(f"--ImageReader.camera_mask_path {camera_mask_path}")
     feature_extractor_cmd = " ".join(feature_extractor_cmd)
     with status(msg="[bold yellow]Running COLMAP feature extractor...", spinner="moon", verbose=verbose):
@@ -390,6 +396,7 @@ def parse_colmap_camera_params(camera) -> Dict[str, Any]:
 def colmap_to_json(
     recon_dir: Path,
     output_dir: Path,
+    mask_path: Optional[Path] = None,
     camera_mask_path: Optional[Path] = None,
     image_id_to_depth_path: Optional[Dict[int, Path]] = None,
     image_rename_map: Optional[Dict[str, str]] = None,
@@ -403,6 +410,7 @@ def colmap_to_json(
         recon_dir: Path to the reconstruction directory, e.g. "sparse/0"
         output_dir: Path to the output directory.
         camera_model: Camera model used.
+        mask_path: Path to a folder with masks.
         camera_mask_path: Path to the camera mask.
         image_id_to_depth_path: When including sfm-based depth, embed these depth file paths in the exported json
         image_rename_map: Use these image names instead of the names embedded in the COLMAP db
@@ -458,7 +466,9 @@ def colmap_to_json(
             "transform_matrix": c2w.tolist(),
             "colmap_im_id": im_id,
         }
-        if camera_mask_path is not None:
+        if mask_path is not None:
+            frame["mask_path"] = (mask_path.relative_to(mask_path.parent) / (name.name + ".png")).as_posix()
+        elif camera_mask_path is not None:
             frame["mask_path"] = camera_mask_path.relative_to(camera_mask_path.parent.parent).as_posix()
         if image_id_to_depth_path is not None:
             depth_path = image_id_to_depth_path[im_id]
