@@ -339,10 +339,9 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
-    dataloader_prefetch_size: int = 2
+    prefetch_factor: int = 2
     """The limit number of batches a worker will start loading once an iterator is created. 
-    Each next() call on the iterator has the CPU prepare more batches up to this 
-    limit while the GPU is performing forward and backward passes on the model."""
+    More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
     dataloader_num_workers: int = 2
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes undistortion, pixel sampling, ray generation, collating, etc."""
@@ -402,7 +401,6 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         self.num_images_to_sample_from = num_images_to_sample_from
         self.device = device
         self.collate_fn = collate_fn
-        # self.num_workers = kwargs.get("num_workers", 32) # nb only 4 in defaults
         self.num_image_load_threads = num_image_load_threads  # kwargs.get("num_workers", 4) # nb only 4 in defaults
         self.exclude_batch_keys_from_device = exclude_batch_keys_from_device
 
@@ -517,12 +515,15 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         worker_pixel_sampler = self._get_pixel_sampler(self.input_dataset, num_rays_per_loop)
         if self.ray_generator is None:
             self.ray_generator = RayGenerator(self.input_dataset.cameras)#.to(self.device))
+        i = 0
         while True:
-            r.shuffle(worker_indices)
-            image_indices = worker_indices[:self.num_images_to_sample_from] # get a total of 'num_images_to_sample_from' image indices 
-            
-            # self._get_collated_batch is slow because it is going to disk to retreive an image many times to create a batch of images.
-            collated_batch = self._get_collated_batch(image_indices)
+            if i % 5 == 0:
+                r.shuffle(worker_indices)
+                image_indices = worker_indices[:self.num_images_to_sample_from] # get a total of 'num_images_to_sample_from' image indices 
+                
+                # self._get_collated_batch is slow because it is going to disk to retreive an image many times to create a batch of images.
+                collated_batch = self._get_collated_batch(image_indices)
+            i += 1
             """
             Here, the variable 'batch' refers to the output of our pixel sampler.
                 - batch is a dict_keys(['image', 'indices'])
@@ -671,8 +672,8 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
 
         if self.config.use_ray_train_dataloader:
             import torch.multiprocessing as mp
-
             mp.set_start_method("spawn")
+            
             self.raybatch_stream = RayBatchStream(
                 input_dataset=self.train_dataset,
                 datamanager_config=self.config,
@@ -682,13 +683,12 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
                 # num_times_to_repeat_images=self.config.train_num_times_to_repeat_images, # no work
                 device=self.device,
                 collate_fn=self.config.collate_fn,
-                # num_workers=self.world_size * 4,# this is part of torch.utils.data.DataLoader
             )
             self.ray_dataloader = torch.utils.data.DataLoader(
                 self.raybatch_stream,
                 batch_size=1,
                 num_workers=self.config.dataloader_num_workers,
-                prefetch_factor=self.config.dataloader_prefetch_size,
+                prefetch_factor=self.config.prefetch_factor,
                 shuffle=False,
                 pin_memory=False,
                 # Our dataset does batching / collation
