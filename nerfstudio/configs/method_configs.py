@@ -639,6 +639,21 @@ method_configs["splatfacto"] = TrainerConfig(
                 lr_final=5e-7, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
             ),
         },
+         "image_embedding": {
+            "optimizer": AdamOptimizerConfig(lr=0.01, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                lr_final=5e-7,
+                max_steps=30000,
+            ),
+        },
+        "color_nn": {
+            "optimizer": AdamOptimizerConfig(lr=1e-4, eps=1e-15),
+            "scheduler": None,
+        },
+        # "unet": {
+        #     "optimizer": AdamOptimizerConfig(lr=0.0025, eps=1e-15),
+        #     "scheduler": None,
+        # }
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",

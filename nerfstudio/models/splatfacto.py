@@ -40,6 +40,7 @@ from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
+from nerfstudio.field_components.encodings import SHEncoding
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.misc import torch_compile
@@ -184,6 +185,15 @@ class SplatfactoModelConfig(ModelConfig):
     """
     camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="off"))
     """Config of the camera optimizer to use"""
+    enbale_appearance_embedding: bool = True
+    """If True, use appearance embedding for the model"""
+    appearance_embedding_dim: int = 8
+    """Dimension of the appearance embedding for each image"""
+    color_feature_dim: int = 64
+    """Dimension of the color feature for each gaussian"""
+    image_embed_idx: int = 0
+    # """Index of the image embedding to use while not training"""
+    image_embed_dim: int = 32
 
 
 class SplatfactoModel(Model):
@@ -220,7 +230,29 @@ class SplatfactoModel(Model):
         quats = torch.nn.Parameter(random_quat_tensor(num_points))
         dim_sh = num_sh_bases(self.config.sh_degree)
 
-        if (
+        if self.config.enbale_appearance_embedding:
+            self.image_embeddings = torch.nn.Embedding(self.num_train_data, self.config.image_embed_dim)
+            self.direction_encoding = SHEncoding(levels=3)
+            self.color_nn = torch.nn.Sequential(
+                torch.nn.Linear(
+                    #self.direction_encoding.get_out_dim() + self.config.image_embed_dim + self.config.color_feature_dim,
+                    self.config.image_embed_dim + self.config.color_feature_dim,
+                    64,
+                ),
+                torch.nn.ReLU(),
+                torch.nn.Linear(64, 64),
+                torch.nn.ReLU(),
+                torch.nn.Linear(64, 3),
+                torch.nn.Sigmoid(),
+            )
+        else:
+            self.image_embeddings = None
+            self.color_nn = None
+            self.direction_encoding = None
+        if self.config.enbale_appearance_embedding:
+            features_dc = torch.nn.Parameter(torch.zeros(num_points, self.config.color_feature_dim))
+            features_rest = torch.nn.Parameter(torch.zeros(num_points, 0, 0))
+        elif (
             self.seed_points is not None
             and not self.config.random_init
             # We can have colors without points.
@@ -648,6 +680,9 @@ class SplatfactoModel(Model):
         """
         gps = self.get_gaussian_param_groups()
         self.camera_optimizer.get_param_groups(param_groups=gps)
+        if self.config.enbale_appearance_embedding:
+            gps["image_embedding"] = list(self.image_embeddings.parameters())
+            gps["color_nn"] = list(self.color_nn.parameters())
         return gps
 
     def _get_downscale_factor(self):
@@ -731,7 +766,10 @@ class SplatfactoModel(Model):
             scales_crop = self.scales
             quats_crop = self.quats
 
-        colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
+        if self.config.enbale_appearance_embedding:
+            colors_crop = features_dc_crop
+        else:
+            colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
 
         BLOCK_WIDTH = 16  # this controls the tile size of rasterization, 16 is a good default
         camera_scale_fac = self._get_downscale_factor()
@@ -751,7 +789,34 @@ class SplatfactoModel(Model):
         else:
             render_mode = "RGB"
 
-        if self.config.sh_degree > 0:
+        embed_idx = 1  # TODO: add this to get_outputs args
+        if self.training:
+            if self.image_embeddings is not None:
+                cam_idx = camera.metadata["cam_idx"]
+                image_embeds = self.image_embeddings(torch.tensor(cam_idx, device=self.device))
+            else:
+                image_embeds = None
+        else:
+            if self.image_embeddings is not None:
+                image_embeds = self.image_embeddings(torch.tensor(embed_idx, device=self.device))
+            else:
+                image_embeds = None
+
+        if self.config.enbale_appearance_embedding:
+            viewdirs = means_crop.detach() - optimized_camera_to_world.detach()[0, :3, 3].unsqueeze(0)
+            viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
+            enc_viewdirs = self.direction_encoding(viewdirs)
+            # reshape colors_crop to (N, -1)
+            x_before = torch.cat((enc_viewdirs, colors_crop), dim=-1)
+            # print(image_embeds.shape) # has shape torch.Size([32])
+            image_embeds_broadcasted = image_embeds.unsqueeze(0).expand(x_before.shape[0], -1)
+            #print(image_embeds_broadcasted.shape) # has shape torch.size([97953,32])
+            #rgbs = self.color_nn(torch.cat((x_before, image_embeds_broadcasted), dim=-1)) # this one includes view_directions
+            rgbs = self.color_nn(torch.cat((colors_crop, image_embeds_broadcasted), dim=-1)) # this one doesn't have view_directions
+            #print(rgbs.shape) # has shape [97953, 3]
+            sh_degree_to_use = None
+
+        elif self.config.sh_degree > 0:
             sh_degree_to_use = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
         else:
             colors_crop = torch.sigmoid(colors_crop)
@@ -762,7 +827,7 @@ class SplatfactoModel(Model):
             quats=quats_crop / quats_crop.norm(dim=-1, keepdim=True),
             scales=torch.exp(scales_crop),
             opacities=torch.sigmoid(opacities_crop).squeeze(-1),
-            colors=colors_crop,
+            colors=rgbs,
             viewmats=viewmat,  # [1, 4, 4]
             Ks=K,  # [1, 3, 3]
             width=W,
