@@ -64,7 +64,7 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
             self.camera_type = "perspective"
 
         summary_log = []
-        mask_path: Path = self.mask_path
+        mask_path = None
 
         # Copy and downscale images
         if not self.skip_image_processing:
