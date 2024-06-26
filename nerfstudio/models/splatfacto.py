@@ -115,6 +115,21 @@ def get_viewmat(optimized_camera_to_world):
     viewmat[:, :3, 3:4] = T_inv
     return viewmat
 
+from torchvision.models.segmentation import deeplabv3_mobilenet_v3_large, DeepLabV3_MobileNet_V3_Large_Weights, fcn_resnet50, FCN_ResNet50_Weights
+class UNetMobileNetV3(torch.nn.Module):
+    def __init__(self):
+        super(UNetMobileNetV3, self).__init__()
+        self.model = deeplabv3_mobilenet_v3_large(weights=DeepLabV3_MobileNet_V3_Large_Weights.DEFAULT)
+        # Set batch normalization layers to be non-trainable and in evaluation mode
+        for i, m in enumerate(self.model.modules()):
+            if isinstance(m, torch.nn.BatchNorm2d):
+                # print("\t", "2dbatch")
+                m.eval()
+                m.requires_grad_(False)
+    def forward(self, x):
+        output = self.model(x)['out'] # has these keys: odict_keys(['out', 'aux'])
+        normalized_output = torch.sigmoid(output)
+        return torch.mean(normalized_output, dim=1, keepdim=True)
 
 @dataclass
 class SplatfactoModelConfig(ModelConfig):
@@ -185,16 +200,18 @@ class SplatfactoModelConfig(ModelConfig):
     """
     camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="off"))
     """Config of the camera optimizer to use"""
-    enbale_appearance_embedding: bool = True
+    enbale_appearance_embedding: bool = False
     """If True, use appearance embedding for the model"""
     appearance_embedding_dim: int = 8
     """Dimension of the appearance embedding for each image"""
     color_feature_dim: int = 64
     """Dimension of the color feature for each gaussian"""
     image_embed_idx: int = 0
-    # """Index of the image embedding to use while not training"""
+    """Index of the image embedding to use while not training"""
     image_embed_dim: int = 32
-
+    """Embedding dimension size"""
+    enable_transient_predictor: bool = False
+    """If True, use a transient MLP to generate masks for the model"""
 
 class SplatfactoModel(Model):
     """Nerfstudio's implementation of Gaussian Splatting
@@ -229,6 +246,9 @@ class SplatfactoModel(Model):
         num_points = means.shape[0]
         quats = torch.nn.Parameter(random_quat_tensor(num_points))
         dim_sh = num_sh_bases(self.config.sh_degree)
+        
+        if self.config.enable_transient_predictor:
+            self.unet = UNetMobileNetV3()
 
         if self.config.enbale_appearance_embedding:
             self.image_embeddings = torch.nn.Embedding(self.num_train_data, self.config.image_embed_dim)
@@ -683,6 +703,8 @@ class SplatfactoModel(Model):
         if self.config.enbale_appearance_embedding:
             gps["image_embedding"] = list(self.image_embeddings.parameters())
             gps["color_nn"] = list(self.color_nn.parameters())
+        if self.config.enable_transient_predictor:
+            gps["unet"] = list(self.unet.parameters())
         return gps
 
     def _get_downscale_factor(self):
@@ -821,13 +843,12 @@ class SplatfactoModel(Model):
         else:
             colors_crop = torch.sigmoid(colors_crop)
             sh_degree_to_use = None
-
         render, alpha, info = rasterization(
             means=means_crop,
             quats=quats_crop / quats_crop.norm(dim=-1, keepdim=True),
             scales=torch.exp(scales_crop),
             opacities=torch.sigmoid(opacities_crop).squeeze(-1),
-            colors=rgbs,
+            colors=rgbs if self.config.enbale_appearance_embedding else colors_crop,
             viewmats=viewmat,  # [1, 4, 4]
             Ks=K,  # [1, 3, 3]
             width=W,
@@ -931,6 +952,13 @@ class SplatfactoModel(Model):
             assert mask.shape[:2] == gt_img.shape[:2] == pred_img.shape[:2]
             gt_img = gt_img * mask
             pred_img = pred_img * mask
+        
+        if self.config.enable_transient_predictor:
+            predicted_mask = self._downscale_if_required(batch["mask"])
+            predicted_mask = mask.to(self.device)
+            assert predicted_mask.shape[:2] == gt_img.shape[:2] == pred_img.shape[:2]
+            gt_img = gt_img * predicted_mask
+            pred_img = pred_img * predicted_mask
 
         Ll1 = torch.abs(gt_img - pred_img).mean()
         simloss = 1 - self.ssim(gt_img.permute(2, 0, 1)[None, ...], pred_img.permute(2, 0, 1)[None, ...])
@@ -948,7 +976,7 @@ class SplatfactoModel(Model):
             scale_reg = torch.tensor(0.0).to(self.device)
 
         loss_dict = {
-            "main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,
+            "main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss + 0.1 * torch.sum(torch.abs(predicted_mask)) if self.config.enable_transient_predictor else (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,
             "scale_reg": scale_reg,
         }
 

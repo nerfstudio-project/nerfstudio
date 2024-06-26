@@ -650,10 +650,10 @@ method_configs["splatfacto"] = TrainerConfig(
             "optimizer": AdamOptimizerConfig(lr=1e-4, eps=1e-15),
             "scheduler": None,
         },
-        # "unet": {
-        #     "optimizer": AdamOptimizerConfig(lr=0.0025, eps=1e-15),
-        #     "scheduler": None,
-        # }
+        "unet": {
+            "optimizer": AdamOptimizerConfig(lr=0.0025, eps=1e-15),
+            "scheduler": None,
+        }
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",
