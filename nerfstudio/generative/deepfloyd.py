@@ -25,11 +25,9 @@ from PIL import Image
 from torch import Generator, Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
 
-from nerfstudio.utils.misc import set_pil_image_size_limit
 from nerfstudio.utils.rich_utils import CONSOLE
 
 IMG_DIM = 64
-set_pil_image_size_limit(None)
 
 
 class DeepFloyd(nn.Module):

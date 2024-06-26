@@ -38,7 +38,6 @@ from nerfstudio.utils.misc import set_pil_image_size_limit
 from nerfstudio.utils.rich_utils import CONSOLE
 
 MAX_AUTO_RESOLUTION = 1600
-set_pil_image_size_limit(None)
 
 
 @dataclass
@@ -471,7 +470,8 @@ class Nerfstudio(DataParser):
 
         if self.downscale_factor is None:
             if self.config.downscale_factor is None:
-                test_img = Image.open(data_dir / filepath)
+                with set_pil_image_size_limit(None):
+                    test_img = Image.open(data_dir / filepath)
                 h, w = test_img.size
                 max_res = max(h, w)
                 df = 0

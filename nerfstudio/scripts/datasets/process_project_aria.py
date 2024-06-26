@@ -24,8 +24,6 @@ import open3d as o3d
 import tyro
 from PIL import Image
 
-from nerfstudio.utils.misc import set_pil_image_size_limit
-
 try:
     from projectaria_tools.core import mps
     from projectaria_tools.core.data_provider import VrsDataProvider, create_vrs_data_provider
@@ -36,7 +34,6 @@ except ImportError:
     sys.exit(1)
 
 ARIA_CAMERA_MODEL = "FISHEYE624"
-set_pil_image_size_limit(None)
 
 # The Aria coordinate system is different than the Blender/NerfStudio coordinate system.
 # Blender / Nerfstudio: +Z = back, +Y = up, +X = right

@@ -44,7 +44,6 @@ from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
 
 MAX_AUTO_RESOLUTION = 1600
-set_pil_image_size_limit(None)
 
 
 @dataclass
@@ -481,7 +480,8 @@ class ColmapDataParser(DataParser):
             assert downscale_factor > 1
             assert isinstance(downscale_factor, int)
             filepath = next(iter(paths))
-            img = Image.open(filepath)
+            with set_pil_image_size_limit(None):
+                img = Image.open(filepath)
             w, h = img.size
             w_scaled, h_scaled = calculate_scaled_size(w, h, downscale_factor, downscale_rounding_mode)
             # Using %05d ffmpeg commands appears to be unreliable (skips images).
@@ -515,7 +515,8 @@ class ColmapDataParser(DataParser):
         filepath = next(iter(image_filenames))
         if self._downscale_factor is None:
             if self.config.downscale_factor is None:
-                test_img = Image.open(filepath)
+                with set_pil_image_size_limit(None):
+                    test_img = Image.open(filepath)
                 w, h = test_img.size
                 max_res = max(h, w)
                 df = 0
