@@ -162,6 +162,8 @@ class Optimizers:
             grad_scaler: GradScaler to use
         """
         for param_group in param_groups:
+            if param_group == "unet" or param_group == "means" or param_group == "color_nn":
+                breakpoint()
             optimizer = self.optimizers[param_group]
             max_norm = self.config[param_group]["optimizer"].max_norm
             if max_norm is not None:

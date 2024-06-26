@@ -121,11 +121,14 @@ class UNetMobileNetV3(torch.nn.Module):
         super(UNetMobileNetV3, self).__init__()
         self.model = deeplabv3_mobilenet_v3_large(weights=DeepLabV3_MobileNet_V3_Large_Weights.DEFAULT)
         # Set batch normalization layers to be non-trainable and in evaluation mode
-        for i, m in enumerate(self.model.modules()):
-            if isinstance(m, torch.nn.BatchNorm2d):
-                # print("\t", "2dbatch")
-                m.eval()
-                m.requires_grad_(False)
+        # for i, m in enumerate(self.model.modules()):
+        #     if isinstance(m, torch.nn.BatchNorm2d):
+        #         # print("\t", "2dbatch")
+        #         m.eval()
+        #         m.requires_grad_(False)
+        #     else:
+        #         m.train()
+        #         m.requires_grad_(True)
     def forward(self, x):
         output = self.model(x)['out'] # has these keys: odict_keys(['out', 'aux'])
         normalized_output = torch.sigmoid(output)
@@ -210,7 +213,7 @@ class SplatfactoModelConfig(ModelConfig):
     """Index of the image embedding to use while not training"""
     image_embed_dim: int = 32
     """Embedding dimension size"""
-    enable_transient_predictor: bool = False
+    enable_transient_predictor: bool = True
     """If True, use a transient MLP to generate masks for the model"""
 
 class SplatfactoModel(Model):
@@ -249,6 +252,7 @@ class SplatfactoModel(Model):
         
         if self.config.enable_transient_predictor:
             self.unet = UNetMobileNetV3()
+            self.unet.train()
 
         if self.config.enbale_appearance_embedding:
             self.image_embeddings = torch.nn.Embedding(self.num_train_data, self.config.image_embed_dim)
@@ -956,6 +960,15 @@ class SplatfactoModel(Model):
         if self.config.enable_transient_predictor:
             predicted_mask = self._downscale_if_required(batch["mask"])
             predicted_mask = mask.to(self.device)
+            for name, param in self.unet.named_parameters():
+                # if 'model.backbone.12.block.3.0.weight' in name:
+                #     print(f"Layer: {name}")
+                #     breakpoint()
+                #     break
+                if param.grad is not None:
+                    print("HELLO")
+            breakpoint()
+                
             assert predicted_mask.shape[:2] == gt_img.shape[:2] == pred_img.shape[:2]
             gt_img = gt_img * predicted_mask
             pred_img = pred_img * predicted_mask
@@ -976,8 +989,9 @@ class SplatfactoModel(Model):
             scale_reg = torch.tensor(0.0).to(self.device)
 
         loss_dict = {
-            "main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss + 0.1 * torch.sum(torch.abs(predicted_mask)) if self.config.enable_transient_predictor else (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,
+            "main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,
             "scale_reg": scale_reg,
+            "transient_loss": 0.1 * torch.sum(torch.abs(predicted_mask)), 
         }
 
         if self.training:
