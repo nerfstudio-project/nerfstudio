@@ -73,10 +73,12 @@ def show_command_modal(client: viser.ClientHandle, what: Literal["mesh", "point 
             modal.close()
 
 
-def get_crop_string(obb: OrientedBox):
+def get_crop_string(obb: OrientedBox, crop_viewport: bool):
     """Takes in an oriented bounding box and returns a string of the form "--obb_{center,rotation,scale}
     and each arg formatted with spaces around it
     """
+    if not crop_viewport:
+        return ""
     rpy = vtf.SO3.from_matrix(obb.R.numpy(force=True)).as_rpy_radians()
     pos = obb.T.squeeze().tolist()
     scale = obb.S.squeeze().tolist()
@@ -125,9 +127,8 @@ def populate_point_cloud_tab(
                     f"--num-points {num_points.value}",
                     f"--remove-outliers {remove_outliers.value}",
                     f"--normal-method {normals.value}",
-                    f"--use_bounding_box {control_panel.crop_viewport}",
                     f"--save-world-frame {world_frame.value}",
-                    get_crop_string(control_panel.crop_obb),
+                    get_crop_string(control_panel.crop_obb, control_panel.crop_viewport),
                 ]
             )
             show_command_modal(event.client, "point cloud", command)
@@ -174,8 +175,7 @@ def populate_mesh_tab(
                     f"--num-points {num_points.value}",
                     f"--remove-outliers {remove_outliers.value}",
                     f"--normal-method {normals.value}",
-                    f"--use_bounding_box {control_panel.crop_viewport}",
-                    get_crop_string(control_panel.crop_obb),
+                    get_crop_string(control_panel.crop_obb, control_panel.crop_viewport),
                 ]
             )
             show_command_modal(event.client, "mesh", command)
@@ -204,6 +204,7 @@ def populate_splat_tab(
                     "ns-export gaussian-splat",
                     f"--load-config {config_path}",
                     f"--output-dir {output_directory.value}",
+                    get_crop_string(control_panel.crop_obb, control_panel.crop_viewport),
                 ]
             )
             show_command_modal(event.client, "splat", command)

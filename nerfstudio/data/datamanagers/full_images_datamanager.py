@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Dict, ForwardRef, Generic, List, Literal, Optional, Tuple, Type, Union, cast, get_args, get_origin
 
 import cv2
+import fpsample
 import numpy as np
 import torch
 from rich.progress import track
@@ -62,12 +63,22 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     new images. If -1, never pick new images."""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """Specifies the image indices to use during eval; if None, uses all."""
-    cache_images: Literal["cpu", "gpu"] = "cpu"
+    cache_images: Literal["cpu", "gpu"] = "gpu"
     """Whether to cache images in memory. If "cpu", caches on cpu. If "gpu", caches on device."""
     cache_images_type: Literal["uint8", "float32"] = "float32"
     """The image type returned from manager, caching images in uint8 saves memory"""
     max_thread_workers: Optional[int] = None
     """The maximum number of threads to use for caching images. If None, uses all available threads."""
+    train_cameras_sampling_strategy: Literal["random", "fps"] = "random"
+    """Specifies which sampling strategy is used to generate train cameras, 'random' means sampling 
+    uniformly random without replacement, 'fps' means farthest point sampling which is helpful to reduce the artifacts 
+    due to oversampling subsets of cameras that are very close to each other."""
+    train_cameras_sampling_seed: int = 42
+    """Random seed for sampling train cameras. Fixing seed may help reduce variance of trained models across 
+    different runs."""
+    fps_reset_every: int = 100
+    """The number of iterations before one resets fps sampler repeatly, which is essentially drawing fps_reset_every
+    samples from the pool of all training cameras without replacement before a new round of sampling starts."""
 
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
@@ -123,11 +134,47 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             self.exclude_batch_keys_from_device.remove("image")
 
         # Some logic to make sure we sample every camera in equal amounts
-        self.train_unseen_cameras = [i for i in range(len(self.train_dataset))]
+        self.train_unseen_cameras = self.sample_train_cameras()
         self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
         assert len(self.train_unseen_cameras) > 0, "No data found in dataset"
 
         super().__init__()
+
+    def sample_train_cameras(self):
+        """Return a list of camera indices sampled using the strategy specified by
+        self.config.train_cameras_sampling_strategy"""
+        num_train_cameras = len(self.train_dataset)
+        if self.config.train_cameras_sampling_strategy == "random":
+            if not hasattr(self, "random_generator"):
+                self.random_generator = random.Random(self.config.train_cameras_sampling_seed)
+            indices = list(range(num_train_cameras))
+            self.random_generator.shuffle(indices)
+            return indices
+        elif self.config.train_cameras_sampling_strategy == "fps":
+            if not hasattr(self, "train_unsampled_epoch_count"):
+                np.random.seed(self.config.train_cameras_sampling_seed)  # fix random seed of fpsample
+                self.train_unsampled_epoch_count = np.zeros(num_train_cameras)
+            camera_origins = self.train_dataset.cameras.camera_to_worlds[..., 3].numpy()
+            # We concatenate camera origins with weighted train_unsampled_epoch_count because we want to
+            # increase the chance to sample camera that hasn't been sampled in consecutive epochs previously.
+            # We assume the camera origins are also rescaled, so the weight 0.1 is relative to the scale of scene
+            data = np.concatenate(
+                (camera_origins, 0.1 * np.expand_dims(self.train_unsampled_epoch_count, axis=-1)), axis=-1
+            )
+            n = self.config.fps_reset_every
+            if num_train_cameras < n:
+                CONSOLE.log(
+                    f"num_train_cameras={num_train_cameras} is smaller than fps_reset_ever={n}, the behavior of "
+                    "camera sampler will be very similar to sampling random without replacement (default setting)."
+                )
+                n = num_train_cameras
+            kdline_fps_samples_idx = fpsample.bucket_fps_kdline_sampling(data, n, h=3)
+
+            self.train_unsampled_epoch_count += 1
+            self.train_unsampled_epoch_count[kdline_fps_samples_idx] = 0
+            return kdline_fps_samples_idx.tolist()
+        else:
+            raise ValueError(f"Unknown train camera sampling strategy: {self.config.train_cameras_sampling_strategy}")
 
     @cached_property
     def cached_train(self) -> List[Dict[str, torch.Tensor]]:
@@ -157,9 +204,13 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         def undistort_idx(idx: int) -> Dict[str, torch.Tensor]:
             data = dataset.get_data(idx, image_type=self.config.cache_images_type)
             camera = dataset.cameras[idx].reshape(())
-            K = camera.get_intrinsics_matrices().numpy()
-            if camera.distortion_params is None:
+            assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
+                f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
+                f'does not match the camera parameters ({camera.width.item(), camera.height.item()})'
+            )
+            if camera.distortion_params is None or torch.all(camera.distortion_params == 0):
                 return data
+            K = camera.get_intrinsics_matrices().numpy()
             distortion_params = camera.distortion_params.numpy()
             image = data["image"].numpy()
 
@@ -196,11 +247,15 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 cache["image"] = cache["image"].to(self.device)
                 if "mask" in cache:
                     cache["mask"] = cache["mask"].to(self.device)
+                if "depth" in cache:
+                    cache["depth"] = cache["depth"].to(self.device)
+                self.train_cameras = self.train_dataset.cameras.to(self.device)
         elif cache_images_device == "cpu":
             for cache in undistorted_images:
                 cache["image"] = cache["image"].pin_memory()
                 if "mask" in cache:
                     cache["mask"] = cache["mask"].pin_memory()
+                self.train_cameras = self.train_dataset.cameras
         else:
             assert_never(cache_images_device)
 
@@ -284,16 +339,16 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         """Returns the next training batch
 
         Returns a Camera instead of raybundle"""
-        image_idx = self.train_unseen_cameras.pop(random.randint(0, len(self.train_unseen_cameras) - 1))
+        image_idx = self.train_unseen_cameras.pop(0)
         # Make sure to re-populate the unseen cameras list if we have exhausted it
         if len(self.train_unseen_cameras) == 0:
-            self.train_unseen_cameras = [i for i in range(len(self.train_dataset))]
+            self.train_unseen_cameras = self.sample_train_cameras()
 
-        data = deepcopy(self.cached_train[image_idx])
+        data = self.cached_train[image_idx]
         data["image"] = data["image"].to(self.device)
 
-        assert len(self.train_dataset.cameras.shape) == 1, "Assumes single batch dimension"
-        camera = self.train_dataset.cameras[image_idx : image_idx + 1].to(self.device)
+        assert len(self.train_cameras.shape) == 1, "Assumes single batch dimension"
+        camera = self.train_cameras[image_idx : image_idx + 1].to(self.device)
         if camera.metadata is None:
             camera.metadata = {}
         camera.metadata["cam_idx"] = image_idx
@@ -303,15 +358,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         """Returns the next evaluation batch
 
         Returns a Camera instead of raybundle"""
-        image_idx = self.eval_unseen_cameras.pop(random.randint(0, len(self.eval_unseen_cameras) - 1))
-        # Make sure to re-populate the unseen cameras list if we have exhausted it
-        if len(self.eval_unseen_cameras) == 0:
-            self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
-        data = deepcopy(self.cached_eval[image_idx])
-        data["image"] = data["image"].to(self.device)
-        assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
-        camera = self.eval_dataset.cameras[image_idx : image_idx + 1].to(self.device)
-        return camera, data
+        return self.next_eval_image(step=step)
 
     def next_eval_image(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next evaluation batch
@@ -335,6 +382,10 @@ def _undistort_image(
 ) -> Tuple[np.ndarray, np.ndarray, Optional[torch.Tensor]]:
     mask = None
     if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
+        assert distortion_params[3] == 0, (
+            "We doesn't support the 4th Brown parameter for image undistortion, "
+            "Only k1, k2, k3, p1, p2 can be non-zero."
+        )
         distortion_params = np.array(
             [
                 distortion_params[0],
@@ -347,6 +398,10 @@ def _undistort_image(
                 0,
             ]
         )
+        # because OpenCV expects the pixel coord to be top-left, we need to shift the principal point by 0.5
+        # see https://github.com/nerfstudio-project/nerfstudio/issues/3048
+        K[0, 2] = K[0, 2] - 0.5
+        K[1, 2] = K[1, 2] - 0.5
         if np.any(distortion_params):
             newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
             image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
@@ -367,9 +422,13 @@ def _undistort_image(
             mask = torch.from_numpy(mask).bool()
             if len(mask.shape) == 2:
                 mask = mask[:, :, None]
+        newK[0, 2] = newK[0, 2] + 0.5
+        newK[1, 2] = newK[1, 2] + 0.5
         K = newK
 
     elif camera.camera_type.item() == CameraType.FISHEYE.value:
+        K[0, 2] = K[0, 2] - 0.5
+        K[1, 2] = K[1, 2] - 0.5
         distortion_params = np.array(
             [distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]]
         )
@@ -388,6 +447,8 @@ def _undistort_image(
             mask = torch.from_numpy(mask).bool()
             if len(mask.shape) == 2:
                 mask = mask[:, :, None]
+        newK[0, 2] = newK[0, 2] + 0.5
+        newK[1, 2] = newK[1, 2] + 0.5
         K = newK
     elif camera.camera_type.item() == CameraType.FISHEYE624.value:
         fisheye624_params = torch.cat(

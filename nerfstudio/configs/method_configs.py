@@ -68,6 +68,7 @@ from nerfstudio.plugins.registry import discover_methods
 method_configs: Dict[str, Union[TrainerConfig, ExternalMethodDummyTrainerConfig]] = {}
 descriptions = {
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
+    "nerfacto-huge": "Larger version of Nerfacto with higher quality.",
     "depth-nerfacto": "Nerfacto with depth supervision.",
     "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for unbounded scenes.",
     "instant-ngp-bounded": "Implementation of Instant-NGP. Recommended for bounded real and synthetic scenes",
@@ -81,6 +82,7 @@ descriptions = {
     "neus": "Implementation of NeuS. (slow)",
     "neus-facto": "Implementation of NeuS-Facto. (slow)",
     "splatfacto": "Gaussian Splatting model",
+    "splatfacto-big": "Larger version of Splatfacto with higher quality.",
 }
 
 method_configs["nerfacto"] = TrainerConfig(
@@ -658,6 +660,7 @@ method_configs["splatfacto-big"] = TrainerConfig(
         model=SplatfactoModelConfig(
             cull_alpha_thresh=0.005,
             continue_cull_post_densification=False,
+            densify_grad_thresh=0.0006,
         ),
     ),
     optimizers={
