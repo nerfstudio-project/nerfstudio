@@ -1,6 +1,7 @@
 """
 Test the fields
 """
+
 import torch
 
 from nerfstudio.cameras.rays import Frustums, RaySamples

@@ -26,6 +26,7 @@ Example:
     rgb = rgb_renderer(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
 
 """
+
 import contextlib
 import math
 from typing import Generator, Literal, Optional, Tuple, Union

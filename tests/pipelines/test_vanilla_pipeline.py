@@ -1,6 +1,7 @@
 """
 Test pipeline
 """
+
 from pathlib import Path
 
 import torch
