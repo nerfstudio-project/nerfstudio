@@ -95,7 +95,7 @@ def populate_point_cloud_tab(
         output_dir = server.add_gui_text(
             "Output Directory", initial_value="exports/pcd/"
         )
-        export_button = server.add_gui_button("Export", icon=viser.Icon.TERMINAL_2)
+        export_button = server.add_gui_button("Export", icon=viser.Icon.FILE_EXPORT)
         download_button = server.gui.add_button("Download Point Cloud", icon=viser.Icon.DOWNLOAD)
 
         @export_button.on_click
@@ -182,7 +182,7 @@ def populate_mesh_tab(
         )
         remove_outliers = server.add_gui_checkbox("Remove outliers", True)
 
-        export_button = server.add_gui_button("Export", icon=viser.Icon.TERMINAL_2)
+        export_button = server.add_gui_button("Export", icon=viser.Icon.FILE_EXPORT)
         download_button = server.gui.add_button("Download Mesh", icon=viser.Icon.DOWNLOAD)
 
         @export_button.on_click
@@ -255,7 +255,7 @@ def populate_splat_tab(
             "Output Directory", initial_value="exports/splat/"
         )
 
-        export_button = server.add_gui_button("Export", icon=viser.Icon.TERMINAL_2)
+        export_button = server.add_gui_button("Export", icon=viser.Icon.FILE_EXPORT)
         download_button = server.gui.add_button("Download Splat", icon=viser.Icon.DOWNLOAD)
 
         @export_button.on_click
