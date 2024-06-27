@@ -14,18 +14,49 @@
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
-
 from typing import Literal
 
 import viser
 
+from nerfstudio.models.base_model import Model
+from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.viewer.control_panel import ControlPanel
+from nerfstudio.viewer.viewer_elements import ViewerPlot
 
+@dataclasses.dataclass
+class MetricsPanel:
+    server: viser.ViserServer
+    control_panel: ControlPanel
+    config_path: Path
+    viewer_model: Model
 
 def populate_metrics_tab(
     server: viser.ViserServer,
     control_panel: ControlPanel,
     config_path: Path,
+    viewer_model: Model,
 ) -> None:
-    pass
+    viewing_gsplat = isinstance(viewer_model, SplatfactoModel)
+
+    with server.add_gui_folder("Training Metrics"):
+        populate_train_metrics_tab(server, control_panel, config_path, viewing_gsplat)
+    # with server.add_gui_folder("Training Loss"):
+    #     populate_train_loss_tab(server, control_panel, config_path, viewing_gsplat)
+    #training rays?
+    # with server.add_gui_folder("Eval Metrics"):
+    #     populate_eval_metrics_tab(server, control_panel, config_path, viewing_gsplat)
+    # with server.add_gui_folder("Eval Metrics (All Images)"):
+    #     populate_eval_metrics_all_images_tab(server, control_panel, config_path, viewing_gsplat)
+    # with server.add_gui_folder("Eval Loss"):
+    #     populate_eval_loss_tab(server, control_panel, config_path, viewing_gsplat)
+
+
+def populate_train_metrics_tab(
+    server: viser.ViserServer,
+    control_panel: ControlPanel,
+    config_path: Path,
+    viewing_gsplat: bool,
+) -> None:
+    ViewerPlot()

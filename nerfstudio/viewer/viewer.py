@@ -40,6 +40,7 @@ from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
 from nerfstudio.viewer.control_panel import ControlPanel
 from nerfstudio.viewer.export_panel import populate_export_tab
+from nerfstudio.viewer.metrics_panel import populate_metrics_tab
 from nerfstudio.viewer.render_panel import populate_render_tab
 from nerfstudio.viewer.render_state_machine import RenderAction, RenderStateMachine
 from nerfstudio.viewer.utils import CameraState, parse_object
@@ -199,6 +200,7 @@ class Viewer:
                 self._output_split_type_change,
                 default_composite_depth=self.config.default_composite_depth,
             )
+
         config_path = self.log_filename.parents[0] / "config.yml"
         with tabs.add_tab("Render", viser.Icon.CAMERA):
             self.render_tab_state = populate_render_tab(
@@ -207,6 +209,9 @@ class Viewer:
 
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
             populate_export_tab(self.viser_server, self.control_panel, config_path, self.pipeline.model)
+
+        with tabs.add_tab("Metrics", viser.Icon.GRAPH):
+            populate_metrics_tab(self.viser_server, self.control_panel, config_path, self.pipeline.model)
 
         # Keep track of the pointers to generated GUI folders, because each generated folder holds a unique ID.
         viewer_gui_folders = dict()
