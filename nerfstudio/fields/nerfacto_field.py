@@ -16,7 +16,6 @@
 Field for compound nerf model, adds scene contraction and image embeddings to instant ngp
 """
 
-
 from typing import Dict, Literal, Optional, Tuple
 
 import torch

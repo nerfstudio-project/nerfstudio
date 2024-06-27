@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Generate viser message definitions for TypeScript, by parsing Python dataclasses."""
+
 import json
 import pathlib
 from datetime import datetime
