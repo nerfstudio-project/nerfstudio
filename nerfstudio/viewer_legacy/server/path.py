@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Path class
-"""
-
+"""Path class"""
 
 from typing import Tuple
 

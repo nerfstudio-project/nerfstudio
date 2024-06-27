@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" Math Helper Functions """
+"""Math Helper Functions"""
 
 import itertools
 import math

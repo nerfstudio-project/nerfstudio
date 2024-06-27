@@ -15,6 +15,7 @@
 """
 Collection of Losses.
 """
+
 from enum import Enum
 from typing import Dict, Literal, Optional, Tuple, cast
 
