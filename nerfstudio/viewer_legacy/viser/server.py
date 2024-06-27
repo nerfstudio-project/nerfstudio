@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from typing import Callable, Type
 
-from viser.infra import WebsockServer
 from typing_extensions import override
+from viser.infra import WebsockServer
 
 from .message_api import MessageApi
 from .messages import GuiUpdateMessage, NerfstudioMessage
