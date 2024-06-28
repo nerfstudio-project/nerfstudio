@@ -31,6 +31,7 @@ import viser.transforms as tf
 from scipy import interpolate
 
 from nerfstudio.viewer.control_panel import ControlPanel
+from nerfstudio.utils.scripts import run_command
 
 
 @dataclasses.dataclass
@@ -62,7 +63,10 @@ class Keyframe:
 
 class CameraPath:
     def __init__(
-        self, server: viser.ViserServer, duration_element: viser.GuiInputHandle[float], time_enabled: bool = False
+        self,
+        server: viser.ViserServer,
+        duration_element: viser.GuiInputHandle[float],
+        time_enabled: bool = False,
     ):
         self._server = server
         self._keyframes: Dict[int, Tuple[Keyframe, viser.CameraFrustumHandle]] = {}
@@ -92,7 +96,9 @@ class CameraPath:
         for keyframe in self._keyframes.values():
             keyframe[1].visible = visible
 
-    def add_camera(self, keyframe: Keyframe, keyframe_index: Optional[int] = None) -> None:
+    def add_camera(
+        self, keyframe: Keyframe, keyframe_index: Optional[int] = None
+    ) -> None:
         """Add a new camera, or replace an old one if `keyframe_index` is passed in."""
         server = self._server
 
@@ -103,7 +109,9 @@ class CameraPath:
 
         frustum_handle = server.add_camera_frustum(
             f"/render_cameras/{keyframe_index}",
-            fov=keyframe.override_fov_rad if keyframe.override_fov_enabled else self.default_fov,
+            fov=keyframe.override_fov_rad
+            if keyframe.override_fov_enabled
+            else self.default_fov,
             aspect=keyframe.aspect,
             scale=0.1,
             color=(200, 10, 30),
@@ -128,7 +136,9 @@ class CameraPath:
                 position=keyframe.position,
             ) as camera_edit_panel:
                 self._camera_edit_panel = camera_edit_panel
-                override_fov = server.add_gui_checkbox("Override FOV", initial_value=keyframe.override_fov_enabled)
+                override_fov = server.add_gui_checkbox(
+                    "Override FOV", initial_value=keyframe.override_fov_enabled
+                )
                 override_fov_degrees = server.add_gui_slider(
                     "Override FOV (degrees)",
                     5.0,
@@ -161,7 +171,9 @@ class CameraPath:
                         keyframe.override_time_val = override_time_val.value
                         self.add_camera(keyframe, keyframe_index)
 
-                delete_button = server.add_gui_button("Delete", color="red", icon=viser.Icon.TRASH)
+                delete_button = server.add_gui_button(
+                    "Delete", color="red", icon=viser.Icon.TRASH
+                )
                 go_to_button = server.add_gui_button("Go to")
                 close_button = server.add_gui_button("Close")
 
@@ -181,7 +193,9 @@ class CameraPath:
                 assert event.client is not None
                 with event.client.add_gui_modal("Confirm") as modal:
                     event.client.add_gui_markdown("Delete keyframe?")
-                    confirm_button = event.client.add_gui_button("Yes", color="red", icon=viser.Icon.TRASH)
+                    confirm_button = event.client.add_gui_button(
+                        "Yes", color="red", icon=viser.Icon.TRASH
+                    )
                     exit_button = event.client.add_gui_button("Cancel")
 
                     @confirm_button.on_click
@@ -220,7 +234,9 @@ class CameraPath:
                 T_current_target = T_world_current.inverse() @ T_world_target
 
                 for j in range(10):
-                    T_world_set = T_world_current @ tf.SE3.exp(T_current_target.log() * j / 9.0)
+                    T_world_set = T_world_current @ tf.SE3.exp(
+                        T_current_target.log() * j / 9.0
+                    )
 
                     # Important bit: we atomically set both the orientation and the position
                     # of the camera.
@@ -275,10 +291,14 @@ class CameraPath:
                     ],
                     axis=0,
                 ),
-                y=np.concatenate([[-1], spline_indices, [spline_indices[-1] + 1]], axis=0),
+                y=np.concatenate(
+                    [[-1], spline_indices, [spline_indices[-1] + 1]], axis=0
+                ),
             )
         else:
-            interpolator = interpolate.PchipInterpolator(x=transition_times_cumsum, y=spline_indices)
+            interpolator = interpolate.PchipInterpolator(
+                x=transition_times_cumsum, y=spline_indices
+            )
 
         # Clip to account for floating point error.
         return np.clip(interpolator(time), 0, spline_indices[-1])
@@ -291,7 +311,9 @@ class CameraPath:
 
         self._fov_spline = splines.KochanekBartels(
             [
-                keyframe[0].override_fov_rad if keyframe[0].override_fov_enabled else self.default_fov
+                keyframe[0].override_fov_rad
+                if keyframe[0].override_fov_enabled
+                else self.default_fov
                 for keyframe in self._keyframes.values()
             ],
             tcb=(self.tension, 0.0, 0.0),
@@ -300,7 +322,9 @@ class CameraPath:
 
         self._time_spline = splines.KochanekBartels(
             [
-                keyframe[0].override_time_val if keyframe[0].override_time_enabled else self.default_render_time
+                keyframe[0].override_time_val
+                if keyframe[0].override_time_enabled
+                else self.default_render_time
                 for keyframe in self._keyframes.values()
             ],
             tcb=(self.tension, 0.0, 0.0),
@@ -350,7 +374,9 @@ class CameraPath:
 
         self._orientation_spline = splines.quaternion.KochanekBartels(
             [
-                splines.quaternion.UnitQuaternion.from_unit_xyzw(np.roll(keyframe[0].wxyz, shift=-1))
+                splines.quaternion.UnitQuaternion.from_unit_xyzw(
+                    np.roll(keyframe[0].wxyz, shift=-1)
+                )
                 for keyframe in keyframes
             ],
             tcb=(self.tension, 0.0, 0.0),
@@ -364,9 +390,16 @@ class CameraPath:
 
         # Update visualized spline.
         points_array = self._position_spline.evaluate(
-            self.spline_t_from_t_sec(np.linspace(0, transition_times_cumsum[-1], num_frames))
+            self.spline_t_from_t_sec(
+                np.linspace(0, transition_times_cumsum[-1], num_frames)
+            )
         )
-        colors_array = np.array([colorsys.hls_to_rgb(h, 0.5, 1.0) for h in np.linspace(0.0, 1.0, len(points_array))])
+        colors_array = np.array(
+            [
+                colorsys.hls_to_rgb(h, 0.5, 1.0)
+                for h in np.linspace(0.0, 1.0, len(points_array))
+            ]
+        )
 
         # Clear prior spline nodes.
         for node in self._spline_nodes:
@@ -397,7 +430,8 @@ class CameraPath:
             transition_pos = self._position_spline.evaluate(
                 float(
                     self.spline_t_from_t_sec(
-                        (transition_times_cumsum[i] + transition_times_cumsum[i + 1]) / 2.0,
+                        (transition_times_cumsum[i] + transition_times_cumsum[i + 1])
+                        / 2.0,
                     )
                 )
             )
@@ -443,8 +477,12 @@ class CameraPath:
 
                 @override_transition_enabled.on_update
                 def _(_) -> None:
-                    keyframe.override_transition_enabled = override_transition_enabled.value
-                    override_transition_sec.disabled = not override_transition_enabled.value
+                    keyframe.override_transition_enabled = (
+                        override_transition_enabled.value
+                    )
+                    override_transition_sec.disabled = (
+                        not override_transition_enabled.value
+                    )
                     self._duration_element.value = self.compute_duration()
 
                 @override_transition_sec.on_update
@@ -473,7 +511,8 @@ class CameraPath:
             del frustum
             total += (
                 keyframe.override_transition_sec
-                if keyframe.override_transition_enabled and keyframe.override_transition_sec is not None
+                if keyframe.override_transition_enabled
+                and keyframe.override_transition_sec is not None
                 else self.default_transition_sec
             )
         return total
@@ -488,7 +527,8 @@ class CameraPath:
             del frustum
             total += (
                 keyframe.override_transition_sec
-                if keyframe.override_transition_enabled and keyframe.override_transition_sec is not None
+                if keyframe.override_transition_enabled
+                and keyframe.override_transition_sec is not None
                 else self.default_transition_sec
             )
             out.append(total)
@@ -497,7 +537,8 @@ class CameraPath:
             keyframe = next(iter(self._keyframes.values()))[0]
             total += (
                 keyframe.override_transition_sec
-                if keyframe.override_transition_enabled and keyframe.override_transition_sec is not None
+                if keyframe.override_transition_enabled
+                and keyframe.override_transition_sec is not None
                 else self.default_transition_sec
             )
             out.append(total)
@@ -621,7 +662,9 @@ def populate_render_tab(
         client = server.get_clients()[event.client_id]
         with client.atomic(), client.add_gui_modal("Confirm") as modal:
             client.add_gui_markdown("Clear all keyframes?")
-            confirm_button = client.add_gui_button("Yes", color="red", icon=viser.Icon.TRASH)
+            confirm_button = client.add_gui_button(
+                "Yes", color="red", icon=viser.Icon.TRASH
+            )
             exit_button = client.add_gui_button("Cancel")
 
             @confirm_button.on_click
@@ -642,7 +685,9 @@ def populate_render_tab(
             def _(_) -> None:
                 modal.close()
 
-    loop = server.add_gui_checkbox("Loop", False, hint="Add a segment between the first and last keyframes.")
+    loop = server.add_gui_checkbox(
+        "Loop", False, hint="Add a segment between the first and last keyframes."
+    )
 
     @loop.on_update
     def _(_) -> None:
@@ -730,11 +775,15 @@ def populate_render_tab(
     playback_folder = server.add_gui_folder("Playback")
     with playback_folder:
         play_button = server.add_gui_button("Play", icon=viser.Icon.PLAYER_PLAY)
-        pause_button = server.add_gui_button("Pause", icon=viser.Icon.PLAYER_PAUSE, visible=False)
+        pause_button = server.add_gui_button(
+            "Pause", icon=viser.Icon.PLAYER_PAUSE, visible=False
+        )
         preview_render_button = server.add_gui_button(
             "Preview Render", hint="Show a preview of the render in the viewport."
         )
-        preview_render_stop_button = server.add_gui_button("Exit Render Preview", color="red", visible=False)
+        preview_render_stop_button = server.add_gui_button(
+            "Exit Render Preview", color="red", visible=False
+        )
 
         transition_sec_number = server.add_gui_number(
             "Transition (sec)",
@@ -744,7 +793,9 @@ def populate_render_tab(
             initial_value=2.0,
             hint="Time in seconds between each keyframe, which can also be overridden on a per-transition basis.",
         )
-        framerate_number = server.add_gui_number("FPS", min=0.1, max=240.0, step=1e-2, initial_value=30.0)
+        framerate_number = server.add_gui_number(
+            "FPS", min=0.1, max=240.0, step=1e-2, initial_value=30.0
+        )
         framerate_buttons = server.add_gui_button_group("", ("24", "30", "60"))
         duration_number = server.add_gui_number(
             "Duration (sec)",
@@ -775,7 +826,9 @@ def populate_render_tab(
             preview_camera_handle.remove()
             preview_camera_handle = None
 
-    def compute_and_update_preview_camera_state() -> Optional[Union[Tuple[tf.SE3, float], Tuple[tf.SE3, float, float]]]:
+    def compute_and_update_preview_camera_state() -> (
+        Optional[Union[Tuple[tf.SE3, float], Tuple[tf.SE3, float, float]]]
+    ):
         """Update the render tab state with the current preview camera pose.
         Returns current camera pose + FOV if available."""
 
@@ -889,7 +942,9 @@ def populate_render_tab(
         for client in server.get_clients().values():
             if client.client_id not in camera_pose_backup_from_id:
                 continue
-            cam_position, cam_look_at, cam_up = camera_pose_backup_from_id.pop(client.client_id)
+            cam_position, cam_look_at, cam_up = camera_pose_backup_from_id.pop(
+                client.client_id
+            )
             client.camera.position = cam_position
             client.camera.look_at = cam_look_at
             client.camera.up_direction = cam_up
@@ -930,7 +985,9 @@ def populate_render_tab(
                 max_frame = int(framerate_number.value * duration_number.value)
                 if max_frame > 0:
                     assert preview_frame_slider is not None
-                    preview_frame_slider.value = (preview_frame_slider.value + 1) % max_frame
+                    preview_frame_slider.value = (
+                        preview_frame_slider.value + 1
+                    ) % max_frame
                 time.sleep(1.0 / framerate_number.value)
 
         threading.Thread(target=play).start()
@@ -977,7 +1034,9 @@ def populate_render_tab(
                     camera_path.reset()
                     for i in range(len(keyframes)):
                         frame = keyframes[i]
-                        pose = tf.SE3.from_matrix(np.array(frame["matrix"]).reshape(4, 4))
+                        pose = tf.SE3.from_matrix(
+                            np.array(frame["matrix"]).reshape(4, 4)
+                        )
                         # apply the x rotation by 180 deg
                         pose = tf.SE3.from_rotation_and_translation(
                             pose.rotation() @ tf.SO3.from_x_radians(np.pi),
@@ -985,21 +1044,33 @@ def populate_render_tab(
                         )
                         camera_path.add_camera(
                             Keyframe(
-                                position=pose.translation() * VISER_NERFSTUDIO_SCALE_RATIO,
+                                position=pose.translation()
+                                * VISER_NERFSTUDIO_SCALE_RATIO,
                                 wxyz=pose.rotation().wxyz,
                                 # There are some floating point conversions between degrees and radians, so the fov and
                                 # default_Fov values will not be exactly matched.
-                                override_fov_enabled=abs(frame["fov"] - json_data.get("default_fov", 0.0)) > 1e-3,
+                                override_fov_enabled=abs(
+                                    frame["fov"] - json_data.get("default_fov", 0.0)
+                                )
+                                > 1e-3,
                                 override_fov_rad=frame["fov"] / 180.0 * np.pi,
-                                override_time_enabled=frame.get("override_time_enabled", False),
+                                override_time_enabled=frame.get(
+                                    "override_time_enabled", False
+                                ),
                                 override_time_val=frame.get("render_time", None),
                                 aspect=frame["aspect"],
-                                override_transition_enabled=frame.get("override_transition_enabled", None),
-                                override_transition_sec=frame.get("override_transition_sec", None),
+                                override_transition_enabled=frame.get(
+                                    "override_transition_enabled", None
+                                ),
+                                override_transition_sec=frame.get(
+                                    "override_transition_sec", None
+                                ),
                             ),
                         )
 
-                    transition_sec_number.value = json_data.get("default_transition_sec", 0.5)
+                    transition_sec_number.value = json_data.get(
+                        "default_transition_sec", 0.5
+                    )
 
                     # update the render name
                     render_name_text.value = json_path.stem
@@ -1019,11 +1090,21 @@ def populate_render_tab(
         initial_value=now.strftime("%Y-%m-%d-%H-%M-%S"),
         hint="Name of the render",
     )
+
+    server.add_gui_markdown("<small>Render available after a checkpoint is saved (default minimum 2000 steps)</small>")
+
     render_button = server.add_gui_button(
-        "Generate Command",
+        "Render",
         color="green",
         icon=viser.Icon.FILE_EXPORT,
-        hint="Generate the ns-render command for rendering the camera path.",
+        hint="Render the camera path and save video as mp4 file.",
+    )
+
+    download_render_button = server.gui.add_button(
+        "Download Render",
+        color="green",
+        icon=viser.Icon.DOWNLOAD,
+        hint="Download the latest render locally as mp4 file."
     )
 
     reset_up_button = server.add_gui_button(
@@ -1036,13 +1117,22 @@ def populate_render_tab(
     @reset_up_button.on_click
     def _(event: viser.GuiEvent) -> None:
         assert event.client is not None
-        event.client.camera.up_direction = tf.SO3(event.client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
+        event.client.camera.up_direction = tf.SO3(event.client.camera.wxyz) @ np.array(
+            [0.0, -1.0, 0.0]
+        )
 
     @render_button.on_click
     def _(event: viser.GuiEvent) -> None:
         assert event.client is not None
+        render_path = f"renders/{datapath.name}/{render_name_text.value}.mp4"
+        notif = server.gui.add_notification(
+                    title="Rendering trajectory",
+                    body="Saving rendered video as " + render_path,
+                    loading=True,
+                )
         num_frames = int(framerate_number.value * duration_number.value)
         json_data = {}
+
         # json data has the properties:
         # keyframes: list of keyframes with
         #     matrix : flattened 4x4 matrix
@@ -1061,27 +1151,33 @@ def populate_render_tab(
         # aspect: float
         # first populate the keyframes:
         keyframes = []
-        for keyframe, dummy in camera_path._keyframes.values():
+        for keyframe, _ in camera_path._keyframes.values():
             pose = tf.SE3.from_rotation_and_translation(
                 tf.SO3(keyframe.wxyz) @ tf.SO3.from_x_radians(np.pi),
                 keyframe.position / VISER_NERFSTUDIO_SCALE_RATIO,
             )
             keyframe_dict = {
                 "matrix": pose.as_matrix().flatten().tolist(),
-                "fov": np.rad2deg(keyframe.override_fov_rad) if keyframe.override_fov_enabled else fov_degrees.value,
+                "fov": np.rad2deg(keyframe.override_fov_rad)
+                if keyframe.override_fov_enabled
+                else fov_degrees.value,
                 "aspect": keyframe.aspect,
                 "override_transition_enabled": keyframe.override_transition_enabled,
                 "override_transition_sec": keyframe.override_transition_sec,
             }
             if render_time is not None:
                 keyframe_dict["render_time"] = (
-                    keyframe.override_time_val if keyframe.override_time_enabled else render_time.value
+                    keyframe.override_time_val
+                    if keyframe.override_time_enabled
+                    else render_time.value
                 )
                 keyframe_dict["override_time_enabled"] = keyframe.override_time_enabled
             keyframes.append(keyframe_dict)
         json_data["default_fov"] = fov_degrees.value
         if render_time is not None:
-            json_data["default_time"] = render_time.value if render_time is not None else None
+            json_data["default_time"] = (
+                render_time.value if render_time is not None else None
+            )
         json_data["default_transition_sec"] = transition_sec_number.value
         json_data["keyframes"] = keyframes
         json_data["camera_type"] = camera_type.value.lower()
@@ -1094,7 +1190,9 @@ def populate_render_tab(
         # now populate the camera path:
         camera_path_list = []
         for i in range(num_frames):
-            maybe_pose_and_fov = camera_path.interpolate_pose_and_fov_rad(i / num_frames)
+            maybe_pose_and_fov = camera_path.interpolate_pose_and_fov_rad(
+                i / num_frames
+            )
             if maybe_pose_and_fov is None:
                 return
             time = None
@@ -1134,33 +1232,36 @@ def populate_render_tab(
         json_outfile.parent.mkdir(parents=True, exist_ok=True)
         with open(json_outfile.absolute(), "w") as outfile:
             json.dump(json_data, outfile)
-        # now show the command
-        with event.client.add_gui_modal("Render Command") as modal:
-            dataname = datapath.name
-            command = " ".join(
-                [
-                    "ns-render camera-path",
-                    f"--load-config {config_path}",
-                    f"--camera-path-filename {json_outfile.absolute()}",
-                    f"--output-path renders/{dataname}/{render_name_text.value}.mp4",
-                ]
-            )
-            event.client.add_gui_markdown(
-                "\n".join(
-                    [
-                        "To render the trajectory, run the following from the command line:",
-                        "",
-                        "```",
-                        command,
-                        "```",
-                    ]
-                )
-            )
-            close_button = event.client.add_gui_button("Close")
 
-            @close_button.on_click
-            def _(_) -> None:
-                modal.close()
+        # rendering
+        from nerfstudio.scripts.render import RenderCameraPath
+
+        render = RenderCameraPath(
+            load_config=config_path,
+            camera_path_filename=json_outfile.absolute(),
+            output_path=Path(render_path),
+        )
+        render.main()
+
+        if render.complete:
+            notif.update(
+                title="Render complete!",
+                body="Video saved as " + render_path,
+            )
+
+    @download_render_button.on_click
+    def _(event: viser.GuiEvent) -> None:
+        render_path = f"renders/{datapath.name}/{render_name_text.value}.mp4"
+
+        client = event.client
+        assert client is not None
+
+        with open(render_path, 'rb') as file:
+            video_bytes = file.read()
+
+        client.send_file_download(
+            "render.mp4", video_bytes
+        )
 
     if control_panel is not None:
         camera_path = CameraPath(server, duration_number, control_panel._time_enabled)
