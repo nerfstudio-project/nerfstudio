@@ -1166,6 +1166,7 @@ def populate_render_tab(
         camera_path = CameraPath(server, duration_number, control_panel._time_enabled)
     else:
         camera_path = CameraPath(server, duration_number)
+    camera_path.tension = tension_slider.value
     camera_path.default_fov = fov_degrees.value / 180.0 * np.pi
     camera_path.default_transition_sec = transition_sec_number.value
 
