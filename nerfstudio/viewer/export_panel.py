@@ -80,6 +80,7 @@ def get_crop_string(obb: OrientedBox, crop_viewport: bool):
     if not crop_viewport:
         return ""
     rpy = vtf.SO3.from_matrix(obb.R.numpy(force=True)).as_rpy_radians()
+    rpy = [rpy.roll, rpy.pitch, rpy.yaw]
     pos = obb.T.squeeze().tolist()
     scale = obb.S.squeeze().tolist()
     rpystring = " ".join([f"{x:.10f}" for x in rpy])
