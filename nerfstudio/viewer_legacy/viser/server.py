@@ -52,7 +52,7 @@ class ViserServer(MessageApi):
         """Implements message enqueue required by MessageApi.
 
         Pushes a message onto a broadcast queue."""
-        self._ws_server.broadcast(message)
+        self._ws_server.queue_message(message)
 
     def register_handler(
         self, message_type: Type[NerfstudioMessage], handler: Callable[[NerfstudioMessage], None]
