@@ -301,8 +301,6 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
     viewer=ViewerConfig(num_rays_per_chunk=1 << 12),
     vis="viewer",
 )
-#
-#
 method_configs["mipnerf"] = TrainerConfig(
     method_name="mipnerf",
     pipeline=VanillaPipelineConfig(
