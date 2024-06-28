@@ -120,15 +120,6 @@ class UNetMobileNetV3(torch.nn.Module):
     def __init__(self):
         super(UNetMobileNetV3, self).__init__()
         self.model = deeplabv3_mobilenet_v3_large(weights=DeepLabV3_MobileNet_V3_Large_Weights.DEFAULT)
-        # Set batch normalization layers to be non-trainable and in evaluation mode
-        # for i, m in enumerate(self.model.modules()):
-        #     if isinstance(m, torch.nn.BatchNorm2d):
-        #         # print("\t", "2dbatch")
-        #         m.eval()
-        #         m.requires_grad_(False)
-        #     else:
-        #         m.train()
-        #         m.requires_grad_(True)
     def forward(self, x):
         output = self.model(x)['out'] # has these keys: odict_keys(['out', 'aux'])
         normalized_output = torch.sigmoid(output)
@@ -958,16 +949,10 @@ class SplatfactoModel(Model):
             pred_img = pred_img * mask
         
         if self.config.enable_transient_predictor:
-            predicted_mask = self._downscale_if_required(batch["mask"])
-            predicted_mask = mask.to(self.device)
-            for name, param in self.unet.named_parameters():
-                # if 'model.backbone.12.block.3.0.weight' in name:
-                #     print(f"Layer: {name}")
-                #     breakpoint()
-                #     break
-                if param.grad is not None:
-                    print("HELLO")
-            breakpoint()
+            self.unet.eval()
+            predicted_mask = self.unet(gt_img.unsqueeze(0).permute(0, 3, 1, 2))
+            predicted_mask = predicted_mask.squeeze(0).permute(1, 2, 0)
+            self.unet.train()
                 
             assert predicted_mask.shape[:2] == gt_img.shape[:2] == pred_img.shape[:2]
             gt_img = gt_img * predicted_mask
@@ -991,7 +976,7 @@ class SplatfactoModel(Model):
         loss_dict = {
             "main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,
             "scale_reg": scale_reg,
-            "transient_loss": 0.1 * torch.sum(torch.abs(predicted_mask)), 
+            "transient_loss": 0.25 * torch.sum(torch.abs(predicted_mask)), # here, i set the transient loss as a new key:pair in the loss_dict because in trainer.py on line 497, these losses get added up for the final loss anyways
         }
 
         if self.training:
