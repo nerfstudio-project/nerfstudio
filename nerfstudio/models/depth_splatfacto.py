@@ -29,7 +29,7 @@ import torch.nn.functional as F
 
 
 from nerfstudio.model_components import losses
-from nerfstudio.model_components.losses import DepthLossType, mse_depth_loss, depth_ranking_loss
+from nerfstudio.model_components.losses import DepthLossType, mse_depth_loss, depth_ranking_loss, pearson_correlation_depth_loss
 
 
 from nerfstudio.models.splatfacto import SplatfactoModel, SplatfactoModelConfig
@@ -54,9 +54,17 @@ class DepthSplatfactoModel(SplatfactoModel):
     """
 
     config: DepthSplatfactoModelConfig
+    
+    def reshape_termination_depth(self, termination_depth, output_depth_shape):
+        termination_depth = F.interpolate(termination_depth.permute(2, 0, 1).unsqueeze(0), size=(output_depth_shape[0], output_depth_shape[1]), mode='bilinear', align_corners=False)
+        # Remove the extra dimensions added by unsqueeze and permute
+        termination_depth = termination_depth.squeeze(0).permute(1, 2, 0)
+        return termination_depth
 
     def get_metrics_dict(self, outputs, batch):
         metrics_dict = super().get_metrics_dict(outputs, batch)
+        output_depth_shape = outputs["depth"].shape[:2]
+        
         if self.training:
             if (
                 losses.FORCE_PSEUDODEPTH_LOSS
@@ -68,15 +76,19 @@ class DepthSplatfactoModel(SplatfactoModel):
             if self.config.depth_loss_type in (DepthLossType.MSE,):
                 metrics_dict["depth_loss"] = torch.Tensor([0.0]).to(self.device)
                 termination_depth = batch["depth_image"].to(self.device)
-
-                output_depth_shape = outputs["depth"].shape[:2]
-                termination_depth = F.interpolate(termination_depth.permute(2, 0, 1).unsqueeze(0), size=(output_depth_shape[0], output_depth_shape[1]), mode='bilinear', align_corners=False)
-                # Remove the extra dimensions added by unsqueeze and permute
-                termination_depth = termination_depth.squeeze(0).permute(1, 2, 0)
+                termination_depth = self.reshape_termination_depth(termination_depth, output_depth_shape)
 
                 metrics_dict["depth_loss"] = mse_depth_loss(
                     termination_depth, outputs["depth"])
+            
+            elif self.config.depth_loss_type in (DepthLossType.PEARSON_LOSS,):
+                metrics_dict["depth_loss"] = torch.Tensor([0.0]).to(self.device)
+                termination_depth = batch["depth_image"].to(self.device)
+                termination_depth = self.reshape_termination_depth(termination_depth, output_depth_shape)
                 
+                metrics_dict["depth_loss"] = pearson_correlation_depth_loss(
+                    termination_depth, outputs["depth"])
+            
             elif self.config.depth_loss_type in (DepthLossType.SPARSENERF_RANKING,):
                 metrics_dict["depth_ranking"] = depth_ranking_loss(
                     outputs["depth"], batch["depth_image"].to(self.device)

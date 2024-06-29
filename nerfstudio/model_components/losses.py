@@ -21,6 +21,7 @@ from typing import Dict, Literal, Optional, Tuple, cast
 import torch
 from jaxtyping import Bool, Float
 from torch import Tensor, nn
+from torchmetrics.functional.regression import pearson_corrcoef
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.field_components.field_heads import FieldHeadNames
@@ -44,6 +45,7 @@ class DepthLossType(Enum):
     URF = 2
     SPARSENERF_RANKING = 3
     MSE = 4
+    PEARSON_LOSS = 5
 
 
 FORCE_PSEUDODEPTH_LOSS = False
@@ -239,6 +241,26 @@ def mse_depth_loss(
 
     expected_depth_loss = expected_depth_loss * depth_mask
     return torch.mean(expected_depth_loss)
+
+
+def pearson_correlation_depth_loss(
+    termination_depth,
+    predicted_depth,
+)-> Float[Tensor, "*batch 1"]:
+    """Pearson correlation depth loss.
+
+    Args:
+        termination_depth: Ground truth depth of rays.
+        predicted_depth: Rendered depth from the radiance field
+    Returns:
+        Depth loss scalar.
+    """
+    termination_depth = termination_depth.reshape(-1, 1)
+    predicted_depth = predicted_depth.reshape(-1, 1)
+
+    loss = (1 - pearson_corrcoef( predicted_depth, termination_depth))
+    return torch.mean(loss)
+
 
 def ds_nerf_depth_loss(
     weights: Float[Tensor, "*batch num_samples 1"],
