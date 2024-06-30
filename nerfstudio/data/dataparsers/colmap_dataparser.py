@@ -478,12 +478,13 @@ class ColmapDataParser(DataParser):
         with status(msg="[bold yellow]Downscaling images...", spinner="growVertical"):
             assert downscale_factor > 1
             assert isinstance(downscale_factor, int)
-            filepath = next(iter(paths))
-            img = Image.open(filepath)
-            w, h = img.size
-            w_scaled, h_scaled = calculate_scaled_size(w, h, downscale_factor, downscale_rounding_mode)
             # Using %05d ffmpeg commands appears to be unreliable (skips images).
             for path in paths:
+                # Compute image-wise rescaled width/height.
+                img = Image.open(path)
+                w, h = img.size
+                w_scaled, h_scaled = calculate_scaled_size(w, h, downscale_factor, downscale_rounding_mode)
+                # Downscale images using ffmpeg.
                 nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
                 path_out = get_fname(path)
                 path_out.parent.mkdir(parents=True, exist_ok=True)
