@@ -16,14 +16,20 @@
 import collections
 import copy
 import json
+import sys
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Tuple
 
-import awscli.clidriver
 import numpy as np
 import tyro
+
+try:
+    import awscli.clidriver
+except ImportError:
+    print("awscli is required for EyefulTower download. Please install it with `pip install awscli`.")
+    sys.exit(1)
 
 from nerfstudio.scripts.downloads.utils import DatasetDownload
 from nerfstudio.utils.rich_utils import CONSOLE
