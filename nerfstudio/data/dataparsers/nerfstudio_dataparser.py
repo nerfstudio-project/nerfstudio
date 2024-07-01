@@ -34,6 +34,7 @@ from nerfstudio.data.utils.dataparsers_utils import (
     get_train_eval_split_interval,
 )
 from nerfstudio.utils.io import load_from_json
+from nerfstudio.utils.misc import set_pil_image_size_limit
 from nerfstudio.utils.rich_utils import CONSOLE
 
 MAX_AUTO_RESOLUTION = 1600
@@ -469,7 +470,8 @@ class Nerfstudio(DataParser):
 
         if self.downscale_factor is None:
             if self.config.downscale_factor is None:
-                test_img = Image.open(data_dir / filepath)
+                with set_pil_image_size_limit(None):
+                    test_img = Image.open(data_dir / filepath)
                 h, w = test_img.size
                 max_res = max(h, w)
                 df = 0
