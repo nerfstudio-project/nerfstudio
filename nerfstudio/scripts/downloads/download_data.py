@@ -554,7 +554,7 @@ Commands = Union[
 
 
 @dataclass
-class NotInstalled:
+class NotInstalled(DatasetDownload):
     def main(self) -> None: ...
 
 
