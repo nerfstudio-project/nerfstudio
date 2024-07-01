@@ -28,6 +28,11 @@ import torch
 from packaging.version import Version
 from rich.progress import track
 
+import sys
+import os
+import contextlib
+import io
+
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
 # import pycolmap
 from nerfstudio.data.utils.colmap_parsing_utils import (
@@ -41,6 +46,41 @@ from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils import colormaps
 from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
+
+try:
+    import pycolmap  # type: ignore
+except ImportError:
+    _HAS_PYCOLMAP = False
+else:
+    _HAS_PYCOLMAP = True
+
+try:
+    from pixsfm.refine_colmap import PixSfM  # type: ignore
+    from pixsfm.util.database import (  # type: ignore
+        COLMAPDatabase,
+        pair_id_to_image_ids,
+    )
+except ImportError:
+    _HAS_PIXSFM = False
+else:
+    _HAS_PIXSFM = True
+
+
+class OutputCapture:
+    def __init__(self, verbose: bool):
+        self.verbose = verbose
+
+    def __enter__(self):
+        if not self.verbose:
+            self.capture = contextlib.redirect_stdout(io.StringIO())
+            self.out = self.capture.__enter__()
+
+    def __exit__(self, exc_type, *args):
+        if not self.verbose:
+            self.capture.__exit__(exc_type, *args)
+            if exc_type is not None:
+                CONSOLE.print("[bold red]Error: Failed with output {}".format(self.out.getvalue()))
+        sys.stdout.flush()
 
 
 def get_colmap_version(colmap_cmd: str, default_version: str = "3.8") -> Version:
@@ -99,6 +139,7 @@ def run_colmap(
     matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
     refine_intrinsics: bool = True,
     colmap_cmd: str = "colmap",
+    refine_pixsfm: bool = False,
 ) -> None:
     """Runs COLMAP on the images.
 
@@ -113,6 +154,14 @@ def run_colmap(
         refine_intrinsics: If True, refine intrinsics.
         colmap_cmd: Path to the COLMAP executable.
     """
+
+    if refine_pixsfm and not _HAS_PIXSFM:
+        CONSOLE.print("[bold red]Error: use refine_pixsfm, you must install pixel-perfect-sfm toolbox!!")
+        sys.exit(1)
+
+    if refine_pixsfm and not _HAS_PYCOLMAP:
+        CONSOLE.print("[bold red]Error: use refine_pixsfm, you must install pycolmap!!")
+        sys.exit(1)
 
     colmap_version = get_colmap_version(colmap_cmd)
 
@@ -182,6 +231,63 @@ def run_colmap(
             ]
             run_command(" ".join(bundle_adjuster_cmd), verbose=verbose)
         CONSOLE.log("[bold green]:tada: Done refining intrinsics.")
+
+    if refine_pixsfm:
+        config = {
+            "dense_features": {"use_cache": True},
+            "KA": {"dense_features": {"use_cache": True}, "max_kps_per_problem": 1000},
+            "BA": {"strategy": "costmaps"},
+        }
+        colmap_refine_pixsfm(colmap_dir=colmap_dir, image_dir=image_dir, config=config)
+        CONSOLE.log("[bold green]:tada: Done refining pixsfm")
+
+
+def pairs_from_db(pairs_path: Path, database_path: Path):
+    db = COLMAPDatabase.connect(str(database_path))  # type: ignore
+    pair_ids = db.execute("SELECT pair_id FROM matches").fetchall()
+    pairs = [pair_id_to_image_ids(pids[0]) for pids in pair_ids]
+    image_id_to_name = db.image_id_to_name()  # type: ignore
+    pairs = [(image_id_to_name[id1], image_id_to_name[id2]) for id1, id2 in pairs]
+    with open(pairs_path, "w") as doc:
+        [doc.write(" ".join(pair) + "\n") for pair in pairs]
+    db.close()
+
+
+def colmap_refine_pixsfm(colmap_dir: Path, image_dir: Path, config: Dict, verbose=False) -> None:
+    # Setup the paths
+    images = image_dir
+    sfm_dir = colmap_dir / "sparse/0"
+    output_path = colmap_dir / "pixsfm_output/"
+    database_path = colmap_dir / "database.db"
+
+    if not os.path.exists(output_path):
+        output_path.mkdir(parents=True)
+    pairs_path = output_path / "pairs.txt"
+    cache = output_path / "dense_features_pixsfm.h5"
+
+    refiner = PixSfM(config)  # type: ignore
+
+    # Refine keypoints in database
+    _, _, feature_manager = refiner.refine_keypoints_from_db(
+        output_path=database_path, database_path=database_path, image_dir=images, cache_path=cache
+    )
+
+    pairs_from_db(pairs_path, database_path)
+
+    with OutputCapture(verbose):
+        with pycolmap.ostream():  # type: ignore
+            pycolmap.verify_matches(database_path, pairs_path)  # type: ignore
+
+            # triangulate new points with poses from original model
+            reference_model = pycolmap.Reconstruction(sfm_dir)  # type: ignore
+
+            reconstruction = pycolmap.triangulate_points(reference_model, database_path, images, sfm_dir)  # type: ignore
+
+    # Refine the resulting reconstruction
+    refiner.run_ba(reconstruction, images, cache_path=cache, feature_manager=feature_manager)
+
+    os.remove(cache)
+    reconstruction.write(sfm_dir)
 
 
 def parse_colmap_camera_params(camera) -> Dict[str, Any]:

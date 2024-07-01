@@ -196,9 +196,6 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         ) = process_data_utils.find_tool_feature_matcher_combination(
             self.sfm_tool, self.feature_type, self.matcher_type
         )
-        # check that sfm_tool is hloc if using refine_pixsfm
-        if self.refine_pixsfm:
-            assert sfm_tool == "hloc", "refine_pixsfm only works with sfm_tool hloc"
 
         # check that sfm_tool is hloc if using use_single_camera_mode
         if not self.use_single_camera_mode:
@@ -221,6 +218,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 matching_method=self.matching_method,
                 refine_intrinsics=self.refine_intrinsics,
                 colmap_cmd=self.colmap_cmd,
+                refine_pixsfm=self.refine_pixsfm,
             )
         elif sfm_tool == "hloc":
             if mask_path is not None:
