@@ -16,7 +16,6 @@
 Proposal network field.
 """
 
-
 from typing import Literal, Optional, Tuple
 
 import torch

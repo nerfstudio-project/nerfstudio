@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" This file contains the render state machine, which is responsible for deciding when to render the image """
+"""This file contains the render state machine, which is responsible for deciding when to render the image"""
+
 from __future__ import annotations
 
 import contextlib
@@ -302,7 +303,7 @@ class RenderStateMachine(threading.Thread):
             if self.viewer.render_tab_state.preview_render
             else 40
         )
-        self.client.set_background_image(
+        self.client.scene.set_background_image(
             selected_output,
             format=self.viewer.config.image_format,
             jpeg_quality=jpg_quality,
