@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Download datasets and specific captures from the datasets."""
+
 from __future__ import annotations
 
 import json
@@ -171,6 +172,7 @@ def download_capture_name(save_dir: Path, dataset_name: str, capture_name: str, 
     with zipfile.ZipFile(download_path, "r") as zip_ref:
         zip_ref.extractall(tmp_path)
     inner_folders = os.listdir(tmp_path)
+    inner_folders = [folder for folder in inner_folders if folder != "__MACOSX"]
     assert len(inner_folders) == 1, f"There is more than one folder inside this zip file: {inner_folders}"
     folder = os.path.join(tmp_path, inner_folders[0])
     shutil.rmtree(target_path)

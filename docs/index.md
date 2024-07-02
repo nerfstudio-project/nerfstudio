@@ -147,6 +147,7 @@ This documentation is organized into 3 parts:
 
 ### Third-party Methods
 
+- [BioNeRF](nerfology/methods/bionerf.md): Biologically Plausible Neural Radiance Fields for View Synthesis
 - [Instruct-NeRF2NeRF](nerfology/methods/in2n.md): Editing 3D Scenes with Instructions
 - [Instruct-GS2GS](nerfology/methods/igs2gs.md): Editing 3DGS Scenes with Instructions
 - [SIGNeRF](nerfology/methods/signerf.md): Controlled Generative Editing of NeRF Scenes
@@ -158,6 +159,8 @@ This documentation is organized into 3 parts:
 - [PyNeRF](nerfology/methods/pynerf.md): Pyramidal Neural Radiance Fields
 - [SeaThru-NeRF](nerfology/methods/seathru_nerf.md): Neural Radiance Field for subsea scenes
 - [Zip-NeRF](nerfology/methods/zipnerf.md): Anti-Aliased Grid-Based Neural Radiance Fields
+- [NeRFtoGSandBack](nerfology/methods/nerf2gs2nerf.md): Converting back and forth between NeRF and GS to get the best of both approaches.
+- [OpenNeRF](nerfology/methods/opennerf.md): OpenSet 3D Neural Scene Segmentation
 
 **Eager to contribute a method?** We'd love to see you use nerfstudio in implementing new (or even existing) methods! Please view our {ref}`guide<own_method_docs>` for more details about how to add to this list!
 

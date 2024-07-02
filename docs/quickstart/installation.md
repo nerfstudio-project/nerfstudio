@@ -14,6 +14,8 @@ Install [Git](https://git-scm.com/downloads).
 
 Install Visual Studio 2022. This must be done before installing CUDA. The necessary components are included in the `Desktop Development with C++` workflow (also called `C++ Build Tools` in the BuildTools edition).
 
+Install Visual Studio Build Tools. If MSVC 143 does not work (usually will fail if your version > 17.10), you may also need to install MSVC 142 for Visual Studio 2019. Ensure your CUDA environment is set up properly.
+
 Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 :::::
@@ -76,13 +78,54 @@ conda install -c "nvidia/label/cuda-11.7.1" cuda-toolkit
 :::
 ::::
 
-### tiny-cuda-nn
+### Install tiny-cuda-nn/gsplat
+
+::::::{tab-set}
+:::::{tab-item} Linux
 
 After pytorch and ninja, install the torch bindings for tiny-cuda-nn:
-
 ```bash
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
+
+:::::
+:::::{tab-item} Windows
+
+Activate your Visual C++ environment:
+Navigate to the directory where `vcvars64.bat` is located. This path might vary depending on your installation. A common path is:
+
+```
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build
+```
+
+Run the following command:
+```bash
+./vcvars64.bat
+```
+
+If the above command does not work, try activating an older version of VC:
+```bash
+./vcvarsall.bat x64 -vcvars_ver=<your_VC++_compiler_toolset_version>
+```
+Replace `<your_VC++_compiler_toolset_version>` with the version of your VC++ compiler toolset. The version number should appear in the same folder.
+
+For example:
+```bash
+./vcvarsall.bat x64 -vcvars_ver=14.29
+```
+
+Install `gsplat` from source:
+```bash
+pip install git+https://github.com/nerfstudio-project/gsplat.git
+```
+
+Install the torch bindings for tiny-cuda-nn:
+```bash
+pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+```
+
+:::::
+::::::
 
 ## Installing nerfstudio
 
@@ -121,6 +164,35 @@ ns-install-cli
 pip install -e .[dev]
 pip install -e .[docs]
 ```
+
+## Using Pixi
+[Pixi](https://pixi.sh/latest/) is a fast software package manager built on top of the existing conda ecosystem. Spins up development environments quickly on Windows, macOS and Linux. (Currently only linux is supported for nerfstudio)
+
+### Prerequisites
+Make sure to have pixi installed, detailed instructions [here](https://pixi.sh/latest/)
+
+TLDR for linux:
+
+```bash
+curl -fsSL https://pixi.sh/install.sh | bash
+```
+
+### Install Pixi Environmnent 
+After Pixi is installed, you can run
+```bash
+pixi run post-install
+pixi shell
+```
+This will install all enviroment dependancies including colmap, tinycudann and hloc, and the active the conda environment
+
+you could also run
+
+```bash
+pixi run post-install
+pixi run train-example-nerf
+```
+
+to download an example dataset and run nerfacto straight away
 
 ## Use docker image
 
