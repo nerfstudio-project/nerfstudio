@@ -1,10 +1,12 @@
-name: build-docker-image
+name: Build Docker Image
 on:
   workflow_dispatch:
   workflow_call:
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   build-and-publish-docker-image:
     runs-on: ubuntu-latest
