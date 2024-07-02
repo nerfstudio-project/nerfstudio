@@ -113,6 +113,7 @@ COPY --from=builder /usr/local/lib/python3.10/dist-packages/ /usr/local/lib/pyth
 COPY --from=builder /usr/local/bin/ns* /usr/local/bin/
 
 # Install nerfstudio cli auto completion
+WORKDIR /workspace
 RUN /bin/bash -c 'ns-install-cli --mode install'
 
 # Bash as default entrypoint.
