@@ -268,6 +268,21 @@ To enable NeRFGS, you must install it first by running:
     )
 )
 
+# Splatfacto-W
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]Splatfacto-W[/bold yellow]
+For more information visit: https://docs.nerf.studio/nerfology/methods/splatw.html
+
+To enable Splatfacto-W, you must install it first by running:
+  [grey]pip install git+https://github.com/KevinXu02/splatfacto-w"[/grey]""",
+        configurations=[
+            ("splatfacto-w", "Splatfacto in the wild"),
+        ],
+        pip_package="git+https://github.com/KevinXu02/splatfacto-w",
+    )
+)
+
 
 @dataclass
 class ExternalMethodDummyTrainerConfig:
