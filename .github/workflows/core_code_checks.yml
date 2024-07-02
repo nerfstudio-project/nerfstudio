@@ -25,7 +25,8 @@ jobs:
           key: ${{ env.pythonLocation }}-${{ hashFiles('pyproject.toml') }}
       - name: Install dependencies
         run: |
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          pip install uv
+          uv pip install --system --upgrade -e .[dev]
       - name: Run license checks
         run: |
           ./nerfstudio/scripts/licensing/license_headers.sh --check
@@ -33,9 +34,11 @@ jobs:
         run: |
           python ./nerfstudio/scripts/docs/add_nb_tags.py --check
       - name: Run Ruff Linter
-        run: ruff check docs/ nerfstudio/ tests/ --output-format=github
+        run: |
+          ruff check docs/ nerfstudio/ tests/ --output-format=github
       - name: Run Ruff Formatter
-        run: ruff format docs/ nerfstudio/ tests/ --diff
+        run: |
+          ruff format docs/ nerfstudio/ tests/ --diff
       - name: Run Pyright
         run: |
           pyright

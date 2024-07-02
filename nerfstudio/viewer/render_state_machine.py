@@ -129,6 +129,10 @@ class RenderStateMachine(threading.Thread):
 
         image_height, image_width = self._calculate_image_res(camera_state.aspect)
 
+        # These 2 lines make the control panel's time option independent from the render panel's.
+        # When outside of render preview, it will use the control panel's time.
+        if not self.viewer.render_tab_state.preview_render and self.viewer.include_time:
+            camera_state.time = self.viewer.control_panel.time
         camera = get_camera(camera_state, image_height, image_width)
         camera = camera.to(self.viewer.get_model().device)
         assert isinstance(camera, Cameras)
@@ -175,7 +179,9 @@ class RenderStateMachine(threading.Thread):
 
                     desired_depth_pixels = {"low_move": 128, "low_static": 128, "high": 512}[self.state] ** 2
                     current_depth_pixels = outputs["depth"].shape[0] * outputs["depth"].shape[1]
-                    scale = min(desired_depth_pixels / current_depth_pixels, 1.0)
+
+                    # from the panel of ns-viewer, it is possible for user to enter zero resolution
+                    scale = min(desired_depth_pixels / max(1, current_depth_pixels), 1.0)
 
                     outputs["gl_z_buf_depth"] = F.interpolate(
                         outputs["depth"].squeeze(dim=-1)[None, None, ...],
@@ -302,7 +308,7 @@ class RenderStateMachine(threading.Thread):
             jpeg_quality=jpg_quality,
             depth=depth,
         )
-        res = f"{selected_output.shape[0]}x{selected_output.shape[1]}px"
+        res = f"{selected_output.shape[1]}x{selected_output.shape[0]}px"
         self.viewer.stats_markdown.content = self.viewer.make_stats_markdown(None, res)
 
     def _calculate_image_res(self, aspect_ratio: float) -> Tuple[int, int]:
