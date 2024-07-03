@@ -1,6 +1,6 @@
-# Spaltfacto in the Wild
+# Splatfacto in the Wild
 
-This is the implementation of [Spaltfacto in the Wild: A Nerfstudio Implementation of Gaussian Splatting for Unconstrained Photo Collections](https://kevinxu02.github.io/gsw.github.io/). The official code can be found [here](https://github.com/KevinXu02/splatfacto-w).
+This is the implementation of [Splatfacto in the Wild: A Nerfstudio Implementation of Gaussian Splatting for Unconstrained Photo Collections](https://kevinxu02.github.io/gsw.github.io/). The official code can be found [here](https://github.com/KevinXu02/splatfacto-w).
 
 <video id="teaser" muted autoplay playsinline loop controls width="100%">
     <source id="mp4" src="https://github.com/KevinXu02/gsw.github.io/blob/main/static/videos/interp_fountain2.mp4" type="video/mp4">
