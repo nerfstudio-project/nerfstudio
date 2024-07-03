@@ -80,7 +80,6 @@ ARG CUDA_ARCHITECTURES
 ARG NVIDIA_CUDA_VERSION
 ARG UBUNTU_VERSION
 
-# LABEL org.opencontainers.image.version = "0.1.18"
 LABEL org.opencontainers.image.source = "https://github.com/nerfstudio-project/nerfstudio"
 LABEL org.opencontainers.image.licenses = "Apache License 2.0"
 LABEL org.opencontainers.image.base.name="docker.io/library/nvidia/cuda:${NVIDIA_CUDA_VERSION}-devel-ubuntu${UBUNTU_VERSION}"
