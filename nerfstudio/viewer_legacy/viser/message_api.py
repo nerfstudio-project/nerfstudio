@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" This module contains the MessageApi class, which is the interface for sending messages to the Viewer"""
-
+"""This module contains the MessageApi class, which is the interface for sending messages to the Viewer"""
 
 from __future__ import annotations
 
@@ -274,8 +273,7 @@ class MessageApi(abc.ABC):
         options: List[TLiteralString],
         initial_value: Optional[TLiteralString] = None,
         hint: Optional[str] = None,
-    ) -> GuiSelectHandle[TLiteralString]:
-        ...
+    ) -> GuiSelectHandle[TLiteralString]: ...
 
     @overload
     def add_gui_select(
@@ -284,8 +282,7 @@ class MessageApi(abc.ABC):
         options: List[str],
         initial_value: Optional[str] = None,
         hint: Optional[str] = None,
-    ) -> GuiSelectHandle[str]:
-        ...
+    ) -> GuiSelectHandle[str]: ...
 
     def add_gui_select(
         self,
@@ -325,8 +322,7 @@ class MessageApi(abc.ABC):
         name: str,
         options: List[TLiteralString],
         initial_value: Optional[TLiteralString] = None,
-    ) -> GuiHandle[TLiteralString]:
-        ...
+    ) -> GuiHandle[TLiteralString]: ...
 
     @overload
     def add_gui_button_group(
@@ -334,8 +330,7 @@ class MessageApi(abc.ABC):
         name: str,
         options: List[str],
         initial_value: Optional[str] = None,
-    ) -> GuiHandle[str]:
-        ...
+    ) -> GuiHandle[str]: ...
 
     def add_gui_button_group(
         self,

@@ -16,7 +16,6 @@
 Export utils such as structs, point cloud generation, and rendering code.
 """
 
-
 from __future__ import annotations
 
 import sys
