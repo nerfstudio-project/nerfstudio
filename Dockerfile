@@ -2,7 +2,16 @@ ARG UBUNTU_VERSION=22.04
 ARG NVIDIA_CUDA_VERSION=11.8.0
 # CUDA architectures, required by Colmap and tiny-cuda-nn. Use >= 8.0 for faster TCNN.
 ARG CUDA_ARCHITECTURES="90;89;86;80;75;70;61"
-ARG NERFSTUDIO_VERSION=main
+ARG NERFSTUDIO_VERSION=""
+
+# Pull source either provided or from git.
+FROM scratch as source_copy
+ONBUILD COPY . /tmp/nerfstudio
+FROM alpine/git as source_no_copy
+ARG NERFSTUDIO_VERSION
+ONBUILD RUN git clone --branch ${NERFSTUDIO_VERSION} --recursive https://github.com/nerfstudio-project/nerfstudio.git /tmp/nerfstudio
+ARG NERFSTUDIO_VERSION
+FROM source_${NERFSTUDIO_VERSION:+no_}copy as source
 
 FROM nvidia/cuda:${NVIDIA_CUDA_VERSION}-devel-ubuntu${UBUNTU_VERSION} as builder
 ARG CUDA_ARCHITECTURES
@@ -57,13 +66,11 @@ RUN pip install --no-cache-dir --upgrade pip 'setuptools<70.0.0' && \
     TCNN_CUDA_ARCHITECTURES="${CUDA_ARCHITECTURES}" pip install --no-cache-dir "git+https://github.com/NVlabs/tiny-cuda-nn.git#subdirectory=bindings/torch" && \
     pip install --no-cache-dir pycolmap==0.6.1 pyceres==2.1 omegaconf==2.3.0
 
-# Build and install newest gsplat and NerfStudio.
-ARG NERFSTUDIO_VERSION
-COPY * /tmp/nerfstudio/
-
-# Clone nerfstudio if not supplied as a local directory.
-RUN if [ ! -d /tmp/nerfstudio ]; then git clone --branch ${NERFSTUDIO_VERSION} --recursive https://github.com/nerfstudio-project/nerfstudio.git /tmp/nerfstudio; echo "Cloned NerfStudio from GitHub (version ${NERFSTUDIO_VERSION})."; fi && \
-    export TORCH_CUDA_ARCH_LIST="$(echo "$CUDA_ARCHITECTURES" | tr ';' '\n' | awk '$0 > 70 {print substr($0,1,1)"."substr($0,2)}' | tr '\n' ' ' | sed 's/ $//')" && \
+# Install gsplat and nerfstudio.
+# NOTE: both are installed jointly in order to prevent docker cache with latest
+# gsplat version (we do not expliticly specify the commit hash).
+COPY --from=source /tmp/nerfstudio/ /tmp/nerfstudio
+RUN export TORCH_CUDA_ARCH_LIST="$(echo "$CUDA_ARCHITECTURES" | tr ';' '\n' | awk '$0 > 70 {print substr($0,1,1)"."substr($0,2)}' | tr '\n' ' ' | sed 's/ $//')" && \
     pip install --no-cache-dir git+https://github.com/nerfstudio-project/gsplat.git && \
     pip install --no-cache-dir /tmp/nerfstudio 'numpy<2.0.0' && \
     rm -rf /tmp/nerfstudio
@@ -112,7 +119,6 @@ COPY --from=builder /usr/local/lib/python3.10/dist-packages/ /usr/local/lib/pyth
 COPY --from=builder /usr/local/bin/ns* /usr/local/bin/
 
 # Install nerfstudio cli auto completion
-WORKDIR /workspace
 RUN /bin/bash -c 'ns-install-cli --mode install'
 
 # Bash as default entrypoint.
