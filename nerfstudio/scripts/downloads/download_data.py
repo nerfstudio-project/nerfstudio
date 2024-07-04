@@ -32,7 +32,6 @@ import tyro
 from typing_extensions import Annotated
 
 from nerfstudio.process_data import process_data_utils
-from nerfstudio.scripts.downloads.eyeful_tower import EyefulTowerDownload
 from nerfstudio.scripts.downloads.utils import DatasetDownload
 from nerfstudio.utils import install_checks
 from nerfstudio.utils.scripts import run_command
@@ -551,8 +550,38 @@ Commands = Union[
     Annotated[SDFstudioDemoDownload, tyro.conf.subcommand(name="sdfstudio")],
     Annotated[NeRFOSRDownload, tyro.conf.subcommand(name="nerfosr")],
     Annotated[Mill19Download, tyro.conf.subcommand(name="mill19")],
-    Annotated[EyefulTowerDownload, tyro.conf.subcommand(name="eyefultower")],
 ]
+
+
+@dataclass
+class NotInstalled(DatasetDownload):
+    def main(self) -> None: ...
+
+
+# Add eyefultower subcommand if awscli is installed.
+try:
+    import awscli
+except ImportError:
+    awscli = None
+
+if awscli is not None:
+    from nerfstudio.scripts.downloads.eyeful_tower import EyefulTowerDownload
+
+    Commands = Union[
+        Commands,
+        Annotated[EyefulTowerDownload, tyro.conf.subcommand(name="eyefultower")],
+    ]
+else:
+    Commands = Union[
+        Commands,
+        Annotated[
+            NotInstalled,
+            tyro.conf.subcommand(
+                name="eyefultower",
+                description="**Not installed.** Downloading EyefulTower data requires `pip install awscli`.",
+            ),
+        ],
+    ]
 
 
 def main(
