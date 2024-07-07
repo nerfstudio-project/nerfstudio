@@ -339,7 +339,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
-    prefetch_factor: int = 2
+    prefetch_factor: int = 1
     """The limit number of batches a worker will start loading once an iterator is created. 
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
     dataloader_num_workers: int = 2
@@ -677,10 +677,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             self.raybatch_stream = RayBatchStream(
                 input_dataset=self.train_dataset,
                 datamanager_config=self.config,
-                # self.train_pixel_sampler,
-                # self.train_ray_generator,
-                num_images_to_sample_from=100,#self.config.train_num_images_to_sample_from,
-                # num_times_to_repeat_images=self.config.train_num_times_to_repeat_images, # no work
+                num_images_to_sample_from=100, # self.config.train_num_images_to_sample_from,
                 device=self.device,
                 collate_fn=self.config.collate_fn,
             )
@@ -693,7 +690,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
                 pin_memory=False,
                 # Our dataset does batching / collation
                 collate_fn=identity,
-                # pin_memory_device=self.device,
+                # pin_memory_device=self.device, # did not actually speed up my implementation
             )
             self.iter_train_image_dataloader = None
             self.iter_train_raybundles = iter(self.ray_dataloader)
