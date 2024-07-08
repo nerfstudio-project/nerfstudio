@@ -14,6 +14,7 @@
 
 
 """Code to interface with the `vis/` (the JS viewer)."""
+
 from __future__ import annotations
 
 import os

@@ -1,6 +1,7 @@
 """
 Embedding tests
 """
+
 from nerfstudio.field_components.embedding import Embedding
 
 
