@@ -28,6 +28,7 @@ The following methods are supported in nerfstudio:
     :maxdepth: 1
     Instant-NGP<instant_ngp.md>
     Splatfacto<splat.md>
+    Splatfacto-W<splatw.md>
     Instruct-NeRF2NeRF<in2n.md>
     Instruct-GS2GS<igs2gs.md>
     SIGNeRF<signerf.md>
