@@ -110,6 +110,8 @@ RUN apt-get update && \
         libqt5gui5 \
         libqt5widgets5 \
         python3.10 \
+        python3.10-dev \
+        build-essential \
         python-is-python3 \
         ffmpeg
 
