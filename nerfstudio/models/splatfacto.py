@@ -754,7 +754,7 @@ class SplatfactoModel(Model):
         if self.config.sh_degree > 0:
             sh_degree_to_use = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
         else:
-            colors_crop = torch.sigmoid(colors_crop)
+            colors_crop = torch.sigmoid(colors_crop).squeeze(1)  # [N, 1, 3] -> [N, 3]
             sh_degree_to_use = None
 
         render, alpha, info = rasterization(
