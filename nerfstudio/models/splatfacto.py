@@ -687,11 +687,11 @@ class SplatfactoModel(Model):
         return background
 
     def get_outputs(self, camera: Cameras) -> Dict[str, Union[torch.Tensor, List]]:
-        """Takes in a Ray Bundle and returns a dictionary of outputs.
+        """Takes in a camera and returns a dictionary of outputs.
 
         Args:
-            ray_bundle: Input bundle of rays. This raybundle should have all the
-            needed information to compute the outputs.
+            camera: The camera(s) for which output images are rendered. It should have
+            all the needed information to compute the outputs.
 
         Returns:
             Outputs of model. (ie. rendered colors)
