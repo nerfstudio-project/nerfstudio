@@ -485,8 +485,6 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         collated_batch['image'] is tensor with shape torch.Size([per_worker, height, width, 3])
         """
         batch_list = self._get_batch_list(indices=indices)
-        # if len(batch_list) == 0:
-        #     print(indices)
         # print(type(batch_list[0])) # prints <class 'dict'>
         # print(self.collate_fn) # prints nerfstudio_collate
         collated_batch = self.collate_fn(batch_list)
