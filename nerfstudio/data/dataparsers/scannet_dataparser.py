@@ -210,7 +210,7 @@ class ScanNet(DataParser):
 
         # if no points found don't read in an initial point cloud
         if len(pcd.points) == 0:
-            return None
+            return {}
 
         points3D = torch.from_numpy(np.asarray(pcd.points, dtype=np.float32))
         points3D = (
