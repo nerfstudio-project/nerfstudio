@@ -68,7 +68,6 @@ class ScanNetDataParserConfig(DataParserConfig):
     """read point cloud colors from .ply files or not """
     ply_file_path: Path = data / (data.name + ".ply")
     """path to the .ply file containing the 3D points"""
-    
 
 
 @dataclass
@@ -76,7 +75,7 @@ class ScanNet(DataParser):
     """ScanNet DatasetParser"""
 
     config: ScanNetDataParserConfig
-    
+
     def _generate_dataparser_outputs(self, split="train"):
         image_dir = self.config.data / "color"
         depth_dir = self.config.data / "depth"
@@ -101,7 +100,7 @@ class ScanNet(DataParser):
             # We cannot accept files directly, as some of the poses are invalid
             if np.isinf(pose).any():
                 continue
-            
+
             poses.append(pose)
             intrinsics.append(K)
             image_filenames.append(img)
@@ -188,8 +187,10 @@ class ScanNet(DataParser):
             metadata=metadata,
         )
         return dataparser_outputs
-    
-    def _load_3D_points(self, ply_file_path: Path, transform_matrix: torch.Tensor, scale_factor: float, points_color: bool ) -> dict:
+
+    def _load_3D_points(
+        self, ply_file_path: Path, transform_matrix: torch.Tensor, scale_factor: float, points_color: bool
+    ) -> dict:
         """Loads point clouds positions and colors from .ply
 
         Args:
@@ -226,7 +227,7 @@ class ScanNet(DataParser):
         out = {
             "points3D_xyz": points3D,
         }
-        
+
         if points_color:
             points3D_rgb = torch.from_numpy((np.asarray(pcd.colors) * 255).astype(np.uint8))
             out["points3D_rgb"] = points3D_rgb
