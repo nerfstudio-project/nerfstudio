@@ -197,6 +197,9 @@ def _render_trajectory_video(
                         outputs = pipeline.model.get_outputs_for_camera(
                             cameras[camera_idx : camera_idx + 1], obb_box=obb_box
                         )
+                        if "rgba" in rendered_output_names:
+                            rgba = pipeline.model.get_rgba_image(outputs=outputs, output_name="rgb")
+                            outputs["rgba"] = rgba
 
                 render_image = []
                 for rendered_output_name in rendered_output_names:
@@ -221,6 +224,8 @@ def _render_trajectory_video(
                             .cpu()
                             .numpy()
                         )
+                    elif rendered_output_name == "rgba":
+                        output_image = output_image.detach().cpu().numpy()
                     else:
                         output_image = (
                             colormaps.apply_colormap(
@@ -833,12 +838,11 @@ class DatasetRender(BaseRender):
                                 output_image = gt_batch[output_name]
                             else:
                                 output_image = outputs[output_name]
-                        del output_name
 
                         # Map to color spaces / numpy
                         if is_raw:
                             output_image = output_image.cpu().numpy()
-                        elif rendered_output_name == "rgba": # for RGBA image just do simple numpy conversion
+                        elif output_name == "rgba": # for RGBA image just do simple numpy conversion
                             output_image = output_image.detach().cpu().numpy()
                         elif is_depth:
                             output_image = (
