@@ -779,6 +779,9 @@ class DatasetRender(BaseRender):
                 for camera_idx, (camera, batch) in enumerate(progress.track(dataloader, total=len(dataset))):
                     with torch.no_grad():
                         outputs = pipeline.model.get_outputs_for_camera(camera)
+                        if "rgba" in self.rendered_output_names:
+                            rgba = pipeline.model.get_rgba_image(outputs=outputs, output_name="rgb")
+                            outputs["rgba"] = rgba
 
                     gt_batch = batch.copy()
                     gt_batch["rgb"] = gt_batch.pop("image")
@@ -835,6 +838,8 @@ class DatasetRender(BaseRender):
                         # Map to color spaces / numpy
                         if is_raw:
                             output_image = output_image.cpu().numpy()
+                        elif rendered_output_name == "rgba": # for RGBA image just do simple numpy conversion
+                            output_image = output_image.detach().cpu().numpy()
                         elif is_depth:
                             output_image = (
                                 colormaps.apply_depth_colormap(
