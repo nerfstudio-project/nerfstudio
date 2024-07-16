@@ -132,6 +132,7 @@ conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
 pip install setuptools==69.5.1
 
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+# may take a while to build tinycudann...
 ```
 
 See [Dependencies](https://github.com/nerfstudio-project/nerfstudio/blob/main/docs/quickstart/installation.md#dependencies)
