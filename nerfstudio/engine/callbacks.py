@@ -55,6 +55,7 @@ class TrainingCallbackLocation(Enum):
     BEFORE_TRAIN_ITERATION = auto()
     AFTER_TRAIN_ITERATION = auto()
     AFTER_TRAIN = auto()
+    BEFORE_BACKWARD=auto()
 
 
 class TrainingCallback:
