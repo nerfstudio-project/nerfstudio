@@ -395,7 +395,7 @@ class ColmapDataParser(DataParser):
         return dataparser_outputs
 
     def _load_3D_points(self, colmap_path: Path, transform_matrix: torch.Tensor, scale_factor: float):
-        points3D = None
+        pcd = None
         if (colmap_path / "scene.obj").exists():
             mesh_scene = trimesh.load(colmap_path / "scene.obj", force='mesh')
             vertices = mesh_scene.vertices # (num_pt, 3)
@@ -416,42 +416,24 @@ class ColmapDataParser(DataParser):
                 num_pts_each_triangle,
                 3
             )
-
-            print("alpha sum max is:", alpha.sum(dim=2, keepdim=False).max())
-
             xyz = torch.matmul(
                 alpha,
                 triangles
             )
-            points3D = xyz.reshape(num_pts, 3)
-            
-        if (colmap_path / "points3D.bin").exists():
-            colmap_points = colmap_utils.read_points3D_binary(colmap_path / "points3D.bin")
-            
-        elif (colmap_path / "points3D.txt").exists():
-            colmap_points = colmap_utils.read_points3D_text(colmap_path / "points3D.txt")
+            xyz = xyz.reshape(num_pts, 3)
 
-        else:
-            raise ValueError(f"Could not find points3D.txt or points3D.bin in {colmap_path}")
-        
-        if points3D is None:
-            points3D = torch.from_numpy(np.array([p.xyz for p in colmap_points.values()], dtype=np.float32))
-        
-        
-        points3D = (
-            torch.cat(
-                (
-                    points3D,
-                    torch.ones_like(points3D[..., :1]),
-                ),
-                -1,
+            xyz = (
+                torch.cat(
+                    (
+                        xyz,
+                        torch.ones_like(xyz[..., :1]),
+                    ),
+                    -1,
+                )
+                @ transform_matrix.T
             )
-            @ transform_matrix.T
-        )
-        points3D *= scale_factor
+            xyz *= scale_factor
 
-        pcd = None
-        if (colmap_path / "scene.obj").exists():
             vertices = (
                 torch.cat(
                     (
@@ -464,14 +446,38 @@ class ColmapDataParser(DataParser):
             )
             vertices *= scale_factor
             
-
             pcd = MeshPointCloud(
                 alpha=alpha,
-                points=points3D,
+                points=xyz,
                 vertices=vertices,
                 faces=faces,
                 triangles=triangles.cuda()
             )
+        
+        points3D = None
+        if (colmap_path / "points3D.bin").exists():
+            colmap_points = colmap_utils.read_points3D_binary(colmap_path / "points3D.bin")
+            
+        elif (colmap_path / "points3D.txt").exists():
+            colmap_points = colmap_utils.read_points3D_text(colmap_path / "points3D.txt")
+
+        else:
+            raise ValueError(f"Could not find points3D.txt or points3D.bin in {colmap_path}")
+        
+        if points3D is None:
+            points3D = torch.from_numpy(np.array([p.xyz for p in colmap_points.values()], dtype=np.float32))
+        points3D = (
+            torch.cat(
+                (
+                    points3D,
+                    torch.ones_like(points3D[..., :1]),
+                ),
+                -1,
+            )
+            @ transform_matrix.T
+        )
+        points3D *= scale_factor
+    
 
         # Load point colours
         points3D_rgb = torch.from_numpy(np.array([p.rgb for p in colmap_points.values()], dtype=np.uint8))
