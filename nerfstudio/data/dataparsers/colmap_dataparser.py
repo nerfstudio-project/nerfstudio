@@ -104,7 +104,8 @@ class ColmapDataParserConfig(DataParserConfig):
     generally unused otherwise, but it's typically harmless so we default to True."""
     max_2D_matches_per_3D_point: int = 0
     """Maximum number of 2D matches per 3D point. If set to -1, all 2D matches are loaded. If set to 0, no 2D matches are loaded."""
-
+    num_splats_per_face: int = 1
+    """number of splats to imitialize gaussian on each mesh face"""
 
 class ColmapDataParser(DataParser):
     """COLMAP DatasetParser.
@@ -405,7 +406,7 @@ class ColmapDataParser(DataParser):
             vertices = np.einsum('ij,kj->ki', rotx(np.pi / 2), vertices)
             vertices = torch.from_numpy(vertices.astype(np.float32))
 
-            num_pts_each_triangle = 1 #self.config.num_splats
+            num_pts_each_triangle = self.config.num_splats_per_face
             num_pts = num_pts_each_triangle * triangles.shape[0]
             print('triangle face number', triangles.shape[0])
             print('points total', vertices.shape[0])

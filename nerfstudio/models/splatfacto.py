@@ -188,8 +188,7 @@ class SplatfactoModelConfig(ModelConfig):
 
     use_mesh_initialization: bool = False
     """If enable, will try to initialize gaussain from mesh""" 
-    num_splats_per_face: int = 1
-    """number of splats to imitialize gaussian on each mesh face"""
+    
 
 
 class SplatfactoModel(Model):
