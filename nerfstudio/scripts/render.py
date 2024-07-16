@@ -842,7 +842,7 @@ class DatasetRender(BaseRender):
                         # Map to color spaces / numpy
                         if is_raw:
                             output_image = output_image.cpu().numpy()
-                        elif output_name == "rgba": # for RGBA image just do simple numpy conversion
+                        elif output_name == "rgba":
                             output_image = output_image.detach().cpu().numpy()
                         elif is_depth:
                             output_image = (
