@@ -730,7 +730,7 @@ def populate_render_tab(
     
     auto_camera_folder = server.gui.add_folder("Automatic Camera Path")
     with auto_camera_folder:
-        origin_point = np.array([-1.01697124, 0.86319059, -4.2836189])
+        origin_point = np.array([1.0, 0.0, 0.0])
         select_center_button = server.gui.add_button(
             "Select Center",
             icon=viser.Icon.CROSSHAIR,
@@ -771,8 +771,8 @@ def populate_render_tab(
         def _(event: viser.GuiEvent) -> None:
             nonlocal origin_point
             num_cameras = 10
-            radius = 1
-            z_camera = 2
+            radius = 5
+            z_camera = 5
             camera_coords = []
             fov = event.client.camera.fov
             for i in range(num_cameras):
@@ -780,20 +780,20 @@ def populate_render_tab(
             
             def wxyz_helper(camera_position: np.ndarray) -> np.ndarray:
                 # Calculates the camera direction from position to origin_point
-                direction = camera_position - origin_point
-                direction = direction / np.linalg.norm(direction)
+                camera_direction = camera_position - origin_point
+                camera_direction = camera_direction / np.linalg.norm(camera_direction)
 
                 global_up = np.array([0.0, 0.0, 1.0])
 
-                right = np.cross(global_up, direction)
-                right_norm = np.linalg.norm(right)
-                if right_norm > 0:
-                    right = right / right_norm
+                camera_right = np.cross(camera_direction, global_up)
+                camera_right_norm = np.linalg.norm(camera_right)
+                if camera_right_norm > 0:
+                    camera_right = camera_right / camera_right_norm
 
-                    up = np.cross(right, direction)
+                    camera_up = np.cross(camera_right, camera_direction)
 
-                    R = np.array([right, up, -direction]).T
-
+                    R = np.array([camera_right, camera_up, -camera_direction]).T
+                 
                     w = np.sqrt(1 + R[0, 0] + R[1, 1] + R[2, 2]) / 2
                     x = (R[2, 1] - R[1, 2]) / (4 * w)
                     y = (R[0, 2] - R[2, 0]) / (4 * w)
@@ -818,7 +818,7 @@ def populate_render_tab(
                     )
                 )
                 duration_number.value = camera_path.compute_duration()
-                camera_path.update_spline()
+                #camera_path.update_spline()
 
     playback_folder = server.gui.add_folder("Playback")
     with playback_folder:
