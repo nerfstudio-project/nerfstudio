@@ -203,7 +203,7 @@ class Viewer:
 
         with tabs.add_tab("Render", viser.Icon.CAMERA):
             self.render_tab_state = populate_render_tab(
-                self.viser_server, config_path, self.datapath, self.control_panel
+                self.viser_server, config_path, self.datapath, self.pipeline.model, self.control_panel
             )
 
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):

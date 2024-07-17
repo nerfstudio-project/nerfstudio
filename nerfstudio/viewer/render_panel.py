@@ -30,6 +30,7 @@ import viser
 import viser.transforms as tf
 from scipy import interpolate
 
+from nerfstudio.models.base_model import Model
 from nerfstudio.viewer.control_panel import ControlPanel
 
 
@@ -520,6 +521,7 @@ def populate_render_tab(
     server: viser.ViserServer,
     config_path: Path,
     datapath: Path,
+    viewer_model: Model,
     control_panel: Optional[ControlPanel] = None,
 ) -> RenderTabState:
     from nerfstudio.viewer.viewer import VISER_NERFSTUDIO_SCALE_RATIO
@@ -730,7 +732,7 @@ def populate_render_tab(
     
     auto_camera_folder = server.gui.add_folder("Automatic Camera Path")
     with auto_camera_folder:
-        origin_point = np.array([1.0, 0.0, 0.0])
+        click_position = np.array([1.0, 0.0, 0.0])
         select_center_button = server.gui.add_button(
             "Select Center",
             icon=viser.Icon.CROSSHAIR,
@@ -743,16 +745,42 @@ def populate_render_tab(
 
             @event.client.scene.on_pointer_event(event_type="click")
             def _(event: viser.ScenePointerEvent) -> None:
-                # TODO: currently buggy and selects the client's keyframe as the origin 
-                #       rather than the actual clicking location, need intersector
-                nonlocal origin_point 
-                origin_point = np.array(event.ray_origin)
-                print(origin_point)
+                import torch
+                from nerfstudio.cameras.rays import RayBundle
+                from nerfstudio.field_components.field_heads import FieldHeadNames
+                from nerfstudio.model_components.losses import scale_gradients_by_distance_squared
+
+                origin = torch.tensor(event.ray_origin).view(1, 3)
+                direction = torch.tensor(event.ray_direction).view(1, 3)
+
+                # get intersection
+                bundle = RayBundle(
+                    origin,
+                    direction,
+                    torch.tensor(0.001).view(1, 1),
+                    nears=torch.tensor(0.05).view(1, 1),
+                    fars=torch.tensor(100).view(1, 1),
+                    camera_indices=torch.tensor(0).view(1, 1),
+                ).to(torch.device)
+
+                # Get the distance/depth to the intersection --> calculate 3D position of the click
+                ray_samples, _, _ = viewer_model.proposal_sampler(bundle, density_fns=viewer_model.density_fns)
+                field_outputs = viewer_model.field.forward(ray_samples, compute_normals=viewer_model.config.predict_normals)
+                if viewer_model.config.use_gradient_scaling:
+                    field_outputs = scale_gradients_by_distance_squared(field_outputs, ray_samples)
+                weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
+                with torch.no_grad():
+                    depth = viewer_model.renderer_depth(weights=weights, ray_samples=ray_samples)
+                distance = depth[0, 0].detach().cpu().numpy()
+
+                nonlocal click_position 
+                click_position = np.array(origin + direction * distance) * VISER_NERFSTUDIO_SCALE_RATIO
+
                 server.scene.add_icosphere(
                         f"/render_center/sphere",
                         radius=0.1,
                         color=(200, 10, 30),
-                        position=np.array(event.ray_origin)
+                        position=click_position,
                     )
                 
                 event.client.scene.remove_pointer_callback()
@@ -769,7 +797,7 @@ def populate_render_tab(
 
         @circular_camera_path_button.on_click
         def _(event: viser.GuiEvent) -> None:
-            nonlocal origin_point
+            nonlocal click_position
             num_cameras = 10
             radius = 5
             z_camera = 5
@@ -779,8 +807,8 @@ def populate_render_tab(
                 camera_coords.append((radius * np.cos(2 * np.pi * i / num_cameras), radius * np.sin(2 * np.pi * i/ num_cameras)))
             
             def wxyz_helper(camera_position: np.ndarray) -> np.ndarray:
-                # Calculates the camera direction from position to origin_point
-                camera_direction = camera_position - origin_point
+                # Calculates the camera direction from position to click_position
+                camera_direction = camera_position - click_position
                 camera_direction = camera_direction / np.linalg.norm(camera_direction)
 
                 global_up = np.array([0.0, 0.0, 1.0])
@@ -803,7 +831,7 @@ def populate_render_tab(
                     return np.array([1.0, 0.0, 0.0, 0.0])
             
             for i, item in enumerate(camera_coords):
-                position = origin_point + np.array([item[0], item[1], z_camera])
+                position = click_position + np.array([item[0], item[1], z_camera])
                 camera_path.add_camera(
                     keyframe=Keyframe(
                         position=position,
@@ -818,7 +846,7 @@ def populate_render_tab(
                     )
                 )
                 duration_number.value = camera_path.compute_duration()
-                #camera_path.update_spline()
+                camera_path.update_spline()
 
     playback_folder = server.gui.add_folder("Playback")
     with playback_folder:
@@ -1271,6 +1299,7 @@ if __name__ == "__main__":
         server=viser.ViserServer(),
         config_path=Path("."),
         datapath=Path("."),
+        viewer_model=Model,
     )
     while True:
         time.sleep(10.0)
