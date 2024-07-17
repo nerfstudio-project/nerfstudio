@@ -745,6 +745,7 @@ def populate_render_tab(
 
             @event.client.scene.on_pointer_event(event_type="click")
             def _(event: viser.ScenePointerEvent) -> None:
+                # Code mostly borrowed from garfield.studio!
                 import torch
                 from nerfstudio.cameras.rays import RayBundle
                 from nerfstudio.field_components.field_heads import FieldHeadNames
@@ -774,10 +775,10 @@ def populate_render_tab(
                 distance = depth[0, 0].detach().cpu().numpy()
 
                 nonlocal click_position 
-                click_position = np.array(origin + direction * distance).reshape(3,) * VISER_NERFSTUDIO_SCALE_RATIO
+                click_position = np.array(origin + direction * distance).reshape(3,)
 
                 server.scene.add_icosphere(
-                        f"/render_center/sphere",
+                        f"/render_center_pos",
                         radius=0.1,
                         color=(200, 10, 30),
                         position=click_position,
