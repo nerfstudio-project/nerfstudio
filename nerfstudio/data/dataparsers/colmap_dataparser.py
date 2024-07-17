@@ -27,6 +27,8 @@ import torch
 from PIL import Image
 from rich.prompt import Confirm
 
+import trimesh
+
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras
 from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
@@ -41,6 +43,7 @@ from nerfstudio.data.utils.dataparsers_utils import (
 from nerfstudio.process_data.colmap_utils import parse_colmap_camera_params
 from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
+from nerfstudio.utils.general_utils import MeshPointCloud, rotx
 
 MAX_AUTO_RESOLUTION = 1600
 
@@ -63,11 +66,11 @@ class ColmapDataParserConfig(DataParserConfig):
     """How much to scale the region of interest by."""
     orientation_method: Literal["pca", "up", "vertical", "none"] = "up"
     """The method to use for orientation."""
-    center_method: Literal["poses", "focus", "none"] = "poses"
+    center_method: Literal["poses", "focus", "none"] = "none"
     """The method to use to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
-    assume_colmap_world_coordinate_convention: bool = True
+    assume_colmap_world_coordinate_convention: bool = False
     """Colmap optimized world often have y direction of the first camera pointing towards down direction,
     while nerfstudio world set z direction to be up direction for viewer. Therefore, we usually need to apply an extra
     transform when orientation_method=none. This parameter has no effects if orientation_method is set other than none.
@@ -101,7 +104,8 @@ class ColmapDataParserConfig(DataParserConfig):
     generally unused otherwise, but it's typically harmless so we default to True."""
     max_2D_matches_per_3D_point: int = 0
     """Maximum number of 2D matches per 3D point. If set to -1, all 2D matches are loaded. If set to 0, no 2D matches are loaded."""
-
+    num_splats_per_face: int = 1
+    """number of splats to imitialize gaussian on each mesh face"""
 
 class ColmapDataParser(DataParser):
     """COLMAP DatasetParser.
@@ -392,13 +396,77 @@ class ColmapDataParser(DataParser):
         return dataparser_outputs
 
     def _load_3D_points(self, colmap_path: Path, transform_matrix: torch.Tensor, scale_factor: float):
+        pcd = None
+        if (colmap_path / "scene.obj").exists():
+            mesh_scene = trimesh.load(colmap_path / "scene.obj", force='mesh')
+            vertices = mesh_scene.vertices # (num_pt, 3)
+            faces = mesh_scene.faces # (num_faces, 3)
+            triangles = torch.tensor(mesh_scene.triangles).float()  # equal vertices[faces]
+            # rotated y-up world frame to z-up world frame
+            vertices = np.einsum('ij,kj->ki', rotx(np.pi / 2), vertices)
+            vertices = torch.from_numpy(vertices.astype(np.float32))
+
+            num_pts_each_triangle = self.config.num_splats_per_face
+            num_pts = num_pts_each_triangle * triangles.shape[0]
+            print('triangle face number', triangles.shape[0])
+            print('points total', vertices.shape[0])
+
+            # We create random points inside the bounds traingles
+            alpha = torch.rand(
+                triangles.shape[0],
+                num_pts_each_triangle,
+                3
+            )
+            xyz = torch.matmul(
+                alpha,
+                triangles
+            )
+            xyz = xyz.reshape(num_pts, 3)
+
+            xyz = (
+                torch.cat(
+                    (
+                        xyz,
+                        torch.ones_like(xyz[..., :1]),
+                    ),
+                    -1,
+                )
+                @ transform_matrix.T
+            )
+            xyz *= scale_factor
+
+            vertices = (
+                torch.cat(
+                    (
+                        vertices,
+                        torch.ones_like(vertices[..., :1]),
+                    ),
+                    -1,
+                )
+                @ transform_matrix.T
+            )
+            vertices *= scale_factor
+            
+            pcd = MeshPointCloud(
+                alpha=alpha,
+                points=xyz,
+                vertices=vertices,
+                faces=faces,
+                triangles=triangles.cuda()
+            )
+        
+        points3D = None
         if (colmap_path / "points3D.bin").exists():
             colmap_points = colmap_utils.read_points3D_binary(colmap_path / "points3D.bin")
+            
         elif (colmap_path / "points3D.txt").exists():
             colmap_points = colmap_utils.read_points3D_text(colmap_path / "points3D.txt")
+
         else:
             raise ValueError(f"Could not find points3D.txt or points3D.bin in {colmap_path}")
-        points3D = torch.from_numpy(np.array([p.xyz for p in colmap_points.values()], dtype=np.float32))
+        
+        if points3D is None:
+            points3D = torch.from_numpy(np.array([p.xyz for p in colmap_points.values()], dtype=np.float32))
         points3D = (
             torch.cat(
                 (
@@ -410,6 +478,7 @@ class ColmapDataParser(DataParser):
             @ transform_matrix.T
         )
         points3D *= scale_factor
+    
 
         # Load point colours
         points3D_rgb = torch.from_numpy(np.array([p.rgb for p in colmap_points.values()], dtype=np.uint8))
@@ -420,6 +489,9 @@ class ColmapDataParser(DataParser):
             "points3D_error": torch.from_numpy(np.array([p.error for p in colmap_points.values()], dtype=np.float32)),
             "points3D_num_points2D": points3D_num_points,
         }
+        if pcd is not None:
+            out["points3D_pcd"] = pcd
+
         if self.config.max_2D_matches_per_3D_point != 0:
             if (colmap_path / "images.txt").exists():
                 im_id_to_image = colmap_utils.read_images_text(colmap_path / "images.txt")

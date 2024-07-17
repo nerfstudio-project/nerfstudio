@@ -44,6 +44,7 @@ from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.misc import torch_compile
 from nerfstudio.utils.rich_utils import CONSOLE
+from nerfstudio.utils.general_utils import MeshPointCloud, rot_to_quat_batch
 
 
 def random_quat_tensor(N):
@@ -96,7 +97,7 @@ def resize_image(image: torch.Tensor, d: int):
     return tf.conv2d(image.permute(2, 0, 1)[:, None, ...], weight, stride=d).squeeze(1).permute(1, 2, 0)
 
 
-@torch_compile()
+# @torch_compile()
 def get_viewmat(optimized_camera_to_world):
     """
     function that converts c2w to gsplat world2camera matrix, using compile for some speed
@@ -185,6 +186,10 @@ class SplatfactoModelConfig(ModelConfig):
     camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="off"))
     """Config of the camera optimizer to use"""
 
+    use_mesh_initialization: bool = False
+    """If enable, will try to initialize gaussain from mesh""" 
+    
+
 
 class SplatfactoModel(Model):
     """Nerfstudio's implementation of Gaussian Splatting
@@ -204,42 +209,71 @@ class SplatfactoModel(Model):
         self.seed_points = seed_points
         super().__init__(*args, **kwargs)
 
-    def populate_modules(self):
-        if self.seed_points is not None and not self.config.random_init:
-            means = torch.nn.Parameter(self.seed_points[0])  # (Location, Color)
-        else:
-            means = torch.nn.Parameter((torch.rand((self.config.num_random, 3)) - 0.5) * self.config.random_scale)
-        self.xys_grad_norm = None
-        self.max_2Dsize = None
-        distances, _ = self.k_nearest_sklearn(means.data, 3)
-        distances = torch.from_numpy(distances)
-        # find the average of the three nearest neighbors for each point and use that as the scale
-        avg_dist = distances.mean(dim=-1, keepdim=True)
-        scales = torch.nn.Parameter(torch.log(avg_dist.repeat(1, 3)))
-        num_points = means.shape[0]
-        quats = torch.nn.Parameter(random_quat_tensor(num_points))
-        dim_sh = num_sh_bases(self.config.sh_degree)
+        # use_scale_regularization and use_mesh_initialization can't be able at the same time
+        # Now just simply set use_scale_regularization to false
+        if self.config.use_scale_regularization and self.config.use_mesh_initialization:
+            raise ValueError("use_scale_regularization and use_mesh_initialization can't be able at the same time")
+        
 
-        if (
-            self.seed_points is not None
-            and not self.config.random_init
-            # We can have colors without points.
-            and self.seed_points[1].shape[0] > 0
-        ):
-            shs = torch.zeros((self.seed_points[1].shape[0], dim_sh, 3)).float().cuda()
-            if self.config.sh_degree > 0:
-                shs[:, 0, :3] = RGB2SH(self.seed_points[1] / 255)
-                shs[:, 1:, 3:] = 0.0
-            else:
-                CONSOLE.log("use color only optimization with sigmoid activation")
-                shs[:, 0, :3] = torch.logit(self.seed_points[1] / 255, eps=1e-10)
-            features_dc = torch.nn.Parameter(shs[:, 0, :])
-            features_rest = torch.nn.Parameter(shs[:, 1:, :])
-        else:
+
+    def populate_modules(self):
+        if self.config.use_mesh_initialization:
+            pcd = self.seed_points[2]
+            if pcd is None:
+                raise ValueError("Trying to use_mesh_initialization, scene.obj must be under sparse/0 folder")
+            
+            print("init gaussian from mesh")
+
+            (means, 
+            scales, 
+            quats) = create_from_pcd(pcd, self.config.sh_degree)
+
+            num_points = means.shape[0]
+            dim_sh = num_sh_bases(self.config.sh_degree)
             features_dc = torch.nn.Parameter(torch.rand(num_points, 3))
             features_rest = torch.nn.Parameter(torch.zeros((num_points, dim_sh - 1, 3)))
+            opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(num_points, 1)))
 
-        opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(num_points, 1)))
+            self.xys_grad_norm = None
+            self.max_2Dsize = None
+        else:
+            if self.seed_points is not None and not self.config.random_init:
+                means = torch.nn.Parameter(self.seed_points[0])  # (Location, Color)
+            else:
+                means = torch.nn.Parameter((torch.rand((self.config.num_random, 3)) - 0.5) * self.config.random_scale)
+            self.xys_grad_norm = None
+            self.max_2Dsize = None
+            distances, _ = self.k_nearest_sklearn(means.data, 3)
+            distances = torch.from_numpy(distances)
+            # find the average of the three nearest neighbors for each point and use that as the scale
+            avg_dist = distances.mean(dim=-1, keepdim=True)
+            scales = torch.nn.Parameter(torch.log(avg_dist.repeat(1, 3)))
+            num_points = means.shape[0]
+            quats = torch.nn.Parameter(random_quat_tensor(num_points))
+            dim_sh = num_sh_bases(self.config.sh_degree)
+
+            if (
+                self.seed_points is not None
+                and not self.config.random_init
+                # We can have colors without points.
+                and self.seed_points[1].shape[0] > 0
+            ):
+                shs = torch.zeros((self.seed_points[1].shape[0], dim_sh, 3)).float().cuda()
+                if self.config.sh_degree > 0:
+                    shs[:, 0, :3] = RGB2SH(self.seed_points[1] / 255)
+                    shs[:, 1:, 3:] = 0.0
+                else:
+                    CONSOLE.log("use color only optimization with sigmoid activation")
+                    shs[:, 0, :3] = torch.logit(self.seed_points[1] / 255, eps=1e-10)
+                features_dc = torch.nn.Parameter(shs[:, 0, :])
+                features_rest = torch.nn.Parameter(shs[:, 1:, :])
+            else:
+                features_dc = torch.nn.Parameter(torch.rand(num_points, 3))
+                features_rest = torch.nn.Parameter(torch.zeros((num_points, dim_sh - 1, 3)))
+
+            opacities = torch.nn.Parameter(torch.logit(0.1 * torch.ones(num_points, 1)))
+        
+        
         self.gauss_params = torch.nn.ParameterDict(
             {
                 "means": means,
@@ -940,3 +974,135 @@ class SplatfactoModel(Model):
         images_dict = {"img": combined_rgb}
 
         return metrics_dict, images_dict
+
+
+def create_from_pcd(pcd: MeshPointCloud, max_sh_degree: int):
+    print("Creating GaussianMeshModel from MeshPointCloud")
+
+    pcd_alpha_shape = pcd.alpha.shape
+    print("Number of faces: ", pcd_alpha_shape[0])
+    print("Number of points at initialisation in face: ", pcd_alpha_shape[1])
+
+    alpha_point_cloud = pcd.alpha.float().cuda()
+    scale = torch.ones((pcd.points.shape[0], 1)).float().cuda()
+
+    print("Number of points at initialisation : ",
+        alpha_point_cloud.shape[0] * alpha_point_cloud.shape[1])
+
+    ## use alpha, vertex, face to init self._xyz
+    alpha = update_alpha(pcd) ## _alpha means a1,a2,a3 in paper, controlling the gaussians centers
+    vertices = torch.tensor(pcd.vertices).float()
+    faces = torch.tensor(pcd.faces).long()
+    xyz = calc_xyz(alpha, vertices, faces).float()
+    ## use vertex, face and scale to init self._scaling and self._rotation
+    scale = torch.ones((pcd.points.shape[0], 1)).float() ## _scale means ro in paper, controlling the scale of gaussian
+    scaling, quat = calc_scaling_rot(alpha, scale, vertices, faces)
+    scaling = scaling.float()
+    quat = quat.float()
+    xyz = torch.nn.Parameter(xyz)
+    scaling = torch.nn.Parameter(scaling)
+    quat = torch.nn.Parameter(quat)
+
+    return xyz, scaling, quat
+
+
+def update_alpha(pcd: MeshPointCloud):
+    """
+    Function to control the alpha value.
+
+    Alpha is the distance of the center of the gauss
+        from the vertex of the triangle of the mesh.
+    Thus, for each center of the gauss, 3 alphas
+    are determined: alpha1+ alpha2+ alpha3.
+    For a point to be in the center of the vertex,
+    the alphas must meet the assumptions:
+    alpha1 + alpha2 + alpha3 = 1
+    and alpha1, alpha2, alpha3 >= 0
+
+    #TODO
+    check:
+    # self.alpha = torch.relu(self._alpha)
+    # self.alpha = self.alpha / self.alpha.sum(dim=-1, keepdim=True)
+
+    """
+    alpha_relu = torch.relu(pcd.alpha.float()) + 1e-8
+    alpha = alpha_relu / alpha_relu.sum(dim=-1, keepdim=True)
+    return alpha
+
+def calc_xyz(alpha, vertices, faces):
+        """
+        Calculate the 3D Gaussian center in the coordinates xyz.
+
+        The alphas that are taken into account are the distances
+        to the vertices and the coordinates of
+        the triangles forming the mesh.
+
+        Returns:
+            None
+        """
+        xyz = torch.matmul(alpha, vertices[faces])
+        print("Shape of xyz: ", xyz.shape)
+        xyz = xyz.reshape(xyz.shape[0] * xyz.shape[1], 3)
+        print("re Shape of xyz: ", xyz.shape)
+        return xyz
+
+        
+def calc_scaling_rot(alpha, scale, vertices, faces, eps=1e-8):
+    """
+    approximate covariance matrix and calculate scaling/rotation tensors
+
+    covariance matrix is [v0, v1, v2], where
+    v0 is a normal vector to each face
+    v1 is a vector from centroid of each face and 1st vertex
+    v2 is obtained by orthogonal projection of a vector from centroid to 2nd vertex onto subspace spanned by v0 and v1
+
+    Arguments:
+    scale (torch.Tensor): float tensor with shape of [num_face * num_splat, 3]
+
+    returns:
+    rotations (torch.Tensor): float tensor with shape of [num_face * num_splat, 4]
+    scaling (torch.Tensor): float tensor with shape of [num_face * num_splat, 3]
+    """
+    def dot(v, u):
+        return (v * u).sum(dim=-1, keepdim=True)
+    
+    def proj(v, u):
+        """
+        projection of vector v onto subspace spanned by u
+
+        vector u is assumed to be already normalized
+        """
+        coef = dot(v, u)
+        return coef * u
+
+    triangles = vertices[faces] # (num_face, 3, 3)
+    normals = torch.linalg.cross(
+        triangles[:, 1] - triangles[:, 0],
+        triangles[:, 2] - triangles[:, 0],
+        dim=1
+    ) # (num_face , 3)
+    v0 = normals / (torch.linalg.vector_norm(normals, dim=-1, keepdim=True) + eps) # (num_face, 3)
+    means = torch.mean(triangles, dim=1) # (num_face ,3) centers of triangles
+    v1 = triangles[:, 1] - means # (num_face, 3) vectors from center to second vertex of triangles
+    v1_norm = torch.linalg.vector_norm(v1, dim=-1, keepdim=True) + eps # (num_face, 1)
+    v1 = v1 / v1_norm # (num_face , 3)
+    v2_init = triangles[:, 2] - means # (num_face, 3) vectors from center to third vertex of triangles
+    v2 = v2_init - proj(v2_init, v0) - proj(v2_init, v1) # (num_face, 3) Gram-Schmidt
+    v2 = v2 / (torch.linalg.vector_norm(v2, dim=-1, keepdim=True) + eps) # (num_face, 3)
+
+    s1 = v1_norm / 2. # (num_face , 1)
+    s2 = dot(v2_init, v2) / 2. # (num_face, 1)
+    s0 = eps * torch.ones_like(s1) # (num_face , 1)
+    scales = torch.concat((s0, s1, s2), dim=1).unsqueeze(dim=1) # (num_face, 1, 3)
+    scales = scales.broadcast_to((*alpha.shape[:2], 3)) # (num_face, num_splat, 3) scale for each gaussian sampled on mesh faces
+    scaling = torch.log(
+        torch.nn.functional.relu(scale * scales.flatten(start_dim=0, end_dim=1)) + eps
+    ) # (num_face * num_splat, 3) scale vectors for each gaussian
+
+    rotation = torch.stack((v0, v1, v2), dim=1).unsqueeze(dim=1) # (num_face, 1, 3, 3)
+    rotation = rotation.broadcast_to((*alpha.shape[:2], 3, 3)).flatten(start_dim=0, end_dim=1) # (num_face * num_splat, 3, 3) all points on the same face have same scaling and rotation.
+    rotation = rotation.transpose(-2, -1) # (num_face * num_splat, 3, 3)
+    rotation = rot_to_quat_batch(rotation) # (num_face * num_splat, 4) rotation matrix to quarternion
+
+    return scaling, rotation
+
