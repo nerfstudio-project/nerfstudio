@@ -588,6 +588,7 @@ def populate_render_tab(
         initial_value="Perspective",
         hint="Camera model to render with. This is applied to all keyframes.",
     )
+
     add_button = server.gui.add_button(
         "Add Keyframe",
         icon=viser.Icon.PLUS,
@@ -726,6 +727,98 @@ def populate_render_tab(
     def _(_) -> None:
         camera_path.show_spline = show_spline_checkbox.value
         camera_path.update_spline()
+    
+    auto_camera_folder = server.gui.add_folder("Automatic Camera Path")
+    with auto_camera_folder:
+        origin_point = np.array([-1.01697124, 0.86319059, -4.2836189])
+        select_center_button = server.gui.add_button(
+            "Select Center",
+            icon=viser.Icon.CROSSHAIR,
+            hint="Choose center point to generate camera path around.",
+        )
+        
+        @select_center_button.on_click
+        def _(event: viser.GuiEvent) -> None:
+            select_center_button.disabled = True
+
+            @event.client.scene.on_pointer_event(event_type="click")
+            def _(event: viser.ScenePointerEvent) -> None:
+                # TODO: currently buggy and selects the client's keyframe as the origin 
+                #       rather than the actual clicking location, need intersector
+                nonlocal origin_point 
+                origin_point = np.array(event.ray_origin)
+                print(origin_point)
+                server.scene.add_icosphere(
+                        f"/render_center/sphere",
+                        radius=0.1,
+                        color=(200, 10, 30),
+                        position=np.array(event.ray_origin)
+                    )
+                
+                event.client.scene.remove_pointer_callback()
+            
+            @event.client.scene.on_pointer_callback_removed
+            def _():
+                select_center_button.disabled = False
+                
+        circular_camera_path_button = server.gui.add_button(
+            "Generate Circular Camera Path",
+            icon=viser.Icon.CAMERA,
+            hint="Automatically generate a circular camera path around selected point.",
+        )
+
+        @circular_camera_path_button.on_click
+        def _(event: viser.GuiEvent) -> None:
+            nonlocal origin_point
+            num_cameras = 10
+            radius = 1
+            z_camera = 2
+            camera_coords = []
+            fov = event.client.camera.fov
+            for i in range(num_cameras):
+                camera_coords.append((radius * np.cos(2 * np.pi * i / num_cameras), radius * np.sin(2 * np.pi * i/ num_cameras)))
+            
+            def wxyz_helper(camera_position: np.ndarray) -> np.ndarray:
+                # Calculates the camera direction from position to origin_point
+                direction = camera_position - origin_point
+                direction = direction / np.linalg.norm(direction)
+
+                global_up = np.array([0.0, 0.0, 1.0])
+
+                right = np.cross(global_up, direction)
+                right_norm = np.linalg.norm(right)
+                if right_norm > 0:
+                    right = right / right_norm
+
+                    up = np.cross(right, direction)
+
+                    R = np.array([right, up, -direction]).T
+
+                    w = np.sqrt(1 + R[0, 0] + R[1, 1] + R[2, 2]) / 2
+                    x = (R[2, 1] - R[1, 2]) / (4 * w)
+                    y = (R[0, 2] - R[2, 0]) / (4 * w)
+                    z = (R[1, 0] - R[0, 1]) / (4 * w)
+                    return np.array([w, x, y, z])
+                else:
+                    return np.array([1.0, 0.0, 0.0, 0.0])
+            
+            for i, item in enumerate(camera_coords):
+                position = origin_point + np.array([item[0], item[1], z_camera])
+                camera_path.add_camera(
+                    keyframe=Keyframe(
+                        position=position,
+                        wxyz=wxyz_helper(position),
+                        override_fov_enabled=False,
+                        override_fov_rad=fov,
+                        override_time_enabled=False,
+                        override_time_val=0.0,
+                        aspect=resolution.value[0] / resolution.value[1],
+                        override_transition_enabled=False,
+                        override_transition_sec=None,
+                    )
+                )
+                duration_number.value = camera_path.compute_duration()
+                camera_path.update_spline()
 
     playback_folder = server.gui.add_folder("Playback")
     with playback_folder:

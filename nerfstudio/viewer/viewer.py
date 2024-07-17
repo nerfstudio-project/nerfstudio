@@ -200,6 +200,7 @@ class Viewer:
                 default_composite_depth=self.config.default_composite_depth,
             )
         config_path = self.log_filename.parents[0] / "config.yml"
+
         with tabs.add_tab("Render", viser.Icon.CAMERA):
             self.render_tab_state = populate_render_tab(
                 self.viser_server, config_path, self.datapath, self.control_panel
