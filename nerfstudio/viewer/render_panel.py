@@ -753,15 +753,15 @@ def populate_render_tab(
                 origin = torch.tensor(event.ray_origin).view(1, 3)
                 direction = torch.tensor(event.ray_direction).view(1, 3)
 
-                # get intersection
+                # Get intersection
                 bundle = RayBundle(
-                    origin,
-                    direction,
-                    torch.tensor(0.001).view(1, 1),
+                    origins=origin,
+                    directions=direction,
+                    pixel_area=torch.tensor(0.001).view(1, 1),
+                    camera_indices=torch.tensor(0).view(1, 1),
                     nears=torch.tensor(0.05).view(1, 1),
                     fars=torch.tensor(100).view(1, 1),
-                    camera_indices=torch.tensor(0).view(1, 1),
-                ).to(torch.device)
+                ).to("cuda")
 
                 # Get the distance/depth to the intersection --> calculate 3D position of the click
                 ray_samples, _, _ = viewer_model.proposal_sampler(bundle, density_fns=viewer_model.density_fns)
@@ -774,7 +774,7 @@ def populate_render_tab(
                 distance = depth[0, 0].detach().cpu().numpy()
 
                 nonlocal click_position 
-                click_position = np.array(origin + direction * distance) * VISER_NERFSTUDIO_SCALE_RATIO
+                click_position = np.array(origin + direction * distance).reshape(3,) * VISER_NERFSTUDIO_SCALE_RATIO
 
                 server.scene.add_icosphere(
                         f"/render_center/sphere",
@@ -788,7 +788,25 @@ def populate_render_tab(
             @event.client.scene.on_pointer_callback_removed
             def _():
                 select_center_button.disabled = False
-                
+        
+        num_cameras_handle = server.gui.add_number(
+            label="Number of Cameras",
+            initial_value=10,
+            hint="Total number of cameras generated in path, placed equidistant from neighboring ones.",
+        )
+
+        radius_handle = server.gui.add_number(
+            label="Radius",
+            initial_value=2,
+            hint="Radius of circular camera path.",
+        )
+
+        camera_height_handle = server.gui.add_number(
+            label="Height",
+            initial_value=2,
+            hint="Height of cameras with respect to chosen origin.",
+        )
+
         circular_camera_path_button = server.gui.add_button(
             "Generate Circular Camera Path",
             icon=viser.Icon.CAMERA,
@@ -797,12 +815,12 @@ def populate_render_tab(
 
         @circular_camera_path_button.on_click
         def _(event: viser.GuiEvent) -> None:
-            nonlocal click_position
-            num_cameras = 10
-            radius = 5
-            z_camera = 5
+            nonlocal click_position, num_cameras_handle, radius_handle, camera_height_handle
+            num_cameras = num_cameras_handle.value
+            radius = radius_handle.value
+            camera_height = camera_height_handle.value
+
             camera_coords = []
-            fov = event.client.camera.fov
             for i in range(num_cameras):
                 camera_coords.append((radius * np.cos(2 * np.pi * i / num_cameras), radius * np.sin(2 * np.pi * i/ num_cameras)))
             
@@ -821,7 +839,7 @@ def populate_render_tab(
                     camera_up = np.cross(camera_right, camera_direction)
 
                     R = np.array([camera_right, camera_up, -camera_direction]).T
-                 
+
                     w = np.sqrt(1 + R[0, 0] + R[1, 1] + R[2, 2]) / 2
                     x = (R[2, 1] - R[1, 2]) / (4 * w)
                     y = (R[0, 2] - R[2, 0]) / (4 * w)
@@ -830,8 +848,9 @@ def populate_render_tab(
                 else:
                     return np.array([1.0, 0.0, 0.0, 0.0])
             
+            fov = event.client.camera.fov
             for i, item in enumerate(camera_coords):
-                position = click_position + np.array([item[0], item[1], z_camera])
+                position = click_position + np.array([item[0], item[1], camera_height])
                 camera_path.add_camera(
                     keyframe=Keyframe(
                         position=position,
