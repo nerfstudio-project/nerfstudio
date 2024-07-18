@@ -77,7 +77,7 @@ def color_affine_transform(affine_mats, rgb):
 
 
 def _num_tensor_elems(t):
-    return max(torch.prod(torch.tensor(t.size()[1:]).float()), 1.0)
+    return max(torch.prod(torch.tensor(t.size()[1:]).float()).item(), 1.0)
 
 
 def total_variation_loss(x):  # noqa: F811
@@ -460,7 +460,7 @@ class BilateralGridCP4D(nn.Module):
         rgb = rgb.reshape(-1, 3)  # flatten (N, 3)
 
         xyz = xyz / self.bound
-
+        assert self.rgb2gray is not None
         gray = self.rgb2gray(rgb)
         xyzw = torch.cat([xyz, gray], dim=-1)  # (N, 4)
         xyzw = xyzw.transpose(0, 1)  # (4, N)
@@ -473,6 +473,6 @@ class BilateralGridCP4D(nn.Module):
             coef = coef * F.grid_sample(
                 fac, coords[[i - 1]], align_corners=True, padding_mode="border"
             )  # [1, rank, 1, N]
-        coef = coef.squeeze([0, 2]).transpose(0, 1)  # (N, rank)
+        coef = coef.squeeze([0, 2]).transpose(0, 1)  # (N, rank) #type: ignore
         mat = self.fac_0(coef)
         return mat.reshape(*sh_[:-1], 3, 4)
