@@ -687,11 +687,11 @@ class SplatfactoModel(Model):
         return background
 
     def get_outputs(self, camera: Cameras) -> Dict[str, Union[torch.Tensor, List]]:
-        """Takes in a Ray Bundle and returns a dictionary of outputs.
+        """Takes in a camera and returns a dictionary of outputs.
 
         Args:
-            ray_bundle: Input bundle of rays. This raybundle should have all the
-            needed information to compute the outputs.
+            camera: The camera(s) for which output images are rendered. It should have
+            all the needed information to compute the outputs.
 
         Returns:
             Outputs of model. (ie. rendered colors)
@@ -754,7 +754,7 @@ class SplatfactoModel(Model):
         if self.config.sh_degree > 0:
             sh_degree_to_use = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
         else:
-            colors_crop = torch.sigmoid(colors_crop)
+            colors_crop = torch.sigmoid(colors_crop).squeeze(1)  # [N, 1, 3] -> [N, 3]
             sh_degree_to_use = None
 
         render, alpha, info = rasterization(

@@ -4,6 +4,7 @@ This is the implementation of [Splatfacto in the Wild: A Nerfstudio Implementati
 
 <video id="teaser" muted autoplay playsinline loop controls width="100%">
     <source id="mp4" src="https://github.com/KevinXu02/splatfactow/blob/main/static/videos/interp_fountain2.mp4" type="video/mp4">
+
 </video>
 
 ## Installation
@@ -37,6 +38,7 @@ To train with it, download the train/test tsv file from the bottom of [nerf-w](h
 |   |   |---stereo
 |   |---brandenburg.tsv
 ```
+
 Then, run the command:
 ```
 ns-train splatfacto-w --data [PATH]
