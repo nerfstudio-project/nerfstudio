@@ -40,6 +40,7 @@ from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
+from nerfstudio.model_components.lib_bilagrid import BilateralGrid, slice, total_variation_loss
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.misc import torch_compile
@@ -184,6 +185,10 @@ class SplatfactoModelConfig(ModelConfig):
     """
     camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="off"))
     """Config of the camera optimizer to use"""
+    use_bilateral_grid: bool = True
+    """If True, use bilateral grid to handle the ISP changes in the image space"""
+    gird_shape: Tuple[int, int, int] = (16, 16, 8)
+    """Shape of the bilateral grid (X, Y, W)"""
 
 
 class SplatfactoModel(Model):
@@ -271,6 +276,13 @@ class SplatfactoModel(Model):
             )  # This color is the same as the default background color in Viser. This would only affect the background color when rendering.
         else:
             self.background_color = get_color(self.config.background_color)
+        if self.config.use_bilateral_grid:
+            self.bil_grids = BilateralGrid(
+                num=self.num_train_data,
+                grid_X=self.config.gird_shape[0],
+                grid_Y=self.config.gird_shape[1],
+                grid_W=self.config.gird_shape[2],
+            )
 
     @property
     def colors(self):
@@ -647,6 +659,8 @@ class SplatfactoModel(Model):
             Mapping of different parameter groups
         """
         gps = self.get_gaussian_param_groups()
+        if self.config.use_bilateral_grid:
+            gps["bilateral_grid"] = list(self.bil_grids.parameters())
         self.camera_optimizer.get_param_groups(param_groups=gps)
         return gps
 
@@ -685,6 +699,27 @@ class SplatfactoModel(Model):
         else:
             raise ValueError(f"Unknown background color {self.config.background_color}")
         return background
+
+    def _apply_bilateral_grid(self, rgb: torch.Tensor, cam_idx: int, H: int, W: int) -> torch.Tensor:
+        if cam_idx != 0:
+            # make xy grid
+            grid_y, grid_x = torch.meshgrid(
+                torch.linspace(0, 1.0, H),
+                torch.linspace(0, 1.0, W),
+                indexing="ij",
+            )
+            grid_xy = torch.stack([grid_x, grid_y], dim=-1).unsqueeze(0).to(self.device)
+
+            out = slice(
+                bil_grids=self.bil_grids,
+                rgb=rgb,
+                xy=grid_xy,
+                grid_idx=torch.tensor(cam_idx, device=self.device, dtype=torch.long),
+            )
+            return out["rgb"]
+        else:
+            # do not apply bilateral grid to the first camera
+            return rgb
 
     def get_outputs(self, camera: Cameras) -> Dict[str, Union[torch.Tensor, List]]:
         """Takes in a camera and returns a dictionary of outputs.
@@ -789,6 +824,11 @@ class SplatfactoModel(Model):
         rgb = render[:, ..., :3] + (1 - alpha) * background
         rgb = torch.clamp(rgb, 0.0, 1.0)
 
+        # apply bilateral grid
+        if self.config.use_bilateral_grid and self.training:
+            if camera.metadata is not None and "cam_idx" in camera.metadata:
+                rgb = self._apply_bilateral_grid(rgb, camera.metadata["cam_idx"], H, W)
+
         if render_mode == "RGB+ED":
             depth_im = render[:, ..., 3:4]
             depth_im = torch.where(alpha > 0, depth_im, depth_im.detach().max()).squeeze(0)
@@ -890,6 +930,8 @@ class SplatfactoModel(Model):
         if self.training:
             # Add loss from camera optimizer
             self.camera_optimizer.get_loss_dict(loss_dict)
+            if self.config.use_bilateral_grid:
+                loss_dict["tv_loss"] = 10 * total_variation_loss(self.bil_grids.grids)
 
         return loss_dict
 
