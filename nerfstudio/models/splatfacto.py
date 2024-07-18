@@ -701,25 +701,21 @@ class SplatfactoModel(Model):
         return background
 
     def _apply_bilateral_grid(self, rgb: torch.Tensor, cam_idx: int, H: int, W: int) -> torch.Tensor:
-        if cam_idx != 0:
-            # make xy grid
-            grid_y, grid_x = torch.meshgrid(
-                torch.linspace(0, 1.0, H),
-                torch.linspace(0, 1.0, W),
-                indexing="ij",
-            )
-            grid_xy = torch.stack([grid_x, grid_y], dim=-1).unsqueeze(0).to(self.device)
+        # make xy grid
+        grid_y, grid_x = torch.meshgrid(
+            torch.linspace(0, 1.0, H),
+            torch.linspace(0, 1.0, W),
+            indexing="ij",
+        )
+        grid_xy = torch.stack([grid_x, grid_y], dim=-1).unsqueeze(0).to(self.device)
 
-            out = slice(
-                bil_grids=self.bil_grids,
-                rgb=rgb,
-                xy=grid_xy,
-                grid_idx=torch.tensor(cam_idx, device=self.device, dtype=torch.long),
-            )
-            return out["rgb"]
-        else:
-            # do not apply bilateral grid to the first camera
-            return rgb
+        out = slice(
+            bil_grids=self.bil_grids,
+            rgb=rgb,
+            xy=grid_xy,
+            grid_idx=torch.tensor(cam_idx, device=self.device, dtype=torch.long),
+        )
+        return out["rgb"]
 
     def get_outputs(self, camera: Cameras) -> Dict[str, Union[torch.Tensor, List]]:
         """Takes in a camera and returns a dictionary of outputs.
