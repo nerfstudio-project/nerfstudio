@@ -45,7 +45,6 @@ Below is the API reference.
 
 """
 
-import numpy as np
 import tensorly as tl
 import torch
 import torch.nn.functional as F
