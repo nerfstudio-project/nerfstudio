@@ -185,7 +185,7 @@ class SplatfactoModelConfig(ModelConfig):
     """
     camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="off"))
     """Config of the camera optimizer to use"""
-    use_bilateral_grid: bool = True
+    use_bilateral_grid: bool = False
     """If True, use bilateral grid to handle the ISP changes in the image space"""
     gird_shape: Tuple[int, int, int] = (16, 16, 8)
     """Shape of the bilateral grid (X, Y, W)"""
