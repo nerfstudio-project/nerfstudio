@@ -18,6 +18,7 @@ Dataset.
 from __future__ import annotations
 
 from copy import deepcopy
+import io
 from pathlib import Path
 from typing import Dict, List, Literal
 
@@ -45,7 +46,7 @@ class InputDataset(Dataset):
     exclude_batch_keys_from_device: List[str] = ["image", "mask"]
     cameras: Cameras
 
-    def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0):
+    def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0, cache_images: bool = True):
         super().__init__()
         self._dataparser_outputs = dataparser_outputs
         self.scale_factor = scale_factor
@@ -54,6 +55,13 @@ class InputDataset(Dataset):
         self.cameras = deepcopy(dataparser_outputs.cameras)
         self.cameras.rescale_output_resolution(scaling_factor=scale_factor)
         self.mask_color = dataparser_outputs.metadata.get("mask_color", None)
+        self.cache_images = cache_images
+        """If cache_images == True, cache all the image files into RAM in their compressed form (not as tensors yet)"""
+        if cache_images:
+            self.binary_images = []
+            for image_filename in self._dataparser_outputs.image_filenames:
+                with open(image_filename, 'rb') as f:
+                    self.binary_images.append(io.BytesIO(f.read()))
 
     def __len__(self):
         return len(self._dataparser_outputs.image_filenames)
@@ -65,7 +73,10 @@ class InputDataset(Dataset):
             image_idx: The image index in the dataset.
         """
         image_filename = self._dataparser_outputs.image_filenames[image_idx]
-        pil_image = Image.open(image_filename)
+        if self.cache_images:
+            pil_image = Image.open(self.binary_images[image_idx])
+        else:
+            pil_image = Image.open(image_filename)
         if self.scale_factor != 1.0:
             width, height = pil_image.size
             newsize = (int(width * self.scale_factor), int(height * self.scale_factor))
@@ -159,3 +170,4 @@ class InputDataset(Dataset):
         """
 
         return self._dataparser_outputs.image_filenames
+    
