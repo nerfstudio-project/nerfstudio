@@ -454,7 +454,7 @@ class ColmapDataParser(DataParser):
                 faces=faces,
                 triangles=triangles.cuda()
             )
-        
+
         points3D = None
         if (colmap_path / "points3D.bin").exists():
             colmap_points = colmap_utils.read_points3D_binary(colmap_path / "points3D.bin")

@@ -217,7 +217,7 @@ class SplatfactoModel(Model):
 
 
     def populate_modules(self):
-        if self.config.use_mesh_initialization:
+        if self.config.use_mesh_initialization and len(self.seed_points) == 3:
             pcd = self.seed_points[2]
             if pcd is None:
                 raise ValueError("Trying to use_mesh_initialization, scene.obj must be under sparse/0 folder")
