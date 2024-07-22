@@ -206,10 +206,64 @@ Once you have a NeRF model you can either render out a video or export a point c
 
 First we must create a path for the camera to follow. This can be done in the viewer under the "RENDER" tab. Orient your 3D view to the location where you wish the video to start, then press "ADD CAMERA". This will set the first camera key frame. Continue to new viewpoints adding additional cameras to create the camera path. We provide other parameters to further refine your camera path. Once satisfied, press "RENDER" which will display a modal that contains the command needed to render the video. Kill the training job (or create a new terminal if you have lots of compute) and run the command to generate the video.
 
-Other video export options are available, learn more by running
+```bash
+ns-render -h
+```
+
+### Evaluate Dataset
+
+To get the evaluation metrics and rendered images of the model trained on your dataset, run the command:
 
 ```bash
-ns-render --help
+sh ./scripts/eval.sh config_path split_set
+
+# options for split set (train / val / test / train+test)
+```
+#### Metric results
+
+Evalution metric results will be saved in a json file `output.json` in same directory as config path. The format will be like:
+
+```bash
+{
+  "experiment_name": "tw_home",
+  "method_name": "splatfacto",
+  "checkpoint": "outputs/tw_home/splatfacto/2024-07-16_085127/nerfstudio_models/step-000022000.ckpt",
+  "results": {
+    "psnr": 20.730777740478516,
+    "psnr_std": 2.625908374786377,
+    "ssim": 0.7873774766921997,
+    "ssim_std": 0.07671754062175751,
+    "lpips": 0.2454366683959961,
+    "lpips_std": 0.13704800605773926,
+    "num_rays_per_sec": 1306289.75,
+    "num_rays_per_sec_std": 310649.4375,
+    "fps": 1.475905179977417,
+    "fps_std": 0.3509857654571533
+  }
+}
+```
+
+#### Rendered results
+
+Rendered images will be saved in a folder `render` in the same directory as config path. The file structure is like:
+
+```bash
+your_config_path_dir/render/
+├── train                                
+│   ├── accumulation                            
+│   │   ├── frame_000002.jpg                           
+│   │   ├── frame_000003.jpg       
+│   │   ├── frame_000004.jpg
+│   │   └── ...
+│   ├── background   
+│   ├── depth
+│   ├── gt-rgb
+│   ├── rgb
+├── test # same format as train, for training data
+├── eval # rendered images for evaluation split set
+│   ├── eval_img_0000.png
+│   ├── eval_img_0001.png
+│   └── ...
 ```
 
 ### Generate Point Cloud
