@@ -1,4 +1,4 @@
-# This part of code was borrowed form ["Bilateral Guided Radiance Field Processing"](https://bilarfpro.github.io/).
+# This part of code is borrowed form ["Bilateral Guided Radiance Field Processing"](https://bilarfpro.github.io/).
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
