@@ -332,7 +332,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         return {}
 
     def get_train_rays_per_batch(self):
-        """Returns resolution of the image being rendered."""
+        """Returns resolution of the image returned from datamanager."""
         if len(self.cached_train) != 0:
             h = self.cached_train[0]["image"].shape[0]
             w = self.cached_train[0]["image"].shape[1]
