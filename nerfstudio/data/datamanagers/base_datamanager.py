@@ -317,9 +317,9 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """Specifies the dataparser used to unpack the data."""
     train_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per training iteration."""
-    train_num_images_to_sample_from: int = -1 # usually -1
+    train_num_images_to_sample_from: int = 100 # usually -1
     """Number of images to sample during training iteration."""
-    train_num_times_to_repeat_images: int = -1 # usually -1
+    train_num_times_to_repeat_images: int = 5 # usually -1
     """When not training on all images, number of iterations before picking new
     images. If -1, never pick new images."""
     eval_num_rays_per_batch: int = 1024
@@ -342,10 +342,10 @@ class VanillaDataManagerConfig(DataManagerConfig):
     prefetch_factor: int = 2
     """The limit number of batches a worker will start loading once an iterator is created. 
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
-    dataloader_num_workers: int = 1
+    dataloader_num_workers: int = 4
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes collating, pixel sampling, unprojecting, ray generation etc."""
-    use_ray_train_dataloader: bool = False
+    use_ray_train_dataloader: bool = True
     """Allows parallelization of the dataloading process with multiple workers."""
 
     # tyro.conf.Suppress prevents us from creating CLI arguments for this field.
@@ -384,6 +384,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         input_dataset: Dataset,
         datamanager_config: DataManagerConfig,
         num_images_to_sample_from: int = -1,  # passed in from VanillaDataManager
+        num_times_to_repeat_images: int = -1, # passed in from VanillaDataManager
         device: Union[torch.device, str] = "cpu",
         collate_fn: Callable[[Any], Any] = nerfstudio_collate,
         exclude_batch_keys_from_device: Optional[List[str]] = None,
@@ -400,6 +401,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         """If True, cache all images to RAM as a collated"""
         # self.num_images_to_sample_from = len(self.dataset) if self.cache_all_images else num_images_to_sample_from
         self.num_images_to_sample_from = num_images_to_sample_from
+        self.num_times_to_repeat_images = num_times_to_repeat_images
         self.device = device
         self.collate_fn = collate_fn
         self.num_image_load_threads = num_image_load_threads  # kwargs.get("num_workers", 4) # nb only 4 in defaults
@@ -526,10 +528,13 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             self.ray_generator = RayGenerator(self.input_dataset.cameras)#.to(self.device))
         i = 0
         while True:
-            if i % 5 == 0:
+            if i % self.num_times_to_repeat_images == 0:
                 r.shuffle(worker_indices)
-                image_indices = worker_indices[:self.num_images_to_sample_from] # get a total of 'num_images_to_sample_from' image indices 
-                
+                 # get a total of 'num_images_to_sample_from' image indices, if self.num_images_to_sample_from 
+                if self.num_images_to_sample_from == -1:
+                    image_indices = worker_indices
+                else:
+                    image_indices = worker_indices[:self.num_images_to_sample_from]
                 # self._get_collated_batch is slow because it is going to disk to retreive an image many times to create a batch of images.
                 collated_batch = self._get_collated_batch(image_indices)
             i += 1
@@ -687,6 +692,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
                 input_dataset=self.train_dataset,
                 datamanager_config=self.config,
                 num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+                num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
                 device=self.device,
                 collate_fn=self.config.collate_fn,
             )
@@ -699,7 +705,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
                 pin_memory=False,
                 # Our dataset does batching / collation
                 collate_fn=identity,
-                # pin_memory_device=self.device, # did not actually speed up my implementation
+                pin_memory_device=self.device, # did not actually speed up my implementation
             )
             self.iter_train_image_dataloader = None
             self.iter_train_raybundles = iter(self.ray_dataloader)

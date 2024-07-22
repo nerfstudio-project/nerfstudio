@@ -59,9 +59,13 @@ class InputDataset(Dataset):
         """If cache_images == True, cache all the image files into RAM in their compressed form (not as tensors yet)"""
         if cache_images:
             self.binary_images = []
+            self.binary_masks = []
             for image_filename in self._dataparser_outputs.image_filenames:
                 with open(image_filename, 'rb') as f:
                     self.binary_images.append(io.BytesIO(f.read()))
+            for mask_filename in self._dataparser_outputs.mask_filenames:
+                with open(mask_filename, 'rb') as f:
+                    self.binary_masks.append(io.BytesIO(f.read()))
 
     def __len__(self):
         return len(self._dataparser_outputs.image_filenames)
@@ -136,7 +140,10 @@ class InputDataset(Dataset):
 
         data = {"image_idx": image_idx, "image": image}
         if self._dataparser_outputs.mask_filenames is not None:
-            mask_filepath = self._dataparser_outputs.mask_filenames[image_idx]
+            if self.cache_images:
+                mask_filepath = self.binary_masks[image_idx]
+            else:
+                mask_filepath = self._dataparser_outputs.mask_filenames[image_idx]
             data["mask"] = get_image_mask_tensor_from_path(filepath=mask_filepath, scale_factor=self.scale_factor)
             assert (
                 data["mask"].shape[:2] == data["image"].shape[:2]

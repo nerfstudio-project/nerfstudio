@@ -14,7 +14,7 @@
 
 """Utility functions to allow easy re-use of common operations across dataloaders"""
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, IO
 
 import cv2
 import numpy as np
@@ -22,7 +22,7 @@ import torch
 from PIL import Image
 
 
-def get_image_mask_tensor_from_path(filepath: Path, scale_factor: float = 1.0) -> torch.Tensor:
+def get_image_mask_tensor_from_path(filepath: Union[Path, IO[bytes]], scale_factor: float = 1.0) -> torch.Tensor:
     """
     Utility function to read a mask image from the given path and return a boolean tensor
     """
