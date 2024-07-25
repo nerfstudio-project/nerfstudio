@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 import contextlib
-import threading
-import time
+import threading, base64
+import time, io
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Literal, Optional
 
@@ -27,7 +27,12 @@ import torch
 import viser
 import viser.theme
 import viser.transforms as vtf
+import cv2
+
+from torchvision import transforms
+from PIL import Image
 from typing_extensions import assert_never
+from ultralytics import YOLO 
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.cameras.cameras import CameraType
@@ -38,6 +43,7 @@ from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
+from nerfstudio.viewer.utils import get_camera
 from nerfstudio.viewer.control_panel import ControlPanel
 from nerfstudio.viewer.export_panel import populate_export_tab
 from nerfstudio.viewer.render_panel import populate_render_tab
@@ -92,6 +98,7 @@ class Viewer:
         self.log_filename = log_filename
         self.datapath = datapath.parent if datapath.is_file() else datapath
         self.include_time = self.pipeline.datamanager.includes_time
+        
 
         if self.config.websocket_port is None:
             websocket_port = viewer_utils.get_free_port(default_port=self.config.websocket_port_default)
@@ -106,8 +113,6 @@ class Viewer:
         self.train_btn_state: Literal["training", "paused", "completed"] = "training"
         self._prev_train_state: Literal["training", "paused", "completed"] = "training"
         self.last_move_time = 0
-        # track the camera index that last being clicked
-        self.current_camera_idx = 0
 
         self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
         # Set the name of the URL either to the share link if available, or the localhost
@@ -152,7 +157,7 @@ class Viewer:
             href="https://docs.nerf.studio/",
         )
         titlebar_theme = viser.theme.TitlebarConfig(buttons=buttons, image=image)
-        self.viser_server.gui.configure_theme(
+        self.viser_server.configure_theme(
             titlebar_content=titlebar_theme,
             control_layout="collapsible",
             dark_mode=True,
@@ -163,33 +168,53 @@ class Viewer:
         self.viser_server.on_client_disconnect(self.handle_disconnect)
         self.viser_server.on_client_connect(self.handle_new_client)
 
+        # Start object detection module --------------------------------------------------------
+        self.object_detection = ObjectDetection()
+        self.object_detection_mode = False  # Closed initially
+
+        # New Object Detecion Button
+        self.start_object_detection = self.viser_server.add_gui_button(
+            label="Toggle Object Detection", disabled=False, icon=viser.Icon.PLAYER_PLAY_FILLED
+        )
+        self.start_object_detection.on_click(lambda _: self.toggle_object_detection_mode())
+        self.start_object_detection.on_click(lambda _: self._toggle_od_visible())
+        self.stop_object_detection = self.viser_server.add_gui_button(
+            label="Toggle Object Detection", disabled=False, icon=viser.Icon.PLAYER_PAUSE_FILLED
+        )
+        self.stop_object_detection.on_click(lambda _: self.toggle_object_detection_mode())
+        self.stop_object_detection.on_click(lambda _: self._toggle_od_visible())
+        self.stop_object_detection.visible = False
+
         # Populate the header, which includes the pause button, train cam button, and stats
-        self.pause_train = self.viser_server.gui.add_button(
+        self.pause_train = self.viser_server.add_gui_button(
             label="Pause Training", disabled=False, icon=viser.Icon.PLAYER_PAUSE_FILLED
         )
         self.pause_train.on_click(lambda _: self.toggle_pause_button())
         self.pause_train.on_click(lambda han: self._toggle_training_state(han))
-        self.resume_train = self.viser_server.gui.add_button(
+        self.resume_train = self.viser_server.add_gui_button(
             label="Resume Training", disabled=False, icon=viser.Icon.PLAYER_PLAY_FILLED
         )
         self.resume_train.on_click(lambda _: self.toggle_pause_button())
         self.resume_train.on_click(lambda han: self._toggle_training_state(han))
         self.resume_train.visible = False
+
+        ###------------------------------------------------------------------------
+
         # Add buttons to toggle training image visibility
-        self.hide_images = self.viser_server.gui.add_button(
+        self.hide_images = self.viser_server.add_gui_button(
             label="Hide Train Cams", disabled=False, icon=viser.Icon.EYE_OFF, color=None
         )
         self.hide_images.on_click(lambda _: self.set_camera_visibility(False))
         self.hide_images.on_click(lambda _: self.toggle_cameravis_button())
-        self.show_images = self.viser_server.gui.add_button(
+        self.show_images = self.viser_server.add_gui_button(
             label="Show Train Cams", disabled=False, icon=viser.Icon.EYE, color=None
         )
         self.show_images.on_click(lambda _: self.set_camera_visibility(True))
         self.show_images.on_click(lambda _: self.toggle_cameravis_button())
         self.show_images.visible = False
         mkdown = self.make_stats_markdown(0, "0x0px")
-        self.stats_markdown = self.viser_server.gui.add_markdown(mkdown)
-        tabs = self.viser_server.gui.add_tab_group()
+        self.stats_markdown = self.viser_server.add_gui_markdown(mkdown)
+        tabs = self.viser_server.add_gui_tab_group()
         control_tab = tabs.add_tab("Control", viser.Icon.SETTINGS)
         with control_tab:
             self.control_panel = ControlPanel(
@@ -244,7 +269,7 @@ class Viewer:
                 # Otherwise, use the existing folder as context manager.
                 folder_path = "/".join(prev_labels + [folder_labels[0]])
                 if folder_path not in viewer_gui_folders:
-                    viewer_gui_folders[folder_path] = self.viser_server.gui.add_folder(folder_labels[0])
+                    viewer_gui_folders[folder_path] = self.viser_server.add_gui_folder(folder_labels[0])
                 with viewer_gui_folders[folder_path]:
                     nested_folder_install(folder_labels[1:], prev_labels + [folder_labels[0]], element)
 
@@ -274,7 +299,7 @@ class Viewer:
         # Diagnostics for Gaussian Splatting: where the points are at the start of training.
         # This is hidden by default, it can be shown from the Viser UI's scene tree table.
         if isinstance(pipeline.model, SplatfactoModel):
-            self.viser_server.scene.add_point_cloud(
+            self.viser_server.add_point_cloud(
                 "/gaussian_splatting_initial_points",
                 points=pipeline.model.means.numpy(force=True) * VISER_NERFSTUDIO_SCALE_RATIO,
                 colors=(255, 0, 0),
@@ -307,6 +332,9 @@ class Viewer:
         """
         self.stats_markdown.content = self.make_stats_markdown(step, None)
 
+    def toggle_object_detection_mode(self):
+        self.object_detection_mode = not self.object_detection_mode
+
     def get_camera_state(self, client: viser.ClientHandle) -> CameraState:
         R = vtf.SO3(wxyz=client.camera.wxyz)
         R = R @ vtf.SO3.from_x_radians(np.pi)
@@ -327,7 +355,6 @@ class Viewer:
                 else CameraType.EQUIRECTANGULAR
                 if camera_type == "Equirectangular"
                 else assert_never(camera_type),
-                idx=self.current_camera_idx,
             )
         else:
             camera_state = CameraState(
@@ -335,9 +362,71 @@ class Viewer:
                 aspect=client.camera.aspect,
                 c2w=c2w,
                 camera_type=CameraType.PERSPECTIVE,
-                idx=self.current_camera_idx,
             )
+        # To make object detection, object detection mode flag
+        if self.object_detection_mode:
+
+            frame = self.capture_frame(camera_state)
+            detections = self.object_detection.detect_objects(frame)
+            self.update_viewer_with_annotated_frame(detections, frame, client.camera.wxyz, pos)
+
         return camera_state
+
+    def capture_frame(self, camera_state):
+        camera = get_camera(camera_state, image_height=480, image_width=640)
+        
+        # To get image
+        outputs = self.pipeline.model.get_outputs_for_camera(camera)
+        
+        image = outputs["rgb"]  
+        return image
+
+    def update_viewer_with_annotated_frame(self, detections, frame, wxyz, pos):
+        """Annotate the frame with detection boxes and update the viewer."""
+
+        frame_rgb_flipped = frame.detach().cpu().numpy()
+        
+        # Draw detections on the image
+        for detection in detections:
+            x_min = int(detection['xmin'])
+            y_min = int(detection['ymin'])
+            x_max = int(detection['xmax'])
+            y_max = int(detection['ymax'])
+            confidence = detection['confidence']
+            class_id = detection['class']
+            
+            cv2.rectangle(frame_rgb_flipped, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+            
+            # Draw Label if needed
+            #label = f"Class {class_id} ({confidence:.2f})"
+            #cv2.putText(frame_rgb_flipped, label, (x_min, y_min - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        
+            # Ensure the image is in uint8 format
+            """if frame_rgb_flipped.dtype != np.uint8:
+                frame_rgb_flipped = frame_rgb_flipped.astype(np.uint8)"""
+            
+            # Use the NumPy array
+            try:
+                imagea = (frame_rgb_flipped * 255).astype(np.uint8)
+                image2save = imagea[:,:,::-1]
+                # image2save = image2save[::-1,::-1,::-1]
+                cv2.imwrite("image.png", image2save)
+                # Could be closed, I think necessary for real time image embedding 
+                self.annotated_image = self.viser_server.add_image(
+                    'Annotated Frame',
+                    frame_rgb_flipped,  
+                    frame_rgb_flipped.shape[1],  # width
+                    frame_rgb_flipped.shape[0],  # height
+                    format='jpeg',  
+                    jpeg_quality=90,  
+                    wxyz = wxyz,
+                    position = pos,
+                    visible=True
+                )
+            except Exception as e:
+                print(f"Exception: {e}")
+            
+            self.viser_server.flush()
 
     def handle_disconnect(self, client: viser.ClientHandle) -> None:
         self.render_statemachines[client.client_id].running = False
@@ -403,6 +492,11 @@ class Viewer:
             elif self.trainer.training_state == "paused":
                 self.trainer.training_state = "training"
 
+    def _toggle_od_visible(self) -> None:
+        """Toggle the object detection's visibility."""
+        self.stop_object_detection.visible = not self.stop_object_detection.visible
+        self.start_object_detection.visible = not self.start_object_detection.visible
+
     def _output_type_change(self, _):
         self.output_type_changed = True
 
@@ -456,7 +550,7 @@ class Viewer:
             c2w = camera.camera_to_worlds.cpu().numpy()
             R = vtf.SO3.from_matrix(c2w[:3, :3])
             R = R @ vtf.SO3.from_x_radians(np.pi)
-            camera_handle = self.viser_server.scene.add_camera_frustum(
+            camera_handle = self.viser_server.add_camera_frustum(
                 name=f"/cameras/camera_{idx:05d}",
                 fov=float(2 * np.arctan(camera.cx / camera.fx[0])),
                 scale=self.config.camera_frustum_scale,
@@ -466,16 +560,11 @@ class Viewer:
                 position=c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO,
             )
 
-            def create_on_click_callback(capture_idx):
-                def on_click_callback(event: viser.SceneNodePointerEvent[viser.CameraFrustumHandle]) -> None:
-                    with event.client.atomic():
-                        event.client.camera.position = event.target.position
-                        event.client.camera.wxyz = event.target.wxyz
-                        self.current_camera_idx = capture_idx
-
-                return on_click_callback
-
-            camera_handle.on_click(create_on_click_callback(idx))
+            @camera_handle.on_click
+            def _(event: viser.SceneNodePointerEvent[viser.CameraFrustumHandle]) -> None:
+                with event.client.atomic():
+                    event.client.camera.position = event.target.position
+                    event.client.camera.wxyz = event.target.wxyz
 
             self.camera_handles[idx] = camera_handle
             self.original_c2w[idx] = c2w
@@ -552,3 +641,46 @@ class Viewer:
     def training_complete(self) -> None:
         """Called when training is complete."""
         self.training_state = "completed"
+
+
+# Actual class that implements object detection
+class ObjectDetection:
+    def __init__(self, model_name='yolov8m.pt'):
+        # Load the YOLOv8 model
+        self.model = YOLO(model_name)
+        self.transform = transforms.Compose([
+            transforms.ToTensor(),
+        ])
+
+    def detect_objects(self, image):
+        # Convert image to numpy array
+        image_np = image.cpu().numpy()
+        
+        # NumPy array to uint8 format 
+        image_np = (image_np * 255).astype(np.uint8)
+        # NumPy array PIL format 
+        image_pil = Image.fromarray(image_np)
+        
+        # Perform detection 
+        results = self.model(image_pil)
+        
+        # Extract results
+        detections = []
+        for result in results:
+            boxes = result.boxes
+            for i in range(len(boxes.xyxy)):
+                x_min, y_min, x_max, y_max = boxes.xyxy[i].tolist()
+                confidence = boxes.conf[i].item()
+                class_id = boxes.cls[i].item()
+                detections.append({
+                    "xmin": x_min,
+                    "ymin": y_min,
+                    "xmax": x_max,
+                    "ymax": y_max,
+                    "confidence": confidence,
+                    "class": class_id,
+                })
+
+        return detections
+
+
