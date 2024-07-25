@@ -78,7 +78,7 @@ conda install -c "nvidia/label/cuda-11.7.1" cuda-toolkit
 :::
 ::::
 
-### Install tiny-cuda-nn/gsplat
+### Install tiny-cuda-nn
 
 ::::::{tab-set}
 :::::{tab-item} Linux
@@ -112,11 +112,6 @@ Replace `<your_VC++_compiler_toolset_version>` with the version of your VC++ com
 For example:
 ```bash
 ./vcvarsall.bat x64 -vcvars_ver=14.29
-```
-
-Install `gsplat` from source:
-```bash
-pip install git+https://github.com/nerfstudio-project/gsplat.git
 ```
 
 Install the torch bindings for tiny-cuda-nn:
