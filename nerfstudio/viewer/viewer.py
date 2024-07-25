@@ -172,7 +172,7 @@ class Viewer:
         self.object_detection = ObjectDetection()
         self.object_detection_mode = False  # Closed initially
 
-        # New Object Detecion Button
+        # Object Detecion Button
         self.start_object_detection = self.viser_server.add_gui_button(
             label="Toggle Object Detection", disabled=False, icon=viser.Icon.PLAYER_PLAY_FILLED
         )
