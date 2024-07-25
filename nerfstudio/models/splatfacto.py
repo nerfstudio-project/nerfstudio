@@ -186,8 +186,8 @@ class SplatfactoModelConfig(ModelConfig):
     camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="off"))
     """Config of the camera optimizer to use"""
     use_bilateral_grid: bool = False
-    """If True, use bilateral grid to handle the ISP changes in the image space"""
-    gird_shape: Tuple[int, int, int] = (16, 16, 8)
+    """If True, use bilateral grid to handle the ISP changes in the image space. This technique was introduced in the paper 'Bilateral Guided Radiance Field Processing' (https://bilarfpro.github.io/)."""
+    grid_shape: Tuple[int, int, int] = (16, 16, 8)
     """Shape of the bilateral grid (X, Y, W)"""
 
 
@@ -279,9 +279,9 @@ class SplatfactoModel(Model):
         if self.config.use_bilateral_grid:
             self.bil_grids = BilateralGrid(
                 num=self.num_train_data,
-                grid_X=self.config.gird_shape[0],
-                grid_Y=self.config.gird_shape[1],
-                grid_W=self.config.gird_shape[2],
+                grid_X=self.config.grid_shape[0],
+                grid_Y=self.config.grid_shape[1],
+                grid_W=self.config.grid_shape[2],
             )
 
     @property
@@ -703,11 +703,11 @@ class SplatfactoModel(Model):
     def _apply_bilateral_grid(self, rgb: torch.Tensor, cam_idx: int, H: int, W: int) -> torch.Tensor:
         # make xy grid
         grid_y, grid_x = torch.meshgrid(
-            torch.linspace(0, 1.0, H),
-            torch.linspace(0, 1.0, W),
+            torch.linspace(0, 1.0, H, device=self.device),
+            torch.linspace(0, 1.0, W, device=self.device),
             indexing="ij",
         )
-        grid_xy = torch.stack([grid_x, grid_y], dim=-1).unsqueeze(0).to(self.device)
+        grid_xy = torch.stack([grid_x, grid_y], dim=-1).unsqueeze(0)
 
         out = slice(
             bil_grids=self.bil_grids,
