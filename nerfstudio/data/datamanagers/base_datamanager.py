@@ -342,7 +342,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     prefetch_factor: int = 4 # increasing prefetch_factor was not beneficial
     """The limit number of batches a worker will start loading once an iterator is created. 
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
-    dataloader_num_workers: int = 4
+    dataloader_num_workers: int = 1
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes collating, pixel sampling, unprojecting, ray generation etc."""
     use_ray_train_dataloader: bool = True
@@ -462,25 +462,22 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             else 4 * int(self.num_image_load_threads)
         )
         num_threads = min(num_threads, multiprocessing.cpu_count() - 1)
-        num_threads = max(num_threads, 1)
-        # print('num_threads', num_threads) # prints 16
-
-        
+        num_threads = max(num_threads, 1) # print('num_threads', num_threads) # prints 16
 
         # NB: this is I/O heavy because we are going to disk and reading an image filename
         # hence multi-threaded inside the worker
-        with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-            for idx in indices:
-                res = executor.submit(self.input_dataset.__getitem__, idx)
-                results.append(res)
+        # with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+        #     for idx in indices:
+        #         res = executor.submit(self.input_dataset.__getitem__, idx)
+        #         results.append(res)
 
-            # for res in tqdm(results, desc='_get_batch_list'):
-            results = tqdm(results) # does not effect times, tested many times
-            for res in results:
-                batch_list.append(res.result())
+        #     # for res in tqdm(results, desc='_get_batch_list'):
+        #     results = tqdm(results) # does not effect times, tested many times
+        #     for res in results:
+        #         batch_list.append(res.result())
         
-        # for idx in tqdm(indices): # this is slower compared to using threads
-        #     batch_list.append(self.input_dataset.__getitem__(idx))
+        for idx in tqdm(indices): # this is slower compared to using threads
+            batch_list.append(self.input_dataset.__getitem__(idx))
         return batch_list
 
     def _get_collated_batch(self, indices=None):
@@ -537,13 +534,13 @@ class RayBatchStream(torch.utils.data.IterableDataset):
                 else: # get a total of 'num_images_to_sample_from' image indices
                     image_indices = worker_indices[:self.num_images_to_sample_from]
                 # self._get_collated_batch is slow because it is going to disk to retreive an image many times to create a batch of images.
-                # with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-                #     with record_function("process_images"):
-                collated_batch = self._get_collated_batch(image_indices)
-                # with open('_get_batch_list_profile.txt', 'w') as f:
-                #     f.write(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))
-                #     f.write("\n\nMemory Usage:\n")
-                #     f.write(prof.key_averages().table(sort_by="self_cpu_memory_usage", row_limit=20))
+                with profile(activities=[ProfilerActivity.CPU], record_shapes=True, with_stack=True,) as prof:
+                    with record_function("process_images"):
+                        collated_batch = self._get_collated_batch(image_indices)
+                
+                with open('_get_batch_list_profile.txt', 'w') as f:
+                    f.write(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))
+  
             i += 1
             """
             Here, the variable 'batch' refers to the output of our pixel sampler.
