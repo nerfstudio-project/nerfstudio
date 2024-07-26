@@ -29,8 +29,9 @@ def pil_to_numpy(im: Image) -> np.ndarray:
         im (PIL.Image.Image): The input PIL Image object.
 
     Returns:
-        numpy.ndarray: float 32 ndarray representing the image normalized between 0 and 1.
+        numpy.ndarray representing the image data.
     """
+    # Load in image completely (PIL defaults to lazy loading)
     im.load()
 
     # Unpack data
@@ -50,7 +51,7 @@ def pil_to_numpy(im: Image) -> np.ndarray:
     if s < 0:
         raise RuntimeError("encoder error %d in tobytes" % s)
 
-    return data / np.float32(255)
+    return data
 
 
 def get_image_mask_tensor_from_path(filepath: Union[Path, IO[bytes]], scale_factor: float = 1.0) -> torch.Tensor:
