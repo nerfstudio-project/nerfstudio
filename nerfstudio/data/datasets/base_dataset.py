@@ -71,7 +71,7 @@ class InputDataset(Dataset):
     def __len__(self):
         return len(self._dataparser_outputs.image_filenames)
 
-    def get_numpy_image(self, image_idx: int) -> npt.NDArray[np.float32]:
+    def get_numpy_image(self, image_idx: int) -> npt.NDArray[np.uint8]:
         """Returns the image of shape (H, W, 3 or 4).
 
         Args:
@@ -86,8 +86,7 @@ class InputDataset(Dataset):
             width, height = pil_image.size
             newsize = (int(width * self.scale_factor), int(height * self.scale_factor))
             pil_image = pil_image.resize(newsize, resample=Image.Resampling.BILINEAR)
-        with record_function("pil_to_numpy()"):
-            image = pil_to_numpy(pil_image) # # shape is (h, w) or (h, w, 3 or 4) and dtype == "uint8"
+        image = pil_to_numpy(pil_image) # # shape is (h, w) or (h, w, 3 or 4) and dtype == "uint8"
         if len(image.shape) == 2:
             image = image[:, :, None].repeat(3, axis=2)
         assert len(image.shape) == 3
@@ -101,8 +100,12 @@ class InputDataset(Dataset):
         Args:
             image_idx: The image index in the dataset.
         """
-        with record_function("divide by 255.0 and convert to float32"):
-            image = torch.from_numpy(self.get_numpy_image(image_idx) / np.float32(255.0))
+        with record_function("pil_to_numpy()"):
+            image = self.get_numpy_image(image_idx)
+        with record_function("divide by 255.0 + convert to float32"):
+            image = image / np.float32(255)
+        with record_function("torch.from_numpy()"):
+            image = torch.from_numpy(image)
         if self._dataparser_outputs.alpha_color is not None and image.shape[-1] == 4:
             assert (self._dataparser_outputs.alpha_color >= 0).all() and (
                 self._dataparser_outputs.alpha_color <= 1
@@ -134,13 +137,12 @@ class InputDataset(Dataset):
             image_idx: The image index in the dataset.
             image_type: the type of images returned
         """
-        with record_function("divide by 255.0 and convert to float32"):
-            if image_type == "float32":
-                image = self.get_image_float32(image_idx)
-            elif image_type == "uint8":
-                image = self.get_image_uint8(image_idx)
-            else:
-                raise NotImplementedError(f"image_type (={image_type}) getter was not implemented, use uint8 or float32")
+        if image_type == "float32":
+            image = self.get_image_float32(image_idx)
+        elif image_type == "uint8":
+            image = self.get_image_uint8(image_idx)
+        else:
+            raise NotImplementedError(f"image_type (={image_type}) getter was not implemented, use uint8 or float32")
 
         data = {"image_idx": image_idx, "image": image}
         if self._dataparser_outputs.mask_filenames is not None:
