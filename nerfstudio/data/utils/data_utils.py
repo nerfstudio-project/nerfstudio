@@ -22,6 +22,37 @@ import torch
 from PIL import Image
 
 
+def pil_to_numpy(im: Image) -> np.ndarray:
+    """Converts a PIL Image object to a NumPy array.
+
+    Args:
+        im (PIL.Image.Image): The input PIL Image object.
+
+    Returns:
+        numpy.ndarray: float 32 ndarray representing the image normalized between 0 and 1.
+    """
+    im.load()
+
+    # Unpack data
+    e = Image._getencoder(im.mode, "raw", im.mode)
+    e.setimage(im.im)
+
+    # NumPy buffer for the result
+    shape, typestr = Image._conv_type_shape(im)
+    data = np.empty(shape, dtype=np.dtype(typestr))
+    mem = data.data.cast("B", (data.data.nbytes,))
+
+    bufsize, s, offset = 65536, 0, 0
+    while not s:
+        l, s, d = e.encode(bufsize)
+        mem[offset:offset + len(d)] = d
+        offset += len(d)
+    if s < 0:
+        raise RuntimeError("encoder error %d in tobytes" % s)
+
+    return data / np.float32(255)
+
+
 def get_image_mask_tensor_from_path(filepath: Union[Path, IO[bytes]], scale_factor: float = 1.0) -> torch.Tensor:
     """
     Utility function to read a mask image from the given path and return a boolean tensor
@@ -31,7 +62,7 @@ def get_image_mask_tensor_from_path(filepath: Union[Path, IO[bytes]], scale_fact
         width, height = pil_mask.size
         newsize = (int(width * scale_factor), int(height * scale_factor))
         pil_mask = pil_mask.resize(newsize, resample=Image.Resampling.NEAREST)
-    mask_tensor = torch.from_numpy(np.array(pil_mask)).unsqueeze(-1).bool()
+    mask_tensor = torch.from_numpy(pil_to_numpy(pil_mask)).unsqueeze(-1).bool()
     if len(mask_tensor.shape) != 3:
         raise ValueError("The mask image should have 1 channel")
     return mask_tensor

@@ -32,8 +32,8 @@ from torch.utils.data import Dataset
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-from nerfstudio.data.utils.data_utils import get_image_mask_tensor_from_path
-
+from nerfstudio.data.utils.data_utils import get_image_mask_tensor_from_path, pil_to_numpy
+from torch.profiler import record_function
 
 class InputDataset(Dataset):
     """Dataset that returns images.
@@ -63,9 +63,10 @@ class InputDataset(Dataset):
             for image_filename in self._dataparser_outputs.image_filenames:
                 with open(image_filename, 'rb') as f:
                     self.binary_images.append(io.BytesIO(f.read()))
-            for mask_filename in self._dataparser_outputs.mask_filenames:
-                with open(mask_filename, 'rb') as f:
-                    self.binary_masks.append(io.BytesIO(f.read()))
+            if self._dataparser_outputs.mask_filenames is not None:
+                for mask_filename in self._dataparser_outputs.mask_filenames:
+                    with open(mask_filename, 'rb') as f:
+                        self.binary_masks.append(io.BytesIO(f.read()))
 
     def __len__(self):
         return len(self._dataparser_outputs.image_filenames)
@@ -85,11 +86,10 @@ class InputDataset(Dataset):
             width, height = pil_image.size
             newsize = (int(width * self.scale_factor), int(height * self.scale_factor))
             pil_image = pil_image.resize(newsize, resample=Image.Resampling.BILINEAR)
-        image = np.array(pil_image, dtype="uint8")  # shape is (h, w) or (h, w, 3 or 4)
+        image = pil_to_numpy(pil_image) # # shape is (h, w) or (h, w, 3 or 4) and dtype == "float32"
         if len(image.shape) == 2:
             image = image[:, :, None].repeat(3, axis=2)
         assert len(image.shape) == 3
-        assert image.dtype == np.uint8
         assert image.shape[2] in [3, 4], f"Image shape of {image.shape} is in correct."
         return image
 
@@ -99,7 +99,7 @@ class InputDataset(Dataset):
         Args:
             image_idx: The image index in the dataset.
         """
-        image = torch.from_numpy(self.get_numpy_image(image_idx).astype("float32") / 255.0)
+        image = torch.from_numpy(self.get_numpy_image(image_idx))
         if self._dataparser_outputs.alpha_color is not None and image.shape[-1] == 4:
             assert (self._dataparser_outputs.alpha_color >= 0).all() and (
                 self._dataparser_outputs.alpha_color <= 1
@@ -113,7 +113,7 @@ class InputDataset(Dataset):
         Args:
             image_idx: The image index in the dataset.
         """
-        image = torch.from_numpy(self.get_numpy_image(image_idx))
+        image = torch.from_numpy(self.get_numpy_image(image_idx).astype(np.uint8))
         if self._dataparser_outputs.alpha_color is not None and image.shape[-1] == 4:
             assert (self._dataparser_outputs.alpha_color >= 0).all() and (
                 self._dataparser_outputs.alpha_color <= 1

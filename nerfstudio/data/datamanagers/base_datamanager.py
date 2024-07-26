@@ -56,7 +56,7 @@ from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
-from nerfstudio.data.utils.dataloaders import (  # , RayBatchStream
+from nerfstudio.data.utils.dataloaders import (
     CacheDataloader,
     FixedIndicesEvalDataloader,
     RandIndicesEvalDataloader,
@@ -339,7 +339,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
-    prefetch_factor: int = 2
+    prefetch_factor: int = 4 # increasing prefetch_factor was not beneficial
     """The limit number of batches a worker will start loading once an iterator is created. 
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
     dataloader_num_workers: int = 4
@@ -347,6 +347,8 @@ class VanillaDataManagerConfig(DataManagerConfig):
     includes collating, pixel sampling, unprojecting, ray generation etc."""
     use_ray_train_dataloader: bool = True
     """Allows parallelization of the dataloading process with multiple workers."""
+    cache_binaries: bool = True
+    """If True, caches the images as binary strings to RAM"""
 
     # tyro.conf.Suppress prevents us from creating CLI arguments for this field.
     camera_optimizer: tyro.conf.Suppress[Optional[CameraOptimizerConfig]] = field(default=None)
@@ -376,7 +378,9 @@ from typing import Sized
 from torch.utils.data import Dataset
 
 from nerfstudio.utils.misc import get_dict_to_torch
+from tqdm.auto import tqdm
 
+from torch.profiler import profile, record_function, ProfilerActivity
 
 class RayBatchStream(torch.utils.data.IterableDataset):
     def __init__(
@@ -389,8 +393,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         collate_fn: Callable[[Any], Any] = nerfstudio_collate,
         exclude_batch_keys_from_device: Optional[List[str]] = None,
         num_image_load_threads: int = 4,
-        cache_all_n_shard_per_worker: bool = True,  # When False, always getting Killed/bugs for some reason... why?
-        # when cache_all_n_shard_per_worker True, getting killed because caching everything is not good
+        cache_all_n_shard_per_worker: bool = True,  
     ):
         if exclude_batch_keys_from_device is None:
             exclude_batch_keys_from_device = ["image"]
@@ -462,20 +465,22 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         num_threads = max(num_threads, 1)
         # print('num_threads', num_threads) # prints 16
 
+        
+
         # NB: this is I/O heavy because we are going to disk and reading an image filename
         # hence multi-threaded inside the worker
-        from tqdm.auto import tqdm
         with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
             for idx in indices:
                 res = executor.submit(self.input_dataset.__getitem__, idx)
                 results.append(res)
 
-            # for res in track(results, description="Loading data batch", transient=True):
             # for res in tqdm(results, desc='_get_batch_list'):
-            if self.cache_all_n_shard_per_worker:
-                results = tqdm(results)
+            results = tqdm(results) # does not effect times, tested many times
             for res in results:
                 batch_list.append(res.result())
+        
+        # for idx in tqdm(indices): # this is slower compared to using threads
+        #     batch_list.append(self.input_dataset.__getitem__(idx))
         return batch_list
 
     def _get_collated_batch(self, indices=None):
@@ -486,24 +491,16 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         collated_batch['image_idx'] is tensor with shape torch.Size([per_worker])
         collated_batch['image'] is tensor with shape torch.Size([per_worker, height, width, 3])
         """
-        start_time = time.time()
-        batch_list = self._get_batch_list(indices=indices)
-        end_time = time.time()
-        batch_time = (end_time - start_time) * 1000  # Convert to milliseconds
-        with open('image_read_time.txt', 'w') as f:
-            f.write(f"Time to read images and create `batch_list`:: {batch_time:.2f} ms")
-        # print(type(batch_list[0])) # prints <class 'dict'>
+        with record_function("_get_batch_list"):
+            batch_list = self._get_batch_list(indices=indices)
+        # # print(type(batch_list[0])) # prints <class 'dict'>
         # print(self.collate_fn) # prints nerfstudio_collate
-        # start_time = time.time()
-        collated_batch = self.collate_fn(batch_list)
-        # end_time = time.time()
-        # collate_time = (end_time - start_time) * 1000  # Convert to milliseconds
-        # with open('collate_time.txt', 'w') as f:
-        #     f.write(f"Time to collate images: {collate_time:.2f} ms")
-        # print(type(collated_batch)) # prints
-        collated_batch = get_dict_to_torch(
-            collated_batch, device=self.device, exclude=self.exclude_batch_keys_from_device
-        )
+        with record_function("nerfstudio_collate"):
+            collated_batch = self.collate_fn(batch_list)
+        with record_function("sending to GPU"):
+            collated_batch = get_dict_to_torch(
+                collated_batch, device=self.device, exclude=self.exclude_batch_keys_from_device
+            )
         return collated_batch
 
     def __iter__(self):
@@ -521,6 +518,8 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         worker_indices = dataset_indices[
             slice_start : slice_start + per_worker
         ]  # the indices of the datapoints in the dataset this worker will load
+        if self.cache_all_n_shard_per_worker:
+            self._cached_collated_batch = self._get_collated_batch(worker_indices)
         r = random.Random(3301)
         num_rays_per_loop = self.datamanager_config.train_num_rays_per_batch # default train_num_rays_per_batch is 4096
         worker_pixel_sampler = self._get_pixel_sampler(self.input_dataset, num_rays_per_loop)
@@ -528,15 +527,23 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             self.ray_generator = RayGenerator(self.input_dataset.cameras)#.to(self.device))
         i = 0
         while True:
-            if i % self.num_times_to_repeat_images == 0:
+            if self.cache_all_n_shard_per_worker:
+                collated_batch = self._cached_collated_batch
+            elif i % self.num_times_to_repeat_images == 0:
                 r.shuffle(worker_indices)
-                 # get a total of 'num_images_to_sample_from' image indices, if self.num_images_to_sample_from 
-                if self.num_images_to_sample_from == -1:
+                 
+                if self.num_images_to_sample_from == -1: # if -1, the worker gets all available indices in its partition
                     image_indices = worker_indices
-                else:
+                else: # get a total of 'num_images_to_sample_from' image indices
                     image_indices = worker_indices[:self.num_images_to_sample_from]
                 # self._get_collated_batch is slow because it is going to disk to retreive an image many times to create a batch of images.
+                # with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+                #     with record_function("process_images"):
                 collated_batch = self._get_collated_batch(image_indices)
+                # with open('_get_batch_list_profile.txt', 'w') as f:
+                #     f.write(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))
+                #     f.write("\n\nMemory Usage:\n")
+                #     f.write(prof.key_averages().table(sort_by="self_cpu_memory_usage", row_limit=20))
             i += 1
             """
             Here, the variable 'batch' refers to the output of our pixel sampler.
@@ -695,6 +702,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
                 num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
                 device=self.device,
                 collate_fn=self.config.collate_fn,
+                cache_all_n_shard_per_worker=False,
             )
             self.ray_dataloader = torch.utils.data.DataLoader(
                 self.raybatch_stream,
@@ -702,7 +710,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
                 num_workers=self.config.dataloader_num_workers,
                 prefetch_factor=self.config.prefetch_factor,
                 shuffle=False,
-                pin_memory=False,
+                pin_memory=True,
                 # Our dataset does batching / collation
                 collate_fn=identity,
                 pin_memory_device=self.device, # did not actually speed up my implementation
