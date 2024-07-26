@@ -304,9 +304,7 @@ class PixelSampler:
 
         assert num_rays_per_batch % 2 == 0, "num_rays_per_batch must be divisible by 2"
         num_rays_per_image = divide_rays_per_image(num_rays_per_batch, num_images)
-        # print(batch.keys())
-        # import time
-        # time.sleep(3)
+
         if "mask" in batch:
             for i, num_rays in enumerate(num_rays_per_image):
                 image_height, image_width, _ = batch["image"][i].shape
