@@ -15,6 +15,7 @@
 """
 Collection of render heads
 """
+
 from enum import Enum
 from typing import Callable, Optional, Union
 

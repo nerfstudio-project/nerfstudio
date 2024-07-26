@@ -42,6 +42,8 @@ class CameraState:
     """Type of camera to render."""
     time: float = 0.0
     """The rendering time of the camera state."""
+    idx: int = 0
+    """The index of the current camera."""
 
 
 def get_camera(
@@ -78,6 +80,7 @@ def get_camera(
         camera_type=camera_state.camera_type,
         camera_to_worlds=camera_state.c2w.to(torch.float32)[None, ...],
         times=torch.tensor([camera_state.time], dtype=torch.float32),
+        metadata={"cam_idx": camera_state.idx},
     )
     return camera
 

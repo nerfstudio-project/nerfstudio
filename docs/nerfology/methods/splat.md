@@ -41,7 +41,9 @@ We provide a few additional variants:
 | `depth-splatfacto` | Default Model, Depth Supervision | ~6GB   | Fast   |
 | `splatfacto-big`   | More Gaussians, Higher Quality   | ~12GB  | Slower |
 
-A full evaluation of Nerfstudio's implementation of Gaussian Splatting against the original Inria method can be found [here](https://docs.gsplat.studio/tests/eval.html).
+
+A full evalaution of Nerfstudio's implementation of Gaussian Splatting against the original Inria method can be found [here](https://docs.gsplat.studio/main/tests/eval.html).
+
 
 #### Quality and Regularization
 

@@ -15,6 +15,7 @@
 """
 Parallel data manager that generates training data in multiple python processes.
 """
+
 from __future__ import annotations
 
 import concurrent.futures
