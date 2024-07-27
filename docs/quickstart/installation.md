@@ -10,11 +10,46 @@ Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependen
 :::::
 :::::{tab-item} Windows
 
+:::{admonition} Note
+:class: info
+Nerfstudio on Windows is less tested and more fragile, due to way more moving parts outside of Nerfstudio's control.  
+The instructions also tend to break over time as updates to different Windows packages happen.  
+Installing Nerfstudio on Linux instead is recommended if you have the option.  
+Alternatively, installing Nerfstudio under WSL2 (temporary unofficial guide [here](https://gist.github.com/SharkWipf/0a3fc1be3ea88b0c9640db6ce15b44b9), not guaranteed to work) is also an option, but this comes with its own set of caveats.
+:::
+
 Install [Git](https://git-scm.com/downloads).
 
 Install Visual Studio 2022. This must be done before installing CUDA. The necessary components are included in the `Desktop Development with C++` workflow (also called `C++ Build Tools` in the BuildTools edition).
 
 Install Visual Studio Build Tools. If MSVC 143 does not work (usually will fail if your version > 17.10), you may also need to install MSVC 142 for Visual Studio 2019. Ensure your CUDA environment is set up properly.
+
+Activate your Visual C++ environment:
+Navigate to the directory where `vcvars64.bat` is located. This path might vary depending on your installation. A common path is:
+
+```
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build
+```
+
+Run the following command:
+```bash
+./vcvars64.bat
+```
+
+If the above command does not work, try activating an older version of VC:
+```bash
+./vcvarsall.bat x64 -vcvars_ver=<your_VC++_compiler_toolset_version>
+```
+Replace `<your_VC++_compiler_toolset_version>` with the version of your VC++ compiler toolset. The version number should appear in the same folder.
+
+For example:
+```bash
+./vcvarsall.bat x64 -vcvars_ver=14.29
+```
+:::{admonition} Note
+:class: info
+When updating, or if you close your terminal before you finish the installation and run your first `splatfacto`, you have to re-do this environment activation step.
+:::
 
 Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
@@ -90,29 +125,6 @@ pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindi
 
 :::::
 :::::{tab-item} Windows
-
-Activate your Visual C++ environment:
-Navigate to the directory where `vcvars64.bat` is located. This path might vary depending on your installation. A common path is:
-
-```
-C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build
-```
-
-Run the following command:
-```bash
-./vcvars64.bat
-```
-
-If the above command does not work, try activating an older version of VC:
-```bash
-./vcvarsall.bat x64 -vcvars_ver=<your_VC++_compiler_toolset_version>
-```
-Replace `<your_VC++_compiler_toolset_version>` with the version of your VC++ compiler toolset. The version number should appear in the same folder.
-
-For example:
-```bash
-./vcvarsall.bat x64 -vcvars_ver=14.29
-```
 
 Install the torch bindings for tiny-cuda-nn:
 ```bash
@@ -431,3 +443,9 @@ export CUDA_HOME=/usr/local/cuda
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64
 export PATH=$PATH:$CUDA_HOME/bin
 ```
+
+**Other errors**
+
+A lot of errors on Windows can be caused by not having the Visual Studio environment loaded.  
+If you run into errors you can't figure out, please try re-activating the Visual Studio environment (as outlined above) and try again.  
+This activation only lasts within your current terminal session and does not extend to other terminals, but this should only be needed on first run and on updates.
