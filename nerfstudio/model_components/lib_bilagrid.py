@@ -118,8 +118,6 @@ def color_correct(img: torch.Tensor, ref: torch.Tensor, num_iters: int = 5, eps:
         warp = torch.stack(warp, dim=-1)
         # Apply the warp to update img_mat.
         img_mat = torch.clip(torch.matmul(a_mat, warp), 0, 1)
-    # del everything
-    del a_mat, b, ma_mat, mb, mask, mask0, ref_mat, w
     corrected_img = torch.reshape(img_mat, img.shape)
     return corrected_img
 

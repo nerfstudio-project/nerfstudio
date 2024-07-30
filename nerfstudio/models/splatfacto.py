@@ -185,11 +185,11 @@ class SplatfactoModelConfig(ModelConfig):
     """
     camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="off"))
     """Config of the camera optimizer to use"""
-    use_bilateral_grid: bool = True
+    use_bilateral_grid: bool = False
     """If True, use bilateral grid to handle the ISP changes in the image space. This technique was introduced in the paper 'Bilateral Guided Radiance Field Processing' (https://bilarfpro.github.io/)."""
     grid_shape: Tuple[int, int, int] = (16, 16, 8)
     """Shape of the bilateral grid (X, Y, W)"""
-    color_corrected_metrics: bool = True
+    color_corrected_metrics: bool = False
     """If True, apply color correction to the rendered images before computing the metrics."""
 
 
@@ -970,11 +970,11 @@ class SplatfactoModel(Model):
         combined_rgb = torch.cat([gt_rgb, predicted_rgb], dim=1)
         if self.config.color_corrected_metrics:
             cc_rgb = color_correct(predicted_rgb, gt_rgb)
+            cc_rgb = torch.moveaxis(cc_rgb, -1, 0)[None, ...]
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         gt_rgb = torch.moveaxis(gt_rgb, -1, 0)[None, ...]
         predicted_rgb = torch.moveaxis(predicted_rgb, -1, 0)[None, ...]
-        cc_rgb = torch.moveaxis(cc_rgb, -1, 0)[None, ...]
 
         psnr = self.psnr(gt_rgb, predicted_rgb)
         ssim = self.ssim(gt_rgb, predicted_rgb)
