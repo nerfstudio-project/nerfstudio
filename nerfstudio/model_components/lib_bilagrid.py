@@ -90,8 +90,8 @@ def total_variation_loss(x):  # noqa: F811
     tv = 0
     for i in range(2, len(x.shape)):
         n_res = x.shape[i]
-        idx1 = torch.arange(1, n_res).to(x.device)
-        idx2 = torch.arange(0, n_res - 1).to(x.device)
+        idx1 = torch.arange(1, n_res, device=x.device)
+        idx2 = torch.arange(0, n_res - 1, device=x.device)
         x1 = x.index_select(i, idx1)
         x2 = x.index_select(i, idx2)
         count = _num_tensor_elems(x1)
