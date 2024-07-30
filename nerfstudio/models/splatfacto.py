@@ -968,6 +968,7 @@ class SplatfactoModel(Model):
         predicted_rgb = outputs["rgb"]
 
         combined_rgb = torch.cat([gt_rgb, predicted_rgb], dim=1)
+
         if self.config.color_corrected_metrics:
             cc_rgb = color_correct(predicted_rgb, gt_rgb)
             cc_rgb = torch.moveaxis(cc_rgb, -1, 0)[None, ...]
@@ -983,10 +984,12 @@ class SplatfactoModel(Model):
         # all of these metrics will be logged as scalars
         metrics_dict = {"psnr": float(psnr.item()), "ssim": float(ssim)}  # type: ignore
         metrics_dict["lpips"] = float(lpips)
+
         if self.config.color_corrected_metrics:
-            cc_psnr = self.psnr(cc_rgb, gt_rgb)
-            cc_ssim = self.ssim(cc_rgb, gt_rgb)
-            cc_lpips = self.lpips(cc_rgb, gt_rgb)
+            assert cc_rgb is not None
+            cc_psnr = self.psnr(gt_rgb, cc_rgb)
+            cc_ssim = self.ssim(gt_rgb, cc_rgb)
+            cc_lpips = self.lpips(gt_rgb, cc_rgb)
             metrics_dict["cc_psnr"] = float(cc_psnr.item())
             metrics_dict["cc_ssim"] = float(cc_ssim)
             metrics_dict["cc_lpips"] = float(cc_lpips)
