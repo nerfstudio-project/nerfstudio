@@ -966,6 +966,7 @@ class SplatfactoModel(Model):
         """
         gt_rgb = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         predicted_rgb = outputs["rgb"]
+        cc_rgb = None
 
         combined_rgb = torch.cat([gt_rgb, predicted_rgb], dim=1)
 
