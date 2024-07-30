@@ -80,20 +80,22 @@ def SH2RGB(sh):
     return sh * C0 + 0.5
 
 
-def resize_image(image: torch.Tensor, d: int):
+def resize_image(image: torch.Tensor, d: float):
     """
-    Downscale images using the same 'area' method in opencv
+    Downscale images using PyTorch's interpolate function with 'area' mode
 
     :param image shape [H, W, C]
-    :param d downscale factor (must be 2, 4, 8, etc.)
+    :param d downscale factor (Ex: 2.0, 3.6, 4.0, 5.1, etc.)
 
     return downscaled image in shape [H//d, W//d, C]
     """
     import torch.nn.functional as tf
 
-    image = image.to(torch.float32)
-    weight = (1.0 / (d * d)) * torch.ones((1, 1, d, d), dtype=torch.float32, device=image.device)
-    return tf.conv2d(image.permute(2, 0, 1)[:, None, ...], weight, stride=d).squeeze(1).permute(1, 2, 0)
+    # tf.interpolate needs input of shape [batch, C, H, W]
+    image = image.to(torch.float32).unsqueeze(0).permute(0, 3, 1, 2)
+    scaled_sizes = (int(image.shape[2] // d), int(image.shape[3] // d))
+    downscaled_image = tf.interpolate(image, size=scaled_sizes, mode="area")
+    return downscaled_image.squeeze(0).permute(1, 2, 0)
 
 
 @torch_compile()
