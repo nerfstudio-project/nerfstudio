@@ -5,11 +5,6 @@ FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${OS_VERSION}
 ARG CUDA_VERSION
 ARG OS_VERSION
 
-# Define username, user uid and gid
-ARG USERNAME=user
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
-
 # metainformation
 LABEL org.opencontainers.image.version = "0.1.18"
 LABEL org.opencontainers.image.source = "https://github.com/nerfstudio-project/nerfstudio"
@@ -105,27 +100,6 @@ RUN git clone --branch 3.8 https://github.com/colmap/colmap.git --single-branch 
     cd ../.. && \
     rm -rf colmap
 
-# Create non root user, add it to custom group and setup environment.
-RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME -d /home/${USERNAME} --shell /usr/bin/bash 
-# OPTIONAL
-# If sudo privilages are not required comment below line
-# Create simple password for user and add it to sudo group
-# Update group so that it is not required to type password for commands: apt update/upgrade/install/remove
-RUN echo "${USERNAME}:password" | chpasswd \
-    && usermod -aG sudo ${USERNAME} \
-    && echo "%sudo ALL=NOPASSWD:/usr/bin/apt-get update, /usr/bin/apt-get upgrade, /usr/bin/apt-get install, /usr/bin/apt-get remove" >> /etc/sudoers
-
-# Create workspace folder and change ownership to new user
-RUN mkdir /workspace && chown ${USER_UID}:${USER_GID} /workspace
-
-# Switch to new user and workdir.
-USER ${USER_UID}
-WORKDIR /home/${USERNAME}
-
-# Add local user binary folder to PATH variable.
-ENV PATH="${PATH}:/home/${USERNAME}/.local/bin"
-
 # Upgrade pip and install packages.
 RUN python3.10 -m pip install --no-cache-dir --upgrade pip setuptools==69.5.1 pathtools promise pybind11 omegaconf
 
@@ -167,19 +141,17 @@ RUN git clone --recursive https://github.com/cvg/pixel-perfect-sfm.git && \
     python3.10 -m pip install --no-cache-dir -e . && \
     cd ..
 
-# Copy nerfstudio folder and give ownership to user.
-COPY --chown=${USER_UID}:${USER_GID} . /home/${USERNAME}/nerfstudio
-
-# Install nerfstudio dependencies.
-RUN cd nerfstudio && \
+# Install nerfstudio.
+RUN git clone https://github.com/nerfstudio-project/nerfstudio.git && \
+    cd nerfstudio && \
     python3.10 -m pip install --no-cache-dir -e . && \
     cd ..
 
-# Switch to workspace folder and install nerfstudio cli auto completion
-WORKDIR /workspace
+# the installed torch version is incompatible with numpy2.x - downgrade numpy to 1.x and rawpy to 0.21.x (because rawpy 0.22 requires numpy 2)
+RUN python3.10 -m pip install 'numpy<2' 'rawpy<0.22'
+
+# install nerfstudio cli auto completion
 RUN ns-install-cli --mode install
 
 # Bash as default entrypoint.
 CMD /bin/bash -l
-# Force changing password on first container run
-# Change line above: CMD /bin/bash -l -> CMD /bin/bash -l -c passwd && /usr/bin/bash -l
