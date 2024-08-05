@@ -446,6 +446,6 @@ export PATH=$PATH:$CUDA_HOME/bin
 
 **Other errors**
 
-A lot of errors on Windows can be caused by not having the Visual Studio environment loaded.  
-If you run into errors you can't figure out, please try re-activating the Visual Studio environment (as outlined above) and try again.  
+(Windows) A lot of errors on Windows can be caused by not having the Visual Studio environment loaded.  
+If you run into errors you can't figure out, please try re-activating the Visual Studio environment (as outlined at the top of the Windows instructions on this page) and try again.  
 This activation only lasts within your current terminal session and does not extend to other terminals, but this should only be needed on first run and on updates.
