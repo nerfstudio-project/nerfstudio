@@ -337,7 +337,7 @@ class PixelSampler:
         collated_batch = {
             key: value[c, y, x]
             for key, value in batch.items()
-            if key != "image_idx" and key != "image" and key != "mask" and key != "depth_image" and value is not None
+            if key not in ("image_idx", "image", "mask", "depth_image") and value is not None
         }
 
         collated_batch["image"] = torch.cat(all_images, dim=0)

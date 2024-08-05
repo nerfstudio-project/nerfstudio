@@ -54,7 +54,7 @@ def quaternion_from_matrix(matrix: NDArray, isprecise: bool = False) -> np.ndarr
         matrix: rotation matrix to obtain quaternion
         isprecise: if True, input matrix is assumed to be precise rotation matrix and a faster algorithm is used.
     """
-    M = np.array(matrix, dtype=np.float64, copy=False)[:4, :4]
+    M = np.array(matrix, dtype=np.float64, copy=True)[:4, :4]
     if isprecise:
         q = np.empty((4,))
         t = np.trace(M)
