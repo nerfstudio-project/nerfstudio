@@ -14,9 +14,15 @@ Install [Git](https://git-scm.com/downloads).
 
 Install Visual Studio 2022. This must be done before installing CUDA. The necessary components are included in the `Desktop Development with C++` workflow (also called `C++ Build Tools` in the BuildTools edition).
 
-Install Visual Studio Build Tools. If MSVC 143 does not work (usually will fail if your version > 17.10), you may also need to install MSVC 142 for Visual Studio 2019. Ensure your CUDA environment is set up properly.
+You must select also the additional component `MSVC v142 – VS 2019 C++ x64/x86 Build Tools`.
 
-Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
+Ensure your CUDA environment is set up properly.
+
+Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding. 
+
+In the user environnment settings 
+- add the variable `HOME` and set the value to `%USERPROFILE%`.
+- check in the `PATH` that miniconda was added `%USERPROFILE%\miniconda3\condabin`
 
 :::::
 ::::::
@@ -92,32 +98,10 @@ pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindi
 :::::{tab-item} Windows
 
 Activate your Visual C++ environment:
-Navigate to the directory where `vcvars64.bat` is located. This path might vary depending on your installation. A common path is:
-
-```
-C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build
-```
-
-Run the following command:
 ```bash
-./vcvars64.bat
+./"C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64 -vcvars_ver=14.29
 ```
-
-If the above command does not work, try activating an older version of VC:
-```bash
-./vcvarsall.bat x64 -vcvars_ver=<your_VC++_compiler_toolset_version>
-```
-Replace `<your_VC++_compiler_toolset_version>` with the version of your VC++ compiler toolset. The version number should appear in the same folder.
-
-For example:
-```bash
-./vcvarsall.bat x64 -vcvars_ver=14.29
-```
-
-Install `gsplat` from source:
-```bash
-pip install git+https://github.com/nerfstudio-project/gsplat.git
-```
+Replace `BuildTools` with the version of Visual Studio installed on your computer (Community, Professional, Enterprise).
 
 Install the torch bindings for tiny-cuda-nn:
 ```bash
