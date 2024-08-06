@@ -534,11 +534,12 @@ class Trainer:
         """
         # a batch of eval rays
         if step_check(step, self.config.steps_per_eval_batch):
-            _, eval_loss_dict, eval_metrics_dict = self.pipeline.get_eval_loss_dict(step=step)
+            _, eval_loss_dict, eval_metrics_dict, eval_histogram_dict = self.pipeline.get_eval_loss_dict(step=step)
             eval_loss = functools.reduce(torch.add, eval_loss_dict.values())
             writer.put_scalar(name="Eval Loss", scalar=eval_loss, step=step)
             writer.put_dict(name="Eval Loss Dict", scalar_dict=eval_loss_dict, step=step)
             writer.put_dict(name="Eval Metrics Dict", scalar_dict=eval_metrics_dict, step=step)
+            writer.put_histogram_dict(name="Eval Metrics Dict", histogram_dict=eval_histogram_dict, step=step)
 
         # one eval image
         if step_check(step, self.config.steps_per_eval_image):
