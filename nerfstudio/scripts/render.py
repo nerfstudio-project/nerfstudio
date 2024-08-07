@@ -430,6 +430,8 @@ class BaseRender:
     """Whether to render the nearest training camera to the rendered camera."""
     check_occlusions: bool = False
     """If true, checks line-of-sight occlusions when computing camera distance and rejects cameras not visible to each other"""
+    camera_idx: Optional[int] = None
+    """Index of the training camera to render."""
 
 
 @dataclass
@@ -479,6 +481,9 @@ class RenderCameraPath(BaseRender):
         # add mp4 suffix to video output if none is specified
         if self.output_format == "video" and str(self.output_path.suffix) == "":
             self.output_path = self.output_path.with_suffix(".mp4")
+
+        if self.camera_idx is not None:
+            camera_path.metadata = {"cam_idx": self.camera_idx}
 
         _render_trajectory_video(
             pipeline,
@@ -617,6 +622,9 @@ class RenderInterpolated(BaseRender):
             order_poses=self.order_poses,
         )
 
+        if self.camera_idx is not None:
+            camera_path.metadata = {"cam_idx": self.camera_idx}
+
         _render_trajectory_video(
             pipeline,
             camera_path,
@@ -668,6 +676,9 @@ class SpiralRender(BaseRender):
         steps = int(self.frame_rate * self.seconds)
         camera_start, _ = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0)
         camera_path = get_spiral_path(camera_start, steps=steps, radius=self.radius)
+
+        if self.camera_idx is not None:
+            camera_path.metadata = {"cam_idx": self.camera_idx}
 
         _render_trajectory_video(
             pipeline,

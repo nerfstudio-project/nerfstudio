@@ -180,19 +180,33 @@ curl -fsSL https://pixi.sh/install.sh | bash
 ### Install Pixi Environmnent 
 After Pixi is installed, you can run
 ```bash
+git clone https://github.com/nerfstudio-project/nerfstudio.git
+cd nerfstudio
 pixi run post-install
 pixi shell
 ```
-This will install all enviroment dependancies including colmap, tinycudann and hloc, and the active the conda environment
+This will fetch the latest Nerfstudio code, install all enviroment dependencies including colmap, tinycudann and hloc, and then activate the pixi environment (similar to conda).  
+From now on, each time you want to run Nerfstudio in a new shell, you have to navigate to the nerfstudio folder and run `pixi shell` again.
 
-you could also run
+You could also run
 
 ```bash
 pixi run post-install
 pixi run train-example-nerf
 ```
 
-to download an example dataset and run nerfacto straight away
+to download an example dataset and run nerfacto straight away.
+
+Note that this method gets you the very latest upstream Nerfstudio version, if you want to use a specific release, you have to first checkout a specific version or commit in the nerfstudio folder, i.e.:
+```
+git checkout tags/v1.1.3
+```
+
+Similarly, if you want to update, you want to update the git repo in your nerfstudio folder:
+```
+git pull
+```
+Remember that if you ran a checkout on a specific tag before, you have to manually specify a new tag or `git checkout main` to see the new changes.
 
 ## Use docker image
 
