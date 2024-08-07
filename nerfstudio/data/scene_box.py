@@ -94,18 +94,35 @@ class OrientedBox:
 
     def within(self, pts: Float[Tensor, "n 3"]):
         """Returns a boolean mask indicating whether each point is within the box."""
-        R, T, S = self.R, self.T, self.S.to(pts)
+        pts_local = self.to_local_coordinates(pts)
+        comp_l = -self.S / 2
+        comp_m = self.S / 2
+        mask = torch.all(torch.cat([pts_local > comp_l, pts_local < comp_m], dim=-1), dim=-1)
+        return mask
+
+    def to_local_coordinates(self, pts: Float[Tensor, "n 3"]) -> Float[Tensor, "n 3"]:
+        """Transform points to the local coordinate system of the OrientedBox."""
+        R, T, _ = self.R, self.T, self.S.to(pts)
         H = torch.eye(4, device=pts.device, dtype=pts.dtype)
         H[:3, :3] = R
         H[:3, 3] = T
         H_world2bbox = torch.inverse(H)
         pts = torch.cat((pts, torch.ones_like(pts[..., :1])), dim=-1)
-        pts = torch.matmul(H_world2bbox, pts.T).T[..., :3]
+        pts_local = torch.matmul(H_world2bbox, pts.T).T[..., :3]
+        return pts_local
 
-        comp_l = torch.tensor(-S / 2)
-        comp_m = torch.tensor(S / 2)
-        mask = torch.all(torch.concat([pts > comp_l, pts < comp_m], dim=-1), dim=-1)
-        return mask
+    def normalize_positions(self, pts: Float[Tensor, "n 3"]) -> Float[Tensor, "n 3"]:
+        """Returns normalized positions inside the OrientedBox.
+
+        Args:
+            pts: The xyz positions to be normalized.
+
+        Returns:
+            Normalized positions within the OBB in range [0, 1].
+        """
+        pts_local = self.to_local_coordinates(pts)
+        normalized_positions = (pts_local + (self.S / 2)) / self.S
+        return normalized_positions
 
     @staticmethod
     def from_params(
