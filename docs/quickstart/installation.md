@@ -87,6 +87,10 @@ After pytorch and ninja, install the torch bindings for tiny-cuda-nn:
 ```bash
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
+Install `gsplat` from source:
+```bash
+pip install git+https://github.com/nerfstudio-project/gsplat.git
+```
 
 :::::
 :::::{tab-item} Windows
