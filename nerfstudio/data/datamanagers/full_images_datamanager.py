@@ -47,6 +47,14 @@ from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
+class ImageBatchStream(torch.utils.data.IterableDataset):
+    def __init__(
+            self,
+
+    ):
+        return
+    
+    # def 
 
 @dataclass
 class FullImageDatamanagerConfig(DataManagerConfig):
@@ -79,7 +87,7 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     fps_reset_every: int = 100
     """The number of iterations before one resets fps sampler repeatly, which is essentially drawing fps_reset_every
     samples from the pool of all training cameras without replacement before a new round of sampling starts."""
-
+    
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
     """
