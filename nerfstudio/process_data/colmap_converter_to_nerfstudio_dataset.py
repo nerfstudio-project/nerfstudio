@@ -215,6 +215,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 image_dir=image_dir,
                 colmap_dir=self.absolute_colmap_path,
                 camera_model=CAMERA_MODELS[self.camera_type],
+                camera_params = '496.12156838477415, 496.37243151952225, 803.6736078458086, 815.1805039537487, 0.03253022992224389, -0.017303579832353623, 0.00023443816608402257, -4.80887208194684e-05',
                 camera_mask_path=mask_path,
                 gpu=self.gpu,
                 verbose=self.verbose,
