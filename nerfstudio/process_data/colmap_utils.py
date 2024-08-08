@@ -93,10 +93,11 @@ def run_colmap(
     image_dir: Path,
     colmap_dir: Path,
     camera_model: CameraModel,
+    camera_params: "496.12156838477415,496.37243151952225,803.6736078458086,815.1805039537487,0.03253022992224389,-0.017303579832353623,0.00023443816608402257,-4.80887208194684e-05",
     camera_mask_path: Optional[Path] = None,
     gpu: bool = True,
     verbose: bool = False,
-    matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
+    matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "exhaustive",
     refine_intrinsics: bool = True,
     colmap_cmd: str = "colmap",
 ) -> None:
@@ -106,6 +107,7 @@ def run_colmap(
         image_dir: Path to the directory containing the images.
         colmap_dir: Path to the output directory.
         camera_model: Camera model to use.
+        camera_params: Camera parameters to use.
         camera_mask_path: Path to the camera mask.
         gpu: If True, use GPU.
         verbose: If True, logs the output of the command.
@@ -126,6 +128,7 @@ def run_colmap(
         f"--image_path {image_dir}",
         "--ImageReader.single_camera 1",
         f"--ImageReader.camera_model {camera_model.value}",
+        f"--ImageReader.camera_params {camera_params}",
         f"--SiftExtraction.use_gpu {int(gpu)}",
     ]
     if camera_mask_path is not None:

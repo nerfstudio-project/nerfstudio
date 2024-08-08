@@ -29,19 +29,19 @@ from nerfstudio.utils.rich_utils import CONSOLE
 class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     """Base class to process images or video into a nerfstudio dataset using colmap"""
 
-    camera_type: Literal["perspective", "fisheye", "equirectangular", "pinhole", "simple_pinhole"] = "perspective"
+    camera_type: Literal["perspective", "fisheye", "equirectangular", "pinhole", "simple_pinhole"] = "fisheye"
     """Camera model to use."""
-    matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
+    matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "exhaustive"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed
     and accuracy. Exhaustive is slower but more accurate. Sequential is faster but
     should only be used for videos."""
-    sfm_tool: Literal["any", "colmap", "hloc"] = "any"
+    sfm_tool: Literal["any", "colmap", "hloc"] = "colmap"
     """Structure from motion tool to use. Colmap will use sift features, hloc can use
     many modern methods such as superpoint features and superglue matcher"""
     refine_pixsfm: bool = False
     """If True, runs refinement using Pixel Perfect SFM.
     Only works with hloc sfm_tool"""
-    refine_intrinsics: bool = True
+    refine_intrinsics: bool = False
     """If True, do bundle adjustment to refine intrinsics.
     Only works with colmap sfm_tool"""
     feature_type: Literal[

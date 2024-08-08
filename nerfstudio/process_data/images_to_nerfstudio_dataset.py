@@ -111,7 +111,8 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
         # Run COLMAP
         if not self.skip_colmap:
             require_cameras_exist = True
-            self._run_colmap()
+            mask_path = '/content/data/nerfstudio/mask/mask.png'
+            self._run_colmap(mask_path=mask_path)
             # Colmap uses renamed images
             image_rename_map = None
 
