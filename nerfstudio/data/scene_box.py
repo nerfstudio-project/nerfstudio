@@ -94,24 +94,83 @@ class OrientedBox:
 
     def within(self, pts: Float[Tensor, "n 3"]):
         """Returns a boolean mask indicating whether each point is within the box."""
+        R, T, S = self.R, self.T, self.S.to(pts)
+        H = torch.eye(4, device=pts.device, dtype=pts.dtype)
+        H[:3, :3] = R
+        H[:3, 3] = T
+        H_world2bbox = torch.inverse(H)
+        pts = torch.cat((pts, torch.ones_like(pts[..., :1])), dim=-1)
+        pts = torch.matmul(H_world2bbox, pts.T).T[..., :3]
+
+        comp_l = torch.tensor(-S / 2)
+        comp_m = torch.tensor(S / 2)
+        mask = torch.all(torch.concat([pts > comp_l, pts < comp_m], dim=-1), dim=-1)
+        return mask
+
+    @staticmethod
+    def from_params(
+        pos: Tuple[float, float, float], rpy: Tuple[float, float, float], scale: Tuple[float, float, float]
+    ):
+        """Construct a box from position, rotation, and scale parameters."""
+        R = torch.tensor(vtf.SO3.from_rpy_radians(rpy[0], rpy[1], rpy[2]).as_matrix())
+        T = torch.tensor(pos)
+        S = torch.tensor(scale)
+        return OrientedBox(R=R, T=T, S=S)
+
+
+@dataclass
+class OrientedSceneBox:
+    R: Float[Tensor, "3 3"]
+    """R: rotation matrix."""
+    T: Float[Tensor, "3"]
+    """T: translation vector."""
+    S: Float[Tensor, "3"]
+    """S: scale vector."""
+
+    def within(self, pts: Float[Tensor, "n 3"]):
+        """Returns a boolean mask indicating whether each point is within the box."""
         pts_local = self.to_local_coordinates(pts)
         comp_l = -self.S / 2
         comp_m = self.S / 2
         mask = torch.all(torch.cat([pts_local > comp_l, pts_local < comp_m], dim=-1), dim=-1)
         return mask
 
-    def to_local_coordinates(self, pts: Float[Tensor, "n 3"]) -> Float[Tensor, "n 3"]:
-        """Transform points to the local coordinate system of the OrientedBox."""
+    def to_local_coordinates(self, pts: Float[Tensor, "*batch 3"]) -> Float[Tensor, "*batch 3"]:
+        """Transform points to the local coordinate system of the OrientedBox.
+
+        Args:
+            pts: Tensor of shape [*batch, 3] where *batch represents any number of leading batch dimensions.
+
+        Returns:
+            pts_local: Tensor of shape [*batch, 3] with the points transformed to the local coordinate system.
+        """
         R, T, _ = self.R, self.T, self.S.to(pts)
+
+        # Construct the homogeneous transformation matrix H_world2bbox
         H = torch.eye(4, device=pts.device, dtype=pts.dtype)
         H[:3, :3] = R
         H[:3, 3] = T
-        H_world2bbox = torch.inverse(H)
-        pts = torch.cat((pts, torch.ones_like(pts[..., :1])), dim=-1)
-        pts_local = torch.matmul(H_world2bbox, pts.T).T[..., :3]
+        H_world2bbox = torch.inverse(H)  # [4, 4]
+
+        # Add homogeneous coordinate to pts to make it [*batch, 4]
+        ones = torch.ones(*pts.shape[:-1], 1, device=pts.device, dtype=pts.dtype)  # shape: [*batch, 1]
+        pts_homogeneous = torch.cat((pts, ones), dim=-1)  # shape: [*batch, 4]
+
+        # Reshape pts_homogeneous to [-1, 4] for batched matrix multiplication
+        original_shape = pts_homogeneous.shape
+        pts_homogeneous_flat = pts_homogeneous.view(
+            -1, 4
+        )  # Flatten to 2D tensor for matmul: [N, 4] where N is the total number of points
+
+        # Perform batched matrix multiplication
+        pts_local_flat = torch.matmul(H_world2bbox, pts_homogeneous_flat.T).T[..., :3]  # [N, 3]
+
+        # Reshape pts_local back to the original shape minus the homogeneous coordinate
+        pts_local = pts_local_flat.view(*original_shape[:-1], 3)  # Reshape to [*batch, 3]
+
         return pts_local
 
-    def normalize_positions(self, pts: Float[Tensor, "n 3"]) -> Float[Tensor, "n 3"]:
+    def normalize_positions(self, pts: Float[Tensor, "*batch 3"]) -> Float[Tensor, "*batch 3"]:
         """Returns normalized positions inside the OrientedBox.
 
         Args:
