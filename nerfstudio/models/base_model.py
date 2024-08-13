@@ -72,6 +72,7 @@ class Model(nn.Module):
         config: ModelConfig,
         scene_box: SceneBox,
         num_train_data: int,
+        device: str,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -81,16 +82,10 @@ class Model(nn.Module):
         self.num_train_data = num_train_data
         self.kwargs = kwargs
         self.collider = None
+        self.device = device
+        self.callbacks = None
 
         self.populate_modules()  # populate the modules
-        self.callbacks = None
-        # to keep track of which device the nn.Module is on
-        self.device_indicator_param = nn.Parameter(torch.empty(0))
-
-    @property
-    def device(self):
-        """Returns the device that the model is on."""
-        return self.device_indicator_param.device
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
