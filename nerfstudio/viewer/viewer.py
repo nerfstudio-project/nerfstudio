@@ -293,15 +293,15 @@ class Viewer:
         self.toggle_pause_button()
         self._toggle_training_state(None)
 
-        # if self.pipeline.model.seed_points[0] is not None:
-        #     self.viser_server.add_point_cloud(
-        #         "/seed_points",
-        #         points=pipeline.model.seed_points[0].numpy(force=True) * VISER_NERFSTUDIO_SCALE_RATIO,
-        #         colors=pipeline.model.seed_points[1].numpy(force=True),
-        #         point_size=0.1,
-        #         point_shape="circle",
-        #         visible=False,  # Hidden by default.
-        #     )
+        if hasattr(self.pipeline.model, "seed_points") and self.pipeline.model.seed_points[0] is not None:
+            self.viser_server.add_point_cloud(
+                "/seed_points",
+                points=self.pipeline.model.seed_points[0].numpy(force=True) * VISER_NERFSTUDIO_SCALE_RATIO,
+                colors=self.pipeline.model.seed_points[1].numpy(force=True),
+                point_size=0.1,
+                point_shape="circle",
+                visible=False,
+            )
 
         scene_box = pipeline.model.scene_box
         aabb = scene_box.aabb.detach().cpu().numpy() * VISER_NERFSTUDIO_SCALE_RATIO
@@ -431,8 +431,6 @@ class Viewer:
         self.pipeline.model.scene_box = SceneBox(aabb=new_aabb)
         self.pipeline.model.render_aabb = SceneBox(aabb=new_aabb)
         self.pipeline.model.populate_modules()
-
-        print(f"Updated AABB device: {new_aabb.device}")
 
     def toggle_pause_button(self) -> None:
         self.pause_train.visible = not self.pause_train.visible
