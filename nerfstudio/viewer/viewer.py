@@ -290,20 +290,18 @@ class Viewer:
                 visible=False,  # Hidden by default.
             )
 
-        # Visualize the scene box for PNRModel
-        # pause trainint initally
         self.toggle_pause_button()
         self._toggle_training_state(None)
 
-        if self.pipeline.model.seed_points[0] is not None:
-            self.viser_server.add_point_cloud(
-                "/seed_points",
-                points=pipeline.model.seed_points[0].numpy(force=True) * VISER_NERFSTUDIO_SCALE_RATIO,
-                colors=pipeline.model.seed_points[1].numpy(force=True),
-                point_size=0.1,
-                point_shape="circle",
-                visible=False,  # Hidden by default.
-            )
+        # if self.pipeline.model.seed_points[0] is not None:
+        #     self.viser_server.add_point_cloud(
+        #         "/seed_points",
+        #         points=pipeline.model.seed_points[0].numpy(force=True) * VISER_NERFSTUDIO_SCALE_RATIO,
+        #         colors=pipeline.model.seed_points[1].numpy(force=True),
+        #         point_size=0.1,
+        #         point_shape="circle",
+        #         visible=False,  # Hidden by default.
+        #     )
 
         scene_box = pipeline.model.scene_box
         aabb = scene_box.aabb.detach().cpu().numpy() * VISER_NERFSTUDIO_SCALE_RATIO
@@ -330,18 +328,21 @@ class Viewer:
             )
             self.transform_controls.append(control)
 
-        # Add GUI elements to display the positions of the points
-        self.gui_point_positions = []
         tab_group = self.viser_server.add_gui_tab_group()
 
-        with tab_group.add_tab("Points"):
-            for i in range(2):
-                gui_point_position = self.viser_server.add_gui_vector3(
-                    label=f"Point {i + 1} Position",
-                    initial_value=self.points[i],
-                    step=0.05,
-                )
-                self.gui_point_positions.append(gui_point_position)
+        with tab_group.add_tab("Scene Box"):
+            gui_point_position_0 = self.viser_server.add_gui_vector3(
+                label="aabb[0]",
+                initial_value=self.points[0],
+                step=0.05,
+            )
+            gui_point_position_1 = self.viser_server.add_gui_vector3(
+                label="aabb[0]",
+                initial_value=self.points[1],
+                step=0.05,
+            )
+
+        self.gui_point_positions = [gui_point_position_0, gui_point_position_1]
 
         # Function to update the bounding box and GUI elements
         self.update_bounding_box()
@@ -421,12 +422,14 @@ class Viewer:
         min_coords = np.minimum(self.transform_controls[0].position, self.transform_controls[1].position)
         max_coords = np.maximum(self.transform_controls[0].position, self.transform_controls[1].position)
 
-        # Create a new tensor for the updated AABB and move it to the correct device
-        new_aabb = torch.tensor([min_coords / VISER_NERFSTUDIO_SCALE_RATIO, max_coords / VISER_NERFSTUDIO_SCALE_RATIO])
+        new_aabb = torch.tensor(
+            [min_coords / VISER_NERFSTUDIO_SCALE_RATIO, max_coords / VISER_NERFSTUDIO_SCALE_RATIO],
+            device=self.pipeline.model.device,
+            requires_grad=False,
+        )
 
-        # Update the pipeline's AABB
         self.pipeline.model.scene_box = SceneBox(aabb=new_aabb)
-        # self.pipeline.model.render_aabb = SceneBox(aabb=new_aabb)
+        self.pipeline.model.render_aabb = SceneBox(aabb=new_aabb)
         self.pipeline.model.populate_modules()
 
         print(f"Updated AABB device: {new_aabb.device}")
