@@ -53,7 +53,7 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
-    orientation_method: Literal["pca", "up", "vertical", "none"] = "up"
+    orientation_method: Literal["pca", "up", "vertical", "none", "align"] = "up"
     """The method to use for orientation."""
     center_method: Literal["poses", "focus", "none"] = "poses"
     """The method to use to center the poses."""
@@ -232,6 +232,8 @@ class Nerfstudio(DataParser):
             CONSOLE.log(f"[yellow] Dataset is overriding orientation method to {orientation_method}")
         else:
             orientation_method = self.config.orientation_method
+            if orientation_method == "align":
+                orientation_method = "up"
 
         poses = torch.from_numpy(np.array(poses).astype(np.float32))
         poses, transform_matrix = camera_utils.auto_orient_and_center_poses(
@@ -298,22 +300,6 @@ class Nerfstudio(DataParser):
         if (camera_type in [CameraType.FISHEYE, CameraType.FISHEYE624]) and (fisheye_crop_radius is not None):
             metadata["fisheye_crop_radius"] = fisheye_crop_radius
 
-        cameras = Cameras(
-            fx=fx,
-            fy=fy,
-            cx=cx,
-            cy=cy,
-            distortion_params=distortion_params,
-            height=height,
-            width=width,
-            camera_to_worlds=poses[:, :3, :4],
-            camera_type=camera_type,
-            metadata=metadata,
-        )
-
-        assert self.downscale_factor is not None
-        cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
-
         # The naming is somewhat confusing, but:
         # - transform_matrix contains the transformation to dataparser output coordinates from saved coordinates.
         # - dataparser_transform_matrix contains the transformation to dataparser output coordinates from original data coordinates.
@@ -347,6 +333,9 @@ class Nerfstudio(DataParser):
             self.prompted_user
         except AttributeError:
             self.prompted_user = False
+
+        alignment_matrix = None
+        sparse_points = None
 
         # Load 3D points
         if self.config.load_3D_points:
@@ -399,9 +388,44 @@ class Nerfstudio(DataParser):
 
             if ply_file_path:
                 sparse_points = self._load_3D_points(ply_file_path, transform_matrix, scale_factor)
-                if sparse_points is not None:
-                    metadata.update(sparse_points)
+
+                if orientation_method == "align":
+                    points3D_xyz = sparse_points["points3D_xyz"]
+                    aligned_points3D, alignment_matrix = self._align_points_to_target_plane(
+                        points3D_xyz, torch.tensor([0, 1, 0], dtype=torch.float32)
+                    )
+                    sparse_points["points3D_xyz"] = aligned_points3D[:, :3]
             self.prompted_user = True
+
+        if alignment_matrix is not None:
+            num_poses = poses.shape[0]
+            bottom_row = torch.tensor([0, 0, 0, 1], dtype=torch.float32).unsqueeze(0).expand(num_poses, -1, -1)
+            poses_homogeneous = torch.cat([poses, bottom_row], dim=1)  # Shape: (num_poses, 4, 4)
+
+            poses = alignment_matrix @ poses_homogeneous
+            dataparser_transform_matrix = torch.cat(
+                [dataparser_transform_matrix, torch.tensor([0, 0, 0, 1], dtype=torch.float32).unsqueeze(0)], dim=0
+            )
+            dataparser_transform_matrix = alignment_matrix @ dataparser_transform_matrix
+
+        cameras = Cameras(
+            fx=fx,
+            fy=fy,
+            cx=cx,
+            cy=cy,
+            distortion_params=distortion_params,
+            height=height,
+            width=width,
+            camera_to_worlds=poses[:, :3, :4],
+            camera_type=camera_type,
+            metadata=metadata,
+        )
+
+        assert self.downscale_factor is not None
+        cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
+
+        if sparse_points is not None:
+            metadata.update(sparse_points)
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
@@ -457,6 +481,70 @@ class Nerfstudio(DataParser):
             "points3D_rgb": points3D_rgb,
         }
         return out
+
+    @staticmethod
+    def _align_points_to_target_plane(points: torch.Tensor, target_normal: torch.Tensor):
+        """Aligns a set of 3D points (in homogeneous coordinates) to a target plane defined by its normal vector.
+
+        Args:
+            points: A torch tensor of shape (n, 4) representing the 3D points in homogeneous coordinates.
+            target_normal: A torch tensor of shape (3, ) representing the normal vector of the target plane.
+
+        Returns:
+            A tuple containing:
+            - aligned_points: The 3D points aligned to the target plane as a torch tensor of shape (n, 4).
+            - alignment_matrix: The 4x4 alignment matrix used for alignment.
+        """
+        points_xyz = points[:, :3]  # Shape: (n, 3)
+
+        # Calculate the centroid (mean of points)
+        centroid = torch.mean(points_xyz, dim=0)  # Shape: (3,)
+
+        # Center the points around the centroid
+        centered_points = points_xyz - centroid  # Shape: (n, 3)
+
+        # Perform SVD
+        _, _, vh = torch.linalg.svd(centered_points)  # vh shape: (3, 3)
+
+        # The last right singular vector is the normal to the plane
+        normal = vh[-1]  # Shape: (3,)
+
+        # Calculate the rotation axis and angle
+        rotation_axis = torch.cross(normal, target_normal)  # Shape: (3,)
+        rotation_axis_norm = torch.norm(rotation_axis)
+
+        if rotation_axis_norm != 0:
+            rotation_axis /= rotation_axis_norm
+            cos_theta = torch.dot(normal, target_normal)
+            theta = torch.arccos(cos_theta)
+
+            # Create the rotation matrix using Rodrigues' rotation formula
+            K = torch.tensor(
+                [
+                    [0, -rotation_axis[2], rotation_axis[1]],
+                    [rotation_axis[2], 0, -rotation_axis[0]],
+                    [-rotation_axis[1], rotation_axis[0], 0],
+                ],
+                dtype=torch.float32,
+            )
+            rotation_matrix = torch.eye(3) + torch.sin(theta) * K + (1 - torch.cos(theta)) * (K @ K)
+        else:
+            rotation_matrix = torch.eye(3)  # If the normal is already aligned, no rotation needed
+
+        # Create the 4x4 alignment matrix
+        alignment_matrix = torch.eye(4, dtype=torch.float32)  # Shape: (4, 4)
+        alignment_matrix[:3, :3] = rotation_matrix  # Insert rotation part
+        alignment_matrix[:3, 3] = -rotation_matrix @ centroid  # Apply translation
+
+        # Ensure the points are in homogeneous coordinates
+        if points.shape[1] == 3:
+            points = torch.cat([points, torch.ones((points.shape[0], 1), dtype=torch.float32)], dim=1)  # Shape: (n, 4)
+
+        # Apply the alignment transformation
+        aligned_points = alignment_matrix @ points.T  # Shape: (4, n)
+        aligned_points = aligned_points.T  # Shape: (n, 4)
+
+        return aligned_points, alignment_matrix
 
     def _get_fname(self, filepath: Path, data_dir: Path, downsample_folder_prefix="images_") -> Path:
         """Get the filename of the image file.
