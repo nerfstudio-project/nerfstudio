@@ -73,6 +73,7 @@ class Model(nn.Module):
         scene_box: SceneBox,
         num_train_data: int,
         device: str,
+        seed_points: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -83,6 +84,7 @@ class Model(nn.Module):
         self.kwargs = kwargs
         self.collider = None
         self.device = device
+        self.seed_points = seed_points
         self.callbacks = None
 
         self.populate_modules()  # populate the modules
