@@ -86,12 +86,13 @@ class InputDataset(Dataset):
             width, height = pil_image.size
             newsize = (int(width * self.scale_factor), int(height * self.scale_factor))
             pil_image = pil_image.resize(newsize, resample=Image.Resampling.BILINEAR)
-        image = pil_to_numpy(pil_image) # # shape is (h, w) or (h, w, 3 or 4) and dtype == "uint8"
+        # image = pil_to_numpy(pil_image) # # shape is (h, w) or (h, w, 3 or 4) and dtype == "uint8"
+        image = np.array(pil_image, copy=False)
         if len(image.shape) == 2:
             image = image[:, :, None].repeat(3, axis=2)
         assert len(image.shape) == 3
         assert image.dtype == np.uint8
-        assert image.shape[2] in [3, 4], f"Image shape of {image.shape} is in correct."
+        assert image.shape[2] in [3, 4], f"Image shape of {image.shape} is incorrect."
         return image
 
     def get_image_float32(self, image_idx: int) -> Float[Tensor, "image_height image_width num_channels"]:
@@ -119,7 +120,7 @@ class InputDataset(Dataset):
         Args:
             image_idx: The image index in the dataset.
         """
-        image = torch.from_numpy(self.get_numpy_image(image_idx).astype(np.uint8))
+        image = torch.from_numpy(self.get_numpy_image(image_idx)) # removed astype(np.uint8) because get_numpy_image returns uint8
         if self._dataparser_outputs.alpha_color is not None and image.shape[-1] == 4:
             assert (self._dataparser_outputs.alpha_color >= 0).all() and (
                 self._dataparser_outputs.alpha_color <= 1
@@ -130,7 +131,7 @@ class InputDataset(Dataset):
             image = torch.clamp(image, min=0, max=255).to(torch.uint8)
         return image
 
-    def get_data(self, image_idx: int, image_type: Literal["uint8", "float32"] = "float32") -> Dict:
+    def get_data(self, image_idx: int, image_type: Literal["uint8", "float32"] = "uint8") -> Dict:
         """Returns the ImageDataset data as a dictionary.
 
         Args:

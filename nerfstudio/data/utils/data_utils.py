@@ -20,7 +20,7 @@ import cv2
 import numpy as np
 import torch
 from PIL import Image
-
+from torch.profiler import record_function
 
 def pil_to_numpy(im: Image) -> np.ndarray:
     """Converts a PIL Image object to a NumPy array.
@@ -32,7 +32,8 @@ def pil_to_numpy(im: Image) -> np.ndarray:
         numpy.ndarray representing the image data.
     """
     # Load in image completely (PIL defaults to lazy loading)
-    im.load()
+    with record_function("im.load()"):
+        im.load()
 
     # Unpack data
     e = Image._getencoder(im.mode, "raw", im.mode)
