@@ -70,8 +70,12 @@ RUN pip install --no-cache-dir --upgrade pip 'setuptools<70.0.0' && \
 # Install gsplat and nerfstudio.
 # NOTE: both are installed jointly in order to prevent docker cache with latest
 # gsplat version (we do not expliticly specify the commit hash).
+#
+# We set MAX_JOBS to reduce resource usage for GH actions:
+# - https://github.com/nerfstudio-project/gsplat/blob/db444b904976d6e01e79b736dd89a1070b0ee1d0/setup.py#L13-L23
 COPY --from=source /tmp/nerfstudio/ /tmp/nerfstudio
 RUN export TORCH_CUDA_ARCH_LIST="$(echo "$CUDA_ARCHITECTURES" | tr ';' '\n' | awk '$0 > 70 {print substr($0,1,1)"."substr($0,2)}' | tr '\n' ' ' | sed 's/ $//')" && \
+    export MAX_JOBS=2 && \
     pip install --no-cache-dir git+https://github.com/nerfstudio-project/gsplat.git && \
     pip install --no-cache-dir /tmp/nerfstudio 'numpy<2.0.0' && \
     rm -rf /tmp/nerfstudio
