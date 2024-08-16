@@ -472,9 +472,9 @@ class SplatfactoModel(Model):
                 avg_grad_norm = (self.xys_grad_norm / self.vis_counts) * 0.5 * max(self.last_size[0], self.last_size[1])
                 high_grads = (avg_grad_norm > self.config.densify_grad_thresh).squeeze()
                 splits = (self.scales.exp().max(dim=-1).values > self.config.densify_size_thresh).squeeze()
+                splits &= high_grads
                 if self.step < self.config.stop_screen_size_at:
                     splits |= (self.max_2Dsize > self.config.split_screen_size).squeeze()
-                splits &= high_grads
                 nsamps = self.config.n_split_samples
                 split_params = self.split_gaussians(splits, nsamps)
 
