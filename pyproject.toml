@@ -190,6 +190,7 @@ lint.ignore = [
     "PLR0912",  # Too many branches.
     "PLW0603",  # Globa statement updates are discouraged.
     "PLW2901",  # For loop variable overwritten.
+    "PLR1730",  # Replace if statement with min/max
 ]
 
 [tool.ruff.lint.isort]
