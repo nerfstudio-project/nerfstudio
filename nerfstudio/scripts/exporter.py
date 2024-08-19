@@ -43,7 +43,7 @@ from nerfstudio.exporter import texture_utils, tsdf_utils
 from nerfstudio.exporter.exporter_utils import collect_camera_poses, generate_point_cloud, get_mesh_from_filename
 from nerfstudio.exporter.marching_cubes import generate_mesh_with_multires_marching_cubes
 from nerfstudio.fields.sdf_field import SDFField  # noqa
-from nerfstudio.models.splatfacto import SplatfactoModel
+from nerfstudio.models.splatfacto import SplatfactoModel, RGB2SH
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -576,6 +576,11 @@ class ExportGaussianSplat(Exporter):
                 shs_rest = shs_rest.reshape((n, -1))
                 for i in range(shs_rest.shape[-1]):
                     map_to_tensors[f"f_rest_{i}"] = shs_rest[:, i, None]
+            elif model.config.sh_degree == 0:
+                shs_0 = model.shs_0.contiguous().cpu().numpy()
+                for i in range(shs_0.shape[1]):
+                    map_to_tensors[f"f_dc_{i}"] = RGB2SH(
+                        torch.clamp(model.colors.clone(), 0.0, 1.0).data.cpu().numpy())[:, i]
             else:
                 colors = torch.clamp(model.colors.clone(), 0.0, 1.0).data.cpu().numpy()
                 map_to_tensors["colors"] = (colors * 255).astype(np.uint8)
