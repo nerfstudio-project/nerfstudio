@@ -92,7 +92,7 @@ dev = [
     "pytest==7.1.2",
     "pytest-xdist==2.5.0",
     "typeguard==2.13.3",
-    "ruff>=0.4.8",
+    "ruff>=0.6.1",
     "sshconf==0.2.5",
     "pycolmap>=0.3.0",  # NOTE: pycolmap==0.3.0 is not available on newer python versions
     "diffusers==0.16.1",
