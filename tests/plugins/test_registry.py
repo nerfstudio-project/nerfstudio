@@ -1,6 +1,7 @@
 """
 Tests for the nerfstudio.plugins.registry module.
 """
+
 import os
 import sys
 from dataclasses import dataclass, field

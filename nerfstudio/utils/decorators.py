@@ -15,6 +15,7 @@
 """
 Decorator definitions
 """
+
 from typing import Callable, List
 
 from nerfstudio.utils import comms

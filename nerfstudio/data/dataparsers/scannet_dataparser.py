@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Data parser for ScanNet dataset"""
+
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
