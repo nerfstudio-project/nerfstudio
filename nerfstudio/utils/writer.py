@@ -365,7 +365,7 @@ class WandbWriter(Writer):
     def write_histogram(self, name: str, tensor: torch.Tensor, step: int) -> None:
         import wandb
         
-        wandb.log({name: wandb.Histogram(tensor.cpu().detach().numpy().reshape(-1))}, step=step)
+        wandb.log({name: wandb.Histogram(tensor.nan_to_num().cpu().detach().numpy().reshape(-1))}, step=step)
 
 
 @decorate_all([check_main_thread])
