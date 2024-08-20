@@ -573,6 +573,10 @@ class ExportGaussianSplat(Exporter):
                 for i in range(shs_0.shape[1]):
                     map_to_tensors[f"f_dc_{i}"] = shs_0[:, i, None]
 
+                if self.use_sh0_renderer:
+                    CONSOLE.print(
+                        "Warning: trained model has higher level of spherical harmonics, option use_sh0_renderer is ignored."
+                    )
                 # transpose(1, 2) was needed to match the sh order in Inria version
                 shs_rest = model.shs_rest.transpose(1, 2).contiguous().cpu().numpy()
                 shs_rest = shs_rest.reshape((n, -1))
