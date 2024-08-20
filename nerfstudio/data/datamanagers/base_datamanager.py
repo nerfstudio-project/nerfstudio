@@ -343,7 +343,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """Number of rays per batch to use per training iteration."""
     train_num_images_to_sample_from: int = 100 # usually -1
     """Number of images to sample during training iteration."""
-    train_num_times_to_repeat_images: int = 5 # usually -1
+    train_num_times_to_repeat_images: int = 10 # usually -1
     """When not training on all images, number of iterations before picking new
     images. If -1, never pick new images."""
     eval_num_rays_per_batch: int = 1024
@@ -363,7 +363,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
-    prefetch_factor: int = 5 # prefetch_factor of 16 does well, but any that is equal train_num_times_to_repeat_images is good
+    prefetch_factor: int = train_num_times_to_repeat_images # prefetch_factor of 16 does well, but any that is equal train_num_times_to_repeat_images is good
     """The limit number of batches a worker will start loading once an iterator is created. 
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
     dataloader_num_workers: int = 4
@@ -517,16 +517,13 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         """
         with record_function("_get_batch_list"):
             batch_list = self._get_batch_list(indices=indices)
-        # # print(type(batch_list[0])) # prints <class 'dict'>
         # print(self.collate_fn) # prints nerfstudio_collate on mainRGB, but prints variable_res_collate if all3cameras
         with record_function("collate_function"):
             collated_batch = self.collate_fn(batch_list)
         with record_function("sending to GPU"):
             collated_batch = get_dict_to_torch(
-                collated_batch, device=self.device, exclude=self.exclude_batch_keys_from_device
+                collated_batch, device=self.device, #exclude=self.exclude_batch_keys_from_device
             )
-        # with record_function("converting to float32 + divide255 on GPU"):
-        #     collated_batch["image"] = convert_uint8_to_float32(collated_batch["image"])
         # batch_list = self._get_batch_list(indices=indices)
         # collated_batch = self.collate_fn(batch_list)
         # collated_batch = get_dict_to_torch(
@@ -588,7 +585,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             # the returned batch also somehow moves the images from the CPU to the GPU
             # collated_batch["image"].get_device() will return 
             ray_indices = batch["indices"]
-            ray_bundle = self.ray_generator(ray_indices) # the ray_bundle is on the GPU, but 
+            ray_bundle = self.ray_generator(ray_indices) # the ray_bundle is on the GPU, but batch["image"] is on the CPU
             yield ray_bundle, batch
 
 

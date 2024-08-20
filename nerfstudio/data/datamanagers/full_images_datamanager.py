@@ -551,15 +551,78 @@ def _undistort_image(
     return K, image, mask
 
 
-@dataclass
-class FullImageBatchStreamConfig(DataManagerConfig):
-    _target: Type = field(default_factory=lambda: ImageBatchStream)
+## Let's implement a parallelized splat dataloader!
+def undistort_idx(idx: int, dataset: TDataset, config: FullImageDatamanagerConfig) -> Dict[str, torch.Tensor]:
+    data = dataset.get_data(idx, image_type=config.cache_images_type)
+    camera = dataset.cameras[idx].reshape(())
+    assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
+        f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
+        f'does not match the camera parameters ({camera.width.item(), camera.height.item()})'
+    )
+    if camera.distortion_params is None or torch.all(camera.distortion_params == 0):
+        return data
+    K = camera.get_intrinsics_matrices().numpy()
+    distortion_params = camera.distortion_params.numpy()
+    image = data["image"].numpy()
 
+    K, image, mask = _undistort_image(camera, distortion_params, data, image, K)
+    data["image"] = torch.from_numpy(image)
+    if mask is not None:
+        data["mask"] = mask
+
+    dataset.cameras.fx[idx] = float(K[0, 0])
+    dataset.cameras.fy[idx] = float(K[1, 1])
+    dataset.cameras.cx[idx] = float(K[0, 2])
+    dataset.cameras.cy[idx] = float(K[1, 2])
+    dataset.cameras.width[idx] = image.shape[1]
+    dataset.cameras.height[idx] = image.shape[0]
+    return data
+
+import math
 class ImageBatchStream(torch.utils.data.IterableDataset):
+    """
+    A datamanager that outputs full images and cameras instead of raybundles. This makes the
+    datamanager more lightweight since we don't have to do generate rays. Useful for full-image
+    training e.g. rasterization pipelines
+    """
+    config: FullImageDatamanagerConfig
+    dataset: TDataset # can be a train dataset or an eval dataset
+
     def __init__(
         self,
-
+        datamanager_config: DataManagerConfig,
+        input_dataset: TDataset,
     ):
-        return
+        self.config = datamanager_config
+        self.dataset = input_dataset
     
-    # def 
+    def __iter__(self):
+        dataset_indices = list(
+            range(len(self.input_dataset))
+        )
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is not None:  # if we have multiple processes
+            per_worker = int(math.ceil(len(dataset_indices) / float(worker_info.num_workers)))
+            slice_start = worker_info.id * per_worker
+        else: # we only have a single process
+            per_worker = len(self.input_dataset)
+            slice_start = 0
+        worker_indices = dataset_indices[
+            slice_start : slice_start + per_worker
+        ]  # the indices of the datapoints in the dataset this worker will load
+        r = random.Random(self.config.train_cameras_sampling_seed)
+        idx = 0
+        while True:
+            if idx == per_worker: # if we've iterated through all the worker's partition of images, we need to reshuffle
+                r.shuffle(worker_indices)
+                idx = 0
+            idx += 1
+            if self.config.cache_images != "disk":
+                # TODO: somehow use the fact we've stored everything in self.cached_train and cached_eval
+
+                yield self.cached_train[worker_indices[idx]], self.dataset.cameras[idx].reshape(())
+            else: # when the images are only stored on disk, we need to undistort them and load them into memory
+                data = undistort_idx(idx, self.dataset, self.config)
+                
+                
+
