@@ -46,7 +46,7 @@ class InputDataset(Dataset):
     exclude_batch_keys_from_device: List[str] = ["image", "mask"]
     cameras: Cameras
 
-    def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0, cache_images: bool = True):
+    def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0, cache_images: bool = False):
         super().__init__()
         self._dataparser_outputs = dataparser_outputs
         self.scale_factor = scale_factor
@@ -86,8 +86,8 @@ class InputDataset(Dataset):
             width, height = pil_image.size
             newsize = (int(width * self.scale_factor), int(height * self.scale_factor))
             pil_image = pil_image.resize(newsize, resample=Image.Resampling.BILINEAR)
-        # image = pil_to_numpy(pil_image) # # shape is (h, w) or (h, w, 3 or 4) and dtype == "uint8"
-        image = np.array(pil_image, copy=False)
+        image = pil_to_numpy(pil_image) # # shape is (h, w) or (h, w, 3 or 4) and dtype == "uint8"
+        # image = np.array(pil_image, copy=False)
         if len(image.shape) == 2:
             image = image[:, :, None].repeat(3, axis=2)
         assert len(image.shape) == 3
@@ -131,7 +131,7 @@ class InputDataset(Dataset):
             image = torch.clamp(image, min=0, max=255).to(torch.uint8)
         return image
 
-    def get_data(self, image_idx: int, image_type: Literal["uint8", "float32"] = "uint8") -> Dict:
+    def get_data(self, image_idx: int, image_type: Literal["uint8", "float32"] = "float32") -> Dict:
         """Returns the ImageDataset data as a dictionary.
 
         Args:
