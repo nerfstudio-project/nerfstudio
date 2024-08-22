@@ -1283,11 +1283,13 @@ def populate_render_tab(
 
             camera_coords = []
             for i in range(num_cameras):
-                camera_coords.append((radius * np.cos(2 * np.pi * i / num_cameras), radius * np.sin(2 * np.pi * i/ num_cameras)))
+                camera_coords.append(click_position + 
+                                     np.array([radius * np.cos(2 * np.pi * i / num_cameras), 
+                                               radius * np.sin(2 * np.pi * i/ num_cameras), 
+                                               camera_height]))
             
             fov = event.client.camera.fov
-            for i, item in enumerate(camera_coords):
-                position = click_position + np.array([item[0], item[1], camera_height])
+            for i, position in enumerate(camera_coords):
                 camera_path.add_camera(
                     keyframe=Keyframe(
                         position=position,
@@ -1329,10 +1331,8 @@ def populate_render_tab(
             camera_height = camera_height_handle.value
             fov = event.client.camera.fov
 
-            for i, item in enumerate(camera_coords):
+            for i, position in enumerate(camera_coords):
                 raylen = 2.0
-                position = click_position + np.array([item[0], item[1], camera_height])
-
                 origins = torch.tensor(np.tile(position, (6, 1)))
                 pixel_area = torch.ones_like(origins[..., 0:1])
                 camera_indices = torch.zeros_like(origins[..., 0:1]).int()
