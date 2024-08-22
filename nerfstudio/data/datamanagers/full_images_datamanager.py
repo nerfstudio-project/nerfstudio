@@ -350,7 +350,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             self.train_unseen_cameras = self.sample_train_cameras()
 
         data = self.cached_train[image_idx]
-        # We're going to copy to make sure we don't mutate the cached dictionary. 
+        # We're going to copy to make sure we don't mutate the cached dictionary.
         # This can cause a memory leak: https://github.com/nerfstudio-project/nerfstudio/issues/3335
         data = data.copy()
         data["image"] = data["image"].to(self.device)
