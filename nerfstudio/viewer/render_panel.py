@@ -1320,16 +1320,14 @@ def populate_render_tab(
             from nerfstudio.field_components.field_heads import FieldHeadNames
             from nerfstudio.model_components.losses import scale_gradients_by_distance_squared
 
+            nonlocal camera_coords
+
             directions = [[1, 0, 0],
                             [-1, 0, 0],
                             [0, 1, 0],
                             [0, -1, 0],
                             [0, 0, 1],
                             [0, 0, -1]]
-        
-            nonlocal click_position, num_cameras_handle, radius_handle, camera_height_handle, camera_coords
-            camera_height = camera_height_handle.value
-            fov = event.client.camera.fov
 
             for i, position in enumerate(camera_coords):
                 raylen = 2.0
@@ -1352,16 +1350,18 @@ def populate_render_tab(
                 ).to('cuda')
 
                 outputs = viewer_model.get_outputs(bundle)
-                
                 distances = outputs["expected_depth"].detach().cpu().numpy()
-                if min(distances) < 0.4:
+            
+                loss = -min(distances)
+                print(i, loss)
+                if loss > -0.4:
                     position = position - directions[np.argmin(distances)] * 1
                     camera_path.add_camera(
                         keyframe=Keyframe(
                             position=position,
                             wxyz=wxyz_helper(position),
                             override_fov_enabled=False,
-                            override_fov_rad=fov,
+                            override_fov_rad=event.client.camera.fov,
                             override_time_enabled=False,
                             override_time_val=0.0,
                             aspect=resolution.value[0] / resolution.value[1],
