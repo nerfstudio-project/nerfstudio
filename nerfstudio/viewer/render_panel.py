@@ -1353,9 +1353,9 @@ def populate_render_tab(
                 distances = outputs["expected_depth"].detach().cpu().numpy()
             
                 loss = -min(distances)
-                print(i, loss)
                 if loss > -0.4:
                     position = position - directions[np.argmin(distances)] * 1
+                    # backprop through the nerf as the gradient step, input is position
                     camera_path.add_camera(
                         keyframe=Keyframe(
                             position=position,
