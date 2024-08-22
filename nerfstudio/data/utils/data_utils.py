@@ -117,3 +117,7 @@ def get_depth_image_from_path(
         image = image.astype(np.float64) * scale_factor
         image = cv2.resize(image, (width, height), interpolation=interpolation)
     return torch.from_numpy(image[:, :, np.newaxis])
+
+def identity_collate(x):
+    """This function does nothing but serves to help our dataloaders have a pickleable function, as lambdas are not pickleable"""
+    return x

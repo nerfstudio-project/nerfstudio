@@ -44,6 +44,7 @@ from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManag
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
+from nerfstudio.data.utils.data_utils import identity_collate
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -63,8 +64,8 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     new images. If -1, never pick new images."""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """Specifies the image indices to use during eval; if None, uses all."""
-    cache_images: Literal["cpu", "gpu"] = "gpu"
-    """Whether to cache images in memory. If "cpu", caches on cpu. If "gpu", caches on device."""
+    cache_images: Literal["cpu", "gpu", "disk"] = "gpu"
+    """Whether to cache images in memory. If "cpu", caches on cpu. If "gpu", caches on device. If "disk", keeps images on disk. """
     cache_images_type: Literal["uint8", "float32"] = "float32"
     """The image type returned from manager, caching images in uint8 saves memory"""
     max_thread_workers: Optional[int] = None
@@ -79,7 +80,14 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     fps_reset_every: int = 100
     """The number of iterations before one resets fps sampler repeatly, which is essentially drawing fps_reset_every
     samples from the pool of all training cameras without replacement before a new round of sampling starts."""
-    
+    use_image_train_dataloader: bool = cache_images == "disk"
+    """Supports datasets that do not fit in system RAM and allows parallelization of the dataloading process with multiple workers."""
+    dataloader_num_workers: int = 4
+    """The number of workers performing the dataloading from either disk/RAM, which 
+    includes collating, pixel sampling, unprojecting, ray generation etc."""
+    prefetch_factor: int = 10
+    """The limit number of batches a worker will start loading once an iterator is created. 
+    More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
     """
@@ -121,6 +129,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.train_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split="train")
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
+        # print(type(self.train_dataset)) # prints InputDataset
         if len(self.train_dataset) > 500 and self.config.cache_images == "gpu":
             CONSOLE.print(
                 "Train dataset has over 500 images, overriding cache_images to cpu",
@@ -138,6 +147,19 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
         assert len(self.train_unseen_cameras) > 0, "No data found in dataset"
 
+        if self.config.cache_images == "disk":
+            self.imagebatch_stream = ImageBatchStream(
+                input_dataset=self.train_dataset,
+                datamanager_config=self.config,
+
+            )
+            self.image_dataloader = torch.utils.data.DataLoader(
+                self.imagebatch_stream,
+                batch_size=1,
+                num_workers=self.config.dataloader_num_workers,
+                collate_fn=identity_collate,
+                pin_memory_device=self.device,
+            )
         super().__init__()
 
     def sample_train_cameras(self):
@@ -383,7 +405,7 @@ def _undistort_image(
     mask = None
     if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
         assert distortion_params[3] == 0, (
-            "We doesn't support the 4th Brown parameter for image undistortion, "
+            "We don't support the 4th Brown parameter for image undistortion, "
             "Only k1, k2, k3, p1, p2 can be non-zero."
         )
         distortion_params = np.array(
@@ -553,6 +575,7 @@ def _undistort_image(
 
 ## Let's implement a parallelized splat dataloader!
 def undistort_idx(idx: int, dataset: TDataset, config: FullImageDatamanagerConfig) -> Dict[str, torch.Tensor]:
+    """Undistorts an image to one taken by a linear (pinhole) camera model and updates the dataset's camera intrinsics to pinhole"""
     data = dataset.get_data(idx, image_type=config.cache_images_type)
     camera = dataset.cameras[idx].reshape(())
     assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
@@ -581,7 +604,7 @@ def undistort_idx(idx: int, dataset: TDataset, config: FullImageDatamanagerConfi
 import math
 class ImageBatchStream(torch.utils.data.IterableDataset):
     """
-    A datamanager that outputs full images and cameras instead of raybundles. This makes the
+    A wrapper of InputDataset that outputs undistorted full images and cameras instead of raybundles. This makes the
     datamanager more lightweight since we don't have to do generate rays. Useful for full-image
     training e.g. rasterization pipelines
     """
@@ -611,18 +634,22 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
             slice_start : slice_start + per_worker
         ]  # the indices of the datapoints in the dataset this worker will load
         r = random.Random(self.config.train_cameras_sampling_seed)
-        idx = 0
+        i = 0 # i refers to how many times this worker has returned an undistorted image-and-camera view
         while True:
-            if idx == per_worker: # if we've iterated through all the worker's partition of images, we need to reshuffle
+            if i == per_worker: # if we've iterated through all the worker's partition of images, we need to reshuffle
                 r.shuffle(worker_indices)
-                idx = 0
-            idx += 1
+                i = 0
+            idx = worker_indices[i] # idx refers to the actual datapoint index this worker will retrieve
             if self.config.cache_images != "disk":
                 # TODO: somehow use the fact we've stored everything in self.cached_train and cached_eval
 
-                yield self.cached_train[worker_indices[idx]], self.dataset.cameras[idx].reshape(())
+                yield self.cached_train[idx], self.dataset.cameras[idx].reshape(())
             else: # when the images are only stored on disk, we need to undistort them and load them into memory
                 data = undistort_idx(idx, self.dataset, self.config)
-                
-                
+                camera = self.dataset.cameras[idx : idx + 1].to(self.device)
+                if camera.metadata is None:
+                    camera.metadata = {}
+                camera.metadata["cam_idx"] = idx
+            i += 1
+            yield camera, data
 

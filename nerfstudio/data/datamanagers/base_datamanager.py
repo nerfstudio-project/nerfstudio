@@ -370,7 +370,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes collating, pixel sampling, unprojecting, ray generation etc."""
     use_ray_train_dataloader: bool = True
-    """Allows parallelization of the dataloading process with multiple workers."""
+    """Supports datasets that do not fit in system RAM and allows parallelization of the dataloading process with multiple workers."""
     cache_binaries: bool = True
     """When enabled, cache raw image files to RAM"""
 
