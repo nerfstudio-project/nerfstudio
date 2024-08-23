@@ -724,7 +724,7 @@ class SplatfactoModel(Model):
             render_mode = "RGB+ED"
         else:
             render_mode = "RGB"
-
+        # breakpoint()
         if self.config.sh_degree > 0:
             sh_degree_to_use = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
         else:

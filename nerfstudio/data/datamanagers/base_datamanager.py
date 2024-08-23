@@ -206,6 +206,7 @@ class DataManager(nn.Module):
         self.train_count = 0
         self.eval_count = 0
         if self.train_dataset and self.test_mode != "inference":
+            # print(self.setup_train) # prints <bound method ParallelFullImageDatamanager.setup_train of ParallelFullImageDatamanager()>
             self.setup_train()
         if self.eval_dataset and self.test_mode != "inference":
             self.setup_eval()

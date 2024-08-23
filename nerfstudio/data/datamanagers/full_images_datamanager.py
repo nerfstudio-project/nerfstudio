@@ -85,7 +85,7 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     dataloader_num_workers: int = 4
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes collating, pixel sampling, unprojecting, ray generation etc."""
-    prefetch_factor: int = 10
+    prefetch_factor: int = 1
     """The limit number of batches a worker will start loading once an iterator is created. 
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
 
@@ -147,19 +147,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
         assert len(self.train_unseen_cameras) > 0, "No data found in dataset"
 
-        if self.config.cache_images == "disk":
-            self.imagebatch_stream = ImageBatchStream(
-                input_dataset=self.train_dataset,
-                datamanager_config=self.config,
-
-            )
-            self.image_dataloader = torch.utils.data.DataLoader(
-                self.imagebatch_stream,
-                batch_size=1,
-                num_workers=self.config.dataloader_num_workers,
-                collate_fn=identity_collate,
-                pin_memory_device=self.device,
-            )
         super().__init__()
 
     def sample_train_cameras(self):
@@ -222,7 +209,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             dataset = self.eval_dataset
         else:
             assert_never(split)
-
         def undistort_idx(idx: int) -> Dict[str, torch.Tensor]:
             data = dataset.get_data(idx, image_type=self.config.cache_images_type)
             camera = dataset.cameras[idx].reshape(())
@@ -365,7 +351,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         # Make sure to re-populate the unseen cameras list if we have exhausted it
         if len(self.train_unseen_cameras) == 0:
             self.train_unseen_cameras = self.sample_train_cameras()
-
         data = self.cached_train[image_idx]
         data["image"] = data["image"].to(self.device)
 
@@ -574,9 +559,9 @@ def _undistort_image(
 
 
 ## Let's implement a parallelized splat dataloader!
-def undistort_idx(idx: int, dataset: TDataset, config: FullImageDatamanagerConfig) -> Dict[str, torch.Tensor]:
+def undistort_idx(idx: int, dataset: TDataset, image_type: Literal["uint8", "float32"] = "float32") -> Dict[str, torch.Tensor]:
     """Undistorts an image to one taken by a linear (pinhole) camera model and updates the dataset's camera intrinsics to pinhole"""
-    data = dataset.get_data(idx, image_type=config.cache_images_type)
+    data = dataset.get_data(idx, image_type)
     camera = dataset.cameras[idx].reshape(())
     assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
         f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
@@ -604,22 +589,23 @@ def undistort_idx(idx: int, dataset: TDataset, config: FullImageDatamanagerConfi
 import math
 class ImageBatchStream(torch.utils.data.IterableDataset):
     """
-    A wrapper of InputDataset that outputs undistorted full images and cameras instead of raybundles. This makes the
+    A wrapper of InputDataset that outputs undistorted full images and cameras. This makes the
     datamanager more lightweight since we don't have to do generate rays. Useful for full-image
     training e.g. rasterization pipelines
     """
-    config: FullImageDatamanagerConfig
-    dataset: TDataset # can be a train dataset or an eval dataset
 
     def __init__(
         self,
         datamanager_config: DataManagerConfig,
         input_dataset: TDataset,
+        device,
     ):
         self.config = datamanager_config
-        self.dataset = input_dataset
-    
+        self.input_dataset = input_dataset
+        self.device = device
+
     def __iter__(self):
+        # print(self.input_dataset.cameras.device) prints cpu
         dataset_indices = list(
             range(len(self.input_dataset))
         )
@@ -634,22 +620,85 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
             slice_start : slice_start + per_worker
         ]  # the indices of the datapoints in the dataset this worker will load
         r = random.Random(self.config.train_cameras_sampling_seed)
-        i = 0 # i refers to how many times this worker has returned an undistorted image-and-camera view
+        r.shuffle(worker_indices)
+        i = 0 # i refers to what image index we are outputting: i=0 => we are yielding our first image,camera
         while True:
-            if i == per_worker: # if we've iterated through all the worker's partition of images, we need to reshuffle
+            if i % per_worker == 0: # if we've iterated through all the worker's partition of images, we need to reshuffle
                 r.shuffle(worker_indices)
                 i = 0
             idx = worker_indices[i] # idx refers to the actual datapoint index this worker will retrieve
-            if self.config.cache_images != "disk":
-                # TODO: somehow use the fact we've stored everything in self.cached_train and cached_eval
-
-                yield self.cached_train[idx], self.dataset.cameras[idx].reshape(())
-            else: # when the images are only stored on disk, we need to undistort them and load them into memory
-                data = undistort_idx(idx, self.dataset, self.config)
-                camera = self.dataset.cameras[idx : idx + 1].to(self.device)
-                if camera.metadata is None:
-                    camera.metadata = {}
-                camera.metadata["cam_idx"] = idx
+            data = undistort_idx(idx, self.input_dataset, self.config.cache_images_type)
+            camera = self.input_dataset.cameras[idx : idx + 1]#.to(self.device)
+            if camera.metadata is None:
+                camera.metadata = {}
+            camera.metadata["cam_idx"] = idx
             i += 1
+            if torch.sum(camera.camera_to_worlds) == 0:
+                print(i, camera.camera_to_worlds, "YOYO INSIDE IMAGEBATCHSTREAM")
             yield camera, data
 
+class ParallelFullImageDatamanager(FullImageDatamanager, Generic[TDataset]):
+    def __init__(
+        self,
+        config: FullImageDatamanagerConfig,
+        device: Union[torch.device, str] = "cpu",
+        test_mode: Literal["test", "val", "inference"] = "val",
+        world_size: int = 1,
+        local_rank: int = 0,
+        **kwargs
+    ):
+        import torch.multiprocessing as mp
+        mp.set_start_method("spawn")
+        super().__init__(
+            config=config,
+            device=device,
+            test_mode=test_mode,
+            world_size=world_size,
+            local_rank=local_rank,
+            **kwargs
+        )
+ 
+    def setup_train(self):
+        self.train_imagebatch_stream = ImageBatchStream(
+            input_dataset=self.train_dataset,
+            datamanager_config=self.config,
+            device=self.device,
+        )
+        self.train_image_dataloader = torch.utils.data.DataLoader(
+            self.train_imagebatch_stream,
+            batch_size=1,
+            num_workers=self.config.dataloader_num_workers,
+            collate_fn=identity_collate,
+            pin_memory_device=self.device,
+        )
+        self.iter_train_image_dataloader = iter(self.train_image_dataloader)
+
+    def setup_eval(self):
+        self.eval_imagebatch_stream = ImageBatchStream(
+            input_dataset=self.eval_dataset,
+            datamanager_config=self.config,
+            device=self.device,
+        )
+        self.eval_image_dataloader = torch.utils.data.DataLoader(
+            self.eval_imagebatch_stream,
+            batch_size=1,
+            num_workers=self.config.dataloader_num_workers,
+            collate_fn=identity_collate,
+            pin_memory_device=self.device,
+        )
+        self.iter_eval_image_dataloader = iter(self.eval_image_dataloader) # these things output tuples
+
+    @property
+    def fixed_indices_eval_dataloader(self) -> List[Tuple[Cameras, Dict]]:
+        return self.iter_eval_image_dataloader
+
+    def next_train(self, step: int) -> Tuple[Cameras, Dict]:
+        self.train_count += 1
+        camera, data = next(self.iter_train_image_dataloader)[0]
+        return camera, data
+    
+    def next_eval(self, step: int) -> Tuple[Cameras, Dict]:
+        self.eval_count += 1
+        camera, data = next(self.iter_train_image_dataloader)[0]
+        return camera, data
+    
