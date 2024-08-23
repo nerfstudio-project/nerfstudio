@@ -485,7 +485,7 @@ class ExportGaussianSplat(Exporter):
     """Rotation of the oriented bounding box. Expressed as RPY Euler angles in radians"""
     obb_scale: Optional[Tuple[float, float, float]] = None
     """Scale of the oriented bounding box along each axis."""
-    use_sh0_renderer: bool = False
+    ply_color_mode: Literal["sh_coeffs", "rbg"] = "sh_coeffs"
     """If True, outputs for rendering in renderers that support SH0 rendering."""
 
     @staticmethod
@@ -573,9 +573,9 @@ class ExportGaussianSplat(Exporter):
                 for i in range(shs_0.shape[1]):
                     map_to_tensors[f"f_dc_{i}"] = shs_0[:, i, None]
 
-                if self.use_sh0_renderer:
+                if self.ply_color_mode == "rgb":
                     CONSOLE.print(
-                        "Warning: trained model has higher level of spherical harmonics, option use_sh0_renderer is ignored."
+                        "Warning: model has higher level of spherical harmonics, option ply_color_mode is ignored."
                     )
                 # transpose(1, 2) was needed to match the sh order in Inria version
                 shs_rest = model.shs_rest.transpose(1, 2).contiguous().cpu().numpy()
@@ -583,13 +583,13 @@ class ExportGaussianSplat(Exporter):
                 for i in range(shs_rest.shape[-1]):
                     map_to_tensors[f"f_rest_{i}"] = shs_rest[:, i, None]
             else:
-                if self.use_sh0_renderer:
+                if self.ply_color_mode == "sh_coeffs":
                     shs_0 = model.shs_0.contiguous().cpu().numpy()
                     for i in range(shs_0.shape[1]):
                         map_to_tensors[f"f_dc_{i}"] = RGB2SH(
                             torch.clamp(model.colors.clone(), 0.0, 1.0).data.cpu().numpy()
                         )[:, i]
-                else:
+                elif self.ply_color_mode == "rgb":
                     colors = torch.clamp(model.colors.clone(), 0.0, 1.0).data.cpu().numpy()
                     colors = (colors * 255).astype(np.uint8)
                     map_to_tensors["red"] = colors[:, 0]
