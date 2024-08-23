@@ -506,7 +506,7 @@ class ExportGaussianSplat(Exporter):
         """
 
         # Ensure count matches the length of all tensors
-        if not all(len(tensor) == count for tensor in map_to_tensors.values()):
+        if not all(tensor.size == count for tensor in map_to_tensors.values()):
             raise ValueError("Count does not match the length of all tensors")
 
         # Type check for numpy arrays of type float or uint8 and non-empty
@@ -591,7 +591,10 @@ class ExportGaussianSplat(Exporter):
                         )[:, i]
                 else:
                     colors = torch.clamp(model.colors.clone(), 0.0, 1.0).data.cpu().numpy()
-                    map_to_tensors["colors"] = (colors * 255).astype(np.uint8)
+                    colors = (colors * 255).astype(np.uint8)
+                    map_to_tensors["red"] = colors[:, 0]
+                    map_to_tensors["green"] = colors[:, 1]
+                    map_to_tensors["blue"] = colors[:, 2]
 
             map_to_tensors["opacity"] = model.opacities.data.cpu().numpy()
 
