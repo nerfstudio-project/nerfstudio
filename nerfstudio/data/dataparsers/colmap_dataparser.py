@@ -276,6 +276,11 @@ class ColmapDataParser(DataParser):
             cy.append(float(frame["cy"]))
             height.append(int(frame["h"]))
             width.append(int(frame["w"]))
+            if "k4" in frame and float(frame["k4"]) != 0.0:
+                raise ValueError(
+                    "K4 is non-zero! Please note that Nerfstudio camera model's K4 has different meaning than colmap "
+                    "OPENCV camera model K4."
+                )
             distort.append(
                 camera_utils.get_distortion_params(
                     k1=float(frame["k1"]) if "k1" in frame else 0.0,
