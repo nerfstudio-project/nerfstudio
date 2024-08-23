@@ -276,10 +276,11 @@ class ColmapDataParser(DataParser):
             cy.append(float(frame["cy"]))
             height.append(int(frame["h"]))
             width.append(int(frame["w"]))
-            if "k4" in frame and float(frame["k4"]) != 0.0:
+            if any([k in frame and float(frame[k]) != 0.0 for k in ["k4", "k5", "k6"]]):
                 raise ValueError(
-                    "K4 is non-zero! Please note that Nerfstudio camera model's K4 has different meaning than colmap "
-                    "OPENCV camera model K4."
+                    "K4/K5/K6 is non-zero! Note that Nerfstudio camera model's K4 has different meaning than colmap "
+                    "OPENCV camera model K4. Nerfstudio's K4 is the 4-th order of radial distortion coefficient, while "
+                    "colmap/OPENCV's K4 is 4-th coefficient in fractional radial distortion model."
                 )
             distort.append(
                 camera_utils.get_distortion_params(
