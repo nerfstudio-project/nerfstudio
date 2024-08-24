@@ -82,7 +82,7 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     samples from the pool of all training cameras without replacement before a new round of sampling starts."""
     use_image_train_dataloader: bool = cache_images == "disk"
     """Supports datasets that do not fit in system RAM and allows parallelization of the dataloading process with multiple workers."""
-    dataloader_num_workers: int = 4
+    dataloader_num_workers: int = 0
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes collating, pixel sampling, unprojecting, ray generation etc."""
     prefetch_factor: int = 1
@@ -393,6 +393,9 @@ def _undistort_image(
             "We don't support the 4th Brown parameter for image undistortion, "
             "Only k1, k2, k3, p1, p2 can be non-zero."
         )
+        #print(distortion_params) # [ 0.05517609 -0.07427584  0.          0.         -0.00026702 -0.00060216]
+        # we rearrange the distortion parameters because OpenCV expects the order (k1, k2, p1, p2, k3) 
+        # see https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
         distortion_params = np.array(
             [
                 distortion_params[0],
@@ -411,13 +414,18 @@ def _undistort_image(
         K[1, 2] = K[1, 2] - 0.5
         if np.any(distortion_params):
             newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
+            breakpoint()
             image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
+            # print("1:", image.shape) # prints (960, 540, 3)
         else:
             newK = K
             roi = 0, 0, image.shape[1], image.shape[0]
         # crop the image and update the intrinsics accordingly
         x, y, w, h = roi
-        image = image[y : y + h, x : x + w]
+        # print(x, y, w, h) # prints 0, 0, 539, 959
+        # image = image[y : y + h, x : x + w]
+        # print("2:", image.shape) # prints (959, 539, 3)
+
         if "depth_image" in data:
             data["depth_image"] = data["depth_image"][y : y + h, x : x + w]
         if "mask" in data:
@@ -554,7 +562,7 @@ def _undistort_image(
         K = undist_K.numpy()
     else:
         raise NotImplementedError("Only perspective and fisheye cameras are supported")
-
+    # print("final:", image.shape, camera.width, camera.height) # prints 'final: (959, 539, 3) tensor([540]) tensor([960])'
     return K, image, mask
 
 
@@ -563,17 +571,22 @@ def undistort_idx(idx: int, dataset: TDataset, image_type: Literal["uint8", "flo
     """Undistorts an image to one taken by a linear (pinhole) camera model and updates the dataset's camera intrinsics to pinhole"""
     data = dataset.get_data(idx, image_type)
     camera = dataset.cameras[idx].reshape(())
+    # dataset.cameras.width[idx] = data["image"].shape[1]
+    # dataset.cameras.height[idx] = data["image"].shape[0]
+    if idx == 48:
+        print("beginning", camera.width, camera.height)
     assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
         f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
-        f'does not match the camera parameters ({camera.width.item(), camera.height.item()})'
+        f'does not match the camera parameters ({camera.width.item(), camera.height.item()}), idx = {idx}'
     )
     if camera.distortion_params is None or torch.all(camera.distortion_params == 0):
         return data
     K = camera.get_intrinsics_matrices().numpy()
     distortion_params = camera.distortion_params.numpy()
     image = data["image"].numpy()
-
     K, image, mask = _undistort_image(camera, distortion_params, data, image, K)
+    # print(image.shape[1]) # outputs 539
+    # print(cameras[48].reshape(()).width.item()) # outputs 540
     data["image"] = torch.from_numpy(image)
     if mask is not None:
         data["mask"] = mask
@@ -584,6 +597,8 @@ def undistort_idx(idx: int, dataset: TDataset, image_type: Literal["uint8", "flo
     dataset.cameras.cy[idx] = float(K[1, 2])
     dataset.cameras.width[idx] = image.shape[1]
     dataset.cameras.height[idx] = image.shape[0]
+    if idx == 48:
+        print("ending", camera.width, camera.height)
     return data
 
 import math
