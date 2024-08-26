@@ -423,8 +423,8 @@ def _undistort_image(
         x, y, w, h = roi
         image = image[y : y + h, x : x + w]
         # update the principal point based on our cropped region of interest (ROI)
-        newK[0, 1] -= x
-        newK[0, 2] -= y
+        newK[0, 2] -= x
+        newK[1, 2] -= y
         if "depth_image" in data:
             data["depth_image"] = data["depth_image"][y : y + h, x : x + w]
         if "mask" in data:
