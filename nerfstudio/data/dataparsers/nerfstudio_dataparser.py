@@ -453,7 +453,9 @@ class Nerfstudio(DataParser):
         )
         return dataparser_outputs
 
-    def _load_3D_points(self, ply_file_path: Path, transform_matrix: torch.Tensor, scale_factor: float):
+    def _load_3D_points(
+        self, ply_file_path: Path, transform_matrix: torch.Tensor, scale_factor: float
+    ) -> Optional[Dict[str, torch.Tensor]]:
         """Loads point clouds positions and colors from .ply
 
         Args:
