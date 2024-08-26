@@ -15,6 +15,7 @@
 """
 Camera Models
 """
+
 import base64
 import math
 from dataclasses import dataclass

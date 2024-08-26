@@ -15,6 +15,7 @@
 """
 Ray generator.
 """
+
 from jaxtyping import Int
 from torch import Tensor, nn
 

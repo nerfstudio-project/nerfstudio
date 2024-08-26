@@ -1,6 +1,7 @@
 """
 Encoding Tests
 """
+
 import pytest
 import torch
 

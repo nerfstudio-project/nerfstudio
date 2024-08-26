@@ -379,8 +379,7 @@ class DensityFn(Protocol):
 
     def __call__(
         self, positions: Float[Tensor, "*batch 3"], times: Optional[Float[Tensor, "*batch 1"]] = None
-    ) -> Float[Tensor, "*batch 1"]:
-        ...
+    ) -> Float[Tensor, "*batch 1"]: ...
 
 
 class VolumetricSampler(Sampler):

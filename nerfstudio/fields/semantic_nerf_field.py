@@ -15,6 +15,7 @@
 """
 Semantic NeRF field implementation.
 """
+
 from typing import Dict, Optional, Tuple
 
 import torch

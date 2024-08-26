@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Data parser for blender dataset"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -21,7 +22,6 @@ from typing import Optional, Type
 
 import imageio
 import numpy as np
-import open3d as o3d
 import torch
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -115,6 +115,8 @@ class Blender(DataParser):
         return dataparser_outputs
 
     def _load_3D_points(self, ply_file_path: Path):
+        import open3d as o3d  # Importing open3d is slow, so we only do it if we need it.
+
         pcd = o3d.io.read_point_cloud(str(ply_file_path))
 
         points3D = torch.from_numpy(np.asarray(pcd.points, dtype=np.float32) * self.config.scale_factor)

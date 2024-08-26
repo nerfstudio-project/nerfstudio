@@ -34,28 +34,54 @@ def populate_export_tab(
 ) -> None:
     viewing_gsplat = isinstance(viewer_model, SplatfactoModel)
     if not viewing_gsplat:
-        crop_output = server.add_gui_checkbox("Use Crop", False)
+        crop_output = server.gui.add_checkbox("Use Crop", False)
 
         @crop_output.on_update
         def _(_) -> None:
             control_panel.crop_viewport = crop_output.value
 
     server.add_gui_markdown("<small>Export available after a checkpoint is saved (default minimum 2000 steps)</small>")
-    with server.add_gui_folder("Splat"):
+    with server.gui.add_folder("Splat"):
         populate_splat_tab(server, control_panel, config_path, viewing_gsplat)
-    with server.add_gui_folder("Point Cloud"):
+    with server.gui.add_folder("Point Cloud"):
         populate_point_cloud_tab(server, control_panel, config_path, viewing_gsplat)
-    with server.add_gui_folder("Mesh"):
+    with server.gui.add_folder("Mesh"):
         populate_mesh_tab(server, control_panel, config_path, viewing_gsplat)
 
 
-def get_crop_string(obb: OrientedBox, crop_viewport: bool) -> List[str]:
+def show_command_modal(client: viser.ClientHandle, what: Literal["mesh", "point cloud", "splat"], command: str) -> None:
+    """Show a modal to each currently connected client.
+
+    In the future, we should only show the modal to the client that pushes the
+    generation button.
+    """
+    with client.gui.add_modal(what.title() + " Export") as modal:
+        client.gui.add_markdown(
+            "\n".join(
+                [
+                    f"To export a {what}, run the following from the command line:",
+                    "",
+                    "```",
+                    command,
+                    "```",
+                ]
+            )
+        )
+        close_button = client.gui.add_button("Close")
+
+        @close_button.on_click
+        def _(_) -> None:
+            modal.close()
+
+
+def get_crop_string(obb: OrientedBox, crop_viewport: bool):
     """Takes in an oriented bounding box and returns a string of the form "--obb_{center,rotation,scale}
     and each arg formatted with spaces around it
     """
     if not crop_viewport:
         return ""
     rpy = vtf.SO3.from_matrix(obb.R.numpy(force=True)).as_rpy_radians()
+    rpy = [rpy.roll, rpy.pitch, rpy.yaw]
     pos = obb.T.squeeze().tolist()
     scale = obb.S.squeeze().tolist()
     rpystring = " ".join([f"{x:.10f}" for x in rpy])
@@ -70,13 +96,9 @@ def populate_point_cloud_tab(
     viewing_gsplat: bool,
 ) -> None:
     if not viewing_gsplat:
-        server.add_gui_markdown(
-            "<small>Render depth, project to an oriented point cloud, and filter</small> "
-        )
-        num_points = server.add_gui_number(
-            "# Points", initial_value=1_000_000, min=1, max=None, step=1
-        )
-        world_frame = server.add_gui_checkbox(
+        server.gui.add_markdown("<small>Render depth, project to an oriented point cloud, and filter</small> ")
+        num_points = server.gui.add_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
+        world_frame = server.gui.add_checkbox(
             "Save in world frame",
             False,
             hint=(
@@ -84,19 +106,16 @@ def populate_point_cloud_tab(
                 "scaled and reoriented coordinate space expected by the NeRF models."
             ),
         )
-        remove_outliers = server.add_gui_checkbox("Remove outliers", True)
-        normals = server.add_gui_dropdown(
+        remove_outliers = server.gui.add_checkbox("Remove outliers", True)
+        normals = server.gui.add_dropdown(
             "Normals",
             # TODO: options here could depend on what's available to the model.
             ("open3d", "model_output"),
             initial_value="open3d",
             hint="Normal map source.",
         )
-        output_dir = server.add_gui_text(
-            "Output Directory", initial_value="exports/pcd/"
-        )
-        export_button = server.add_gui_button("Export", icon=viser.Icon.FILE_EXPORT)
-        download_button = server.gui.add_button("Download Point Cloud", icon=viser.Icon.DOWNLOAD)
+        output_dir = server.gui.add_text("Output Directory", initial_value="exports/pcd/")
+        generate_command = server.gui.add_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
@@ -148,9 +167,7 @@ def populate_point_cloud_tab(
             )
 
     else:
-        server.add_gui_markdown(
-            "<small>Point cloud export is not currently supported with Gaussian Splatting</small>"
-        )
+        server.gui.add_markdown("<small>Point cloud export is not currently supported with Gaussian Splatting</small>")
 
 
 def populate_mesh_tab(
@@ -160,30 +177,23 @@ def populate_mesh_tab(
     viewing_gsplat: bool,
 ) -> None:
     if not viewing_gsplat:
-        server.add_gui_markdown(
+        server.gui.add_markdown(
             "<small>Render depth, project to an oriented point cloud, and run Poisson surface reconstruction</small>"
         )
 
-        normals = server.add_gui_dropdown(
+        normals = server.gui.add_dropdown(
             "Normals",
             ("open3d", "model_output"),
             initial_value="open3d",
             hint="Source for normal maps.",
         )
-        num_faces = server.add_gui_number("# Faces", initial_value=50_000, min=1)
-        texture_resolution = server.add_gui_number(
-            "Texture Resolution", min=8, initial_value=2048
-        )
-        output_dir = server.add_gui_text(
-            "Output Directory", initial_value="exports/mesh/"
-        )
-        num_points = server.add_gui_number(
-            "# Points", initial_value=1_000_000, min=1, max=None, step=1
-        )
-        remove_outliers = server.add_gui_checkbox("Remove outliers", True)
+        num_faces = server.gui.add_number("# Faces", initial_value=50_000, min=1)
+        texture_resolution = server.gui.add_number("Texture Resolution", min=8, initial_value=2048)
+        output_directory = server.gui.add_text("Output Directory", initial_value="exports/mesh/")
+        num_points = server.gui.add_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
+        remove_outliers = server.gui.add_checkbox("Remove outliers", True)
 
-        export_button = server.add_gui_button("Export", icon=viser.Icon.FILE_EXPORT)
-        download_button = server.gui.add_button("Download Mesh", icon=viser.Icon.DOWNLOAD)
+        generate_command = server.gui.add_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
@@ -237,9 +247,7 @@ def populate_mesh_tab(
                 
 
     else:
-        server.add_gui_markdown(
-            "<small>Mesh export is not currently supported with Gaussian Splatting</small>"
-        )
+        server.gui.add_markdown("<small>Mesh export is not currently supported with Gaussian Splatting</small>")
 
 
 def populate_splat_tab(
@@ -249,14 +257,10 @@ def populate_splat_tab(
     viewing_gsplat: bool,
 ) -> None:
     if viewing_gsplat:
-        server.add_gui_markdown("<small>Export ply of Gaussian Splat</small>")
+        server.gui.add_markdown("<small>Generate ply export of Gaussian Splat</small>")
 
-        output_dir = server.add_gui_text(
-            "Output Directory", initial_value="exports/splat/"
-        )
-
-        export_button = server.add_gui_button("Export", icon=viser.Icon.FILE_EXPORT)
-        download_button = server.gui.add_button("Download Splat", icon=viser.Icon.DOWNLOAD)
+        output_directory = server.gui.add_text("Output Directory", initial_value="exports/splat/")
+        generate_command = server.gui.add_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
@@ -305,6 +309,4 @@ def populate_splat_tab(
             )
 
     else:
-        server.add_gui_markdown(
-            "<small>Splat export is only supported with Gaussian Splatting methods</small>"
-        )
+        server.gui.add_markdown("<small>Splat export is only supported with Gaussian Splatting methods</small>")
