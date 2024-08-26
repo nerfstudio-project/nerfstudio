@@ -114,13 +114,18 @@ def populate_point_cloud_tab(
             initial_value="open3d",
             hint="Normal map source.",
         )
+
+        export_button = server.gui.add_button("Export", icon=viser.Icon.FILE_EXPORT)
+        download_button = server.gui.add_button("Download Point Cloud", icon=viser.Icon.DOWNLOAD)
         output_dir = server.gui.add_text("Output Directory", initial_value="exports/pcd/")
         generate_command = server.gui.add_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
-            assert event.client is not None
-            notif = server.gui.add_notification(
+            client = event.client
+            assert client is not None
+
+            notif = client.add_notification(
                         title="Exporting point cloud",
                         body="File will be saved under " + str(output_dir.value),
                         loading=True,
@@ -189,16 +194,20 @@ def populate_mesh_tab(
         )
         num_faces = server.gui.add_number("# Faces", initial_value=50_000, min=1)
         texture_resolution = server.gui.add_number("Texture Resolution", min=8, initial_value=2048)
-        output_directory = server.gui.add_text("Output Directory", initial_value="exports/mesh/")
+        output_dir = server.gui.add_text("Output Directory", initial_value="exports/mesh/")
         num_points = server.gui.add_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
         remove_outliers = server.gui.add_checkbox("Remove outliers", True)
 
+        export_button = server.gui.add_button("Export", icon=viser.Icon.FILE_EXPORT)
+        download_button = server.gui.add_button("Download Mesh", icon=viser.Icon.DOWNLOAD)
         generate_command = server.gui.add_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
-            assert event.client is not None
-            notif = server.add_notification(
+            client = event.client
+            assert client is not None
+
+            notif = client.add_notification(
                         title="Exporting poisson mesh",
                         body="File will be saved under " + str(output_dir.value),
                         loading=True,
@@ -259,13 +268,18 @@ def populate_splat_tab(
     if viewing_gsplat:
         server.gui.add_markdown("<small>Generate ply export of Gaussian Splat</small>")
 
-        output_directory = server.gui.add_text("Output Directory", initial_value="exports/splat/")
+        export_button = server.gui.add_button("Export", icon=viser.Icon.FILE_EXPORT)
+        download_button = server.gui.add_button("Download Splat", icon=viser.Icon.DOWNLOAD)
+
+        output_dir = server.gui.add_text("Output Directory", initial_value="exports/splat/")
         generate_command = server.gui.add_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
-            assert event.client is not None
-            notif = server.add_notification(
+            client = event.client
+            assert client is not None
+
+            notif = client.add_notification(
                         title="Exporting gaussian splat",
                         body="File will be saved under " + str(output_dir.value),
                         loading=True,
