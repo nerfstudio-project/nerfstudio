@@ -568,33 +568,28 @@ class ExportGaussianSplat(Exporter):
             map_to_tensors["ny"] = np.zeros(n, dtype=np.float32)
             map_to_tensors["nz"] = np.zeros(n, dtype=np.float32)
 
-            if model.config.sh_degree > 0:
+            if self.ply_color_mode == "rgb":
+                colors = torch.clamp(model.colors.clone(), 0.0, 1.0).data.cpu().numpy()
+                colors = (colors * 255).astype(np.uint8)
+                map_to_tensors["red"] = colors[:, 0]
+                map_to_tensors["green"] = colors[:, 1]
+                map_to_tensors["blue"] = colors[:, 2]
+            elif self.ply_color_mode == "sh_coeffs":
                 shs_0 = model.shs_0.contiguous().cpu().numpy()
                 for i in range(shs_0.shape[1]):
                     map_to_tensors[f"f_dc_{i}"] = shs_0[:, i, None]
 
+            if model.config.sh_degree > 0:
                 if self.ply_color_mode == "rgb":
                     CONSOLE.print(
-                        "Warning: model has higher level of spherical harmonics, option ply_color_mode is ignored."
+                        "Warning: model has higher level of spherical harmonics, ignoring them and only export rgb."
                     )
-                # transpose(1, 2) was needed to match the sh order in Inria version
-                shs_rest = model.shs_rest.transpose(1, 2).contiguous().cpu().numpy()
-                shs_rest = shs_rest.reshape((n, -1))
-                for i in range(shs_rest.shape[-1]):
-                    map_to_tensors[f"f_rest_{i}"] = shs_rest[:, i, None]
-            else:
-                if self.ply_color_mode == "sh_coeffs":
-                    shs_0 = model.shs_0.contiguous().cpu().numpy()
-                    for i in range(shs_0.shape[1]):
-                        map_to_tensors[f"f_dc_{i}"] = RGB2SH(
-                            torch.clamp(model.colors.clone(), 0.0, 1.0).data.cpu().numpy()
-                        )[:, i]
-                elif self.ply_color_mode == "rgb":
-                    colors = torch.clamp(model.colors.clone(), 0.0, 1.0).data.cpu().numpy()
-                    colors = (colors * 255).astype(np.uint8)
-                    map_to_tensors["red"] = colors[:, 0]
-                    map_to_tensors["green"] = colors[:, 1]
-                    map_to_tensors["blue"] = colors[:, 2]
+                elif self.ply_color_mode == "sh_coeffs":
+                    # transpose(1, 2) was needed to match the sh order in Inria version
+                    shs_rest = model.shs_rest.transpose(1, 2).contiguous().cpu().numpy()
+                    shs_rest = shs_rest.reshape((n, -1))
+                    for i in range(shs_rest.shape[-1]):
+                        map_to_tensors[f"f_rest_{i}"] = shs_rest[:, i, None]
 
             map_to_tensors["opacity"] = model.opacities.data.cpu().numpy()
 
