@@ -17,11 +17,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Optional, Tuple, Type
+from typing import Dict, Literal, Optional, Tuple, Type
 
 import numpy as np
 import torch
+from jaxtyping import Float
 from PIL import Image
+from torch import Tensor
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
