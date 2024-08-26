@@ -497,8 +497,7 @@ class Nerfstudio(DataParser):
     @staticmethod
     def _align_points_to_target_plane(
         points: torch.Tensor,
-        target_normal: Tuple[float, float, float],
-        target_point: Tuple[float, float, float],
+        target_normal: Float[Tensor, "3"],
         threshold: float = 1.0,
         max_iterations: int = 5,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
