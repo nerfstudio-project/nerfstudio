@@ -57,7 +57,7 @@ class DataparserOutputs:
     """Camera object storing collection of camera information in dataset."""
     alpha_color: Optional[Float[Tensor, "3"]] = None
     """Color of dataset background."""
-    scene_box: SceneBox = field(default_factory=lambda: SceneBox(aabb=torch.tensor([[-1, -1, -1], [1, 1, 1]])))
+    scene_box: SceneBox = SceneBox(aabb=torch.tensor([[-0.283, -0.032, -0.328], [0.661, 0.034, 0.370]]))
     """Scene box of dataset. Used to bound the scene or provide the scene scale depending on model."""
     mask_filenames: Optional[List[Path]] = None
     """Filenames for any masks that are required"""

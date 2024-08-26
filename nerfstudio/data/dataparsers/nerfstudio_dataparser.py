@@ -53,8 +53,16 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
-    orientation_method: Literal["pca", "up", "vertical", "none", "align"] = "up"
+    orientation_method: Literal[
+        "pca",
+        "up",
+        "vertical",
+        "align",
+        "none",
+    ] = "vertical"
     """The method to use for orientation."""
+    target_normal: Tuple[float, float, float] = (1.0, 0.0, 0.0)
+    """The normal vector to align the scene to, represented as a tuple of floats."""
     center_method: Literal["poses", "focus", "none"] = "poses"
     """The method to use to center the poses."""
     auto_scale_poses: bool = True
@@ -260,6 +268,7 @@ class Nerfstudio(DataParser):
 
         # in x,y,z order
         # assumes that the scene is centered at the origin
+        # _ = self.config.scene_scale
         aabb_scale = self.config.scene_scale
         scene_box = SceneBox(
             aabb=torch.tensor(
@@ -389,10 +398,11 @@ class Nerfstudio(DataParser):
             if ply_file_path:
                 sparse_points = self._load_3D_points(ply_file_path, transform_matrix, scale_factor)
 
-                if orientation_method == "align":
+                if sparse_points is not None and self.config.orientation_method == "align":
+                    target_normal_tensor = torch.tensor(self.config.target_normal, dtype=torch.float32)
                     points3D_xyz = sparse_points["points3D_xyz"]
                     aligned_points3D, alignment_matrix = self._align_points_to_target_plane(
-                        points3D_xyz, torch.tensor([0, 1, 0], dtype=torch.float32)
+                        points3D_xyz, target_normal_tensor
                     )
                     sparse_points["points3D_xyz"] = aligned_points3D[:, :3]
             self.prompted_user = True
@@ -483,53 +493,64 @@ class Nerfstudio(DataParser):
         return out
 
     @staticmethod
-    def _align_points_to_target_plane(points: torch.Tensor, target_normal: torch.Tensor):
+    def _align_points_to_target_plane(
+        points: torch.Tensor,
+        target_normal: Tuple[float, float, float],
+        target_point: Tuple[float, float, float],
+        threshold: float = 1.0,
+        max_iterations: int = 5,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Aligns a set of 3D points (in homogeneous coordinates) to a target plane defined by its normal vector.
 
         Args:
             points: A torch tensor of shape (n, 4) representing the 3D points in homogeneous coordinates.
             target_normal: A torch tensor of shape (3, ) representing the normal vector of the target plane.
+            threshold: The distance threshold for identifying inliers.
+            max_iterations: The maximum number of iterations for refining inliers.
 
         Returns:
             A tuple containing:
             - aligned_points: The 3D points aligned to the target plane as a torch tensor of shape (n, 4).
             - alignment_matrix: The 4x4 alignment matrix used for alignment.
         """
+
+        def filter_outliers(points_xyz, threshold, max_iterations):
+            inlier_mask = torch.ones(points_xyz.size(0), dtype=torch.bool)
+
+            for _ in range(max_iterations):
+                current_inliers = points_xyz[inlier_mask]
+                centroid = torch.mean(current_inliers, dim=0)
+
+                centered_points = current_inliers - centroid
+                _, _, vh = torch.linalg.svd(centered_points)
+
+                normal = vh[-1]
+
+                distances = torch.abs((points_xyz - centroid) @ normal)
+                new_inlier_mask = distances < threshold
+
+                inlier_mask = inlier_mask & new_inlier_mask
+
+                threshold *= 0.9  # Reduce threshold for more aggressiveness
+
+            return inlier_mask
+
         points_xyz = points[:, :3]  # Shape: (n, 3)
+        inlier_mask = filter_outliers(points_xyz, threshold, max_iterations)
+        inliers = points_xyz[inlier_mask]
 
-        # Calculate the centroid (mean of points)
-        centroid = torch.mean(points_xyz, dim=0)  # Shape: (3,)
+        # Calculate the centroid using only inliers
+        centroid = torch.mean(inliers, dim=0)  # Shape: (3,)
 
-        # Center the points around the centroid
-        centered_points = points_xyz - centroid  # Shape: (n, 3)
+        # Center the inlier points around the centroid
+        centered_inliers = inliers - centroid  # Shape: (m, 3) where m <= n
 
-        # Perform SVD
-        _, _, vh = torch.linalg.svd(centered_points)  # vh shape: (3, 3)
-
-        # The last right singular vector is the normal to the plane
+        # Perform SVD on inliers to find the normal
+        _, _, vh = torch.linalg.svd(centered_inliers)  # vh shape: (3, 3)
         normal = vh[-1]  # Shape: (3,)
 
-        # Calculate the rotation axis and angle
-        rotation_axis = torch.cross(normal, target_normal)  # Shape: (3,)
-        rotation_axis_norm = torch.norm(rotation_axis)
-
-        if rotation_axis_norm != 0:
-            rotation_axis /= rotation_axis_norm
-            cos_theta = torch.dot(normal, target_normal)
-            theta = torch.arccos(cos_theta)
-
-            # Create the rotation matrix using Rodrigues' rotation formula
-            K = torch.tensor(
-                [
-                    [0, -rotation_axis[2], rotation_axis[1]],
-                    [rotation_axis[2], 0, -rotation_axis[0]],
-                    [-rotation_axis[1], rotation_axis[0], 0],
-                ],
-                dtype=torch.float32,
-            )
-            rotation_matrix = torch.eye(3) + torch.sin(theta) * K + (1 - torch.cos(theta)) * (K @ K)
-        else:
-            rotation_matrix = torch.eye(3)  # If the normal is already aligned, no rotation needed
+        # Use the provided helper function to get the rotation matrix
+        rotation_matrix = camera_utils.rotation_matrix_between(normal, target_normal)
 
         # Create the 4x4 alignment matrix
         alignment_matrix = torch.eye(4, dtype=torch.float32)  # Shape: (4, 4)
@@ -540,7 +561,7 @@ class Nerfstudio(DataParser):
         if points.shape[1] == 3:
             points = torch.cat([points, torch.ones((points.shape[0], 1), dtype=torch.float32)], dim=1)  # Shape: (n, 4)
 
-        # Apply the alignment transformation
+        # Apply the alignment transformation to all points
         aligned_points = alignment_matrix @ points.T  # Shape: (4, n)
         aligned_points = aligned_points.T  # Shape: (n, 4)
 
