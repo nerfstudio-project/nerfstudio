@@ -1242,7 +1242,6 @@ def populate_render_tab(
         client = event.client
         assert client is not None
 
-        render_path = f"renders/{datapath.name}/{render_name_text.value}.mp4"
         json_outfile = _write_json()
 
         with event.client.gui.add_modal("Render Command") as modal:
