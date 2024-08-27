@@ -69,9 +69,7 @@ class Exporter:
     """Set to True when export is finished."""
 
 
-def validate_pipeline(
-    normal_method: str, normal_output_name: str, pipeline: Pipeline
-) -> None:
+def validate_pipeline(normal_method: str, normal_output_name: str, pipeline: Pipeline) -> None:
     """Check that the pipeline is valid for this exporter.
 
     Args:
@@ -93,9 +91,7 @@ def validate_pipeline(
         )
         outputs = pipeline.model(ray_bundle)
         if normal_output_name not in outputs:
-            CONSOLE.print(
-                f"[bold yellow]Warning: Normal output '{normal_output_name}' not found in pipeline outputs."
-            )
+            CONSOLE.print(f"[bold yellow]Warning: Normal output '{normal_output_name}' not found in pipeline outputs.")
             CONSOLE.print(f"Available outputs: {list(outputs.keys())}")
             CONSOLE.print(
                 "[bold yellow]Warning: Please train a model with normals "
@@ -160,21 +156,13 @@ class ExportPointCloud(Exporter):
             ),
         )
         assert pipeline.datamanager.train_pixel_sampler is not None
-        pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = (
-            self.num_rays_per_batch
-        )
+        pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
         # Whether the normals should be estimated based on the point cloud.
         estimate_normals = self.normal_method == "open3d"
         crop_obb = None
-        if (
-            self.obb_center is not None
-            and self.obb_rotation is not None
-            and self.obb_scale is not None
-        ):
-            crop_obb = OrientedBox.from_params(
-                self.obb_center, self.obb_rotation, self.obb_scale
-            )
+        if self.obb_center is not None and self.obb_rotation is not None and self.obb_scale is not None:
+            crop_obb = OrientedBox.from_params(self.obb_center, self.obb_rotation, self.obb_scale)
         pcd = generate_point_cloud(
             pipeline=pipeline,
             num_points=self.num_points,
@@ -183,18 +171,14 @@ class ExportPointCloud(Exporter):
             estimate_normals=estimate_normals,
             rgb_output_name=self.rgb_output_name,
             depth_output_name=self.depth_output_name,
-            normal_output_name=self.normal_output_name
-            if self.normal_method == "model_output"
-            else None,
+            normal_output_name=self.normal_output_name if self.normal_method == "model_output" else None,
             crop_obb=crop_obb,
             std_ratio=self.std_ratio,
         )
         if self.save_world_frame:
             # apply the inverse dataparser transform to the point cloud
             points = np.asarray(pcd.points)
-            poses = np.eye(4, dtype=np.float32)[None, ...].repeat(
-                points.shape[0], axis=0
-            )[:, :3, :]
+            poses = np.eye(4, dtype=np.float32)[None, ...].repeat(points.shape[0], axis=0)[:, :3, :]
             poses[:, :3, 3] = points
             poses = pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(
                 torch.from_numpy(poses)
@@ -285,9 +269,7 @@ class ExportTSDFMesh(Exporter):
                 mesh,
                 pipeline,
                 self.output_dir,
-                px_per_uv_triangle=self.px_per_uv_triangle
-                if self.unwrap_method == "custom"
-                else None,
+                px_per_uv_triangle=self.px_per_uv_triangle if self.unwrap_method == "custom" else None,
                 unwrap_method=self.unwrap_method,
                 num_pixels_per_side=self.num_pixels_per_side,
             )
@@ -365,20 +347,12 @@ class ExportPoissonMesh(Exporter):
             ),
         )
         assert pipeline.datamanager.train_pixel_sampler is not None
-        pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = (
-            self.num_rays_per_batch
-        )
+        pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
         # Whether the normals should be estimated based on the point cloud.
         estimate_normals = self.normal_method == "open3d"
-        if (
-            self.obb_center is not None
-            and self.obb_rotation is not None
-            and self.obb_scale is not None
-        ):
-            crop_obb = OrientedBox.from_params(
-                self.obb_center, self.obb_rotation, self.obb_scale
-            )
+        if self.obb_center is not None and self.obb_rotation is not None and self.obb_scale is not None:
+            crop_obb = OrientedBox.from_params(self.obb_center, self.obb_rotation, self.obb_scale)
         else:
             crop_obb = None
 
@@ -390,9 +364,7 @@ class ExportPoissonMesh(Exporter):
             estimate_normals=estimate_normals,
             rgb_output_name=self.rgb_output_name,
             depth_output_name=self.depth_output_name,
-            normal_output_name=self.normal_output_name
-            if self.normal_method == "model_output"
-            else None,
+            normal_output_name=self.normal_output_name if self.normal_method == "model_output" else None,
             crop_obb=crop_obb,
             std_ratio=self.std_ratio,
         )
@@ -406,9 +378,7 @@ class ExportPoissonMesh(Exporter):
             CONSOLE.print("[bold green]:white_check_mark: Saving Point Cloud")
 
         CONSOLE.print("Computing Mesh... this may take a while.")
-        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-            pcd, depth=9
-        )
+        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9)
         vertices_to_remove = densities < np.quantile(densities, 0.1)
         mesh.remove_vertices_by_mask(vertices_to_remove)
         print("\033[A\033[A")
@@ -432,9 +402,7 @@ class ExportPoissonMesh(Exporter):
                 mesh,
                 pipeline,
                 self.output_dir,
-                px_per_uv_triangle=self.px_per_uv_triangle
-                if self.unwrap_method == "custom"
-                else None,
+                px_per_uv_triangle=self.px_per_uv_triangle if self.unwrap_method == "custom" else None,
                 unwrap_method=self.unwrap_method,
                 num_pixels_per_side=self.num_pixels_per_side,
             )
@@ -473,15 +441,11 @@ class ExportMarchingCubesMesh(Exporter):
         _, pipeline, _, _ = eval_setup(self.load_config)
 
         # TODO: Make this work with Density Field
-        assert hasattr(
-            pipeline.model.config, "sdf_field"
-        ), "Model must have an SDF field."
+        assert hasattr(pipeline.model.config, "sdf_field"), "Model must have an SDF field."
 
         CONSOLE.print("Extracting mesh with marching cubes... which may take a while")
 
-        assert (
-            self.resolution % 512 == 0
-        ), f"""resolution must be divisible by 512, got {self.resolution}.
+        assert self.resolution % 512 == 0, f"""resolution must be divisible by 512, got {self.resolution}.
         This is important because the algorithm uses a multi-resolution approach
         to evaluate the SDF where the minimum resolution is 512."""
 
@@ -500,17 +464,13 @@ class ExportMarchingCubesMesh(Exporter):
         multi_res_mesh.export(filename)
 
         # load the mesh from the marching cubes export
-        mesh = get_mesh_from_filename(
-            str(filename), target_num_faces=self.target_num_faces
-        )
+        mesh = get_mesh_from_filename(str(filename), target_num_faces=self.target_num_faces)
         CONSOLE.print("Texturing mesh with NeRF...")
         texture_utils.export_textured_mesh(
             mesh,
             pipeline,
             self.output_dir,
-            px_per_uv_triangle=self.px_per_uv_triangle
-            if self.unwrap_method == "custom"
-            else None,
+            px_per_uv_triangle=self.px_per_uv_triangle if self.unwrap_method == "custom" else None,
             unwrap_method=self.unwrap_method,
             num_pixels_per_side=self.num_pixels_per_side,
         )
@@ -538,9 +498,7 @@ class ExportCameraPoses(Exporter):
             ("transforms_eval.json", eval_frames),
         ]:
             if len(frames) == 0:
-                CONSOLE.print(
-                    f"[bold yellow]No frames found for {file_name}. Skipping."
-                )
+                CONSOLE.print(f"[bold yellow]No frames found for {file_name}. Skipping.")
                 continue
 
             output_file_path = os.path.join(self.output_dir, file_name)
@@ -548,9 +506,7 @@ class ExportCameraPoses(Exporter):
             with open(output_file_path, "w", encoding="UTF-8") as f:
                 json.dump(frames, f, indent=4)
 
-            CONSOLE.print(
-                f"[bold green]:white_check_mark: Saved poses to {output_file_path}"
-            )
+            CONSOLE.print(f"[bold green]:white_check_mark: Saved poses to {output_file_path}")
 
 
 @dataclass
@@ -594,9 +550,7 @@ class ExportGaussianSplat(Exporter):
             and tensor.size > 0
             for tensor in map_to_tensors.values()
         ):
-            raise ValueError(
-                "All tensors must be numpy arrays of float or uint8 type and not empty"
-            )
+            raise ValueError("All tensors must be numpy arrays of float or uint8 type and not empty")
 
         with open(filename, "wb") as ply_file:
             # Write PLY header
@@ -672,14 +626,8 @@ class ExportGaussianSplat(Exporter):
             for i in range(4):
                 map_to_tensors[f"rot_{i}"] = quats[:, i, None]
 
-            if (
-                self.obb_center is not None
-                and self.obb_rotation is not None
-                and self.obb_scale is not None
-            ):
-                crop_obb = OrientedBox.from_params(
-                    self.obb_center, self.obb_rotation, self.obb_scale
-                )
+            if self.obb_center is not None and self.obb_rotation is not None and self.obb_scale is not None:
+                crop_obb = OrientedBox.from_params(self.obb_center, self.obb_rotation, self.obb_scale)
                 assert crop_obb is not None
                 mask = crop_obb.within(torch.from_numpy(positions)).numpy()
                 for k, t in map_to_tensors.items():
@@ -699,9 +647,7 @@ class ExportGaussianSplat(Exporter):
                 CONSOLE.print(f"{n_before - n_after} NaN/Inf elements in {k}")
 
         if np.sum(select) < n:
-            CONSOLE.print(
-                f"values have NaN/Inf in map_to_tensors, only export {np.sum(select)}/{n}"
-            )
+            CONSOLE.print(f"values have NaN/Inf in map_to_tensors, only export {np.sum(select)}/{n}")
             for k, t in map_to_tensors.items():
                 map_to_tensors[k] = map_to_tensors[k][select]
             count = np.sum(select)

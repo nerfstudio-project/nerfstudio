@@ -89,6 +89,7 @@ def get_crop_string(obb: OrientedBox, crop_viewport: bool):
     scalestring = " ".join([f"{x:.10f}" for x in scale])
     return [posstring, rpystring, scalestring]
 
+
 def populate_point_cloud_tab(
     server: viser.ViserServer,
     control_panel: ControlPanel,
@@ -126,21 +127,19 @@ def populate_point_cloud_tab(
             assert client is not None
 
             notif = client.add_notification(
-                        title="Exporting point cloud",
-                        body="File will be saved under " + str(output_dir.value),
-                        loading=True,
-                        with_close_button=False,
-                    )
+                title="Exporting point cloud",
+                body="File will be saved under " + str(output_dir.value),
+                loading=True,
+                with_close_button=False,
+            )
 
             if control_panel.crop_obb is not None and control_panel.crop_viewport:
-                posstring, rpystring, scalestring = get_crop_string(
-                    control_panel.crop_obb, control_panel.crop_viewport
-                )
-            else: 
+                posstring, rpystring, scalestring = get_crop_string(control_panel.crop_obb, control_panel.crop_viewport)
+            else:
                 posstring = rpystring = scalestring = None
 
             from nerfstudio.scripts.exporter import ExportPointCloud
-            
+
             export = ExportPointCloud(
                 load_config=config_path,
                 output_dir=Path(output_dir.value),
@@ -153,7 +152,7 @@ def populate_point_cloud_tab(
                 obb_scale=scalestring,
             )
             export.main()
-            
+
             if export.complete:
                 notif.title = "Export complete!"
                 notif.body = "File saved under " + str(output_dir.value)
@@ -167,13 +166,11 @@ def populate_point_cloud_tab(
             client = event.client
             assert client is not None
 
-            with open(str(output_dir.value) + "point_cloud.ply", 'rb') as ply_file:
+            with open(str(output_dir.value) + "point_cloud.ply", "rb") as ply_file:
                 ply_bytes = ply_file.read()
 
-            client.send_file_download(
-                "point_cloud.ply", ply_bytes
-            )
-        
+            client.send_file_download("point_cloud.ply", ply_bytes)
+
         @generate_command.on_click
         def _(event: viser.GuiEvent) -> None:
             assert event.client is not None
@@ -228,21 +225,19 @@ def populate_mesh_tab(
             assert client is not None
 
             notif = client.add_notification(
-                        title="Exporting poisson mesh",
-                        body="File will be saved under " + str(output_dir.value),
-                        loading=True,
-                        with_close_button=False,
-                    )
+                title="Exporting poisson mesh",
+                body="File will be saved under " + str(output_dir.value),
+                loading=True,
+                with_close_button=False,
+            )
 
             if control_panel.crop_obb is not None and control_panel.crop_viewport:
-                posstring, rpystring, scalestring = get_crop_string(
-                    control_panel.crop_obb, control_panel.crop_viewport
-                )
-            else: 
+                posstring, rpystring, scalestring = get_crop_string(control_panel.crop_obb, control_panel.crop_viewport)
+            else:
                 posstring = rpystring = scalestring = None
 
             from nerfstudio.scripts.exporter import ExportPoissonMesh
-                
+
             export = ExportPoissonMesh(
                 load_config=config_path,
                 output_dir=Path(output_dir.value),
@@ -264,19 +259,17 @@ def populate_mesh_tab(
                 notif.with_close_button = True
 
                 download_button.disabled = False
-        
+
         @download_button.on_click
         def _(event: viser.GuiEvent) -> None:
             client = event.client
             assert client is not None
 
-            with open(str(output_dir.value) + "poisson_mesh.ply", 'rb') as ply_file:
+            with open(str(output_dir.value) + "poisson_mesh.ply", "rb") as ply_file:
                 ply_bytes = ply_file.read()
 
-            client.send_file_download(
-                "poisson_mesh.ply", ply_bytes
-            )
-        
+            client.send_file_download("poisson_mesh.ply", ply_bytes)
+
         @generate_command.on_click
         def _(event: viser.GuiEvent) -> None:
             assert event.client is not None
@@ -294,7 +287,6 @@ def populate_mesh_tab(
                 ]
             )
             show_command_modal(event.client, "mesh", command)
-                
 
     else:
         server.gui.add_markdown("<small>Mesh export is not currently supported with Gaussian Splatting</small>")
@@ -319,18 +311,16 @@ def populate_splat_tab(
             assert client is not None
 
             notif = client.add_notification(
-                        title="Exporting gaussian splat",
-                        body="File will be saved under " + str(output_dir.value),
-                        loading=True,
-                        with_close_button=False,
-                    )
+                title="Exporting gaussian splat",
+                body="File will be saved under " + str(output_dir.value),
+                loading=True,
+                with_close_button=False,
+            )
             notif.show()
 
             if control_panel.crop_obb is not None and control_panel.crop_viewport:
-                posstring, rpystring, scalestring = get_crop_string(
-                    control_panel.crop_obb, control_panel.crop_viewport
-                )
-            else: 
+                posstring, rpystring, scalestring = get_crop_string(control_panel.crop_obb, control_panel.crop_viewport)
+            else:
                 posstring = rpystring = scalestring = None
 
             from nerfstudio.scripts.exporter import ExportGaussianSplat
@@ -351,19 +341,17 @@ def populate_splat_tab(
                 notif.with_close_button = True
 
                 download_button.disabled = False
-        
+
         @download_button.on_click
         def _(event: viser.GuiEvent) -> None:
             client = event.client
             assert client is not None
 
-            with open(str(output_dir.value) + "splat.ply", 'rb') as ply_file:
+            with open(str(output_dir.value) + "splat.ply", "rb") as ply_file:
                 ply_bytes = ply_file.read()
 
-            client.send_file_download(
-                "splat.ply", ply_bytes
-            )
-        
+            client.send_file_download("splat.ply", ply_bytes)
+
         @generate_command.on_click
         def _(event: viser.GuiEvent) -> None:
             assert event.client is not None
