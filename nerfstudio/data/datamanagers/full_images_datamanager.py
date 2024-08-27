@@ -414,7 +414,6 @@ def _undistort_image(
         K[1, 2] = K[1, 2] - 0.5
         if np.any(distortion_params):
             newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
-            breakpoint()
             image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
             # print("1:", image.shape) # prints (960, 540, 3)
         else:
@@ -423,7 +422,9 @@ def _undistort_image(
         # crop the image and update the intrinsics accordingly
         x, y, w, h = roi
         # print(x, y, w, h) # prints 0, 0, 539, 959
-        # image = image[y : y + h, x : x + w]
+        image = image[y : y + h, x : x + w]
+        newK[0, 2] -= x
+        newK[1, 2] -= y
         # print("2:", image.shape) # prints (959, 539, 3)
 
         if "depth_image" in data:
@@ -568,12 +569,13 @@ def _undistort_image(
 
 ## Let's implement a parallelized splat dataloader!
 def undistort_idx(idx: int, dataset: TDataset, image_type: Literal["uint8", "float32"] = "float32") -> Dict[str, torch.Tensor]:
-    """Undistorts an image to one taken by a linear (pinhole) camera model and updates the dataset's camera intrinsics to pinhole"""
+    """Undistorts an image to one taken by a linear (pinhole) camera model and updates the dataset's camera intrinsics to a linear camera model"""
     data = dataset.get_data(idx, image_type)
     camera = dataset.cameras[idx].reshape(())
     # dataset.cameras.width[idx] = data["image"].shape[1]
     # dataset.cameras.height[idx] = data["image"].shape[0]
     if idx == 48:
+        # breakpoint()
         print("beginning", camera.width, camera.height)
     assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
         f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
@@ -590,16 +592,50 @@ def undistort_idx(idx: int, dataset: TDataset, image_type: Literal["uint8", "flo
     data["image"] = torch.from_numpy(image)
     if mask is not None:
         data["mask"] = mask
-
-    dataset.cameras.fx[idx] = float(K[0, 0])
-    dataset.cameras.fy[idx] = float(K[1, 1])
-    dataset.cameras.cx[idx] = float(K[0, 2])
-    dataset.cameras.cy[idx] = float(K[1, 2])
-    dataset.cameras.width[idx] = image.shape[1]
-    dataset.cameras.height[idx] = image.shape[0]
+    # dataset.cameras.fx[idx] = float(K[0, 0])
+    # dataset.cameras.fy[idx] = float(K[1, 1])
+    # dataset.cameras.cx[idx] = float(K[0, 2])
+    # dataset.cameras.cy[idx] = float(K[1, 2])
+    # dataset.cameras.width[idx] = image.shape[1]
+    # dataset.cameras.height[idx] = image.shape[0]
+    # dataset.cameras.distortion_params = None
     if idx == 48:
         print("ending", camera.width, camera.height)
     return data
+
+def undistort_view(idx: int, dataset: TDataset, image_type: Literal["uint8", "float32"] = "float32") -> Dict[str, torch.Tensor]:
+    """Undistorts an image to one taken by a linear (pinhole) camera model and returns a new Camera with these updated intrinsics
+    Note: this method does not modify the dataset's attributes at all.
+
+    Returns: The undistorted data (image, depth, mask, etc.) and the new linear Camera object
+    """
+    data = dataset.get_data(idx, image_type)
+    camera = dataset.cameras[idx].reshape(())
+    assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
+        f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
+        f'does not match the camera parameters ({camera.width.item(), camera.height.item()}), idx = {idx}'
+    )
+    if camera.distortion_params is None or torch.all(camera.distortion_params == 0):
+        return data
+    K = camera.get_intrinsics_matrices().numpy()
+    distortion_params = camera.distortion_params.numpy()
+    image = data["image"].numpy()
+    K, image, mask = _undistort_image(camera, distortion_params, data, image, K)
+    data["image"] = torch.from_numpy(image)
+    if mask is not None:
+        data["mask"] = mask
+    
+    # create a new Camera
+    new_camera = Cameras(
+        camera_to_worlds=camera.camera_to_worlds.unsqueeze(0),
+        fx=torch.Tensor([[float(K[0, 0])]]),
+        fy=torch.Tensor([[float(K[1, 1])]]),
+        cx=torch.Tensor([[float(K[0, 2])]]),
+        cy=torch.Tensor([[float(K[1, 2])]]),
+        width=torch.Tensor([[image.shape[1]]]).to(torch.int32),
+        height=torch.Tensor([[image.shape[0]]]).to(torch.int32),
+    )
+    return data, new_camera
 
 import math
 class ImageBatchStream(torch.utils.data.IterableDataset):
@@ -642,8 +678,8 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
                 r.shuffle(worker_indices)
                 i = 0
             idx = worker_indices[i] # idx refers to the actual datapoint index this worker will retrieve
-            data = undistort_idx(idx, self.input_dataset, self.config.cache_images_type)
-            camera = self.input_dataset.cameras[idx : idx + 1]#.to(self.device)
+            data, camera = undistort_view(idx, self.input_dataset, self.config.cache_images_type)
+            camera2 = self.input_dataset.cameras[idx : idx + 1]#.to(self.device)
             if camera.metadata is None:
                 camera.metadata = {}
             camera.metadata["cam_idx"] = idx
