@@ -1217,13 +1217,17 @@ def populate_render_tab(
         
         return json_outfile
     
-    # TODO: disable render button while rendering/only enable download if file exists
-    # TODO: progress bar while rendering
+    # TODO: disable render button while before checkpoints/keyframes placed down
+
+    render_complete = False
+    download_render_button.disabled = not render_complete
 
     @render_button.on_click
     def _(event: viser.GuiEvent) -> None:
         client = event.client
         assert client is not None
+
+        render_button.disabled = True
 
         render_path = f"renders/{datapath.name}/{render_name_text.value}.mp4"
         json_outfile = _write_json()
@@ -1250,6 +1254,11 @@ def populate_render_tab(
             notif.loading = False
             notif.with_close_button = True
 
+            nonlocal render_complete 
+            render_complete = True
+
+        render_button.disabled = False
+        
     @download_render_button.on_click
     def _(event: viser.GuiEvent) -> None:
         render_path = f"renders/{datapath.name}/{render_name_text.value}.mp4"
@@ -1321,6 +1330,10 @@ def populate_render_tab(
     camera_path.tension = tension_slider.value
     camera_path.default_fov = fov_degrees.value / 180.0 * np.pi
     camera_path.default_transition_sec = transition_sec_number.value
+
+    # disable render option if no keyframes are added
+    render_button.disabled = len(camera_path._keyframes) <= 0
+    generate_command_render_button.disabled = len(camera_path._keyframes) <= 0
 
     return render_tab_state
 

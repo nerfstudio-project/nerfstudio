@@ -498,7 +498,7 @@ class RenderCameraPath(BaseRender):
     output_format: Literal["images", "video"] = "video"
     """How to save output data."""
     complete: bool = True
-    """Whether rendering is complete"""
+    """Set to True when render is finished."""
 
     def main(self) -> None:
         """Main function."""
