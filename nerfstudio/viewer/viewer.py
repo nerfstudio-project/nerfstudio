@@ -41,6 +41,7 @@ from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName
 from nerfstudio.viewer.control_panel import ControlPanel
 from nerfstudio.viewer.export_panel import populate_export_tab
 from nerfstudio.viewer.render_panel import populate_render_tab
+from nerfstudio.viewer.preprocess_panel import populate_preprocess_tab 
 from nerfstudio.viewer.render_state_machine import RenderAction, RenderStateMachine
 from nerfstudio.viewer.utils import CameraState, parse_object
 from nerfstudio.viewer.viewer_elements import ViewerControl, ViewerElement
@@ -209,6 +210,9 @@ class Viewer:
 
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
             populate_export_tab(self.viser_server, self.control_panel, config_path, self.pipeline.model)
+        
+        with tabs.add_tab("Preprocess", viser.Icon.PACKAGE_EXPORT):
+            populate_preprocess_tab(self.viser_server, self.control_panel, config_path, self.pipeline.model)
 
         # Keep track of the pointers to generated GUI folders, because each generated folder holds a unique ID.
         viewer_gui_folders = dict()
