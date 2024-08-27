@@ -115,9 +115,9 @@ def populate_point_cloud_tab(
             hint="Normal map source.",
         )
 
-        export_button = server.gui.add_button("Export", icon=viser.Icon.FILE_EXPORT)
-        download_button = server.gui.add_button("Download Point Cloud", icon=viser.Icon.DOWNLOAD)
         output_dir = server.gui.add_text("Output Directory", initial_value="exports/pcd/")
+        export_button = server.gui.add_button("Export", icon=viser.Icon.FILE_EXPORT)
+        download_button = server.gui.add_button("Download Point Cloud", icon=viser.Icon.DOWNLOAD, disabled=True)
         generate_command = server.gui.add_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @export_button.on_click
@@ -129,6 +129,7 @@ def populate_point_cloud_tab(
                         title="Exporting point cloud",
                         body="File will be saved under " + str(output_dir.value),
                         loading=True,
+                        with_close_button=False,
                     )
 
             if control_panel.crop_obb is not None and control_panel.crop_viewport:
@@ -154,10 +155,12 @@ def populate_point_cloud_tab(
             export.main()
             
             if export.complete:
-                notif.update(
-                    title="Export complete!",
-                    body="File saved under " + str(output_dir.value),
-                )
+                notif.title = "Export complete!"
+                notif.body = "File saved under " + str(output_dir.value)
+                notif.loading = False
+                notif.with_close_button = True
+
+                download_button.disabled = False
 
         @download_button.on_click
         def _(event: viser.GuiEvent) -> None:
@@ -170,6 +173,23 @@ def populate_point_cloud_tab(
             client.send_file_download(
                 "point_cloud.ply", ply_bytes
             )
+        
+        @generate_command.on_click
+        def _(event: viser.GuiEvent) -> None:
+            assert event.client is not None
+            command = " ".join(
+                [
+                    "ns-export pointcloud",
+                    f"--load-config {config_path}",
+                    f"--output-dir {output_dir.value}",
+                    f"--num-points {num_points.value}",
+                    f"--remove-outliers {remove_outliers.value}",
+                    f"--normal-method {normals.value}",
+                    f"--save-world-frame {world_frame.value}",
+                    get_crop_string(control_panel.crop_obb, control_panel.crop_viewport),
+                ]
+            )
+            show_command_modal(event.client, "point cloud", command)
 
     else:
         server.gui.add_markdown("<small>Point cloud export is not currently supported with Gaussian Splatting</small>")
@@ -194,12 +214,12 @@ def populate_mesh_tab(
         )
         num_faces = server.gui.add_number("# Faces", initial_value=50_000, min=1)
         texture_resolution = server.gui.add_number("Texture Resolution", min=8, initial_value=2048)
-        output_dir = server.gui.add_text("Output Directory", initial_value="exports/mesh/")
         num_points = server.gui.add_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
         remove_outliers = server.gui.add_checkbox("Remove outliers", True)
 
+        output_dir = server.gui.add_text("Output Directory", initial_value="exports/mesh/")
         export_button = server.gui.add_button("Export", icon=viser.Icon.FILE_EXPORT)
-        download_button = server.gui.add_button("Download Mesh", icon=viser.Icon.DOWNLOAD)
+        download_button = server.gui.add_button("Download Mesh", icon=viser.Icon.DOWNLOAD, disabled=True)
         generate_command = server.gui.add_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @export_button.on_click
@@ -211,6 +231,7 @@ def populate_mesh_tab(
                         title="Exporting poisson mesh",
                         body="File will be saved under " + str(output_dir.value),
                         loading=True,
+                        with_close_button=False,
                     )
 
             if control_panel.crop_obb is not None and control_panel.crop_viewport:
@@ -237,10 +258,12 @@ def populate_mesh_tab(
             export.main()
 
             if export.complete:
-                notif.update(
-                    title="Export complete!",
-                    body="File saved under " + str(output_dir.value),
-                )
+                notif.title = "Export complete!"
+                notif.body = "File saved under " + str(output_dir.value)
+                notif.loading = False
+                notif.with_close_button = True
+
+                download_button.disabled = False
         
         @download_button.on_click
         def _(event: viser.GuiEvent) -> None:
@@ -253,6 +276,24 @@ def populate_mesh_tab(
             client.send_file_download(
                 "poisson_mesh.ply", ply_bytes
             )
+        
+        @generate_command.on_click
+        def _(event: viser.GuiEvent) -> None:
+            assert event.client is not None
+            command = " ".join(
+                [
+                    "ns-export poisson",
+                    f"--load-config {config_path}",
+                    f"--output-dir {output_dir.value}",
+                    f"--target-num-faces {num_faces.value}",
+                    f"--num-pixels-per-side {texture_resolution.value}",
+                    f"--num-points {num_points.value}",
+                    f"--remove-outliers {remove_outliers.value}",
+                    f"--normal-method {normals.value}",
+                    get_crop_string(control_panel.crop_obb, control_panel.crop_viewport),
+                ]
+            )
+            show_command_modal(event.client, "mesh", command)
                 
 
     else:
@@ -267,11 +308,9 @@ def populate_splat_tab(
 ) -> None:
     if viewing_gsplat:
         server.gui.add_markdown("<small>Generate ply export of Gaussian Splat</small>")
-
-        export_button = server.gui.add_button("Export", icon=viser.Icon.FILE_EXPORT)
-        download_button = server.gui.add_button("Download Splat", icon=viser.Icon.DOWNLOAD)
-
         output_dir = server.gui.add_text("Output Directory", initial_value="exports/splat/")
+        export_button = server.gui.add_button("Export", icon=viser.Icon.FILE_EXPORT)
+        download_button = server.gui.add_button("Download Splat", icon=viser.Icon.DOWNLOAD, disabled=True)
         generate_command = server.gui.add_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @export_button.on_click
@@ -283,6 +322,7 @@ def populate_splat_tab(
                         title="Exporting gaussian splat",
                         body="File will be saved under " + str(output_dir.value),
                         loading=True,
+                        with_close_button=False,
                     )
             notif.show()
 
@@ -305,10 +345,12 @@ def populate_splat_tab(
             export.main()
 
             if export.complete:
-                notif.update(
-                    title="Export complete!",
-                    body="File saved under " + str(output_dir.value),
-                )
+                notif.title = "Export complete!"
+                notif.body = "File saved under " + str(output_dir.value)
+                notif.loading = False
+                notif.with_close_button = True
+
+                download_button.disabled = False
         
         @download_button.on_click
         def _(event: viser.GuiEvent) -> None:
@@ -321,6 +363,19 @@ def populate_splat_tab(
             client.send_file_download(
                 "splat.ply", ply_bytes
             )
+        
+        @generate_command.on_click
+        def _(event: viser.GuiEvent) -> None:
+            assert event.client is not None
+            command = " ".join(
+                [
+                    "ns-export gaussian-splat",
+                    f"--load-config {config_path}",
+                    f"--output-dir {output_directory.value}",
+                    get_crop_string(control_panel.crop_obb, control_panel.crop_viewport),
+                ]
+            )
+            show_command_modal(event.client, "splat", command)
 
     else:
         server.gui.add_markdown("<small>Splat export is only supported with Gaussian Splatting methods</small>")
