@@ -1095,6 +1095,13 @@ def populate_render_tab(
             disabled=True,
         )
 
+        cancel_render_button = server.gui.add_button(
+            "Cancel Render",
+            icon=viser.Icon.CIRCLE_X,
+            hint="Cancel current render in progress.",
+            disabled=True,
+        )
+
         download_render_button = server.gui.add_button(
             "Download Render",
             icon=viser.Icon.DOWNLOAD,
@@ -1233,6 +1240,7 @@ def populate_render_tab(
         assert client is not None
 
         render_button.disabled = True
+        cancel_render_button.disabled = False
 
         render_path = f"renders/{datapath.name}/{render_name_text.value}.mp4"
         json_outfile = _write_json()
@@ -1251,6 +1259,18 @@ def populate_render_tab(
             camera_path_filename=json_outfile.absolute(),
             output_path=Path(render_path),
         )
+
+        @cancel_render_button.on_click
+        def _(event: viser.GuiEvent) -> None:
+            render.kill()
+            render_button.disabled = False
+            cancel_render_button.disabled = True
+
+            notif.title = "Render canceled"
+            notif.body = "The render in progress has been canceled."
+            notif.loading = False
+            notif.with_close_button = True
+
         render.main()
 
         if render.complete:
@@ -1259,8 +1279,8 @@ def populate_render_tab(
             notif.loading = False
             notif.with_close_button = True
 
-        render_button.disabled = False
-        download_render_button.disabled = False
+            render_button.disabled = False
+            download_render_button.disabled = False
 
     @download_render_button.on_click
     def _(event: viser.GuiEvent) -> None:

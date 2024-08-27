@@ -93,9 +93,10 @@ def _render_trajectory_video(
     depth_near_plane: Optional[float] = None,
     depth_far_plane: Optional[float] = None,
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions(),
-    render_nearest_camera=False,
+    render_nearest_camera: bool = False,
     check_occlusions: bool = False,
-) -> None:
+    kill_flag: List[bool] = [False],
+) -> bool:
     """Helper function to create a video of the spiral trajectory.
 
     Args:
@@ -155,6 +156,9 @@ def _render_trajectory_video(
 
         with progress:
             for camera_idx in progress.track(range(cameras.size), description=""):
+                if kill_flag[0]:
+                    return False
+            
                 obb_box = None
                 if crop_data is not None:
                     obb_box = crop_data.obb
@@ -334,6 +338,8 @@ def _render_trajectory_video(
         )
     )
 
+    return True
+
 
 def insert_spherical_metadata_into_file(
     output_filename: Path,
@@ -487,6 +493,11 @@ class BaseRender:
     """If true, checks line-of-sight occlusions when computing camera distance and rejects cameras not visible to each other"""
     camera_idx: Optional[int] = None
     """Index of the training camera to render."""
+    kill_flag: Optional[List[bool]] = field(default_factory=lambda: [False])
+    """Stop execution of render if set to True."""
+
+    def kill(self) -> None:
+        self.kill_flag[0] = True
 
 
 @dataclass
@@ -546,7 +557,7 @@ class RenderCameraPath(BaseRender):
         if self.camera_idx is not None:
             camera_path.metadata = {"cam_idx": self.camera_idx}
 
-        _render_trajectory_video(
+        self.complete = _render_trajectory_video(
             pipeline,
             camera_path,
             output_filename=self.output_path,
@@ -562,6 +573,7 @@ class RenderCameraPath(BaseRender):
             colormap_options=self.colormap_options,
             render_nearest_camera=self.render_nearest_camera,
             check_occlusions=self.check_occlusions,
+            kill_flag=self.kill_flag,
         )
 
         if (
@@ -597,6 +609,7 @@ class RenderCameraPath(BaseRender):
                 colormap_options=self.colormap_options,
                 render_nearest_camera=self.render_nearest_camera,
                 check_occlusions=self.check_occlusions,
+                kill_flag=self.kill_flag,
             )
 
             self.output_path = Path(str(left_eye_path.parent)[:-5] + ".mp4")
@@ -642,7 +655,6 @@ class RenderCameraPath(BaseRender):
                 if str(left_eye_path.parent)[-5:] == "_temp":
                     shutil.rmtree(left_eye_path.parent, ignore_errors=True)
                 CONSOLE.print("[bold green]Final VR180 Render Complete")
-        self.complete = True
 
 
 @dataclass
@@ -701,6 +713,7 @@ class RenderInterpolated(BaseRender):
             colormap_options=self.colormap_options,
             render_nearest_camera=self.render_nearest_camera,
             check_occlusions=self.check_occlusions,
+            kill_flag=self.kill_flag,
         )
 
 
@@ -756,6 +769,7 @@ class SpiralRender(BaseRender):
             colormap_options=self.colormap_options,
             render_nearest_camera=self.render_nearest_camera,
             check_occlusions=self.check_occlusions,
+            kill_flag=self.kill_flag,
         )
 
 
