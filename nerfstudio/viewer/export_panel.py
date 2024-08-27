@@ -18,7 +18,7 @@ from pathlib import Path
 
 import viser
 import viser.transforms as vtf
-from typing_extensions import Literal, List
+from typing_extensions import Literal
 
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.models.base_model import Model
