@@ -191,3 +191,6 @@ camera_paths/
 # pixi environments
 .pixi
 /third_party
+
+# my Dataset (by DGC)
+dataset/
