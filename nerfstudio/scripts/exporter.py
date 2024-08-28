@@ -486,7 +486,8 @@ class ExportGaussianSplat(Exporter):
     obb_scale: Optional[Tuple[float, float, float]] = None
     """Scale of the oriented bounding box along each axis."""
     ply_color_mode: Literal["sh_coeffs", "rgb"] = "sh_coeffs"
-    """If True, outputs for rendering in renderers that support SH0 rendering."""
+    """If "rgb", export colors as red/green/blue fields. Otherwise, export colors as
+    spherical harmonics coefficients."""
 
     @staticmethod
     def write_ply(
