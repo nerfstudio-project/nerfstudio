@@ -485,7 +485,7 @@ class ExportGaussianSplat(Exporter):
     """Rotation of the oriented bounding box. Expressed as RPY Euler angles in radians"""
     obb_scale: Optional[Tuple[float, float, float]] = None
     """Scale of the oriented bounding box along each axis."""
-    ply_color_mode: Literal["sh_coeffs", "rbg"] = "sh_coeffs"
+    ply_color_mode: Literal["sh_coeffs", "rgb"] = "sh_coeffs"
     """If True, outputs for rendering in renderers that support SH0 rendering."""
 
     @staticmethod
@@ -554,7 +554,6 @@ class ExportGaussianSplat(Exporter):
 
         filename = self.output_dir / "splat.ply"
 
-        count = 0
         map_to_tensors = OrderedDict()
 
         with torch.no_grad():

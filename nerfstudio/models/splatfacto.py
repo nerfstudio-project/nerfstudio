@@ -314,7 +314,10 @@ class SplatfactoModel(Model):
 
     @property
     def shs_0(self):
-        return self.features_dc
+        if self.config.sh_degree > 0:
+            return self.features_dc
+        else:
+            return RGB2SH(torch.sigmoid(self.features_dc))
 
     @property
     def shs_rest(self):
