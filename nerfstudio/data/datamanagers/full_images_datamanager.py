@@ -395,6 +395,8 @@ def _undistort_image(
             "We doesn't support the 4th Brown parameter for image undistortion, "
             "Only k1, k2, k3, p1, p2 can be non-zero."
         )
+        # because OpenCV expects the order of distortion parameters to be (k1, k2, p1, p2, k3), we need to reorder them
+        # see https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
         distortion_params = np.array(
             [
                 distortion_params[0],
@@ -420,6 +422,9 @@ def _undistort_image(
         # crop the image and update the intrinsics accordingly
         x, y, w, h = roi
         image = image[y : y + h, x : x + w]
+        # update the principal point based on our cropped region of interest (ROI)
+        newK[0, 2] -= x
+        newK[1, 2] -= y
         if "depth_image" in data:
             data["depth_image"] = data["depth_image"][y : y + h, x : x + w]
         if "mask" in data:
