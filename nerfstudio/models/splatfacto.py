@@ -40,7 +40,7 @@ from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
-from nerfstudio.model_components.lib_bilagrid import BilateralGrid, slice, total_variation_loss
+from nerfstudio.model_components.lib_bilagrid import BilateralGrid, color_correct, slice, total_variation_loss
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.misc import torch_compile
@@ -195,6 +195,9 @@ class SplatfactoModelConfig(ModelConfig):
     
     gird_shape: Tuple[int, int, int] = (16, 16, 8)
     """Shape of the bilateral grid (X, Y, W)"""
+
+    color_corrected_metrics: bool = False
+    """If True, apply color correction to the rendered images before computing the metrics."""
     
 
 
@@ -913,6 +916,9 @@ class SplatfactoModel(Model):
         metrics_dict = {}
         predicted_rgb = outputs["rgb"]
         metrics_dict["psnr"] = self.psnr(predicted_rgb, gt_rgb)
+        if self.config.color_corrected_metrics:
+            cc_rgb = color_correct(predicted_rgb, gt_rgb)
+            metrics_dict["cc_psnr"] = self.psnr(cc_rgb, gt_rgb)
 
         metrics_dict["gaussian_count"] = self.num_points
 
@@ -997,8 +1003,13 @@ class SplatfactoModel(Model):
         """
         gt_rgb = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         predicted_rgb = outputs["rgb"]
+        cc_rgb = None
 
         combined_rgb = torch.cat([gt_rgb, predicted_rgb], dim=1)
+
+        if self.config.color_corrected_metrics:
+            cc_rgb = color_correct(predicted_rgb, gt_rgb)
+            cc_rgb = torch.moveaxis(cc_rgb, -1, 0)[None, ...]
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         gt_rgb = torch.moveaxis(gt_rgb, -1, 0)[None, ...]
@@ -1011,6 +1022,15 @@ class SplatfactoModel(Model):
         # all of these metrics will be logged as scalars
         metrics_dict = {"psnr": float(psnr.item()), "ssim": float(ssim)}  # type: ignore
         metrics_dict["lpips"] = float(lpips)
+
+        if self.config.color_corrected_metrics:
+            assert cc_rgb is not None
+            cc_psnr = self.psnr(gt_rgb, cc_rgb)
+            cc_ssim = self.ssim(gt_rgb, cc_rgb)
+            cc_lpips = self.lpips(gt_rgb, cc_rgb)
+            metrics_dict["cc_psnr"] = float(cc_psnr.item())
+            metrics_dict["cc_ssim"] = float(cc_ssim)
+            metrics_dict["cc_lpips"] = float(cc_lpips)
 
         images_dict = {"img": combined_rgb}
 
