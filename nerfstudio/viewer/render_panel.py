@@ -1067,7 +1067,7 @@ def populate_render_tab(
             disabled=True,
         )
 
-    def _write_json() -> json:
+    def _write_json() -> Path:
         num_frames = int(framerate_number.value * duration_number.value)
         json_data = {}
 

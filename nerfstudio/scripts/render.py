@@ -455,7 +455,7 @@ class BaseRender:
     """If true, checks line-of-sight occlusions when computing camera distance and rejects cameras not visible to each other"""
     camera_idx: Optional[int] = None
     """Index of the training camera to render."""
-    kill_flag: Optional[List[bool]] = field(default_factory=lambda: [False])
+    kill_flag: List[bool] = field(default_factory=lambda: [False])
     """Stop execution of render if set to True."""
 
     def kill(self) -> None:

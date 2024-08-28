@@ -40,7 +40,7 @@ def populate_export_tab(
         def _(_) -> None:
             control_panel.crop_viewport = crop_output.value
 
-    server.add_gui_markdown("<small>Export available after a checkpoint is saved (default minimum 2000 steps)</small>")
+    server.gui.add_markdown("<small>Export available after a checkpoint is saved (default minimum 2000 steps)</small>")
     with server.gui.add_folder("Splat"):
         populate_splat_tab(server, control_panel, config_path, viewing_gsplat)
     with server.gui.add_folder("Point Cloud"):
