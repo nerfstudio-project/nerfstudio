@@ -1,4 +1,4 @@
-# HomeeAI's nerfstudio
+# Homee AI's nerfstudio
 
 This repository is a fork of the official [nerfstudio](https://github.com/nerfstudio-project/nerfstudio) repository. We added some custom components to the original repository to support reconstruct indoor scenes by mobile devices.
 
@@ -36,15 +36,23 @@ Replace the `CUDA_ARCHITECTURES` by looking up the compute capability for your G
 ### 1. Setup the environment
 - See [Quickstart](#quickstart) below.
     
+### 2. Prepare the dataset
+- See [Dataset Format](
+## Homee AI Dataset Format) below.
 
-### 2. Run the training pipeline
+
+### 3. Run the training pipeline
   ```shell
-  bash prepare_dataset.sh /folder/of/your/data/colmap/ glomap
+  bash run.sh /folder/of/your/data/colmap/ [colmap|glomap]
   ```
+Where:
+- `/folder/of/your/data/colmap/` is the path to your dataset
+- Choose either `colmap` or `glomap` as the pose optimization method
 
-## HomeeAI dataset format
+
+## Homee AI Dataset Format
 By running the training pipeline, we will first convert the dataset into the format that nerfstudio expects and then start the training process.
-### preprocess
+### Preprocess
 Our preprocessor expects the following dataset structure in the source path location:
 ```shell
 dataset

@@ -32,7 +32,10 @@ def main(args):
         '--pipeline.model.camera-optimizer.mode SO3xR3',
         '--viewer.make-share-url True',
         'colmap',
-        f'--colmap_path "colmap/{pose_method}/0"'
+        f'--colmap_path "colmap/{pose_method}/0"',
+        '--auto_scale_poses False',
+        '--center_method none',
+        '--orientation_method none',
     ]
 
     full_cmds = ' '.join(cmds)  
