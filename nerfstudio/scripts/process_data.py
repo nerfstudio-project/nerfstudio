@@ -15,12 +15,11 @@
 #!/usr/bin/env python
 """Processes a video or image sequence to a nerfstudio compatible dataset."""
 
-
 import sys
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 import tyro
@@ -153,6 +152,9 @@ class ProcessPolycam(BaseConverterToNerfstudioDataset):
                 zip_ref.extractall(self.output_dir)
                 extracted_folder = zip_ref.namelist()[0].split("/")[0]
             self.data = self.output_dir / extracted_folder
+            if not (self.data / "keyframes").exists():
+                # new versions of polycam data have a different structure, strip the last dir off
+                self.data = self.output_dir
 
         if (self.data / "keyframes" / "corrected_images").exists() and not self.use_uncorrected_images:
             polycam_image_dir = self.data / "keyframes" / "corrected_images"
@@ -201,6 +203,7 @@ class ProcessPolycam(BaseConverterToNerfstudioDataset):
             polycam_utils.polycam_to_json(
                 image_filenames=polycam_image_filenames,
                 depth_filenames=polycam_depth_filenames,
+                glb_filename=self.data / "raw.glb" if (self.data / "raw.glb").exists() else None,
                 cameras_dir=polycam_cameras_dir,
                 output_dir=self.output_dir,
                 min_blur_score=self.min_blur_score,
@@ -230,11 +233,17 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
     This script assumes that cameras have been aligned using Metashape. After alignment, it is necessary to export the
     camera poses as a `.xml` file. This option can be found under `File > Export > Export Cameras`.
 
+    Additionally, the points can be exported as pointcloud under `File > Export > Export Point Cloud`. Make sure to
+    export the data in non-binary format and exclude the normals.
+
     This script does the following:
 
     1. Scales images to a specified size.
     2. Converts Metashape poses into the nerfstudio format.
     """
+
+    ply: Optional[Path] = None
+    """Path to the Metashape point export ply file."""
 
     num_downscales: int = 3
     """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
@@ -248,10 +257,16 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
 
         if self.xml.suffix != ".xml":
             raise ValueError(f"XML file {self.xml} must have a .xml extension")
-        if not self.xml.exists:
+        if not self.xml.exists():
             raise ValueError(f"XML file {self.xml} doesn't exist")
         if self.eval_data is not None:
             raise ValueError("Cannot use eval_data since cameras were already aligned with Metashape.")
+
+        if self.ply is not None:
+            if self.ply.suffix != ".ply":
+                raise ValueError(f"PLY file {self.ply} must have a .ply extension")
+            if not self.ply.exists():
+                raise ValueError(f"PLY file {self.ply} doesn't exist")
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
@@ -291,6 +306,7 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
                 image_filename_map=image_filename_map,
                 xml_filename=self.xml,
                 output_dir=self.output_dir,
+                ply_filename=self.ply,
                 verbose=self.verbose,
             )
         )
@@ -323,6 +339,9 @@ class ProcessRealityCapture(BaseConverterToNerfstudioDataset, _NoDefaultProcessR
     2. Converts RealityCapture poses into the nerfstudio format.
     """
 
+    ply: Optional[Path] = None
+    """Path to the RealityCapture exported ply file"""
+
     num_downscales: int = 3
     """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
         will downscale the images by 2x, 4x, and 8x."""
@@ -335,10 +354,16 @@ class ProcessRealityCapture(BaseConverterToNerfstudioDataset, _NoDefaultProcessR
 
         if self.csv.suffix != ".csv":
             raise ValueError(f"CSV file {self.csv} must have a .csv extension")
-        if not self.csv.exists:
+        if not self.csv.exists():
             raise ValueError(f"CSV file {self.csv} doesn't exist")
         if self.eval_data is not None:
             raise ValueError("Cannot use eval_data since cameras were already aligned with RealityCapture.")
+
+        if self.ply is not None:
+            if self.ply.suffix != ".ply":
+                raise ValueError(f"PLY file {self.ply} must have a .ply extension")
+            if not self.ply.exists():
+                raise ValueError(f"PLY file {self.ply} doesn't exist")
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
@@ -377,7 +402,9 @@ class ProcessRealityCapture(BaseConverterToNerfstudioDataset, _NoDefaultProcessR
             realitycapture_utils.realitycapture_to_json(
                 image_filename_map=image_filename_map,
                 csv_filename=self.csv,
+                ply_filename=self.ply,
                 output_dir=self.output_dir,
+                verbose=self.verbose,
             )
         )
 
@@ -413,12 +440,12 @@ class ProcessODM(BaseConverterToNerfstudioDataset):
         shots_file = self.data / "odm_report" / "shots.geojson"
         reconstruction_file = self.data / "opensfm" / "reconstruction.json"
 
-        if not shots_file.exists:
+        if not shots_file.exists():
             raise ValueError(f"shots file {shots_file} doesn't exist")
-        if not shots_file.exists:
+        if not shots_file.exists():
             raise ValueError(f"cameras file {cameras_file} doesn't exist")
 
-        if not orig_images_dir.exists:
+        if not orig_images_dir.exists():
             raise ValueError(f"Images dir {orig_images_dir} doesn't exist")
 
         if self.eval_data is not None:
@@ -479,8 +506,7 @@ class ProcessODM(BaseConverterToNerfstudioDataset):
 
 @dataclass
 class NotInstalled:
-    def main(self) -> None:
-        ...
+    def main(self) -> None: ...
 
 
 Commands = Union[
@@ -522,7 +548,7 @@ def entrypoint():
     tyro.extras.set_accent_color("bright_yellow")
     try:
         tyro.cli(Commands).main()
-    except RuntimeError as e:
+    except (RuntimeError, ValueError) as e:
         CONSOLE.log("[bold red]" + e.args[0])
 
 

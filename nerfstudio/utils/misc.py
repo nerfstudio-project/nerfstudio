@@ -16,7 +16,6 @@
 Miscellaneous helper code.
 """
 
-
 import platform
 import typing
 import warnings

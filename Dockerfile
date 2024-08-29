@@ -1,11 +1,14 @@
 ARG CUDA_VERSION=11.8.0
 ARG OS_VERSION=22.04
-ARG USER_ID=1000
 # Define base image.
 FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${OS_VERSION}
 ARG CUDA_VERSION
 ARG OS_VERSION
-ARG USER_ID
+
+# Define username, user uid and gid
+ARG USERNAME=user
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
 
 # metainformation
 LABEL org.opencontainers.image.version = "0.1.18"
@@ -102,32 +105,40 @@ RUN git clone --branch 3.8 https://github.com/colmap/colmap.git --single-branch 
     cd ../.. && \
     rm -rf colmap
 
-# Create non root user and setup environment.
-RUN useradd -m -d /home/user -g root -G sudo -u ${USER_ID} user
-RUN usermod -aG sudo user
-# Set user password
-RUN echo "user:user" | chpasswd
-# Ensure sudo group users are not asked for a password when using sudo command by ammending sudoers file
-RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+# Create non root user, add it to custom group and setup environment.
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME -d /home/${USERNAME} --shell /usr/bin/bash 
+# OPTIONAL
+# If sudo privilages are not required comment below line
+# Create simple password for user and add it to sudo group
+# Update group so that it is not required to type password for commands: apt update/upgrade/install/remove
+RUN echo "${USERNAME}:password" | chpasswd \
+    && usermod -aG sudo ${USERNAME} \
+    && echo "%sudo ALL=NOPASSWD:/usr/bin/apt-get update, /usr/bin/apt-get upgrade, /usr/bin/apt-get install, /usr/bin/apt-get remove" >> /etc/sudoers
 
-# Switch to new uer and workdir.
-USER ${USER_ID}
-WORKDIR /home/user
+# Create workspace folder and change ownership to new user
+RUN mkdir /workspace && chown ${USER_UID}:${USER_GID} /workspace
+
+# Switch to new user and workdir.
+USER ${USER_UID}
+WORKDIR /home/${USERNAME}
 
 # Add local user binary folder to PATH variable.
-ENV PATH="${PATH}:/home/user/.local/bin"
-SHELL ["/bin/bash", "-c"]
+ENV PATH="${PATH}:/home/${USERNAME}/.local/bin"
 
 # Upgrade pip and install packages.
-RUN python3.10 -m pip install --no-cache-dir --upgrade pip setuptools pathtools promise pybind11
+RUN python3.10 -m pip install --no-cache-dir --upgrade pip setuptools==69.5.1 pathtools promise pybind11 omegaconf
+
 # Install pytorch and submodules
-RUN CUDA_VER=${CUDA_VERSION%.*} && CUDA_VER=${CUDA_VER//./} && python3.10 -m pip install --no-cache-dir \
-    torch==2.0.1+cu${CUDA_VER} \
-    torchvision==0.15.2+cu${CUDA_VER} \
+# echo "${CUDA_VERSION}" | sed 's/.$//' | tr -d '.' -- CUDA_VERSION -> delete last digit -> delete all '.'
+RUN CUDA_VER=$(echo "${CUDA_VERSION}" | sed 's/.$//' | tr -d '.') && python3.10 -m pip install --no-cache-dir \
+    torch==2.1.2+cu${CUDA_VER} \
+    torchvision==0.16.2+cu${CUDA_VER} \
         --extra-index-url https://download.pytorch.org/whl/cu${CUDA_VER}
-# Install tynyCUDNN (we need to set the target architectures as environment variable first).
+
+# Install tiny-cuda-nn (we need to set the target architectures as environment variable first).
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
-RUN python3.10 -m pip install --no-cache-dir git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch
+RUN python3.10 -m pip install --no-cache-dir git+https://github.com/NVlabs/tiny-cuda-nn.git#subdirectory=bindings/torch
 
 # Install pycolmap, required by hloc.
 RUN git clone --branch v0.4.0 --recursive https://github.com/colmap/pycolmap.git && \
@@ -156,23 +167,19 @@ RUN git clone --recursive https://github.com/cvg/pixel-perfect-sfm.git && \
     python3.10 -m pip install --no-cache-dir -e . && \
     cd ..
 
-RUN python3.10 -m pip install --no-cache-dir omegaconf
 # Copy nerfstudio folder and give ownership to user.
-ADD . /home/user/nerfstudio
-USER root
-RUN chown -R user /home/user/nerfstudio
-USER ${USER_ID}
+COPY --chown=${USER_UID}:${USER_GID} . /home/${USERNAME}/nerfstudio
 
 # Install nerfstudio dependencies.
 RUN cd nerfstudio && \
     python3.10 -m pip install --no-cache-dir -e . && \
     cd ..
 
-# Change working directory
+# Switch to workspace folder and install nerfstudio cli auto completion
 WORKDIR /workspace
-
-# Install nerfstudio cli auto completion
 RUN ns-install-cli --mode install
 
 # Bash as default entrypoint.
 CMD /bin/bash -l
+# Force changing password on first container run
+# Change line above: CMD /bin/bash -l -> CMD /bin/bash -l -c passwd && /usr/bin/bash -l

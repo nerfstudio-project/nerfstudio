@@ -14,36 +14,56 @@
 # limitations under the License.
 
 """
-NeRF implementation that combines many recent advancements.
+Gaussian Splatting implementation that combines many recent advancements.
 """
 
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Literal, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
-from gsplat._torch_impl import quat_to_rotmat
-from gsplat.project_gaussians import project_gaussians
-from gsplat.rasterize import rasterize_gaussians
-from gsplat.sh import num_sh_bases, spherical_harmonics
+
+try:
+    from gsplat.rendering import rasterization
+except ImportError:
+    print("Please install gsplat>=1.0.0")
+from gsplat.cuda_legacy._wrapper import num_sh_bases
 from pytorch_msssim import SSIM
 from torch.nn import Parameter
-from typing_extensions import Literal
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
-
-# need following import for background color override
-from nerfstudio.model_components import renderers
+from nerfstudio.model_components.lib_bilagrid import BilateralGrid, color_correct, slice, total_variation_loss
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils.colors import get_color
+from nerfstudio.utils.misc import torch_compile
 from nerfstudio.utils.rich_utils import CONSOLE
+
+
+def quat_to_rotmat(quat):
+    assert quat.shape[-1] == 4, quat.shape
+    w, x, y, z = torch.unbind(quat, dim=-1)
+    mat = torch.stack(
+        [
+            1 - 2 * (y**2 + z**2),
+            2 * (x * y - w * z),
+            2 * (x * z + w * y),
+            2 * (x * y + w * z),
+            1 - 2 * (x**2 + z**2),
+            2 * (y * z - w * x),
+            2 * (x * z - w * y),
+            2 * (y * z + w * x),
+            1 - 2 * (x**2 + y**2),
+        ],
+        dim=-1,
+    )
+    return mat.reshape(quat.shape[:-1] + (3, 3))
 
 
 def random_quat_tensor(N):
@@ -80,6 +100,41 @@ def SH2RGB(sh):
     return sh * C0 + 0.5
 
 
+def resize_image(image: torch.Tensor, d: int):
+    """
+    Downscale images using the same 'area' method in opencv
+
+    :param image shape [H, W, C]
+    :param d downscale factor (must be 2, 4, 8, etc.)
+
+    return downscaled image in shape [H//d, W//d, C]
+    """
+    import torch.nn.functional as tf
+
+    image = image.to(torch.float32)
+    weight = (1.0 / (d * d)) * torch.ones((1, 1, d, d), dtype=torch.float32, device=image.device)
+    return tf.conv2d(image.permute(2, 0, 1)[:, None, ...], weight, stride=d).squeeze(1).permute(1, 2, 0)
+
+
+@torch_compile()
+def get_viewmat(optimized_camera_to_world):
+    """
+    function that converts c2w to gsplat world2camera matrix, using compile for some speed
+    """
+    R = optimized_camera_to_world[:, :3, :3]  # 3 x 3
+    T = optimized_camera_to_world[:, :3, 3:4]  # 3 x 1
+    # flip the z and y axes to align with gsplat conventions
+    R = R * torch.tensor([[[1, -1, -1]]], device=R.device, dtype=R.dtype)
+    # analytic matrix inverse to get world2camera matrix
+    R_inv = R.transpose(1, 2)
+    T_inv = -torch.bmm(R_inv, T)
+    viewmat = torch.zeros(R.shape[0], 4, 4, device=R.device, dtype=R.dtype)
+    viewmat[:, 3, 3] = 1.0  # homogenous
+    viewmat[:, :3, :3] = R_inv
+    viewmat[:, :3, 3:4] = T_inv
+    return viewmat
+
+
 @dataclass
 class SplatfactoModelConfig(ModelConfig):
     """Splatfacto Model Config, nerfstudio's implementation of Gaussian Splatting"""
@@ -103,7 +158,7 @@ class SplatfactoModelConfig(ModelConfig):
     """If True, continue to cull gaussians post refinement"""
     reset_alpha_every: int = 30
     """Every this many refinement steps, reset the alpha"""
-    densify_grad_thresh: float = 0.0002
+    densify_grad_thresh: float = 0.0008
     """threshold of positional gradient norm for densifying gaussians"""
     densify_size_thresh: float = 0.01
     """below this size, gaussians are *duplicated*, otherwise split"""
@@ -149,6 +204,12 @@ class SplatfactoModelConfig(ModelConfig):
     """
     camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="off"))
     """Config of the camera optimizer to use"""
+    use_bilateral_grid: bool = False
+    """If True, use bilateral grid to handle the ISP changes in the image space. This technique was introduced in the paper 'Bilateral Guided Radiance Field Processing' (https://bilarfpro.github.io/)."""
+    grid_shape: Tuple[int, int, int] = (16, 16, 8)
+    """Shape of the bilateral grid (X, Y, W)"""
+    color_corrected_metrics: bool = False
+    """If True, apply color correction to the rendered images before computing the metrics."""
 
 
 class SplatfactoModel(Model):
@@ -236,6 +297,13 @@ class SplatfactoModel(Model):
             )  # This color is the same as the default background color in Viser. This would only affect the background color when rendering.
         else:
             self.background_color = get_color(self.config.background_color)
+        if self.config.use_bilateral_grid:
+            self.bil_grids = BilateralGrid(
+                num=self.num_train_data,
+                grid_X=self.config.grid_shape[0],
+                grid_Y=self.config.grid_shape[1],
+                grid_W=self.config.grid_shape[2],
+            )
 
     @property
     def colors(self):
@@ -246,7 +314,10 @@ class SplatfactoModel(Model):
 
     @property
     def shs_0(self):
-        return self.features_dc
+        if self.config.sh_degree > 0:
+            return self.features_dc
+        else:
+            return RGB2SH(torch.sigmoid(self.features_dc))
 
     @property
     def shs_rest(self):
@@ -379,17 +450,14 @@ class SplatfactoModel(Model):
         with torch.no_grad():
             # keep track of a moving average of grad norms
             visible_mask = (self.radii > 0).flatten()
-            assert self.xys.grad is not None
-            grads = self.xys.grad.detach().norm(dim=-1)
+            grads = self.xys.absgrad[0][visible_mask].norm(dim=-1)  # type: ignore
             # print(f"grad norm min {grads.min().item()} max {grads.max().item()} mean {grads.mean().item()} size {grads.shape}")
             if self.xys_grad_norm is None:
-                self.xys_grad_norm = grads
-                self.vis_counts = torch.ones_like(self.xys_grad_norm)
-            else:
-                assert self.vis_counts is not None
-                self.vis_counts[visible_mask] = self.vis_counts[visible_mask] + 1
-                self.xys_grad_norm[visible_mask] = grads[visible_mask] + self.xys_grad_norm[visible_mask]
-
+                self.xys_grad_norm = torch.zeros(self.num_points, device=self.device, dtype=torch.float32)
+                self.vis_counts = torch.ones(self.num_points, device=self.device, dtype=torch.float32)
+            assert self.vis_counts is not None
+            self.vis_counts[visible_mask] += 1
+            self.xys_grad_norm[visible_mask] += grads
             # update the max screen size, as a ratio of number of pixels
             if self.max_2Dsize is None:
                 self.max_2Dsize = torch.zeros_like(self.radii, dtype=torch.float32)
@@ -426,9 +494,9 @@ class SplatfactoModel(Model):
                 avg_grad_norm = (self.xys_grad_norm / self.vis_counts) * 0.5 * max(self.last_size[0], self.last_size[1])
                 high_grads = (avg_grad_norm > self.config.densify_grad_thresh).squeeze()
                 splits = (self.scales.exp().max(dim=-1).values > self.config.densify_size_thresh).squeeze()
+                splits &= high_grads
                 if self.step < self.config.stop_screen_size_at:
                     splits |= (self.max_2Dsize > self.config.split_screen_size).squeeze()
-                splits &= high_grads
                 nsamps = self.config.n_split_samples
                 split_params = self.split_gaussians(splits, nsamps)
 
@@ -439,7 +507,6 @@ class SplatfactoModel(Model):
                     self.gauss_params[name] = torch.nn.Parameter(
                         torch.cat([param.detach(), split_params[name], dup_params[name]], dim=0)
                     )
-
                 # append zeros to the max_2Dsize tensor
                 self.max_2Dsize = torch.cat(
                     [
@@ -513,8 +580,8 @@ class SplatfactoModel(Model):
             toobigs = (torch.exp(self.scales).max(dim=-1).values > self.config.cull_scale_thresh).squeeze()
             if self.step < self.config.stop_screen_size_at:
                 # cull big screen space
-                assert self.max_2Dsize is not None
-                toobigs = toobigs | (self.max_2Dsize > self.config.cull_screen_size).squeeze()
+                if self.max_2Dsize is not None:
+                    toobigs = toobigs | (self.max_2Dsize > self.config.cull_screen_size).squeeze()
             culls = culls | toobigs
             toobigs_count = torch.sum(toobigs).item()
         for name, param in self.gauss_params.items():
@@ -616,6 +683,8 @@ class SplatfactoModel(Model):
             Mapping of different parameter groups
         """
         gps = self.get_gaussian_param_groups()
+        if self.config.use_bilateral_grid:
+            gps["bilateral_grid"] = list(self.bil_grids.parameters())
         self.camera_optimizer.get_param_groups(param_groups=gps)
         return gps
 
@@ -631,20 +700,53 @@ class SplatfactoModel(Model):
     def _downscale_if_required(self, image):
         d = self._get_downscale_factor()
         if d > 1:
-            newsize = [image.shape[0] // d, image.shape[1] // d]
-
-            # torchvision can be slow to import, so we do it lazily.
-            import torchvision.transforms.functional as TF
-
-            return TF.resize(image.permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
+            return resize_image(image, d)
         return image
 
+    @staticmethod
+    def get_empty_outputs(width: int, height: int, background: torch.Tensor) -> Dict[str, Union[torch.Tensor, List]]:
+        rgb = background.repeat(height, width, 1)
+        depth = background.new_ones(*rgb.shape[:2], 1) * 10
+        accumulation = background.new_zeros(*rgb.shape[:2], 1)
+        return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
+
+    def _get_background_color(self):
+        if self.config.background_color == "random":
+            if self.training:
+                background = torch.rand(3, device=self.device)
+            else:
+                background = self.background_color.to(self.device)
+        elif self.config.background_color == "white":
+            background = torch.ones(3, device=self.device)
+        elif self.config.background_color == "black":
+            background = torch.zeros(3, device=self.device)
+        else:
+            raise ValueError(f"Unknown background color {self.config.background_color}")
+        return background
+
+    def _apply_bilateral_grid(self, rgb: torch.Tensor, cam_idx: int, H: int, W: int) -> torch.Tensor:
+        # make xy grid
+        grid_y, grid_x = torch.meshgrid(
+            torch.linspace(0, 1.0, H, device=self.device),
+            torch.linspace(0, 1.0, W, device=self.device),
+            indexing="ij",
+        )
+        grid_xy = torch.stack([grid_x, grid_y], dim=-1).unsqueeze(0)
+
+        out = slice(
+            bil_grids=self.bil_grids,
+            rgb=rgb,
+            xy=grid_xy,
+            grid_idx=torch.tensor(cam_idx, device=self.device, dtype=torch.long),
+        )
+        return out["rgb"]
+
     def get_outputs(self, camera: Cameras) -> Dict[str, Union[torch.Tensor, List]]:
-        """Takes in a Ray Bundle and returns a dictionary of outputs.
+        """Takes in a camera and returns a dictionary of outputs.
 
         Args:
-            ray_bundle: Input bundle of rays. This raybundle should have all the
-            needed information to compute the outputs.
+            camera: The camera(s) for which output images are rendered. It should have
+            all the needed information to compute the outputs.
 
         Returns:
             Outputs of model. (ie. rendered colors)
@@ -652,57 +754,22 @@ class SplatfactoModel(Model):
         if not isinstance(camera, Cameras):
             print("Called get_outputs with not a camera")
             return {}
-        assert camera.shape[0] == 1, "Only one camera at a time"
 
-        # get the background color
         if self.training:
-            optimized_camera_to_world = self.camera_optimizer.apply_to_camera(camera)[0, ...]
-
-            if self.config.background_color == "random":
-                background = torch.rand(3, device=self.device)
-            elif self.config.background_color == "white":
-                background = torch.ones(3, device=self.device)
-            elif self.config.background_color == "black":
-                background = torch.zeros(3, device=self.device)
-            else:
-                background = self.background_color.to(self.device)
+            assert camera.shape[0] == 1, "Only one camera at a time"
+            optimized_camera_to_world = self.camera_optimizer.apply_to_camera(camera)
         else:
-            optimized_camera_to_world = camera.camera_to_worlds[0, ...]
+            optimized_camera_to_world = camera.camera_to_worlds
 
-            if renderers.BACKGROUND_COLOR_OVERRIDE is not None:
-                background = renderers.BACKGROUND_COLOR_OVERRIDE.to(self.device)
-            else:
-                background = self.background_color.to(self.device)
-
+        # cropping
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
-                rgb = background.repeat(int(camera.height.item()), int(camera.width.item()), 1)
-                depth = background.new_ones(*rgb.shape[:2], 1) * 10
-                accumulation = background.new_zeros(*rgb.shape[:2], 1)
-                return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
+                return self.get_empty_outputs(
+                    int(camera.width.item()), int(camera.height.item()), self.background_color
+                )
         else:
             crop_ids = None
-        camera_downscale = self._get_downscale_factor()
-        camera.rescale_output_resolution(1 / camera_downscale)
-        # shift the camera to center of scene looking at center
-        R = optimized_camera_to_world[:3, :3]  # 3 x 3
-        T = optimized_camera_to_world[:3, 3:4]  # 3 x 1
-
-        # flip the z and y axes to align with gsplat conventions
-        R_edit = torch.diag(torch.tensor([1, -1, -1], device=self.device, dtype=R.dtype))
-        R = R @ R_edit
-        # analytic matrix inverse to get world2camera matrix
-        R_inv = R.T
-        T_inv = -R_inv @ T
-        viewmat = torch.eye(4, device=R.device, dtype=R.dtype)
-        viewmat[:3, :3] = R_inv
-        viewmat[:3, 3:4] = T_inv
-        # calculate the FOV of the camera given fx and fy, width and height
-        cx = camera.cx.item()
-        cy = camera.cy.item()
-        W, H = int(camera.width.item()), int(camera.height.item())
-        self.last_size = (H, W)
 
         if crop_ids is not None:
             opacities_crop = self.opacities[crop_ids]
@@ -720,90 +787,83 @@ class SplatfactoModel(Model):
             quats_crop = self.quats
 
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
+
         BLOCK_WIDTH = 16  # this controls the tile size of rasterization, 16 is a good default
-        self.xys, depths, self.radii, conics, comp, num_tiles_hit, cov3d = project_gaussians(  # type: ignore
-            means_crop,
-            torch.exp(scales_crop),
-            1,
-            quats_crop / quats_crop.norm(dim=-1, keepdim=True),
-            viewmat.squeeze()[:3, :],
-            camera.fx.item(),
-            camera.fy.item(),
-            cx,
-            cy,
-            H,
-            W,
-            BLOCK_WIDTH,
-        )  # type: ignore
-
-        # rescale the camera back to original dimensions before returning
-        camera.rescale_output_resolution(camera_downscale)
-
-        if (self.radii).sum() == 0:
-            rgb = background.repeat(H, W, 1)
-            depth = background.new_ones(*rgb.shape[:2], 1) * 10
-            accumulation = background.new_zeros(*rgb.shape[:2], 1)
-
-            return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
-
-        # Important to allow xys grads to populate properly
-        if self.training:
-            self.xys.retain_grad()
-
-        if self.config.sh_degree > 0:
-            viewdirs = means_crop.detach() - optimized_camera_to_world.detach()[:3, 3]  # (N, 3)
-            viewdirs = viewdirs / viewdirs.norm(dim=-1, keepdim=True)
-            n = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
-            rgbs = spherical_harmonics(n, viewdirs, colors_crop)
-            rgbs = torch.clamp(rgbs + 0.5, min=0.0)  # type: ignore
-        else:
-            rgbs = torch.sigmoid(colors_crop[:, 0, :])
-
-        assert (num_tiles_hit > 0).any()  # type: ignore
+        camera_scale_fac = self._get_downscale_factor()
+        camera.rescale_output_resolution(1 / camera_scale_fac)
+        viewmat = get_viewmat(optimized_camera_to_world)
+        K = camera.get_intrinsics_matrices().cuda()
+        W, H = int(camera.width.item()), int(camera.height.item())
+        self.last_size = (H, W)
+        camera.rescale_output_resolution(camera_scale_fac)  # type: ignore
 
         # apply the compensation of screen space blurring to gaussians
-        opacities = None
-        if self.config.rasterize_mode == "antialiased":
-            opacities = torch.sigmoid(opacities_crop) * comp[:, None]
-        elif self.config.rasterize_mode == "classic":
-            opacities = torch.sigmoid(opacities_crop)
-        else:
+        if self.config.rasterize_mode not in ["antialiased", "classic"]:
             raise ValueError("Unknown rasterize_mode: %s", self.config.rasterize_mode)
 
-        rgb, alpha = rasterize_gaussians(  # type: ignore
-            self.xys,
-            depths,
-            self.radii,
-            conics,
-            num_tiles_hit,  # type: ignore
-            rgbs,
-            opacities,
-            H,
-            W,
-            BLOCK_WIDTH,
-            background=background,
-            return_alpha=True,
-        )  # type: ignore
-        alpha = alpha[..., None]
-        rgb = torch.clamp(rgb, max=1.0)  # type: ignore
-        depth_im = None
         if self.config.output_depth_during_training or not self.training:
-            depth_im = rasterize_gaussians(  # type: ignore
-                self.xys,
-                depths,
-                self.radii,
-                conics,
-                num_tiles_hit,  # type: ignore
-                depths[:, None].repeat(1, 3),
-                opacities,
-                H,
-                W,
-                BLOCK_WIDTH,
-                background=torch.zeros(3, device=self.device),
-            )[..., 0:1]  # type: ignore
-            depth_im = torch.where(alpha > 0, depth_im / alpha, depth_im.detach().max())
+            render_mode = "RGB+ED"
+        else:
+            render_mode = "RGB"
 
-        return {"rgb": rgb, "depth": depth_im, "accumulation": alpha, "background": background}  # type: ignore
+        if self.config.sh_degree > 0:
+            sh_degree_to_use = min(self.step // self.config.sh_degree_interval, self.config.sh_degree)
+        else:
+            colors_crop = torch.sigmoid(colors_crop).squeeze(1)  # [N, 1, 3] -> [N, 3]
+            sh_degree_to_use = None
+
+        render, alpha, info = rasterization(
+            means=means_crop,
+            quats=quats_crop / quats_crop.norm(dim=-1, keepdim=True),
+            scales=torch.exp(scales_crop),
+            opacities=torch.sigmoid(opacities_crop).squeeze(-1),
+            colors=colors_crop,
+            viewmats=viewmat,  # [1, 4, 4]
+            Ks=K,  # [1, 3, 3]
+            width=W,
+            height=H,
+            tile_size=BLOCK_WIDTH,
+            packed=False,
+            near_plane=0.01,
+            far_plane=1e10,
+            render_mode=render_mode,
+            sh_degree=sh_degree_to_use,
+            sparse_grad=False,
+            absgrad=True,
+            rasterize_mode=self.config.rasterize_mode,
+            # set some threshold to disregrad small gaussians for faster rendering.
+            # radius_clip=3.0,
+        )
+        if self.training and info["means2d"].requires_grad:
+            info["means2d"].retain_grad()
+        self.xys = info["means2d"]  # [1, N, 2]
+        self.radii = info["radii"][0]  # [N]
+        alpha = alpha[:, ...]
+
+        background = self._get_background_color()
+        rgb = render[:, ..., :3] + (1 - alpha) * background
+        rgb = torch.clamp(rgb, 0.0, 1.0)
+
+        # apply bilateral grid
+        if self.config.use_bilateral_grid and self.training:
+            if camera.metadata is not None and "cam_idx" in camera.metadata:
+                rgb = self._apply_bilateral_grid(rgb, camera.metadata["cam_idx"], H, W)
+
+        if render_mode == "RGB+ED":
+            depth_im = render[:, ..., 3:4]
+            depth_im = torch.where(alpha > 0, depth_im, depth_im.detach().max()).squeeze(0)
+        else:
+            depth_im = None
+
+        if background.shape[0] == 3 and not self.training:
+            background = background.expand(H, W, 3)
+
+        return {
+            "rgb": rgb.squeeze(0),  # type: ignore
+            "depth": depth_im,  # type: ignore
+            "accumulation": alpha.squeeze(0),  # type: ignore
+            "background": background,  # type: ignore
+        }  # type: ignore
 
     def get_gt_img(self, image: torch.Tensor):
         """Compute groundtruth image with iteration dependent downscale factor for evaluation purpose
@@ -839,7 +899,11 @@ class SplatfactoModel(Model):
         gt_rgb = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
         metrics_dict = {}
         predicted_rgb = outputs["rgb"]
+
         metrics_dict["psnr"] = self.psnr(predicted_rgb, gt_rgb)
+        if self.config.color_corrected_metrics:
+            cc_rgb = color_correct(predicted_rgb, gt_rgb)
+            metrics_dict["cc_psnr"] = self.psnr(cc_rgb, gt_rgb)
 
         metrics_dict["gaussian_count"] = self.num_points
 
@@ -890,6 +954,8 @@ class SplatfactoModel(Model):
         if self.training:
             # Add loss from camera optimizer
             self.camera_optimizer.get_loss_dict(loss_dict)
+            if self.config.use_bilateral_grid:
+                loss_dict["tv_loss"] = 10 * total_variation_loss(self.bil_grids.grids)
 
         return loss_dict
 
@@ -921,17 +987,14 @@ class SplatfactoModel(Model):
             A dictionary of metrics.
         """
         gt_rgb = self.composite_with_background(self.get_gt_img(batch["image"]), outputs["background"])
-        d = self._get_downscale_factor()
-        if d > 1:
-            # torchvision can be slow to import, so we do it lazily.
-            import torchvision.transforms.functional as TF
-
-            newsize = [batch["image"].shape[0] // d, batch["image"].shape[1] // d]
-            predicted_rgb = TF.resize(outputs["rgb"].permute(2, 0, 1), newsize, antialias=None).permute(1, 2, 0)
-        else:
-            predicted_rgb = outputs["rgb"]
+        predicted_rgb = outputs["rgb"]
+        cc_rgb = None
 
         combined_rgb = torch.cat([gt_rgb, predicted_rgb], dim=1)
+
+        if self.config.color_corrected_metrics:
+            cc_rgb = color_correct(predicted_rgb, gt_rgb)
+            cc_rgb = torch.moveaxis(cc_rgb, -1, 0)[None, ...]
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         gt_rgb = torch.moveaxis(gt_rgb, -1, 0)[None, ...]
@@ -944,6 +1007,15 @@ class SplatfactoModel(Model):
         # all of these metrics will be logged as scalars
         metrics_dict = {"psnr": float(psnr.item()), "ssim": float(ssim)}  # type: ignore
         metrics_dict["lpips"] = float(lpips)
+
+        if self.config.color_corrected_metrics:
+            assert cc_rgb is not None
+            cc_psnr = self.psnr(gt_rgb, cc_rgb)
+            cc_ssim = self.ssim(gt_rgb, cc_rgb)
+            cc_lpips = self.lpips(gt_rgb, cc_rgb)
+            metrics_dict["cc_psnr"] = float(cc_psnr.item())
+            metrics_dict["cc_ssim"] = float(cc_ssim)
+            metrics_dict["cc_lpips"] = float(cc_lpips)
 
         images_dict = {"img": combined_rgb}
 

@@ -68,6 +68,7 @@ from nerfstudio.plugins.registry import discover_methods
 method_configs: Dict[str, Union[TrainerConfig, ExternalMethodDummyTrainerConfig]] = {}
 descriptions = {
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
+    "nerfacto-huge": "Larger version of Nerfacto with higher quality.",
     "depth-nerfacto": "Nerfacto with depth supervision.",
     "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for unbounded scenes.",
     "instant-ngp-bounded": "Implementation of Instant-NGP. Recommended for bounded real and synthetic scenes",
@@ -81,6 +82,7 @@ descriptions = {
     "neus": "Implementation of NeuS. (slow)",
     "neus-facto": "Implementation of NeuS-Facto. (slow)",
     "splatfacto": "Gaussian Splatting model",
+    "splatfacto-big": "Larger version of Splatfacto with higher quality.",
 }
 
 method_configs["nerfacto"] = TrainerConfig(
@@ -299,8 +301,6 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
     viewer=ViewerConfig(num_rays_per_chunk=1 << 12),
     vis="viewer",
 )
-#
-#
 method_configs["mipnerf"] = TrainerConfig(
     method_name="mipnerf",
     pipeline=VanillaPipelineConfig(
@@ -637,6 +637,12 @@ method_configs["splatfacto"] = TrainerConfig(
                 lr_final=5e-7, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
             ),
         },
+        "bilateral_grid": {
+            "optimizer": AdamOptimizerConfig(lr=2e-3, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                lr_final=1e-4, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
+            ),
+        },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",
@@ -658,6 +664,7 @@ method_configs["splatfacto-big"] = TrainerConfig(
         model=SplatfactoModelConfig(
             cull_alpha_thresh=0.005,
             continue_cull_post_densification=False,
+            densify_grad_thresh=0.0006,
         ),
     ),
     optimizers={
@@ -689,6 +696,12 @@ method_configs["splatfacto-big"] = TrainerConfig(
             "optimizer": AdamOptimizerConfig(lr=1e-4, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
                 lr_final=5e-7, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
+            ),
+        },
+        "bilateral_grid": {
+            "optimizer": AdamOptimizerConfig(lr=5e-3, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                lr_final=1e-4, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
             ),
         },
     },

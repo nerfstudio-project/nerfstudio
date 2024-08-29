@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" Control panel for the viewer """
+"""Control panel for the viewer"""
+
 from collections import defaultdict
 from typing import Callable, DefaultDict, List, Tuple, get_args
 
@@ -49,7 +50,7 @@ class ControlPanel:
 
     def __init__(
         self,
-        viser_server: ViserServer,
+        server: ViserServer,
         time_enabled: bool,
         scale_ratio: float,
         rerender_cb: Callable[[], None],
@@ -59,7 +60,7 @@ class ControlPanel:
     ):
         self.viser_scale_ratio = scale_ratio
         # elements holds a mapping from tag: [elements]
-        self.viser_server = viser_server
+        self.server = server
         self._elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
         self.default_composite_depth = default_composite_depth
 
@@ -151,7 +152,7 @@ class ControlPanel:
         self._background_color = ViewerRGB(
             "Background color", (38, 42, 55), cb_hook=lambda _: rerender_cb(), hint="Color of the background"
         )
-        self._crop_handle = self.viser_server.add_transform_controls("Crop", depth_test=False, line_width=4.0)
+        self._crop_handle = self.server.scene.add_transform_controls("Crop", depth_test=False, line_width=4.0)
 
         def update_center(han):
             self._crop_handle.position = tuple(p * self.viser_scale_ratio for p in han.value)  # type: ignore
@@ -192,7 +193,7 @@ class ControlPanel:
         self.add_element(self._train_speed)
         self.add_element(self._train_util)
 
-        with self.viser_server.add_gui_folder("Render Options"):
+        with self.server.gui.add_folder("Render Options"):
             self.add_element(self._max_res)
             self.add_element(self._output_render)
             self.add_element(self._colormap)
@@ -204,7 +205,7 @@ class ControlPanel:
             self.add_element(self._max, additional_tags=("colormap",))
 
         # split options
-        with self.viser_server.add_gui_folder("Split Screen"):
+        with self.server.gui.add_folder("Split Screen"):
             self.add_element(self._split)
 
             self.add_element(self._split_percentage, additional_tags=("split",))
@@ -216,7 +217,7 @@ class ControlPanel:
             self.add_element(self._split_min, additional_tags=("split_colormap",))
             self.add_element(self._split_max, additional_tags=("split_colormap",))
 
-        with self.viser_server.add_gui_folder("Crop Viewport"):
+        with self.server.gui.add_folder("Crop Viewport"):
             self.add_element(self._crop_viewport)
             # Crop options
             self.add_element(self._background_color, additional_tags=("crop",))
@@ -225,7 +226,7 @@ class ControlPanel:
             self.add_element(self._crop_rot, additional_tags=("crop",))
 
         self.add_element(self._time, additional_tags=("time",))
-        self._reset_camera = viser_server.add_gui_button(
+        self._reset_camera = server.gui.add_button(
             label="Reset Up Direction",
             icon=viser.Icon.ARROW_BIG_UP_LINES,
             color="gray",
@@ -248,7 +249,7 @@ class ControlPanel:
             self._max_res.value = 1024
 
     def _reset_camera_cb(self, _) -> None:
-        for client in self.viser_server.get_clients().values():
+        for client in self.server.get_clients().values():
             client.camera.up_direction = vtf.SO3(client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
 
     def update_output_options(self, new_options: List[str]):
@@ -270,7 +271,7 @@ class ControlPanel:
         self._elements_by_tag["all"].append(e)
         for t in additional_tags:
             self._elements_by_tag[t].append(e)
-        e.install(self.viser_server)
+        e.install(self.server)
 
     def update_control_panel(self) -> None:
         """

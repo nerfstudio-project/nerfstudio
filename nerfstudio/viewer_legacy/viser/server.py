@@ -12,15 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" Core Viser Server """
-
+"""Core Viser Server"""
 
 from __future__ import annotations
 
 from typing import Callable, Type
 
-import viser.infra
 from typing_extensions import override
+from viser.infra import WebsockServer
 
 from .message_api import MessageApi
 from .messages import GuiUpdateMessage, NerfstudioMessage
@@ -44,7 +43,7 @@ class ViserServer(MessageApi):
     ):
         super().__init__()
 
-        self._ws_server = viser.infra.Server(host, port, http_server_root=None, verbose=False)
+        self._ws_server = WebsockServer(host, port, http_server_root=None, verbose=False)
         self._ws_server.register_handler(GuiUpdateMessage, self._handle_gui_updates)
         self._ws_server.start()
 
@@ -53,7 +52,7 @@ class ViserServer(MessageApi):
         """Implements message enqueue required by MessageApi.
 
         Pushes a message onto a broadcast queue."""
-        self._ws_server.broadcast(message)
+        self._ws_server.queue_message(message)
 
     def register_handler(
         self, message_type: Type[NerfstudioMessage], handler: Callable[[NerfstudioMessage], None]

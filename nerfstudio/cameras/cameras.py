@@ -15,6 +15,7 @@
 """
 Camera Models
 """
+
 import base64
 import math
 from dataclasses import dataclass
@@ -170,7 +171,7 @@ class Cameras(TensorDataclass):
             name: The name of the variable. Used for error messages
         """
         if isinstance(fc_xy, float):
-            fc_xy = torch.Tensor([fc_xy], device=self.device)
+            fc_xy = torch.tensor([fc_xy], device=self.device)
         elif isinstance(fc_xy, torch.Tensor):
             if fc_xy.ndim == 0 or fc_xy.shape[-1] != 1:
                 fc_xy = fc_xy.unsqueeze(-1)
