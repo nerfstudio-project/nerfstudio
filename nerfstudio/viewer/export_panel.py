@@ -40,9 +40,7 @@ def populate_export_tab(
         def _(_) -> None:
             control_panel.crop_viewport = crop_output.value
 
-    server.gui.add_markdown(
-        "<small>Export available after a checkpoint is saved (default minimum 2000 steps)</small>"
-    )
+    server.gui.add_markdown("<small>Export available after a checkpoint is saved (default minimum 2000 steps)</small>")
     with server.gui.add_folder("Splat"):
         populate_splat_tab(server, control_panel, config_path, viewing_gsplat)
     with server.gui.add_folder("Point Cloud"):
@@ -93,16 +91,14 @@ def get_crop_string(obb: OrientedBox, crop_viewport: bool) -> str:
     rpystring = " ".join([f"{x:.10f}" for x in rpy])
     posstring = " ".join([f"{x:.10f}" for x in pos])
     scalestring = " ".join([f"{x:.10f}" for x in scale])
-    return (
-        f"--obb_center {posstring} --obb_rotation {rpystring} --obb_scale {scalestring}"
-    )
+    return f"--obb_center {posstring} --obb_rotation {rpystring} --obb_scale {scalestring}"
 
 
 Vec3f = Tuple[float, float, float]
 
+
 def get_crop_tuple(obb: OrientedBox, crop_viewport: bool):
-    """Takes in an oriented bounding box and returns tuples for obb_{center,rotation,scale}.
-    """
+    """Takes in an oriented bounding box and returns tuples for obb_{center,rotation,scale}."""
     if not crop_viewport:
         return None, None, None
     rpy = vtf.SO3.from_matrix(obb.R.numpy(force=True)).as_rpy_radians()
@@ -119,12 +115,8 @@ def populate_point_cloud_tab(
     viewing_gsplat: bool,
 ) -> None:
     if not viewing_gsplat:
-        server.gui.add_markdown(
-            "<small>Render depth, project to an oriented point cloud, and filter</small> "
-        )
-        num_points = server.gui.add_number(
-            "# Points", initial_value=1_000_000, min=1, max=None, step=1
-        )
+        server.gui.add_markdown("<small>Render depth, project to an oriented point cloud, and filter</small> ")
+        num_points = server.gui.add_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
         world_frame = server.gui.add_checkbox(
             "Save in world frame",
             False,
@@ -142,16 +134,10 @@ def populate_point_cloud_tab(
             hint="Normal map source.",
         )
 
-        output_dir = server.gui.add_text(
-            "Output Directory", initial_value="exports/pcd/"
-        )
+        output_dir = server.gui.add_text("Output Directory", initial_value="exports/pcd/")
         export_button = server.gui.add_button("Export", icon=viser.Icon.FILE_EXPORT)
-        download_button = server.gui.add_button(
-            "Download Point Cloud", icon=viser.Icon.DOWNLOAD, disabled=True
-        )
-        generate_command = server.gui.add_button(
-            "Generate Command", icon=viser.Icon.TERMINAL_2
-        )
+        download_button = server.gui.add_button("Download Point Cloud", icon=viser.Icon.DOWNLOAD, disabled=True)
+        generate_command = server.gui.add_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
@@ -217,17 +203,13 @@ def populate_point_cloud_tab(
                     f"--remove-outliers {remove_outliers.value}",
                     f"--normal-method {normals.value}",
                     f"--save-world-frame {world_frame.value}",
-                    get_crop_string(
-                        control_panel.crop_obb, control_panel.crop_viewport
-                    ),
+                    get_crop_string(control_panel.crop_obb, control_panel.crop_viewport),
                 ]
             )
             show_command_modal(event.client, "point cloud", command)
 
     else:
-        server.gui.add_markdown(
-            "<small>Point cloud export is not currently supported with Gaussian Splatting</small>"
-        )
+        server.gui.add_markdown("<small>Point cloud export is not currently supported with Gaussian Splatting</small>")
 
 
 def populate_mesh_tab(
@@ -248,24 +230,14 @@ def populate_mesh_tab(
             hint="Source for normal maps.",
         )
         num_faces = server.gui.add_number("# Faces", initial_value=50_000, min=1)
-        texture_resolution = server.gui.add_number(
-            "Texture Resolution", min=8, initial_value=2048
-        )
-        num_points = server.gui.add_number(
-            "# Points", initial_value=1_000_000, min=1, max=None, step=1
-        )
+        texture_resolution = server.gui.add_number("Texture Resolution", min=8, initial_value=2048)
+        num_points = server.gui.add_number("# Points", initial_value=1_000_000, min=1, max=None, step=1)
         remove_outliers = server.gui.add_checkbox("Remove outliers", True)
 
-        output_dir = server.gui.add_text(
-            "Output Directory", initial_value="exports/mesh/"
-        )
+        output_dir = server.gui.add_text("Output Directory", initial_value="exports/mesh/")
         export_button = server.gui.add_button("Export", icon=viser.Icon.FILE_EXPORT)
-        download_button = server.gui.add_button(
-            "Download Mesh", icon=viser.Icon.DOWNLOAD, disabled=True
-        )
-        generate_command = server.gui.add_button(
-            "Generate Command", icon=viser.Icon.TERMINAL_2
-        )
+        download_button = server.gui.add_button("Download Mesh", icon=viser.Icon.DOWNLOAD, disabled=True)
+        generate_command = server.gui.add_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
@@ -333,17 +305,13 @@ def populate_mesh_tab(
                     f"--num-points {num_points.value}",
                     f"--remove-outliers {remove_outliers.value}",
                     f"--normal-method {normals.value}",
-                    get_crop_string(
-                        control_panel.crop_obb, control_panel.crop_viewport
-                    ),
+                    get_crop_string(control_panel.crop_obb, control_panel.crop_viewport),
                 ]
             )
             show_command_modal(event.client, "mesh", command)
 
     else:
-        server.gui.add_markdown(
-            "<small>Mesh export is not currently supported with Gaussian Splatting</small>"
-        )
+        server.gui.add_markdown("<small>Mesh export is not currently supported with Gaussian Splatting</small>")
 
 
 def populate_splat_tab(
@@ -354,16 +322,10 @@ def populate_splat_tab(
 ) -> None:
     if viewing_gsplat:
         server.gui.add_markdown("<small>Generate ply export of Gaussian Splat</small>")
-        output_dir = server.gui.add_text(
-            "Output Directory", initial_value="exports/splat/"
-        )
+        output_dir = server.gui.add_text("Output Directory", initial_value="exports/splat/")
         export_button = server.gui.add_button("Export", icon=viser.Icon.FILE_EXPORT)
-        download_button = server.gui.add_button(
-            "Download Splat", icon=viser.Icon.DOWNLOAD, disabled=True
-        )
-        generate_command = server.gui.add_button(
-            "Generate Command", icon=viser.Icon.TERMINAL_2
-        )
+        download_button = server.gui.add_button("Download Splat", icon=viser.Icon.DOWNLOAD, disabled=True)
+        generate_command = server.gui.add_button("Generate Command", icon=viser.Icon.TERMINAL_2)
 
         @export_button.on_click
         def _(event: viser.GuiEvent) -> None:
@@ -421,14 +383,10 @@ def populate_splat_tab(
                     "ns-export gaussian-splat",
                     f"--load-config {config_path}",
                     f"--output-dir {output_dir.value}",
-                    get_crop_string(
-                        control_panel.crop_obb, control_panel.crop_viewport
-                    ),
+                    get_crop_string(control_panel.crop_obb, control_panel.crop_viewport),
                 ]
             )
             show_command_modal(event.client, "splat", command)
 
     else:
-        server.gui.add_markdown(
-            "<small>Splat export is only supported with Gaussian Splatting methods</small>"
-        )
+        server.gui.add_markdown("<small>Splat export is only supported with Gaussian Splatting methods</small>")
