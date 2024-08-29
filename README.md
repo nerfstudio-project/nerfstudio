@@ -1,3 +1,130 @@
+# Homee AI's nerfstudio
+
+This repository is a fork of the official [nerfstudio](https://github.com/nerfstudio-project/nerfstudio) repository. We added some custom components to the original repository to support reconstruct indoor scenes by mobile devices.
+
+
+## Run nerfstudio on HomeeAI dataset in Docker Container
+### 1. Build the docker image
+Replace the `CUDA_ARCHITECTURES` by looking up the compute capability for your GPU.
+  ```shell
+  docker build \
+    --build-arg CUDA_VERSION=11.8.0 \
+    --build-arg CUDA_ARCHITECTURES=80 \
+    --build-arg OS_VERSION=22.04 \
+    --tag nerfstudio \
+	--file deployment/Dockerfile .
+  ```
+
+### 2. Run the docker container
+  ```shell
+  docker run --gpus all \                                         # Give the container access to nvidia GPU (required).
+            -u $(id -u) \                                       # To prevent abusing of root privilege, please use custom user privilege to start.
+            -v /folder/of/your/data:/workspace/ \               # Mount a folder from the local machine into the container to be able to process them (required).
+            -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ \   # Mount cache folder to avoid re-downloading of models everytime (recommended).
+            -p 7007:7007 \                                      # Map port from local machine to docker container (required to access the web interface/UI).
+            --rm \                                              # Remove container after it is closed (recommended).
+            -it \                                               # Start container in interactive mode.
+            --shm-size=12gb \                                   # Increase memory assigned to container to avoid memory limitations, default is 64 MB (recommended).
+            nerfstudio                                          # Docker image tag if you built the image from the Dockerfile by yourself using the command from above.
+  ```
+### 3. Run the training pipeline
+  ```shell
+  bash prepare_dataset.sh /folder/of/your/data/colmap/ glomap
+  ```
+
+## Run nerfstudio on HomeeAI dataset locally
+### 1. Setup the environment
+- See [Quickstart](#quickstart) below.
+    
+### 2. Prepare the dataset
+- See [Dataset Format](
+## Homee AI Dataset Format) below.
+
+
+### 3. Run the training pipeline
+  ```shell
+  bash run.sh /folder/of/your/data/colmap/ [colmap|glomap]
+  ```
+Where:
+- `/folder/of/your/data/colmap/` is the path to your dataset
+- Choose either `colmap` or `glomap` as the pose optimization method
+
+
+## Homee AI Dataset Format
+By running the training pipeline, we will first convert the dataset into the format that nerfstudio expects and then start the training process.
+### Preprocess
+Our preprocessor expects the following dataset structure in the source path location:
+```shell
+dataset
+| ---- colmap
+      | ---- distort_images
+      | ---- sparse
+            | --- 0
+                  | --- calibration.json
+                  | --- distort_cameras.txt
+                  | --- images.txt
+                  | --- images_post.txt
+      | --- scene.obj (only for ARKit dataset)
+```
+After preprocessing, you will get the following dataset structure in the source path location:
+```shell
+dataset
+| ---- colmap
+      | ---- distort_images
+      | ---- sparse
+      | ---- post
+            | ---- images
+            | ---- sparse
+                  | ---- offline (if at least one pose-refining method is selected)
+                        | --- method1
+                              | --- final
+                                    | --- cameras.txt(bin)
+                                    | --- images.txt(bin)
+                                    | --- point3D.txt(bin)
+                              | --- ...
+                        | --- method2
+                              | --- final
+                                    | --- cameras.txt(bin)
+                                    | --- images.txt(bin)
+                                    | --- point3D.txt(bin)
+                              | --- ...
+                        | --- ...
+                  | ---- online
+                        | --- cameras.txt
+                        | --- images.txt
+                        | --- point3D.txt
+                  | ---- online_loop
+                        | --- cameras.txt
+                        | --- images.txt
+                        | --- point3D.txt
+      | --- scene.obj (only for ARKit dataset)
+| ---- <root>_nerfstudio (copy to directly train in nerfstudio)
+      | --- images
+      | --- colmap
+            | ---- arkit
+                  | ---- 0
+                        | --- cameras.txt
+                        | --- images.txt
+                        | --- point3D.txt
+            | ---- method1 (optional)
+                  | ---- 0
+                        | --- cameras.txt
+                        | --- images.txt
+                        | --- point3D.txt
+            | ---- method2 (optional)
+            | ---- ...
+      
+```
+
+## Sending Requests to API to Perform Inferences
+TODO
+
+
+---
+
+
+
+
 <p align="center">
     <!-- community badges -->
     <a href="https://discord.gg/uMbNqcraFc"><img src="https://dcbadge.vercel.app/api/server/uMbNqcraFc?style=plastic"/></a>
@@ -133,10 +260,55 @@ pip install setuptools==69.5.1
 
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 # may take a while to build tinycudann...
+
+pip install git+https://github.com/cvg/Hierarchical-Localization.git
 ```
 
 See [Dependencies](https://github.com/nerfstudio-project/nerfstudio/blob/main/docs/quickstart/installation.md#dependencies)
 in the Installation documentation for more.
+
+### Installing COLMAP
+
+COLMAP is required for optimizing poses from ARkit. Here are the steps to install COLMAP:
+
+1. Dependencies from the default Ubuntu repositories:
+
+```bash
+sudo apt-get install \
+    git \
+    cmake \
+    ninja-build \
+    build-essential \
+    libboost-program-options-dev \
+    libboost-filesystem-dev \
+    libboost-graph-dev \
+    libboost-system-dev \
+    libeigen3-dev \
+    libflann-dev \
+    libfreeimage-dev \
+    libmetis-dev \
+    libgoogle-glog-dev \
+    libgtest-dev \
+    libsqlite3-dev \
+    libglew-dev \
+    qtbase5-dev \
+    libqt5opengl5-dev \
+    libcgal-dev \
+    libceres-dev
+
+```
+
+2. Configure and compile COLMAP:
+
+```bash
+git clone https://github.com/homee-ai/colmap.git
+cd colmap
+mkdir build
+cd build
+cmake .. -GNinja
+ninja
+sudo ninja install
+```
 
 ### Installing nerfstudio
 
