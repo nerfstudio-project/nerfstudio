@@ -267,6 +267,49 @@ pip install git+https://github.com/cvg/Hierarchical-Localization.git
 See [Dependencies](https://github.com/nerfstudio-project/nerfstudio/blob/main/docs/quickstart/installation.md#dependencies)
 in the Installation documentation for more.
 
+### Installing COLMAP
+
+COLMAP is required for optimizing poses from ARkit. Here are the steps to install COLMAP:
+
+1. Dependencies from the default Ubuntu repositories:
+
+```bash
+sudo apt-get install \
+    git \
+    cmake \
+    ninja-build \
+    build-essential \
+    libboost-program-options-dev \
+    libboost-filesystem-dev \
+    libboost-graph-dev \
+    libboost-system-dev \
+    libeigen3-dev \
+    libflann-dev \
+    libfreeimage-dev \
+    libmetis-dev \
+    libgoogle-glog-dev \
+    libgtest-dev \
+    libsqlite3-dev \
+    libglew-dev \
+    qtbase5-dev \
+    libqt5opengl5-dev \
+    libcgal-dev \
+    libceres-dev
+
+```
+
+2. Configure and compile COLMAP:
+
+```bash
+git clone https://github.com/homee-ai/colmap.git
+cd colmap
+mkdir build
+cd build
+cmake .. -GNinja
+ninja
+sudo ninja install
+```
+
 ### Installing nerfstudio
 
 Easy option:
