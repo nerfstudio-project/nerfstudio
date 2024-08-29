@@ -2,43 +2,14 @@
 
 This repository is a fork of the official [nerfstudio](https://github.com/nerfstudio-project/nerfstudio) repository. We added some custom components to the original repository to support reconstruct indoor scenes by mobile devices.
 
-
-## Run nerfstudio on HomeeAI dataset in Docker Container
-### 1. Build the docker image
-Replace the `CUDA_ARCHITECTURES` by looking up the compute capability for your GPU.
-  ```shell
-  docker build \
-    --build-arg CUDA_VERSION=11.8.0 \
-    --build-arg CUDA_ARCHITECTURES=80 \
-    --build-arg OS_VERSION=22.04 \
-    --tag nerfstudio \
-	--file deployment/Dockerfile .
-  ```
-
-### 2. Run the docker container
-  ```shell
-  docker run --gpus all \                                         # Give the container access to nvidia GPU (required).
-            -u $(id -u) \                                       # To prevent abusing of root privilege, please use custom user privilege to start.
-            -v /folder/of/your/data:/workspace/ \               # Mount a folder from the local machine into the container to be able to process them (required).
-            -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ \   # Mount cache folder to avoid re-downloading of models everytime (recommended).
-            -p 7007:7007 \                                      # Map port from local machine to docker container (required to access the web interface/UI).
-            --rm \                                              # Remove container after it is closed (recommended).
-            -it \                                               # Start container in interactive mode.
-            --shm-size=12gb \                                   # Increase memory assigned to container to avoid memory limitations, default is 64 MB (recommended).
-            nerfstudio                                          # Docker image tag if you built the image from the Dockerfile by yourself using the command from above.
-  ```
-### 3. Run the training pipeline
-  ```shell
-  bash prepare_dataset.sh /folder/of/your/data/colmap/ glomap
-  ```
-
-## Run nerfstudio on HomeeAI dataset locally
+## Run nerfstudio on Homee AI dataset locally
 ### 1. Setup the environment
-- See [Quickstart](#quickstart) below.
+```shell
+bash scripts/install.sh
+```
     
-### 2. Prepare the dataset
-- See [Dataset Format](
-## Homee AI Dataset Format) below.
+### 2. Prepare the dataset for training
+- See [Dataset Format](#Homee-AI-Dataset-Format) below.
 
 
 ### 3. Run the training pipeline
@@ -115,9 +86,6 @@ dataset
             | ---- ...
       
 ```
-
-## Sending Requests to API to Perform Inferences
-TODO
 
 
 ---
@@ -266,49 +234,6 @@ pip install git+https://github.com/cvg/Hierarchical-Localization.git
 
 See [Dependencies](https://github.com/nerfstudio-project/nerfstudio/blob/main/docs/quickstart/installation.md#dependencies)
 in the Installation documentation for more.
-
-### Installing COLMAP
-
-COLMAP is required for optimizing poses from ARkit. Here are the steps to install COLMAP:
-
-1. Dependencies from the default Ubuntu repositories:
-
-```bash
-sudo apt-get install \
-    git \
-    cmake \
-    ninja-build \
-    build-essential \
-    libboost-program-options-dev \
-    libboost-filesystem-dev \
-    libboost-graph-dev \
-    libboost-system-dev \
-    libeigen3-dev \
-    libflann-dev \
-    libfreeimage-dev \
-    libmetis-dev \
-    libgoogle-glog-dev \
-    libgtest-dev \
-    libsqlite3-dev \
-    libglew-dev \
-    qtbase5-dev \
-    libqt5opengl5-dev \
-    libcgal-dev \
-    libceres-dev
-
-```
-
-2. Configure and compile COLMAP:
-
-```bash
-git clone https://github.com/homee-ai/colmap.git
-cd colmap
-mkdir build
-cd build
-cmake .. -GNinja
-ninja
-sudo ninja install
-```
 
 ### Installing nerfstudio
 
