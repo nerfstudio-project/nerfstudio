@@ -1132,7 +1132,7 @@ def populate_render_tab(
         for i in range(num_frames):
             maybe_pose_and_fov = camera_path.interpolate_pose_and_fov_rad(i / num_frames)
             if maybe_pose_and_fov is None:
-                return
+                return Path()
             time = None
             if len(maybe_pose_and_fov) == 3:  # Time is enabled.
                 pose, fov, time = maybe_pose_and_fov
@@ -1175,7 +1175,7 @@ def populate_render_tab(
         with open(json_outfile.absolute(), "w") as outfile:
             json.dump(json_data, outfile)
 
-        return json_outfile
+        return json_outfile.absolute()
 
     @render_button.on_click
     def _(event: viser.GuiEvent) -> None:
@@ -1199,7 +1199,7 @@ def populate_render_tab(
 
         render = RenderCameraPath(
             load_config=config_path,
-            camera_path_filename=json_outfile.absolute(),
+            camera_path_filename=json_outfile,
             output_path=Path(render_path),
         )
 
@@ -1240,21 +1240,21 @@ def populate_render_tab(
     @generate_command_render_button.on_click
     def _(event: viser.GuiEvent) -> None:
         client = event.client
-        assert client is not None, client.gui is not None
+        assert client is not None
 
         json_outfile = _write_json()
 
-        with event.client.gui.add_modal("Render Command") as modal:
+        with client.gui.add_modal("Render Command") as modal:
             dataname = datapath.name
             command = " ".join(
                 [
                     "ns-render camera-path",
                     f"--load-config {config_path}",
-                    f"--camera-path-filename {json_outfile.absolute()}",
+                    f"--camera-path-filename {json_outfile}",
                     f"--output-path renders/{dataname}/{render_name_text.value}.mp4",
                 ]
             )
-            event.client.gui.add_markdown(
+            client.gui.add_markdown(
                 "\n".join(
                     [
                         "To render the trajectory, run the following from the command line:",
@@ -1265,7 +1265,7 @@ def populate_render_tab(
                     ]
                 )
             )
-            close_button = event.client.gui.add_button("Close")
+            close_button = client.gui.add_button("Close")
 
             @close_button.on_click
             def _(_) -> None:
@@ -1280,8 +1280,9 @@ def populate_render_tab(
 
     @reset_up_button.on_click
     def _(event: viser.GuiEvent) -> None:
-        assert event.client is not None
-        event.client.camera.up_direction = tf.SO3(event.client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
+        client = event.client
+        assert client is not None
+        client.camera.up_direction = tf.SO3(client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
 
     if control_panel is not None:
         camera_path = CameraPath(server, duration_number, control_panel._time_enabled)
