@@ -1240,7 +1240,7 @@ def populate_render_tab(
     @generate_command_render_button.on_click
     def _(event: viser.GuiEvent) -> None:
         client = event.client
-        assert client is not None
+        assert client is not None, client.gui is not None
 
         json_outfile = _write_json()
 

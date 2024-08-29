@@ -73,7 +73,6 @@ def show_command_modal(client: viser.ClientHandle, what: Literal["mesh", "point 
         def _(_) -> None:
             modal.close()
 
-
 def get_crop_string(obb: OrientedBox, crop_viewport: bool):
     """Takes in an oriented bounding box and returns a string of the form "--obb_{center,rotation,scale}
     and each arg formatted with spaces around it
@@ -87,8 +86,19 @@ def get_crop_string(obb: OrientedBox, crop_viewport: bool):
     rpystring = " ".join([f"{x:.10f}" for x in rpy])
     posstring = " ".join([f"{x:.10f}" for x in pos])
     scalestring = " ".join([f"{x:.10f}" for x in scale])
-    return [posstring, rpystring, scalestring]
+    return f"--obb_center {posstring} --obb_rotation {rpystring} --obb_scale {scalestring}"
 
+def get_crop_tuple(obb: OrientedBox, crop_viewport: bool):
+    """Takes in an oriented bounding box and returns a string of the form "--obb_{center,rotation,scale}
+    and each arg formatted with spaces around it
+    """
+    if not crop_viewport:
+        return ""
+    rpy = vtf.SO3.from_matrix(obb.R.numpy(force=True)).as_rpy_radians()
+    obb_rotation = [rpy.roll, rpy.pitch, rpy.yaw]
+    obb_center = obb.T.squeeze().tolist()
+    obb_scale = obb.S.squeeze().tolist()
+    return obb_center, obb_rotation, obb_scale
 
 def populate_point_cloud_tab(
     server: viser.ViserServer,
@@ -134,9 +144,9 @@ def populate_point_cloud_tab(
             )
 
             if control_panel.crop_obb is not None and control_panel.crop_viewport:
-                posstring, rpystring, scalestring = get_crop_string(control_panel.crop_obb, control_panel.crop_viewport)
+                obb_center, obb_rotation, obb_scale = get_crop_tuple(control_panel.crop_obb, control_panel.crop_viewport)
             else:
-                posstring = rpystring = scalestring = None
+                obb_center, obb_rotation, obb_scale = None
 
             from nerfstudio.scripts.exporter import ExportPointCloud
 
@@ -147,9 +157,9 @@ def populate_point_cloud_tab(
                 remove_outliers=remove_outliers.value,
                 normal_method=normals.value,
                 save_world_frame=world_frame.value,
-                obb_center=posstring,
-                obb_rotation=rpystring,
-                obb_scale=scalestring,
+                obb_center=obb_center,
+                obb_rotation=obb_rotation,
+                obb_scale=obb_scale,
             )
             export.main()
 
@@ -232,9 +242,9 @@ def populate_mesh_tab(
             )
 
             if control_panel.crop_obb is not None and control_panel.crop_viewport:
-                posstring, rpystring, scalestring = get_crop_string(control_panel.crop_obb, control_panel.crop_viewport)
+                obb_center, obb_rotation, obb_scale = get_crop_tuple(control_panel.crop_obb, control_panel.crop_viewport)
             else:
-                posstring = rpystring = scalestring = None
+                obb_center, obb_rotation, obb_scale = None
 
             from nerfstudio.scripts.exporter import ExportPoissonMesh
 
@@ -246,9 +256,9 @@ def populate_mesh_tab(
                 num_points=num_points.value,
                 remove_outliers=remove_outliers.value,
                 normal_method=normals.value,
-                obb_center=posstring,
-                obb_rotation=rpystring,
-                obb_scale=scalestring,
+                obb_center=obb_center,
+                obb_rotation=obb_rotation,
+                obb_scale=obb_scale,
             )
             export.main()
 
@@ -319,18 +329,18 @@ def populate_splat_tab(
             notif.show()
 
             if control_panel.crop_obb is not None and control_panel.crop_viewport:
-                posstring, rpystring, scalestring = get_crop_string(control_panel.crop_obb, control_panel.crop_viewport)
+                obb_center, obb_rotation, obb_scale = get_crop_tuple(control_panel.crop_obb, control_panel.crop_viewport)
             else:
-                posstring = rpystring = scalestring = None
+                obb_center, obb_rotation, obb_scale = None
 
             from nerfstudio.scripts.exporter import ExportGaussianSplat
 
             export = ExportGaussianSplat(
                 load_config=config_path,
                 output_dir=Path(output_dir.value),
-                obb_center=posstring,
-                obb_rotation=rpystring,
-                obb_scale=scalestring,
+                obb_center=obb_center,
+                obb_rotation=obb_rotation,
+                obb_scale=obb_scale,
             )
             export.main()
 
@@ -359,7 +369,7 @@ def populate_splat_tab(
                 [
                     "ns-export gaussian-splat",
                     f"--load-config {config_path}",
-                    f"--output-dir {output_directory.value}",
+                    f"--output-dir {output_dir.value}",
                     get_crop_string(control_panel.crop_obb, control_panel.crop_viewport),
                 ]
             )
