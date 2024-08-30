@@ -199,3 +199,6 @@ camera_paths/
 # images
 *.png
 *.jpg
+
+# colmap
+colmap/

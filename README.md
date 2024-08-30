@@ -5,20 +5,24 @@ This repository is a fork of the official [nerfstudio](https://github.com/nerfst
 ## Run nerfstudio on Homee AI dataset locally
 ### 1. Setup the environment
 ```shell
-bash scripts/install.sh
+source scripts/install.sh
 ```
     
 ### 2. Prepare the dataset for training
 - See [Dataset Format](#Homee-AI-Dataset-Format) below.
 
 
-### 3. Run the training pipeline
+### 3. Run the training pipeline 
+- With preprocessing
   ```shell
-  bash run.sh /folder/of/your/data/colmap/ [colmap|glomap]
+  bash run.sh /folder/of/your/data/colmap/ colmap
   ```
-Where:
-- `/folder/of/your/data/colmap/` is the path to your dataset
-- Choose either `colmap` or `glomap` as the pose optimization method
+
+- Without preprocessing (if you have already preprocessed the dataset)
+  ```shell
+  bash run.sh /folder/of/your/data/colmap/ colmap --skip-preprocess
+  ```
+
 
 
 ## Homee AI Dataset Format
