@@ -69,6 +69,7 @@ dependencies = [
     "fpsample",
     "evo",
     "scipy",
+    "numpy==1.24.3",
 ]
 
 [project.urls]
