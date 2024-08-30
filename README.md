@@ -11,7 +11,7 @@ Replace the `CUDA_ARCHITECTURES` by looking up the compute capability for your G
     --build-arg CUDA_ARCHITECTURES=80 \
     --build-arg OS_VERSION=22.04 \
     --tag nerfstudio \
-	--file deployment/Dockerfile .
+	--file Dockerfile .
   ```
 
 ### 2. Run the docker container
