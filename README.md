@@ -4,11 +4,11 @@ This repository is a fork of the official [nerfstudio](https://github.com/nerfst
 
 ## Run nerfstudio on HomeeAI dataset in Docker Container
 ### 1. Build the docker image
-Replace the `CUDA_ARCHITECTURES` by looking up the compute capability for your GPU.
+Replace the `CUDA_ARCHITECTURES` by [looking up the compute capability for your GPU](https://developer.nvidia.com/cuda-gpus). Ex. 80 for nvidia-a100; 89 for nvidiaL4.
   ```shell
   docker build \
     --build-arg CUDA_VERSION=11.8.0 \
-    --build-arg CUDA_ARCHITECTURES=80 \
+    --build-arg CUDA_ARCHITECTURES=xx \
     --build-arg OS_VERSION=22.04 \
     --tag nerfstudio \
 	--file Dockerfile .

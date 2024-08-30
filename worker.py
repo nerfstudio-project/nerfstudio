@@ -65,7 +65,7 @@ def run_nerfstudio(job_id: str, scene_data: str):
     if not container:
         raise HTTPException(status_code=500, detail="Container is not running")
 
-    command = f"bash prepare_dataset.sh {scene_data} glomap"
+    command = f"bash run.sh {scene_data} colmap"
     try:
         # Use stream=True to get real-time output
         exec_command = container.exec_run(command, workdir="/workspace", stream=True)
