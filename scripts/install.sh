@@ -4,8 +4,8 @@
 eval "$(conda shell.bash hook)"
 
 echo "======Phase 1: Setting up Conda environment======"
-conda create --name homee_nerfstudio2 -y python=3.8
-conda activate homee_nerfstudio2
+conda create --name homee_nerfstudio -y python=3.8
+conda activate homee_nerfstudio
 
 
 echo "======Phase 2: Installing Nerfstudio dependencies======"
