@@ -100,7 +100,7 @@ RUN git clone --branch 2.1.0 https://ceres-solver.googlesource.com/ceres-solver.
     rm -rf ceres-solver
 
 # Install colmap.
-RUN git clone --branch 3.8 https://github.com/colmap/colmap.git --single-branch && \
+RUN git clone https://github.com/homee-ai/colmap.git && \
     cd colmap && \
     mkdir build && \
     cd build && \
