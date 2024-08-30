@@ -67,6 +67,8 @@ dependencies = [
     "pathos",
     "packaging",
     "fpsample",
+    "evo",
+    "scipy",
 ]
 
 [project.urls]
