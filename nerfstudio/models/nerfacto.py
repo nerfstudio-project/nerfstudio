@@ -373,34 +373,43 @@ class NerfactoModel(Model):
         - `batch['indices']` returns a pytorch tensor `torch.Size([4096, 3])` where each row has 3 numbers: (image_index=camera_index, pixelRow, pixelCol)
         """
 
-        def custom_rgb_grayscale_loss(pred, y, tensor3):
-            # Ensure all inputs are on the same device
+        def custom_rgb_grayscale_loss(pred, y, indices):
+            """
+            This is a custom loss function to supervise grayscale cameras of aria data: whenever a ray is shot from a grayscale camera, 
+            the model will take the volume rendered color of that ray, turn it into a grayscale color, and use that to supervise with 
+            the grayscale image’s original pixel. If the ray was shot from an RGB camera, the loss will be calculated normally (MSE Loss of RGB values)
+            
+            For example: 
+            - pred = [0.1, 0.2, 0.3] 
+            - y = [0.2, 0.2, 0.2] 
+            - indices = [532]
+
+            since indices has value > 300, pred and y get converted to grayscale:
+            pred_new = [0.2] and y_new = [0.2] and then their mse loss is 0
+            """
             device = pred.device
             pred = pred.to(device)
             y = y.to(device)
-            tensor3 = tensor3.to(device)
+            indices = indices.to(device)
 
-            # Create a mask for indices > 300
-            mask = tensor3 > 300
+            # Create a boolean mask for rays who have indices >= 300 (this number should be the # of RGB images in your dataset)
+            mask = indices >= 300 # This mask is True for rays that are coming fram a grayscale camera, and it's false for rays coming from an RGB camera
 
-            # Initialize the loss tensor
-            loss = torch.zeros_like(tensor3, dtype=torch.float32)
+            loss = torch.zeros_like(indices, dtype=torch.float32) # this should have shape [4096], where each entry is the MSELoss of a ray
 
-            # Handle RGB loss (when tensor3 <= 300)
+            # Handle RGB loss (when the ray indices < 300)
             rgb_mask = ~mask
             if rgb_mask.any():
                 loss[rgb_mask] = torch.mean((pred[rgb_mask] - y[rgb_mask])**2, dim=1)
 
-            # Handle grayscale loss (when tensor3 > 300)
+            # Handle grayscale loss (when indices > 300)
             if mask.any():
                 # Convert RGB to grayscale
                 # Using the formula: 0.2989 * R + 0.5870 * G + 0.1140 * B
                 pred_gray = pred[mask] @ torch.tensor([0.2989, 0.5870, 0.1140]).to(device).unsqueeze(-1)
                 y_gray = y[mask] @ torch.tensor([0.2989, 0.5870, 0.1140]).to(device).unsqueeze(-1)
-
                 # Compute squared difference for grayscale values
                 loss[mask] = ((pred_gray - y_gray)**2).squeeze(-1)
-
 
             return loss.mean()
         loss_dict["rgb_loss"] = custom_rgb_grayscale_loss(pred_rgb, gt_rgb, batch['indices'][:, 0].squeeze(0))
