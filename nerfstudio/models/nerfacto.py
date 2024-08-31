@@ -368,8 +368,44 @@ class NerfactoModel(Model):
             pred_accumulation=outputs["accumulation"],
             gt_image=image,
         )
+        """
+        - `batch['image']` returns a pytorch tensor with shape `torch.Size([4096, 3])` , where 4096 = num_rays_per_batch. Note: each row in this tensor represents the RGB values as floats in [0, 1] of the pixel the ray goes through. The info of what specific image index that pixel belongs to is stored within batch[’indices’]
+        - `batch['indices']` returns a pytorch tensor `torch.Size([4096, 3])` where each row has 3 numbers: (image_index=camera_index, pixelRow, pixelCol)
+        """
 
-        loss_dict["rgb_loss"] = self.rgb_loss(gt_rgb, pred_rgb)
+        def custom_rgb_grayscale_loss(pred, y, tensor3):
+            # Ensure all inputs are on the same device
+            device = pred.device
+            pred = pred.to(device)
+            y = y.to(device)
+            tensor3 = tensor3.to(device)
+
+            # Create a mask for indices > 300
+            mask = tensor3 > 300
+
+            # Initialize the loss tensor
+            loss = torch.zeros_like(tensor3, dtype=torch.float32)
+
+            # Handle RGB loss (when tensor3 <= 300)
+            rgb_mask = ~mask
+            if rgb_mask.any():
+                loss[rgb_mask] = torch.mean((pred[rgb_mask] - y[rgb_mask])**2, dim=1)
+
+            # Handle grayscale loss (when tensor3 > 300)
+            if mask.any():
+                # Convert RGB to grayscale
+                # Using the formula: 0.2989 * R + 0.5870 * G + 0.1140 * B
+                pred_gray = pred[mask] @ torch.tensor([0.2989, 0.5870, 0.1140]).to(device).unsqueeze(-1)
+                y_gray = y[mask] @ torch.tensor([0.2989, 0.5870, 0.1140]).to(device).unsqueeze(-1)
+
+                # Compute squared difference for grayscale values
+                loss[mask] = ((pred_gray - y_gray)**2).squeeze(-1)
+
+
+            return loss.mean()
+        loss_dict["rgb_loss"] = custom_rgb_grayscale_loss(pred_rgb, gt_rgb, batch['indices'][:, 0].squeeze(0))
+
+        # loss_dict["rgb_loss"] = self.rgb_loss(gt_rgb, pred_rgb)
         if self.training:
             loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
