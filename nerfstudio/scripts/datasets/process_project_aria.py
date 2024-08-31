@@ -441,7 +441,9 @@ class ProcessProjectAria:
                     for frame in aria_all3cameras_pinhole_frames[i]
                 ]
                 nerfstudio_frames["frames"] += pinhole_frames
-
+                print(f"Found {len(aria_all3cameras_pinhole_frames[0])} RGB images.")
+                print(f"Found {len(aria_all3cameras_pinhole_frames[1])} left-slam images.")
+                print(f"Found {len(aria_all3cameras_pinhole_frames[2])} right-slam images.")
             if points_file is not None:
                 points_path = points_file
             else:
