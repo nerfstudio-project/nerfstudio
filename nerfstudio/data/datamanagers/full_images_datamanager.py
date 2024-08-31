@@ -82,10 +82,10 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     samples from the pool of all training cameras without replacement before a new round of sampling starts."""
     use_image_train_dataloader: bool = cache_images == "disk"
     """Supports datasets that do not fit in system RAM and allows parallelization of the dataloading process with multiple workers."""
-    dataloader_num_workers: int = 0
+    dataloader_num_workers: int = 8
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes collating, pixel sampling, unprojecting, ray generation etc."""
-    prefetch_factor: int = 1
+    prefetch_factor: int = 2
     """The limit number of batches a worker will start loading once an iterator is created. 
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
 
@@ -674,7 +674,7 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
         r.shuffle(worker_indices)
         i = 0 # i refers to what image index we are outputting: i=0 => we are yielding our first image,camera
         while True:
-            if i % per_worker == 0: # if we've iterated through all the worker's partition of images, we need to reshuffle
+            if i >= len(worker_indices): # if we've iterated through all the worker's partition of images, we need to reshuffle
                 r.shuffle(worker_indices)
                 i = 0
             idx = worker_indices[i] # idx refers to the actual datapoint index this worker will retrieve
