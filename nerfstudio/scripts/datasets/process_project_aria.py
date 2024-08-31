@@ -382,6 +382,7 @@ class ProcessProjectAria:
                 rgb_valid_radius = CANONICAL_RGB_VALID_RADIUS * (
                     aria_rgb_frames[0].camera.width / CANONICAL_RGB_WIDTH
                 )  # to handle both high-res 2880 x 2880 aria captures
+                print(f"Found {len(aria_all3cameras_pinhole_frames[0])} RGB images.")
                 nerfstudio_frames["fisheye_crop_radius"] = rgb_valid_radius
             else:  # include the side grayscale cameras
                 total_num_images_per_camera_list = [provider.get_num_data(stream_id) for stream_id in stream_ids]
