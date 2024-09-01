@@ -654,7 +654,12 @@ method_configs["splatfacto-big"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=False,
     pipeline=VanillaPipelineConfig(
+        # datamanager=FullImageDatamanagerConfig(
+        #     dataparser=NerfstudioDataParserConfig(load_3D_points=True),
+        #     cache_images_type="uint8",
+        # ),
         datamanager=FullImageDatamanagerConfig(
+            _target=ParallelFullImageDatamanager[InputDataset],
             dataparser=NerfstudioDataParserConfig(load_3D_points=True),
             cache_images_type="uint8",
         ),
