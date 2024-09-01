@@ -44,7 +44,7 @@ class CacheDataloader(DataLoader):
     Args:
         dataset: Dataset to sample from.
         num_samples_to_collate: How many images to sample rays for each batch. -1 for all images.
-        num_times_to_repeat_images: How many ray bundles to . -1 to never pick new images.
+        num_times_to_repeat_images: How often to yield an image batch before resampling. -1 to never pick new images.
         device: Device to perform computation.
         collate_fn: The function we will use to collate our training data
     """
