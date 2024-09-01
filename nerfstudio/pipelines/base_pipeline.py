@@ -298,13 +298,7 @@ class VanillaPipeline(Pipeline):
             step: current iteration step to update sampler if using DDP (distributed)
         """
         ray_bundle, batch = self.datamanager.next_train(step)
-        # print(type(ray_bundle), type(batch))
-        # if torch.sum(ray_bundle.camera_to_worlds) == 0: # I only used this to test the splatfacto fullimage datamanager
-            # print("YOYOYO WE INSIDE THE PIPELINE", step, ray_bundle.camera_to_worlds)
-        # breakpoint()
         ray_bundle = ray_bundle.to(self.device)
-        # print("ray_bundle.origins.get_device()", ray_bundle.origins.get_device()) # prints 0 (it's on CUDA)
-        # print("batch['image'].get_device()", batch["image"].get_device()) # prints -1 (it's on CPU)
         model_outputs = self._model(ray_bundle)  # train distributed data parallel model if world_size > 1
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
