@@ -574,9 +574,7 @@ def undistort_idx(idx: int, dataset: TDataset, image_type: Literal["uint8", "flo
     camera = dataset.cameras[idx].reshape(())
     # dataset.cameras.width[idx] = data["image"].shape[1]
     # dataset.cameras.height[idx] = data["image"].shape[0]
-    if idx == 48:
-        # breakpoint()
-        print("beginning", camera.width, camera.height)
+
     assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
         f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
         f'does not match the camera parameters ({camera.width.item(), camera.height.item()}), idx = {idx}'
@@ -599,8 +597,6 @@ def undistort_idx(idx: int, dataset: TDataset, image_type: Literal["uint8", "flo
     # dataset.cameras.width[idx] = image.shape[1]
     # dataset.cameras.height[idx] = image.shape[0]
     # dataset.cameras.distortion_params = None
-    if idx == 48:
-        print("ending", camera.width, camera.height)
     return data
 
 def undistort_view(idx: int, dataset: TDataset, image_type: Literal["uint8", "float32"] = "float32") -> Dict[str, torch.Tensor]:
