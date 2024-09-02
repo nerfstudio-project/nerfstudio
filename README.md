@@ -1,3 +1,102 @@
+# Homee AI's nerfstudio
+
+This repository is a fork of the official [nerfstudio](https://github.com/nerfstudio-project/nerfstudio) repository. We added some custom components to the original repository to support reconstruct indoor scenes by mobile devices.
+
+## Run nerfstudio on Homee AI dataset locally
+### 1. Setup the environment
+```shell
+source scripts/install.sh
+```
+    
+### 2. Prepare the dataset for training
+- See [Dataset Format](#Homee-AI-Dataset-Format) below.
+
+
+### 3. Run the training pipeline 
+- With preprocessing
+  ```shell
+  bash run.sh /folder/of/your/data/colmap/ colmap
+  ```
+
+- Without preprocessing (if you have already preprocessed the dataset)
+  ```shell
+  bash run.sh /folder/of/your/data/colmap/ colmap --skip-preprocess
+  ```
+
+
+
+## Homee AI Dataset Format
+By running the training pipeline, we will first convert the dataset into the format that nerfstudio expects and then start the training process.
+### Preprocess
+Our preprocessor expects the following dataset structure in the source path location:
+```shell
+dataset
+| ---- colmap
+      | ---- distort_images
+      | ---- sparse
+            | --- 0
+                  | --- calibration.json
+                  | --- distort_cameras.txt
+                  | --- images.txt
+                  | --- images_post.txt
+      | --- scene.obj (only for ARKit dataset)
+```
+After preprocessing, you will get the following dataset structure in the source path location:
+```shell
+dataset
+| ---- colmap
+      | ---- distort_images
+      | ---- sparse
+      | ---- post
+            | ---- images
+            | ---- sparse
+                  | ---- offline (if at least one pose-refining method is selected)
+                        | --- method1
+                              | --- final
+                                    | --- cameras.txt(bin)
+                                    | --- images.txt(bin)
+                                    | --- point3D.txt(bin)
+                              | --- ...
+                        | --- method2
+                              | --- final
+                                    | --- cameras.txt(bin)
+                                    | --- images.txt(bin)
+                                    | --- point3D.txt(bin)
+                              | --- ...
+                        | --- ...
+                  | ---- online
+                        | --- cameras.txt
+                        | --- images.txt
+                        | --- point3D.txt
+                  | ---- online_loop
+                        | --- cameras.txt
+                        | --- images.txt
+                        | --- point3D.txt
+      | --- scene.obj (only for ARKit dataset)
+| ---- <root>_nerfstudio (copy to directly train in nerfstudio)
+      | --- images
+      | --- colmap
+            | ---- arkit
+                  | ---- 0
+                        | --- cameras.txt
+                        | --- images.txt
+                        | --- point3D.txt
+            | ---- method1 (optional)
+                  | ---- 0
+                        | --- cameras.txt
+                        | --- images.txt
+                        | --- point3D.txt
+            | ---- method2 (optional)
+            | ---- ...
+      
+```
+
+
+---
+
+
+
+
 <p align="center">
     <!-- community badges -->
     <a href="https://discord.gg/uMbNqcraFc"><img src="https://dcbadge.vercel.app/api/server/uMbNqcraFc?style=plastic"/></a>
@@ -133,6 +232,8 @@ pip install setuptools==69.5.1
 
 pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 # may take a while to build tinycudann...
+
+pip install git+https://github.com/cvg/Hierarchical-Localization.git
 ```
 
 See [Dependencies](https://github.com/nerfstudio-project/nerfstudio/blob/main/docs/quickstart/installation.md#dependencies)

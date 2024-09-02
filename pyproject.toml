@@ -67,7 +67,10 @@ dependencies = [
     "pathos",
     "packaging",
     "fpsample",
-    "tensorly"
+    "tensorly",
+    "evo",
+    "scipy",
+    "numpy==1.24.3",
 ]
 
 [project.urls]

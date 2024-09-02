@@ -403,7 +403,7 @@ class ColmapDataParser(DataParser):
             faces = mesh_scene.faces # (num_faces, 3)
             triangles = torch.tensor(mesh_scene.triangles).float()  # equal vertices[faces]
             # rotated y-up world frame to z-up world frame
-            vertices = np.einsum('ij,kj->ki', rotx(np.pi / 2), vertices)
+            # vertices = np.einsum('ij,kj->ki', rotx(np.pi / 2), vertices)
             vertices = torch.from_numpy(vertices.astype(np.float32))
 
             num_pts_each_triangle = self.config.num_splats_per_face

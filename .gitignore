@@ -195,3 +195,10 @@ camera_paths/
 # pixi environments
 .pixi
 /third_party
+
+# images
+*.png
+*.jpg
+
+# colmap
+colmap/
