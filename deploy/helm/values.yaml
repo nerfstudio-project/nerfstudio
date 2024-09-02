@@ -15,6 +15,7 @@ autoscaling:
 
 resources:
   limits:
+    nvidia.com/gpu: "1"
     cpu: 1000m
     memory: 1024Mi
   requests:
@@ -35,3 +36,13 @@ ingress:
     - host: nerfstudio.dev.homee.ai
       paths:
         - "/"
+
+tolerations: 
+  - key: "nvidia.com/gpu"
+    operator: "Equal"
+    value: "present"
+    effect: "NoSchedule"
+
+nodeSelector:
+  labels:
+    node_pool: gpu-pool
