@@ -639,6 +639,13 @@ method_configs["splatfacto"] = TrainerConfig(
                 lr_final=5e-7, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
             ),
         },
+        "bilateral_grid": {
+            "optimizer": AdamOptimizerConfig(lr=2e-3, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                lr_final=1e-4, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
+            ),
+        },
+    
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",
@@ -696,6 +703,12 @@ method_configs["splatfacto-big"] = TrainerConfig(
                 lr_final=5e-7, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
             ),
         },
+        "bilateral_grid": {
+            "optimizer": AdamOptimizerConfig(lr=5e-3, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                lr_final=1e-4, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
+            ),
+        },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",
@@ -732,6 +745,14 @@ method_configs["splatfacto-w"] = TrainerConfig(
                 max_steps=40000,
             ),
         },
+        "features_dc": {
+            "optimizer": AdamOptimizerConfig(lr=0.0025, eps=1e-15),
+            "scheduler": None,
+        },
+        "features_rest": {
+            "optimizer": AdamOptimizerConfig(lr=0.0025 / 20, eps=1e-15),
+            "scheduler": None,
+        },
         "opacities": {
             "optimizer": AdamOptimizerConfig(lr=0.03, eps=1e-15),
             "scheduler": None,
@@ -744,6 +765,12 @@ method_configs["splatfacto-w"] = TrainerConfig(
         "camera_opt": {
             "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(lr_final=5e-5, max_steps=30000),
+        },
+        "bilateral_grid": {
+            "optimizer": AdamOptimizerConfig(lr=2e-3, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                lr_final=1e-4, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
+            ),
         },
         "field_background": {
             "optimizer": AdamOptimizerConfig(lr=2e-3, eps=1e-15),
