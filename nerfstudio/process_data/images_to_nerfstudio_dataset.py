@@ -88,10 +88,10 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                     same_dimensions=self.same_dimensions,
                     keep_image_dir=True,
                 )
-                image_rename_map_eval = dict(
+                eval_image_rename_map = dict(
                     (a.relative_to(self.eval_data).as_posix(), b.name) for a, b in eval_image_rename_map_paths.items()
                 )
-                image_rename_map.update(image_rename_map_eval)
+                image_rename_map.update(eval_image_rename_map)
 
             num_frames = len(image_rename_map)
             summary_log.append(f"Starting with {num_frames} images")
