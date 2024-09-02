@@ -1,0 +1,43 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "env"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - stg
+          - prd
+
+jobs:
+  dev-gcp-deploy:
+    if: "${{ github.event.inputs.env == 'dev' }}"
+    uses: homee-ai/github-actions/.github/workflows/gcp-deploy.yaml@main
+    with:
+      stage: ${{ github.event.inputs.env }}
+      project_id: dev-homee
+      service_name: homee-ai-nerfstudio
+      team: research
+      type: api
+    secrets:
+      GCP_CREDENTIALS: ${{ secrets.GCP_DEV_PROJECT_CREDENTIALS }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+  prd-gcp-deploy:
+    if: "${{ github.event.inputs.env == 'prd' }}"
+    uses: homee-ai/github-actions/.github/workflows/gcp-deploy.yaml@main
+    with:
+      stage: ${{ github.event.inputs.env }}
+      project_id: homee-ai
+      service_name: homee-ai-nerfstudio
+      team: research
+      type: api
+    secrets:
+      GCP_CREDENTIALS: ${{ secrets.GCP_PRD_PROJECT_CREDENTIALS }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

@@ -1,0 +1,11 @@
+apiVersion: v2
+appVersion: "1.0"
+description: Homee CASA label service api
+name: homee-casa-label-service-api
+version: 0.1.0
+
+dependencies:
+  - name: helm-library
+    version: 0.1.0
+    # repository: oci://gcr.io/dev-homee
+    repository: oci://945300945719.dkr.ecr.us-east-1.amazonaws.com

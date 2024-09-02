@@ -1,0 +1,12 @@
+env: &env prd
+
+image:
+  repository: gcr.io/homee-ai/homee-ai-nerfstudio
+
+ingress:
+  annotations:
+    external-dns.alpha.kubernetes.io/target: gclb.homee.ai
+  hosts:
+    - host: nerfstudio.homee.ai
+      paths:
+        - "/"

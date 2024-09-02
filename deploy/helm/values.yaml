@@ -1,0 +1,37 @@
+env: &env dev
+
+namespace: research
+
+image:
+  repository: gcr.io/dev-homee/homee-ai-nerfstudio
+  tag: latest
+  pullPolicy: Always
+
+autoscaling:
+  replicasMin: 1
+  replicasMax: 3
+  targetCPUUtilizationPercentage: 50
+  targetMemoryUtilizationPercentage: 70
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1024Mi
+  requests:
+    cpu: 300m
+    memory: 512Mi
+
+service:
+  type: ClusterIP
+  port:
+    http:
+      externalPort: 80
+      internalPort: 8081
+
+ingress:
+  annotations:
+    external-dns.alpha.kubernetes.io/target: gclb.dev.homee.ai
+  hosts:
+    - host: nerfstudio.dev.homee.ai
+      paths:
+        - "/"

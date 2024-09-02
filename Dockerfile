@@ -68,12 +68,12 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install CMake 3.30.1 for glomap
- RUN wget https://github.com/Kitware/CMake/releases/download/v3.30.1/cmake-3.30.1.tar.gz && \
-     tar xfvz cmake-3.30.1.tar.gz && cd cmake-3.30.1 && \
-     ./bootstrap && make -j$(nproc) && sudo make install && \
-     cd ../.. && \
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.30.1/cmake-3.30.1.tar.gz && \
+    tar xfvz cmake-3.30.1.tar.gz && cd cmake-3.30.1 && \
+    ./bootstrap && make -j$(nproc) && sudo make install && \
+    cd ../.. && \
     rm -rf cmake-3.30.1
-    
+
 # Install GLOG (required by ceres).
 RUN git clone --branch v0.6.0 https://github.com/google/glog.git --single-branch && \
     cd glog && \
@@ -105,7 +105,7 @@ RUN git clone --branch 3.8 https://github.com/colmap/colmap.git --single-branch 
     mkdir build && \
     cd build && \
     cmake .. -DCUDA_ENABLED=ON \
-             -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} && \
+    -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} && \
     make -j `nproc` && \
     make install && \
     cd ../.. && \
@@ -150,7 +150,7 @@ RUN python3.10 -m pip install --no-cache-dir --upgrade pip setuptools==69.5.1 pa
 RUN CUDA_VER=$(echo "${CUDA_VERSION}" | sed 's/.$//' | tr -d '.') && python3.10 -m pip install --no-cache-dir \
     torch==2.1.2+cu${CUDA_VER} \
     torchvision==0.16.2+cu${CUDA_VER} \
-        --extra-index-url https://download.pytorch.org/whl/cu${CUDA_VER}
+    --extra-index-url https://download.pytorch.org/whl/cu${CUDA_VER}
 
 # Install tiny-cuda-nn (we need to set the target architectures as environment variable first).
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
@@ -196,6 +196,10 @@ WORKDIR /workspace
 RUN ns-install-cli --mode install
 
 # Bash as default entrypoint.
-CMD /bin/bash -l
+# CMD /bin/bash -l
 # Force changing password on first container run
 # Change line above: CMD /bin/bash -l -> CMD /bin/bash -l -c passwd && /usr/bin/bash -l
+
+
+COPY . .
+CMD [ "python3", "-u", "worker.py" ]
