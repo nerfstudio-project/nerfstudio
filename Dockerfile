@@ -1,5 +1,5 @@
-ARG CUDA_VERSION=11.8.0
-ARG OS_VERSION=22.04
+ARG CUDA_VERSION=12.4.0
+ARG OS_VERSION=24.04
 # Define base image.
 FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${OS_VERSION}
 ARG CUDA_VERSION
@@ -67,9 +67,10 @@ RUN apt-get update && \
     wget && \
     rm -rf /var/lib/apt/lists/*
 
+RUN pip3 install build wheel 
 
 # Install GLOG (required by ceres).
-RUN git clone --branch v0.6.0 https://github.com/google/glog.git --single-branch && \
+RUN git clone --branch v0.7.1 https://github.com/google/glog.git --single-branch && \
     cd glog && \
     mkdir build && \
     cd build && \
@@ -82,7 +83,7 @@ RUN git clone --branch v0.6.0 https://github.com/google/glog.git --single-branch
 ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib"
 
 # Install Ceres-solver (required by colmap).
-RUN git clone --branch 2.1.0 https://ceres-solver.googlesource.com/ceres-solver.git --single-branch && \
+RUN git clone --branch 2.2.0 https://ceres-solver.googlesource.com/ceres-solver.git --single-branch && \
     cd ceres-solver && \
     git checkout $(git describe --tags) && \
     mkdir build && \
@@ -94,7 +95,7 @@ RUN git clone --branch 2.1.0 https://ceres-solver.googlesource.com/ceres-solver.
     rm -rf ceres-solver
 
 # Install colmap.
-RUN git clone --branch 3.8 https://github.com/colmap/colmap.git --single-branch && \
+RUN git clone --branch 3.10 https://github.com/colmap/colmap.git --single-branch && \
     cd colmap && \
     mkdir build && \
     cd build && \
@@ -102,6 +103,8 @@ RUN git clone --branch 3.8 https://github.com/colmap/colmap.git --single-branch 
              -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} && \
     make -j `nproc` && \
     make install && \
+    cd colmap/pycolmap && \
+    pip3 wheel . -w dist/ && pip3 install dist/pycolmap-*.whl
     cd ../.. && \
     rm -rf colmap
 
@@ -127,45 +130,39 @@ WORKDIR /home/${USERNAME}
 ENV PATH="${PATH}:/home/${USERNAME}/.local/bin"
 
 # Upgrade pip and install packages.
-RUN python3.10 -m pip install --no-cache-dir --upgrade pip setuptools==69.5.1 pathtools promise pybind11 omegaconf
+RUN python3.10 -m pip install --no-cache-dir --upgrade pip setuptools==74.0.0 pathtools promise pybind11 omegaconf
 
 # Install pytorch and submodules
 # echo "${CUDA_VERSION}" | sed 's/.$//' | tr -d '.' -- CUDA_VERSION -> delete last digit -> delete all '.'
 RUN CUDA_VER=$(echo "${CUDA_VERSION}" | sed 's/.$//' | tr -d '.') && python3.10 -m pip install --no-cache-dir \
-    torch==2.1.2+cu${CUDA_VER} \
-    torchvision==0.16.2+cu${CUDA_VER} \
+    torch==2.4.0+cu${CUDA_VER} \
+    torchvision==0.19.0+cu${CUDA_VER} \
         --extra-index-url https://download.pytorch.org/whl/cu${CUDA_VER}
 
 # Install tiny-cuda-nn (we need to set the target architectures as environment variable first).
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
 RUN python3.10 -m pip install --no-cache-dir git+https://github.com/NVlabs/tiny-cuda-nn.git#subdirectory=bindings/torch
 
-# Install pycolmap, required by hloc.
-RUN git clone --branch v0.4.0 --recursive https://github.com/colmap/pycolmap.git && \
-    cd pycolmap && \
-    python3.10 -m pip install --no-cache-dir . && \
-    cd ..
-
 # Install hloc 1.4 as alternative feature detector and matcher option for nerfstudio.
 RUN git clone --branch master --recursive https://github.com/cvg/Hierarchical-Localization.git && \
     cd Hierarchical-Localization && \
-    git checkout v1.4 && \
-    python3.10 -m pip install --no-cache-dir -e . && \
+    pip3 wheel --no-deps --use-feature=fast-deps . -w dist/ && pip3 install dist/hloc-*.whl && \
     cd ..
 
 # Install pyceres from source
-RUN git clone --branch v1.0 --recursive https://github.com/cvg/pyceres.git && \
+RUN git clone --branch v2.3 --recursive https://github.com/cvg/pyceres.git && \
     cd pyceres && \
     python3.10 -m pip install --no-cache-dir -e . && \
     cd ..
 
 # Install pixel perfect sfm.
-RUN git clone --recursive https://github.com/cvg/pixel-perfect-sfm.git && \
-    cd pixel-perfect-sfm && \
-    git reset --hard 40f7c1339328b2a0c7cf71f76623fb848e0c0357 && \
-    git clean -df && \
-    python3.10 -m pip install --no-cache-dir -e . && \
-    cd ..
+# it is still upgrading: https://github.com/cvg/pixel-perfect-sfm/pull/138
+# RUN git clone --recursive https://github.com/cvg/pixel-perfect-sfm.git && \
+#    cd pixel-perfect-sfm && \
+#    git reset --hard 40f7c1339328b2a0c7cf71f76623fb848e0c0357 && \
+#    git clean -df && \
+#    python3.10 -m pip install --no-cache-dir -e . && \
+#    cd ..
 
 # Copy nerfstudio folder and give ownership to user.
 COPY --chown=${USER_UID}:${USER_GID} . /home/${USERNAME}/nerfstudio

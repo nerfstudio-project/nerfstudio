@@ -1,7 +1,7 @@
 [project]
 name = "nerfstudio"
 description = "All-in-one repository for state-of-the-art NeRFs"
-channels = ["nvidia/label/cuda-11.8.0", "nvidia", "conda-forge", "pytorch"]
+channels = ["nvidia/label/cuda-12.4.0", "nvidia", "conda-forge", "pytorch"]
 platforms = ["linux-64"]
 
 [system-requirements]
@@ -21,14 +21,14 @@ train-example-nerf = {cmd="ns-train nerfacto --data data/nerfstudio/dozer/", dep
 
 
 [dependencies]
-python = ">=3.8,<3.11"
+python = ">=3.8,<3.12"
 pip = ">=24.0,<25"
-cuda = {version = "*", channel="nvidia/label/cuda-11.8.0"}
-pytorch-cuda = {version = "11.8.*", channel="pytorch"}
-pytorch = {version = ">=2.2.0,<2.3", channel="pytorch"}
-torchvision = {version = ">=0.17.0,<0.18", channel="pytorch"}
-pyarrow = ">=15.0.2,<15.1"
-colmap = ">=3.9.1,<3.10"
+cuda = {version = "*", channel="nvidia/label/cuda-12.4.0"}
+pytorch-cuda = {version = "12.4.*", channel="pytorch"}
+pytorch = {version = ">=2.2.0,<2.5", channel="pytorch"}
+torchvision = {version = ">=0.17.0,<0.20", channel="pytorch"}
+pyarrow = ">=15.0.2,<18.0.0"
+colmap = ">=3.9.1,<3.11"
 
 
 [pypi-dependencies]
