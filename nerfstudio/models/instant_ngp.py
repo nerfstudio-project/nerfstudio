@@ -72,7 +72,10 @@ class InstantNGPModelConfig(ModelConfig):
     use_appearance_embedding: bool = False
     """Whether to use an appearance embedding."""
     background_color: Literal["random", "black", "white"] = "random"
-    """The color that is given to untrained areas."""
+    """
+    The color that is given to masked areas.
+    These areas are used to force the density in those regions to be zero.
+    """
     disable_scene_contraction: bool = False
     """Whether to disable scene contraction or not."""
 
