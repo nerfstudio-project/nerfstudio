@@ -393,7 +393,6 @@ def _undistort_image(
             "We don't support the 4th Brown parameter for image undistortion, "
             "Only k1, k2, k3, p1, p2 can be non-zero."
         )
-        #print(distortion_params) # [ 0.05517609 -0.07427584  0.          0.         -0.00026702 -0.00060216]
         # we rearrange the distortion parameters because OpenCV expects the order (k1, k2, p1, p2, k3) 
         # see https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
         distortion_params = np.array(
@@ -421,11 +420,9 @@ def _undistort_image(
             roi = 0, 0, image.shape[1], image.shape[0]
         # crop the image and update the intrinsics accordingly
         x, y, w, h = roi
-        # print(x, y, w, h) # prints 0, 0, 539, 959
         image = image[y : y + h, x : x + w]
         newK[0, 2] -= x
         newK[1, 2] -= y
-        # print("2:", image.shape) # prints (959, 539, 3)
 
         if "depth_image" in data:
             data["depth_image"] = data["depth_image"][y : y + h, x : x + w]
@@ -568,37 +565,6 @@ def _undistort_image(
 
 
 ## Let's implement a parallelized splat dataloader!
-def undistort_idx(idx: int, dataset: TDataset, image_type: Literal["uint8", "float32"] = "float32") -> Dict[str, torch.Tensor]:
-    """Undistorts an image to one taken by a linear (pinhole) camera model and updates the dataset's camera intrinsics to a linear camera model"""
-    data = dataset.get_data(idx, image_type)
-    camera = dataset.cameras[idx].reshape(())
-    # dataset.cameras.width[idx] = data["image"].shape[1]
-    # dataset.cameras.height[idx] = data["image"].shape[0]
-
-    assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
-        f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
-        f'does not match the camera parameters ({camera.width.item(), camera.height.item()}), idx = {idx}'
-    )
-    if camera.distortion_params is None or torch.all(camera.distortion_params == 0):
-        return data
-    K = camera.get_intrinsics_matrices().numpy()
-    distortion_params = camera.distortion_params.numpy()
-    image = data["image"].numpy()
-    K, image, mask = _undistort_image(camera, distortion_params, data, image, K)
-    # print(image.shape[1]) # outputs 539
-    # print(cameras[48].reshape(()).width.item()) # outputs 540
-    data["image"] = torch.from_numpy(image)
-    if mask is not None:
-        data["mask"] = mask
-    # dataset.cameras.fx[idx] = float(K[0, 0])
-    # dataset.cameras.fy[idx] = float(K[1, 1])
-    # dataset.cameras.cx[idx] = float(K[0, 2])
-    # dataset.cameras.cy[idx] = float(K[1, 2])
-    # dataset.cameras.width[idx] = image.shape[1]
-    # dataset.cameras.height[idx] = image.shape[0]
-    # dataset.cameras.distortion_params = None
-    return data
-
 def undistort_view(idx: int, dataset: TDataset, image_type: Literal["uint8", "float32"] = "float32") -> Dict[str, torch.Tensor]:
     """Undistorts an image to one taken by a linear (pinhole) camera model and returns a new Camera with these updated intrinsics
     Note: this method does not modify the dataset's attributes at all.
@@ -621,7 +587,7 @@ def undistort_view(idx: int, dataset: TDataset, image_type: Literal["uint8", "fl
     if mask is not None:
         data["mask"] = mask
     
-    # create a new Camera
+    # create a new Camera with the rectified / undistorted intrinsics
     new_camera = Cameras(
         camera_to_worlds=camera.camera_to_worlds.unsqueeze(0),
         fx=torch.Tensor([[float(K[0, 0])]]),
@@ -675,13 +641,10 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
                 i = 0
             idx = worker_indices[i] # idx refers to the actual datapoint index this worker will retrieve
             data, camera = undistort_view(idx, self.input_dataset, self.config.cache_images_type)
-            camera2 = self.input_dataset.cameras[idx : idx + 1]#.to(self.device)
             if camera.metadata is None:
                 camera.metadata = {}
             camera.metadata["cam_idx"] = idx
             i += 1
-            if torch.sum(camera.camera_to_worlds) == 0:
-                print(i, camera.camera_to_worlds, "YOYO INSIDE IMAGEBATCHSTREAM")
             yield camera, data
 
 class ParallelFullImageDatamanager(FullImageDatamanager, Generic[TDataset]):
@@ -716,7 +679,7 @@ class ParallelFullImageDatamanager(FullImageDatamanager, Generic[TDataset]):
             batch_size=1,
             num_workers=self.config.dataloader_num_workers,
             collate_fn=identity_collate,
-            pin_memory_device=self.device,
+            # pin_memory_device=self.device, # for some reason if we pin memory, exporting to PLY file doesn't work? 
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
 
@@ -731,7 +694,7 @@ class ParallelFullImageDatamanager(FullImageDatamanager, Generic[TDataset]):
             batch_size=1,
             num_workers=self.config.dataloader_num_workers,
             collate_fn=identity_collate,
-            pin_memory_device=self.device,
+            # pin_memory_device=self.device,
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader) # these things output tuples
 

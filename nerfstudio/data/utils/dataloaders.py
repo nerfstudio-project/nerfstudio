@@ -32,7 +32,6 @@ from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
-from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import get_dict_to_torch
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -134,7 +133,6 @@ class CacheDataloader(DataLoader):
                 collated_batch = self.cached_collated_batch
             elif self.first_time or (
                 self.num_times_to_repeat_images != -1 and self.num_repeated >= self.num_times_to_repeat_images
-                # if it's the first time, we need to 
             ):
                 # trigger a reset
                 self.num_repeated = 0
@@ -146,33 +144,6 @@ class CacheDataloader(DataLoader):
                 collated_batch = self.cached_collated_batch
                 self.num_repeated += 1
             yield collated_batch
-
-
-import torch
-class ParallelCacheDataloader(torch.utils.data.IterableDataset):
-    """Creates batches of the InputDataset return type with multiple workers, can be toggled to return image batches or RayBundles
-    When return image batches
-    """
-    def __init__(
-        self,
-        input_dataset: Dataset,
-        num_images_to_sample_from: int = -1,
-        device: Union[torch.device, str] = "cpu",
-        collate_fn: Callable[[Any], Any] = nerfstudio_collate,
-        exclude_batch_keys_from_device: Optional[List[str]] = None,
-        num_image_load_threads : int = 2,
-        cache_all_n_shard_per_worker : bool = True,
-    ):
-        if exclude_batch_keys_from_device is None:
-            exclude_batch_keys_from_device = ["image"]
-        self.input_dataset = input_dataset
-        assert isinstance(self.input_dataset, Sized)
-
-        self.num_images_to_sample_from = num_images_to_sample_from
-        """The size of a collated_batch of images"""
-
-    def __iter__(self):
-        pass
 
 
 class EvalDataloader(DataLoader):
