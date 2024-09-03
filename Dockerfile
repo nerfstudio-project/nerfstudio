@@ -143,7 +143,7 @@ WORKDIR /home/${USERNAME}
 ENV PATH="${PATH}:/home/${USERNAME}/.local/bin"
 
 # Upgrade pip and install packages.
-RUN python3.10 -m pip install --no-cache-dir --upgrade pip setuptools==69.5.1 pathtools promise pybind11 omegaconf numba colorlog tabulate
+RUN python3.10 -m pip install --no-cache-dir --upgrade pip setuptools==69.5.1 pathtools promise pybind11 omegaconf numba colorlog tabulate fastapi
 
 # Install pytorch and submodules
 # echo "${CUDA_VERSION}" | sed 's/.$//' | tr -d '.' -- CUDA_VERSION -> delete last digit -> delete all '.'
@@ -201,5 +201,5 @@ RUN ns-install-cli --mode install
 # Change line above: CMD /bin/bash -l -> CMD /bin/bash -l -c passwd && /usr/bin/bash -l
 
 
-COPY . .
-CMD [ "python3", "-u", "worker.py" ]
+# COPY . .
+# CMD [ "python3", "-u", "worker.py" ]
