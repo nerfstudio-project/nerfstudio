@@ -19,7 +19,7 @@ Implementation of Instant NGP.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Optional, Tuple, Type
+from typing import Dict, List, Literal, Optional, Tuple, Type, Union
 
 import nerfacc
 import torch
@@ -49,7 +49,7 @@ class InstantNGPModelConfig(ModelConfig):
     """Whether to create a scene collider to filter rays."""
     collider_params: Optional[Dict[str, float]] = None
     """Instant NGP doesn't use a collider."""
-    grid_resolution: int = 128
+    grid_resolution: Union[int, List[int]] = 128
     """Resolution of the grid used for the field."""
     grid_levels: int = 4
     """Levels of the grid used for the field."""
