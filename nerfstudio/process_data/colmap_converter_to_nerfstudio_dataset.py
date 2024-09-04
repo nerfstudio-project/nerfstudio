@@ -35,7 +35,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     """Feature matching method to use. Vocab tree is recommended for a balance of speed
     and accuracy. Exhaustive is slower but more accurate. Sequential is faster but
     should only be used for videos."""
-    sfm_tool: Literal["any", "colmap", "hloc"] = "any"
+    sfm_tool: Literal["any", "colmap", "glomap", "hloc"] = "any"
     """Structure from motion tool to use. Colmap will use sift features, hloc can use
     many modern methods such as superpoint features and superglue matcher"""
     refine_pixsfm: bool = False
