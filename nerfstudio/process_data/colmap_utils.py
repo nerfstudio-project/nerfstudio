@@ -99,6 +99,7 @@ def run_colmap(
     matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
     refine_intrinsics: bool = True,
     colmap_cmd: str = "colmap",
+    glomap_toggle: bool = False,
 ) -> None:
     """Runs COLMAP on the images.
 
@@ -153,12 +154,20 @@ def run_colmap(
     # Bundle adjustment
     sparse_dir = colmap_dir / "sparse"
     sparse_dir.mkdir(parents=True, exist_ok=True)
-    mapper_cmd = [
-        f"{colmap_cmd} mapper",
-        f"--database_path {colmap_dir / 'database.db'}",
-        f"--image_path {image_dir}",
-        f"--output_path {sparse_dir}",
-    ]
+    if glomap_toggle:
+        mapper_cmd = [
+            f"glomap mapper",
+            f"--database_path {colmap_dir / 'database.db'}",
+            f"--image_path {image_dir}",
+            f"--output_path {sparse_dir}",
+        ]
+    else:
+        mapper_cmd = [
+            f"{colmap_cmd} mapper",
+            f"--database_path {colmap_dir / 'database.db'}",
+            f"--image_path {image_dir}",
+            f"--output_path {sparse_dir}",
+        ]
     if colmap_version >= Version("3.7"):
         mapper_cmd.append("--Mapper.ba_global_function_tolerance=1e-6")
 

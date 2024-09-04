@@ -222,6 +222,19 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 refine_intrinsics=self.refine_intrinsics,
                 colmap_cmd=self.colmap_cmd,
             )
+        elif sfm_tool == "glomap":
+            colmap_utils.run_colmap(
+                image_dir=image_dir,
+                colmap_dir=self.absolute_colmap_path,
+                camera_model=CAMERA_MODELS[self.camera_type],
+                camera_mask_path=mask_path,
+                gpu=self.gpu,
+                verbose=self.verbose,
+                matching_method=self.matching_method,
+                refine_intrinsics=self.refine_intrinsics,
+                colmap_cmd=self.colmap_cmd,
+                glomap_toggle=True,
+            )
         elif sfm_tool == "hloc":
             if mask_path is not None:
                 raise RuntimeError("Cannot use a mask with hloc. Please remove the cropping options " "and try again.")
