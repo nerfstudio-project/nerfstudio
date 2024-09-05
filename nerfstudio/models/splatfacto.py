@@ -31,7 +31,6 @@ try:
     from gsplat.rendering import rasterization
 except ImportError:
     print("Please install gsplat>=1.0.0")
-from gsplat.cuda_legacy._wrapper import num_sh_bases
 from pytorch_msssim import SSIM
 from torch.nn import Parameter
 
@@ -45,6 +44,14 @@ from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.misc import torch_compile
 from nerfstudio.utils.rich_utils import CONSOLE
+
+
+def num_sh_bases(degree: int) -> int:
+    """
+    Returns the number of spherical harmonic bases for a given degree.
+    """
+    assert degree <= 4, "We don't support degree greater than 4."
+    return (degree + 1) ** 2
 
 
 def quat_to_rotmat(quat):
