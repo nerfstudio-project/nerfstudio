@@ -222,10 +222,10 @@ Instead of installing and compiling prerequisites, setting up the environment an
 ### Prerequisites
 
 Docker ([get docker](https://docs.docker.com/get-docker/)) and nvidia GPU drivers ([get nvidia drivers](https://www.nvidia.de/Download/index.aspx?lang=de)), capable of working with CUDA 11.8, must be installed.
-The docker image can then either be pulled from [here](https://hub.docker.com/r/dromni/nerfstudio/tags) (replace <version> with the actual version, e.g. 0.1.18)
+The docker image can then either be pulled from [here](https://github.com/nerfstudio-project/nerfstudio/pkgs/container/nerfstudio) (`latest` can be replaced with a fixed version, e.g., `1.1.3`)
 
 ```bash
-docker pull dromni/nerfstudio:<version>
+docker pull ghcr.io/nerfstudio-project/nerfstudio:latest
 ```
 
 or be built from the repository using
@@ -240,19 +240,8 @@ For example, here's how to build with support for GeForce 30xx series GPUs:
 
 ```bash
 docker build \
-    --build-arg CUDA_VERSION=11.8.0 \
     --build-arg CUDA_ARCHITECTURES=86 \
-    --build-arg OS_VERSION=22.04 \
     --tag nerfstudio-86 \
-    --file Dockerfile .
-```
-
-The user inside the container is called 'user' and is mapped to the local user with ID 1000 (usually the first non-root user on Linux systems).  
-If you suspect that your user might have a different id, override `USER_ID` during the build as follows:
-
-```bash
-docker build \
-    --build-arg USER_ID=$(id -u) \
     --file Dockerfile .
 ```
 
@@ -269,7 +258,7 @@ docker run --gpus all \                                         # Give the conta
             --rm \                                              # Remove container after it is closed (recommended).
             -it \                                               # Start container in interactive mode.
             --shm-size=12gb \                                   # Increase memory assigned to container to avoid memory limitations, default is 64 MB (recommended).
-            dromni/nerfstudio:<tag>                             # Docker image name if you pulled from docker hub.
+            ghcr.io/nerfstudio-project/nerfstudio:<tag>         # Docker image name if you pulled from GitHub.
             <--- OR --->
             nerfstudio                                          # Docker image tag if you built the image from the Dockerfile by yourself using the command from above.
 ```
@@ -280,7 +269,7 @@ Besides, the container can also directly be used by adding the nerfstudio comman
 
 ```bash
 docker run --gpus all -u $(id -u) -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ -p 7007:7007 --rm -it --shm-size=12gb  # Parameters.
-            dromni/nerfstudio:<tag> \                           # Docker image name
+            ghcr.io/nerfstudio-project/nerfstudio:<tag> \       # Docker image name if you pulled from GitHub.
             ns-process-data video --data /workspace/video.mp4   # Smaple command of nerfstudio.
 ```
 
