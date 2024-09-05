@@ -29,6 +29,11 @@ ENV TZ=Europe/Berlin
 ## CUDA Home, required to find CUDA in some packages.
 ENV CUDA_HOME="/usr/local/cuda"
 
+# Set up ppa
+RUN apt-get update && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository -y ppa:deadsnakes/ppa
+
 # Install required apt packages and clear cache afterwards.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -59,14 +64,17 @@ RUN apt-get update && \
     nano \
     protobuf-compiler \
     python-is-python3 \
-    python3.10-dev \
+    python3.8-dev \
     python3-pip \
+    python3.8-distutils \
     qtbase5-dev \
     sudo \
     vim-tiny \
     wget && \
     rm -rf /var/lib/apt/lists/*
 
+# Check if python and pip available
+RUN python3.8 --version && python3.8 -m pip --version
 
 # Install GLOG (required by ceres).
 RUN git clone --branch v0.6.0 https://github.com/google/glog.git --single-branch && \
@@ -107,7 +115,7 @@ RUN git clone --branch 3.8 https://github.com/colmap/colmap.git --single-branch 
 
 # Create non root user, add it to custom group and setup environment.
 RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME -d /home/${USERNAME} --shell /usr/bin/bash 
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME -d /home/${USERNAME} --shell /usr/bin/bash
 # OPTIONAL
 # If sudo privilages are not required comment below line
 # Create simple password for user and add it to sudo group
@@ -127,36 +135,36 @@ WORKDIR /home/${USERNAME}
 ENV PATH="${PATH}:/home/${USERNAME}/.local/bin"
 
 # Upgrade pip and install packages.
-RUN python3.10 -m pip install --no-cache-dir --upgrade pip setuptools==69.5.1 pathtools promise pybind11 omegaconf
+RUN python3.8 -m pip install --no-cache-dir --upgrade pip setuptools==69.5.1 pathtools promise pybind11 omegaconf
 
 # Install pytorch and submodules
 # echo "${CUDA_VERSION}" | sed 's/.$//' | tr -d '.' -- CUDA_VERSION -> delete last digit -> delete all '.'
-RUN CUDA_VER=$(echo "${CUDA_VERSION}" | sed 's/.$//' | tr -d '.') && python3.10 -m pip install --no-cache-dir \
+RUN CUDA_VER=$(echo "${CUDA_VERSION}" | sed 's/.$//' | tr -d '.') && python3.8 -m pip install --no-cache-dir \
     torch==2.1.2+cu${CUDA_VER} \
     torchvision==0.16.2+cu${CUDA_VER} \
         --extra-index-url https://download.pytorch.org/whl/cu${CUDA_VER}
 
 # Install tiny-cuda-nn (we need to set the target architectures as environment variable first).
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
-RUN python3.10 -m pip install --no-cache-dir git+https://github.com/NVlabs/tiny-cuda-nn.git#subdirectory=bindings/torch
+RUN python3.8 -m pip install --no-cache-dir git+https://github.com/NVlabs/tiny-cuda-nn.git#subdirectory=bindings/torch
 
 # Install pycolmap, required by hloc.
 RUN git clone --branch v0.4.0 --recursive https://github.com/colmap/pycolmap.git && \
     cd pycolmap && \
-    python3.10 -m pip install --no-cache-dir . && \
+    python3.8 -m pip install --no-cache-dir . && \
     cd ..
 
 # Install hloc 1.4 as alternative feature detector and matcher option for nerfstudio.
 RUN git clone --branch master --recursive https://github.com/cvg/Hierarchical-Localization.git && \
     cd Hierarchical-Localization && \
     git checkout v1.4 && \
-    python3.10 -m pip install --no-cache-dir -e . && \
+    python3.8 -m pip install --no-cache-dir -e . && \
     cd ..
 
 # Install pyceres from source
 RUN git clone --branch v1.0 --recursive https://github.com/cvg/pyceres.git && \
     cd pyceres && \
-    python3.10 -m pip install --no-cache-dir -e . && \
+    python3.8 -m pip install --no-cache-dir -e . && \
     cd ..
 
 # Install pixel perfect sfm.
@@ -164,7 +172,7 @@ RUN git clone --recursive https://github.com/cvg/pixel-perfect-sfm.git && \
     cd pixel-perfect-sfm && \
     git reset --hard 40f7c1339328b2a0c7cf71f76623fb848e0c0357 && \
     git clean -df && \
-    python3.10 -m pip install --no-cache-dir -e . && \
+    python3.8 -m pip install --no-cache-dir -e . && \
     cd ..
 
 # Copy nerfstudio folder and give ownership to user.
@@ -172,7 +180,7 @@ COPY --chown=${USER_UID}:${USER_GID} . /home/${USERNAME}/nerfstudio
 
 # Install nerfstudio dependencies.
 RUN cd nerfstudio && \
-    python3.10 -m pip install --no-cache-dir -e . && \
+    python3.8 -m pip install --no-cache-dir -e . && \
     cd ..
 
 # Switch to workspace folder and install nerfstudio cli auto completion
