@@ -482,7 +482,7 @@ def downscale_images(
 
 
 def find_tool_feature_matcher_combination(
-    sfm_tool: Literal["any", "colmap", "hloc"],
+    sfm_tool: Literal["any", "colmap", "glomap", "hloc"],
     feature_type: Literal[
         "any",
         "sift",
@@ -556,6 +556,12 @@ def find_tool_feature_matcher_combination(
         if (feature_type not in ("any", "sift")) or (matcher_type not in ("any", "NN")):
             return (None, None, None)
         return ("colmap", "sift", "NN")
+    
+    if sfm_tool == "glomap":
+        if (feature_type not in ("any", "sift")) or (matcher_type not in ("any", "NN")):
+            return (None, None, None)
+        return ("glomap", "sift", "NN")
+    
     if sfm_tool == "hloc":
         if feature_type in ("any", "superpoint"):
             feature_type = "superpoint_aachen"
