@@ -510,7 +510,7 @@ def find_tool_feature_matcher_combination(
 ) -> Union[
     Tuple[None, None, None],
     Tuple[
-        Literal["colmap", "hloc"],
+        Literal["colmap", "glomap", "hloc"],
         Literal[
             "sift",
             "superpoint_aachen",
@@ -556,12 +556,12 @@ def find_tool_feature_matcher_combination(
         if (feature_type not in ("any", "sift")) or (matcher_type not in ("any", "NN")):
             return (None, None, None)
         return ("colmap", "sift", "NN")
-    
+
     if sfm_tool == "glomap":
         if (feature_type not in ("any", "sift")) or (matcher_type not in ("any", "NN")):
             return (None, None, None)
         return ("glomap", "sift", "NN")
-    
+
     if sfm_tool == "hloc":
         if feature_type in ("any", "superpoint"):
             feature_type = "superpoint_aachen"
