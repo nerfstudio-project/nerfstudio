@@ -162,7 +162,8 @@ def run_colmap(
     ]
     if colmap_version >= Version("3.7") and not glomap_toggle:
         mapper_cmd.append("--Mapper.ba_global_function_tolerance=1e-6")
-
+    if glomap_toggle:
+        mapper_cmd.append("--TrackEstablishment.max_num_tracks 5000")
     mapper_cmd = " ".join(mapper_cmd)
 
     with status(
@@ -413,7 +414,7 @@ def colmap_to_json(
     Returns:
         The number of registered images.
     """
-
+    breakpoint()
     # TODO(1480) use pycolmap
     # recon = pycolmap.Reconstruction(recon_dir)
     # cam_id_to_camera = recon.cameras

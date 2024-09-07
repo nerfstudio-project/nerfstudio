@@ -128,7 +128,6 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
         )
         if mask_path is not None:
             summary_log.append(f"Saved mask to {mask_path}")
-
         # Run Colmap
         if not self.skip_colmap:
             self._run_colmap(mask_path)
