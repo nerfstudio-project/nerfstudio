@@ -795,7 +795,7 @@ class DatasetRender(BaseRender):
                 for camera_idx, (camera, batch) in enumerate(progress.track(dataloader, total=len(dataset))):
                     with torch.no_grad():
                         outputs = pipeline.model.get_outputs_for_camera(camera)
-                        if "rgba" in self.rendered_output_names:
+                        if self.rendered_output_names is not None and "rgba" in self.rendered_output_names:
                             rgba = pipeline.model.get_rgba_image(outputs=outputs, output_name="rgb")
                             outputs["rgba"] = rgba
 
