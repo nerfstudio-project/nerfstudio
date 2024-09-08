@@ -197,7 +197,7 @@ def _render_trajectory_video(
                         outputs = pipeline.model.get_outputs_for_camera(
                             cameras[camera_idx : camera_idx + 1], obb_box=obb_box
                         )
-                        if "rgba" in rendered_output_names:
+                        if rendered_output_names is not None and "rgba" in rendered_output_names:
                             rgba = pipeline.model.get_rgba_image(outputs=outputs, output_name="rgb")
                             outputs["rgba"] = rgba
 
