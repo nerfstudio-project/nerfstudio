@@ -46,7 +46,7 @@ from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
-from torch.profiler import profile, record_function, ProfilerActivity
+
 
 @dataclass
 class NerfactoModelConfig(ModelConfig):
@@ -363,23 +363,6 @@ class NerfactoModel(Model):
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = {}
         image = batch["image"].to(self.device)
-        # Start profiling
-        if image.dtype == torch.uint8:
-            image = image / torch.tensor(255, dtype=torch.float32, device=self.device)
-        # with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-        #             record_shapes=True,
-        #             profile_memory=True,
-        #             with_stack=True) as prof:
-        #     with record_function("image_normalization"):
-        #         image = image / torch.tensor(255, dtype=torch.float32, device=self.device)
-        #         # image = image.float() / 255.0
-        
-        # # Write profiler results to a file
-        # profile_path = "profiler_results.txt"
-        # with open(profile_path, "w") as f:
-        #     f.write(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
-
-        image = image.to(self.device)
         pred_rgb, gt_rgb = self.renderer_rgb.blend_background_for_loss_computation(
             pred_image=outputs["rgb"],
             pred_accumulation=outputs["accumulation"],
