@@ -167,12 +167,12 @@ def run_colmap(
     mapper_cmd = " ".join(mapper_cmd)
 
     with status(
-        msg="[bold yellow]Running COLMAP bundle adjustment... (This may take a while)",
+        msg=f"[bold yellow]Running {'GLOMAP' if glomap_toggle else 'COLMAP'} bundle adjustment... (This may take a while)",
         spinner="circle",
         verbose=verbose,
     ):
         run_command(mapper_cmd, verbose=verbose)
-    CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
+    CONSOLE.log("[bold green]:tada: Done {'GLOMAP' if glomap_toggle else 'COLMAP'} bundle adjustment.")
 
     if refine_intrinsics:
         with status(msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose):
