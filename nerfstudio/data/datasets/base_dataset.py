@@ -46,7 +46,7 @@ class InputDataset(Dataset):
     exclude_batch_keys_from_device: List[str] = ["image", "mask"]
     cameras: Cameras
 
-    def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0, cache_images: bool = False):
+    def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0):
         super().__init__()
         self._dataparser_outputs = dataparser_outputs
         self.scale_factor = scale_factor
@@ -55,18 +55,6 @@ class InputDataset(Dataset):
         self.cameras = deepcopy(dataparser_outputs.cameras)
         self.cameras.rescale_output_resolution(scaling_factor=scale_factor)
         self.mask_color = dataparser_outputs.metadata.get("mask_color", None)
-        self.cache_images = cache_images
-        """If cache_images == True, cache all the image files into RAM in their compressed form (not as tensors yet)"""
-        if cache_images:
-            self.binary_images = []
-            self.binary_masks = []
-            for image_filename in self._dataparser_outputs.image_filenames:
-                with open(image_filename, 'rb') as f:
-                    self.binary_images.append(io.BytesIO(f.read()))
-            if self._dataparser_outputs.mask_filenames is not None:
-                for mask_filename in self._dataparser_outputs.mask_filenames:
-                    with open(mask_filename, 'rb') as f:
-                        self.binary_masks.append(io.BytesIO(f.read()))
 
     def __len__(self):
         return len(self._dataparser_outputs.image_filenames)
