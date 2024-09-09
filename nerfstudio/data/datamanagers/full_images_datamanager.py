@@ -57,13 +57,6 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     """The scale factor for scaling spatial data such as images, mask, semantics
     along with relevant information about camera intrinsics
     """
-    eval_num_images_to_sample_from: int = -1
-    """Number of images to sample during eval iteration."""
-    eval_num_times_to_repeat_images: int = -1
-    """When not evaluating on all images, number of iterations before picking
-    new images. If -1, never pick new images."""
-    eval_image_indices: Optional[Tuple[int, ...]] = (0,)
-    """Specifies the image indices to use during eval; if None, uses all."""
     cache_images: Literal["cpu", "gpu", "disk"] = "gpu"
     """Whether to cache images in memory. If "cpu", caches on cpu. If "gpu", caches on device. If "disk", keeps images on disk. """
     cache_images_type: Literal["uint8", "float32"] = "float32"
@@ -80,9 +73,9 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     fps_reset_every: int = 100
     """The number of iterations before one resets fps sampler repeatly, which is essentially drawing fps_reset_every
     samples from the pool of all training cameras without replacement before a new round of sampling starts."""
-    use_image_train_dataloader: bool = cache_images == "disk"
+    use_parallel_dataloader: bool = cache_images == "disk"
     """Supports datasets that do not fit in system RAM and allows parallelization of the dataloading process with multiple workers."""
-    dataloader_num_workers: int = 8
+    dataloader_num_workers: int = 4
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes collating, pixel sampling, unprojecting, ray generation etc."""
     prefetch_factor: int = 2
@@ -129,7 +122,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.train_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split="train")
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
-        # print(type(self.train_dataset)) # prints InputDataset
+
         if len(self.train_dataset) > 500 and self.config.cache_images == "gpu":
             CONSOLE.print(
                 "Train dataset has over 500 images, overriding cache_images to cpu",
@@ -146,6 +139,10 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.train_unseen_cameras = self.sample_train_cameras()
         self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
         assert len(self.train_unseen_cameras) > 0, "No data found in dataset"
+
+        if self.config.use_parallel_dataloader:
+            import torch.multiprocessing as mp
+            mp.set_start_method("spawn")
 
         super().__init__()
 
@@ -313,15 +310,45 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
     def setup_train(self):
         """Sets up the data loaders for training"""
-
+        if self.config.use_parallel_dataloader:
+            self.train_imagebatch_stream = ImageBatchStream(
+                input_dataset=self.train_dataset,
+                datamanager_config=self.config,
+                device=self.device,
+            )
+            self.train_image_dataloader = torch.utils.data.DataLoader(
+                self.train_imagebatch_stream,
+                batch_size=1,
+                num_workers=self.config.dataloader_num_workers,
+                collate_fn=identity_collate,
+                # pin_memory_device=self.device, # for some reason if we pin memory, exporting to PLY file doesn't work? 
+            )
+            self.iter_train_image_dataloader = iter(self.train_image_dataloader)
+            
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
+        if self.config.use_parallel_dataloader:
+            self.eval_imagebatch_stream = ImageBatchStream(
+                input_dataset=self.eval_dataset,
+                datamanager_config=self.config,
+                device=self.device,
+            )
+            self.eval_image_dataloader = torch.utils.data.DataLoader(
+                self.eval_imagebatch_stream,
+                batch_size=1,
+                num_workers=self.config.dataloader_num_workers,
+                collate_fn=identity_collate,
+                # pin_memory_device=self.device,
+            )
+            self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
 
     @property
     def fixed_indices_eval_dataloader(self) -> List[Tuple[Cameras, Dict]]:
         """
         Pretends to be the dataloader for evaluation, it returns a list of (camera, data) tuples
         """
+        if self.config.use_parallel_dataloader:
+            return self.iter_eval_image_dataloader
         image_indices = [i for i in range(len(self.eval_dataset))]
         data = deepcopy(self.cached_eval)
         _cameras = deepcopy(self.eval_dataset.cameras).to(self.device)
@@ -347,6 +374,11 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         """Returns the next training batch
 
         Returns a Camera instead of raybundle"""
+        self.train_count += 1
+        if self.config.use_parallel_dataloader:
+            camera, data = next(self.iter_train_image_dataloader)[0]
+            return camera, data
+
         image_idx = self.train_unseen_cameras.pop(0)
         # Make sure to re-populate the unseen cameras list if we have exhausted it
         if len(self.train_unseen_cameras) == 0:
@@ -365,6 +397,11 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         """Returns the next evaluation batch
 
         Returns a Camera instead of raybundle"""
+        self.eval_count += 1
+        if self.config.use_parallel_dataloader:
+            camera, data = next(self.iter_train_image_dataloader)[0]
+            return camera, data
+
         return self.next_eval_image(step=step)
 
     def next_eval_image(self, step: int) -> Tuple[Cameras, Dict]:
@@ -414,7 +451,6 @@ def _undistort_image(
         if np.any(distortion_params):
             newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
             image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
-            # print("1:", image.shape) # prints (960, 540, 3)
         else:
             newK = K
             roi = 0, 0, image.shape[1], image.shape[0]
@@ -560,11 +596,9 @@ def _undistort_image(
         K = undist_K.numpy()
     else:
         raise NotImplementedError("Only perspective and fisheye cameras are supported")
-    # print("final:", image.shape, camera.width, camera.height) # prints 'final: (959, 539, 3) tensor([540]) tensor([960])'
     return K, image, mask
 
 
-## Let's implement a parallelized splat dataloader!
 def undistort_view(idx: int, dataset: TDataset, image_type: Literal["uint8", "float32"] = "float32") -> Dict[str, torch.Tensor]:
     """Undistorts an image to one taken by a linear (pinhole) camera model and returns a new Camera with these updated intrinsics
     Note: this method does not modify the dataset's attributes at all.
@@ -647,68 +681,68 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
             i += 1
             yield camera, data
 
-class ParallelFullImageDatamanager(FullImageDatamanager, Generic[TDataset]):
-    def __init__(
-        self,
-        config: FullImageDatamanagerConfig,
-        device: Union[torch.device, str] = "cpu",
-        test_mode: Literal["test", "val", "inference"] = "val",
-        world_size: int = 1,
-        local_rank: int = 0,
-        **kwargs
-    ):
-        import torch.multiprocessing as mp
-        mp.set_start_method("spawn")
-        super().__init__(
-            config=config,
-            device=device,
-            test_mode=test_mode,
-            world_size=world_size,
-            local_rank=local_rank,
-            **kwargs
-        )
+# class ParallelFullImageDatamanager(FullImageDatamanager, Generic[TDataset]):
+#     def __init__(
+#         self,
+#         config: FullImageDatamanagerConfig,
+#         device: Union[torch.device, str] = "cpu",
+#         test_mode: Literal["test", "val", "inference"] = "val",
+#         world_size: int = 1,
+#         local_rank: int = 0,
+#         **kwargs
+#     ):
+#         import torch.multiprocessing as mp
+#         mp.set_start_method("spawn")
+#         super().__init__(
+#             config=config,
+#             device=device,
+#             test_mode=test_mode,
+#             world_size=world_size,
+#             local_rank=local_rank,
+#             **kwargs
+#         )
  
-    def setup_train(self):
-        self.train_imagebatch_stream = ImageBatchStream(
-            input_dataset=self.train_dataset,
-            datamanager_config=self.config,
-            device=self.device,
-        )
-        self.train_image_dataloader = torch.utils.data.DataLoader(
-            self.train_imagebatch_stream,
-            batch_size=1,
-            num_workers=self.config.dataloader_num_workers,
-            collate_fn=identity_collate,
-            # pin_memory_device=self.device, # for some reason if we pin memory, exporting to PLY file doesn't work? 
-        )
-        self.iter_train_image_dataloader = iter(self.train_image_dataloader)
+#     def setup_train(self):
+#         self.train_imagebatch_stream = ImageBatchStream(
+#             input_dataset=self.train_dataset,
+#             datamanager_config=self.config,
+#             device=self.device,
+#         )
+#         self.train_image_dataloader = torch.utils.data.DataLoader(
+#             self.train_imagebatch_stream,
+#             batch_size=1,
+#             num_workers=self.config.dataloader_num_workers,
+#             collate_fn=identity_collate,
+#             # pin_memory_device=self.device, # for some reason if we pin memory, exporting to PLY file doesn't work? 
+#         )
+#         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
 
-    def setup_eval(self):
-        self.eval_imagebatch_stream = ImageBatchStream(
-            input_dataset=self.eval_dataset,
-            datamanager_config=self.config,
-            device=self.device,
-        )
-        self.eval_image_dataloader = torch.utils.data.DataLoader(
-            self.eval_imagebatch_stream,
-            batch_size=1,
-            num_workers=self.config.dataloader_num_workers,
-            collate_fn=identity_collate,
-            # pin_memory_device=self.device,
-        )
-        self.iter_eval_image_dataloader = iter(self.eval_image_dataloader) # these things output tuples
+#     def setup_eval(self):
+#         self.eval_imagebatch_stream = ImageBatchStream(
+#             input_dataset=self.eval_dataset,
+#             datamanager_config=self.config,
+#             device=self.device,
+#         )
+#         self.eval_image_dataloader = torch.utils.data.DataLoader(
+#             self.eval_imagebatch_stream,
+#             batch_size=1,
+#             num_workers=self.config.dataloader_num_workers,
+#             collate_fn=identity_collate,
+#             # pin_memory_device=self.device,
+#         )
+#         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
 
-    @property
-    def fixed_indices_eval_dataloader(self) -> List[Tuple[Cameras, Dict]]:
-        return self.iter_eval_image_dataloader
+#     @property
+#     def fixed_indices_eval_dataloader(self) -> List[Tuple[Cameras, Dict]]:
+#         return self.iter_eval_image_dataloader
 
-    def next_train(self, step: int) -> Tuple[Cameras, Dict]:
-        self.train_count += 1
-        camera, data = next(self.iter_train_image_dataloader)[0]
-        return camera, data
+#     def next_train(self, step: int) -> Tuple[Cameras, Dict]:
+#         self.train_count += 1
+#         camera, data = next(self.iter_train_image_dataloader)[0]
+#         return camera, data
     
-    def next_eval(self, step: int) -> Tuple[Cameras, Dict]:
-        self.eval_count += 1
-        camera, data = next(self.iter_train_image_dataloader)[0]
-        return camera, data
+#     def next_eval(self, step: int) -> Tuple[Cameras, Dict]:
+#         self.eval_count += 1
+#         camera, data = next(self.iter_train_image_dataloader)[0]
+#         return camera, data
     

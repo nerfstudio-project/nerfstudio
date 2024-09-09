@@ -316,6 +316,8 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """Target class to instantiate."""
     dataparser: AnnotatedDataParserUnion = field(default_factory=BlenderDataParserConfig)
     """Specifies the dataparser used to unpack the data."""
+    cache_images_type: Literal["uint8", "float32"] = "float32"
+    """The image type returned from manager, caching images in uint8 saves memory"""
     train_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per training iteration."""
     train_num_images_to_sample_from: int = -1
@@ -339,18 +341,18 @@ class VanillaDataManagerConfig(DataManagerConfig):
     along with relevant information about camera intrinsics"""
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
-    use_parallel_dataloader: bool = True
-    """Allows parallelization of the dataloading process with multiple workers prefetching batches."""
+    use_parallel_dataloader: bool = False
+    """Allows parallelization of the dataloading process with multiple workers prefetching RayBundles."""
     load_from_disk: bool = False
     """If True, conserves RAM memory by loading images from disk.
-    If False, caches all the images as tensors to RAM."""
-    prefetch_factor: int = 4
-    """The limit number of batches a worker will start loading once an iterator is created. 
-    More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
-    dataloader_num_workers: int = 4
+    If False, caches all the images as tensors to RAM and loads from RAM."""
+    dataloader_num_workers: int = 0
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes collating, pixel sampling, unprojecting, ray generation etc."""
-    cache_image_bytes: bool = True
+    prefetch_factor: int = None
+    """The limit number of batches a worker will start loading once an iterator is created. 
+    More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
+    cache_image_bytes: bool = False
     """If True, cache raw image files as byte strings to RAM."""
 
     # tyro.conf.Suppress prevents us from creating CLI arguments for this field.
@@ -706,7 +708,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
                 num_workers=self.config.dataloader_num_workers,
                 prefetch_factor=self.config.prefetch_factor,
                 shuffle=False,
-                pin_memory=True,
+                # pin_memory=True,
                 # Our dataset handles batching / collation of rays
                 collate_fn=identity_collate,
                 pin_memory_device=self.device,
