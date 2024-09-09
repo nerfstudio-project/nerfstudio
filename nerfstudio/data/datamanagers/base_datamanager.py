@@ -352,7 +352,8 @@ class VanillaDataManagerConfig(DataManagerConfig):
     prefetch_factor: int = None
     """The limit number of batches a worker will start loading once an iterator is created. 
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
-
+    cache_image_bytes: bool = False
+    """If True, cache raw image files as byte strings to RAM."""
 
     # tyro.conf.Suppress prevents us from creating CLI arguments for this field.
     camera_optimizer: tyro.conf.Suppress[Optional[CameraOptimizerConfig]] = field(default=None)
