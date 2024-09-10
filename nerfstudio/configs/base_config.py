@@ -139,7 +139,7 @@ class ViewerConfig(PrintableConfig):
     max_num_display_images: int = 512
     """Maximum number of training images to display in the viewer, to avoid lag. This does not change which images are
     actually used in training/evaluation. If -1, display all."""
-    quit_on_train_completion: bool = False
+    quit_on_train_completion: bool = True
     """Whether to kill the training job when it has completed. Note this will stop rendering in the viewer."""
     image_format: Literal["jpeg", "png"] = "jpeg"
     """Image format viewer should use; jpeg is lossy compression, while png is lossless."""

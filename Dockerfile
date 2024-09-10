@@ -5,11 +5,6 @@ FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${OS_VERSION}
 ARG CUDA_VERSION
 ARG OS_VERSION
 
-# Define username, user uid and gid
-ARG USERNAME=user
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
-
 # metainformation
 LABEL org.opencontainers.image.version = "0.1.18"
 LABEL org.opencontainers.image.source = "https://github.com/nerfstudio-project/nerfstudio"
@@ -64,7 +59,8 @@ RUN apt-get update && \
     qtbase5-dev \
     sudo \
     vim-tiny \
-    wget && \
+    wget \
+    zip && \
     rm -rf /var/lib/apt/lists/*
 
 # Install CMake 3.30.1 for glomap
@@ -121,24 +117,6 @@ RUN git clone --recursive https://github.com/colmap/glomap.git && \
     cd ../.. && \
     rm -rf glomap
 
-# Create non root user, add it to custom group and setup environment.
-RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME -d /home/${USERNAME} --shell /usr/bin/bash 
-# OPTIONAL
-# If sudo privilages are not required comment below line
-# Create simple password for user and add it to sudo group
-# Update group so that it is not required to type password for commands: apt update/upgrade/install/remove
-RUN echo "${USERNAME}:password" | chpasswd \
-    && usermod -aG sudo ${USERNAME} \
-    && echo "%sudo ALL=NOPASSWD:/usr/bin/apt-get update, /usr/bin/apt-get upgrade, /usr/bin/apt-get install, /usr/bin/apt-get remove" >> /etc/sudoers
-
-# Create workspace folder and change ownership to new user
-RUN mkdir /workspace && chmod -R 777 /workspace && chown ${USER_UID}:${USER_GID} /workspace
-
-# Switch to new user and workdir.
-USER ${USER_UID}
-WORKDIR /home/${USERNAME}
-
 # Add local user binary folder to PATH variable.
 ENV PATH="${PATH}:/home/${USERNAME}/.local/bin"
 
@@ -183,8 +161,8 @@ RUN git clone --recursive https://github.com/cvg/pixel-perfect-sfm.git && \
     python3.10 -m pip install --no-cache-dir -e . && \
     cd ..
 
-# Copy nerfstudio folder and give ownership to user.
-COPY --chown=${USER_UID}:${USER_GID} . /home/${USERNAME}/nerfstudio
+COPY . /app
+WORKDIR /app
 
 # Install nerfstudio dependencies.
 RUN cd nerfstudio && \
@@ -192,14 +170,7 @@ RUN cd nerfstudio && \
     cd ..
 
 # Switch to workspace folder and install nerfstudio cli auto completion
-WORKDIR /workspace
 RUN ns-install-cli --mode install
-
-# Bash as default entrypoint.
-# CMD /bin/bash -l
-# Force changing password on first container run
-# Change line above: CMD /bin/bash -l -> CMD /bin/bash -l -c passwd && /usr/bin/bash -l
-
 
 # COPY . .
 # CMD [ "python3", "-u", "worker.py" ]

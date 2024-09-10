@@ -57,7 +57,7 @@ if __name__ == "__main__":
     parser.add_argument("--input_base_path", type=str, default="data/homee/colmap")
 
     args = parser.parse_args()
-    input_obj_path = args.input_base_path + "/scene.obj"
+    input_obj_path = args.input_base_path + "/../scene.obj"
 
     output_ply_paths = [
         args.input_base_path + "/post/sparse/online/points3D.txt",

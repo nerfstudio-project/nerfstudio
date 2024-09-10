@@ -1,0 +1,59 @@
+{
+  "job_type": "base",
+  "command": "bash",
+  "args": ["-c"],
+  "job_spec_path": "null",
+  "capacity_requirements": {
+    "volumes": [
+      {
+        "emptyDir": {
+          "medium": "Memory"
+        },
+        "name": "shared-memory"
+      }
+    ],
+    "volume_mounts": [
+      {
+        "mountPath": "/dev/shm",
+        "name": "shared-memory"
+      }
+    ],
+    "active_deadline_seconds": 864000,
+    "hostAliases": [
+      {
+        "ip": "10.225.0.35",
+        "hostnames": ["nucleus.tpe1.local"]
+      }
+    ],
+    "env": [
+      {
+        "name": "OMNI_USER",
+        "valueFrom": {
+          "secretKeyRef": {
+            "key": "OMNI_USER",
+            "name": "nucleus-secret"
+          }
+        }
+      },
+      {
+        "name": "OMNI_PASS",
+        "valueFrom": {
+          "secretKeyRef": {
+            "key": "OMNI_PASS",
+            "name": "nucleus-secret"
+          }
+        }
+      }
+    ]
+  },
+
+  "log_to_stdout": true,
+  "container": "homeehaoyu/ovx-test",
+  "allowed_args": {
+    "args": {
+      "arg": "",
+      "default": "echo hi",
+      "separator": ""
+    }
+  }
+}
