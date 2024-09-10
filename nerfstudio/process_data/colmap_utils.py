@@ -167,7 +167,9 @@ def run_colmap(
     mapper_cmd = " ".join(mapper_cmd)
 
     with status(
-        msg=f"[bold yellow]Running GLOMAP bundle adjustment..." if glomap_toggle else "[bold yellow]Running COLMAP bundle adjustment... (This may take a while)" ,
+        msg="[bold yellow]Running GLOMAP bundle adjustment..."
+        if glomap_toggle
+        else "[bold yellow]Running COLMAP bundle adjustment... (This may take a while)",
         spinner="circle",
         verbose=verbose,
     ):
@@ -414,7 +416,7 @@ def colmap_to_json(
     Returns:
         The number of registered images.
     """
-    breakpoint()
+
     # TODO(1480) use pycolmap
     # recon = pycolmap.Reconstruction(recon_dir)
     # cam_id_to_camera = recon.cameras
