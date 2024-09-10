@@ -59,6 +59,7 @@ RUN apt-get update && \
     qtbase5-dev \
     sudo \
     vim-tiny \
+    unzip \
     wget \
     zip && \
     rm -rf /var/lib/apt/lists/*
@@ -165,9 +166,7 @@ COPY . /app
 WORKDIR /app
 
 # Install nerfstudio dependencies.
-RUN cd nerfstudio && \
-    python3.10 -m pip install --no-cache-dir -e . && \
-    cd ..
+RUN python3.10 -m pip install --no-cache-dir -e .
 
 # Switch to workspace folder and install nerfstudio cli auto completion
 RUN ns-install-cli --mode install

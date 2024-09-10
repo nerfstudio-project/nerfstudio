@@ -43,7 +43,7 @@ fi
 input_base_path="${zip_file_path%.*}"
 echo "unzipping file ${zip_file_path} to ${input_base_path}"
 mkdir -p "$input_base_path"
-unzip "$zip_file_path" -d "$input_base_path"
+unzip -o "$zip_file_path" -d "$input_base_path"
 
 directories=$(find_directories ${input_base_path})
 colmap_directory_path="${directories[0]}/colmap"
