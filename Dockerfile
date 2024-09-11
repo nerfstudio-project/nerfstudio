@@ -171,5 +171,16 @@ RUN python3.10 -m pip install --no-cache-dir -e .
 # Switch to workspace folder and install nerfstudio cli auto completion
 RUN ns-install-cli --mode install
 
-# COPY . .
+# for OVX
+COPY ovx/omnicli /omnicli
+COPY ovx/run.sh /run.sh
+RUN chmod -R +x /omnicli
+RUN chmod +x /run.sh
+
+RUN apt update && \
+    apt install -y \
+        lynx \
+        xdg-utils && \
+    rm -rf /var/lib/apt/lists/*
+
 # CMD [ "python3", "-u", "worker.py" ]
