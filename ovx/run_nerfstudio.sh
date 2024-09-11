@@ -9,13 +9,15 @@ find_directories() {
 
 # Validate the input arguments
 if [ $# -lt 1 ]; then
-  echo "Usage: $0 <intput zip file> $1 <output zip file> [<method1> <method2> ...] [--skip-preprocess]"
+  echo "Usage: $0 <intput zip file> <output zip file> [<method1> <method2> ...] [--skip-preprocess]"
   echo "Available methods: arkit colmap, loftr, lightglue, glomap"
   echo "Default method: arkit"
   exit 1
 fi
 
 zip_file_path=$1
+processed_zip_file_path=$2
+
 shift
 methods=()
 skip_preprocess=false
@@ -54,7 +56,6 @@ fi
 
 base_directory_path=${directories[0]}
 colmap_directory_path="${base_directory_path}/colmap"
-processed_zip_file_path="${input_directory_path}_processed.zip"
 
 echo "input zip file path ${zip_file_path}"
 echo "input directory: ${input_directory_path}"
