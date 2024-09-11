@@ -21,6 +21,7 @@ def main(args):
     root_path = Path(args.input_path).resolve()
     parent_name = root_path.parent.name
     output_root = root_path.parent / f"{parent_name}_nerfstudio"
+    output_path = args.output_path
     pose_method = args.method
 
     cmds = [
@@ -33,11 +34,13 @@ def main(args):
         '--pipeline.model.use_bilateral_grid True',
         # '--viewer.make-share-url True',
         '--viewer.quit_on_train_completion True',
+        f'--output-dir {output_path}',
+        f'--experiment-name {None}',
         'colmap',
         f'--colmap_path "colmap/{pose_method}/0"',
         '--auto_scale_poses False',
         '--center_method none',
-        '--orientation_method none',
+        '--orientation_method none'
     ]
 
     full_cmds = ' '.join(cmds)  
@@ -47,6 +50,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert ARKit 3DGS output for nerfstudio training.")
     parser.add_argument("--input_path", help="Path to the root directory of run_arkit_3dgs.sh output")
+    parser.add_argument("--output_path", default=None)
     parser.add_argument("--method", type=str,  default=['arkit'], help="Choose pose optimization methods")
     args = parser.parse_args()
     

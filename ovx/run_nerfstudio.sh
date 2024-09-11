@@ -9,7 +9,7 @@ find_directories() {
 
 # Validate the input arguments
 if [ $# -lt 1 ]; then
-  echo "Usage: $0 <zip file> [<method1> <method2> ...] [--skip-preprocess]"
+  echo "Usage: $0 <intput zip file> $1 <output zip file> [<method1> <method2> ...] [--skip-preprocess]"
   echo "Available methods: arkit colmap, loftr, lightglue, glomap"
   echo "Default method: arkit"
   exit 1
@@ -40,21 +40,27 @@ if [ ${#methods[@]} -eq 0 ]; then
 fi
 
 # unzip file
-input_base_path="${zip_file_path%.*}"
-echo "unzipping file ${zip_file_path} to ${input_base_path}"
-mkdir -p "$input_base_path"
-unzip -o "$zip_file_path" -d "$input_base_path"
+input_directory_path="${zip_file_path%.*}"
+echo "unzipping file ${zip_file_path} to ${input_directory_path}"
+mkdir -p "$input_directory_path"
+unzip -o "$zip_file_path" -d "$input_directory_path"
 
-directories=$(find_directories ${input_base_path})
-colmap_directory_path="${directories[0]}/colmap"
+directories=$(find_directories ${input_directory_path})
 if [ ${#directories[@]} -gt 0 ]; then
     echo "Scan directory: ${directories[0]}"
 else
     echo "No directories found"
 fi
 
-echo "input_base_path: ${input_base_path}"
-echo "colmap_directory_path  ${colmap_directory_path}" 
+base_directory_path=${directories[0]}
+colmap_directory_path="${base_directory_path}/colmap"
+processed_zip_file_path="${input_directory_path}_processed.zip"
+
+echo "input zip file path ${zip_file_path}"
+echo "input directory: ${input_directory_path}"
+echo "base directory: ${base_directory_path}"
+echo "colmap directory: ${colmap_directory_path}" 
+echo "output zip file path ${processed_zip_file_path}"
 echo "methods: ${methods[@]}"
 echo "skip_preprocess: ${skip_preprocess}"
 
@@ -96,4 +102,7 @@ if [ "$skip_preprocess" = false ]; then
 fi
 
 echo "6. Start training nerfstudio"
-python arkit_utils/run_nerfstudio_dataset.py --input_path ${colmap_directory_path} --method ${methods[@]}
+python arkit_utils/run_nerfstudio_dataset.py --input_path ${colmap_directory_path} --method ${methods[@]} --output_path ${base_directory_path}
+
+echo "7. Zip training result"
+zip -r $processed_zip_file_path $input_directory_path
