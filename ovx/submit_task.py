@@ -32,16 +32,22 @@ def submit_task(id, template_file):
 
     # Task arguments
     nucleus_hostname = 'nucleus.tpe1.local'
+    host = f'omniverse://{nucleus_hostname}'    
+    dataset_directory = 'Projects/3DGS/datasets' 
+    result_directory = 'Projects/3DGS/nerfstudio'
+    input_zip_file = f"{id}.zip"
+    output_zip_file = f"{id}_processed.zip"
+
     task_type = "bash-gpu"
     task_args = f" \
         /run.sh \
-        --download-src 'omniverse://{nucleus_hostname}/Projects/3DGS/datasets/{id}.zip' \
-        --download-dest '/app/{id}.zip' \
-        --upload-src '/app/{id}.mp4' \
-        --upload-dest 'omniverse://{nucleus_hostname}/Projects/3DGS/ovx-test/{id}.mp4' \
-        'python3 -m run --input /app/{id}.zip --output /app/{id}.mp4' \
+        --download-src '{host}/{dataset_directory}/{input_zip_file}' \
+        --download-dest '/app/{input_zip_file}' \
+        --upload-src f'/app/{output_zip_file}' \
+        --upload-dest '{host}/{result_directory}/{output_zip_file}' \
+        'bash ovx/run_nerfstudio.sh /app/{input_zip_file} /app/{output_zip_file} colmap' \
     "
-    task_comment = "ovx-test task"
+    task_comment = f"nerfstudio {id} training"
 
     # Load the Jinja2 template
     env = Environment(loader=FileSystemLoader('.'))
