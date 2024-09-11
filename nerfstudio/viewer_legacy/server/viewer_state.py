@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" Manage the state of the viewer """
+"""Manage the state of the viewer"""
+
 from __future__ import annotations
 
 import threading
@@ -115,8 +116,10 @@ class ViewerLegacyState:
         self.output_type_changed = True
         self.output_split_type_changed = True
         self.step = 0
-        self.train_btn_state: Literal["training", "paused", "completed"] = "training"
-        self._prev_train_state: Literal["training", "paused", "completed"] = "training"
+        self.train_btn_state: Literal["training", "paused", "completed"] = (
+            "training" if self.trainer is None else self.trainer.training_state
+        )
+        self._prev_train_state: Literal["training", "paused", "completed"] = self.train_btn_state
 
         self.camera_message = None
 

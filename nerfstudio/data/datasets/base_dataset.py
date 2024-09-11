@@ -15,6 +15,7 @@
 """
 Dataset.
 """
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -69,7 +70,7 @@ class InputDataset(Dataset):
         if self.scale_factor != 1.0:
             width, height = pil_image.size
             newsize = (int(width * self.scale_factor), int(height * self.scale_factor))
-            pil_image = pil_image.resize(newsize, resample=Image.BILINEAR)
+            pil_image = pil_image.resize(newsize, resample=Image.Resampling.BILINEAR)
         image = np.array(pil_image, dtype="uint8")  # shape is (h, w) or (h, w, 3 or 4)
         if len(image.shape) == 2:
             image = image[:, :, None].repeat(3, axis=2)

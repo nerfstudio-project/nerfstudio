@@ -13,14 +13,14 @@
 # limitations under the License.
 
 
-""" Viewer GUI elements for the nerfstudio viewer """
-
+"""Viewer GUI elements for the nerfstudio viewer"""
 
 from __future__ import annotations
 
+import warnings
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Generic, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, List, Literal, Optional, Tuple, Union, overload
 
 import numpy as np
 import torch
@@ -36,6 +36,7 @@ from viser import (
 )
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.viewer.utils import CameraState, get_camera
 
 if TYPE_CHECKING:
@@ -60,16 +61,29 @@ class ViewerClick:
     The direction of the click if projected from the camera through the clicked pixel,
     in world coordinates
     """
+    screen_pos: Tuple[float, float]
+    """The screen position of the click in OpenCV screen coordinates, normalized to [0, 1]"""
+
+
+@dataclass
+class ViewerRectSelect:
+    """
+    Class representing a rectangle selection in the viewer (screen-space).
+
+    The screen coordinates follow OpenCV image coordinates, with the origin at the top-left corner,
+    but the bounds are also normalized to [0, 1] in both dimensions.
+    """
+
+    min_bounds: Tuple[float, float]
+    """The minimum bounds of the rectangle selection in screen coordinates."""
+    max_bounds: Tuple[float, float]
+    """The maximum bounds of the rectangle selection in screen coordinates."""
 
 
 class ViewerControl:
     """
     class for exposing non-gui controls of the viewer to the user
     """
-
-    def __init__(self):
-        # this should be a user-facing constructor, since it will be used inside the model/pipeline class
-        self._click_cbs = {}
 
     def _setup(self, viewer: Viewer):
         """
@@ -147,42 +161,103 @@ class ViewerControl:
         return get_camera(camera_state, img_height, img_width)
 
     def register_click_cb(self, cb: Callable):
+        """Deprecated, use register_pointer_cb instead."""
+        CONSOLE.log("`register_click_cb` is deprecated, use `register_pointer_cb` instead.")
+        self.register_pointer_cb("click", cb)
+
+    @overload
+    def register_pointer_cb(
+        self,
+        event_type: Literal["click"],
+        cb: Callable[[ViewerClick], None],
+        removed_cb: Optional[Callable[[], None]] = None,
+    ): ...
+
+    @overload
+    def register_pointer_cb(
+        self,
+        event_type: Literal["rect-select"],
+        cb: Callable[[ViewerRectSelect], None],
+        removed_cb: Optional[Callable[[], None]] = None,
+    ): ...
+
+    def register_pointer_cb(
+        self,
+        event_type: Literal["click", "rect-select"],
+        cb: Callable[[ViewerClick], None] | Callable[[ViewerRectSelect], None],
+        removed_cb: Optional[Callable[[], None]] = None,
+    ):
         """
-        Add a callback which will be called when a click is detected in the viewer.
+        Add a callback which will be called when a scene pointer event is detected in the viewer.
+        Scene pointer events include:
+        - "click": A click event, which includes the origin and direction of the click
+        - "rect-select": A rectangle selection event, which includes the screen bounds of the box selection
+
+        The callback should take a ViewerClick object as an argument if the event type is "click",
+        and a ViewerRectSelect object as an argument if the event type is "rect-select".
 
         Args:
-            cb: The callback to call when a click is detected.
-                The callback should take a ViewerClick object as an argument
+            cb: The callback to call when a click or a rect-select is detected.
+            removed_cb: The callback to run when the pointer event is removed.
         """
         from nerfstudio.viewer.viewer import VISER_NERFSTUDIO_SCALE_RATIO
 
         def wrapped_cb(scene_pointer_msg: ScenePointerEvent):
-            # only call the callback if the event is a click
-            if scene_pointer_msg.event != "click":
-                return
-            origin = scene_pointer_msg.ray_origin
-            direction = scene_pointer_msg.ray_direction
+            # Check that the event type is the same as the one we are interested in.
+            if scene_pointer_msg.event_type != event_type:
+                raise ValueError(f"Expected event type {event_type}, got {scene_pointer_msg.event_type}")
 
-            origin = tuple([x / VISER_NERFSTUDIO_SCALE_RATIO for x in origin])
-            assert len(origin) == 3
+            if scene_pointer_msg.event_type == "click":
+                origin = scene_pointer_msg.ray_origin
+                direction = scene_pointer_msg.ray_direction
+                screen_pos = scene_pointer_msg.screen_pos[0]
+                assert (origin is not None) and (
+                    direction is not None
+                ), "Origin and direction should not be None for click event."
+                origin = tuple([x / VISER_NERFSTUDIO_SCALE_RATIO for x in origin])
+                assert len(origin) == 3
+                pointer_event = ViewerClick(origin, direction, screen_pos)
+            elif scene_pointer_msg.event_type == "rect-select":
+                pointer_event = ViewerRectSelect(scene_pointer_msg.screen_pos[0], scene_pointer_msg.screen_pos[1])
+            else:
+                raise ValueError(f"Unknown event type: {scene_pointer_msg.event_type}")
 
-            click = ViewerClick(origin, direction)
-            cb(click)
+            cb(pointer_event)  # type: ignore
 
-        self._click_cbs[cb] = wrapped_cb
-        self.viser_server.on_scene_click(wrapped_cb)
+        cb_overriden = False
+        with warnings.catch_warnings(record=True) as w:
+            # Register the callback with the viser server.
+            self.viser_server.scene.on_pointer_event(event_type=event_type)(wrapped_cb)
+            # If there exists a warning, it's because a callback was overriden.
+            cb_overriden = len(w) > 0
 
-    def unregister_click_cb(self, cb: Callable):
+        if cb_overriden:
+            warnings.warn(
+                "A ScenePointer callback has already been registered for this event type. "
+                "The new callback will override the existing one."
+            )
+
+        # If there exists a cleanup callback after the pointer event is done, register it.
+        if removed_cb is not None:
+            self.viser_server.scene.on_pointer_callback_removed(removed_cb)
+
+    def unregister_click_cb(self, cb: Optional[Callable] = None):
+        """Deprecated, use unregister_pointer_cb instead. `cb` is ignored."""
+        warnings.warn("`unregister_click_cb` is deprecated, use `unregister_pointer_cb` instead.")
+        if cb is not None:
+            # raise warning
+            warnings.warn("cb argument is ignored in unregister_click_cb.")
+
+        self.unregister_pointer_cb()
+
+    def unregister_pointer_cb(self):
         """
-        Remove a callback which will be called when a click is detected in the viewer.
+        Remove a callback which will be called, when a scene pointer event is detected in the viewer.
 
         Args:
             cb: The callback to remove
         """
-        if cb not in self._click_cbs:
-            raise ValueError(f"Callback {cb} not registered, cannot remove")
-        self.viser_server.remove_scene_click_callback(self._click_cbs[cb])
-        self._click_cbs.pop(cb)
+        self.viser_server.scene.remove_pointer_callback()
 
     @property
     def server(self):
@@ -264,7 +339,7 @@ class ViewerButton(ViewerElement[bool]):
         super().__init__(name, disabled=disabled, visible=visible, cb_hook=cb_hook)
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        self.gui_handle = viser_server.add_gui_button(label=self.name, disabled=self.disabled, visible=self.visible)
+        self.gui_handle = viser_server.gui.add_button(label=self.name, disabled=self.disabled, visible=self.visible)
 
     def install(self, viser_server: ViserServer) -> None:
         self._create_gui_handle(viser_server)
@@ -310,8 +385,7 @@ class ViewerParameter(ViewerElement[TValue], Generic[TValue]):
         self.gui_handle.on_update(lambda _: self.cb_hook(self))
 
     @abstractmethod
-    def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        ...
+    def _create_gui_handle(self, viser_server: ViserServer) -> None: ...
 
     @property
     def value(self) -> TValue:
@@ -367,7 +441,7 @@ class ViewerSlider(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_slider(
+        self.gui_handle = viser_server.gui.add_slider(
             self.name,
             self.min,
             self.max,
@@ -406,7 +480,7 @@ class ViewerText(ViewerParameter[str]):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_text(
+        self.gui_handle = viser_server.gui.add_text(
             self.name, self.default_value, disabled=self.disabled, visible=self.visible, hint=self.hint
         )
 
@@ -440,7 +514,7 @@ class ViewerNumber(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_number(
+        self.gui_handle = viser_server.gui.add_number(
             self.name, self.default_value, disabled=self.disabled, visible=self.visible, hint=self.hint
         )
 
@@ -472,7 +546,7 @@ class ViewerCheckbox(ViewerParameter[bool]):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_checkbox(
+        self.gui_handle = viser_server.gui.add_checkbox(
             self.name, self.default_value, disabled=self.disabled, visible=self.visible, hint=self.hint
         )
 
@@ -512,7 +586,7 @@ class ViewerDropdown(ViewerParameter[TString], Generic[TString]):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_dropdown(
+        self.gui_handle = viser_server.gui.add_dropdown(
             self.name,
             self.options,
             self.default_value,
@@ -558,7 +632,7 @@ class ViewerButtonGroup(ViewerParameter[TString], Generic[TString]):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_button_group(self.name, self.options, visible=self.visible)
+        self.gui_handle = viser_server.gui.add_button_group(self.name, self.options, visible=self.visible)
 
     def install(self, viser_server: ViserServer) -> None:
         self._create_gui_handle(viser_server)
@@ -594,7 +668,7 @@ class ViewerRGB(ViewerParameter[Tuple[int, int, int]]):
         self.hint = hint
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        self.gui_handle = viser_server.add_gui_rgb(
+        self.gui_handle = viser_server.gui.add_rgb(
             self.name, self.default_value, disabled=self.disabled, visible=self.visible, hint=self.hint
         )
 
@@ -629,6 +703,6 @@ class ViewerVec3(ViewerParameter[Tuple[float, float, float]]):
         self.hint = hint
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        self.gui_handle = viser_server.add_gui_vector3(
+        self.gui_handle = viser_server.gui.add_vector3(
             self.name, self.default_value, step=self.step, disabled=self.disabled, visible=self.visible, hint=self.hint
         )

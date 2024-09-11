@@ -14,6 +14,7 @@
 
 #!/usr/bin/env python
 """Simple yaml debugger"""
+
 import subprocess
 import sys
 
@@ -59,7 +60,7 @@ def run_github_actions_file(filename: str, continue_on_fail: bool = False):
             curr_command = step["run"].replace("\n", ";").replace("\\", "")
             if curr_command.startswith("ruff"):
                 if "ruff check" in curr_command:
-                    curr_command = f"{curr_command} --fix"
+                    curr_command = curr_command.replace("ruff check", "ruff check --fix")
 
                 curr_command = curr_command.replace(" --check", "")
                 curr_command = curr_command.replace(" --diff", "")

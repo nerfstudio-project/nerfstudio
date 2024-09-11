@@ -14,6 +14,7 @@
 
 
 """This file contains the configuration for external methods which are not included in this repository."""
+
 import inspect
 import subprocess
 import sys
@@ -140,6 +141,19 @@ To enable Volinga, you must install it first by running:
     )
 )
 
+# BioNeRF
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]BioNeRF[/bold yellow]
+For more information visit: https://docs.nerf.studio/nerfology/methods/bionerf.html
+
+To enable BioNeRF, you must install it first by running:
+  [grey]pip install git+https://github.com/Leandropassosjr/ns_bionerf[/grey]""",
+        configurations=[("BioNeRF", "BioNeRF. Nerfstudio implementation")],
+        pip_package="git+https://github.com/Leandropassosjr/ns_bionerf",
+    )
+)
+
 # Instruct-GS2GS
 external_methods.append(
     ExternalMethod(
@@ -205,6 +219,67 @@ To enable Zip-NeRF, you must install it first by running:
             ("zipnerf", "A pytorch implementation of 'Zip-NeRF: Anti-Aliased Grid-Based Neural Radiance Fields'")
         ],
         pip_package="pip install git+https://github.com/SuLvXiangXin/zipnerf-pytorch",
+    )
+)
+
+# SIGNeRF
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]SIGNeRF[/bold yellow]
+For more information visit: https://docs.nerf.studio/nerfology/methods/signerf.html
+
+To enable SIGNeRF, you must install it first by running:
+  [grey]pip install git+https://github.com/cgtuebingen/SIGNeRF[/grey] and install Stable Diffusion Web UI see [grey]https://github.com/cgtuebingen/SIGNeRF?tab=readme-ov-file#installation[/grey]""",
+        configurations=[
+            ("signerf", "SIGNeRF method (high quality) used in paper"),
+            ("signerf_nerfacto", "SIGNeRF method combined with Nerfacto (faster training less quality)"),
+        ],
+        pip_package="git+https://github.com/cgtuebingen/SIGNeRF",
+    )
+)
+
+# NeRF-SH
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]NeRF-SH[/bold yellow]
+For more information visit: https://docs.nerf.studio/nerfology/methods/nerf2gs2nerf.html
+
+To enable NeRF-SH, you must install it first by running:
+  [grey]pip install git+https://github.com/grasp-lyrl/NeRFtoGSandBack.git#subdirectory=nerfsh[/grey]""",
+        configurations=[
+            ("nerfsh", "NeRF-SH, used in paper"),
+        ],
+        pip_package="git+https://github.com/grasp-lyrl/NeRFtoGSandBack.git#subdirectory=nerfsh",
+    )
+)
+
+# NeRFGS
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]NeRFGS[/bold yellow]
+For more information visit: https://docs.nerf.studio/nerfology/methods/nerf2gs2nerf.html
+
+To enable NeRFGS, you must install it first by running:
+  [grey]pip install git+https://github.com/grasp-lyrl/NeRFtoGSandBack.git#subdirectory=nerfgs[/grey]""",
+        configurations=[
+            ("nerfgs", "NeRFGS, used in paper"),
+        ],
+        pip_package="git+https://github.com/grasp-lyrl/NeRFtoGSandBack.git#subdirectory=nerfgs",
+    )
+)
+
+# Splatfacto-W
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]Splatfacto-W[/bold yellow]
+For more information visit: https://docs.nerf.studio/nerfology/methods/splatw.html
+
+To enable Splatfacto-W, you must install it first by running:
+  [grey]pip install git+https://github.com/KevinXu02/splatfacto-w"[/grey]""",
+        configurations=[
+            ("splatfacto-w", "Splatfacto in the wild"),
+        ],
+        pip_package="git+https://github.com/KevinXu02/splatfacto-w",
     )
 )
 

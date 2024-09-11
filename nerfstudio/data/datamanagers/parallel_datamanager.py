@@ -15,6 +15,7 @@
 """
 Parallel data manager that generates training data in multiple python processes.
 """
+
 from __future__ import annotations
 
 import concurrent.futures
@@ -93,10 +94,10 @@ class DataProcessor(mp.Process):  # type: ignore
         self.exclude_batch_keys_from_device = self.dataset.exclude_batch_keys_from_device
         self.pixel_sampler = pixel_sampler
         self.ray_generator = RayGenerator(self.dataset.cameras)
-        self.cache_images()
 
     def run(self):
         """Append out queue in parallel with ray bundles and batches."""
+        self.cache_images()
         while True:
             batch = self.pixel_sampler.sample(self.img_data)
             ray_indices = batch["indices"]

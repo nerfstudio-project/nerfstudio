@@ -15,6 +15,7 @@
 """
 Callback code used for training iterations
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

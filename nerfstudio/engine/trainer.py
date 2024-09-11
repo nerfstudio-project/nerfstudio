@@ -15,6 +15,7 @@
 """
 Code to train model.
 """
+
 from __future__ import annotations
 
 import dataclasses
@@ -28,6 +29,7 @@ from threading import Lock
 from typing import DefaultDict, Dict, List, Literal, Optional, Tuple, Type, cast
 
 import torch
+import viser
 from rich import box, style
 from rich.panel import Panel
 from rich.table import Table
@@ -84,6 +86,8 @@ class TrainerConfig(ExperimentConfig):
     """Optionally log gradients during training"""
     gradient_accumulation_steps: Dict[str, int] = field(default_factory=lambda: {})
     """Number of steps to accumulate gradients over. Contains a mapping of {param_group:num}"""
+    start_paused: bool = False
+    """Whether to start the training in a paused state."""
 
 
 class Trainer:
@@ -119,7 +123,9 @@ class Trainer:
             self.device += f":{local_rank}"
         self.mixed_precision: bool = self.config.mixed_precision
         self.use_grad_scaler: bool = self.mixed_precision or self.config.use_grad_scaler
-        self.training_state: Literal["training", "paused", "completed"] = "training"
+        self.training_state: Literal["training", "paused", "completed"] = (
+            "paused" if self.config.start_paused else "training"
+        )
         self.gradient_accumulation_steps: DefaultDict = defaultdict(lambda: 1)
         self.gradient_accumulation_steps.update(self.config.gradient_accumulation_steps)
 
@@ -136,6 +142,9 @@ class Trainer:
         CONSOLE.log(f"Saving checkpoints to: {self.checkpoint_dir}")
 
         self.viewer_state = None
+
+        # used to keep track of the current step
+        self.step = 0
 
     def setup(self, test_mode: Literal["test", "val", "inference"] = "val") -> None:
         """Setup the Trainer by calling other setup functions.
@@ -224,17 +233,24 @@ class Trainer:
     def train(self) -> None:
         """Train the model."""
         assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
-
-        self.pipeline.datamanager.train_dataparser_outputs.save_dataparser_transform(
-            self.base_dir / "dataparser_transforms.json"
-        )
+        if hasattr(self.pipeline.datamanager, "train_dataparser_outputs"):
+            self.pipeline.datamanager.train_dataparser_outputs.save_dataparser_transform(
+                self.base_dir / "dataparser_transforms.json"
+            )
 
         self._init_viewer_state()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.max_num_iterations
             step = 0
+            self.stop_training = False
             for step in range(self._start_step, self._start_step + num_iterations):
+                self.step = step
+                if self.stop_training:
+                    break
                 while self.training_state == "paused":
+                    if self.stop_training:
+                        self._after_train()
+                        return
                     time.sleep(0.01)
                 with self.train_lock:
                     with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
@@ -291,12 +307,26 @@ class Trainer:
 
                 writer.write_out_storage()
 
-        # save checkpoint at the end of training
-        self.save_checkpoint(step)
+        # save checkpoint at the end of training, and write out any remaining events
+        self._after_train()
 
+    def shutdown(self) -> None:
+        """Stop the trainer and stop all associated threads/processes (such as the viewer)."""
+        self.stop_training = True  # tell the training loop to stop
+        if self.viewer_state is not None:
+            # stop the viewer
+            # this condition excludes the case where `viser_server` is either `None` or an
+            # instance of `viewer_legacy`'s `ViserServer` instead of the upstream one.
+            if isinstance(self.viewer_state.viser_server, viser.ViserServer):
+                self.viewer_state.viser_server.stop()
+
+    def _after_train(self) -> None:
+        """Function to run after training is complete"""
+        self.training_state = "completed"  # used to update the webui state
+        # save checkpoint at the end of training
+        self.save_checkpoint(self.step)
         # write out any remaining events (e.g., total train time)
         writer.write_out_storage()
-
         table = Table(
             title=None,
             show_header=False,
@@ -309,7 +339,7 @@ class Trainer:
 
         # after train end callbacks
         for callback in self.callbacks:
-            callback.run_callback_at_location(step=step, location=TrainingCallbackLocation.AFTER_TRAIN)
+            callback.run_callback_at_location(step=self.step, location=TrainingCallbackLocation.AFTER_TRAIN)
 
         if not self.config.viewer.quit_on_train_completion:
             self._train_complete_viewer()
@@ -335,7 +365,7 @@ class Trainer:
         assert self.viewer_state and self.pipeline.datamanager.train_dataset
         self.viewer_state.init_scene(
             train_dataset=self.pipeline.datamanager.train_dataset,
-            train_state="training",
+            train_state=self.training_state,
             eval_dataset=self.pipeline.datamanager.eval_dataset,
         )
 

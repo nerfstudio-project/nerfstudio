@@ -16,14 +16,20 @@
 import collections
 import copy
 import json
+import sys
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Tuple
 
-import awscli.clidriver
 import numpy as np
 import tyro
+
+try:
+    import awscli.clidriver
+except ImportError:
+    print("awscli is required for EyefulTower download. Please install it with `pip install awscli`.")
+    sys.exit(1)
 
 from nerfstudio.scripts.downloads.utils import DatasetDownload
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -41,6 +47,8 @@ eyefultower_downloads = [
     "seating_area",
     "table",
     "workshop",
+    "raf_emptyroom",
+    "raf_furnishedroom",
 ]
 
 # Crop radii empirically chosen to try to avoid hitting the rig base or go out of bounds
@@ -261,6 +269,7 @@ class EyefulTowerDownload(DatasetDownload):
         output["frames"] = frames
         output["train_filenames"] = split_filenames["train"]
         output["val_filenames"] = split_filenames["test"]
+        output["test_filenames"] = []
         return output
 
     @staticmethod

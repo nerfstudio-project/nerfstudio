@@ -15,6 +15,7 @@
 """
 Camera Models
 """
+
 import base64
 import math
 from dataclasses import dataclass
@@ -170,7 +171,7 @@ class Cameras(TensorDataclass):
             name: The name of the variable. Used for error messages
         """
         if isinstance(fc_xy, float):
-            fc_xy = torch.Tensor([fc_xy], device=self.device)
+            fc_xy = torch.tensor([fc_xy], device=self.device)
         elif isinstance(fc_xy, torch.Tensor):
             if fc_xy.ndim == 0 or fc_xy.shape[-1] != 1:
                 fc_xy = fc_xy.unsqueeze(-1)
@@ -777,15 +778,15 @@ class Cameras(TensorDataclass):
 
             return vr180_origins, directions_stack
 
-        for cam in cam_types:
-            if CameraType.PERSPECTIVE.value in cam_types:
+        for cam_type in cam_types:
+            if CameraType.PERSPECTIVE.value == cam_type:
                 mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
                 mask = torch.stack([mask, mask, mask], dim=0)
                 directions_stack[..., 0][mask] = torch.masked_select(coord_stack[..., 0], mask).float()
                 directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1], mask).float()
                 directions_stack[..., 2][mask] = -1.0
 
-            elif CameraType.FISHEYE.value in cam_types:
+            elif CameraType.FISHEYE.value == cam_type:
                 mask = (self.camera_type[true_indices] == CameraType.FISHEYE.value).squeeze(-1)  # (num_rays)
                 mask = torch.stack([mask, mask, mask], dim=0)
 
@@ -802,7 +803,7 @@ class Cameras(TensorDataclass):
                 ).float()
                 directions_stack[..., 2][mask] = -torch.masked_select(torch.cos(theta), mask).float()
 
-            elif CameraType.EQUIRECTANGULAR.value in cam_types:
+            elif CameraType.EQUIRECTANGULAR.value == cam_type:
                 mask = (self.camera_type[true_indices] == CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
                 mask = torch.stack([mask, mask, mask], dim=0)
 
@@ -815,22 +816,22 @@ class Cameras(TensorDataclass):
                 directions_stack[..., 1][mask] = torch.masked_select(torch.cos(phi), mask).float()
                 directions_stack[..., 2][mask] = torch.masked_select(-torch.cos(theta) * torch.sin(phi), mask).float()
 
-            elif CameraType.OMNIDIRECTIONALSTEREO_L.value in cam_types:
+            elif CameraType.OMNIDIRECTIONALSTEREO_L.value == cam_type:
                 ods_origins_circle, directions_stack = _compute_rays_for_omnidirectional_stereo("left")
                 # assign final camera origins
                 c2w[..., :3, 3] = ods_origins_circle
 
-            elif CameraType.OMNIDIRECTIONALSTEREO_R.value in cam_types:
+            elif CameraType.OMNIDIRECTIONALSTEREO_R.value == cam_type:
                 ods_origins_circle, directions_stack = _compute_rays_for_omnidirectional_stereo("right")
                 # assign final camera origins
                 c2w[..., :3, 3] = ods_origins_circle
 
-            elif CameraType.VR180_L.value in cam_types:
+            elif CameraType.VR180_L.value == cam_type:
                 vr180_origins, directions_stack = _compute_rays_for_vr180("left")
                 # assign final camera origins
                 c2w[..., :3, 3] = vr180_origins
 
-            elif CameraType.VR180_R.value in cam_types:
+            elif CameraType.VR180_R.value == cam_type:
                 vr180_origins, directions_stack = _compute_rays_for_vr180("right")
                 # assign final camera origins
                 c2w[..., :3, 3] = vr180_origins
@@ -879,7 +880,7 @@ class Cameras(TensorDataclass):
                 directions_stack[coord_mask] = camera_utils.fisheye624_unproject(masked_coords, camera_params)
 
             else:
-                raise ValueError(f"Camera type {cam} not supported.")
+                raise ValueError(f"Camera type {cam_type} not supported.")
 
         assert directions_stack.shape == (3,) + num_rays_shape + (3,)
 
@@ -984,12 +985,15 @@ class Cameras(TensorDataclass):
         return K
 
     def rescale_output_resolution(
-        self, scaling_factor: Union[Shaped[Tensor, "*num_cameras"], Shaped[Tensor, "*num_cameras 1"], float, int]
+        self,
+        scaling_factor: Union[Shaped[Tensor, "*num_cameras"], Shaped[Tensor, "*num_cameras 1"], float, int],
+        scale_rounding_mode: str = "floor",
     ) -> None:
         """Rescale the output resolution of the cameras.
 
         Args:
             scaling_factor: Scaling factor to apply to the output resolution.
+            scale_rounding_mode: round down or round up when calculating the scaled image height and width
         """
         if isinstance(scaling_factor, (float, int)):
             scaling_factor = torch.tensor([scaling_factor]).to(self.device).broadcast_to((self.cx.shape))
@@ -1006,5 +1010,14 @@ class Cameras(TensorDataclass):
         self.fy = self.fy * scaling_factor
         self.cx = self.cx * scaling_factor
         self.cy = self.cy * scaling_factor
-        self.height = (self.height * scaling_factor).to(torch.int64)
-        self.width = (self.width * scaling_factor).to(torch.int64)
+        if scale_rounding_mode == "floor":
+            self.height = (self.height * scaling_factor).to(torch.int64)
+            self.width = (self.width * scaling_factor).to(torch.int64)
+        elif scale_rounding_mode == "round":
+            self.height = torch.floor(0.5 + (self.height * scaling_factor)).to(torch.int64)
+            self.width = torch.floor(0.5 + (self.width * scaling_factor)).to(torch.int64)
+        elif scale_rounding_mode == "ceil":
+            self.height = torch.ceil(self.height * scaling_factor).to(torch.int64)
+            self.width = torch.ceil(self.width * scaling_factor).to(torch.int64)
+        else:
+            raise ValueError("Scale rounding mode must be 'floor', 'round' or 'ceil'.")
