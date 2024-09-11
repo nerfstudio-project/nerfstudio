@@ -43,7 +43,7 @@ def submit_task(id, template_file):
         /run.sh \
         --download-src '{host}/{dataset_directory}/{input_zip_file}' \
         --download-dest '/app/{input_zip_file}' \
-        --upload-src f'/app/{output_zip_file}' \
+        --upload-src '/app/{output_zip_file}' \
         --upload-dest '{host}/{result_directory}/{output_zip_file}' \
         'bash ovx/run_nerfstudio.sh /app/{input_zip_file} /app/{output_zip_file} colmap' \
     "
