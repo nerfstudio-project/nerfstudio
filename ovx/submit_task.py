@@ -38,7 +38,7 @@ def submit_task(id, template_file):
     input_zip_file = f"{id}.zip"
     output_zip_file = f"{id}_processed.zip"
 
-    task_type = "bash-gpu"
+    task_type = "nerfstudio-bash"
     task_args = f" \
         /run.sh \
         --download-src '{host}/{dataset_directory}/{input_zip_file}' \
