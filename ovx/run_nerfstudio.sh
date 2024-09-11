@@ -16,8 +16,9 @@ if [ $# -lt 1 ]; then
 fi
 
 zip_file_path=$1
-shift
 processed_zip_file_path=$2
+
+shift
 shift
 
 methods=()
