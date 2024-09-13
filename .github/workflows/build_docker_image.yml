@@ -47,6 +47,7 @@ jobs:
       - name: Build and push Docker image
         id: push
         uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
+        if: 
         with:
           context: .
           file: ./Dockerfile
@@ -55,8 +56,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
+        if: ${{ github.event_name != 'pull_request' }}
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
           subject-digest: ${{ steps.push.outputs.digest }}
-          push-to-registry: ${{ github.event_name != 'pull_request' }}
+          push-to-registry: true
 
