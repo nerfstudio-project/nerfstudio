@@ -546,19 +546,13 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
-        ret = next(self.iter_train_raybundles)
-        assert len(ret) == 1, f"batch size should be one"
-        ray_bundle, batch = ret[0]
-        ray_bundle = ray_bundle.to(self.device)
+        ray_bundle, batch = next(self.iter_train_raybundles)[0]
         return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
-        """Returns the next batch of data from the train dataloader."""
+        """Returns the next batch of data from the eval dataloader."""
         self.eval_count += 1
-        ret = next(self.iter_eval_raybundles)
-        assert len(ret) == 1, f"batch size should be one {len(ret)}"
-        ray_bundle, batch = ret[0]
-        ray_bundle = ray_bundle.to(self.device)
+        ray_bundle, batch = next(self.iter_train_raybundles)[0]
         return ray_bundle, batch
 
     def next_eval_image(self, step: int) -> Tuple[Cameras, Dict]:

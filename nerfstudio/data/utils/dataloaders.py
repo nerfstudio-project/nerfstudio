@@ -40,7 +40,7 @@ from nerfstudio.model_components.ray_generators import RayGenerator
 
 
 def variable_res_collate(batch: List[Dict]) -> Dict:
-    """Default collate function for the cached dataloader.
+    """Default collate function for our dataloader.
     Args:
         batch: Batch of samples from the dataset.
     Returns:
