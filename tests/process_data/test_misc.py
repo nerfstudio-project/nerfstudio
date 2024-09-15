@@ -2,13 +2,18 @@
 Test misc data utils
 """
 
+import os
+from pathlib import Path
+
 import numpy as np
+from PIL import Image
 from pyquaternion import Quaternion
 from scipy.spatial.transform import Rotation
 
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
 # import pycolmap
 from nerfstudio.data.utils.colmap_parsing_utils import qvec2rotmat
+from nerfstudio.process_data.process_data_utils import convert_video_to_images
 
 
 def test_scalar_first_scalar_last_quaternions():
@@ -39,7 +44,7 @@ def test_scalar_first_scalar_last_quaternions():
 
     # Expected Rotation matrix
     # fmt: off
-    R_expected = np.array( 
+    R_expected = np.array(
         [
             [ 0.81379768, -0.44096961,  0.37852231],
             [ 0.46984631,  0.88256412,  0.01802831],
@@ -61,3 +66,49 @@ def test_scalar_first_scalar_last_quaternions():
     # R = pycolmap.qvec_to_rotmat(wxyz)
     R = qvec2rotmat(wxyz)
     assert np.allclose(R, R_expected)
+
+
+def test_process_video_conversion_with_seed(tmp_path: Path):
+    """
+    Test convert_video_to_images by creating a mock video and ensuring correct frame extraction with seed.
+    """
+    # Create a video directory with path video
+    video_dir = tmp_path / "video"
+    video_dir.mkdir(exist_ok=True)
+
+    # Set paramaters for mock video
+    video_path = video_dir / "mock_video.mp4"
+    num_frames = 10
+    frame_height = 150
+    frame_width = 100
+    frame_rate = 1
+
+    # Create a sequence of images as frames for the mock video
+    for i in range(num_frames):
+        img = Image.new("RGB", (frame_width, frame_height), color=(i * 20, i * 15, i * 10))
+        img.save(video_dir / f"frame_{i}.png")
+
+    # Use ffmpeg to create a video from these images
+    ffmpeg_cmd = f"ffmpeg -framerate {frame_rate} -i {video_dir}/frame_%d.png {video_path}"
+    os.system(ffmpeg_cmd)
+
+    # Extract frames from the mock video
+    image_output_dir = tmp_path / "extracted_images"
+    num_frames_target = 5
+    num_downscales = 1
+    crop_factor = (0.0, 0.0, 0.0, 0.0)
+    summary_log, extracted_frame_count = convert_video_to_images(
+        video_path=video_path,
+        image_dir=image_output_dir,
+        num_frames_target=num_frames_target,
+        num_downscales=num_downscales,
+        crop_factor=crop_factor,
+        verbose=False,
+        random_seed=42,
+    )
+
+    # Ensure the correct number of frames is still extracted
+    assert (
+        extracted_frame_count == num_frames_target
+    ), f"Expected {num_frames_target} frames, got {extracted_frame_count}"
+    print("Test passed: Frames successfully extracted.")
