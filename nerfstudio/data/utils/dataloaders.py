@@ -21,7 +21,8 @@ import concurrent.futures
 import multiprocessing
 import random
 from abc import abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Sized, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sized, Tuple, Union, cast
+from dataclasses import field
 
 import torch
 from rich.progress import track
@@ -34,93 +35,277 @@ from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.utils.misc import get_dict_to_torch
 from nerfstudio.utils.rich_utils import CONSOLE
+from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
+from nerfstudio.model_components.ray_generators import RayGenerator
 
 
-class CacheDataloader(DataLoader):
-    """Collated image dataset that implements caching of default-pytorch-collatable data.
-    Creates batches of the InputDataset return type.
-
+def variable_res_collate(batch: List[Dict]) -> Dict:
+    """Default collate function for the cached dataloader.
     Args:
-        dataset: Dataset to sample from.
-        num_samples_to_collate: How many images to sample rays for each batch. -1 for all images.
-        num_times_to_repeat_images: How often to yield an image batch before resampling. -1 to never pick new images.
-        device: Device to perform computation.
-        collate_fn: The function we will use to collate our training data
+        batch: Batch of samples from the dataset.
+    Returns:
+        Collated batch.
     """
+    images = []
+    imgdata_lists = defaultdict(list)
+    for data in batch:
+        image = data.pop("image")
+        images.append(image)
+        topop = []
+        for key, val in data.items():
+            if isinstance(val, torch.Tensor):
+                # if the value has same height and width as the image, assume that it should be collated accordingly.
+                if len(val.shape) >= 2 and val.shape[:2] == image.shape[:2]:
+                    imgdata_lists[key].append(val)
+                    topop.append(key)
+        # now that iteration is complete, the image data items can be removed from the batch
+        for key in topop:
+            del data[key]
+    new_batch = nerfstudio_collate(batch)
+    new_batch["image"] = images
+    new_batch.update(imgdata_lists)
 
+    return new_batch
+
+
+# class CacheDataloader(DataLoader):
+#     """Collated image dataset that implements caching of default-pytorch-collatable data.
+#     Creates batches of the InputDataset return type.
+
+#     Args:
+#         dataset: Dataset to sample from.
+#         num_samples_to_collate: How many images to sample rays for each batch. -1 for all images.
+#         num_times_to_repeat_images: How often to yield an image batch before resampling. -1 to never pick new images.
+#         device: Device to perform computation.
+#         collate_fn: The function we will use to collate our training data
+#     """
+
+#     def __init__(
+#         self,
+#         dataset: Dataset,
+#         num_images_to_sample_from: int = -1,
+#         num_times_to_repeat_images: int = -1,
+#         device: Union[torch.device, str] = "cpu",
+#         collate_fn: Callable[[Any], Any] = nerfstudio_collate,
+#         exclude_batch_keys_from_device: Optional[List[str]] = None,
+#         **kwargs,
+#     ):
+#         if exclude_batch_keys_from_device is None:
+#             exclude_batch_keys_from_device = ["image"]
+#         self.dataset = dataset
+#         assert isinstance(self.dataset, Sized)
+
+#         super().__init__(dataset=dataset, **kwargs)  # This will set self.dataset
+#         self.num_times_to_repeat_images = num_times_to_repeat_images
+#         self.cache_all_images = (num_images_to_sample_from == -1) or (num_images_to_sample_from >= len(self.dataset))
+#         self.num_images_to_sample_from = len(self.dataset) if self.cache_all_images else num_images_to_sample_from
+#         self.device = device
+#         self.collate_fn = collate_fn
+#         self.num_workers = kwargs.get("num_workers", 0)
+#         self.exclude_batch_keys_from_device = exclude_batch_keys_from_device
+
+#         self.num_repeated = self.num_times_to_repeat_images  # starting value
+#         self.first_time = True
+
+#         self.cached_collated_batch = None
+#         if self.cache_all_images:
+#             CONSOLE.print(f"Caching all {len(self.dataset)} images.")
+#             if len(self.dataset) > 500:
+#                 CONSOLE.print(
+#                     "[bold yellow]Warning: If you run out of memory, try reducing the number of images to sample from."
+#                 )
+#             self.cached_collated_batch = self._get_collated_batch()
+#         elif self.num_times_to_repeat_images == -1:
+#             CONSOLE.print(
+#                 f"Caching {self.num_images_to_sample_from} out of {len(self.dataset)} images, without resampling."
+#             )
+#         else:
+#             CONSOLE.print(
+#                 f"Caching {self.num_images_to_sample_from} out of {len(self.dataset)} images, "
+#                 f"resampling every {self.num_times_to_repeat_images} iters."
+#             )
+
+#     def __getitem__(self, idx):
+#         return self.dataset.__getitem__(idx)
+
+#     def _get_batch_list(self):
+#         """Returns a list of batches from the dataset attribute."""
+
+#         assert isinstance(self.dataset, Sized)
+#         indices = random.sample(range(len(self.dataset)), k=self.num_images_to_sample_from)
+#         batch_list = []
+#         results = []
+
+#         num_threads = int(self.num_workers) * 4
+#         num_threads = min(num_threads, multiprocessing.cpu_count() - 1)
+#         num_threads = max(num_threads, 1)
+
+#         with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+#             for idx in indices:
+#                 res = executor.submit(self.dataset.__getitem__, idx)
+#                 results.append(res)
+
+#             for res in track(results, description="Loading data batch", transient=True):
+#                 batch_list.append(res.result())
+
+#         return batch_list
+
+#     def _get_collated_batch(self):
+#         """Returns a collated batch of images."""
+#         batch_list = self._get_batch_list()
+#         collated_batch = self.collate_fn(batch_list)
+#         collated_batch = get_dict_to_torch(
+#             collated_batch, device=self.device, exclude=self.exclude_batch_keys_from_device
+#         )
+#         return collated_batch
+
+#     def __iter__(self):
+#         while True:
+#             if self.cache_all_images:
+#                 collated_batch = self.cached_collated_batch
+#             elif self.first_time or (
+#                 self.num_times_to_repeat_images != -1 and self.num_repeated >= self.num_times_to_repeat_images
+#             ):
+#                 # trigger a reset
+#                 self.num_repeated = 0
+#                 collated_batch = self._get_collated_batch()
+#                 # possibly save a cached item
+#                 self.cached_collated_batch = collated_batch if self.num_times_to_repeat_images != 0 else None
+#                 self.first_time = False
+#             else:
+#                 collated_batch = self.cached_collated_batch
+#                 self.num_repeated += 1
+#             yield collated_batch
+
+import concurrent.futures
+import math
+import multiprocessing
+import random
+from typing import Sized
+from torch.utils.data import Dataset
+from nerfstudio.utils.misc import get_dict_to_torch
+from tqdm.auto import tqdm
+
+class RayBatchStream(torch.utils.data.IterableDataset):
+    """Wrapper around Pytorch's IterableDataset to generate the next batch of rays (next RayBundle) and corresponding labels
+    with multiple parallel workers.
+
+    Each worker samples a small batch of images, pixel samples those images, and generates rays for one training step.
+    The same batch of images can be pixel sampled multiple times hasten ray generation, as retrieving images is process
+    bottlenecked by disk read speed. To avoid Out-Of-Memory (OOM) errors, this batch of images is small and regenerated
+    by resampling the worker's partition of images to maintain sampling diversity.
+    """
     def __init__(
         self,
-        dataset: Dataset,
+        input_dataset: Dataset,
+        num_rays_per_batch: int = 1024,
         num_images_to_sample_from: int = -1,
         num_times_to_repeat_images: int = -1,
         device: Union[torch.device, str] = "cpu",
-        collate_fn: Callable[[Any], Any] = nerfstudio_collate,
+        # variable_res_collate avoids np.stack'ing images, which allows it to be much faster than `nerfstudio_collate`
+        collate_fn: Callable[[Any], Any] = cast(Any, staticmethod(variable_res_collate)), 
+        num_image_load_threads: int = 4,
         exclude_batch_keys_from_device: Optional[List[str]] = None,
-        **kwargs,
+        load_from_disk: bool = False,
+        patch_size: int = 1,
+
     ):
         if exclude_batch_keys_from_device is None:
             exclude_batch_keys_from_device = ["image"]
-        self.dataset = dataset
-        assert isinstance(self.dataset, Sized)
-
-        super().__init__(dataset=dataset, **kwargs)  # This will set self.dataset
+        self.input_dataset = input_dataset
+        assert isinstance(self.input_dataset, Sized)
+        self.num_rays_per_batch = num_rays_per_batch
+        """Number of rays per batch to user per training iteration."""
+        self.num_images_to_sample_from = num_images_to_sample_from
+        """How many images to sample to generate a RayBundle. More images means greater sampling diversity at expense of increased RAM usage."""
         self.num_times_to_repeat_images = num_times_to_repeat_images
-        self.cache_all_images = (num_images_to_sample_from == -1) or (num_images_to_sample_from >= len(self.dataset))
-        self.num_images_to_sample_from = len(self.dataset) if self.cache_all_images else num_images_to_sample_from
+        """How many RayBundles to generate from this batch of images after sampling `num_images_to_sample_from` images."""
         self.device = device
-        self.collate_fn = collate_fn
-        self.num_workers = kwargs.get("num_workers", 0)
+        """If a CUDA GPU is present, self.device will be set to use that GPU."""
+        self.collate_fn = collate_fn 
+        """What collate function is used to batch images to be used for pixel sampling and ray generation. """
+        self.num_image_load_threads = num_image_load_threads
+        """Number of threads created to read images from disk and form collated batches."""
         self.exclude_batch_keys_from_device = exclude_batch_keys_from_device
+        """Which key of the batch (such as 'image', 'mask','depth') to prevent from moving to the device. 
+        For instance, if you would like to conserve GPU memory, don't move the image tensors to the GPU, 
+        which comes at a cost of total training time. The default value is ['image']."""
+        self.load_from_disk = load_from_disk
+        self.patch_size = patch_size
+        """Size of patch to sample from. If > 1, patch-based sampling will be used."""
+        self.enable_per_worker_image_caching = load_from_disk == False
+        """If True, each worker's will cache its entire partition of the image dataset as image tensors in RAM."""
+        self._cached_collated_batch = None
+        """Each worker has a self._cached_collated_batch contains a collated batch of images cached in RAM for a specific worker that's ready for pixel sampling."""
+        self.pixel_sampler_config: PixelSamplerConfig = PixelSamplerConfig()
+        """Specifies the pixel sampler config used to sample pixels from images. Each worker will have its own pixel sampler"""
+        self.ray_generator: RayGenerator = None
+        """Each worker will have its own ray generator, so this is set to None for now."""
 
-        self.num_repeated = self.num_times_to_repeat_images  # starting value
-        self.first_time = True
+    def _get_pixel_sampler(self, dataset: Dataset, num_rays_per_batch: int) -> PixelSampler:
+        """copied from VanillaDataManager."""
+        from nerfstudio.cameras.cameras import CameraType
 
-        self.cached_collated_batch = None
-        if self.cache_all_images:
-            CONSOLE.print(f"Caching all {len(self.dataset)} images.")
-            if len(self.dataset) > 500:
-                CONSOLE.print(
-                    "[bold yellow]Warning: If you run out of memory, try reducing the number of images to sample from."
-                )
-            self.cached_collated_batch = self._get_collated_batch()
-        elif self.num_times_to_repeat_images == -1:
-            CONSOLE.print(
-                f"Caching {self.num_images_to_sample_from} out of {len(self.dataset)} images, without resampling."
+        if self.patch_size > 1 and type(self.pixel_sampler_config) is PixelSamplerConfig:
+            return PatchPixelSamplerConfig().setup(
+                patch_size=self.patch_size, num_rays_per_batch=num_rays_per_batch
             )
-        else:
-            CONSOLE.print(
-                f"Caching {self.num_images_to_sample_from} out of {len(self.dataset)} images, "
-                f"resampling every {self.num_times_to_repeat_images} iters."
-            )
+        is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
+        if is_equirectangular.any():
+            CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
 
-    def __getitem__(self, idx):
-        return self.dataset.__getitem__(idx)
+        fisheye_crop_radius = None
+        if dataset.cameras.metadata is not None:
+            fisheye_crop_radius = dataset.cameras.metadata.get("fisheye_crop_radius")
 
-    def _get_batch_list(self):
-        """Returns a list of batches from the dataset attribute."""
+        return self.pixel_sampler_config.setup(
+            is_equirectangular=is_equirectangular,
+            num_rays_per_batch=num_rays_per_batch,
+            fisheye_crop_radius=fisheye_crop_radius,
+        )
 
-        assert isinstance(self.dataset, Sized)
-        indices = random.sample(range(len(self.dataset)), k=self.num_images_to_sample_from)
+    def _get_batch_list(self, indices=None):
+        """Returns a list representing a single batch from the dataset attribute.
+        Each item of the list is a dictionary with dict_keys(['image_idx', 'image']) representing 1 image.
+        This function is used to sample and load images from disk/RAM and is only called in _get_collated_batch
+        The length of the list is equal to the (# of training images) / (num_workers)"""
+
+        assert isinstance(self.input_dataset, Sized)
+        if indices is None:
+            # Note: self.num_images_to_sample_from is usually -1, but _get_batch_list is usually called with indices != None.
+            # _get_batch_list is used by _get_collated_batch, whose indices = some partition of the dataset
+            indices = random.sample(range(len(self.input_dataset)), k=self.num_images_to_sample_from)
         batch_list = []
         results = []
 
-        num_threads = int(self.num_workers) * 4
+        num_threads = (
+            int(self.num_image_load_threads)
+            if not self.enable_per_worker_image_caching
+            else 4 * int(self.num_image_load_threads)
+        )
         num_threads = min(num_threads, multiprocessing.cpu_count() - 1)
         num_threads = max(num_threads, 1)
 
+        # NB: this is I/O heavy because we are going to disk and reading an image filename
+        # hence multi-threaded inside the worker
         with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
             for idx in indices:
-                res = executor.submit(self.dataset.__getitem__, idx)
+                res = executor.submit(self.input_dataset.__getitem__, idx)
                 results.append(res)
-
-            for res in track(results, description="Loading data batch", transient=True):
+            for res in results:
                 batch_list.append(res.result())
-
+        
         return batch_list
 
-    def _get_collated_batch(self):
-        """Returns a collated batch."""
-        batch_list = self._get_batch_list()
+    def _get_collated_batch(self, indices=None):
+        """Takes the output of _get_batch_list and collates them with nerfstudio_collate() or variable_res_collate()
+        Note: dict is an instance of collections.abc.Mapping
+
+        The resulting output is collated_batch: a dictionary with dict_keys(['image_idx', 'image'])
+        collated_batch['image_idx'] is tensor with shape torch.Size([per_worker])
+        collated_batch['image'] is tensor with shape torch.Size([per_worker, height, width, 3])
+        """
+        batch_list = self._get_batch_list(indices=indices)
         collated_batch = self.collate_fn(batch_list)
         collated_batch = get_dict_to_torch(
             collated_batch, device=self.device, exclude=self.exclude_batch_keys_from_device
@@ -128,22 +313,55 @@ class CacheDataloader(DataLoader):
         return collated_batch
 
     def __iter__(self):
+        """This implementation allows every worker only cache the indices of the images they will use to generate rays to conserve RAM memory."""
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is not None:  # if we have multiple processes
+            per_worker = int(math.ceil(len(self.input_dataset) / float(worker_info.num_workers)))
+            slice_start = worker_info.id * per_worker
+        else:  # we only have a single process
+            per_worker = len(self.input_dataset)
+            slice_start = 0
+        dataset_indices = list(
+            range(len(self.input_dataset))
+        )
+        worker_indices = dataset_indices[
+            slice_start : slice_start + per_worker
+        ]  # the indices of the datapoints in the dataset this worker will load
+        if self.enable_per_worker_image_caching:
+            self._cached_collated_batch = self._get_collated_batch(worker_indices)
+        r = random.Random(3301)
+        num_rays_per_loop = self.num_rays_per_batch # default train_num_rays_per_batch is 4096
+        # each worker has its own pixel sampler
+        worker_pixel_sampler = self._get_pixel_sampler(self.input_dataset, num_rays_per_loop)
+        self.ray_generator = RayGenerator(self.input_dataset.cameras)
+            
+        i = 0
         while True:
-            if self.cache_all_images:
-                collated_batch = self.cached_collated_batch
-            elif self.first_time or (
-                self.num_times_to_repeat_images != -1 and self.num_repeated >= self.num_times_to_repeat_images
-            ):
-                # trigger a reset
-                self.num_repeated = 0
-                collated_batch = self._get_collated_batch()
-                # possibly save a cached item
-                self.cached_collated_batch = collated_batch if self.num_times_to_repeat_images != 0 else None
-                self.first_time = False
-            else:
-                collated_batch = self.cached_collated_batch
-                self.num_repeated += 1
-            yield collated_batch
+            if self.enable_per_worker_image_caching:
+                collated_batch = self._cached_collated_batch
+            elif i % self.num_times_to_repeat_images == 0:
+                r.shuffle(worker_indices)
+                 
+                if self.num_images_to_sample_from == -1: # if -1, the worker gets all available indices in its partition
+                    image_indices = worker_indices
+                else: # get a total of 'num_images_to_sample_from' image indices
+                    image_indices = worker_indices[:self.num_images_to_sample_from]
+
+                collated_batch = self._get_collated_batch(image_indices)
+            i += 1
+            """
+            Here, the variable 'batch' refers to the output of our pixel sampler.
+                - batch is a dict_keys(['image', 'indices'])
+                - batch['image'] returns a pytorch tensor with shape `torch.Size([4096, 3])` , where 4096 = num_rays_per_batch. Note: each row in this tensor represents the RGB values as floats in [0, 1] of the pixel the ray goes through. The info of what specific image index that pixel belongs to is stored within batch[’indices’]
+                - batch['indices'] returns a pytorch tensor `torch.Size([4096, 3])` tensor where each row represents (image_index=camera_index, pixelRow, pixelCol)
+            What the pixel_sampler does (for variable_res_collate) is that it loops though each image, samples pixel within the mask, 
+            and returns them as the variable `indices` which has shape torch.Size([4096, 3]), where each row represents a pixel (image_idx, pixelRow, pixelCol)
+            """
+            batch = worker_pixel_sampler.sample(collated_batch) # the pixel_sampler will sample num_rays_per_batch pixels. 
+            # collated_batch["image"].get_device() will return CPU if self.exclude_batch_keys_from_device contains 'image'
+            ray_indices = batch["indices"]
+            ray_bundle = self.ray_generator(ray_indices).to(self.device) # the ray_bundle is on the GPU; batch["image"] is on the CPU
+            yield ray_bundle, batch
 
 
 class EvalDataloader(DataLoader):

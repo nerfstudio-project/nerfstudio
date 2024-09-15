@@ -57,7 +57,8 @@ from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConf
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
 from nerfstudio.data.utils.dataloaders import (
-    CacheDataloader,
+    # CacheDataloader,
+    RayBatchStream,
     FixedIndicesEvalDataloader,
     RandIndicesEvalDataloader,
 )
@@ -341,7 +342,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     along with relevant information about camera intrinsics"""
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
-    use_parallel_dataloader: bool = False
+    use_parallel_dataloader: bool = True
     """Allows parallelization of the dataloading process with multiple workers prefetching RayBundles."""
     load_from_disk: bool = False
     """If True, conserves RAM memory by loading images from disk.
@@ -352,8 +353,6 @@ class VanillaDataManagerConfig(DataManagerConfig):
     prefetch_factor: int = None
     """The limit number of batches a worker will start loading once an iterator is created. 
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
-    cache_image_bytes: bool = False
-    """If True, cache raw image files as byte strings to RAM."""
 
     # tyro.conf.Suppress prevents us from creating CLI arguments for this field.
     camera_optimizer: tyro.conf.Suppress[Optional[CameraOptimizerConfig]] = field(default=None)
@@ -378,191 +377,17 @@ class VanillaDataManagerConfig(DataManagerConfig):
         if self.load_from_disk:
             self.train_num_images_to_sample_from = 50 if self.train_num_images_to_sample_from == -1 else self.train_num_images_to_sample_from
             self.train_num_times_to_repeat_images = 10 if self.train_num_times_to_repeat_images == -1 else self.train_num_times_to_repeat_images
-            self.prefetch_factor = self.train_num_times_to_repeat_images
+            self.prefetch_factor = self.train_num_times_to_repeat_images if self.use_parallel_dataloader else None
+            
+        if self.use_parallel_dataloader:
+            try:
+                torch.multiprocessing.set_start_method("spawn")
+            except RuntimeError:
+                pass
+            self.dataloader_num_workers = 4
+        
 
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
-
-import concurrent.futures
-import math
-import multiprocessing
-import random
-from typing import Sized
-
-from torch.utils.data import Dataset
-
-from nerfstudio.utils.misc import get_dict_to_torch
-from tqdm.auto import tqdm
-
-from torch.profiler import profile, record_function, ProfilerActivity
-
-class RayBatchStream(torch.utils.data.IterableDataset):
-    """Wrapper around Pytorch's IterableDataset to gerenate the next batch of rays and corresponding labels
-    with multiple parallel workers.
-
-    Each worker samples a small batch of images, pixel samples those images, and generates rays for one training step.
-    The same batch of images can be pixel sampled multiple times hasten ray generation, as retrieving images is process
-    bottlenecked by disk read speed. To avoid Out-Of-Memory (OOM) errors, this batch of images is small and regenerated
-    by resampling the worker's partition of images to gurantee sampling diversity.
-    """
-    def __init__(
-        self,
-        input_dataset: Dataset,
-        datamanager_config: DataManagerConfig,
-        device: Union[torch.device, str] = "cpu",
-        exclude_batch_keys_from_device: Optional[List[str]] = None,
-        num_image_load_threads: int = 4,
-    ):
-        if exclude_batch_keys_from_device is None:
-            exclude_batch_keys_from_device = ["image"]
-        self.input_dataset = input_dataset
-        assert isinstance(self.input_dataset, Sized)
-        
-        self.datamanager_config = datamanager_config
-        self.num_images_to_sample_from = self.datamanager_config.train_num_images_to_sample_from
-        self.num_times_to_repeat_images = self.datamanager_config.train_num_times_to_repeat_images
-        self.device = device
-        self.collate_fn = variable_res_collate # variable_res_collate avoids np.stack'ing images, which allows it to be much faster than `nerfstudio_collate`
-        self.num_image_load_threads = num_image_load_threads
-        """Number of threads created to read images from disk and form collated batches."""
-        self.exclude_batch_keys_from_device = exclude_batch_keys_from_device
-        """Which key of the batch (such as 'image', 'mask','depth') to prevent from moving to the device. 
-        For instance, if you would like to conserve GPU memory, don't move the image tensors to the GPU, 
-        which comes at a cost of total training time. The default value is ['image']
-        """
-        # print("self.exclude_batch_keys_from_device", self.exclude_batch_keys_from_device) # usually prints ['image']
-        
-        self.pixel_sampler: PixelSampler = None
-        self.ray_generator: RayGenerator = None
-        
-        self.enable_per_worker_image_caching = self.datamanager_config.load_from_disk == False
-        """If True, each worker's will cache its entire partition of the image dataset as image tensors in RAM."""
-        self._cached_collated_batch = None
-        """self._cached_collated_batch contains a collated batch of images for a specific worker that's ready for pixel sampling."""
-
-    def _get_pixel_sampler(self, dataset: TDataset, num_rays_per_batch: int) -> PixelSampler:
-        """copy-pasted from VanillaDataManager."""
-        from nerfstudio.cameras.cameras import CameraType
-        from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSamplerConfig
-
-        if self.datamanager_config.patch_size > 1 and type(self.datamanager_config.pixel_sampler) is PixelSamplerConfig:
-            return PatchPixelSamplerConfig().setup(
-                patch_size=self.datamanager_config.patch_size, num_rays_per_batch=num_rays_per_batch
-            )
-        is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
-        if is_equirectangular.any():
-            CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
-
-        fisheye_crop_radius = None
-        if dataset.cameras.metadata is not None:
-            fisheye_crop_radius = dataset.cameras.metadata.get("fisheye_crop_radius")
-
-        return self.datamanager_config.pixel_sampler.setup(
-            is_equirectangular=is_equirectangular,
-            num_rays_per_batch=num_rays_per_batch,
-            fisheye_crop_radius=fisheye_crop_radius,
-        )
-
-    def _get_batch_list(self, indices=None):
-        """Returns a list representing a single batch from the dataset attribute.
-        Each item of the list is a dictionary with dict_keys(['image_idx', 'image']) representing 1 image.
-        This function is used to sample and load images from disk/RAM and is only called in _get_collated_batch
-        The length of the list is equal to the (# of training images) / (num_workers)"""
-
-        assert isinstance(self.input_dataset, Sized)
-        if indices is None:
-            # Note: self.num_images_to_sample_from is usually -1, but _get_batch_list is usually called with indices != None.
-            # _get_batch_list is used by _get_collated_batch, whose indices = some partition of the dataset
-            indices = random.sample(range(len(self.input_dataset)), k=self.num_images_to_sample_from)
-        batch_list = []
-        results = []
-
-        # num_threads = int(self.num_ds_load_threads) * 4
-        num_threads = (
-            int(self.num_image_load_threads)
-            if not self.enable_per_worker_image_caching
-            else 4 * int(self.num_image_load_threads)
-        )
-        num_threads = min(num_threads, multiprocessing.cpu_count() - 1)
-        num_threads = max(num_threads, 1) # print('num_threads', num_threads) # prints 16
-
-        # NB: this is I/O heavy because we are going to disk and reading an image filename
-        # hence multi-threaded inside the worker
-        with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-            for idx in indices:
-                res = executor.submit(self.input_dataset.__getitem__, idx)
-                results.append(res)
-            results = tqdm(results) # this is temporary
-            for res in results:
-                batch_list.append(res.result())
-        
-        return batch_list
-
-    def _get_collated_batch(self, indices=None):
-        """Takes the output of _get_batch_list and collates them with nerfstudio_collate() or variable_res_collate()
-        Note: dict is an instance of collections.abc.Mapping
-
-        The resulting output is collated_batch: a dictionary with dict_keys(['image_idx', 'image'])
-        collated_batch['image_idx'] is tensor with shape torch.Size([per_worker])
-        collated_batch['image'] is tensor with shape torch.Size([per_worker, height, width, 3])
-        """
-        batch_list = self._get_batch_list(indices=indices)
-        collated_batch = self.collate_fn(batch_list)
-        collated_batch = get_dict_to_torch(
-            collated_batch, device=self.device, exclude=self.exclude_batch_keys_from_device
-        )
-        return collated_batch
-
-    def __iter__(self):
-        """This implementation allows every worker only cache the indices of the images they will use to generate rays to conserve RAM memory."""
-        worker_info = torch.utils.data.get_worker_info()
-        if worker_info is not None:  # if we have multiple processes
-            per_worker = int(math.ceil(len(self.input_dataset) / float(worker_info.num_workers)))
-            slice_start = worker_info.id * per_worker
-        else:  # we only have a single process
-            per_worker = len(self.input_dataset)
-            slice_start = 0
-        dataset_indices = list(
-            range(len(self.input_dataset))
-        )
-        worker_indices = dataset_indices[
-            slice_start : slice_start + per_worker
-        ]  # the indices of the datapoints in the dataset this worker will load
-        if self.enable_per_worker_image_caching:
-            self._cached_collated_batch = self._get_collated_batch(worker_indices)
-        r = random.Random(3301)
-        num_rays_per_loop = self.datamanager_config.train_num_rays_per_batch # default train_num_rays_per_batch is 4096
-        # each worker has its own pixel sampler
-        worker_pixel_sampler = self._get_pixel_sampler(self.input_dataset, num_rays_per_loop)
-        self.ray_generator = RayGenerator(self.input_dataset.cameras)#.to(self.device))
-            
-        i = 0
-        while True:
-            if self.enable_per_worker_image_caching:
-                collated_batch = self._cached_collated_batch
-            elif i % self.num_times_to_repeat_images == 0:
-                r.shuffle(worker_indices)
-                 
-                if self.num_images_to_sample_from == -1: # if -1, the worker gets all available indices in its partition
-                    image_indices = worker_indices
-                else: # get a total of 'num_images_to_sample_from' image indices
-                    image_indices = worker_indices[:self.num_images_to_sample_from]
-
-                collated_batch = self._get_collated_batch(image_indices)
-            i += 1
-            """
-            Here, the variable 'batch' refers to the output of our pixel sampler.
-                - batch is a dict_keys(['image', 'indices'])
-                - batch['image'] returns a pytorch tensor with shape `torch.Size([4096, 3])` , where 4096 = num_rays_per_batch. Note: each row in this tensor represents the RGB values as floats in [0, 1] of the pixel the ray goes through. The info of what specific image index that pixel belongs to is stored within batch[’indices’]
-                - batch['indices'] returns a pytorch tensor `torch.Size([4096, 3])` tensor where each row represents (image_index=camera_index, pixelRow, pixelCol)
-            What the pixel_sampler does (for variable_res_collate) is that it loops though each image, samples pixel within the mask, 
-            and returns them as the variable `indices` which has shape torch.Size([4096, 3]), where each row represents a pixel (image_idx, pixelRow, pixelCol)
-            """
-            batch = worker_pixel_sampler.sample(collated_batch) # the pixel_sampler will sample num_rays_per_batch pixels. 
-            # the returned batch of pixels also somehow moves the images from the CPU to the GPU
-            # collated_batch["image"].get_device() will return CPU if self.exclude_batch_keys_from_device == True
-            ray_indices = batch["indices"]
-            ray_bundle = self.ray_generator(ray_indices) # the ray_bundle is on the GPU, but batch["image"] is on the CPU
-            yield ray_bundle, batch
 
 
 class VanillaDataManager(DataManager, Generic[TDataset]):
@@ -669,96 +494,50 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             scale_factor=self.config.camera_res_scale_factor,
         )
 
-    def _get_pixel_sampler(self, dataset: TDataset, num_rays_per_batch: int) -> PixelSampler:
-        """Infer pixel sampler to use."""
-        if self.config.patch_size > 1 and type(self.config.pixel_sampler) is PixelSamplerConfig:
-            return PatchPixelSamplerConfig().setup(
-                patch_size=self.config.patch_size, num_rays_per_batch=num_rays_per_batch
-            )
-        is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
-        if is_equirectangular.any():
-            CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
-
-        fisheye_crop_radius = None
-        if dataset.cameras.metadata is not None:
-            fisheye_crop_radius = dataset.cameras.metadata.get("fisheye_crop_radius")
-
-        return self.config.pixel_sampler.setup(
-            is_equirectangular=is_equirectangular,
-            num_rays_per_batch=num_rays_per_batch,
-            fisheye_crop_radius=fisheye_crop_radius,
-        )
 
     def setup_train(self):
-        """Sets up the data loaders for training"""
-        assert self.train_dataset is not None
-        CONSOLE.print("Setting up training dataset...")
-
-        if self.config.use_parallel_dataloader:
-            import torch.multiprocessing as mp
-            mp.set_start_method("spawn")
-            self.raybatch_stream = RayBatchStream(
-                input_dataset=self.train_dataset,
-                datamanager_config=self.config,
-                device=self.device,
-            )
-            self.ray_dataloader = torch.utils.data.DataLoader(
-                self.raybatch_stream,
-                batch_size=1,
-                num_workers=self.config.dataloader_num_workers,
-                prefetch_factor=self.config.prefetch_factor,
-                shuffle=False,
-                # pin_memory=True,
-                # Our dataset handles batching / collation of rays
-                collate_fn=identity_collate,
-                pin_memory_device=self.device,
-            )
-            self.iter_train_raybundles = iter(self.ray_dataloader)
-        else:
-            self.iter_train_raybundles = None
-            self.train_image_dataloader = CacheDataloader(
-                self.train_dataset, 
-                num_images_to_sample_from=self.config.train_num_images_to_sample_from, # batch_size
-                num_times_to_repeat_images=self.config.train_num_times_to_repeat_images, # 
-                device=self.device,
-                num_workers=self.world_size * 4
-                if self.config.dataloader_num_workers == -1
-                else self.config.dataloader_num_workers,
-                prefetch_factor=2
-                if self.config.prefetch_factor == -1
-                else self.config.prefetch_factor,
-                pin_memory=True,
-                collate_fn=self.config.collate_fn,
-                exclude_batch_keys_from_device=self.exclude_batch_keys_from_device,
-            )
-            self.iter_train_image_dataloader = iter(self.train_image_dataloader)
-            self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
-            self.train_ray_generator = RayGenerator(self.train_dataset.cameras.to(self.device))
-
+        self.train_raybatchstream = RayBatchStream(
+            input_dataset=self.train_dataset,
+            num_rays_per_batch=self.config.train_num_rays_per_batch,
+            num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+            num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
+            device=self.device,
+            collate_fn = variable_res_collate,
+            load_from_disk = True,
+        )
+        self.train_ray_dataloader = torch.utils.data.DataLoader(
+            self.train_raybatchstream,
+            batch_size=1,
+            num_workers=self.config.dataloader_num_workers,
+            prefetch_factor=self.config.prefetch_factor,
+            shuffle=False,
+            # pin_memory=True,
+            collate_fn=identity_collate, # Our dataset handles batching / collation of rays
+            pin_memory_device=self.device,
+        )
+        self.iter_train_raybundles = iter(self.train_ray_dataloader)
+    
     def setup_eval(self):
-        """Sets up the data loader for evaluation"""
-        assert self.eval_dataset is not None
-        CONSOLE.print("Setting up evaluation dataset...")
-        self.eval_image_dataloader = CacheDataloader(
-            self.eval_dataset,
-            num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
-            num_times_to_repeat_images=self.config.eval_num_times_to_repeat_images,
-            device=self.device,
-            num_workers=self.world_size * 4,
-            pin_memory=True,
-            collate_fn=self.config.collate_fn,
-            exclude_batch_keys_from_device=self.exclude_batch_keys_from_device,
-        )
-        self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
-        self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
-        self.eval_ray_generator = RayGenerator(self.eval_dataset.cameras.to(self.device))
-        # for loading full images
-        self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
+        self.eval_raybatchstream = RayBatchStream(
             input_dataset=self.eval_dataset,
+            num_rays_per_batch=self.config.train_num_rays_per_batch,
+            num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+            num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
             device=self.device,
-            num_workers=self.world_size * 4,
+            collate_fn = variable_res_collate,
+            load_from_disk = True,
         )
-        self.eval_dataloader = RandIndicesEvalDataloader(
+        self.eval_ray_dataloader = torch.utils.data.DataLoader(
+            self.eval_raybatchstream,
+            batch_size=1,
+            num_workers=self.config.dataloader_num_workers,
+            prefetch_factor=self.config.prefetch_factor,
+            shuffle=False,
+            collate_fn=identity_collate, # Our dataset handles batching / collation of rays
+            pin_memory_device=self.device,
+        )
+        self.iter_eval_raybundles = iter(self.eval_ray_dataloader)
+        self.image_eval_dataloader = RandIndicesEvalDataloader(
             input_dataset=self.eval_dataset,
             device=self.device,
             num_workers=self.world_size * 4,
@@ -767,33 +546,23 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
-        if self.config.use_parallel_dataloader:
-            ret = next(self.iter_train_raybundles)
-            assert len(ret) == 1, f"batch size should be one {len(ret)}"
-            ray_bundle, batch = ret[0]
-            ray_bundle = ray_bundle.to(self.device)
-        else:
-            image_batch = next(self.iter_train_image_dataloader)
-            assert self.train_pixel_sampler is not None
-            assert isinstance(image_batch, dict)
-            batch = self.train_pixel_sampler.sample(image_batch)
-            ray_indices = batch["indices"]
-            ray_bundle = self.train_ray_generator(ray_indices)
+        ret = next(self.iter_train_raybundles)
+        assert len(ret) == 1, f"batch size should be one"
+        ray_bundle, batch = ret[0]
+        ray_bundle = ray_bundle.to(self.device)
         return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
-        """Returns the next batch of data from the eval dataloader."""
+        """Returns the next batch of data from the train dataloader."""
         self.eval_count += 1
-        image_batch = next(self.iter_eval_image_dataloader)
-        assert self.eval_pixel_sampler is not None
-        assert isinstance(image_batch, dict)
-        batch = self.eval_pixel_sampler.sample(image_batch)
-        ray_indices = batch["indices"]
-        ray_bundle = self.eval_ray_generator(ray_indices)
+        ret = next(self.iter_eval_raybundles)
+        assert len(ret) == 1, f"batch size should be one {len(ret)}"
+        ray_bundle, batch = ret[0]
+        ray_bundle = ray_bundle.to(self.device)
         return ray_bundle, batch
 
     def next_eval_image(self, step: int) -> Tuple[Cameras, Dict]:
-        for camera, batch in self.eval_dataloader:
+        for camera, batch in self.image_eval_dataloader:
             assert camera.shape[0] == 1
             return camera, batch
         raise ValueError("No more eval images")
