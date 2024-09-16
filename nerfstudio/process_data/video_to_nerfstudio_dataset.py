@@ -42,7 +42,7 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
     and accuracy. Exhaustive is slower but more accurate. Sequential is faster but
     should only be used for videos."""
     random_seed: Optional[int] = None
-    """Random seed to select video frames"""
+    """Random seed to select video frames for training set"""
     eval_random_seed: Optional[int] = None
     """Random seed to select video frames for eval set"""
 

@@ -140,6 +140,7 @@ def convert_video_to_images(
         verbose: If True, logs the output of the command.
         image_prefix: Prefix to use for the image filenames.
         keep_image_dir: If True, don't delete the output directory if it already exists.
+        random_seed: If set, the seed used to choose the frames of the video
     Returns:
         A tuple containing summary of the conversion and the number of extracted frames.
     """
@@ -202,9 +203,9 @@ def convert_video_to_images(
             random.seed(random_seed)
             frame_indices = sorted(random.sample(range(num_frames), num_frames_target))
             select_cmd = "select='" + "+".join([f"eq(n\,{idx})" for idx in frame_indices]) + "',setpts=N/TB,"
-            CONSOLE.print(f"Extracting {num_frames_target} frames using seed-based random selection.")
+            CONSOLE.print(f"Extracting {num_frames_target} frames using seed {random_seed} random selection.")
         elif spacing > 1:
-            CONSOLE.print("Number of frames to extract:", math.ceil(num_frames / spacing))
+            CONSOLE.print(f"Extracting {math.ceil(num_frames / spacing)} frames in evenly spaced intervals")
             select_cmd = f"thumbnail={spacing},setpts=N/TB,"
         else:
             CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
