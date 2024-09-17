@@ -33,6 +33,10 @@ def get_image_mask_tensor_from_path(filepath: Path, scale_factor: float = 1.0) -
         newsize = (int(width * scale_factor), int(height * scale_factor))
         pil_mask = pil_mask.resize(newsize, resample=Image.Resampling.NEAREST)
     mask_tensor = torch.from_numpy(np.array(pil_mask)).unsqueeze(-1).bool()
+    print(filepath, torch.sum(mask_tensor))
+    if torch.sum(mask_tensor) == 0:
+        mask_tensor[0, 0, 0] = True
+    print(filepath, torch.sum(mask_tensor))
     if len(mask_tensor.shape) != 3:
         raise ValueError("The mask image should have 1 channel")
     return mask_tensor

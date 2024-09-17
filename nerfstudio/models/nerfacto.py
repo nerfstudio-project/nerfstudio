@@ -23,29 +23,31 @@ from typing import Dict, List, Literal, Tuple, Type
 
 import numpy as np
 import torch
-from torch.nn import Parameter
-
-from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
+from nerfstudio.cameras.camera_optimizers import (CameraOptimizer,
+                                                  CameraOptimizerConfig)
 from nerfstudio.cameras.rays import RayBundle, RaySamples
-from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
+from nerfstudio.engine.callbacks import (TrainingCallback,
+                                         TrainingCallbackAttributes,
+                                         TrainingCallbackLocation)
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.nerfacto_field import NerfactoField
 from nerfstudio.model_components.losses import (
-    MSELoss,
-    distortion_loss,
-    interlevel_loss,
-    orientation_loss,
-    pred_normal_loss,
-    scale_gradients_by_distance_squared,
-)
-from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler, UniformSampler
-from nerfstudio.model_components.renderers import AccumulationRenderer, DepthRenderer, NormalsRenderer, RGBRenderer
-from nerfstudio.model_components.scene_colliders import NearFarCollider
+    MSELoss, distortion_loss, interlevel_loss, orientation_loss,
+    pred_normal_loss, scale_gradients_by_distance_squared)
+from nerfstudio.model_components.ray_samplers import (ProposalNetworkSampler,
+                                                      UniformSampler)
+from nerfstudio.model_components.renderers import (AccumulationRenderer,
+                                                   DepthRenderer,
+                                                   NormalsRenderer,
+                                                   RGBRenderer)
+from nerfstudio.model_components.scene_colliders import (AABBBoxCollider,
+                                                         NearFarCollider)
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
+from torch.nn import Parameter
 
 
 @dataclass
@@ -228,6 +230,8 @@ class NerfactoModel(Model):
 
         # Collider
         self.collider = NearFarCollider(near_plane=self.config.near_plane, far_plane=self.config.far_plane)
+        #self.collider = AABBBoxCollider(scene_box=self.scene_box)
+        print("self.scene_box", self.scene_box)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
@@ -245,7 +249,8 @@ class NerfactoModel(Model):
         # metrics
         from torchmetrics.functional import structural_similarity_index_measure
         from torchmetrics.image import PeakSignalNoiseRatio
-        from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+        from torchmetrics.image.lpip import \
+            LearnedPerceptualImagePatchSimilarity
 
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure

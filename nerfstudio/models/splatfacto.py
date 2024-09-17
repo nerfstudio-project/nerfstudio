@@ -31,19 +31,23 @@ try:
 except ImportError:
     print("Please install gsplat>=1.0.0")
 from gsplat.cuda_legacy._wrapper import num_sh_bases
-from pytorch_msssim import SSIM
-from torch.nn import Parameter
-
-from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
+from nerfstudio.cameras.camera_optimizers import (CameraOptimizer,
+                                                  CameraOptimizerConfig)
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.scene_box import OrientedBox
-from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
+from nerfstudio.engine.callbacks import (TrainingCallback,
+                                         TrainingCallbackAttributes,
+                                         TrainingCallbackLocation)
 from nerfstudio.engine.optimizers import Optimizers
-from nerfstudio.model_components.lib_bilagrid import BilateralGrid, color_correct, slice, total_variation_loss
+from nerfstudio.model_components.lib_bilagrid import (BilateralGrid,
+                                                      color_correct, slice,
+                                                      total_variation_loss)
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.misc import torch_compile
 from nerfstudio.utils.rich_utils import CONSOLE
+from pytorch_msssim import SSIM
+from torch.nn import Parameter
 
 
 def quat_to_rotmat(quat):
@@ -116,7 +120,7 @@ def resize_image(image: torch.Tensor, d: int):
     return tf.conv2d(image.permute(2, 0, 1)[:, None, ...], weight, stride=d).squeeze(1).permute(1, 2, 0)
 
 
-@torch_compile()
+# @torch_compile()
 def get_viewmat(optimized_camera_to_world):
     """
     function that converts c2w to gsplat world2camera matrix, using compile for some speed
@@ -283,7 +287,8 @@ class SplatfactoModel(Model):
 
         # metrics
         from torchmetrics.image import PeakSignalNoiseRatio
-        from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+        from torchmetrics.image.lpip import \
+            LearnedPerceptualImagePatchSimilarity
 
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = SSIM(data_range=1.0, size_average=True, channel=3)
