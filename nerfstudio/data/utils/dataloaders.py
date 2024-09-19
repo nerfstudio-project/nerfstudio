@@ -292,6 +292,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             for idx in indices:
                 res = executor.submit(self.input_dataset.__getitem__, idx)
                 results.append(res)
+            results = tqdm(results) # this is temporary and will be removed in the final push
             for res in results:
                 batch_list.append(res.result())
         
@@ -333,7 +334,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         num_rays_per_loop = self.num_rays_per_batch # default train_num_rays_per_batch is 4096
         # each worker has its own pixel sampler
         worker_pixel_sampler = self._get_pixel_sampler(self.input_dataset, num_rays_per_loop)
-        self.ray_generator = RayGenerator(self.input_dataset.cameras)
+        self.ray_generator = RayGenerator(self.input_dataset.cameras) # the generated RayBundles will be on the same device as self.input_dataset.cameras (CPU)
             
         i = 0
         while True:

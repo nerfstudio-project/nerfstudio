@@ -48,13 +48,7 @@ from nerfstudio.utils.rich_utils import CONSOLE
 
 
 class ParallelDataManager(DataManager, Generic[TDataset]):
-    """Basic stored data manager implementation.
-
-    This is pretty much a port over from our old dataloading utilities, and is a little jank
-    under the hood. We may clean this up a little bit under the hood with more standard dataloading
-    components that can be strung together, but it can be just used as a black box for now since
-    only the constructor is likely to change in the future, or maybe passing in step number to the
-    next_train and next_eval functions.
+    """Data manager implementation for parallel dataloading
 
     Args:
         config: the DataManagerConfig used to instantiate class
@@ -80,7 +74,6 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         self.device = device
         self.world_size = world_size
         self.local_rank = local_rank
-        self.sampler = None
         self.test_mode = test_mode
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
         self.dataparser_config = self.config.dataparser
@@ -106,7 +99,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             cameras = self.train_dataparser_outputs.cameras
             if len(cameras) > 1:
                 for i in range(1, len(cameras)):
-                    if cameras[0].width != cameras[i].width or cameras[0].height != cameras[i].height or True: # or True: # ADJUST COLLATE FN HERE
+                    if cameras[0].width != cameras[i].width or cameras[0].height != cameras[i].height or True:
                         CONSOLE.print("Variable resolution, using variable_res_collate")
                         self.config.collate_fn = variable_res_collate
                         break

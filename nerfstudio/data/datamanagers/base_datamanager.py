@@ -183,7 +183,6 @@ class DataManager(nn.Module):
         self.train_count = 0
         self.eval_count = 0
         if self.train_dataset and self.test_mode != "inference":
-            # print(self.setup_train) # prints <bound method ParallelFullImageDatamanager.setup_train of ParallelFullImageDatamanager()>
             self.setup_train()
         if self.eval_dataset and self.test_mode != "inference":
             self.setup_eval()
@@ -384,7 +383,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
                 torch.multiprocessing.set_start_method("spawn")
             except RuntimeError:
                 pass
-            self.dataloader_num_workers = 4
+            self.dataloader_num_workers = 4 if self.dataloader_num_workers == 0 else self.dataloader_num_workers
         
 
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
