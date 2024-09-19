@@ -39,7 +39,7 @@ from typing import (
     get_args,
     get_origin,
 )
-
+import time
 import torch
 import tyro
 from torch import nn
@@ -56,8 +56,14 @@ from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
-from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
+from nerfstudio.data.utils.dataloaders import (
+    # CacheDataloader,
+    RayBatchStream,
+    FixedIndicesEvalDataloader,
+    RandIndicesEvalDataloader,
+)
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
+from nerfstudio.data.utils.data_utils import identity_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper, get_orig_class
@@ -86,7 +92,6 @@ def variable_res_collate(batch: List[Dict]) -> Dict:
         # now that iteration is complete, the image data items can be removed from the batch
         for key in topop:
             del data[key]
-
     new_batch = nerfstudio_collate(batch)
     new_batch["image"] = images
     new_batch.update(imgdata_lists)
@@ -178,6 +183,7 @@ class DataManager(nn.Module):
         self.train_count = 0
         self.eval_count = 0
         if self.train_dataset and self.test_mode != "inference":
+            # print(self.setup_train) # prints <bound method ParallelFullImageDatamanager.setup_train of ParallelFullImageDatamanager()>
             self.setup_train()
         if self.eval_dataset and self.test_mode != "inference":
             self.setup_eval()
@@ -311,6 +317,8 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """Target class to instantiate."""
     dataparser: AnnotatedDataParserUnion = field(default_factory=BlenderDataParserConfig)
     """Specifies the dataparser used to unpack the data."""
+    cache_images_type: Literal["uint8", "float32"] = "float32"
+    """The image type returned from manager, caching images in uint8 saves memory"""
     train_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per training iteration."""
     train_num_images_to_sample_from: int = -1
@@ -331,10 +339,20 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """Specifies the collate function to use for the train and eval dataloaders."""
     camera_res_scale_factor: float = 1.0
     """The scale factor for scaling spatial data such as images, mask, semantics
-    along with relevant information about camera intrinsics
-    """
+    along with relevant information about camera intrinsics"""
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
+    use_parallel_dataloader: bool = True
+    """Allows parallelization of the dataloading process with multiple workers prefetching RayBundles."""
+    load_from_disk: bool = False
+    """If True, conserves RAM memory by loading images from disk.
+    If False, caches all the images as tensors to RAM and loads from RAM."""
+    dataloader_num_workers: int = 0
+    """The number of workers performing the dataloading from either disk/RAM, which 
+    includes collating, pixel sampling, unprojecting, ray generation etc."""
+    prefetch_factor: int = None
+    """The limit number of batches a worker will start loading once an iterator is created. 
+    More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
 
     # tyro.conf.Suppress prevents us from creating CLI arguments for this field.
     camera_optimizer: tyro.conf.Suppress[Optional[CameraOptimizerConfig]] = field(default=None)
@@ -351,7 +369,23 @@ class VanillaDataManagerConfig(DataManagerConfig):
                 "\nCameraOptimizerConfig has been moved from the DataManager to the Model.\n", style="bold yellow"
             )
             warnings.warn("above message coming from", FutureWarning, stacklevel=3)
-
+        
+        """
+        These heuristics allow the CPU dataloading bottleneck to equal the GPU bottleneck when training, but can be adjusted
+        Note: decreasing train_num_images_to_sample_from and increasing train_num_times_to_repeat_images alleviates CPU bottleneck.
+        """
+        if self.load_from_disk:
+            self.train_num_images_to_sample_from = 50 if self.train_num_images_to_sample_from == -1 else self.train_num_images_to_sample_from
+            self.train_num_times_to_repeat_images = 10 if self.train_num_times_to_repeat_images == -1 else self.train_num_times_to_repeat_images
+            self.prefetch_factor = self.train_num_times_to_repeat_images if self.use_parallel_dataloader else None
+            
+        if self.use_parallel_dataloader:
+            try:
+                torch.multiprocessing.set_start_method("spawn")
+            except RuntimeError:
+                pass
+            self.dataloader_num_workers = 4
+        
 
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
 
