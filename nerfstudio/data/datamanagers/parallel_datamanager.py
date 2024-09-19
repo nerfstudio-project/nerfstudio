@@ -36,12 +36,14 @@ from nerfstudio.data.datamanagers.base_datamanager import (
     DataManager,
     TDataset,
     VanillaDataManagerConfig,
+    VanillaDataManager,
     variable_res_collate,
 )
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
-from nerfstudio.data.utils.dataloaders import FixedIndicesEvalDataloader, RandIndicesEvalDataloader
+from nerfstudio.data.utils.dataloaders import RayBatchStream, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
+from nerfstudio.data.utils.data_utils import identity_collate
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -153,6 +155,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
             device=self.device,
             collate_fn = variable_res_collate,
+            load_from_disk = self.config.load_from_disk,
         )
         self.train_ray_dataloader = torch.utils.data.DataLoader(
             self.train_raybatchstream,
